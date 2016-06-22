@@ -29,24 +29,27 @@
 
 class GbtMaker {
   atomic<bool> running_;
+  mutex lock_;
 
   zmq::context_t zmqContext_;
-  zmq::socket_t  zmqSubBitcoind_;  // listen to bitcoind's zmq
   string zmqBitcoindAddr_;
 
   string bitcoindRpcAddr_;
   string bitcoindRpcUserpass_;
 
-  thread threadRpcCall_;
-  thread threadListenBitcoind_;
+  atomic<uint32_t> lastGbtMakeTime_;
+  uint32_t kRpcCallInterval_;
 
-  void bitcoindRpcGBT(string &resp);
 
-  void threadRpcCall();
+  bool bitcoindRpcGBT(string &resp);
+  string makeRawGbtMsg();
+
+  void submitRawGbtMsg(bool checkTime);
   void threadListenBitcoind();
+  void kafkaProduceMsg();
 
 public:
-  GbtMaker(const string &zmqBitcoind,
+  GbtMaker(const string &zmqBitcoindAddr,
            const string &bitcoindRpcAddr, const string &bitcoindRpcUserpass);
   ~GbtMaker();
 
