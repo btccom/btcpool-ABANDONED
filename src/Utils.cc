@@ -250,6 +250,8 @@ bool bitcoindRpcCall(const char *url, const char *userpwd, const char *reqData,
   curl_easy_setopt(curl, CURLOPT_USE_SSL, CURLUSESSL_TRY);
   curl_easy_setopt(curl, CURLOPT_USERAGENT, "NodeBooster/0.1");
 
+  curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
+
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CurlWriteChunkCallback);
   curl_easy_setopt(curl, CURLOPT_WRITEDATA,     (void *)&chunk);
 
@@ -305,4 +307,42 @@ string date(const char *format, const time_t timestamp) {
   gmtime_r(&ts, &tm);
   strftime(buffer, sizeof(buffer), format, &tm);
   return string(buffer);
+}
+
+string Strings::Format(const char * fmt, ...) {
+  char tmp[512];
+  string dest;
+  va_list al;
+  va_start(al, fmt);
+  int len = vsnprintf(tmp, 512, fmt, al);
+  va_end(al);
+  if (len>511) {
+    char * destbuff = new char[len+1];
+    va_start(al, fmt);
+    len = vsnprintf(destbuff, len+1, fmt, al);
+    va_end(al);
+    dest.append(destbuff, len);
+    delete[] destbuff;
+  } else {
+    dest.append(tmp, len);
+  }
+  return dest;
+}
+
+void Strings::Append(string & dest, const char * fmt, ...) {
+  char tmp[512];
+  va_list al;
+  va_start(al, fmt);
+  int len = vsnprintf(tmp, 512, fmt, al);
+  va_end(al);
+  if (len>511) {
+    char * destbuff = new char[len+1];
+    va_start(al, fmt);
+    len = vsnprintf(destbuff, len+1, fmt, al);
+    va_end(al);
+    dest.append(destbuff, len);
+    delete[] destbuff;
+  } else {
+    dest.append(tmp, len);
+  }
 }

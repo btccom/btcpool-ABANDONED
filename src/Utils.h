@@ -63,4 +63,9 @@ inline string date(const char *format) {
   return date(format, time(nullptr));
 }
 
+class Strings {
+public:
+  static string Format(const char * fmt, ...);
+  static void Append(string & dest, const char * fmt, ...);
+}
 #endif
