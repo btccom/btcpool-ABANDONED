@@ -24,12 +24,36 @@
 #ifndef KAFKA_H_
 #define KAFKA_H_
 
+#include "Common.h"
+
 #include <librdkafka/rdkafka.h>
 
-#define KAFKA_TOPIC_RAWGBT  "RawGbt"
+#define KAFKA_TOPIC_RAWGBT        "RawGbt"
+#define KAFKA_TOPIC_STRATUM_JOB   "StratumJob"
+#define KAFKA_TOPIC_SOLVED_SHARE  "SolvedShare"
 
 // Kafka logger callback
 void kafkaLogger(const rd_kafka_t *rk, int level,
                  const char *fac, const char *buf);
+
+
+///////////////////////////////// KafkaProducer ////////////////////////////////
+class KafkaProducer {
+  string brokers_;
+  string topicStr_;
+
+  rd_kafka_conf_t  *conf_;
+  rd_kafka_t       *producer_;
+  rd_kafka_topic_t *topic_;
+
+public:
+  KafkaProducer(const char *brokers, const char *topic);
+  ~KafkaProducer();
+
+  bool setup();
+  bool checkAlive();
+  void produce(const void *payload, size_t len);
+  void cleanUp();
+};
 
 #endif

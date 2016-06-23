@@ -77,6 +77,19 @@ Create Topics
 > ./bin/kafka-topics.sh --create --zookeeper 10.47.222.193:2181,10.25.244.67:2181,10.24.198.217:2181 --replication-factor 3 --partitions 1 --topic RawGbt
 ```
 
+Kafka Settings
+===============
+
+Support Big Message:
+
+```
+#
+# brokers: config/server.properties
+#
+message.max.bytes=20000000
+replica.fetch.max.bytes=30000000
+```
+
 Message Format
 ==============
 
