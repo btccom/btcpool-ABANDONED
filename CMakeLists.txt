@@ -60,12 +60,12 @@ include_directories(src test ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZ
 set(THRID_LIBRARIES "-lpthread")
 
 file(GLOB LIB_SOURCES src/*.cc src/bitcoin/*.cpp)
-add_library(libnodeboost STATIC ${LIB_SOURCES})
+add_library(poolcomponents STATIC ${LIB_SOURCES})
 
 file(GLOB_RECURSE TEST_SOURCES test/*.cc)
 add_executable(unittest ${TEST_SOURCES})
-target_link_libraries(unittest libnodeboost ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${THRID_LIBRARIES})
+target_link_libraries(unittest poolcomponents ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${KAFKA_LIBRARIES} ${THRID_LIBRARIES})
 
-file(GLOB_RECURSE NODEBOOST_SOURCES src/nodeboost/*.cc)
-add_executable(nodeboost ${NODEBOOST_SOURCES})
-target_link_libraries(nodeboost libnodeboost ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${THRID_LIBRARIES})
+file(GLOB_RECURSE GBTMAKER_SOURCES src/gbtmaker/*.cc)
+add_executable(gbtmaker ${GBTMAKER_SOURCES})
+target_link_libraries(gbtmaker poolcomponents ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${KAFKA_LIBRARIES} ${THRID_LIBRARIES})

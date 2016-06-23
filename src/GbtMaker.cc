@@ -271,9 +271,11 @@ void GbtMaker::run() {
     threadListenBitcoind.join();
 
   /* Wait for messages to be delivered */
-  while (rd_kafka_outq_len(kafkaProducer_) > 0) {
-    rd_kafka_poll(kafkaProducer_, 100);
+  if (kafkaProducer_) {
+    while (rd_kafka_outq_len(kafkaProducer_) > 0) {
+      rd_kafka_poll(kafkaProducer_, 100);
+    }
+    rd_kafka_topic_destroy(kafkaTopicRawgbt_);  // Destroy topic
+    rd_kafka_destroy(kafkaProducer_);           // Destroy the handle
   }
-  rd_kafka_topic_destroy(kafkaTopicRawgbt_);  // Destroy topic
-  rd_kafka_destroy(kafkaProducer_);           // Destroy the handle
 }
