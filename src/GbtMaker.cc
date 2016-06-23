@@ -26,21 +26,23 @@
 #include <glog/logging.h>
 #include <librdkafka/rdkafka.h>
 
-#include "Utils.h"
 #include "bitcoin/util.h"
+
+#include "Utils.h"
+#include "utilities_js.hpp"
 
 //
 // bitcoind zmq pub msg type: "hashblock", "hashtx", "rawblock", "rawtx"
 //
-#define BITCOIND_ZMQ_HASHBLOCK "hashblock"
+#define BITCOIND_ZMQ_HASHBLOCK      "hashblock"
 
 ///////////////////////////////////  GbtMaker  /////////////////////////////////
 GbtMaker::GbtMaker(const string &zmqBitcoindAddr,
                    const string &bitcoindRpcAddr, const string &bitcoindRpcUserpass,
-                   const string &kafkaBrokers)
+                   const string &kafkaBrokers, uint32_t kRpcCallInterval)
 : running_(true), zmqContext_(2/*i/o threads*/),
 zmqBitcoindAddr_(zmqBitcoindAddr), bitcoindRpcAddr_(bitcoindRpcAddr),
-bitcoindRpcUserpass_(bitcoindRpcUserpass), lastGbtMakeTime_(0), kRpcCallInterval_(10),
+bitcoindRpcUserpass_(bitcoindRpcUserpass), lastGbtMakeTime_(0), kRpcCallInterval_(kRpcCallInterval),
 kafkaConf_(nullptr), kafkaProducer_(nullptr), kafkaTopicRawgbt_(nullptr),
 kafkaBrokers_(kafkaBrokers)
 {
@@ -79,11 +81,24 @@ bool GbtMaker::init() {
       return false;
     }
     LOG(INFO) << "bitcoind getinfo: " << response;
-    // simple check fields
-    if (strstr(response.c_str(), "blocks")      == nullptr ||
-        strstr(response.c_str(), "connections") == nullptr ||
-        strstr(response.c_str(), "difficulty")  == nullptr) {
-      LOG(ERROR) << "bitcoind getinfo missing some fields info, seems NOT working";
+
+    JsonNode r;
+    if (!JsonNode::parse(response.c_str(),
+                         response.c_str() + response.length(), r)) {
+      LOG(ERROR) << "decode gbt failure";
+      return false;
+    }
+    r["result"]["blocksasdfasd"].type();
+
+    // check fields
+    if (r["result"].type() != Utilities::JS::type::Obj ||
+        r["result"]["connections"].type() != Utilities::JS::type::Int ||
+        r["result"]["blocks"].type()      != Utilities::JS::type::Int) {
+      LOG(ERROR) << "getinfo missing some fields";
+      return false;
+    }
+    if (r["result"]["connections"].int32() <= 0) {
+      LOG(ERROR) << "bitcoind connections is zero";
       return false;
     }
   }
@@ -105,6 +120,8 @@ bool GbtMaker::setupKafka() {
 
   char errstr[1024];
   //
+  // rdkafka options:
+  //
   // queue.buffering.max.ms:
   //         set to 1 (0 is an illegal value here), deliver msg as soon as possible.
   // queue.buffering.max.messages:
@@ -114,7 +131,8 @@ bool GbtMaker::setupKafka() {
   //
   // TODO: increase 'message.max.bytes' in the feature
   //
-  vector<string> conKeys = {"message.max.bytes", "compression.codec", "queue.buffering.max.ms", "queue.buffering.max.messages"};
+  vector<string> conKeys = {"message.max.bytes", "compression.codec",
+    "queue.buffering.max.ms", "queue.buffering.max.messages"};
   vector<string> conVals = {"20000000", "snappy", "1", "100"};
   assert(conKeys.size() == conVals.size());
 
@@ -142,14 +160,16 @@ bool GbtMaker::setupKafka() {
 #endif
 
   /* Add brokers */
+  LOG(INFO) << "add brokers: " << kafkaBrokers_;
   if (rd_kafka_brokers_add(kafkaProducer_, kafkaBrokers_.c_str()) == 0) {
-    LOG(ERROR) << "kafka add brokers failure, brokers: " << kafkaBrokers_;
+    LOG(ERROR) << "kafka add brokers failure";
     return false;
   }
 
   rd_kafka_topic_conf_t *kafkaTopicConf = rd_kafka_topic_conf_new();
 
   /* Create topic */
+  LOG(INFO) << "create topic handle: " << KAFKA_TOPIC_RAWGBT;
   kafkaTopicRawgbt_ = rd_kafka_topic_new(kafkaProducer_, KAFKA_TOPIC_RAWGBT, kafkaTopicConf);
   kafkaTopicConf = NULL; /* Now owned by topic */
 
@@ -190,13 +210,29 @@ string GbtMaker::makeRawGbtMsg() {
     return "";
   }
 
-  // simple check fields
-  if (strstr(gbt.c_str(), "previousblockhash") == nullptr ||
-      strstr(gbt.c_str(), "coinbasevalue")     == nullptr ||
-      strstr(gbt.c_str(), "height")            == nullptr) {
-    LOG(ERROR) << "gbt missing some fields info";
+  JsonNode r;
+  if (!JsonNode::parse(gbt.c_str(),
+                      gbt.c_str() + gbt.length(), r)) {
+    LOG(ERROR) << "decode gbt failure: " << gbt;
     return "";
   }
+
+  // check fields
+  if (r["result"].type() != Utilities::JS::type::Obj ||
+      r["result"]["previousblockhash"].type() != Utilities::JS::type::Str ||
+      r["result"]["height"].type() != Utilities::JS::type::Int ||
+      r["result"]["coinbasevalue"].type() != Utilities::JS::type::Int) {
+    LOG(ERROR) << "gbt check fields failure";
+    return "";
+  }
+
+  LOG(INFO) << "gbt height: " << r["result"]["height"].uint32()
+  << ", prev_hash: " << r["result"]["previousblockhash"].str()
+  << ", coinbase_value: " << r["result"]["coinbasevalue"].uint64()
+  << ", bits: " << r["result"]["bits"].str()
+  << ", mintime: " << r["result"]["mintime"].uint32()
+  << ", version: " << r["result"]["version"].uint32()
+  << "|0x" << Strings::Format("%08x", r["result"]["version"].uint32());
 
   return Strings::Format("{\"created_at_ts\":%u,\"block_template_base64\":\"%s\"}",
                          (uint32_t)time(nullptr), EncodeBase64(gbt).c_str());
@@ -218,7 +254,7 @@ void GbtMaker::submitRawGbtMsg(bool checkTime) {
   lastGbtMakeTime_ = (uint32_t)time(nullptr);
 
   // submit to Kafka
-  LOG(INFO) << "sumbit rawgbt to Kafka, msg len: " << rawGbtMsg.length();
+  LOG(INFO) << "sumbit to Kafka, msg len: " << rawGbtMsg.length();
   kafkaProduceMsg(rawGbtMsg.c_str(), rawGbtMsg.length());
 }
 
@@ -246,7 +282,9 @@ void GbtMaker::threadListenBitcoind() {
 
     if (type == BITCOIND_ZMQ_HASHBLOCK)
     {
-      LOG(INFO) << "recv hashblock: " << content;
+      string hashHex;
+      Bin2Hex((const uint8 *)content.data(), content.size(), hashHex);
+      LOG(INFO) << "bitcoind recv hashblock: " << hashHex;
       submitRawGbtMsg(false);
     }
     else
@@ -272,6 +310,8 @@ void GbtMaker::run() {
 
   /* Wait for messages to be delivered */
   if (kafkaProducer_) {
+    LOG(INFO) << "close kafka produer...";
+
     while (rd_kafka_outq_len(kafkaProducer_) > 0) {
       rd_kafka_poll(kafkaProducer_, 100);
     }

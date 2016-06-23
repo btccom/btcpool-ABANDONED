@@ -60,7 +60,7 @@ class GbtMaker {
 public:
   GbtMaker(const string &zmqBitcoindAddr,
            const string &bitcoindRpcAddr, const string &bitcoindRpcUserpass,
-           const string &kafkaBrokers);
+           const string &kafkaBrokers, uint32_t kRpcCallInterval);
   ~GbtMaker();
 
   bool init();

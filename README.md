@@ -68,6 +68,15 @@ cd librdkafka-0.9.1
 
 `vim /etc/ld.so.conf`添加一行：`/usr/local/lib`，并运行：`ldconfig`。
 
+Create Topics
+=============
+
+示例，三个备份，一个分区：
+
+```
+> ./bin/kafka-topics.sh --create --zookeeper 10.47.222.193:2181,10.25.244.67:2181,10.24.198.217:2181 --replication-factor 3 --partitions 1 --topic RawGbt
+```
+
 Message Format
 ==============
 
