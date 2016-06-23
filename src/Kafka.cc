@@ -21,51 +21,12 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-#ifndef GBT_MAKER_H_
-#define GBT_MAKER_H_
-
-#include "Common.h"
 #include "Kafka.h"
 
-#include "zmq.hpp"
+#include <glog/logging.h>
 
-
-class GbtMaker {
-  atomic<bool> running_;
-  mutex lock_;
-
-  zmq::context_t zmqContext_;
-  string zmqBitcoindAddr_;
-
-  string bitcoindRpcAddr_;
-  string bitcoindRpcUserpass_;
-
-  atomic<uint32_t> lastGbtMakeTime_;
-  uint32_t kRpcCallInterval_;
-
-  rd_kafka_conf_t *kafkaConf_;
-  rd_kafka_t *kafkaProducer_;
-  rd_kafka_topic_t *kafkaTopicRawgbt_;
-  string kafkaBrokers_;
-
-  bool bitcoindRpcGBT(string &resp);
-  string makeRawGbtMsg();
-
-  void submitRawGbtMsg(bool checkTime);
-  void threadListenBitcoind();
-
-  bool setupKafka();
-  void kafkaProduceMsg(const void *payload, size_t len);
-
-public:
-  GbtMaker(const string &zmqBitcoindAddr,
-           const string &bitcoindRpcAddr, const string &bitcoindRpcUserpass,
-           const string &kafkaBrokers);
-  ~GbtMaker();
-
-  bool init();
-  void stop();
-  void run();
-};
-
-#endif
+void kafkaLogger(const rd_kafka_t *rk, int level,
+                 const char *fac, const char *buf) {
+  LOG(INFO) << "RDKAFKA-" << level << "-" << fac << ": "
+  << (rk ? rd_kafka_name(rk) : NULL) << buf;
+}

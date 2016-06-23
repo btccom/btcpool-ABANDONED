@@ -25,6 +25,8 @@
 
 #include "bitcoin/util.h"
 
+#include <stdarg.h>
+
 #include <curl/curl.h>
 #include <glog/logging.h>
 
@@ -250,7 +252,7 @@ bool bitcoindRpcCall(const char *url, const char *userpwd, const char *reqData,
   curl_easy_setopt(curl, CURLOPT_USE_SSL, CURLUSESSL_TRY);
   curl_easy_setopt(curl, CURLOPT_USERAGENT, "NodeBooster/0.1");
 
-  curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
+  curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 5000L);
 
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CurlWriteChunkCallback);
   curl_easy_setopt(curl, CURLOPT_WRITEDATA,     (void *)&chunk);

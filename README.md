@@ -21,26 +21,52 @@ Pool Components
 Library
 ============
 
+Basic:
+
 * openssl
 * libconfig++
 
-zmq 4.1.4
+```
+apt-get update
+apt-get install -y build-essential autotools-dev libtool autoconf automake pkg-config cmake
+apt-get install -y openssl libssl-dev libcurl4-openssl-dev libconfig++-dev libboost-all-dev
+```
+
+zmq-v4.1.5
 
 ```
-git clone https://github.com/zeromq/libzmq
-./autogen.sh && ./configure && make -j 4
+cd /root/source
+wget https://github.com/zeromq/zeromq4-1/releases/download/v4.1.5/zeromq-4.1.5.tar.gz
+tar zxvf zeromq-4.1.5.tar.gz
+cd zeromq-4.1.5
+./autogen.sh && ./configure && make -j4
 make check && make install && ldconfig
 ```
 
-google glog
+glog-v0.3.4
 
 ```
+cd /root/source
 wget https://github.com/google/glog/archive/v0.3.4.tar.gz
 tar zxvf v0.3.4.tar.gz
 cd glog-0.3.4
 ./configure && make && make install
 ```
 
+librdkafka-v0.9.1
+
+```
+apt-get install -y zlib1g zlib1g-dev
+cd /root/source
+wget https://github.com/edenhill/librdkafka/archive/0.9.1.tar.gz
+tar zxvf 0.9.1.tar.gz
+cd librdkafka-0.9.1
+./configure && make && make install
+```
+
+更新动态库：
+
+`vim /etc/ld.so.conf`添加一行：`/usr/local/lib`，并运行：`ldconfig`。
 
 Message Format
 ==============

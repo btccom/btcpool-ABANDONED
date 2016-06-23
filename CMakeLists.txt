@@ -51,6 +51,11 @@ if(NOT Boost_FOUND)
   message(FATAL_ERROR "Boost not found!")
 endif(NOT Boost_FOUND)
 
+find_package(KafkaC)
+if(NOT KAFKA_FOUND)
+  message(FATAL_ERROR "librdkafka not found!")
+endif(NOT KAFKA_FOUND)
+
 include_directories(src test ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS})
 set(THRID_LIBRARIES "-lpthread")
 
