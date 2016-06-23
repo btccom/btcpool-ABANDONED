@@ -30,6 +30,7 @@
 
 #include <iostream>
 
+#include <boost/interprocess/sync/file_lock.hpp>
 #include <glog/logging.h>
 #include <libconfig.h++>
 
@@ -94,6 +95,14 @@ int main(int argc, char **argv) {
   } catch(const ParseException &pex) {
     std::cerr << "Parse error at " << pex.getFile() << ":" << pex.getLine()
     << " - " << pex.getError() << std::endl;
+    return(EXIT_FAILURE);
+  }
+
+  // lock cfg file:
+  //    you can't run more than one progress with the same config file
+  boost::interprocess::file_lock pidFileLock(optConf);
+  if (pidFileLock.try_lock() == false) {
+    LOG(FATAL) << "lock cfg file fail";
     return(EXIT_FAILURE);
   }
 
