@@ -44,8 +44,12 @@ KafkaProducer::~KafkaProducer() {
   if (topic_)
     rd_kafka_topic_destroy(topic_);  // Destroy topic
 
-  if (producer_)
+  if (producer_) {
+    while (rd_kafka_outq_len(producer_) > 0) {
+      rd_kafka_poll(producer_, 100);
+    }
     rd_kafka_destroy(producer_);     // Destroy the handle
+  }
 }
 
 bool KafkaProducer::setup() {
@@ -90,10 +94,16 @@ bool KafkaProducer::setup() {
   rd_kafka_set_log_level(producer_, 0);
 #endif
 
-  rd_kafka_topic_conf_t *topicConf = rd_kafka_topic_conf_new();
+  /* Add brokers */
+  LOG(INFO) << "add brokers: " << brokers_;
+  if (rd_kafka_brokers_add(producer_, brokers_.c_str()) == 0) {
+    LOG(ERROR) << "kafka add brokers failure";
+    return false;
+  }
 
   /* Create topic */
   LOG(INFO) << "create topic handle: " << topicStr_;
+  rd_kafka_topic_conf_t *topicConf = rd_kafka_topic_conf_new();
   topic_ = rd_kafka_topic_new(producer_, topicStr_.c_str(), topicConf);
   topicConf = NULL; /* Now owned by topic */
 
@@ -133,13 +143,5 @@ void KafkaProducer::produce(const void *payload, size_t len) {
   if (res == -1) {
     LOG(ERROR) << "produce to topic [ " << rd_kafka_topic_name(topic_)
     << "]: " << rd_kafka_err2str(rd_kafka_errno2err(errno));
-  }
-}
-
-void KafkaProducer::cleanUp() {
-  LOG(INFO) << "cleanup kafka produer: " << topicStr_;
-
-  while (rd_kafka_outq_len(producer_) > 0) {
-    rd_kafka_poll(producer_, 100);
   }
 }

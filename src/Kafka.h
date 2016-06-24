@@ -53,7 +53,6 @@ public:
   bool setup();
   bool checkAlive();
   void produce(const void *payload, size_t len);
-  void cleanUp();
 };
 
 #endif

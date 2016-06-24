@@ -39,14 +39,11 @@ class GbtMaker {
 
   string bitcoindRpcAddr_;
   string bitcoindRpcUserpass_;
-
   atomic<uint32_t> lastGbtMakeTime_;
   uint32_t kRpcCallInterval_;
 
-  rd_kafka_conf_t *kafkaConf_;
-  rd_kafka_t *kafkaProducer_;
-  rd_kafka_topic_t *kafkaTopicRawgbt_;
   string kafkaBrokers_;
+  KafkaProducer kafkaProducer_;
 
   bool bitcoindRpcGBT(string &resp);
   string makeRawGbtMsg();
@@ -54,7 +51,6 @@ class GbtMaker {
   void submitRawGbtMsg(bool checkTime);
   void threadListenBitcoind();
 
-  bool setupKafka();
   void kafkaProduceMsg(const void *payload, size_t len);
 
 public:

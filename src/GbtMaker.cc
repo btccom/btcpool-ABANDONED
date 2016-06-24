@@ -24,7 +24,6 @@
 #include "GbtMaker.h"
 
 #include <glog/logging.h>
-#include <librdkafka/rdkafka.h>
 
 #include "bitcoin/util.h"
 
@@ -40,34 +39,25 @@
 GbtMaker::GbtMaker(const string &zmqBitcoindAddr,
                    const string &bitcoindRpcAddr, const string &bitcoindRpcUserpass,
                    const string &kafkaBrokers, uint32_t kRpcCallInterval)
-: running_(true), zmqContext_(2/*i/o threads*/),
+: running_(true), zmqContext_(1/*i/o threads*/),
 zmqBitcoindAddr_(zmqBitcoindAddr), bitcoindRpcAddr_(bitcoindRpcAddr),
 bitcoindRpcUserpass_(bitcoindRpcUserpass), lastGbtMakeTime_(0), kRpcCallInterval_(kRpcCallInterval),
-kafkaConf_(nullptr), kafkaProducer_(nullptr), kafkaTopicRawgbt_(nullptr),
-kafkaBrokers_(kafkaBrokers)
+kafkaBrokers_(kafkaBrokers),
+kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT)
 {
 }
 
 GbtMaker::~GbtMaker() {}
 
 bool GbtMaker::init() {
-  if (!setupKafka()) {
+  // setup kafka and check if it's alive
+  if (!kafkaProducer_.setup()) {
+    LOG(ERROR) << "kafka producer setup failure";
     return false;
   }
-
-  // check kafka meta, maybe there is better solution to check brokers
-  {
-    rd_kafka_resp_err_t err;
-    const struct rd_kafka_metadata *metadata;
-    /* Fetch metadata */
-    err = rd_kafka_metadata(kafkaProducer_, kafkaTopicRawgbt_ ? 0 : 1,
-                            kafkaTopicRawgbt_, &metadata, 5000);
-    if (err != RD_KAFKA_RESP_ERR_NO_ERROR) {
-      LOG(FATAL) << "Failed to acquire metadata: " << rd_kafka_err2str(err);
-      return false;
-    }
-    // no need to print out meta data
-    rd_kafka_metadata_destroy(metadata);
+  if (!kafkaProducer_.checkAlive()) {
+    LOG(ERROR) << "kafka is NOT alive";
+    return false;
   }
 
   // check bitcoind
@@ -114,89 +104,14 @@ void GbtMaker::stop() {
   LOG(INFO) << "stop gbtmaker";
 }
 
-bool GbtMaker::setupKafka() {
-  kafkaConf_ = rd_kafka_conf_new();
-  rd_kafka_conf_set_log_cb(kafkaConf_, kafkaLogger);  // set logger
-
-  char errstr[1024];
-  //
-  // rdkafka options:
-  //
-  // queue.buffering.max.ms:
-  //         set to 1 (0 is an illegal value here), deliver msg as soon as possible.
-  // queue.buffering.max.messages:
-  //         100 is enough for gbt
-  // message.max.bytes:
-  //         Maximum transmit message size. 20000000 = 20,000,000
-  //
-  // TODO: increase 'message.max.bytes' in the feature
-  //
-  vector<string> conKeys = {"message.max.bytes", "compression.codec",
-    "queue.buffering.max.ms", "queue.buffering.max.messages"};
-  vector<string> conVals = {"20000000", "snappy", "1", "100"};
-  assert(conKeys.size() == conVals.size());
-
-  for (size_t i = 0; i < conKeys.size(); i++) {
-    if (rd_kafka_conf_set(kafkaConf_,
-                          conKeys[i].c_str(), conVals[i].c_str(),
-                          errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK) {
-      LOG(ERROR) << "kafka set conf failure: " << errstr
-      << ", key: " << conKeys[i] << ", val: " << conVals[i];
-      return false;
-    }
-  }
-
-  /* create producer */
-  if (!(kafkaProducer_ = rd_kafka_new(RD_KAFKA_PRODUCER, kafkaConf_,
-                                      errstr, sizeof(errstr)))) {
-    LOG(ERROR) << "kafka create producer failure: " << errstr;
-    return false;
-  }
-
-#ifndef NDEBUG
-  rd_kafka_set_log_level(kafkaProducer_, 0);
-#else
-  rd_kafka_set_log_level(kafkaProducer_, 7 /* LOG_DEBUG */);
-#endif
-
-  /* Add brokers */
-  LOG(INFO) << "add brokers: " << kafkaBrokers_;
-  if (rd_kafka_brokers_add(kafkaProducer_, kafkaBrokers_.c_str()) == 0) {
-    LOG(ERROR) << "kafka add brokers failure";
-    return false;
-  }
-
-  rd_kafka_topic_conf_t *kafkaTopicConf = rd_kafka_topic_conf_new();
-
-  /* Create topic */
-  LOG(INFO) << "create topic handle: " << KAFKA_TOPIC_RAWGBT;
-  kafkaTopicRawgbt_ = rd_kafka_topic_new(kafkaProducer_, KAFKA_TOPIC_RAWGBT, kafkaTopicConf);
-  kafkaTopicConf = NULL; /* Now owned by topic */
-
-  return true;
-}
-
 void GbtMaker::kafkaProduceMsg(const void *payload, size_t len) {
-  // rd_kafka_produce() is non-blocking
-  int res = rd_kafka_produce(kafkaTopicRawgbt_,
-                             RD_KAFKA_PARTITION_UA, RD_KAFKA_MSG_F_COPY,
-                             (void *)payload, len,
-                             NULL, 0,  /* Optional key and its length */
-                             /* Message opaque, provided in delivery report 
-                              * callback as msg_opaque. */
-                             NULL);
-  if (res == -1) {
-    LOG(ERROR) << "produce to topic [ " << rd_kafka_topic_name(kafkaTopicRawgbt_)
-    << "]: " << rd_kafka_err2str(rd_kafka_errno2err(errno));
-  }
+  kafkaProducer_.produce(payload, len);
 }
 
 bool GbtMaker::bitcoindRpcGBT(string &response) {
   string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getblocktemplate\",\"params\":[]}";
   bool res = bitcoindRpcCall(bitcoindRpcAddr_.c_str(), bitcoindRpcUserpass_.c_str(),
                              request.c_str(), response);
-//  LOG(INFO) << "bitcoind rpc call, rep: " << rep;
-
   if (!res) {
     LOG(ERROR) << "bitcoind rpc failure";
     return false;
@@ -307,15 +222,4 @@ void GbtMaker::run() {
 
   if (threadListenBitcoind.joinable())
     threadListenBitcoind.join();
-
-  /* Wait for messages to be delivered */
-  if (kafkaProducer_) {
-    LOG(INFO) << "close kafka produer...";
-
-    while (rd_kafka_outq_len(kafkaProducer_) > 0) {
-      rd_kafka_poll(kafkaProducer_, 100);
-    }
-    rd_kafka_topic_destroy(kafkaTopicRawgbt_);  // Destroy topic
-    rd_kafka_destroy(kafkaProducer_);           // Destroy the handle
-  }
 }
