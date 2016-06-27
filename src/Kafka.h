@@ -32,22 +32,49 @@
 #define KAFKA_TOPIC_STRATUM_JOB   "StratumJob"
 #define KAFKA_TOPIC_SOLVED_SHARE  "SolvedShare"
 
-// Kafka logger callback
-void kafkaLogger(const rd_kafka_t *rk, int level,
-                 const char *fac, const char *buf);
+///////////////////////////////// KafkaConsumer ////////////////////////////////
+class KafkaConsumer {
+  string brokers_;
+  string topicStr_;
+  int    partition_;
+
+  rd_kafka_conf_t  *conf_;
+  rd_kafka_t       *consumer_;
+  rd_kafka_topic_t *topic_;
+
+public:
+  KafkaConsumer(const char *brokers, const char *topic, int partition);
+  ~KafkaConsumer();
+
+  bool checkAlive();
+
+  //
+  // offset:
+  //     RD_KAFKA_OFFSET_BEGINNING
+  //     RD_KAFKA_OFFSET_END
+  //     RD_KAFKA_OFFSET_STORED
+  //     RD_KAFKA_OFFSET_TAIL(CNT)
+  //
+  bool setup(int64_t offset);
+  //
+  // don't forget to call rd_kafka_message_destroy() after consumer()
+  //
+  bool consumer(rd_kafka_message_t *rkmessage, int timeout_ms);
+};
 
 
 ///////////////////////////////// KafkaProducer ////////////////////////////////
 class KafkaProducer {
   string brokers_;
   string topicStr_;
+  int    partition_;
 
   rd_kafka_conf_t  *conf_;
   rd_kafka_t       *producer_;
   rd_kafka_topic_t *topic_;
 
 public:
-  KafkaProducer(const char *brokers, const char *topic);
+  KafkaProducer(const char *brokers, const char *topic, int partition);
   ~KafkaProducer();
 
   bool setup();

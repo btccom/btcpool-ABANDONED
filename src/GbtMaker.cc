@@ -43,7 +43,7 @@ GbtMaker::GbtMaker(const string &zmqBitcoindAddr,
 zmqBitcoindAddr_(zmqBitcoindAddr), bitcoindRpcAddr_(bitcoindRpcAddr),
 bitcoindRpcUserpass_(bitcoindRpcUserpass), lastGbtMakeTime_(0), kRpcCallInterval_(kRpcCallInterval),
 kafkaBrokers_(kafkaBrokers),
-kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT)
+kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT, 1/* partition */)
 {
 }
 
@@ -78,7 +78,6 @@ bool GbtMaker::init() {
       LOG(ERROR) << "decode gbt failure";
       return false;
     }
-    r["result"]["blocksasdfasd"].type();
 
     // check fields
     if (r["result"].type() != Utilities::JS::type::Obj ||
