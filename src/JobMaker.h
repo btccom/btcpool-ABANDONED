@@ -102,17 +102,19 @@ class JobMaker {
   uint32_t kGbtLifeTime_;
   std::map<uint64_t/* timestamp + height */, string> rawgbtMap_;  // sorted gbt by timestamp
 
+  void consumeRawGbtMsg(rd_kafka_message_t *rkmessage, bool needToSend);
   void addRawgbt(const char *str, size_t len);
 
   void clearTimeoutGbt();
-  bool isFindNewBestHeight(std::map<uint64_t/* height + ts */, const char *> *gbtByHeight);
+  void findNewBestHeight(std::map<uint64_t/* height + ts */, const char *> *gbtByHeight);
   bool isReachTimeout();
   void sendStratumJob(const char *gbt);
 
   void checkAndSendStratumJob();
 
 public:
-  JobMaker(const string &kafkaBrokers, uint32_t stratumJobIntveral);
+  JobMaker(const string &kafkaBrokers, uint32_t stratumJobInterval,
+           const string &payoutAddr, uint32_t gbtLifeTime);
   ~JobMaker();
 
   bool init();

@@ -69,3 +69,7 @@ target_link_libraries(unittest poolcomponents ${OPENSSL_CRYPTO_LIBRARY} ${OPENSS
 file(GLOB_RECURSE GBTMAKER_SOURCES src/gbtmaker/*.cc)
 add_executable(gbtmaker ${GBTMAKER_SOURCES})
 target_link_libraries(gbtmaker poolcomponents ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${KAFKA_LIBRARIES} ${THRID_LIBRARIES})
+
+file(GLOB_RECURSE JOBMAKER_SOURCES src/jobmaker/*.cc)
+add_executable(jobmaker ${JOBMAKER_SOURCES})
+target_link_libraries(jobmaker poolcomponents ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${KAFKA_LIBRARIES} ${THRID_LIBRARIES})

@@ -37,21 +37,21 @@
 #include "zmq.hpp"
 
 #include "Utils.h"
-#include "GbtMaker.h"
+#include "JobMaker.h"
 
 using namespace std;
 using namespace libconfig;
 
-GbtMaker *gGbtMaker = nullptr;
+JobMaker *gJobMaker = nullptr;
 
 void handler(int sig) {
-  if (gGbtMaker) {
-    gGbtMaker->stop();
+  if (gJobMaker) {
+    gJobMaker->stop();
   }
 }
 
 void usage() {
-  fprintf(stderr, "Usage:\n\tgbtmaker -c \"gbtmaker.cfg\" -l \"log_dir\"\n");
+  fprintf(stderr, "Usage:\n\tjobmaker -c \"jobmaker.cfg\" -l \"log_dir\"\n");
 }
 
 int main(int argc, char **argv) {
@@ -109,20 +109,29 @@ int main(int argc, char **argv) {
   signal(SIGTERM, handler);
   signal(SIGINT,  handler);
 
-  int32_t rpcCallInterval = 5;
-  cfg.lookupValue("gbtmaker.rpcinterval", rpcCallInterval);
-  gGbtMaker = new GbtMaker(cfg.lookup("bitcoind.zmq_addr"),
-                           cfg.lookup("bitcoind.rpc_addr"),
-                           cfg.lookup("bitcoind.rpc_userpwd"),
-                           cfg.lookup("kafka.brokers"),
-                           rpcCallInterval);
-
   try {
-    if (!gGbtMaker->init()) {
-      LOG(FATAL) << "gbtmaker init failure";
+    // check if we are using testnet3
+    bool isTestnet3 = true;
+    cfg.lookupValue("testnet", isTestnet3);
+    if (isTestnet3) {
+      SelectParams(CChainParams::TESTNET);
+      LOG(WARNING) << "using bitcoin testnet3";
+    } else {
+      SelectParams(CChainParams::MAIN);
     }
-    gGbtMaker->run();
-    delete gGbtMaker;
+
+    uint32_t stratumJobInterval, gbtLifeTime;
+    cfg.lookupValue("jobmaker.stratum_job_interval", stratumJobInterval);
+    cfg.lookupValue("jobmaker.gbt_life_time", gbtLifeTime);
+
+    gJobMaker = new JobMaker(cfg.lookup("kafka.brokers"), stratumJobInterval,
+                             cfg.lookup("pool.payout_address"), gbtLifeTime);
+
+    if (!gJobMaker->init()) {
+      LOG(FATAL) << "jobmaker init failure";
+    }
+    gJobMaker->run();
+    delete gJobMaker;
   } catch (std::exception & e) {
     LOG(FATAL) << "exception: " << e.what();
     return 1;

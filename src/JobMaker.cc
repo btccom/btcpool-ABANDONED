@@ -269,13 +269,14 @@ bool StratumJobMsg::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
 
 
 ///////////////////////////////////  JobMaker  /////////////////////////////////
-JobMaker::JobMaker(const string &kafkaBrokers,  uint32_t stratumJobIntveral):
+JobMaker::JobMaker(const string &kafkaBrokers,  uint32_t stratumJobInterval,
+                   const string &payoutAddr, uint32_t gbtLifeTime):
 running_(true),
 kafkaBrokers_(kafkaBrokers),
-kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, 1/* partition */),
-kafkaConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT,      1/* partition */),
-currBestHeight_(0), stratumJobInterval_(stratumJobIntveral),
-poolPayoutAddr_(""/*TODO check address*/), kGbtLifeTime_(120U)
+kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, RD_KAFKA_PARTITION_UA/* partition */),
+kafkaConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT,      0/* partition */, KAFKA_GROUP_JOBMAKER/*group id*/),
+currBestHeight_(0), stratumJobInterval_(stratumJobInterval),
+poolPayoutAddr_(payoutAddr), kGbtLifeTime_(gbtLifeTime)
 {
   poolCoinbaseInfo_ = "/BTC.COM/";
 }
@@ -291,6 +292,13 @@ void JobMaker::stop() {
 }
 
 bool JobMaker::init() {
+  const int32_t consumeLatestN = 20;
+  // check pool payout address
+  if (!poolPayoutAddr_.IsValid()) {
+    LOG(ERROR) << "invalid pool payout address";
+    return false;
+  }
+
   /* setup kafka */
   if (!kafkaProducer_.setup()) {
     LOG(ERROR) << "kafka producer setup failure";
@@ -301,7 +309,7 @@ bool JobMaker::init() {
     return false;
   }
   // consumer offset: latest N messages
-  if (!kafkaConsumer_.setup(RD_KAFKA_OFFSET_TAIL(-20))) {
+  if (!kafkaConsumer_.setup(RD_KAFKA_OFFSET_TAIL(consumeLatestN))) {
     LOG(ERROR) << "kafka consumer setup failure";
     return false;
   }
@@ -309,7 +317,75 @@ bool JobMaker::init() {
     LOG(ERROR) << "kafka consumer is NOT alive";
     return false;
   }
+
+  // read latest gbtmsg from kafka
+  LOG(INFO) << "consume latest rawgbt message from kafka...";
+  // sleep 3 seconds, wait for the latest N messages transfer from broker to client
+  sleep(3);
+  // consumer latest N messages
+  for (int32_t i = 0; i < consumeLatestN; i++) {
+    rd_kafka_message_t *rkmessage;
+    rkmessage = kafkaConsumer_.consumer(5000/* timeout ms */);
+    if (rkmessage == nullptr) {
+      break;
+    }
+    consumeRawGbtMsg(rkmessage, false);
+    rd_kafka_message_destroy(rkmessage);
+  }
+  LOG(INFO) << "consume latest rawgbt messages done";
+  checkAndSendStratumJob();
+
   return true;
+}
+
+void JobMaker::consumeRawGbtMsg(rd_kafka_message_t *rkmessage, bool needToSend) {
+  // check error
+  if (rkmessage->err) {
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
+      // Reached the end of the topic+partition queue on the broker.
+      // Not really an error.
+//      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
+//      << "[" << rkmessage->partition << "] "
+//      << " message queue at offset " << rkmessage->offset;
+      // acturlly 
+      return;
+    }
+
+    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
+    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
+    << ": " << rd_kafka_message_errstr(rkmessage);
+
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
+        rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
+      LOG(FATAL) << "consume fatal";
+      stop();
+    }
+    return;
+  }
+
+  LOG(INFO) << "received rawgbt message, len: " << rkmessage->len;
+  addRawgbt((const char *)rkmessage->payload, rkmessage->len);
+
+  if (needToSend) {
+    checkAndSendStratumJob();
+  }
+}
+
+void JobMaker::run() {
+  const int32_t timeoutMs = 1000;
+
+  while (running_) {
+    rd_kafka_message_t *rkmessage;
+    rkmessage = kafkaConsumer_.consumer(timeoutMs);
+    if (rkmessage == nullptr) /* timeout */
+      continue;
+
+    consumeRawGbtMsg(rkmessage, true);
+
+    /* Return message to rdkafka */
+    rd_kafka_message_destroy(rkmessage);
+
+  } /* /while */
 }
 
 void JobMaker::addRawgbt(const char *str, size_t len) {
@@ -319,7 +395,8 @@ void JobMaker::addRawgbt(const char *str, size_t len) {
     return;
   }
   if (r["created_at_ts"].type() != Utilities::JS::type::Int ||
-      r["block_template_base64"].type() != Utilities::JS::type::Str) {
+      r["block_template_base64"].type() != Utilities::JS::type::Str ||
+      r["gbthash"].type() != Utilities::JS::type::Str) {
     LOG(ERROR) << "invalid rawgbt: missing fields";
     return;
   }
@@ -327,7 +404,7 @@ void JobMaker::addRawgbt(const char *str, size_t len) {
   const uint32_t gbtTime = r["created_at_ts"].uint32();
   const int64_t timeDiff = (int64_t)time(nullptr) - (int64_t)gbtTime;
   if (labs(timeDiff) >= 60) {
-    LOG(ERROR) << "rawgbt diff time is more than 60";
+    LOG(ERROR) << "rawgbt diff time is more than 60, ingore it";
     return;  // time diff too large, there must be some problems, so ignore it
   }
   if (labs(timeDiff) >= 3) {
@@ -350,6 +427,8 @@ void JobMaker::addRawgbt(const char *str, size_t len) {
     const uint64_t key = ((uint64_t)gbtTime << 32) + (uint64_t)height;
     rawgbtMap_.insert(std::make_pair(key, gbt));
   }
+  LOG(INFO) << "add rawgbt, height: "<< height << ", gbthash: "
+  << r["gbthash"].str().substr(0, 16) << "..., gbtTime(UTC): " << date("%F %T", gbtTime);
 }
 
 void JobMaker::clearTimeoutGbt() {
@@ -362,7 +441,7 @@ void JobMaker::clearTimeoutGbt() {
       break;
     }
     // remove the oldest gbt
-    LOG(INFO) << "remove oldest rawgbt: " << date("%F %T", ts) << "|" << ts;
+//    LOG(INFO) << "remove oldest rawgbt: " << date("%F %T", ts) << "|" << ts;
     rawgbtMap_.erase(itr);
   }
 }
@@ -374,14 +453,19 @@ void JobMaker::sendStratumJob(const char *gbt) {
     return;
   }
   const string msg = sjobMsg.toString();
+
+  // sent to kafka
   kafkaProducer_.produce(msg.data(), msg.size());
 
-  LOG(INFO) << "producer stratum job, jobID: " << sjobMsg.jobID_
-  << ", height: " << sjobMsg.height_;
-  DLOG(INFO) << "msg: " << msg;
+  // set last send time
+  lastJobSendTime_ = (uint32_t)time(nullptr);
+
+  LOG(INFO) << "--------producer stratum job, jobID: " << sjobMsg.jobID_
+  << ", height: " << sjobMsg.height_ << "--------";
+  LOG(INFO) << "sjob: " << msg;
 }
 
-bool JobMaker::isFindNewBestHeight(std::map<uint64_t/* height + ts */, const char *> *gbtByHeight) {
+void JobMaker::findNewBestHeight(std::map<uint64_t/* height + ts */, const char *> *gbtByHeight) {
   for (const auto &itr : rawgbtMap_) {
     const uint32_t timestamp = (uint32_t)((itr.first >> 32) & 0x00000000FFFFFFFFULL);
     const uint32_t height    = (uint32_t)(itr.first         & 0x00000000FFFFFFFFULL);
@@ -390,14 +474,6 @@ bool JobMaker::isFindNewBestHeight(std::map<uint64_t/* height + ts */, const cha
     const uint64_t key = ((uint64_t)height << 32) + (uint64_t)timestamp;
     gbtByHeight->insert(std::make_pair(key, itr.second.c_str()));
   }
-  const uint64_t bestKey = gbtByHeight->rbegin()->first;
-  uint32_t bestHeight = (uint32_t)((bestKey >> 32) & 0x00000000FFFFFFFFULL);
-
-  if (bestHeight != currBestHeight_) {
-    LOG(INFO) << "found new best height: " << bestHeight << ", curr: " << currBestHeight_;
-    return true;
-  }
-  return false;
 }
 
 bool JobMaker::isReachTimeout() {
@@ -412,18 +488,28 @@ void JobMaker::checkAndSendStratumJob() {
   if (rawgbtMap_.size() == 0) {
     return;
   }
-
   std::map<uint64_t/* height + ts */, const char *> gbtByHeight;
+
+  // clear expired gbt first
   clearTimeoutGbt();
+
   // we need to build 'gbtByHeight' first
-  bool isFindNewHeight = isFindNewBestHeight(&gbtByHeight);
+  findNewBestHeight(&gbtByHeight);
+  bool isFindNewHeight = false;
+
+  // key: height + timestamp
+  const uint64_t bestKey = gbtByHeight.rbegin()->first;
+  const uint32_t bestHeight = (uint32_t)((bestKey >> 32) & 0x00000000FFFFFFFFULL);
+  if (bestHeight != currBestHeight_) {
+    LOG(INFO) << ">>>> found new best height: " << bestHeight
+    << ", curr: " << currBestHeight_ << " <<<<";
+    isFindNewHeight = true;
+    currBestHeight_ = bestHeight;
+  }
 
   if (isFindNewHeight || isReachTimeout()) {
     sendStratumJob(gbtByHeight.rbegin()->second);
   }
 }
 
-void JobMaker::run() {
-
-}
 

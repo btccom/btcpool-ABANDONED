@@ -43,7 +43,7 @@ GbtMaker::GbtMaker(const string &zmqBitcoindAddr,
 zmqBitcoindAddr_(zmqBitcoindAddr), bitcoindRpcAddr_(bitcoindRpcAddr),
 bitcoindRpcUserpass_(bitcoindRpcUserpass), lastGbtMakeTime_(0), kRpcCallInterval_(kRpcCallInterval),
 kafkaBrokers_(kafkaBrokers),
-kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT, 1/* partition */)
+kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT, 0/* partition */)
 {
 }
 
@@ -139,6 +139,7 @@ string GbtMaker::makeRawGbtMsg() {
     LOG(ERROR) << "gbt check fields failure";
     return "";
   }
+  const uint256 gbtHash = Hash(gbt.begin(), gbt.end());
 
   LOG(INFO) << "gbt height: " << r["result"]["height"].uint32()
   << ", prev_hash: " << r["result"]["previousblockhash"].str()
@@ -146,13 +147,18 @@ string GbtMaker::makeRawGbtMsg() {
   << ", bits: " << r["result"]["bits"].str()
   << ", mintime: " << r["result"]["mintime"].uint32()
   << ", version: " << r["result"]["version"].uint32()
-  << "|0x" << Strings::Format("%08x", r["result"]["version"].uint32());
+  << "|0x" << Strings::Format("%08x", r["result"]["version"].uint32())
+  << ", gbthash: " << gbtHash.ToString();
 
   return Strings::Format("{\"created_at_ts\":%u,"
                          "\"block_template_base64\":\"%s\","
                          "\"gbthash\":\"%s\"}",
                          (uint32_t)time(nullptr), EncodeBase64(gbt).c_str(),
-                         Hash(gbt.begin(), gbt.end()).ToString().c_str());
+                         gbtHash.ToString().c_str());
+//  return Strings::Format("{\"created_at_ts\":%u,"
+//                         "\"gbthash\":\"%s\"}",
+//                         (uint32_t)time(nullptr),
+//                         gbtHash.ToString().c_str());
 }
 
 void GbtMaker::submitRawGbtMsg(bool checkTime) {
@@ -201,7 +207,7 @@ void GbtMaker::threadListenBitcoind() {
     {
       string hashHex;
       Bin2Hex((const uint8 *)content.data(), content.size(), hashHex);
-      LOG(INFO) << "bitcoind recv hashblock: " << hashHex;
+      LOG(INFO) << ">>>> bitcoind recv hashblock: " << hashHex << " <<<<";
       submitRawGbtMsg(false);
     }
     else
