@@ -148,8 +148,11 @@ string GbtMaker::makeRawGbtMsg() {
   << ", version: " << r["result"]["version"].uint32()
   << "|0x" << Strings::Format("%08x", r["result"]["version"].uint32());
 
-  return Strings::Format("{\"created_at_ts\":%u,\"block_template_base64\":\"%s\"}",
-                         (uint32_t)time(nullptr), EncodeBase64(gbt).c_str());
+  return Strings::Format("{\"created_at_ts\":%u,"
+                         "\"block_template_base64\":\"%s\","
+                         "\"gbthash\":\"%s\"}",
+                         (uint32_t)time(nullptr), EncodeBase64(gbt).c_str(),
+                         Hash(gbt.begin(), gbt.end()).ToString().c_str());
 }
 
 void GbtMaker::submitRawGbtMsg(bool checkTime) {
