@@ -28,14 +28,17 @@
 
 #include <librdkafka/rdkafka.h>
 
-#define KAFKA_TOPIC_RAWGBT        "RawGbt"
+#define KAFKA_TOPIC_RAWGBT        "RawGbt2"
 #define KAFKA_TOPIC_STRATUM_JOB   "StratumJob"
 #define KAFKA_TOPIC_SOLVED_SHARE  "SolvedShare"
+
+#define KAFKA_GROUP_JOBMAKER      "g.JobMaker"
 
 ///////////////////////////////// KafkaConsumer ////////////////////////////////
 class KafkaConsumer {
   string brokers_;
   string topicStr_;
+  string groupId_;
   int    partition_;
 
   rd_kafka_conf_t  *conf_;
@@ -43,7 +46,8 @@ class KafkaConsumer {
   rd_kafka_topic_t *topic_;
 
 public:
-  KafkaConsumer(const char *brokers, const char *topic, int partition);
+  KafkaConsumer(const char *brokers, const char *topic,
+                int partition, const string &groupId);
   ~KafkaConsumer();
 
   bool checkAlive();
@@ -59,7 +63,7 @@ public:
   //
   // don't forget to call rd_kafka_message_destroy() after consumer()
   //
-  bool consumer(rd_kafka_message_t *rkmessage, int timeout_ms);
+  rd_kafka_message_t *consumer(int timeout_ms);
 };
 
 

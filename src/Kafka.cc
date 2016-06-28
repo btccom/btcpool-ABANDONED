@@ -35,11 +35,16 @@ void kafkaLogger(const rd_kafka_t *rk, int level,
 
 
 ///////////////////////////////// KafkaConsumer ////////////////////////////////
-KafkaConsumer::KafkaConsumer(const char *brokers, const char *topic, int partition):
-brokers_(brokers), topicStr_(topic), partition_(partition), conf_(rd_kafka_conf_new()),
-consumer_(nullptr), topic_(nullptr)
+KafkaConsumer::KafkaConsumer(const char *brokers, const char *topic,
+                             int partition, const string &groupId):
+brokers_(brokers), topicStr_(topic), groupId_(groupId),
+partition_(partition), conf_(rd_kafka_conf_new()),
+consumer_(nullptr),
+topic_(nullptr)
+//topics_(nullptr)
 {
   rd_kafka_conf_set_log_cb(conf_, kafkaLogger);  // set logger
+  LOG(INFO) << "consumer librdkafka version: " << rd_kafka_version_str();
 }
 
 KafkaConsumer::~KafkaConsumer() {
@@ -74,8 +79,12 @@ bool KafkaConsumer::setup(int64_t offset) {
   //
   // TODO: increase 'message.max.bytes' in the feature
   //
-  const vector<string> conKeys = {"message.max.bytes", "compression.codec"};
-  const vector<string> conVals = {"20000000", "snappy"};
+  const vector<string> conKeys = {"message.max.bytes", "compression.codec",
+    "queued.max.messages.kbytes","fetch.message.max.bytes","fetch.wait.max.ms",
+    "group.id"  /* Consumer grups require a group id */
+  };
+  const vector<string> conVals = {"20000000", "snappy",
+    "20000000","20000000","5", groupId_.c_str()};
   assert(conKeys.size() == conVals.size());
 
   for (size_t i = 0; i < conKeys.size(); i++) {
@@ -88,12 +97,17 @@ bool KafkaConsumer::setup(int64_t offset) {
     }
   }
 
+  rd_kafka_topic_conf_t *topicConf = rd_kafka_topic_conf_new();
+
   /* create consumer_ */
   if (!(consumer_ = rd_kafka_new(RD_KAFKA_CONSUMER, conf_,
                                  errstr, sizeof(errstr)))) {
     LOG(ERROR) << "kafka create consumer failure: " << errstr;
     return false;
   }
+
+//  /* Redirect rd_kafka_poll() to consumer_poll() */
+//  rd_kafka_poll_set_consumer(consumer_);
 
 #ifndef NDEBUG
   rd_kafka_set_log_level(consumer_, 7 /* LOG_DEBUG */);
@@ -110,7 +124,6 @@ bool KafkaConsumer::setup(int64_t offset) {
 
   /* Create topic */
   LOG(INFO) << "create topic handle: " << topicStr_;
-  rd_kafka_topic_conf_t *topicConf = rd_kafka_topic_conf_new();
   topic_ = rd_kafka_topic_new(consumer_, topicStr_.c_str(), topicConf);
   topicConf = NULL; /* Now owned by topic */
 
@@ -123,21 +136,31 @@ bool KafkaConsumer::setup(int64_t offset) {
   return true;
 }
 
+bool KafkaConsumer::checkAlive() {
+  if (consumer_ == nullptr) {
+    return false;
+  }
+
+  // check kafka meta, maybe there is better solution to check brokers
+  rd_kafka_resp_err_t err;
+  const struct rd_kafka_metadata *metadata;
+  /* Fetch metadata */
+  err = rd_kafka_metadata(consumer_, topic_ ? 0 : 1,
+                          topic_, &metadata, 3000/* timeout_ms */);
+  if (err != RD_KAFKA_RESP_ERR_NO_ERROR) {
+    LOG(FATAL) << "Failed to acquire metadata: " << rd_kafka_err2str(err);
+    return false;
+  }
+  rd_kafka_metadata_destroy(metadata);  // no need to print out meta data
+
+  return true;
+}
+
 //
 // don't forget to call rd_kafka_message_destroy() after consumer()
 //
-bool KafkaConsumer::consumer(rd_kafka_message_t *rkmessage, int timeout_ms) {
-  /* Poll for errors, etc. */
-  rd_kafka_poll(consumer_, 0);
-
-  /* Consume single message.
-   * See rdkafka_performance.c for high speed
-   * consuming of messages. */
-  rkmessage = rd_kafka_consume(topic_, partition_, timeout_ms);
-  if (!rkmessage) /* timeout */
-				return false;
-
-  return true;
+rd_kafka_message_t *KafkaConsumer::consumer(int timeout_ms) {
+  return rd_kafka_consume(topic_, partition_, timeout_ms);
 }
 
 
@@ -147,6 +170,7 @@ brokers_(brokers), topicStr_(topic), partition_(partition), conf_(rd_kafka_conf_
 producer_(nullptr), topic_(nullptr)
 {
   rd_kafka_conf_set_log_cb(conf_, kafkaLogger);  // set logger
+  LOG(INFO) << "producer librdkafka version: " << rd_kafka_version_str();
 }
 
 KafkaProducer::~KafkaProducer() {
