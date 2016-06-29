@@ -46,6 +46,11 @@ if(NOT CURL_FOUND)
   message(FATAL_ERROR "libcurl not found!")
 endif(NOT CURL_FOUND)
 
+find_package(LibEvent)
+if(NOT LIBEVENT_FOUND)
+  message(FATAL_ERROR "libevent2 not found!")
+endif(NOT LIBEVENT_FOUND)
+
 find_package(Boost 1.36.0 COMPONENTS thread filesystem system regex)
 if(NOT Boost_FOUND)
   message(FATAL_ERROR "Boost not found!")
@@ -56,7 +61,7 @@ if(NOT KAFKA_FOUND)
   message(FATAL_ERROR "librdkafka not found!")
 endif(NOT KAFKA_FOUND)
 
-include_directories(src test ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS})
+include_directories(src test ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS} ${LIBEVENT_INCLUDE_DIR})
 set(THRID_LIBRARIES "-lpthread")
 
 file(GLOB LIB_SOURCES src/*.cc src/bitcoin/*.cpp)
@@ -73,3 +78,7 @@ target_link_libraries(gbtmaker poolcomponents ${OPENSSL_CRYPTO_LIBRARY} ${OPENSS
 file(GLOB_RECURSE JOBMAKER_SOURCES src/jobmaker/*.cc)
 add_executable(jobmaker ${JOBMAKER_SOURCES})
 target_link_libraries(jobmaker poolcomponents ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${KAFKA_LIBRARIES} ${THRID_LIBRARIES})
+
+file(GLOB_RECURSE SSERVER_SOURCES src/sserver/*.cc)
+add_executable(sserver ${SSERVER_SOURCES})
+target_link_libraries(sserver poolcomponents ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBEVENT_LIB} ${THRID_LIBRARIES} )
