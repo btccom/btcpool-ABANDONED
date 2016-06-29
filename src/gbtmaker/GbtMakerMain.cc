@@ -120,8 +120,9 @@ int main(int argc, char **argv) {
   try {
     if (!gGbtMaker->init()) {
       LOG(FATAL) << "gbtmaker init failure";
+    } else {
+      gGbtMaker->run();
     }
-    gGbtMaker->run();
     delete gGbtMaker;
   } catch (std::exception & e) {
     LOG(FATAL) << "exception: " << e.what();

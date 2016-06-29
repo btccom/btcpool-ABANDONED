@@ -128,11 +128,13 @@ int main(int argc, char **argv) {
                              cfg.lookup("pool.payout_address"), gbtLifeTime);
 
     if (!gJobMaker->init()) {
-      LOG(FATAL) << "jobmaker init failure";
+      LOG(FATAL) << "init failure";
+    } else {
+      gJobMaker->run();
     }
-    gJobMaker->run();
     delete gJobMaker;
-  } catch (std::exception & e) {
+  }
+  catch (std::exception & e) {
     LOG(FATAL) << "exception: " << e.what();
     return 1;
   }
