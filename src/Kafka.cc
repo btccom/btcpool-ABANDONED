@@ -36,12 +36,11 @@ void kafkaLogger(const rd_kafka_t *rk, int level,
 
 ///////////////////////////////// KafkaConsumer ////////////////////////////////
 KafkaConsumer::KafkaConsumer(const char *brokers, const char *topic,
-                             int partition, const string &groupId):
-brokers_(brokers), topicStr_(topic), groupId_(groupId),
+                             int partition):
+brokers_(brokers), topicStr_(topic),
 partition_(partition), conf_(rd_kafka_conf_new()),
 consumer_(nullptr),
 topic_(nullptr)
-//topics_(nullptr)
 {
   rd_kafka_conf_set_log_cb(conf_, kafkaLogger);  // set logger
   LOG(INFO) << "consumer librdkafka version: " << rd_kafka_version_str();
@@ -80,11 +79,10 @@ bool KafkaConsumer::setup(int64_t offset) {
   // TODO: increase 'message.max.bytes' in the feature
   //
   const vector<string> conKeys = {"message.max.bytes", "compression.codec",
-    "queued.max.messages.kbytes","fetch.message.max.bytes","fetch.wait.max.ms",
-    "group.id"  /* Consumer grups require a group id */
+    "queued.max.messages.kbytes","fetch.message.max.bytes","fetch.wait.max.ms"
   };
   const vector<string> conVals = {"20000000", "snappy",
-    "20000000","20000000","5", groupId_.c_str()};
+    "20000000","20000000","5"};
   assert(conKeys.size() == conVals.size());
 
   for (size_t i = 0; i < conKeys.size(); i++) {

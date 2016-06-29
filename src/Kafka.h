@@ -32,13 +32,10 @@
 #define KAFKA_TOPIC_STRATUM_JOB   "StratumJob"
 #define KAFKA_TOPIC_SOLVED_SHARE  "SolvedShare"
 
-#define KAFKA_GROUP_JOBMAKER      "g.JobMaker"
-
 ///////////////////////////////// KafkaConsumer ////////////////////////////////
 class KafkaConsumer {
   string brokers_;
   string topicStr_;
-  string groupId_;
   int    partition_;
 
   rd_kafka_conf_t  *conf_;
@@ -46,8 +43,7 @@ class KafkaConsumer {
   rd_kafka_topic_t *topic_;
 
 public:
-  KafkaConsumer(const char *brokers, const char *topic,
-                int partition, const string &groupId);
+  KafkaConsumer(const char *brokers, const char *topic, int partition);
   ~KafkaConsumer();
 
   bool checkAlive();
