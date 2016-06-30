@@ -21,8 +21,8 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
 */
-#ifndef COMMON_H_
-#define COMMON_H_
+#ifndef POOL_COMMON_H_
+#define POOL_COMMON_H_
 
 #include <unistd.h>
 #include <stdint.h>
@@ -130,5 +130,7 @@ uint64 TargetToBdiff(uint256 &target);
 uint64 TargetToBdiff(const string &str);
 uint64 TargetToPdiff(uint256 &target);
 uint64 TargetToPdiff(const string &str);
+
+void BitsToTarget(uint32 bits, uint256 & target);
 
 #endif

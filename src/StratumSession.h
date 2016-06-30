@@ -27,7 +27,7 @@
 #include "Common.h"
 
 #include <netinet/in.h>
-#include <queue>
+#include <deque>
 
 #include <event2/event.h>
 #include <event2/buffer.h>
@@ -37,47 +37,9 @@
 
 #include "bitcoin/uint256.h"
 #include "utilities_js.hpp"
+#include "Stratum.h"
 
-//////////////////////////////// StratumError ////////////////////////////////
-class StratumError {
-public:
-  enum {
-    NO_ERROR        = 0,
-
-    UNKNOWN         = 20,
-    JOB_NOT_FOUND   = 21,
-    DUPLICATE_SHARE = 22,
-    LOW_DIFFICULTY  = 23,
-    UNAUTHORIZED    = 24,
-    NOT_SUBSCRIBED  = 25,
-
-    ILLEGAL_METHOD   = 26,
-    ILLEGAL_PARARMS  = 27,
-    IP_BANNED        = 28,
-    INVALID_USERNAME = 29,
-    INTERNAL_ERROR   = 30,
-    TIME_TOO_OLD     = 31,
-    TIME_TOO_NEW     = 32
-  };
-  static const char * toString(int err);
-};
-
-//////////////////////////////// StratumWorker ////////////////////////////////
-class StratumWorker {
-public:
-  int32_t  userId_;
-  uint64_t workerHashId_;  // substr(0, 8, HASH(wokerName))
-
-  string fullName_;  // fullName = username.workername
-  string userName_;
-  string workerName_;
-
-public:
-  StratumWorker();
-  void setUserIDAndNames(const int32_t userId, const string &fullName);
-  string getUserName(const string &fullName);
-};
-
+class Server;
 
 //
 // cgminer support methods:
@@ -126,13 +88,13 @@ class StratumSession {
 
   // latest stratum jobs of this session
   struct LocalJob {
-    uint64_t jobid_;
-    uint64_t difficulty_;     // only support strict integer difficulty
-    uint256  target_;
+    uint64_t jobId_;
+    uint64_t jobDifficulty_;     // difficulty of this job
+    uint256  jobTarget_;
     uint32_t nBits_;
     std::set<LocalShare> submitShares_;
 
-    LocalJob(): jobid_(0), difficulty_(0), nBits_(0) {}
+    LocalJob(): jobId_(0), jobDifficulty_(0), nBits_(0) {}
 
     bool addLocalShare(const LocalShare &localShare) {
       auto itr = submitShares_.find(localShare);
@@ -155,7 +117,7 @@ class StratumSession {
   uint32 extraNonce1_;   // MUST be unique across all servers
   static const int kExtraNonce2Size_ = 8;  // extraNonce2 size is always 8 bytes
 
-  std::queue<LocalJob> localJobs_;
+  std::deque<LocalJob> localJobs_;
   size_t kMaxNumLocalJobs_;
 
   struct evbuffer *inBuf_;
@@ -173,22 +135,23 @@ class StratumSession {
   void handleLine(const string &line);
   void handleRequest(const string &idStr, const string &method, const JsonNode &jparams);
 
-  void handleRequest_Subscribe(const string &idStr, const JsonNode &jparams);
-  void handleRequest_Authorize(const string &idStr, const JsonNode &jparams);
-  void handleRequest_SuggestTarget(const string &idStr, const JsonNode &jparams);
+  void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams);
+  void handleRequest_Authorize        (const string &idStr, const JsonNode &jparams);
+  void handleRequest_Submit           (const string &idStr, const JsonNode &jparams);
+  void handleRequest_SuggestTarget    (const string &idStr, const JsonNode &jparams);
   void handleRequest_SuggestDifficulty(const string &idStr, const JsonNode &jparams);
-  void handleRequest_Submit();
   void _handleRequest_SetDifficulty(uint64_t suggestDiff);
 
+  LocalJob *findLocalJob(uint64_t jobId);
 
 public:
   struct bufferevent* bev_;
   evutil_socket_t fd_;
-  void *server_;
+  Server *server_;
 
 public:
   StratumSession(evutil_socket_t fd, struct bufferevent *bev,
-                 void *server, struct sockaddr *saddr);
+                 Server *server, struct sockaddr *saddr);
   ~StratumSession();
 
   void send(const char *data, size_t len);

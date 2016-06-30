@@ -27,79 +27,11 @@
 
 #include <arpa/inet.h>
 
-
-//////////////////////////////// StratumError ////////////////////////////////
-const char * StratumError::toString(int err) {
-  switch (err) {
-    case NO_ERROR:
-      return "no error";
-
-    case JOB_NOT_FOUND:
-      return "job not found(stale)";
-    case DUPLICATE_SHARE:
-      return "duplicate share";
-    case LOW_DIFFICULTY:
-      return "low difficulty";
-    case UNAUTHORIZED:
-      return "unauthorized";
-    case NOT_SUBSCRIBED:
-      return "not subscribed";
-
-    case ILLEGAL_METHOD:
-      return "illegal method";
-    case ILLEGAL_PARARMS:
-      return "illegal params";
-    case IP_BANNED:
-      return "ip banned";
-    case INVALID_USERNAME:
-      return "invliad username";
-    case INTERNAL_ERROR:
-      return "internal error";
-    case TIME_TOO_OLD:
-      return "time too old";
-    case TIME_TOO_NEW:
-      return "time too new";
-
-    case UNKNOWN: default:
-      return "unknown";
-  }
-}
-
-//////////////////////////////// StratumWorker ////////////////////////////////
-StratumWorker::StratumWorker(): userId_(0), workerHashId_(0) {}
-
-string StratumWorker::getUserName(const string &fullName) {
-  auto pos = fullName.find(".");
-  if (pos == fullName.npos) {
-    return fullName;
-  }
-  return fullName.substr(0, pos);
-}
-
-void StratumWorker::setUserIDAndNames(const int32_t userId, const string &fullName) {
-  userId_ = userId;
-
-  auto pos = fullName.find(".");
-  if (pos == fullName.npos) {
-    userName_   = fullName;
-    workerName_ = "default";
-  } else {
-    userName_   = fullName.substr(0, pos);
-    workerName_ = fullName.substr(pos+1);
-  }
-
-  // max length for worker name is 20
-  if (workerName_.length() > 20) {
-    workerName_.resize(20);
-  }
-
-  fullName_ = userName_ + "." + workerName_;
-}
-
+#include "StratumServer.h"
 
 //////////////////////////////// StratumSession ////////////////////////////////
 StratumSession::StratumSession(evutil_socket_t fd, struct bufferevent *bev,
-                               void *server, struct sockaddr *saddr)
+                               Server *server, struct sockaddr *saddr)
 : fd_(fd), bev_(bev), server_(server)
 {
   state_ = CONNECTED;
@@ -225,18 +157,17 @@ void StratumSession::responseError(const string &idStr, int errCode) {
                      idStr.empty() ? "null" : idStr.c_str(),
                      errCode, StratumError::toString(errCode));
   send(buf, len);
+}
 
-//  if (isClose) {
-//    const string s = "{\"id\":null,\"method\":\"client.reconnect\",\"params\":[]}\n";
-//    send(s.c_str(), s.length());
-//    state_ = CLOSED;
-//  }
+void StratumSession::responseTrue(const string &idStr) {
+  const string s = "{\"id\":" + idStr + ",\"result\": true,\"error\":null}\n";
+  send(s.c_str(), s.length());
 }
 
 void StratumSession::handleRequest(const string &idStr, const string &method,
                                    const JsonNode &jparams) {
   if (method == "mining.submit") {  // most of requests are 'mining.submit'
-    handleRequest_Submit();
+    handleRequest_Submit(idStr, jparams);
   }
   else if (method == "mining.subscribe") {
     handleRequest_Subscribe(idStr, jparams);
@@ -254,11 +185,6 @@ void StratumSession::handleRequest(const string &idStr, const string &method,
     LOG(WARNING) << "unrecognised method: \"" << method << "\""
     << ", client: " << clientIp_ << "/" << clientAgent_;
   }
-}
-
-void StratumSession::responseTrue(const string &idStr) {
-  const string s = "{\"id\":" + idStr + ",\"result\": true,\"error\":null}\n";
-  send(s.c_str(), s.length());
 }
 
 void StratumSession::handleRequest_Subscribe(const string &idStr,
@@ -361,8 +287,66 @@ void StratumSession::handleRequest_SuggestDifficulty(const string &idStr,
   _handleRequest_SetDifficulty(jparams.children()->at(0).uint64());
 }
 
-void StratumSession::handleRequest_Submit() {
+void StratumSession::handleRequest_Submit(const string &idStr,
+                                          const JsonNode &jparams) {
+  if (state_ != AUTHENTICATED) {
+    responseError(idStr, StratumError::UNAUTHORIZED);
 
+    // there must be something wrong, send reconnect command
+    const string s = "{\"id\":null,\"method\":\"client.reconnect\",\"params\":[]}\n";
+    send(s.c_str(), s.length());
+
+    return;
+  }
+
+  //  params[0] = Worker Name
+  //  params[1] = Job ID
+  //  params[2] = ExtraNonce 2
+  //  params[3] = nTime
+  //  params[4] = nonce
+  if (jparams.children()->size() != 5) {
+    responseError(idStr, StratumError::ILLEGAL_PARARMS);
+    return;
+  }
+  const uint64 jobId       = jparams.children()->at(1).uint64();
+  const uint64 extraNonce2 = jparams.children()->at(2).uint64_hex();
+  string extraNonce2Hex    = jparams.children()->at(2).str();
+  const uint32 nTime       = jparams.children()->at(3).uint32_hex();
+  const uint32 nonce       = jparams.children()->at(4).uint32_hex();
+
+  if (extraNonce2Hex.length()/2 > kExtraNonce2Size_) {
+    extraNonce2Hex.resize(kExtraNonce2Size_ * 2);
+  }
+  LocalJob *localJob = findLocalJob(jobId);
+  if (localJob == nullptr) {
+    responseError(idStr, StratumError::JOB_NOT_FOUND);
+    return;
+  }
+
+  LocalShare localShare(extraNonce2, nonce, nTime);
+  if (!localJob->addLocalShare(localShare)) {
+    responseError(idStr, StratumError::DUPLICATE_SHARE);
+    return;
+  }
+
+  int result = server_->submitShare(jobId, extraNonce1_, extraNonce2Hex, nTime,
+                                    nonce, localJob->jobTarget_, worker_.fullName_);
+  if (result != StratumError::NO_ERROR) {
+    responseError(idStr, result);
+    return;
+  }
+
+  // accept share
+  responseTrue(idStr);
+}
+
+StratumSession::LocalJob *StratumSession::findLocalJob(uint64_t jobId) {
+  for (auto rit = localJobs_.rbegin(); rit != localJobs_.rend(); ++rit) {
+    if (rit->jobId_ == jobId) {
+      return &(*rit);
+    }
+  }
+  return nullptr;
 }
 
 void StratumSession::send(const char *data, size_t len) {

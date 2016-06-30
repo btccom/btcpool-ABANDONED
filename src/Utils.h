@@ -21,8 +21,8 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
 */
-#ifndef UTILS_H_
-#define UTILS_H_
+#ifndef POOL_UTILS_H_
+#define POOL_UTILS_H_
 
 #include <string>
 #include <sstream>

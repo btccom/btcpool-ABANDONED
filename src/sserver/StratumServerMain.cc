@@ -123,7 +123,8 @@ int main(int argc, char **argv) {
     int32_t port = 3333;
     cfg.lookupValue("sserver.port", port);
     gStratumServer = new StratumServer(cfg.lookup("sserver.ip").c_str(),
-                                       (unsigned short)port);
+                                       (unsigned short)port,
+                                       cfg.lookup("kafka.brokers").c_str());
 
     if (!gStratumServer->init()) {
       LOG(FATAL) << "init failure";

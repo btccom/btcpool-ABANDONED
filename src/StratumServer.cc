@@ -23,18 +23,99 @@
  */
 #include "StratumServer.h"
 
+#include "Common.h"
+#include "Kafka.h"
+#include "Utils.h"
+
+
+////////////////////////////////// JobRepository ///////////////////////////////
+JobRepository::JobRepository(const char *kafkaBrokers):
+kafkaConsumer_(kafkaBrokers, KAFKA_TOPIC_STRATUM_JOB, 0/*patition*/)
+{
+}
+
+JobRepository::~JobRepository() {
+}
+
+shared_ptr<StratumJobEx> JobRepository::getStratumJobEx(const uint64_t jobId) {
+  ScopeLock sl(lock_);
+  auto itr = exJobs_.find(jobId);
+  if (itr != exJobs_.end()) {
+    return itr->second;
+  }
+  return nullptr;
+}
+
+
+////////////////////////////////// StratumJobEx ////////////////////////////////
+StratumJobEx::StratumJobEx(StratumJob *sjob):
+sjob_(sjob), isClean_(false), state_(MINING)
+{
+}
+
+StratumJobEx::~StratumJobEx() {
+  if (sjob_) {
+    delete sjob_;
+    sjob_ = nullptr;
+  }
+}
+
+void StratumJobEx::markStale() {
+  ScopeLock sl(lock_);
+  state_ = STALE;
+}
+
+bool StratumJobEx::isStale() {
+  ScopeLock sl(lock_);
+  return (state_ == STALE);
+}
+
+void StratumJobEx::generateCoinbaseTx(std::vector<char> *coinbaseBin,
+                                      const uint32 extraNonce1,
+                                      const string &extraNonce2Hex) {
+  string coinbaseHex;
+  const string extraNonceStr = Strings::Format("%08x%s", extraNonce1, extraNonce2Hex.c_str());
+  coinbaseHex.append(sjob_->coinbase1_);
+  coinbaseHex.append(extraNonceStr);
+  coinbaseHex.append(sjob_->coinbase2_);
+  Hex2Bin((const char *)coinbaseHex.c_str(), *coinbaseBin);
+}
+
+void StratumJobEx::generateBlockHeader(CBlockHeader *header,
+                                       const vector<char> &coinbaseTx,
+                                       const vector<uint256> &merkleBranch,
+                                       const uint256 &hashPrevBlock,
+                                       const uint32 nBits, const int nVersion,
+                                       const uint32 nTime, const uint32 nonce) {
+  header->hashPrevBlock = hashPrevBlock;
+  header->nVersion      = nVersion;
+  header->nBits         = nBits;
+  header->nTime         = nTime;
+  header->nNonce        = nonce;
+
+  // hashMerkleRoot
+  Hash(coinbaseTx.begin(), coinbaseTx.end(), header->hashMerkleRoot);
+  for (const uint256 & step : merkleBranch) {
+    header->hashMerkleRoot = Hash(header->hashMerkleRoot.begin(),
+                                  header->hashMerkleRoot.end(),
+                                  step.begin(), step.end());
+  }
+}
 
 ////////////////////////////////// StratumServer ///////////////////////////////
-StratumServer::StratumServer(const char *ip, const unsigned short port):
-running_(true), ip_(ip), port_(port) {
+StratumServer::StratumServer(const char *ip, const unsigned short port,
+                             const char *kafkaBrokers)
+:running_(true), ip_(ip), port_(port), kafkaBrokers_(kafkaBrokers)
+{
+  // TODO: serverId_
 }
 
 StratumServer::~StratumServer() {
 }
 
 bool StratumServer::init() {
-  if (!server_.setup(ip_.c_str(), port_)) {
-    LOG(ERROR) << "fail to setup tcp server";
+  if (!server_.setup(ip_.c_str(), port_, kafkaBrokers_.c_str())) {
+    LOG(ERROR) << "fail to setup server";
     return false;
   }
   return true;
@@ -55,25 +136,38 @@ void StratumServer::run() {
   }
 }
 
-
 ///////////////////////////////////// Server ///////////////////////////////////
-Server::Server(): base_(NULL), listener_(NULL), signal_event_(NULL)
+Server::Server(): base_(NULL), listener_(NULL), signal_event_(NULL),
+kafkaProducerSolvedShare_(nullptr), kafkaProducerShareLog_(nullptr)
 {
 }
 
 Server::~Server() {
-  if(signal_event_ != NULL) {
+  if (signal_event_ != nullptr) {
     event_free(signal_event_);
   }
-  if(listener_ != NULL) {
+  if (listener_ != nullptr) {
     evconnlistener_free(listener_);
   }
-  if(base_ != NULL) {
+  if (base_ != nullptr) {
     event_base_free(base_);
+  }
+  if (kafkaProducerShareLog_ != nullptr) {
+    delete kafkaProducerShareLog_;
+  }
+  if (kafkaProducerSolvedShare_ != nullptr) {
+    delete kafkaProducerSolvedShare_;
   }
 }
 
-bool Server::setup(const char *ip, const unsigned short port) {
+bool Server::setup(const char *ip, const unsigned short port, const char *kafkaBrokers) {
+  kafkaProducerSolvedShare_ = new KafkaProducer(kafkaBrokers,
+                                                KAFKA_TOPIC_SOLVED_SHARE,
+                                                RD_KAFKA_PARTITION_UA);
+  kafkaProducerShareLog_ = new KafkaProducer(kafkaBrokers,
+                                             KAFKA_TOPIC_SHARE_LOG,
+                                             RD_KAFKA_PARTITION_UA);
+  jobRepository_ = new JobRepository(kafkaBrokers);
 
   base_ = event_base_new();
   if(!base_) {
@@ -151,7 +245,7 @@ void Server::listenerCallback(struct evconnlistener* listener,
     return;
   }
 
-  StratumSession* conn = new StratumSession(fd, bev, (void*)server, saddr);
+  StratumSession* conn = new StratumSession(fd, bev, server, saddr);
   server->addConnection(fd, conn);
 
   bufferevent_setcb(bev,
@@ -185,5 +279,54 @@ void Server::eventCallback(struct bufferevent* bev, short events,
   else {
     LOG(ERROR) << "unhandled events: " << events;
   }
+}
+
+int Server::submitShare(const uint64_t jobId,
+                        const uint32 extraNonce1, const string &extraNonce2Hex,
+                        const uint32_t nTime, const uint32_t nonce,
+                        const uint256 &jobTarget, const string &workName) {
+  shared_ptr<StratumJobEx> exJobPtr = jobRepository_->getStratumJobEx(jobId);
+  if (exJobPtr == nullptr) {
+    return StratumError::JOB_NOT_FOUND;
+  }
+  StratumJob *sjob = exJobPtr->sjob_;
+
+  if (exJobPtr->isStale()) {
+    return StratumError::JOB_NOT_FOUND;
+  }
+  if (nTime <= sjob->minTime_) {
+    return StratumError::TIME_TOO_OLD;
+  }
+  if (nTime > sjob->nTime_ + 600) {
+    return StratumError::TIME_TOO_NEW;
+  }
+
+  vector<char> coinbaseBin;
+  exJobPtr->generateCoinbaseTx(&coinbaseBin, extraNonce1, extraNonce2Hex);
+
+  CBlockHeader header;
+  exJobPtr->generateBlockHeader(&header, coinbaseBin, sjob->merkleBranch_,
+                                sjob->prevHash_, sjob->nBits_, sjob->nVersion_,
+                                nTime, nonce);
+  uint256 blkHash = header.GetHash();
+
+  if (blkHash <= sjob->networkTarget_) {
+    // TODO: broadcast block solved share
+  }
+
+  // print out high diff share, 2^10 = 1024
+  if ((blkHash >> 10) <= sjob->networkTarget_) {
+    LOG(INFO) << "high diff share, blkhash: " << blkHash.ToString()
+    << ", diff: " << TargetToBdiff(blkHash)
+    << ", networkDiff: " << TargetToBdiff(sjob->networkTarget_)
+    << ", by: " << workName;
+  }
+
+  if (blkHash > jobTarget) {
+    return StratumError::LOW_DIFFICULTY;
+  }
+
+  // reach here means an valid share
+  return StratumError::NO_ERROR;
 }
 

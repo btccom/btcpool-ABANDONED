@@ -51,3 +51,9 @@ uint64 TargetToPdiff(const string &str) {
   t.SetHex(str);
   return strtoull((m / t).ToString().c_str(), NULL, 10);
 }
+
+void BitsToTarget(uint32 bits, uint256 & target) {
+  uint64 nbytes = (bits >> 24) & 0xff;
+  target = bits & 0xffffffULL;
+  target <<= (8 * ((uint8)nbytes - 3));
+}

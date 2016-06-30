@@ -31,6 +31,7 @@
 #define KAFKA_TOPIC_RAWGBT        "RawGbt2"
 #define KAFKA_TOPIC_STRATUM_JOB   "StratumJob"
 #define KAFKA_TOPIC_SOLVED_SHARE  "SolvedShare"
+#define KAFKA_TOPIC_SHARE_LOG     "ShareLog"
 
 ///////////////////////////////// KafkaConsumer ////////////////////////////////
 class KafkaConsumer {

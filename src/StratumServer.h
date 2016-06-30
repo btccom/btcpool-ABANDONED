@@ -26,6 +26,10 @@
 
 #include "Common.h"
 
+#include <map>
+#include <vector>
+#include <memory>
+
 #include <arpa/inet.h>
 #include <sys/socket.h>
 
@@ -37,23 +41,81 @@
 
 #include <glog/logging.h>
 
+#include "bitcoin/core.h"
+#include "Kafka.h"
+#include "Stratum.h"
 #include "StratumSession.h"
+
+class StratumJobEx;
+
+
+////////////////////////////////// JobRepository ///////////////////////////////
+class JobRepository {
+  mutex lock_;
+  std::map<uint64_t/* jobId */, shared_ptr<StratumJobEx> > exJobs_;
+
+  KafkaConsumer kafkaConsumer_;
+
+public:
+  JobRepository(const char *kafkaBrokers);
+  ~JobRepository();
+
+  shared_ptr<StratumJobEx> getStratumJobEx(const uint64_t jobId);
+};
+
+
+////////////////////////////////// StratumJobEx ////////////////////////////////
+class StratumJobEx {
+  enum State {
+    MINING = 0,
+    STALE  = 1
+  };
+
+  //------------
+  mutex lock_;
+  bool isClean_;
+  State state_;
+
+public:
+  StratumJob *sjob_;
+
+public:
+  StratumJobEx(StratumJob *sjob);
+  ~StratumJobEx();
+
+  void markStale();
+  bool isStale();
+
+  void generateCoinbaseTx(std::vector<char> *coinbaseBin, const uint32 extraNonce1,
+                          const string &extraNonce2Hex);
+  void generateBlockHeader(CBlockHeader *header,
+                           const vector<char> &coinbaseTx,
+                           const vector<uint256> &merkleBranch,
+                           const uint256 &hashPrevBlock,
+                           const uint32 nBits, const int nVersion,
+                           const uint32 nTime, const uint32 nonce);
+};
 
 
 ///////////////////////////////////// Server ///////////////////////////////////
 class Server {
+  // NetIO
   struct sockaddr_in sin_;
   struct event_base* base_;
   struct event* signal_event_;
   struct evconnlistener* listener_;
-
   map<evutil_socket_t, StratumSession *> connections_;
+
+  // Stratum
+  JobRepository *jobRepository_;
+  KafkaProducer *kafkaProducerShareLog_;
+  KafkaProducer *kafkaProducerSolvedShare_;
 
 public:
   Server();
   ~Server();
 
-  bool setup(const char *ip, const unsigned short port);
+  bool setup(const char *ip, const unsigned short port, const char *kafkaBrokers);
   void run();
   void stop();
 
@@ -67,6 +129,11 @@ public:
                                int socklen, void* server);
   static void readCallback (struct bufferevent *, void *connection);
   static void eventCallback(struct bufferevent *, short, void *connection);
+
+  int submitShare(const uint64_t jobId,
+                  const uint32 extraNonce1, const string &extraNonce2Hex,
+                  const uint32_t nTime, const uint32_t nonce,
+                  const uint256 &jobTarget, const string &workName);
 };
 
 
@@ -77,9 +144,13 @@ class StratumServer {
   Server server_;
   string ip_;
   unsigned short port_;
+  int32_t serverId_;  // global unique, range: [0, 255]
+
+  string kafkaBrokers_;
 
 public:
-  StratumServer(const char *ip, const unsigned short port);
+  StratumServer(const char *ip, const unsigned short port,
+                const char *kafkaBrokers);
   ~StratumServer();
 
   bool init();
