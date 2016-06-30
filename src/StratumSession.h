@@ -26,6 +26,7 @@
 
 #include "Common.h"
 
+#include <netinet/in.h>
 #include <queue>
 
 #include <event2/event.h>
@@ -35,21 +36,31 @@
 #include <glog/logging.h>
 
 #include "bitcoin/uint256.h"
+#include "utilities_js.hpp"
 
-
-////////////////////////////////// Connection //////////////////////////////////
-class Connection {
+//////////////////////////////// StratumError ////////////////////////////////
+class StratumError {
 public:
-  struct bufferevent* bev_;
-  evutil_socket_t fd_;
-  void *server_;
+  enum {
+    NO_ERROR        = 0,
 
-public:
-  Connection(evutil_socket_t fd, struct bufferevent* bev, void* server);
-  void send(const char* data, size_t numBytes);
+    UNKNOWN         = 20,
+    JOB_NOT_FOUND   = 21,
+    DUPLICATE_SHARE = 22,
+    LOW_DIFFICULTY  = 23,
+    UNAUTHORIZED    = 24,
+    NOT_SUBSCRIBED  = 25,
+
+    ILLEGAL_METHOD   = 26,
+    ILLEGAL_PARARMS  = 27,
+    IP_BANNED        = 28,
+    INVALID_USERNAME = 29,
+    INTERNAL_ERROR   = 30,
+    TIME_TOO_OLD     = 31,
+    TIME_TOO_NEW     = 32
+  };
+  static const char * toString(int err);
 };
-
-
 
 //////////////////////////////// StratumWorker ////////////////////////////////
 class StratumWorker {
@@ -68,15 +79,23 @@ public:
 };
 
 
+//
+// cgminer support methods:
+//   mining.notify
+//   mining.set_difficulty
+//   client.reconnect
+//   client.get_version
+//   client.show_message
+//   mining.ping
+//
+
 //////////////////////////////// StratumSession ////////////////////////////////
-class StratumSession : public Connection {
+class StratumSession {
   // mining state
   enum State {
     CONNECTED     = 0,
     SUBSCRIBED    = 1,
-    AUTHENTICATED = 2,
-    SUB_AND_AUTH  = 3,
-    CLOSING       = 4,
+    AUTHENTICATED = 2
   };
 
   // shares submitted by this session, for duplicate share check
@@ -127,24 +146,53 @@ class StratumSession : public Connection {
 
 
   //----------------------
-
 //  DiffController diffController_;
   State state_;
   StratumWorker worker_;
   string clientAgent_;  // eg. bfgminer/4.4.0-32-gac4e9b3
+  string clientIp_;
 
-  // extraNonce2 size is always 8 bytes
-  uint32 extraNonce1_;  // MUST be unique across all servers
+  uint32 extraNonce1_;   // MUST be unique across all servers
+  static const int kExtraNonce2Size_ = 8;  // extraNonce2 size is always 8 bytes
 
   std::queue<LocalJob> localJobs_;
   size_t kMaxNumLocalJobs_;
 
-public:
+  struct evbuffer *inBuf_;
+  struct evbuffer *outBuf_;
+  mutex writeLock_;
   size_t lastNoEOLPos_;
 
-  StratumSession(evutil_socket_t fd, struct bufferevent* bev, void* server);
-  void readLine(const char *data, const size_t len);
   void setup();
+  void setReadTimeout(const int32_t timeout);
+//  void close();
+
+  bool tryReadLine(string &line);
+  void responseError(const string &idStr, int code);
+  void responseTrue(const string &idStr);
+  void handleLine(const string &line);
+  void handleRequest(const string &idStr, const string &method, const JsonNode &jparams);
+
+  void handleRequest_Subscribe(const string &idStr, const JsonNode &jparams);
+  void handleRequest_Authorize(const string &idStr, const JsonNode &jparams);
+  void handleRequest_SuggestTarget(const string &idStr, const JsonNode &jparams);
+  void handleRequest_SuggestDifficulty(const string &idStr, const JsonNode &jparams);
+  void handleRequest_Submit();
+  void _handleRequest_SetDifficulty(uint64_t suggestDiff);
+
+
+public:
+  struct bufferevent* bev_;
+  evutil_socket_t fd_;
+  void *server_;
+
+public:
+  StratumSession(evutil_socket_t fd, struct bufferevent *bev,
+                 void *server, struct sockaddr *saddr);
+  ~StratumSession();
+
+  void send(const char *data, size_t len);
+  void readBuf(struct evbuffer *buf);
 };
 
 #endif
