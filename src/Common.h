@@ -49,6 +49,8 @@
 #include <condition_variable>
 #include <functional>
 
+#include "bitcoin/uint256.h"
+
 using std::string;
 using std::vector;
 using std::deque;
@@ -123,5 +125,10 @@ inline int64 HToBe(int64 v) {
   return (int64)HToBe((uint64)v);
 }
 
+
+uint64 TargetToBdiff(uint256 &target);
+uint64 TargetToBdiff(const string &str);
+uint64 TargetToPdiff(uint256 &target);
+uint64 TargetToPdiff(const string &str);
 
 #endif
