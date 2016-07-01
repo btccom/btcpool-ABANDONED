@@ -43,8 +43,8 @@ JobMaker::JobMaker(const string &kafkaBrokers,  uint32_t stratumJobInterval,
                    const string &payoutAddr, uint32_t gbtLifeTime):
 running_(true),
 kafkaBrokers_(kafkaBrokers),
-kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, RD_KAFKA_PARTITION_UA/* partition */),
 kafkaConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT,      0/* partition */),
+kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, RD_KAFKA_PARTITION_UA/* partition */),
 currBestHeight_(0), stratumJobInterval_(stratumJobInterval),
 poolPayoutAddr_(payoutAddr), kGbtLifeTime_(gbtLifeTime)
 {
@@ -230,7 +230,7 @@ void JobMaker::sendStratumJob(const char *gbt) {
   // set last send time
   lastJobSendTime_ = (uint32_t)time(nullptr);
 
-  LOG(INFO) << "--------producer stratum job, jobID: " << sjob.jobID_
+  LOG(INFO) << "--------producer stratum job, jobId: " << sjob.jobId_
   << ", height: " << sjob.height_ << "--------";
   LOG(INFO) << "sjob: " << msg;
 }

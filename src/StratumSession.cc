@@ -32,7 +32,7 @@
 //////////////////////////////// StratumSession ////////////////////////////////
 StratumSession::StratumSession(evutil_socket_t fd, struct bufferevent *bev,
                                Server *server, struct sockaddr *saddr)
-: fd_(fd), bev_(bev), server_(server)
+: bev_(bev), fd_(fd), server_(server)
 {
   state_ = CONNECTED;
   extraNonce1_ = 0U;
@@ -161,7 +161,7 @@ void StratumSession::responseError(const string &idStr, int errCode) {
 
 void StratumSession::responseTrue(const string &idStr) {
   const string s = "{\"id\":" + idStr + ",\"result\": true,\"error\":null}\n";
-  send(s.c_str(), s.length());
+  send(s);
 }
 
 void StratumSession::handleRequest(const string &idStr, const string &method,
@@ -214,7 +214,7 @@ void StratumSession::handleRequest_Subscribe(const string &idStr,
   const string s = Strings::Format("{\"id\":%s,\"result\":[[[\"mining.set_difficulty\",\"%08x\"]"
                                    ",[\"mining.notify\",\"%08x\"]],\"%08x\",%d],\"error\":null}\n",
                                    idStr.c_str(), extraNonce1_, extraNonce1_, extraNonce1_, kExtraNonce2Size_);
-  send(s.c_str(), s.length());
+  send(s);
 }
 
 void StratumSession::handleRequest_Authorize(const string &idStr,
@@ -250,6 +250,9 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
 
   // set read timeout to 15 mins, it's enought for most miners even usb miner
   setReadTimeout(60*15);
+
+  // send latest stratum job
+  sendMiningNotify(server_->jobRepository_->getLatestStratumJobEx());
 }
 
 void StratumSession::_handleRequest_SetDifficulty(uint64_t suggestDiff) {
@@ -294,7 +297,7 @@ void StratumSession::handleRequest_Submit(const string &idStr,
 
     // there must be something wrong, send reconnect command
     const string s = "{\"id\":null,\"method\":\"client.reconnect\",\"params\":[]}\n";
-    send(s.c_str(), s.length());
+    send(s);
 
     return;
   }
@@ -349,11 +352,29 @@ StratumSession::LocalJob *StratumSession::findLocalJob(uint64_t jobId) {
   return nullptr;
 }
 
+void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr) {
+  if (state_ < SUBSCRIBED || exJobPtr == nullptr) {
+    return;
+  }
+  StratumJob *sjob = exJobPtr->sjob_;
+
+  localJobs_.push_back(LocalJob());
+  LocalJob &ljob = *(localJobs_.rbegin());
+  ljob.jobId_ = sjob->jobId_;
+// TODO:
+//  ljob.jobDifficulty_ =
+  DiffToTarget(ljob.jobDifficulty_, ljob.jobTarget_);
+
+  send(exJobPtr->miningNotify_);
+}
+
 void StratumSession::send(const char *data, size_t len) {
   ScopeLock sl(writeLock_);
 
   // add data to a bufferevent’s output buffer
   bufferevent_write(bev_, data, len);
+
+  LOG(INFO) << "send: " << data;
 }
 
 void StratumSession::readBuf(struct evbuffer *buf) {

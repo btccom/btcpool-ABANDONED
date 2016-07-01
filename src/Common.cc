@@ -57,3 +57,40 @@ void BitsToTarget(uint32 bits, uint256 & target) {
   target = bits & 0xffffffULL;
   target <<= (8 * ((uint8)nbytes - 3));
 }
+
+static const uint32 BITS_DIFF1 = 0x1d00ffff;
+static uint32 _DiffToBits(uint64 diff) {
+  uint64 nbytes = (BITS_DIFF1 >> 24) & 0xff;
+  uint64 value  = BITS_DIFF1 & 0xffffffULL;
+
+  if (diff == 0) {
+    return 1;
+  }
+
+  while (diff % 256 == 0) {
+    nbytes -= 1;
+    diff /= 256;
+  }
+
+  if (value % diff == 0) {
+    value /= diff;
+  }
+  else if ((value << 8) % diff == 0) {
+    nbytes -= 1;
+    value <<= 8;
+    value /= diff;
+  }
+  else {
+    return 1;
+  }
+
+  if (value > 0x00ffffffULL) {
+    return 1;  // overflow... should not happen
+  }
+  return (uint32)(value | (nbytes << 24));
+}
+
+void DiffToTarget(uint64 diff, uint256 & target) {
+  BitsToTarget(_DiffToBits(diff), target);
+}
+

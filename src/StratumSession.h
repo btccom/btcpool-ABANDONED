@@ -40,6 +40,7 @@
 #include "Stratum.h"
 
 class Server;
+class StratumJobEx;
 
 //
 // cgminer support methods:
@@ -91,10 +92,9 @@ class StratumSession {
     uint64_t jobId_;
     uint64_t jobDifficulty_;     // difficulty of this job
     uint256  jobTarget_;
-    uint32_t nBits_;
     std::set<LocalShare> submitShares_;
 
-    LocalJob(): jobId_(0), jobDifficulty_(0), nBits_(0) {}
+    LocalJob(): jobId_(0), jobDifficulty_(0){}
 
     bool addLocalShare(const LocalShare &localShare) {
       auto itr = submitShares_.find(localShare);
@@ -154,7 +154,11 @@ public:
                  Server *server, struct sockaddr *saddr);
   ~StratumSession();
 
+  void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr);
   void send(const char *data, size_t len);
+  inline void send(const string &str) {
+    send(str.data(), str.size());
+  }
   void readBuf(struct evbuffer *buf);
 };
 

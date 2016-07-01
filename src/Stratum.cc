@@ -178,7 +178,7 @@ int64 findExtraNonceStart(const vector<char> &coinbaseOriTpl,
 
 
 //////////////////////////////////  StratumJob  ////////////////////////////////
-StratumJob::StratumJob(): jobID_(0), height_(0), nVersion_(0), nBits_(0U),
+StratumJob::StratumJob(): jobId_(0), height_(0), nVersion_(0), nBits_(0U),
 nTime_(0U), minTime_(0U), coinbaseValue_(0) {
 }
 
@@ -186,23 +186,19 @@ string StratumJob::serializeToJson() const {
   string merkleBranchStr;
   merkleBranchStr.reserve(merkleBranch_.size() * 64 + 1);
   for (size_t i = 0; i < merkleBranch_.size(); i++) {
-    string merklStr;
-    // Do NOT use GetHex(), because of the order you need to use Bin2Hex()
-    // just dump the memory to hex str
-    Bin2Hex(merkleBranch_[i].begin(), 32, merklStr);
-    merkleBranchStr.append(merklStr);
+    merkleBranchStr.append(merkleBranch_[i].ToString());
   }
 
   //
   // we use key->value json string, so it's easy to update system
   //
-  return Strings::Format("{\"jobID\":\"%llu\",\"gbtHash\":\"%s\""
+  return Strings::Format("{\"jobId\":%llu,\"gbtHash\":\"%s\""
                          ",\"prevHash\":\"%s\",\"prevHashBeStr\":\"%s\""
                          ",\"height\":%d,\"coinbase1\":\"%s\",\"coinbase2\":\"%s\""
                          ",\"merkleBranch\":\"%s\""
                          ",\"nVersion\":%d,\"nBits\":%u,\"nTime\":%u"
                          ",\"minTime\":%u,\"coinbaseValue\":%lld}",
-                         jobID_, gbtHash_.c_str(),
+                         jobId_, gbtHash_.c_str(),
                          prevHash_.ToString().c_str(), prevHashBeStr_.c_str(),
                          height_, coinbase1_.c_str(), coinbase2_.c_str(),
                          // merkleBranch_ could be empty
@@ -211,12 +207,12 @@ string StratumJob::serializeToJson() const {
                          minTime_, coinbaseValue_);
 }
 
-bool StratumJob::unserializeFromJson(const char *s) {
+bool StratumJob::unserializeFromJson(const char *s, size_t len) {
   JsonNode j;
-  if (!JsonNode::parse(s, s + strlen(s), j)) {
+  if (!JsonNode::parse(s, s + len, j)) {
     return false;
   }
-  if (j["jobID"].type()        != Utilities::JS::type::Int ||
+  if (j["jobId"].type()        != Utilities::JS::type::Int ||
       j["gbtHash"].type()      != Utilities::JS::type::Str ||
       j["prevHash"].type()     != Utilities::JS::type::Str ||
       j["prevHashBeStr"].type()!= Utilities::JS::type::Str ||
@@ -233,7 +229,7 @@ bool StratumJob::unserializeFromJson(const char *s) {
     return false;
   }
 
-  jobID_         = j["jobID"].uint64();
+  jobId_         = j["jobId"].uint64();
   gbtHash_       = j["gbtHash"].str();
   prevHash_      = uint256(j["prevHash"].str());
   prevHashBeStr_ = j["prevHashBeStr"].str();
@@ -267,13 +263,13 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     return false;
   }
   JsonNode jgbt = r["result"];
-  //
 
-  // jobID: timestamp + gbtHash, we need to make sure jobID is unique in a some time
-  // jobID can convert to uint64_t
-  const string jobIDStr = Strings::Format("%08x%s", (uint32_t)time(nullptr),
-                                          gbtHash.ToString().substr(0, 4).c_str());
-  jobID_ = stoull(jobIDStr, 0, 16/* hex */);
+  // jobId: timestamp + gbtHash, we need to make sure jobId is unique in a some time
+  // jobId can convert to uint64_t
+  const string jobIdStr = Strings::Format("%08x%s", (uint32_t)time(nullptr),
+                                          gbtHash.ToString().substr(0, 8).c_str());
+  assert(jobIdStr.length() == 16);
+  jobId_ = stoull(jobIdStr, 0, 16/* hex */);
 
   gbtHash_ = gbtHash.ToString();
 

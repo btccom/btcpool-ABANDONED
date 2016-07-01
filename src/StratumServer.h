@@ -46,21 +46,38 @@
 #include "Stratum.h"
 #include "StratumSession.h"
 
+class Server;
 class StratumJobEx;
 
 
 ////////////////////////////////// JobRepository ///////////////////////////////
 class JobRepository {
+  atomic<bool> running_;
   mutex lock_;
   std::map<uint64_t/* jobId */, shared_ptr<StratumJobEx> > exJobs_;
 
-  KafkaConsumer kafkaConsumer_;
+  KafkaConsumer kafkaConsumer_;  // consume topic: 'StratumJob'
+  Server *server_;               // call server to send new job
+  uint256 latestPrevBlockHash_;
+  time_t kMaxJobsLifeTime_;
+  time_t kMiningNotifyInterval_;
+  time_t lastJobSendTime_;
+
+  thread threadConsume_;
+  void runThreadConsume();
+
+  void consumeStratumJob(rd_kafka_message_t *rkmessage);
+  void tryCleanExpiredJobs();
 
 public:
-  JobRepository(const char *kafkaBrokers);
+  JobRepository(const char *kafkaBrokers, Server *server);
   ~JobRepository();
 
+  void stop();
+  bool setupThreadConsume();
+
   shared_ptr<StratumJobEx> getStratumJobEx(const uint64_t jobId);
+  shared_ptr<StratumJobEx> getLatestStratumJobEx();
 };
 
 
@@ -76,20 +93,25 @@ class StratumJobEx {
   bool isClean_;
   State state_;
 
-public:
-  StratumJob *sjob_;
+  void makeMiningNotifyStr();
+  void generateCoinbaseTx(std::vector<char> *coinbaseBin,
+                          const uint32 extraNonce1,
+                          const string &extraNonce2Hex);
 
 public:
-  StratumJobEx(StratumJob *sjob);
+  StratumJob *sjob_;
+  string miningNotify_;
+
+public:
+  StratumJobEx(StratumJob *sjob, bool isClean);
   ~StratumJobEx();
 
   void markStale();
   bool isStale();
 
-  void generateCoinbaseTx(std::vector<char> *coinbaseBin, const uint32 extraNonce1,
-                          const string &extraNonce2Hex);
   void generateBlockHeader(CBlockHeader *header,
-                           const vector<char> &coinbaseTx,
+                           const uint32 extraNonce1,
+                           const string &extraNonce2Hex,
                            const vector<uint256> &merkleBranch,
                            const uint256 &hashPrevBlock,
                            const uint32 nBits, const int nVersion,
@@ -105,11 +127,14 @@ class Server {
   struct event* signal_event_;
   struct evconnlistener* listener_;
   map<evutil_socket_t, StratumSession *> connections_;
+  mutex connsLock_;  // lock for connections
 
   // Stratum
-  JobRepository *jobRepository_;
   KafkaProducer *kafkaProducerShareLog_;
   KafkaProducer *kafkaProducerSolvedShare_;
+
+public:
+  JobRepository *jobRepository_;
 
 public:
   Server();
@@ -119,7 +144,8 @@ public:
   void run();
   void stop();
 
-  void sendToAllClients(const char *data, size_t len);
+  void sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr);
+
   void addConnection(evutil_socket_t fd, StratumSession *connection);
   void removeConnection(evutil_socket_t fd);
 

@@ -110,9 +110,9 @@ public:
 //
 class StratumJob {
 public:
-  // jobID: timestamp + gbtHash, hex string, we need to make sure jobID is
-  // unique in a some time, jobID can convert to uint64_t
-  uint64_t jobID_;
+  // jobId: timestamp + gbtHash, hex string, we need to make sure jobId is
+  // unique in a some time, jobId can convert to uint64_t
+  uint64_t jobId_;
   string   gbtHash_;        // gbt hash id
   uint256  prevHash_;
   string   prevHashBeStr_;  // little-endian hex, memory's order
@@ -133,7 +133,7 @@ public:
   StratumJob();
 
   string serializeToJson() const;
-  bool unserializeFromJson(const char *s);
+  bool unserializeFromJson(const char *s, size_t len);
 
   bool initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
                    const CBitcoinAddress &poolPayoutAddr);

@@ -132,5 +132,6 @@ uint64 TargetToPdiff(uint256 &target);
 uint64 TargetToPdiff(const string &str);
 
 void BitsToTarget(uint32 bits, uint256 & target);
+void DiffToTarget(uint64 diff, uint256 & target);
 
 #endif

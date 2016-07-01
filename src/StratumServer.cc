@@ -29,12 +29,19 @@
 
 
 ////////////////////////////////// JobRepository ///////////////////////////////
-JobRepository::JobRepository(const char *kafkaBrokers):
-kafkaConsumer_(kafkaBrokers, KAFKA_TOPIC_STRATUM_JOB, 0/*patition*/)
+JobRepository::JobRepository(const char *kafkaBrokers, Server *server):
+running_(true),
+kafkaConsumer_(kafkaBrokers, KAFKA_TOPIC_STRATUM_JOB, 0/*patition*/),
+server_(server),
+kMaxJobsLifeTime_(300),
+kMiningNotifyInterval_(60), lastJobSendTime_(0)
 {
+  assert(kMiningNotifyInterval_ < kMaxJobsLifeTime_);
 }
 
 JobRepository::~JobRepository() {
+  if (threadConsume_.joinable())
+    threadConsume_.join();
 }
 
 shared_ptr<StratumJobEx> JobRepository::getStratumJobEx(const uint64_t jobId) {
@@ -46,11 +53,149 @@ shared_ptr<StratumJobEx> JobRepository::getStratumJobEx(const uint64_t jobId) {
   return nullptr;
 }
 
+shared_ptr<StratumJobEx> JobRepository::getLatestStratumJobEx() {
+  ScopeLock sl(lock_);
+  if (exJobs_.size()) {
+    return exJobs_.rbegin()->second;
+  }
+  LOG(WARNING) << "getLatestStratumJobEx fail";
+  return nullptr;
+}
+
+void JobRepository::stop() {
+  if (!running_) {
+    return;
+  }
+  running_ = false;
+  LOG(INFO) << "stop job repository";
+}
+
+bool JobRepository::setupThreadConsume() {
+  const int32_t kConsumeLatestN = 1;
+  // we need to consume the latest one
+  if (kafkaConsumer_.setup(RD_KAFKA_OFFSET_TAIL(kConsumeLatestN)) == false) {
+    LOG(INFO) << "setup consumer fail";
+    return false;
+  }
+
+  threadConsume_ = thread(&JobRepository::runThreadConsume, this);
+  return true;
+}
+
+void JobRepository::runThreadConsume() {
+  LOG(INFO) << "start job repository consume thread";
+
+  const int32_t timeoutMs = 5000;
+  while (running_) {
+    rd_kafka_message_t *rkmessage;
+    rkmessage = kafkaConsumer_.consumer(timeoutMs);
+    if (rkmessage == nullptr) /* timeout */
+      continue;
+
+    consumeStratumJob(rkmessage);
+
+    /* Return message to rdkafka */
+    rd_kafka_message_destroy(rkmessage);
+
+    tryCleanExpiredJobs();
+  }
+  LOG(INFO) << "stop job repository consume thread";
+}
+
+void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
+  // check error
+  if (rkmessage->err) {
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
+      // Reached the end of the topic+partition queue on the broker.
+      // Not really an error.
+      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
+      //      << "[" << rkmessage->partition << "] "
+      //      << " message queue at offset " << rkmessage->offset;
+      // acturlly
+      return;
+    }
+
+    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
+    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
+    << ": " << rd_kafka_message_errstr(rkmessage);
+
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
+        rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
+      LOG(FATAL) << "consume fatal";
+    }
+    return;
+  }
+
+  StratumJob *sjob = new StratumJob();
+  bool res = sjob->unserializeFromJson((const char *)rkmessage->payload,
+                                       rkmessage->len);
+  if (res == false) {
+    LOG(ERROR) << "unserialize stratum job fail";
+    delete sjob;
+    return;
+  }
+
+  bool isClean = false;
+  if (latestPrevBlockHash_ != sjob->prevHash_) {
+    isClean = true;
+    latestPrevBlockHash_ = sjob->prevHash_;
+    LOG(INFO) << "received new height statum job, height: " << sjob->height_
+    << ", prevhash: " << sjob->prevHash_.ToString();
+  }
+
+  shared_ptr<StratumJobEx> exJob = std::make_shared<StratumJobEx>(sjob, isClean);
+  {
+    ScopeLock sl(lock_);
+
+    if (isClean) {
+      // mark all jobs as stale, should do this before insert new job
+      for (auto it : exJobs_) {
+        it.second->markStale();
+      }
+    }
+
+    // insert new job
+    exJobs_[sjob->jobId_] = exJob;
+  }
+
+  // if job is clean or too long time from last job, call server to send job
+  if (isClean ||
+      lastJobSendTime_ + kMiningNotifyInterval_ <= time(nullptr)) {
+    // send job to all clients
+    server_->sendMiningNotifyToAll(exJob);
+    lastJobSendTime_ = time(nullptr);
+  }
+}
+
+void JobRepository::tryCleanExpiredJobs() {
+  ScopeLock sl(lock_);
+
+  const uint32_t nowTs = (uint32_t)time(nullptr);
+  while (exJobs_.size()) {
+    // Maps (and sets) are sorted, so the first element is the smallest,
+    // and the last element is the largest.
+    auto itr = exJobs_.begin();
+
+    const time_t jobTime = (time_t)(itr->first >> 32);
+    if (nowTs < jobTime + kMaxJobsLifeTime_) {
+      break;  // not expired
+    }
+
+    // remove expired job
+    exJobs_.erase(itr);
+
+    LOG(INFO) << "remove expired stratum job, id: " << itr->first
+    << ", time: " << date("%F %T", jobTime);
+  }
+}
+
 
 ////////////////////////////////// StratumJobEx ////////////////////////////////
-StratumJobEx::StratumJobEx(StratumJob *sjob):
-sjob_(sjob), isClean_(false), state_(MINING)
+StratumJobEx::StratumJobEx(StratumJob *sjob, bool isClean):
+isClean_(isClean), state_(MINING), sjob_(sjob)
 {
+  assert(sjob != nullptr);
+  makeMiningNotifyStr();
 }
 
 StratumJobEx::~StratumJobEx() {
@@ -58,6 +203,36 @@ StratumJobEx::~StratumJobEx() {
     delete sjob_;
     sjob_ = nullptr;
   }
+}
+
+void StratumJobEx::makeMiningNotifyStr() {
+  string merkleBranchStr;
+  {
+    merkleBranchStr.reserve(sjob_->merkleBranch_.size() * 67);
+    for (size_t i = 0; i < sjob_->merkleBranch_.size(); i++) {
+      //
+      // do NOT use GetHex() or uint256.ToString(), need to dump the memory
+      //
+      string merklStr;
+      Bin2Hex(sjob_->merkleBranch_[i].begin(), 32, merklStr);
+      merkleBranchStr.append("\"" + merklStr + "\",");
+    }
+    if (merkleBranchStr.length()) {
+      merkleBranchStr.resize(merkleBranchStr.length() - 1);  // remove last ','
+    }
+  }
+
+  miningNotify_ = Strings::Format("{\"id\":null,\"method\":\"mining.notify\",\"params\":["
+                                  "\"%llu\",\"%s\""
+                                  ",\"%s\",\"%s\","
+                                  ",[%s]"
+                                  ",\"%08x\",\"%08x\",\"%08x\",%s"
+                                  "]}\n",
+                                  sjob_->jobId_, sjob_->prevHashBeStr_.c_str(),
+                                  sjob_->coinbase1_.c_str(), sjob_->coinbase2_.c_str(),
+                                  merkleBranchStr.c_str(),
+                                  sjob_->nVersion_, sjob_->nBits_, sjob_->nTime_,
+                                  isClean_ ? "true" : "false");
 }
 
 void StratumJobEx::markStale() {
@@ -82,11 +257,15 @@ void StratumJobEx::generateCoinbaseTx(std::vector<char> *coinbaseBin,
 }
 
 void StratumJobEx::generateBlockHeader(CBlockHeader *header,
-                                       const vector<char> &coinbaseTx,
+                                       const uint32 extraNonce1,
+                                       const string &extraNonce2Hex,
                                        const vector<uint256> &merkleBranch,
                                        const uint256 &hashPrevBlock,
                                        const uint32 nBits, const int nVersion,
                                        const uint32 nTime, const uint32 nonce) {
+  std::vector<char> coinbaseBin;
+  generateCoinbaseTx(&coinbaseBin, extraNonce1, extraNonce2Hex);
+
   header->hashPrevBlock = hashPrevBlock;
   header->nVersion      = nVersion;
   header->nBits         = nBits;
@@ -94,7 +273,7 @@ void StratumJobEx::generateBlockHeader(CBlockHeader *header,
   header->nNonce        = nonce;
 
   // hashMerkleRoot
-  Hash(coinbaseTx.begin(), coinbaseTx.end(), header->hashMerkleRoot);
+  Hash(coinbaseBin.begin(), coinbaseBin.end(), header->hashMerkleRoot);
   for (const uint256 & step : merkleBranch) {
     header->hashMerkleRoot = Hash(header->hashMerkleRoot.begin(),
                                   header->hashMerkleRoot.end(),
@@ -131,14 +310,13 @@ void StratumServer::stop() {
 }
 
 void StratumServer::run() {
-  while (running_) {
-    server_.run();
-  }
+  server_.run();
 }
 
 ///////////////////////////////////// Server ///////////////////////////////////
-Server::Server(): base_(NULL), listener_(NULL), signal_event_(NULL),
-kafkaProducerSolvedShare_(nullptr), kafkaProducerShareLog_(nullptr)
+Server::Server(): base_(nullptr), signal_event_(nullptr), listener_(nullptr),
+kafkaProducerShareLog_(nullptr), kafkaProducerSolvedShare_(nullptr),
+jobRepository_(nullptr)
 {
 }
 
@@ -158,6 +336,9 @@ Server::~Server() {
   if (kafkaProducerSolvedShare_ != nullptr) {
     delete kafkaProducerSolvedShare_;
   }
+  if (jobRepository_ != nullptr) {
+    delete jobRepository_;
+  }
 }
 
 bool Server::setup(const char *ip, const unsigned short port, const char *kafkaBrokers) {
@@ -167,7 +348,10 @@ bool Server::setup(const char *ip, const unsigned short port, const char *kafkaB
   kafkaProducerShareLog_ = new KafkaProducer(kafkaBrokers,
                                              KAFKA_TOPIC_SHARE_LOG,
                                              RD_KAFKA_PARTITION_UA);
-  jobRepository_ = new JobRepository(kafkaBrokers);
+  jobRepository_ = new JobRepository(kafkaBrokers, this);
+  if (!jobRepository_->setupThreadConsume()) {
+    return false;
+  }
 
   base_ = event_base_new();
   if(!base_) {
@@ -206,13 +390,23 @@ void Server::run() {
 void Server::stop() {
   LOG(INFO) << "stop tcp server event loop";
   event_base_loopexit(base_, NULL);
+  jobRepository_->stop();
+}
+
+void Server::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {
+  ScopeLock sl(connsLock_);
+  for (const auto itr : connections_) {
+    itr.second->sendMiningNotify(exJobPtr);
+  }
 }
 
 void Server::addConnection(evutil_socket_t fd, StratumSession *connection) {
+  ScopeLock sl(connsLock_);
   connections_.insert(std::pair<evutil_socket_t, StratumSession *>(fd, connection));
 }
 
 void Server::removeConnection(evutil_socket_t fd) {
+  ScopeLock sl(connsLock_);
   auto itr = connections_.find(fd);
   if (itr == connections_.end())
     return;
@@ -221,13 +415,13 @@ void Server::removeConnection(evutil_socket_t fd) {
   connections_.erase(itr);
 }
 
-void Server::sendToAllClients(const char* data, size_t len) {
-  auto it = connections_.begin();
-  while(it != connections_.end()) {
-    it->second->send(data, len);
-    ++it;
-  }
-}
+//void Server::sendToAllClients(const char* data, size_t len) {
+//  auto it = connections_.begin();
+//  while(it != connections_.end()) {
+//    it->second->send(data, len);
+//    ++it;
+//  }
+//}
 
 void Server::listenerCallback(struct evconnlistener* listener,
                               evutil_socket_t fd,
@@ -246,13 +440,13 @@ void Server::listenerCallback(struct evconnlistener* listener,
   }
 
   StratumSession* conn = new StratumSession(fd, bev, server, saddr);
-  server->addConnection(fd, conn);
-
   bufferevent_setcb(bev,
                     Server::readCallback,
                     NULL,  /* we use bufferevent, so don't need to watch write events */
                     Server::eventCallback, (void*)conn);
   bufferevent_enable(bev, EV_READ);
+
+  server->addConnection(fd, conn);
 }
 
 void Server::readCallback(struct bufferevent* bev, void *connection) {
@@ -301,13 +495,10 @@ int Server::submitShare(const uint64_t jobId,
     return StratumError::TIME_TOO_NEW;
   }
 
-  vector<char> coinbaseBin;
-  exJobPtr->generateCoinbaseTx(&coinbaseBin, extraNonce1, extraNonce2Hex);
-
   CBlockHeader header;
-  exJobPtr->generateBlockHeader(&header, coinbaseBin, sjob->merkleBranch_,
-                                sjob->prevHash_, sjob->nBits_, sjob->nVersion_,
-                                nTime, nonce);
+  exJobPtr->generateBlockHeader(&header, extraNonce1, extraNonce2Hex,
+                                sjob->merkleBranch_, sjob->prevHash_,
+                                sjob->nBits_, sjob->nVersion_, nTime, nonce);
   uint256 blkHash = header.GetHash();
 
   if (blkHash <= sjob->networkTarget_) {
