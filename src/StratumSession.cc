@@ -42,6 +42,7 @@ StratumSession::StratumSession(evutil_socket_t fd, struct bufferevent *bev,
 
   inBuf_ = evbuffer_new();
   lastNoEOLPos_ = 0;
+  isPoolWatcher_ = false;
 
   clientAgent_ = "unknown";
   clientIp_.resize(INET_ADDRSTRLEN);
@@ -70,7 +71,7 @@ void StratumSession::setup() {
   // TODO:
   // set extraNonce1_
 
-  // fisrt we set 60 seconds, increase the timeout after auth & sub
+  // we set 60 seconds, will increase the timeout after sub & auth
   setReadTimeout(60);
 }
 
@@ -215,6 +216,10 @@ void StratumSession::handleRequest_Subscribe(const string &idStr,
                                    ",[\"mining.notify\",\"%08x\"]],\"%08x\",%d],\"error\":null}\n",
                                    idStr.c_str(), extraNonce1_, extraNonce1_, extraNonce1_, kExtraNonce2Size_);
   send(s);
+
+  if (clientAgent_ == "__PoolWatcher__") {
+    isPoolWatcher_ = true;
+  }
 }
 
 void StratumSession::handleRequest_Authorize(const string &idStr,
@@ -248,8 +253,9 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
   worker_.setUserIDAndNames(userId, fullName);
   state_ = AUTHENTICATED;
 
-  // set read timeout to 15 mins, it's enought for most miners even usb miner
-  setReadTimeout(60*15);
+  // set read timeout to 15 mins, it's enought for most miners even usb miner.
+  // if it's a pool watcher, set timeout to a week
+  setReadTimeout(isPoolWatcher_ ? 86400*7 : 60*15);
 
   // send latest stratum job
   sendMiningNotify(server_->jobRepository_->getLatestStratumJobEx());

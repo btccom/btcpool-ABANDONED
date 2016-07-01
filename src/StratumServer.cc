@@ -224,7 +224,7 @@ void StratumJobEx::makeMiningNotifyStr() {
 
   miningNotify_ = Strings::Format("{\"id\":null,\"method\":\"mining.notify\",\"params\":["
                                   "\"%llu\",\"%s\""
-                                  ",\"%s\",\"%s\","
+                                  ",\"%s\",\"%s\""
                                   ",[%s]"
                                   ",\"%08x\",\"%08x\",\"%08x\",%s"
                                   "]}\n",
@@ -414,14 +414,6 @@ void Server::removeConnection(evutil_socket_t fd) {
   delete itr->second;
   connections_.erase(itr);
 }
-
-//void Server::sendToAllClients(const char* data, size_t len) {
-//  auto it = connections_.begin();
-//  while(it != connections_.end()) {
-//    it->second->send(data, len);
-//    ++it;
-//  }
-//}
 
 void Server::listenerCallback(struct evconnlistener* listener,
                               evutil_socket_t fd,

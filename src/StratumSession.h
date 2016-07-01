@@ -122,8 +122,9 @@ class StratumSession {
 
   struct evbuffer *inBuf_;
   struct evbuffer *outBuf_;
-  mutex writeLock_;
+  mutex  writeLock_;
   size_t lastNoEOLPos_;
+  bool   isPoolWatcher_;
 
   void setup();
   void setReadTimeout(const int32_t timeout);
