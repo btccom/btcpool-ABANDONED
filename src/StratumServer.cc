@@ -34,7 +34,8 @@ running_(true),
 kafkaConsumer_(kafkaBrokers, KAFKA_TOPIC_STRATUM_JOB, 0/*patition*/),
 server_(server),
 kMaxJobsLifeTime_(300),
-kMiningNotifyInterval_(60), lastJobSendTime_(0)
+kMiningNotifyInterval_(30),  // TODO: make as config arg
+lastJobSendTime_(0)
 {
   assert(kMiningNotifyInterval_ < kMaxJobsLifeTime_);
 }
@@ -85,17 +86,23 @@ bool JobRepository::setupThreadConsume() {
 void JobRepository::runThreadConsume() {
   LOG(INFO) << "start job repository consume thread";
 
-  const int32_t timeoutMs = 5000;
+  const int32_t timeoutMs = 1000;
   while (running_) {
     rd_kafka_message_t *rkmessage;
     rkmessage = kafkaConsumer_.consumer(timeoutMs);
-    if (rkmessage == nullptr) /* timeout */
+
+    // timeout, most of time it's not nullptr and set an error:
+    //          rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF
+    if (rkmessage == nullptr) {
       continue;
+    }
 
+    // consume stratum job
     consumeStratumJob(rkmessage);
+    rd_kafka_message_destroy(rkmessage);  /* Return message to rdkafka */
 
-    /* Return message to rdkafka */
-    rd_kafka_message_destroy(rkmessage);
+    // check if we need to send mining notify
+    checkAndSendMiningNotify();
 
     tryCleanExpiredJobs();
   }
@@ -134,6 +141,19 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
     delete sjob;
     return;
   }
+  // make sure the job is not expired.
+  if (jobId2Time(sjob->jobId_) + 60 < time(nullptr)) {
+    LOG(FATAL) << "too large delay from kafka to receive topic 'StratumJob'";
+    delete sjob;
+    return;
+  }
+  // here you could use Map.find() without lock, it's sure
+  // that everyone is using this Map readonly now
+  if (exJobs_.find(sjob->jobId_) != exJobs_.end()) {
+    LOG(FATAL) << "jobId already existed";
+    delete sjob;
+    return;
+  }
 
   bool isClean = false;
   if (latestPrevBlockHash_ != sjob->prevHash_) {
@@ -158,13 +178,34 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
     exJobs_[sjob->jobId_] = exJob;
   }
 
-  // if job is clean or too long time from last job, call server to send job
-  if (isClean ||
-      lastJobSendTime_ + kMiningNotifyInterval_ <= time(nullptr)) {
-    // send job to all clients
-    server_->sendMiningNotifyToAll(exJob);
-    lastJobSendTime_ = time(nullptr);
+  // if job has clean flag, call server to send job
+  if (isClean) {
+    sendMiningNotify(exJob);
+    return;
   }
+}
+
+void JobRepository::checkAndSendMiningNotify() {
+  // last job is 'expried', send a new one
+  if (exJobs_.size() &&
+      lastJobSendTime_ + kMiningNotifyInterval_ <= time(nullptr))
+  {
+    sendMiningNotify(exJobs_.rbegin()->second);
+  }
+}
+
+void JobRepository::sendMiningNotify(shared_ptr<StratumJobEx> exJob) {
+  static uint64_t lastJobId = 0;
+  if (lastJobId == exJob->sjob_->jobId_) {
+    LOG(ERROR) << "no new jobId, ignore to send mining notify";
+    return;
+  }
+
+  // send job to all clients
+  server_->sendMiningNotifyToAll(exJob);
+  lastJobSendTime_ = time(nullptr);
+
+  lastJobId = exJob->sjob_->jobId_;
 }
 
 void JobRepository::tryCleanExpiredJobs() {

@@ -49,6 +49,9 @@
 class Server;
 class StratumJobEx;
 
+inline uint32_t jobId2Time(uint64_t jobId) {
+  return (uint32_t)((jobId >> 32) & 0x00000000FFFFFFFFULL);
+}
 
 ////////////////////////////////// JobRepository ///////////////////////////////
 class JobRepository {
@@ -58,16 +61,20 @@ class JobRepository {
 
   KafkaConsumer kafkaConsumer_;  // consume topic: 'StratumJob'
   Server *server_;               // call server to send new job
-  uint256 latestPrevBlockHash_;
+
   time_t kMaxJobsLifeTime_;
   time_t kMiningNotifyInterval_;
+
   time_t lastJobSendTime_;
+  uint256 latestPrevBlockHash_;
 
   thread threadConsume_;
   void runThreadConsume();
 
   void consumeStratumJob(rd_kafka_message_t *rkmessage);
+  void sendMiningNotify(shared_ptr<StratumJobEx> exJob);
   void tryCleanExpiredJobs();
+  void checkAndSendMiningNotify();
 
 public:
   JobRepository(const char *kafkaBrokers, Server *server);

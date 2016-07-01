@@ -266,7 +266,7 @@ void JobMaker::checkAndSendStratumJob() {
   }
   std::map<uint64_t/* height + ts */, const char *> gbtByHeight;
 
-  // clear expired gbt first
+  // clean expired gbt first
   clearTimeoutGbt();
 
   // we need to build 'gbtByHeight' first
