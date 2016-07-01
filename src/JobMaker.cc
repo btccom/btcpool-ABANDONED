@@ -195,7 +195,11 @@ void JobMaker::addRawgbt(const char *str, size_t len) {
   {
     ScopeLock sl(lock_);
     const uint64_t key = ((uint64_t)gbtTime << 32) + (uint64_t)height;
-    rawgbtMap_.insert(std::make_pair(key, gbt));
+    if (rawgbtMap_.find(key) == rawgbtMap_.end()) {
+      rawgbtMap_.insert(std::make_pair(key, gbt));
+    } else {
+      LOG(ERROR) << "key already exist in rawgbtMap: " << key;
+    }
   }
   LOG(INFO) << "add rawgbt, height: "<< height << ", gbthash: "
   << r["gbthash"].str().substr(0, 16) << "..., gbtTime(UTC): " << date("%F %T", gbtTime);
@@ -254,6 +258,8 @@ bool JobMaker::isReachTimeout() {
 }
 
 void JobMaker::checkAndSendStratumJob() {
+  static uint64_t lastSendBestKey = 0; /* height + ts */
+
   ScopeLock sl(lock_);
   if (rawgbtMap_.size() == 0) {
     return;
@@ -269,6 +275,10 @@ void JobMaker::checkAndSendStratumJob() {
 
   // key: height + timestamp
   const uint64_t bestKey = gbtByHeight.rbegin()->first;
+  if (bestKey == lastSendBestKey) {
+    LOG(WARNING) << "bestKey is the same as last one: " << lastSendBestKey;
+    return;
+  }
   const uint32_t bestHeight = (uint32_t)((bestKey >> 32) & 0x00000000FFFFFFFFULL);
   if (bestHeight != currBestHeight_) {
     LOG(INFO) << ">>>> found new best height: " << bestHeight
@@ -278,6 +288,7 @@ void JobMaker::checkAndSendStratumJob() {
   }
 
   if (isFindNewHeight || isReachTimeout()) {
+    lastSendBestKey = bestKey;
     sendStratumJob(gbtByHeight.rbegin()->second);
   }
 }
