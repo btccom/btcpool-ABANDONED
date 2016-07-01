@@ -203,7 +203,7 @@ void StratumSession::handleRequest_Subscribe(const string &idStr,
   // client request eg.:
   //  {"id": 1, "method": "mining.subscribe", "params": ["bfgminer/4.4.0-32-gac4e9b3", "01ad557d"]}
   //
-  if (jparams.children()->size() == 1) {
+  if (jparams.children()->size() >= 1) {
     clientAgent_ = jparams.children()->at(0).str().substr(0, 30);  // 30 is max len
   }
 
