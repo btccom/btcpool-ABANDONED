@@ -62,8 +62,8 @@ class JobRepository {
   KafkaConsumer kafkaConsumer_;  // consume topic: 'StratumJob'
   Server *server_;               // call server to send new job
 
-  time_t kMaxJobsLifeTime_;
-  time_t kMiningNotifyInterval_;
+  const time_t kMaxJobsLifeTime_;
+  const time_t kMiningNotifyInterval_;
 
   time_t lastJobSendTime_;
   uint256 latestPrevBlockHash_;
@@ -98,7 +98,6 @@ class StratumJobEx {
 
   //------------
   mutex lock_;
-  bool isClean_;
   State state_;
 
   void makeMiningNotifyStr();
@@ -107,6 +106,7 @@ class StratumJobEx {
                           const string &extraNonce2Hex);
 
 public:
+  bool isClean_;
   StratumJob *sjob_;
   string miningNotify_;
 
@@ -142,7 +142,7 @@ class Server {
   KafkaProducer *kafkaProducerSolvedShare_;
 
 public:
-  int32_t kShareAvgSeconds_;
+  const int32_t kShareAvgSeconds_;
   JobRepository *jobRepository_;
 
 public:

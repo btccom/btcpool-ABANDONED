@@ -86,10 +86,10 @@ bool JobRepository::setupThreadConsume() {
 void JobRepository::runThreadConsume() {
   LOG(INFO) << "start job repository consume thread";
 
-  const int32_t timeoutMs = 1000;
+  const int32_t kTimeoutMs = 1000;
   while (running_) {
     rd_kafka_message_t *rkmessage;
-    rkmessage = kafkaConsumer_.consumer(timeoutMs);
+    rkmessage = kafkaConsumer_.consumer(kTimeoutMs);
 
     // timeout, most of time it's not nullptr and set an error:
     //          rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF
@@ -183,6 +183,21 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
     sendMiningNotify(exJob);
     return;
   }
+
+  // if last job is an empty block job(clean=true), we need to send a
+  // new non-empty job as quick as possible.
+  if (isClean == false && exJobs_.size() >= 2) {
+    auto itr = exJobs_.rbegin();
+    shared_ptr<StratumJobEx> exJob1 = itr->second;
+    itr++;
+    shared_ptr<StratumJobEx> exJob2 = itr->second;
+
+    if (exJob2->isClean_ == true &&
+        exJob2->sjob_->merkleBranch_.size() == 0 &&
+        exJob1->sjob_->merkleBranch_.size() != 0) {
+      sendMiningNotify(exJob);
+    }
+  }
 }
 
 void JobRepository::markAllJobsAsStale() {
@@ -197,7 +212,8 @@ void JobRepository::checkAndSendMiningNotify() {
   if (exJobs_.size() &&
       lastJobSendTime_ + kMiningNotifyInterval_ <= time(nullptr))
   {
-    sendMiningNotify(exJobs_.rbegin()->second);
+    shared_ptr<StratumJobEx> exJob = exJobs_.rbegin()->second;
+    sendMiningNotify(exJob);
   }
 }
 
@@ -211,7 +227,6 @@ void JobRepository::sendMiningNotify(shared_ptr<StratumJobEx> exJob) {
   // send job to all clients
   server_->sendMiningNotifyToAll(exJob);
   lastJobSendTime_ = time(nullptr);
-
   lastJobId = exJob->sjob_->jobId_;
 }
 
@@ -240,7 +255,7 @@ void JobRepository::tryCleanExpiredJobs() {
 
 ////////////////////////////////// StratumJobEx ////////////////////////////////
 StratumJobEx::StratumJobEx(StratumJob *sjob, bool isClean):
-isClean_(isClean), state_(MINING), sjob_(sjob)
+state_(MINING), isClean_(isClean), sjob_(sjob)
 {
   assert(sjob != nullptr);
   makeMiningNotifyStr();
