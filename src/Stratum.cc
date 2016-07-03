@@ -42,33 +42,33 @@ const char * StratumError::toString(int err) {
       return "no error";
 
     case JOB_NOT_FOUND:
-      return "job not found(stale)";
+      return "Job not found (=stale)";
     case DUPLICATE_SHARE:
-      return "duplicate share";
+      return "Duplicate share";
     case LOW_DIFFICULTY:
-      return "low difficulty";
+      return "Low difficulty";
     case UNAUTHORIZED:
-      return "unauthorized";
+      return "Unauthorized worker";
     case NOT_SUBSCRIBED:
-      return "not subscribed";
+      return "Not subscribed";
 
     case ILLEGAL_METHOD:
-      return "illegal method";
+      return "Illegal method";
     case ILLEGAL_PARARMS:
-      return "illegal params";
+      return "Illegal params";
     case IP_BANNED:
-      return "ip banned";
+      return "Ip banned";
     case INVALID_USERNAME:
-      return "invliad username";
+      return "Invliad username";
     case INTERNAL_ERROR:
-      return "internal error";
+      return "Internal error";
     case TIME_TOO_OLD:
-      return "time too old";
+      return "Time too old";
     case TIME_TOO_NEW:
-      return "time too new";
+      return "Time too new";
 
     case UNKNOWN: default:
-      return "unknown";
+      return "Unknown";
   }
 }
 

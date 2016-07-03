@@ -149,9 +149,10 @@ class StratumSession {
     uint64_t jobId_;
     uint64_t jobDifficulty_;     // difficulty of this job
     uint256  jobTarget_;
+    uint32_t blkBits_;
     std::set<LocalShare> submitShares_;
 
-    LocalJob(): jobId_(0), jobDifficulty_(0){}
+    LocalJob(): jobId_(0), jobDifficulty_(0), blkBits_(0) {}
 
     bool addLocalShare(const LocalShare &localShare) {
       auto itr = submitShares_.find(localShare);
@@ -168,8 +169,9 @@ class StratumSession {
   DiffController diffController_;
   State state_;
   StratumWorker worker_;
-  string clientAgent_;  // eg. bfgminer/4.4.0-32-gac4e9b3
-  string clientIp_;
+  string   clientAgent_;  // eg. bfgminer/4.4.0-32-gac4e9b3
+  string   clientIp_;
+  uint32_t clientIpInt_;
 
   uint32 extraNonce1_;   // MUST be unique across all servers
   static const int kExtraNonce2Size_ = 8;  // extraNonce2 size is always 8 bytes

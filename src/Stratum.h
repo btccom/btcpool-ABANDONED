@@ -25,7 +25,9 @@
 #define STRATUM_H_
 
 #include "Common.h"
+#include "Utils.h"
 
+#include <arpa/inet.h>
 #include <netinet/in.h>
 #include <queue>
 
@@ -38,8 +40,47 @@
 #include "bitcoin/uint256.h"
 #include "bitcoin/base58.h"
 
-class StratumJobMsg;
 
+///////////////////////////////////// Share ////////////////////////////////////
+class Share {
+public:
+  enum Result {
+    // make default 0 as REJECT, so code bug is unlikely to make false ACCEPT shares
+    REJECT    = 0,
+    ACCEPT    = 1
+  };
+  
+  uint64_t jobId_;
+  uint64_t workerHashId_;
+  uint32_t ip_;
+  uint32_t userId_;
+  uint64_t share_;
+  uint32_t timestamp_;
+  uint32_t blkBits_;
+  int32_t  result_;
+
+  Share():jobId_(0), workerHashId_(0), ip_(0), userId_(0), share_(0),
+  timestamp_(0), blkBits_(0), result_(0) {}
+
+  double score() const {
+    if (share_ == 0 || blkBits_ == 0) { return 0.0; }
+    double networkDifficulty = 0.0;
+    BitsToDifficulty(blkBits_, networkDifficulty);
+    return (double)share_ / networkDifficulty;
+  }
+
+  string toString() const {
+    char ipStr[INET_ADDRSTRLEN];
+//    ip_ = htonl(ip_);
+    inet_ntop(AF_INET, &(ip_), ipStr, INET_ADDRSTRLEN);
+    return Strings::Format("share(jobId: %llu, ip: %s, userId: %llu, "
+                           "workerId: %llu, timeStamp: %u/%s, share: %llu, "
+                           "blkBits: %08x, result: %d)",
+                           jobId_, ipStr, userId_, workerHashId_,
+                           timestamp_, date("%F %T", timestamp_).c_str(),
+                           share_, blkBits_, result_);
+  }
+};
 
 //////////////////////////////// StratumError ////////////////////////////////
 class StratumError {
@@ -64,6 +105,8 @@ public:
   };
   static const char * toString(int err);
 };
+
+
 
 //////////////////////////////// StratumWorker ////////////////////////////////
 class StratumWorker {

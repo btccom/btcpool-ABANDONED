@@ -29,6 +29,7 @@
 
 #include "StratumServer.h"
 
+
 //////////////////////////////// DiffController ////////////////////////////////
 void DiffController::setMinDiff(uint64 minDiff) {
   if (minDiff < kMinDiff_) {
@@ -220,10 +221,13 @@ bev_(bev), fd_(fd), server_(server)
   isPoolWatcher_ = false;
 
   clientAgent_ = "unknown";
+  // ipv4
   clientIp_.resize(INET_ADDRSTRLEN);
   struct sockaddr_in *saddrin = (struct sockaddr_in *)saddr;
   clientIp_ = inet_ntop(AF_INET, &saddrin->sin_addr,
                         (char *)clientIp_.data(), (socklen_t)clientIp_.size());
+  clientIpInt_ = saddrin->sin_addr.s_addr;
+
   setup();
 
   LOG(INFO) << "client connect, ip: " << clientIp_;
@@ -501,27 +505,46 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   if (extraNonce2Hex.length()/2 > kExtraNonce2Size_) {
     extraNonce2Hex.resize(kExtraNonce2Size_ * 2);
   }
+
+  int submitResult;
+
   LocalJob *localJob = findLocalJob(jobId);
   if (localJob == nullptr) {
+    // if can't find localJob, could do nothing
     responseError(idStr, StratumError::JOB_NOT_FOUND);
     return;
   }
 
+  Share share;
+  share.jobId_        = jobId;
+  share.workerHashId_ = worker_.workerHashId_;
+  share.ip_           = clientIpInt_;
+  share.userId_       = worker_.userId_;
+  share.share_        = localJob->jobDifficulty_;
+  share.blkBits_      = localJob->blkBits_;
+  share.timestamp_    = (uint32_t)time(nullptr);
+  share.result_       = Share::Result::REJECT;
+
   LocalShare localShare(extraNonce2, nonce, nTime);
   if (!localJob->addLocalShare(localShare)) {
     responseError(idStr, StratumError::DUPLICATE_SHARE);
-    return;
+    goto finish;
   }
 
-  int result = server_->submitShare(jobId, extraNonce1_, extraNonce2Hex, nTime,
-                                    nonce, localJob->jobTarget_, worker_.fullName_);
-  if (result != StratumError::NO_ERROR) {
-    responseError(idStr, result);
-    return;
+  submitResult = server_->checkShare(jobId, extraNonce1_, extraNonce2Hex, nTime,
+                                     nonce, localJob->jobTarget_, worker_.fullName_);
+  if (submitResult == StratumError::NO_ERROR) {
+    // accepted share
+    share.result_ = Share::Result::ACCEPT;
+    diffController_.addAcceptedShare(localJob->jobDifficulty_);
+    responseTrue(idStr);
+  } else {
+    responseError(idStr, submitResult);
   }
 
-  // accept share
-  responseTrue(idStr);
+finish:
+  server_->sendShare2Kafka((const uint8_t *)&share, sizeof(Share));
+  return;
 }
 
 StratumSession::LocalJob *StratumSession::findLocalJob(uint64_t jobId) {
@@ -548,7 +571,8 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr) {
 
   localJobs_.push_back(LocalJob());
   LocalJob &ljob = *(localJobs_.rbegin());
-  ljob.jobId_ = sjob->jobId_;
+  ljob.blkBits_       = sjob->nBits_;
+  ljob.jobId_         = sjob->jobId_;
   ljob.jobDifficulty_ = diffController_.calcCurDiff();
   DiffToTarget(ljob.jobDifficulty_, ljob.jobTarget_);
 
@@ -558,6 +582,9 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr) {
   }
 
   send(exJobPtr->miningNotify_);
+
+  // TODO: clear localJobs_
+  // kMaxNumLocalJobs_
 }
 
 void StratumSession::send(const char *data, size_t len) {

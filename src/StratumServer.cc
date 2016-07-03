@@ -185,6 +185,13 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   }
 }
 
+void JobRepository::markAllJobsAsStale() {
+  ScopeLock sl(lock_);
+  for (auto it : exJobs_) {
+    it.second->markStale();
+  }
+}
+
 void JobRepository::checkAndSendMiningNotify() {
   // last job is 'expried', send a new one
   if (exJobs_.size() &&
@@ -510,10 +517,10 @@ void Server::eventCallback(struct bufferevent* bev, short events,
   }
 }
 
-int Server::submitShare(const uint64_t jobId,
-                        const uint32 extraNonce1, const string &extraNonce2Hex,
-                        const uint32_t nTime, const uint32_t nonce,
-                        const uint256 &jobTarget, const string &workName) {
+int Server::checkShare(const uint64_t jobId,
+                       const uint32 extraNonce1, const string &extraNonce2Hex,
+                       const uint32_t nTime, const uint32_t nonce,
+                       const uint256 &jobTarget, const string &workFullName) {
   shared_ptr<StratumJobEx> exJobPtr = jobRepository_->getStratumJobEx(jobId);
   if (exJobPtr == nullptr) {
     return StratumError::JOB_NOT_FOUND;
@@ -538,6 +545,11 @@ int Server::submitShare(const uint64_t jobId,
 
   if (blkHash <= sjob->networkTarget_) {
     // TODO: broadcast block solved share
+    LOG(INFO) << ">>>> found a new block: " << blkHash.ToString()
+    << ", jobId: " << jobId << ", by: " << workFullName
+    << " <<<<";
+
+    jobRepository_->markAllJobsAsStale();
   }
 
   // print out high diff share, 2^10 = 1024
@@ -545,7 +557,7 @@ int Server::submitShare(const uint64_t jobId,
     LOG(INFO) << "high diff share, blkhash: " << blkHash.ToString()
     << ", diff: " << TargetToBdiff(blkHash)
     << ", networkDiff: " << TargetToBdiff(sjob->networkTarget_)
-    << ", by: " << workName;
+    << ", by: " << workFullName;
   }
 
   if (blkHash > jobTarget) {
@@ -556,3 +568,7 @@ int Server::submitShare(const uint64_t jobId,
   return StratumError::NO_ERROR;
 }
 
+void Server::sendShare2Kafka(const uint8_t *data, size_t len) {
+  // TODO:
+  // should be thread safe
+}

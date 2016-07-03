@@ -82,6 +82,7 @@ public:
 
   void stop();
   bool setupThreadConsume();
+  void markAllJobsAsStale();
 
   shared_ptr<StratumJobEx> getStratumJobEx(const uint64_t jobId);
   shared_ptr<StratumJobEx> getLatestStratumJobEx();
@@ -164,10 +165,11 @@ public:
   static void readCallback (struct bufferevent *, void *connection);
   static void eventCallback(struct bufferevent *, short, void *connection);
 
-  int submitShare(const uint64_t jobId,
-                  const uint32 extraNonce1, const string &extraNonce2Hex,
-                  const uint32_t nTime, const uint32_t nonce,
-                  const uint256 &jobTarget, const string &workName);
+  int checkShare(const uint64_t jobId,
+                 const uint32 extraNonce1, const string &extraNonce2Hex,
+                 const uint32_t nTime, const uint32_t nonce,
+                 const uint256 &jobTarget, const string &workFullName);
+  void sendShare2Kafka(const uint8_t *data, size_t len);
 };
 
 
