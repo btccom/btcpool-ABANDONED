@@ -32,7 +32,7 @@
 #include "bitcoin/base58.h"
 
 #include <map>
-
+#include <deque>
 
 class JobMaker {
   atomic<bool> running_;
@@ -51,6 +51,9 @@ class JobMaker {
 
   uint32_t kGbtLifeTime_;
   std::map<uint64_t/* timestamp + height */, string> rawgbtMap_;  // sorted gbt by timestamp
+
+  deque<uint256> lastestGbtHash_;
+  uint32_t blockVersion_;
 
   void consumeRawGbtMsg(rd_kafka_message_t *rkmessage, bool needToSend);
   void addRawgbt(const char *str, size_t len);

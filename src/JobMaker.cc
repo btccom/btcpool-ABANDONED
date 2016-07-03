@@ -46,7 +46,8 @@ kafkaBrokers_(kafkaBrokers),
 kafkaConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT,      0/* partition */),
 kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, RD_KAFKA_PARTITION_UA/* partition */),
 currBestHeight_(0), stratumJobInterval_(stratumJobInterval),
-poolPayoutAddr_(payoutAddr), kGbtLifeTime_(gbtLifeTime)
+poolPayoutAddr_(payoutAddr), kGbtLifeTime_(gbtLifeTime),
+blockVersion_(0)  // TODO: cfg
 {
   poolCoinbaseInfo_ = "/BTC.COM/";
 }
@@ -164,11 +165,19 @@ void JobMaker::addRawgbt(const char *str, size_t len) {
     LOG(ERROR) << "parse rawgbt message to json fail";
     return;
   }
-  if (r["created_at_ts"].type() != Utilities::JS::type::Int ||
+  if (r["created_at_ts"].type()         != Utilities::JS::type::Int ||
       r["block_template_base64"].type() != Utilities::JS::type::Str ||
-      r["gbthash"].type() != Utilities::JS::type::Str) {
+      r["gbthash"].type()               != Utilities::JS::type::Str) {
     LOG(ERROR) << "invalid rawgbt: missing fields";
     return;
+  }
+
+  const uint256 gbtHash = uint256(r["gbthash"].str());
+  for (const auto &itr : lastestGbtHash_) {
+    if (gbtHash == itr) {
+      LOG(ERROR) << "duplicate gbt hash: " << gbtHash.ToString();
+      return;
+    }
   }
 
   const uint32_t gbtTime = r["created_at_ts"].uint32();
@@ -201,6 +210,12 @@ void JobMaker::addRawgbt(const char *str, size_t len) {
       LOG(ERROR) << "key already exist in rawgbtMap: " << key;
     }
   }
+
+  lastestGbtHash_.push_back(gbtHash);
+  while (lastestGbtHash_.size() > 20) {
+    lastestGbtHash_.pop_front();
+  }
+
   LOG(INFO) << "add rawgbt, height: "<< height << ", gbthash: "
   << r["gbthash"].str().substr(0, 16) << "..., gbtTime(UTC): " << date("%F %T", gbtTime);
 }
@@ -222,7 +237,7 @@ void JobMaker::clearTimeoutGbt() {
 
 void JobMaker::sendStratumJob(const char *gbt) {
   StratumJob sjob;
-  if (!sjob.initFromGbt(gbt, poolCoinbaseInfo_, poolPayoutAddr_)) {
+  if (!sjob.initFromGbt(gbt, poolCoinbaseInfo_, poolPayoutAddr_, blockVersion_)) {
     LOG(ERROR) << "init stratum job message from gbt str fail";
     return;
   }

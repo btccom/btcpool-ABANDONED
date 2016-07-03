@@ -255,7 +255,8 @@ bool StratumJob::unserializeFromJson(const char *s, size_t len) {
 }
 
 bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
-                             const CBitcoinAddress &poolPayoutAddr) {
+                             const CBitcoinAddress &poolPayoutAddr,
+                             const uint32_t blockVersion) {
   uint256 gbtHash = Hash(gbt, gbt + strlen(gbt));
   JsonNode r;
   if (!JsonNode::parse(gbt, gbt + strlen(gbt), r)) {
@@ -277,7 +278,11 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
   // fields in gbt json has already checked by GbtMaker
   prevHash_ = uint256(jgbt["previousblockhash"].str());
   height_   = jgbt["height"].int32();
-  nVersion_ = jgbt["version"].uint32();
+  if (blockVersion != 0) {
+    nVersion_ = blockVersion;
+  } else {
+    nVersion_ = jgbt["version"].uint32();
+  }
   nBits_    = jgbt["bits"].uint32_hex();
   nTime_    = jgbt["curtime"].uint32();
   minTime_  = jgbt["mintime"].uint32();

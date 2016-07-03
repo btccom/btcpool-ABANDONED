@@ -132,19 +132,22 @@ string GbtMaker::makeRawGbtMsg() {
   }
 
   // check fields
-  if (r["result"].type() != Utilities::JS::type::Obj ||
+  if (r["result"].type()                      != Utilities::JS::type::Obj ||
       r["result"]["previousblockhash"].type() != Utilities::JS::type::Str ||
-      r["result"]["height"].type() != Utilities::JS::type::Int ||
-      r["result"]["coinbasevalue"].type() != Utilities::JS::type::Int) {
+      r["result"]["height"].type()            != Utilities::JS::type::Int ||
+      r["result"]["coinbasevalue"].type()     != Utilities::JS::type::Int ||
+      r["result"]["bits"].type()              != Utilities::JS::type::Str ||
+      r["result"]["mintime"].type()           != Utilities::JS::type::Int ||
+      r["result"]["version"].type()           != Utilities::JS::type::Int) {
     LOG(ERROR) << "gbt check fields failure";
     return "";
   }
   const uint256 gbtHash = Hash(gbt.begin(), gbt.end());
 
   LOG(INFO) << "gbt height: " << r["result"]["height"].uint32()
-  << ", prev_hash: " << r["result"]["previousblockhash"].str()
-  << ", coinbase_value: " << r["result"]["coinbasevalue"].uint64()
-  << ", bits: " << r["result"]["bits"].str()
+  << ", prev_hash: "          << r["result"]["previousblockhash"].str()
+  << ", coinbase_value: "     << r["result"]["coinbasevalue"].uint64()
+  << ", bits: "    << r["result"]["bits"].str()
   << ", mintime: " << r["result"]["mintime"].uint32()
   << ", version: " << r["result"]["version"].uint32()
   << "|0x" << Strings::Format("%08x", r["result"]["version"].uint32())
