@@ -38,9 +38,66 @@
 #include "bitcoin/uint256.h"
 #include "utilities_js.hpp"
 #include "Stratum.h"
+#include "Statistics.h"
 
 class Server;
 class StratumJobEx;
+class DiffController;
+
+//////////////////////////////// DiffController ////////////////////////////////
+class DiffController {
+  static const int32_t kMinDiff_       = 1;     // min diff
+  static const int32_t kDefaultDiff_   = 1024;  // default diff, 2^N
+  static const int32_t kDiffWindow_    = 900;   // time window, seconds, 60*N
+  static const int32_t kRecordSeconds_ = 10;    // every N seconds as a record
+
+  time_t startTime_;  // first job send time
+  uint64  minDiff_;
+  uint64  curDiff_;
+  int32_t shareAvgSeconds_;
+  int32_t curHashRateLevel_;
+
+  StatsWindow<double> sharesNum_;  // share count
+  StatsWindow<uint64> shares_;     // share
+
+  uint64 _calcCurDiff();
+  int adjustHashRateLevel(const double hashRateT);
+  double minerCoefficient(const time_t now, const int64_t idx);
+
+  inline bool isFullWindow(const time_t now) {
+    return now >= startTime_ + kDiffWindow_;
+  }
+
+public:
+  DiffController(const int32_t shareAvgSeconds) :
+  startTime_(0),
+  minDiff_(kMinDiff_), curDiff_(kDefaultDiff_), curHashRateLevel_(0),
+  sharesNum_(kDiffWindow_/kRecordSeconds_), /* every N seconds as a record */
+  shares_   (kDiffWindow_/kRecordSeconds_)
+  {
+    if (shareAvgSeconds >= 1 && shareAvgSeconds <= 60) {
+      shareAvgSeconds_ = shareAvgSeconds;
+    } else {
+      shareAvgSeconds_ = 8;
+    }
+  }
+
+  ~DiffController() {}
+
+  // recalc miner's diff before send an new stratum job
+  uint64 calcCurDiff();
+
+  // we need to add every share, so we can calc worker's hashrate
+  void addAcceptedShare(const uint64 share);
+
+  // maybe worker has it's own min diff
+  void setMinDiff(uint64 minDiff);
+
+  // use when handle cmd: mining.suggest_difficulty & mining.suggest_target
+  void resetCurDiff(uint64 curDiff);
+};
+
+
 
 //
 // cgminer support methods:
@@ -108,7 +165,7 @@ class StratumSession {
 
 
   //----------------------
-//  DiffController diffController_;
+  DiffController diffController_;
   State state_;
   StratumWorker worker_;
   string clientAgent_;  // eg. bfgminer/4.4.0-32-gac4e9b3
@@ -117,6 +174,7 @@ class StratumSession {
   uint32 extraNonce1_;   // MUST be unique across all servers
   static const int kExtraNonce2Size_ = 8;  // extraNonce2 size is always 8 bytes
 
+  uint64_t currDiff_;
   std::deque<LocalJob> localJobs_;
   size_t kMaxNumLocalJobs_;
 
@@ -152,9 +210,11 @@ public:
 
 public:
   StratumSession(evutil_socket_t fd, struct bufferevent *bev,
-                 Server *server, struct sockaddr *saddr);
+                 Server *server, struct sockaddr *saddr,
+                 const int32_t shareAvgSeconds);
   ~StratumSession();
 
+  void sendSetDifficulty(const uint64_t difficulty);
   void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr);
   void send(const char *data, size_t len);
   inline void send(const string &str) {

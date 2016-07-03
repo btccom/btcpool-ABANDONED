@@ -29,12 +29,187 @@
 
 #include "StratumServer.h"
 
+//////////////////////////////// DiffController ////////////////////////////////
+void DiffController::setMinDiff(uint64 minDiff) {
+  if (minDiff < kMinDiff_) {
+    minDiff = kMinDiff_;
+  }
+  minDiff_ = minDiff;
+}
+
+void DiffController::resetCurDiff(uint64 curDiff) {
+  if (curDiff < kMinDiff_) {
+    curDiff = kMinDiff_;
+  }
+  if (curDiff < minDiff_) {
+    curDiff = minDiff_;
+  }
+
+  // set to zero
+  sharesNum_.mapMultiply(0);
+  shares_.mapMultiply(0);
+
+  curDiff_ = curDiff;
+}
+
+void DiffController::addAcceptedShare(const uint64 share) {
+  const int64 k = time(nullptr) / kRecordSeconds_;
+  sharesNum_.insert(k, 1.0);
+  shares_.insert(k, share);
+}
+
+
+//
+// level:  min ~ max, coefficient
+//
+// 0 :    0 ~    4 T,  1.0
+// 1 :    4 ~    8 T,  1.0
+// 2 :    8 ~   16 T,  1.0
+// 3 :   16 ~   32 T,  1.2
+// 4 :   32 ~   64 T,  1.5
+// 5 :   64 ~  128 T,  2.0
+// 6 :  128 ~  256 T,  3.0
+// 7 :  256 ~  512 T,  4.0
+// 8 :  512 ~  ... T,  6.0
+//
+
+static int __hashRateDown(int level) {
+  const int levels[] = {0, 4, 8, 16,   32, 64, 128, 256};
+  if (level >= 8) {
+    return 512;
+  }
+  assert(level >= 0 && level <= 7);
+  return levels[level];
+}
+
+static int __hashRateUp(int level) {
+  const int levels[] = {4, 8, 16, 32,   64, 128, 256, 512};
+  assert(level >= 0 && level <= 7);
+  if (level >= 8) {
+    return 0x7fffffffL;  // INT32_MAX
+  }
+  return levels[level];
+}
+
+// TODO: test case
+int DiffController::adjustHashRateLevel(const double hashRateT) {
+  // hashrate is always danceing,
+  // so need to use rate high and low to check it's level
+  const double rateHigh = 1.50;
+  const double rateLow  = 0.75;
+
+  // reduce level
+  if (curHashRateLevel_ > 0 && hashRateT < __hashRateDown(curHashRateLevel_)) {
+    while (curHashRateLevel_ > 0 &&
+           hashRateT <= __hashRateDown(curHashRateLevel_) * rateLow) {
+      curHashRateLevel_--;
+    }
+    return curHashRateLevel_;
+  }
+
+  // increase level
+  if (curHashRateLevel_ <= 7 && hashRateT > __hashRateUp(curHashRateLevel_)) {
+    while (curHashRateLevel_ <= 7 &&
+           hashRateT >= __hashRateUp(curHashRateLevel_) * rateHigh) {
+      curHashRateLevel_++;
+    }
+    return curHashRateLevel_;
+  }
+
+  return curHashRateLevel_;
+}
+
+double DiffController::minerCoefficient(const time_t now, const int64_t idx) {
+  if (now <= startTime_) {
+    return 1.0;
+  }
+  uint64_t shares    = shares_.sum(idx);
+  time_t shareWindow = isFullWindow(now) ? kDiffWindow_ : (now - startTime_);
+  double hashRateT   = (double)shares * pow(2, 32) / shareWindow / pow(10, 12);
+  adjustHashRateLevel(hashRateT);
+  assert(curHashRateLevel_ >= 0 && curHashRateLevel_ <= 8);
+
+  const double c[] = {1.0, 1.0, 1.0, 1.2, 1.5, 2.0, 3.0, 4.0, 6.0};
+  assert(sizeof(c[0])/sizeof(c) == 9);
+  return c[curHashRateLevel_];
+}
+
+uint64 DiffController::calcCurDiff() {
+  uint64 diff = _calcCurDiff();
+  if (diff < minDiff_) {
+    diff = minDiff_;
+  }
+  return diff;
+}
+
+uint64 DiffController::_calcCurDiff() {
+  const time_t now = time(nullptr);
+  const int64 k = now / kRecordSeconds_;
+  const double sharesCount = (double)sharesNum_.sum(k);
+  if (startTime_ == 0) {  // first time, we set the start time
+    startTime_ = time(nullptr);
+  }
+
+  if (now < startTime_ + 60) {
+    return curDiff_;  // less than 60 seconds, we do nothing
+  }
+
+  // this is for very low hashrate miner, eg. USB miners
+  // should received at least one share every 60 seconds
+  if (!isFullWindow(now) && now >= startTime_ + 60 &&
+      sharesCount <= (int32_t)((now - startTime_)/60.0) &&
+      curDiff_ >= minDiff_*2) {
+    curDiff_ /= 2;
+    sharesNum_.mapMultiply(2.0);
+    return curDiff_;
+  }
+
+  const double kRateHigh = 1.40;
+  const double kRateLow  = 0.40;
+  double expectedCount = round(kDiffWindow_ / (double)shareAvgSeconds_);
+
+  if (isFullWindow(now)) { /* have a full window now */
+    // big miner have big expected share count to make it looks more smooth.
+    expectedCount *= minerCoefficient(now, k);
+  }
+  if (expectedCount > kDiffWindow_) {
+    expectedCount = kDiffWindow_;  // once second per share is enough
+  }
+
+  // too fast
+  if (sharesCount > expectedCount * kRateHigh) {
+    while (sharesNum_.sum(k) > expectedCount) {
+      curDiff_ *= 2;
+      sharesNum_.mapDivide(2.0);
+    }
+    return curDiff_;
+  }
+
+  // too slow
+  if (isFullWindow(now) && curDiff_ >= minDiff_*2) {
+    while (sharesNum_.sum(k) < expectedCount * kRateLow &&
+           curDiff_ >= minDiff_*2) {
+      curDiff_ /= 2;
+      sharesNum_.mapMultiply(2.0);
+    }
+    assert(curDiff_ >= minDiff_);
+    return curDiff_;
+  }
+  
+  return curDiff_;
+}
+
+
+
 //////////////////////////////// StratumSession ////////////////////////////////
 StratumSession::StratumSession(evutil_socket_t fd, struct bufferevent *bev,
-                               Server *server, struct sockaddr *saddr)
-: bev_(bev), fd_(fd), server_(server)
+                               Server *server, struct sockaddr *saddr,
+                               const int32_t shareAvgSeconds) :
+diffController_(shareAvgSeconds),
+bev_(bev), fd_(fd), server_(server)
 {
   state_ = CONNECTED;
+  currDiff_    = 0U;
   extraNonce1_ = 0U;
 
   // usually stratum job interval is 30~60 seconds, 10 is enough for miners
@@ -161,7 +336,7 @@ void StratumSession::responseError(const string &idStr, int errCode) {
 }
 
 void StratumSession::responseTrue(const string &idStr) {
-  const string s = "{\"id\":" + idStr + ",\"result\": true,\"error\":null}\n";
+  const string s = "{\"id\":" + idStr + ",\"result\":true,\"error\":null}\n";
   send(s);
 }
 
@@ -247,6 +422,8 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
     responseError(idStr, StratumError::INVALID_USERNAME);
     return;
   }
+  // TODO: if miner's have own mindiff
+//  diffController_.setMinDiff();
 
   // auth success
   responseTrue(idStr);
@@ -267,9 +444,7 @@ void StratumSession::_handleRequest_SetDifficulty(uint64_t suggestDiff) {
     i++;
   }
   suggestDiff = (uint64_t)exp2(i);
-
-  // TODO:
-  //  diffController_.resetCurDiff(suggestDiff);
+  diffController_.resetCurDiff(suggestDiff);
 }
 
 void StratumSession::handleRequest_SuggestTarget(const string &idStr,
@@ -358,6 +533,13 @@ StratumSession::LocalJob *StratumSession::findLocalJob(uint64_t jobId) {
   return nullptr;
 }
 
+void StratumSession::sendSetDifficulty(const uint64_t difficulty) {
+  string s = Strings::Format("{\"id\":null,\"method\":\"mining.set_difficulty\""
+                             ",\"params\":[%llu]}\n",
+                             difficulty);
+  send(s);
+}
+
 void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr) {
   if (state_ < SUBSCRIBED || exJobPtr == nullptr) {
     return;
@@ -367,9 +549,13 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr) {
   localJobs_.push_back(LocalJob());
   LocalJob &ljob = *(localJobs_.rbegin());
   ljob.jobId_ = sjob->jobId_;
-// TODO:
-//  ljob.jobDifficulty_ =
+  ljob.jobDifficulty_ = diffController_.calcCurDiff();
   DiffToTarget(ljob.jobDifficulty_, ljob.jobTarget_);
+
+  if (currDiff_ != ljob.jobDifficulty_) {
+    sendSetDifficulty(ljob.jobDifficulty_);
+    currDiff_ = ljob.jobDifficulty_;
+  }
 
   send(exJobPtr->miningNotify_);
 }

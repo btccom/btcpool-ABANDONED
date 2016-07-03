@@ -141,6 +141,7 @@ class Server {
   KafkaProducer *kafkaProducerSolvedShare_;
 
 public:
+  int32_t kShareAvgSeconds_;
   JobRepository *jobRepository_;
 
 public:

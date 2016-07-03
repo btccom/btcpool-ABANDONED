@@ -357,6 +357,7 @@ void StratumServer::run() {
 ///////////////////////////////////// Server ///////////////////////////////////
 Server::Server(): base_(nullptr), signal_event_(nullptr), listener_(nullptr),
 kafkaProducerShareLog_(nullptr), kafkaProducerSolvedShare_(nullptr),
+kShareAvgSeconds_(8), // TODO: read from cfg
 jobRepository_(nullptr)
 {
 }
@@ -472,7 +473,8 @@ void Server::listenerCallback(struct evconnlistener* listener,
     return;
   }
 
-  StratumSession* conn = new StratumSession(fd, bev, server, saddr);
+  StratumSession* conn = new StratumSession(fd, bev, server, saddr,
+                                            server->kShareAvgSeconds_);
   bufferevent_setcb(bev,
                     Server::readCallback,
                     NULL,  /* we use bufferevent, so don't need to watch write events */
