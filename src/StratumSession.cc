@@ -131,7 +131,7 @@ double DiffController::minerCoefficient(const time_t now, const int64_t idx) {
   assert(curHashRateLevel_ >= 0 && curHashRateLevel_ <= 8);
 
   const double c[] = {1.0, 1.0, 1.0, 1.2, 1.5, 2.0, 3.0, 4.0, 6.0};
-  assert(sizeof(c[0])/sizeof(c) == 9);
+  assert(sizeof(c)/sizeof(c[0]) == 9);
   return c[curHashRateLevel_];
 }
 
@@ -151,8 +151,16 @@ uint64 DiffController::_calcCurDiff() {
     startTime_ = time(nullptr);
   }
 
-  if (now < startTime_ + 60) {
-    return curDiff_;  // less than 60 seconds, we do nothing
+  const double kRateHigh = 1.40;
+  const double kRateLow  = 0.40;
+  double expectedCount = round(kDiffWindow_ / (double)shareAvgSeconds_);
+
+  if (isFullWindow(now)) { /* have a full window now */
+    // big miner have big expected share count to make it looks more smooth.
+    expectedCount *= minerCoefficient(now, k);
+  }
+  if (expectedCount > kDiffWindow_) {
+    expectedCount = kDiffWindow_;  // one second per share is enough
   }
 
   // this is for very low hashrate miner, eg. USB miners
@@ -163,18 +171,6 @@ uint64 DiffController::_calcCurDiff() {
     curDiff_ /= 2;
     sharesNum_.mapMultiply(2.0);
     return curDiff_;
-  }
-
-  const double kRateHigh = 1.40;
-  const double kRateLow  = 0.40;
-  double expectedCount = round(kDiffWindow_ / (double)shareAvgSeconds_);
-
-  if (isFullWindow(now)) { /* have a full window now */
-    // big miner have big expected share count to make it looks more smooth.
-    expectedCount *= minerCoefficient(now, k);
-  }
-  if (expectedCount > kDiffWindow_) {
-    expectedCount = kDiffWindow_;  // once second per share is enough
   }
 
   // too fast
@@ -296,9 +292,11 @@ bool StratumSession::tryReadLine(string &line) {
 }
 
 void StratumSession::handleLine(const string &line) {
-  string hex;
-  Bin2Hex((uint8_t *)line.data(), line.size(), hex);
-  LOG(INFO) << "dump line, hex: " << hex << ", line: " << line << ", size: " << line.size();
+//  string hex;
+//  Bin2Hex((uint8_t *)line.data(), line.size(), hex);
+//  LOG(INFO) << "dump line, hex: " << hex;
+
+  LOG(INFO) << "line: >>" << line << "<<, size: " << line.size();
 
   JsonNode jnode;
   if (!JsonNode::parse(line.data(), line.data() + line.size(), jnode)) {
@@ -355,6 +353,9 @@ void StratumSession::handleRequest(const string &idStr, const string &method,
   else if (method == "mining.authorize") {
     handleRequest_Authorize(idStr, jparams);
   }
+  else if (method == "mining.multi_version") {
+    handleRequest_MultiVersion(idStr, jparams);
+  }
   else if (method == "mining.suggest_target") {
     handleRequest_SuggestTarget(idStr, jparams);
   }
@@ -365,6 +366,14 @@ void StratumSession::handleRequest(const string &idStr, const string &method,
     LOG(WARNING) << "unrecognised method: \"" << method << "\""
     << ", client: " << clientIp_ << "/" << clientAgent_;
   }
+}
+
+void StratumSession::handleRequest_MultiVersion(const string &idStr,
+                                                const JsonNode &jparams) {
+//  // we ignore right now, 2016-07-04
+//  const string s = Strings::Format("{\"id\":%s,\"method\":\"mining.midstate_change\",\"params\":[4]}",
+//                                   idStr.c_str());
+//  send(s);
 }
 
 void StratumSession::handleRequest_Subscribe(const string &idStr,
@@ -443,11 +452,13 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
 }
 
 void StratumSession::_handleRequest_SetDifficulty(uint64_t suggestDiff) {
-  double i = 1;  // 2^10 -> 1024
+  // suggestDiff must be 2^N
+  double i = 1;
   while ((uint64_t)exp2(i) < suggestDiff) {
     i++;
   }
   suggestDiff = (uint64_t)exp2(i);
+
   diffController_.resetCurDiff(suggestDiff);
 }
 
@@ -492,7 +503,7 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   //  params[2] = ExtraNonce 2
   //  params[3] = nTime
   //  params[4] = nonce
-  if (jparams.children()->size() != 5) {
+  if (jparams.children()->size() < 5) {
     responseError(idStr, StratumError::ILLEGAL_PARARMS);
     return;
   }
@@ -543,6 +554,7 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   }
 
 finish:
+  DLOG(INFO) << share.toString();
   server_->sendShare2Kafka((const uint8_t *)&share, sizeof(Share));
   return;
 }

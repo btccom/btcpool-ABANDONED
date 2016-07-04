@@ -71,7 +71,6 @@ public:
 
   string toString() const {
     char ipStr[INET_ADDRSTRLEN];
-//    ip_ = htonl(ip_);
     inet_ntop(AF_INET, &(ip_), ipStr, INET_ADDRSTRLEN);
     return Strings::Format("share(jobId: %llu, ip: %s, userId: %llu, "
                            "workerId: %llu, timeStamp: %u/%s, share: %llu, "

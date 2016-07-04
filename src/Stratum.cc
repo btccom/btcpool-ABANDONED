@@ -100,6 +100,14 @@ void StratumWorker::setUserIDAndNames(const int32_t userId, const string &fullNa
     workerName_.resize(20);
   }
 
+  // calc worker hash id, 64bits
+  // https://en.wikipedia.org/wiki/Birthday_attack
+  const uint256 workerNameHash = Hash(workerName_.begin(), workerName_.end());
+  workerHashId_ = strtoll(workerNameHash.ToString().substr(0, 8).c_str(), 0, 16);
+  if (workerHashId_ == 0) {  // zero is kept
+    workerHashId_++;
+  }
+
   fullName_ = userName_ + "." + workerName_;
 }
 

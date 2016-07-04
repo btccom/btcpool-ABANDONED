@@ -201,6 +201,7 @@ class StratumSession {
   void handleRequest_Submit           (const string &idStr, const JsonNode &jparams);
   void handleRequest_SuggestTarget    (const string &idStr, const JsonNode &jparams);
   void handleRequest_SuggestDifficulty(const string &idStr, const JsonNode &jparams);
+  void handleRequest_MultiVersion     (const string &idStr, const JsonNode &jparams);
   void _handleRequest_SetDifficulty(uint64_t suggestDiff);
 
   LocalJob *findLocalJob(uint64_t jobId);
