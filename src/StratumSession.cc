@@ -246,8 +246,8 @@ void StratumSession::setup() {
   // TODO:
   // set extraNonce1_
 
-  // we set 60 seconds, will increase the timeout after sub & auth
-  setReadTimeout(60);
+  // we set 15 seconds, will increase the timeout after sub & auth
+  setReadTimeout(15);
 }
 
 //void StratumSession::close() {
@@ -296,7 +296,7 @@ void StratumSession::handleLine(const string &line) {
 //  Bin2Hex((uint8_t *)line.data(), line.size(), hex);
 //  LOG(INFO) << "dump line, hex: " << hex;
 
-  LOG(INFO) << "line: >>" << line << "<<, size: " << line.size();
+  DLOG(INFO) << "recv(" << line.size() << "): " << line;
 
   JsonNode jnode;
   if (!JsonNode::parse(line.data(), line.data() + line.size(), jnode)) {
@@ -443,9 +443,9 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
   worker_.setUserIDAndNames(userId, fullName);
   state_ = AUTHENTICATED;
 
-  // set read timeout to 15 mins, it's enought for most miners even usb miner.
+  // set read timeout to 10 mins, it's enought for most miners even usb miner.
   // if it's a pool watcher, set timeout to a week
-  setReadTimeout(isPoolWatcher_ ? 86400*7 : 60*15);
+  setReadTimeout(isPoolWatcher_ ? 86400*7 : 60*10);
 
   // send latest stratum job
   sendMiningNotify(server_->jobRepository_->getLatestStratumJobEx());
@@ -605,7 +605,7 @@ void StratumSession::send(const char *data, size_t len) {
   // add data to a bufferevent’s output buffer
   bufferevent_write(bev_, data, len);
 
-  LOG(INFO) << "send: " << data;
+  DLOG(INFO) << "send(" << len << "): " << data;
 }
 
 void StratumSession::readBuf(struct evbuffer *buf) {

@@ -579,6 +579,9 @@ int Server::checkShare(const uint64_t jobId,
     return StratumError::LOW_DIFFICULTY;
   }
 
+  LOG(INFO) << "blkHash: " << blkHash.ToString() << ", jobTarget: "
+  << jobTarget.ToString() << ", networkTarget: " << sjob->networkTarget_.ToString();
+
   // reach here means an valid share
   return StratumError::NO_ERROR;
 }

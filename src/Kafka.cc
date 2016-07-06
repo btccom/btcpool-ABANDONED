@@ -104,9 +104,6 @@ bool KafkaConsumer::setup(int64_t offset) {
     return false;
   }
 
-//  /* Redirect rd_kafka_poll() to consumer_poll() */
-//  rd_kafka_poll_set_consumer(consumer_);
-
 #ifndef NDEBUG
   rd_kafka_set_log_level(consumer_, 7 /* LOG_DEBUG */);
 #else

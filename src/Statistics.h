@@ -25,6 +25,14 @@
 #define STATISTICS_H_
 
 #include "Common.h"
+#include "Kafka.h"
+#include "Stratum.h"
+
+#include <pthread.h>
+
+#include <memory>
+
+#define STATS_SLIDING_WINDOW_SECONDS 900
 
 
 ////////////////////////////////// StatsWindow /////////////////////////////////
@@ -123,5 +131,114 @@ template <typename T>
 T StatsWindow<T>::sum(int64_t beginRingIdx) {
   return sum(beginRingIdx, windowSize_);
 }
+
+
+///////////////////////////////  WorkerStatus  /////////////////////////////////
+// some miners use the same userName & workerName in different meachines, they
+// will be the same StatsWorkerItem, the unique key is (userId_ + workId_)
+class WorkerStatus {
+public:
+  uint64_t workId_;
+  int32_t  userId_;
+
+  // share, base on sliding window
+  uint64_t accept1m_;
+  uint64_t accept5m_;
+  uint64_t accept15m_;
+  uint64_t reject15m_;
+
+  uint32_t acceptCount_;
+
+  uint32_t lastShareIP_;
+  uint32_t lastShareTime_;
+
+  StatsWorkerItem(): workId_(0), userId_(0),
+  accept1m_(0), accept5m_(0), accept15m_(0), reject15m_(0),
+  lastShareIP_(0), lastShareTime_(0)
+  {
+  }
+};
+
+
+////////////////////////////////  WorkerShares  ////////////////////////////////
+// thread safe
+class WorkerShares {
+  mutex lock_;
+  uint64_t workerId_;
+  int32_t  userId_;
+
+  uint32_t acceptCount_;
+
+  uint32_t lastShareIP_;
+  uint32_t lastShareTime_;
+
+  StatsWindow<uint64_t> acceptShareSec_;
+  StatsWindow<uint64_t> rejectShareMin_;
+
+public:
+  WorkerShares(const int64_t workerId, const int32_t userId);
+
+//  void serialize(...);
+//  bool unserialize(const ...);
+
+  void processShare(const Share &share);
+  WorkerStatus getWorkerStatus();
+  void getWorkerStatus(WorkerStatus &status);
+  bool isExpired();
+};
+
+
+//////////////////////////////////  WorkerKey  /////////////////////////////////
+class WorkerKey {
+public:
+  int32_t  userId_;
+  uint64_t workerId_;
+
+  WorkerKey(const int32_t userId, const uint64_t workerId):
+  userId_(userId), workerId_(workerId_) {}
+
+  WorkerKey& operator=(const WorkerKey &r) {
+    userId_   = r.userId_;
+    workerId_ = r.workerId_;
+    return *this;
+  }
+
+  bool operator==(const WorkerKey &r) const {
+    if (userId_ == r.userId_ && workerId_ == r.workerId_) {
+      return true;
+    }
+    return false;
+  }
+};
+
+
+////////////////////////////////  StatsServer  ////////////////////////////////
+//
+// 1. consume topic 'ShareLog'
+// 2. httpd: API for request alive worker status (realtime)
+// 3. flush worker status to DB
+//
+class StatsServer {
+  pthread_rwlock_t *rwlock_;  // for workerSet_
+  std::unordered_map<WorkerKey/* workerId */, shared_ptr<WorkerShares> > workerSet_;
+
+  KafkaConsumer kafkaConsumer_;  // consume topic: 'ShareLog'
+
+  thread threadConsume_;
+
+  void runThreadConsume();
+  void consumeStratumJob(rd_kafka_message_t *rkmessage);
+
+public:
+  StatsServer(const char *kafkaBrokers);
+  ~StatsServer();
+
+  void setupThreadConsume();
+
+  void processShare(const Share &share);
+  void getWorkerStatusBatch(const vector<WorkerKey> &keys,
+                            vector<WorkerStatus> &workerStatus);
+  WorkerStatus mergeWorkerStatus(const vector<WorkerStatus> &workerStatus);
+};
 
 #endif

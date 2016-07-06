@@ -34,6 +34,7 @@
 #define KAFKA_TOPIC_SHARE_LOG     "ShareLog"
 
 ///////////////////////////////// KafkaConsumer ////////////////////////////////
+// Simple Consumer
 class KafkaConsumer {
   string brokers_;
   string topicStr_;

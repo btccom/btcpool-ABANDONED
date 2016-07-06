@@ -53,7 +53,7 @@ public:
   uint64_t jobId_;
   uint64_t workerHashId_;
   uint32_t ip_;
-  uint32_t userId_;
+  int32_t  userId_;
   uint64_t share_;
   uint32_t timestamp_;
   uint32_t blkBits_;
