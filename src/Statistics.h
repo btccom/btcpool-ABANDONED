@@ -28,8 +28,13 @@
 #include "Kafka.h"
 #include "Stratum.h"
 
-#include <pthread.h>
+#include <event2/event.h>
+#include <event2/http.h>
+#include <event2/buffer.h>
+#include <event2/util.h>
+#include <event2/keyvalq_struct.h>
 
+#include <pthread.h>
 #include <memory>
 
 #define STATS_SLIDING_WINDOW_SECONDS 900
@@ -219,6 +224,7 @@ public:
 // 3. flush worker status to DB
 //
 class StatsServer {
+  atomic<bool> running_;
   pthread_rwlock_t *rwlock_;  // for workerSet_
   std::unordered_map<WorkerKey/* workerId */, shared_ptr<WorkerShares> > workerSet_;
 
@@ -226,19 +232,29 @@ class StatsServer {
 
   thread threadConsume_;
 
+  // httpd
+  struct event_base *base_;
+  string httpdHost_;
+  unsigned short httpdPort_;
+
   void runThreadConsume();
-  void consumeStratumJob(rd_kafka_message_t *rkmessage);
-
-public:
-  StatsServer(const char *kafkaBrokers);
-  ~StatsServer();
-
-  void setupThreadConsume();
+  void consumeShareLog(rd_kafka_message_t *rkmessage);
 
   void processShare(const Share &share);
   void getWorkerStatusBatch(const vector<WorkerKey> &keys,
                             vector<WorkerStatus> &workerStatus);
   WorkerStatus mergeWorkerStatus(const vector<WorkerStatus> &workerStatus);
+
+public:
+  StatsServer(const char *kafkaBrokers, string httpdHost, unsigned short httpdPort);
+  ~StatsServer();
+
+  void stop();
+  bool setupThreadConsume();
+  void runHttpd();
+
+  static void httpdServerStatus   (struct evhttp_request *req, void *arg);
+  static void httpdGetWorkerStatus(struct evhttp_request *req, void *arg);
 };
 
 #endif

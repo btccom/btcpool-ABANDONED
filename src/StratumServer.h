@@ -49,10 +49,6 @@
 class Server;
 class StratumJobEx;
 
-inline uint32_t jobId2Time(uint64_t jobId) {
-  return (uint32_t)((jobId >> 32) & 0x00000000FFFFFFFFULL);
-}
-
 ////////////////////////////////// JobRepository ///////////////////////////////
 class JobRepository {
   atomic<bool> running_;

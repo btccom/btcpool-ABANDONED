@@ -40,6 +40,9 @@
 #include "bitcoin/uint256.h"
 #include "bitcoin/base58.h"
 
+inline uint32_t jobId2Time(uint64_t jobId) {
+  return (uint32_t)((jobId >> 32) & 0x00000000FFFFFFFFULL);
+}
 
 ///////////////////////////////////// Share ////////////////////////////////////
 class Share {
@@ -67,6 +70,20 @@ public:
     double networkDifficulty = 0.0;
     BitsToDifficulty(blkBits_, networkDifficulty);
     return (double)share_ / networkDifficulty;
+  }
+
+  bool isValid() {
+    uint32_t jobTime = jobId2Time(jobId_);
+
+    /* TODO: increase timestamp check before 2020-01-01 */
+    if (userId_ > 0 && workerHashId_ != 0 && share_ > 0 &&
+        timestamp_ > 1467816952U /* 2016-07-06 14:55:52 UTC+0 */ &&
+        timestamp_ < 1577836800U /* 2020-01-01 00:00:00 UTC+0 */ &&
+        jobTime    > 1467816952U /* 2016-07-06 14:55:52 UTC+0 */ &&
+        jobTime    < 1577836800U /* 2020-01-01 00:00:00 UTC+0 */) {
+      return true;
+    }
+    return false;
   }
 
   string toString() const {
