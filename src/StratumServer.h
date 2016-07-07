@@ -134,7 +134,9 @@ class Server {
   mutex connsLock_;  // lock for connections
 
   // Stratum
+  mutex producerShareLogLock_;
   KafkaProducer *kafkaProducerShareLog_;
+  mutex producerSolvedShareLock_;
   KafkaProducer *kafkaProducerSolvedShare_;
 
 public:

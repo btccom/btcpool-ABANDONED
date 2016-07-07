@@ -115,7 +115,7 @@ int main(int argc, char **argv) {
     gStatsServer = new StatsServer(cfg.lookup("kafka.brokers").c_str(),
                                    cfg.lookup("statshttpd.ip").c_str(),
                                    (unsigned short)port);
-    gStatsServer->runHttpd();
+    gStatsServer->run();
     delete gStatsServer;
   }
   catch (std::exception & e) {

@@ -79,6 +79,11 @@ bool JobRepository::setupThreadConsume() {
     return false;
   }
 
+  if (!kafkaConsumer_.checkAlive()) {
+    LOG(ERROR) << "kafka brokers is not alive";
+    return false;
+  }
+
   threadConsume_ = thread(&JobRepository::runThreadConsume, this);
   return true;
 }
@@ -417,6 +422,26 @@ bool Server::setup(const char *ip, const unsigned short port, const char *kafkaB
     return false;
   }
 
+  // kafkaProducerShareLog_
+  if (!kafkaProducerShareLog_->setup()) {
+    LOG(ERROR) << "kafka kafkaProducerShareLog_ setup failure";
+    return false;
+  }
+  if (!kafkaProducerShareLog_->checkAlive()) {
+    LOG(ERROR) << "kafka kafkaProducerShareLog_ is NOT alive";
+    return false;
+  }
+
+  // kafkaProducerSolvedShare_
+  if (!kafkaProducerSolvedShare_->setup()) {
+    LOG(ERROR) << "kafka kafkaProducerSolvedShare_ setup failure";
+    return false;
+  }
+  if (!kafkaProducerSolvedShare_->checkAlive()) {
+    LOG(ERROR) << "kafka kafkaProducerSolvedShare_ is NOT alive";
+    return false;
+  }
+
   base_ = event_base_new();
   if(!base_) {
     LOG(ERROR) << "server: cannot create base";
@@ -587,6 +612,6 @@ int Server::checkShare(const uint64_t jobId,
 }
 
 void Server::sendShare2Kafka(const uint8_t *data, size_t len) {
-  // TODO:
-  // should be thread safe
+  ScopeLock sl(producerShareLogLock_);
+  kafkaProducerShareLog_->produce(data, len);
 }

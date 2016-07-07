@@ -30,7 +30,7 @@
 #include <boost/algorithm/string.hpp>
 
 ////////////////////////////////  WorkerShares  ////////////////////////////////
-WorkerShares::WorkerShares(const int64_t workerId, const int32_t userId):
+WorkerShares::WorkerShares(const uint64_t workerId, const int32_t userId):
 workerId_(workerId), userId_(userId), acceptCount_(0),
 lastShareIP_(0), lastShareTime_(0),
 acceptShareSec_(STATS_SLIDING_WINDOW_SECONDS),
@@ -61,9 +61,6 @@ WorkerStatus WorkerShares::getWorkerStatus() {
   const time_t now = time(nullptr);
   WorkerStatus s;
 
-  s.workerId_ = workerId_;
-  s.userId_   = userId_;
-
   s.accept1m_  = acceptShareSec_.sum(now, 60);
   s.accept5m_  = acceptShareSec_.sum(now, 300);
   s.accept15m_ = acceptShareSec_.sum(now, 900);
@@ -79,9 +76,6 @@ WorkerStatus WorkerShares::getWorkerStatus() {
 void WorkerShares::getWorkerStatus(WorkerStatus &s) {
   ScopeLock sl(lock_);
   const time_t now = time(nullptr);
-
-  s.workerId_ = workerId_;
-  s.userId_   = userId_;
 
   s.accept1m_  = acceptShareSec_.sum(now, 60);
   s.accept5m_  = acceptShareSec_.sum(now, 300);
@@ -102,7 +96,8 @@ bool WorkerShares::isExpired() {
 ////////////////////////////////  StatsServer  ////////////////////////////////
 StatsServer::StatsServer(const char *kafkaBrokers, string httpdHost,
                          unsigned short httpdPort):
-running_(true), upTime_(time(nullptr)),
+running_(true), totalWorkerCount_(0), totalUserCount_(0), upTime_(time(nullptr)),
+poolWorker_(0u/* worker id */, 0/* user id */),
 kafkaConsumer_(kafkaBrokers, KAFKA_TOPIC_SHARE_LOG, 0/* patition */),
 base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort),
 requestCount_(0), responseBytes_(0)
@@ -132,25 +127,49 @@ void StatsServer::processShare(const Share &share) {
   if (now > share.timestamp_ + STATS_SLIDING_WINDOW_SECONDS) {
     return;
   }
+  poolWorker_.processShare(share);
 
-  WorkerKey key(share.userId_, share.workerHashId_);
+  WorkerKey key1(share.userId_, share.workerHashId_);
+  WorkerKey key2(share.userId_, 0/* 0 means all workers of this user */);
+  _processShare(key1, key2, share);
+}
+
+void StatsServer::_processShare(WorkerKey &key1, WorkerKey &key2, const Share &share) {
+  assert(key2.workerId_ == 0);  // key2 is user's total stats
 
   pthread_rwlock_rdlock(&rwlock_);
-  auto itr = workerSet_.find(key);
+  auto itr1 = workerSet_.find(key1);
+  auto itr2 = workerSet_.find(key2);
   pthread_rwlock_unlock(&rwlock_);
 
-  if (itr != workerSet_.end()) {
-    itr->second->processShare(share);
-    return;
+  shared_ptr<WorkerShares> workerShare1 = nullptr, workerShare2 = nullptr;
+
+  if (itr1 != workerSet_.end()) {
+    itr1->second->processShare(share);
+  } else {
+    workerShare1 = make_shared<WorkerShares>(share.workerHashId_, share.userId_);
+    workerShare1->processShare(share);
   }
 
-  shared_ptr<WorkerShares> workerShare = make_shared<WorkerShares>(share.workerHashId_,
-                                                                   share.userId_);
-  workerShare->processShare(share);
+  if (itr2 != workerSet_.end()) {
+    itr2->second->processShare(share);
+  } else {
+    workerShare2 = make_shared<WorkerShares>(share.workerHashId_, share.userId_);
+    workerShare2->processShare(share);
+  }
 
-  pthread_rwlock_wrlock(&rwlock_);
-  workerSet_[key] = workerShare;
-  pthread_rwlock_unlock(&rwlock_);
+  if (workerShare1 != nullptr || workerShare2 != nullptr) {
+    pthread_rwlock_wrlock(&rwlock_);
+    if (workerShare1 != nullptr) {
+      workerSet_[key1] = workerShare1;
+      totalWorkerCount_++;
+    }
+    if (workerShare2 != nullptr) {
+      workerSet_[key2] = workerShare2;
+      totalUserCount_++;
+    }
+    pthread_rwlock_unlock(&rwlock_);
+  }
 }
 
 void StatsServer::getWorkerStatusBatch(const vector<WorkerKey> &keys,
@@ -166,8 +185,6 @@ void StatsServer::getWorkerStatusBatch(const vector<WorkerKey> &keys,
     auto itr = workerSet_.find(keys[i]);
     if (itr == workerSet_.end()) {
       ptrs[i] = nullptr;
-      workerStatus[i].userId_   = keys[i].userId_;
-      workerStatus[i].workerId_ = keys[i].workerId_;
     } else {
       ptrs[i] = itr->second;
     }
@@ -186,9 +203,6 @@ WorkerStatus StatsServer::mergeWorkerStatus(const vector<WorkerStatus> &workerSt
 
   if (workerStatus.size() == 0)
     return s;
-
-  // 'workerId_' will be ignore
-  s.userId_ = workerStatus[0].userId_;
 
   for (size_t i = 0; i < workerStatus.size(); i++) {
     s.accept1m_    += workerStatus[i].accept1m_;
@@ -251,6 +265,11 @@ bool StatsServer::setupThreadConsume() {
     return false;
   }
 
+  if (!kafkaConsumer_.checkAlive()) {
+    LOG(ERROR) << "kafka brokers is not alive";
+    return false;
+  }
+
   threadConsume_ = thread(&StatsServer::runThreadConsume, this);
   return true;
 }
@@ -279,14 +298,13 @@ void StatsServer::runThreadConsume() {
 StatsServer::ServerStatus StatsServer::getServerStatus() {
   ServerStatus s;
 
-  pthread_rwlock_rdlock(&rwlock_);
-  const uint64_t workerCount = workerSet_.size();
-  pthread_rwlock_unlock(&rwlock_);
-
   s.uptime_        = (uint32_t)(time(nullptr) - upTime_);
   s.requestCount_  = requestCount_;
-  s.workerCount_   = workerCount;
+  s.workerCount_   = totalWorkerCount_;
+  s.userCount_     = totalUserCount_;
   s.responseBytes_ = responseBytes_;
+  s.poolStatus_    = poolWorker_.getWorkerStatus();
+
   return s;
 }
 
@@ -298,12 +316,21 @@ void StatsServer::httpdServerStatus(struct evhttp_request *req, void *arg) {
 
   struct evbuffer *evb = evbuffer_new();
   StatsServer::ServerStatus s = server->getServerStatus();
+
   evbuffer_add_printf(evb, "{\"error_no\":0,\"error_msg\":\"\","
                       "\"result\":{\"uptime\":\"%02u d %02u h %02u m %02u s\","
-                      "\"workers\":%" PRIu64",\"request\":%" PRIu64",\"repbytes\":%" PRIu64"}}",
+                      "\"request\":%" PRIu64",\"repbytes\":%" PRIu64","
+                      "\"pool\":{\"accept\":[%" PRIu64",%" PRIu64",%" PRIu64"],"
+                      "\"reject\":[0,0,%" PRIu64"],\"accept_count\":%" PRIu32","
+                      "\"workers\":%" PRIu64",\"users\":%" PRIu64""
+                      "}}}",
                       s.uptime_/86400, (s.uptime_%86400)/3600,
                       (s.uptime_%3600)/60, s.uptime_%60,
-                      s.workerCount_, s.requestCount_, s.responseBytes_);
+                      s.requestCount_, s.responseBytes_,
+                      s.poolStatus_.accept1m_, s.poolStatus_.accept5m_,
+                      s.poolStatus_.accept15m_, s.poolStatus_.reject15m_,
+                      s.poolStatus_.acceptCount_,
+                      s.workerCount_, s.userCount_);
 
   server->responseBytes_ += evbuffer_get_length(evb);
   evhttp_send_reply(req, HTTP_OK, "OK", evb);
@@ -342,20 +369,22 @@ void StatsServer::httpdGetWorkerStatus(struct evhttp_request *req, void *arg) {
   const char *pWorkerId = evhttp_find_header(&params, "worker_id");
   const char *pIsMerge  = evhttp_find_header(&params, "is_merge");
 
+  struct evbuffer *evb = evbuffer_new();
+
   if (pUserId == nullptr || pWorkerId == nullptr) {
-    struct evbuffer *evb = evbuffer_new();
     evbuffer_add_printf(evb, "{\"error_no\":1,\"error_msg\":\"invalid args\"}");
     evhttp_send_reply(req, HTTP_OK, "OK", evb);
+    evbuffer_free(evb);
     return;
   }
 
-  struct evbuffer *evb = evbuffer_new();
   evbuffer_add_printf(evb, "{\"error_no\":0,\"error_msg\":\"\",\"result\":[");
   server->getWorkerStatus(evb, pUserId, pWorkerId, pIsMerge);
   evbuffer_add_printf(evb, "]}");
 
   server->responseBytes_ += evbuffer_get_length(evb);
   evhttp_send_reply(req, HTTP_OK, "OK", evb);
+  evbuffer_free(evb);
 }
 
 void StatsServer::getWorkerStatus(struct evbuffer *evb, const char *pUserId,
@@ -390,6 +419,7 @@ void StatsServer::getWorkerStatus(struct evbuffer *evb, const char *pUserId,
   }
 
   bool isFirst = true;
+  size_t i = 0;
   for (const auto &status : workerStatus) {
     char ipStr[INET_ADDRSTRLEN] = {0};
     inet_ntop(AF_INET, &(status.lastShareIP_), ipStr, INET_ADDRSTRLEN);
@@ -398,11 +428,13 @@ void StatsServer::getWorkerStatus(struct evbuffer *evb, const char *pUserId,
                         ",\"reject\":[0,0,%" PRIu64"],\"accept_count\":%" PRIu32""
                         ",\"last_share_ip\":\"%s\",\"last_share_time\":\"%s\""
                         "}",
-                        (isFirst ? "" : ","), status.workerId_,
+                        (isFirst ? "" : ","),
+                        (isMerge ? 0 : keys[i].workerId_),
                         status.accept1m_, status.accept5m_, status.accept15m_,
                         status.reject15m_, status.acceptCount_,
                         ipStr, date("%F %T", status.lastShareTime_).c_str());
     isFirst = false;
+    i++;
   }
 }
 
@@ -425,6 +457,13 @@ void StatsServer::runHttpd() {
     LOG(ERROR) << "couldn't bind to port: " << httpdPort_ << ", host: " << httpdHost_ << ", exiting.";
     return;
   }
-
   event_base_dispatch(base_);
+}
+
+void StatsServer::run() {
+  if (setupThreadConsume() == false) {
+    return;
+  }
+
+  runHttpd();
 }

@@ -143,9 +143,6 @@ T StatsWindow<T>::sum(int64_t beginRingIdx) {
 // will be the same StatsWorkerItem, the unique key is (userId_ + workId_)
 class WorkerStatus {
 public:
-  uint64_t workerId_;
-  int32_t  userId_;
-
   // share, base on sliding window
   uint64_t accept1m_;
   uint64_t accept5m_;
@@ -157,7 +154,7 @@ public:
   uint32_t lastShareIP_;
   uint32_t lastShareTime_;
 
-  WorkerStatus(): workerId_(0), userId_(0),
+  WorkerStatus():
   accept1m_(0), accept5m_(0), accept15m_(0), reject15m_(0), acceptCount_(0),
   lastShareIP_(0), lastShareTime_(0)
   {
@@ -181,7 +178,7 @@ class WorkerShares {
   StatsWindow<uint64_t> rejectShareMin_;
 
 public:
-  WorkerShares(const int64_t workerId, const int32_t userId);
+  WorkerShares(const uint64_t workerId, const int32_t userId);
 
 //  void serialize(...);
 //  bool unserialize(const ...);
@@ -242,14 +239,20 @@ class StatsServer {
     uint32_t uptime_;
     uint64_t requestCount_;
     uint64_t workerCount_;
+    uint64_t userCount_;
     uint64_t responseBytes_;
+    WorkerStatus poolStatus_;
   };
 
   atomic<bool> running_;
+  atomic<int64_t> totalWorkerCount_;
+  atomic<int64_t> totalUserCount_;
   time_t upTime_;
 
   pthread_rwlock_t rwlock_;  // for workerSet_
   std::unordered_map<WorkerKey/* workerId */, shared_ptr<WorkerShares> > workerSet_;
+
+  WorkerShares poolWorker_;  // worker status for the pool
 
   KafkaConsumer kafkaConsumer_;  // consume topic: 'ShareLog'
 
@@ -263,10 +266,14 @@ class StatsServer {
   void runThreadConsume();
   void consumeShareLog(rd_kafka_message_t *rkmessage);
 
+  void _processShare(WorkerKey &key1, WorkerKey &key2, const Share &share);
   void processShare(const Share &share);
   void getWorkerStatusBatch(const vector<WorkerKey> &keys,
                             vector<WorkerStatus> &workerStatus);
   WorkerStatus mergeWorkerStatus(const vector<WorkerStatus> &workerStatus);
+
+  bool setupThreadConsume();
+  void runHttpd();
 
 public:
   atomic<uint64_t> requestCount_;
@@ -277,8 +284,8 @@ public:
   ~StatsServer();
 
   void stop();
-  bool setupThreadConsume();
-  void runHttpd();
+  void run();
+
 
   ServerStatus getServerStatus();
 
