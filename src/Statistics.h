@@ -143,7 +143,7 @@ T StatsWindow<T>::sum(int64_t beginRingIdx) {
 // will be the same StatsWorkerItem, the unique key is (userId_ + workId_)
 class WorkerStatus {
 public:
-  uint64_t workId_;
+  uint64_t workerId_;
   int32_t  userId_;
 
   // share, base on sliding window
@@ -157,8 +157,8 @@ public:
   uint32_t lastShareIP_;
   uint32_t lastShareTime_;
 
-  StatsWorkerItem(): workId_(0), userId_(0),
-  accept1m_(0), accept5m_(0), accept15m_(0), reject15m_(0),
+  WorkerStatus(): workerId_(0), userId_(0),
+  accept1m_(0), accept5m_(0), accept15m_(0), reject15m_(0), acceptCount_(0),
   lastShareIP_(0), lastShareTime_(0)
   {
   }
@@ -200,7 +200,7 @@ public:
   uint64_t workerId_;
 
   WorkerKey(const int32_t userId, const uint64_t workerId):
-  userId_(userId), workerId_(workerId_) {}
+  userId_(userId), workerId_(workerId) {}
 
   WorkerKey& operator=(const WorkerKey &r) {
     userId_   = r.userId_;
@@ -216,6 +216,20 @@ public:
   }
 };
 
+// we use WorkerKey in std::unordered_map, so need to write it's hash func
+namespace std {
+template<>
+class hash<WorkerKey> {
+public:
+  size_t operator()(const WorkerKey &k) const
+  {
+    size_t h1 = std::hash<int32_t> ()(k.userId_);
+    size_t h2 = std::hash<uint64_t>()(k.workerId_);
+    return h1 ^ ( h2 << 1 );
+  }
+};
+}
+
 
 ////////////////////////////////  StatsServer  ////////////////////////////////
 //
@@ -224,8 +238,17 @@ public:
 // 3. flush worker status to DB
 //
 class StatsServer {
+  struct ServerStatus {
+    uint32_t uptime_;
+    uint64_t requestCount_;
+    uint64_t workerCount_;
+    uint64_t responseBytes_;
+  };
+
   atomic<bool> running_;
-  pthread_rwlock_t *rwlock_;  // for workerSet_
+  time_t upTime_;
+
+  pthread_rwlock_t rwlock_;  // for workerSet_
   std::unordered_map<WorkerKey/* workerId */, shared_ptr<WorkerShares> > workerSet_;
 
   KafkaConsumer kafkaConsumer_;  // consume topic: 'ShareLog'
@@ -246,6 +269,10 @@ class StatsServer {
   WorkerStatus mergeWorkerStatus(const vector<WorkerStatus> &workerStatus);
 
 public:
+  atomic<uint64_t> requestCount_;
+  atomic<uint64_t> responseBytes_;
+
+public:
   StatsServer(const char *kafkaBrokers, string httpdHost, unsigned short httpdPort);
   ~StatsServer();
 
@@ -253,8 +280,13 @@ public:
   bool setupThreadConsume();
   void runHttpd();
 
+  ServerStatus getServerStatus();
+
   static void httpdServerStatus   (struct evhttp_request *req, void *arg);
   static void httpdGetWorkerStatus(struct evhttp_request *req, void *arg);
+
+  void getWorkerStatus(struct evbuffer *evb, const char *pUserId,
+                       const char *pWorkerId, const char *pIsMerge);
 };
 
 #endif
