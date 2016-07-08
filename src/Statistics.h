@@ -166,8 +166,8 @@ public:
 // thread safe
 class WorkerShares {
   mutex lock_;
-  uint64_t workerId_;
-  int32_t  userId_;
+  int64_t workerId_;
+  int32_t userId_;
 
   uint32_t acceptCount_;
 
@@ -178,7 +178,7 @@ class WorkerShares {
   StatsWindow<uint64_t> rejectShareMin_;
 
 public:
-  WorkerShares(const uint64_t workerId, const int32_t userId);
+  WorkerShares(const int64_t workerId, const int32_t userId);
 
 //  void serialize(...);
 //  bool unserialize(const ...);
@@ -193,10 +193,10 @@ public:
 //////////////////////////////////  WorkerKey  /////////////////////////////////
 class WorkerKey {
 public:
-  int32_t  userId_;
-  uint64_t workerId_;
+  int32_t userId_;
+  int64_t workerId_;
 
-  WorkerKey(const int32_t userId, const uint64_t workerId):
+  WorkerKey(const int32_t userId, const int64_t workerId):
   userId_(userId), workerId_(workerId) {}
 
   WorkerKey& operator=(const WorkerKey &r) {
@@ -220,8 +220,8 @@ class hash<WorkerKey> {
 public:
   size_t operator()(const WorkerKey &k) const
   {
-    size_t h1 = std::hash<int32_t> ()(k.userId_);
-    size_t h2 = std::hash<uint64_t>()(k.workerId_);
+    size_t h1 = std::hash<int32_t>()(k.userId_);
+    size_t h2 = std::hash<int64_t>()(k.workerId_);
     return h1 ^ ( h2 << 1 );
   }
 };

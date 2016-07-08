@@ -200,7 +200,7 @@ string StratumJob::serializeToJson() const {
   //
   // we use key->value json string, so it's easy to update system
   //
-  return Strings::Format("{\"jobId\":%llu,\"gbtHash\":\"%s\""
+  return Strings::Format("{\"jobId\":%" PRIu64",\"gbtHash\":\"%s\""
                          ",\"prevHash\":\"%s\",\"prevHashBeStr\":\"%s\""
                          ",\"height\":%d,\"coinbase1\":\"%s\",\"coinbase2\":\"%s\""
                          ",\"merkleBranch\":\"%s\""

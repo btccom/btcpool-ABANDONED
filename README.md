@@ -30,6 +30,7 @@ Basic:
 apt-get update
 apt-get install -y build-essential autotools-dev libtool autoconf automake pkg-config cmake
 apt-get install -y openssl libssl-dev libcurl4-openssl-dev libconfig++-dev libboost-all-dev
+apt-get install -y mysql-client-5.6
 ```
 
 zmq-v4.1.5

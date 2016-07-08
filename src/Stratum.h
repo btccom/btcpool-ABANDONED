@@ -54,7 +54,7 @@ public:
   };
   
   uint64_t jobId_;
-  uint64_t workerHashId_;
+  int64_t  workerHashId_;
   uint32_t ip_;
   int32_t  userId_;
   uint64_t share_;
@@ -89,8 +89,8 @@ public:
   string toString() const {
     char ipStr[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &(ip_), ipStr, INET_ADDRSTRLEN);
-    return Strings::Format("share(jobId: %llu, ip: %s, userId: %llu, "
-                           "workerId: %llu, timeStamp: %u/%s, share: %llu, "
+    return Strings::Format("share(jobId: %" PRIu64", ip: %s, userId: %d, "
+                           "workerId: %" PRId64", timeStamp: %u/%s, share: %" PRIu64", "
                            "blkBits: %08x, result: %d)",
                            jobId_, ipStr, userId_, workerHashId_,
                            timestamp_, date("%F %T", timestamp_).c_str(),
@@ -127,12 +127,12 @@ public:
 //////////////////////////////// StratumWorker ////////////////////////////////
 class StratumWorker {
 public:
-  int32_t  userId_;
-  uint64_t workerHashId_;  // substr(0, 8, HASH(wokerName))
+  int32_t userId_;
+  int64_t workerHashId_;  // substr(0, 8, HASH(wokerName))
 
-  string fullName_;  // fullName = username.workername
+  string fullName_;    // fullName = username.workername
   string userName_;
-  string workerName_;
+  string workerName_;  // workername, max is: 20
 
 public:
   StratumWorker();

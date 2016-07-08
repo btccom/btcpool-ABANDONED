@@ -30,7 +30,7 @@
 #include <boost/algorithm/string.hpp>
 
 ////////////////////////////////  WorkerShares  ////////////////////////////////
-WorkerShares::WorkerShares(const uint64_t workerId, const int32_t userId):
+WorkerShares::WorkerShares(const int64_t workerId, const int32_t userId):
 workerId_(workerId), userId_(userId), acceptCount_(0),
 lastShareIP_(0), lastShareTime_(0),
 acceptShareSec_(STATS_SLIDING_WINDOW_SECONDS),
@@ -406,7 +406,7 @@ void StatsServer::getWorkerStatus(struct evbuffer *evb, const char *pUserId,
   vector<WorkerKey> keys;
   keys.reserve(vWorkerIdsStr.size());
   for (size_t i = 0; i < vWorkerIdsStr.size(); i++) {
-    uint64_t workerId = strtoull(vWorkerIdsStr[i].c_str(), nullptr, 10);
+    const int64_t workerId = strtoll(vWorkerIdsStr[i].c_str(), nullptr, 10);
     keys.push_back(WorkerKey(userId, workerId));
   }
 
@@ -424,7 +424,7 @@ void StatsServer::getWorkerStatus(struct evbuffer *evb, const char *pUserId,
     char ipStr[INET_ADDRSTRLEN] = {0};
     inet_ntop(AF_INET, &(status.lastShareIP_), ipStr, INET_ADDRSTRLEN);
     evbuffer_add_printf(evb,
-                        "%s{\"worker_id\":%" PRIu64",\"accept\":[%" PRIu64",%" PRIu64",%" PRIu64"]"
+                        "%s{\"worker_id\":%" PRId64",\"accept\":[%" PRIu64",%" PRIu64",%" PRIu64"]"
                         ",\"reject\":[0,0,%" PRIu64"],\"accept_count\":%" PRIu32""
                         ",\"last_share_ip\":\"%s\",\"last_share_time\":\"%s\""
                         "}",

@@ -570,7 +570,7 @@ StratumSession::LocalJob *StratumSession::findLocalJob(uint64_t jobId) {
 
 void StratumSession::sendSetDifficulty(const uint64_t difficulty) {
   string s = Strings::Format("{\"id\":null,\"method\":\"mining.set_difficulty\""
-                             ",\"params\":[%llu]}\n",
+                             ",\"params\":[%" PRIu64"]}\n",
                              difficulty);
   send(s);
 }

@@ -291,7 +291,7 @@ void StratumJobEx::makeMiningNotifyStr() {
   }
 
   miningNotify_ = Strings::Format("{\"id\":null,\"method\":\"mining.notify\",\"params\":["
-                                  "\"%llu\",\"%s\""
+                                  "\"%" PRIu64"\",\"%s\""
                                   ",\"%s\",\"%s\""
                                   ",[%s]"
                                   ",\"%08x\",\"%08x\",\"%08x\",%s"
