@@ -159,6 +159,8 @@ public:
   lastShareIP_(0), lastShareTime_(0)
   {
   }
+
+  // all members are int, so we don't need to write copy constructor
 };
 
 

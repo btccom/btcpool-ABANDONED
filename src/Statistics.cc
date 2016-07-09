@@ -414,8 +414,9 @@ void StatsServer::getWorkerStatus(struct evbuffer *evb, const char *pUserId,
   getWorkerStatusBatch(keys, workerStatus);
 
   if (isMerge) {
+    WorkerStatus merged = mergeWorkerStatus(workerStatus);
     workerStatus.clear();
-    workerStatus.push_back(mergeWorkerStatus(workerStatus));
+    workerStatus.push_back(merged);
   }
 
   bool isFirst = true;
@@ -426,13 +427,13 @@ void StatsServer::getWorkerStatus(struct evbuffer *evb, const char *pUserId,
     evbuffer_add_printf(evb,
                         "%s{\"worker_id\":%" PRId64",\"accept\":[%" PRIu64",%" PRIu64",%" PRIu64"]"
                         ",\"reject\":[0,0,%" PRIu64"],\"accept_count\":%" PRIu32""
-                        ",\"last_share_ip\":\"%s\",\"last_share_time\":\"%s\""
+                        ",\"last_share_ip\":\"%s\",\"last_share_time\":%u"
                         "}",
                         (isFirst ? "" : ","),
                         (isMerge ? 0 : keys[i].workerId_),
                         status.accept1m_, status.accept5m_, status.accept15m_,
                         status.reject15m_, status.acceptCount_,
-                        ipStr, date("%F %T", status.lastShareTime_).c_str());
+                        ipStr, status.lastShareTime_);
     isFirst = false;
     i++;
   }
@@ -448,9 +449,9 @@ void StatsServer::runHttpd() {
   evhttp_set_allowed_methods(httpd, EVHTTP_REQ_GET | EVHTTP_REQ_POST | EVHTTP_REQ_HEAD);
   evhttp_set_timeout(httpd, 5 /* timeout in seconds */);
 
-  evhttp_set_cb(httpd, "/",             StatsServer::httpdServerStatus, this);
-  evhttp_set_cb(httpd, "/work_status",  StatsServer::httpdGetWorkerStatus, this);
-  evhttp_set_cb(httpd, "/work_status/", StatsServer::httpdGetWorkerStatus, this);
+  evhttp_set_cb(httpd, "/",               StatsServer::httpdServerStatus, this);
+  evhttp_set_cb(httpd, "/worker_status",  StatsServer::httpdGetWorkerStatus, this);
+  evhttp_set_cb(httpd, "/worker_status/", StatsServer::httpdGetWorkerStatus, this);
 
   handle = evhttp_bind_socket_with_handle(httpd, httpdHost_.c_str(), httpdPort_);
   if (!handle) {
