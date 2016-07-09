@@ -62,29 +62,32 @@ if(NOT KAFKA_FOUND)
   message(FATAL_ERROR "librdkafka not found!")
 endif(NOT KAFKA_FOUND)
 
-include_directories(src test ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS} ${LIBEVENT_INCLUDE_DIR})
-set(THRID_LIBRARIES "-lpthread")
+execute_process(COMMAND mysql_config --libs_r OUTPUT_VARIABLE MYSQL_LIB OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND mysql_config --include OUTPUT_VARIABLE MYSQL_INCLUDE OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+include_directories(src test ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS} ${LIBEVENT_INCLUDE_DIR} ${MYSQL_INCLUDE})
+set(THRID_LIBRARIES "-lpthread" ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${KAFKA_LIBRARIES} ${MYSQL_LIB} ${LIBEVENT_LIB})
 
 file(GLOB LIB_SOURCES src/*.cc src/bitcoin/*.cpp)
 add_library(poolcomponents STATIC ${LIB_SOURCES})
 
 file(GLOB_RECURSE TEST_SOURCES test/*.cc)
 add_executable(unittest ${TEST_SOURCES})
-target_link_libraries(unittest poolcomponents ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${KAFKA_LIBRARIES} ${THRID_LIBRARIES})
+target_link_libraries(unittest poolcomponents ${THRID_LIBRARIES})
 
 file(GLOB_RECURSE GBTMAKER_SOURCES src/gbtmaker/*.cc)
 add_executable(gbtmaker ${GBTMAKER_SOURCES})
-target_link_libraries(gbtmaker poolcomponents ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${KAFKA_LIBRARIES} ${THRID_LIBRARIES})
+target_link_libraries(gbtmaker poolcomponents ${THRID_LIBRARIES})
 
 file(GLOB_RECURSE JOBMAKER_SOURCES src/jobmaker/*.cc)
 add_executable(jobmaker ${JOBMAKER_SOURCES})
-target_link_libraries(jobmaker poolcomponents ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${KAFKA_LIBRARIES} ${THRID_LIBRARIES})
+target_link_libraries(jobmaker poolcomponents ${THRID_LIBRARIES})
 
 file(GLOB_RECURSE SSERVER_SOURCES src/sserver/*.cc)
 add_executable(sserver ${SSERVER_SOURCES})
-target_link_libraries(sserver poolcomponents ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBEVENT_LIB} ${THRID_LIBRARIES})
+target_link_libraries(sserver poolcomponents ${THRID_LIBRARIES})
 
 file(GLOB_RECURSE STATSHTTPD_SOURCES src/statshttpd/*.cc)
 add_executable(statshttpd ${STATSHTTPD_SOURCES})
-target_link_libraries(statshttpd poolcomponents ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBEVENT_LIB} ${THRID_LIBRARIES})
+target_link_libraries(statshttpd poolcomponents ${THRID_LIBRARIES})
 

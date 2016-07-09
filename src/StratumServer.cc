@@ -25,8 +25,10 @@
 
 #include "Common.h"
 #include "Kafka.h"
+#include "MySQLConnection.h"
 #include "Utils.h"
 
+#include "utilities_js.hpp"
 
 ////////////////////////////////// JobRepository ///////////////////////////////
 JobRepository::JobRepository(const char *kafkaBrokers, Server *server):
@@ -258,6 +260,211 @@ void JobRepository::tryCleanExpiredJobs() {
 }
 
 
+//////////////////////////////////// UserInfo /////////////////////////////////
+UserInfo::UserInfo(const string &apiUrl, const MysqlConnectInfo &dbInfo):
+running_(true), apiUrl_(apiUrl), lastMaxUserId_(0),
+db_(dbInfo)
+{
+  pthread_rwlock_init(&rwlock_, nullptr);
+}
+
+UserInfo::~UserInfo() {
+  stop();
+
+  if (threadUpdate_.joinable())
+    threadUpdate_.join();
+
+  if (threadInsertWorkerName_.joinable())
+    threadInsertWorkerName_.join();
+
+  pthread_rwlock_destroy(&rwlock_);
+}
+
+void UserInfo::stop() {
+  if (!running_)
+    return;
+
+  running_ = false;
+}
+
+int32_t UserInfo::getUserId(const string userName) {
+  pthread_rwlock_rdlock(&rwlock_);
+  auto itr = nameIds_.find(userName);
+  pthread_rwlock_unlock(&rwlock_);
+
+  if (itr != nameIds_.end()) {
+    return itr->second;
+  }
+  return 0;  // not found
+}
+
+int32_t UserInfo::updateUsers() {
+  const string url = Strings::Format("%s?last_id=%d", apiUrl_.c_str(), lastMaxUserId_);
+  string resp;
+  if (!httpGET(url.c_str(), resp, 10000/* timeout ms */)) {
+    LOG(ERROR) << "http get request user list fail, url: " << url;
+    return -1;
+  }
+
+  JsonNode r;
+  if (!JsonNode::parse(resp.c_str(), resp.c_str() + resp.length(), r)) {
+    LOG(ERROR) << "decode json fail, json: " << resp;
+    return -1;
+  }
+  if (r["data"].type() != Utilities::JS::type::Obj) {
+    LOG(ERROR) << "invalid data, should key->value";
+    return -1;
+  }
+  auto vUser = r["data"].children();
+  if (vUser->size() == 0) {
+    return 0;
+  }
+
+  pthread_rwlock_wrlock(&rwlock_);
+  for (const auto &itr : *vUser) {
+    const string  userName = itr.key_start();
+    const int32_t userId   = itr.int32();
+    if (userId > lastMaxUserId_) {
+      lastMaxUserId_ = userId;
+    }
+    nameIds_.insert(std::make_pair(userName, userId));
+  }
+  pthread_rwlock_unlock(&rwlock_);
+
+  return vUser->size();
+}
+
+void UserInfo::runThreadUpdate() {
+  time_t updateInterval = 10;  // seconds
+  time_t lastUpdateTime = time(nullptr);
+
+  while (running_) {
+    if (lastUpdateTime + updateInterval > time(nullptr)) {
+      usleep(500000);  // 500ms
+      continue;
+    }
+    int32_t res = updateUsers();
+    LOG(INFO) << "update users count: " << res;
+  }
+}
+
+bool UserInfo::setupThreads() {
+  // check db available
+  if (!db_.ping()) {
+    LOG(ERROR) << "connect db failure";
+    return false;
+  }
+
+  // load exist worker names
+  if (loadExistWorkerName() == false) {
+    LOG(ERROR) << "load worker names failure";
+    return false;
+  }
+
+  // get all user list
+  while (1) {
+    int32_t res = updateUsers();
+    if (res == 0)
+      break;
+
+    if (res == -1) {
+      LOG(ERROR) << "update user list failure";
+      return false;
+    }
+
+    LOG(INFO) << "update users count: " << res;
+  }
+
+  threadUpdate_ = thread(&UserInfo::runThreadUpdate, this);
+  threadInsertWorkerName_ = thread(&UserInfo::runThreadInsertWorkerName, this);
+  return true;
+}
+
+void UserInfo::addWorker(const int32_t userId, const int64_t workerId,
+                         const string workerName) {
+  ScopeLock sl(workerNameLock_);
+  WorkerNameKey key(userId, workerId);
+  if (workerNameSet_.find(key) != workerNameSet_.end()) {
+    return;  // already exist
+  }
+
+  // insert to Q
+  workerNameQ_.push_back(WorkerName());
+  workerNameQ_.rbegin()->userId_   = userId;
+  workerNameQ_.rbegin()->workerId_ = workerId;
+  snprintf(workerNameQ_.rbegin()->workerName_,
+           sizeof(workerNameQ_.rbegin()->workerName_),
+           "%s", workerName.c_str());
+
+  // insert to Set
+  workerNameSet_.insert(key);
+}
+
+void UserInfo::runThreadInsertWorkerName() {
+  while (running_) {
+    if (insertWorkerName() > 0) {
+      continue;
+    }
+    sleep(1);
+  }
+}
+
+int32_t UserInfo::insertWorkerName() {
+  std::deque<WorkerName>::iterator itr = workerNameQ_.end();
+  {
+    ScopeLock sl(workerNameLock_);
+    if (workerNameQ_.size() == 0)
+      return 0;
+    itr = workerNameQ_.begin();
+  }
+
+  if (itr == workerNameQ_.end())
+    return 0;
+
+  // try insert to db
+  const string nowStr = date("%F %T");
+  const string sql = Strings::Format("INSERT INTO `mining_workers`(`user_id`,`worker_hash_id`,"
+                                     " `worker_name`,`created_at`,`updated_at`) "
+                                     " VALUES(%d,%" PRId64",\"%s\",\"%s\",\"%s\")"
+                                     " ON DUPLICATE KEY UPDATE "
+                                     " `worker_name`= \"%s\",`updated_at`=\"%s\" ",
+                                     itr->userId_, itr->workerId_, itr->workerName_,
+                                     nowStr.c_str(), nowStr.c_str(),
+                                     itr->workerName_, nowStr.c_str());
+  if (db_.execute(sql) == false) {
+    LOG(ERROR) << "insert worker name failure";
+    return 0;
+  }
+
+  {
+    ScopeLock sl(workerNameLock_);
+    workerNameQ_.pop_front();
+  }
+  return 1;
+}
+
+bool UserInfo::loadExistWorkerName() {
+  MySQLResult res;
+  const string sql = "SELECT `user_id`,`worker_hash_id` FROM `mining_workers` "
+  " WHERE `worker_name` IS NOT NULL";
+  if (!db_.query(sql, res)) {
+    return false;
+  }
+  if (res.numRows() == 0) {
+    return true;
+  }
+
+  char **row = nullptr;
+  while ((row = res.nextRow()) != nullptr) {
+    WorkerNameKey key(atoi(row[0]), strtoll(row[1], nullptr, 10));
+    workerNameSet_.insert(key);
+  }
+
+  LOG(INFO) << "load exist workers: " << res.numRows();
+  return true;
+}
+
+
 ////////////////////////////////// StratumJobEx ////////////////////////////////
 StratumJobEx::StratumJobEx(StratumJob *sjob, bool isClean):
 state_(MINING), isClean_(isClean), sjob_(sjob)
@@ -351,8 +558,10 @@ void StratumJobEx::generateBlockHeader(CBlockHeader *header,
 
 ////////////////////////////////// StratumServer ///////////////////////////////
 StratumServer::StratumServer(const char *ip, const unsigned short port,
-                             const char *kafkaBrokers)
-:running_(true), ip_(ip), port_(port), kafkaBrokers_(kafkaBrokers)
+                             const char *kafkaBrokers, const string &userAPIUrl,
+                             const MysqlConnectInfo &poolDBInfo)
+:running_(true), ip_(ip), port_(port), kafkaBrokers_(kafkaBrokers),
+userAPIUrl_(userAPIUrl), poolDBInfo_(poolDBInfo)
 {
   // TODO: serverId_
 }
@@ -361,7 +570,8 @@ StratumServer::~StratumServer() {
 }
 
 bool StratumServer::init() {
-  if (!server_.setup(ip_.c_str(), port_, kafkaBrokers_.c_str())) {
+  if (!server_.setup(ip_.c_str(), port_, kafkaBrokers_.c_str(),
+                     userAPIUrl_, poolDBInfo_)) {
     LOG(ERROR) << "fail to setup server";
     return false;
   }
@@ -385,7 +595,7 @@ void StratumServer::run() {
 Server::Server(): base_(nullptr), signal_event_(nullptr), listener_(nullptr),
 kafkaProducerShareLog_(nullptr), kafkaProducerSolvedShare_(nullptr),
 kShareAvgSeconds_(8), // TODO: read from cfg
-jobRepository_(nullptr)
+jobRepository_(nullptr), userInfo_(nullptr)
 {
 }
 
@@ -408,17 +618,30 @@ Server::~Server() {
   if (jobRepository_ != nullptr) {
     delete jobRepository_;
   }
+  if (userInfo_ != nullptr) {
+    delete userInfo_;
+  }
 }
 
-bool Server::setup(const char *ip, const unsigned short port, const char *kafkaBrokers) {
+bool Server::setup(const char *ip, const unsigned short port,
+                   const char *kafkaBrokers,
+                   const string &userAPIUrl, const MysqlConnectInfo &dbInfo) {
   kafkaProducerSolvedShare_ = new KafkaProducer(kafkaBrokers,
                                                 KAFKA_TOPIC_SOLVED_SHARE,
                                                 RD_KAFKA_PARTITION_UA);
   kafkaProducerShareLog_ = new KafkaProducer(kafkaBrokers,
                                              KAFKA_TOPIC_SHARE_LOG,
                                              RD_KAFKA_PARTITION_UA);
+
+  // job repository
   jobRepository_ = new JobRepository(kafkaBrokers, this);
   if (!jobRepository_->setupThreadConsume()) {
+    return false;
+  }
+
+  // user info
+  userInfo_ = new UserInfo(userAPIUrl, dbInfo);
+  if (!userInfo_->setupThreads()) {
     return false;
   }
 
@@ -479,7 +702,9 @@ void Server::run() {
 void Server::stop() {
   LOG(INFO) << "stop tcp server event loop";
   event_base_loopexit(base_, NULL);
+
   jobRepository_->stop();
+  userInfo_->stop();
 }
 
 void Server::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {

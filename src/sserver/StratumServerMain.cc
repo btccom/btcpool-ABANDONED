@@ -122,9 +122,23 @@ int main(int argc, char **argv) {
 
     int32_t port = 3333;
     cfg.lookupValue("sserver.port", port);
+
+    MysqlConnectInfo *poolDBInfo = nullptr;
+    {
+      int32_t poolDBPort = 3306;
+      cfg.lookupValue("pooldb.port", poolDBPort);
+      poolDBInfo = new MysqlConnectInfo(cfg.lookup("pooldb.host"), poolDBPort,
+                                        cfg.lookup("pooldb.username"),
+                                        cfg.lookup("pooldb.password"),
+                                        cfg.lookup("pooldb.dbname"));
+    }
+
+    // new StratumServer
     gStratumServer = new StratumServer(cfg.lookup("sserver.ip").c_str(),
                                        (unsigned short)port,
-                                       cfg.lookup("kafka.brokers").c_str());
+                                       cfg.lookup("kafka.brokers").c_str(),
+                                       cfg.lookup("users.list_id_api_url"),
+                                       *poolDBInfo);
 
     if (!gStratumServer->init()) {
       LOG(FATAL) << "init failure";

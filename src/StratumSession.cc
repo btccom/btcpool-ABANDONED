@@ -29,7 +29,6 @@
 
 #include "StratumServer.h"
 
-
 //////////////////////////////// DiffController ////////////////////////////////
 void DiffController::setMinDiff(uint64 minDiff) {
   if (minDiff < kMinDiff_) {
@@ -431,6 +430,7 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
 
   // TODO: get user ID from user name
   const int32_t userId = 1;
+
   if (userId == 0) {
     responseError(idStr, StratumError::INVALID_USERNAME);
     return;

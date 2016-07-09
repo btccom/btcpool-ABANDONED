@@ -44,6 +44,8 @@ inline uint32_t jobId2Time(uint64_t jobId) {
   return (uint32_t)((jobId >> 32) & 0x00000000FFFFFFFFULL);
 }
 
+string filterWorkerName(const string &workerName);
+
 ///////////////////////////////////// Share ////////////////////////////////////
 class Share {
 public:

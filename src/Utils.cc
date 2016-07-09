@@ -226,8 +226,17 @@ CurlWriteChunkCallback(void *contents, size_t size, size_t nmemb, void *userp)
   return realsize;
 }
 
-bool bitcoindRpcCall(const char *url, const char *userpwd, const char *reqData,
-                     string &response) {
+bool httpGET(const char *url, string &response, long timeoutMs) {
+  return httpPOST(url, nullptr, nullptr, response, timeoutMs);
+}
+
+bool httpGET(const char *url, const char *userpwd,
+             string &response, long timeoutMs) {
+  return httpPOST(url, userpwd, nullptr, response, timeoutMs);
+}
+
+bool httpPOST(const char *url, const char *userpwd,
+              const char *postData, string &response, long timeoutMs) {
   struct curl_slist *headers = NULL;
   CURLcode status;
   long code;
@@ -245,14 +254,18 @@ bool bitcoindRpcCall(const char *url, const char *userpwd, const char *reqData,
 
   curl_easy_setopt(curl, CURLOPT_URL, url);
 
-  curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)strlen(reqData));
-  curl_easy_setopt(curl, CURLOPT_POSTFIELDS,    reqData);
+  if (postData != nullptr) {
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)strlen(postData));
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS,    postData);
+  }
 
-  curl_easy_setopt(curl, CURLOPT_USERPWD, userpwd);
+  if (userpwd != nullptr)
+    curl_easy_setopt(curl, CURLOPT_USERPWD, userpwd);
+
   curl_easy_setopt(curl, CURLOPT_USE_SSL, CURLUSESSL_TRY);
-  curl_easy_setopt(curl, CURLOPT_USERAGENT, "NodeBooster/0.1");
+  curl_easy_setopt(curl, CURLOPT_USERAGENT, "curl");
 
-  curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 5000L);
+  curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, timeoutMs);
 
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CurlWriteChunkCallback);
   curl_easy_setopt(curl, CURLOPT_WRITEDATA,     (void *)&chunk);
@@ -285,6 +298,11 @@ error:
 
   free(chunk.memory);
   return false;
+}
+
+bool bitcoindRpcCall(const char *url, const char *userpwd, const char *reqData,
+                     string &response) {
+  return httpPOST(url, userpwd, reqData, response, 5000/* timeout ms */);
 }
 
 

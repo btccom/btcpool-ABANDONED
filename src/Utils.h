@@ -55,6 +55,12 @@ std::string s_recv(zmq::socket_t & socket);
 bool s_send(zmq::socket_t & socket, const std::string & string);
 bool s_sendmore (zmq::socket_t & socket, const std::string & string);
 
+
+bool httpGET (const char *url, string &response, long timeoutMs);
+bool httpGET (const char *url, const char *userpwd,
+              string &response, long timeoutMs);
+bool httpPOST(const char *url, const char *userpwd,
+              const char *postData, string &response, long timeoutMs);
 bool bitcoindRpcCall(const char *url, const char *userpwd, const char *reqData,
                      string &response);
 

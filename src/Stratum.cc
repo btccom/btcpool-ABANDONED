@@ -35,6 +35,22 @@
 #include <glog/logging.h>
 
 
+string filterWorkerName(const string &workerName) {
+  string s;
+  s.reserve(workerName.size());
+
+  for (const auto &c : workerName) {
+    if (('a' <= c && c <= 'z') ||
+        ('A' <= c && c <= 'Z') ||
+        c == '-' || c == '.' || c == '_' || c == ':' || c == '|' || c == '^') {
+      s += c;
+    }
+  }
+
+  return s;
+}
+
+
 //////////////////////////////// StratumError ////////////////////////////////
 const char * StratumError::toString(int err) {
   switch (err) {
@@ -94,6 +110,7 @@ void StratumWorker::setUserIDAndNames(const int32_t userId, const string &fullNa
     userName_   = fullName.substr(0, pos);
     workerName_ = fullName.substr(pos+1);
   }
+  workerName_ = filterWorkerName(workerName_);
 
   // max length for worker name is 20
   if (workerName_.length() > 20) {

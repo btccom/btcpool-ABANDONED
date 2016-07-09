@@ -43,11 +43,13 @@
 
 #include "bitcoin/core.h"
 #include "Kafka.h"
+#include "MySQLConnection.h"
 #include "Stratum.h"
 #include "StratumSession.h"
 
 class Server;
 class StratumJobEx;
+
 
 ////////////////////////////////// JobRepository ///////////////////////////////
 class JobRepository {
@@ -82,6 +84,70 @@ public:
 
   shared_ptr<StratumJobEx> getStratumJobEx(const uint64_t jobId);
   shared_ptr<StratumJobEx> getLatestStratumJobEx();
+};
+
+
+///////////////////////////////////// UserInfo /////////////////////////////////
+// 1. update userName->userId by interval
+// 2. insert worker name to db
+class UserInfo {
+  struct WorkerNameKey {
+    int32_t userId_;
+    int64_t workerId_;
+
+    WorkerNameKey(int32_t userId, int64_t workerId):
+    userId_(userId), workerId_(workerId)
+    {}
+
+    bool operator<(const WorkerNameKey &r) const {
+      if (userId_ < r.userId_ ||
+          (userId_ == r.userId_ && workerId_ < r.workerId_)) {
+        return true;
+      }
+      return false;
+    }
+  };
+
+  struct WorkerName {
+    int32_t userId_;
+    int64_t workerId_;
+    char    workerName_[21];
+  };
+
+  //--------------------
+  pthread_rwlock_t rwlock_;
+  atomic<bool> running_;
+  string apiUrl_;
+
+  // username -> userId
+  std::unordered_map<string, int32_t> nameIds_;
+  int32_t lastMaxUserId_;
+
+  // workerName
+  mutex workerNameLock_;
+  std::deque<WorkerName> workerNameQ_;
+  std::set<WorkerNameKey> workerNameSet_;
+
+  MySQLConnection db_;
+  thread threadInsertWorkerName_;
+  void runThreadInsertWorkerName();
+  int32_t insertWorkerName();
+  bool loadExistWorkerName();
+
+  thread threadUpdate_;
+  void runThreadUpdate();
+  int32_t updateUsers();
+
+public:
+  UserInfo(const string &apiUrl, const MysqlConnectInfo &dbInfo);
+  ~UserInfo();
+
+  void stop();
+  bool setupThreads();
+
+  int32_t getUserId(const string userName);
+  void addWorker(const int32_t userId, const int64_t workerId,
+                 const string workerName);
 };
 
 
@@ -142,12 +208,14 @@ class Server {
 public:
   const int32_t kShareAvgSeconds_;
   JobRepository *jobRepository_;
+  UserInfo *userInfo_;
 
 public:
   Server();
   ~Server();
 
-  bool setup(const char *ip, const unsigned short port, const char *kafkaBrokers);
+  bool setup(const char *ip, const unsigned short port, const char *kafkaBrokers,
+             const string &userAPIUrl, const  MysqlConnectInfo &dbInfo);
   void run();
   void stop();
 
@@ -181,10 +249,13 @@ class StratumServer {
   int32_t serverId_;  // global unique, range: [0, 255]
 
   string kafkaBrokers_;
+  string userAPIUrl_;
+  MysqlConnectInfo poolDBInfo_;
 
 public:
   StratumServer(const char *ip, const unsigned short port,
-                const char *kafkaBrokers);
+                const char *kafkaBrokers,
+                const string &userAPIUrl, const MysqlConnectInfo &poolDBInfo);
   ~StratumServer();
 
   bool init();
