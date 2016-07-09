@@ -428,20 +428,20 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
   const string fullName = jparams.children()->at(0).str();
   const string userName = worker_.getUserName(fullName);
 
-  // TODO: get user ID from user name
-  const int32_t userId = 1;
-
-  if (userId == 0) {
+  const int32_t userId = server_->userInfo_->getUserId(userName);
+  if (userId <= 0) {
     responseError(idStr, StratumError::INVALID_USERNAME);
     return;
   }
-  // TODO: if miner's have own mindiff
-//  diffController_.setMinDiff();
 
   // auth success
   responseTrue(idStr);
-  worker_.setUserIDAndNames(userId, fullName);
   state_ = AUTHENTICATED;
+
+  // set id & names, will filter workername in this func
+  worker_.setUserIDAndNames(userId, fullName);
+  server_->userInfo_->addWorker(worker_.userId_, worker_.workerHashId_,
+                                worker_.workerName_);
 
   // set read timeout to 10 mins, it's enought for most miners even usb miner.
   // if it's a pool watcher, set timeout to a week

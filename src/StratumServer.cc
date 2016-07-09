@@ -311,8 +311,8 @@ int32_t UserInfo::updateUsers() {
     LOG(ERROR) << "decode json fail, json: " << resp;
     return -1;
   }
-  if (r["data"].type() != Utilities::JS::type::Obj) {
-    LOG(ERROR) << "invalid data, should key->value";
+  if (r["data"].type() == Utilities::JS::type::Undefined) {
+    LOG(ERROR) << "invalid data, should key->value, type: " << (int)r["data"].type();
     return -1;
   }
   auto vUser = r["data"].children();
@@ -322,7 +322,7 @@ int32_t UserInfo::updateUsers() {
 
   pthread_rwlock_wrlock(&rwlock_);
   for (const auto &itr : *vUser) {
-    const string  userName = itr.key_start();
+    const string  userName(itr.key_start(), itr.key_end() - itr.key_start());
     const int32_t userId   = itr.int32();
     if (userId > lastMaxUserId_) {
       lastMaxUserId_ = userId;
@@ -343,8 +343,12 @@ void UserInfo::runThreadUpdate() {
       usleep(500000);  // 500ms
       continue;
     }
+
     int32_t res = updateUsers();
-    LOG(INFO) << "update users count: " << res;
+    lastUpdateTime = time(nullptr);
+
+    if (res > 0)
+      LOG(INFO) << "update users count: " << res;
   }
 }
 

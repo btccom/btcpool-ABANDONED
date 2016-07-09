@@ -42,6 +42,7 @@ string filterWorkerName(const string &workerName) {
   for (const auto &c : workerName) {
     if (('a' <= c && c <= 'z') ||
         ('A' <= c && c <= 'Z') ||
+        ('0' <= c && c <= '9') ||
         c == '-' || c == '.' || c == '_' || c == ':' || c == '|' || c == '^') {
       s += c;
     }
@@ -110,6 +111,8 @@ void StratumWorker::setUserIDAndNames(const int32_t userId, const string &fullNa
     userName_   = fullName.substr(0, pos);
     workerName_ = fullName.substr(pos+1);
   }
+
+  // the worker name will insert to DB, so must be filter
   workerName_ = filterWorkerName(workerName_);
 
   // max length for worker name is 20
