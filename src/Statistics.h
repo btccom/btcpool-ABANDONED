@@ -26,6 +26,7 @@
 
 #include "Common.h"
 #include "Kafka.h"
+#include "MySQLConnection.h"
 #include "Stratum.h"
 
 #include <event2/event.h>
@@ -254,12 +255,13 @@ class StatsServer {
   pthread_rwlock_t rwlock_;  // for workerSet_
   std::unordered_map<WorkerKey/* userId + workerId */, shared_ptr<WorkerShares> > workerSet_;
   std::unordered_map<int32_t /* userId */, int32_t> userWorkerCount_;
-
   WorkerShares poolWorker_;  // worker status for the pool
 
   KafkaConsumer kafkaConsumer_;  // consume topic: 'ShareLog'
-
   thread threadConsume_;
+
+  MysqlConnectInfo poolDBInfo_;  // flush workers to table.mining_workers
+  atomic<bool> isInserting_;     // flag mark if we are flushing db
 
   // httpd
   struct event_base *base_;
@@ -275,6 +277,8 @@ class StatsServer {
                             vector<WorkerStatus> &workerStatus);
   WorkerStatus mergeWorkerStatus(const vector<WorkerStatus> &workerStatus);
 
+  void _flushWorkersToDBThread();
+  void flushWorkersToDB();
   void removeExpiredWorkers();
   bool setupThreadConsume();
   void runHttpd();
@@ -284,7 +288,8 @@ public:
   atomic<uint64_t> responseBytes_;
 
 public:
-  StatsServer(const char *kafkaBrokers, string httpdHost, unsigned short httpdPort);
+  StatsServer(const char *kafkaBrokers, string httpdHost, unsigned short httpdPort,
+              const MysqlConnectInfo &poolDBInfo);
   ~StatsServer();
 
   void stop();

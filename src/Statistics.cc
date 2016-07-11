@@ -28,6 +28,7 @@
 #include <string>
 
 #include <boost/algorithm/string.hpp>
+#include <boost/thread.hpp>
 
 ////////////////////////////////  WorkerShares  ////////////////////////////////
 WorkerShares::WorkerShares(const int64_t workerId, const int32_t userId):
@@ -95,10 +96,11 @@ bool WorkerShares::isExpired() {
 
 ////////////////////////////////  StatsServer  ////////////////////////////////
 StatsServer::StatsServer(const char *kafkaBrokers, string httpdHost,
-                         unsigned short httpdPort):
+                         unsigned short httpdPort, const MysqlConnectInfo &poolDBInfo):
 running_(true), totalWorkerCount_(0), totalUserCount_(0), upTime_(time(nullptr)),
 poolWorker_(0u/* worker id */, 0/* user id */),
 kafkaConsumer_(kafkaBrokers, KAFKA_TOPIC_SHARE_LOG, 0/* patition */),
+poolDBInfo_(poolDBInfo), isInserting_(false),
 base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort),
 requestCount_(0), responseBytes_(0)
 {
@@ -159,7 +161,7 @@ void StatsServer::_processShare(WorkerKey &key1, WorkerKey &key2, const Share &s
   }
 
   if (workerShare1 != nullptr || workerShare2 != nullptr) {
-    pthread_rwlock_wrlock(&rwlock_);
+    pthread_rwlock_wrlock(&rwlock_);    // write lock
     if (workerShare1 != nullptr) {
       workerSet_[key1] = workerShare1;
       totalWorkerCount_++;
@@ -173,15 +175,102 @@ void StatsServer::_processShare(WorkerKey &key1, WorkerKey &key2, const Share &s
   }
 }
 
+void StatsServer::flushWorkersToDB() {
+  LOG(INFO) << "flush mining workers to DB...";
+  if (isInserting_) {
+    LOG(WARNING) << "last flush is not finish yet, ingore";
+    return;
+  }
+
+  isInserting_ = true;
+  boost::thread t(boost::bind(&StatsServer::_flushWorkersToDBThread, this));
+}
+
+void StatsServer::_flushWorkersToDBThread() {
+  MySQLConnection db(poolDBInfo_);
+
+  // merge two table items
+  const string mergeSQL = "INSERT INTO `mining_workers` "
+  " SELECT * FROM `mining_workers_tmp` "
+  " ON DUPLICATE KEY "
+  " UPDATE "
+  "  `mining_workers`.`accept_1m`      =`mining_workers_tmp`.`accept_1m`, "
+  "  `mining_workers`.`accept_5m`      =`mining_workers_tmp`.`accept_5m`, "
+  "  `mining_workers`.`accept_15m`     =`mining_workers_tmp`.`accept_15m`, "
+  "  `mining_workers`.`reject_15m`     =`mining_workers_tmp`.`reject_15m`,"
+  "  `mining_workers`.`accept_count`   =`mining_workers_tmp`.`accept_count`,"
+  "  `mining_workers`.`last_share_ip`  =`mining_workers_tmp`.`last_share_ip`,"
+  "  `mining_workers`.`last_share_time`=`mining_workers_tmp`.`last_share_time`,"
+  "  `mining_workers`.`updated_at`     =`mining_workers_tmp`.`updated_at` ";
+  // fields for table.mining_workers
+  const string fields = "`worker_id`,`uid`,`accept_1m`, `accept_5m`,"
+  "`accept_15m`, `reject_15m`, `accept_count`, `last_share_ip`,"
+  " `last_share_time`, `created_at`, `updated_at`";
+  // values for multi-insert sql
+  vector<string> values;
+
+  if (!db.ping()) {
+    LOG(ERROR) << "can't connect to pool DB";
+    goto finish;
+  }
+
+  // get all workes status
+  pthread_rwlock_rdlock(&rwlock_);  // read lock
+  for (auto itr = workerSet_.begin(); itr != workerSet_.end(); itr++) {
+    const int32_t userId   = itr->first.userId_;
+    const int64_t workerId = itr->first.workerId_;
+    shared_ptr<WorkerShares> workerShare = itr->second;
+    const WorkerStatus status = workerShare->getWorkerStatus();
+
+    char ipStr[INET_ADDRSTRLEN] = {0};
+    inet_ntop(AF_INET, &(status.lastShareIP_), ipStr, INET_ADDRSTRLEN);
+    const string nowStr = date("%F %T", time(nullptr));
+
+    values.push_back(Strings::Format("%" PRId64",%d,%" PRIu64",%" PRIu64","
+                                     "%" PRIu64",%" PRIu64",%d,\"%s\","
+                                     "\"%s\",\"%s\",\"%s\"",
+                                     workerId, userId,
+                                     status.accept1m_, status.accept5m_, status.accept15m_,
+                                     status.reject15m_, status.acceptCount_, ipStr,
+                                     date("%F %T", status.lastShareTime_).c_str(),
+                                     nowStr.c_str(), nowStr.c_str()));
+  }
+  pthread_rwlock_unlock(&rwlock_);
+
+  if (!db.execute("DROP TABLE IF EXISTS `mining_workers_tmp`;")) {
+    LOG(ERROR) << "DROP TABLE `mining_workers_tmp` failure";
+    goto finish;
+  }
+  if (!db.execute("CREATE TABLE `mining_workers_tmp` like `mining_workers`;")) {
+    LOG(ERROR) << "TRUNCATE TABLE `mining_workers_tmp` failure";
+    goto finish;
+  }
+
+  if (!multiInsert(db, "mining_workers_tmp", fields, values)) {
+    LOG(ERROR) << "mul-insert table.mining_workers_tmp failure";
+    goto finish;
+  }
+
+  // merge items
+  if (!db.update(mergeSQL)) {
+    LOG(ERROR) << "merge mining_workers failure";
+    goto finish;
+  }
+  LOG(INFO) << "flush mining workers to DB... done";
+
+finish:
+  isInserting_ = false;
+}
+
 void StatsServer::removeExpiredWorkers() {
   size_t expiredCnt = 0;
 
-  pthread_rwlock_wrlock(&rwlock_);
+  pthread_rwlock_wrlock(&rwlock_);  // write lock
 
   // delete all expired workers
   for (auto itr = workerSet_.begin(); itr != workerSet_.end(); ) {
     const int32_t userId   = itr->first.userId_;
-    const int32_t workerId = itr->first.workerId_;
+    const int64_t workerId = itr->first.workerId_;
     shared_ptr<WorkerShares> workerShare = itr->second;
 
     if (workerShare->isExpired()) {
@@ -308,12 +397,34 @@ bool StatsServer::setupThreadConsume() {
 
 void StatsServer::runThreadConsume() {
   LOG(INFO) << "start sharelog consume thread";
-  time_t lastCleanTime = time(nullptr);
+  time_t lastCleanTime   = time(nullptr);
+  time_t lastFlushDBTime = time(nullptr);
 
+  const time_t kFlushDBInterval      = 20;
   const time_t kExpiredCleanInterval = 60*30;
   const int32_t kTimeoutMs = 1000;
 
   while (running_) {
+    //
+    // try to remove expired workers
+    //
+    if (lastCleanTime + kExpiredCleanInterval < time(nullptr)) {
+      removeExpiredWorkers();
+      lastCleanTime = time(nullptr);
+    }
+
+    //
+    // flush workers to table.mining_workers
+    //
+    if (lastFlushDBTime + kFlushDBInterval < time(nullptr)) {
+      // will use thread to flush data to DB
+      flushWorkersToDB();
+      lastFlushDBTime = time(nullptr);
+    }
+
+    //
+    // consume message
+    //
     rd_kafka_message_t *rkmessage;
     rkmessage = kafkaConsumer_.consumer(kTimeoutMs);
 
@@ -322,16 +433,10 @@ void StatsServer::runThreadConsume() {
     if (rkmessage == nullptr) {
       continue;
     }
-
     // consume share log
     consumeShareLog(rkmessage);
     rd_kafka_message_destroy(rkmessage);  /* Return message to rdkafka */
 
-    // try to remove expired workers
-    if (lastCleanTime + kExpiredCleanInterval < time(nullptr)) {
-      removeExpiredWorkers();
-      lastCleanTime = time(nullptr);
-    }
   }
   LOG(INFO) << "stop sharelog consume thread";
 }

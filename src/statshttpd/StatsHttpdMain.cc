@@ -110,11 +110,21 @@ int main(int argc, char **argv) {
   signal(SIGINT,  handler);
 
   try {
+    MysqlConnectInfo *poolDBInfo = nullptr;
+    {
+      int32_t poolDBPort = 3306;
+      cfg.lookupValue("pooldb.port", poolDBPort);
+      poolDBInfo = new MysqlConnectInfo(cfg.lookup("pooldb.host"), poolDBPort,
+                                        cfg.lookup("pooldb.username"),
+                                        cfg.lookup("pooldb.password"),
+                                        cfg.lookup("pooldb.dbname"));
+    }
+
     int32_t port = 8080;
     cfg.lookupValue("statshttpd.port", port);
     gStatsServer = new StatsServer(cfg.lookup("kafka.brokers").c_str(),
                                    cfg.lookup("statshttpd.ip").c_str(),
-                                   (unsigned short)port);
+                                   (unsigned short)port, *poolDBInfo);
     gStatsServer->run();
     delete gStatsServer;
   }

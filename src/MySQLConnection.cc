@@ -226,7 +226,6 @@ bool multiInsert(MySQLConnection &db, const string &table,
     }
   }
 
-  // 最后剩余的一批
   if (sql.length() > sqlPrefix.length()) {
     sql.resize(sql.length() - 1);
     if (!db.execute(sql.c_str())) {
