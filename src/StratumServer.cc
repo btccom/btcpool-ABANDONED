@@ -427,7 +427,7 @@ int32_t UserInfo::insertWorkerName() {
 
   // try insert to db
   const string nowStr = date("%F %T");
-  const string sql = Strings::Format("INSERT INTO `mining_workers`(`user_id`,`worker_hash_id`,"
+  const string sql = Strings::Format("INSERT INTO `mining_workers`(`uid`,`worker_id`,"
                                      " `worker_name`,`created_at`,`updated_at`) "
                                      " VALUES(%d,%" PRId64",\"%s\",\"%s\",\"%s\")"
                                      " ON DUPLICATE KEY UPDATE "
@@ -449,7 +449,7 @@ int32_t UserInfo::insertWorkerName() {
 
 bool UserInfo::loadExistWorkerName() {
   MySQLResult res;
-  const string sql = "SELECT `user_id`,`worker_hash_id` FROM `mining_workers` "
+  const string sql = "SELECT `uid`,`worker_id` FROM `mining_workers` "
   " WHERE `worker_name` IS NOT NULL";
   if (!db_.query(sql, res)) {
     return false;

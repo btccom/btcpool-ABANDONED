@@ -221,7 +221,7 @@ public:
 
   void sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr);
 
-  void addConnection(evutil_socket_t fd, StratumSession *connection);
+  void addConnection   (evutil_socket_t fd, StratumSession *connection);
   void removeConnection(evutil_socket_t fd);
 
   static void listenerCallback(struct evconnlistener* listener,

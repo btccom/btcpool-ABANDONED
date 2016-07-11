@@ -163,6 +163,7 @@ void StatsServer::_processShare(WorkerKey &key1, WorkerKey &key2, const Share &s
     if (workerShare1 != nullptr) {
       workerSet_[key1] = workerShare1;
       totalWorkerCount_++;
+      userWorkerCount_[key1.userId_]++;
     }
     if (workerShare2 != nullptr) {
       workerSet_[key2] = workerShare2;
@@ -170,6 +171,37 @@ void StatsServer::_processShare(WorkerKey &key1, WorkerKey &key2, const Share &s
     }
     pthread_rwlock_unlock(&rwlock_);
   }
+}
+
+void StatsServer::removeExpiredWorkers() {
+  size_t expiredCnt = 0;
+
+  pthread_rwlock_wrlock(&rwlock_);
+
+  // delete all expired workers
+  for (auto itr = workerSet_.begin(); itr != workerSet_.end(); ) {
+    const int32_t userId   = itr->first.userId_;
+    const int32_t workerId = itr->first.workerId_;
+    shared_ptr<WorkerShares> workerShare = itr->second;
+
+    if (workerShare->isExpired()) {
+      if (workerId == 0) {
+        totalUserCount_--;
+      } else {
+        totalWorkerCount_--;
+        userWorkerCount_[userId]--;
+      }
+      expiredCnt++;
+
+      itr = workerSet_.erase(itr);
+    } else {
+      itr++;
+    }
+  }
+
+  pthread_rwlock_unlock(&rwlock_);
+
+  LOG(INFO) << "removed expired workers: " << expiredCnt;
 }
 
 void StatsServer::getWorkerStatusBatch(const vector<WorkerKey> &keys,
@@ -276,8 +308,11 @@ bool StatsServer::setupThreadConsume() {
 
 void StatsServer::runThreadConsume() {
   LOG(INFO) << "start sharelog consume thread";
+  time_t lastCleanTime = time(nullptr);
 
+  const time_t kExpiredCleanInterval = 60*30;
   const int32_t kTimeoutMs = 1000;
+
   while (running_) {
     rd_kafka_message_t *rkmessage;
     rkmessage = kafkaConsumer_.consumer(kTimeoutMs);
@@ -291,6 +326,12 @@ void StatsServer::runThreadConsume() {
     // consume share log
     consumeShareLog(rkmessage);
     rd_kafka_message_destroy(rkmessage);  /* Return message to rdkafka */
+
+    // try to remove expired workers
+    if (lastCleanTime + kExpiredCleanInterval < time(nullptr)) {
+      removeExpiredWorkers();
+      lastCleanTime = time(nullptr);
+    }
   }
   LOG(INFO) << "stop sharelog consume thread";
 }
@@ -389,13 +430,11 @@ void StatsServer::httpdGetWorkerStatus(struct evhttp_request *req, void *arg) {
 
 void StatsServer::getWorkerStatus(struct evbuffer *evb, const char *pUserId,
                                   const char *pWorkerId, const char *pIsMerge) {
+  assert(pWorkerId != nullptr);
   const int32_t userId = atoi(pUserId);
 
   bool isMerge = false;
-  if (pIsMerge != nullptr) {
-    std::string mergeStr = pIsMerge;
-    std::transform(mergeStr.begin(), mergeStr.end(), mergeStr.begin(), ::tolower);
-    if (mergeStr == "true")
+  if (pIsMerge != nullptr && (*pIsMerge == 'T' || *pIsMerge == 't')) {
       isMerge = true;
   }
 
@@ -424,16 +463,26 @@ void StatsServer::getWorkerStatus(struct evbuffer *evb, const char *pUserId,
   for (const auto &status : workerStatus) {
     char ipStr[INET_ADDRSTRLEN] = {0};
     inet_ntop(AF_INET, &(status.lastShareIP_), ipStr, INET_ADDRSTRLEN);
+
+    // extra infomations
+    string extraInfo;
+    if (!isMerge && keys[i].workerId_ == 0) {  // all workers of this user
+      pthread_rwlock_rdlock(&rwlock_);
+      extraInfo = Strings::Format(",\"workers\":%d", userWorkerCount_[userId]);
+      pthread_rwlock_unlock(&rwlock_);
+    }
+
     evbuffer_add_printf(evb,
                         "%s{\"worker_id\":%" PRId64",\"accept\":[%" PRIu64",%" PRIu64",%" PRIu64"]"
                         ",\"reject\":[0,0,%" PRIu64"],\"accept_count\":%" PRIu32""
                         ",\"last_share_ip\":\"%s\",\"last_share_time\":%u"
-                        "}",
+                        "%s}",
                         (isFirst ? "" : ","),
                         (isMerge ? 0 : keys[i].workerId_),
                         status.accept1m_, status.accept5m_, status.accept15m_,
                         status.reject15m_, status.acceptCount_,
-                        ipStr, status.lastShareTime_);
+                        ipStr, status.lastShareTime_,
+                        extraInfo.length() ? extraInfo.c_str() : "");
     isFirst = false;
     i++;
   }

@@ -252,7 +252,8 @@ class StatsServer {
   time_t upTime_;
 
   pthread_rwlock_t rwlock_;  // for workerSet_
-  std::unordered_map<WorkerKey/* workerId */, shared_ptr<WorkerShares> > workerSet_;
+  std::unordered_map<WorkerKey/* userId + workerId */, shared_ptr<WorkerShares> > workerSet_;
+  std::unordered_map<int32_t /* userId */, int32_t> userWorkerCount_;
 
   WorkerShares poolWorker_;  // worker status for the pool
 
@@ -274,6 +275,7 @@ class StatsServer {
                             vector<WorkerStatus> &workerStatus);
   WorkerStatus mergeWorkerStatus(const vector<WorkerStatus> &workerStatus);
 
+  void removeExpiredWorkers();
   bool setupThreadConsume();
   void runHttpd();
 
