@@ -33,6 +33,7 @@
 #define KAFKA_TOPIC_SOLVED_SHARE  "SolvedShare"
 #define KAFKA_TOPIC_SHARE_LOG     "ShareLog"
 
+
 ///////////////////////////////// KafkaConsumer ////////////////////////////////
 // Simple Consumer
 class KafkaConsumer {
@@ -58,6 +59,33 @@ public:
   //     RD_KAFKA_OFFSET_TAIL(CNT)
   //
   bool setup(int64_t offset);
+  //
+  // don't forget to call rd_kafka_message_destroy() after consumer()
+  //
+  rd_kafka_message_t *consumer(int timeout_ms);
+};
+
+
+//////////////////////////// KafkaHighLevelConsumer ////////////////////////////
+// High Level Consumer
+class KafkaHighLevelConsumer {
+  string brokers_;
+  string topicStr_;
+  string groupStr_;
+  int    partition_;
+
+  rd_kafka_conf_t  *conf_;
+  rd_kafka_t       *consumer_;
+  rd_kafka_topic_partition_list_t *topics_;
+
+public:
+  KafkaHighLevelConsumer(const char *brokers, const char *topic, int partition,
+                         const string &groupStr);
+  ~KafkaHighLevelConsumer();
+
+//  bool checkAlive();  // I don't know which function should be used to check
+  bool setup();
+
   //
   // don't forget to call rd_kafka_message_destroy() after consumer()
   //

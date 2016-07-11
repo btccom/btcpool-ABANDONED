@@ -33,6 +33,42 @@ void kafkaLogger(const rd_kafka_t *rk, int level,
   << (rk ? rd_kafka_name(rk) : NULL) << buf;
 }
 
+static
+void print_partition_list(const rd_kafka_topic_partition_list_t *partitions) {
+  int i;
+  for (i = 0 ; i < partitions->cnt ; i++) {
+    LOG(ERROR) << i << " " << partitions->elems[i].topic<< " ["
+    << partitions->elems[i].partition << "] offset " << partitions->elems[i].offset;
+  }
+}
+
+static
+void rebalance_cb(rd_kafka_t *rk,
+                  rd_kafka_resp_err_t err,
+                  rd_kafka_topic_partition_list_t *partitions,
+                  void *opaque) {
+  LOG(ERROR) << "consumer group rebalanced: ";
+  switch (err)
+  {
+    case RD_KAFKA_RESP_ERR__ASSIGN_PARTITIONS:
+      LOG(ERROR) << "assigned:";
+      print_partition_list(partitions);
+      rd_kafka_assign(rk, partitions);
+      break;
+
+    case RD_KAFKA_RESP_ERR__REVOKE_PARTITIONS:
+      LOG(ERROR) << "revoked:";
+      print_partition_list(partitions);
+      rd_kafka_assign(rk, NULL);
+      break;
+
+    default:
+      fprintf(stderr, "failed: %s\n", rd_kafka_err2str(err));
+      rd_kafka_assign(rk, NULL);
+      break;
+  }
+}
+
 
 ///////////////////////////////// KafkaConsumer ////////////////////////////////
 KafkaConsumer::KafkaConsumer(const char *brokers, const char *topic,
@@ -157,6 +193,136 @@ bool KafkaConsumer::checkAlive() {
 rd_kafka_message_t *KafkaConsumer::consumer(int timeout_ms) {
   return rd_kafka_consume(topic_, partition_, timeout_ms);
 }
+
+
+
+//////////////////////////// KafkaHighLevelConsumer ////////////////////////////
+KafkaHighLevelConsumer::KafkaHighLevelConsumer(const char *brokers, const char *topic,
+                                               int partition, const string &groupStr):
+brokers_(brokers), topicStr_(topic),
+groupStr_(groupStr), partition_(partition),
+conf_(rd_kafka_conf_new()), consumer_(nullptr), topics_(nullptr)
+{
+  rd_kafka_conf_set_log_cb(conf_, kafkaLogger);  // set logger
+  LOG(INFO) << "consumer librdkafka version: " << rd_kafka_version_str();
+}
+
+KafkaHighLevelConsumer::~KafkaHighLevelConsumer() {
+  rd_kafka_resp_err_t err;
+  if (topics_ == nullptr) {
+    return;
+  }
+
+  /* Stop consuming */
+  err = rd_kafka_consumer_close(consumer_);
+  if (err)
+    LOG(ERROR) << "failed to close consumer: " << rd_kafka_err2str(err);
+  else
+    LOG(INFO) << "consumer closed";
+
+  rd_kafka_topic_partition_list_destroy(topics_);
+  rd_kafka_destroy(consumer_);
+
+  /* Let background threads clean up and terminate cleanly. */
+  int run = 5;
+  while (run-- > 0 && rd_kafka_wait_destroyed(1000) == -1)
+    LOG(INFO) << "waiting for librdkafka to decommission";
+
+  if (run <= 0)
+    rd_kafka_dump(stdout, consumer_);
+}
+
+bool KafkaHighLevelConsumer::setup() {
+  char errstr[1024];
+  rd_kafka_resp_err_t err;
+  //
+  // rdkafka options:
+  //
+  // message.max.bytes:
+  //         Maximum transmit message size. 20000000 = 20,000,000
+  //
+  // TODO: increase 'message.max.bytes' in the feature
+  //
+  const vector<string> conKeys = {"message.max.bytes", "compression.codec",
+    "queued.max.messages.kbytes","fetch.message.max.bytes","fetch.wait.max.ms",
+    "group.id" /* Consumer groups require a group id */
+  };
+  const vector<string> conVals = {"20000000", "snappy",
+    "20000000","20000000","5", groupStr_.c_str()};
+  assert(conKeys.size() == conVals.size());
+
+  for (size_t i = 0; i < conKeys.size(); i++) {
+    if (rd_kafka_conf_set(conf_,
+                          conKeys[i].c_str(), conVals[i].c_str(),
+                          errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK) {
+      LOG(ERROR) << "kafka set conf failure: " << errstr
+      << ", key: " << conKeys[i] << ", val: " << conVals[i];
+      return false;
+    }
+  }
+
+  /* topic conf */
+  rd_kafka_topic_conf_t *topicConf = rd_kafka_topic_conf_new();
+
+  /* Consumer groups always use broker based offset storage */
+  if (rd_kafka_topic_conf_set(topicConf, "offset.store.method", "broker",
+                              errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK) {
+    LOG(ERROR) << "kafka set 'offset.store.method' failure: " << errstr;
+    return false;
+  }
+
+  /* Set default topic config for pattern-matched topics. */
+  rd_kafka_conf_set_default_topic_conf(conf_, topicConf);
+
+  /* Callback called on partition assignment changes */
+  //
+  // NOTE: right now, we use only 1 patition, I think it's not going to happen
+  //
+  rd_kafka_conf_set_rebalance_cb(conf_, rebalance_cb);
+
+  /* create consumer_ */
+  if (!(consumer_ = rd_kafka_new(RD_KAFKA_CONSUMER, conf_,
+                                 errstr, sizeof(errstr)))) {
+    LOG(ERROR) << "kafka create consumer failure: " << errstr;
+    return false;
+  }
+
+#ifndef NDEBUG
+  rd_kafka_set_log_level(consumer_, 7 /* LOG_DEBUG */);
+#else
+  rd_kafka_set_log_level(consumer_, 0);
+#endif
+
+  /* Add brokers */
+  LOG(INFO) << "add brokers: " << brokers_;
+  if (rd_kafka_brokers_add(consumer_, brokers_.c_str()) == 0) {
+    LOG(ERROR) << "kafka add brokers failure";
+    return false;
+  }
+
+  /* Redirect rd_kafka_poll() to consumer_poll() */
+  rd_kafka_poll_set_consumer(consumer_);
+
+  /* Create a new list/vector Topic+Partition container */
+  int size = 1;  // only 1 container
+  topics_ = rd_kafka_topic_partition_list_new(size);
+  rd_kafka_topic_partition_list_add(topics_, topicStr_.c_str(), partition_);
+
+  if ((err = rd_kafka_assign(consumer_, topics_))) {
+    LOG(ERROR) << "failed to assign partitions: " << rd_kafka_err2str(err);
+    return false;
+  }
+
+  return true;
+}
+
+//
+// don't forget to call rd_kafka_message_destroy() after consumer()
+//
+rd_kafka_message_t *KafkaHighLevelConsumer::consumer(int timeout_ms) {
+  return rd_kafka_consumer_poll(consumer_, timeout_ms);
+}
+
 
 
 ///////////////////////////////// KafkaProducer ////////////////////////////////
