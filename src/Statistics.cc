@@ -643,16 +643,19 @@ hlConsumer_(kafkaBrokers, KAFKA_TOPIC_SHARE_LOG, 0/* patition */,
 }
 
 ShareLogWriter::~ShareLogWriter() {
+  // close file handlers
+  for (auto & itr : fileHandlers_) {
+    LOG(INFO) << "fclose file handler, date: " << date("%F", itr.first);
+    fclose(itr.second);
+  }
+  fileHandlers_.clear();
+}
+
+void ShareLogWriter::stop() {
   if (!running_)
     return;
 
   running_ = false;
-
-  // close file handlers
-  for (auto & itr : fileHandlers_) {
-    fclose(itr.second);
-  }
-  fileHandlers_.clear();
 }
 
 FILE* ShareLogWriter::getFileHandler(uint32_t ts) {

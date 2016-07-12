@@ -91,3 +91,6 @@ file(GLOB_RECURSE STATSHTTPD_SOURCES src/statshttpd/*.cc)
 add_executable(statshttpd ${STATSHTTPD_SOURCES})
 target_link_libraries(statshttpd poolcomponents ${THRID_LIBRARIES})
 
+file(GLOB_RECURSE SHARELOGGER_SOURCES src/sharelogger/*.cc)
+add_executable(sharelogger ${SHARELOGGER_SOURCES})
+target_link_libraries(sharelogger poolcomponents ${THRID_LIBRARIES})

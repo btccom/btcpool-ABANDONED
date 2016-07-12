@@ -265,9 +265,16 @@ bool KafkaHighLevelConsumer::setup() {
   rd_kafka_topic_conf_t *topicConf = rd_kafka_topic_conf_new();
 
   /* Consumer groups always use broker based offset storage */
+  // offset.store.method
   if (rd_kafka_topic_conf_set(topicConf, "offset.store.method", "broker",
                               errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK) {
     LOG(ERROR) << "kafka set 'offset.store.method' failure: " << errstr;
+    return false;
+  }
+  // auto.offset.reset
+  if (rd_kafka_topic_conf_set(topicConf, "auto.offset.reset", "smallest",
+                              errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK) {
+    LOG(ERROR) << "kafka set 'auto.offset.reset' failure: " << errstr;
     return false;
   }
 
