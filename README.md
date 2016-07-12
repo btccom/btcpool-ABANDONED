@@ -65,6 +65,18 @@ cd librdkafka-0.9.1
 ./configure && make && make install
 ```
 
+libevent
+
+```
+cd /root/source
+wget https://github.com/libevent/libevent/releases/download/release-2.0.22-stable/libevent-2.0.22-stable.tar.gz
+tar zxvf libevent-2.0.22-stable.tar.gz
+cd libevent-2.0.22-stable
+./configure
+make
+make install
+```
+
 更新动态库：
 
 `vim /etc/ld.so.conf`添加一行：`/usr/local/lib`，并运行：`ldconfig`。

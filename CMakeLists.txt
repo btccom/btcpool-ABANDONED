@@ -48,9 +48,9 @@ if(NOT CURL_FOUND)
 endif(NOT CURL_FOUND)
 
 find_package(LibEvent)
-if(NOT LIBEVENT_FOUND)
+if(NOT LibEvent_FOUND)
   message(FATAL_ERROR "libevent2 not found!")
-endif(NOT LIBEVENT_FOUND)
+endif(NOT LibEvent_FOUND)
 
 find_package(Boost 1.36.0 COMPONENTS thread filesystem system regex)
 if(NOT Boost_FOUND)
