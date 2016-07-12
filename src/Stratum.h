@@ -67,6 +67,29 @@ public:
   Share():jobId_(0), workerHashId_(0), ip_(0), userId_(0), share_(0),
   timestamp_(0), blkBits_(0), result_(0) {}
 
+  Share(const Share &r) {
+    jobId_        = r.jobId_;
+    workerHashId_ = r.workerHashId_;
+    ip_           = r.ip_;
+    userId_       = r.userId_;
+    share_        = r.share_;
+    timestamp_    = r.timestamp_;
+    blkBits_      = r.blkBits_;
+    result_       = r.result_;
+  }
+
+  Share& operator=(const Share &r) {
+    jobId_        = r.jobId_;
+    workerHashId_ = r.workerHashId_;
+    ip_           = r.ip_;
+    userId_       = r.userId_;
+    share_        = r.share_;
+    timestamp_    = r.timestamp_;
+    blkBits_      = r.blkBits_;
+    result_       = r.result_;
+    return *this;
+  }
+
   double score() const {
     if (share_ == 0 || blkBits_ == 0) { return 0.0; }
     double networkDifficulty = 0.0;

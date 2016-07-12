@@ -627,3 +627,169 @@ void StatsServer::run() {
 
   runHttpd();
 }
+
+
+
+//////////////////////////////  StatsFileWriter  ///////////////////////////////
+StatsFileWriter::StatsFileWriter(const char *kafkaBrokers,
+                                 const string &dataDir)
+:running_(true), dataDir_(dataDir),
+hlConsumer_(kafkaBrokers, KAFKA_TOPIC_SHARE_LOG, 0/* patition */,
+            "StatsFileWriter" /* kafka group.id */)
+{
+  if (dataDir_.length() > 0 && *dataDir_.rbegin() != '/') {
+    dataDir_ += "/";  // add '/'
+  }
+}
+
+StatsFileWriter::~StatsFileWriter() {
+  if (!running_)
+    return;
+
+  running_ = false;
+
+  // close file handlers
+  for (auto & itr : fileHandlers_) {
+    fclose(itr.second);
+  }
+  fileHandlers_.clear();
+}
+
+FILE* StatsFileWriter::getFileHandler(uint32_t ts) {
+  if (fileHandlers_.find(ts) != fileHandlers_.end()) {
+    return fileHandlers_[ts];
+  }
+
+  // filename: sharelog-2016-07-12.bin
+  const string filePath = Strings::Format("%ssharelog-%s.bin", dataDir_.c_str(),
+                                          date("%F", ts).c_str());
+  // append mode, bin file
+  LOG(INFO) << "fopen: " << filePath;
+  FILE *f = fopen(filePath.c_str(), "ab");
+  if (f == nullptr) {
+    LOG(FATAL) << "fopen file fail: " << filePath;
+    return nullptr;
+  }
+
+  fileHandlers_[ts] = f;
+  return f;
+}
+
+void StatsFileWriter::consumeShareLog(rd_kafka_message_t *rkmessage) {
+  // check error
+  if (rkmessage->err) {
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
+      // Reached the end of the topic+partition queue on the broker.
+      // Not really an error.
+      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
+      //      << "[" << rkmessage->partition << "] "
+      //      << " message queue at offset " << rkmessage->offset;
+      // acturlly
+      return;
+    }
+
+    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
+    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
+    << ": " << rd_kafka_message_errstr(rkmessage);
+
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
+        rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
+      LOG(FATAL) << "consume fatal";
+    }
+    return;
+  }
+
+  if (rkmessage->len != sizeof(Share)) {
+    LOG(ERROR) << "sharelog message size(" << rkmessage->len << ") is not: " << sizeof(Share);
+    return;
+  }
+
+  shares_.push_back(Share());
+  Share *share = &(*shares_.rbegin());
+
+  memcpy((uint8_t *)share, (const uint8_t *)rkmessage->payload, rkmessage->len);
+
+  if (!share->isValid()) {
+    LOG(ERROR) << "invalid share: " << share->toString();
+    shares_.pop_back();
+    return;
+  }
+}
+
+void StatsFileWriter::tryCloseOldHanders() {
+  while (fileHandlers_.size() > 3) {
+    // Maps (and sets) are sorted, so the first element is the smallest,
+    // and the last element is the largest.
+    auto itr = fileHandlers_.begin();
+
+    LOG(INFO) << "fclose file handler, date: " << date("%F", itr->first);
+    fclose(itr->second);
+
+    fileHandlers_.erase(itr);
+  }
+}
+
+bool StatsFileWriter::flushToDisk() {
+  std::set<FILE*> usedHandlers;
+
+  for (const auto& share : shares_) {
+    const uint32_t ts = share.timestamp_ - (share.timestamp_ % 86400);
+    FILE *f = getFileHandler(ts);
+    if (f == nullptr)
+      return false;
+
+    usedHandlers.insert(f);
+    fwrite((uint8_t *)&share, sizeof(Share), 1, f);
+  }
+
+  shares_.clear();
+
+  for (auto & f : usedHandlers) {
+    fflush(f);
+  }
+
+  // should call this after write data
+  tryCloseOldHanders();
+
+  return true;
+}
+
+void StatsFileWriter::run() {
+  time_t lastFlushTime = time(nullptr);
+  const int32_t kFlushDiskInterval = 2;
+  const int32_t kTimeoutMs = 1000;
+
+  if (!hlConsumer_.setup()) {
+    LOG(ERROR) << "setup sharelog consumer fail";
+    return;
+  }
+
+  while (running_) {
+    //
+    // flush data to disk
+    //
+    if (shares_.size() > 0 &&
+        time(nullptr) > kFlushDiskInterval + lastFlushTime) {
+      flushToDisk();
+      lastFlushTime = time(nullptr);
+    }
+
+    //
+    // consume message
+    //
+    rd_kafka_message_t *rkmessage;
+    rkmessage = hlConsumer_.consumer(kTimeoutMs);
+
+    // timeout, most of time it's not nullptr and set an error:
+    //          rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF
+    if (rkmessage == nullptr) {
+      continue;
+    }
+
+    // consume share log
+    consumeShareLog(rkmessage);
+    rd_kafka_message_destroy(rkmessage);  /* Return message to rdkafka */
+  }
+}
+
+

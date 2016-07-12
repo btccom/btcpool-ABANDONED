@@ -305,4 +305,47 @@ public:
                        const char *pWorkerId, const char *pIsMerge);
 };
 
+
+
+//////////////////////////////  StatsFileWriter  ///////////////////////////////
+//
+// 1. consume topic 'ShareLog'
+// 2. write sharelog to Disk
+//
+class StatsFileWriter {
+  atomic<bool> running_;
+  string dataDir_;  // where to put sharelog data files
+
+  // key:   timestamp - (timestamp % 86400)
+  // value: FILE *
+  std::map<uint32_t, FILE *> fileHandlers_;
+  std::vector<Share> shares_;
+
+  KafkaHighLevelConsumer hlConsumer_;  // consume topic: 'ShareLog'
+
+  FILE* getFileHandler(uint32_t ts);
+  void consumeShareLog(rd_kafka_message_t *rkmessage);
+  bool flushToDisk();
+  void tryCloseOldHanders();
+
+public:
+  StatsFileWriter(const char *kafkaBrokers, const string &dataDir);
+  ~StatsFileWriter();
+
+  void stop();
+  void run();
+};
+
+
+
+//////////////////////////////  StatsFileParser  ///////////////////////////////
+//
+// 1. read sharelog data files
+// 2. calculate share & score
+// 3. write stats data to DB
+//
+class StatsFileParser {
+
+};
+
 #endif
