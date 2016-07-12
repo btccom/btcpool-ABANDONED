@@ -237,6 +237,11 @@ void StatsServer::_flushWorkersToDBThread() {
   }
   pthread_rwlock_unlock(&rwlock_);
 
+  if (values.size() == 0) {
+    LOG(INFO) << "no active workers";
+    goto finish;
+  }
+
   if (!db.execute("DROP TABLE IF EXISTS `mining_workers_tmp`;")) {
     LOG(ERROR) << "DROP TABLE `mining_workers_tmp` failure";
     goto finish;
