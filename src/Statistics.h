@@ -307,12 +307,12 @@ public:
 
 
 
-//////////////////////////////  StatsFileWriter  ///////////////////////////////
+//////////////////////////////  ShareLogWriter  ///////////////////////////////
 //
 // 1. consume topic 'ShareLog'
 // 2. write sharelog to Disk
 //
-class StatsFileWriter {
+class ShareLogWriter {
   atomic<bool> running_;
   string dataDir_;  // where to put sharelog data files
 
@@ -329,8 +329,8 @@ class StatsFileWriter {
   void tryCloseOldHanders();
 
 public:
-  StatsFileWriter(const char *kafkaBrokers, const string &dataDir);
-  ~StatsFileWriter();
+  ShareLogWriter(const char *kafkaBrokers, const string &dataDir);
+  ~ShareLogWriter();
 
   void stop();
   void run();

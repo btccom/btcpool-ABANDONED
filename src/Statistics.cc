@@ -630,19 +630,19 @@ void StatsServer::run() {
 
 
 
-//////////////////////////////  StatsFileWriter  ///////////////////////////////
-StatsFileWriter::StatsFileWriter(const char *kafkaBrokers,
-                                 const string &dataDir)
+//////////////////////////////  ShareLogWriter  ///////////////////////////////
+ShareLogWriter::ShareLogWriter(const char *kafkaBrokers,
+                               const string &dataDir)
 :running_(true), dataDir_(dataDir),
 hlConsumer_(kafkaBrokers, KAFKA_TOPIC_SHARE_LOG, 0/* patition */,
-            "StatsFileWriter" /* kafka group.id */)
+"ShareLogWriter" /* kafka group.id */)
 {
   if (dataDir_.length() > 0 && *dataDir_.rbegin() != '/') {
     dataDir_ += "/";  // add '/'
   }
 }
 
-StatsFileWriter::~StatsFileWriter() {
+ShareLogWriter::~ShareLogWriter() {
   if (!running_)
     return;
 
@@ -655,7 +655,7 @@ StatsFileWriter::~StatsFileWriter() {
   fileHandlers_.clear();
 }
 
-FILE* StatsFileWriter::getFileHandler(uint32_t ts) {
+FILE* ShareLogWriter::getFileHandler(uint32_t ts) {
   if (fileHandlers_.find(ts) != fileHandlers_.end()) {
     return fileHandlers_[ts];
   }
@@ -675,7 +675,7 @@ FILE* StatsFileWriter::getFileHandler(uint32_t ts) {
   return f;
 }
 
-void StatsFileWriter::consumeShareLog(rd_kafka_message_t *rkmessage) {
+void ShareLogWriter::consumeShareLog(rd_kafka_message_t *rkmessage) {
   // check error
   if (rkmessage->err) {
     if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
@@ -716,7 +716,7 @@ void StatsFileWriter::consumeShareLog(rd_kafka_message_t *rkmessage) {
   }
 }
 
-void StatsFileWriter::tryCloseOldHanders() {
+void ShareLogWriter::tryCloseOldHanders() {
   while (fileHandlers_.size() > 3) {
     // Maps (and sets) are sorted, so the first element is the smallest,
     // and the last element is the largest.
@@ -729,7 +729,7 @@ void StatsFileWriter::tryCloseOldHanders() {
   }
 }
 
-bool StatsFileWriter::flushToDisk() {
+bool ShareLogWriter::flushToDisk() {
   std::set<FILE*> usedHandlers;
 
   for (const auto& share : shares_) {
@@ -754,7 +754,7 @@ bool StatsFileWriter::flushToDisk() {
   return true;
 }
 
-void StatsFileWriter::run() {
+void ShareLogWriter::run() {
   time_t lastFlushTime = time(nullptr);
   const int32_t kFlushDiskInterval = 2;
   const int32_t kTimeoutMs = 1000;
