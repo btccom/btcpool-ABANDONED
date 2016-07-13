@@ -97,7 +97,7 @@ public:
     return (double)share_ / networkDifficulty;
   }
 
-  bool isValid() {
+  bool isValid() const {
     uint32_t jobTime = jobId2Time(jobId_);
 
     /* TODO: increase timestamp check before 2020-01-01 */

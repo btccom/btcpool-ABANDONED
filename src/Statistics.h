@@ -35,6 +35,7 @@
 #include <event2/util.h>
 #include <event2/keyvalq_struct.h>
 
+#include <string.h>
 #include <pthread.h>
 #include <memory>
 
@@ -260,7 +261,7 @@ class StatsServer {
   KafkaConsumer kafkaConsumer_;  // consume topic: 'ShareLog'
   thread threadConsume_;
 
-  MysqlConnectInfo poolDBInfo_;  // flush workers to table.mining_workers
+  MySQLConnection  poolDB_;      // flush workers to table.mining_workers
   atomic<bool> isInserting_;     // flag mark if we are flushing db
 
   // httpd
@@ -338,14 +339,96 @@ public:
 
 
 
-//////////////////////////////  StatsFileParser  ///////////////////////////////
+///////////////////////////////  StatsShareDay  ////////////////////////////////
+class StatsShareDay {
+public:
+  // hours
+  uint64_t shareAccept1h_[24];
+  uint64_t shareReject1h_[24];
+  double   score1h_[24];  // only accept share
+
+  // daily
+  uint64_t shareAccept1d_;
+  uint64_t shareReject1d_;
+  double   score1d_;
+
+  // mark which hour data has been modified: 23, 22, ...., 0
+  uint32_t modifyFlag_;
+
+  StatsShareDay() {
+    memset((uint8_t *)&shareAccept1h_[0], 0, sizeof(StatsShareDay));
+  }
+
+  void processShare(uint32_t hourIdx, const Share &share) {
+    if (share.result_ == Share::Result::ACCEPT) {
+      shareAccept1h_[hourIdx] += share.share_;
+      shareAccept1d_          += share.share_;
+
+      score1h_[hourIdx] += share.score();
+      score1d_          += share.score();
+    } else {
+      shareReject1h_[hourIdx] += share.share_;
+      shareReject1d_          += share.share_;
+    }
+    modifyFlag_ &= (0x01U << hourIdx);
+  }
+};
+
+
+///////////////////////////////  ShareLogParser  ///////////////////////////////
 //
 // 1. read sharelog data files
 // 2. calculate share & score
 // 3. write stats data to DB
 //
-class StatsFileParser {
+class ShareLogParser {
+  // key: WorkerKey, value: share stats
+  std::unordered_map<WorkerKey/* userID + workerID */, StatsShareDay *> workersStats_;
 
+  time_t date_;      // date_ % 86400 == 0
+  string filePath_;  // sharelog data file path
+
+  //
+  // for processTodaysShareLog()
+  //
+  FILE *f_;        // file handler
+  uint8_t *buf_;   // fread buffer
+  // 48 * 500000 = 24,000,000 ~ 24 MB
+  static const size_t kElementsNum_ = 500000;  // num of Share
+  size_t lastPosition_;
+
+  MySQLConnection  poolDB_;
+
+  inline int32_t getHourIdx(uint32_t ts) {
+    // %H	Hour in 24h format (00-23)
+    return atoi(date("%H", ts).c_str());
+  }
+
+  uint8_t *mapFile(const int fd, size_t length, off_t offset,
+                   uint8_t **realAddr, size_t *realLength);
+  void unmapFile(uint8_t **realAddr, size_t realLength);
+
+  void parseShareLog(const uint8_t *buf, size_t len);
+  void parseShare(const Share *share);
+
+public:
+  ShareLogParser(const string &dataDir, time_t timestamp,
+                 const MysqlConnectInfo &poolDBInfo);
+  ~ShareLogParser();
+
+  bool setup();
+
+  // flush data to DB
+  void flushToDB();
+
+  // read unchanged share data bin file, for example yestoday's file. it will
+  // use mmap() to get high performance. call only once will process
+  // the whole bin file
+  bool processUnchangedShareLog();
+
+  // today's file is still growing, return processed shares number.
+  int64_t processGrowingShareLog();
+  bool isReachEOF();  // only for growing file
 };
 
 #endif

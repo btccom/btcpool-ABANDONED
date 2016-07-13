@@ -30,6 +30,20 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/thread.hpp>
 
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+static
+string getStatsFilePath(const string &dataDir, time_t ts) {
+  // filename: sharelog-2016-07-12.bin
+  return Strings::Format("%ssharelog-%s.bin", dataDir.c_str(),
+                         date("%F", ts).c_str());
+}
+
 ////////////////////////////////  WorkerShares  ////////////////////////////////
 WorkerShares::WorkerShares(const int64_t workerId, const int32_t userId):
 workerId_(workerId), userId_(userId), acceptCount_(0),
@@ -100,7 +114,7 @@ StatsServer::StatsServer(const char *kafkaBrokers, string httpdHost,
 running_(true), totalWorkerCount_(0), totalUserCount_(0), upTime_(time(nullptr)),
 poolWorker_(0u/* worker id */, 0/* user id */),
 kafkaConsumer_(kafkaBrokers, KAFKA_TOPIC_SHARE_LOG, 0/* patition */),
-poolDBInfo_(poolDBInfo), isInserting_(false),
+poolDB_(poolDBInfo), isInserting_(false),
 base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort),
 requestCount_(0), responseBytes_(0)
 {
@@ -187,8 +201,6 @@ void StatsServer::flushWorkersToDB() {
 }
 
 void StatsServer::_flushWorkersToDBThread() {
-  MySQLConnection db(poolDBInfo_);
-
   // merge two table items
   const string mergeSQL = "INSERT INTO `mining_workers` "
   " SELECT * FROM `mining_workers_tmp` "
@@ -209,7 +221,7 @@ void StatsServer::_flushWorkersToDBThread() {
   // values for multi-insert sql
   vector<string> values;
 
-  if (!db.ping()) {
+  if (!poolDB_.ping()) {
     LOG(ERROR) << "can't connect to pool DB";
     goto finish;
   }
@@ -242,22 +254,22 @@ void StatsServer::_flushWorkersToDBThread() {
     goto finish;
   }
 
-  if (!db.execute("DROP TABLE IF EXISTS `mining_workers_tmp`;")) {
+  if (!poolDB_.execute("DROP TABLE IF EXISTS `mining_workers_tmp`;")) {
     LOG(ERROR) << "DROP TABLE `mining_workers_tmp` failure";
     goto finish;
   }
-  if (!db.execute("CREATE TABLE `mining_workers_tmp` like `mining_workers`;")) {
+  if (!poolDB_.execute("CREATE TABLE `mining_workers_tmp` like `mining_workers`;")) {
     LOG(ERROR) << "TRUNCATE TABLE `mining_workers_tmp` failure";
     goto finish;
   }
 
-  if (!multiInsert(db, "mining_workers_tmp", fields, values)) {
+  if (!multiInsert(poolDB_, "mining_workers_tmp", fields, values)) {
     LOG(ERROR) << "mul-insert table.mining_workers_tmp failure";
     goto finish;
   }
 
   // merge items
-  if (!db.update(mergeSQL)) {
+  if (!poolDB_.update(mergeSQL)) {
     LOG(ERROR) << "merge mining_workers failure";
     goto finish;
   }
@@ -663,12 +675,10 @@ FILE* ShareLogWriter::getFileHandler(uint32_t ts) {
     return fileHandlers_[ts];
   }
 
-  // filename: sharelog-2016-07-12.bin
-  const string filePath = Strings::Format("%ssharelog-%s.bin", dataDir_.c_str(),
-                                          date("%F", ts).c_str());
-  // append mode, bin file
+  const string filePath = getStatsFilePath(dataDir_, ts);
   LOG(INFO) << "fopen: " << filePath;
-  FILE *f = fopen(filePath.c_str(), "ab");
+
+  FILE *f = fopen(filePath.c_str(), "ab");  // append mode, bin file
   if (f == nullptr) {
     LOG(FATAL) << "fopen file fail: " << filePath;
     return nullptr;
@@ -795,4 +805,209 @@ void ShareLogWriter::run() {
   }
 }
 
+
+
+///////////////////////////////  ShareLogParser  ///////////////////////////////
+ShareLogParser::ShareLogParser(const string &dataDir, time_t timestamp,
+                               const MysqlConnectInfo &poolDBInfo)
+: date_(timestamp), f_(nullptr), buf_(nullptr), lastPosition_(0), poolDB_(poolDBInfo)
+{
+  {
+    // for the pool
+    WorkerKey pkey(0, 0);
+    workersStats_[pkey] = new StatsShareDay();
+  }
+  filePath_ = getStatsFilePath(dataDir, timestamp);
+
+  // prealloc memory
+  buf_ = (uint8_t *)malloc(kElementsNum_ * sizeof(Share));
+}
+
+ShareLogParser::~ShareLogParser() {
+  if (f_)
+    fclose(f_);
+
+  if (buf_)
+    free(buf_);
+}
+
+bool ShareLogParser::setup() {
+  // check db
+  if (!poolDB_.ping()) {
+    LOG(ERROR) << "connect to db fail";
+    return false;
+  }
+
+  // try to open file
+  FILE *f = fopen(filePath_.c_str(), "rb");
+  if (f == nullptr) {
+    LOG(ERROR) << "open file fail: " << filePath_;
+    return false;
+  }
+  fclose(f);
+
+  return true;
+}
+
+void ShareLogParser::parseShareLog(const uint8_t *buf, size_t len) {
+  assert(len % sizeof(Share) == 0);
+  const size_t size = len / sizeof(Share);
+
+  for (size_t i = 0; i < size; i++) {
+    parseShare((Share *)(buf + sizeof(Share)*i));
+  }
+}
+
+void ShareLogParser::parseShare(const Share *share) {
+  if (!share->isValid()) {
+    LOG(ERROR) << "invalid share: " << share->toString();
+    return;
+  }
+
+  WorkerKey wkey(share->userId_, share->workerHashId_);
+  WorkerKey ukey(share->userId_, 0);
+  WorkerKey pkey(0, 0);
+  if (workersStats_.find(wkey) == workersStats_.end()) {
+    workersStats_[wkey] = new StatsShareDay();
+  }
+  if (workersStats_.find(ukey) == workersStats_.end()) {
+    workersStats_[ukey] = new StatsShareDay();
+  }
+
+  const uint32_t hourIdx = getHourIdx(share->timestamp_);
+  workersStats_[wkey]->processShare(hourIdx, *share);
+  workersStats_[ukey]->processShare(hourIdx, *share);
+  workersStats_[pkey]->processShare(hourIdx, *share);
+}
+
+bool ShareLogParser::processUnchangedShareLog() {
+  struct stat sb;
+  int fd = -1;
+
+  const off_t maxReadOnce = 4200000 * sizeof(Share);  // about 200 MB
+  uint8_t *realAddr;
+  size_t realLength;
+  off_t offset, readLength, leftSize;
+  uint8_t *buf;
+
+  fd = open(filePath_.c_str(), O_RDONLY);
+  if (fd == -1) {
+    LOG(ERROR) << "open file fail: " << filePath_;
+    goto error;
+  }
+  if (fstat(fd, &sb) == -1) {
+    LOG(ERROR) << "fstat fail: " << filePath_;
+    goto error;
+  }
+
+  LOG(INFO) << "open: " << filePath_ << ", size: " << sb.st_size;
+
+  leftSize = sb.st_size;
+  offset = 0;
+  while (leftSize > 0) {
+    assert(offset < sb.st_size);
+
+    readLength = leftSize > maxReadOnce ? maxReadOnce : leftSize;
+    buf = mapFile(fd, readLength, offset, &realAddr, &realLength);
+    if (buf == nullptr) {
+      LOG(ERROR) << "mapFile fail";
+      goto error;
+    }
+
+    // parse log
+    parseShareLog(buf, readLength);
+
+    offset += readLength;
+
+    leftSize -= readLength;
+    assert(leftSize >= 0);
+    unmapFile(&realAddr, realLength);
+  }
+  assert(leftSize == 0);
+  return true;
+
+error:
+  if (fd != -1)
+    close(fd);
+
+  return false;
+}
+
+void ShareLogParser::unmapFile(uint8_t **realAddr, size_t realLength) {
+  int res = munmap(*realAddr, realLength);
+
+  // unlikely happen
+  if (res != 0) {
+    LOG(ERROR) << "munmap fail, errno: " << errno << ", err: " << strerror(errno);
+  }
+}
+
+// see: http://man7.org/linux/man-pages/man2/mmap.2.html
+uint8_t *ShareLogParser::mapFile(const int fd,
+                                 size_t length, off_t offset,
+                                 uint8_t **realAddr,
+                                 size_t *realLength) {
+  uint8_t *addr;
+  off_t pa_offset;
+
+  // offset for mmap() must be page aligned
+  // always true: pa_offset <= offset
+  pa_offset = offset & ~(sysconf(_SC_PAGE_SIZE) - 1);
+
+  addr = (uint8_t *)mmap(NULL, length + (offset - pa_offset), PROT_READ,
+                         MAP_PRIVATE, fd, pa_offset);
+  if (addr == MAP_FAILED) {
+    LOG(ERROR) << "mmap fail, errno: " << errno << ", err: " << strerror(errno);
+    return nullptr;
+  }
+  *realAddr   = addr;
+  *realLength = length + (offset - pa_offset);
+
+  return addr + (offset - pa_offset);
+}
+
+int64_t ShareLogParser::processGrowingShareLog() {
+  size_t readNum = 0;
+
+  if (f_ == nullptr) {
+    if ((f_ = fopen(filePath_.c_str(), "rb")) == nullptr) {
+      LOG(ERROR) << "open file fail: " << filePath_;
+      return -1;
+    }
+  }
+  assert(f_ != nullptr);
+
+  // A successful call to fseek() shall clear the end-of-file indicator for the stream
+  if (fseeko(f_, lastPosition_, SEEK_CUR) != 0) {
+    LOG(ERROR) << "fseeko file fail, pos: " << lastPosition_;
+    return -1;
+  }
+
+  // no need to clear buffer memory before fread
+  // return: the total number of elements successfully read is returned.
+  readNum = fread(buf_, sizeof(Share), kElementsNum_, f_);
+  if (readNum == 0) {
+    return 0;
+  }
+
+  parseShareLog(buf_, readNum * sizeof(Share));
+  lastPosition_ += readNum * sizeof(Share);
+
+  return readNum;
+}
+
+bool ShareLogParser::isReachEOF() {
+  struct stat sb;
+  int fd = open(filePath_.c_str(), O_RDONLY);
+  if (fd == -1) {
+    LOG(ERROR) << "open file fail: " << filePath_;
+    return true;  // if error we consider as EOF
+  }
+  if (fstat(fd, &sb) == -1) {
+    LOG(ERROR) << "fstat fail: " << filePath_;
+    return true;
+  }
+
+  return lastPosition_ == sb.st_size;
+}
 
