@@ -22,7 +22,10 @@
  THE SOFTWARE.
  */
 #include "Statistics.h"
+
+#include "Common.h"
 #include "Stratum.h"
+#include "Utils.h"
 
 #include <algorithm>
 #include <string>
@@ -109,9 +112,9 @@ bool WorkerShares::isExpired() {
 
 
 ////////////////////////////////  StatsServer  ////////////////////////////////
-StatsServer::StatsServer(const char *kafkaBrokers, string httpdHost,
+StatsServer::StatsServer(const char *kafkaBrokers, const string &httpdHost,
                          unsigned short httpdPort, const MysqlConnectInfo &poolDBInfo):
-running_(true), totalWorkerCount_(0), totalUserCount_(0), upTime_(time(nullptr)),
+running_(true), totalWorkerCount_(0), totalUserCount_(0), uptime_(time(nullptr)),
 poolWorker_(0u/* worker id */, 0/* user id */),
 kafkaConsumer_(kafkaBrokers, KAFKA_TOPIC_SHARE_LOG, 0/* patition */),
 poolDB_(poolDBInfo), isInserting_(false),
@@ -461,7 +464,7 @@ void StatsServer::runThreadConsume() {
 StatsServer::ServerStatus StatsServer::getServerStatus() {
   ServerStatus s;
 
-  s.uptime_        = (uint32_t)(time(nullptr) - upTime_);
+  s.uptime_        = (uint32_t)(time(nullptr) - uptime_);
   s.requestCount_  = requestCount_;
   s.workerCount_   = totalWorkerCount_;
   s.userCount_     = totalUserCount_;
@@ -580,7 +583,6 @@ void StatsServer::getWorkerStatus(struct evbuffer *evb, const char *pUserId,
     workerStatus.push_back(merged);
   }
 
-  bool isFirst = true;
   size_t i = 0;
   for (const auto &status : workerStatus) {
     char ipStr[INET_ADDRSTRLEN] = {0};
@@ -599,13 +601,12 @@ void StatsServer::getWorkerStatus(struct evbuffer *evb, const char *pUserId,
                         ",\"reject\":[0,0,%" PRIu64"],\"accept_count\":%" PRIu32""
                         ",\"last_share_ip\":\"%s\",\"last_share_time\":%u"
                         "%s}",
-                        (isFirst ? "" : ","),
+                        (i == 0 ? "" : ","),
                         (isMerge ? 0 : keys[i].workerId_),
                         status.accept1m_, status.accept5m_, status.accept15m_,
                         status.reject15m_, status.acceptCount_,
                         ipStr, status.lastShareTime_,
                         extraInfo.length() ? extraInfo.c_str() : "");
-    isFirst = false;
     i++;
   }
 }
@@ -807,6 +808,59 @@ void ShareLogWriter::run() {
 
 
 
+///////////////////////////////  ShareStatsDay  ////////////////////////////////
+ShareStatsDay::ShareStatsDay() {
+  memset(&shareAccept1h_[0], 0, 24);
+  memset(&shareReject1h_[0], 0, 24);
+  memset(&score1h_[0], 0, 24);
+  shareAccept1d_ = 0;
+  shareReject1d_ = 0;
+  score1d_       = 0.0;
+  modifyFlag_    = 0x0u;
+}
+
+void ShareStatsDay::processShare(uint32_t hourIdx, const Share &share) {
+  ScopeLock sl(lock_);
+
+  if (share.result_ == Share::Result::ACCEPT) {
+    shareAccept1h_[hourIdx] += share.share_;
+    shareAccept1d_          += share.share_;
+
+    score1h_[hourIdx] += share.score();
+    score1d_          += share.score();
+  } else {
+    shareReject1h_[hourIdx] += share.share_;
+    shareReject1d_          += share.share_;
+  }
+  modifyFlag_ &= (0x01U << hourIdx);
+}
+
+void ShareStatsDay::getShareStatsHour(uint32_t hourIdx, ShareStats *stats) {
+  ScopeLock sl(lock_);
+  if (hourIdx > 23)
+    return;
+
+  stats->shareAccept_ = shareAccept1h_[hourIdx];
+  stats->shareReject_ = shareReject1h_[hourIdx];
+  stats->earn_        = score1h_[hourIdx] * BLOCK_REWARD;
+  if (stats->shareReject_)
+  	stats->rejectRate_  = (stats->shareReject_ * 1.0 / (stats->shareAccept_ + stats->shareReject_));
+  else
+    stats->rejectRate_ = 0.0;
+}
+
+void ShareStatsDay::getShareStatsDay(ShareStats *stats) {
+  ScopeLock sl(lock_);
+  stats->shareAccept_ = shareAccept1d_;
+  stats->shareReject_ = shareReject1d_;
+  stats->earn_        = score1d_ * BLOCK_REWARD;
+  if (stats->shareReject_)
+    stats->rejectRate_  = (stats->shareReject_ * 1.0 / (stats->shareAccept_ + stats->shareReject_));
+  else
+    stats->rejectRate_ = 0.0;
+}
+
+
 ///////////////////////////////  ShareLogParser  ///////////////////////////////
 ShareLogParser::ShareLogParser(const string &dataDir, time_t timestamp,
                                const MysqlConnectInfo &poolDBInfo)
@@ -817,7 +871,7 @@ ShareLogParser::ShareLogParser(const string &dataDir, time_t timestamp,
   {
     // for the pool
     WorkerKey pkey(0, 0);
-    workersStats_[pkey] = std::make_shared<StatsShareDay>();
+    workersStats_[pkey] = std::make_shared<ShareStatsDay>();
   }
   filePath_ = getStatsFilePath(dataDir, timestamp);
 
@@ -872,10 +926,10 @@ void ShareLogParser::parseShare(const Share *share) {
   {
     pthread_rwlock_wrlock(&rwlock_);
     if (workersStats_.find(wkey) == workersStats_.end()) {
-      workersStats_[wkey] = std::make_shared<StatsShareDay>();
+      workersStats_[wkey] = std::make_shared<ShareStatsDay>();
     }
     if (workersStats_.find(ukey) == workersStats_.end()) {
-      workersStats_[ukey] = std::make_shared<StatsShareDay>();
+      workersStats_[ukey] = std::make_shared<ShareStatsDay>();
     }
     pthread_rwlock_unlock(&rwlock_);
   }
@@ -1017,7 +1071,7 @@ bool ShareLogParser::isReachEOF() {
   return lastPosition_ == sb.st_size;
 }
 
-void ShareLogParser::flushHoursData(shared_ptr<StatsShareDay> stats,
+void ShareLogParser::flushHoursData(shared_ptr<ShareStatsDay> stats,
                                     const int32_t userId,
                                     const int64_t workerId) {
   assert(sizeof(stats->shareAccept1h_) / sizeof(stats->shareAccept1h_[0]) == 24);
@@ -1063,7 +1117,9 @@ void ShareLogParser::flushHoursData(shared_ptr<StatsShareDay> stats,
 
       const uint64_t accept   = stats->shareAccept1h_[i];  // alias
       const uint64_t reject   = stats->shareReject1h_[i];
-      const double rejectRate = (double)reject / (accept + reject);
+      double rejectRate = 0.0;
+      if (reject)
+      	rejectRate = (double)reject / (accept + reject);
       const char *nowStr   = date("%F %T").c_str();
       const char *scoreStr = score2Str(stats->score1h_[i]).c_str();
       const int64_t earn   = stats->score1h_[i] * BLOCK_REWARD;
@@ -1094,7 +1150,7 @@ void ShareLogParser::flushHoursData(shared_ptr<StatsShareDay> stats,
   } /* /for */
 }
 
-void ShareLogParser::flushDailyData(shared_ptr<StatsShareDay> stats,
+void ShareLogParser::flushDailyData(shared_ptr<ShareStatsDay> stats,
                                     const int32_t userId,
                                     const int64_t workerId) {
   string table, extraFields, extraValues;
@@ -1129,7 +1185,9 @@ void ShareLogParser::flushDailyData(shared_ptr<StatsShareDay> stats,
 
     const uint64_t accept   = stats->shareAccept1d_;  // alias
     const uint64_t reject   = stats->shareReject1d_;
-    const double rejectRate = (double)reject / (accept + reject);
+    double rejectRate = 0.0;
+    if (reject)
+      rejectRate = (double)reject / (accept + reject);
     const char *nowStr   = date("%F %T").c_str();
     const char *scoreStr = score2Str(stats->score1d_).c_str();
     const int64_t earn   = stats->score1d_ * BLOCK_REWARD;
@@ -1158,6 +1216,17 @@ void ShareLogParser::flushDailyData(shared_ptr<StatsShareDay> stats,
   }
 }
 
+shared_ptr<ShareStatsDay> ShareLogParser::getShareStatsDayHandler(const WorkerKey &key) {
+  pthread_rwlock_rdlock(&rwlock_);
+  auto itr = workersStats_.find(key);
+  pthread_rwlock_unlock(&rwlock_);
+
+  if (itr != workersStats_.end()) {
+    return itr->second;
+  }
+  return nullptr;
+}
+
 void ShareLogParser::flushToDB() {
   if (!poolDB_.ping()) {
     LOG(ERROR) << "connect db fail";
@@ -1168,7 +1237,7 @@ void ShareLogParser::flushToDB() {
   // we must finish the workersStats_ loop asap
   //
   vector<WorkerKey> keys;
-  vector<shared_ptr<StatsShareDay>> stats;
+  vector<shared_ptr<ShareStatsDay>> stats;
 
   pthread_rwlock_rdlock(&rwlock_);
   for (const auto &itr : workersStats_) {
@@ -1176,10 +1245,9 @@ void ShareLogParser::flushToDB() {
       continue;  // no new data, ingore
     }
     keys.push_back(itr.first);
-    stats.push_back(itr.second);
+    stats.push_back(itr.second);  // shared_ptr increase ref here
   }
   pthread_rwlock_unlock(&rwlock_);
-
 
   for (size_t i = 0; i < keys.size(); i++) {
     //
@@ -1192,5 +1260,338 @@ void ShareLogParser::flushToDB() {
 
     stats[i]->modifyFlag_ = 0x0u;  // reset flag
   }
+}
+
+
+
+
+////////////////////////////  ShareLogParserServer  ////////////////////////////
+ShareLogParserServer::ShareLogParserServer(const string dataDir,
+                                           const string &httpdHost,
+                                           unsigned short httpdPort,
+                                           const MysqlConnectInfo &poolDBInfo):
+running_(true), uptime_(time(nullptr)), dataDir_(dataDir),
+poolDBInfo_(poolDBInfo), base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort),
+requestCount_(0), responseBytes_(0)
+{
+  // uptime_ is now timestamp
+  date_ = uptime_ - (uptime_ % 86400);
+  pthread_rwlock_init(&rwlock_, nullptr);
+}
+
+ShareLogParserServer::~ShareLogParserServer() {
+  stop();
+
+  if (threadShareLogParser_.joinable())
+    threadShareLogParser_.join();
+
+  pthread_rwlock_destroy(&rwlock_);
+}
+
+void ShareLogParserServer::stop() {
+  if (!running_)
+    return;
+
+  running_ = false;
+  event_base_loopexit(base_, NULL);
+}
+
+bool ShareLogParserServer::initShareLogParser(time_t datets) {
+  pthread_rwlock_wrlock(&rwlock_);
+
+  // reset
+  date_ = datets - (datets % 86400);
+  shareLogParser_ = nullptr;
+
+  // set new obj
+  shared_ptr<ShareLogParser> parser(new ShareLogParser(dataDir_, date_, poolDBInfo_));
+  if (!parser->check()) {
+    LOG(ERROR) << "parser check failure, date: " << date("%F", date_);
+    pthread_rwlock_unlock(&rwlock_);
+    return false;
+  }
+
+  shareLogParser_ = parser;
+  pthread_rwlock_unlock(&rwlock_);
+  return true;
+}
+
+void ShareLogParserServer::getShareStats(struct evbuffer *evb, const char *pUserId,
+                                         const char *pWorkerId, const char *pHour) {
+  vector<string> vHoursStr;
+  vector<string> vWorkerIdsStr;
+  vector<WorkerKey> keys;
+  vector<int32_t>   hours;  // range: -23, -22, ..., 0, 24
+  const int32_t userId = atoi(pUserId);
+
+  // split by ','
+  {
+    string pHourStr = pHour;
+    boost::split(vHoursStr, pHourStr, boost::is_any_of(","));
+
+    string pWorkerIdStr = pWorkerId;
+    boost::split(vWorkerIdsStr, pWorkerIdStr, boost::is_any_of(","));
+  }
+
+  // get worker keys
+  keys.reserve(vWorkerIdsStr.size());
+  for (size_t i = 0; i < vWorkerIdsStr.size(); i++) {
+    const int64_t workerId = strtoll(vWorkerIdsStr[i].c_str(), nullptr, 10);
+    keys.push_back(WorkerKey(userId, workerId));
+  }
+
+  // get hours
+  hours.reserve(vHoursStr.size());
+  for (const auto itr : vHoursStr) {
+    hours.push_back(atoi(itr.c_str()));
+  }
+
+  vector<ShareStats> shareStats;
+  shareStats.resize(keys.size() * hours.size());
+  _getShareStats(keys, hours, shareStats);
+
+  // output json string
+  for (size_t i = 0; i < keys.size(); i++) {
+    evbuffer_add_printf(evb, "%s%" PRId64":{", (i == 0 ? "" : ","), keys[i].workerId_);
+
+    for (size_t j = 0; j < hours.size(); j++) {
+      ShareStats *s = &shareStats[i * hours.size() + j];
+      const int32_t hour = hours[j];
+
+      double rejectRate = 0.0;
+      if (s->shareReject_ != 0)
+      	rejectRate = 1.0 * s->shareReject_ / (s->shareAccept_ + s->shareReject_);
+
+      evbuffer_add_printf(evb,
+                          "%s[\"hour\":%d,\"accept\":%" PRIu64",\"reject\":%" PRIu64","
+                          "\"reject_rate\":%lf,\"earn\":%" PRId64"]",
+                          (i == 0 ? "" : ","), hour,
+                          s->shareAccept_, s->shareReject_, rejectRate, s->earn_);
+    }
+    evbuffer_add_printf(evb, "}");
+  }
+}
+
+void ShareLogParserServer::_getShareStats(const vector<WorkerKey> &keys,
+                                          const vector<int32_t> &hours,
+                                          vector<ShareStats> &shareStats) {
+  pthread_rwlock_rdlock(&rwlock_);
+  shared_ptr<ShareLogParser> shareLogParser = shareLogParser_;
+  pthread_rwlock_unlock(&rwlock_);
+
+  if (shareLogParser == nullptr)
+    return;
+
+  for (size_t i = 0; i < keys.size(); i++) {
+    shared_ptr<ShareStatsDay> statsDay = shareLogParser->getShareStatsDayHandler(keys[i]);
+    if (statsDay == nullptr)
+      continue;
+
+    for (size_t j = 0; j < hours.size(); j++) {
+      ShareStats *stats = &shareStats[i * hours.size() + j];
+      const int32_t hour = hours[j];
+
+      if (hour == 24) {
+        statsDay->getShareStatsDay(stats);
+      } else if (hour <= 0 && hour >= -23) {
+        const uint32_t hourIdx = atoi(date("%H").c_str()) - hour;
+        statsDay->getShareStatsHour(hourIdx, stats);
+      }
+    }
+  }
+}
+
+void ShareLogParserServer::httpdShareStats(struct evhttp_request *req,
+                                           void *arg) {
+  evhttp_add_header(evhttp_request_get_output_headers(req),
+                    "Content-Type", "text/json");
+  ShareLogParserServer *server = (ShareLogParserServer *)arg;
+  server->requestCount_++;
+
+  evhttp_cmd_type rMethod = evhttp_request_get_command(req);
+  const char *query = nullptr;
+  struct evkeyvalq params;
+
+  if (rMethod == EVHTTP_REQ_GET) {
+    // GET
+    struct evhttp_uri *uri = evhttp_uri_parse(evhttp_request_get_uri(req));
+    if (uri != nullptr) {
+      query = evhttp_uri_get_query(uri);
+    }
+  }
+  else if (rMethod == EVHTTP_REQ_POST) {
+    // POST
+    struct evbuffer *evbIn = evhttp_request_get_input_buffer(req);
+    string data;
+    data.resize(evbuffer_get_length(evbIn));
+    evbuffer_copyout(evbIn, (uint8_t *)data.data(), evbuffer_get_length(evbIn));
+    data.push_back('\0');  // evbuffer is not include '\0'
+    query = data.c_str();
+  }
+
+  evhttp_parse_query_str(query, &params);
+  const char *pUserId   = evhttp_find_header(&params, "user_id");
+  const char *pWorkerId = evhttp_find_header(&params, "worker_id");
+  const char *pHour     = evhttp_find_header(&params, "hour");
+
+  struct evbuffer *evb = evbuffer_new();
+
+  if (pUserId == nullptr || pWorkerId == nullptr || pHour == nullptr) {
+    evbuffer_add_printf(evb, "{\"error_no\":1,\"error_msg\":\"invalid args\"}");
+    evhttp_send_reply(req, HTTP_OK, "OK", evb);
+    evbuffer_free(evb);
+    return;
+  }
+
+  evbuffer_add_printf(evb, "{\"error_no\":0,\"error_msg\":\"\",\"result\":{");
+  server->getShareStats(evb, pUserId, pWorkerId, pHour);
+  evbuffer_add_printf(evb, "}}");
+
+  server->responseBytes_ += evbuffer_get_length(evb);
+  evhttp_send_reply(req, HTTP_OK, "OK", evb);
+  evbuffer_free(evb);
+}
+
+ShareLogParserServer::ServerStatus ShareLogParserServer::getServerStatus() {
+  ShareLogParserServer::ServerStatus s;
+  s.date_          = date_;
+  s.uptime_        = (uint32_t)(time(nullptr) - uptime_);
+  s.requestCount_  = requestCount_;
+  s.responseBytes_ = responseBytes_;
+  return s;
+}
+
+void ShareLogParserServer::httpdServerStatus(struct evhttp_request *req, void *arg) {
+  evhttp_add_header(evhttp_request_get_output_headers(req),
+                    "Content-Type", "text/json");
+  ShareLogParserServer *server = (ShareLogParserServer *)arg;
+  server->requestCount_++;
+
+  struct evbuffer *evb = evbuffer_new();
+
+  ShareLogParserServer::ServerStatus s = server->getServerStatus();
+
+  evbuffer_add_printf(evb, "{\"error_no\":0,\"error_msg\":\"\","
+                      "\"result\":{\"uptime\":\"%02u d %02u h %02u m %02u s\","
+                      "\"request\":%" PRIu64",\"repbytes\":%" PRIu64"}}",
+                      s.uptime_/86400, (s.uptime_%86400)/3600,
+                      (s.uptime_%3600)/60, s.uptime_%60,
+                      s.requestCount_, s.responseBytes_);
+
+  server->responseBytes_ += evbuffer_get_length(evb);
+  evhttp_send_reply(req, HTTP_OK, "OK", evb);
+  evbuffer_free(evb);
+}
+
+void ShareLogParserServer::runHttpd() {
+  struct evhttp_bound_socket *handle;
+  struct evhttp *httpd;
+
+  base_ = event_base_new();
+  httpd = evhttp_new(base_);
+
+  evhttp_set_allowed_methods(httpd, EVHTTP_REQ_GET | EVHTTP_REQ_POST | EVHTTP_REQ_HEAD);
+  evhttp_set_timeout(httpd, 5 /* timeout in seconds */);
+
+  evhttp_set_cb(httpd, "/",             ShareLogParserServer::httpdServerStatus, this);
+  evhttp_set_cb(httpd, "/share_stats",  ShareLogParserServer::httpdShareStats,   this);
+  evhttp_set_cb(httpd, "/share_stats/", ShareLogParserServer::httpdShareStats,   this);
+
+  handle = evhttp_bind_socket_with_handle(httpd, httpdHost_.c_str(), httpdPort_);
+  if (!handle) {
+    LOG(ERROR) << "couldn't bind to port: " << httpdPort_ << ", host: " << httpdHost_ << ", exiting.";
+    return;
+  }
+  event_base_dispatch(base_);
+}
+
+bool ShareLogParserServer::setupThreadShareLogParser() {
+  threadShareLogParser_ = thread(&ShareLogParserServer::runThreadShareLogParser, this);
+  return true;
+}
+
+void ShareLogParserServer::runThreadShareLogParser() {
+  LOG(INFO) << "thread sharelog parser start";
+
+  // TODO: maybe increase interval seconds in the feature
+  const time_t KFlushDBTimeInterval = 30;
+  time_t lastFlushDBTime = 0;
+
+  while (running_) {
+    // get ShareLogParser
+    pthread_rwlock_rdlock(&rwlock_);
+    shared_ptr<ShareLogParser> shareLogParser = shareLogParser_;
+    pthread_rwlock_unlock(&rwlock_);
+
+    // maybe last switch has been fail, we need to check and try again
+    if (shareLogParser == nullptr) {
+      if (initShareLogParser(time(nullptr)) == false) {
+        LOG(ERROR) << "initShareLogParser fail";
+        sleep(3);
+        continue;
+      }
+    }
+    assert(shareLogParser != nullptr);
+
+    while (running_) {
+      int64_t res = shareLogParser->processGrowingShareLog();
+      if (res <= 0) {
+        break;
+      }
+    }
+    sleep(1);
+
+    // flush data to db
+    if (time(nullptr) > lastFlushDBTime + KFlushDBTimeInterval) {
+      shareLogParser->flushToDB();  // will wait util all data flush to DB
+      lastFlushDBTime = time(nullptr);
+    }
+
+    // check if need to switch bin file
+    trySwithBinFile(shareLogParser);
+
+  } /* while */
+
+  LOG(INFO) << "thread sharelog parser stop";
+}
+
+void ShareLogParserServer::trySwithBinFile(shared_ptr<ShareLogParser> shareLogParser) {
+  assert(shareLogParser != nullptr);
+
+  const time_t now = time(nullptr);
+  const time_t beginTs = now - (now % 86400);
+
+  if (beginTs == date_)
+    return;  // still today
+
+  //
+  // switch file when:
+  //   1. today has been pasted at least 5 seconds
+  //   2. last bin file has reached EOF
+  //   3. new file exists
+  //
+  const string filePath = getStatsFilePath(dataDir_, now);
+  if (now > beginTs + 5 &&
+      shareLogParser->isReachEOF() &&
+      fileExists(filePath.c_str()))
+  {
+    bool res = initShareLogParser(now);
+    if (!res) {
+      LOG(ERROR) << "trySwithBinFile fail";
+    }
+  }
+}
+
+void ShareLogParserServer::run() {
+  // use current timestamp when first setup
+  if (initShareLogParser(time(nullptr)) == false) {
+    return;
+  }
+
+  if (setupThreadShareLogParser() == false) {
+    return;
+  }
+
+  runHttpd();
 }
 

@@ -251,7 +251,7 @@ class StatsServer {
   atomic<bool> running_;
   atomic<int64_t> totalWorkerCount_;
   atomic<int64_t> totalUserCount_;
-  time_t upTime_;
+  time_t uptime_;
 
   pthread_rwlock_t rwlock_;  // for workerSet_
   std::unordered_map<WorkerKey/* userId + workerId */, shared_ptr<WorkerShares> > workerSet_;
@@ -289,8 +289,8 @@ public:
   atomic<uint64_t> responseBytes_;
 
 public:
-  StatsServer(const char *kafkaBrokers, string httpdHost, unsigned short httpdPort,
-              const MysqlConnectInfo &poolDBInfo);
+  StatsServer(const char *kafkaBrokers, const string &httpdHost,
+              unsigned short httpdPort, const MysqlConnectInfo &poolDBInfo);
   ~StatsServer();
 
   void stop();
@@ -339,8 +339,22 @@ public:
 
 
 
-///////////////////////////////  StatsShareDay  ////////////////////////////////
-class StatsShareDay {
+/////////////////////////////////  ShareStats  /////////////////////////////////
+class ShareStats {
+public:
+  uint64_t shareAccept_;
+  uint64_t shareReject_;
+  double   rejectRate_;
+  int64_t  earn_;
+
+  ShareStats(): shareAccept_(0U), shareReject_(0U), rejectRate_(0.0), earn_(0) {}
+};
+
+
+
+///////////////////////////////  ShareStatsDay  ////////////////////////////////
+// thread-safe
+class ShareStatsDay {
 public:
   // hours
   uint64_t shareAccept1h_[24];
@@ -356,31 +370,11 @@ public:
   uint32_t modifyFlag_;
   mutex lock_;
 
-  StatsShareDay() {
-    memset(&shareAccept1h_[0], 0, 24);
-    memset(&shareReject1h_[0], 0, 24);
-    memset(&score1h_[0], 0, 24);
-    shareAccept1d_ = 0;
-    shareReject1d_ = 0;
-    score1d_       = 0.0;
-    modifyFlag_    = 0x0u;
-  }
+  ShareStatsDay();
 
-  void processShare(uint32_t hourIdx, const Share &share) {
-    ScopeLock sl(lock_);
-
-    if (share.result_ == Share::Result::ACCEPT) {
-      shareAccept1h_[hourIdx] += share.share_;
-      shareAccept1d_          += share.share_;
-
-      score1h_[hourIdx] += share.score();
-      score1d_          += share.score();
-    } else {
-      shareReject1h_[hourIdx] += share.share_;
-      shareReject1d_          += share.share_;
-    }
-    modifyFlag_ &= (0x01U << hourIdx);
-  }
+  void processShare(uint32_t hourIdx, const Share &share);
+  void getShareStatsHour(uint32_t hourIdx, ShareStats *stats);
+  void getShareStatsDay(ShareStats *stats);
 };
 
 
@@ -394,7 +388,7 @@ public:
 class ShareLogParser {
   pthread_rwlock_t rwlock_;
   // key: WorkerKey, value: share stats
-  std::unordered_map<WorkerKey/* userID + workerID */, shared_ptr<StatsShareDay> > workersStats_;
+  std::unordered_map<WorkerKey/* userID + workerID */, shared_ptr<ShareStatsDay>> workersStats_;
 
   time_t date_;      // date_ % 86400 == 0
   string filePath_;  // sharelog data file path
@@ -408,7 +402,7 @@ class ShareLogParser {
   static const size_t kElementsNum_ = 500000;  // num of Share
   off_t lastPosition_;
 
-  MySQLConnection  poolDB_;
+  MySQLConnection  poolDB_;  // save stats data
 
   inline int32_t getHourIdx(uint32_t ts) {
     // %H	Hour in 24h format (00-23)
@@ -422,9 +416,9 @@ class ShareLogParser {
   void parseShareLog(const uint8_t *buf, size_t len);
   void parseShare(const Share *share);
 
-  void flushDailyData(shared_ptr<StatsShareDay> stats,
+  void flushDailyData(shared_ptr<ShareStatsDay> stats,
                       const int32_t userId, const int64_t workerId);
-  void flushHoursData(shared_ptr<StatsShareDay> stats,
+  void flushHoursData(shared_ptr<ShareStatsDay> stats,
                       const int32_t userId, const int64_t workerId);
 
 public:
@@ -436,6 +430,9 @@ public:
 
   // flush data to DB
   void flushToDB();
+
+  // get share stats day handler
+  shared_ptr<ShareStatsDay> getShareStatsDayHandler(const WorkerKey &key);
 
   // read unchanged share data bin file, for example yestoday's file. it will
   // use mmap() to get high performance. call only once will process
@@ -451,7 +448,58 @@ public:
 
 ////////////////////////////  ShareLogParserServer  ////////////////////////////
 class ShareLogParserServer {
+  struct ServerStatus {
+    uint32_t uptime_;
+    uint64_t requestCount_;
+    uint64_t responseBytes_;
+    uint32_t date_;  // Y-m-d
+  };
 
+  //-----------------
+  atomic<bool> running_;
+  pthread_rwlock_t rwlock_;
+  time_t uptime_;
+
+  // share log daily
+  time_t date_;      // date_ % 86400 == 0
+  shared_ptr<ShareLogParser> shareLogParser_;
+  string dataDir_;
+  MysqlConnectInfo poolDBInfo_;  // save stats data
+
+  // httpd
+  struct event_base *base_;
+  string httpdHost_;
+  unsigned short httpdPort_;
+
+  thread threadShareLogParser_;
+
+  ServerStatus getServerStatus();
+  void getShareStats(struct evbuffer *evb, const char *pUserId,
+                     const char *pWorkerId, const char *pHour);
+  void _getShareStats(const vector<WorkerKey> &keys, const vector<int32_t> &hours,
+                      vector<ShareStats> &shareStats);
+
+  void runThreadShareLogParser();
+  bool initShareLogParser(time_t datets);
+  bool setupThreadShareLogParser();
+  void trySwithBinFile(shared_ptr<ShareLogParser> shareLogParser);
+  void runHttpd();
+
+public:
+  atomic<uint64_t> requestCount_;
+  atomic<uint64_t> responseBytes_;
+
+public:
+  ShareLogParserServer(const string dataDir, const string &httpdHost,
+                       unsigned short httpdPort,
+                       const MysqlConnectInfo &poolDBInfo);
+  ~ShareLogParserServer();
+
+  void stop();
+  void run();
+
+  static void httpdServerStatus(struct evhttp_request *req, void *arg);
+  static void httpdShareStats  (struct evhttp_request *req, void *arg);
 };
 
 #endif

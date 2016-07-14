@@ -26,6 +26,7 @@
 #include "bitcoin/util.h"
 
 #include <stdarg.h>
+#include <sys/stat.h>
 
 #include <curl/curl.h>
 #include <glog/logging.h>
@@ -383,4 +384,9 @@ string score2Str(double s) {
   assert(p >= 0);
   f = Strings::Format("%%.%df", p > 25 ? 25 : p);
   return Strings::Format(f.c_str(), s);
+}
+
+bool fileExists(const char* file) {
+  struct stat buf;
+  return (stat(file, &buf) == 0);
 }

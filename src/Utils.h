@@ -77,4 +77,6 @@ public:
 
 string score2Str(double s);
 
+bool fileExists(const char* file);
+
 #endif
