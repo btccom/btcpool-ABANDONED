@@ -483,8 +483,8 @@ void StatsServer::httpdServerStatus(struct evhttp_request *req, void *arg) {
   struct evbuffer *evb = evbuffer_new();
   StatsServer::ServerStatus s = server->getServerStatus();
 
-  evbuffer_add_printf(evb, "{\"error_no\":0,\"error_msg\":\"\","
-                      "\"result\":{\"uptime\":\"%02u d %02u h %02u m %02u s\","
+  evbuffer_add_printf(evb, "{\"err_no\":0,\"err_msg\":\"\","
+                      "\"data\":{\"uptime\":\"%02u d %02u h %02u m %02u s\","
                       "\"request\":%" PRIu64",\"repbytes\":%" PRIu64","
                       "\"pool\":{\"accept\":[%" PRIu64",%" PRIu64",%" PRIu64"],"
                       "\"reject\":[0,0,%" PRIu64"],\"accept_count\":%" PRIu32","
@@ -538,13 +538,13 @@ void StatsServer::httpdGetWorkerStatus(struct evhttp_request *req, void *arg) {
   struct evbuffer *evb = evbuffer_new();
 
   if (pUserId == nullptr || pWorkerId == nullptr) {
-    evbuffer_add_printf(evb, "{\"error_no\":1,\"error_msg\":\"invalid args\"}");
+    evbuffer_add_printf(evb, "{\"err_no\":1,\"err_msg\":\"invalid args\"}");
     evhttp_send_reply(req, HTTP_OK, "OK", evb);
     evbuffer_free(evb);
     return;
   }
 
-  evbuffer_add_printf(evb, "{\"error_no\":0,\"error_msg\":\"\",\"result\":[");
+  evbuffer_add_printf(evb, "{\"err_no\":0,\"err_msg\":\"\",\"data\":[");
   server->getWorkerStatus(evb, pUserId, pWorkerId, pIsMerge);
   evbuffer_add_printf(evb, "]}");
 
@@ -1437,13 +1437,13 @@ void ShareLogParserServer::httpdShareStats(struct evhttp_request *req,
   struct evbuffer *evb = evbuffer_new();
 
   if (pUserId == nullptr || pWorkerId == nullptr || pHour == nullptr) {
-    evbuffer_add_printf(evb, "{\"error_no\":1,\"error_msg\":\"invalid args\"}");
+    evbuffer_add_printf(evb, "{\"err_no\":1,\"err_msg\":\"invalid args\"}");
     evhttp_send_reply(req, HTTP_OK, "OK", evb);
     evbuffer_free(evb);
     return;
   }
 
-  evbuffer_add_printf(evb, "{\"error_no\":0,\"error_msg\":\"\",\"result\":{");
+  evbuffer_add_printf(evb, "{\"err_no\":0,\"err_msg\":\"\",\"data\":{");
   server->getShareStats(evb, pUserId, pWorkerId, pHour);
   evbuffer_add_printf(evb, "}}");
 
@@ -1471,8 +1471,8 @@ void ShareLogParserServer::httpdServerStatus(struct evhttp_request *req, void *a
 
   ShareLogParserServer::ServerStatus s = server->getServerStatus();
 
-  evbuffer_add_printf(evb, "{\"error_no\":0,\"error_msg\":\"\","
-                      "\"result\":{\"uptime\":\"%02u d %02u h %02u m %02u s\","
+  evbuffer_add_printf(evb, "{\"err_no\":0,\"err_msg\":\"\","
+                      "\"data\":{\"uptime\":\"%02u d %02u h %02u m %02u s\","
                       "\"request\":%" PRIu64",\"repbytes\":%" PRIu64"}}",
                       s.uptime_/86400, (s.uptime_%86400)/3600,
                       (s.uptime_%3600)/60, s.uptime_%60,
