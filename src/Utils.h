@@ -75,4 +75,6 @@ public:
   static void Append(string & dest, const char * fmt, ...);
 };
 
+string score2Str(double s);
+
 #endif

@@ -354,12 +354,21 @@ public:
 
   // mark which hour data has been modified: 23, 22, ...., 0
   uint32_t modifyFlag_;
+  mutex lock_;
 
   StatsShareDay() {
-    memset((uint8_t *)&shareAccept1h_[0], 0, sizeof(StatsShareDay));
+    memset(&shareAccept1h_[0], 0, 24);
+    memset(&shareReject1h_[0], 0, 24);
+    memset(&score1h_[0], 0, 24);
+    shareAccept1d_ = 0;
+    shareReject1d_ = 0;
+    score1d_       = 0.0;
+    modifyFlag_    = 0x0u;
   }
 
   void processShare(uint32_t hourIdx, const Share &share) {
+    ScopeLock sl(lock_);
+
     if (share.result_ == Share::Result::ACCEPT) {
       shareAccept1h_[hourIdx] += share.share_;
       shareAccept1d_          += share.share_;
@@ -375,6 +384,7 @@ public:
 };
 
 
+
 ///////////////////////////////  ShareLogParser  ///////////////////////////////
 //
 // 1. read sharelog data files
@@ -382,8 +392,9 @@ public:
 // 3. write stats data to DB
 //
 class ShareLogParser {
+  pthread_rwlock_t rwlock_;
   // key: WorkerKey, value: share stats
-  std::unordered_map<WorkerKey/* userID + workerID */, StatsShareDay *> workersStats_;
+  std::unordered_map<WorkerKey/* userID + workerID */, shared_ptr<StatsShareDay> > workersStats_;
 
   time_t date_;      // date_ % 86400 == 0
   string filePath_;  // sharelog data file path
@@ -395,7 +406,7 @@ class ShareLogParser {
   uint8_t *buf_;   // fread buffer
   // 48 * 500000 = 24,000,000 ~ 24 MB
   static const size_t kElementsNum_ = 500000;  // num of Share
-  size_t lastPosition_;
+  off_t lastPosition_;
 
   MySQLConnection  poolDB_;
 
@@ -411,12 +422,17 @@ class ShareLogParser {
   void parseShareLog(const uint8_t *buf, size_t len);
   void parseShare(const Share *share);
 
+  void flushDailyData(shared_ptr<StatsShareDay> stats,
+                      const int32_t userId, const int64_t workerId);
+  void flushHoursData(shared_ptr<StatsShareDay> stats,
+                      const int32_t userId, const int64_t workerId);
+
 public:
   ShareLogParser(const string &dataDir, time_t timestamp,
                  const MysqlConnectInfo &poolDBInfo);
   ~ShareLogParser();
 
-  bool setup();
+  bool check();
 
   // flush data to DB
   void flushToDB();
@@ -429,6 +445,13 @@ public:
   // today's file is still growing, return processed shares number.
   int64_t processGrowingShareLog();
   bool isReachEOF();  // only for growing file
+};
+
+
+
+////////////////////////////  ShareLogParserServer  ////////////////////////////
+class ShareLogParserServer {
+
 };
 
 #endif

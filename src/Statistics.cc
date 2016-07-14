@@ -812,10 +812,12 @@ ShareLogParser::ShareLogParser(const string &dataDir, time_t timestamp,
                                const MysqlConnectInfo &poolDBInfo)
 : date_(timestamp), f_(nullptr), buf_(nullptr), lastPosition_(0), poolDB_(poolDBInfo)
 {
+  pthread_rwlock_init(&rwlock_, nullptr);
+
   {
     // for the pool
     WorkerKey pkey(0, 0);
-    workersStats_[pkey] = new StatsShareDay();
+    workersStats_[pkey] = std::make_shared<StatsShareDay>();
   }
   filePath_ = getStatsFilePath(dataDir, timestamp);
 
@@ -831,7 +833,7 @@ ShareLogParser::~ShareLogParser() {
     free(buf_);
 }
 
-bool ShareLogParser::setup() {
+bool ShareLogParser::check() {
   // check db
   if (!poolDB_.ping()) {
     LOG(ERROR) << "connect to db fail";
@@ -867,11 +869,15 @@ void ShareLogParser::parseShare(const Share *share) {
   WorkerKey wkey(share->userId_, share->workerHashId_);
   WorkerKey ukey(share->userId_, 0);
   WorkerKey pkey(0, 0);
-  if (workersStats_.find(wkey) == workersStats_.end()) {
-    workersStats_[wkey] = new StatsShareDay();
-  }
-  if (workersStats_.find(ukey) == workersStats_.end()) {
-    workersStats_[ukey] = new StatsShareDay();
+  {
+    pthread_rwlock_wrlock(&rwlock_);
+    if (workersStats_.find(wkey) == workersStats_.end()) {
+      workersStats_[wkey] = std::make_shared<StatsShareDay>();
+    }
+    if (workersStats_.find(ukey) == workersStats_.end()) {
+      workersStats_[ukey] = std::make_shared<StatsShareDay>();
+    }
+    pthread_rwlock_unlock(&rwlock_);
   }
 
   const uint32_t hourIdx = getHourIdx(share->timestamp_);
@@ -1009,5 +1015,182 @@ bool ShareLogParser::isReachEOF() {
   }
 
   return lastPosition_ == sb.st_size;
+}
+
+void ShareLogParser::flushHoursData(shared_ptr<StatsShareDay> stats,
+                                    const int32_t userId,
+                                    const int64_t workerId) {
+  assert(sizeof(stats->shareAccept1h_) / sizeof(stats->shareAccept1h_[0]) == 24);
+  assert(sizeof(stats->shareReject1h_) / sizeof(stats->shareReject1h_[0]) == 24);
+  assert(sizeof(stats->score1h_)       / sizeof(stats->score1h_[0])       == 24);
+
+  string table, extraFields, extraValues;
+  // worker
+  if (userId != 0 && workerId != 0) {
+    extraFields = "`worker_id`,`uid`,";
+    extraValues = Strings::Format("%d,% " PRId64",", userId, workerId);
+    table = "stats_workers_hour";
+  }
+  // user
+  else if (userId != 0 && workerId == 0) {
+    extraFields = "`uid`,";
+    extraValues = Strings::Format("%d,", userId);
+    table = "stats_users_hour";
+  }
+  // pool
+  else if (userId == 0 && workerId == 0) {
+    extraFields = "";
+    extraValues = "";
+    table = "stats_pool_hour";
+  }
+  else {
+    LOG(ERROR) << "unknown stats type";
+    return;
+  }
+
+  string sql;
+
+  // loop hours from 00 -> 03
+  for (size_t i = 0; i < 24; i++) {
+    {
+      ScopeLock sl(stats->lock_);
+      const uint32_t flag = (0x01U << i);
+      if ((stats->modifyFlag_ & flag) == 0x0u) {
+        continue;
+      }
+      const string hourStr = Strings::Format("%s%02d", date("%Y%m%d", date_).c_str(), i);
+      const int32_t hour = atoi(hourStr.c_str());
+
+      const uint64_t accept   = stats->shareAccept1h_[i];  // alias
+      const uint64_t reject   = stats->shareReject1h_[i];
+      const double rejectRate = (double)reject / (accept + reject);
+      const char *nowStr   = date("%F %T").c_str();
+      const char *scoreStr = score2Str(stats->score1h_[i]).c_str();
+      const int64_t earn   = stats->score1h_[i] * BLOCK_REWARD;
+
+      sql = Strings::Format("INSERT INTO `%s`(%s`hour`, `share_accept`, "
+                            " `share_reject`, `reject_rate`, `score`, "
+                            " `earn`, `created_at`, `updated_at`) "
+                            "VALUES (%s %d,%" PRIu64",%" PRIu64","
+                            "  %lf,'%s',%" PRId64",'%s','%s')"
+                            " ON DUPLICATE KEY UPDATE "
+                            " `share_accept`=%" PRIu64", "
+                            " `share_reject`=%" PRIu64", "
+                            " `reject_rate`=%lf, "
+                            " `score`='%s', "
+                            " `earn`=%" PRId64", "
+                            " `updated_at`='%s' ",
+                            table.c_str(), extraFields.c_str(), extraValues.c_str(),
+                            hour, accept, reject, rejectRate, scoreStr, earn,
+                            nowStr, nowStr,
+                            // update
+                            accept, reject, rejectRate, scoreStr, earn, nowStr);
+    }  // for scope lock
+
+    assert(sql.length());
+    if (!poolDB_.execute(sql)) {
+      LOG(ERROR) << "flush hours data fail" << sql;
+    }
+  } /* /for */
+}
+
+void ShareLogParser::flushDailyData(shared_ptr<StatsShareDay> stats,
+                                    const int32_t userId,
+                                    const int64_t workerId) {
+  string table, extraFields, extraValues;
+  // worker
+  if (userId != 0 && workerId != 0) {
+    extraFields = "`worker_id`,`uid`,";
+    extraValues = Strings::Format("%d,% " PRId64",", userId, workerId);
+    table = "stats_workers_day";
+  }
+  // user
+  else if (userId != 0 && workerId == 0) {
+    extraFields = "`uid`,";
+    extraValues = Strings::Format("%d,", userId);
+    table = "stats_users_day";
+  }
+  // pool
+  else if (userId == 0 && workerId == 0) {
+    extraFields = "";
+    extraValues = "";
+    table = "stats_pool_day";
+  }
+  else {
+    LOG(ERROR) << "unknown stats type";
+    return;
+  }
+
+  string sql;
+
+  {
+    ScopeLock sl(stats->lock_);
+    const int32_t day = atoi(date("%Y%m%d", date_).c_str());
+
+    const uint64_t accept   = stats->shareAccept1d_;  // alias
+    const uint64_t reject   = stats->shareReject1d_;
+    const double rejectRate = (double)reject / (accept + reject);
+    const char *nowStr   = date("%F %T").c_str();
+    const char *scoreStr = score2Str(stats->score1d_).c_str();
+    const int64_t earn   = stats->score1d_ * BLOCK_REWARD;
+
+    sql = Strings::Format("INSERT INTO `%s`(%s`day`, `share_accept`, "
+                          " `share_reject`, `reject_rate`, `score`, "
+                          " `earn`, `created_at`, `updated_at`) "
+                          "VALUES (%s %d,%" PRIu64",%" PRIu64","
+                          "  %lf,'%s',%" PRId64",'%s','%s')"
+                          " ON DUPLICATE KEY UPDATE "
+                          " `share_accept`=%" PRIu64", "
+                          " `share_reject`=%" PRIu64", "
+                          " `reject_rate`=%lf, "
+                          " `score`='%s', "
+                          " `earn`=%" PRId64", "
+                          " `updated_at`='%s' ",
+                          table.c_str(), extraFields.c_str(), extraValues.c_str(),
+                          day, accept, reject, rejectRate, scoreStr, earn,
+                          nowStr, nowStr,
+                          // update
+                          accept, reject, rejectRate, scoreStr, earn, nowStr);
+  }  // for scope lock
+
+  if (!poolDB_.execute(sql)) {
+    LOG(ERROR) << "flush hours data fail" << sql;
+  }
+}
+
+void ShareLogParser::flushToDB() {
+  if (!poolDB_.ping()) {
+    LOG(ERROR) << "connect db fail";
+    return;
+  }
+
+  //
+  // we must finish the workersStats_ loop asap
+  //
+  vector<WorkerKey> keys;
+  vector<shared_ptr<StatsShareDay>> stats;
+
+  pthread_rwlock_rdlock(&rwlock_);
+  for (const auto &itr : workersStats_) {
+    if (itr.second->modifyFlag_ == 0x0u) {
+      continue;  // no new data, ingore
+    }
+    keys.push_back(itr.first);
+    stats.push_back(itr.second);
+  }
+  pthread_rwlock_unlock(&rwlock_);
+
+
+  for (size_t i = 0; i < keys.size(); i++) {
+    //
+    // the lock is in flushDailyData() & flushHoursData(), so maybe we lost
+    // some data between func gaps, but it's not important. we will exec
+    // processUnchangedShareLog() after the day has been past, no data will lost by than.
+    //
+    flushDailyData(stats[i], keys[i].userId_, keys[i].workerId_);
+    flushHoursData(stats[i], keys[i].userId_, keys[i].workerId_);
+
+    stats[i]->modifyFlag_ = 0x0u;  // reset flag
+  }
 }
 

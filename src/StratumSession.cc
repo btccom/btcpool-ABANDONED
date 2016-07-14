@@ -442,6 +442,8 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
   worker_.setUserIDAndNames(userId, fullName);
   server_->userInfo_->addWorker(worker_.userId_, worker_.workerHashId_,
                                 worker_.workerName_);
+  DLOG(INFO) << "userId: " << worker_.userId_
+  << ", wokerHashId: " << worker_.workerHashId_ << ", workerName:" << worker_.workerName_;
 
   // set read timeout to 10 mins, it's enought for most miners even usb miner.
   // if it's a pool watcher, set timeout to a week

@@ -366,3 +366,21 @@ void Strings::Append(string & dest, const char * fmt, ...) {
     dest.append(tmp, len);
   }
 }
+
+string score2Str(double s) {
+  if (s <= 0.0) {
+    return "0";
+  }
+
+  string f;
+  int p = -1;
+  if (s >= 1.0) {
+    p = 15 - (int)ceil(log10(s)) - 1;
+  } else {
+    p = 15 + -1 * (int)floor(log10(s)) - 1;
+  }
+
+  assert(p >= 0);
+  f = Strings::Format("%%.%df", p > 25 ? 25 : p);
+  return Strings::Format(f.c_str(), s);
+}
