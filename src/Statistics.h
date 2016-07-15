@@ -453,6 +453,7 @@ class ShareLogParserServer {
     uint64_t requestCount_;
     uint64_t responseBytes_;
     uint32_t date_;  // Y-m-d
+    vector<ShareStats> stats;  // first is today and latest 3 hours
   };
 
   //-----------------
@@ -473,7 +474,7 @@ class ShareLogParserServer {
 
   thread threadShareLogParser_;
 
-  ServerStatus getServerStatus();
+  void getServerStatus(ServerStatus &s);
   void getShareStats(struct evbuffer *evb, const char *pUserId,
                      const char *pWorkerId, const char *pHour);
   void _getShareStats(const vector<WorkerKey> &keys, const vector<int32_t> &hours,

@@ -1348,7 +1348,7 @@ void ShareLogParserServer::getShareStats(struct evbuffer *evb, const char *pUser
 
   // output json string
   for (size_t i = 0; i < keys.size(); i++) {
-    evbuffer_add_printf(evb, "\"%s%" PRId64"\":[", (i == 0 ? "" : ","), keys[i].workerId_);
+    evbuffer_add_printf(evb, "%s\"%" PRId64"\":[", (i == 0 ? "" : ","), keys[i].workerId_);
 
     for (size_t j = 0; j < hours.size(); j++) {
       ShareStats *s = &shareStats[i * hours.size() + j];
@@ -1390,7 +1390,7 @@ void ShareLogParserServer::_getShareStats(const vector<WorkerKey> &keys,
       if (hour == 24) {
         statsDay->getShareStatsDay(stats);
       } else if (hour <= 0 && hour >= -23) {
-        const uint32_t hourIdx = atoi(date("%H").c_str()) - hour;
+        const uint32_t hourIdx = atoi(date("%H").c_str()) + hour;
         statsDay->getShareStatsHour(hourIdx, stats);
       }
     }
@@ -1448,13 +1448,22 @@ void ShareLogParserServer::httpdShareStats(struct evhttp_request *req,
   evbuffer_free(evb);
 }
 
-ShareLogParserServer::ServerStatus ShareLogParserServer::getServerStatus() {
-  ShareLogParserServer::ServerStatus s;
+void ShareLogParserServer::getServerStatus(ShareLogParserServer::ServerStatus &s) {
   s.date_          = date_;
   s.uptime_        = (uint32_t)(time(nullptr) - uptime_);
   s.requestCount_  = requestCount_;
   s.responseBytes_ = responseBytes_;
-  return s;
+
+  pthread_rwlock_rdlock(&rwlock_);
+  shared_ptr<ShareLogParser> shareLogParser = shareLogParser_;
+  pthread_rwlock_unlock(&rwlock_);
+
+  WorkerKey pkey(0, 0);
+  shared_ptr<ShareStatsDay> statsDayPtr = shareLogParser->getShareStatsDayHandler(pkey);
+
+  s.stats.resize(2);
+  statsDayPtr->getShareStatsDay(&(s.stats[0]));
+  statsDayPtr->getShareStatsHour(atoi(date("%H").c_str()), &(s.stats[1]));
 }
 
 void ShareLogParserServer::httpdServerStatus(struct evhttp_request *req, void *arg) {
@@ -1465,14 +1474,39 @@ void ShareLogParserServer::httpdServerStatus(struct evhttp_request *req, void *a
 
   struct evbuffer *evb = evbuffer_new();
 
-  ShareLogParserServer::ServerStatus s = server->getServerStatus();
+  ShareLogParserServer::ServerStatus s;
+  server->getServerStatus(s);
+
+  double rejectRate0 = 0.0, rejectRate1 = 0.0;
+  if (s.stats[0].shareReject_)
+    rejectRate0 = s.stats[0].shareReject_ / (s.stats[0].shareAccept_ + s.stats[0].shareReject_);
+  if (s.stats[1].shareReject_)
+    rejectRate1 = s.stats[1].shareReject_ / (s.stats[1].shareAccept_ + s.stats[1].shareReject_);
+
+  time_t now = time(nullptr);
+  if (now % 3600 == 0)
+    now += 2;  // just in case the denominator is zero
 
   evbuffer_add_printf(evb, "{\"err_no\":0,\"err_msg\":\"\","
                       "\"data\":{\"uptime\":\"%02u d %02u h %02u m %02u s\","
-                      "\"request\":%" PRIu64",\"repbytes\":%" PRIu64"}}",
+                      "\"request\":%" PRIu64",\"repbytes\":%" PRIu64","
+                      "\"pool\":{\"today\":{"
+                      "\"hashrate_t\":%lf,\"accept\":%" PRIu64","
+                      "\"reject\":%" PRIu64",\"reject_rate\":%lf,\"earn\":%" PRId64"},"
+                      "\"curr_hour\":{\"hashrate_t\":%lf,\"accept\":%" PRIu64","
+                      "\"reject\":%" PRIu64",\"reject_rate\":%lf,\"earn\":%" PRId64"}}"
+                      "}}",
                       s.uptime_/86400, (s.uptime_%86400)/3600,
                       (s.uptime_%3600)/60, s.uptime_%60,
-                      s.requestCount_, s.responseBytes_);
+                      s.requestCount_, s.responseBytes_,
+                      // pool today
+                      share2HashrateT(s.stats[0].shareAccept_, now % 86400),
+                      s.stats[0].shareAccept_,
+                      s.stats[0].shareReject_, rejectRate0, s.stats[0].earn_,
+                      // pool current hour
+                      share2HashrateT(s.stats[1].shareAccept_, now % 3600),
+                      s.stats[1].shareAccept_,
+                      s.stats[1].shareReject_, rejectRate1, s.stats[1].earn_);
 
   server->responseBytes_ += evbuffer_get_length(evb);
   evhttp_send_reply(req, HTTP_OK, "OK", evb);
