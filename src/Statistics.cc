@@ -464,6 +464,8 @@ void StatsServer::runThreadConsume() {
 
   }
   LOG(INFO) << "stop sharelog consume thread";
+
+  stop();  // if thread exit, we must call server to stop
 }
 
 StatsServer::ServerStatus StatsServer::getServerStatus() {
@@ -515,26 +517,26 @@ void StatsServer::httpdGetWorkerStatus(struct evhttp_request *req, void *arg) {
   server->requestCount_++;
 
   evhttp_cmd_type rMethod = evhttp_request_get_command(req);
-  const char *query = nullptr;
-  struct evkeyvalq params;
+  char *query = nullptr;  // remember free it
 
   if (rMethod == EVHTTP_REQ_GET) {
     // GET
     struct evhttp_uri *uri = evhttp_uri_parse(evhttp_request_get_uri(req));
     if (uri != nullptr) {
-      query = evhttp_uri_get_query(uri);
+      query = strdup(evhttp_uri_get_query(uri));
+      evhttp_uri_free(uri);
     }
   }
   else if (rMethod == EVHTTP_REQ_POST) {
     // POST
     struct evbuffer *evbIn = evhttp_request_get_input_buffer(req);
-    string data;
-    data.resize(evbuffer_get_length(evbIn));
-    evbuffer_copyout(evbIn, (uint8_t *)data.data(), evbuffer_get_length(evbIn));
-    data.push_back('\0');  // evbuffer is not include '\0'
-    query = data.c_str();
+    size_t len = evbuffer_get_length(evbIn);
+    query = (char *)calloc(1, len + 1);
+    evbuffer_copyout(evbIn, query, len);
+    query[len] = '\0';  // evbuffer is not include '\0'
   }
 
+  struct evkeyvalq params;
   evhttp_parse_query_str(query, &params);
   const char *pUserId   = evhttp_find_header(&params, "user_id");
   const char *pWorkerId = evhttp_find_header(&params, "worker_id");
@@ -545,8 +547,7 @@ void StatsServer::httpdGetWorkerStatus(struct evhttp_request *req, void *arg) {
   if (pUserId == nullptr || pWorkerId == nullptr) {
     evbuffer_add_printf(evb, "{\"err_no\":1,\"err_msg\":\"invalid args\"}");
     evhttp_send_reply(req, HTTP_OK, "OK", evb);
-    evbuffer_free(evb);
-    return;
+    goto finish;
   }
 
   evbuffer_add_printf(evb, "{\"err_no\":0,\"err_msg\":\"\",\"data\":{");
@@ -555,7 +556,12 @@ void StatsServer::httpdGetWorkerStatus(struct evhttp_request *req, void *arg) {
 
   server->responseBytes_ += evbuffer_get_length(evb);
   evhttp_send_reply(req, HTTP_OK, "OK", evb);
+
+finish:
+  evhttp_clear_headers(&params);
   evbuffer_free(evb);
+  if (query)
+    free(query);
 }
 
 void StatsServer::getWorkerStatus(struct evbuffer *evb, const char *pUserId,
@@ -1405,26 +1411,26 @@ void ShareLogParserServer::httpdShareStats(struct evhttp_request *req,
   server->requestCount_++;
 
   evhttp_cmd_type rMethod = evhttp_request_get_command(req);
-  const char *query = nullptr;
-  struct evkeyvalq params;
+  char *query = nullptr;  // remember free it
 
   if (rMethod == EVHTTP_REQ_GET) {
     // GET
     struct evhttp_uri *uri = evhttp_uri_parse(evhttp_request_get_uri(req));
     if (uri != nullptr) {
-      query = evhttp_uri_get_query(uri);
+      query = strdup(evhttp_uri_get_query(uri));
+      evhttp_uri_free(uri);
     }
   }
   else if (rMethod == EVHTTP_REQ_POST) {
     // POST
     struct evbuffer *evbIn = evhttp_request_get_input_buffer(req);
-    string data;
-    data.resize(evbuffer_get_length(evbIn));
-    evbuffer_copyout(evbIn, (uint8_t *)data.data(), evbuffer_get_length(evbIn));
-    data.push_back('\0');  // evbuffer is not include '\0'
-    query = data.c_str();
+    size_t len = evbuffer_get_length(evbIn);
+    query = (char *)calloc(1, len + 1);
+    evbuffer_copyout(evbIn, query, len);
+    query[len] = '\0';  // evbuffer is not include '\0'
   }
 
+  struct evkeyvalq params;
   evhttp_parse_query_str(query, &params);
   const char *pUserId   = evhttp_find_header(&params, "user_id");
   const char *pWorkerId = evhttp_find_header(&params, "worker_id");
@@ -1435,8 +1441,7 @@ void ShareLogParserServer::httpdShareStats(struct evhttp_request *req,
   if (pUserId == nullptr || pWorkerId == nullptr || pHour == nullptr) {
     evbuffer_add_printf(evb, "{\"err_no\":1,\"err_msg\":\"invalid args\"}");
     evhttp_send_reply(req, HTTP_OK, "OK", evb);
-    evbuffer_free(evb);
-    return;
+    goto finish;
   }
 
   evbuffer_add_printf(evb, "{\"err_no\":0,\"err_msg\":\"\",\"data\":{");
@@ -1445,7 +1450,12 @@ void ShareLogParserServer::httpdShareStats(struct evhttp_request *req,
 
   server->responseBytes_ += evbuffer_get_length(evb);
   evhttp_send_reply(req, HTTP_OK, "OK", evb);
+
+finish:
+  evhttp_clear_headers(&params);
   evbuffer_free(evb);
+  if (query)
+    free(query);
 }
 
 void ShareLogParserServer::getServerStatus(ShareLogParserServer::ServerStatus &s) {
@@ -1584,6 +1594,8 @@ void ShareLogParserServer::runThreadShareLogParser() {
   } /* while */
 
   LOG(INFO) << "thread sharelog parser stop";
+
+  stop();  // if thread exit, we must call server to stop
 }
 
 void ShareLogParserServer::trySwithBinFile(shared_ptr<ShareLogParser> shareLogParser) {
