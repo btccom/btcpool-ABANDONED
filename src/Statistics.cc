@@ -489,7 +489,7 @@ void StatsServer::httpdServerStatus(struct evhttp_request *req, void *arg) {
   StatsServer::ServerStatus s = server->getServerStatus();
 
   evbuffer_add_printf(evb, "{\"err_no\":0,\"err_msg\":\"\","
-                      "\"data\":{\"uptime\":\"%02u d %02u h %02u m %02u s\","
+                      "\"data\":{\"uptime\":\"%04u d %02u h %02u m %02u s\","
                       "\"request\":%" PRIu64",\"repbytes\":%" PRIu64","
                       "\"pool\":{\"accept\":[%" PRIu64",%" PRIu64",%" PRIu64"],"
                       "\"reject\":[0,0,%" PRIu64"],\"accept_count\":%" PRIu32","
@@ -1488,7 +1488,7 @@ void ShareLogParserServer::httpdServerStatus(struct evhttp_request *req, void *a
     now += 2;  // just in case the denominator is zero
 
   evbuffer_add_printf(evb, "{\"err_no\":0,\"err_msg\":\"\","
-                      "\"data\":{\"uptime\":\"%02u d %02u h %02u m %02u s\","
+                      "\"data\":{\"uptime\":\"%04u d %02u h %02u m %02u s\","
                       "\"request\":%" PRIu64",\"repbytes\":%" PRIu64","
                       "\"pool\":{\"today\":{"
                       "\"hashrate_t\":%lf,\"accept\":%" PRIu64","
