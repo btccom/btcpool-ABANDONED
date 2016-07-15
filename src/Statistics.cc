@@ -549,9 +549,9 @@ void StatsServer::httpdGetWorkerStatus(struct evhttp_request *req, void *arg) {
     return;
   }
 
-  evbuffer_add_printf(evb, "{\"err_no\":0,\"err_msg\":\"\",\"data\":[");
+  evbuffer_add_printf(evb, "{\"err_no\":0,\"err_msg\":\"\",\"data\":{");
   server->getWorkerStatus(evb, pUserId, pWorkerId, pIsMerge);
-  evbuffer_add_printf(evb, "]}");
+  evbuffer_add_printf(evb, "}}");
 
   server->responseBytes_ += evbuffer_get_length(evb);
   evhttp_send_reply(req, HTTP_OK, "OK", evb);
@@ -602,7 +602,7 @@ void StatsServer::getWorkerStatus(struct evbuffer *evb, const char *pUserId,
     }
 
     evbuffer_add_printf(evb,
-                        "%s{\"worker_id\":%" PRId64",\"accept\":[%" PRIu64",%" PRIu64",%" PRIu64"]"
+                        "%s\"%" PRId64"\":{\"accept\":[%" PRIu64",%" PRIu64",%" PRIu64"]"
                         ",\"reject\":[0,0,%" PRIu64"],\"accept_count\":%" PRIu32""
                         ",\"last_share_ip\":\"%s\",\"last_share_time\":%u"
                         "%s}",
