@@ -94,3 +94,8 @@ target_link_libraries(statshttpd poolcomponents ${THRID_LIBRARIES})
 file(GLOB_RECURSE SHARELOGGER_SOURCES src/sharelogger/*.cc)
 add_executable(sharelogger ${SHARELOGGER_SOURCES})
 target_link_libraries(sharelogger poolcomponents ${THRID_LIBRARIES})
+
+file(GLOB_RECURSE SLPARSER_SOURCES src/slparser/*.cc)
+add_executable(slparser ${SLPARSER_SOURCES})
+target_link_libraries(slparser poolcomponents ${THRID_LIBRARIES})
+

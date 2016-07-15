@@ -42,8 +42,13 @@
 
 static
 string getStatsFilePath(const string &dataDir, time_t ts) {
+  bool needSlash = false;
+  if (dataDir.length() > 0 && *dataDir.rbegin() != '/') {
+    needSlash = true;
+  }
   // filename: sharelog-2016-07-12.bin
-  return Strings::Format("%ssharelog-%s.bin", dataDir.c_str(),
+  return Strings::Format("%s%ssharelog-%s.bin",
+                         dataDir.c_str(), needSlash ? "/" : "",
                          date("%F", ts).c_str());
 }
 
@@ -650,9 +655,6 @@ ShareLogWriter::ShareLogWriter(const char *kafkaBrokers,
 hlConsumer_(kafkaBrokers, KAFKA_TOPIC_SHARE_LOG, 0/* patition */,
 "ShareLogWriter" /* kafka group.id */)
 {
-  if (dataDir_.length() > 0 && *dataDir_.rbegin() != '/') {
-    dataDir_ += "/";  // add '/'
-  }
 }
 
 ShareLogWriter::~ShareLogWriter() {
@@ -810,9 +812,9 @@ void ShareLogWriter::run() {
 
 ///////////////////////////////  ShareStatsDay  ////////////////////////////////
 ShareStatsDay::ShareStatsDay() {
-  memset(&shareAccept1h_[0], 0, 24);
-  memset(&shareReject1h_[0], 0, 24);
-  memset(&score1h_[0], 0, 24);
+  memset((uint8_t *)&shareAccept1h_[0], 0, sizeof(shareAccept1h_));
+  memset((uint8_t *)&shareReject1h_[0], 0, sizeof(shareReject1h_));
+  memset((uint8_t *)&score1h_[0],       0, sizeof(score1h_));
   shareAccept1d_ = 0;
   shareReject1d_ = 0;
   score1d_       = 0.0;
@@ -832,7 +834,7 @@ void ShareStatsDay::processShare(uint32_t hourIdx, const Share &share) {
     shareReject1h_[hourIdx] += share.share_;
     shareReject1d_          += share.share_;
   }
-  modifyFlag_ &= (0x01U << hourIdx);
+  modifyFlag_ |= (0x01u << hourIdx);
 }
 
 void ShareStatsDay::getShareStatsHour(uint32_t hourIdx, ShareStats *stats) {
@@ -876,7 +878,7 @@ ShareLogParser::ShareLogParser(const string &dataDir, time_t timestamp,
   filePath_ = getStatsFilePath(dataDir, timestamp);
 
   // prealloc memory
-  buf_ = (uint8_t *)malloc(kElementsNum_ * sizeof(Share));
+  buf_ = (uint8_t *)malloc(kMaxElementsNum_ * sizeof(Share));
 }
 
 ShareLogParser::~ShareLogParser() {
@@ -923,16 +925,15 @@ void ShareLogParser::parseShare(const Share *share) {
   WorkerKey wkey(share->userId_, share->workerHashId_);
   WorkerKey ukey(share->userId_, 0);
   WorkerKey pkey(0, 0);
-  {
-    pthread_rwlock_wrlock(&rwlock_);
-    if (workersStats_.find(wkey) == workersStats_.end()) {
-      workersStats_[wkey] = std::make_shared<ShareStatsDay>();
-    }
-    if (workersStats_.find(ukey) == workersStats_.end()) {
-      workersStats_[ukey] = std::make_shared<ShareStatsDay>();
-    }
-    pthread_rwlock_unlock(&rwlock_);
+
+  pthread_rwlock_wrlock(&rwlock_);
+  if (workersStats_.find(wkey) == workersStats_.end()) {
+    workersStats_[wkey] = std::make_shared<ShareStatsDay>();
   }
+  if (workersStats_.find(ukey) == workersStats_.end()) {
+    workersStats_[ukey] = std::make_shared<ShareStatsDay>();
+  }
+  pthread_rwlock_unlock(&rwlock_);
 
   const uint32_t hourIdx = getHourIdx(share->timestamp_);
   workersStats_[wkey]->processShare(hourIdx, *share);
@@ -1037,22 +1038,15 @@ int64_t ShareLogParser::processGrowingShareLog() {
   }
   assert(f_ != nullptr);
 
-  // A successful call to fseek() shall clear the end-of-file indicator for the stream
-  if (fseeko(f_, lastPosition_, SEEK_CUR) != 0) {
-    LOG(ERROR) << "fseeko file fail, pos: " << lastPosition_;
-    return -1;
-  }
-
-  // no need to clear buffer memory before fread
+  // no need to set buffer memory to zero before fread
   // return: the total number of elements successfully read is returned.
-  readNum = fread(buf_, sizeof(Share), kElementsNum_, f_);
+  readNum = fread(buf_, sizeof(Share), kMaxElementsNum_, f_);
+  lastPosition_ = ftell(f_);
   if (readNum == 0) {
     return 0;
   }
 
   parseShareLog(buf_, readNum * sizeof(Share));
-  lastPosition_ += readNum * sizeof(Share);
-
   return readNum;
 }
 
@@ -1082,7 +1076,7 @@ void ShareLogParser::flushHoursData(shared_ptr<ShareStatsDay> stats,
   // worker
   if (userId != 0 && workerId != 0) {
     extraFields = "`worker_id`,`uid`,";
-    extraValues = Strings::Format("%d,% " PRId64",", userId, workerId);
+    extraValues = Strings::Format("% " PRId64",%d,", workerId, userId);
     table = "stats_workers_hour";
   }
   // user
@@ -1120,9 +1114,9 @@ void ShareLogParser::flushHoursData(shared_ptr<ShareStatsDay> stats,
       double rejectRate = 0.0;
       if (reject)
       	rejectRate = (double)reject / (accept + reject);
-      const char *nowStr   = date("%F %T").c_str();
-      const char *scoreStr = score2Str(stats->score1h_[i]).c_str();
-      const int64_t earn   = stats->score1h_[i] * BLOCK_REWARD;
+      const string nowStr   = date("%F %T");
+      const string scoreStr = score2Str(stats->score1h_[i]);
+      const int64_t earn    = stats->score1h_[i] * BLOCK_REWARD;
 
       sql = Strings::Format("INSERT INTO `%s`(%s`hour`, `share_accept`, "
                             " `share_reject`, `reject_rate`, `score`, "
@@ -1137,10 +1131,11 @@ void ShareLogParser::flushHoursData(shared_ptr<ShareStatsDay> stats,
                             " `earn`=%" PRId64", "
                             " `updated_at`='%s' ",
                             table.c_str(), extraFields.c_str(), extraValues.c_str(),
-                            hour, accept, reject, rejectRate, scoreStr, earn,
-                            nowStr, nowStr,
+                            hour, accept, reject, rejectRate, scoreStr.c_str(),
+                            earn, nowStr.c_str(), nowStr.c_str(),
                             // update
-                            accept, reject, rejectRate, scoreStr, earn, nowStr);
+                            accept, reject, rejectRate, scoreStr.c_str(),
+                            earn, nowStr.c_str());
     }  // for scope lock
 
     assert(sql.length());
@@ -1157,7 +1152,7 @@ void ShareLogParser::flushDailyData(shared_ptr<ShareStatsDay> stats,
   // worker
   if (userId != 0 && workerId != 0) {
     extraFields = "`worker_id`,`uid`,";
-    extraValues = Strings::Format("%d,% " PRId64",", userId, workerId);
+    extraValues = Strings::Format("% " PRId64",%d,", workerId, userId);
     table = "stats_workers_day";
   }
   // user
@@ -1188,9 +1183,9 @@ void ShareLogParser::flushDailyData(shared_ptr<ShareStatsDay> stats,
     double rejectRate = 0.0;
     if (reject)
       rejectRate = (double)reject / (accept + reject);
-    const char *nowStr   = date("%F %T").c_str();
-    const char *scoreStr = score2Str(stats->score1d_).c_str();
-    const int64_t earn   = stats->score1d_ * BLOCK_REWARD;
+    const string nowStr   = date("%F %T");
+    const string scoreStr = score2Str(stats->score1d_);
+    const int64_t earn    = stats->score1d_ * BLOCK_REWARD;
 
     sql = Strings::Format("INSERT INTO `%s`(%s`day`, `share_accept`, "
                           " `share_reject`, `reject_rate`, `score`, "
@@ -1205,10 +1200,11 @@ void ShareLogParser::flushDailyData(shared_ptr<ShareStatsDay> stats,
                           " `earn`=%" PRId64", "
                           " `updated_at`='%s' ",
                           table.c_str(), extraFields.c_str(), extraValues.c_str(),
-                          day, accept, reject, rejectRate, scoreStr, earn,
-                          nowStr, nowStr,
+                          day, accept, reject, rejectRate, scoreStr.c_str(),
+                          earn, nowStr.c_str(), nowStr.c_str(),
                           // update
-                          accept, reject, rejectRate, scoreStr, earn, nowStr);
+                          accept, reject, rejectRate, scoreStr.c_str(),
+                          earn, nowStr.c_str());
   }  // for scope lock
 
   if (!poolDB_.execute(sql)) {
@@ -1352,7 +1348,7 @@ void ShareLogParserServer::getShareStats(struct evbuffer *evb, const char *pUser
 
   // output json string
   for (size_t i = 0; i < keys.size(); i++) {
-    evbuffer_add_printf(evb, "%s%" PRId64":{", (i == 0 ? "" : ","), keys[i].workerId_);
+    evbuffer_add_printf(evb, "\"%s%" PRId64"\":[", (i == 0 ? "" : ","), keys[i].workerId_);
 
     for (size_t j = 0; j < hours.size(); j++) {
       ShareStats *s = &shareStats[i * hours.size() + j];
@@ -1363,12 +1359,12 @@ void ShareLogParserServer::getShareStats(struct evbuffer *evb, const char *pUser
       	rejectRate = 1.0 * s->shareReject_ / (s->shareAccept_ + s->shareReject_);
 
       evbuffer_add_printf(evb,
-                          "%s[\"hour\":%d,\"accept\":%" PRIu64",\"reject\":%" PRIu64","
-                          "\"reject_rate\":%lf,\"earn\":%" PRId64"]",
-                          (i == 0 ? "" : ","), hour,
+                          "%s{\"hour\":%d,\"accept\":%" PRIu64",\"reject\":%" PRIu64","
+                          "\"reject_rate\":%lf,\"earn\":%" PRId64"}",
+                          (j == 0 ? "" : ","), hour,
                           s->shareAccept_, s->shareReject_, rejectRate, s->earn_);
     }
-    evbuffer_add_printf(evb, "}");
+    evbuffer_add_printf(evb, "]");
   }
 }
 
@@ -1538,6 +1534,7 @@ void ShareLogParserServer::runThreadShareLogParser() {
       if (res <= 0) {
         break;
       }
+      DLOG(INFO) << "process share: " << res;
     }
     sleep(1);
 
@@ -1575,6 +1572,8 @@ void ShareLogParserServer::trySwithBinFile(shared_ptr<ShareLogParser> shareLogPa
       shareLogParser->isReachEOF() &&
       fileExists(filePath.c_str()))
   {
+    shareLogParser->flushToDB();  // flush data
+
     bool res = initShareLogParser(now);
     if (!res) {
       LOG(ERROR) << "trySwithBinFile fail";

@@ -399,7 +399,7 @@ class ShareLogParser {
   FILE *f_;        // file handler
   uint8_t *buf_;   // fread buffer
   // 48 * 500000 = 24,000,000 ~ 24 MB
-  static const size_t kElementsNum_ = 500000;  // num of Share
+  static const size_t kMaxElementsNum_ = 500000;  // num of Share
   off_t lastPosition_;
 
   MySQLConnection  poolDB_;  // save stats data
