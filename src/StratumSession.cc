@@ -600,8 +600,10 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr) {
 
   send(exJobPtr->miningNotify_);
 
-  // TODO: clear localJobs_
-  // kMaxNumLocalJobs_
+  // clear localJobs_
+  while (localJobs_.size() > kMaxNumLocalJobs_) {
+    localJobs_.pop_front();
+  }
 }
 
 void StratumSession::send(const char *data, size_t len) {

@@ -604,7 +604,7 @@ void StratumServer::run() {
 ///////////////////////////////////// Server ///////////////////////////////////
 Server::Server(): base_(nullptr), signal_event_(nullptr), listener_(nullptr),
 kafkaProducerShareLog_(nullptr), kafkaProducerSolvedShare_(nullptr),
-kShareAvgSeconds_(8), // TODO: read from cfg
+kShareAvgSeconds_(10), // TODO: read from cfg
 jobRepository_(nullptr), userInfo_(nullptr), sessionIDManager_(nullptr)
 {
 }
