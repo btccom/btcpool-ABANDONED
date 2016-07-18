@@ -91,27 +91,16 @@ public:
 // 1. update userName->userId by interval
 // 2. insert worker name to db
 class UserInfo {
-  struct WorkerNameKey {
-    int32_t userId_;
-    int64_t workerId_;
-
-    WorkerNameKey(int32_t userId, int64_t workerId):
-    userId_(userId), workerId_(workerId)
-    {}
-
-    bool operator<(const WorkerNameKey &r) const {
-      if (userId_ < r.userId_ ||
-          (userId_ == r.userId_ && workerId_ < r.workerId_)) {
-        return true;
-      }
-      return false;
-    }
-  };
-
   struct WorkerName {
     int32_t userId_;
     int64_t workerId_;
     char    workerName_[21];
+    char    minerAgent_[31];
+
+    WorkerName(): userId_(0), workerId_(0) {
+      memset(workerName_, 0, sizeof(workerName_));
+      memset(minerAgent_, 0, sizeof(minerAgent_));
+    }
   };
 
   //--------------------
@@ -145,7 +134,7 @@ public:
 
   int32_t getUserId(const string userName);
   void addWorker(const int32_t userId, const int64_t workerId,
-                 const string workerName);
+                 const string &workerName, const string &minerAgent);
 };
 
 

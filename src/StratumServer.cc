@@ -379,16 +379,22 @@ bool UserInfo::setupThreads() {
 }
 
 void UserInfo::addWorker(const int32_t userId, const int64_t workerId,
-                         const string workerName) {
+                         const string &workerName, const string &minerAgent) {
   ScopeLock sl(workerNameLock_);
 
   // insert to Q
   workerNameQ_.push_back(WorkerName());
   workerNameQ_.rbegin()->userId_   = userId;
   workerNameQ_.rbegin()->workerId_ = workerId;
+
+  // worker name
   snprintf(workerNameQ_.rbegin()->workerName_,
            sizeof(workerNameQ_.rbegin()->workerName_),
            "%s", workerName.c_str());
+  // miner agent
+  snprintf(workerNameQ_.rbegin()->minerAgent_,
+           sizeof(workerNameQ_.rbegin()->minerAgent_),
+           "%s", minerAgent.c_str());
 }
 
 void UserInfo::runThreadInsertWorkerName() {
@@ -425,32 +431,35 @@ int32_t UserInfo::insertWorkerName() {
 
   if (res.numRows() != 0 && (row = res.nextRow()) != nullptr) {
     const int32_t groupId = atoi(row[0]);
-    const string workerName = (row[1] == nullptr) ? "" : string(row[1]);
 
     // group Id == 0: means the miner's status is 'deleted'
     // we need to move from 'deleted' group to 'default' group.
-    if (groupId == 0 || workerName.length() == 0) {
-      sql = Strings::Format("UPDATE `mining_workers` SET `group_id`=%d, "
-                            " `worker_name`=\"%s\",`updated_at`=\"%s\" "
-                            " WHERE `uid`=%d AND `worker_id`= %" PRId64"",
-                            itr->userId_ * -1,  // default group id
-                            itr->workerName_,
-                            nowStr.c_str(),
-                            itr->userId_, itr->workerId_);
-      db_.execute(sql);
-    }
-  } else {
-    // try insert to db
+    sql = Strings::Format("UPDATE `mining_workers` SET `group_id`=%d, "
+                          " `worker_name`=\"%s\", `miner_agent`=\"%s\", "
+                          " `updated_at`=\"%s\" "
+                          " WHERE `uid`=%d AND `worker_id`= %" PRId64"",
+                          groupId == 0 ? itr->userId_ * -1 : groupId,
+                          itr->workerName_, itr->minerAgent_,
+                          nowStr.c_str(),
+                          itr->userId_, itr->workerId_);
+    db_.execute(sql);
+  }
+  else {
+    // we have to use 'ON DUPLICATE KEY UPDATE', because 'statshttpd' may insert
+    // items to table.mining_workers between we 'select' and 'insert' gap. if
+    // that happens, 'worker_name will be always empty.
     sql = Strings::Format("INSERT INTO `mining_workers`(`uid`,`worker_id`,"
-                          " `group_id`,`worker_name`,`created_at`,`updated_at`) "
+                          " `group_id`,`worker_name`,`miner_agent`,"
+                          " `created_at`,`updated_at`) "
                           " VALUES(%d,%" PRId64",%d,\"%s\",\"%s\",\"%s\")"
                           " ON DUPLICATE KEY UPDATE "
-                          " `worker_name`= \"%s\",`updated_at`=\"%s\" ",
+                          " `worker_name`= \"%s\",`miner_agent`=\"%s\",`updated_at`=\"%s\" ",
                           itr->userId_, itr->workerId_,
                           itr->userId_ * -1,  // default group id
-                          itr->workerName_,
+                          itr->workerName_, itr->minerAgent_,
                           nowStr.c_str(), nowStr.c_str(),
-                          itr->workerName_, nowStr.c_str());
+                          itr->workerName_, itr->minerAgent_,
+                          nowStr.c_str());
     if (db_.execute(sql) == false) {
       LOG(ERROR) << "insert worker name failure";
       return 0;

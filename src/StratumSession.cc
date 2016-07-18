@@ -392,6 +392,7 @@ void StratumSession::handleRequest_Subscribe(const string &idStr,
   //
   if (jparams.children()->size() >= 1) {
     clientAgent_ = jparams.children()->at(0).str().substr(0, 30);  // 30 is max len
+    clientAgent_ = filterWorkerName(clientAgent_);
   }
 
   //  result[0] = 2-tuple with name of subscribed notification and subscription ID.
@@ -441,7 +442,7 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
   // set id & names, will filter workername in this func
   worker_.setUserIDAndNames(userId, fullName);
   server_->userInfo_->addWorker(worker_.userId_, worker_.workerHashId_,
-                                worker_.workerName_);
+                                worker_.workerName_, clientAgent_);
   DLOG(INFO) << "userId: " << worker_.userId_
   << ", wokerHashId: " << worker_.workerHashId_ << ", workerName:" << worker_.workerName_;
 
