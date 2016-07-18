@@ -335,7 +335,7 @@ int32_t UserInfo::updateUsers() {
 }
 
 void UserInfo::runThreadUpdate() {
-  time_t updateInterval = 10;  // seconds
+  const time_t updateInterval = 10;  // seconds
   time_t lastUpdateTime = time(nullptr);
 
   while (running_) {
@@ -356,12 +356,6 @@ bool UserInfo::setupThreads() {
   // check db available
   if (!db_.ping()) {
     LOG(ERROR) << "connect db failure";
-    return false;
-  }
-
-  // load exist worker names
-  if (loadExistWorkerName() == false) {
-    LOG(ERROR) << "load worker names failure";
     return false;
   }
 
@@ -387,10 +381,6 @@ bool UserInfo::setupThreads() {
 void UserInfo::addWorker(const int32_t userId, const int64_t workerId,
                          const string workerName) {
   ScopeLock sl(workerNameLock_);
-  WorkerNameKey key(userId, workerId);
-  if (workerNameSet_.find(key) != workerNameSet_.end()) {
-    return;  // already exist
-  }
 
   // insert to Q
   workerNameQ_.push_back(WorkerName());
@@ -399,9 +389,6 @@ void UserInfo::addWorker(const int32_t userId, const int64_t workerId,
   snprintf(workerNameQ_.rbegin()->workerName_,
            sizeof(workerNameQ_.rbegin()->workerName_),
            "%s", workerName.c_str());
-
-  // insert to Set
-  workerNameSet_.insert(key);
 }
 
 void UserInfo::runThreadInsertWorkerName() {
@@ -425,19 +412,49 @@ int32_t UserInfo::insertWorkerName() {
   if (itr == workerNameQ_.end())
     return 0;
 
-  // try insert to db
+  string sql;
+  char **row = nullptr;
+  MySQLResult res;
   const string nowStr = date("%F %T");
-  const string sql = Strings::Format("INSERT INTO `mining_workers`(`uid`,`worker_id`,"
-                                     " `worker_name`,`created_at`,`updated_at`) "
-                                     " VALUES(%d,%" PRId64",\"%s\",\"%s\",\"%s\")"
-                                     " ON DUPLICATE KEY UPDATE "
-                                     " `worker_name`= \"%s\",`updated_at`=\"%s\" ",
-                                     itr->userId_, itr->workerId_, itr->workerName_,
-                                     nowStr.c_str(), nowStr.c_str(),
-                                     itr->workerName_, nowStr.c_str());
-  if (db_.execute(sql) == false) {
-    LOG(ERROR) << "insert worker name failure";
-    return 0;
+
+  // find the miner
+  sql = Strings::Format("SELECT `group_id`,`worker_name` FROM `mining_workers` "
+                        " WHERE `uid`=%d AND `worker_id`= %" PRId64"",
+                        itr->userId_, itr->workerId_);
+  db_.query(sql, res);
+
+  if (res.numRows() != 0 && (row = res.nextRow()) != nullptr) {
+    const int32_t groupId = atoi(row[0]);
+    const string workerName = (row[1] == nullptr) ? "" : string(row[1]);
+
+    // group Id == 0: means the miner's status is 'deleted'
+    // we need to move from 'deleted' group to 'default' group.
+    if (groupId == 0 || workerName.length() == 0) {
+      sql = Strings::Format("UPDATE `mining_workers` SET `group_id`=%d, "
+                            " `worker_name`=\"%s\",`updated_at`=\"%s\" "
+                            " WHERE `uid`=%d AND `worker_id`= %" PRId64"",
+                            itr->userId_ * -1,  // default group id
+                            itr->workerName_,
+                            nowStr.c_str(),
+                            itr->userId_, itr->workerId_);
+      db_.execute(sql);
+    }
+  } else {
+    // try insert to db
+    sql = Strings::Format("INSERT INTO `mining_workers`(`uid`,`worker_id`,"
+                          " `group_id`,`worker_name`,`created_at`,`updated_at`) "
+                          " VALUES(%d,%" PRId64",%d,\"%s\",\"%s\",\"%s\")"
+                          " ON DUPLICATE KEY UPDATE "
+                          " `worker_name`= \"%s\",`updated_at`=\"%s\" ",
+                          itr->userId_, itr->workerId_,
+                          itr->userId_ * -1,  // default group id
+                          itr->workerName_,
+                          nowStr.c_str(), nowStr.c_str(),
+                          itr->workerName_, nowStr.c_str());
+    if (db_.execute(sql) == false) {
+      LOG(ERROR) << "insert worker name failure";
+      return 0;
+    }
   }
 
   {
@@ -447,26 +464,6 @@ int32_t UserInfo::insertWorkerName() {
   return 1;
 }
 
-bool UserInfo::loadExistWorkerName() {
-  MySQLResult res;
-  const string sql = "SELECT `uid`,`worker_id` FROM `mining_workers` "
-  " WHERE `worker_name` IS NOT NULL";
-  if (!db_.query(sql, res)) {
-    return false;
-  }
-  if (res.numRows() == 0) {
-    return true;
-  }
-
-  char **row = nullptr;
-  while ((row = res.nextRow()) != nullptr) {
-    WorkerNameKey key(atoi(row[0]), strtoll(row[1], nullptr, 10));
-    workerNameSet_.insert(key);
-  }
-
-  LOG(INFO) << "load exist workers: " << res.numRows();
-  return true;
-}
 
 
 ////////////////////////////////// StratumJobEx ////////////////////////////////

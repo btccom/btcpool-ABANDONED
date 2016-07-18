@@ -126,13 +126,11 @@ class UserInfo {
   // workerName
   mutex workerNameLock_;
   std::deque<WorkerName> workerNameQ_;
-  std::set<WorkerNameKey> workerNameSet_;
 
   MySQLConnection db_;
   thread threadInsertWorkerName_;
   void runThreadInsertWorkerName();
   int32_t insertWorkerName();
-  bool loadExistWorkerName();
 
   thread threadUpdate_;
   void runThreadUpdate();

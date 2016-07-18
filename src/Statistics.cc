@@ -223,7 +223,7 @@ void StatsServer::_flushWorkersToDBThread() {
   "  `mining_workers`.`last_share_time`=`mining_workers_tmp`.`last_share_time`,"
   "  `mining_workers`.`updated_at`     =`mining_workers_tmp`.`updated_at` ";
   // fields for table.mining_workers
-  const string fields = "`worker_id`,`uid`,`accept_1m`, `accept_5m`,"
+  const string fields = "`worker_id`,`uid`,`group_id`,`accept_1m`, `accept_5m`,"
   "`accept_15m`, `reject_15m`, `accept_count`, `last_share_ip`,"
   " `last_share_time`, `created_at`, `updated_at`";
   // values for multi-insert sql
@@ -246,10 +246,11 @@ void StatsServer::_flushWorkersToDBThread() {
     inet_ntop(AF_INET, &(status.lastShareIP_), ipStr, INET_ADDRSTRLEN);
     const string nowStr = date("%F %T", time(nullptr));
 
-    values.push_back(Strings::Format("%" PRId64",%d,%" PRIu64",%" PRIu64","
+    values.push_back(Strings::Format("%" PRId64",%d,%d,%" PRIu64",%" PRIu64","
                                      "%" PRIu64",%" PRIu64",%d,\"%s\","
                                      "\"%s\",\"%s\",\"%s\"",
                                      workerId, userId,
+                                     -1 * userId,  /* default group id */
                                      status.accept1m_, status.accept5m_, status.accept15m_,
                                      status.reject15m_, status.acceptCount_, ipStr,
                                      date("%F %T", status.lastShareTime_).c_str(),
@@ -531,7 +532,7 @@ void StatsServer::httpdGetWorkerStatus(struct evhttp_request *req, void *arg) {
     // POST
     struct evbuffer *evbIn = evhttp_request_get_input_buffer(req);
     size_t len = evbuffer_get_length(evbIn);
-    query = (char *)calloc(1, len + 1);
+    query = (char *)malloc(len + 1);
     evbuffer_copyout(evbIn, query, len);
     query[len] = '\0';  // evbuffer is not include '\0'
   }
@@ -1425,7 +1426,7 @@ void ShareLogParserServer::httpdShareStats(struct evhttp_request *req,
     // POST
     struct evbuffer *evbIn = evhttp_request_get_input_buffer(req);
     size_t len = evbuffer_get_length(evbIn);
-    query = (char *)calloc(1, len + 1);
+    query = (char *)malloc(len + 1);
     evbuffer_copyout(evbIn, query, len);
     query[len] = '\0';  // evbuffer is not include '\0'
   }
