@@ -188,7 +188,6 @@ class StratumSession {
 
   void setup();
   void setReadTimeout(const int32_t timeout);
-//  void close();
 
   bool tryReadLine(string &line);
   void responseError(const string &idStr, int code);

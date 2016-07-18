@@ -29,6 +29,7 @@
 
 #include "StratumServer.h"
 
+
 //////////////////////////////// DiffController ////////////////////////////////
 void DiffController::setMinDiff(uint64 minDiff) {
   if (minDiff < kMinDiff_) {
@@ -253,16 +254,13 @@ void StratumSession::setup() {
   setReadTimeout(15);
 }
 
-//void StratumSession::close() {
-//  if (bev_) {
-//    bufferevent_free(bev_);
-//    bev_ = NULL;
-//  }
-//}
-
 void StratumSession::setReadTimeout(const int32_t timeout) {
-  struct timeval tv = {timeout, 0};
-  bufferevent_set_timeouts(bev_, &tv, NULL);
+  bufferevent_set_timeouts(bev_, NULL, NULL);
+
+  if (timeout) {
+    struct timeval tv = {timeout, 0};
+    bufferevent_set_timeouts(bev_, &tv, NULL);
+  }
 }
 
 bool StratumSession::tryReadLine(string &line) {
