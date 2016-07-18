@@ -206,7 +206,7 @@ bev_(bev), fd_(fd), server_(server)
 {
   state_ = CONNECTED;
   currDiff_    = 0U;
-  extraNonce1_ = 0U;
+  extraNonce1_ = 0u;
 
   // usually stratum job interval is 30~60 seconds, 10 is enough for miners
   kMaxNumLocalJobs_ = 10;
@@ -229,6 +229,9 @@ bev_(bev), fd_(fd), server_(server)
 }
 
 StratumSession::~StratumSession() {
+  // free session id
+  server_->sessionIDManager_->freeSessionId(extraNonce1_);
+
   LOG(INFO) << "close stratum session, ip: " << clientIp_
   << ", name: \"" << worker_.fullName_ << "\"";
 
@@ -242,8 +245,9 @@ StratumSession::~StratumSession() {
 }
 
 void StratumSession::setup() {
-  // TODO:
-  // set extraNonce1_
+  // alloc session id
+  extraNonce1_ = server_->sessionIDManager_->allocSessionId();
+  assert(extraNonce1_ != 0u);
 
   // we set 15 seconds, will increase the timeout after sub & auth
   setReadTimeout(15);

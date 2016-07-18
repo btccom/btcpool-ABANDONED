@@ -451,7 +451,7 @@ int32_t UserInfo::insertWorkerName() {
     sql = Strings::Format("INSERT INTO `mining_workers`(`uid`,`worker_id`,"
                           " `group_id`,`worker_name`,`miner_agent`,"
                           " `created_at`,`updated_at`) "
-                          " VALUES(%d,%" PRId64",%d,\"%s\",\"%s\",\"%s\")"
+                          " VALUES(%d,%" PRId64",%d,\"%s\",\"%s\",\"%s\",\"%s\")"
                           " ON DUPLICATE KEY UPDATE "
                           " `worker_name`= \"%s\",`miner_agent`=\"%s\",`updated_at`=\"%s\" ",
                           itr->userId_, itr->workerId_,
@@ -569,11 +569,11 @@ void StratumJobEx::generateBlockHeader(CBlockHeader *header,
 ////////////////////////////////// StratumServer ///////////////////////////////
 StratumServer::StratumServer(const char *ip, const unsigned short port,
                              const char *kafkaBrokers, const string &userAPIUrl,
-                             const MysqlConnectInfo &poolDBInfo)
-:running_(true), ip_(ip), port_(port), kafkaBrokers_(kafkaBrokers),
-userAPIUrl_(userAPIUrl), poolDBInfo_(poolDBInfo)
+                             const MysqlConnectInfo &poolDBInfo,
+                             const uint8_t serverId)
+:running_(true), ip_(ip), port_(port), serverId_(serverId),
+kafkaBrokers_(kafkaBrokers), userAPIUrl_(userAPIUrl), poolDBInfo_(poolDBInfo)
 {
-  // TODO: serverId_
 }
 
 StratumServer::~StratumServer() {
@@ -581,7 +581,7 @@ StratumServer::~StratumServer() {
 
 bool StratumServer::init() {
   if (!server_.setup(ip_.c_str(), port_, kafkaBrokers_.c_str(),
-                     userAPIUrl_, poolDBInfo_)) {
+                     userAPIUrl_, poolDBInfo_, serverId_)) {
     LOG(ERROR) << "fail to setup server";
     return false;
   }
@@ -605,7 +605,7 @@ void StratumServer::run() {
 Server::Server(): base_(nullptr), signal_event_(nullptr), listener_(nullptr),
 kafkaProducerShareLog_(nullptr), kafkaProducerSolvedShare_(nullptr),
 kShareAvgSeconds_(8), // TODO: read from cfg
-jobRepository_(nullptr), userInfo_(nullptr)
+jobRepository_(nullptr), userInfo_(nullptr), sessionIDManager_(nullptr)
 {
 }
 
@@ -631,11 +631,15 @@ Server::~Server() {
   if (userInfo_ != nullptr) {
     delete userInfo_;
   }
+  if (sessionIDManager_ != nullptr) {
+    delete sessionIDManager_;
+  }
 }
 
 bool Server::setup(const char *ip, const unsigned short port,
                    const char *kafkaBrokers,
-                   const string &userAPIUrl, const MysqlConnectInfo &dbInfo) {
+                   const string &userAPIUrl, const MysqlConnectInfo &dbInfo,
+                   const uint8_t serverId) {
   kafkaProducerSolvedShare_ = new KafkaProducer(kafkaBrokers,
                                                 KAFKA_TOPIC_SOLVED_SHARE,
                                                 RD_KAFKA_PARTITION_UA);
@@ -654,6 +658,9 @@ bool Server::setup(const char *ip, const unsigned short port,
   if (!userInfo_->setupThreads()) {
     return false;
   }
+
+  sessionIDManager_ = new SessionIDManager(serverId);
+
 
   // kafkaProducerShareLog_
   if (!kafkaProducerShareLog_->setup()) {

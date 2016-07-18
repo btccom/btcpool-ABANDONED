@@ -122,6 +122,12 @@ int main(int argc, char **argv) {
 
     int32_t port = 3333;
     cfg.lookupValue("sserver.port", port);
+    uint32_t serverId = 0;
+    cfg.lookupValue("sserver.id", serverId);
+    if (serverId > 0xFFu || serverId == 0) {
+      LOG(FATAL) << "invalid server id, range: [1, 255]";
+      return(EXIT_FAILURE);
+    }
 
     MysqlConnectInfo *poolDBInfo = nullptr;
     {
@@ -138,7 +144,7 @@ int main(int argc, char **argv) {
                                        (unsigned short)port,
                                        cfg.lookup("kafka.brokers").c_str(),
                                        cfg.lookup("users.list_id_api_url"),
-                                       *poolDBInfo);
+                                       *poolDBInfo, serverId);
 
     if (!gStratumServer->init()) {
       LOG(FATAL) << "init failure";

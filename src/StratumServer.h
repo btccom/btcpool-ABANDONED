@@ -29,6 +29,7 @@
 #include <map>
 #include <vector>
 #include <memory>
+#include <bitset>
 
 #include <arpa/inet.h>
 #include <sys/socket.h>
@@ -49,6 +50,54 @@
 
 class Server;
 class StratumJobEx;
+
+
+//////////////////////////////// SessionIDManager //////////////////////////////
+
+#define MAX_SESSION_INDEX_SERVER   0x00FFFFFFu   // 16777216 = 2^24
+
+// thread-safe
+class SessionIDManager {
+  //
+  //  SESSION ID: UINT32_T
+  //
+  //   xxxxxxxx     xxxxxxxx xxxxxxxx xxxxxxxx
+  //  ----------    --------------------------
+  //  server ID          session id
+  //   [1, 255]        range: [0, 2^24)
+  //
+  uint8_t serverId_;
+  std::bitset<MAX_SESSION_INDEX_SERVER + 1> sessionIds_;
+  uint32_t allocIdx_;
+  mutex lock_;
+
+public:
+  SessionIDManager(const uint8_t serverId) : serverId_(serverId), allocIdx_(0) {
+    sessionIds_.reset();
+  }
+
+  uint32_t allocSessionId() {
+    ScopeLock sl(lock_);
+
+    // find an empty bit
+    while (sessionIds_.test(allocIdx_) == true) {
+      allocIdx_++;
+      if (allocIdx_ > MAX_SESSION_INDEX_SERVER) {
+        allocIdx_ = 0;
+      }
+    }
+    // set to true
+    sessionIds_.set(allocIdx_, true);
+    return ((uint32_t)serverId_ << 24) | allocIdx_;
+  }
+
+  void freeSessionId(uint32_t sessionId) {
+    ScopeLock sl(lock_);
+    uint32_t idx = (sessionId & 0x00FFFFFFu);
+    sessionIds_.set(idx, false);
+  }
+};
+
 
 
 ////////////////////////////////// JobRepository ///////////////////////////////
@@ -196,13 +245,15 @@ public:
   const int32_t kShareAvgSeconds_;
   JobRepository *jobRepository_;
   UserInfo *userInfo_;
+  SessionIDManager *sessionIDManager_;
 
 public:
   Server();
   ~Server();
 
   bool setup(const char *ip, const unsigned short port, const char *kafkaBrokers,
-             const string &userAPIUrl, const  MysqlConnectInfo &dbInfo);
+             const string &userAPIUrl, const  MysqlConnectInfo &dbInfo,
+             const uint8_t serverId);
   void run();
   void stop();
 
@@ -233,7 +284,7 @@ class StratumServer {
   Server server_;
   string ip_;
   unsigned short port_;
-  int32_t serverId_;  // global unique, range: [0, 255]
+  uint8_t serverId_;  // global unique, range: [1, 255]
 
   string kafkaBrokers_;
   string userAPIUrl_;
@@ -242,7 +293,8 @@ class StratumServer {
 public:
   StratumServer(const char *ip, const unsigned short port,
                 const char *kafkaBrokers,
-                const string &userAPIUrl, const MysqlConnectInfo &poolDBInfo);
+                const string &userAPIUrl, const MysqlConnectInfo &poolDBInfo,
+                const uint8_t serverId);
   ~StratumServer();
 
   bool init();
