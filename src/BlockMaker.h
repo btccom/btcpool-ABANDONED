@@ -36,6 +36,7 @@
 #include "bitcoin/base58.h"
 
 
+////////////////////////////////// BlockMaker //////////////////////////////////
 class BlockMaker {
   atomic<bool> running_;
 
@@ -63,7 +64,6 @@ class BlockMaker {
                     shared_ptr<vector<CTransaction>> vtxs);
 
   thread threadConsumeRawGbt_;
-  thread threadConsumeSovledShare_;
   thread threadConsumeStratumJob_;
 
   void runThreadConsumeRawGbt();
@@ -79,6 +79,7 @@ class BlockMaker {
   void submitBlock(const string &blockHex);
   void _submitBlockThread(const string rpcAddress, const string rpcUserpass,
                           const string blockHex);
+  bool checkBitcoinds();
 
 public:
   BlockMaker(const char *kafkaBrokers);

@@ -27,10 +27,12 @@
 
 #include "utilities_js.hpp"
 
+
+////////////////////////////////// BlockMaker //////////////////////////////////
 BlockMaker::BlockMaker(const char *kafkaBrokers):
 running_(true),
 kMaxRawGbtNum_(300),    /* if 5 seconds a rawgbt, will hold 300*5/60 = 25 mins rawgbt */
-kMaxStratumJobNum_(60), /* if 30 seconds a stratum job, will hold 30 mins stratum job */
+kMaxStratumJobNum_(120), /* if 30 seconds a stratum job, will hold 60 mins stratum job */
 kafkaConsumerRawGbt_     (kafkaBrokers, KAFKA_TOPIC_RAWGBT,       0/* patition */),
 kafkaConsumerStratumJob_ (kafkaBrokers, KAFKA_TOPIC_STRATUM_JOB,  0/* patition */),
 kafkaConsumerSovledShare_(kafkaBrokers, KAFKA_TOPIC_SOLVED_SHARE, 0/* patition */)
@@ -40,9 +42,6 @@ kafkaConsumerSovledShare_(kafkaBrokers, KAFKA_TOPIC_SOLVED_SHARE, 0/* patition *
 BlockMaker::~BlockMaker() {
   if (threadConsumeRawGbt_.joinable())
     threadConsumeRawGbt_.join();
-
-  if (threadConsumeSovledShare_.joinable())
-    threadConsumeSovledShare_.join();
 
   if (threadConsumeStratumJob_.joinable())
     threadConsumeStratumJob_.join();
@@ -61,6 +60,9 @@ void BlockMaker::addBitcoind(const string &rpcAddress, const string &rpcUserpass
 }
 
 bool BlockMaker::init() {
+  if (!checkBitcoinds())
+    return false;
+
   //
   // Raw Gbt
   //
@@ -169,6 +171,7 @@ void BlockMaker::addRawgbt(const char *str, size_t len) {
     vtxs->push_back(tx);
   }
 
+  LOG(INFO) << "insert rawgbt: " << gbtHash.ToString() << ", txs: " << vtxs->size();
   insertRawGbt(gbtHash, vtxs);
 }
 
@@ -286,6 +289,36 @@ void BlockMaker::consumeSovledShare(rd_kafka_message_t *rkmessage) {
   submitBlock(blockHex);
 }
 
+bool BlockMaker::checkBitcoinds() {
+  const string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getinfo\",\"params\":[]}";
+
+  if (bitcoindRpcUri_.size() == 0)
+    return false;
+
+  for (const auto &itr : bitcoindRpcUri_) {
+    string response;
+    bool res = bitcoindRpcCall(itr.first.c_str(), itr.second.c_str(),
+                               request.c_str(), response);
+    if (res == false) {
+      return false;
+    }
+
+    JsonNode r;
+    if (!JsonNode::parse(response.c_str(), response.c_str() + response.length(), r)) {
+      LOG(ERROR) << "json parse failure: " << response;
+      return false;
+    }
+    JsonNode result = r["result"];
+    if (result.type() == Utilities::JS::type::Null ||
+        result["connections"].int32() == 0) {
+      LOG(ERROR) << "bitcoind is NOT works fine, getinfo: " << response;
+      return false;
+    }
+  }
+
+  return true;
+}
+
 void BlockMaker::submitBlock(const string &blockHex) {
   for (const auto &itr : bitcoindRpcUri_) {
     // use thread to submit
@@ -368,6 +401,8 @@ void BlockMaker::consumeStratumJob(rd_kafka_message_t *rkmessage) {
       jobId2GbtHash_.erase(itr);
     }
   }
+
+  LOG(INFO) << "jobId: " << sjob->jobId_ << ", gbtHash: " << gbtHash.ToString();
   delete sjob;
 }
 
@@ -392,7 +427,7 @@ void BlockMaker::runThreadConsumeStratumJob() {
 
   while (running_) {
     rd_kafka_message_t *rkmessage;
-    rkmessage = kafkaConsumerRawGbt_.consumer(timeoutMs);
+    rkmessage = kafkaConsumerStratumJob_.consumer(timeoutMs);
     if (rkmessage == nullptr) /* timeout */
       continue;
 
@@ -408,7 +443,7 @@ void BlockMaker::runThreadConsumeSovledShare() {
 
   while (running_) {
     rd_kafka_message_t *rkmessage;
-    rkmessage = kafkaConsumerRawGbt_.consumer(timeoutMs);
+    rkmessage = kafkaConsumerSovledShare_.consumer(timeoutMs);
     if (rkmessage == nullptr) /* timeout */
       continue;
 

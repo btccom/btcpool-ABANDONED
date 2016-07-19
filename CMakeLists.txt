@@ -99,3 +99,6 @@ file(GLOB_RECURSE SLPARSER_SOURCES src/slparser/*.cc)
 add_executable(slparser ${SLPARSER_SOURCES})
 target_link_libraries(slparser poolcomponents ${THRID_LIBRARIES})
 
+file(GLOB_RECURSE BLKMAKER_SOURCES src/blkmaker/*.cc)
+add_executable(blkmaker ${BLKMAKER_SOURCES})
+target_link_libraries(blkmaker poolcomponents ${THRID_LIBRARIES})
