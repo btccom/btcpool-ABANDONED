@@ -38,29 +38,47 @@
 
 class BlockMaker {
   atomic<bool> running_;
-  mutex lock_;
 
+  mutex rawGbtLock_;
   size_t kMaxRawGbtNum_;  // how many rawgbt should we keep
   // key: gbthash
-  std::deque<string> rawGbtQ_;
+  std::deque<uint256> rawGbtQ_;
   // key: gbthash, value: block template json
-  std::unordered_map<string, string> rawGbtMap_;
+  std::map<uint256, shared_ptr<vector<CTransaction> > > rawGbtMap_;
+
+  mutex jobIdMapLock_;
+  size_t kMaxStratumJobNum_;
+  // key: jobId, value: gbthash
+  std::map<uint64_t, uint256> jobId2GbtHash_;
 
   KafkaConsumer kafkaConsumerRawGbt_;
+  KafkaConsumer kafkaConsumerStratumJob_;
   KafkaConsumer kafkaConsumerSovledShare_;
 
   // submit new block to bitcoind
   // pair: <RpcAddress, RpcUserpass>
   std::vector<std::pair<string, string>> bitcoindRpcUri_;
 
+  void insertRawGbt(const uint256 &gbtHash,
+                    shared_ptr<vector<CTransaction>> vtxs);
+
   thread threadConsumeRawGbt_;
   thread threadConsumeSovledShare_;
+  thread threadConsumeStratumJob_;
 
   void runThreadConsumeRawGbt();
   void runThreadConsumeSovledShare();
+  void runThreadConsumeStratumJob();
 
   void consumeRawGbt     (rd_kafka_message_t *rkmessage);
+  void consumeStratumJob (rd_kafka_message_t *rkmessage);
   void consumeSovledShare(rd_kafka_message_t *rkmessage);
+
+  void addRawgbt(const char *str, size_t len);
+
+  void submitBlock(const string &blockHex);
+  void _submitBlockThread(const string rpcAddress, const string rpcUserpass,
+                          const string blockHex);
 
 public:
   BlockMaker(const char *kafkaBrokers);

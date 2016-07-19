@@ -542,14 +542,14 @@ void StratumJobEx::generateCoinbaseTx(std::vector<char> *coinbaseBin,
 }
 
 void StratumJobEx::generateBlockHeader(CBlockHeader *header,
+                                       std::vector<char> *coinbaseBin,
                                        const uint32 extraNonce1,
                                        const string &extraNonce2Hex,
                                        const vector<uint256> &merkleBranch,
                                        const uint256 &hashPrevBlock,
                                        const uint32 nBits, const int nVersion,
                                        const uint32 nTime, const uint32 nonce) {
-  std::vector<char> coinbaseBin;
-  generateCoinbaseTx(&coinbaseBin, extraNonce1, extraNonce2Hex);
+  generateCoinbaseTx(coinbaseBin, extraNonce1, extraNonce2Hex);
 
   header->hashPrevBlock = hashPrevBlock;
   header->nVersion      = nVersion;
@@ -558,7 +558,7 @@ void StratumJobEx::generateBlockHeader(CBlockHeader *header,
   header->nNonce        = nonce;
 
   // hashMerkleRoot
-  Hash(coinbaseBin.begin(), coinbaseBin.end(), header->hashMerkleRoot);
+  Hash(coinbaseBin->begin(), coinbaseBin->end(), header->hashMerkleRoot);
   for (const uint256 & step : merkleBranch) {
     header->hashMerkleRoot = Hash(header->hashMerkleRoot.begin(),
                                   header->hashMerkleRoot.end(),
@@ -820,18 +820,23 @@ int Server::checkShare(const uint64_t jobId,
   }
 
   CBlockHeader header;
-  exJobPtr->generateBlockHeader(&header, extraNonce1, extraNonce2Hex,
+  std::vector<char> coinbaseBin;
+  exJobPtr->generateBlockHeader(&header, &coinbaseBin,
+                                extraNonce1, extraNonce2Hex,
                                 sjob->merkleBranch_, sjob->prevHash_,
                                 sjob->nBits_, sjob->nVersion_, nTime, nonce);
   uint256 blkHash = header.GetHash();
 
+  //
+  // found new block
+  //
   if (blkHash <= sjob->networkTarget_) {
-    // TODO: broadcast block solved share
-    LOG(INFO) << ">>>> found a new block: " << blkHash.ToString()
-    << ", jobId: " << jobId << ", by: " << workFullName
-    << " <<<<";
+    // send solved share to kafka
+    sendSolvedShare2Kafka(jobId, header, coinbaseBin);
 
     jobRepository_->markAllJobsAsStale();
+    LOG(INFO) << ">>>> found a new block: " << blkHash.ToString()
+    << ", jobId: " << jobId << ", by: " << workFullName << " <<<<";
   }
 
   // print out high diff share, 2^10 = 1024
@@ -856,4 +861,34 @@ int Server::checkShare(const uint64_t jobId,
 void Server::sendShare2Kafka(const uint8_t *data, size_t len) {
   ScopeLock sl(producerShareLogLock_);
   kafkaProducerShareLog_->produce(data, len);
+}
+
+void Server::sendSolvedShare2Kafka(const uint64_t jobId,
+                                   const CBlockHeader &header,
+                                   const std::vector<char> &coinbaseBin) {
+  ScopeLock sl(producerSolvedShareLock_);
+
+  //
+  // solved share message:
+  //
+  //     jobId         BlockHeader       coinbase_Tx
+  //    --------  --------------------   -----------
+  //    8 bytes         80 bytes          not fixed
+  //
+  string buf;
+  buf.resize(sizeof(uint64_t) + sizeof(CBlockHeader) + coinbaseBin.size());
+  uint8_t *p = (uint8_t *)buf.data();
+
+  // jobId
+  memcpy(p, (const uint8_t *)&jobId, sizeof(uint64_t));
+  p += sizeof(uint64_t);
+
+  // Block Header
+  memcpy(p, (const uint8_t *)&header, sizeof(CBlockHeader));
+  p += sizeof(CBlockHeader);
+
+  // coinbase TX
+  memcpy(p, coinbaseBin.data(), coinbaseBin.size());
+
+  kafkaProducerShareLog_->produce(buf.data(), buf.size());
 }

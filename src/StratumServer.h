@@ -216,6 +216,7 @@ public:
   bool isStale();
 
   void generateBlockHeader(CBlockHeader *header,
+                           std::vector<char> *coinbaseBin,
                            const uint32 extraNonce1,
                            const string &extraNonce2Hex,
                            const vector<uint256> &merkleBranch,
@@ -273,7 +274,9 @@ public:
                  const uint32 extraNonce1, const string &extraNonce2Hex,
                  const uint32_t nTime, const uint32_t nonce,
                  const uint256 &jobTarget, const string &workFullName);
-  void sendShare2Kafka(const uint8_t *data, size_t len);
+  void sendShare2Kafka      (const uint8_t *data, size_t len);
+  void sendSolvedShare2Kafka(const uint64_t jobId, const CBlockHeader &header,
+                             const std::vector<char> &coinbaseBin);
 };
 
 
