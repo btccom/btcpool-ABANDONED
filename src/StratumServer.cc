@@ -726,7 +726,7 @@ void Server::stop() {
 
 void Server::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {
   ScopeLock sl(connsLock_);
-  for (const auto itr : connections_) {
+  for (auto &itr : connections_) {
     itr.second->sendMiningNotify(exJobPtr);
   }
 }

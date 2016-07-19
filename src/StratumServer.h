@@ -232,7 +232,7 @@ class Server {
   struct event_base* base_;
   struct event* signal_event_;
   struct evconnlistener* listener_;
-  map<evutil_socket_t, StratumSession *> connections_;
+  std::unordered_map<evutil_socket_t, StratumSession *> connections_;
   mutex connsLock_;  // lock for connections
 
   // Stratum

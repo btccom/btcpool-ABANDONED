@@ -236,13 +236,9 @@ StratumSession::~StratumSession() {
   LOG(INFO) << "close stratum session, ip: " << clientIp_
   << ", name: \"" << worker_.fullName_ << "\"";
 
-  if (inBuf_)
-    evbuffer_free(inBuf_);
-
-  if (bev_) {
-    bufferevent_free(bev_);
-    bev_ = NULL;
-  }
+  close(fd_);
+  evbuffer_free(inBuf_);
+  bufferevent_free(bev_);
 }
 
 void StratumSession::setup() {

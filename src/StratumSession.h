@@ -181,7 +181,6 @@ class StratumSession {
   size_t kMaxNumLocalJobs_;
 
   struct evbuffer *inBuf_;
-  struct evbuffer *outBuf_;
   mutex  writeLock_;
   size_t lastNoEOLPos_;
   bool   isPoolWatcher_;
