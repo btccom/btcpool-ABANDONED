@@ -31,7 +31,7 @@
 ////////////////////////////////// BlockMaker //////////////////////////////////
 BlockMaker::BlockMaker(const char *kafkaBrokers):
 running_(true),
-kMaxRawGbtNum_(300),    /* if 5 seconds a rawgbt, will hold 300*5/60 = 25 mins rawgbt */
+kMaxRawGbtNum_(100),    /* if 5 seconds a rawgbt, will hold 100*5/60 = 8 mins rawgbt */
 kMaxStratumJobNum_(120), /* if 30 seconds a stratum job, will hold 60 mins stratum job */
 kafkaConsumerRawGbt_     (kafkaBrokers, KAFKA_TOPIC_RAWGBT,       0/* patition */),
 kafkaConsumerStratumJob_ (kafkaBrokers, KAFKA_TOPIC_STRATUM_JOB,  0/* patition */),
@@ -217,7 +217,7 @@ void BlockMaker::consumeSovledShare(rd_kafka_message_t *rkmessage) {
     return;
   }
 
-  LOG(INFO) << "received SovledShare message, len: " << rkmessage->len;
+  LOG(INFO) << "received SolvedShare message, len: " << rkmessage->len;
 
   //
   // solved share message:
@@ -302,7 +302,7 @@ bool BlockMaker::checkBitcoinds() {
     if (res == false) {
       return false;
     }
-
+    LOG(INFO) << "response: " << response;
     JsonNode r;
     if (!JsonNode::parse(response.c_str(), response.c_str() + response.length(), r)) {
       LOG(ERROR) << "json parse failure: " << response;
@@ -395,14 +395,11 @@ void BlockMaker::consumeStratumJob(rd_kafka_message_t *rkmessage) {
     // Maps (and sets) are sorted, so the first element is the smallest,
     // and the last element is the largest.
     while (jobId2GbtHash_.size() > kMaxStratumJobNum_) {
-      auto itr = jobId2GbtHash_.begin();
-      DLOG(INFO) << "remove expired jobId<->gbtHash, jobId: " << itr->first
-      << ", gbtHash: " << itr->second.ToString();
-      jobId2GbtHash_.erase(itr);
+      jobId2GbtHash_.erase(jobId2GbtHash_.begin());
     }
   }
 
-  LOG(INFO) << "jobId: " << sjob->jobId_ << ", gbtHash: " << gbtHash.ToString();
+  LOG(INFO) << "StratumJob, jobId: " << sjob->jobId_ << ", gbtHash: " << gbtHash.ToString();
   delete sjob;
 }
 

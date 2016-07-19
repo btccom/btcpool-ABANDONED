@@ -867,7 +867,6 @@ void Server::sendSolvedShare2Kafka(const uint64_t jobId,
                                    const CBlockHeader &header,
                                    const std::vector<char> &coinbaseBin) {
   ScopeLock sl(producerSolvedShareLock_);
-
   //
   // solved share message:
   //
@@ -890,5 +889,5 @@ void Server::sendSolvedShare2Kafka(const uint64_t jobId,
   // coinbase TX
   memcpy(p, coinbaseBin.data(), coinbaseBin.size());
 
-  kafkaProducerShareLog_->produce(buf.data(), buf.size());
+  kafkaProducerSolvedShare_->produce(buf.data(), buf.size());
 }
