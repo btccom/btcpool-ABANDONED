@@ -307,7 +307,7 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
   uint256 gbtHash = Hash(gbt, gbt + strlen(gbt));
   JsonNode r;
   if (!JsonNode::parse(gbt, gbt + strlen(gbt), r)) {
-    LOG(ERROR) << "decode gbt json fail";
+    LOG(ERROR) << "decode gbt json fail: >" << gbt << "<";
     return false;
   }
   JsonNode jgbt = r["result"];
