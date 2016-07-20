@@ -44,7 +44,9 @@ class GbtMaker {
 
   string kafkaBrokers_;
   KafkaProducer kafkaProducer_;
+  bool isCheckZmq_;
 
+  bool checkBitcoindZMQ();
   bool bitcoindRpcGBT(string &resp);
   string makeRawGbtMsg();
 
@@ -56,7 +58,8 @@ class GbtMaker {
 public:
   GbtMaker(const string &zmqBitcoindAddr,
            const string &bitcoindRpcAddr, const string &bitcoindRpcUserpass,
-           const string &kafkaBrokers, uint32_t kRpcCallInterval);
+           const string &kafkaBrokers, uint32_t kRpcCallInterval,
+           bool isCheckZmq);
   ~GbtMaker();
 
   bool init();

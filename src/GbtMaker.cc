@@ -34,16 +34,19 @@
 // bitcoind zmq pub msg type: "hashblock", "hashtx", "rawblock", "rawtx"
 //
 #define BITCOIND_ZMQ_HASHBLOCK      "hashblock"
+#define BITCOIND_ZMQ_HASHTX         "hashtx"
 
 ///////////////////////////////////  GbtMaker  /////////////////////////////////
 GbtMaker::GbtMaker(const string &zmqBitcoindAddr,
                    const string &bitcoindRpcAddr, const string &bitcoindRpcUserpass,
-                   const string &kafkaBrokers, uint32_t kRpcCallInterval)
+                   const string &kafkaBrokers, uint32_t kRpcCallInterval,
+                   bool isCheckZmq)
 : running_(true), zmqContext_(1/*i/o threads*/),
 zmqBitcoindAddr_(zmqBitcoindAddr), bitcoindRpcAddr_(bitcoindRpcAddr),
 bitcoindRpcUserpass_(bitcoindRpcUserpass), lastGbtMakeTime_(0), kRpcCallInterval_(kRpcCallInterval),
 kafkaBrokers_(kafkaBrokers),
-kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT, 0/* partition */)
+kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT, 0/* partition */),
+isCheckZmq_(isCheckZmq)
 {
 }
 
@@ -92,7 +95,42 @@ bool GbtMaker::init() {
     }
   }
 
+  if (isCheckZmq_ && !checkBitcoindZMQ())
+    return false;
+
   return true;
+}
+
+bool GbtMaker::checkBitcoindZMQ() {
+  //
+  // bitcoind MUST with option: -zmqpubhashtx
+  //
+  zmq::socket_t subscriber(zmqContext_, ZMQ_SUB);
+  subscriber.connect(zmqBitcoindAddr_);
+  subscriber.setsockopt(ZMQ_SUBSCRIBE,
+                        BITCOIND_ZMQ_HASHTX, strlen(BITCOIND_ZMQ_HASHTX));
+  zmq::message_t ztype, zcontent;
+
+  LOG(INFO) << "check bitcoind zmq, waiting for zmq message 'hashtx'...";
+  try {
+    subscriber.recv(&ztype);
+    subscriber.recv(&zcontent);
+  } catch (std::exception & e) {
+    LOG(ERROR) << "bitcoind zmq recv exception: " << e.what();
+    return false;
+  }
+  const string type    = std::string(static_cast<char*>(ztype.data()),    ztype.size());
+  const string content = std::string(static_cast<char*>(zcontent.data()), zcontent.size());
+
+  if (type == BITCOIND_ZMQ_HASHTX) {
+    string hashHex;
+    Bin2Hex((const uint8 *)content.data(), content.size(), hashHex);
+    LOG(INFO) << "bitcoind zmq recv hashtx: " << hashHex;
+    return true;
+  }
+
+  LOG(ERROR) << "unknown zmq message type from bitcoind: " << type;
+  return false;
 }
 
 void GbtMaker::stop() {
