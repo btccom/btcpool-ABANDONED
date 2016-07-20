@@ -101,6 +101,7 @@ public:
 
 //////////////////////////////// StratumSession ////////////////////////////////
 class StratumSession {
+public:
   // mining state
   enum State {
     CONNECTED     = 0,
@@ -154,8 +155,8 @@ class StratumSession {
     }
   };
 
-
   //----------------------
+private:
   DiffController diffController_;
   State state_;
   StratumWorker worker_;

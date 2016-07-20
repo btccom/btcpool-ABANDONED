@@ -28,6 +28,10 @@
 
 using std::string;
 
+//
+// run all:      ./unittest
+// run single:   ./unittest --gtest_filter=StratumSession\*
+//
 extern "C" {
 
 static void handler(int sig);
