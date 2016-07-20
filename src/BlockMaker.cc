@@ -29,13 +29,14 @@
 
 
 ////////////////////////////////// BlockMaker //////////////////////////////////
-BlockMaker::BlockMaker(const char *kafkaBrokers):
+BlockMaker::BlockMaker(const char *kafkaBrokers, const MysqlConnectInfo &poolDB):
 running_(true),
 kMaxRawGbtNum_(100),    /* if 5 seconds a rawgbt, will hold 100*5/60 = 8 mins rawgbt */
 kMaxStratumJobNum_(120), /* if 30 seconds a stratum job, will hold 60 mins stratum job */
 kafkaConsumerRawGbt_     (kafkaBrokers, KAFKA_TOPIC_RAWGBT,       0/* patition */),
 kafkaConsumerStratumJob_ (kafkaBrokers, KAFKA_TOPIC_STRATUM_JOB,  0/* patition */),
-kafkaConsumerSovledShare_(kafkaBrokers, KAFKA_TOPIC_SOLVED_SHARE, 0/* patition */)
+kafkaConsumerSovledShare_(kafkaBrokers, KAFKA_TOPIC_SOLVED_SHARE, 0/* patition */),
+poolDB_(poolDB)
 {
 }
 
@@ -220,39 +221,37 @@ void BlockMaker::consumeSovledShare(rd_kafka_message_t *rkmessage) {
   LOG(INFO) << "received SolvedShare message, len: " << rkmessage->len;
 
   //
-  // solved share message:
+  // solved share message:  FoundBlock + coinbase_Tx
   //
-  //     jobId         BlockHeader       coinbase_Tx
-  //    --------  --------------------   -----------
-  //    8 bytes         80 bytes          not fixed
-  //
-  uint64_t jobId;
+  FoundBlock foundBlock;
   CBlockHeader blkHeader;
   vector<char> coinbaseTxBin;
 
-  if (rkmessage->len <= sizeof(CBlockHeader) + sizeof(uint64_t)) {
-    LOG(ERROR) << "invalid SolvedShare length: " << rkmessage->len;
-    return;
+  {
+    if (rkmessage->len <= sizeof(FoundBlock)) {
+      LOG(ERROR) << "invalid SolvedShare length: " << rkmessage->len;
+      return;
+    }
+    coinbaseTxBin.resize(rkmessage->len - sizeof(FoundBlock));
+
+    // foundBlock
+    memcpy((uint8_t *)&foundBlock, (const uint8_t *)rkmessage->payload, sizeof(FoundBlock));
+
+    // coinbase tx
+    memcpy((uint8_t *)coinbaseTxBin.data(),
+           (const uint8_t *)rkmessage->payload + sizeof(FoundBlock),
+           coinbaseTxBin.size());
+    // copy header
+    memcpy((uint8_t *)&blkHeader, foundBlock.header80_, sizeof(CBlockHeader));
   }
-  coinbaseTxBin.resize(rkmessage->len - sizeof(CBlockHeader) - sizeof(uint64_t));
 
-  // jobId
-  memcpy((uint8_t *)&jobId, (const uint8_t *)rkmessage->payload, sizeof(uint64_t));
-  // block header
-  memcpy((uint8_t *)&blkHeader,
-         (const uint8_t *)rkmessage->payload + sizeof(uint64_t),
-         sizeof(CBlockHeader));
-  // coinbase tx
-  memcpy((uint8_t *)coinbaseTxBin.data(),
-         (const uint8_t *)rkmessage->payload + sizeof(uint64_t) + sizeof(CBlockHeader),
-         coinbaseTxBin.size());
-
+  // get gbtHash and rawgbt (vtxs)
   uint256 gbtHash;
   shared_ptr<vector<CTransaction>> vtxs;
   {
     ScopeLock sl(jobIdMapLock_);
-    if (jobId2GbtHash_.find(jobId) != jobId2GbtHash_.end()) {
-      gbtHash = jobId2GbtHash_[jobId];
+    if (jobId2GbtHash_.find(foundBlock.jobId_) != jobId2GbtHash_.end()) {
+      gbtHash = jobId2GbtHash_[foundBlock.jobId_];
     }
   }
   {
@@ -286,7 +285,55 @@ void BlockMaker::consumeSovledShare(rd_kafka_message_t *rkmessage) {
   // submit to bitcoind
   LOG(INFO) << "submit block: " << newblk.GetHash().ToString();
   const string blockHex = EncodeHexBlock(newblk);
-  submitBlock(blockHex);
+  submitBlock(blockHex);  // using thread
+
+  // save to DB, using thread
+  saveBlockToDB(foundBlock, blkHeader,
+                newblk.vtx[0].GetValueOut(),  // coinbase value
+                blockHex.length()/2);
+}
+
+void BlockMaker::saveBlockToDB(const FoundBlock &foundBlock,
+                               const CBlockHeader &header,
+                               const uint64_t coinbaseValue,
+                               const int32_t blksize) {
+  boost::thread t(boost::bind(&BlockMaker::_saveBlockToDBThread, this,
+                              foundBlock, header, coinbaseValue, blksize));
+}
+
+void BlockMaker::_saveBlockToDBThread(const FoundBlock &foundBlock,
+                                      const CBlockHeader &header,
+                                      const uint64_t coinbaseValue,
+                                      const int32_t blksize) {
+  const string nowStr = date("%F %T");
+  string sql;
+  sql = Strings::Format("INSERT INTO `found_blocks` "
+                        " (`user_id`, `worker_id`, `worker_full_name`, `job_id`"
+                        "  ,`height`, `hash`, `rewards`, `size`, `prev_hash`"
+                        "  ,`bits`, `version`, `created_at`)"
+                        " VALUES (%d,%" PRId64",\"%s\", %" PRIu64",%d,\"%s\""
+                        "  ,%" PRId64",%d,\"%s\",%u,%d,\"%s\"); ",
+                        foundBlock.userId_, foundBlock.workerId_,
+                        // filter again, just in case
+                        filterWorkerName(foundBlock.workerFullName_).c_str(),
+                        foundBlock.jobId_, foundBlock.height_,
+                        header.GetHash().ToString().c_str(),
+                        coinbaseValue, blksize,
+                        header.hashPrevBlock.ToString().c_str(),
+                        header.nBits, header.nVersion, nowStr.c_str());
+
+  // try connect to DB
+  MySQLConnection db(poolDB_);
+  for (size_t i = 0; i < 3; i++) {
+    if (db.ping())
+      break;
+    else
+      sleep(3);
+  }
+
+  if (db.execute(sql) == false) {
+    LOG(ERROR) << "insert found block failure: " << sql;
+  }
 }
 
 bool BlockMaker::checkBitcoinds() {
@@ -327,9 +374,9 @@ void BlockMaker::submitBlock(const string &blockHex) {
   }
 }
 
-void BlockMaker::_submitBlockThread(const string rpcAddress,
-                                    const string rpcUserpass,
-                                    const string blockHex) {
+void BlockMaker::_submitBlockThread(const string &rpcAddress,
+                                    const string &rpcUserpass,
+                                    const string &blockHex) {
   string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"submitblock\",\"params\":[\"";
   request += blockHex + "\"]}";
 

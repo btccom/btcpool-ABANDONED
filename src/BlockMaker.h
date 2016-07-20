@@ -26,6 +26,7 @@
 
 #include "Common.h"
 #include "Kafka.h"
+#include "MySQLConnection.h"
 #include "Stratum.h"
 
 #include <deque>
@@ -60,6 +61,8 @@ class BlockMaker {
   // pair: <RpcAddress, RpcUserpass>
   std::vector<std::pair<string, string>> bitcoindRpcUri_;
 
+  MysqlConnectInfo poolDB_;      // save blocks to table.found_blocks
+
   void insertRawGbt(const uint256 &gbtHash,
                     shared_ptr<vector<CTransaction>> vtxs);
 
@@ -76,13 +79,20 @@ class BlockMaker {
 
   void addRawgbt(const char *str, size_t len);
 
+  void saveBlockToDB(const FoundBlock &foundBlock,
+                     const CBlockHeader &header,
+                     const uint64_t coinbaseValue, const int32_t blksize);
+  void _saveBlockToDBThread(const FoundBlock &foundBlock,
+                            const CBlockHeader &header,
+                            const uint64_t coinbaseValue, const int32_t blksize);
+
   void submitBlock(const string &blockHex);
-  void _submitBlockThread(const string rpcAddress, const string rpcUserpass,
-                          const string blockHex);
+  void _submitBlockThread(const string &rpcAddress, const string &rpcUserpass,
+                          const string &blockHex);
   bool checkBitcoinds();
 
 public:
-  BlockMaker(const char *kafkaBrokers);
+  BlockMaker(const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
   ~BlockMaker();
 
   void addBitcoind(const string &rpcAddress, const string &rpcUserpass);

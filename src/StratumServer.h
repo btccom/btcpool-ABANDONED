@@ -270,12 +270,12 @@ public:
   static void readCallback (struct bufferevent *, void *connection);
   static void eventCallback(struct bufferevent *, short, void *connection);
 
-  int checkShare(const uint64_t jobId,
+  int checkShare(const Share &share,
                  const uint32 extraNonce1, const string &extraNonce2Hex,
                  const uint32_t nTime, const uint32_t nonce,
                  const uint256 &jobTarget, const string &workFullName);
   void sendShare2Kafka      (const uint8_t *data, size_t len);
-  void sendSolvedShare2Kafka(const uint64_t jobId, const CBlockHeader &header,
+  void sendSolvedShare2Kafka(const FoundBlock *foundBlock,
                              const std::vector<char> &coinbaseBin);
 };
 

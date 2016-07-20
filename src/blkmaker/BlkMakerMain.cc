@@ -107,7 +107,17 @@ int main(int argc, char **argv) {
   signal(SIGTERM, handler);
   signal(SIGINT,  handler);
 
-  gBlockMaker = new BlockMaker(cfg.lookup("kafka.brokers").c_str());
+  MysqlConnectInfo *poolDBInfo = nullptr;
+  {
+    int32_t poolDBPort = 3306;
+    cfg.lookupValue("pooldb.port", poolDBPort);
+    poolDBInfo = new MysqlConnectInfo(cfg.lookup("pooldb.host"), poolDBPort,
+                                      cfg.lookup("pooldb.username"),
+                                      cfg.lookup("pooldb.password"),
+                                      cfg.lookup("pooldb.dbname"));
+  }
+
+  gBlockMaker = new BlockMaker(cfg.lookup("kafka.brokers").c_str(), *poolDBInfo);
 
   // add bitcoinds
   {

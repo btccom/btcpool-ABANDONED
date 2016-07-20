@@ -150,14 +150,14 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   }
   // make sure the job is not expired.
   if (jobId2Time(sjob->jobId_) + 60 < time(nullptr)) {
-    LOG(FATAL) << "too large delay from kafka to receive topic 'StratumJob'";
+    LOG(ERROR) << "too large delay from kafka to receive topic 'StratumJob'";
     delete sjob;
     return;
   }
   // here you could use Map.find() without lock, it's sure
   // that everyone is using this Map readonly now
   if (exJobs_.find(sjob->jobId_) != exJobs_.end()) {
-    LOG(FATAL) << "jobId already existed";
+    LOG(ERROR) << "jobId already existed";
     delete sjob;
     return;
   }
@@ -799,11 +799,11 @@ void Server::eventCallback(struct bufferevent* bev, short events,
   }
 }
 
-int Server::checkShare(const uint64_t jobId,
+int Server::checkShare(const Share &share,
                        const uint32 extraNonce1, const string &extraNonce2Hex,
                        const uint32_t nTime, const uint32_t nonce,
                        const uint256 &jobTarget, const string &workFullName) {
-  shared_ptr<StratumJobEx> exJobPtr = jobRepository_->getStratumJobEx(jobId);
+  shared_ptr<StratumJobEx> exJobPtr = jobRepository_->getStratumJobEx(share.jobId_);
   if (exJobPtr == nullptr) {
     return StratumError::JOB_NOT_FOUND;
   }
@@ -831,12 +831,24 @@ int Server::checkShare(const uint64_t jobId,
   // found new block
   //
   if (blkHash <= sjob->networkTarget_) {
-    // send solved share to kafka
-    sendSolvedShare2Kafka(jobId, header, coinbaseBin);
+    //
+    // build found block
+    //
+    FoundBlock foundBlock;
+    foundBlock.jobId_    = share.jobId_;
+    foundBlock.workerId_ = share.workerHashId_;
+    foundBlock.userId_   = share.userId_;
+    foundBlock.height_   = sjob->height_;
+    memcpy(foundBlock.header80_, (const uint8_t *)&header, sizeof(CBlockHeader));
+    snprintf(foundBlock.workerFullName_, sizeof(foundBlock.workerFullName_),
+             "%s", workFullName.c_str());
+    // send
+    sendSolvedShare2Kafka(&foundBlock, coinbaseBin);
 
     jobRepository_->markAllJobsAsStale();
     LOG(INFO) << ">>>> found a new block: " << blkHash.ToString()
-    << ", jobId: " << jobId << ", by: " << workFullName << " <<<<";
+    << ", jobId: " << share.jobId_ << ", userId: " << share.userId_
+    << ", by: " << workFullName << " <<<<";
   }
 
   // print out high diff share, 2^10 = 1024
@@ -863,28 +875,19 @@ void Server::sendShare2Kafka(const uint8_t *data, size_t len) {
   kafkaProducerShareLog_->produce(data, len);
 }
 
-void Server::sendSolvedShare2Kafka(const uint64_t jobId,
-                                   const CBlockHeader &header,
+void Server::sendSolvedShare2Kafka(const FoundBlock *foundBlock,
                                    const std::vector<char> &coinbaseBin) {
   ScopeLock sl(producerSolvedShareLock_);
   //
-  // solved share message:
-  //
-  //     jobId         BlockHeader       coinbase_Tx
-  //    --------  --------------------   -----------
-  //    8 bytes         80 bytes          not fixed
+  // solved share message:  FoundBlock + coinbase_Tx
   //
   string buf;
-  buf.resize(sizeof(uint64_t) + sizeof(CBlockHeader) + coinbaseBin.size());
+  buf.resize(sizeof(FoundBlock) + coinbaseBin.size());
   uint8_t *p = (uint8_t *)buf.data();
 
-  // jobId
-  memcpy(p, (const uint8_t *)&jobId, sizeof(uint64_t));
-  p += sizeof(uint64_t);
-
-  // Block Header
-  memcpy(p, (const uint8_t *)&header, sizeof(CBlockHeader));
-  p += sizeof(CBlockHeader);
+  // FoundBlock
+  memcpy(p, (const uint8_t *)foundBlock, sizeof(FoundBlock));
+  p += sizeof(FoundBlock);
 
   // coinbase TX
   memcpy(p, coinbaseBin.data(), coinbaseBin.size());

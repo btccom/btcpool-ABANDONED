@@ -543,7 +543,7 @@ void StratumSession::handleRequest_Submit(const string &idStr,
     goto finish;
   }
 
-  submitResult = server_->checkShare(jobId, extraNonce1_, extraNonce2Hex, nTime,
+  submitResult = server_->checkShare(share, extraNonce1_, extraNonce2Hex, nTime,
                                      nonce, localJob->jobTarget_, worker_.fullName_);
   if (submitResult == StratumError::NO_ERROR) {
     // accepted share
