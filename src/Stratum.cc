@@ -94,7 +94,16 @@ const char * StratumError::toString(int err) {
 //////////////////////////////// StratumWorker ////////////////////////////////
 StratumWorker::StratumWorker(): userId_(0), workerHashId_(0) {}
 
-string StratumWorker::getUserName(const string &fullName) {
+void StratumWorker::reset() {
+  userId_ = 0;
+  workerHashId_ = 0;
+
+  fullName_.clear();
+  userName_.clear();
+  workerName_.clear();
+}
+
+string StratumWorker::getUserName(const string &fullName) const {
   auto pos = fullName.find(".");
   if (pos == fullName.npos) {
     return fullName;
@@ -103,12 +112,12 @@ string StratumWorker::getUserName(const string &fullName) {
 }
 
 void StratumWorker::setUserIDAndNames(const int32_t userId, const string &fullName) {
+  reset();
   userId_ = userId;
 
   auto pos = fullName.find(".");
   if (pos == fullName.npos) {
     userName_   = fullName;
-    workerName_ = "default";
   } else {
     userName_   = fullName.substr(0, pos);
     workerName_ = fullName.substr(pos+1);
@@ -122,12 +131,16 @@ void StratumWorker::setUserIDAndNames(const int32_t userId, const string &fullNa
     workerName_.resize(20);
   }
 
+  if (workerName_.empty()) {
+    workerName_ = "default";
+  }
+
   // calc worker hash id, 64bits
   // https://en.wikipedia.org/wiki/Birthday_attack
   const uint256 workerNameHash = Hash(workerName_.begin(), workerName_.end());
 
   // need to convert to uint64 first than copy memory
-  const uint64_t tmpId = strtoul(workerNameHash.ToString().substr(0, 16).c_str(), nullptr, 16);
+  const uint64_t tmpId = strtoull(workerNameHash.ToString().substr(0, 16).c_str(), nullptr, 16);
   memcpy((uint8_t *)&workerHashId_, (uint8_t *)&tmpId, 8);
   
   if (workerHashId_ == 0) {  // zero is kept
@@ -304,7 +317,7 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
   const string jobIdStr = Strings::Format("%08x%s", (uint32_t)time(nullptr),
                                           gbtHash.ToString().substr(0, 8).c_str());
   assert(jobIdStr.length() == 16);
-  jobId_ = stoull(jobIdStr, 0, 16/* hex */);
+  jobId_ = strtoull(jobIdStr.c_str(), nullptr, 16/* hex */);
 
   gbtHash_ = gbtHash.ToString();
 

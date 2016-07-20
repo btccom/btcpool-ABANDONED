@@ -181,10 +181,12 @@ public:
   string userName_;
   string workerName_;  // workername, max is: 20
 
+  void reset();
+
 public:
   StratumWorker();
   void setUserIDAndNames(const int32_t userId, const string &fullName);
-  string getUserName(const string &fullName);
+  string getUserName(const string &fullName) const ;
 };
 
 
@@ -207,7 +209,7 @@ public:
 //                 prepared hashes of steps of merkle tree algorithm.
 // version    - Bitcoin block version.
 // nbits      - Encoded current network difficulty
-// ntime      - Current ntime/
+// ntime      - Current ntime
 // clean_jobs - When true, server indicates that submitting shares from previous
 //              jobs don't have a sense and such shares will be rejected. When
 //              this flag is set, miner should also drop all previous jobs,
