@@ -64,7 +64,7 @@ class SessionIDManager {
   //   xxxxxxxx     xxxxxxxx xxxxxxxx xxxxxxxx
   //  ----------    --------------------------
   //  server ID          session id
-  //   [1, 255]        range: [0, 2^24)
+  //   [1, 255]        range: [0, MAX_SESSION_INDEX_SERVER]
   //
   uint8_t serverId_;
   std::bitset<MAX_SESSION_INDEX_SERVER + 1> sessionIds_;

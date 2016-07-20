@@ -99,16 +99,6 @@ public:
 
 
 
-//
-// cgminer support methods:
-//   mining.notify
-//   mining.set_difficulty
-//   client.reconnect
-//   client.get_version
-//   client.show_message
-//   mining.ping
-//
-
 //////////////////////////////// StratumSession ////////////////////////////////
 class StratumSession {
   // mining state
