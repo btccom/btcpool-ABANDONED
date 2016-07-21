@@ -102,3 +102,7 @@ target_link_libraries(slparser poolcomponents ${THRID_LIBRARIES})
 file(GLOB_RECURSE BLKMAKER_SOURCES src/blkmaker/*.cc)
 add_executable(blkmaker ${BLKMAKER_SOURCES})
 target_link_libraries(blkmaker poolcomponents ${THRID_LIBRARIES})
+
+file(GLOB_RECURSE SIMULATOR_SOURCES src/simulator/*.cc)
+add_executable(simulator ${SIMULATOR_SOURCES})
+target_link_libraries(simulator poolcomponents ${THRID_LIBRARIES})
