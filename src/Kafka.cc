@@ -362,15 +362,16 @@ bool KafkaProducer::setup() {
   // queue.buffering.max.ms:
   //         set to 1 (0 is an illegal value here), deliver msg as soon as possible.
   // queue.buffering.max.messages:
-  //         100 is enough for gbt
+  //         submit share will be a lot
   // message.max.bytes:
   //         Maximum transmit message size. 20000000 = 20,000,000
   //
   // TODO: increase 'message.max.bytes' in the feature
   //
   const vector<string> conKeys = {"message.max.bytes", "compression.codec",
-    "queue.buffering.max.ms", "queue.buffering.max.messages"};
-  const vector<string> conVals = {"20000000", "snappy", "1", "100"};
+    "queue.buffering.max.ms", "queue.buffering.max.messages",
+    "batch.num.messages"};
+  const vector<string> conVals = {"20000000", "snappy", "5000", "20000", "50000"};
   assert(conKeys.size() == conVals.size());
 
   for (size_t i = 0; i < conKeys.size(); i++) {
