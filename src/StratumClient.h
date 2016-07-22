@@ -110,4 +110,27 @@ public:
   void submitShares();
 };
 
+
+
+//////////////////////////////// TCPClientWrapper //////////////////////////////
+// simple tcp wrapper, use for test
+class TCPClientWrapper {
+  struct sockaddr_in servAddr_;  // server addr
+  int sockfd_;
+  struct evbuffer *inBuf_;
+
+  void recv();
+
+public:
+  TCPClientWrapper();
+  ~TCPClientWrapper();
+
+  bool connect(const char *host, const int port);
+  void send(const char *data, const size_t len);
+  inline void send(const string &s) {
+    send(s.data(), s.size());
+  }
+  void getLine(string &line);
+};
+
 #endif

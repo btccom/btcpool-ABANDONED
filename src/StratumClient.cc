@@ -25,6 +25,8 @@
 #include "Utils.h"
 
 #include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 
 ///////////////////////////////// StratumClient ////////////////////////////////
 StratumClient::StratumClient(struct event_base* base,
@@ -70,6 +72,8 @@ void StratumClient::readBuf(struct evbuffer *buf) {
 }
 
 bool StratumClient::tryReadLine(string &line) {
+  line.clear();
+  
   // find eol
   struct evbuffer_ptr loc;
   loc = evbuffer_search_eol(inBuf_, nullptr, nullptr, EVBUFFER_EOL_LF);
@@ -229,7 +233,7 @@ void StratumClientWrapper::eventCallback(struct bufferevent *bev,
   if (events & BEV_EVENT_CONNECTED) {
     client->state_ = StratumClient::State::CONNECTED;
     // subscribe
-    client->sendData("{\"id\": 1, \"method\": \"mining.subscribe\", \"params\": []}\n");
+    client->sendData("{\"id\":1,\"method\":\"mining.subscribe\",\"params\":[\"__simulator__/0.1\"]}\n");
   }
   else if (events & BEV_EVENT_ERROR) {
     /* An error occured while connecting. */
@@ -284,5 +288,81 @@ void StratumClientWrapper::submitShares() {
   for (auto &conn : connections_) {
     conn->submitShare();
   }
+}
+
+
+
+//////////////////////////////// TCPClientWrapper //////////////////////////////
+TCPClientWrapper::TCPClientWrapper() {
+  sockfd_ = socket(AF_INET, SOCK_STREAM, 0);
+  assert(sockfd_ >= 0);
+
+  inBuf_ = evbuffer_new();
+}
+
+TCPClientWrapper::~TCPClientWrapper() {
+  evbuffer_free(inBuf_);
+  close(sockfd_);
+}
+
+bool TCPClientWrapper::connect(const char *host, const int port) {
+  struct sockaddr_in sin;
+  memset(&sin, 0, sizeof(sin));
+
+  sin.sin_family = AF_INET;
+  inet_pton(AF_INET, host, &(sin.sin_addr));
+  sin.sin_port = htons(port);
+
+  if (::connect(sockfd_, (struct sockaddr *)&sin, sizeof(sin)) == 0) {
+    return true;
+  }
+
+  LOG(ERROR) << "connect fail: " << strerror(errno);
+  return false;
+}
+
+void TCPClientWrapper::send(const char *data, const size_t len) {
+  ::send(sockfd_, data, len, 0);
+//  DLOG(INFO) << "send: " << data;
+}
+
+void TCPClientWrapper::recv() {
+  string buf;
+  buf.resize(4096);  // we assume 4096 is big enough
+
+  ssize_t bytes = ::recv(sockfd_, (void *)buf.data(), buf.size(), 0);
+  if (bytes == -1) {
+    LOG(ERROR) << "recv fail: " << strerror(errno);
+    return;
+  }
+  if (bytes == 0) {
+    return;
+  }
+  buf.resize(bytes);
+
+  // put data to evbuffer
+  evbuffer_add(inBuf_, buf.data(), buf.size());
+
+//  DLOG(INFO) << "recv: " << buf;
+}
+
+void TCPClientWrapper::getLine(string &line) {
+  line.clear();
+  if (evbuffer_get_length(inBuf_) == 0)
+  	recv();
+
+  // find eol
+  struct evbuffer_ptr loc;
+  loc = evbuffer_search_eol(inBuf_, nullptr, nullptr, EVBUFFER_EOL_LF);
+  if (loc.pos == -1) {
+    return;  // not found
+  }
+
+  // copies and removes the first datlen bytes from the front of buf
+  // into the memory at data
+  line.resize(loc.pos + 1);  // containing "\n"
+  evbuffer_remove(inBuf_, (void *)line.data(), line.size());
+
+  LOG(INFO) << "line: " << line;
 }
 

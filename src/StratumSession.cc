@@ -260,6 +260,8 @@ void StratumSession::setReadTimeout(const int32_t timeout) {
 }
 
 bool StratumSession::tryReadLine(string &line) {
+  line.clear();
+
   // find eol
   struct evbuffer_ptr loc;
   loc = evbuffer_search_eol(inBuf_, nullptr, nullptr, EVBUFFER_EOL_LF);
