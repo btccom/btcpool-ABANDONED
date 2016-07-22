@@ -308,11 +308,11 @@ void StratumSession::handleLine(const string &line) {
 
 void StratumSession::responseError(const string &idStr, int errCode) {
   //
-  // {"id": 10, "result": null, "error": (21, "Job not found", null)}
+  // {"id": 10, "result": null, "error":[21, "Job not found", null]}
   //
   char buf[1024];
   int len = snprintf(buf, sizeof(buf),
-                     "{\"id\":%s,\"result\":null,\"error\":(%d,\"%s\",null)}\n",
+                     "{\"id\":%s,\"result\":null,\"error\":[%d,\"%s\",null]}\n",
                      idStr.empty() ? "null" : idStr.c_str(),
                      errCode, StratumError::toString(errCode));
   sendData(buf, len);
