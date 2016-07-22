@@ -44,7 +44,6 @@
 class StratumClient {
   struct bufferevent *bev_;
   struct evbuffer *inBuf_;
-  size_t lastNoEOLPos_;
 
   uint32_t extraNonce1_;  // session ID
   uint64_t extraNonce2_;
@@ -72,9 +71,9 @@ public:
 
   bool connect(struct sockaddr_in &sin);
 
-  void send(const char *data, size_t len);
-  inline void send(const string &str) {
-    send(str.data(), str.size());
+  void sendData(const char *data, size_t len);
+  inline void sendData(const string &str) {
+    sendData(str.data(), str.size());
   }
 
   void readBuf(struct evbuffer *buf);

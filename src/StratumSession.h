@@ -172,8 +172,6 @@ private:
   size_t kMaxNumLocalJobs_;
 
   struct evbuffer *inBuf_;
-  mutex  writeLock_;
-  size_t lastNoEOLPos_;
   bool   isPoolWatcher_;
 
   void setup();
@@ -208,9 +206,9 @@ public:
 
   void sendSetDifficulty(const uint64_t difficulty);
   void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr);
-  void send(const char *data, size_t len);
-  inline void send(const string &str) {
-    send(str.data(), str.size());
+  void sendData(const char *data, size_t len);
+  inline void sendData(const string &str) {
+    sendData(str.data(), str.size());
   }
   void readBuf(struct evbuffer *buf);
 };

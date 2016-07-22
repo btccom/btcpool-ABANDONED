@@ -33,6 +33,7 @@
 #include <boost/interprocess/sync/file_lock.hpp>
 #include <glog/logging.h>
 #include <libconfig.h++>
+#include <event2/thread.h>
 
 #include "zmq.hpp"
 
@@ -138,6 +139,8 @@ int main(int argc, char **argv) {
                                         cfg.lookup("pooldb.password"),
                                         cfg.lookup("pooldb.dbname"));
     }
+
+    evthread_use_pthreads();
 
     // new StratumServer
     gStratumServer = new StratumServer(cfg.lookup("sserver.ip").c_str(),

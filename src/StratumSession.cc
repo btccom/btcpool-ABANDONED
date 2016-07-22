@@ -212,8 +212,7 @@ bev_(bev), fd_(fd), server_(server)
   // usually stratum job interval is 30~60 seconds, 10 is enough for miners
   kMaxNumLocalJobs_ = 10;
 
-  inBuf_ = evbuffer_new();
-  lastNoEOLPos_ = 0;
+  inBuf_  = evbuffer_new();
   isPoolWatcher_ = false;
 
   clientAgent_ = "unknown";
@@ -236,7 +235,7 @@ StratumSession::~StratumSession() {
   LOG(INFO) << "close stratum session, ip: " << clientIp_
   << ", name: \"" << worker_.fullName_ << "\"";
 
-  close(fd_);
+//  close(fd_);  // we don't need to close because we set 'BEV_OPT_CLOSE_ON_FREE'
   evbuffer_free(inBuf_);
   bufferevent_free(bev_);
 }
@@ -251,48 +250,31 @@ void StratumSession::setup() {
 }
 
 void StratumSession::setReadTimeout(const int32_t timeout) {
+  // clear it
   bufferevent_set_timeouts(bev_, NULL, NULL);
 
-  if (timeout) {
-    struct timeval tv = {timeout, 0};
-    bufferevent_set_timeouts(bev_, &tv, NULL);
-  }
+  // set a new one
+  struct timeval rtv = {timeout, 0};
+  struct timeval wtv = {120, 0};
+  bufferevent_set_timeouts(bev_, &rtv, &wtv);
 }
 
 bool StratumSession::tryReadLine(string &line) {
-  const size_t bufLen = evbuffer_get_length(inBuf_);
-  if (bufLen == 0)
-    return false;
-
-  // try to search EOL: "\n"
-  // evbuffer_search(): returns an evbuffer_ptr containing the position of the string
-  struct evbuffer_ptr p;
-  evbuffer_ptr_set(inBuf_, &p, lastNoEOLPos_, EVBUFFER_PTR_SET);
-  p = evbuffer_search(inBuf_, "\n", 1, &p);
-
-  // the 'pos' field of the result is -1 if the string was not found.
-  // can't find EOL, ingore and return
-  if (p.pos == -1) {
-    lastNoEOLPos_ = bufLen - 1;  // set pos to the end of buffer
-    return false;
+  // find eol
+  struct evbuffer_ptr loc;
+  loc = evbuffer_search_eol(inBuf_, nullptr, nullptr, EVBUFFER_EOL_LF);
+  if (loc.pos == -1) {
+    return false;  // not found
   }
 
-  LOG(INFO) << "p.pos: " << p.pos << ", bufLen: " << bufLen;
-  // found EOL
-  lastNoEOLPos_ = 0;  // reset to zero
-  const size_t lineLen = p.pos + 1;  // containing "\n"
-
-  // copies and removes the first datlen bytes from the front of buf into the memory at data
-  line.resize(lineLen);
-  evbuffer_remove(inBuf_, (void *)line.data(), lineLen);
+  // copies and removes the first datlen bytes from the front of buf
+  // into the memory at data
+  line.resize(loc.pos + 1);  // containing "\n"
+  evbuffer_remove(inBuf_, (void *)line.data(), line.size());
   return true;
 }
 
 void StratumSession::handleLine(const string &line) {
-//  string hex;
-//  Bin2Hex((uint8_t *)line.data(), line.size(), hex);
-//  LOG(INFO) << "dump line, hex: " << hex;
-
   DLOG(INFO) << "recv(" << line.size() << "): " << line;
 
   JsonNode jnode;
@@ -331,12 +313,12 @@ void StratumSession::responseError(const string &idStr, int errCode) {
                      "{\"id\":%s,\"result\":null,\"error\":(%d,\"%s\",null)}\n",
                      idStr.empty() ? "null" : idStr.c_str(),
                      errCode, StratumError::toString(errCode));
-  send(buf, len);
+  sendData(buf, len);
 }
 
 void StratumSession::responseTrue(const string &idStr) {
   const string s = "{\"id\":" + idStr + ",\"result\":true,\"error\":null}\n";
-  send(s);
+  sendData(s);
 }
 
 void StratumSession::handleRequest(const string &idStr, const string &method,
@@ -370,7 +352,7 @@ void StratumSession::handleRequest_MultiVersion(const string &idStr,
 //  // we ignore right now, 2016-07-04
 //  const string s = Strings::Format("{\"id\":%s,\"method\":\"mining.midstate_change\",\"params\":[4]}",
 //                                   idStr.c_str());
-//  send(s);
+//  sendData(s);
 }
 
 void StratumSession::handleRequest_Subscribe(const string &idStr,
@@ -401,7 +383,7 @@ void StratumSession::handleRequest_Subscribe(const string &idStr,
   const string s = Strings::Format("{\"id\":%s,\"result\":[[[\"mining.set_difficulty\",\"%08x\"]"
                                    ",[\"mining.notify\",\"%08x\"]],\"%08x\",%d],\"error\":null}\n",
                                    idStr.c_str(), extraNonce1_, extraNonce1_, extraNonce1_, kExtraNonce2Size_);
-  send(s);
+  sendData(s);
 
   if (clientAgent_ == "__PoolWatcher__") {
     isPoolWatcher_ = true;
@@ -494,7 +476,7 @@ void StratumSession::handleRequest_Submit(const string &idStr,
 
     // there must be something wrong, send reconnect command
     const string s = "{\"id\":null,\"method\":\"client.reconnect\",\"params\":[]}\n";
-    send(s);
+    sendData(s);
 
     return;
   }
@@ -573,7 +555,7 @@ void StratumSession::sendSetDifficulty(const uint64_t difficulty) {
   string s = Strings::Format("{\"id\":null,\"method\":\"mining.set_difficulty\""
                              ",\"params\":[%" PRIu64"]}\n",
                              difficulty);
-  send(s);
+  sendData(s);
 }
 
 void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr) {
@@ -594,7 +576,7 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr) {
     currDiff_ = ljob.jobDifficulty_;
   }
 
-  send(exJobPtr->miningNotify_);
+  sendData(exJobPtr->miningNotify_);
 
   // clear localJobs_
   while (localJobs_.size() > kMaxNumLocalJobs_) {
@@ -602,12 +584,11 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr) {
   }
 }
 
-void StratumSession::send(const char *data, size_t len) {
-  ScopeLock sl(writeLock_);
-
+void StratumSession::sendData(const char *data, size_t len) {
   // add data to a bufferevent’s output buffer
+  bufferevent_lock(bev_);
   bufferevent_write(bev_, data, len);
-
+  bufferevent_unlock(bev_);
   DLOG(INFO) << "send(" << len << "): " << data;
 }
 
