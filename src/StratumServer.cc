@@ -755,20 +755,20 @@ void Server::listenerCallback(struct evconnlistener* listener,
   struct event_base  *base = (struct event_base*)server->base_;
   struct bufferevent *bev;
 
-  bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE);
-  if(!bev) {
-    event_base_loopbreak(base);
+  bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE|BEV_OPT_THREADSAFE);
+  if(bev == nullptr) {
     LOG(ERROR) << "error constructing bufferevent!";
+    server->stop();
     return;
   }
 
   StratumSession* conn = new StratumSession(fd, bev, server, saddr,
                                             server->kShareAvgSeconds_);
   bufferevent_setcb(bev,
-                    Server::readCallback,
-                    NULL,  /* we use bufferevent, so don't need to watch write events */
+                    Server::readCallback, nullptr,
                     Server::eventCallback, (void*)conn);
-  bufferevent_enable(bev, EV_READ);
+  // By default, a newly created bufferevent has writing enabled.
+  bufferevent_enable(bev, EV_READ|EV_WRITE);
 
   server->addConnection(fd, conn);
 }
@@ -783,20 +783,23 @@ void Server::eventCallback(struct bufferevent* bev, short events,
   StratumSession *conn = static_cast<StratumSession *>(connection);
   Server       *server = static_cast<Server *>(conn->server_);
 
+  // should not be 'BEV_EVENT_CONNECTED'
+  assert((events & BEV_EVENT_CONNECTED) != BEV_EVENT_CONNECTED);
+
   if (events & BEV_EVENT_EOF) {
-    server->removeConnection(conn->fd_);
-  }
-  else if (events & (BEV_EVENT_TIMEOUT|BEV_EVENT_READING)) {
-    LOG(INFO) << "connection read timeout";
-    server->removeConnection(conn->fd_);
+    LOG(INFO) << "socket closed";
   }
   else if (events & BEV_EVENT_ERROR) {
-    LOG(ERROR) << "got an error on the connection: " << strerror(errno);
-    server->removeConnection(conn->fd_);
+    LOG(ERROR) << "got an error on the socket: "
+    << evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR());
+  }
+  else if (events & BEV_EVENT_TIMEOUT) {
+    LOG(INFO) << "socket read/write timeout, events: " << events;
   }
   else {
-    LOG(ERROR) << "unhandled events: " << events;
+    LOG(ERROR) << "unhandled socket events: " << events;
   }
+  server->removeConnection(conn->fd_);
 }
 
 int Server::checkShare(const Share &share,

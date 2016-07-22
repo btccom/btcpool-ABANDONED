@@ -25,26 +25,22 @@
 #include "Utils.h"
 
 #include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 
 ///////////////////////////////// StratumClient ////////////////////////////////
 StratumClient::StratumClient(struct event_base* base,
                              const string &workerFullName)
 : workerFullName_(workerFullName), isMining_(false)
 {
-  bev_ = bufferevent_socket_new(base, -1, BEV_OPT_CLOSE_ON_FREE);
   inBuf_ = evbuffer_new();
-  lastNoEOLPos_ = 0;
+  bev_ = bufferevent_socket_new(base, -1, BEV_OPT_CLOSE_ON_FREE|BEV_OPT_THREADSAFE);
+  assert(bev_ != nullptr);
 
-//  bufferevent_setcb(bev_,
-//                    StratumClientWrapper::readCallback,
-//                    StratumClientWrapper::writeCallback,
-//                    StratumClientWrapper::eventCallback, this);
-//  bufferevent_enable(bev_, EV_READ|EV_WRITE);
   bufferevent_setcb(bev_,
-                    StratumClientWrapper::readCallback,
-                    nullptr,
+                    StratumClientWrapper::readCallback, nullptr,
                     StratumClientWrapper::eventCallback, this);
-  bufferevent_enable(bev_, EV_READ);
+  bufferevent_enable(bev_, EV_READ|EV_WRITE);
 
   state_ = INIT;
   latestDiff_ = 1;
@@ -76,31 +72,19 @@ void StratumClient::readBuf(struct evbuffer *buf) {
 }
 
 bool StratumClient::tryReadLine(string &line) {
-  const size_t bufLen = evbuffer_get_length(inBuf_);
-  if (bufLen == 0)
-    return false;
-
-  // try to search EOL: "\n"
-  // evbuffer_search(): returns an evbuffer_ptr containing the position of the string
-  struct evbuffer_ptr p;
-  evbuffer_ptr_set(inBuf_, &p, lastNoEOLPos_, EVBUFFER_PTR_SET);
-  p = evbuffer_search(inBuf_, "\n", 1, &p);
-
-  // the 'pos' field of the result is -1 if the string was not found.
-  // can't find EOL, ingore and return
-  if (p.pos == -1) {
-    lastNoEOLPos_ = bufLen - 1;  // set pos to the end of buffer
-    return false;
+  line.clear();
+  
+  // find eol
+  struct evbuffer_ptr loc;
+  loc = evbuffer_search_eol(inBuf_, nullptr, nullptr, EVBUFFER_EOL_LF);
+  if (loc.pos == -1) {
+    return false;  // not found
   }
 
-  LOG(INFO) << "p.pos: " << p.pos << ", bufLen: " << bufLen;
-  // found EOL
-  lastNoEOLPos_ = 0;  // reset to zero
-  const size_t lineLen = p.pos + 1;  // containing "\n"
-
-  // copies and removes the first datlen bytes from the front of buf into the memory at data
-  line.resize(lineLen);
-  evbuffer_remove(inBuf_, (void *)line.data(), lineLen);
+  // copies and removes the first datlen bytes from the front of buf
+  // into the memory at data
+  line.resize(loc.pos + 1);  // containing "\n"
+  evbuffer_remove(inBuf_, (void *)line.data(), line.size());
   return true;
 }
 
@@ -170,7 +154,7 @@ void StratumClient::handleLine(const string &line) {
     string s = Strings::Format("{\"id\": 1, \"method\": \"mining.authorize\","
                                "\"params\": [\"\%s\", \"\"]}\n",
                                workerFullName_.c_str());
-    send(s);
+    sendData(s);
     return;
   }
 
@@ -193,12 +177,14 @@ void StratumClient::submitShare() {
                       extraNonce2_++,
                       (uint32_t)time(nullptr) /* ntime */,
                       (uint32_t)time(nullptr) /* nonce */);
-  send(s);
+  sendData(s);
 }
 
-void StratumClient::send(const char *data, size_t len) {
+void StratumClient::sendData(const char *data, size_t len) {
   // add data to a bufferevent’s output buffer
+  bufferevent_lock(bev_);
   bufferevent_write(bev_, data, len);
+  bufferevent_unlock(bev_);
   DLOG(INFO) << "send(" << len << "): " << data;
 }
 
@@ -247,12 +233,12 @@ void StratumClientWrapper::eventCallback(struct bufferevent *bev,
   if (events & BEV_EVENT_CONNECTED) {
     client->state_ = StratumClient::State::CONNECTED;
     // subscribe
-    client->send("{\"id\": 1, \"method\": \"mining.subscribe\", \"params\": []}\n");
+    client->sendData("{\"id\":1,\"method\":\"mining.subscribe\",\"params\":[\"__simulator__/0.1\"]}\n");
   }
   else if (events & BEV_EVENT_ERROR) {
     /* An error occured while connecting. */
     // TODO
-    LOG(ERROR) << "event error: " << events;
+    LOG(ERROR) << "event error: " << evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR());
   }
 }
 
@@ -306,8 +292,77 @@ void StratumClientWrapper::submitShares() {
 
 
 
+//////////////////////////////// TCPClientWrapper //////////////////////////////
+TCPClientWrapper::TCPClientWrapper() {
+  sockfd_ = socket(AF_INET, SOCK_STREAM, 0);
+  assert(sockfd_ >= 0);
 
+  inBuf_ = evbuffer_new();
+}
 
+TCPClientWrapper::~TCPClientWrapper() {
+  evbuffer_free(inBuf_);
+  close(sockfd_);
+}
 
+bool TCPClientWrapper::connect(const char *host, const int port) {
+  struct sockaddr_in sin;
+  memset(&sin, 0, sizeof(sin));
 
+  sin.sin_family = AF_INET;
+  inet_pton(AF_INET, host, &(sin.sin_addr));
+  sin.sin_port = htons(port);
+
+  if (::connect(sockfd_, (struct sockaddr *)&sin, sizeof(sin)) == 0) {
+    return true;
+  }
+
+  LOG(ERROR) << "connect fail: " << strerror(errno);
+  return false;
+}
+
+void TCPClientWrapper::send(const char *data, const size_t len) {
+  ::send(sockfd_, data, len, 0);
+//  DLOG(INFO) << "send: " << data;
+}
+
+void TCPClientWrapper::recv() {
+  string buf;
+  buf.resize(4096);  // we assume 4096 is big enough
+
+  ssize_t bytes = ::recv(sockfd_, (void *)buf.data(), buf.size(), 0);
+  if (bytes == -1) {
+    LOG(ERROR) << "recv fail: " << strerror(errno);
+    return;
+  }
+  if (bytes == 0) {
+    return;
+  }
+  buf.resize(bytes);
+
+  // put data to evbuffer
+  evbuffer_add(inBuf_, buf.data(), buf.size());
+
+//  DLOG(INFO) << "recv: " << buf;
+}
+
+void TCPClientWrapper::getLine(string &line) {
+  line.clear();
+  if (evbuffer_get_length(inBuf_) == 0)
+  	recv();
+
+  // find eol
+  struct evbuffer_ptr loc;
+  loc = evbuffer_search_eol(inBuf_, nullptr, nullptr, EVBUFFER_EOL_LF);
+  if (loc.pos == -1) {
+    return;  // not found
+  }
+
+  // copies and removes the first datlen bytes from the front of buf
+  // into the memory at data
+  line.resize(loc.pos + 1);  // containing "\n"
+  evbuffer_remove(inBuf_, (void *)line.data(), line.size());
+
+  LOG(INFO) << "line: " << line;
+}
 

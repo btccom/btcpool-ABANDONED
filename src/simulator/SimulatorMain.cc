@@ -33,6 +33,7 @@
 #include <boost/interprocess/sync/file_lock.hpp>
 #include <glog/logging.h>
 #include <libconfig.h++>
+#include <event2/thread.h>
 
 #include "zmq.hpp"
 
@@ -115,6 +116,8 @@ int main(int argc, char **argv) {
 
     int32_t numConns = 3333;
     cfg.lookupValue("simulator.number_clients", numConns);
+
+    evthread_use_pthreads();
 
     // new StratumClientWrapper
     gWrapper = new StratumClientWrapper(cfg.lookup("simulator.ss_ip").c_str(),

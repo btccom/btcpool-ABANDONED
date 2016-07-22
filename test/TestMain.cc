@@ -26,6 +26,8 @@
 #include <string>
 #include "gtest/gtest.h"
 
+#include <glog/logging.h>
+
 using std::string;
 
 //
@@ -57,6 +59,12 @@ int main(int argc, char **argv) {
   signal(SIGSEGV, handler);
   signal(SIGFPE, handler);
   signal(SIGPIPE, handler);
+
+  // Initialize Google's logging library.
+  google::InitGoogleLogging(argv[0]);
+  FLAGS_logbuflevel = -1;
+  FLAGS_logtostderr = true;
+  FLAGS_colorlogtostderr = true;
   
   CString * newArgv = new CString [argc];
   memcpy(newArgv, argv, argc * sizeof(CString));
