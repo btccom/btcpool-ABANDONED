@@ -71,14 +71,20 @@ bool JobMaker::init() {
   }
 
   /* setup kafka */
-  if (!kafkaProducer_.setup()) {
-    LOG(ERROR) << "kafka producer setup failure";
-    return false;
+  {
+    map<string, string> options;
+    // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
+    options["queue.buffering.max.ms"] = "1";
+    if (!kafkaProducer_.setup(&options)) {
+      LOG(ERROR) << "kafka producer setup failure";
+      return false;
+    }
+    if (!kafkaProducer_.checkAlive()) {
+      LOG(ERROR) << "kafka producer is NOT alive";
+      return false;
+    }
   }
-  if (!kafkaProducer_.checkAlive()) {
-    LOG(ERROR) << "kafka producer is NOT alive";
-    return false;
-  }
+
   // consumer offset: latest N messages
   if (!kafkaConsumer_.setup(RD_KAFKA_OFFSET_TAIL(consumeLatestN))) {
     LOG(ERROR) << "kafka consumer setup failure";

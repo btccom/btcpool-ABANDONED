@@ -98,6 +98,7 @@ class KafkaProducer {
   string brokers_;
   string topicStr_;
   int    partition_;
+  map<string, string> defaultOptions_;
 
   rd_kafka_conf_t  *conf_;
   rd_kafka_t       *producer_;
@@ -107,7 +108,7 @@ public:
   KafkaProducer(const char *brokers, const char *topic, int partition);
   ~KafkaProducer();
 
-  bool setup();
+  bool setup(const std::map<string, string> *options=nullptr);
   bool checkAlive();
   void produce(const void *payload, size_t len);
 };

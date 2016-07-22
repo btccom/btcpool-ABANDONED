@@ -53,11 +53,15 @@ isCheckZmq_(isCheckZmq)
 GbtMaker::~GbtMaker() {}
 
 bool GbtMaker::init() {
-  // setup kafka and check if it's alive
-  if (!kafkaProducer_.setup()) {
+  map<string, string> options;
+  // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
+  options["queue.buffering.max.ms"] = "1";
+  if (!kafkaProducer_.setup(&options)) {
     LOG(ERROR) << "kafka producer setup failure";
     return false;
   }
+
+  // setup kafka and check if it's alive
   if (!kafkaProducer_.checkAlive()) {
     LOG(ERROR) << "kafka is NOT alive";
     return false;

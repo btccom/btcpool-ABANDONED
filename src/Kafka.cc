@@ -339,6 +339,26 @@ producer_(nullptr), topic_(nullptr)
 {
   rd_kafka_conf_set_log_cb(conf_, kafkaLogger);  // set logger
   LOG(INFO) << "producer librdkafka version: " << rd_kafka_version_str();
+
+  //
+  // kafka conf set, default options
+  // https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
+  //
+  // Maximum transmit message size.
+  defaultOptions_["message.max.bytes"] = "20000000";
+
+  // compression codec to use for compressing message sets
+  defaultOptions_["compression.codec"] = "snappy";
+
+  // Maximum number of messages allowed on the producer queue.
+  defaultOptions_["queue.buffering.max.messages"] = "100000";
+
+  // Maximum time, in milliseconds, for buffering data on the producer queue.
+  // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
+  defaultOptions_["queue.buffering.max.ms"] = "1000";
+
+  // Maximum number of messages batched in one MessageSet.
+  defaultOptions_["batch.num.messages"] = "1000";
 }
 
 KafkaProducer::~KafkaProducer() {
@@ -353,33 +373,28 @@ KafkaProducer::~KafkaProducer() {
   rd_kafka_destroy(producer_);     // Destroy the handle
 }
 
-
-bool KafkaProducer::setup() {
+bool KafkaProducer::setup(const std::map<string, string> *options) {
   char errstr[1024];
   //
   // rdkafka options:
   //
   // queue.buffering.max.ms:
   //         set to 1 (0 is an illegal value here), deliver msg as soon as possible.
-  // queue.buffering.max.messages:
-  //         submit share will be a lot
-  // message.max.bytes:
-  //         Maximum transmit message size. 20000000 = 20,000,000
   //
-  // TODO: increase 'message.max.bytes' in the feature
   //
-  const vector<string> conKeys = {"message.max.bytes", "compression.codec",
-    "queue.buffering.max.ms", "queue.buffering.max.messages",
-    "batch.num.messages"};
-  const vector<string> conVals = {"20000000", "snappy", "5000", "20000", "50000"};
-  assert(conKeys.size() == conVals.size());
+  if (options != nullptr) {
+    // merge options
+    for (const auto &itr : *options) {
+      defaultOptions_[itr.first] = itr.second;
+    }
+  }
 
-  for (size_t i = 0; i < conKeys.size(); i++) {
+  for (const auto &itr : defaultOptions_) {
     if (rd_kafka_conf_set(conf_,
-                          conKeys[i].c_str(), conVals[i].c_str(),
+                          itr.first.c_str(), itr.second.c_str(),
                           errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK) {
       LOG(ERROR) << "kafka set conf failure: " << errstr
-      << ", key: " << conKeys[i] << ", val: " << conVals[i];
+      << ", key: " << itr.first << ", val: " << itr.second;
       return false;
     }
   }

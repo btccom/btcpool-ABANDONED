@@ -661,25 +661,40 @@ bool Server::setup(const char *ip, const unsigned short port,
 
   sessionIDManager_ = new SessionIDManager(serverId);
 
-
   // kafkaProducerShareLog_
-  if (!kafkaProducerShareLog_->setup()) {
-    LOG(ERROR) << "kafka kafkaProducerShareLog_ setup failure";
-    return false;
-  }
-  if (!kafkaProducerShareLog_->checkAlive()) {
-    LOG(ERROR) << "kafka kafkaProducerShareLog_ is NOT alive";
-    return false;
+  {
+    map<string, string> options;
+    // we could delay 'sharelog' in producer
+    // 10000000 * sizeof(Share) ~= 480 MB
+    options["queue.buffering.max.messages"] = "10000000";
+    // send every second
+    options["queue.buffering.max.ms"] = "1000";
+    // 10000 * sizeof(Share) ~= 480 KB
+    options["batch.num.messages"] = "10000";
+
+    if (!kafkaProducerShareLog_->setup(&options)) {
+      LOG(ERROR) << "kafka kafkaProducerShareLog_ setup failure";
+      return false;
+    }
+    if (!kafkaProducerShareLog_->checkAlive()) {
+      LOG(ERROR) << "kafka kafkaProducerShareLog_ is NOT alive";
+      return false;
+    }
   }
 
   // kafkaProducerSolvedShare_
-  if (!kafkaProducerSolvedShare_->setup()) {
-    LOG(ERROR) << "kafka kafkaProducerSolvedShare_ setup failure";
-    return false;
-  }
-  if (!kafkaProducerSolvedShare_->checkAlive()) {
-    LOG(ERROR) << "kafka kafkaProducerSolvedShare_ is NOT alive";
-    return false;
+  {
+    map<string, string> options;
+    // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
+    options["queue.buffering.max.ms"] = "1";
+    if (!kafkaProducerSolvedShare_->setup(&options)) {
+      LOG(ERROR) << "kafka kafkaProducerSolvedShare_ setup failure";
+      return false;
+    }
+    if (!kafkaProducerSolvedShare_->checkAlive()) {
+      LOG(ERROR) << "kafka kafkaProducerSolvedShare_ is NOT alive";
+      return false;
+    }
   }
 
   base_ = event_base_new();
