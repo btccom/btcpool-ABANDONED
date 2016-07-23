@@ -40,6 +40,7 @@ class KafkaConsumer {
   string brokers_;
   string topicStr_;
   int    partition_;
+  map<string, string> defaultOptions_;
 
   rd_kafka_conf_t  *conf_;
   rd_kafka_t       *consumer_;
@@ -58,7 +59,7 @@ public:
   //     RD_KAFKA_OFFSET_STORED
   //     RD_KAFKA_OFFSET_TAIL(CNT)
   //
-  bool setup(int64_t offset);
+  bool setup(int64_t offset, const std::map<string, string> *options=nullptr);
   //
   // don't forget to call rd_kafka_message_destroy() after consumer()
   //

@@ -80,6 +80,22 @@ topic_(nullptr)
 {
   rd_kafka_conf_set_log_cb(conf_, kafkaLogger);  // set logger
   LOG(INFO) << "consumer librdkafka version: " << rd_kafka_version_str();
+
+  // Maximum transmit message size.
+  defaultOptions_["message.max.bytes"] = "20000000";
+  // compression codec to use for compressing message sets
+  defaultOptions_["compression.codec"] = "snappy";
+
+  // Maximum number of kilobytes per topic+partition in the local consumer
+  // queue. This value may be overshot by fetch.message.max.bytes.
+  defaultOptions_["queued.max.messages.kbytes"] = "20000000";
+
+  // Maximum number of bytes per topic+partition to request when
+  // fetching messages from the broker
+  defaultOptions_["fetch.message.max.bytes"] = "20000000";
+
+  // Maximum time the broker may wait to fill the response with fetch.min.bytes
+  defaultOptions_["fetch.wait.max.ms"] = "5";
 }
 
 KafkaConsumer::~KafkaConsumer() {
@@ -104,29 +120,23 @@ KafkaConsumer::~KafkaConsumer() {
 //     RD_KAFKA_OFFSET_STORED
 //     RD_KAFKA_OFFSET_TAIL(CNT)
 //
-bool KafkaConsumer::setup(int64_t offset) {
+bool KafkaConsumer::setup(int64_t offset, const std::map<string, string> *options) {
   char errstr[1024];
-  //
-  // rdkafka options:
-  //
-  // message.max.bytes:
-  //         Maximum transmit message size. 20000000 = 20,000,000
-  //
-  // TODO: increase 'message.max.bytes' in the feature
-  //
-  const vector<string> conKeys = {"message.max.bytes", "compression.codec",
-    "queued.max.messages.kbytes","fetch.message.max.bytes","fetch.wait.max.ms"
-  };
-  const vector<string> conVals = {"20000000", "snappy",
-    "20000000","20000000","5"};
-  assert(conKeys.size() == conVals.size());
 
-  for (size_t i = 0; i < conKeys.size(); i++) {
+  // rdkafka options:
+  if (options != nullptr) {
+    // merge options
+    for (const auto &itr : *options) {
+      defaultOptions_[itr.first] = itr.second;
+    }
+  }
+
+  for (const auto &itr : defaultOptions_) {
     if (rd_kafka_conf_set(conf_,
-                          conKeys[i].c_str(), conVals[i].c_str(),
+                          itr.first.c_str(), itr.second.c_str(),
                           errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK) {
       LOG(ERROR) << "kafka set conf failure: " << errstr
-      << ", key: " << conKeys[i] << ", val: " << conVals[i];
+      << ", key: " << itr.first << ", val: " << itr.second;
       return false;
     }
   }
@@ -375,13 +385,8 @@ KafkaProducer::~KafkaProducer() {
 
 bool KafkaProducer::setup(const std::map<string, string> *options) {
   char errstr[1024];
-  //
+
   // rdkafka options:
-  //
-  // queue.buffering.max.ms:
-  //         set to 1 (0 is an illegal value here), deliver msg as soon as possible.
-  //
-  //
   if (options != nullptr) {
     // merge options
     for (const auto &itr : *options) {
