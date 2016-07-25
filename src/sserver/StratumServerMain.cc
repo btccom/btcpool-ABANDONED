@@ -140,6 +140,9 @@ int main(int argc, char **argv) {
                                         cfg.lookup("pooldb.dbname"));
     }
 
+    bool isEnableSimulator = false;
+    cfg.lookupValue("sserver.enable_simulator", isEnableSimulator);
+
     evthread_use_pthreads();
 
     // new StratumServer
@@ -147,7 +150,8 @@ int main(int argc, char **argv) {
                                        (unsigned short)port,
                                        cfg.lookup("kafka.brokers").c_str(),
                                        cfg.lookup("users.list_id_api_url"),
-                                       *poolDBInfo, serverId);
+                                       *poolDBInfo, serverId,
+                                       isEnableSimulator);
 
     if (!gStratumServer->init()) {
       LOG(FATAL) << "init failure";

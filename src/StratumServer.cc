@@ -570,9 +570,10 @@ void StratumJobEx::generateBlockHeader(CBlockHeader *header,
 StratumServer::StratumServer(const char *ip, const unsigned short port,
                              const char *kafkaBrokers, const string &userAPIUrl,
                              const MysqlConnectInfo &poolDBInfo,
-                             const uint8_t serverId)
+                             const uint8_t serverId, bool isEnableSimulator)
 :running_(true), ip_(ip), port_(port), serverId_(serverId),
-kafkaBrokers_(kafkaBrokers), userAPIUrl_(userAPIUrl), poolDBInfo_(poolDBInfo)
+kafkaBrokers_(kafkaBrokers), userAPIUrl_(userAPIUrl), poolDBInfo_(poolDBInfo),
+isEnableSimulator_(isEnableSimulator)
 {
 }
 
@@ -581,7 +582,7 @@ StratumServer::~StratumServer() {
 
 bool StratumServer::init() {
   if (!server_.setup(ip_.c_str(), port_, kafkaBrokers_.c_str(),
-                     userAPIUrl_, poolDBInfo_, serverId_)) {
+                     userAPIUrl_, poolDBInfo_, serverId_, isEnableSimulator_)) {
     LOG(ERROR) << "fail to setup server";
     return false;
   }
@@ -604,6 +605,7 @@ void StratumServer::run() {
 ///////////////////////////////////// Server ///////////////////////////////////
 Server::Server(): base_(nullptr), signal_event_(nullptr), listener_(nullptr),
 kafkaProducerShareLog_(nullptr), kafkaProducerSolvedShare_(nullptr),
+isEnableSimulator_(false),
 kShareAvgSeconds_(10), // TODO: read from cfg
 jobRepository_(nullptr), userInfo_(nullptr), sessionIDManager_(nullptr)
 {
@@ -639,7 +641,12 @@ Server::~Server() {
 bool Server::setup(const char *ip, const unsigned short port,
                    const char *kafkaBrokers,
                    const string &userAPIUrl, const MysqlConnectInfo &dbInfo,
-                   const uint8_t serverId) {
+                   const uint8_t serverId, bool isEnableSimulator) {
+  if (isEnableSimulator) {
+    isEnableSimulator_ = true;
+    LOG(WARNING) << "Simulator is enabled, all share will be accepted";
+  }
+
   kafkaProducerSolvedShare_ = new KafkaProducer(kafkaBrokers,
                                                 KAFKA_TOPIC_SOLVED_SHARE,
                                                 RD_KAFKA_PARTITION_UA);
@@ -877,7 +884,8 @@ int Server::checkShare(const Share &share,
     << ", by: " << workFullName;
   }
 
-  if (blkHash > jobTarget) {
+  // check share diff
+  if (isEnableSimulator_ == false && blkHash > jobTarget) {
     return StratumError::LOW_DIFFICULTY;
   }
 

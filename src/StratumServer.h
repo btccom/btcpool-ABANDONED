@@ -242,6 +242,9 @@ class Server {
   mutex producerSolvedShareLock_;
   KafkaProducer *kafkaProducerSolvedShare_;
 
+  // if enable simulator, all share will be accepted
+  bool isEnableSimulator_;
+
 public:
   const int32_t kShareAvgSeconds_;
   JobRepository *jobRepository_;
@@ -254,7 +257,7 @@ public:
 
   bool setup(const char *ip, const unsigned short port, const char *kafkaBrokers,
              const string &userAPIUrl, const  MysqlConnectInfo &dbInfo,
-             const uint8_t serverId);
+             const uint8_t serverId, bool isEnableSimulator);
   void run();
   void stop();
 
@@ -293,11 +296,14 @@ class StratumServer {
   string userAPIUrl_;
   MysqlConnectInfo poolDBInfo_;
 
+  // if enable simulator, all share will be accepted
+  bool isEnableSimulator_;
+
 public:
   StratumServer(const char *ip, const unsigned short port,
                 const char *kafkaBrokers,
                 const string &userAPIUrl, const MysqlConnectInfo &poolDBInfo,
-                const uint8_t serverId);
+                const uint8_t serverId, bool isEnableSimulator);
   ~StratumServer();
 
   bool init();
