@@ -565,7 +565,7 @@ void StratumSession::sendSetDifficulty(const uint64_t difficulty) {
 
 uint8_t StratumSession::allocShortJobId() {
   // return range: [0, 9]
-  if (shortJobIdIdx_ == 16) {
+  if (shortJobIdIdx_ == 10) {
     shortJobIdIdx_ = 0;
   }
   return shortJobIdIdx_++;
