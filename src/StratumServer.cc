@@ -507,17 +507,17 @@ void StratumJobEx::makeMiningNotifyStr() {
     }
   }
 
-  miningNotify_ = Strings::Format("{\"id\":null,\"method\":\"mining.notify\",\"params\":["
-                                  "\"%" PRIu64"\",\"%s\""
-                                  ",\"%s\",\"%s\""
-                                  ",[%s]"
-                                  ",\"%08x\",\"%08x\",\"%08x\",%s"
-                                  "]}\n",
-                                  sjob_->jobId_, sjob_->prevHashBeStr_.c_str(),
-                                  sjob_->coinbase1_.c_str(), sjob_->coinbase2_.c_str(),
-                                  merkleBranchStr.c_str(),
-                                  sjob_->nVersion_, sjob_->nBits_, sjob_->nTime_,
-                                  isClean_ ? "true" : "false");
+  // we don't put jobId here, session will fill with the shortJobId
+  miningNotify1_ = "{\"id\":null,\"method\":\"mining.notify\",\"params\":[\"";
+  miningNotify2_ = Strings::Format("\",\"%s\",\"%s\",\"%s\""
+                                   ",[%s]"
+                                   ",\"%08x\",\"%08x\",\"%08x\",%s"
+                                   "]}\n",
+                                   sjob_->prevHashBeStr_.c_str(),
+                                   sjob_->coinbase1_.c_str(), sjob_->coinbase2_.c_str(),
+                                   merkleBranchStr.c_str(),
+                                   sjob_->nVersion_, sjob_->nBits_, sjob_->nTime_,
+                                   isClean_ ? "true" : "false");
 }
 
 void StratumJobEx::markStale() {

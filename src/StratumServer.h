@@ -206,7 +206,8 @@ class StratumJobEx {
 public:
   bool isClean_;
   StratumJob *sjob_;
-  string miningNotify_;
+  string miningNotify1_;
+  string miningNotify2_;
 
 public:
   StratumJobEx(StratumJob *sjob, bool isClean);

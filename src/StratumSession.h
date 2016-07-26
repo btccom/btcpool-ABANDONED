@@ -141,9 +141,11 @@ public:
     uint64_t jobDifficulty_;     // difficulty of this job
     uint256  jobTarget_;
     uint32_t blkBits_;
+    uint8_t  shortJobId_;
     std::set<LocalShare> submitShares_;
 
-    LocalJob(): jobId_(0), jobDifficulty_(0), blkBits_(0) {}
+    LocalJob(): jobId_(0), jobDifficulty_(0), jobTarget_(),
+    blkBits_(0), shortJobId_(0) {}
 
     bool addLocalShare(const LocalShare &localShare) {
       auto itr = submitShares_.find(localShare);
@@ -173,6 +175,9 @@ private:
 
   struct evbuffer *inBuf_;
   bool   isPoolWatcher_;
+  uint8_t shortJobIdIdx_;
+
+  uint8_t allocShortJobId();
 
   void setup();
   void setReadTimeout(const int32_t timeout);
@@ -191,7 +196,7 @@ private:
   void handleRequest_MultiVersion     (const string &idStr, const JsonNode &jparams);
   void _handleRequest_SetDifficulty(uint64_t suggestDiff);
 
-  LocalJob *findLocalJob(uint64_t jobId);
+  LocalJob *findLocalJob(uint8_t shortJobId);
 
 public:
   struct bufferevent* bev_;

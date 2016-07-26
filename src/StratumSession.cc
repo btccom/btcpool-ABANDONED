@@ -203,14 +203,16 @@ StratumSession::StratumSession(evutil_socket_t fd, struct bufferevent *bev,
                                Server *server, struct sockaddr *saddr,
                                const int32_t shareAvgSeconds) :
 diffController_(shareAvgSeconds),
-bev_(bev), fd_(fd), server_(server)
+shortJobIdIdx_(0), bev_(bev), fd_(fd), server_(server)
 {
   state_ = CONNECTED;
   currDiff_    = 0U;
   extraNonce1_ = 0u;
 
   // usually stratum job interval is 30~60 seconds, 10 is enough for miners
+  // should <= 10, we use short_job_id,  range: [0 ~ 9]. do NOT change it.
   kMaxNumLocalJobs_ = 10;
+  assert(kMaxNumLocalJobs_ <= 10);
 
   inBuf_  = evbuffer_new();
   isPoolWatcher_ = false;
@@ -492,19 +494,17 @@ void StratumSession::handleRequest_Submit(const string &idStr,
     responseError(idStr, StratumError::ILLEGAL_PARARMS);
     return;
   }
-  const uint64 jobId       = jparams.children()->at(1).uint64();
-  const uint64 extraNonce2 = jparams.children()->at(2).uint64_hex();
-  string extraNonce2Hex    = jparams.children()->at(2).str();
-  const uint32 nTime       = jparams.children()->at(3).uint32_hex();
-  const uint32 nonce       = jparams.children()->at(4).uint32_hex();
+  const uint8_t shortJobId   = (uint8_t)jparams.children()->at(1).uint32();
+  const uint64_t extraNonce2 = jparams.children()->at(2).uint64_hex();
+  string extraNonce2Hex      = jparams.children()->at(2).str();
+  const uint32_t nTime       = jparams.children()->at(3).uint32_hex();
+  const uint32_t nonce       = jparams.children()->at(4).uint32_hex();
 
   if (extraNonce2Hex.length()/2 > kExtraNonce2Size_) {
     extraNonce2Hex.resize(kExtraNonce2Size_ * 2);
   }
 
-  int submitResult;
-
-  LocalJob *localJob = findLocalJob(jobId);
+  LocalJob *localJob = findLocalJob(shortJobId);
   if (localJob == nullptr) {
     // if can't find localJob, could do nothing
     responseError(idStr, StratumError::JOB_NOT_FOUND);
@@ -512,7 +512,7 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   }
 
   Share share;
-  share.jobId_        = jobId;
+  share.jobId_        = localJob->jobId_;
   share.workerHashId_ = worker_.workerHashId_;
   share.ip_           = clientIpInt_;
   share.userId_       = worker_.userId_;
@@ -521,14 +521,17 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   share.timestamp_    = (uint32_t)time(nullptr);
   share.result_       = Share::Result::REJECT;
 
+  int submitResult;
+
   LocalShare localShare(extraNonce2, nonce, nTime);
   if (!localJob->addLocalShare(localShare)) {
     responseError(idStr, StratumError::DUPLICATE_SHARE);
     goto finish;
   }
 
-  submitResult = server_->checkShare(share, extraNonce1_, extraNonce2Hex, nTime,
-                                     nonce, localJob->jobTarget_, worker_.fullName_);
+  submitResult = server_->checkShare(share, extraNonce1_, extraNonce2Hex,
+                                     nTime, nonce, localJob->jobTarget_,
+                                     worker_.fullName_);
   if (submitResult == StratumError::NO_ERROR) {
     // accepted share
     share.result_ = Share::Result::ACCEPT;
@@ -544,9 +547,9 @@ finish:
   return;
 }
 
-StratumSession::LocalJob *StratumSession::findLocalJob(uint64_t jobId) {
+StratumSession::LocalJob *StratumSession::findLocalJob(uint8_t shortJobId) {
   for (auto rit = localJobs_.rbegin(); rit != localJobs_.rend(); ++rit) {
-    if (rit->jobId_ == jobId) {
+    if (rit->shortJobId_ == shortJobId) {
       return &(*rit);
     }
   }
@@ -560,6 +563,14 @@ void StratumSession::sendSetDifficulty(const uint64_t difficulty) {
   sendData(s);
 }
 
+uint8_t StratumSession::allocShortJobId() {
+  // return range: [0, 9]
+  if (shortJobIdIdx_ == 16) {
+    shortJobIdIdx_ = 0;
+  }
+  return shortJobIdIdx_++;
+}
+
 void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr) {
   if (state_ < SUBSCRIBED || exJobPtr == nullptr) {
     return;
@@ -570,6 +581,7 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr) {
   LocalJob &ljob = *(localJobs_.rbegin());
   ljob.blkBits_       = sjob->nBits_;
   ljob.jobId_         = sjob->jobId_;
+  ljob.shortJobId_    = allocShortJobId();
   ljob.jobDifficulty_ = diffController_.calcCurDiff();
   DiffToTarget(ljob.jobDifficulty_, ljob.jobTarget_);
 
@@ -578,7 +590,9 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr) {
     currDiff_ = ljob.jobDifficulty_;
   }
 
-  sendData(exJobPtr->miningNotify_);
+  sendData(exJobPtr->miningNotify1_);
+  sendData(Strings::Format("%u", ljob.shortJobId_));  // short jobId
+  sendData(exJobPtr->miningNotify2_);
 
   // clear localJobs_
   while (localJobs_.size() > kMaxNumLocalJobs_) {
@@ -591,7 +605,7 @@ void StratumSession::sendData(const char *data, size_t len) {
   bufferevent_lock(bev_);
   bufferevent_write(bev_, data, len);
   bufferevent_unlock(bev_);
-  DLOG(INFO) << "send(" << len << "): " << data;
+//  DLOG(INFO) << "send(" << len << "): " << data;
 }
 
 void StratumSession::readBuf(struct evbuffer *buf) {
