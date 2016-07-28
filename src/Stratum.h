@@ -187,6 +187,8 @@ public:
   StratumWorker();
   void setUserIDAndNames(const int32_t userId, const string &fullName);
   string getUserName(const string &fullName) const ;
+
+  static int64_t calcWorkerId(const string &workerName);
 };
 
 

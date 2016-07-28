@@ -135,21 +135,28 @@ void StratumWorker::setUserIDAndNames(const int32_t userId, const string &fullNa
     workerName_ = "default";
   }
 
-  // calc worker hash id, 64bits
-  // https://en.wikipedia.org/wiki/Birthday_attack
-  const uint256 workerNameHash = Hash(workerName_.begin(), workerName_.end());
-
-  // need to convert to uint64 first than copy memory
-  const uint64_t tmpId = strtoull(workerNameHash.ToString().substr(0, 16).c_str(), nullptr, 16);
-  memcpy((uint8_t *)&workerHashId_, (uint8_t *)&tmpId, 8);
-  
-  if (workerHashId_ == 0) {  // zero is kept
-    workerHashId_++;
-  }
-
+  workerHashId_ = calcWorkerId(workerName_);
   fullName_ = userName_ + "." + workerName_;
 }
 
+int64_t StratumWorker::calcWorkerId(const string &workerName) {
+  int64_t workerHashId = 0;
+
+  // calc worker hash id, 64bits
+  // https://en.wikipedia.org/wiki/Birthday_attack
+  const uint256 workerNameHash = Hash(workerName.begin(), workerName.end());
+
+  // need to convert to uint64 first than copy memory
+  const uint64_t tmpId = strtoull(workerNameHash.ToString().substr(0, 16).c_str(),
+                                  nullptr, 16);
+  memcpy((uint8_t *)&workerHashId, (uint8_t *)&tmpId, 8);
+
+  if (workerHashId == 0) {  // zero is kept
+    workerHashId++;
+  }
+
+  return workerHashId;
+}
 
 static
 void makeMerkleBranch(const vector<uint256> &vtxhashs, vector<uint256> &steps) {

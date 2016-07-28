@@ -438,6 +438,17 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
   sendMiningNotify(server_->jobRepository_->getLatestStratumJobEx());
 }
 
+void StratumSession::handleExMsg_AuthorizeAgentWorker(const int64_t workerId,
+                                                      const string &clientAgent,
+                                                      const string &workerName) {
+  if (state_ != AUTHENTICATED) {
+    LOG(ERROR) << "curr stratum session has NOT auth yet";
+    return;
+  }
+  server_->userInfo_->addWorker(worker_.userId_, workerId,
+                                workerName, clientAgent);
+}
+
 void StratumSession::_handleRequest_SetDifficulty(uint64_t suggestDiff) {
   // suggestDiff must be 2^N
   double i = 1;
@@ -616,4 +627,90 @@ void StratumSession::readBuf(struct evbuffer *buf) {
   while (tryReadLine(line)) {
     handleLine(line);
   }
+}
+
+
+
+//////////////////////////////// AgentSession ////////////////////////////////
+uint8_t AgentSessions::getExMessageType(struct evbuffer *inBuf) {
+  size_t evbuflen = evbuffer_get_length(inBuf);
+  if (evbuflen < 2) {
+    return CMD_INVLIAD_TYPE;
+  }
+  // copy the first 2 bytes
+  uint8_t buf[2];
+  evbuffer_copyout(inBuf, buf, sizeof(buf));
+
+  if (buf[0] != CMD_MAGIC_NUMBER) {
+    return CMD_INVLIAD_TYPE;
+  }
+
+  if (buf[1] == CMD_SUBMIT_SHARE) {
+    return CMD_SUBMIT_SHARE;
+  } else if (buf[1] == CMD_SUBMIT_SHARE_WITH_TIME) {
+    return CMD_SUBMIT_SHARE_WITH_TIME;
+  } else if (buf[1] == CMD_REGISTER_WORKER) {
+    return CMD_REGISTER_WORKER;
+  } else {
+    LOG(ERROR) << "recv invalid ex message type: " << buf[1];
+    return CMD_INVLIAD_TYPE;
+  }
+}
+
+bool AgentSessions::handleExMessage_registerWorker(struct evbuffer *inBuf) {
+  size_t evbuflen = evbuffer_get_length(inBuf);
+  //
+  // CMD_REGISTER_WORKER:
+  // | magic_number(1) | cmd(1) | len (1) | session_id | clientAgent | worker_name |
+  //
+  if (evbuflen < 7) {  // at least 7 bytes
+    return false;
+  }
+
+  // copy the first 5 bytes
+  uint8_t buf[5];
+  evbuffer_copyout(inBuf, buf, sizeof(buf));
+  uint8_t     msgLen = buf[2];
+  uint16_t sessionId = *(uint16_t *)(buf + 3);
+  if (evbuflen < msgLen) {
+    return false;
+  }
+
+  // copies and removes the first datlen bytes from the front of buf
+  // into the memory at data
+  string data;
+  data.resize(msgLen);
+  evbuffer_remove(inBuf, (void *)data.data(), data.size());
+
+  const char *clientAgent = (char *)data.data() + 6;
+  size_t   clientAgentLen = strlen((char *)data.data() + 6);
+  const char *workerName  = clientAgent + clientAgentLen;
+
+  const string clientAgentStr = filterWorkerName(string(clientAgent));
+  const string  workerNameStr = filterWorkerName(string(workerName));
+  const int64_t      workerId = StratumWorker::calcWorkerId(workerNameStr);
+
+  // set sessionId -> workerId
+  if (workerIds_.size() < sessionId) {
+    workerIds_.resize(sessionId + 1);
+  }
+  workerIds_[sessionId] = workerId;
+
+  // set sessionId -> DiffController *
+  if (diffControllers_.size() < sessionId) {
+    diffControllers_.resize(sessionId + 1);
+  }
+  if (diffControllers_[sessionId].get() != NULL) {
+    diffControllers_[sessionId].reset();  // deletes managed object
+  }
+  diffControllers_[sessionId] = make_shared<DiffController>(shareAvgSeconds_);
+
+  // submit worker info to stratum session
+  ssession_->handleExMsg_AuthorizeAgentWorker(workerId,
+                                              clientAgentStr, workerNameStr);
+}
+
+bool AgentSessions::handleExMessage_submitShare(struct evbuffer *inBuf,
+                                                string &outLine) {
+  outLine.clear();
 }

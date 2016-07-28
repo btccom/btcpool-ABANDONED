@@ -40,6 +40,17 @@
 #include "Stratum.h"
 #include "Statistics.h"
 
+
+#define CMD_MAGIC_NUMBER      0x7Fu
+
+#define CMD_INVLIAD_TYPE      0xFFu             // invalid message type
+// types
+#define CMD_REGISTER_WORKER   0x00u             // recv msg
+#define CMD_SUBMIT_SHARE      0x01u             // recv msg, without block time
+#define CMD_SUBMIT_SHARE_WITH_TIME  0x02u       // recv msg
+#define CMD_MINING_SET_DIFF   0x03u             // send msg
+
+
 class Server;
 class StratumJobEx;
 class DiffController;
@@ -216,6 +227,33 @@ public:
     sendData(str.data(), str.size());
   }
   void readBuf(struct evbuffer *buf);
+
+  void handleExMsg_AuthorizeAgentWorker(const int64_t workerId,
+                                        const string &clientAgent,
+                                        const string &workerName);
+};
+
+
+///////////////////////////////// AgentSessions ////////////////////////////////
+class AgentSessions {
+  //
+  // sessionId is vector's index
+  //
+  // session ID range: [0, 65535], so vector max size is 65535
+  vector<int64_t> workerIds_;
+  vector<shared_ptr<DiffController>> diffControllers_;
+  int32_t shareAvgSeconds_;
+
+  StratumSession *ssession_;
+
+public:
+  AgentSession(const int32_t shareAvgSeconds, StratumSession *ssession);
+
+  uint8_t getExMessageType(struct evbuffer *inBuf);
+  bool handleExMessage_submitShare(struct evbuffer *inBuf, string &outLine);
+  bool handleExMessage_registerWorker(struct evbuffer *inBuf);
+  bool handleExMessage_submitShareWithoutTime(struct evbuffer *inBuf,
+                                            string &outLine);
 };
 
 #endif
