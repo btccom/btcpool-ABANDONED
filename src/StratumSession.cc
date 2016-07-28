@@ -527,8 +527,13 @@ void StratumSession::handleRequest_Submit(const string &idStr,
     responseError(idStr, StratumError::JOB_NOT_FOUND);
     return;
   }
-  if (nTime == 0) {  // means miner use stratum job's default block time
-    // TODO
+
+  // means miner use stratum job's default block time
+  if (nTime == 0) {
+    shared_ptr<StratumJobEx> exjob;
+    exjob = server_->jobRepository_->getStratumJobEx(localJob->jobId_);
+    if (exjob.get() != NULL)
+    	nTime = exjob->sjob_->nTime_;
   }
 
   Share share;
