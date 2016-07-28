@@ -231,6 +231,9 @@ public:
   void handleExMsg_AuthorizeAgentWorker(const int64_t workerId,
                                         const string &clientAgent,
                                         const string &workerName);
+  void handleRequest_Submit(const string &idStr,
+                            const uint8_t shortJobId, const uint64_t extraNonce2,
+                            const uint32_t nonce, uint32_t nTime);
 };
 
 
@@ -250,10 +253,9 @@ public:
   AgentSession(const int32_t shareAvgSeconds, StratumSession *ssession);
 
   uint8_t getExMessageType(struct evbuffer *inBuf);
-  bool handleExMessage_submitShare(struct evbuffer *inBuf, string &outLine);
-  bool handleExMessage_registerWorker(struct evbuffer *inBuf);
-  bool handleExMessage_submitShareWithoutTime(struct evbuffer *inBuf,
-                                            string &outLine);
+  bool handleExMessage_SubmitShare(struct evbuffer *inBuf,
+                                   const bool isWithTime);
+  bool handleExMessage_RegisterWorker(struct evbuffer *inBuf);
 };
 
 #endif

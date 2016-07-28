@@ -507,19 +507,28 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   }
   const uint8_t shortJobId   = (uint8_t)jparams.children()->at(1).uint32();
   const uint64_t extraNonce2 = jparams.children()->at(2).uint64_hex();
-  string extraNonce2Hex      = jparams.children()->at(2).str();
-  const uint32_t nTime       = jparams.children()->at(3).uint32_hex();
+  uint32_t nTime             = jparams.children()->at(3).uint32_hex();
   const uint32_t nonce       = jparams.children()->at(4).uint32_hex();
 
-  if (extraNonce2Hex.length()/2 > kExtraNonce2Size_) {
-    extraNonce2Hex.resize(kExtraNonce2Size_ * 2);
-  }
+  handleRequest_Submit(idStr, shortJobId, extraNonce2, nonce, nTime);
+}
+
+void StratumSession::handleRequest_Submit(const string &idStr,
+                                          const uint8_t shortJobId,
+                                          const uint64_t extraNonce2,
+                                          const uint32_t nonce,
+                                          uint32_t nTime) {
+  const string extraNonce2Hex = Strings::Format("%016x", extraNonce2);
+  assert(extraNonce2Hex.length()/2 == kExtraNonce2Size_);
 
   LocalJob *localJob = findLocalJob(shortJobId);
   if (localJob == nullptr) {
     // if can't find localJob, could do nothing
     responseError(idStr, StratumError::JOB_NOT_FOUND);
     return;
+  }
+  if (nTime == 0) {  // means miner use stratum job's default block time
+    // TODO
   }
 
   Share share;
@@ -657,12 +666,12 @@ uint8_t AgentSessions::getExMessageType(struct evbuffer *inBuf) {
   }
 }
 
-bool AgentSessions::handleExMessage_registerWorker(struct evbuffer *inBuf) {
-  size_t evbuflen = evbuffer_get_length(inBuf);
+bool AgentSessions::handleExMessage_RegisterWorker(struct evbuffer *inBuf) {
   //
   // CMD_REGISTER_WORKER:
   // | magic_number(1) | cmd(1) | len (1) | session_id | clientAgent | worker_name |
   //
+  size_t evbuflen = evbuffer_get_length(inBuf);
   if (evbuflen < 7) {  // at least 7 bytes
     return false;
   }
@@ -691,26 +700,47 @@ bool AgentSessions::handleExMessage_registerWorker(struct evbuffer *inBuf) {
   const int64_t      workerId = StratumWorker::calcWorkerId(workerNameStr);
 
   // set sessionId -> workerId
-  if (workerIds_.size() < sessionId) {
+  if (workerIds_.size() < sessionId + 1) {
     workerIds_.resize(sessionId + 1);
   }
   workerIds_[sessionId] = workerId;
 
   // set sessionId -> DiffController *
-  if (diffControllers_.size() < sessionId) {
+  if (diffControllers_.size() < sessionId + 1) {
     diffControllers_.resize(sessionId + 1);
   }
-  if (diffControllers_[sessionId].get() != NULL) {
-    diffControllers_[sessionId].reset();  // deletes managed object
-  }
-  diffControllers_[sessionId] = make_shared<DiffController>(shareAvgSeconds_);
+  // deletes managed object, acquires new pointer
+  diffControllers_[sessionId].reset(make_shared<DiffController>(shareAvgSeconds_));
 
   // submit worker info to stratum session
   ssession_->handleExMsg_AuthorizeAgentWorker(workerId,
                                               clientAgentStr, workerNameStr);
 }
 
-bool AgentSessions::handleExMessage_submitShare(struct evbuffer *inBuf,
-                                                string &outLine) {
-  outLine.clear();
+bool AgentSessions::handleExMessage_SubmitShare(struct evbuffer *inBuf,
+                                                const bool isWithTime) {
+  //
+  // CMD_SUBMIT_SHARE / CMD_SUBMIT_SHARE_WITH_TIME:
+  // | magic_number(1) | cmd(1) | jobId (uint8_t) | session_id (uint16_t) |
+  // | extra_nonce2 (uint32_t) | nNonce (uint32_t) | [nTime (uint32_t) |]
+  //
+  size_t evbuflen = evbuffer_get_length(inBuf);
+  if (evbuflen < 13 || (isWithTime && evbuflen < 17)) {  // 13 or 17 bytes
+    return false;
+  }
+
+  // copies and removes the first datlen bytes from the front of buf
+  // into the memory at data
+  string data;
+  data.resize(isWithTime ? 17 : 13);
+  evbuffer_remove(inBuf, (void *)data.data(), data.size());
+
+  const uint8_t shortJobId = *(uint8_t  *)(data.data() + 2);
+  const uint16_t sessionId = *(uint16_t *)(data.data() + 3);
+  const uint32_t  exNonce2 = *(uint32_t *)(data.data() + 5);
+  const uint32_t     nonce = *(uint32_t *)(data.data() + 9);
+  const uint32_t time = (isWithTime == false ? 0 : *(uint32_t *)(data.data() + 13));
+
+  const uint64_t fullExtraNonce2 = (uint64_t)sessionId << 32 | exNonce2;
+  ssession_->handleRequest_Submit("null", shortJobId, fullExtraNonce2, nonce, time);
 }
