@@ -565,14 +565,14 @@ void StratumSession::sendSetDifficulty(const uint64_t difficulty) {
 
 uint8_t StratumSession::allocShortJobId() {
   // return range: [0, 9]
-  if (shortJobIdIdx_ == 10) {
+  if (shortJobIdIdx_ >= 10) {
     shortJobIdIdx_ = 0;
   }
   return shortJobIdIdx_++;
 }
 
 void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr) {
-  if (state_ < SUBSCRIBED || exJobPtr == nullptr) {
+  if (state_ < AUTHENTICATED || exJobPtr == nullptr) {
     return;
   }
   StratumJob *sjob = exJobPtr->sjob_;
