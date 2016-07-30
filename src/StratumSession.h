@@ -228,9 +228,9 @@ public:
   }
   void readBuf(struct evbuffer *buf);
 
-  void handleExMsg_AuthorizeAgentWorker(const int64_t workerId,
-                                        const string &clientAgent,
-                                        const string &workerName);
+  void handleExMessage_AuthorizeAgentWorker(const int64_t workerId,
+                                            const string &clientAgent,
+                                            const string &workerName);
   void handleRequest_Submit(const string &idStr,
                             const uint8_t shortJobId, const uint64_t extraNonce2,
                             const uint32_t nonce, uint32_t nTime);

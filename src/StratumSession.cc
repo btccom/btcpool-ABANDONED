@@ -438,9 +438,9 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
   sendMiningNotify(server_->jobRepository_->getLatestStratumJobEx());
 }
 
-void StratumSession::handleExMsg_AuthorizeAgentWorker(const int64_t workerId,
-                                                      const string &clientAgent,
-                                                      const string &workerName) {
+void StratumSession::handleExMessage_AuthorizeAgentWorker(const int64_t workerId,
+                                                          const string &clientAgent,
+                                                          const string &workerName) {
   if (state_ != AUTHENTICATED) {
     LOG(ERROR) << "curr stratum session has NOT auth yet";
     return;
@@ -718,8 +718,8 @@ bool AgentSessions::handleExMessage_RegisterWorker(struct evbuffer *inBuf) {
   diffControllers_[sessionId].reset(make_shared<DiffController>(shareAvgSeconds_));
 
   // submit worker info to stratum session
-  ssession_->handleExMsg_AuthorizeAgentWorker(workerId,
-                                              clientAgentStr, workerNameStr);
+  ssession_->handleExMessage_AuthorizeAgentWorker(workerId, clientAgentStr,
+                                                  workerNameStr);
 }
 
 bool AgentSessions::handleExMessage_SubmitShare(struct evbuffer *inBuf,
@@ -749,3 +749,4 @@ bool AgentSessions::handleExMessage_SubmitShare(struct evbuffer *inBuf,
   const uint64_t fullExtraNonce2 = (uint64_t)sessionId << 32 | exNonce2;
   ssession_->handleRequest_Submit("null", shortJobId, fullExtraNonce2, nonce, time);
 }
+
