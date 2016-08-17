@@ -8,7 +8,10 @@ Docker for Bitcoind v0.12.1
 ## Install Docker
 
 ```
+# Use 'curl -sSL https://get.daocloud.io/docker | sh' instead of this line
+# when your server is in China.
 wget -qO- https://get.docker.com/ | sh
+
 service docker start
 service docker status
 ```
@@ -16,13 +19,12 @@ service docker status
 ## Build Docker Images
 
 ```
-mkdir /root/source
-cd /root/source
+cd /work
 
 git clone https://github.com/btccom/btcpool.git
 cd btcpool/docker/bitcoind/v0.12.1
 
-# if you install nodes in China, please check "Dockerfile" and uncomment some lines
+# If your server is in China, please check "Dockerfile" and uncomment some lines
 
 # build
 docker build -t bitcoind:0.12.1 .
@@ -48,7 +50,7 @@ rpcallowip=172.17.0.0/16
 rpcallowip=192.168.0.0/16
 rpcallowip=10.0.0.0/8
 
-# zmq
+# we use ZMQ to get notification when new block is coming
 zmqpubrawblock=tcp://0.0.0.0:8331
 zmqpubrawtx=tcp://0.0.0.0:8331
 zmqpubhashtx=tcp://0.0.0.0:8331
