@@ -528,7 +528,7 @@ void StratumSession::handleRequest_Submit(const string &idStr,
     return;
   }
 
-  // means miner use stratum job's default block time
+  // 0 means miner use stratum job's default block time
   if (nTime == 0) {
     shared_ptr<StratumJobEx> exjob;
     exjob = server_->jobRepository_->getStratumJobEx(localJob->jobId_);
@@ -696,13 +696,10 @@ bool AgentSessions::handleExMessage_RegisterWorker(struct evbuffer *inBuf) {
   data.resize(msgLen);
   evbuffer_remove(inBuf, (void *)data.data(), data.size());
 
-  const char *clientAgent = (char *)data.data() + 6;
-  size_t   clientAgentLen = strlen((char *)data.data() + 6);
-  const char *workerName  = clientAgent + clientAgentLen;
-
-  const string clientAgentStr = filterWorkerName(string(clientAgent));
-  const string  workerNameStr = filterWorkerName(string(workerName));
-  const int64_t      workerId = StratumWorker::calcWorkerId(workerNameStr);
+  const string clientAgent = filterWorkerName((char *)data.data() + 6);
+  const string  workerName = filterWorkerName(clientAgent.c_str() +
+                                              clientAgent.length() + 1);
+  const int64_t   workerId = StratumWorker::calcWorkerId(workerName);
 
   // set sessionId -> workerId
   if (workerIds_.size() < sessionId + 1) {
@@ -718,8 +715,7 @@ bool AgentSessions::handleExMessage_RegisterWorker(struct evbuffer *inBuf) {
   diffControllers_[sessionId].reset(make_shared<DiffController>(shareAvgSeconds_));
 
   // submit worker info to stratum session
-  ssession_->handleExMessage_AuthorizeAgentWorker(workerId, clientAgentStr,
-                                                  workerNameStr);
+  ssession_->handleExMessage_AuthorizeAgentWorker(workerId, clientAgent, workerName);
 }
 
 bool AgentSessions::handleExMessage_SubmitShare(struct evbuffer *inBuf,

@@ -242,7 +242,7 @@ class AgentSessions {
   //
   // sessionId is vector's index
   //
-  // session ID range: [0, 65535], so vector max size is 65535
+  // session ID range: [0, 65535], so vector max size is 65536
   vector<int64_t> workerIds_;
   vector<shared_ptr<DiffController>> diffControllers_;
   int32_t shareAvgSeconds_;
