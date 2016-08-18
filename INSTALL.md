@@ -3,12 +3,11 @@ Install BTC.COM Pool
 
 * OS: `Ubuntu 14.04 LTS, 64 Bits`
 
-If you are the first time install btcpool, you could run `bash install/install_btcpool.sh` instead of exec these shell commands one by one.
+## Build
 
----
+If you are the first time build btcpool, you could run `bash install/install_btcpool.sh` instead of exec these shell commands one by one.
 
-
-## Depends
+### Depends
 
 ```
 apt-get update
@@ -61,7 +60,7 @@ make
 make install
 ```
 
-## Build
+### btcpool
 
 ```
 mkdir -p /work && cd /work
@@ -70,4 +69,48 @@ cd /work/btcpool
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
 make
+```
+
+---
+
+## Init btcpool
+
+Now create folder for btcpool, if you are going to run all service in one machine you could run `install/init_folders.sh` as below.
+
+```
+cd /work/btcpool
+bash ./install/init_folders.sh
+```
+
+**create kafka topics**
+
+Login to one of kafka machines, than create topics for `btcpool`:
+
+```
+cd /work/kafka
+
+#
+# "10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181" is ZooKeeper cluster.
+#
+./bin/kafka-topics.sh --create --topic RawGbt      --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic StratumJob  --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1 
+./bin/kafka-topics.sh --create --topic SolvedShare --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 3 --partitions 1 
+./bin/kafka-topics.sh --create --topic ShareLog    --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
+```
+
+Check kafka topics stutus:
+
+```
+# show topics
+$ ./bin/kafka-topics.sh --describe --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181
+
+# if create all topics success, will output:
+Topic:RawGbt   	PartitionCount:1       	ReplicationFactor:2    	Configs:
+       	Topic: RawGbt  	Partition: 0   	Leader: 1      	Replicas: 1,2  	Isr: 1,2
+Topic:ShareLog 	PartitionCount:1       	ReplicationFactor:2    	Configs:
+       	Topic: ShareLog	Partition: 0   	Leader: 2      	Replicas: 2,1  	Isr: 2,1
+Topic:SolvedShare      	PartitionCount:1       	ReplicationFactor:3    	Configs:
+       	Topic: SolvedShare     	Partition: 0   	Leader: 1      	Replicas: 1,2,3	Isr: 1,2,3
+Topic:StratumJob       	PartitionCount:1       	ReplicationFactor:2    	Configs:
+       	Topic: StratumJob      	Partition: 0   	Leader: 1      	Replicas: 1,2  	Isr: 1,2
 ```
