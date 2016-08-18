@@ -67,7 +67,6 @@ blockmaxsize=1000000
 
 ```
 # start docker
-# port 8331 is for zmq
 docker run -it -v /work/bitcoind:/root/.bitcoin --name bitcoind -p 8333:8333 -p 8332:8332 -p 8331:8331 --restart always -d bitcoind:0.12.1
 
 # login
