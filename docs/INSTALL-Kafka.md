@@ -33,6 +33,10 @@ The broker's id is `1`.
 # The id of the broker. This must be set to a unique integer for each broker.
 broker.id=1
 
+# increate message size limit
+message.max.bytes=20000000
+replica.fetch.max.bytes=30000000
+
 log.dirs=/work/kafka-logs
 listeners=PLAINTEXT://10.0.0.4:9092
 
@@ -43,5 +47,8 @@ zookeeper.connect=10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181
 
 ```
 cd /work/kafka
-./bin/kafka-server-start.sh /work/kafka/config/server.properties > /work/kafka/kafka.log 2>&1
+nohup ./bin/kafka-server-start.sh /work/kafka/config/server.properties > /work/kafka/kafka.log 2>&1 &
+
+# stop server
+# ./bin/kafka-server-stop.sh /work/kafka/config/server.properties
 ```
