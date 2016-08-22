@@ -180,6 +180,7 @@ string GbtMaker::makeRawGbtMsg() {
       r["result"]["coinbasevalue"].type()     != Utilities::JS::type::Int ||
       r["result"]["bits"].type()              != Utilities::JS::type::Str ||
       r["result"]["mintime"].type()           != Utilities::JS::type::Int ||
+      r["result"]["curtime"].type()           != Utilities::JS::type::Int ||
       r["result"]["version"].type()           != Utilities::JS::type::Int) {
     LOG(ERROR) << "gbt check fields failure";
     return "";
