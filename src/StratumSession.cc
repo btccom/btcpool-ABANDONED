@@ -235,6 +235,10 @@ StratumSession::~StratumSession() {
   // free session id
   server_->sessionIDManager_->freeSessionId(extraNonce1_);
 
+  if (agentSessions_ != nullptr) {
+    delete agentSessions_;
+  }
+
   LOG(INFO) << "close stratum session, ip: " << clientIp_
   << ", name: \"" << worker_.fullName_ << "\"";
 
