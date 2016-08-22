@@ -114,3 +114,10 @@ Topic:SolvedShare      	PartitionCount:1       	ReplicationFactor:3    	Configs:
 Topic:StratumJob       	PartitionCount:1       	ReplicationFactor:2    	Configs:
        	Topic: StratumJob      	Partition: 0   	Leader: 1      	Replicas: 1,2  	Isr: 1,2
 ```
+
+Use `supervisor` to manager service.
+
+```
+apt-get install supervisor
+```
+
