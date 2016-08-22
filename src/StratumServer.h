@@ -243,7 +243,9 @@ class Server {
   mutex producerSolvedShareLock_;
   KafkaProducer *kafkaProducerSolvedShare_;
 
-  // if enable simulator, all share will be accepted
+  //
+  // WARNING: if enable simulator, all share will be accepted. only for test.
+  //
   bool isEnableSimulator_;
 
 public:
