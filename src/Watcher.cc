@@ -188,14 +188,14 @@ bool ClientContainer::makeEmptyGBT(int32_t blockHeight, uint32_t nBits,
   gbt += Strings::Format("\"previousblockhash\":\"%s\"", blockPrevHash.c_str());
   gbt += Strings::Format(",\"height\":%d", blockHeight);
   gbt += Strings::Format(",\"coinbasevalue\":%" PRId64"", GetBlockValue(blockHeight, 0));
-  gbt += Strings::Format(",\"bits\":%08x", nBits);
+  gbt += Strings::Format(",\"bits\":\"%08x\"", nBits);
   const uint32_t minTime = blockTime - 60*10;  // just set 10 mins ago
-  gbt += Strings::Format(",\"mintime\":%08x", minTime);
+  gbt += Strings::Format(",\"mintime\":%" PRIu32"", minTime);
   gbt += Strings::Format(",\"curtime\":%" PRIu32"", blockTime);
   gbt += Strings::Format(",\"version\":%" PRIu32"", blockVersion);
   gbt += Strings::Format(",\"transactions\":[]");  // empty transactions
 
-  gbt += Strings::Format("}");
+  gbt += Strings::Format("}}");
 
   const uint256 gbtHash = Hash(gbt.begin(), gbt.end());
 
@@ -207,8 +207,10 @@ bool ClientContainer::makeEmptyGBT(int32_t blockHeight, uint32_t nBits,
                                 gbtHash.ToString().c_str());
 
   // submit to Kafka
-  LOG(INFO) << "sumbit to Kafka, msg len: " << sjob.length();
   kafkaProducer_.produce(sjob.c_str(), sjob.length());
+
+  LOG(INFO) << "sumbit to Kafka, msg len: " << sjob.length();
+  LOG(INFO) << "empty gbt: " << gbt;
 
   return true;
 }
@@ -369,12 +371,10 @@ void PoolWatchClient::handleStratumMessage(const string &line) {
       if (lastPrevBlockHash_ != prevHash) {
         const int32_t  blockHeight = getBlockHeightFromCoinbase(jparamsArr[2].str());
         const uint32_t blockTime   = jparamsArr[7].uint32_hex();
+        const uint32_t nBits       = jparamsArr[6].uint32_hex();
+        const uint32_t nVersion    = jparamsArr[5].uint32_hex();
 
-        container_->makeEmptyGBT(blockHeight,
-                                 jparamsArr[6].uint32_hex(),  // nBits
-                                 prevHash, blockTime,
-                                 jparamsArr[5].uint32_hex()   // nVersion
-                                 );
+        container_->makeEmptyGBT(blockHeight, nBits, prevHash, blockTime, nVersion);
 
         lastPrevBlockHash_ = prevHash;
         LOG(INFO) << poolName_ << " prev block changed, height: " << blockHeight
