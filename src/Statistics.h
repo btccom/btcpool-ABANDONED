@@ -330,7 +330,8 @@ class ShareLogWriter {
   void tryCloseOldHanders();
 
 public:
-  ShareLogWriter(const char *kafkaBrokers, const string &dataDir);
+  ShareLogWriter(const char *kafkaBrokers, const string &dataDir,
+                 const string &kafkaGroupID);
   ~ShareLogWriter();
 
   void stop();

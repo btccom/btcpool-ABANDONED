@@ -657,10 +657,10 @@ void StatsServer::run() {
 
 //////////////////////////////  ShareLogWriter  ///////////////////////////////
 ShareLogWriter::ShareLogWriter(const char *kafkaBrokers,
-                               const string &dataDir)
+                               const string &dataDir,
+                               const string &kafkaGroupID)
 :running_(true), dataDir_(dataDir),
-hlConsumer_(kafkaBrokers, KAFKA_TOPIC_SHARE_LOG, 0/* patition */,
-"ShareLogWriter" /* kafka group.id */)
+hlConsumer_(kafkaBrokers, KAFKA_TOPIC_SHARE_LOG, 0/* patition */, kafkaGroupID)
 {
 }
 
