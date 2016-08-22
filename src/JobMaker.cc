@@ -47,7 +47,7 @@ kafkaConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT,      0/* partition */)
 kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, RD_KAFKA_PARTITION_UA/* partition */),
 currBestHeight_(0), stratumJobInterval_(stratumJobInterval),
 poolPayoutAddr_(payoutAddr), kGbtLifeTime_(gbtLifeTime),
-blockVersion_(0)  // TODO: cfg
+blockVersion_(0x20000000)  // TODO: cfg
 {
   poolCoinbaseInfo_ = "/BTC.COM/";
 }

@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 2.6)
 
-project (NodeBooster)
+project (BTCPOOL)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
 #
@@ -106,3 +106,7 @@ target_link_libraries(blkmaker poolcomponents ${THRID_LIBRARIES})
 file(GLOB_RECURSE SIMULATOR_SOURCES src/simulator/*.cc)
 add_executable(simulator ${SIMULATOR_SOURCES})
 target_link_libraries(simulator poolcomponents ${THRID_LIBRARIES})
+
+file(GLOB_RECURSE POOLWATCHER_SOURCES src/poolwatcher/*.cc)
+add_executable(poolwatcher ${POOLWATCHER_SOURCES})
+target_link_libraries(poolwatcher poolcomponents ${THRID_LIBRARIES})
