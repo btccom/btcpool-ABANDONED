@@ -75,8 +75,12 @@ void JobRepository::stop() {
 
 bool JobRepository::setupThreadConsume() {
   const int32_t kConsumeLatestN = 1;
+
   // we need to consume the latest one
-  if (kafkaConsumer_.setup(RD_KAFKA_OFFSET_TAIL(kConsumeLatestN)) == false) {
+  map<string, string> consumerOptions;
+  consumerOptions["fetch.wait.max.ms"] = "10";
+  if (kafkaConsumer_.setup(RD_KAFKA_OFFSET_TAIL(kConsumeLatestN),
+                           &consumerOptions) == false) {
     LOG(INFO) << "setup consumer fail";
     return false;
   }

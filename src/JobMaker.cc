@@ -86,7 +86,9 @@ bool JobMaker::init() {
   }
 
   // consumer offset: latest N messages
-  if (!kafkaConsumer_.setup(RD_KAFKA_OFFSET_TAIL(consumeLatestN))) {
+  map<string, string> consumerOptions;
+  consumerOptions["fetch.wait.max.ms"] = "10";
+  if (!kafkaConsumer_.setup(RD_KAFKA_OFFSET_TAIL(consumeLatestN), &consumerOptions)) {
     LOG(ERROR) << "kafka consumer setup failure";
     return false;
   }

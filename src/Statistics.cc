@@ -407,7 +407,11 @@ void StatsServer::consumeShareLog(rd_kafka_message_t *rkmessage) {
 
 bool StatsServer::setupThreadConsume() {
   const int32_t kConsumeLatestN = 10000 * (900 / 10);
-  if (kafkaConsumer_.setup(RD_KAFKA_OFFSET_TAIL(kConsumeLatestN)) == false) {
+
+  map<string, string> consumerOptions;
+  consumerOptions["fetch.wait.max.ms"] = "100";
+  if (kafkaConsumer_.setup(RD_KAFKA_OFFSET_TAIL(kConsumeLatestN),
+                           &consumerOptions) == false) {
     LOG(INFO) << "setup consumer fail";
     return false;
   }

@@ -95,7 +95,7 @@ topic_(nullptr)
   defaultOptions_["fetch.message.max.bytes"] = "20000000";
 
   // Maximum time the broker may wait to fill the response with fetch.min.bytes
-  defaultOptions_["fetch.wait.max.ms"] = "5";
+  defaultOptions_["fetch.wait.max.ms"] = "10";
 }
 
 KafkaConsumer::~KafkaConsumer() {
@@ -258,7 +258,7 @@ bool KafkaHighLevelConsumer::setup() {
     "group.id" /* Consumer groups require a group id */
   };
   const vector<string> conVals = {"20000000", "snappy",
-    "20000000","20000000","5", groupStr_.c_str()};
+    "20000000","20000000","50", groupStr_.c_str()};
   assert(conKeys.size() == conVals.size());
 
   for (size_t i = 0; i < conKeys.size(); i++) {
