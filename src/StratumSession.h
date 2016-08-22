@@ -54,6 +54,8 @@
 class Server;
 class StratumJobEx;
 class DiffController;
+class StratumSession;
+class AgentSessions;
 
 //////////////////////////////// DiffController ////////////////////////////////
 class DiffController {
@@ -170,6 +172,7 @@ public:
 
   //----------------------
 private:
+  int32_t shareAvgSeconds_;
   DiffController diffController_;
   State state_;
   StratumWorker worker_;
@@ -187,6 +190,8 @@ private:
   struct evbuffer *inBuf_;
   bool   isPoolWatcher_;
   uint8_t shortJobIdIdx_;
+
+  AgentSessions *agentSessions_;
 
   uint8_t allocShortJobId();
 
@@ -208,6 +213,10 @@ private:
   void _handleRequest_SetDifficulty(uint64_t suggestDiff);
 
   LocalJob *findLocalJob(uint8_t shortJobId);
+
+  bool handleExMessage_RegisterWorker(struct evbuffer *inBuf);
+  bool handleExMessage_SubmitShare(struct evbuffer *inBuf);
+  bool handleExMessage_SubmitShareWithTime(struct evbuffer *inBuf);
 
 public:
   struct bufferevent* bev_;
@@ -244,15 +253,15 @@ class AgentSessions {
   //
   // session ID range: [0, 65535], so vector max size is 65536
   vector<int64_t> workerIds_;
-  vector<shared_ptr<DiffController>> diffControllers_;
+  vector<DiffController *> diffControllers_;
   int32_t shareAvgSeconds_;
 
-  StratumSession *ssession_;
+  StratumSession *stratumSession_;
 
 public:
-  AgentSession(const int32_t shareAvgSeconds, StratumSession *ssession);
+  AgentSessions(const int32_t shareAvgSeconds, StratumSession *stratumSession);
+  ~AgentSessions();
 
-  uint8_t getExMessageType(struct evbuffer *inBuf);
   bool handleExMessage_SubmitShare(struct evbuffer *inBuf,
                                    const bool isWithTime);
   bool handleExMessage_RegisterWorker(struct evbuffer *inBuf);

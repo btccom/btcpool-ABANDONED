@@ -202,7 +202,7 @@ uint64 DiffController::_calcCurDiff() {
 StratumSession::StratumSession(evutil_socket_t fd, struct bufferevent *bev,
                                Server *server, struct sockaddr *saddr,
                                const int32_t shareAvgSeconds) :
-diffController_(shareAvgSeconds),
+shareAvgSeconds_(shareAvgSeconds), diffController_(shareAvgSeconds_),
 shortJobIdIdx_(0), bev_(bev), fd_(fd), server_(server)
 {
   state_ = CONNECTED;
@@ -225,6 +225,7 @@ shortJobIdIdx_(0), bev_(bev), fd_(fd), server_(server)
                         (char *)clientIp_.data(), (socklen_t)clientIp_.size());
   clientIpInt_ = saddrin->sin_addr.s_addr;
 
+  agentSessions_ = nullptr;
   setup();
 
   LOG(INFO) << "client connect, ip: " << clientIp_;
@@ -637,37 +638,78 @@ void StratumSession::readBuf(struct evbuffer *buf) {
   // moves all data from src to the end of dst
   evbuffer_add_buffer(inBuf_, buf);
 
+  // handle ex-message
+  if (evbuffer_get_length(inBuf_) >= 2) {
+    uint8_t buf[2];
+    evbuffer_copyout(inBuf_, buf, 2);
+
+    if (buf[0] == CMD_MAGIC_NUMBER)
+    {
+      switch (buf[1]) {
+        case CMD_REGISTER_WORKER:
+          handleExMessage_RegisterWorker(inBuf_);
+          return;
+        case CMD_SUBMIT_SHARE:
+          handleExMessage_SubmitShare(inBuf_);
+          return;
+        case CMD_SUBMIT_SHARE_WITH_TIME:
+          handleExMessage_SubmitShareWithTime(inBuf_);
+          return;
+
+        default:
+          break;
+      }
+    }
+    LOG(ERROR) << "unkown exMesage type: " << buf[1];
+    return;
+  }
+
+  // handle stratum message
   string line;
-  while (tryReadLine(line)) {
+  if (tryReadLine(line)) {
     handleLine(line);
+    return;
   }
 }
 
-
-
-//////////////////////////////// AgentSession ////////////////////////////////
-uint8_t AgentSessions::getExMessageType(struct evbuffer *inBuf) {
-  size_t evbuflen = evbuffer_get_length(inBuf);
-  if (evbuflen < 2) {
-    return CMD_INVLIAD_TYPE;
+bool StratumSession::handleExMessage_RegisterWorker(struct evbuffer *inBuf) {
+  // this type of message MUST be the first ex-message we received
+  if (agentSessions_ == nullptr) {
+    agentSessions_ = new AgentSessions(shareAvgSeconds_, this);
   }
-  // copy the first 2 bytes
-  uint8_t buf[2];
-  evbuffer_copyout(inBuf, buf, sizeof(buf));
+  return agentSessions_->handleExMessage_RegisterWorker(inBuf_);
+}
 
-  if (buf[0] != CMD_MAGIC_NUMBER) {
-    return CMD_INVLIAD_TYPE;
+bool StratumSession::handleExMessage_SubmitShare(struct evbuffer *inBuf) {
+  if (agentSessions_ == nullptr) {
+    return false;
   }
+  return agentSessions_->handleExMessage_SubmitShare(inBuf_, false);
+}
 
-  if (buf[1] == CMD_SUBMIT_SHARE) {
-    return CMD_SUBMIT_SHARE;
-  } else if (buf[1] == CMD_SUBMIT_SHARE_WITH_TIME) {
-    return CMD_SUBMIT_SHARE_WITH_TIME;
-  } else if (buf[1] == CMD_REGISTER_WORKER) {
-    return CMD_REGISTER_WORKER;
-  } else {
-    LOG(ERROR) << "recv invalid ex message type: " << buf[1];
-    return CMD_INVLIAD_TYPE;
+bool StratumSession::handleExMessage_SubmitShareWithTime(struct evbuffer *inBuf) {
+  if (agentSessions_ == nullptr) {
+    return false;
+  }
+  return agentSessions_->handleExMessage_SubmitShare(inBuf_, true);
+}
+
+
+///////////////////////////////// AgentSessions ////////////////////////////////
+AgentSessions::AgentSessions(const int32_t shareAvgSeconds,
+                             StratumSession *stratumSession)
+:shareAvgSeconds_(shareAvgSeconds), stratumSession_(stratumSession)
+{
+  // we just pre-alloc all
+  workerIds_.resize(65535, 0);
+  diffControllers_.resize(65535, nullptr);
+}
+
+AgentSessions::~AgentSessions() {
+  for (auto ptr : diffControllers_) {
+    if (ptr != nullptr) {
+      delete ptr;
+    }
   }
 }
 
@@ -702,20 +744,17 @@ bool AgentSessions::handleExMessage_RegisterWorker(struct evbuffer *inBuf) {
   const int64_t   workerId = StratumWorker::calcWorkerId(workerName);
 
   // set sessionId -> workerId
-  if (workerIds_.size() < sessionId + 1) {
-    workerIds_.resize(sessionId + 1);
-  }
   workerIds_[sessionId] = workerId;
-
-  // set sessionId -> DiffController *
-  if (diffControllers_.size() < sessionId + 1) {
-    diffControllers_.resize(sessionId + 1);
-  }
   // deletes managed object, acquires new pointer
-  diffControllers_[sessionId].reset(make_shared<DiffController>(shareAvgSeconds_));
+  if (diffControllers_[sessionId] != nullptr) {
+    delete diffControllers_[sessionId];
+  }
+  diffControllers_[sessionId] = new DiffController(shareAvgSeconds_);
 
   // submit worker info to stratum session
-  ssession_->handleExMessage_AuthorizeAgentWorker(workerId, clientAgent, workerName);
+  stratumSession_->handleExMessage_AuthorizeAgentWorker(workerId, clientAgent,
+                                                        workerName);
+  return true;
 }
 
 bool AgentSessions::handleExMessage_SubmitShare(struct evbuffer *inBuf,
@@ -743,6 +782,8 @@ bool AgentSessions::handleExMessage_SubmitShare(struct evbuffer *inBuf,
   const uint32_t time = (isWithTime == false ? 0 : *(uint32_t *)(data.data() + 13));
 
   const uint64_t fullExtraNonce2 = (uint64_t)sessionId << 32 | exNonce2;
-  ssession_->handleRequest_Submit("null", shortJobId, fullExtraNonce2, nonce, time);
+  stratumSession_->handleRequest_Submit("null", shortJobId, fullExtraNonce2, nonce, time);
+
+  return true;
 }
 
