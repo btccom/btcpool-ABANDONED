@@ -37,11 +37,11 @@
 #include <map>
 #include <set>
 
-#include "MySQLConnection.h"
 #include "utilities_js.hpp"
 #include "bitcoin/base58.h"
 
 #define BTCCOM_WATCHER_AGENT   "btc.com-watcher/0.1"
+
 
 class PoolWatchClient;
 class ClientContainer;
@@ -57,27 +57,23 @@ class ClientContainer {
   struct event *signal_event_;
 
   string kafkaBrokers_;
-  KafkaProducer kafkaProducer_;
-
-  CBitcoinAddress poolPayoutAddr_;
+  KafkaProducer kafkaProducer_;  // produce GBT message
 
 public:
-  ClientContainer(const string &kafkaBrokers, const string &payoutAddr);
+  ClientContainer(const string &kafkaBrokers);
   ~ClientContainer();
 
+  bool addPools(const string &poolName, const string &poolHost,
+                const int16_t poolPort, const string &workerName);
   bool init();
   void run();
   void stop();
 
   void removeAndCreateClient(PoolWatchClient *client);
 
-  bool makeEmptyMiningNotify(const string &poolName,
-                             uint64_t jobRecvTimeMs, int32_t blockHeight,
-                             const string &blockPrevHash, uint32_t blockTime);
-
-  bool insertBlockInfoToDB(const string &poolName,
-                           uint64_t jobRecvTimeMs, int32_t blockHeight,
-                           const string &blockPrevHash, uint32_t blockTime);
+  bool makeEmptyGBT(int32_t blockHeight, uint32_t nBits,
+                    const string &blockPrevHash,
+                    uint32_t blockTime, uint32_t blockVersion);
 
   static void readCallback (struct bufferevent *bev, void *ptr);
   static void eventCallback(struct bufferevent *bev, short events, void *ptr);
@@ -114,9 +110,9 @@ public:
 
 public:
   PoolWatchClient(struct event_base *base, ClientContainer *container,
-                const string &poolName,
-                const string &poolHost, const int16_t poolPort,
-                const string &workerName);
+                  const string &poolName,
+                  const string &poolHost, const int16_t poolPort,
+                  const string &workerName);
   ~PoolWatchClient();
 
   bool connect();

@@ -115,10 +115,9 @@ string convertPrevHash(const string &prevHash) {
 
 
 ///////////////////////////////// ClientContainer //////////////////////////////
-ClientContainer::ClientContainer(const string &kafkaBrokers, const string &payoutAddr)
+ClientContainer::ClientContainer(const string &kafkaBrokers)
 :running_(true), kafkaBrokers_(kafkaBrokers),
-kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, RD_KAFKA_PARTITION_UA/* partition */),
-poolPayoutAddr_(payoutAddr)
+kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT, 0/* partition */)
 {
   base_ = event_base_new();
   assert(base_ != nullptr);
@@ -142,58 +141,76 @@ void ClientContainer::stop() {
 }
 
 bool ClientContainer::init() {
-  // read pools from DB
-  const string sql = "SELECT `pool_name`,`pool_host`,`pool_port`,`worker_name` FROM `pools`";
-
-  char **row;
-  MySQLResult res;
-  db_.query(sql, res);
-
-  while ((row = res.nextRow()) != nullptr) {
-    auto ptr = new PoolWatchClient(base_, this,
-                                   // pool_name, pool_host
-                                   string(row[0]), string(row[1]),
-                                   // pool_port, worker_name
-                                   (int16_t)atoi(row[2]), string(row[3]));
-    ptr->connect();
-    clients_.push_back(ptr);
-
-    LOG(INFO) << "watch pool: " << row[0] << ", " << row[1] << ":" << row[2] << ", " << row[3];
-  }
-
+  // check pools
   if (clients_.size() == 0) {
     LOG(ERROR) << "no avaiable pools";
     return false;
   }
 
+  /* setup kafka */
+  {
+    map<string, string> options;
+    // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
+    options["queue.buffering.max.ms"] = "1";
+    if (!kafkaProducer_.setup(&options)) {
+      LOG(ERROR) << "kafka producer setup failure";
+      return false;
+    }
+    if (!kafkaProducer_.checkAlive()) {
+      LOG(ERROR) << "kafka producer is NOT alive";
+      return false;
+    }
+  }
+
   return true;
 }
 
-//bool ClientContainer::insertBlockInfoToDB(const string &poolName,
-//                                          uint64_t jobRecvTimeMs,
-//                                          int32_t blockHeight,
-//                                          const string &blockPrevHash,
-//                                          uint32_t blockTime) {
-//  string recvTime = date("%F %T", jobRecvTimeMs/1000);
-//  recvTime.append(Strings::Format(".%03d", jobRecvTimeMs % 1000));
-//
-//  string sql = Strings::Format("INSERT INTO `pool_block_notify` "
-//                               "(`pool_name`, `job_recv_time`, `block_height`,"
-//                               " `block_prev_hash`, `block_time`, `created_at`)"
-//                               " VALUES (\"%s\",\"%s\",%d,\"%s\",\"%s\",\"%s\")",
-//                               poolName.c_str(), recvTime.c_str(), blockHeight,
-//                               blockPrevHash.c_str(),
-//                               date("%F %T", blockTime).c_str(),
-//                               date("%F %T", time(nullptr)).c_str());
-//  return db_.execute(sql);
-//}
+// do add pools before init()
+bool ClientContainer::addPools(const string &poolName, const string &poolHost,
+                               const int16_t poolPort, const string &workerName) {
+  auto ptr = new PoolWatchClient(base_, this,
+                                 poolName, poolHost, poolPort, workerName);
+  if (!ptr->connect()) {
+    return false;
+  }
+  clients_.push_back(ptr);
 
-bool ClientContainer::makeEmptyMiningNotify(const string &poolName,
-                                            uint64_t jobRecvTimeMs,
-                                            int32_t blockHeight,
-                                            const string &blockPrevHash,
-                                            uint32_t blockTime) {
+  return true;
+}
 
+bool ClientContainer::makeEmptyGBT(int32_t blockHeight, uint32_t nBits,
+                                   const string &blockPrevHash,
+                                   uint32_t blockTime, uint32_t blockVersion) {
+  // generate empty GBT
+  string gbt;
+  gbt += Strings::Format("{\"result\":{");
+
+  gbt += Strings::Format("\"previousblockhash\":\"%s\"", blockPrevHash.c_str());
+  gbt += Strings::Format(",\"height\":%d", blockHeight);
+  gbt += Strings::Format(",\"coinbasevalue\":%" PRId64"", GetBlockValue(blockHeight, 0));
+  gbt += Strings::Format(",\"bits\":%08x", nBits);
+  const uint32_t minTime = blockTime - 60*10;  // just set 10 mins ago
+  gbt += Strings::Format(",\"mintime\":%08x", minTime);
+  gbt += Strings::Format(",\"curtime\":%" PRIu32"", blockTime);
+  gbt += Strings::Format(",\"version\":%" PRIu32"", blockVersion);
+  gbt += Strings::Format(",\"transactions\":[]");  // empty transactions
+
+  gbt += Strings::Format("}");
+
+  const uint256 gbtHash = Hash(gbt.begin(), gbt.end());
+
+  string sjob = Strings::Format("{\"created_at_ts\":%u,"
+                                "\"block_template_base64\":\"%s\","
+                                "\"gbthash\":\"%s\"}",
+                                (uint32_t)time(nullptr),
+                                EncodeBase64(gbt).c_str(),
+                                gbtHash.ToString().c_str());
+
+  // submit to Kafka
+  LOG(INFO) << "sumbit to Kafka, msg len: " << sjob.length();
+  kafkaProducer_.produce(sjob.c_str(), sjob.length());
+
+  return true;
 }
 
 void ClientContainer::removeAndCreateClient(PoolWatchClient *client) {
@@ -353,12 +370,12 @@ void PoolWatchClient::handleStratumMessage(const string &line) {
         const int32_t  blockHeight = getBlockHeightFromCoinbase(jparamsArr[2].str());
         const uint32_t blockTime   = jparamsArr[7].uint32_hex();
 
-        struct timeval tv;
-        gettimeofday(&tv, nullptr);
-        container_->insertBlockInfoToDB(poolName_,
-                                        (uint64_t)tv.tv_sec * 1000 + tv.tv_usec / 1000,
-                                        blockHeight,
-                                        prevHash, blockTime);
+        container_->makeEmptyGBT(blockHeight,
+                                 jparamsArr[6].uint32_hex(),  // nBits
+                                 prevHash, blockTime,
+                                 jparamsArr[5].uint32_hex()   // nVersion
+                                 );
+
         lastPrevBlockHash_ = prevHash;
         LOG(INFO) << poolName_ << " prev block changed, height: " << blockHeight
         << ", prev_hash: " << prevHash;
