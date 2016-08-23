@@ -49,6 +49,7 @@
 #define CMD_SUBMIT_SHARE      0x01u             // recv msg, without block time
 #define CMD_SUBMIT_SHARE_WITH_TIME  0x02u       // recv msg
 #define CMD_MINING_SET_DIFF   0x03u             // send msg
+#define CMD_UNREGISTER_WORKER 0x04u             // recv msg
 
 
 class Server;
@@ -59,11 +60,13 @@ class AgentSessions;
 
 //////////////////////////////// DiffController ////////////////////////////////
 class DiffController {
-  static const int32_t kMinDiff_       = 1;     // min diff
+public:
+  static const int32_t kMinDiff_       = 8;     // min diff
   static const int32_t kDefaultDiff_   = 1024;  // default diff, 2^N
   static const int32_t kDiffWindow_    = 900;   // time window, seconds, 60*N
   static const int32_t kRecordSeconds_ = 10;    // every N seconds as a record
 
+private:
   time_t startTime_;  // first job send time
   uint64  minDiff_;
   uint64  curDiff_;
@@ -152,13 +155,12 @@ public:
   struct LocalJob {
     uint64_t jobId_;
     uint64_t jobDifficulty_;     // difficulty of this job
-    uint256  jobTarget_;
     uint32_t blkBits_;
     uint8_t  shortJobId_;
     std::set<LocalShare> submitShares_;
+    std::vector<uint32_t> agentSessionsDiff_;  // agent's miner max diff is uint32_max
 
-    LocalJob(): jobId_(0), jobDifficulty_(0), jobTarget_(),
-    blkBits_(0), shortJobId_(0) {}
+    LocalJob(): jobId_(0), jobDifficulty_(0), blkBits_(0), shortJobId_(0) {}
 
     bool addLocalShare(const LocalShare &localShare) {
       auto itr = submitShares_.find(localShare);
@@ -198,9 +200,12 @@ private:
   void setup();
   void setReadTimeout(const int32_t timeout);
 
-  bool tryReadLine(string &line);
+  bool handleMessage();  // handle all messages: ex-message and stratum message
+
   void responseError(const string &idStr, int code);
   void responseTrue(const string &idStr);
+
+  bool tryReadLine(string &line);
   void handleLine(const string &line);
   void handleRequest(const string &idStr, const string &method, const JsonNode &jparams);
 
@@ -215,6 +220,7 @@ private:
   LocalJob *findLocalJob(uint8_t shortJobId);
 
   bool handleExMessage_RegisterWorker(struct evbuffer *inBuf);
+  bool handleExMessage_UnRegisterWorker(struct evbuffer *inBuf);
   bool handleExMessage_SubmitShare(struct evbuffer *inBuf);
   bool handleExMessage_SubmitShareWithTime(struct evbuffer *inBuf);
 
@@ -242,7 +248,8 @@ public:
                                             const string &workerName);
   void handleRequest_Submit(const string &idStr,
                             const uint8_t shortJobId, const uint64_t extraNonce2,
-                            const uint32_t nonce, uint32_t nTime);
+                            const uint32_t nonce, uint32_t nTime,
+                            bool isAgentSession);
 };
 
 
@@ -254,6 +261,7 @@ class AgentSessions {
   // session ID range: [0, 65535], so vector max size is 65536
   vector<int64_t> workerIds_;
   vector<DiffController *> diffControllers_;
+  vector<uint32_t> curDiffVec_;
   int32_t shareAvgSeconds_;
 
   StratumSession *stratumSession_;
@@ -265,6 +273,11 @@ public:
   bool handleExMessage_SubmitShare(struct evbuffer *inBuf,
                                    const bool isWithTime);
   bool handleExMessage_RegisterWorker(struct evbuffer *inBuf);
+  bool handleExMessage_UnRegisterWorker(struct evbuffer *inBuf);
+
+  void calcSessionsJobDiff(vector<uint32_t> &agentSessionsDiff);
+  void getSessionsChangedDiff(const vector<uint32_t> &agentSessionsDiff,
+                              string &data);
 };
 
 #endif

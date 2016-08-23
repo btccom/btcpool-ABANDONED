@@ -266,6 +266,7 @@ void StratumSession::setReadTimeout(const int32_t timeout) {
   bufferevent_set_timeouts(bev_, &rtv, &wtv);
 }
 
+// if read success, will remove data from eventbuf
 bool StratumSession::tryReadLine(string &line) {
   line.clear();
 
@@ -515,21 +516,32 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   uint32_t nTime             = jparams.children()->at(3).uint32_hex();
   const uint32_t nonce       = jparams.children()->at(4).uint32_hex();
 
-  handleRequest_Submit(idStr, shortJobId, extraNonce2, nonce, nTime);
+  handleRequest_Submit(idStr, shortJobId, extraNonce2, nonce, nTime,
+                       false /* not agent session */);
 }
 
 void StratumSession::handleRequest_Submit(const string &idStr,
                                           const uint8_t shortJobId,
                                           const uint64_t extraNonce2,
                                           const uint32_t nonce,
-                                          uint32_t nTime) {
+                                          uint32_t nTime,
+                                          bool isAgentSession) {
+  //
+  // if share is from agent session, we don't need to send reply json
+  //
+  if (isAgentSession == true && agentSessions_ == nullptr) {
+    LOG(ERROR) << "can't find agentSession";
+    return;
+  }
+
   const string extraNonce2Hex = Strings::Format("%016x", extraNonce2);
   assert(extraNonce2Hex.length()/2 == kExtraNonce2Size_);
 
   LocalJob *localJob = findLocalJob(shortJobId);
   if (localJob == nullptr) {
     // if can't find localJob, could do nothing
-    responseError(idStr, StratumError::JOB_NOT_FOUND);
+    if (isAgentSession == false)
+    	responseError(idStr, StratumError::JOB_NOT_FOUND);
     return;
   }
 
@@ -551,24 +563,37 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   share.timestamp_    = (uint32_t)time(nullptr);
   share.result_       = Share::Result::REJECT;
 
-  int submitResult;
+  if (isAgentSession == true) {
+    const uint16_t sessionId = (uint16_t)(extraNonce2 >> 32);
+    // reset to agent session's diff
+    share.share_ = localJob->agentSessionsDiff_[sessionId];
+  }
 
+  // calc jobTarget
+  uint256 jobTarget;
+  DiffToTarget(share.share_, jobTarget);
+
+  int submitResult;
   LocalShare localShare(extraNonce2, nonce, nTime);
   if (!localJob->addLocalShare(localShare)) {
-    responseError(idStr, StratumError::DUPLICATE_SHARE);
+    if (isAgentSession == false)
+      responseError(idStr, StratumError::DUPLICATE_SHARE);
     goto finish;
   }
 
   submitResult = server_->checkShare(share, extraNonce1_, extraNonce2Hex,
-                                     nTime, nonce, localJob->jobTarget_,
+                                     nTime, nonce, jobTarget,
                                      worker_.fullName_);
   if (submitResult == StratumError::NO_ERROR) {
     // accepted share
     share.result_ = Share::Result::ACCEPT;
     diffController_.addAcceptedShare(localJob->jobDifficulty_);
-    responseTrue(idStr);
+
+    if (isAgentSession == false)
+    	responseTrue(idStr);
   } else {
-    responseError(idStr, submitResult);
+    if (isAgentSession == false)
+    	responseError(idStr, submitResult);
   }
 
 finish:
@@ -613,8 +638,19 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr) {
   ljob.jobId_         = sjob->jobId_;
   ljob.shortJobId_    = allocShortJobId();
   ljob.jobDifficulty_ = diffController_.calcCurDiff();
-  DiffToTarget(ljob.jobDifficulty_, ljob.jobTarget_);
 
+  if (agentSessions_ != nullptr)
+  {
+    // calc diff and save to ljob
+    agentSessions_->calcSessionsJobDiff(ljob.agentSessionsDiff_);
+
+    // get ex-message
+    string exMessage;
+    agentSessions_->getSessionsChangedDiff(ljob.agentSessionsDiff_, exMessage);
+    sendData(exMessage);
+  }
+
+  // set difficulty
   if (currDiff_ != ljob.jobDifficulty_) {
     sendSetDifficulty(ljob.jobDifficulty_);
     currDiff_ = ljob.jobDifficulty_;
@@ -638,11 +674,10 @@ void StratumSession::sendData(const char *data, size_t len) {
 //  DLOG(INFO) << "send(" << len << "): " << data;
 }
 
-void StratumSession::readBuf(struct evbuffer *buf) {
-  // moves all data from src to the end of dst
-  evbuffer_add_buffer(inBuf_, buf);
-
+bool StratumSession::handleMessage() {
+  //
   // handle ex-message
+  //
   if (evbuffer_get_length(inBuf_) >= 2) {
     uint8_t buf[2];
     evbuffer_copyout(inBuf_, buf, 2);
@@ -651,28 +686,42 @@ void StratumSession::readBuf(struct evbuffer *buf) {
     {
       switch (buf[1]) {
         case CMD_REGISTER_WORKER:
-          handleExMessage_RegisterWorker(inBuf_);
-          return;
+          return handleExMessage_RegisterWorker(inBuf_);
+
         case CMD_SUBMIT_SHARE:
-          handleExMessage_SubmitShare(inBuf_);
-          return;
+          return handleExMessage_SubmitShare(inBuf_);
+
         case CMD_SUBMIT_SHARE_WITH_TIME:
-          handleExMessage_SubmitShareWithTime(inBuf_);
-          return;
+          return handleExMessage_SubmitShareWithTime(inBuf_);
+
+        case CMD_UNREGISTER_WORKER:
+          return handleExMessage_UnRegisterWorker(inBuf_);
 
         default:
           break;
       }
     }
     LOG(ERROR) << "unkown exMesage type: " << buf[1];
-    return;
+    return false;
   }
 
+  //
   // handle stratum message
+  //
   string line;
   if (tryReadLine(line)) {
     handleLine(line);
-    return;
+    return true;
+  }
+
+  return false;
+}
+
+void StratumSession::readBuf(struct evbuffer *buf) {
+  // moves all data from src to the end of dst
+  evbuffer_add_buffer(inBuf_, buf);
+
+  while (handleMessage()) {
   }
 }
 
@@ -688,6 +737,7 @@ bool StratumSession::handleExMessage_SubmitShare(struct evbuffer *inBuf) {
   if (agentSessions_ == nullptr) {
     return false;
   }
+  // without timestamp
   return agentSessions_->handleExMessage_SubmitShare(inBuf_, false);
 }
 
@@ -695,8 +745,17 @@ bool StratumSession::handleExMessage_SubmitShareWithTime(struct evbuffer *inBuf)
   if (agentSessions_ == nullptr) {
     return false;
   }
+  // with timestamp
   return agentSessions_->handleExMessage_SubmitShare(inBuf_, true);
 }
+
+bool StratumSession::handleExMessage_UnRegisterWorker(struct evbuffer *inBuf) {
+  if (agentSessions_ == nullptr) {
+    return false;
+  }
+  return agentSessions_->handleExMessage_UnRegisterWorker(inBuf_);
+}
+
 
 
 ///////////////////////////////// AgentSessions ////////////////////////////////
@@ -705,8 +764,9 @@ AgentSessions::AgentSessions(const int32_t shareAvgSeconds,
 :shareAvgSeconds_(shareAvgSeconds), stratumSession_(stratumSession)
 {
   // we just pre-alloc all
-  workerIds_.resize(65535, 0);
-  diffControllers_.resize(65535, nullptr);
+  workerIds_.resize(UINT16_MAX + 1, 0);
+  diffControllers_.resize(UINT16_MAX + 1, nullptr);
+  curDiffVec_.resize(UINT16_MAX + 1, 0);
 }
 
 AgentSessions::~AgentSessions() {
@@ -786,8 +846,108 @@ bool AgentSessions::handleExMessage_SubmitShare(struct evbuffer *inBuf,
   const uint32_t time = (isWithTime == false ? 0 : *(uint32_t *)(data.data() + 13));
 
   const uint64_t fullExtraNonce2 = (uint64_t)sessionId << 32 | exNonce2;
-  stratumSession_->handleRequest_Submit("null", shortJobId, fullExtraNonce2, nonce, time);
 
+  stratumSession_->handleRequest_Submit("null", shortJobId, fullExtraNonce2,
+                                        nonce, time,
+                                        true /* submit by agent's miner */);
   return true;
 }
 
+bool AgentSessions::handleExMessage_UnRegisterWorker(struct evbuffer *inBuf) {
+  //
+  // CMD_UNREGISTER_WORKER:
+  // | magic_number(1) | cmd(1) | session_id(2) |
+  //
+  size_t evbuflen = evbuffer_get_length(inBuf);
+  if (evbuflen < 4) {  // always 4 bytes
+    return false;
+  }
+  // copy the first 4 bytes
+  uint8_t buf[4];
+  evbuffer_copyout(inBuf, buf, sizeof(buf));
+  uint16_t sessionId = *(uint16_t *)(buf + 2);
+
+  // un-register worker
+  workerIds_[sessionId]  = 0u;
+  curDiffVec_[sessionId] = 0u;
+  if (diffControllers_[sessionId] != nullptr) {
+    delete diffControllers_[sessionId];
+    diffControllers_[sessionId] = nullptr;
+  }
+  return true;
+}
+
+void AgentSessions::calcSessionsJobDiff(vector<uint32_t> &agentSessionsDiff) {
+  agentSessionsDiff.clear();
+  agentSessionsDiff.resize(UINT16_MAX + 1, 0u);
+
+  for (size_t i = 0; i < diffControllers_.size(); i++) {
+    if (diffControllers_[i] == nullptr) {
+      continue;
+    }
+    uint64_t diff = diffControllers_[i]->calcCurDiff();
+
+    // max diff for agent's miner is UINT32_MAX
+    if (diff > UINT32_MAX) {
+      diff = UINT32_MAX;  // 2^32-1
+    }
+    agentSessionsDiff[i] = (uint32_t)diff;
+  }
+}
+
+void AgentSessions::getSessionsChangedDiff(const vector<uint32_t> &agentSessionsDiff,
+                                           string &data) {
+  vector<uint32_t> changedDiff;
+  changedDiff.resize(UINT16_MAX + 1, 0u);
+  data.clear();
+
+  // get changed diff and set r
+  for (size_t i = 0; i < curDiffVec_.size(); i++) {
+    if (curDiffVec_[i] == agentSessionsDiff[i]) {
+      continue;
+    }
+    changedDiff[i] = agentSessionsDiff[i];
+    curDiffVec_[i] = agentSessionsDiff[i];  // set new diff
+  }
+
+  // diff -> session_id | session_id | ... | session_id
+  map<uint32_t, vector<uint16_t> > diffSessionIds;
+  for (uint32_t i = 0; i <= UINT16_MAX; i++) {
+    if (changedDiff[i] == 0u) {
+      continue;
+    }
+    diffSessionIds[changedDiff[i]].push_back((uint16_t)i);
+  }
+
+  //
+  // CMD_MINING_SET_DIFF:
+  // | magic_number(1) | cmd(1) | diff (uint32_t) | count(4) | session_id (2) ... |
+  //
+  for (auto it = diffSessionIds.begin(); it != diffSessionIds.end(); it++) {
+    assert(it->second.size() > 0);
+
+    string buf;
+    buf.resize(2 + 4 + 4 + it->second.size() * 2);
+    uint8_t *p = (uint8_t *)buf.data();
+
+    // cmd
+    *p++ = CMD_MAGIC_NUMBER;
+    *p++ = CMD_MINING_SET_DIFF;
+
+    // diff
+    *(uint32_t *)p = it->first;
+    p += 4;
+
+    // count
+    *(uint32_t *)p = (uint32_t)it->second.size();
+    p += 4;
+
+    // session ids
+    for (size_t j = 0; j < it->second.size(); j++) {
+      *(uint16_t *)p = it->second[j];
+      p += 2;
+    }
+
+    data.append(buf);
+  }
+}
