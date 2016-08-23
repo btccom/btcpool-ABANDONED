@@ -92,4 +92,144 @@ TEST(Common, TargetToPdiff) {
   // 0x00000000000404CB000000000000000000000000000000000000000000000000
   // = 16307.669773817162 (pdiff)
   ASSERT_EQ(TargetToBdiff("0x00000000000404CB000000000000000000000000000000000000000000000000"), 16307);
+
+//  uint256 t;
+//  DiffToTarget(pow(2, 0), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 1), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 2), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 3), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 4), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 5), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 6), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 7), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 8), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 9), t);
+//  printf("%s\n", t.ToString().c_str());
+//
+//  // 1024
+//  DiffToTarget(pow(2, 10), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 11), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 12), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 13), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 14), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 15), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 16), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 17), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 18), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 19), t);
+//  printf("%s\n", t.ToString().c_str());
+//
+//  // 1,048,576
+//  DiffToTarget(pow(2, 20), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 21), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 22), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 23), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 24), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 25), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 26), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 27), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 28), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 29), t);
+//  printf("%s\n", t.ToString().c_str());
+//
+//  // 1,073,741,824
+//  DiffToTarget(pow(2, 30), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 31), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 32), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 33), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 34), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 35), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 36), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 37), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 38), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 39), t);
+//  printf("%s\n", t.ToString().c_str());
+//
+//  // 1,099,511,627,776
+//  DiffToTarget(pow(2, 40), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 41), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 42), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 43), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 44), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 45), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 46), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 47), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 48), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 49), t);
+//  printf("%s\n", t.ToString().c_str());
+//
+//  DiffToTarget(pow(2, 50), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 51), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 52), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 53), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 54), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 55), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 56), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 57), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 58), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 59), t);
+//  printf("%s\n", t.ToString().c_str());
+//
+//  DiffToTarget(pow(2, 60), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 61), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 62), t);
+//  printf("%s\n", t.ToString().c_str());
+//  DiffToTarget(pow(2, 63), t);
+//  printf("%s\n", t.ToString().c_str());
 }
