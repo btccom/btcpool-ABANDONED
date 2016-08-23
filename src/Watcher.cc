@@ -23,6 +23,7 @@
  */
 #include "Watcher.h"
 
+#include <arpa/inet.h>
 #include <cinttypes>
 
 #include <event2/event.h>
@@ -77,6 +78,10 @@ bool resolve(const string &host, struct	in_addr *sin_addr) {
   if (ai->ai_family == AF_INET) {
     struct sockaddr_in *sin = (struct sockaddr_in*)ai->ai_addr;
     *sin_addr = sin->sin_addr;
+
+    char ipStr[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &(sin->sin_addr), ipStr, INET_ADDRSTRLEN);
+    LOG(INFO) << "resolve host: " << host << ", ip: " << ipStr;
   } else if (ai->ai_family == AF_INET6) {
     // not support yet
     LOG(ERROR) << "not support ipv6 yet";
