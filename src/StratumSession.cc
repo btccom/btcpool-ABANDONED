@@ -674,35 +674,54 @@ void StratumSession::sendData(const char *data, size_t len) {
 //  DLOG(INFO) << "send(" << len << "): " << data;
 }
 
+// if read a message (ex-message or stratum) success should return true,
+// otherwise return false.
 bool StratumSession::handleMessage() {
   //
   // handle ex-message
   //
-  if (evbuffer_get_length(inBuf_) >= 2) {
-    uint8_t buf[2];
-    evbuffer_copyout(inBuf_, buf, 2);
+  const size_t evBufLen = evbuffer_get_length(inBuf_);
 
-    if (buf[0] == CMD_MAGIC_NUMBER)
-    {
-      switch (buf[1]) {
-        case CMD_REGISTER_WORKER:
-          return handleExMessage_RegisterWorker(inBuf_);
-
-        case CMD_SUBMIT_SHARE:
-          return handleExMessage_SubmitShare(inBuf_);
-
-        case CMD_SUBMIT_SHARE_WITH_TIME:
-          return handleExMessage_SubmitShareWithTime(inBuf_);
-
-        case CMD_UNREGISTER_WORKER:
-          return handleExMessage_UnRegisterWorker(inBuf_);
-
-        default:
-          break;
-      }
-    }
-    LOG(ERROR) << "unkown exMesage type: " << buf[1];
+  // no matter what kind of messages, length should at least 4 bytes
+  if (evBufLen < 4)
     return false;
+
+  uint8_t buf[4];
+  evbuffer_copyout(inBuf_, buf, 4);
+
+  // handle ex-message
+  if (buf[0] == CMD_MAGIC_NUMBER) {
+    const uint16_t exMessageLen = *(uint16_t *)(buf + 2);
+
+    if (evBufLen < exMessageLen)  // didn't received the whole message yet
+      return false;
+
+    // copies and removes the first datlen bytes from the front of buf
+    // into the memory at data
+    string exMessage;
+    exMessage.resize(exMessageLen);
+    evbuffer_remove(inBuf_, (uint8_t *)exMessage.data(), exMessage.size());
+
+    switch (buf[1]) {
+      case CMD_SUBMIT_SHARE:
+        handleExMessage_SubmitShare(&exMessage);
+        break;
+      case CMD_SUBMIT_SHARE_WITH_TIME:
+        handleExMessage_SubmitShareWithTime(&exMessage);
+        break;
+      case CMD_REGISTER_WORKER:
+        handleExMessage_RegisterWorker(&exMessage);
+        break;
+      case CMD_UNREGISTER_WORKER:
+        handleExMessage_UnRegisterWorker(&exMessage);
+        break;
+
+      default:
+        LOG(ERROR) << "received unknown ex-message, type: " << buf[1]
+        << ", len: " << exMessageLen;
+        break;
+    }
+    return true;  // read message success, return true
   }
 
   //
@@ -714,7 +733,7 @@ bool StratumSession::handleMessage() {
     return true;
   }
 
-  return false;
+  return false;  // read mesasge failure
 }
 
 void StratumSession::readBuf(struct evbuffer *buf) {
@@ -725,35 +744,35 @@ void StratumSession::readBuf(struct evbuffer *buf) {
   }
 }
 
-bool StratumSession::handleExMessage_RegisterWorker(struct evbuffer *inBuf) {
+void StratumSession::handleExMessage_RegisterWorker(const string *exMessage) {
   // this type of message MUST be the first ex-message we received
   if (agentSessions_ == nullptr) {
     agentSessions_ = new AgentSessions(shareAvgSeconds_, this);
   }
-  return agentSessions_->handleExMessage_RegisterWorker(inBuf_);
+  agentSessions_->handleExMessage_RegisterWorker(exMessage);
 }
 
-bool StratumSession::handleExMessage_SubmitShare(struct evbuffer *inBuf) {
+void StratumSession::handleExMessage_SubmitShare(const string *exMessage) {
   if (agentSessions_ == nullptr) {
-    return false;
+    return;
   }
   // without timestamp
-  return agentSessions_->handleExMessage_SubmitShare(inBuf_, false);
+  agentSessions_->handleExMessage_SubmitShare(exMessage, false);
 }
 
-bool StratumSession::handleExMessage_SubmitShareWithTime(struct evbuffer *inBuf) {
+void StratumSession::handleExMessage_SubmitShareWithTime(const string *exMessage) {
   if (agentSessions_ == nullptr) {
-    return false;
+    return;
   }
   // with timestamp
-  return agentSessions_->handleExMessage_SubmitShare(inBuf_, true);
+  agentSessions_->handleExMessage_SubmitShare(exMessage, true);
 }
 
-bool StratumSession::handleExMessage_UnRegisterWorker(struct evbuffer *inBuf) {
+void StratumSession::handleExMessage_UnRegisterWorker(const string *exMessage) {
   if (agentSessions_ == nullptr) {
-    return false;
+    return;
   }
-  return agentSessions_->handleExMessage_UnRegisterWorker(inBuf_);
+  agentSessions_->handleExMessage_UnRegisterWorker(exMessage);
 }
 
 
@@ -764,9 +783,9 @@ AgentSessions::AgentSessions(const int32_t shareAvgSeconds,
 :shareAvgSeconds_(shareAvgSeconds), stratumSession_(stratumSession)
 {
   // we just pre-alloc all
-  workerIds_.resize(UINT16_MAX + 1, 0);
-  diffControllers_.resize(UINT16_MAX + 1, nullptr);
-  curDiffVec_.resize(UINT16_MAX + 1, 0);
+  workerIds_.resize(UINT16_MAX, 0);
+  diffControllers_.resize(UINT16_MAX, nullptr);
+  curDiffVec_.resize(UINT16_MAX, 0);
 }
 
 AgentSessions::~AgentSessions() {
@@ -777,38 +796,28 @@ AgentSessions::~AgentSessions() {
   }
 }
 
-bool AgentSessions::handleExMessage_RegisterWorker(struct evbuffer *inBuf) {
+void AgentSessions::handleExMessage_RegisterWorker(const string *exMessage) {
   //
   // CMD_REGISTER_WORKER:
-  // | magic_number(1) | cmd(1) | len (1) | session_id | clientAgent | worker_name |
+  // | magic_number(1) | cmd(1) | len (2) | session_id(2) | clientAgent | worker_name |
   //
-  size_t evbuflen = evbuffer_get_length(inBuf);
-  if (evbuflen < 7) {  // at least 7 bytes
-    return false;
-  }
+  const uint8_t *p = (uint8_t *)exMessage->data();
+  const uint16_t sessionId = *(uint16_t *)(p + 4);
+  if (sessionId > AGENT_MAX_SESSION_ID)
+    return;
 
-  // copy the first 5 bytes
-  uint8_t buf[5];
-  evbuffer_copyout(inBuf, buf, sizeof(buf));
-  uint8_t     msgLen = buf[2];
-  uint16_t sessionId = *(uint16_t *)(buf + 3);
-  if (evbuflen < msgLen) {
-    return false;
-  }
-
-  // copies and removes the first datlen bytes from the front of buf
-  // into the memory at data
-  string data;
-  data.resize(msgLen);
-  evbuffer_remove(inBuf, (void *)data.data(), data.size());
-
-  const string clientAgent = filterWorkerName((char *)data.data() + 6);
-  const string  workerName = filterWorkerName(clientAgent.c_str() +
-                                              clientAgent.length() + 1);
+  const char *clientAgentPtr = (char *)p + 6;
+  const string clientAgent = filterWorkerName(clientAgentPtr);
+  const string  workerName = filterWorkerName(clientAgentPtr + strlen(clientAgentPtr) + 1);
   const int64_t   workerId = StratumWorker::calcWorkerId(workerName);
+
+  DLOG(INFO) << "[agent] clientAgent: " << clientAgent
+  << ", workerName: " << workerName << ", workerId: "
+  << workerId << ", session id:" << sessionId;
 
   // set sessionId -> workerId
   workerIds_[sessionId] = workerId;
+
   // deletes managed object, acquires new pointer
   if (diffControllers_[sessionId] != nullptr) {
     delete diffControllers_[sessionId];
@@ -816,56 +825,52 @@ bool AgentSessions::handleExMessage_RegisterWorker(struct evbuffer *inBuf) {
   diffControllers_[sessionId] = new DiffController(shareAvgSeconds_);
 
   // submit worker info to stratum session
-  stratumSession_->handleExMessage_AuthorizeAgentWorker(workerId, clientAgent,
-                                                        workerName);
-  return true;
+  // ptr can't be nullptr, just make it easy for test
+  if (stratumSession_ != nullptr)
+    stratumSession_->handleExMessage_AuthorizeAgentWorker(workerId, clientAgent,
+                                                          workerName);
 }
 
-bool AgentSessions::handleExMessage_SubmitShare(struct evbuffer *inBuf,
+void AgentSessions::handleExMessage_SubmitShare(const string *exMessage,
                                                 const bool isWithTime) {
   //
   // CMD_SUBMIT_SHARE / CMD_SUBMIT_SHARE_WITH_TIME:
-  // | magic_number(1) | cmd(1) | jobId (uint8_t) | session_id (uint16_t) |
+  // | magic_number(1) | cmd(1) | len (2) | jobId (uint8_t) | session_id (uint16_t) |
   // | extra_nonce2 (uint32_t) | nNonce (uint32_t) | [nTime (uint32_t) |]
   //
-  size_t evbuflen = evbuffer_get_length(inBuf);
-  if (evbuflen < 13 || (isWithTime && evbuflen < 17)) {  // 13 or 17 bytes
-    return false;
-  }
+  const uint8_t *p = (uint8_t *)exMessage->data();
 
-  // copies and removes the first datlen bytes from the front of buf
-  // into the memory at data
-  string data;
-  data.resize(isWithTime ? 17 : 13);
-  evbuffer_remove(inBuf, (void *)data.data(), data.size());
+  const uint8_t shortJobId = *(uint8_t  *)(p +  4);
+  const uint16_t sessionId = *(uint16_t *)(p +  5);
+  if (sessionId > AGENT_MAX_SESSION_ID)
+    return;
 
-  const uint8_t shortJobId = *(uint8_t  *)(data.data() + 2);
-  const uint16_t sessionId = *(uint16_t *)(data.data() + 3);
-  const uint32_t  exNonce2 = *(uint32_t *)(data.data() + 5);
-  const uint32_t     nonce = *(uint32_t *)(data.data() + 9);
-  const uint32_t time = (isWithTime == false ? 0 : *(uint32_t *)(data.data() + 13));
+  const uint32_t  exNonce2 = *(uint32_t *)(p +  7);
+  const uint32_t     nonce = *(uint32_t *)(p + 11);
+  const uint32_t time = (isWithTime == false ? 0 : *(uint32_t *)(p + 15));
 
   const uint64_t fullExtraNonce2 = (uint64_t)sessionId << 32 | exNonce2;
 
-  stratumSession_->handleRequest_Submit("null", shortJobId, fullExtraNonce2,
-                                        nonce, time,
-                                        true /* submit by agent's miner */);
-  return true;
+  DLOG(INFO) << "[agent] shortJobId: " << shortJobId << ", sessionId:" << sessionId
+  << ", exNonce2: " << exNonce2 << ", nonce: " << nonce << ", time: " << time;
+
+  if (stratumSession_ != nullptr)
+    stratumSession_->handleRequest_Submit("null", shortJobId, fullExtraNonce2,
+                                          nonce, time,
+                                          true /* submit by agent's miner */);
 }
 
-bool AgentSessions::handleExMessage_UnRegisterWorker(struct evbuffer *inBuf) {
+void AgentSessions::handleExMessage_UnRegisterWorker(const string *exMessage) {
   //
   // CMD_UNREGISTER_WORKER:
-  // | magic_number(1) | cmd(1) | session_id(2) |
+  // | magic_number(1) | cmd(1) | len (2) | session_id(2) |
   //
-  size_t evbuflen = evbuffer_get_length(inBuf);
-  if (evbuflen < 4) {  // always 4 bytes
-    return false;
-  }
-  // copy the first 4 bytes
-  uint8_t buf[4];
-  evbuffer_copyout(inBuf, buf, sizeof(buf));
-  uint16_t sessionId = *(uint16_t *)(buf + 2);
+  const uint8_t *p = (uint8_t *)exMessage->data();
+  const uint16_t sessionId = *(uint16_t *)(p +  4);
+  if (sessionId > AGENT_MAX_SESSION_ID)
+    return;
+
+  DLOG(INFO) << "[agent] sessionId: " << sessionId;
 
   // un-register worker
   workerIds_[sessionId]  = 0u;
@@ -874,12 +879,11 @@ bool AgentSessions::handleExMessage_UnRegisterWorker(struct evbuffer *inBuf) {
     delete diffControllers_[sessionId];
     diffControllers_[sessionId] = nullptr;
   }
-  return true;
 }
 
 void AgentSessions::calcSessionsJobDiff(vector<uint32_t> &agentSessionsDiff) {
   agentSessionsDiff.clear();
-  agentSessionsDiff.resize(UINT16_MAX + 1, 0u);
+  agentSessionsDiff.resize(UINT16_MAX, 0u);
 
   for (size_t i = 0; i < diffControllers_.size(); i++) {
     if (diffControllers_[i] == nullptr) {
@@ -898,10 +902,9 @@ void AgentSessions::calcSessionsJobDiff(vector<uint32_t> &agentSessionsDiff) {
 void AgentSessions::getSessionsChangedDiff(const vector<uint32_t> &agentSessionsDiff,
                                            string &data) {
   vector<uint32_t> changedDiff;
-  changedDiff.resize(UINT16_MAX + 1, 0u);
-  data.clear();
+  changedDiff.resize(UINT16_MAX, 0u);
 
-  // get changed diff and set r
+  // get changed diff and set to new diff
   for (size_t i = 0; i < curDiffVec_.size(); i++) {
     if (curDiffVec_[i] == agentSessionsDiff[i]) {
       continue;
@@ -912,42 +915,67 @@ void AgentSessions::getSessionsChangedDiff(const vector<uint32_t> &agentSessions
 
   // diff -> session_id | session_id | ... | session_id
   map<uint32_t, vector<uint16_t> > diffSessionIds;
-  for (uint32_t i = 0; i <= UINT16_MAX; i++) {
+  for (uint32_t i = 0; i < changedDiff.size(); i++) {
     if (changedDiff[i] == 0u) {
       continue;
     }
     diffSessionIds[changedDiff[i]].push_back((uint16_t)i);
   }
 
+  getSetDiffCommand(diffSessionIds, data);
+}
+
+void AgentSessions::getSetDiffCommand(map<uint32_t, vector<uint16_t> > &diffSessionIds,
+                                      string &data) {
   //
   // CMD_MINING_SET_DIFF:
-  // | magic_number(1) | cmd(1) | diff (uint32_t) | count(4) | session_id (2) ... |
+  // | magic_number(1) | cmd(1) | len (2) | diff (4) | count(2) | session_id (2) ... |
   //
+  //
+  // max session id count is 32,762, each message's max length is UINT16_MAX.
+  //     65535 -1-1-2-4-2 = 65,525
+  //     65,525 / 2 = 32,762.5 ~= 32,762
+  //
+  data.clear();
+  const size_t kMaxCount = 32762;
+
   for (auto it = diffSessionIds.begin(); it != diffSessionIds.end(); it++) {
-    assert(it->second.size() > 0);
 
-    string buf;
-    buf.resize(2 + 4 + 4 + it->second.size() * 2);
-    uint8_t *p = (uint8_t *)buf.data();
+    while (it->second.size() > 0) {
+      size_t count = std::min(kMaxCount, it->second.size());
 
-    // cmd
-    *p++ = CMD_MAGIC_NUMBER;
-    *p++ = CMD_MINING_SET_DIFF;
+      string buf;
+      const uint16_t len = 1+1+2+4+2+ count * 2;
+      buf.resize(len);
+      uint8_t *p = (uint8_t *)buf.data();
 
-    // diff
-    *(uint32_t *)p = it->first;
-    p += 4;
+      // cmd
+      *p++ = CMD_MAGIC_NUMBER;
+      *p++ = CMD_MINING_SET_DIFF;
 
-    // count
-    *(uint32_t *)p = (uint32_t)it->second.size();
-    p += 4;
-
-    // session ids
-    for (size_t j = 0; j < it->second.size(); j++) {
-      *(uint16_t *)p = it->second[j];
+      // len
+      *(uint16_t *)p = len;
       p += 2;
-    }
 
-    data.append(buf);
-  }
+      // diff
+      *(uint32_t *)p = it->first;
+      p += 4;
+
+      // count
+      *(uint16_t *)p = (uint16_t)count;
+      p += 2;
+
+      // session ids
+      for (size_t j = 0; j < count; j++) {
+        *(uint16_t *)p = it->second[j];
+        p += 2;
+      }
+
+      // remove the first `count` elements from vector
+      it->second.erase(it->second.begin(), it->second.begin() + count);
+
+      data.append(buf);
+      
+    } /* /while */
+  } /* /for */
 }

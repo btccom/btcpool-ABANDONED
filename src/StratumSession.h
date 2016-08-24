@@ -42,15 +42,15 @@
 
 
 #define CMD_MAGIC_NUMBER      0x7Fu
-
-#define CMD_INVLIAD_TYPE      0xFFu             // invalid message type
 // types
-#define CMD_REGISTER_WORKER   0x00u             // recv msg
-#define CMD_SUBMIT_SHARE      0x01u             // recv msg, without block time
-#define CMD_SUBMIT_SHARE_WITH_TIME  0x02u       // recv msg
-#define CMD_MINING_SET_DIFF   0x03u             // send msg
-#define CMD_UNREGISTER_WORKER 0x04u             // recv msg
+#define CMD_REGISTER_WORKER   0x01u             // Agent -> Pool
+#define CMD_SUBMIT_SHARE      0x02u             // Agent -> Pool, without block time
+#define CMD_SUBMIT_SHARE_WITH_TIME  0x03u       // Agent -> Pool
+#define CMD_UNREGISTER_WORKER 0x04u             // Agent -> Pool
+#define CMD_MINING_SET_DIFF   0x05u             // Pool  -> Agent
 
+// agent
+#define AGENT_MAX_SESSION_ID   0xFFFEu  // 0xFFFEu = 65534
 
 class Server;
 class StratumJobEx;
@@ -219,10 +219,10 @@ private:
 
   LocalJob *findLocalJob(uint8_t shortJobId);
 
-  bool handleExMessage_RegisterWorker(struct evbuffer *inBuf);
-  bool handleExMessage_UnRegisterWorker(struct evbuffer *inBuf);
-  bool handleExMessage_SubmitShare(struct evbuffer *inBuf);
-  bool handleExMessage_SubmitShareWithTime(struct evbuffer *inBuf);
+  void handleExMessage_RegisterWorker     (const string *exMessage);
+  void handleExMessage_UnRegisterWorker   (const string *exMessage);
+  void handleExMessage_SubmitShare        (const string *exMessage);
+  void handleExMessage_SubmitShareWithTime(const string *exMessage);
 
 public:
   struct bufferevent* bev_;
@@ -270,14 +270,15 @@ public:
   AgentSessions(const int32_t shareAvgSeconds, StratumSession *stratumSession);
   ~AgentSessions();
 
-  bool handleExMessage_SubmitShare(struct evbuffer *inBuf,
-                                   const bool isWithTime);
-  bool handleExMessage_RegisterWorker(struct evbuffer *inBuf);
-  bool handleExMessage_UnRegisterWorker(struct evbuffer *inBuf);
+  void handleExMessage_SubmitShare     (const string *exMessage, const bool isWithTime);
+  void handleExMessage_RegisterWorker  (const string *exMessage);
+  void handleExMessage_UnRegisterWorker(const string *exMessage);
 
   void calcSessionsJobDiff(vector<uint32_t> &agentSessionsDiff);
   void getSessionsChangedDiff(const vector<uint32_t> &agentSessionsDiff,
                               string &data);
+  void getSetDiffCommand(map<uint32_t, vector<uint16_t> > &diffSessionIds,
+                         string &data);
 };
 
 #endif
