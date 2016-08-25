@@ -52,6 +52,9 @@
 // agent
 #define AGENT_MAX_SESSION_ID   0xFFFEu  // 0xFFFEu = 65534
 
+#define BTCCOM_MINER_AGENT_PREFIX "btccom-agent/"
+
+
 class Server;
 class StratumJobEx;
 class DiffController;

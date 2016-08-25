@@ -237,6 +237,7 @@ StratumSession::~StratumSession() {
 
   if (agentSessions_ != nullptr) {
     delete agentSessions_;
+    agentSessions_ = nullptr;
   }
 
   LOG(INFO) << "close stratum session, ip: " << clientIp_
@@ -398,6 +399,15 @@ void StratumSession::handleRequest_Subscribe(const string &idStr,
   if (clientAgent_ == "__PoolWatcher__") {
     isPoolWatcher_ = true;
   }
+
+  //
+  // check if it's BTCAgent
+  //
+  if (strncmp(clientAgent_.c_str(), BTCCOM_MINER_AGENT_PREFIX,
+              std::min(clientAgent_.length(), strlen(BTCCOM_MINER_AGENT_PREFIX))) == 0) {
+    LOG(INFO) << "agent model, client: " << clientAgent_;
+    agentSessions_ = new AgentSessions(shareAvgSeconds_, this);
+  }
 }
 
 void StratumSession::handleRequest_Authorize(const string &idStr,
@@ -535,7 +545,7 @@ void StratumSession::handleRequest_Submit(const string &idStr,
     return;
   }
 
-  const string extraNonce2Hex = Strings::Format("%016x", extraNonce2);
+  const string extraNonce2Hex = Strings::Format("%016llx", extraNonce2);
   assert(extraNonce2Hex.length()/2 == kExtraNonce2Size_);
 
   LocalJob *localJob = findLocalJob(shortJobId);
@@ -566,6 +576,11 @@ void StratumSession::handleRequest_Submit(const string &idStr,
 
   if (isAgentSession == true) {
     const uint16_t sessionId = (uint16_t)(extraNonce2 >> 32);
+    if (localJob->agentSessionsDiff_.size() < (size_t)sessionId + 1) {
+      LOG(ERROR) << "can't find agent session's diff, sessionId: " << sessionId
+      << ", localJob->agentSessionsDiff_.size(): " << localJob->agentSessionsDiff_.size();
+      return;
+    }
     // reset to agent session's diff
     share.share_ = localJob->agentSessionsDiff_[sessionId];
   }
@@ -669,7 +684,7 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr) {
   sendData(exJobPtr->miningNotify2_);
 
   // clear localJobs_
-  while (localJobs_.size() > kMaxNumLocalJobs_) {
+  while (localJobs_.size() >= kMaxNumLocalJobs_) {
     localJobs_.pop_front();
   }
 }
@@ -753,9 +768,8 @@ void StratumSession::readBuf(struct evbuffer *buf) {
 }
 
 void StratumSession::handleExMessage_RegisterWorker(const string *exMessage) {
-  // this type of message MUST be the first ex-message we received
   if (agentSessions_ == nullptr) {
-    agentSessions_ = new AgentSessions(shareAvgSeconds_, this);
+    return;
   }
   agentSessions_->handleExMessage_RegisterWorker(exMessage);
 }
@@ -861,14 +875,14 @@ void AgentSessions::handleExMessage_SubmitShare(const string *exMessage,
   const uint32_t     nonce = *(uint32_t *)(p + 11);
   const uint32_t time = (isWithTime == false ? 0 : *(uint32_t *)(p + 15));
 
-  const uint64_t fullExtraNonce2 = (uint64_t)sessionId << 32 | exNonce2;
+  const uint64_t fullExtraNonce2 = ((uint64_t)sessionId << 32) | (uint64_t)exNonce2;
 
-//  // debug
-//  string logLine = Strings::Format("[agent] shortJobId: %02x, sessionId: %08x"
-//                                   ", exNonce2: %016x, nonce: %08x, time: %08x",
-//                                   shortJobId, (uint32_t)sessionId,
-//                                   fullExtraNonce2, nonce, time);
-//  DLOG(INFO) << logLine;
+  // debug
+  string logLine = Strings::Format("[agent] shortJobId: %02x, sessionId: %08x"
+                                   ", exNonce2: %016llx, nonce: %08x, time: %08x",
+                                   shortJobId, (uint32_t)sessionId,
+                                   fullExtraNonce2, nonce, time);
+  DLOG(INFO) << logLine;
 
   if (stratumSession_ != nullptr)
     stratumSession_->handleRequest_Submit("null", shortJobId,
@@ -920,6 +934,7 @@ void AgentSessions::getSessionsChangedDiff(const vector<uint32_t> &agentSessions
                                            string &data) {
   vector<uint32_t> changedDiff;
   changedDiff.resize(UINT16_MAX, 0u);
+  assert(curDiffVec_.size() == agentSessionsDiff.size());
 
   // get changed diff and set to new diff
   for (size_t i = 0; i < curDiffVec_.size(); i++) {
