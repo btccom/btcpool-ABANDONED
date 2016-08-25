@@ -517,7 +517,7 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   const uint32_t nonce       = jparams.children()->at(4).uint32_hex();
 
   handleRequest_Submit(idStr, shortJobId, extraNonce2, nonce, nTime,
-                       false /* not agent session */);
+                       false /* not agent session */, nullptr);
 }
 
 void StratumSession::handleRequest_Submit(const string &idStr,
@@ -525,7 +525,8 @@ void StratumSession::handleRequest_Submit(const string &idStr,
                                           const uint64_t extraNonce2,
                                           const uint32_t nonce,
                                           uint32_t nTime,
-                                          bool isAgentSession) {
+                                          bool isAgentSession,
+                                          DiffController *diffController) {
   //
   // if share is from agent session, we don't need to send reply json
   //
@@ -587,10 +588,16 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   if (submitResult == StratumError::NO_ERROR) {
     // accepted share
     share.result_ = Share::Result::ACCEPT;
-    diffController_.addAcceptedShare(localJob->jobDifficulty_);
 
-    if (isAgentSession == false)
-    	responseTrue(idStr);
+    // agent miner's diff controller
+    if (isAgentSession && diffController != nullptr) {
+      diffController->addAcceptedShare(share.share_);
+    }
+
+    if (isAgentSession == false) {
+    	diffController_.addAcceptedShare(share.share_);
+      responseTrue(idStr);
+    }
   } else {
     if (isAgentSession == false)
     	responseError(idStr, submitResult);
@@ -647,7 +654,8 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr) {
     // get ex-message
     string exMessage;
     agentSessions_->getSessionsChangedDiff(ljob.agentSessionsDiff_, exMessage);
-    sendData(exMessage);
+    if (exMessage.size())
+    	sendData(exMessage);
   }
 
   // set difficulty
@@ -818,10 +826,14 @@ void AgentSessions::handleExMessage_RegisterWorker(const string *exMessage) {
   // set sessionId -> workerId
   workerIds_[sessionId] = workerId;
 
-  // deletes managed object, acquires new pointer
+  // deletes managed object
   if (diffControllers_[sessionId] != nullptr) {
     delete diffControllers_[sessionId];
+    diffControllers_[sessionId] = nullptr;
   }
+
+  // acquires new pointer
+  assert(diffControllers_[sessionId] == nullptr);
   diffControllers_[sessionId] = new DiffController(shareAvgSeconds_);
 
   // submit worker info to stratum session
@@ -851,13 +863,18 @@ void AgentSessions::handleExMessage_SubmitShare(const string *exMessage,
 
   const uint64_t fullExtraNonce2 = (uint64_t)sessionId << 32 | exNonce2;
 
-  DLOG(INFO) << "[agent] shortJobId: " << shortJobId << ", sessionId:" << sessionId
-  << ", exNonce2: " << exNonce2 << ", nonce: " << nonce << ", time: " << time;
+//  // debug
+//  string logLine = Strings::Format("[agent] shortJobId: %02x, sessionId: %08x"
+//                                   ", exNonce2: %016x, nonce: %08x, time: %08x",
+//                                   shortJobId, (uint32_t)sessionId,
+//                                   fullExtraNonce2, nonce, time);
+//  DLOG(INFO) << logLine;
 
   if (stratumSession_ != nullptr)
-    stratumSession_->handleRequest_Submit("null", shortJobId, fullExtraNonce2,
-                                          nonce, time,
-                                          true /* submit by agent's miner */);
+    stratumSession_->handleRequest_Submit("null", shortJobId,
+                                          fullExtraNonce2, nonce, time,
+                                          true /* submit by agent's miner */,
+                                          diffControllers_[sessionId]);
 }
 
 void AgentSessions::handleExMessage_UnRegisterWorker(const string *exMessage) {
@@ -893,7 +910,7 @@ void AgentSessions::calcSessionsJobDiff(vector<uint32_t> &agentSessionsDiff) {
 
     // max diff for agent's miner is UINT32_MAX
     if (diff > UINT32_MAX) {
-      diff = UINT32_MAX;  // 2^32-1
+      diff = UINT32_MAX;
     }
     agentSessionsDiff[i] = (uint32_t)diff;
   }

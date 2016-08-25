@@ -61,7 +61,7 @@ class AgentSessions;
 //////////////////////////////// DiffController ////////////////////////////////
 class DiffController {
 public:
-  static const int32_t kMinDiff_       = 8;     // min diff
+  static const int32_t kMinDiff_       = 64;    // min diff
   static const int32_t kDefaultDiff_   = 1024;  // default diff, 2^N
   static const int32_t kDiffWindow_    = 900;   // time window, seconds, 60*N
   static const int32_t kRecordSeconds_ = 10;    // every N seconds as a record
@@ -249,7 +249,8 @@ public:
   void handleRequest_Submit(const string &idStr,
                             const uint8_t shortJobId, const uint64_t extraNonce2,
                             const uint32_t nonce, uint32_t nTime,
-                            bool isAgentSession);
+                            bool isAgentSession,
+                            DiffController *diffController);
 };
 
 
