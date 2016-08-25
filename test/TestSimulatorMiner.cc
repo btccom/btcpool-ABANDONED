@@ -142,7 +142,7 @@ TEST(SIMULATOR, miner) {
 
   // req: mining.submit
   {
-    sbuf = Strings::Format("{\"params\": [\"%s.simulator_test\",\"%s\",\"%016x\",\"%08x\",\"%08x\"]"
+    sbuf = Strings::Format("{\"params\": [\"%s.simulator_test\",\"%s\",\"%016llx\",\"%08x\",\"%08x\"]"
                         ",\"id\":4,\"method\": \"mining.submit\"}\n",
                         userName.c_str(),
                         latestJobId.c_str(),
@@ -161,7 +161,7 @@ TEST(SIMULATOR, miner) {
   // req: mining.submit, duplicate
   //   {"id":4,"result":null,"error":(22,"Duplicate share",null)}
   {
-    sbuf = Strings::Format("{\"params\": [\"%s.simulator_test\",\"%s\",\"%016x\",\"%08x\",\"%08x\"]"
+    sbuf = Strings::Format("{\"params\": [\"%s.simulator_test\",\"%s\",\"%016llx\",\"%08x\",\"%08x\"]"
                            ",\"id\":4,\"method\": \"mining.submit\"}\n",
                            userName.c_str(),
                            latestJobId.c_str(),
@@ -177,7 +177,7 @@ TEST(SIMULATOR, miner) {
   //   {"id":4,"result":null,"error":(31,"Time too old",null)}
   {
     nTime = time(nullptr) - 86400;
-    sbuf = Strings::Format("{\"params\": [\"%s.simulator_test\",\"%s\",\"%016x\",\"%08x\",\"%08x\"]"
+    sbuf = Strings::Format("{\"params\": [\"%s.simulator_test\",\"%s\",\"%016llx\",\"%08x\",\"%08x\"]"
                            ",\"id\":4,\"method\": \"mining.submit\"}\n",
                            userName.c_str(),
                            latestJobId.c_str(),
@@ -193,7 +193,7 @@ TEST(SIMULATOR, miner) {
   //   {"id":4,"result":null,"error":(32,"Time too new",null)}
   {
     nTime = time(nullptr) + 3600*2;
-    sbuf = Strings::Format("{\"params\": [\"%s.simulator_test\",\"%s\",\"%016x\",\"%08x\",\"%08x\"]"
+    sbuf = Strings::Format("{\"params\": [\"%s.simulator_test\",\"%s\",\"%016llx\",\"%08x\",\"%08x\"]"
                            ",\"id\":4,\"method\": \"mining.submit\"}\n",
                            userName.c_str(),
                            latestJobId.c_str(),
@@ -209,7 +209,7 @@ TEST(SIMULATOR, miner) {
   //   {"id":4,"result":null,"error":(21,"Job not found (=stale)",null)}
   {
     nTime = time(nullptr);
-    sbuf = Strings::Format("{\"params\": [\"%s.simulator_test\",\"%s\",\"%016x\",\"%08x\",\"%08x\"]"
+    sbuf = Strings::Format("{\"params\": [\"%s.simulator_test\",\"%s\",\"%016llx\",\"%08x\",\"%08x\"]"
                            ",\"id\":4,\"method\": \"mining.submit\"}\n",
                            userName.c_str(),
                            "s982asd2das",
