@@ -53,7 +53,7 @@ class StratumJobEx;
 
 
 //////////////////////////////// SessionIDManager //////////////////////////////
-
+// DO NOT CHANGE
 #define MAX_SESSION_INDEX_SERVER   0x00FFFFFFu   // 16777215 = 2^24 - 1
 
 // thread-safe
