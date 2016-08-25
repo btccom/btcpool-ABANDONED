@@ -44,6 +44,10 @@ StratumClient::StratumClient(struct event_base* base,
 
   state_ = INIT;
   latestDiff_ = 1;
+
+  extraNonce1_ = 0u;
+  extraNonce2Size_ = 8;
+  extraNonce2_ = 0u;
 }
 
 StratumClient::~StratumClient() {
@@ -145,9 +149,10 @@ void StratumClient::handleLine(const string &line) {
       LOG(ERROR) << "result element's number is NOT 3: " << line;
       return;
     }
-    extraNonce1_ = resArr[1].uint32_hex();
-    DLOG(INFO) << "extraNonce1_: " << extraNonce1_;
-    // ignore extraNonce2 size
+
+    extraNonce1_     = resArr[1].uint32_hex();
+    extraNonce2Size_ = resArr[2].int32();
+    DLOG(INFO) << "extraNonce1_: " << extraNonce1_ << ", extraNonce2Size_: " << extraNonce2Size_;
 
     // mining.authorize
     state_ = SUBSCRIBED;
@@ -168,13 +173,18 @@ void StratumClient::submitShare() {
   if (state_ != AUTHENTICATED)
     return;
 
+  extraNonce2_++;
+  string extraNonce2Str;
+  // little-endian
+  Bin2Hex((uint8_t *)&extraNonce2_, extraNonce2Size_, extraNonce2Str);
+
   // simulate miner
   string s;
-  s = Strings::Format("{\"params\": [\"%s\",\"%s\",\"%016x\",\"%08x\",\"%08x\"]"
+  s = Strings::Format("{\"params\": [\"%s\",\"%s\",\"%s\",\"%08x\",\"%08x\"]"
                       ",\"id\":4,\"method\": \"mining.submit\"}\n",
                       workerFullName_.c_str(),
                       latestJobId_.c_str(),
-                      extraNonce2_++,
+                      extraNonce2Str.c_str(),
                       (uint32_t)time(nullptr) /* ntime */,
                       (uint32_t)time(nullptr) /* nonce */);
   sendData(s);
