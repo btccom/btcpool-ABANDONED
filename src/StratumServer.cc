@@ -429,7 +429,7 @@ int32_t UserInfo::insertWorkerName() {
 
   // find the miner
   sql = Strings::Format("SELECT `group_id`,`worker_name` FROM `mining_workers` "
-                        " WHERE `uid`=%d AND `worker_id`= %" PRId64"",
+                        " WHERE `puid`=%d AND `worker_id`= %" PRId64"",
                         itr->userId_, itr->workerId_);
   db_.query(sql, res);
 
@@ -441,7 +441,7 @@ int32_t UserInfo::insertWorkerName() {
     sql = Strings::Format("UPDATE `mining_workers` SET `group_id`=%d, "
                           " `worker_name`=\"%s\", `miner_agent`=\"%s\", "
                           " `updated_at`=\"%s\" "
-                          " WHERE `uid`=%d AND `worker_id`= %" PRId64"",
+                          " WHERE `puid`=%d AND `worker_id`= %" PRId64"",
                           groupId == 0 ? itr->userId_ * -1 : groupId,
                           itr->workerName_, itr->minerAgent_,
                           nowStr.c_str(),
@@ -452,7 +452,7 @@ int32_t UserInfo::insertWorkerName() {
     // we have to use 'ON DUPLICATE KEY UPDATE', because 'statshttpd' may insert
     // items to table.mining_workers between we 'select' and 'insert' gap. if
     // that happens, 'worker_name will be always empty.
-    sql = Strings::Format("INSERT INTO `mining_workers`(`uid`,`worker_id`,"
+    sql = Strings::Format("INSERT INTO `mining_workers`(`puid`,`worker_id`,"
                           " `group_id`,`worker_name`,`miner_agent`,"
                           " `created_at`,`updated_at`) "
                           " VALUES(%d,%" PRId64",%d,\"%s\",\"%s\",\"%s\",\"%s\")"

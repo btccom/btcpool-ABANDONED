@@ -308,7 +308,7 @@ void BlockMaker::_saveBlockToDBThread(const FoundBlock &foundBlock,
   const string nowStr = date("%F %T");
   string sql;
   sql = Strings::Format("INSERT INTO `found_blocks` "
-                        " (`user_id`, `worker_id`, `worker_full_name`, `job_id`"
+                        " (`puid`, `worker_id`, `worker_full_name`, `job_id`"
                         "  ,`height`, `hash`, `rewards`, `size`, `prev_hash`"
                         "  ,`bits`, `version`, `created_at`)"
                         " VALUES (%d,%" PRId64",\"%s\", %" PRIu64",%d,\"%s\""

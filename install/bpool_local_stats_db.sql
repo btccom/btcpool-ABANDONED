@@ -41,7 +41,7 @@ CREATE TABLE `stats_pool_hour` (
 DROP TABLE IF EXISTS `stats_users_day`;
 CREATE TABLE `stats_users_day` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
-  `uid` int(11) NOT NULL,
+  `puid` int(11) NOT NULL,
   `day` int(11) NOT NULL,
   `share_accept` bigint(20) NOT NULL DEFAULT '0',
   `share_reject` bigint(20) NOT NULL DEFAULT '0',
@@ -51,14 +51,14 @@ CREATE TABLE `stats_users_day` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uid_day` (`uid`,`day`)
+  UNIQUE KEY `puid_day` (`puid`,`day`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
 DROP TABLE IF EXISTS `stats_users_hour`;
 CREATE TABLE `stats_users_hour` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
-  `uid` int(11) NOT NULL,
+  `puid` int(11) NOT NULL,
   `hour` int(11) NOT NULL,
   `share_accept` bigint(20) NOT NULL DEFAULT '0',
   `share_reject` bigint(20) NOT NULL DEFAULT '0',
@@ -68,7 +68,7 @@ CREATE TABLE `stats_users_hour` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uid_hour` (`uid`,`hour`)
+  UNIQUE KEY `puid_hour` (`puid`,`hour`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
@@ -76,7 +76,7 @@ DROP TABLE IF EXISTS `stats_workers_day`;
 CREATE TABLE `stats_workers_day` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `worker_id` bigint(20) NOT NULL,
-  `uid` int(11) NOT NULL,
+  `puid` int(11) NOT NULL,
   `day` int(11) NOT NULL,
   `share_accept` bigint(20) NOT NULL DEFAULT '0',
   `share_reject` bigint(20) NOT NULL DEFAULT '0',
@@ -86,7 +86,7 @@ CREATE TABLE `stats_workers_day` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uid_worker_id_day` (`uid`,`worker_id`,`day`)
+  UNIQUE KEY `puid_worker_id_day` (`puid`,`worker_id`,`day`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
@@ -94,7 +94,7 @@ DROP TABLE IF EXISTS `stats_workers_hour`;
 CREATE TABLE `stats_workers_hour` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `worker_id` bigint(20) NOT NULL,
-  `uid` int(11) NOT NULL,
+  `puid` int(11) NOT NULL,
   `hour` int(11) NOT NULL,
   `share_accept` bigint(20) NOT NULL DEFAULT '0',
   `share_reject` bigint(20) NOT NULL DEFAULT '0',
@@ -104,8 +104,8 @@ CREATE TABLE `stats_workers_hour` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uid_worker_id_hour` (`uid`,`worker_id`,`hour`)
+  UNIQUE KEY `puid_worker_id_hour` (`puid`,`worker_id`,`hour`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
--- 2016-08-18 08:56:15
+-- 2016-08-26 12:09:53

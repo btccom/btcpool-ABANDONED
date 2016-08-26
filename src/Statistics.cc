@@ -223,7 +223,7 @@ void StatsServer::_flushWorkersToDBThread() {
   "  `mining_workers`.`last_share_time`=`mining_workers_tmp`.`last_share_time`,"
   "  `mining_workers`.`updated_at`     =`mining_workers_tmp`.`updated_at` ";
   // fields for table.mining_workers
-  const string fields = "`worker_id`,`uid`,`group_id`,`accept_1m`, `accept_5m`,"
+  const string fields = "`worker_id`,`puid`,`group_id`,`accept_1m`, `accept_5m`,"
   "`accept_15m`, `reject_15m`, `accept_count`, `last_share_ip`,"
   " `last_share_time`, `created_at`, `updated_at`";
   // values for multi-insert sql
@@ -1090,13 +1090,13 @@ void ShareLogParser::flushHoursData(shared_ptr<ShareStatsDay> stats,
   string table, extraFields, extraValues;
   // worker
   if (userId != 0 && workerId != 0) {
-    extraFields = "`worker_id`,`uid`,";
+    extraFields = "`worker_id`,`puid`,";
     extraValues = Strings::Format("% " PRId64",%d,", workerId, userId);
     table = "stats_workers_hour";
   }
   // user
   else if (userId != 0 && workerId == 0) {
-    extraFields = "`uid`,";
+    extraFields = "`puid`,";
     extraValues = Strings::Format("%d,", userId);
     table = "stats_users_hour";
   }
@@ -1166,13 +1166,13 @@ void ShareLogParser::flushDailyData(shared_ptr<ShareStatsDay> stats,
   string table, extraFields, extraValues;
   // worker
   if (userId != 0 && workerId != 0) {
-    extraFields = "`worker_id`,`uid`,";
+    extraFields = "`worker_id`,`puid`,";
     extraValues = Strings::Format("% " PRId64",%d,", workerId, userId);
     table = "stats_workers_day";
   }
   // user
   else if (userId != 0 && workerId == 0) {
-    extraFields = "`uid`,";
+    extraFields = "`puid`,";
     extraValues = Strings::Format("%d,", userId);
     table = "stats_users_day";
   }

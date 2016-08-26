@@ -8,7 +8,7 @@ SET sql_mode = 'NO_AUTO_VALUE_ON_ZERO';
 DROP TABLE IF EXISTS `found_blocks`;
 CREATE TABLE `found_blocks` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `user_id` int(11) NOT NULL,
+  `puid` int(11) NOT NULL,
   `worker_id` bigint(20) NOT NULL,
   `worker_full_name` varchar(20) NOT NULL,
   `job_id` bigint(20) unsigned NOT NULL,
@@ -30,7 +30,7 @@ CREATE TABLE `found_blocks` (
 DROP TABLE IF EXISTS `mining_workers`;
 CREATE TABLE `mining_workers` (
   `worker_id` bigint(20) NOT NULL,
-  `uid` int(11) NOT NULL,
+  `puid` int(11) NOT NULL,
   `group_id` int(11) NOT NULL,
   `worker_name` varchar(20) DEFAULT NULL,
   `accept_1m` bigint(20) NOT NULL DEFAULT '0',
@@ -43,9 +43,9 @@ CREATE TABLE `mining_workers` (
   `miner_agent` varchar(30) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
-  UNIQUE KEY `uid_worker_id` (`uid`,`worker_id`),
-  KEY `uid_group_id` (`uid`,`group_id`)
+  UNIQUE KEY `puid_worker_id` (`puid`,`worker_id`),
+  KEY `puid_group_id` (`puid`,`group_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
--- 2016-08-18 09:01:59
+-- 2016-08-26 12:11:55
