@@ -817,6 +817,10 @@ void ShareLogWriter::run() {
     consumeShareLog(rkmessage);
     rd_kafka_message_destroy(rkmessage);  /* Return message to rdkafka */
   }
+
+  // flush left shares
+  if (shares_.size() > 0)
+    flushToDisk();
 }
 
 
