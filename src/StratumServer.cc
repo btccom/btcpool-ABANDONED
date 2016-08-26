@@ -816,7 +816,7 @@ void Server::eventCallback(struct bufferevent* bev, short events,
     LOG(INFO) << "socket closed";
   }
   else if (events & BEV_EVENT_ERROR) {
-    LOG(ERROR) << "got an error on the socket: "
+    LOG(INFO) << "got an error on the socket: "
     << evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR());
   }
   else if (events & BEV_EVENT_TIMEOUT) {
@@ -893,7 +893,7 @@ int Server::checkShare(const Share &share,
     return StratumError::LOW_DIFFICULTY;
   }
 
-  LOG(INFO) << "blkHash: " << blkHash.ToString() << ", jobTarget: "
+  DLOG(INFO) << "blkHash: " << blkHash.ToString() << ", jobTarget: "
   << jobTarget.ToString() << ", networkTarget: " << sjob->networkTarget_.ToString();
 
   // reach here means an valid share
