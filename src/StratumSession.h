@@ -275,6 +275,8 @@ public:
   AgentSessions(const int32_t shareAvgSeconds, StratumSession *stratumSession);
   ~AgentSessions();
 
+  int64_t getWorkerId(const uint16_t sessionId);
+
   void handleExMessage_SubmitShare     (const string *exMessage, const bool isWithTime);
   void handleExMessage_RegisterWorker  (const string *exMessage);
   void handleExMessage_UnRegisterWorker(const string *exMessage);

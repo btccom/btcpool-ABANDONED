@@ -576,11 +576,19 @@ void StratumSession::handleRequest_Submit(const string &idStr,
 
   if (isAgentSession == true) {
     const uint16_t sessionId = (uint16_t)(extraNonce2 >> 32);
+
+    // reset to agent session's workerId
+    share.workerHashId_ = agentSessions_->getWorkerId(sessionId);
+    if (share.workerHashId_ == 0) {
+      LOG(ERROR) << "invalid workerId 0, sessionId: " << sessionId;
+      return;
+    }
+
+    // reset to agent session's diff
     if (localJob->agentSessionsDiff2Exp_.size() < (size_t)sessionId + 1) {
       LOG(ERROR) << "can't find agent session's diff, sessionId: " << sessionId;
       return;
     }
-    // reset to agent session's diff
     share.share_ = (uint64_t)exp2(localJob->agentSessionsDiff2Exp_[sessionId]);
   }
 
@@ -819,6 +827,10 @@ AgentSessions::~AgentSessions() {
   }
 }
 
+int64_t AgentSessions::getWorkerId(const uint16_t sessionId) {
+  return workerIds_[sessionId];
+}
+
 void AgentSessions::handleExMessage_RegisterWorker(const string *exMessage) {
   //
   // CMD_REGISTER_WORKER:
@@ -908,7 +920,7 @@ void AgentSessions::handleExMessage_UnRegisterWorker(const string *exMessage) {
   DLOG(INFO) << "[agent] sessionId: " << sessionId;
 
   // un-register worker
-  workerIds_[sessionId] = 0u;
+  workerIds_[sessionId] = 0;
 
   // set curr diff to default Diff
   curDiff2ExpVec_[sessionId] = kDefaultDiff2Exp_;
