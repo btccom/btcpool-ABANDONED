@@ -576,13 +576,12 @@ void StratumSession::handleRequest_Submit(const string &idStr,
 
   if (isAgentSession == true) {
     const uint16_t sessionId = (uint16_t)(extraNonce2 >> 32);
-    if (localJob->agentSessionsDiff_.size() < (size_t)sessionId + 1) {
-      LOG(ERROR) << "can't find agent session's diff, sessionId: " << sessionId
-      << ", localJob->agentSessionsDiff_.size(): " << localJob->agentSessionsDiff_.size();
+    if (localJob->agentSessionsDiff2Exp_.size() < (size_t)sessionId + 1) {
+      LOG(ERROR) << "can't find agent session's diff, sessionId: " << sessionId;
       return;
     }
     // reset to agent session's diff
-    share.share_ = localJob->agentSessionsDiff_[sessionId];
+    share.share_ = (uint64_t)exp2(localJob->agentSessionsDiff2Exp_[sessionId]);
   }
 
   // calc jobTarget
@@ -664,11 +663,11 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr) {
   if (agentSessions_ != nullptr)
   {
     // calc diff and save to ljob
-    agentSessions_->calcSessionsJobDiff(ljob.agentSessionsDiff_);
+    agentSessions_->calcSessionsJobDiff(ljob.agentSessionsDiff2Exp_);
 
     // get ex-message
     string exMessage;
-    agentSessions_->getSessionsChangedDiff(ljob.agentSessionsDiff_, exMessage);
+    agentSessions_->getSessionsChangedDiff(ljob.agentSessionsDiff2Exp_, exMessage);
     if (exMessage.size())
     	sendData(exMessage);
   }
@@ -804,10 +803,12 @@ AgentSessions::AgentSessions(const int32_t shareAvgSeconds,
                              StratumSession *stratumSession)
 :shareAvgSeconds_(shareAvgSeconds), stratumSession_(stratumSession)
 {
+  kDefaultDiff2Exp_ = (uint8_t)log2(DiffController::kDefaultDiff_);
+
   // we just pre-alloc all
   workerIds_.resize(UINT16_MAX, 0);
   diffControllers_.resize(UINT16_MAX, nullptr);
-  curDiffVec_.resize(UINT16_MAX, 0);
+  curDiff2ExpVec_.resize(UINT16_MAX, kDefaultDiff2Exp_);
 }
 
 AgentSessions::~AgentSessions() {
@@ -849,6 +850,9 @@ void AgentSessions::handleExMessage_RegisterWorker(const string *exMessage) {
   // acquires new pointer
   assert(diffControllers_[sessionId] == nullptr);
   diffControllers_[sessionId] = new DiffController(shareAvgSeconds_);
+
+  // set curr diff to default Diff
+  curDiff2ExpVec_[sessionId] = kDefaultDiff2Exp_;
 
   // submit worker info to stratum session
   // ptr can't be nullptr, just make it easy for test
@@ -904,72 +908,71 @@ void AgentSessions::handleExMessage_UnRegisterWorker(const string *exMessage) {
   DLOG(INFO) << "[agent] sessionId: " << sessionId;
 
   // un-register worker
-  workerIds_[sessionId]  = 0u;
-  curDiffVec_[sessionId] = 0u;
+  workerIds_[sessionId] = 0u;
+
+  // set curr diff to default Diff
+  curDiff2ExpVec_[sessionId] = kDefaultDiff2Exp_;
+
+  // release diff controller
   if (diffControllers_[sessionId] != nullptr) {
     delete diffControllers_[sessionId];
     diffControllers_[sessionId] = nullptr;
   }
 }
 
-void AgentSessions::calcSessionsJobDiff(vector<uint32_t> &agentSessionsDiff) {
-  agentSessionsDiff.clear();
-  agentSessionsDiff.resize(UINT16_MAX, 0u);
+void AgentSessions::calcSessionsJobDiff(vector<uint8_t> &sessionsDiff2Exp) {
+  sessionsDiff2Exp.clear();
+  sessionsDiff2Exp.resize(UINT16_MAX, kDefaultDiff2Exp_);
 
   for (size_t i = 0; i < diffControllers_.size(); i++) {
     if (diffControllers_[i] == nullptr) {
       continue;
     }
-    uint64_t diff = diffControllers_[i]->calcCurDiff();
-
-    // max diff for agent's miner is UINT32_MAX
-    if (diff > UINT32_MAX) {
-      diff = UINT32_MAX;
-    }
-    agentSessionsDiff[i] = (uint32_t)diff;
+    const uint64_t diff = diffControllers_[i]->calcCurDiff();
+    sessionsDiff2Exp[i] = (uint8_t)log2(diff);
   }
 }
 
-void AgentSessions::getSessionsChangedDiff(const vector<uint32_t> &agentSessionsDiff,
+void AgentSessions::getSessionsChangedDiff(const vector<uint8_t> &sessionsDiff2Exp,
                                            string &data) {
-  vector<uint32_t> changedDiff;
-  changedDiff.resize(UINT16_MAX, 0u);
-  assert(curDiffVec_.size() == agentSessionsDiff.size());
+  vector<uint32_t> changedDiff2Exp;
+  changedDiff2Exp.resize(UINT16_MAX, 0u);
+  assert(curDiff2ExpVec_.size() == sessionsDiff2Exp.size());
 
   // get changed diff and set to new diff
-  for (size_t i = 0; i < curDiffVec_.size(); i++) {
-    if (curDiffVec_[i] == agentSessionsDiff[i]) {
+  for (size_t i = 0; i < curDiff2ExpVec_.size(); i++) {
+    if (curDiff2ExpVec_[i] == sessionsDiff2Exp[i]) {
       continue;
     }
-    changedDiff[i] = agentSessionsDiff[i];
-    curDiffVec_[i] = agentSessionsDiff[i];  // set new diff
+    changedDiff2Exp[i] = sessionsDiff2Exp[i];
+    curDiff2ExpVec_[i] = sessionsDiff2Exp[i];  // set new diff
   }
 
-  // diff -> session_id | session_id | ... | session_id
-  map<uint32_t, vector<uint16_t> > diffSessionIds;
-  for (uint32_t i = 0; i < changedDiff.size(); i++) {
-    if (changedDiff[i] == 0u) {
+  // diff_2exp -> session_id | session_id | ... | session_id
+  map<uint8_t, vector<uint16_t> > diffSessionIds;
+  for (uint32_t i = 0; i < changedDiff2Exp.size(); i++) {
+    if (changedDiff2Exp[i] == 0u) {
       continue;
     }
-    diffSessionIds[changedDiff[i]].push_back((uint16_t)i);
+    diffSessionIds[changedDiff2Exp[i]].push_back((uint16_t)i);
   }
 
   getSetDiffCommand(diffSessionIds, data);
 }
 
-void AgentSessions::getSetDiffCommand(map<uint32_t, vector<uint16_t> > &diffSessionIds,
+void AgentSessions::getSetDiffCommand(map<uint8_t, vector<uint16_t> > &diffSessionIds,
                                       string &data) {
   //
   // CMD_MINING_SET_DIFF:
-  // | magic_number(1) | cmd(1) | len (2) | diff (4) | count(2) | session_id (2) ... |
+  // | magic_number(1) | cmd(1) | len (2) | diff_2_exp(1) | count(2) | session_id (2) ... |
   //
   //
-  // max session id count is 32,762, each message's max length is UINT16_MAX.
-  //     65535 -1-1-2-4-2 = 65,525
-  //     65,525 / 2 = 32,762.5 ~= 32,762
+  // max session id count is 32,764, each message's max length is UINT16_MAX.
+  //     65535 -1-1-2-1-2 = 65,528
+  //     65,528 / 2 = 32,764
   //
   data.clear();
-  const size_t kMaxCount = 32762;
+  const size_t kMaxCount = 32764;
 
   for (auto it = diffSessionIds.begin(); it != diffSessionIds.end(); it++) {
 
@@ -977,7 +980,7 @@ void AgentSessions::getSetDiffCommand(map<uint32_t, vector<uint16_t> > &diffSess
       size_t count = std::min(kMaxCount, it->second.size());
 
       string buf;
-      const uint16_t len = 1+1+2+4+2+ count * 2;
+      const uint16_t len = 1+1+2+1+2+ count * 2;
       buf.resize(len);
       uint8_t *p = (uint8_t *)buf.data();
 
@@ -989,9 +992,8 @@ void AgentSessions::getSetDiffCommand(map<uint32_t, vector<uint16_t> > &diffSess
       *(uint16_t *)p = len;
       p += 2;
 
-      // diff
-      *(uint32_t *)p = it->first;
-      p += 4;
+      // diff, 2 exp
+      *p++ = it->first;
 
       // count
       *(uint16_t *)p = (uint16_t)count;

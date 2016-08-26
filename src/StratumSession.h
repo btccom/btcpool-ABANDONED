@@ -161,7 +161,7 @@ public:
     uint32_t blkBits_;
     uint8_t  shortJobId_;
     std::set<LocalShare> submitShares_;
-    std::vector<uint32_t> agentSessionsDiff_;  // agent's miner max diff is uint32_max
+    std::vector<uint8_t> agentSessionsDiff2Exp_;
 
     LocalJob(): jobId_(0), jobDifficulty_(0), blkBits_(0), shortJobId_(0) {}
 
@@ -265,8 +265,9 @@ class AgentSessions {
   // session ID range: [0, 65535], so vector max size is 65536
   vector<int64_t> workerIds_;
   vector<DiffController *> diffControllers_;
-  vector<uint32_t> curDiffVec_;
+  vector<uint8_t> curDiff2ExpVec_;
   int32_t shareAvgSeconds_;
+  uint8_t kDefaultDiff2Exp_;
 
   StratumSession *stratumSession_;
 
@@ -278,10 +279,10 @@ public:
   void handleExMessage_RegisterWorker  (const string *exMessage);
   void handleExMessage_UnRegisterWorker(const string *exMessage);
 
-  void calcSessionsJobDiff(vector<uint32_t> &agentSessionsDiff);
-  void getSessionsChangedDiff(const vector<uint32_t> &agentSessionsDiff,
+  void calcSessionsJobDiff(vector<uint8_t> &sessionsDiff2Exp);
+  void getSessionsChangedDiff(const vector<uint8_t> &sessionsDiff2Exp,
                               string &data);
-  void getSetDiffCommand(map<uint32_t, vector<uint16_t> > &diffSessionIds,
+  void getSetDiffCommand(map<uint8_t, vector<uint16_t> > &diffSessionIds,
                          string &data);
 };
 

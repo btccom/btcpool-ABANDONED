@@ -312,8 +312,13 @@ TEST(StratumSession, AgentSessions_UNREGISTER_WORKER) {
 TEST(StratumSession, AgentSessions) {
   AgentSessions agent(10, nullptr);
 
-  map<uint32_t, vector<uint16_t> > diffSessionIds;
+  map<uint8_t, vector<uint16_t> > diffSessionIds;
   string data;
+
+  //
+  // CMD_MINING_SET_DIFF:
+  // | magic_number(1) | cmd(1) | len (2) | diff_2_exp(1) | count(2) | session_id (2) ... |
+  //
 
   {
     // diff: 1, session_id: 0
@@ -321,24 +326,25 @@ TEST(StratumSession, AgentSessions) {
   	agent.getSetDiffCommand(diffSessionIds, data);
 
     uint8_t *p = (uint8_t *)data.data();
-    ASSERT_EQ(data.length(), 12);
-    ASSERT_EQ(*(uint32_t *)(p+ 4), 1);  // diff
-    ASSERT_EQ(*(uint16_t *)(p+ 8), 1);  // count
-    ASSERT_EQ(*(uint16_t *)(p+10), 0);  // first session id
+    ASSERT_EQ(data.length(), 9);
+    ASSERT_EQ(*(uint8_t  *)(p+ 4), 1);  // diff_2exp
+    ASSERT_EQ(*(uint16_t *)(p+ 5), 1);  // count
+    ASSERT_EQ(*(uint16_t *)(p+ 7), 0);  // first session id
   }
 
   {
     // size: full
     diffSessionIds.clear();
     for (size_t i = 0; i < UINT16_MAX; i++) {
-      diffSessionIds[UINT32_MAX].push_back(i);
+      // 63 is max diff, 2^63 = UINT64_MAX
+      diffSessionIds[63].push_back(i);
     }
     agent.getSetDiffCommand(diffSessionIds, data);
 
-    // 65535 = 32762 + 32762 + 11
-    size_t l1 = 1+1+2+4+2+ 32762 * 2;
-    size_t l2 = 1+1+2+4+2+ 32762 * 2;
-    size_t l3 = 1+1+2+4+2+ 11 * 2;
+    // 65535 = 32764 + 32764 + 7
+    size_t l1 = 1+1+2+1+2+ 32764 * 2;
+    size_t l2 = 1+1+2+1+2+ 32764 * 2;
+    size_t l3 = 1+1+2+1+2+ 7 * 2;
 
     ASSERT_EQ(data.length(), l1 + l2 + l3);
 
@@ -353,19 +359,19 @@ TEST(StratumSession, AgentSessions) {
     ASSERT_EQ(*(uint16_t *)(p+2+l1+l2), l3);
 
     // check diff
-    ASSERT_EQ(*(uint32_t *)(p+4),       UINT32_MAX);
-    ASSERT_EQ(*(uint32_t *)(p+4+l1),    UINT32_MAX);
-    ASSERT_EQ(*(uint32_t *)(p+4+l1+l2), UINT32_MAX);
+    ASSERT_EQ(*(uint8_t *)(p+4),       63);
+    ASSERT_EQ(*(uint8_t *)(p+4+l1),    63);
+    ASSERT_EQ(*(uint8_t *)(p+4+l1+l2), 63);
 
     // check count
-    ASSERT_EQ(*(uint16_t *)(p+8),       32762);
-    ASSERT_EQ(*(uint16_t *)(p+8+l1),    32762);
-    ASSERT_EQ(*(uint16_t *)(p+8+l1+l2), 11);
+    ASSERT_EQ(*(uint16_t *)(p+5),       32764);
+    ASSERT_EQ(*(uint16_t *)(p+5+l1),    32764);
+    ASSERT_EQ(*(uint16_t *)(p+5+l1+l2), 7);
 
     // check first session id
-    ASSERT_EQ(*(uint16_t *)(p+10),       0);
-    ASSERT_EQ(*(uint16_t *)(p+10+l1),    32762);
-    ASSERT_EQ(*(uint16_t *)(p+10+l1+l2), 32762 + 32762);
+    ASSERT_EQ(*(uint16_t *)(p+7),       0);
+    ASSERT_EQ(*(uint16_t *)(p+7+l1),    32764);
+    ASSERT_EQ(*(uint16_t *)(p+7+l1+l2), 32764 + 32764);
     // last session id
     ASSERT_EQ(*(uint16_t *)(p+l1+l2+l3-2), 65535 - 1);
   }
