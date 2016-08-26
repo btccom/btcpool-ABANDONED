@@ -1281,12 +1281,15 @@ ShareLogParserServer::ShareLogParserServer(const string dataDir,
                                            const string &httpdHost,
                                            unsigned short httpdPort,
                                            const MysqlConnectInfo &poolDBInfo):
-running_(true), uptime_(time(nullptr)), dataDir_(dataDir),
+running_(true), dataDir_(dataDir),
 poolDBInfo_(poolDBInfo), base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort),
 requestCount_(0), responseBytes_(0)
 {
-  // uptime_ is now timestamp
-  date_ = uptime_ - (uptime_ % 86400);
+  const time_t now = time(nullptr);
+
+  uptime_ = now;
+  date_   = now - (now % 86400);
+
   pthread_rwlock_init(&rwlock_, nullptr);
 }
 
