@@ -40,15 +40,21 @@ serverId_(serverId), count_(0), allocIdx_(0)
 
 bool SessionIDManager::ifFull() {
   ScopeLock sl(lock_);
+  return _ifFull();
+}
 
+bool SessionIDManager::_ifFull() {
   if (count_ >= (int32_t)(MAX_SESSION_INDEX_SERVER + 1)) {
     return true;
   }
   return false;
 }
 
-uint32_t SessionIDManager::allocSessionId() {
+bool SessionIDManager::allocSessionId(uint32_t *sessionID) {
   ScopeLock sl(lock_);
+
+  if (_ifFull())
+    return false;
 
   // find an empty bit
   while (sessionIds_.test(allocIdx_) == true) {
@@ -62,7 +68,8 @@ uint32_t SessionIDManager::allocSessionId() {
   sessionIds_.set(allocIdx_, true);
   count_++;
 
-  return ((uint32_t)serverId_ << 24) | allocIdx_;
+  *sessionID = (((uint32_t)serverId_ << 24) | allocIdx_);
+  return true;
 }
 
 void SessionIDManager::freeSessionId(uint32_t sessionId) {
@@ -832,9 +839,10 @@ void Server::listenerCallback(struct evconnlistener* listener,
   Server *server = static_cast<Server *>(data);
   struct event_base  *base = (struct event_base*)server->base_;
   struct bufferevent *bev;
+  uint32_t sessionID = 0u;
 
   // can't alloc session Id
-  if (server->sessionIDManager_->ifFull() == true) {
+  if (server->sessionIDManager_->allocSessionId(&sessionID) == false) {
     close(fd);
     return;
   }
@@ -845,9 +853,6 @@ void Server::listenerCallback(struct evconnlistener* listener,
     server->stop();
     return;
   }
-
-  // alloc session ID
-  const uint32_t sessionID = server->sessionIDManager_->allocSessionId();
 
   // create stratum session
   StratumSession* conn = new StratumSession(fd, bev, server, saddr,

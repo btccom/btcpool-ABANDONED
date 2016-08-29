@@ -73,11 +73,13 @@ class SessionIDManager {
   uint32_t allocIdx_;
   mutex lock_;
 
+  bool _ifFull();
+
 public:
   SessionIDManager(const uint8_t serverId);
 
   bool ifFull();
-  uint32_t allocSessionId();
+  bool allocSessionId(uint32_t *sessionID);
   void freeSessionId(uint32_t sessionId);
 };
 
