@@ -171,19 +171,16 @@ public:
 
 
 ////////////////////////////////// StratumJobEx ////////////////////////////////
+//
+// StratumJobEx is use to wrap StratumJob
+//
 class StratumJobEx {
-  enum State {
-    MINING = 0,
-    STALE  = 1
-  };
-
-  //------------
-  mutex lock_;
-  State state_;
+  // 0: MINING, 1: STALE
+  atomic<int32_t> state_;
 
   void makeMiningNotifyStr();
   void generateCoinbaseTx(std::vector<char> *coinbaseBin,
-                          const uint32 extraNonce1,
+                          const uint32_t extraNonce1,
                           const string &extraNonce2Hex);
 
 public:
@@ -201,12 +198,12 @@ public:
 
   void generateBlockHeader(CBlockHeader *header,
                            std::vector<char> *coinbaseBin,
-                           const uint32 extraNonce1,
+                           const uint32_t extraNonce1,
                            const string &extraNonce2Hex,
                            const vector<uint256> &merkleBranch,
                            const uint256 &hashPrevBlock,
-                           const uint32 nBits, const int nVersion,
-                           const uint32 nTime, const uint32 nonce);
+                           const uint32_t nBits, const int32_t nVersion,
+                           const uint32_t nTime, const uint32_t nonce);
 };
 
 

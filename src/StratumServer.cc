@@ -494,8 +494,8 @@ int32_t UserInfo::insertWorkerName() {
   }
   else {
     // we have to use 'ON DUPLICATE KEY UPDATE', because 'statshttpd' may insert
-    // items to table.mining_workers between we 'select' and 'insert' gap. if
-    // that happens, 'worker_name will be always empty.
+    // items to table.mining_workers between we 'select' and 'insert' gap.
+    // 'statshttpd' will always set an empty 'worker_name'.
     sql = Strings::Format("INSERT INTO `mining_workers`(`puid`,`worker_id`,"
                           " `group_id`,`worker_name`,`miner_agent`,"
                           " `created_at`,`updated_at`) "
@@ -525,7 +525,7 @@ int32_t UserInfo::insertWorkerName() {
 
 ////////////////////////////////// StratumJobEx ////////////////////////////////
 StratumJobEx::StratumJobEx(StratumJob *sjob, bool isClean):
-state_(MINING), isClean_(isClean), sjob_(sjob)
+state_(0), isClean_(isClean), sjob_(sjob)
 {
   assert(sjob != nullptr);
   makeMiningNotifyStr();
@@ -541,6 +541,7 @@ StratumJobEx::~StratumJobEx() {
 void StratumJobEx::makeMiningNotifyStr() {
   string merkleBranchStr;
   {
+    // '"'+ 64 + '"' + ',' = 67 bytes
     merkleBranchStr.reserve(sjob_->merkleBranch_.size() * 67);
     for (size_t i = 0; i < sjob_->merkleBranch_.size(); i++) {
       //
@@ -569,17 +570,17 @@ void StratumJobEx::makeMiningNotifyStr() {
 }
 
 void StratumJobEx::markStale() {
-  ScopeLock sl(lock_);
-  state_ = STALE;
+  // 0: MINING, 1: STALE
+  state_ = 1;
 }
 
 bool StratumJobEx::isStale() {
-  ScopeLock sl(lock_);
-  return (state_ == STALE);
+  // 0: MINING, 1: STALE
+  return (state_ == 1);
 }
 
 void StratumJobEx::generateCoinbaseTx(std::vector<char> *coinbaseBin,
-                                      const uint32 extraNonce1,
+                                      const uint32_t extraNonce1,
                                       const string &extraNonce2Hex) {
   string coinbaseHex;
   const string extraNonceStr = Strings::Format("%08x%s", extraNonce1, extraNonce2Hex.c_str());
@@ -591,12 +592,12 @@ void StratumJobEx::generateCoinbaseTx(std::vector<char> *coinbaseBin,
 
 void StratumJobEx::generateBlockHeader(CBlockHeader *header,
                                        std::vector<char> *coinbaseBin,
-                                       const uint32 extraNonce1,
+                                       const uint32_t extraNonce1,
                                        const string &extraNonce2Hex,
                                        const vector<uint256> &merkleBranch,
                                        const uint256 &hashPrevBlock,
-                                       const uint32 nBits, const int nVersion,
-                                       const uint32 nTime, const uint32 nonce) {
+                                       const uint32_t nBits, const int32_t nVersion,
+                                       const uint32_t nTime, const uint32_t nonce) {
   generateCoinbaseTx(coinbaseBin, extraNonce1, extraNonce2Hex);
 
   header->hashPrevBlock = hashPrevBlock;
