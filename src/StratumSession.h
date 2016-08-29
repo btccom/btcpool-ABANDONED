@@ -253,7 +253,7 @@ public:
                             const uint8_t shortJobId, const uint64_t extraNonce2,
                             const uint32_t nonce, uint32_t nTime,
                             bool isAgentSession,
-                            DiffController *diffController);
+                            DiffController *sessionDiffController);
   uint32_t getSessionId() const;
 };
 

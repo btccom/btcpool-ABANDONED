@@ -530,7 +530,7 @@ void StratumSession::handleRequest_Submit(const string &idStr,
                                           const uint32_t nonce,
                                           uint32_t nTime,
                                           bool isAgentSession,
-                                          DiffController *diffController) {
+                                          DiffController *sessionDiffController) {
   //
   // if share is from agent session, we don't need to send reply json
   //
@@ -606,8 +606,8 @@ void StratumSession::handleRequest_Submit(const string &idStr,
     share.result_ = Share::Result::ACCEPT;
 
     // agent miner's diff controller
-    if (isAgentSession && diffController != nullptr) {
-      diffController->addAcceptedShare(share.share_);
+    if (isAgentSession && sessionDiffController != nullptr) {
+      sessionDiffController->addAcceptedShare(share.share_);
     }
 
     if (isAgentSession == false) {
