@@ -395,12 +395,12 @@ class ShareLogParser {
   string filePath_;  // sharelog data file path
 
   //
-  // for processTodaysShareLog()
+  // for processGrowingShareLog()
   //
   FILE *f_;        // file handler
   uint8_t *buf_;   // fread buffer
-  // 48 * 500000 = 24,000,000 ~ 24 MB
-  static const size_t kMaxElementsNum_ = 500000;  // num of Share
+  // 48 * 1000000 = 48,000,000 ~ 48 MB
+  static const size_t kMaxElementsNum_ = 1000000;  // num of Share
   off_t lastPosition_;
 
   MySQLConnection  poolDB_;  // save stats data
@@ -409,10 +409,6 @@ class ShareLogParser {
     // %H	Hour in 24h format (00-23)
     return atoi(date("%H", ts).c_str());
   }
-
-  uint8_t *mapFile(const int fd, size_t length, off_t offset,
-                   uint8_t **realAddr, size_t *realLength);
-  void unmapFile(uint8_t **realAddr, size_t realLength);
 
   void parseShareLog(const uint8_t *buf, size_t len);
   void parseShare(const Share *share);
@@ -427,7 +423,7 @@ public:
                  const MysqlConnectInfo &poolDBInfo);
   ~ShareLogParser();
 
-  bool check();
+  bool init();
 
   // flush data to DB
   void flushToDB();
@@ -448,6 +444,11 @@ public:
 
 
 ////////////////////////////  ShareLogParserServer  ////////////////////////////
+//
+// read share binlog, parse shares, calc stats data than save them to database
+// table.stats_xxxx. meanwhile hold there stats data in memory so it could
+// provide httpd service. web/app could read the latest data from it's http API.
+//
 class ShareLogParserServer {
   struct ServerStatus {
     uint32_t uptime_;

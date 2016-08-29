@@ -33,7 +33,6 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/thread.hpp>
 
-#include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -430,7 +429,7 @@ void StatsServer::runThreadConsume() {
   time_t lastCleanTime   = time(nullptr);
   time_t lastFlushDBTime = time(nullptr);
 
-  const time_t kFlushDBInterval      = 20;
+  const time_t kFlushDBInterval      = 60;  // TODO: cfg option
   const time_t kExpiredCleanInterval = 60*30;
   const int32_t kTimeoutMs = 1000;
 
@@ -904,7 +903,7 @@ ShareLogParser::~ShareLogParser() {
     free(buf_);
 }
 
-bool ShareLogParser::check() {
+bool ShareLogParser::init() {
   // check db
   if (!poolDB_.ping()) {
     LOG(ERROR) << "connect to db fail";
@@ -957,89 +956,37 @@ void ShareLogParser::parseShare(const Share *share) {
 }
 
 bool ShareLogParser::processUnchangedShareLog() {
-  struct stat sb;
-  int fd = -1;
+  FILE *f = nullptr;
 
-  const off_t maxReadOnce = 4200000 * sizeof(Share);  // about 200 MB
-  uint8_t *realAddr;
-  size_t realLength;
-  off_t offset, readLength, leftSize;
-  uint8_t *buf;
-
-  fd = open(filePath_.c_str(), O_RDONLY);
-  if (fd == -1) {
+  // open file
+  if ((f = fopen(filePath_.c_str(), "rb")) == nullptr) {
     LOG(ERROR) << "open file fail: " << filePath_;
-    goto error;
-  }
-  if (fstat(fd, &sb) == -1) {
-    LOG(ERROR) << "fstat fail: " << filePath_;
-    goto error;
+    return false;
   }
 
-  LOG(INFO) << "open: " << filePath_ << ", size: " << sb.st_size;
+  // 2000000 * 48 = 96,000,000 Bytes
+  const uint32_t kElements = 2000000;
+  size_t readNum;
+  string buf;
+  buf.resize(kElements * sizeof(Share));
 
-  leftSize = sb.st_size;
-  offset = 0;
-  while (leftSize > 0) {
-    assert(offset < sb.st_size);
+  while (1) {
+    readNum = fread((uint8_t *)buf.data(), sizeof(Share), kElements, f);
 
-    readLength = leftSize > maxReadOnce ? maxReadOnce : leftSize;
-    buf = mapFile(fd, readLength, offset, &realAddr, &realLength);
-    if (buf == nullptr) {
-      LOG(ERROR) << "mapFile fail";
-      goto error;
+    if (readNum == 0) {
+      if (feof(f)) {
+        LOG(INFO) << "End-of-File reached: " << filePath_;
+        break;
+      }
+      LOG(INFO) << "read 0 bytes: " << filePath_;
+      continue;
     }
 
-    // parse log
-    parseShareLog(buf, readLength);
+    parseShareLog((uint8_t *)buf.data(), readNum * sizeof(Share));
+  };
 
-    offset += readLength;
-
-    leftSize -= readLength;
-    assert(leftSize >= 0);
-    unmapFile(&realAddr, realLength);
-  }
-  assert(leftSize == 0);
+  fclose(f);
   return true;
-
-error:
-  if (fd != -1)
-    close(fd);
-
-  return false;
-}
-
-void ShareLogParser::unmapFile(uint8_t **realAddr, size_t realLength) {
-  int res = munmap(*realAddr, realLength);
-
-  // unlikely happen
-  if (res != 0) {
-    LOG(ERROR) << "munmap fail, errno: " << errno << ", err: " << strerror(errno);
-  }
-}
-
-// see: http://man7.org/linux/man-pages/man2/mmap.2.html
-uint8_t *ShareLogParser::mapFile(const int fd,
-                                 size_t length, off_t offset,
-                                 uint8_t **realAddr,
-                                 size_t *realLength) {
-  uint8_t *addr;
-  off_t pa_offset;
-
-  // offset for mmap() must be page aligned
-  // always true: pa_offset <= offset
-  pa_offset = offset & ~(sysconf(_SC_PAGE_SIZE) - 1);
-
-  addr = (uint8_t *)mmap(NULL, length + (offset - pa_offset), PROT_READ,
-                         MAP_PRIVATE, fd, pa_offset);
-  if (addr == MAP_FAILED) {
-    LOG(ERROR) << "mmap fail, errno: " << errno << ", err: " << strerror(errno);
-    return nullptr;
-  }
-  *realAddr   = addr;
-  *realLength = length + (offset - pa_offset);
-
-  return addr + (offset - pa_offset);
 }
 
 int64_t ShareLogParser::processGrowingShareLog() {
@@ -1319,7 +1266,7 @@ bool ShareLogParserServer::initShareLogParser(time_t datets) {
 
   // set new obj
   shared_ptr<ShareLogParser> parser(new ShareLogParser(dataDir_, date_, poolDBInfo_));
-  if (!parser->check()) {
+  if (!parser->init()) {
     LOG(ERROR) << "parser check failure, date: " << date("%F", date_);
     pthread_rwlock_unlock(&rwlock_);
     return false;
@@ -1565,8 +1512,7 @@ bool ShareLogParserServer::setupThreadShareLogParser() {
 void ShareLogParserServer::runThreadShareLogParser() {
   LOG(INFO) << "thread sharelog parser start";
 
-  // TODO: maybe increase interval seconds in the feature
-  const time_t KFlushDBTimeInterval = 30;
+  const time_t KFlushDBTimeInterval = 60;  // TODO: cfg option
   time_t lastFlushDBTime = 0;
 
   while (running_) {
