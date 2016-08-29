@@ -160,12 +160,16 @@ void StatsServer::stop() {
   if (!running_)
     return;
 
+  LOG(INFO) << "stop StatsServer...";
+
   running_ = false;
   event_base_loopexit(base_, NULL);
 }
 
 void StatsServer::processShare(const Share &share) {
   const time_t now = time(nullptr);
+
+  // ignore too old shares
   if (now > share.timestamp_ + STATS_SLIDING_WINDOW_SECONDS) {
     return;
   }
@@ -249,6 +253,7 @@ void StatsServer::_flushWorkersToDBThread() {
   " `last_share_time`, `created_at`, `updated_at`";
   // values for multi-insert sql
   vector<string> values;
+  size_t counter = 0;
 
   if (!poolDB_.ping()) {
     LOG(ERROR) << "can't connect to pool DB";
@@ -258,6 +263,8 @@ void StatsServer::_flushWorkersToDBThread() {
   // get all workes status
   pthread_rwlock_rdlock(&rwlock_);  // read lock
   for (auto itr = workerSet_.begin(); itr != workerSet_.end(); itr++) {
+    counter++;
+
     const int32_t userId   = itr->first.userId_;
     const int64_t workerId = itr->first.workerId_;
     shared_ptr<WorkerShares> workerShare = itr->second;
@@ -303,7 +310,7 @@ void StatsServer::_flushWorkersToDBThread() {
     LOG(ERROR) << "merge mining_workers failure";
     goto finish;
   }
-  LOG(INFO) << "flush mining workers to DB... done";
+  LOG(INFO) << "flush mining workers to DB... done, items: " << counter;
 
 finish:
   isInserting_ = false;
@@ -427,10 +434,17 @@ void StatsServer::consumeShareLog(rd_kafka_message_t *rkmessage) {
 }
 
 bool StatsServer::setupThreadConsume() {
-  const int32_t kConsumeLatestN = 10000 * (900 / 10);
+  //
+  // assume we have 100,000 online workers and every share per 10 seconds,
+  // so in 15 mins there will be 100000/10*900 = 9,000,000 shares.
+  // data size will be 9,000,000 * sizeof(Share) = 432,000,000 Bytes.
+  //
+  const int32_t kConsumeLatestN = 100000/10*900;  // 9,000,000
 
   map<string, string> consumerOptions;
-  consumerOptions["fetch.wait.max.ms"] = "100";
+  // fetch.wait.max.ms:
+  // Maximum time the broker may wait to fill the response with fetch.min.bytes.
+  consumerOptions["fetch.wait.max.ms"] = "200";
   if (kafkaConsumer_.setup(RD_KAFKA_OFFSET_TAIL(kConsumeLatestN),
                            &consumerOptions) == false) {
     LOG(INFO) << "setup consumer fail";
@@ -452,7 +466,7 @@ void StatsServer::runThreadConsume() {
   time_t lastFlushDBTime = time(nullptr);
 
   const time_t kExpiredCleanInterval = 60*30;
-  const int32_t kTimeoutMs = 1000;
+  const int32_t kTimeoutMs = 1000;  // consumer timeout
 
   while (running_) {
     //
@@ -1214,6 +1228,8 @@ void ShareLogParser::flushToDB() {
     return;
   }
 
+  LOG(INFO) << "start flush to DB...";
+
   //
   // we must finish the workersStats_ loop asap
   //
@@ -1230,6 +1246,8 @@ void ShareLogParser::flushToDB() {
   }
   pthread_rwlock_unlock(&rwlock_);
 
+  LOG(INFO) << "dumped workers stats";
+
   for (size_t i = 0; i < keys.size(); i++) {
     //
     // the lock is in flushDailyData() & flushHoursData(), so maybe we lost
@@ -1241,6 +1259,9 @@ void ShareLogParser::flushToDB() {
 
     stats[i]->modifyHoursFlag_ = 0x0u;  // reset flag
   }
+
+  // done: daily data and hour data
+  LOG(INFO) << "flush to DB... done, items: " << (keys.size() * 2);
 }
 
 
@@ -1275,6 +1296,8 @@ ShareLogParserServer::~ShareLogParserServer() {
 void ShareLogParserServer::stop() {
   if (!running_)
     return;
+
+  LOG(INFO) << "stop ShareLogParserServer...";
 
   running_ = false;
   event_base_loopexit(base_, NULL);
