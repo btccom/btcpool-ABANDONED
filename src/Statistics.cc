@@ -829,10 +829,10 @@ ShareStatsDay::ShareStatsDay() {
   memset((uint8_t *)&shareAccept1h_[0], 0, sizeof(shareAccept1h_));
   memset((uint8_t *)&shareReject1h_[0], 0, sizeof(shareReject1h_));
   memset((uint8_t *)&score1h_[0],       0, sizeof(score1h_));
-  shareAccept1d_ = 0;
-  shareReject1d_ = 0;
-  score1d_       = 0.0;
-  modifyFlag_    = 0x0u;
+  shareAccept1d_   = 0;
+  shareReject1d_   = 0;
+  score1d_         = 0.0;
+  modifyHoursFlag_ = 0x0u;
 }
 
 void ShareStatsDay::processShare(uint32_t hourIdx, const Share &share) {
@@ -848,7 +848,7 @@ void ShareStatsDay::processShare(uint32_t hourIdx, const Share &share) {
     shareReject1h_[hourIdx] += share.share_;
     shareReject1d_          += share.share_;
   }
-  modifyFlag_ |= (0x01u << hourIdx);
+  modifyHoursFlag_ |= (0x01u << hourIdx);
 }
 
 void ShareStatsDay::getShareStatsHour(uint32_t hourIdx, ShareStats *stats) {
@@ -1065,7 +1065,7 @@ void ShareLogParser::flushHoursData(shared_ptr<ShareStatsDay> stats,
     {
       ScopeLock sl(stats->lock_);
       const uint32_t flag = (0x01U << i);
-      if ((stats->modifyFlag_ & flag) == 0x0u) {
+      if ((stats->modifyHoursFlag_ & flag) == 0x0u) {
         continue;
       }
       const string hourStr = Strings::Format("%s%02d", date("%Y%m%d", date_).c_str(), i);
@@ -1199,7 +1199,7 @@ void ShareLogParser::flushToDB() {
 
   pthread_rwlock_rdlock(&rwlock_);
   for (const auto &itr : workersStats_) {
-    if (itr.second->modifyFlag_ == 0x0u) {
+    if (itr.second->modifyHoursFlag_ == 0x0u) {
       continue;  // no new data, ingore
     }
     keys.push_back(itr.first);
@@ -1216,7 +1216,7 @@ void ShareLogParser::flushToDB() {
     flushDailyData(stats[i], keys[i].userId_, keys[i].workerId_);
     flushHoursData(stats[i], keys[i].userId_, keys[i].workerId_);
 
-    stats[i]->modifyFlag_ = 0x0u;  // reset flag
+    stats[i]->modifyHoursFlag_ = 0x0u;  // reset flag
   }
 }
 

@@ -64,6 +64,19 @@ TEST(Stratum, Share) {
             " timeStamp: 0/1970-01-01 00:00:00, share: 0, blkBits: 00000000, result: 0)");
 }
 
+TEST(Stratum, Share2) {
+  Share s;
+
+  s.blkBits_ = 0x1d00ffffu;
+  s.share_ = 1ll;
+  ASSERT_EQ(s.score(), 1ll);
+
+  s.blkBits_ = 0x18050edcu;
+  s.share_ = UINT32_MAX;
+  // double will be: 0.0197583
+  ASSERT_EQ(score2Str(s.score()), "0.0197582875516673");
+}
+
 TEST(Stratum, StratumWorker) {
   StratumWorker w;
   uint64_t u;

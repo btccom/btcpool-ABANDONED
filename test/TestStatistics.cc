@@ -26,6 +26,8 @@
 #include "Common.h"
 #include "Statistics.h"
 
+
+////////////////////////////////  StatsWindow  /////////////////////////////////
 TEST(StatsWindow, clear) {
   int windowSize = 60;
 
@@ -154,3 +156,87 @@ TEST(StatsWindow, map) {
   int64 sum3 = sw.sum(windowSize-1, windowSize);
   ASSERT_EQ(sum, sum3);
 }
+
+
+////////////////////////////////  ShareStatsDay  ///////////////////////////////
+TEST(ShareStatsDay, ShareStatsDay) {
+
+  // 1
+  {
+    ShareStatsDay stats;
+    Share share;
+
+    share.result_ = Share::ACCEPT;
+    uint64_t shareValue = 1ll;
+
+    // share -> socre = 1 : 1
+    // https://btc.com/000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f
+    share.blkBits_ = 0x1d00ffffu;
+
+    // accept
+    for (uint32_t i = 0; i < 24; i++) {  // hour idx range: [0, 23]
+      share.share_ = shareValue;
+      stats.processShare(i, share);
+    }
+
+    // reject
+    share.result_ = Share::REJECT;
+    for (uint32_t i = 0; i < 24; i++) {
+      share.share_ = shareValue;
+      stats.processShare(i, share);
+    }
+
+    ShareStats ss;
+    for (uint32_t i = 0; i < 24; i++) {
+      stats.getShareStatsHour(i, &ss);
+      ASSERT_EQ(ss.shareAccept_, shareValue);
+      ASSERT_EQ(ss.shareReject_, shareValue);
+      ASSERT_EQ(ss.earn_, 1 * BLOCK_REWARD);
+    }
+    stats.getShareStatsDay(&ss);
+    ASSERT_EQ(ss.shareAccept_, shareValue * 24);
+    ASSERT_EQ(ss.shareReject_, shareValue * 24);
+    ASSERT_EQ(ss.earn_, 1 * 24 * BLOCK_REWARD);
+  }
+
+  // UINT32_MAX
+  {
+    ShareStatsDay stats;
+    Share share;
+
+    share.result_  = Share::ACCEPT;
+    uint64_t shareValue = UINT32_MAX;
+
+    // share -> socre = UINT32_MAX : 0.0197582875516673
+    // https://btc.com/00000000000000000015f613f161b431acc6bbcb34533d2ca47d3cde4ec58b76
+    share.blkBits_ = 0x18050edcu;
+
+    // accept
+    for (uint32_t i = 0; i < 24; i++) {  // hour idx range: [0, 23]
+      share.share_ = shareValue;
+      stats.processShare(i, share);
+//      LOG(INFO) << score2Str(share.score());
+    }
+
+    // reject
+    share.result_ = Share::REJECT;
+    for (uint32_t i = 0; i < 24; i++) {
+      share.share_ = shareValue;
+      stats.processShare(i, share);
+    }
+
+    ShareStats ss;
+    for (uint32_t i = 0; i < 24; i++) {
+      stats.getShareStatsHour(i, &ss);
+      ASSERT_EQ(ss.shareAccept_, shareValue);
+      ASSERT_EQ(ss.shareReject_, shareValue);
+
+      ASSERT_EQ(ss.earn_, 24697859);  // satoshi
+    }
+    stats.getShareStatsDay(&ss);
+    ASSERT_EQ(ss.shareAccept_, shareValue * 24);
+    ASSERT_EQ(ss.shareReject_, shareValue * 24);
+    ASSERT_EQ(ss.earn_, 592748626);  // satoshi
+  }
+}
+

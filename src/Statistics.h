@@ -368,7 +368,7 @@ public:
   double   score1d_;
 
   // mark which hour data has been modified: 23, 22, ...., 0
-  uint32_t modifyFlag_;
+  uint32_t modifyHoursFlag_;
   mutex lock_;
 
   ShareStatsDay();
