@@ -54,7 +54,7 @@ class StratumJobEx;
 
 //////////////////////////////// SessionIDManager //////////////////////////////
 // DO NOT CHANGE
-#define MAX_SESSION_INDEX_SERVER   0x00FFFFFFu   // 16777215 = 2^24 - 1
+#define MAX_SESSION_INDEX_SERVER   0x00FFFFFEu   // 16777214
 
 // thread-safe
 class SessionIDManager {
@@ -68,34 +68,17 @@ class SessionIDManager {
   //
   uint8_t serverId_;
   std::bitset<MAX_SESSION_INDEX_SERVER + 1> sessionIds_;
+
+  int32_t count_;  // how many ids are used now
   uint32_t allocIdx_;
   mutex lock_;
 
 public:
-  SessionIDManager(const uint8_t serverId) : serverId_(serverId), allocIdx_(0) {
-    sessionIds_.reset();
-  }
+  SessionIDManager(const uint8_t serverId);
 
-  uint32_t allocSessionId() {
-    ScopeLock sl(lock_);
-
-    // find an empty bit
-    while (sessionIds_.test(allocIdx_) == true) {
-      allocIdx_++;
-      if (allocIdx_ > MAX_SESSION_INDEX_SERVER) {
-        allocIdx_ = 0;
-      }
-    }
-    // set to true
-    sessionIds_.set(allocIdx_, true);
-    return ((uint32_t)serverId_ << 24) | allocIdx_;
-  }
-
-  void freeSessionId(uint32_t sessionId) {
-    ScopeLock sl(lock_);
-    uint32_t idx = (sessionId & 0x00FFFFFFu);
-    sessionIds_.set(idx, false);
-  }
+  bool ifFull();
+  uint32_t allocSessionId();
+  void freeSessionId(uint32_t sessionId);
 };
 
 

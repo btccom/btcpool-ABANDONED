@@ -185,7 +185,7 @@ private:
   string   clientIp_;
   uint32_t clientIpInt_;
 
-  uint32 extraNonce1_;   // MUST be unique across all servers
+  uint32_t extraNonce1_;   // MUST be unique across all servers
   static const int kExtraNonce2Size_ = 8;  // extraNonce2 size is always 8 bytes
 
   uint64_t currDiff_;
@@ -235,7 +235,7 @@ public:
 public:
   StratumSession(evutil_socket_t fd, struct bufferevent *bev,
                  Server *server, struct sockaddr *saddr,
-                 const int32_t shareAvgSeconds);
+                 const int32_t shareAvgSeconds, const uint32_t extraNonce1);
   ~StratumSession();
 
   void sendSetDifficulty(const uint64_t difficulty);
@@ -254,6 +254,7 @@ public:
                             const uint32_t nonce, uint32_t nTime,
                             bool isAgentSession,
                             DiffController *diffController);
+  uint32_t getSessionId() const;
 };
 
 

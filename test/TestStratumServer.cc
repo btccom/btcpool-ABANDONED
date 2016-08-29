@@ -38,14 +38,17 @@ TEST(StratumServer, SessionIDManager) {
     uint32_t id = (0xFFu << 24) | i;
     ASSERT_EQ(m.allocSessionId(), id);
   }
+  ASSERT_EQ(m.ifFull(), true);
 
   // free the fisrt one
   j = 0xFF000000u;
   m.freeSessionId(j);
   ASSERT_EQ(m.allocSessionId(), j);
+  ASSERT_EQ(m.ifFull(), true);
 
   // free the one
   j = (0xFFu << 24) | MAX_SESSION_INDEX_SERVER;
   m.freeSessionId(j);
   ASSERT_EQ(m.allocSessionId(), j);
+  ASSERT_EQ(m.ifFull(), true);
 }

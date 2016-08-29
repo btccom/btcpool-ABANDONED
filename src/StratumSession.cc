@@ -201,11 +201,13 @@ uint64 DiffController::_calcCurDiff() {
 //////////////////////////////// StratumSession ////////////////////////////////
 StratumSession::StratumSession(evutil_socket_t fd, struct bufferevent *bev,
                                Server *server, struct sockaddr *saddr,
-                               const int32_t shareAvgSeconds) :
+                               const int32_t shareAvgSeconds,
+                               const uint32_t extraNonce1) :
 shareAvgSeconds_(shareAvgSeconds), diffController_(shareAvgSeconds_),
 shortJobIdIdx_(0), bev_(bev), fd_(fd), server_(server)
 {
   state_ = CONNECTED;
+  extraNonce1_ = extraNonce1;
   currDiff_    = 0U;
   extraNonce1_ = 0u;
 
@@ -232,9 +234,6 @@ shortJobIdIdx_(0), bev_(bev), fd_(fd), server_(server)
 }
 
 StratumSession::~StratumSession() {
-  // free session id
-  server_->sessionIDManager_->freeSessionId(extraNonce1_);
-
   if (agentSessions_ != nullptr) {
     delete agentSessions_;
     agentSessions_ = nullptr;
@@ -249,10 +248,6 @@ StratumSession::~StratumSession() {
 }
 
 void StratumSession::setup() {
-  // alloc session id
-  extraNonce1_ = server_->sessionIDManager_->allocSessionId();
-  assert(extraNonce1_ != 0u);
-
   // we set 15 seconds, will increase the timeout after sub & auth
   setReadTimeout(15);
 }
@@ -804,6 +799,9 @@ void StratumSession::handleExMessage_UnRegisterWorker(const string *exMessage) {
   agentSessions_->handleExMessage_UnRegisterWorker(exMessage);
 }
 
+uint32_t StratumSession::getSessionId() const {
+  return extraNonce1_;
+}
 
 
 ///////////////////////////////// AgentSessions ////////////////////////////////

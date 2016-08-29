@@ -30,6 +30,50 @@
 
 #include "utilities_js.hpp"
 
+
+//////////////////////////////// SessionIDManager //////////////////////////////
+SessionIDManager::SessionIDManager(const uint8_t serverId) :
+serverId_(serverId), count_(0), allocIdx_(0)
+{
+  sessionIds_.reset();
+}
+
+bool SessionIDManager::ifFull() {
+  ScopeLock sl(lock_);
+
+  if (count_ >= (int32_t)(MAX_SESSION_INDEX_SERVER + 1)) {
+    return true;
+  }
+  return false;
+}
+
+uint32_t SessionIDManager::allocSessionId() {
+  ScopeLock sl(lock_);
+
+  // find an empty bit
+  while (sessionIds_.test(allocIdx_) == true) {
+    allocIdx_++;
+    if (allocIdx_ > MAX_SESSION_INDEX_SERVER) {
+      allocIdx_ = 0;
+    }
+  }
+
+  // set to true
+  sessionIds_.set(allocIdx_, true);
+  count_++;
+
+  return ((uint32_t)serverId_ << 24) | allocIdx_;
+}
+
+void SessionIDManager::freeSessionId(uint32_t sessionId) {
+  ScopeLock sl(lock_);
+
+  const uint32_t idx = (sessionId & 0x00FFFFFFu);
+  sessionIds_.set(idx, false);
+  count_--;
+}
+
+
 ////////////////////////////////// JobRepository ///////////////////////////////
 JobRepository::JobRepository(const char *kafkaBrokers, Server *server):
 running_(true),
@@ -768,8 +812,11 @@ void Server::removeConnection(evutil_socket_t fd) {
   if (itr == connections_.end())
     return;
 
+  const uint32_t sessionId = itr->second->getSessionId();
   delete itr->second;
   connections_.erase(itr);
+
+  sessionIDManager_->freeSessionId(sessionId);
 }
 
 void Server::listenerCallback(struct evconnlistener* listener,
@@ -781,6 +828,12 @@ void Server::listenerCallback(struct evconnlistener* listener,
   struct event_base  *base = (struct event_base*)server->base_;
   struct bufferevent *bev;
 
+  // can't alloc session Id
+  if (server->sessionIDManager_->ifFull() == true) {
+    close(fd);
+    return;
+  }
+
   bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE|BEV_OPT_THREADSAFE);
   if(bev == nullptr) {
     LOG(ERROR) << "error constructing bufferevent!";
@@ -788,8 +841,14 @@ void Server::listenerCallback(struct evconnlistener* listener,
     return;
   }
 
+  // alloc session ID
+  const uint32_t sessionID = server->sessionIDManager_->allocSessionId();
+
+  // create stratum session
   StratumSession* conn = new StratumSession(fd, bev, server, saddr,
-                                            server->kShareAvgSeconds_);
+                                            server->kShareAvgSeconds_,
+                                            sessionID);
+  // set callback functions
   bufferevent_setcb(bev,
                     Server::readCallback, nullptr,
                     Server::eventCallback, (void*)conn);
