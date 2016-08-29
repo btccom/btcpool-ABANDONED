@@ -121,11 +121,16 @@ int main(int argc, char **argv) {
     }
 
     int32_t port = 8080;
+    int32_t flushInterval = 20;
     cfg.lookupValue("statshttpd.port", port);
+    cfg.lookupValue("statshttpd.flush_db_interval", flushInterval);
     gStatsServer = new StatsServer(cfg.lookup("kafka.brokers").c_str(),
                                    cfg.lookup("statshttpd.ip").c_str(),
-                                   (unsigned short)port, *poolDBInfo);
-    gStatsServer->run();
+                                   (unsigned short)port, *poolDBInfo,
+                                   (time_t)flushInterval);
+    if (gStatsServer->init()) {
+    	gStatsServer->run();
+    }
     delete gStatsServer;
   }
   catch (std::exception & e) {

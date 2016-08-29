@@ -117,11 +117,12 @@ bool WorkerShares::isExpired() {
 
 ////////////////////////////////  StatsServer  ////////////////////////////////
 StatsServer::StatsServer(const char *kafkaBrokers, const string &httpdHost,
-                         unsigned short httpdPort, const MysqlConnectInfo &poolDBInfo):
+                         unsigned short httpdPort, const MysqlConnectInfo &poolDBInfo,
+                         const time_t kFlushDBInterval):
 running_(true), totalWorkerCount_(0), totalUserCount_(0), uptime_(time(nullptr)),
 poolWorker_(0u/* worker id */, 0/* user id */),
 kafkaConsumer_(kafkaBrokers, KAFKA_TOPIC_SHARE_LOG, 0/* patition */),
-poolDB_(poolDBInfo), isInserting_(false),
+poolDB_(poolDBInfo), kFlushDBInterval_(kFlushDBInterval), isInserting_(false),
 base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort),
 requestCount_(0), responseBytes_(0)
 {
@@ -135,6 +136,24 @@ StatsServer::~StatsServer() {
     threadConsume_.join();
 
   pthread_rwlock_destroy(&rwlock_);
+}
+
+bool StatsServer::init() {
+  if (!poolDB_.ping()) {
+    LOG(INFO) << "db ping failure";
+    return false;
+  }
+
+  // check db conf
+  {
+  	string value = poolDB_.getVariable("max_allowed_packet");
+    if (atoi(value.c_str()) < 16 * 1026 *1024) {
+      LOG(INFO) << "db conf 'max_allowed_packet' is less than 16*1024*1024";
+      return false;
+    }
+  }
+
+  return true;
 }
 
 void StatsServer::stop() {
@@ -208,7 +227,10 @@ void StatsServer::flushWorkersToDB() {
 }
 
 void StatsServer::_flushWorkersToDBThread() {
+  //
   // merge two table items
+  // table.`mining_workers` unique index: `puid` + `worker_id`
+  //
   const string mergeSQL = "INSERT INTO `mining_workers` "
   " SELECT * FROM `mining_workers_tmp` "
   " ON DUPLICATE KEY "
@@ -429,7 +451,6 @@ void StatsServer::runThreadConsume() {
   time_t lastCleanTime   = time(nullptr);
   time_t lastFlushDBTime = time(nullptr);
 
-  const time_t kFlushDBInterval      = 60;  // TODO: cfg option
   const time_t kExpiredCleanInterval = 60*30;
   const int32_t kTimeoutMs = 1000;
 
@@ -445,8 +466,10 @@ void StatsServer::runThreadConsume() {
     //
     // flush workers to table.mining_workers
     //
-    if (lastFlushDBTime + kFlushDBInterval < time(nullptr)) {
-      // will use thread to flush data to DB
+    if (lastFlushDBTime + kFlushDBInterval_ < time(nullptr)) {
+      // will use thread to flush data to DB.
+      // it's very fast because we use insert statement with multiple values
+      // and merge table when flush data to DB.
       flushWorkersToDB();
       lastFlushDBTime = time(nullptr);
     }

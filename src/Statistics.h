@@ -262,6 +262,7 @@ class StatsServer {
   thread threadConsume_;
 
   MySQLConnection  poolDB_;      // flush workers to table.mining_workers
+  time_t kFlushDBInterval_;
   atomic<bool> isInserting_;     // flag mark if we are flushing db
 
   // httpd
@@ -290,9 +291,11 @@ public:
 
 public:
   StatsServer(const char *kafkaBrokers, const string &httpdHost,
-              unsigned short httpdPort, const MysqlConnectInfo &poolDBInfo);
+              unsigned short httpdPort, const MysqlConnectInfo &poolDBInfo,
+              const time_t kFlushDBInterval);
   ~StatsServer();
 
+  bool init();
   void stop();
   void run();
 

@@ -215,9 +215,9 @@ bool multiInsert(MySQLConnection &db, const string &table,
   string sql = sqlPrefix;
   for (auto &it : values) {
     sql += Strings::Format("(%s),", it.c_str());
-    // overthan 8MB
-    // notice: you need to make sure mysql.max_allowed_packet is over than 8MB
-    if (sql.length() > 8*1024*1024) {
+    // overthan 16MB
+    // notice: you need to make sure mysql.max_allowed_packet is over than 16MB
+    if (sql.length() >= 16*1024*1024) {
       sql.resize(sql.length() - 1);
       if (!db.execute(sql.c_str())) {
         return false;
