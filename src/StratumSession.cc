@@ -207,9 +207,8 @@ shareAvgSeconds_(shareAvgSeconds), diffController_(shareAvgSeconds_),
 shortJobIdIdx_(0), bev_(bev), fd_(fd), server_(server)
 {
   state_ = CONNECTED;
-  extraNonce1_ = extraNonce1;
   currDiff_    = 0U;
-  extraNonce1_ = 0u;
+  extraNonce1_ = extraNonce1;
 
   // usually stratum job interval is 30~60 seconds, 10 is enough for miners
   // should <= 10, we use short_job_id,  range: [0 ~ 9]. do NOT change it.
