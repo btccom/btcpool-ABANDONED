@@ -40,7 +40,8 @@
 #include "bitcoin/uint256.h"
 #include "bitcoin/base58.h"
 
-#define BLOCK_REWARD 1250000000
+// TODO: update when next Halving
+#define BLOCK_REWARD 1250000000ll
 
 inline uint32_t jobId2Time(uint64_t jobId) {
   return (uint32_t)((jobId >> 32) & 0x00000000FFFFFFFFULL);
@@ -115,7 +116,7 @@ public:
   double score() const {
     if (share_ == 0 || blkBits_ == 0) { return 0.0; }
     double networkDifficulty = 0.0;
-    BitsToDifficulty(blkBits_, networkDifficulty);
+    BitsToDifficulty(blkBits_, &networkDifficulty);
     return (double)share_ / networkDifficulty;
   }
 

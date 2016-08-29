@@ -233,3 +233,11 @@ TEST(Common, TargetToPdiff) {
 //  DiffToTarget(pow(2, 63), t);
 //  printf("%s\n", t.ToString().c_str());
 }
+
+TEST(Common, BitsToDifficulty) {
+  // 0x1b0404cb: https://en.bitcoin.it/wiki/Difficulty
+  double d;
+  BitsToDifficulty(0x1b0404cbu, &d);  // diff = 16307.420939
+  ASSERT_EQ((uint64_t)(d * 10000.0), 163074209ull);
+}
+

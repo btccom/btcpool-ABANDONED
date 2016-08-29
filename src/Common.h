@@ -134,7 +134,7 @@ uint64 TargetToPdiff(const string &str);
 void BitsToTarget(uint32 bits, uint256 & target);
 void DiffToTarget(uint64 diff, uint256 & target);
 
-inline void BitsToDifficulty(uint32 bits, double &difficulty) {
+inline void BitsToDifficulty(uint32 bits, double *difficulty) {
   int nShift = (bits >> 24) & 0xff;
   double dDiff = (double)0x0000ffff / (double)(bits & 0x00ffffff);
   while (nShift < 29) {
@@ -145,13 +145,13 @@ inline void BitsToDifficulty(uint32 bits, double &difficulty) {
     dDiff /= 256.0;
     nShift--;
   }
-  difficulty = dDiff;
+  *difficulty = dDiff;
 }
 
-inline void BitsToDifficulty(const uint32 bits, uint64 &difficulty) {
+inline void BitsToDifficulty(uint32 bits, uint64 *difficulty) {
   double diff;
-  BitsToDifficulty(bits, diff);
-  difficulty = (uint64)diff;
+  BitsToDifficulty(bits, &diff);
+  *difficulty = (uint64)diff;
 }
 
 #endif
