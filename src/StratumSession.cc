@@ -692,6 +692,14 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr) {
 }
 
 void StratumSession::sendData(const char *data, size_t len) {
+  //
+  // when new stratum job coming:
+  //     JobRepository::sendMiningNotify()
+  //       Server::sendMiningNotifyToAll()
+  //         StratumSession::sendMiningNotify();
+  // so it could be called by multi-thread, we should use lock.
+  //
+
   // add data to a bufferevent’s output buffer
   bufferevent_lock(bev_);
   bufferevent_write(bev_, data, len);

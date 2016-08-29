@@ -795,6 +795,10 @@ void Server::stop() {
 }
 
 void Server::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {
+  //
+  // this fn is called by JobRepository::sendMiningNotify() when new stratum
+  // job is coming. so need to protect `connections_` by lock.
+  //
   ScopeLock sl(connsLock_);
   for (auto &itr : connections_) {
     itr.second->sendMiningNotify(exJobPtr);
