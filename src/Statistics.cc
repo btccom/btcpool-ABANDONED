@@ -1037,15 +1037,28 @@ int64_t ShareLogParser::processGrowingShareLog() {
   }
   assert(f_ != nullptr);
 
+  // seek to last position. we manager the file indicator by our own.
+  fseek(f_, lastPosition_, SEEK_SET);
+
+  //
   // no need to set buffer memory to zero before fread
   // return: the total number of elements successfully read is returned.
+  //
+  // fread():
+  // C11 at 7.21.8.1.2 and 7.21.8.2.2 says: If an error occurs, the resulting
+  // value of the file position indicator for the stream is indeterminate.
+  //
   readNum = fread(buf_, sizeof(Share), kMaxElementsNum_, f_);
-  lastPosition_ = ftell(f_);
-  if (readNum == 0) {
+  if (readNum == 0)
     return 0;
-  }
 
-  parseShareLog(buf_, readNum * sizeof(Share));
+  const size_t bufSize = readNum * sizeof(Share);
+  lastPosition_ += bufSize;
+  assert(lastPosition_ % sizeof(Share) == 0);
+
+  // parse shares
+  parseShareLog(buf_, bufSize);
+
   return readNum;
 }
 
