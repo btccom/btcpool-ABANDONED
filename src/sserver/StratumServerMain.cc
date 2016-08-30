@@ -80,9 +80,12 @@ int main(int argc, char **argv) {
 
   // Initialize Google's logging library.
   google::InitGoogleLogging(argv[0]);
-  FLAGS_log_dir = string(optLogDir);
-  FLAGS_max_log_size = 100;  // max log file size 100 MB
-  FLAGS_logbuflevel = -1;
+  FLAGS_log_dir         = string(optLogDir);
+  // Log messages at a level >= this flag are automatically sent to
+  // stderr in addition to log files.
+  FLAGS_stderrthreshold = 3;    // 3: FATAL
+  FLAGS_max_log_size    = 100;  // max log file size 100 MB
+  FLAGS_logbuflevel     = -1;   // don't buffer logs
   FLAGS_stop_logging_if_full_disk = true;
 
   // Read the file. If there is an error, report it and exit.
