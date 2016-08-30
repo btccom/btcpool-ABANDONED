@@ -438,7 +438,7 @@ public:
   bool init();
 
   // flush data to DB
-  void flushToDB();
+  bool flushToDB();
 
   // get share stats day handler
   shared_ptr<ShareStatsDay> getShareStatsDayHandler(const WorkerKey &key);

@@ -33,6 +33,7 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/thread.hpp>
 
+#include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -996,6 +997,7 @@ bool ShareLogParser::processUnchangedShareLog() {
   FILE *f = nullptr;
 
   // open file
+  LOG(INFO) << "open file: " << filePath_;
   if ((f = fopen(filePath_.c_str(), "rb")) == nullptr) {
     LOG(ERROR) << "open file fail: " << filePath_;
     return false;
@@ -1150,7 +1152,11 @@ void ShareLogParser::flushHourOrDailyData(const vector<string> values,
                                           const string &extraFields) {
   string mergeSQL;
   string fields;
-  const string tmpTableName = Strings::Format("%s_tmp", tableName.c_str());
+
+  // in case two process use the same tmp table name, we add process id into
+  // tmp table name.
+  const string tmpTableName = Strings::Format("%s_tmp_%d",
+                                              tableName.c_str(), getpid());
 
   if (!poolDB_.ping()) {
     LOG(ERROR) << "can't connect to pool DB";
@@ -1272,10 +1278,10 @@ shared_ptr<ShareStatsDay> ShareLogParser::getShareStatsDayHandler(const WorkerKe
   return nullptr;
 }
 
-void ShareLogParser::flushToDB() {
+bool ShareLogParser::flushToDB() {
   if (!poolDB_.ping()) {
     LOG(ERROR) << "connect db fail";
-    return;
+    return false;
   }
 
   LOG(INFO) << "start flush to DB...";
@@ -1321,19 +1327,24 @@ void ShareLogParser::flushToDB() {
   }
 
   LOG(INFO) << "generated sql values";
+  size_t counter = 0;
 
   // flush hours data
   flushHourOrDailyData(valuesWorkersHour, "stats_workers_hour", "`worker_id`,`puid`,`hour`,");
   flushHourOrDailyData(valuesUsersHour,   "stats_users_hour"  , "`puid`,`hour`,");
   flushHourOrDailyData(valuesPoolHour,    "stats_pool_hour"   , "`hour`,");
+  counter += valuesWorkersHour.size() + valuesUsersHour.size() + valuesPoolHour.size();
 
   // flush daily data
   flushHourOrDailyData(valuesWorkersDay, "stats_workers_day", "`worker_id`,`puid`,`day`,");
   flushHourOrDailyData(valuesUsersDay,   "stats_users_day"  , "`puid`,`day`,");
   flushHourOrDailyData(valuesPoolDay,    "stats_pool_day"   , "`day`,");
+  counter += valuesWorkersDay.size() + valuesUsersDay.size() + valuesPoolDay.size();
 
   // done: daily data and hour data
-  LOG(INFO) << "flush to DB... done, items: " << (keys.size() * 2);
+  LOG(INFO) << "flush to DB... done, items: " << counter;
+
+  return true;
 }
 
 
