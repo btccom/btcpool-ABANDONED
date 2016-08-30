@@ -125,9 +125,12 @@ int main(int argc, char **argv) {
 
     int32_t port = 8081;
     cfg.lookupValue("slparserhttpd.port", port);
+    uint32_t kFlushDBInterval = 20;
+    cfg.lookupValue("slparserhttpd.flush_db_interval", kFlushDBInterval);
     gShareLogParserServer = new ShareLogParserServer(cfg.lookup("sharelog.data_dir"),
                                                      cfg.lookup("slparserhttpd.ip"),
-                                                     port, *poolDBInfo);
+                                                     port, *poolDBInfo,
+                                                     kFlushDBInterval);
     gShareLogParserServer->run();
     delete gShareLogParserServer;
   }

@@ -1330,9 +1330,11 @@ void ShareLogParser::flushToDB() {
 ShareLogParserServer::ShareLogParserServer(const string dataDir,
                                            const string &httpdHost,
                                            unsigned short httpdPort,
-                                           const MysqlConnectInfo &poolDBInfo):
+                                           const MysqlConnectInfo &poolDBInfo,
+                                           const uint32_t kFlushDBInterval):
 running_(true), dataDir_(dataDir),
-poolDBInfo_(poolDBInfo), base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort),
+poolDBInfo_(poolDBInfo), kFlushDBInterval_(kFlushDBInterval),
+base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort),
 requestCount_(0), responseBytes_(0)
 {
   const time_t now = time(nullptr);
@@ -1617,7 +1619,6 @@ bool ShareLogParserServer::setupThreadShareLogParser() {
 void ShareLogParserServer::runThreadShareLogParser() {
   LOG(INFO) << "thread sharelog parser start";
 
-  const time_t KFlushDBTimeInterval = 60;  // TODO: cfg option
   time_t lastFlushDBTime = 0;
 
   while (running_) {
@@ -1646,7 +1647,7 @@ void ShareLogParserServer::runThreadShareLogParser() {
     sleep(1);
 
     // flush data to db
-    if (time(nullptr) > lastFlushDBTime + KFlushDBTimeInterval) {
+    if (time(nullptr) > lastFlushDBTime + kFlushDBInterval_) {
       shareLogParser->flushToDB();  // will wait util all data flush to DB
       lastFlushDBTime = time(nullptr);
     }

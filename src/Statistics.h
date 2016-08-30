@@ -480,6 +480,7 @@ class ShareLogParserServer {
   shared_ptr<ShareLogParser> shareLogParser_;
   string dataDir_;
   MysqlConnectInfo poolDBInfo_;  // save stats data
+  time_t kFlushDBInterval_;
 
   // httpd
   struct event_base *base_;
@@ -507,7 +508,8 @@ public:
 public:
   ShareLogParserServer(const string dataDir, const string &httpdHost,
                        unsigned short httpdPort,
-                       const MysqlConnectInfo &poolDBInfo);
+                       const MysqlConnectInfo &poolDBInfo,
+                       const uint32_t kFlushDBInterval);
   ~ShareLogParserServer();
 
   void stop();
