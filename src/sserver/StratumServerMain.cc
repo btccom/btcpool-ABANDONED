@@ -145,6 +145,8 @@ int main(int argc, char **argv) {
 
     bool isEnableSimulator = false;
     cfg.lookupValue("sserver.enable_simulator", isEnableSimulator);
+    bool isSubmitInvalidBlock = false;
+    cfg.lookupValue("sserver.enable_submit_invalid_block", isSubmitInvalidBlock);
 
     evthread_use_pthreads();
 
@@ -154,7 +156,8 @@ int main(int argc, char **argv) {
                                        cfg.lookup("kafka.brokers").c_str(),
                                        cfg.lookup("users.list_id_api_url"),
                                        *poolDBInfo, serverId,
-                                       isEnableSimulator);
+                                       isEnableSimulator,
+                                       isSubmitInvalidBlock);
 
     if (!gStratumServer->init()) {
       LOG(FATAL) << "init failure";

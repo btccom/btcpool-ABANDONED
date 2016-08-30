@@ -626,10 +626,11 @@ void StratumJobEx::generateBlockHeader(CBlockHeader *header,
 StratumServer::StratumServer(const char *ip, const unsigned short port,
                              const char *kafkaBrokers, const string &userAPIUrl,
                              const MysqlConnectInfo &poolDBInfo,
-                             const uint8_t serverId, bool isEnableSimulator)
+                             const uint8_t serverId,
+                             bool isEnableSimulator, bool isSubmitInvalidBlock)
 :running_(true), ip_(ip), port_(port), serverId_(serverId),
 kafkaBrokers_(kafkaBrokers), userAPIUrl_(userAPIUrl), poolDBInfo_(poolDBInfo),
-isEnableSimulator_(isEnableSimulator)
+isEnableSimulator_(isEnableSimulator), isSubmitInvalidBlock_(isSubmitInvalidBlock)
 {
 }
 
@@ -638,7 +639,8 @@ StratumServer::~StratumServer() {
 
 bool StratumServer::init() {
   if (!server_.setup(ip_.c_str(), port_, kafkaBrokers_.c_str(),
-                     userAPIUrl_, poolDBInfo_, serverId_, isEnableSimulator_)) {
+                     userAPIUrl_, poolDBInfo_, serverId_,
+                     isEnableSimulator_, isSubmitInvalidBlock_)) {
     LOG(ERROR) << "fail to setup server";
     return false;
   }
@@ -697,10 +699,16 @@ Server::~Server() {
 bool Server::setup(const char *ip, const unsigned short port,
                    const char *kafkaBrokers,
                    const string &userAPIUrl, const MysqlConnectInfo &dbInfo,
-                   const uint8_t serverId, bool isEnableSimulator) {
+                   const uint8_t serverId,
+                   bool isEnableSimulator, bool isSubmitInvalidBlock) {
   if (isEnableSimulator) {
     isEnableSimulator_ = true;
     LOG(WARNING) << "Simulator is enabled, all share will be accepted";
+  }
+
+  if (isSubmitInvalidBlock) {
+    isSubmitInvalidBlock_ = true;
+    LOG(WARNING) << "submit invalid block is enabled, all block will be submited";
   }
 
   kafkaProducerSolvedShare_ = new KafkaProducer(kafkaBrokers,
@@ -928,7 +936,7 @@ int Server::checkShare(const Share &share,
   //
   // found new block
   //
-  if (blkHash <= sjob->networkTarget_) {
+  if (isSubmitInvalidBlock_ == true || blkHash <= sjob->networkTarget_) {
     //
     // build found block
     //

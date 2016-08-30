@@ -230,6 +230,12 @@ class Server {
   //
   bool isEnableSimulator_;
 
+  //
+  // WARNING: if enable it, will make block and submit it even it's not a
+  //          solved share. use to test submit block.
+  //
+  bool isSubmitInvalidBlock_;
+
 public:
   const int32_t kShareAvgSeconds_;
   JobRepository *jobRepository_;
@@ -242,7 +248,8 @@ public:
 
   bool setup(const char *ip, const unsigned short port, const char *kafkaBrokers,
              const string &userAPIUrl, const  MysqlConnectInfo &dbInfo,
-             const uint8_t serverId, bool isEnableSimulator);
+             const uint8_t serverId, bool isEnableSimulator,
+             bool isSubmitInvalidBlock);
   void run();
   void stop();
 
@@ -284,11 +291,15 @@ class StratumServer {
   // if enable simulator, all share will be accepted
   bool isEnableSimulator_;
 
+  // if enable it, will make block and submit
+  bool isSubmitInvalidBlock_;
+
 public:
   StratumServer(const char *ip, const unsigned short port,
                 const char *kafkaBrokers,
                 const string &userAPIUrl, const MysqlConnectInfo &poolDBInfo,
-                const uint8_t serverId, bool isEnableSimulator);
+                const uint8_t serverId, bool isEnableSimulator,
+                bool isSubmitInvalidBlock);
   ~StratumServer();
 
   bool init();
