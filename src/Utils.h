@@ -68,6 +68,10 @@ string date(const char *format, const time_t timestamp);
 inline string date(const char *format) {
   return date(format, time(nullptr));
 }
+time_t str2time(const char *str, const char *format);
+inline time_t str2time(const char *str) {
+  return str2time(str, "%F %T");
+}
 
 class Strings {
 public:

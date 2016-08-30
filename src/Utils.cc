@@ -330,6 +330,12 @@ string date(const char *format, const time_t timestamp) {
   return string(buffer);
 }
 
+time_t str2time(const char *str, const char *format) {
+  struct tm tm;
+  strptime(str, format, &tm);
+  return timegm(&tm);
+}
+
 string Strings::Format(const char * fmt, ...) {
   char tmp[512];
   string dest;
