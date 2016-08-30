@@ -151,7 +151,7 @@ query:
 
   // use mysql_ping() to reconnnect
   if (queryTimes <= 3 && (error_no == 2006 || error_no == 2013)) {
-    sleep(3);
+    sleep(10);  // rds switch master-slave usually take about 20 seconds
     if (mysql_ping(conn) == 0) {
       LOG(ERROR) << "reconnect success";
     } else {
