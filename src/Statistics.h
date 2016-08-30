@@ -416,10 +416,19 @@ class ShareLogParser {
   void parseShareLog(const uint8_t *buf, size_t len);
   void parseShare(const Share *share);
 
-  void flushDailyData(shared_ptr<ShareStatsDay> stats,
-                      const int32_t userId, const int64_t workerId);
-  void flushHoursData(shared_ptr<ShareStatsDay> stats,
-                      const int32_t userId, const int64_t workerId);
+  void generateDailyData(shared_ptr<ShareStatsDay> stats,
+                         const int32_t userId, const int64_t workerId,
+                         vector<string> *valuesWorkersDay,
+                         vector<string> *valuesUsersDay,
+                         vector<string> *valuesPoolDay);
+  void generateHoursData(shared_ptr<ShareStatsDay> stats,
+                         const int32_t userId, const int64_t workerId,
+                         vector<string> *valuesWorkersHour,
+                         vector<string> *valuesUsersHour,
+                         vector<string> *valuesPoolHour);
+  void flushHourOrDailyData(const vector<string> values,
+                            const string &tableName,
+                            const string &extraFields);
 
 public:
   ShareLogParser(const string &dataDir, time_t timestamp,

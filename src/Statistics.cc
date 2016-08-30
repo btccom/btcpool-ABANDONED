@@ -1064,30 +1064,29 @@ bool ShareLogParser::isReachEOF() {
   return lastPosition_ == sb.st_size;
 }
 
-void ShareLogParser::flushHoursData(shared_ptr<ShareStatsDay> stats,
-                                    const int32_t userId,
-                                    const int64_t workerId) {
+void ShareLogParser::generateHoursData(shared_ptr<ShareStatsDay> stats,
+                                       const int32_t userId,
+                                       const int64_t workerId,
+                                       vector<string> *valuesWorkersHour,
+                                       vector<string> *valuesUsersHour,
+                                       vector<string> *valuesPoolHour) {
   assert(sizeof(stats->shareAccept1h_) / sizeof(stats->shareAccept1h_[0]) == 24);
   assert(sizeof(stats->shareReject1h_) / sizeof(stats->shareReject1h_[0]) == 24);
   assert(sizeof(stats->score1h_)       / sizeof(stats->score1h_[0])       == 24);
 
-  string table, extraFields, extraValues;
+  string table, extraValues;
   // worker
   if (userId != 0 && workerId != 0) {
-    extraFields = "`worker_id`,`puid`,";
     extraValues = Strings::Format("% " PRId64",%d,", workerId, userId);
     table = "stats_workers_hour";
   }
   // user
   else if (userId != 0 && workerId == 0) {
-    extraFields = "`puid`,";
     extraValues = Strings::Format("%d,", userId);
     table = "stats_users_hour";
   }
   // pool
   else if (userId == 0 && workerId == 0) {
-    extraFields = "";
-    extraValues = "";
     table = "stats_pool_hour";
   }
   else {
@@ -1095,10 +1094,9 @@ void ShareLogParser::flushHoursData(shared_ptr<ShareStatsDay> stats,
     return;
   }
 
-  string sql;
-
   // loop hours from 00 -> 03
   for (size_t i = 0; i < 24; i++) {
+    string valuesStr;
     {
       ScopeLock sl(stats->lock_);
       const uint32_t flag = (0x01U << i);
@@ -1117,53 +1115,102 @@ void ShareLogParser::flushHoursData(shared_ptr<ShareStatsDay> stats,
       const string scoreStr = score2Str(stats->score1h_[i]);
       const int64_t earn    = stats->score1h_[i] * BLOCK_REWARD;
 
-      sql = Strings::Format("INSERT INTO `%s`(%s`hour`, `share_accept`, "
-                            " `share_reject`, `reject_rate`, `score`, "
-                            " `earn`, `created_at`, `updated_at`) "
-                            "VALUES (%s %d,%" PRIu64",%" PRIu64","
-                            "  %lf,'%s',%" PRId64",'%s','%s')"
-                            " ON DUPLICATE KEY UPDATE "
-                            " `share_accept`=%" PRIu64", "
-                            " `share_reject`=%" PRIu64", "
-                            " `reject_rate`=%lf, "
-                            " `score`='%s', "
-                            " `earn`=%" PRId64", "
-                            " `updated_at`='%s' ",
-                            table.c_str(), extraFields.c_str(), extraValues.c_str(),
-                            hour, accept, reject, rejectRate, scoreStr.c_str(),
-                            earn, nowStr.c_str(), nowStr.c_str(),
-                            // update
-                            accept, reject, rejectRate, scoreStr.c_str(),
-                            earn, nowStr.c_str());
+      valuesStr = Strings::Format("%s %d,%" PRIu64",%" PRIu64","
+                                  "  %lf,'%s',%" PRId64",'%s','%s'",
+                                  extraValues.c_str(),
+                                  hour, accept, reject, rejectRate, scoreStr.c_str(),
+                                  earn, nowStr.c_str(), nowStr.c_str());
     }  // for scope lock
 
-    assert(sql.length());
-    if (!poolDB_.execute(sql)) {
-      LOG(ERROR) << "flush hours data fail" << sql;
+    if (table == "stats_workers_hour") {
+      valuesWorkersHour->push_back(valuesStr);
+    } else if (table == "stats_users_hour") {
+      valuesUsersHour->push_back(valuesStr);
+    } else if (table == "stats_pool_hour") {
+      valuesPoolHour->push_back(valuesStr);
     }
   } /* /for */
 }
 
-void ShareLogParser::flushDailyData(shared_ptr<ShareStatsDay> stats,
-                                    const int32_t userId,
-                                    const int64_t workerId) {
-  string table, extraFields, extraValues;
+void ShareLogParser::flushHourOrDailyData(const vector<string> values,
+                                          const string &tableName,
+                                          const string &extraFields) {
+  string mergeSQL;
+  string fields;
+  const string tmpTableName = Strings::Format("%s_tmp", tableName.c_str());
+
+  if (!poolDB_.ping()) {
+    LOG(ERROR) << "can't connect to pool DB";
+    return;
+  }
+
+  // drop tmp table
+  const string sqlDropTmpTable = Strings::Format("DROP TABLE IF EXISTS `%s`;",
+                                                 tmpTableName.c_str());
+  // create tmp table
+  const string createTmpTable = Strings::Format("CREATE TABLE `%s` like `%s`;",
+                                                tmpTableName.c_str(), tableName.c_str());
+
+  if (!poolDB_.execute(sqlDropTmpTable)) {
+    LOG(ERROR) << "DROP TABLE `" << tmpTableName << "` failure";
+    return;
+  }
+  if (!poolDB_.execute(createTmpTable)) {
+    LOG(ERROR) << "CREATE TABLE `" << tmpTableName << "` failure";
+    return;
+  }
+
+  // fields for table.stats_xxxxx_hour
+  fields = Strings::Format("%s `share_accept`,`share_reject`,`reject_rate`,"
+                           "`score`,`earn`,`created_at`,`updated_at`", extraFields.c_str());
+
+  if (!multiInsert(poolDB_, tmpTableName, fields, values)) {
+    LOG(ERROR) << "multi-insert table." << tmpTableName << " failure";
+    return;
+  }
+
+  // merge two table items
+  mergeSQL = Strings::Format("INSERT INTO `%s` "
+                             " SELECT * FROM `%s` AS `t2` "
+                             " ON DUPLICATE KEY "
+                             " UPDATE "
+                             "  `share_accept` = `t2`.`share_accept`, "
+                             "  `share_reject` = `t2`.`share_reject`, "
+                             "  `reject_rate`  = `t2`.`reject_rate`, "
+                             "  `score`        = `t2`.`score`, "
+                             "  `earn`         = `t2`.`earn`, "
+                             "  `updated_at`   = `t2`.`updated_at` ",
+                             tableName.c_str(), tmpTableName.c_str());
+  if (!poolDB_.update(mergeSQL)) {
+    LOG(ERROR) << "merge mining_workers failure";
+    return;
+  }
+
+  if (!poolDB_.execute(sqlDropTmpTable)) {
+    LOG(ERROR) << "DROP TABLE `" << tmpTableName << "` failure";
+    return;
+  }
+}
+
+void ShareLogParser::generateDailyData(shared_ptr<ShareStatsDay> stats,
+                                       const int32_t userId,
+                                       const int64_t workerId,
+                                       vector<string> *valuesWorkersDay,
+                                       vector<string> *valuesUsersDay,
+                                       vector<string> *valuesPoolDay) {
+  string table, extraValues;
   // worker
   if (userId != 0 && workerId != 0) {
-    extraFields = "`worker_id`,`puid`,";
     extraValues = Strings::Format("% " PRId64",%d,", workerId, userId);
     table = "stats_workers_day";
   }
   // user
   else if (userId != 0 && workerId == 0) {
-    extraFields = "`puid`,";
     extraValues = Strings::Format("%d,", userId);
     table = "stats_users_day";
   }
   // pool
   else if (userId == 0 && workerId == 0) {
-    extraFields = "";
-    extraValues = "";
     table = "stats_pool_day";
   }
   else {
@@ -1171,8 +1218,7 @@ void ShareLogParser::flushDailyData(shared_ptr<ShareStatsDay> stats,
     return;
   }
 
-  string sql;
-
+  string valuesStr;
   {
     ScopeLock sl(stats->lock_);
     const int32_t day = atoi(date("%Y%m%d", date_).c_str());
@@ -1186,28 +1232,19 @@ void ShareLogParser::flushDailyData(shared_ptr<ShareStatsDay> stats,
     const string scoreStr = score2Str(stats->score1d_);
     const int64_t earn    = stats->score1d_ * BLOCK_REWARD;
 
-    sql = Strings::Format("INSERT INTO `%s`(%s`day`, `share_accept`, "
-                          " `share_reject`, `reject_rate`, `score`, "
-                          " `earn`, `created_at`, `updated_at`) "
-                          "VALUES (%s %d,%" PRIu64",%" PRIu64","
-                          "  %lf,'%s',%" PRId64",'%s','%s')"
-                          " ON DUPLICATE KEY UPDATE "
-                          " `share_accept`=%" PRIu64", "
-                          " `share_reject`=%" PRIu64", "
-                          " `reject_rate`=%lf, "
-                          " `score`='%s', "
-                          " `earn`=%" PRId64", "
-                          " `updated_at`='%s' ",
-                          table.c_str(), extraFields.c_str(), extraValues.c_str(),
-                          day, accept, reject, rejectRate, scoreStr.c_str(),
-                          earn, nowStr.c_str(), nowStr.c_str(),
-                          // update
-                          accept, reject, rejectRate, scoreStr.c_str(),
-                          earn, nowStr.c_str());
+    valuesStr = Strings::Format("%s %d,%" PRIu64",%" PRIu64","
+                                "  %lf,'%s',%" PRId64",'%s','%s'",
+                                extraValues.c_str(),
+                                day, accept, reject, rejectRate, scoreStr.c_str(),
+                                earn, nowStr.c_str(), nowStr.c_str());
   }  // for scope lock
 
-  if (!poolDB_.execute(sql)) {
-    LOG(ERROR) << "flush hours data fail" << sql;
+  if (table == "stats_workers_day") {
+    valuesWorkersDay->push_back(valuesStr);
+  } else if (table == "stats_users_day") {
+    valuesUsersDay->push_back(valuesStr);
+  } else if (table == "stats_pool_day") {
+    valuesPoolDay->push_back(valuesStr);
   }
 }
 
@@ -1239,7 +1276,7 @@ void ShareLogParser::flushToDB() {
   pthread_rwlock_rdlock(&rwlock_);
   for (const auto &itr : workersStats_) {
     if (itr.second->modifyHoursFlag_ == 0x0u) {
-      continue;  // no new data, ingore
+      continue;  // no new data, ignore
     }
     keys.push_back(itr.first);
     stats.push_back(itr.second);  // shared_ptr increase ref here
@@ -1248,17 +1285,39 @@ void ShareLogParser::flushToDB() {
 
   LOG(INFO) << "dumped workers stats";
 
+  vector<string> valuesWorkersHour;
+  vector<string> valuesUsersHour;
+  vector<string> valuesPoolHour;
+
+  vector<string> valuesWorkersDay;
+  vector<string> valuesUsersDay;
+  vector<string> valuesPoolDay;
+
   for (size_t i = 0; i < keys.size(); i++) {
     //
     // the lock is in flushDailyData() & flushHoursData(), so maybe we lost
     // some data between func gaps, but it's not important. we will exec
     // processUnchangedShareLog() after the day has been past, no data will lost by than.
     //
-    flushDailyData(stats[i], keys[i].userId_, keys[i].workerId_);
-    flushHoursData(stats[i], keys[i].userId_, keys[i].workerId_);
+    generateHoursData(stats[i], keys[i].userId_, keys[i].workerId_,
+                      &valuesWorkersHour, &valuesUsersHour, &valuesPoolHour);
+    generateDailyData(stats[i], keys[i].userId_, keys[i].workerId_,
+                      &valuesWorkersDay, &valuesUsersDay, &valuesPoolDay);
 
     stats[i]->modifyHoursFlag_ = 0x0u;  // reset flag
   }
+
+  LOG(INFO) << "generated sql values";
+
+  // flush hours data
+  flushHourOrDailyData(valuesWorkersHour, "stats_workers_hour", "`worker_id`,`puid`,`hour`,");
+  flushHourOrDailyData(valuesUsersHour,   "stats_users_hour"  , "`puid`,`hour`,");
+  flushHourOrDailyData(valuesPoolHour,    "stats_pool_hour"   , "`hour`,");
+
+  // flush daily data
+  flushHourOrDailyData(valuesWorkersDay, "stats_workers_day", "`worker_id`,`puid`,`day`,");
+  flushHourOrDailyData(valuesUsersDay,   "stats_users_day"  , "`puid`,`day`,");
+  flushHourOrDailyData(valuesPoolDay,    "stats_pool_day"   , "`day`,");
 
   // done: daily data and hour data
   LOG(INFO) << "flush to DB... done, items: " << (keys.size() * 2);
