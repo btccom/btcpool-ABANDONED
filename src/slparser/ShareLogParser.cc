@@ -52,24 +52,29 @@ void handler(int sig) {
 
 void usage() {
   fprintf(stderr, "Usage:\n\tslparser -c \"slparser.cfg\" -l \"log_dir\"\n");
+  fprintf(stderr, "\tslparser -c \"slparser.cfg\" -l \"log_dir2\" -d \"20160830\"\n");
 }
 
 int main(int argc, char **argv) {
   char *optLogDir = NULL;
   char *optConf   = NULL;
+  int32_t optDate = 0;
   int c;
 
   if (argc <= 1) {
     usage();
     return 1;
   }
-  while ((c = getopt(argc, argv, "c:l:h")) != -1) {
+  while ((c = getopt(argc, argv, "c:l:d:h")) != -1) {
     switch (c) {
       case 'c':
         optConf = optarg;
         break;
       case 'l':
         optLogDir = optarg;
+        break;
+      case 'd':
+        optDate = atoi(optarg);
         break;
       case 'h': default:
         usage();
@@ -101,6 +106,48 @@ int main(int argc, char **argv) {
     return(EXIT_FAILURE);
   }
 
+  // DB info
+  MysqlConnectInfo *poolDBInfo = nullptr;
+  {
+    int32_t poolDBPort = 3306;
+    cfg.lookupValue("pooldb.port", poolDBPort);
+    poolDBInfo = new MysqlConnectInfo(cfg.lookup("pooldb.host"), poolDBPort,
+                                      cfg.lookup("pooldb.username"),
+                                      cfg.lookup("pooldb.password"),
+                                      cfg.lookup("pooldb.dbname"));
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+  if (optDate != 0) {
+    const string tsStr = Strings::Format("%04d-%02d-%02d 00:00:00",
+                                         optDate/10000,
+                                         optDate/100 % 100, optDate % 100);
+    const time_t ts = str2time(tsStr.c_str(), "%F %T");
+
+    ShareLogParser slparser(cfg.lookup("sharelog.data_dir"),
+                            ts, *poolDBInfo);
+    do {
+      if (slparser.init() == false) {
+        LOG(ERROR) << "init failure";
+        break;
+      }
+      if (!slparser.processUnchangedShareLog()) {
+        LOG(ERROR) << "processUnchangedShareLog fail";
+        break;
+      }
+      if (!slparser.flushToDB()) {
+        LOG(ERROR) << "processUnchangedShareLog fail";
+        break;
+      }
+    } while (0);
+
+    google::ShutdownGoogleLogging();
+    return 0;
+  }
+
+
+  //////////////////////////////////////////////////////////////////////////////
+
   // lock cfg file:
   //    you can't run more than one process with the same config file
   boost::interprocess::file_lock pidFileLock(optConf);
@@ -113,16 +160,6 @@ int main(int argc, char **argv) {
   signal(SIGINT,  handler);
 
   try {
-    MysqlConnectInfo *poolDBInfo = nullptr;
-    {
-      int32_t poolDBPort = 3306;
-      cfg.lookupValue("pooldb.port", poolDBPort);
-      poolDBInfo = new MysqlConnectInfo(cfg.lookup("pooldb.host"), poolDBPort,
-                                        cfg.lookup("pooldb.username"),
-                                        cfg.lookup("pooldb.password"),
-                                        cfg.lookup("pooldb.dbname"));
-    }
-
     int32_t port = 8081;
     cfg.lookupValue("slparserhttpd.port", port);
     uint32_t kFlushDBInterval = 20;
