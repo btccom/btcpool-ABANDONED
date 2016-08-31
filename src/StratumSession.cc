@@ -841,15 +841,33 @@ void AgentSessions::handleExMessage_RegisterWorker(const string *exMessage) {
   // CMD_REGISTER_WORKER:
   // | magic_number(1) | cmd(1) | len (2) | session_id(2) | clientAgent | worker_name |
   //
+  if (exMessage->size() < 8 || exMessage->size() > 100 /* 100 bytes is big enough */)
+    return;
+
   const uint8_t *p = (uint8_t *)exMessage->data();
   const uint16_t sessionId = *(uint16_t *)(p + 4);
   if (sessionId > AGENT_MAX_SESSION_ID)
     return;
 
-  const char *clientAgentPtr = (char *)p + 6;
+  // copy out string and make sure end with zero
+  string clientStr;
+  clientStr.append(exMessage->begin() + 6, exMessage->end());
+  clientStr[clientStr.size() - 1] = '\0';
+
+  // client agent
+  const char *clientAgentPtr = clientStr.c_str();
   const string clientAgent = filterWorkerName(clientAgentPtr);
-  const string  workerName = filterWorkerName(clientAgentPtr + strlen(clientAgentPtr) + 1);
-  const int64_t   workerId = StratumWorker::calcWorkerId(workerName);
+
+  // worker name
+  string workerName;
+  if (strlen(clientAgentPtr) < clientStr.size() - 2) {
+    workerName = filterWorkerName(clientAgentPtr + strlen(clientAgentPtr) + 1);
+  }
+  if (workerName.empty())
+    workerName = "default";
+
+  // worker Id
+  const int64_t workerId = StratumWorker::calcWorkerId(workerName);
 
   DLOG(INFO) << "[agent] clientAgent: " << clientAgent
   << ", workerName: " << workerName << ", workerId: "
@@ -885,8 +903,10 @@ void AgentSessions::handleExMessage_SubmitShare(const string *exMessage,
   // | magic_number(1) | cmd(1) | len (2) | jobId (uint8_t) | session_id (uint16_t) |
   // | extra_nonce2 (uint32_t) | nNonce (uint32_t) | [nTime (uint32_t) |]
   //
-  const uint8_t *p = (uint8_t *)exMessage->data();
+  if (exMessage->size() != (isWithTime ? 19 : 15))
+    return;
 
+  const uint8_t *p = (uint8_t *)exMessage->data();
   const uint8_t shortJobId = *(uint8_t  *)(p +  4);
   const uint16_t sessionId = *(uint16_t *)(p +  5);
   if (sessionId > AGENT_MAX_SESSION_ID)
@@ -917,6 +937,9 @@ void AgentSessions::handleExMessage_UnRegisterWorker(const string *exMessage) {
   // CMD_UNREGISTER_WORKER:
   // | magic_number(1) | cmd(1) | len (2) | session_id(2) |
   //
+  if (exMessage->size() != 6)
+    return;
+
   const uint8_t *p = (uint8_t *)exMessage->data();
   const uint16_t sessionId = *(uint16_t *)(p +  4);
   if (sessionId > AGENT_MAX_SESSION_ID)
