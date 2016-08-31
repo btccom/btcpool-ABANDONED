@@ -827,16 +827,21 @@ void Server::addConnection(evutil_socket_t fd, StratumSession *connection) {
 }
 
 void Server::removeConnection(evutil_socket_t fd) {
-  ScopeLock sl(connsLock_);
-  auto itr = connections_.find(fd);
-  if (itr == connections_.end())
-    return;
+  StratumSession *connection = nullptr;
 
-  const uint32_t sessionId = itr->second->getSessionId();
-  delete itr->second;
-  connections_.erase(itr);
+  {
+    ScopeLock sl(connsLock_);
+    auto itr = connections_.find(fd);
+    if (itr != connections_.end()) {
+      connection = itr->second;
+      connections_.erase(itr);
+    }
+  }
 
-  sessionIDManager_->freeSessionId(sessionId);
+  if (connection != nullptr) {
+  	sessionIDManager_->freeSessionId(connection->getSessionId());
+    delete connection;
+  }
 }
 
 void Server::listenerCallback(struct evconnlistener* listener,
