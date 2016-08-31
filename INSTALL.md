@@ -7,7 +7,13 @@ Install BTC.COM Pool
 
 If you are the first time build btcpool, you could run `bash install/install_btcpool.sh` instead of exec these shell commands one by one.
 
-### Depends
+```
+cd /work
+wget https://raw.githubusercontent.com/btccom/btcpool/master/install/install_btcpool.sh
+bash ./install_btcpool.sh
+```
+
+### Dependency
 
 ```
 apt-get update
@@ -79,7 +85,7 @@ Now create folder for btcpool, if you are going to run all service in one machin
 
 ```
 cd /work/btcpool
-bash ./install/init_folders.sh
+bash ../install/init_folders.sh
 ```
 
 **create kafka topics**
