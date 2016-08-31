@@ -195,7 +195,7 @@ void StratumClient::sendData(const char *data, size_t len) {
   bufferevent_lock(bev_);
   bufferevent_write(bev_, data, len);
   bufferevent_unlock(bev_);
-//  DLOG(INFO) << "send(" << len << "): " << data;
+  DLOG(INFO) << "send(" << len << "): " << data;
 }
 
 
