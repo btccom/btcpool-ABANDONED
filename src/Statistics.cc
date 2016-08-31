@@ -564,27 +564,41 @@ void StatsServer::httpdGetWorkerStatus(struct evhttp_request *req, void *arg) {
   if (rMethod == EVHTTP_REQ_GET) {
     // GET
     struct evhttp_uri *uri = evhttp_uri_parse(evhttp_request_get_uri(req));
-    if (uri != nullptr) {
-      query = strdup(evhttp_uri_get_query(uri));
+    const char *uriQuery = nullptr;
+    if (uri != nullptr && (uriQuery = evhttp_uri_get_query(uri)) != nullptr) {
+      query = strdup(uriQuery);
       evhttp_uri_free(uri);
     }
   }
   else if (rMethod == EVHTTP_REQ_POST) {
     // POST
     struct evbuffer *evbIn = evhttp_request_get_input_buffer(req);
-    size_t len = evbuffer_get_length(evbIn);
-    query = (char *)malloc(len + 1);
-    evbuffer_copyout(evbIn, query, len);
-    query[len] = '\0';  // evbuffer is not include '\0'
+    size_t len = 0;
+    if (evbIn != nullptr && (len = evbuffer_get_length(evbIn)) > 0) {
+      query = (char *)malloc(len + 1);
+      evbuffer_copyout(evbIn, query, len);
+      query[len] = '\0';  // evbuffer is not include '\0'
+    }
   }
 
+  // evbuffer for output
+  struct evbuffer *evb = evbuffer_new();
+
+  // query is empty, return
+  if (query == nullptr) {
+    evbuffer_add_printf(evb, "{\"err_no\":1,\"err_msg\":\"invalid args\"}");
+    evhttp_send_reply(req, HTTP_OK, "OK", evb);
+    evbuffer_free(evb);
+
+    return;
+  }
+
+  // parse query
   struct evkeyvalq params;
   evhttp_parse_query_str(query, &params);
   const char *pUserId   = evhttp_find_header(&params, "user_id");
   const char *pWorkerId = evhttp_find_header(&params, "worker_id");
   const char *pIsMerge  = evhttp_find_header(&params, "is_merge");
-
-  struct evbuffer *evb = evbuffer_new();
 
   if (pUserId == nullptr || pWorkerId == nullptr) {
     evbuffer_add_printf(evb, "{\"err_no\":1,\"err_msg\":\"invalid args\"}");
@@ -1506,27 +1520,41 @@ void ShareLogParserServer::httpdShareStats(struct evhttp_request *req,
   if (rMethod == EVHTTP_REQ_GET) {
     // GET
     struct evhttp_uri *uri = evhttp_uri_parse(evhttp_request_get_uri(req));
-    if (uri != nullptr) {
-      query = strdup(evhttp_uri_get_query(uri));
+    const char *uriQuery = nullptr;
+    if (uri != nullptr && (uriQuery = evhttp_uri_get_query(uri)) != nullptr) {
+      query = strdup(uriQuery);
       evhttp_uri_free(uri);
     }
   }
   else if (rMethod == EVHTTP_REQ_POST) {
     // POST
     struct evbuffer *evbIn = evhttp_request_get_input_buffer(req);
-    size_t len = evbuffer_get_length(evbIn);
-    query = (char *)malloc(len + 1);
-    evbuffer_copyout(evbIn, query, len);
-    query[len] = '\0';  // evbuffer is not include '\0'
+    size_t len = 0;
+    if (evbIn != nullptr && (len = evbuffer_get_length(evbIn)) > 0) {
+      query = (char *)malloc(len + 1);
+      evbuffer_copyout(evbIn, query, len);
+      query[len] = '\0';  // evbuffer is not include '\0'
+    }
   }
 
+  // evbuffer for output
+  struct evbuffer *evb = evbuffer_new();
+
+  // query is empty, return
+  if (query == nullptr) {
+    evbuffer_add_printf(evb, "{\"err_no\":1,\"err_msg\":\"invalid args\"}");
+    evhttp_send_reply(req, HTTP_OK, "OK", evb);
+    evbuffer_free(evb);
+
+    return;
+  }
+
+  // parse query
   struct evkeyvalq params;
   evhttp_parse_query_str(query, &params);
   const char *pUserId   = evhttp_find_header(&params, "user_id");
   const char *pWorkerId = evhttp_find_header(&params, "worker_id");
   const char *pHour     = evhttp_find_header(&params, "hour");
-
-  struct evbuffer *evb = evbuffer_new();
 
   if (pUserId == nullptr || pWorkerId == nullptr || pHour == nullptr) {
     evbuffer_add_printf(evb, "{\"err_no\":1,\"err_msg\":\"invalid args\"}");
