@@ -199,6 +199,93 @@ TEST(StratumSession, AgentSessions_RegisterWorker3) {
   // please check ouput log
 }
 
+TEST(StratumSession, AgentSessions_RegisterWorker4) {
+  AgentSessions agent(10, nullptr);
+
+  // | magic_number(1) | cmd(1) | len (2) | session_id(2) | clientAgent | worker_name |
+  string exMessage;
+  const uint16_t sessionId = AGENT_MAX_SESSION_ID;
+  exMessage.resize(1+1+2+2 + 1 + 1, 0);
+
+  uint8_t *p = (uint8_t *)exMessage.data();
+
+  // cmd
+  *p++ = CMD_MAGIC_NUMBER;
+  *p++ = CMD_REGISTER_WORKER;
+
+  // len
+  *(uint16_t *)p = (uint16_t)exMessage.size();
+  p += 2;
+
+  // session Id
+  *(uint16_t *)p = sessionId;
+  p += 2;
+
+  // client agent
+  p++;
+
+  // worker name
+  p++;
+
+  ASSERT_EQ(p - (uint8_t *)exMessage.data(), exMessage.size());
+
+  //
+  // empty agent and name
+  //
+  agent.handleExMessage_RegisterWorker(&exMessage);
+  // please check ouput log
+  //   clientAgent: , workerName: default
+
+  //
+  // no zero
+  //
+  exMessage[exMessage.size() - 1] = 'n';
+  exMessage[exMessage.size() - 2] = 'a';
+  agent.handleExMessage_RegisterWorker(&exMessage);
+  // please check ouput log
+  //   clientAgent: a, workerName: default
+
+  //
+  //
+  //
+  exMessage[exMessage.size() - 1] = '\0';
+  exMessage[exMessage.size() - 2] = 'a';
+  agent.handleExMessage_RegisterWorker(&exMessage);
+  // please check ouput log
+  //   clientAgent: a, workerName: default
+
+  //
+  //
+  //
+  exMessage[exMessage.size() - 1] = 'n';
+  exMessage[exMessage.size() - 2] = '\0';
+  agent.handleExMessage_RegisterWorker(&exMessage);
+  // please check ouput log
+  //   clientAgent: , workerName: default
+
+  //
+  //
+  //
+  exMessage.resize(exMessage.size() + 1);
+  (*(uint16_t *)(exMessage.data() + 2))++;  // len++
+
+  exMessage[exMessage.size() - 1] = 'n';
+  exMessage[exMessage.size() - 2] = '\0';
+  exMessage[exMessage.size() - 3] = '\0';
+  agent.handleExMessage_RegisterWorker(&exMessage);
+  // please check ouput log
+  //   clientAgent: , workerName: default
+
+  //
+  //
+  //
+  exMessage[exMessage.size() - 1] = '\0';
+  exMessage[exMessage.size() - 2] = 'n';
+  exMessage[exMessage.size() - 3] = '\0';
+  agent.handleExMessage_RegisterWorker(&exMessage);
+  // please check ouput log
+  //   clientAgent: , workerName: n
+}
 
 TEST(StratumSession, AgentSessions_SubmitShare) {
   AgentSessions agent(10, nullptr);
