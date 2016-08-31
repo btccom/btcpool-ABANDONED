@@ -839,7 +839,7 @@ void Server::removeConnection(evutil_socket_t fd) {
   }
 
   if (connection != nullptr) {
-  	sessionIDManager_->freeSessionId(connection->getSessionId());
+    sessionIDManager_->freeSessionId(connection->getSessionId());
     delete connection;
   }
 }
