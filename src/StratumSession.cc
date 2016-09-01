@@ -204,7 +204,8 @@ StratumSession::StratumSession(evutil_socket_t fd, struct bufferevent *bev,
                                const int32_t shareAvgSeconds,
                                const uint32_t extraNonce1) :
 shareAvgSeconds_(shareAvgSeconds), diffController_(shareAvgSeconds_),
-shortJobIdIdx_(0), bev_(bev), fd_(fd), server_(server)
+shortJobIdIdx_(0), isDead_(false), agentSessions_(nullptr),
+bev_(bev), fd_(fd), server_(server)
 {
   state_ = CONNECTED;
   currDiff_    = 0U;
@@ -226,7 +227,6 @@ shortJobIdIdx_(0), bev_(bev), fd_(fd), server_(server)
                         (char *)clientIp_.data(), (socklen_t)clientIp_.size());
   clientIpInt_ = saddrin->sin_addr.s_addr;
 
-  agentSessions_ = nullptr;
   setup();
 
   LOG(INFO) << "client connect, ip: " << clientIp_;
@@ -244,6 +244,15 @@ StratumSession::~StratumSession() {
 //  close(fd_);  // we don't need to close because we set 'BEV_OPT_CLOSE_ON_FREE'
   evbuffer_free(inBuf_);
   bufferevent_free(bev_);
+}
+
+void StratumSession::markAsDead() {
+  // mark as dead
+  isDead_ = true;
+}
+
+bool StratumSession::isDead() {
+  return (isDead_ == true) ? true : false;
 }
 
 void StratumSession::setup() {
@@ -691,18 +700,9 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr) {
 }
 
 void StratumSession::sendData(const char *data, size_t len) {
-  //
-  // when new stratum job coming:
-  //     JobRepository::sendMiningNotify()
-  //       Server::sendMiningNotifyToAll()
-  //         StratumSession::sendMiningNotify();
-  // so it could be called by multi-thread, we should use lock.
-  //
-
   // add data to a bufferevent’s output buffer
-  bufferevent_lock(bev_);
+  // it is automatically locked so we don't need to lock
   bufferevent_write(bev_, data, len);
-  bufferevent_unlock(bev_);
 //  DLOG(INFO) << "send(" << len << "): " << data;
 }
 

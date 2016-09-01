@@ -198,6 +198,8 @@ private:
 
   AgentSessions *agentSessions_;
 
+  atomic<bool> isDead_;
+
   uint8_t allocShortJobId();
 
   void setup();
@@ -237,6 +239,9 @@ public:
                  Server *server, struct sockaddr *saddr,
                  const int32_t shareAvgSeconds, const uint32_t extraNonce1);
   ~StratumSession();
+
+  void markAsDead();
+  bool isDead();
 
   void sendSetDifficulty(const uint64_t difficulty);
   void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr);

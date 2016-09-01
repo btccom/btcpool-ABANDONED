@@ -812,36 +812,42 @@ void Server::stop() {
 
 void Server::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {
   //
-  // this fn is called by JobRepository::sendMiningNotify() when new stratum
-  // job is coming. so need to protect `connections_` by lock.
+  // http://www.sgi.com/tech/stl/Map.html
   //
-  ScopeLock sl(connsLock_);
-  for (auto &itr : connections_) {
-    itr.second->sendMiningNotify(exJobPtr);
+  // Map has the important property that inserting a new element into a map
+  // does not invalidate iterators that point to existing elements. Erasing
+  // an element from a map also does not invalidate any iterators, except,
+  // of course, for iterators that actually point to the element that is
+  // being erased.
+  //
+
+  std::map<evutil_socket_t, StratumSession *>::iterator itr = connections_.begin();
+  while (itr != connections_.end()) {
+    StratumSession *conn = itr->second;  // alias
+
+    if (conn->isDead()) {
+      sessionIDManager_->freeSessionId(conn->getSessionId());
+      delete conn;
+      itr = connections_.erase(itr);
+    } else {
+      conn->sendMiningNotify(exJobPtr);
+      ++itr;
+    }
   }
 }
 
 void Server::addConnection(evutil_socket_t fd, StratumSession *connection) {
-  ScopeLock sl(connsLock_);
   connections_.insert(std::pair<evutil_socket_t, StratumSession *>(fd, connection));
 }
 
 void Server::removeConnection(evutil_socket_t fd) {
-  StratumSession *connection = nullptr;
-
-  {
-    ScopeLock sl(connsLock_);
-    auto itr = connections_.find(fd);
-    if (itr != connections_.end()) {
-      connection = itr->second;
-      connections_.erase(itr);
-    }
+  auto itr = connections_.find(fd);
+  if (itr == connections_.end()) {
+    return;
   }
 
-  if (connection != nullptr) {
-    sessionIDManager_->freeSessionId(connection->getSessionId());
-    delete connection;
-  }
+  // mark to delete
+  itr->second->markAsDead();
 }
 
 void Server::listenerCallback(struct evconnlistener* listener,
