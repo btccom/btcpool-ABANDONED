@@ -18,7 +18,7 @@ WANIP=`curl http://ipinfo.io/ip`
 HEIGHT=`$BITCOIND_RPC getinfo | grep "blocks" | awk '{print $2}' | awk -F"," '{print $1}'`
 CONNS=`$BITCOIND_RPC getinfo | grep "connections" | awk '{print $2}' | awk -F"," '{print $1}'`
 
-SERVICE="fibre.bitcoind.$WANIP"
+SERVICE="bpool.bitcoind.$WANIP"
 VALUE="height:$HEIGHT;conn:$CONNS;"
 MURL="http://monitor.bitmain.com/monitor/api/v1/message?service=$SERVICE&value=$VALUE"
 
