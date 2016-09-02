@@ -410,6 +410,8 @@ void StratumSession::handleRequest_Subscribe(const string &idStr,
               std::min(clientAgent_.length(), strlen(BTCCOM_MINER_AGENT_PREFIX))) == 0) {
     LOG(INFO) << "agent model, client: " << clientAgent_;
     agentSessions_ = new AgentSessions(shareAvgSeconds_, this);
+
+    isPoolWatcher_ = true;  // will set long timeout
   }
 }
 
