@@ -204,13 +204,18 @@ void StratumClient::sendData(const char *data, size_t len) {
 StratumClientWrapper::StratumClientWrapper(const char *host,
                                            const uint32_t port,
                                            const uint32_t numConnections,
-                                           const string &userName)
-: running_(true), base_(event_base_new()), numConnections_(numConnections), userName_(userName)
+                                           const string &userName,
+                                           const string &minerNamePrefix)
+: running_(true), base_(event_base_new()), numConnections_(numConnections),
+userName_(userName), minerNamePrefix_(minerNamePrefix)
 {
   memset(&sin_, 0, sizeof(sin_));
   sin_.sin_family = AF_INET;
   inet_pton(AF_INET, host, &(sin_.sin_addr));
   sin_.sin_port = htons(port);
+
+  if (minerNamePrefix_.empty())
+    minerNamePrefix_ = "simulator";
 }
 
 StratumClientWrapper::~StratumClientWrapper() {
@@ -262,7 +267,10 @@ void StratumClientWrapper::run() {
   // create clients
   //
   for (size_t i = 0; i < numConnections_; i++) {
-    const string workerFullName = Strings::Format("%s.worker.%05d", userName_.c_str(), i);
+    const string workerFullName = Strings::Format("%s.%s-%05d",
+                                                  userName_.c_str(),
+                                                  minerNamePrefix_.c_str(),
+                                                  i);
     StratumClient *client = new StratumClient(base_, workerFullName);
 
     if (!client->connect(sin_)) {

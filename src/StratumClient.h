@@ -90,6 +90,7 @@ class StratumClientWrapper {
   struct sockaddr_in sin_;
   uint32_t numConnections_;
   string userName_;   // miner usename
+  string minerNamePrefix_;
 
   std::set<StratumClient *> connections_;
 
@@ -99,7 +100,7 @@ class StratumClientWrapper {
 public:
   StratumClientWrapper(const char *host, const uint32_t port,
                        const uint32_t numConnections,
-                       const string &userName);
+                       const string &userName, const string &minerNamePrefix);
   ~StratumClientWrapper();
 
   static void readCallback (struct bufferevent* bev, void *connection);

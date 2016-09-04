@@ -125,7 +125,8 @@ int main(int argc, char **argv) {
     // new StratumClientWrapper
     gWrapper = new StratumClientWrapper(cfg.lookup("simulator.ss_ip").c_str(),
                                         (unsigned short)port, numConns,
-                                        cfg.lookup("simulator.username"));
+                                        cfg.lookup("simulator.username"),
+                                        cfg.lookup("simulator.minername_prefix"));
     gWrapper->run();
 
     delete gWrapper;
