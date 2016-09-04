@@ -45,7 +45,9 @@ running_(true),
 kafkaBrokers_(kafkaBrokers),
 kafkaConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT,      0/* partition */),
 kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, RD_KAFKA_PARTITION_UA/* partition */),
-currBestHeight_(0), stratumJobInterval_(stratumJobInterval),
+currBestHeight_(0), lastJobSendTime_(0),
+isLastJobEmptyBlock_(false), isLastJobNewHeight_(false),
+stratumJobInterval_(stratumJobInterval),
 poolPayoutAddr_(payoutAddr), kGbtLifeTime_(gbtLifeTime),
 blockVersion_(0x20000000)  // TODO: cfg
 {
@@ -257,6 +259,9 @@ void JobMaker::sendStratumJob(const char *gbt) {
   // set last send time
   lastJobSendTime_ = (uint32_t)time(nullptr);
 
+  // is an empty block job
+  isLastJobEmptyBlock_ = sjob.isEmptyBlock();
+
   LOG(INFO) << "--------producer stratum job, jobId: " << sjob.jobId_
   << ", height: " << sjob.height_ << "--------";
   LOG(INFO) << "sjob: " << msg;
@@ -274,7 +279,14 @@ void JobMaker::findNewBestHeight(std::map<uint64_t/* height + ts */, const char 
 }
 
 bool JobMaker::isReachTimeout() {
-  if (lastJobSendTime_ + stratumJobInterval_ <= time(nullptr)) {
+  uint32_t intervalSeconds = stratumJobInterval_;
+
+  // if last job is new height and empty block, reduce interval seconds
+  if (isLastJobNewHeight_ && isLastJobEmptyBlock_) {
+    intervalSeconds = 10;
+  }
+
+  if (lastJobSendTime_ + intervalSeconds <= time(nullptr)) {
     return true;
   }
   return false;
@@ -311,7 +323,9 @@ void JobMaker::checkAndSendStratumJob() {
   }
 
   if (isFindNewHeight || isReachTimeout()) {
-    lastSendBestKey = bestKey;
+    lastSendBestKey     = bestKey;
+    isLastJobNewHeight_ = isFindNewHeight;
+
     sendStratumJob(gbtByHeight.rbegin()->second);
   }
 }

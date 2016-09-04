@@ -44,7 +44,10 @@ class JobMaker {
 
   uint32_t currBestHeight_;
   uint32_t lastJobSendTime_;
+  bool isLastJobEmptyBlock_;
+  bool isLastJobNewHeight_;
   uint32_t stratumJobInterval_;
+
 
   string poolCoinbaseInfo_;
   CBitcoinAddress poolPayoutAddr_;
