@@ -249,6 +249,7 @@ public:
   bool initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
                    const CBitcoinAddress &poolPayoutAddr,
                    const uint32_t blockVersion);
+  bool isEmptyBlock();
 };
 
 #endif

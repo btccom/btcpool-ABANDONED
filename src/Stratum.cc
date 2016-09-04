@@ -406,3 +406,7 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
   
   return true;
 }
+
+bool StratumJob::isEmptyBlock() {
+  return merkleBranch_.size() == 0 ? true : false;
+}
