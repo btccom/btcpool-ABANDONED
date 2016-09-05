@@ -1329,7 +1329,7 @@ void ShareLogParser::removeExpiredDataFromDB() {
     sql = Strings::Format("DELETE FROM `stats_workers_hour` WHERE `hour` < '%s'",
                           hourStr.c_str());
     if (poolDB_.execute(sql)) {
-      LOG(INFO) << "delete expired workers hour data before '"<< dayStr
+      LOG(INFO) << "delete expired workers hour data before '"<< hourStr
       << "', count: " << poolDB_.affectedRows();
     }
   }
@@ -1344,7 +1344,7 @@ void ShareLogParser::removeExpiredDataFromDB() {
     sql = Strings::Format("DELETE FROM `stats_users_hour` WHERE `hour` < '%s'",
                           hourStr.c_str());
     if (poolDB_.execute(sql)) {
-      LOG(INFO) << "delete expired users hour data before '"<< dayStr
+      LOG(INFO) << "delete expired users hour data before '"<< hourStr
       << "', count: " << poolDB_.affectedRows();
     }
   }
