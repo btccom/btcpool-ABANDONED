@@ -76,7 +76,8 @@ CREATE TABLE `stats_workers_day` (
   `earn` bigint(20) NOT NULL DEFAULT '0',
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
-  UNIQUE KEY `puid_worker_id_day` (`puid`,`worker_id`,`day`)
+  UNIQUE KEY `puid_worker_id_day` (`puid`,`worker_id`,`day`),
+  KEY `day` (`day`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
@@ -92,8 +93,9 @@ CREATE TABLE `stats_workers_hour` (
   `earn` bigint(20) NOT NULL DEFAULT '0',
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
-  UNIQUE KEY `puid_worker_id_hour` (`puid`,`worker_id`,`hour`)
+  UNIQUE KEY `puid_worker_id_hour` (`puid`,`worker_id`,`hour`),
+  KEY `hour` (`hour`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
--- 2016-08-30 06:03:03
+-- 2016-09-05 07:47:36
