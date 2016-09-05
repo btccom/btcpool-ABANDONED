@@ -1323,13 +1323,28 @@ void ShareLogParser::removeExpiredDataFromDB() {
   // table.stats_workers_hour
   //
   {
-    const int32_t kHourDataKeepDays_workers = 72;  // 3 days
+    const int32_t kHourDataKeepDays_workers = 24*3;  // 3 days
     const string hourStr = date("%Y%m%d%H",
-                               time(nullptr) - 86400 * kHourDataKeepDays_workers);
+                               time(nullptr) - 3600 * kHourDataKeepDays_workers);
     sql = Strings::Format("DELETE FROM `stats_workers_hour` WHERE `hour` < '%s'",
                           hourStr.c_str());
     if (poolDB_.execute(sql)) {
       LOG(INFO) << "delete expired workers hour data before '"<< dayStr
+      << "', count: " << poolDB_.affectedRows();
+    }
+  }
+
+  //
+  // table.stats_users_hour
+  //
+  {
+    const int32_t kHourDataKeepDays_users = 24*30;  // 30 days
+    const string hourStr = date("%Y%m%d%H",
+                                time(nullptr) - 3600 * kHourDataKeepDays_users);
+    sql = Strings::Format("DELETE FROM `stats_users_hour` WHERE `hour` < '%s'",
+                          hourStr.c_str());
+    if (poolDB_.execute(sql)) {
+      LOG(INFO) << "delete expired users hour data before '"<< dayStr
       << "', count: " << poolDB_.affectedRows();
     }
   }

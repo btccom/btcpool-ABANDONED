@@ -60,7 +60,8 @@ CREATE TABLE `stats_users_hour` (
   `earn` bigint(20) NOT NULL DEFAULT '0',
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
-  UNIQUE KEY `puid_hour` (`puid`,`hour`)
+  UNIQUE KEY `puid_hour` (`puid`,`hour`),
+  KEY `hour` (`hour`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
@@ -98,4 +99,4 @@ CREATE TABLE `stats_workers_hour` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
--- 2016-09-05 07:47:36
+-- 2016-09-05 08:04:07
