@@ -1,118 +1,42 @@
-Pool Components
+BTC Pool
 ==================
 
-* GbtMaker
-  * 从bitcoind通过RPC调用GetBlockTemplate获取，并发送到MQ
-  * MQ消息类型
-    * 接收：无
-    * 发送：RawGbt
-* JobMaker
-  * 从MQ获取`rawgbt`消息，选择最佳gbt并解析成Stratum Job，发送至MQ
-  * MQ消息类型
-    * 接收：RawGbt
-    * 发送：StratumJob
-* BlockMaker
-  * 监控出块Share，并根据对应Job组合成新块，并提交至bitcoind
-  * MQ消息类型
-    * 接收：RawGbt, StratumJob, SolvedShare
-    * 发送：无
+BTCPool is backend system of [https://pool.btc.com](https://pool.btc.com).
+
+Note: This is still a testbed and work in progress, all things could be changed.
+
+## Architecture
+
+![Architecture](docs/btcpool.png)
+
+## Install
+
+1. Install `Zookeeper`, or see [our guide](docs/INSTALL-ZooKeeper.md)
+  * [https://zookeeper.apache.org/](https://zookeeper.apache.org/)
+2. Install `Kafka`, or see [our guid](docs/INSTALL-Kafka.md)
+  * [https://kafka.apache.org/](https://kafka.apache.org/)
+3. Install `Bitcoind`, need to enable ZMQ
+4. Install `BtcPool`, see [INSTALL.md](INSTALL.md)
+
+## Benchmark
+
+We have test 100,000 miners online Benchmark. see [Benchmark-100000.md](docs/Benchmark-100000.md)
+
+## BtcAgent
+
+BtcAgent is a kind of stratum proxy which use customize protocol to communicate with the pool. It's very efficient and designed for huge mining farm.
+
+* [Protocol](docs/AGENT.md)
+* BtcAgent's [HomePage](https://github.com/btccom/btcagent)
+
+## Testing
+
+You could run `simulator` to test the system. It will simulate a lots of miners, need to enbale config `enable_simulator` on your Stratum Server.
+
+## License
+BTCPool is released under the terms of the MIT license. See [LICENSE](LICENSE) for more information or see [https://opensource.org/licenses/MIT](https://opensource.org/licenses/MIT).
 
 
-Library
-============
+Welcome aboard!
 
-Basic:
-
-* openssl
-* libconfig++
-
-```
-apt-get update
-apt-get install -y build-essential autotools-dev libtool autoconf automake pkg-config cmake
-apt-get install -y openssl libssl-dev libcurl4-openssl-dev libconfig++-dev libboost-all-dev
-apt-get install -y libmysqlclient-dev
-```
-
-zmq-v4.1.5
-
-```
-cd /root/source
-wget https://github.com/zeromq/zeromq4-1/releases/download/v4.1.5/zeromq-4.1.5.tar.gz
-tar zxvf zeromq-4.1.5.tar.gz
-cd zeromq-4.1.5
-./autogen.sh && ./configure && make -j4
-make check && make install && ldconfig
-```
-
-glog-v0.3.4
-
-```
-cd /root/source
-wget https://github.com/google/glog/archive/v0.3.4.tar.gz
-tar zxvf v0.3.4.tar.gz
-cd glog-0.3.4
-./configure && make && make install
-```
-
-librdkafka-v0.9.1
-
-```
-apt-get install -y zlib1g zlib1g-dev
-cd /root/source
-wget https://github.com/edenhill/librdkafka/archive/0.9.1.tar.gz
-tar zxvf 0.9.1.tar.gz
-cd librdkafka-0.9.1
-./configure && make && make install
-```
-
-libevent
-
-```
-cd /root/source
-wget https://github.com/libevent/libevent/releases/download/release-2.0.22-stable/libevent-2.0.22-stable.tar.gz
-tar zxvf libevent-2.0.22-stable.tar.gz
-cd libevent-2.0.22-stable
-./configure
-make
-make install
-```
-
-更新动态库：
-
-`vim /etc/ld.so.conf`添加一行：`/usr/local/lib`，并运行：`ldconfig`。
-
-Create Topics
-=============
-
-示例，三个备份，一个分区：
-
-```
-> ./bin/kafka-topics.sh --create --zookeeper 10.47.222.193:2181,10.25.244.67:2181,10.24.198.217:2181 --replication-factor 3 --partitions 1 --topic RawGbt
-```
-
-Kafka Settings
-===============
-
-Support Big Message:
-
-```
-#
-# brokers: config/server.properties
-#
-message.max.bytes=20000000
-replica.fetch.max.bytes=30000000
-```
-
-Message Format
-==============
-
-Topic: RawGbt
-
-```
-type   : text/json
-format : {"created_at_ts": <uint32>,
-          "block_template_base64": "<json string>"}
-          
-# created_at_ts         : 本消息创建时间，可以当做是bitcoind rpc call的时间
-# block_template_base64 : bitcoind rpc返回的字符串，base64编码
-```
+BTC.COM Team.
