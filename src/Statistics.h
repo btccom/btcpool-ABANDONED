@@ -429,6 +429,7 @@ class ShareLogParser {
   void flushHourOrDailyData(const vector<string> values,
                             const string &tableName,
                             const string &extraFields);
+  void removeExpiredDataFromDB();
 
 public:
   ShareLogParser(const string &dataDir, time_t timestamp,

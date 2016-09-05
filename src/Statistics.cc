@@ -1292,6 +1292,49 @@ shared_ptr<ShareStatsDay> ShareLogParser::getShareStatsDayHandler(const WorkerKe
   return nullptr;
 }
 
+void ShareLogParser::removeExpiredDataFromDB() {
+  static time_t lastRemoveTime = 0u;
+  string sql;
+
+  // check if we need to remove, 3600 = 1 hour
+  if (lastRemoveTime + 3600 > time(nullptr)) {
+    return;
+  }
+
+  // set the last remove timestamp
+  lastRemoveTime = time(nullptr);
+
+  //
+  // table.stats_workers_hour
+  //
+  {
+    const int32_t kDailyDataKeepDays_workers = 90; // 3 months
+    const string dayStr = date("%Y%m%d",
+                               time(nullptr) - 86400 * kDailyDataKeepDays_workers);
+    sql = Strings::Format("DELETE FROM `stats_workers_day` WHERE `day` < '%s'",
+                          dayStr.c_str());
+    if (poolDB_.execute(sql)) {
+      LOG(INFO) << "delete expired workers daily data before '"<< dayStr
+      << "', count: " << poolDB_.affectedRows();
+    }
+  }
+
+  //
+  // table.stats_workers_hour
+  //
+  {
+    const int32_t kHourDataKeepDays_workers = 72;  // 3 days
+    const string hourStr = date("%Y%m%d%H",
+                               time(nullptr) - 86400 * kHourDataKeepDays_workers);
+    sql = Strings::Format("DELETE FROM `stats_workers_hour` WHERE `hour` < '%s'",
+                          hourStr.c_str());
+    if (poolDB_.execute(sql)) {
+      LOG(INFO) << "delete expired workers hour data before '"<< dayStr
+      << "', count: " << poolDB_.affectedRows();
+    }
+  }
+}
+
 bool ShareLogParser::flushToDB() {
   if (!poolDB_.ping()) {
     LOG(ERROR) << "connect db fail";
@@ -1357,6 +1400,9 @@ bool ShareLogParser::flushToDB() {
 
   // done: daily data and hour data
   LOG(INFO) << "flush to DB... done, items: " << counter;
+
+  // clean expired data
+  removeExpiredDataFromDB();
 
   return true;
 }
