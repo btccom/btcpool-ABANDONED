@@ -65,9 +65,15 @@ class AgentSessions;
 class DiffController {
 public:
   static const int32_t kMinDiff_       = 64;    // min diff
-  static const int32_t kDefaultDiff_   = 1024;  // default diff, 2^N
   static const int32_t kDiffWindow_    = 900;   // time window, seconds, 60*N
   static const int32_t kRecordSeconds_ = 10;    // every N seconds as a record
+#ifdef NDEBUG
+  // If not debugging, set default to 8192
+  static const int32_t kDefaultDiff_   = 8192;  // default diff, 2^N
+#else
+  // debugging enabled
+  static const int32_t kDefaultDiff_   = 1024;  // default diff, 2^N
+#endif	/* NDEBUG */
 
 private:
   time_t startTime_;  // first job send time
