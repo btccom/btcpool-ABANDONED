@@ -353,7 +353,11 @@ int32_t UserInfo::getUserId(const string userName) {
   return 0;  // not found
 }
 
-int32_t UserInfo::updateUsers() {
+int32_t UserInfo::incrementalUpdateUsers() {
+  //
+  // WARNING: The API is incremental update, we use `?last_id=` to make sure
+  //          always get the new data. Make sure you have use `last_id` in API.
+  //
   const string url = Strings::Format("%s?last_id=%d", apiUrl_.c_str(), lastMaxUserId_);
   string resp;
   if (!httpGET(url.c_str(), resp, 10000/* timeout ms */)) {
@@ -399,7 +403,7 @@ void UserInfo::runThreadUpdate() {
       continue;
     }
 
-    int32_t res = updateUsers();
+    int32_t res = incrementalUpdateUsers();
     lastUpdateTime = time(nullptr);
 
     if (res > 0)
@@ -414,9 +418,15 @@ bool UserInfo::setupThreads() {
     return false;
   }
 
-  // get all user list
+  //
+  // get all user list, incremental update model.
+  //
+  // We use `offset` in incrementalUpdateUsers(), will keep update uitl no more
+  // new users. Most of http API have timeout limit, so can't return lots of
+  // data in one request.
+  //
   while (1) {
-    int32_t res = updateUsers();
+    int32_t res = incrementalUpdateUsers();
     if (res == 0)
       break;
 

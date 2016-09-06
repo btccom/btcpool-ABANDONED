@@ -157,7 +157,7 @@ class UserInfo {
 
   thread threadUpdate_;
   void runThreadUpdate();
-  int32_t updateUsers();
+  int32_t incrementalUpdateUsers();
 
 public:
   UserInfo(const string &apiUrl, const MysqlConnectInfo &dbInfo);
