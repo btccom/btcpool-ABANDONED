@@ -388,7 +388,7 @@ string NMCAuxBlockMaker::makeAuxBlockMsg() {
       r["result"]["coinbasevalue"].type()     != Utilities::JS::type::Int ||
       r["result"]["bits"].type()              != Utilities::JS::type::Str ||
       r["result"]["height"].type()            != Utilities::JS::type::Int) {
-    LOG(ERROR) << "gbt check fields failure";
+    LOG(ERROR) << "namecoin aux check fields failure";
     return "";
   }
 

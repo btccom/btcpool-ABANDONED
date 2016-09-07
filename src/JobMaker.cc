@@ -246,8 +246,11 @@ void JobMaker::clearTimeoutGbt() {
 }
 
 void JobMaker::sendStratumJob(const char *gbt) {
+  string nmcAuxBlockStr_; // TODO
+
   StratumJob sjob;
-  if (!sjob.initFromGbt(gbt, poolCoinbaseInfo_, poolPayoutAddr_, blockVersion_)) {
+  if (!sjob.initFromGbt(gbt, poolCoinbaseInfo_, poolPayoutAddr_, blockVersion_,
+                        nmcAuxBlockStr_)) {
     LOG(ERROR) << "init stratum job message from gbt str fail";
     return;
   }

@@ -43,6 +43,12 @@
 // TODO: update when next Halving
 #define BLOCK_REWARD 1250000000ll
 
+//
+// max coinbase tx size, bytes
+// WARNING: currently there is only 1 input and 1 output, 200 bytes is enough
+//
+#define COINBASE_TX_MAX_SIZE   200
+
 inline uint32_t jobId2Time(uint64_t jobId) {
   return (uint32_t)((jobId >> 32) & 0x00000000FFFFFFFFULL);
 }
@@ -240,6 +246,12 @@ public:
 
   uint256 networkTarget_;
 
+  // namecoin merged mining
+  uint32_t nmcAuxBits_;
+  uint256  nmcAuxBlockHash_;
+  string   nmcRpcAddr_;
+  string   nmcRpcUserpass_;
+
 public:
   StratumJob();
 
@@ -248,7 +260,8 @@ public:
 
   bool initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
                    const CBitcoinAddress &poolPayoutAddr,
-                   const uint32_t blockVersion);
+                   const uint32_t blockVersion,
+                   const string &nmcAuxBlockStr);
   bool isEmptyBlock();
 };
 

@@ -233,7 +233,7 @@ int64 findExtraNonceStart(const vector<char> &coinbaseOriTpl,
 
 //////////////////////////////////  StratumJob  ////////////////////////////////
 StratumJob::StratumJob(): jobId_(0), height_(0), nVersion_(0), nBits_(0U),
-nTime_(0U), minTime_(0U), coinbaseValue_(0) {
+nTime_(0U), minTime_(0U), coinbaseValue_(0), nmcAuxBits_(0u) {
 }
 
 string StratumJob::serializeToJson() const {
@@ -251,14 +251,21 @@ string StratumJob::serializeToJson() const {
                          ",\"height\":%d,\"coinbase1\":\"%s\",\"coinbase2\":\"%s\""
                          ",\"merkleBranch\":\"%s\""
                          ",\"nVersion\":%d,\"nBits\":%u,\"nTime\":%u"
-                         ",\"minTime\":%u,\"coinbaseValue\":%lld}",
+                         ",\"minTime\":%u,\"coinbaseValue\":%lld"
+                         // namecoin, optional
+                         ",\"nmcBlockHash\":\"%s\",\"nmcBits\":%u"
+                         ",\"nmcRpcAddr\":\"%s\",\"nmcRpcUserpass\":\"%s\""
+                         "}",
                          jobId_, gbtHash_.c_str(),
                          prevHash_.ToString().c_str(), prevHashBeStr_.c_str(),
                          height_, coinbase1_.c_str(), coinbase2_.c_str(),
                          // merkleBranch_ could be empty
                          merkleBranchStr.size() ? merkleBranchStr.c_str() : "",
                          nVersion_, nBits_, nTime_,
-                         minTime_, coinbaseValue_);
+                         minTime_, coinbaseValue_,
+                         // nmc
+                         nmcAuxBlockHash_.ToString().c_str(), nmcAuxBits_,
+                         nmcRpcAddr_.c_str(), nmcRpcUserpass_.c_str());
 }
 
 bool StratumJob::unserializeFromJson(const char *s, size_t len) {
@@ -296,6 +303,19 @@ bool StratumJob::unserializeFromJson(const char *s, size_t len) {
   minTime_       = j["minTime"].uint32();
   coinbaseValue_ = j["coinbaseValue"].int64();
 
+  //
+  // namecoin, optional
+  //
+  if (j["nmcBlockHash"].type()   == Utilities::JS::type::Str &&
+      j["nmcBits"].type()        == Utilities::JS::type::Int &&
+      j["nmcRpcAddr"].type()     == Utilities::JS::type::Str &&
+      j["nmcRpcUserpass"].type() == Utilities::JS::type::Str) {
+    nmcAuxBlockHash_ = uint256(j["nmcBlockHash"].str());
+    nmcAuxBits_      = j["nmcBits"].uint32();
+    nmcRpcAddr_      = j["nmcRpcAddr"].str();
+    nmcRpcUserpass_  = j["nmcRpcUserpass"].str();
+  }
+
   const string merkleBranchStr = j["merkleBranch"].str();
   const size_t merkleBranchCount = merkleBranchStr.length() / 64;
   merkleBranch_.resize(merkleBranchCount);
@@ -310,7 +330,8 @@ bool StratumJob::unserializeFromJson(const char *s, size_t len) {
 
 bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
                              const CBitcoinAddress &poolPayoutAddr,
-                             const uint32_t blockVersion) {
+                             const uint32_t blockVersion,
+                             const string &nmcAuxBlockStr) {
   uint256 gbtHash = Hash(gbt, gbt + strlen(gbt));
   JsonNode r;
   if (!JsonNode::parse(gbt, gbt + strlen(gbt), r)) {
@@ -367,13 +388,86 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     makeMerkleBranch(vtxhashs, merkleBranch_);
   }
 
+
+  //
+  // namecoin merged mining
+  //
+  if (!nmcAuxBlockStr.empty()) {
+    do {
+      JsonNode jNmcAux;
+      if (!JsonNode::parse(nmcAuxBlockStr.c_str(),
+                           nmcAuxBlockStr.c_str() + nmcAuxBlockStr.length(),
+                           jNmcAux)) {
+        LOG(ERROR) << "decode nmc auxblock json fail: >" << nmcAuxBlockStr << "<";
+        break;
+      }
+      // check fields created_at_ts
+      if (jNmcAux["created_at_ts"].type() != Utilities::JS::type::Int ||
+          jNmcAux["hash"].type()          != Utilities::JS::type::Str ||
+          jNmcAux["height"].type()        != Utilities::JS::type::Int ||
+          jNmcAux["bits"].type()          != Utilities::JS::type::Str ||
+          jNmcAux["rpc_addr"].type()      != Utilities::JS::type::Str ||
+          jNmcAux["rpc_userpass"].type()  != Utilities::JS::type::Str) {
+        LOG(ERROR) << "nmc auxblock fields failure";
+        break;
+      }
+      // check timestamp
+      if (jNmcAux["created_at_ts"].uint32() + 60u < time(nullptr)) {
+        LOG(ERROR) << "too old nmc auxblock: " << date("%F %T", jNmcAux["created_at_ts"].uint32());
+        break;
+      }
+
+      // set nmc aux info
+      nmcAuxBlockHash_ = uint256(jNmcAux["hash"].str());
+      nmcAuxBits_      = jNmcAux["bits"].uint32_hex();
+      nmcRpcAddr_      = jNmcAux["rpc_addr"].str();
+      nmcRpcUserpass_  = jNmcAux["rpc_userpass"].str();
+    } while (0);
+  }
+
   // make coinbase1 & coinbase2
   {
     CTxIn cbIn;
+    //
+    // block height, 4 bytes
+    // https://github.com/bitcoin/bips/blob/master/bip-0034.mediawiki
+    // https://github.com/bitcoin/bitcoin/pull/1526
+    //
     _EncodeUNum(dynamic_cast<vector<unsigned char> *>(&cbIn.scriptSig), (uint32_t)height_);
-    cbIn.scriptSig.insert(cbIn.scriptSig.end(), poolCoinbaseInfo.begin(), poolCoinbaseInfo.end());
-    // 100: coinbase script sig max len, range: (2, 100]
+    cbIn.scriptSig.insert(cbIn.scriptSig.end(),
+                          poolCoinbaseInfo.begin(), poolCoinbaseInfo.end());
+
+    //
+    // put namecoin merged mining info, 12 bytes
+    // https://en.bitcoin.it/wiki/Merged_mining_specification
+    //
+    if (nmcAuxBits_ != 0u) {
+      string mergedMiningCoinbase = Strings::Format("%s%s%s%s",
+                                                    // magic: 0xfa, 0xbe, 0x6d('m'), 0x6d('m')
+                                                    "fabe6d6d",
+                                                    // block_hash: Hash of the AuxPOW block header
+                                                    nmcAuxBlockHash_.ToString().c_str(),
+                                                    "01000000",  // merkle_size : 1
+                                                    "00000000"   // merkle_nonce: 0
+                                                    );
+      vector<char> mergedMiningBin;
+      Hex2Bin(mergedMiningCoinbase.c_str(), mergedMiningBin);
+      assert(mergedMiningCoinbase.length() == 24);
+      cbIn.scriptSig.insert(cbIn.scriptSig.end(),
+                            mergedMiningBin.begin(), mergedMiningBin.end());
+    }
+
+    //
+    // bitcoind/src/main.cpp: CheckTransaction()
+    //   if (tx.IsCoinBase())
+    //   {
+    //     if (tx.vin[0].scriptSig.size() < 2 || tx.vin[0].scriptSig.size() > 100)
+    //       return state.DoS(100, false, REJECT_INVALID, "bad-cb-length");
+    //   }
+    //
+    // 100: coinbase script sig max len, range: (2, 100).
     //  12: extra nonce1 (4bytes) + extra nonce2 (8bytes)
+    //
     const vector<char> placeHolder(4 + 8, 0xEE);
     const size_t maxScriptSigLen = 100 - placeHolder.size();
     if (cbIn.scriptSig.size() > maxScriptSigLen) {
@@ -381,7 +475,10 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     }
     // pub extra nonce place holder
     cbIn.scriptSig.insert(cbIn.scriptSig.end(), placeHolder.begin(), placeHolder.end());
-    assert(cbIn.scriptSig.size() <= 100);
+    if (cbIn.scriptSig.size() >= 100) {
+      LOG(ERROR) << "coinbase input script size over than 100, shold < 100";
+      return false;
+    }
 
     vector<CTxOut> cbOut;
     cbOut.push_back(CTxOut());
@@ -396,7 +493,14 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     vector<char> coinbaseTpl;
     CDataStream ssTx(SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
     ssTx << cbtx;  // put coinbase CTransaction to CDataStream
-    ssTx.GetAndClear(coinbaseTpl);
+    ssTx.GetAndClear(coinbaseTpl);  // dump coinbase bin to coinbaseTpl
+
+    // check coinbase tx size
+    if (coinbaseTpl.size() >= COINBASE_TX_MAX_SIZE) {
+      LOG(ERROR) << "conbase tx size " << coinbaseTpl.size()
+      << " is over than max " << COINBASE_TX_MAX_SIZE;
+      return false;
+    }
 
     const int64 extraNonceStart = findExtraNonceStart(coinbaseTpl, placeHolder);
     coinbase1_ = HexStr(&coinbaseTpl[0], &coinbaseTpl[extraNonceStart]);

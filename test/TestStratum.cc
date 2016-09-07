@@ -182,7 +182,7 @@ TEST(Stratum, StratumJob) {
     SelectParams(CChainParams::TESTNET);
     CBitcoinAddress poolPayoutAddrTestnet("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U");
     ASSERT_EQ(poolPayoutAddrTestnet.IsValid(), true);
-    res = sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion);
+    res = sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion, "");
     ASSERT_EQ(res, true);
 
     const string jsonStr = sjob.serializeToJson();
