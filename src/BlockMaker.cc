@@ -47,6 +47,9 @@ BlockMaker::~BlockMaker() {
 
   if (threadConsumeStratumJob_.joinable())
     threadConsumeStratumJob_.join();
+
+  if (threadConsumeNamecoinSovledShare_.joinable())
+    threadConsumeNamecoinSovledShare_.join();
 }
 
 void BlockMaker::stop() {
