@@ -125,7 +125,7 @@ int main(int argc, char **argv) {
 
   try {
     if (!gNMCAuxBlockMaker->init()) {
-      LOG(FATAL) << "gbtmaker init failure";
+      LOG(FATAL) << "nmcauxmaker init failure";
     } else {
       gNMCAuxBlockMaker->run();
     }
