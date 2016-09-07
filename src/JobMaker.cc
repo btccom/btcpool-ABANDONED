@@ -159,9 +159,37 @@ bool JobMaker::init() {
 }
 
 void JobMaker::consumeNmcAuxBlockMsg(rd_kafka_message_t *rkmessage) {
+  // check error
+  if (rkmessage->err) {
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
+      // Reached the end of the topic+partition queue on the broker.
+      // Not really an error.
+      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
+      //      << "[" << rkmessage->partition << "] "
+      //      << " message queue at offset " << rkmessage->offset;
+      // acturlly
+      return;
+    }
+
+    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
+    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
+    << ": " << rd_kafka_message_errstr(rkmessage);
+
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
+        rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
+      LOG(FATAL) << "consume fatal";
+      stop();
+    }
+    return;
+  }
+
   // set json string
-  latestNmcAuxBlockJson_ = string((const char *)rkmessage->payload, rkmessage->len);
-  DLOG(INFO) << "latestNmcAuxBlockJson: " << latestNmcAuxBlockJson_;
+  LOG(INFO) << "received nmcauxblock message, len: " << rkmessage->len;
+  {
+    ScopeLock sl(auxJsonlock_);
+    latestNmcAuxBlockJson_ = string((const char *)rkmessage->payload, rkmessage->len);
+    DLOG(INFO) << "latestNmcAuxBlockJson: " << latestNmcAuxBlockJson_;
+  }
 }
 
 void JobMaker::consumeRawGbtMsg(rd_kafka_message_t *rkmessage, bool needToSend) {
@@ -310,9 +338,15 @@ void JobMaker::clearTimeoutGbt() {
 }
 
 void JobMaker::sendStratumJob(const char *gbt) {
+  string latestNmcAuxBlockJson;
+  {
+    ScopeLock sl(auxJsonlock_);
+    latestNmcAuxBlockJson = latestNmcAuxBlockJson_;
+  }
+
   StratumJob sjob;
   if (!sjob.initFromGbt(gbt, poolCoinbaseInfo_, poolPayoutAddr_, blockVersion_,
-                        latestNmcAuxBlockJson_)) {
+                        latestNmcAuxBlockJson)) {
     LOG(ERROR) << "init stratum job message from gbt str fail";
     return;
   }

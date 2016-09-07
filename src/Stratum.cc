@@ -266,7 +266,8 @@ string StratumJob::serializeToJson() const {
                          // nmc
                          nmcAuxBlockHash_.ToString().c_str(),
                          nmcAuxBits_, nmcHeight_,
-                         nmcRpcAddr_.c_str(), nmcRpcUserpass_.c_str());
+                         nmcRpcAddr_.size()     ? nmcRpcAddr_.c_str()     : "",
+                         nmcRpcUserpass_.size() ? nmcRpcUserpass_.c_str() : "");
 }
 
 bool StratumJob::unserializeFromJson(const char *s, size_t len) {
@@ -458,7 +459,7 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
                                                     );
       vector<char> mergedMiningBin;
       Hex2Bin(mergedMiningCoinbase.c_str(), mergedMiningBin);
-      assert(mergedMiningCoinbase.length() == 24);
+      assert(mergedMiningBin.size() == (12+32));
       cbIn.scriptSig.insert(cbIn.scriptSig.end(),
                             mergedMiningBin.begin(), mergedMiningBin.end());
     }
