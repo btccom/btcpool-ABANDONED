@@ -39,15 +39,17 @@ class JobMaker {
   mutex lock_;
 
   string kafkaBrokers_;
-  KafkaConsumer kafkaConsumer_;
   KafkaProducer kafkaProducer_;
+  KafkaConsumer kafkaRawGbtConsumer_;
+
+  KafkaConsumer kafkaNmcAuxConsumer_;  // merged mining for namecoin
+  string latestNmcAuxBlockJson_;
 
   uint32_t currBestHeight_;
   uint32_t lastJobSendTime_;
   bool isLastJobEmptyBlock_;
   bool isLastJobNewHeight_;
   uint32_t stratumJobInterval_;
-
 
   string poolCoinbaseInfo_;
   CBitcoinAddress poolPayoutAddr_;
@@ -58,6 +60,9 @@ class JobMaker {
   deque<uint256> lastestGbtHash_;
   uint32_t blockVersion_;
 
+  thread threadConsumeNmcAuxBlock_;
+
+  void consumeNmcAuxBlockMsg(rd_kafka_message_t *rkmessage);
   void consumeRawGbtMsg(rd_kafka_message_t *rkmessage, bool needToSend);
   void addRawgbt(const char *str, size_t len);
 
@@ -67,6 +72,7 @@ class JobMaker {
   void sendStratumJob(const char *gbt);
 
   void checkAndSendStratumJob();
+  void runThreadConsumeNmcAuxBlock();
 
 public:
   JobMaker(const string &kafkaBrokers, uint32_t stratumJobInterval,
