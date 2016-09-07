@@ -43,6 +43,7 @@ class JobMaker {
   KafkaConsumer kafkaRawGbtConsumer_;
 
   KafkaConsumer kafkaNmcAuxConsumer_;  // merged mining for namecoin
+  mutex auxJsonlock_;
   string latestNmcAuxBlockJson_;
 
   uint32_t currBestHeight_;
