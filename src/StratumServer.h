@@ -218,11 +218,10 @@ class Server {
   struct evconnlistener* listener_;
   std::map<evutil_socket_t, StratumSession *> connections_;
 
-  // Stratum
-  mutex producerShareLogLock_;
+  // kafka producers
   KafkaProducer *kafkaProducerShareLog_;
-  mutex producerSolvedShareLock_;
   KafkaProducer *kafkaProducerSolvedShare_;
+  KafkaProducer *kafkaProducerNamecoinSolvedShare_;
 
   //
   // WARNING: if enable simulator, all share will be accepted. only for test.
