@@ -406,8 +406,8 @@ string NMCAuxBlockMaker::makeAuxBlockMsg() {
                                rpcAddr_.c_str(), rpcUserpass_.c_str());
 
   LOG(INFO) << "getauxblock, height: " << r["result"]["height"].int32()
-  << "hash: " << r["result"]["hash"].str()
-  << "previousblockhash: " << r["result"]["previousblockhash"].str();
+  << ", hash: " << r["result"]["hash"].str()
+  << ", previousblockhash: " << r["result"]["previousblockhash"].str();
 
   return msg;
 }
