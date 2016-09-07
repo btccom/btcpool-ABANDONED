@@ -249,8 +249,11 @@ public:
   // namecoin merged mining
   uint32_t nmcAuxBits_;
   uint256  nmcAuxBlockHash_;
+  uint256  nmcNetworkTarget_;
+  int32_t  nmcHeight_;
   string   nmcRpcAddr_;
   string   nmcRpcUserpass_;
+
 
 public:
   StratumJob();

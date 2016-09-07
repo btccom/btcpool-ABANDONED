@@ -253,7 +253,7 @@ string StratumJob::serializeToJson() const {
                          ",\"nVersion\":%d,\"nBits\":%u,\"nTime\":%u"
                          ",\"minTime\":%u,\"coinbaseValue\":%lld"
                          // namecoin, optional
-                         ",\"nmcBlockHash\":\"%s\",\"nmcBits\":%u"
+                         ",\"nmcBlockHash\":\"%s\",\"nmcBits\":%u,\"nmcHeight\":%d"
                          ",\"nmcRpcAddr\":\"%s\",\"nmcRpcUserpass\":\"%s\""
                          "}",
                          jobId_, gbtHash_.c_str(),
@@ -264,7 +264,8 @@ string StratumJob::serializeToJson() const {
                          nVersion_, nBits_, nTime_,
                          minTime_, coinbaseValue_,
                          // nmc
-                         nmcAuxBlockHash_.ToString().c_str(), nmcAuxBits_,
+                         nmcAuxBlockHash_.ToString().c_str(),
+                         nmcAuxBits_, nmcHeight_,
                          nmcRpcAddr_.c_str(), nmcRpcUserpass_.c_str());
 }
 
@@ -308,12 +309,15 @@ bool StratumJob::unserializeFromJson(const char *s, size_t len) {
   //
   if (j["nmcBlockHash"].type()   == Utilities::JS::type::Str &&
       j["nmcBits"].type()        == Utilities::JS::type::Int &&
+      j["nmcHeight"].type()      == Utilities::JS::type::Int &&
       j["nmcRpcAddr"].type()     == Utilities::JS::type::Str &&
       j["nmcRpcUserpass"].type() == Utilities::JS::type::Str) {
     nmcAuxBlockHash_ = uint256(j["nmcBlockHash"].str());
     nmcAuxBits_      = j["nmcBits"].uint32();
+    nmcHeight_       = j["nmcHeight"].int32();
     nmcRpcAddr_      = j["nmcRpcAddr"].str();
     nmcRpcUserpass_  = j["nmcRpcUserpass"].str();
+    BitsToTarget(nmcAuxBits_, nmcNetworkTarget_);
   }
 
   const string merkleBranchStr = j["merkleBranch"].str();
@@ -420,8 +424,10 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
       // set nmc aux info
       nmcAuxBlockHash_ = uint256(jNmcAux["hash"].str());
       nmcAuxBits_      = jNmcAux["bits"].uint32_hex();
+      nmcHeight_       = jNmcAux["height"].int32();
       nmcRpcAddr_      = jNmcAux["rpc_addr"].str();
       nmcRpcUserpass_  = jNmcAux["rpc_userpass"].str();
+      BitsToTarget(nmcAuxBits_, nmcNetworkTarget_);
     } while (0);
   }
 
