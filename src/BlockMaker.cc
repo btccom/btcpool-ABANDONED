@@ -306,16 +306,18 @@ void BlockMaker::consumeNamecoinSovledShare(rd_kafka_message_t *rkmessage) {
     return;
   }
   // check fields
-  if (j["job_id"].type()       != Utilities::JS::type::Int ||
-      j["block_header"].type() != Utilities::JS::type::Str ||
-      j["coinbase_tx"].type()  != Utilities::JS::type::Str ||
-      j["rpc_addr"].type()     != Utilities::JS::type::Str ||
-      j["rpc_userpass"].type() != Utilities::JS::type::Str) {
+  if (j["job_id"].type()         != Utilities::JS::type::Int ||
+      j["aux_block_hash"].type() != Utilities::JS::type::Str ||
+      j["block_header"].type()   != Utilities::JS::type::Str ||
+      j["coinbase_tx"].type()    != Utilities::JS::type::Str ||
+      j["rpc_addr"].type()       != Utilities::JS::type::Str ||
+      j["rpc_userpass"].type()   != Utilities::JS::type::Str) {
     LOG(ERROR) << "namecoin solved share message missing some fields";
     return;
   }
 
   const uint64_t jobId        = j["job_id"].uint64();
+  const string auxBlockHash   = j["aux_block_hash"].str();
   const string blockHeaderHex = j["block_header"].str();
   const string coinbaseTxHex  = j["coinbase_tx"].str();
   const string rpcAddr        = j["rpc_addr"].str();
@@ -379,20 +381,20 @@ void BlockMaker::consumeNamecoinSovledShare(rd_kafka_message_t *rkmessage) {
   const string auxPow = _buildAuxPow(&newblk);
 
   // submit to namecoind
-  submitNamecoinBlockNonBlocking(blkHeader.GetHash().ToString(),
+  submitNamecoinBlockNonBlocking(auxBlockHash,
                                  auxPow, rpcAddr, rpcUserpass);
 }
 
-void BlockMaker::submitNamecoinBlockNonBlocking(const string &blockHash,
+void BlockMaker::submitNamecoinBlockNonBlocking(const string &auxBlockHash,
                                                 const string &auxPow,
                                                 const string &rpcAddress,
                                                 const string &rpcUserpass) {
   // use thread to submit
   boost::thread t(boost::bind(&BlockMaker::_submitNamecoinBlockThread, this,
-                              blockHash, auxPow, rpcAddress, rpcUserpass));
+                              auxBlockHash, auxPow, rpcAddress, rpcUserpass));
 }
 
-void BlockMaker::_submitNamecoinBlockThread(const string &blockHash,
+void BlockMaker::_submitNamecoinBlockThread(const string &auxBlockHash,
                                             const string &auxPow,
                                             const string &rpcAddress,
                                             const string &rpcUserpass) {
@@ -400,8 +402,10 @@ void BlockMaker::_submitNamecoinBlockThread(const string &blockHash,
   // request : getauxblock [<hash> <auxpow>]
   //
   const string request = Strings::Format("{\"id\":1,\"method\":\"getauxblock\",\"params\":[\"%s\",\"%s\"]}",
-                                         blockHash.c_str(),
+                                         auxBlockHash.c_str(),
                                          auxPow.c_str());
+  DLOG(INFO) << "getauxblock request: " << request;
+
   // try N times
   for (size_t i = 0; i < 3; i++) {
     string response;

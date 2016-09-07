@@ -1013,29 +1013,34 @@ int Server::checkShare(const Share &share,
   //
   // found namecoin block
   //
-  if (isSubmitInvalidBlock_ == true ||
-      (sjob->nmcAuxBits_ != 0 && blkHash <= sjob->nmcNetworkTarget_)) {
+  if (sjob->nmcAuxBits_ != 0 &&
+      (isSubmitInvalidBlock_ == true || blkHash <= sjob->nmcNetworkTarget_)) {
     //
     // build namecoin solved share message
     //
     string blockHeaderHex;
     Bin2Hex((const uint8_t *)&header, sizeof(CBlockHeader), blockHeaderHex);
+    DLOG(INFO) << "blockHeaderHex: " << blockHeaderHex;
+
     string coinbaseTxHex;
     Bin2Hex((const uint8_t *)coinbaseBin.data(), coinbaseBin.size(), coinbaseTxHex);
+    DLOG(INFO) << "coinbaseTxHex: " << coinbaseTxHex;
 
-    const string nmcAuxSolvedShare = Strings::Format("{\"job_id\":" PRIu64","
+    const string nmcAuxSolvedShare = Strings::Format("{\"job_id\":%" PRIu64","
+                                                     " \"aux_block_hash\":\"%s\","
                                                      " \"block_header\":\"%s\","
                                                      " \"coinbase_tx\":\"%s\","
                                                      " \"rpc_addr\":\"%s\","
                                                      " \"rpc_userpass\":\"%s\""
                                                      "}",
                                                      share.jobId_,
+                                                     sjob->nmcAuxBlockHash_.ToString().c_str(),
                                                      blockHeaderHex.c_str(),
                                                      coinbaseTxHex.c_str(),
-                                                     sjob->nmcRpcAddr_.c_str(),
-                                                     sjob->nmcRpcUserpass_.c_str());
+                                                     sjob->nmcRpcAddr_.size()     ? sjob->nmcRpcAddr_.c_str()     : "",
+                                                     sjob->nmcRpcUserpass_.size() ? sjob->nmcRpcUserpass_.c_str() : "");
     // send found namecoin aux block to kafka
-    kafkaProducerNamecoinSolvedShare_->produce(nmcAuxSolvedShare.c_str(),
+    kafkaProducerNamecoinSolvedShare_->produce(nmcAuxSolvedShare.data(),
                                                nmcAuxSolvedShare.size());
 
     LOG(INFO) << ">>>> found namecoin block: " << sjob->nmcHeight_ << ", "

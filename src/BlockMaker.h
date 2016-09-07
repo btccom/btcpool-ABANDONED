@@ -95,11 +95,11 @@ class BlockMaker {
                           const string &blockHex);
   bool checkBitcoinds();
 
-  void submitNamecoinBlockNonBlocking(const string &blockHash,
+  void submitNamecoinBlockNonBlocking(const string &auxBlockHash,
                                       const string &auxPow,
                                       const string &rpcAddress,
                                       const string &rpcUserpass);
-  void _submitNamecoinBlockThread(const string &blockHash,
+  void _submitNamecoinBlockThread(const string &auxBlockHash,
                                   const string &auxPow,
                                   const string &rpcAddress,
                                   const string &rpcUserpass);
