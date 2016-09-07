@@ -102,6 +102,7 @@ cd /work/kafka
 ./bin/kafka-topics.sh --create --topic StratumJob  --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1 
 ./bin/kafka-topics.sh --create --topic SolvedShare --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 3 --partitions 1 
 ./bin/kafka-topics.sh --create --topic ShareLog    --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic NMCAuxBlock --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
 ```
 
 Check kafka topics stutus:

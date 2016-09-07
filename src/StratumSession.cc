@@ -204,7 +204,7 @@ StratumSession::StratumSession(evutil_socket_t fd, struct bufferevent *bev,
                                const int32_t shareAvgSeconds,
                                const uint32_t extraNonce1) :
 shareAvgSeconds_(shareAvgSeconds), diffController_(shareAvgSeconds_),
-shortJobIdIdx_(0), isDead_(false), agentSessions_(nullptr),
+shortJobIdIdx_(0), agentSessions_(nullptr), isDead_(false),
 bev_(bev), fd_(fd), server_(server)
 {
   state_ = CONNECTED;

@@ -69,44 +69,48 @@ include_directories(src test ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZ
 set(THRID_LIBRARIES "-lpthread" ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${KAFKA_LIBRARIES} ${MYSQL_LIB} ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB})
 
 file(GLOB LIB_SOURCES src/*.cc src/bitcoin/*.cpp)
-add_library(poolcomponents STATIC ${LIB_SOURCES})
+add_library(btcpool STATIC ${LIB_SOURCES})
 
 file(GLOB_RECURSE TEST_SOURCES test/*.cc)
 add_executable(unittest ${TEST_SOURCES})
-target_link_libraries(unittest poolcomponents ${THRID_LIBRARIES})
+target_link_libraries(unittest btcpool ${THRID_LIBRARIES})
 
 file(GLOB_RECURSE GBTMAKER_SOURCES src/gbtmaker/*.cc)
 add_executable(gbtmaker ${GBTMAKER_SOURCES})
-target_link_libraries(gbtmaker poolcomponents ${THRID_LIBRARIES})
+target_link_libraries(gbtmaker btcpool ${THRID_LIBRARIES})
+
+file(GLOB_RECURSE NMC_AUXBLOCK_MAKER_SOURCES src/nmcauxmaker/*.cc)
+add_executable(nmcauxmaker ${NMC_AUXBLOCK_MAKER_SOURCES})
+target_link_libraries(nmcauxmaker btcpool ${THRID_LIBRARIES})
 
 file(GLOB_RECURSE JOBMAKER_SOURCES src/jobmaker/*.cc)
 add_executable(jobmaker ${JOBMAKER_SOURCES})
-target_link_libraries(jobmaker poolcomponents ${THRID_LIBRARIES})
+target_link_libraries(jobmaker btcpool ${THRID_LIBRARIES})
 
 file(GLOB_RECURSE SSERVER_SOURCES src/sserver/*.cc)
 add_executable(sserver ${SSERVER_SOURCES})
-target_link_libraries(sserver poolcomponents ${THRID_LIBRARIES})
+target_link_libraries(sserver btcpool ${THRID_LIBRARIES})
 
 file(GLOB_RECURSE STATSHTTPD_SOURCES src/statshttpd/*.cc)
 add_executable(statshttpd ${STATSHTTPD_SOURCES})
-target_link_libraries(statshttpd poolcomponents ${THRID_LIBRARIES})
+target_link_libraries(statshttpd btcpool ${THRID_LIBRARIES})
 
 file(GLOB_RECURSE SHARELOGGER_SOURCES src/sharelogger/*.cc)
 add_executable(sharelogger ${SHARELOGGER_SOURCES})
-target_link_libraries(sharelogger poolcomponents ${THRID_LIBRARIES})
+target_link_libraries(sharelogger btcpool ${THRID_LIBRARIES})
 
 file(GLOB_RECURSE SLPARSER_SOURCES src/slparser/*.cc)
 add_executable(slparser ${SLPARSER_SOURCES})
-target_link_libraries(slparser poolcomponents ${THRID_LIBRARIES})
+target_link_libraries(slparser btcpool ${THRID_LIBRARIES})
 
 file(GLOB_RECURSE BLKMAKER_SOURCES src/blkmaker/*.cc)
 add_executable(blkmaker ${BLKMAKER_SOURCES})
-target_link_libraries(blkmaker poolcomponents ${THRID_LIBRARIES})
+target_link_libraries(blkmaker btcpool ${THRID_LIBRARIES})
 
 file(GLOB_RECURSE SIMULATOR_SOURCES src/simulator/*.cc)
 add_executable(simulator ${SIMULATOR_SOURCES})
-target_link_libraries(simulator poolcomponents ${THRID_LIBRARIES})
+target_link_libraries(simulator btcpool ${THRID_LIBRARIES})
 
 file(GLOB_RECURSE POOLWATCHER_SOURCES src/poolwatcher/*.cc)
 add_executable(poolwatcher ${POOLWATCHER_SOURCES})
-target_link_libraries(poolwatcher poolcomponents ${THRID_LIBRARIES})
+target_link_libraries(poolwatcher btcpool ${THRID_LIBRARIES})

@@ -30,6 +30,7 @@
 #include "zmq.hpp"
 
 
+/////////////////////////////////// GbtMaker ///////////////////////////////////
 class GbtMaker {
   atomic<bool> running_;
   mutex lock_;
@@ -66,5 +67,49 @@ public:
   void stop();
   void run();
 };
+
+
+
+//////////////////////////////// NMCAuxBlockMaker //////////////////////////////
+//
+// rpc call: ./namecoin-cli getauxblock
+//
+class NMCAuxBlockMaker {
+  atomic<bool> running_;
+  mutex lock_;
+
+  zmq::context_t zmqContext_;
+  string zmqNamecoindAddr_;
+
+  string rpcAddr_;
+  string rpcUserpass_;
+  atomic<uint32_t> lastCallTime_;
+  uint32_t kRpcCallInterval_;
+
+  string kafkaBrokers_;
+  KafkaProducer kafkaProducer_;
+  bool isCheckZmq_;
+
+  bool checkNamecoindZMQ();
+  bool callRpcGetAuxBlock(string &resp);
+  string makeAuxBlockMsg();
+
+  void submitAuxblockMsg(bool checkTime);
+  void threadListenNamecoind();
+
+  void kafkaProduceMsg(const void *payload, size_t len);
+
+public:
+  NMCAuxBlockMaker(const string &zmqNamecoindAddr,
+                   const string &rpcAddr, const string &rpcUserpass,
+                   const string &kafkaBrokers, uint32_t kRpcCallInterval,
+                   bool isCheckZmq);
+  ~NMCAuxBlockMaker();
+
+  bool init();
+  void stop();
+  void run();
+};
+
 
 #endif

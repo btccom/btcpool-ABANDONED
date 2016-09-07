@@ -72,7 +72,7 @@ public:
   static const int32_t kDefaultDiff_   = 8192;  // default diff, 2^N
 #else
   // debugging enabled
-  static const int32_t kDefaultDiff_   = 1024;  // default diff, 2^N
+  static const int32_t kDefaultDiff_   = 128;  // default diff, 2^N
 #endif	/* NDEBUG */
 
 private:

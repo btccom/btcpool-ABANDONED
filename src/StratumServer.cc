@@ -673,6 +673,7 @@ void StratumServer::run() {
 ///////////////////////////////////// Server ///////////////////////////////////
 Server::Server(): base_(nullptr), signal_event_(nullptr), listener_(nullptr),
 kafkaProducerShareLog_(nullptr), kafkaProducerSolvedShare_(nullptr),
+kafkaProducerNamecoinSolvedShare_(nullptr),
 isEnableSimulator_(false), isSubmitInvalidBlock_(false),
 kShareAvgSeconds_(10), // TODO: read from cfg
 jobRepository_(nullptr), userInfo_(nullptr), sessionIDManager_(nullptr)
@@ -694,6 +695,9 @@ Server::~Server() {
   }
   if (kafkaProducerSolvedShare_ != nullptr) {
     delete kafkaProducerSolvedShare_;
+  }
+  if (kafkaProducerNamecoinSolvedShare_ != nullptr) {
+    delete kafkaProducerNamecoinSolvedShare_;
   }
   if (jobRepository_ != nullptr) {
     delete jobRepository_;
@@ -724,6 +728,9 @@ bool Server::setup(const char *ip, const unsigned short port,
   kafkaProducerSolvedShare_ = new KafkaProducer(kafkaBrokers,
                                                 KAFKA_TOPIC_SOLVED_SHARE,
                                                 RD_KAFKA_PARTITION_UA);
+  kafkaProducerNamecoinSolvedShare_ = new KafkaProducer(kafkaBrokers,
+                                                        KAFKA_TOPIC_NMC_SOLVED_SHARE,
+                                                        RD_KAFKA_PARTITION_UA);
   kafkaProducerShareLog_ = new KafkaProducer(kafkaBrokers,
                                              KAFKA_TOPIC_SHARE_LOG,
                                              RD_KAFKA_PARTITION_UA);
@@ -774,6 +781,21 @@ bool Server::setup(const char *ip, const unsigned short port,
     }
     if (!kafkaProducerSolvedShare_->checkAlive()) {
       LOG(ERROR) << "kafka kafkaProducerSolvedShare_ is NOT alive";
+      return false;
+    }
+  }
+
+  // kafkaProducerNamecoinSolvedShare_
+  {
+    map<string, string> options;
+    // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
+    options["queue.buffering.max.ms"] = "1";
+    if (!kafkaProducerNamecoinSolvedShare_->setup(&options)) {
+      LOG(ERROR) << "kafka kafkaProducerNamecoinSolvedShare_ setup failure";
+      return false;
+    }
+    if (!kafkaProducerNamecoinSolvedShare_->checkAlive()) {
+      LOG(ERROR) << "kafka kafkaProducerNamecoinSolvedShare_ is NOT alive";
       return false;
     }
   }
@@ -972,7 +994,9 @@ int Server::checkShare(const Share &share,
     // send
     sendSolvedShare2Kafka(&foundBlock, coinbaseBin);
 
+    // mark jobs as stale
     jobRepository_->markAllJobsAsStale();
+
     LOG(INFO) << ">>>> found a new block: " << blkHash.ToString()
     << ", jobId: " << share.jobId_ << ", userId: " << share.userId_
     << ", by: " << workFullName << " <<<<";
@@ -984,6 +1008,45 @@ int Server::checkShare(const Share &share,
     << ", diff: " << TargetToBdiff(blkHash)
     << ", networkDiff: " << TargetToBdiff(sjob->networkTarget_)
     << ", by: " << workFullName;
+  }
+
+  //
+  // found namecoin block
+  //
+  if (sjob->nmcAuxBits_ != 0 &&
+      (isSubmitInvalidBlock_ == true || blkHash <= sjob->nmcNetworkTarget_)) {
+    //
+    // build namecoin solved share message
+    //
+    string blockHeaderHex;
+    Bin2Hex((const uint8_t *)&header, sizeof(CBlockHeader), blockHeaderHex);
+    DLOG(INFO) << "blockHeaderHex: " << blockHeaderHex;
+
+    string coinbaseTxHex;
+    Bin2Hex((const uint8_t *)coinbaseBin.data(), coinbaseBin.size(), coinbaseTxHex);
+    DLOG(INFO) << "coinbaseTxHex: " << coinbaseTxHex;
+
+    const string nmcAuxSolvedShare = Strings::Format("{\"job_id\":%" PRIu64","
+                                                     " \"aux_block_hash\":\"%s\","
+                                                     " \"block_header\":\"%s\","
+                                                     " \"coinbase_tx\":\"%s\","
+                                                     " \"rpc_addr\":\"%s\","
+                                                     " \"rpc_userpass\":\"%s\""
+                                                     "}",
+                                                     share.jobId_,
+                                                     sjob->nmcAuxBlockHash_.ToString().c_str(),
+                                                     blockHeaderHex.c_str(),
+                                                     coinbaseTxHex.c_str(),
+                                                     sjob->nmcRpcAddr_.size()     ? sjob->nmcRpcAddr_.c_str()     : "",
+                                                     sjob->nmcRpcUserpass_.size() ? sjob->nmcRpcUserpass_.c_str() : "");
+    // send found namecoin aux block to kafka
+    kafkaProducerNamecoinSolvedShare_->produce(nmcAuxSolvedShare.data(),
+                                               nmcAuxSolvedShare.size());
+
+    LOG(INFO) << ">>>> found namecoin block: " << sjob->nmcHeight_ << ", "
+    << sjob->nmcAuxBlockHash_.ToString()
+    << ", jobId: " << share.jobId_ << ", userId: " << share.userId_
+    << ", by: " << workFullName << " <<<<";
   }
 
   // check share diff
@@ -999,13 +1062,11 @@ int Server::checkShare(const Share &share,
 }
 
 void Server::sendShare2Kafka(const uint8_t *data, size_t len) {
-  ScopeLock sl(producerShareLogLock_);
   kafkaProducerShareLog_->produce(data, len);
 }
 
 void Server::sendSolvedShare2Kafka(const FoundBlock *foundBlock,
                                    const std::vector<char> &coinbaseBin) {
-  ScopeLock sl(producerSolvedShareLock_);
   //
   // solved share message:  FoundBlock + coinbase_Tx
   //
