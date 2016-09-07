@@ -335,7 +335,7 @@ bool StratumJob::unserializeFromJson(const char *s, size_t len) {
 bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
                              const CBitcoinAddress &poolPayoutAddr,
                              const uint32_t blockVersion,
-                             const string &nmcAuxBlockStr) {
+                             const string &nmcAuxBlockJson) {
   uint256 gbtHash = Hash(gbt, gbt + strlen(gbt));
   JsonNode r;
   if (!JsonNode::parse(gbt, gbt + strlen(gbt), r)) {
@@ -396,13 +396,13 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
   //
   // namecoin merged mining
   //
-  if (!nmcAuxBlockStr.empty()) {
+  if (!nmcAuxBlockJson.empty()) {
     do {
       JsonNode jNmcAux;
-      if (!JsonNode::parse(nmcAuxBlockStr.c_str(),
-                           nmcAuxBlockStr.c_str() + nmcAuxBlockStr.length(),
+      if (!JsonNode::parse(nmcAuxBlockJson.c_str(),
+                           nmcAuxBlockJson.c_str() + nmcAuxBlockJson.length(),
                            jNmcAux)) {
-        LOG(ERROR) << "decode nmc auxblock json fail: >" << nmcAuxBlockStr << "<";
+        LOG(ERROR) << "decode nmc auxblock json fail: >" << nmcAuxBlockJson << "<";
         break;
       }
       // check fields created_at_ts
