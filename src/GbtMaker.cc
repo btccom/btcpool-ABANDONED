@@ -327,7 +327,7 @@ bool NMCAuxBlockMaker::checkNamecoindZMQ() {
   const string type    = std::string(static_cast<char*>(ztype.data()),    ztype.size());
   const string content = std::string(static_cast<char*>(zcontent.data()), zcontent.size());
 
-  if (type == BITCOIND_ZMQ_HASHTX) {
+  if (type == NAMECOIND_ZMQ_HASHTX) {
     string hashHex;
     Bin2Hex((const uint8 *)content.data(), content.size(), hashHex);
     LOG(INFO) << "namecoind zmq recv hashtx: " << hashHex;
@@ -454,7 +454,7 @@ void NMCAuxBlockMaker::threadListenNamecoind() {
     const string type    = std::string(static_cast<char*>(ztype.data()),    ztype.size());
     const string content = std::string(static_cast<char*>(zcontent.data()), zcontent.size());
 
-    if (type == BITCOIND_ZMQ_HASHBLOCK)
+    if (type == NAMECOIND_ZMQ_HASHBLOCK)
     {
       string hashHex;
       Bin2Hex((const uint8 *)content.data(), content.size(), hashHex);
