@@ -445,7 +445,7 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
                           poolCoinbaseInfo.begin(), poolCoinbaseInfo.end());
 
     //
-    // put namecoin merged mining info, 12 bytes
+    // put namecoin merged mining info, 44 bytes
     // https://en.bitcoin.it/wiki/Merged_mining_specification
     //
     if (nmcAuxBits_ != 0u) {
