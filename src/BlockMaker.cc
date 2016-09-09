@@ -381,48 +381,79 @@ void BlockMaker::consumeNamecoinSovledShare(rd_kafka_message_t *rkmessage) {
   const string auxPow = _buildAuxPow(&newblk);
 
   // submit to namecoind
-  submitNamecoinBlockNonBlocking(auxBlockHash,
-                                 auxPow, rpcAddr, rpcUserpass);
+  submitNamecoinBlockNonBlocking(auxBlockHash, auxPow,
+                                 newblk.GetHash().ToString(),
+                                 rpcAddr, rpcUserpass);
 }
 
 void BlockMaker::submitNamecoinBlockNonBlocking(const string &auxBlockHash,
                                                 const string &auxPow,
+                                                const string &bitcoinBlockHash,
                                                 const string &rpcAddress,
                                                 const string &rpcUserpass) {
   // use thread to submit
   boost::thread t(boost::bind(&BlockMaker::_submitNamecoinBlockThread, this,
-                              auxBlockHash, auxPow, rpcAddress, rpcUserpass));
+                              auxBlockHash, auxPow, bitcoinBlockHash,
+                              rpcAddress, rpcUserpass));
 }
 
 void BlockMaker::_submitNamecoinBlockThread(const string &auxBlockHash,
                                             const string &auxPow,
+                                            const string &bitcoinBlockHash,
                                             const string &rpcAddress,
                                             const string &rpcUserpass) {
   //
   // request : getauxblock [<hash> <auxpow>]
   //
-  const string request = Strings::Format("{\"id\":1,\"method\":\"getauxblock\",\"params\":[\"%s\",\"%s\"]}",
-                                         auxBlockHash.c_str(),
-                                         auxPow.c_str());
-  DLOG(INFO) << "getauxblock request: " << request;
+  {
+    const string request = Strings::Format("{\"id\":1,\"method\":\"getauxblock\",\"params\":[\"%s\",\"%s\"]}",
+                                           auxBlockHash.c_str(),
+                                           auxPow.c_str());
+    DLOG(INFO) << "getauxblock request: " << request;
+    // try N times
+    for (size_t i = 0; i < 3; i++) {
+      string response;
+      bool res = bitcoindRpcCall(rpcAddress.c_str(), rpcUserpass.c_str(),
+                                 request.c_str(), response);
 
-  // try N times
-  for (size_t i = 0; i < 3; i++) {
-    string response;
-    bool res = bitcoindRpcCall(rpcAddress.c_str(), rpcUserpass.c_str(),
-                               request.c_str(), response);
+      // success
+      if (res == true) {
+        LOG(INFO) << "rpc call success, submit block response: " << response;
+        break;
+      }
 
-    // success
-    if (res == true) {
-      LOG(INFO) << "rpc call success, submit block response: " << response;
-      break;
+      // failure
+      LOG(ERROR) << "rpc call fail: " << response;
+    }
+  }
+
+  //
+  // save to databse
+  //
+  {
+    const string nowStr = date("%F %T");
+    string sql;
+    sql = Strings::Format("INSERT INTO `found_nmc_blocks` "
+                          " (`bitcoin_block_hash`,`aux_block_hash`,"
+                          "  `aux_pow`,`is_orphaned`,`created_at`) "
+                          " VALUES (\"%s\",\"%s\",0,\"%s\"); ",
+                          bitcoinBlockHash.c_str(),
+                          auxBlockHash.c_str(), auxPow.c_str(), nowStr.c_str());
+
+    // try connect to DB
+    MySQLConnection db(poolDB_);
+    for (size_t i = 0; i < 3; i++) {
+      if (db.ping())
+        break;
+      else
+        sleep(3);
     }
 
-    // failure
-    LOG(ERROR) << "rpc call fail: " << response;
+    if (db.execute(sql) == false) {
+      LOG(ERROR) << "insert found block failure: " << sql;
+    }
   }
 }
-
 
 void BlockMaker::consumeSovledShare(rd_kafka_message_t *rkmessage) {
   // check error

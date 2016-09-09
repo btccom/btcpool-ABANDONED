@@ -97,10 +97,12 @@ class BlockMaker {
 
   void submitNamecoinBlockNonBlocking(const string &auxBlockHash,
                                       const string &auxPow,
+                                      const string &bitcoinBlockHash,
                                       const string &rpcAddress,
                                       const string &rpcUserpass);
   void _submitNamecoinBlockThread(const string &auxBlockHash,
                                   const string &auxPow,
+                                  const string &bitcoinBlockHash,
                                   const string &rpcAddress,
                                   const string &rpcUserpass);
 

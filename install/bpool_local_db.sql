@@ -27,6 +27,19 @@ CREATE TABLE `found_blocks` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
+DROP TABLE IF EXISTS `found_nmc_blocks`;
+CREATE TABLE `found_nmc_blocks` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `bitcoin_block_hash` char(64) NOT NULL,
+  `aux_block_hash` char(64) NOT NULL,
+  `aux_pow` text NOT NULL,
+  `is_orphaned` tinyint(4) NOT NULL,
+  `created_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `aux_block_hash` (`aux_block_hash`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+
 DROP TABLE IF EXISTS `mining_workers`;
 CREATE TABLE `mining_workers` (
   `worker_id` bigint(20) NOT NULL,
@@ -48,4 +61,4 @@ CREATE TABLE `mining_workers` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
--- 2016-08-26 12:11:55
+-- 2016-09-09 03:56:14
