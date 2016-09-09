@@ -72,3 +72,20 @@ if [ ! -d "run_statshttpd" ]; then
   cd ..
 fi
 
+# simulator
+if [ ! -d "run_simulator" ]; then
+  mkdir "run_simulator" && cd "run_simulator"
+  mkdir "log_simulator"
+  ln -s ../simulator .
+  cp ../../src/simulator/simulator.cfg .
+  cd ..
+fi
+
+# nmcauxmaker
+if [ ! -d "run_nmcauxmaker" ]; then
+  mkdir "run_nmcauxmaker" && cd "run_nmcauxmaker"
+  mkdir "log_nmcauxmaker"
+  ln -s ../nmcauxmaker .
+  cp ../../src/nmcauxmaker/nmcauxmaker.cfg .
+  cd ..
+fi
