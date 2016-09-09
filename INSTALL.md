@@ -147,6 +147,27 @@ mysql -uxxxx -p -h xxx.xxx.xxx bpool_local_stats_db < install/bpool_local_stats_
 
 ```
 
+**User list API** 
+
+You need to implement a HTTP API for stratum server. The API is use to fetch user list in incremental model. Stratum Server will call this API every few seconds, interval is about 10 seconds. When Stratum Server start, it will fetch again and again util no more users.
+
+Should works as below.
+
+```
+#
+# `last_id` is the offset. pagesize is 5. total user count is 8.
+#
+$ curl http://xxx.xxx.xxx/GetUserList?last_id=0
+{"err_no":0,"err_msg":null,"data":{"litianzhao":1,"spica":2,"fazhu":3,"kevin":4,"kevin1":5}}
+
+# fetch next page
+$ curl http://xxx.xxx.xxx/GetUserList?last_id=5
+{"err_no":0,"err_msg":null,"data":{"kevin2":6,"kevin3":7,"Miles":8}}
+
+# fetch next page, no more users
+$ curl http://xxx.xxx.xxx/GetUserList?last_id=8
+{"err_no":0,"err_msg":null,"data":[]}
+```
 
 Use `supervisor` to manager services.
 
