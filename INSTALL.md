@@ -84,7 +84,7 @@ make
 Now create folder for btcpool, if you are going to run all service in one machine you could run `install/init_folders.sh` as below.
 
 ```
-cd /work/btcpool
+cd /work/btcpool/build
 bash ../install/init_folders.sh
 ```
 
@@ -127,9 +127,84 @@ Topic:StratumJob       	PartitionCount:1       	ReplicationFactor:2    	Configs:
        	Topic: StratumJob      	Partition: 0   	Leader: 1      	Replicas: 1,2  	Isr: 1,2
 ```
 
-Use `supervisor` to manager service.
+Before you start btcpool's services, you need to stetup MySQL database and bitcoind/namecoind (if enable merged mining).
+
+Init MySQL database tables.
+
+```
+#
+# create database `bpool_local_db` and `bpool_local_stats_db`
+#
+
+#
+# than create tables from sql
+#
+# bpool_local_db
+mysql -uxxxx -p -h xxx.xxx.xxx bpool_local_db       < install/bpool_local_db.sql
+
+# bpool_local_stats_db
+mysql -uxxxx -p -h xxx.xxx.xxx bpool_local_stats_db < install/bpool_local_stats_db.sql
+
+```
+
+
+Use `supervisor` to manager services.
+
 
 ```
 apt-get install supervisor
-```
 
+cd /work/btcpool/build
+
+
+################################################################################
+# for common server
+################################################################################
+cp ../install/supervisord/gbtmaker.conf      /etc/supervisor/conf.d
+cp ../install/supervisord/jobmaker.conf      /etc/supervisor/conf.d
+cp ../install/supervisord/blkmaker.conf      /etc/supervisor/conf.d
+cp ../install/supervisord/sharelogger.conf   /etc/supervisor/conf.d
+cp ../install/supervisord/slparser.conf      /etc/supervisor/conf.d
+cp ../install/supervisord/statshttpd.conf    /etc/supervisor/conf.d
+
+#
+# if you need to enable watch other pool's stratum job. poolwatcher will 
+# generate empty getblocktemplate when they find a new height stratum job 
+# from other pools. this could reduce pool's orphan block rate.
+#
+cp ../install/supervisord/poolwatcher.conf   /etc/supervisor/conf.d
+
+#
+# enable namecoin merged mining
+#
+cp ../install/supervisord/nmcauxmaker.conf   /etc/supervisor/conf.d
+
+#
+# start services
+#
+$ supervisorctl
+> reread
+> start gbtmaker
+> start jobmaker
+> start blkmaker
+> start sharelogger
+
+#
+# start your stratum server(see below) and add some miners to the pool, after make
+# some shares than start 'slparser' & 'statshttpd'
+#
+$ supervisorctl
+> reread
+> start slparser
+> start statshttpd
+
+
+################################################################################
+# for stratum server
+################################################################################
+cp ../install/supervisord/sserver.conf       /etc/supervisor/conf.d
+
+$ supervisorctl
+> reread
+> start sserver
+```
