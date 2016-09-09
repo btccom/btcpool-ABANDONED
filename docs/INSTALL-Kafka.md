@@ -18,7 +18,7 @@ mkdir /root/source
 cd /root/source
 wget http://ftp.cuhk.edu.hk/pub/packages/apache.org/kafka/0.10.0.0/kafka_2.11-0.10.0.0.tgz
  
-mkdir /work/kafka
+mkdir -p /work/kafka
 cd /work/kafka
 tar -zxf /root/source/kafka_2.11-0.10.0.0.tgz --strip 1
 ```
@@ -47,7 +47,8 @@ zookeeper.connect=10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181
 
 ```
 cd /work/kafka
-nohup ./bin/kafka-server-start.sh /work/kafka/config/server.properties > /work/kafka/kafka.log 2>&1 &
+# you could put this line into /etc/rc.local
+nohup /work/kafka/bin/kafka-server-start.sh /work/kafka/config/server.properties > /dev/null 2>&1 &
 
 # stop server
 # ./bin/kafka-server-stop.sh /work/kafka/config/server.properties
