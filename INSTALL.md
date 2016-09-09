@@ -166,7 +166,7 @@ $ curl http://xxx.xxx.xxx/GetUserList?last_id=5
 
 # fetch next page, no more users
 $ curl http://xxx.xxx.xxx/GetUserList?last_id=8
-{"err_no":0,"err_msg":null,"data":[]}
+{"err_no":0,"err_msg":null,"data":{}}
 ```
 
 Use `supervisor` to manager services.
