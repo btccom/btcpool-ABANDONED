@@ -866,7 +866,7 @@ void AgentSessions::handleExMessage_RegisterWorker(const string *exMessage) {
     workerName = filterWorkerName(clientAgentPtr + strlen(clientAgentPtr) + 1);
   }
   if (workerName.empty())
-    workerName = "default";
+    workerName = DEFAULT_WORKER_NAME;
 
   // worker Id
   const int64_t workerId = StratumWorker::calcWorkerId(workerName);
