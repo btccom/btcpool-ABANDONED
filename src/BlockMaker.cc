@@ -436,7 +436,7 @@ void BlockMaker::_submitNamecoinBlockThread(const string &auxBlockHash,
     sql = Strings::Format("INSERT INTO `found_nmc_blocks` "
                           " (`bitcoin_block_hash`,`aux_block_hash`,"
                           "  `aux_pow`,`is_orphaned`,`created_at`) "
-                          " VALUES (\"%s\",\"%s\",0,\"%s\"); ",
+                          " VALUES (\"%s\",\"%s\",\"%s\",0,\"%s\"); ",
                           bitcoinBlockHash.c_str(),
                           auxBlockHash.c_str(), auxPow.c_str(), nowStr.c_str());
 
