@@ -73,6 +73,8 @@ inline time_t str2time(const char *str) {
   return str2time(str, "%F %T");
 }
 
+void writeTime2File(const char *filename, uint32_t t);
+
 class Strings {
 public:
   static string Format(const char * fmt, ...);

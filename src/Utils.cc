@@ -336,6 +336,13 @@ time_t str2time(const char *str, const char *format) {
   return timegm(&tm);
 }
 
+void writeTime2File(const char *filename, uint32_t t) {
+  FILE *fp = fopen(filename, "w");
+  if (!fp) { return; }
+  fprintf(fp, "%u", t);
+  fclose(fp);
+}
+
 string Strings::Format(const char * fmt, ...) {
   char tmp[512];
   string dest;
