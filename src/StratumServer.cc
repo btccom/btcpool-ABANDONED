@@ -82,10 +82,12 @@ void SessionIDManager::freeSessionId(uint32_t sessionId) {
 
 
 ////////////////////////////////// JobRepository ///////////////////////////////
-JobRepository::JobRepository(const char *kafkaBrokers, Server *server):
+JobRepository::JobRepository(const char *kafkaBrokers,
+                             const string &fileLastNotifyTime,
+                             Server *server):
 running_(true),
 kafkaConsumer_(kafkaBrokers, KAFKA_TOPIC_STRATUM_JOB, 0/*patition*/),
-server_(server),
+server_(server), fileLastNotifyTime_(fileLastNotifyTime),
 kMaxJobsLifeTime_(300),
 kMiningNotifyInterval_(30),  // TODO: make as config arg
 lastJobSendTime_(0)
@@ -290,6 +292,10 @@ void JobRepository::sendMiningNotify(shared_ptr<StratumJobEx> exJob) {
   server_->sendMiningNotifyToAll(exJob);
   lastJobSendTime_ = time(nullptr);
   lastJobId = exJob->sjob_->jobId_;
+
+  // write last mining notify time to file
+  if (!fileLastNotifyTime_.empty())
+    writeTime2File(fileLastNotifyTime_.c_str(), (uint32_t)lastJobSendTime_);
 }
 
 void JobRepository::tryCleanExpiredJobs() {
@@ -636,9 +642,10 @@ void StratumJobEx::generateBlockHeader(CBlockHeader *header,
 StratumServer::StratumServer(const char *ip, const unsigned short port,
                              const char *kafkaBrokers, const string &userAPIUrl,
                              const MysqlConnectInfo &poolDBInfo,
-                             const uint8_t serverId,
+                             const uint8_t serverId, const string &fileLastNotifyTime,
                              bool isEnableSimulator, bool isSubmitInvalidBlock)
 :running_(true), ip_(ip), port_(port), serverId_(serverId),
+fileLastNotifyTime_(fileLastNotifyTime),
 kafkaBrokers_(kafkaBrokers), userAPIUrl_(userAPIUrl), poolDBInfo_(poolDBInfo),
 isEnableSimulator_(isEnableSimulator), isSubmitInvalidBlock_(isSubmitInvalidBlock)
 {
@@ -649,7 +656,7 @@ StratumServer::~StratumServer() {
 
 bool StratumServer::init() {
   if (!server_.setup(ip_.c_str(), port_, kafkaBrokers_.c_str(),
-                     userAPIUrl_, poolDBInfo_, serverId_,
+                     userAPIUrl_, poolDBInfo_, serverId_, fileLastNotifyTime_,
                      isEnableSimulator_, isSubmitInvalidBlock_)) {
     LOG(ERROR) << "fail to setup server";
     return false;
@@ -713,7 +720,7 @@ Server::~Server() {
 bool Server::setup(const char *ip, const unsigned short port,
                    const char *kafkaBrokers,
                    const string &userAPIUrl, const MysqlConnectInfo &dbInfo,
-                   const uint8_t serverId,
+                   const uint8_t serverId, const string &fileLastNotifyTime,
                    bool isEnableSimulator, bool isSubmitInvalidBlock) {
   if (isEnableSimulator) {
     isEnableSimulator_ = true;
@@ -736,7 +743,7 @@ bool Server::setup(const char *ip, const unsigned short port,
                                              RD_KAFKA_PARTITION_UA);
 
   // job repository
-  jobRepository_ = new JobRepository(kafkaBrokers, this);
+  jobRepository_ = new JobRepository(kafkaBrokers, fileLastNotifyTime, this);
   if (!jobRepository_->setupThreadConsume()) {
     return false;
   }

@@ -137,6 +137,7 @@ int main(int argc, char **argv) {
     {
       int32_t poolDBPort = 3306;
       cfg.lookupValue("pooldb.port", poolDBPort);
+
       poolDBInfo = new MysqlConnectInfo(cfg.lookup("pooldb.host"), poolDBPort,
                                         cfg.lookup("pooldb.username"),
                                         cfg.lookup("pooldb.password"),
@@ -147,6 +148,8 @@ int main(int argc, char **argv) {
     cfg.lookupValue("sserver.enable_simulator", isEnableSimulator);
     bool isSubmitInvalidBlock = false;
     cfg.lookupValue("sserver.enable_submit_invalid_block", isSubmitInvalidBlock);
+    string fileLastMiningNotifyTime;
+    cfg.lookupValue("sserver.file_last_notify_time", fileLastMiningNotifyTime);
 
     evthread_use_pthreads();
 
@@ -156,6 +159,7 @@ int main(int argc, char **argv) {
                                        cfg.lookup("kafka.brokers").c_str(),
                                        cfg.lookup("users.list_id_api_url"),
                                        *poolDBInfo, serverId,
+                                       fileLastMiningNotifyTime,
                                        isEnableSimulator,
                                        isSubmitInvalidBlock);
 

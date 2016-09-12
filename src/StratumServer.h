@@ -94,6 +94,8 @@ class JobRepository {
   KafkaConsumer kafkaConsumer_;  // consume topic: 'StratumJob'
   Server *server_;               // call server to send new job
 
+  string fileLastNotifyTime_;
+
   const time_t kMaxJobsLifeTime_;
   const time_t kMiningNotifyInterval_;
 
@@ -109,7 +111,8 @@ class JobRepository {
   void checkAndSendMiningNotify();
 
 public:
-  JobRepository(const char *kafkaBrokers, Server *server);
+  JobRepository(const char *kafkaBrokers, const string &fileLastNotifyTime,
+                Server *server);
   ~JobRepository();
 
   void stop();
@@ -246,7 +249,8 @@ public:
 
   bool setup(const char *ip, const unsigned short port, const char *kafkaBrokers,
              const string &userAPIUrl, const  MysqlConnectInfo &dbInfo,
-             const uint8_t serverId, bool isEnableSimulator,
+             const uint8_t serverId, const string &fileLastNotifyTime,
+             bool isEnableSimulator,
              bool isSubmitInvalidBlock);
   void run();
   void stop();
@@ -282,9 +286,12 @@ class StratumServer {
   unsigned short port_;
   uint8_t serverId_;  // global unique, range: [1, 255]
 
+  string fileLastNotifyTime_;
+
   string kafkaBrokers_;
   string userAPIUrl_;
   MysqlConnectInfo poolDBInfo_;
+
 
   // if enable simulator, all share will be accepted
   bool isEnableSimulator_;
@@ -296,7 +303,8 @@ public:
   StratumServer(const char *ip, const unsigned short port,
                 const char *kafkaBrokers,
                 const string &userAPIUrl, const MysqlConnectInfo &poolDBInfo,
-                const uint8_t serverId, bool isEnableSimulator,
+                const uint8_t serverId, const string &fileLastNotifyTime,
+                bool isEnableSimulator,
                 bool isSubmitInvalidBlock);
   ~StratumServer();
 
