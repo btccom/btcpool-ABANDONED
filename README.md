@@ -11,9 +11,9 @@ Note: This is still a testbed and work in progress, all things could be changed.
 
 ## Install
 
-1. Install `Zookeeper`, or see [our guide](docs/INSTALL-ZooKeeper.md)
+1. Install `Zookeeper`, or see [INSTALL-ZooKeeper.md](docs/INSTALL-ZooKeeper.md)
   * [https://zookeeper.apache.org/](https://zookeeper.apache.org/)
-2. Install `Kafka`, or see [our guid](docs/INSTALL-Kafka.md)
+2. Install `Kafka`, or see [INSTALL-Kafka.md](docs/INSTALL-Kafka.md)
   * [https://kafka.apache.org/](https://kafka.apache.org/)
 3. Install `Bitcoind`, need to enable ZMQ
 4. Install `BtcPool`, see [INSTALL.md](INSTALL.md)
@@ -26,7 +26,7 @@ We have test 100,000 miners online Benchmark. see [Benchmark-100000.md](docs/Ben
 
 BtcAgent is a kind of stratum proxy which use customize protocol to communicate with the pool. It's very efficient and designed for huge mining farm.
 
-* [Protocol](docs/AGENT.md)
+* [AGENT.md](docs/AGENT.md)
 * BtcAgent's [HomePage](https://github.com/btccom/btcagent)
 
 ## Testing
