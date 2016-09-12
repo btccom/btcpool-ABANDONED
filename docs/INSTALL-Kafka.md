@@ -53,3 +53,33 @@ nohup /work/kafka/bin/kafka-server-start.sh /work/kafka/config/server.properties
 # stop server
 # ./bin/kafka-server-stop.sh /work/kafka/config/server.properties
 ```
+
+**use supervisor**
+
+Recommend to use `supervisor` to manage Kafka service.
+
+```
+apt-get install supervisor
+```
+
+edit conf file `vim /etc/supervisor/conf.d/kafka.conf`:
+
+```
+[program:kafka]
+directory=/work/kafka
+command=/work/kafka/bin/kafka-server-start.sh /work/kafka/config/server.properties
+autostart=true
+autorestart=true
+startsecs=6
+startretries=20
+```
+
+```
+$ supervisorctl
+> reread
+> update
+> status
+
+or 
+> start/stop kafka
+```
