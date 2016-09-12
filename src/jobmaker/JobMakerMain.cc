@@ -123,12 +123,15 @@ int main(int argc, char **argv) {
       SelectParams(CChainParams::MAIN);
     }
 
+    string fileLastJobTime;
     uint32_t stratumJobInterval, gbtLifeTime;
     cfg.lookupValue("jobmaker.stratum_job_interval", stratumJobInterval);
     cfg.lookupValue("jobmaker.gbt_life_time", gbtLifeTime);
+    cfg.lookupValue("jobmaker.file_last_job_time", fileLastJobTime);
 
     gJobMaker = new JobMaker(cfg.lookup("kafka.brokers"), stratumJobInterval,
-                             cfg.lookup("pool.payout_address"), gbtLifeTime);
+                             cfg.lookup("pool.payout_address"), gbtLifeTime,
+                             fileLastJobTime);
 
     if (!gJobMaker->init()) {
       LOG(FATAL) << "init failure";

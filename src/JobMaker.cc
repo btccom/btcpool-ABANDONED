@@ -40,7 +40,8 @@
 
 ///////////////////////////////////  JobMaker  /////////////////////////////////
 JobMaker::JobMaker(const string &kafkaBrokers,  uint32_t stratumJobInterval,
-                   const string &payoutAddr, uint32_t gbtLifeTime):
+                   const string &payoutAddr, uint32_t gbtLifeTime,
+                   const string &fileLastJobTime):
 running_(true),
 kafkaBrokers_(kafkaBrokers),
 kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, RD_KAFKA_PARTITION_UA/* partition */),
@@ -50,6 +51,7 @@ currBestHeight_(0), lastJobSendTime_(0),
 isLastJobEmptyBlock_(false), isLastJobNewHeight_(false),
 stratumJobInterval_(stratumJobInterval),
 poolPayoutAddr_(payoutAddr), kGbtLifeTime_(gbtLifeTime),
+fileLastJobTime_(fileLastJobTime),
 blockVersion_(0x20000000)  // TODO: cfg
 {
   poolCoinbaseInfo_ = "/BTC.COM/";
@@ -360,6 +362,10 @@ void JobMaker::sendStratumJob(const char *gbt) {
 
   // is an empty block job
   isLastJobEmptyBlock_ = sjob.isEmptyBlock();
+
+  // save send timestamp to file, for monitor system
+  if (!fileLastJobTime_.empty())
+  	writeTime2File(fileLastJobTime_.c_str(), (uint32_t)time(nullptr));
 
   LOG(INFO) << "--------producer stratum job, jobId: " << sjob.jobId_
   << ", height: " << sjob.height_ << "--------";
