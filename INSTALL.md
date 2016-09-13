@@ -98,14 +98,10 @@ cd /work/kafka
 #
 # "10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181" is ZooKeeper cluster.
 #
-./bin/kafka-topics.sh --create --topic RawGbt      --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
-./bin/kafka-topics.sh --create --topic StratumJob  --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1 
-./bin/kafka-topics.sh --create --topic SolvedShare --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 3 --partitions 1 
-./bin/kafka-topics.sh --create --topic ShareLog    --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
-
-#
-# for namecoin merged mining
-#
+./bin/kafka-topics.sh --create --topic RawGbt         --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic StratumJob     --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1 
+./bin/kafka-topics.sh --create --topic SolvedShare    --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 3 --partitions 1 
+./bin/kafka-topics.sh --create --topic ShareLog       --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
 ./bin/kafka-topics.sh --create --topic NMCAuxBlock    --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
 ./bin/kafka-topics.sh --create --topic NMCSolvedShare --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
 ```
@@ -125,6 +121,10 @@ Topic:SolvedShare      	PartitionCount:1       	ReplicationFactor:3    	Configs:
        	Topic: SolvedShare     	Partition: 0   	Leader: 1      	Replicas: 1,2,3	Isr: 1,2,3
 Topic:StratumJob       	PartitionCount:1       	ReplicationFactor:2    	Configs:
        	Topic: StratumJob      	Partition: 0   	Leader: 1      	Replicas: 1,2  	Isr: 1,2
+Topic:NMCAuxBlock        PartitionCount:1         ReplicationFactor:3      Configs:
+         Topic: NMCAuxBlock       Partition: 0     Leader: 3        Replicas: 3,1  Isr: 3,1
+Topic:NMCSolvedShare     PartitionCount:1         ReplicationFactor:3      Configs:
+         Topic: NMCSolvedShare    Partition: 0     Leader: 3        Replicas: 3,1  Isr: 3,1
 ```
 
 Before you start btcpool's services, you need to stetup MySQL database and bitcoind/namecoind (if enable merged mining).
@@ -185,39 +185,38 @@ cp ../install/supervisord/gbtmaker.conf      /etc/supervisor/conf.d
 cp ../install/supervisord/jobmaker.conf      /etc/supervisor/conf.d
 cp ../install/supervisord/blkmaker.conf      /etc/supervisor/conf.d
 cp ../install/supervisord/sharelogger.conf   /etc/supervisor/conf.d
-cp ../install/supervisord/slparser.conf      /etc/supervisor/conf.d
-cp ../install/supervisord/statshttpd.conf    /etc/supervisor/conf.d
-
 #
 # if you need to enable watch other pool's stratum job. poolwatcher will 
 # generate empty getblocktemplate when they find a new height stratum job 
 # from other pools. this could reduce pool's orphan block rate.
 #
 cp ../install/supervisord/poolwatcher.conf   /etc/supervisor/conf.d
-
 #
 # enable namecoin merged mining
 #
 cp ../install/supervisord/nmcauxmaker.conf   /etc/supervisor/conf.d
 
 #
-# start services
+# start services: gbtmaker, jobmaker, blkmaker, sharelogger...
 #
 $ supervisorctl
 > reread
-> start gbtmaker
-> start jobmaker
-> start blkmaker
-> start sharelogger
+> update
+> status
+
 
 #
 # start your stratum server(see below) and add some miners to the pool, after make
 # some shares than start 'slparser' & 'statshttpd'
 #
+cp ../install/supervisord/slparser.conf      /etc/supervisor/conf.d
+cp ../install/supervisord/statshttpd.conf    /etc/supervisor/conf.d
+
+# start services: slparser, statshttpd
 $ supervisorctl
 > reread
-> start slparser
-> start statshttpd
+> update
+> status
 
 
 ################################################################################
@@ -227,5 +226,26 @@ cp ../install/supervisord/sserver.conf       /etc/supervisor/conf.d
 
 $ supervisorctl
 > reread
-> start sserver
+> update
+> status
+```
+
+## Upgrade btcpool
+
+Check release note and upgrade guide. Maybe add some config options to config file or change something of database table. 
+
+Get the latest codes and rebuild:
+
+```
+cd /work/btcpool/build
+git pull
+cmake -DCMAKE_BUILD_TYPE=Release ..
+make
+```
+
+use `supervisorctl` to restart your services:
+
+```
+$ supervisorctl
+> restart xxxx
 ```
