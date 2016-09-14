@@ -54,10 +54,6 @@
 
 #define BTCCOM_MINER_AGENT_PREFIX "btccom-agent/"
 
-// default worker name
-#define DEFAULT_WORKER_NAME    "__default__"
-
-
 class Server;
 class StratumJobEx;
 class DiffController;

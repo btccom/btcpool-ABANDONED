@@ -49,6 +49,10 @@
 //
 #define COINBASE_TX_MAX_SIZE   200
 
+// default worker name
+#define DEFAULT_WORKER_NAME    "__default__"
+
+
 inline uint32_t jobId2Time(uint64_t jobId) {
   return (uint32_t)((jobId >> 32) & 0x00000000FFFFFFFFULL);
 }

@@ -132,7 +132,7 @@ void StratumWorker::setUserIDAndNames(const int32_t userId, const string &fullNa
   }
 
   if (workerName_.empty()) {
-    workerName_ = "default";
+    workerName_ = DEFAULT_WORKER_NAME;
   }
 
   workerHashId_ = calcWorkerId(workerName_);
