@@ -220,6 +220,7 @@ class Server {
   struct event* signal_event_;
   struct evconnlistener* listener_;
   std::map<evutil_socket_t, StratumSession *> connections_;
+  mutex connsLock_;
 
   // kafka producers
   KafkaProducer *kafkaProducerShareLog_;

@@ -860,6 +860,7 @@ void Server::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {
   // being erased.
   //
 
+  ScopeLock sl(connsLock_);
   std::map<evutil_socket_t, StratumSession *>::iterator itr = connections_.begin();
   while (itr != connections_.end()) {
     StratumSession *conn = itr->second;  // alias
@@ -876,10 +877,15 @@ void Server::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {
 }
 
 void Server::addConnection(evutil_socket_t fd, StratumSession *connection) {
+  ScopeLock sl(connsLock_);
   connections_.insert(std::pair<evutil_socket_t, StratumSession *>(fd, connection));
 }
 
 void Server::removeConnection(evutil_socket_t fd) {
+  //
+  // if we are here, means the related evbuffer has already been locked.
+  // don't lock connsLock_ in this function, it will cause deadlock.
+  //
   auto itr = connections_.find(fd);
   if (itr == connections_.end()) {
     return;
