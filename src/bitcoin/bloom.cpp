@@ -73,7 +73,7 @@ void CBloomFilter::insert(const vector<unsigned char>& vKey)
 
 void CBloomFilter::insert(const COutPoint& outpoint)
 {
-    CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
+    CDataStream stream(SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
     stream << outpoint;
     vector<unsigned char> data(stream.begin(), stream.end());
     insert(data);
@@ -103,7 +103,7 @@ bool CBloomFilter::contains(const vector<unsigned char>& vKey) const
 
 bool CBloomFilter::contains(const COutPoint& outpoint) const
 {
-    CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
+    CDataStream stream(SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
     stream << outpoint;
     vector<unsigned char> data(stream.begin(), stream.end());
     return contains(data);
