@@ -1,0 +1,12 @@
+#! /bin/bash
+#
+# run shell for fibred/bitcoind
+#
+# @copyright btc.com
+# @author zhibiao.pan@bitmain.com
+#
+export LC_ALL=C
+SROOT=$(cd $(dirname "$0"); pwd)
+cd $SROOT
+
+bitcoind -conf="/root/.bitcoin/bitcoin.conf" -datadir="/root/.bitcoin"
