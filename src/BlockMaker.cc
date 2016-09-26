@@ -25,6 +25,8 @@
 
 #include <boost/thread.hpp>
 
+#include "bitcoin/consensus/merkle.h"
+#include "bitcoin/core_io.h"
 #include "utilities_js.hpp"
 
 
@@ -165,7 +167,7 @@ void BlockMaker::addRawgbt(const char *str, size_t len) {
     return;
   }
 
-  const uint256 gbtHash = uint256(r["gbthash"].str());
+  const uint256 gbtHash = uint256S(r["gbthash"].str());
   if (rawGbtMap_.find(gbtHash) != rawGbtMap_.end()) {
     LOG(ERROR) << "already exist raw gbt, ingore: " << gbtHash.ToString();
     return;
@@ -232,7 +234,8 @@ string _buildAuxPow(const CBlock *block) {
 
   // 3. coinbase_branch, Merkle branch
   {
-    vector<uint256> merkleBranch = block->GetMerkleBranch(0);
+    vector<uint256> merkleBranch = BlockMerkleBranch(*block, 0/* position */);
+
     // Number of links in branch
     // should be Variable integer, but can't over than 0xfd, so we just print
     // out 2 hex char
@@ -364,9 +367,10 @@ void BlockMaker::consumeNamecoinSovledShare(rd_kafka_message_t *rkmessage) {
 
   // put coinbase tx
   {
-    CSerializeData data(coinbaseTxBin);
+    CSerializeData sdata;
+    sdata.insert(sdata.end(), coinbaseTxBin.begin(), coinbaseTxBin.end());
     newblk.vtx.push_back(CTransaction());
-    CDataStream c(data, SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
+    CDataStream c(sdata, SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
     c >> newblk.vtx[newblk.vtx.size() - 1];
   }
 
@@ -533,9 +537,10 @@ void BlockMaker::consumeSovledShare(rd_kafka_message_t *rkmessage) {
 
   // put coinbase tx
   {
-    CSerializeData data(coinbaseTxBin);
+    CSerializeData sdata;
+    sdata.insert(sdata.end(), coinbaseTxBin.begin(), coinbaseTxBin.end());
     newblk.vtx.push_back(CTransaction());
-    CDataStream c(data, SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
+    CDataStream c(sdata, SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
     c >> newblk.vtx[newblk.vtx.size() - 1];
   }
 
@@ -696,7 +701,7 @@ void BlockMaker::consumeStratumJob(rd_kafka_message_t *rkmessage) {
     return;
   }
 
-  const uint256 gbtHash(sjob->gbtHash_);
+  const uint256 gbtHash = uint256S(sjob->gbtHash_);
   {
     ScopeLock sl(jobIdMapLock_);
     jobId2GbtHash_[sjob->jobId_] = gbtHash;

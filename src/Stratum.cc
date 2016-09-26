@@ -23,9 +23,9 @@
  */
 #include "Stratum.h"
 
-#include "bitcoin/core.h"
+#include "bitcoin/core_io.h"
 #include "bitcoin/hash.h"
-#include "bitcoin/script.h"
+#include "bitcoin/script/script.h"
 #include "bitcoin/uint256.h"
 #include "bitcoin/util.h"
 
@@ -184,40 +184,6 @@ void makeMerkleBranch(const vector<uint256> &vtxhashs, vector<uint256> &steps) {
   steps.push_back(*hashs.begin());  // put the last one
 }
 
-
-//
-// https://github.com/bitcoin/bips/blob/master/bip-0034.mediawiki
-//
-// The format of the height is "serialized CScript" -- first byte is number of
-// bytes in the number (will be 0x03 on main net for the next 300 or so years),
-// following bytes are little-endian representation of the number. Height is the
-// height of the mined block in the block chain, where the genesis block is
-// height zero (0).
-static
-void _EncodeUNum(std::vector<unsigned char> *in, uint32 v) {
-  if (v == 0) {
-    in->push_back((unsigned char)0);
-  } else if (v <= 0xffU) {
-    in->push_back((unsigned char)1);
-    in->push_back((unsigned char)(v & 0xff));
-  } else if (v <= 0xffffU) {
-    in->push_back((unsigned char)2);
-    in->push_back((unsigned char)(v & 0xff));
-    in->push_back((unsigned char)((v >> 8)& 0xff));
-  } else if (v <= 0xffffffU) {
-    in->push_back((unsigned char)3);
-    in->push_back((unsigned char)(v & 0xff));
-    in->push_back((unsigned char)((v >> 8)& 0xff));
-    in->push_back((unsigned char)((v >> 16)& 0xff));
-  } else {
-    in->push_back((unsigned char)4);
-    in->push_back((unsigned char)(v & 0xff));
-    in->push_back((unsigned char)((v >> 8)& 0xff));
-    in->push_back((unsigned char)((v >> 16)& 0xff));
-    in->push_back((unsigned char)((v >> 24)& 0xff));
-  }
-}
-
 static
 int64 findExtraNonceStart(const vector<char> &coinbaseOriTpl,
                           const vector<char> &placeHolder) {
@@ -294,7 +260,7 @@ bool StratumJob::unserializeFromJson(const char *s, size_t len) {
 
   jobId_         = j["jobId"].uint64();
   gbtHash_       = j["gbtHash"].str();
-  prevHash_      = uint256(j["prevHash"].str());
+  prevHash_      = uint256S(j["prevHash"].str());
   prevHashBeStr_ = j["prevHashBeStr"].str();
   height_        = j["height"].int32();
   coinbase1_     = j["coinbase1"].str();
@@ -313,7 +279,7 @@ bool StratumJob::unserializeFromJson(const char *s, size_t len) {
       j["nmcHeight"].type()      == Utilities::JS::type::Int &&
       j["nmcRpcAddr"].type()     == Utilities::JS::type::Str &&
       j["nmcRpcUserpass"].type() == Utilities::JS::type::Str) {
-    nmcAuxBlockHash_ = uint256(j["nmcBlockHash"].str());
+    nmcAuxBlockHash_ = uint256S(j["nmcBlockHash"].str());
     nmcAuxBits_      = j["nmcBits"].uint32();
     nmcHeight_       = j["nmcHeight"].int32();
     nmcRpcAddr_      = j["nmcRpcAddr"].str();
@@ -325,7 +291,7 @@ bool StratumJob::unserializeFromJson(const char *s, size_t len) {
   const size_t merkleBranchCount = merkleBranchStr.length() / 64;
   merkleBranch_.resize(merkleBranchCount);
   for (size_t i = 0; i < merkleBranchCount; i++) {
-    merkleBranch_[i] = uint256(merkleBranchStr.substr(i*64, 64));
+    merkleBranch_[i] = uint256S(merkleBranchStr.substr(i*64, 64));
   }
 
   BitsToTarget(nBits_, networkTarget_);
@@ -356,7 +322,7 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
 
   // height etc.
   // fields in gbt json has already checked by GbtMaker
-  prevHash_ = uint256(jgbt["previousblockhash"].str());
+  prevHash_ = uint256S(jgbt["previousblockhash"].str());
   height_   = jgbt["height"].int32();
   if (blockVersion != 0) {
     nVersion_ = blockVersion;
@@ -423,7 +389,7 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
       }
 
       // set nmc aux info
-      nmcAuxBlockHash_ = uint256(jNmcAux["hash"].str());
+      nmcAuxBlockHash_ = uint256S(jNmcAux["hash"].str());
       nmcAuxBits_      = jNmcAux["bits"].uint32_hex();
       nmcHeight_       = jNmcAux["height"].int32();
       nmcRpcAddr_      = jNmcAux["rpc_addr"].str();
@@ -440,7 +406,10 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     // https://github.com/bitcoin/bips/blob/master/bip-0034.mediawiki
     // https://github.com/bitcoin/bitcoin/pull/1526
     //
-    _EncodeUNum(dynamic_cast<vector<unsigned char> *>(&cbIn.scriptSig), (uint32_t)height_);
+    cbIn.scriptSig = CScript();
+    cbIn.scriptSig << (uint32_t)height_;
+
+    // pool's info
     cbIn.scriptSig.insert(cbIn.scriptSig.end(),
                           poolCoinbaseInfo.begin(), poolCoinbaseInfo.end());
 
@@ -490,17 +459,21 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     vector<CTxOut> cbOut;
     cbOut.push_back(CTxOut());
     cbOut[0].nValue = coinbaseValue_;
-    cbOut[0].scriptPubKey.SetDestination(poolPayoutAddr.Get());
+    cbOut[0].scriptPubKey = GetScriptForDestination(poolPayoutAddr.Get());
 
-    CTransaction cbtx;
+    CMutableTransaction cbtx;
     cbtx.vin.push_back(cbIn);
     cbtx.vout = cbOut;
     assert(cbtx.nVersion == 1);  // current our block version is 1
 
     vector<char> coinbaseTpl;
-    CDataStream ssTx(SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
-    ssTx << cbtx;  // put coinbase CTransaction to CDataStream
-    ssTx.GetAndClear(coinbaseTpl);  // dump coinbase bin to coinbaseTpl
+    {
+      CSerializeData sdata;
+      CDataStream ssTx(SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
+      ssTx << cbtx;  // put coinbase CTransaction to CDataStream
+      ssTx.GetAndClear(sdata);  // dump coinbase bin to coinbaseTpl
+      coinbaseTpl.insert(coinbaseTpl.end(), sdata.begin(), sdata.end());
+    }
 
     // check coinbase tx size
     if (coinbaseTpl.size() >= COINBASE_TX_MAX_SIZE) {

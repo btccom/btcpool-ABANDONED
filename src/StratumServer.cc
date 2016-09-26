@@ -28,6 +28,10 @@
 #include "MySQLConnection.h"
 #include "Utils.h"
 
+#include "bitcoin/arith_uint256.h"
+#include "bitcoin/utilstrencodings.h"
+#include "bitcoin/hash.h"
+
 #include "utilities_js.hpp"
 
 
@@ -630,11 +634,13 @@ void StratumJobEx::generateBlockHeader(CBlockHeader *header,
   header->nNonce        = nonce;
 
   // hashMerkleRoot
-  Hash(coinbaseBin->begin(), coinbaseBin->end(), header->hashMerkleRoot);
+  Hash(coinbaseBin->begin(), coinbaseBin->end(),
+       BEGIN(header->hashMerkleRoot), END(header->hashMerkleRoot));
+
   for (const uint256 & step : merkleBranch) {
     header->hashMerkleRoot = Hash(header->hashMerkleRoot.begin(),
                                   header->hashMerkleRoot.end(),
-                                  step.begin(), step.end());
+                                  BEGIN(step), END(step));
   }
 }
 
@@ -989,10 +995,13 @@ int Server::checkShare(const Share &share,
                                 sjob->nBits_, sjob->nVersion_, nTime, nonce);
   uint256 blkHash = header.GetHash();
 
+  arith_uint256 bnBlockHash     = UintToArith256(blkHash);
+  arith_uint256 bnNetworkTarget = UintToArith256(sjob->networkTarget_);
+
   //
   // found new block
   //
-  if (isSubmitInvalidBlock_ == true || blkHash <= sjob->networkTarget_) {
+  if (isSubmitInvalidBlock_ == true || bnBlockHash < bnNetworkTarget) {
     //
     // build found block
     //
@@ -1016,7 +1025,7 @@ int Server::checkShare(const Share &share,
   }
 
   // print out high diff share, 2^10 = 1024
-  if ((blkHash >> 10) <= sjob->networkTarget_) {
+  if ((bnBlockHash >> 10) <= bnNetworkTarget) {
     LOG(INFO) << "high diff share, blkhash: " << blkHash.ToString()
     << ", diff: " << TargetToBdiff(blkHash)
     << ", networkDiff: " << TargetToBdiff(sjob->networkTarget_)
@@ -1027,7 +1036,7 @@ int Server::checkShare(const Share &share,
   // found namecoin block
   //
   if (sjob->nmcAuxBits_ != 0 &&
-      (isSubmitInvalidBlock_ == true || blkHash <= sjob->nmcNetworkTarget_)) {
+      (isSubmitInvalidBlock_ == true || bnBlockHash < UintToArith256(sjob->nmcNetworkTarget_))) {
     //
     // build namecoin solved share message
     //
@@ -1063,7 +1072,7 @@ int Server::checkShare(const Share &share,
   }
 
   // check share diff
-  if (isEnableSimulator_ == false && blkHash > jobTarget) {
+  if (isEnableSimulator_ == false && bnBlockHash >= UintToArith256(jobTarget)) {
     return StratumError::LOW_DIFFICULTY;
   }
 

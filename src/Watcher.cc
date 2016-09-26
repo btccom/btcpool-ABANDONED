@@ -32,6 +32,9 @@
 #include <event2/listener.h>
 #include <glog/logging.h>
 
+#include "bitcoin/chainparams.h"
+#include "bitcoin/utilstrencodings.h"
+
 static
 bool tryReadLine(string &line, struct bufferevent *bufev) {
   line.clear();
@@ -192,7 +195,9 @@ bool ClientContainer::makeEmptyGBT(int32_t blockHeight, uint32_t nBits,
 
   gbt += Strings::Format("\"previousblockhash\":\"%s\"", blockPrevHash.c_str());
   gbt += Strings::Format(",\"height\":%d", blockHeight);
-  gbt += Strings::Format(",\"coinbasevalue\":%" PRId64"", GetBlockValue(blockHeight, 0));
+  const CChainParams& chainparams = Params();
+  gbt += Strings::Format(",\"coinbasevalue\":%" PRId64"",
+                         GetBlockSubsidy(blockHeight, chainparams.GetConsensus()));
   gbt += Strings::Format(",\"bits\":\"%08x\"", nBits);
   const uint32_t minTime = blockTime - 60*10;  // just set 10 mins ago
   gbt += Strings::Format(",\"mintime\":%" PRIu32"", minTime);
