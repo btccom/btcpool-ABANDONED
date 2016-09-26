@@ -184,25 +184,25 @@ bool CPubKey::Verify(const uint256 &hash, const std::vector<unsigned char>& vchS
     return secp256k1_ecdsa_verify(secp256k1_context_verify, &sig, hash.begin(), &pubkey);
 }
 
-bool CPubKey::RecoverCompact(const uint256 &hash, const std::vector<unsigned char>& vchSig) {
-    if (vchSig.size() != 65)
-        return false;
-    int recid = (vchSig[0] - 27) & 3;
-    bool fComp = ((vchSig[0] - 27) & 4) != 0;
-    secp256k1_pubkey pubkey;
-    secp256k1_ecdsa_recoverable_signature sig;
-    if (!secp256k1_ecdsa_recoverable_signature_parse_compact(secp256k1_context_verify, &sig, &vchSig[1], recid)) {
-        return false;
-    }
-    if (!secp256k1_ecdsa_recover(secp256k1_context_verify, &pubkey, &sig, hash.begin())) {
-        return false;
-    }
-    unsigned char pub[65];
-    size_t publen = 65;
-    secp256k1_ec_pubkey_serialize(secp256k1_context_verify, pub, &publen, &pubkey, fComp ? SECP256K1_EC_COMPRESSED : SECP256K1_EC_UNCOMPRESSED);
-    Set(pub, pub + publen);
-    return true;
-}
+//bool CPubKey::RecoverCompact(const uint256 &hash, const std::vector<unsigned char>& vchSig) {
+//    if (vchSig.size() != 65)
+//        return false;
+//    int recid = (vchSig[0] - 27) & 3;
+//    bool fComp = ((vchSig[0] - 27) & 4) != 0;
+//    secp256k1_pubkey pubkey;
+//    secp256k1_ecdsa_recoverable_signature sig;
+//    if (!secp256k1_ecdsa_recoverable_signature_parse_compact(secp256k1_context_verify, &sig, &vchSig[1], recid)) {
+//        return false;
+//    }
+//    if (!secp256k1_ecdsa_recover(secp256k1_context_verify, &pubkey, &sig, hash.begin())) {
+//        return false;
+//    }
+//    unsigned char pub[65];
+//    size_t publen = 65;
+//    secp256k1_ec_pubkey_serialize(secp256k1_context_verify, pub, &publen, &pubkey, fComp ? SECP256K1_EC_COMPRESSED : SECP256K1_EC_UNCOMPRESSED);
+//    Set(pub, pub + publen);
+//    return true;
+//}
 
 bool CPubKey::IsFullyValid() const {
     if (!IsValid())

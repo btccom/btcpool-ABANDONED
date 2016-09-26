@@ -14,6 +14,9 @@
 #include "config/bitcoin-config.h"
 #endif
 
+#include "amount.h"
+#include "chainparams.h"
+
 #include "compat.h"
 #include "tinyformat.h"
 #include "utiltime.h"

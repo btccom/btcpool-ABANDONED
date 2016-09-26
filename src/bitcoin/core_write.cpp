@@ -121,3 +121,9 @@ string EncodeHexTx(const CTransaction& tx)
     return HexStr(ssTx.begin(), ssTx.end());
 }
 
+string EncodeHexBlock(const CBlock &block) {
+  CDataStream ssBlock(SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
+  ssBlock << block;
+  return HexStr(ssBlock.begin(), ssBlock.end());
+}
+
