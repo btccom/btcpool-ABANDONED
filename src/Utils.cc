@@ -24,6 +24,7 @@
 #include "Utils.h"
 
 #include "bitcoin/util.h"
+#include "bitcoin/streams.h"
 
 #include <stdarg.h>
 #include <sys/stat.h>
@@ -110,69 +111,56 @@ void Bin2HexR(const vector<char> &in, string &str) {
   Bin2Hex(r, str);
 }
 
-string EncodeHexTx(const CTransaction& tx) {
-  CDataStream ssTx(SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
-  ssTx << tx;
-  return HexStr(ssTx.begin(), ssTx.end());
-}
-
-string EncodeHexBlock(const CBlock &block) {
-  CDataStream ssBlock(SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
-  ssBlock << block;
-  return HexStr(ssBlock.begin(), ssBlock.end());
-}
-
-
-static bool _DecodeBinTx(CTransaction& tx, vector<unsigned char> &data) {
-  CDataStream ssData(data, SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
-  try {
-    ssData >> tx;
-  }
-  catch (const std::exception &) {
-    return false;
-  }
-  return true;
-}
-
-bool DecodeBinTx(CTransaction& tx, const unsigned char *data, size_t len) {
-  vector<unsigned char> txData(data, data + len);
-  return _DecodeBinTx(tx, txData);
-}
-
-bool DecodeHexTx(CTransaction& tx, const std::string& strHexTx)
-{
-  if (!IsHex(strHexTx))
-    return false;
-
-  vector<unsigned char> txData(ParseHex(strHexTx));
-  return _DecodeBinTx(tx, txData);
-}
-
-
-static bool _DecodeBinBlk(CBlock& block, vector<unsigned char> &data) {
-  CDataStream ssBlock(data, SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
-  try {
-    ssBlock >> block;
-  }
-  catch (const std::exception &) {
-    return false;
-  }
-  return true;
-}
-
-bool DecodeBinBlk(CBlock& block, const unsigned char *data, size_t len) {
-  vector<unsigned char> blkData(data, data + len);
-  return _DecodeBinBlk(block, blkData);
-}
-
-bool DecodeHexBlk(CBlock& block, const std::string& strHexBlk)
-{
-  if (!IsHex(strHexBlk))
-    return false;
-
-  std::vector<unsigned char> blkData(ParseHex(strHexBlk));
-  return _DecodeBinBlk(block, blkData);
-}
+//static bool _DecodeBinTx(CTransaction& tx, vector<unsigned char> &data) {
+//  CDataStream ssData(data, SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
+//  try {
+//    ssData >> tx;
+//  }
+//  catch (const std::exception &) {
+//    return false;
+//  }
+//  return true;
+//}
+//
+//bool DecodeBinTx(CTransaction& tx, const unsigned char *data, size_t len) {
+//  vector<unsigned char> txData(data, data + len);
+//  return _DecodeBinTx(tx, txData);
+//}
+//
+//bool DecodeHexTx(CTransaction& tx, const std::string& strHexTx)
+//{
+//  if (!IsHex(strHexTx))
+//    return false;
+//
+//  vector<unsigned char> txData(ParseHex(strHexTx));
+//  return _DecodeBinTx(tx, txData);
+//}
+//
+//
+//static bool _DecodeBinBlk(CBlock& block, vector<unsigned char> &data) {
+//  CDataStream ssBlock(data, SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
+//  try {
+//    ssBlock >> block;
+//  }
+//  catch (const std::exception &) {
+//    return false;
+//  }
+//  return true;
+//}
+//
+//bool DecodeBinBlk(CBlock& block, const unsigned char *data, size_t len) {
+//  vector<unsigned char> blkData(data, data + len);
+//  return _DecodeBinBlk(block, blkData);
+//}
+//
+//bool DecodeHexBlk(CBlock& block, const std::string& strHexBlk)
+//{
+//  if (!IsHex(strHexBlk))
+//    return false;
+//
+//  std::vector<unsigned char> blkData(ParseHex(strHexBlk));
+//  return _DecodeBinBlk(block, blkData);
+//}
 
 //  Receive 0MQ string from socket and convert into string
 std::string s_recv (zmq::socket_t & socket) {

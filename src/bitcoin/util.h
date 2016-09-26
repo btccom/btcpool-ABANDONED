@@ -1,128 +1,147 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2014 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
+// Copyright (c) 2009-2015 The Bitcoin Core developers
+// Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+/**
+ * Server/client environment: argument handling, config file parsing,
+ * logging, thread wrappers
+ */
 #ifndef BITCOIN_UTIL_H
 #define BITCOIN_UTIL_H
 
-#include "serialize.h"
+#if defined(HAVE_CONFIG_H)
+#include "config/bitcoin-config.h"
+#endif
+
+#include "amount.h"
+#include "chainparams.h"
+
+#include "compat.h"
 #include "tinyformat.h"
+#include "utiltime.h"
 
-static const int64_t COIN = 100000000;
-static const int64_t CENT = 1000000;
+#include <atomic>
+#include <exception>
+#include <map>
+#include <stdint.h>
+#include <string>
+#include <vector>
 
-#define BEGIN(a)            ((char*)&(a))
-#define END(a)              ((char*)&((&(a))[1]))
-#define UBEGIN(a)           ((unsigned char*)&(a))
-#define UEND(a)             ((unsigned char*)&((&(a))[1]))
-#define ARRAYLEN(array)     (sizeof(array)/sizeof((array)[0]))
+#include <boost/filesystem/path.hpp>
+#include <boost/signals2/signal.hpp>
+#include <boost/thread/exceptions.hpp>
 
-#define PAIRTYPE(t1, t2)    std::pair<t1, t2>
+static const bool DEFAULT_LOGTIMEMICROS = false;
+static const bool DEFAULT_LOGIPS        = false;
+static const bool DEFAULT_LOGTIMESTAMPS = true;
 
-/* Format characters for (s)size_t, ptrdiff_t.
- *
- * Define these as empty as the tinyformat-based formatting system is
- * type-safe, no special format characters are needed to specify sizes.
+/** Signals for translation. */
+class CTranslationInterface
+{
+public:
+    /** Translate a message to the native language of the user. */
+    boost::signals2::signal<std::string (const char* psz)> Translate;
+};
+
+extern std::map<std::string, std::string> mapArgs;
+extern std::map<std::string, std::vector<std::string> > mapMultiArgs;
+extern bool fDebug;
+extern bool fPrintToConsole;
+extern bool fPrintToDebugLog;
+extern bool fServer;
+extern std::string strMiscWarning;
+extern bool fLogTimestamps;
+extern bool fLogTimeMicros;
+extern bool fLogIPs;
+extern std::atomic<bool> fReopenDebugLog;
+extern CTranslationInterface translationInterface;
+
+extern const char * const BITCOIN_CONF_FILENAME;
+extern const char * const BITCOIN_PID_FILENAME;
+
+/**
+ * Translation function: Call Translate signal on UI interface, which returns a boost::optional result.
+ * If no translation slot is registered, nothing is returned, and simply return the input.
  */
-#define PRIszx    "x"
-#define PRIszu    "u"
-#define PRIszd    "d"
-#define PRIpdx    "x"
-#define PRIpdu    "u"
-#define PRIpdd    "d"
-
-#define strprintf tfm::format
-#define LogPrintf(...) ((void)0)
-
-//#define error(...) false;
-inline bool error(const char *s) {
-  return false;
-}
-
-
-inline std::string i64tostr(int64_t n)
+inline std::string _(const char* psz)
 {
-    return strprintf("%d", n);
+    boost::optional<std::string> rv = translationInterface.Translate(psz);
+    return rv ? (*rv) : psz;
 }
 
-inline std::string itostr(int n)
+void SetupEnvironment();
+bool SetupNetworking();
+
+/** Return true if log accepts specified category */
+bool LogAcceptCategory(const char* category);
+/** Send a string to the log output */
+int LogPrintStr(const std::string &str);
+
+#define LogPrintf(...) LogPrint(NULL, __VA_ARGS__)
+
+template<typename T1, typename... Args>
+static inline int LogPrint(const char* category, const char* fmt, const T1& v1, const Args&... args)
 {
-    return strprintf("%d", n);
+    if(!LogAcceptCategory(category)) return 0;                            \
+    return LogPrintStr(tfm::format(fmt, v1, args...));
 }
 
-inline int64_t atoi64(const char* psz)
+template<typename T1, typename... Args>
+bool error(const char* fmt, const T1& v1, const Args&... args)
 {
-#ifdef _MSC_VER
-    return _atoi64(psz);
-#else
-    return strtoll(psz, NULL, 10);
-#endif
+    LogPrintStr("ERROR: " + tfm::format(fmt, v1, args...) + "\n");
+    return false;
 }
 
-inline int64_t atoi64(const std::string& str)
+/**
+ * Zero-arg versions of logging and error, these are not covered by
+ * the variadic templates above (and don't take format arguments but
+ * bare strings).
+ */
+static inline int LogPrint(const char* category, const char* s)
 {
-#ifdef _MSC_VER
-    return _atoi64(str.c_str());
-#else
-    return strtoll(str.c_str(), NULL, 10);
-#endif
+    if(!LogAcceptCategory(category)) return 0;
+    return LogPrintStr(s);
 }
-
-inline int atoi(const std::string& str)
+static inline bool error(const char* s)
 {
-    return atoi(str.c_str());
+    LogPrintStr(std::string("ERROR: ") + s + "\n");
+    return false;
 }
 
-inline int roundint(double d)
-{
-    return (int)(d > 0 ? d + 0.5 : d - 0.5);
-}
-
-inline int64_t roundint64(double d)
-{
-    return (int64_t)(d > 0 ? d + 0.5 : d - 0.5);
-}
-
-inline int64_t abs64(int64_t n)
-{
-    return (n >= 0 ? n : -n);
-}
-
-template<typename T>
-std::string HexStr(const T itbegin, const T itend, bool fSpaces=false)
-{
-    std::string rv;
-    static const char hexmap[16] = { '0', '1', '2', '3', '4', '5', '6', '7',
-                                     '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
-    rv.reserve((itend-itbegin)*3);
-    for(T it = itbegin; it < itend; ++it)
-    {
-        unsigned char val = (unsigned char)(*it);
-        if(fSpaces && it != itbegin)
-            rv.push_back(' ');
-        rv.push_back(hexmap[val>>4]);
-        rv.push_back(hexmap[val&15]);
-    }
-
-    return rv;
-}
-
-template<typename T>
-inline std::string HexStr(const T& vch, bool fSpaces=false)
-{
-    return HexStr(vch.begin(), vch.end(), fSpaces);
-}
-
-std::vector<unsigned char> ParseHex(const char* psz);
-std::vector<unsigned char> ParseHex(const std::string& str);
-bool IsHex(const std::string& str);
-std::vector<unsigned char> DecodeBase64(const char* p, bool* pfInvalid = NULL);
-std::string DecodeBase64(const std::string& str);
-std::string EncodeBase64(const unsigned char* pch, size_t len);
-std::string EncodeBase64(const std::string& str);
-
+void PrintExceptionContinue(const std::exception *pex, const char* pszThread);
 void ParseParameters(int argc, const char*const argv[]);
+void FileCommit(FILE *fileout);
+bool TruncateFile(FILE *file, unsigned int length);
+int RaiseFileDescriptorLimit(int nMinFD);
+void AllocateFileRange(FILE *file, unsigned int offset, unsigned int length);
+bool RenameOver(boost::filesystem::path src, boost::filesystem::path dest);
+bool TryCreateDirectory(const boost::filesystem::path& p);
+boost::filesystem::path GetDefaultDataDir();
+const boost::filesystem::path &GetDataDir(bool fNetSpecific = true);
+void ClearDatadirCache();
+boost::filesystem::path GetConfigFile();
+#ifndef WIN32
+boost::filesystem::path GetPidFile();
+void CreatePidFile(const boost::filesystem::path &path, pid_t pid);
+#endif
+void ReadConfigFile(std::map<std::string, std::string>& mapSettingsRet, std::map<std::string, std::vector<std::string> >& mapMultiSettingsRet);
+#ifdef WIN32
+boost::filesystem::path GetSpecialFolderPath(int nFolder, bool fCreate = true);
+#endif
+void OpenDebugLog();
+void ShrinkDebugFile();
+void runCommand(const std::string& strCommand);
+
+inline bool IsSwitchChar(char c)
+{
+#ifdef WIN32
+    return c == '-' || c == '/';
+#else
+    return c == '-';
+#endif
+}
 
 /**
  * Return string argument or default value
@@ -169,7 +188,62 @@ bool SoftSetArg(const std::string& strArg, const std::string& strValue);
  */
 bool SoftSetBoolArg(const std::string& strArg, bool fValue);
 
+/**
+ * Format a string to be used as group of options in help messages
+ *
+ * @param message Group name (e.g. "RPC server options:")
+ * @return the formatted string
+ */
+std::string HelpMessageGroup(const std::string& message);
 
-const char * FormatFullVersion();
+/**
+ * Format a string to be used as option description in help messages
+ *
+ * @param option Option message (e.g. "-rpcuser=<user>")
+ * @param message Option description (e.g. "Username for JSON-RPC connections")
+ * @return the formatted string
+ */
+std::string HelpMessageOpt(const std::string& option, const std::string& message);
 
-#endif
+/**
+ * Return the number of physical cores available on the current system.
+ * @note This does not count virtual cores, such as those provided by HyperThreading
+ * when boost is newer than 1.56.
+ */
+int GetNumCores();
+
+void RenameThread(const char* name);
+
+/**
+ * .. and a wrapper that just calls func once
+ */
+template <typename Callable> void TraceThread(const char* name,  Callable func)
+{
+    std::string s = strprintf("bitcoin-%s", name);
+    RenameThread(s.c_str());
+    try
+    {
+        LogPrintf("%s thread start\n", name);
+        func();
+        LogPrintf("%s thread exit\n", name);
+    }
+    catch (const boost::thread_interrupted&)
+    {
+        LogPrintf("%s thread interrupt\n", name);
+        throw;
+    }
+    catch (const std::exception& e) {
+        PrintExceptionContinue(&e, name);
+        throw;
+    }
+    catch (...) {
+        PrintExceptionContinue(NULL, name);
+        throw;
+    }
+}
+
+std::string CopyrightHolders(const std::string& strPrefix);
+
+CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams);
+
+#endif // BITCOIN_UTIL_H

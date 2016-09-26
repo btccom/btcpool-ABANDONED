@@ -42,7 +42,6 @@
 
 #include <glog/logging.h>
 
-#include "bitcoin/core.h"
 #include "Kafka.h"
 #include "MySQLConnection.h"
 #include "Stratum.h"

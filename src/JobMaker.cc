@@ -28,11 +28,11 @@
 #include <glog/logging.h>
 #include <librdkafka/rdkafka.h>
 
-#include "bitcoin/core.h"
 #include "bitcoin/hash.h"
-#include "bitcoin/script.h"
+#include "bitcoin/script/script.h"
 #include "bitcoin/uint256.h"
 #include "bitcoin/util.h"
+#include "bitcoin/utilstrencodings.h"
 
 #include "utilities_js.hpp"
 #include "Utils.h"
@@ -276,7 +276,7 @@ void JobMaker::addRawgbt(const char *str, size_t len) {
     return;
   }
 
-  const uint256 gbtHash = uint256(r["gbthash"].str());
+  const uint256 gbtHash = uint256S(r["gbthash"].str());
   for (const auto &itr : lastestGbtHash_) {
     if (gbtHash == itr) {
       LOG(ERROR) << "duplicate gbt hash: " << gbtHash.ToString();

@@ -118,10 +118,10 @@ int main(int argc, char **argv) {
     bool isTestnet3 = true;
     cfg.lookupValue("testnet", isTestnet3);
     if (isTestnet3) {
-      SelectParams(CChainParams::TESTNET);
+      SelectParams(CBaseChainParams::TESTNET);
       LOG(WARNING) << "using bitcoin testnet3";
     } else {
-      SelectParams(CChainParams::MAIN);
+      SelectParams(CBaseChainParams::MAIN);
     }
 
     int32_t port = 3333;

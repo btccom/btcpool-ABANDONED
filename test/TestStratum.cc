@@ -28,9 +28,8 @@
 #include "Stratum.h"
 
 #include "bitcoin/chainparams.h"
-#include "bitcoin/core.h"
 #include "bitcoin/hash.h"
-#include "bitcoin/script.h"
+#include "bitcoin/script/script.h"
 #include "bitcoin/uint256.h"
 #include "bitcoin/util.h"
 
@@ -104,13 +103,13 @@ TEST(Stratum, StratumWorker) {
 
 
   w.setUserIDAndNames(0, "abcdefg");
-  ASSERT_EQ(w.fullName_,   "abcdefg.default");
+  ASSERT_EQ(w.fullName_,   "abcdefg.__default__");
   ASSERT_EQ(w.userId_,     0);
   ASSERT_EQ(w.userName_,   "abcdefg");
-  ASSERT_EQ(w.workerName_, "default");
-  // 'default' dsha256 : 141ab30bfb6e9e5c81b810cf65b30c0cfea550fcb90452cdce13b634927a0fbf
-  //           uint256 : bf0f7a9234b613ce....
-  u = strtoull("bf0f7a9234b613ce", nullptr, 16);
+  ASSERT_EQ(w.workerName_, "__default__");
+  // '__default__' dsha256 : e00f302bc411fde77d954283be6904911742f2ac76c8e79abef5dff4e6a19770
+  //               uint256 : 7097a1e6f4dff5be
+  u = strtoull("7097a1e6f4dff5be", nullptr, 16);
   memcpy((uint8_t *)&workerId, (uint8_t *)&u, 8);
   ASSERT_EQ(w.workerHashId_, workerId);
 
@@ -126,8 +125,8 @@ TEST(Stratum, StratumWorker) {
 
   // all bad chars
   w.setUserIDAndNames(0, "abcdefg.~!@#$%&*()+={}[]\\<>?,");
-  ASSERT_EQ(w.workerName_, "default");
-  ASSERT_EQ(w.fullName_,   "abcdefg.default");
+  ASSERT_EQ(w.workerName_, "__default__");
+  ASSERT_EQ(w.fullName_,   "abcdefg.__default__");
 }
 
 TEST(Stratum, StratumJob) {
@@ -136,7 +135,7 @@ TEST(Stratum, StratumJob) {
   uint32_t blockVersion = 0;
   bool res;
 
-  SelectParams(CChainParams::MAIN);
+  SelectParams(CBaseChainParams::MAIN);
   CBitcoinAddress poolPayoutAddrMainnet("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa");
   ASSERT_EQ(poolPayoutAddrMainnet.IsValid(), true);
 
@@ -179,7 +178,7 @@ TEST(Stratum, StratumJob) {
     gbt += "}}";
 
     blockVersion = 0;
-    SelectParams(CChainParams::TESTNET);
+    SelectParams(CBaseChainParams::TESTNET);
     CBitcoinAddress poolPayoutAddrTestnet("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U");
     ASSERT_EQ(poolPayoutAddrTestnet.IsValid(), true);
     res = sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion, "");
@@ -190,7 +189,7 @@ TEST(Stratum, StratumJob) {
     res = sjob2.unserializeFromJson(jsonStr.c_str(), jsonStr.length());
     ASSERT_EQ(res, true);
 
-    ASSERT_EQ(sjob2.prevHash_, uint256("000000004f2ea239532b2e77bb46c03b86643caac3fe92959a31fd2d03979c34"));
+    ASSERT_EQ(sjob2.prevHash_, uint256S("000000004f2ea239532b2e77bb46c03b86643caac3fe92959a31fd2d03979c34"));
     ASSERT_EQ(sjob2.prevHashBeStr_, "03979c349a31fd2dc3fe929586643caabb46c03b532b2e774f2ea23900000000");
     ASSERT_EQ(sjob2.height_, 898487);
     ASSERT_EQ(sjob2.coinbase1_,
@@ -198,7 +197,7 @@ TEST(Stratum, StratumJob) {
     ASSERT_EQ(sjob2.coinbase2_,
               "ffffffff01c7cea212000000001976a914ca560088c0fb5e6f028faa11085e643e343a8f5c88ac00000000");
     ASSERT_EQ(sjob2.merkleBranch_.size(), 1);
-    ASSERT_EQ(sjob2.merkleBranch_[0], uint256("bd36bd4fff574b573152e7d4f64adf2bb1c9ab0080a12f8544c351f65aca79ff"));
+    ASSERT_EQ(sjob2.merkleBranch_[0], uint256S("bd36bd4fff574b573152e7d4f64adf2bb1c9ab0080a12f8544c351f65aca79ff"));
     ASSERT_EQ(sjob2.nVersion_, 536870912);
     ASSERT_EQ(sjob2.nBits_,    436308706);
     ASSERT_EQ(sjob2.nTime_,    1469006933);
