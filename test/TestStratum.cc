@@ -103,13 +103,13 @@ TEST(Stratum, StratumWorker) {
 
 
   w.setUserIDAndNames(0, "abcdefg");
-  ASSERT_EQ(w.fullName_,   "abcdefg.default");
+  ASSERT_EQ(w.fullName_,   "abcdefg.__default__");
   ASSERT_EQ(w.userId_,     0);
   ASSERT_EQ(w.userName_,   "abcdefg");
-  ASSERT_EQ(w.workerName_, "default");
-  // 'default' dsha256 : 141ab30bfb6e9e5c81b810cf65b30c0cfea550fcb90452cdce13b634927a0fbf
-  //           uint256 : bf0f7a9234b613ce....
-  u = strtoull("bf0f7a9234b613ce", nullptr, 16);
+  ASSERT_EQ(w.workerName_, "__default__");
+  // '__default__' dsha256 : e00f302bc411fde77d954283be6904911742f2ac76c8e79abef5dff4e6a19770
+  //               uint256 : 7097a1e6f4dff5be
+  u = strtoull("7097a1e6f4dff5be", nullptr, 16);
   memcpy((uint8_t *)&workerId, (uint8_t *)&u, 8);
   ASSERT_EQ(w.workerHashId_, workerId);
 
@@ -125,8 +125,8 @@ TEST(Stratum, StratumWorker) {
 
   // all bad chars
   w.setUserIDAndNames(0, "abcdefg.~!@#$%&*()+={}[]\\<>?,");
-  ASSERT_EQ(w.workerName_, "default");
-  ASSERT_EQ(w.fullName_,   "abcdefg.default");
+  ASSERT_EQ(w.workerName_, "__default__");
+  ASSERT_EQ(w.fullName_,   "abcdefg.__default__");
 }
 
 TEST(Stratum, StratumJob) {
