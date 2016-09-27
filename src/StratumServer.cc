@@ -634,13 +634,13 @@ void StratumJobEx::generateBlockHeader(CBlockHeader *header,
   header->nNonce        = nonce;
 
   // hashMerkleRoot
-  Hash(coinbaseBin->begin(), coinbaseBin->end(),
-       BEGIN(header->hashMerkleRoot), END(header->hashMerkleRoot));
+  header->hashMerkleRoot = Hash(coinbaseBin->begin(), coinbaseBin->end());
 
   for (const uint256 & step : merkleBranch) {
-    header->hashMerkleRoot = Hash(header->hashMerkleRoot.begin(),
-                                  header->hashMerkleRoot.end(),
-                                  BEGIN(step), END(step));
+    header->hashMerkleRoot = Hash(BEGIN(header->hashMerkleRoot),
+                                  END  (header->hashMerkleRoot),
+                                  BEGIN(step),
+                                  END  (step));
   }
 }
 
