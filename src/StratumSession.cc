@@ -730,7 +730,7 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr) {
     // short Job ID
     //
     const uint64_t niceHashJobId = (uint64_t)time(nullptr) * 10 + ljob.shortJobId_;
-  	notifyStr.append(Strings::Format("% " PRIu64"", niceHashJobId));
+    notifyStr.append(Strings::Format("% " PRIu64"", niceHashJobId));
   } else {
     notifyStr.append(Strings::Format("%u", ljob.shortJobId_));  // short jobId
   }
