@@ -490,7 +490,7 @@ void StratumSession::handleRequest_SuggestTarget(const string &idStr,
     responseError(idStr, StratumError::ILLEGAL_PARARMS);
     return;
   }
-  _handleRequest_SetDifficulty(TargetToPdiff(jparams.children()->at(0).str()));
+  _handleRequest_SetDifficulty(TargetToDiff(jparams.children()->at(0).str()));
 }
 
 void StratumSession::handleRequest_SuggestDifficulty(const string &idStr,
