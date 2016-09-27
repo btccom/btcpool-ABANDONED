@@ -1001,7 +1001,7 @@ int Server::checkShare(const Share &share,
   //
   // found new block
   //
-  if (isSubmitInvalidBlock_ == true || bnBlockHash < bnNetworkTarget) {
+  if (isSubmitInvalidBlock_ == true || bnBlockHash <= bnNetworkTarget) {
     //
     // build found block
     //
@@ -1027,8 +1027,8 @@ int Server::checkShare(const Share &share,
   // print out high diff share, 2^10 = 1024
   if ((bnBlockHash >> 10) <= bnNetworkTarget) {
     LOG(INFO) << "high diff share, blkhash: " << blkHash.ToString()
-    << ", diff: " << TargetToBdiff(blkHash)
-    << ", networkDiff: " << TargetToBdiff(sjob->networkTarget_)
+    << ", diff: " << TargetToDiff(blkHash)
+    << ", networkDiff: " << TargetToDiff(sjob->networkTarget_)
     << ", by: " << workFullName;
   }
 
@@ -1036,7 +1036,7 @@ int Server::checkShare(const Share &share,
   // found namecoin block
   //
   if (sjob->nmcAuxBits_ != 0 &&
-      (isSubmitInvalidBlock_ == true || bnBlockHash < UintToArith256(sjob->nmcNetworkTarget_))) {
+      (isSubmitInvalidBlock_ == true || bnBlockHash <= UintToArith256(sjob->nmcNetworkTarget_))) {
     //
     // build namecoin solved share message
     //
