@@ -32,6 +32,7 @@
 #define KAFKA_TOPIC_STRATUM_JOB    "StratumJob"
 #define KAFKA_TOPIC_SOLVED_SHARE   "SolvedShare"
 #define KAFKA_TOPIC_SHARE_LOG      "ShareLog"
+#define KAFKA_TOPIC_COMMON_EVENTS  "CommonEvents"
 
 #define KAFKA_TOPIC_NMC_AUXBLOCK      "NMCAuxBlock"
 #define KAFKA_TOPIC_NMC_SOLVED_SHARE  "NMCSolvedShare"

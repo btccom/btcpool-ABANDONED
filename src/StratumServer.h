@@ -225,6 +225,7 @@ class Server {
   KafkaProducer *kafkaProducerShareLog_;
   KafkaProducer *kafkaProducerSolvedShare_;
   KafkaProducer *kafkaProducerNamecoinSolvedShare_;
+  KafkaProducer *kafkaProducerCommonEvents_;
 
   //
   // WARNING: if enable simulator, all share will be accepted. only for test.
@@ -274,6 +275,7 @@ public:
   void sendShare2Kafka      (const uint8_t *data, size_t len);
   void sendSolvedShare2Kafka(const FoundBlock *foundBlock,
                              const std::vector<char> &coinbaseBin);
+  void sendCommonEvents2Kafka(const string &message);
 };
 
 

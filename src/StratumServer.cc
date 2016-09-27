@@ -685,8 +685,10 @@ void StratumServer::run() {
 
 ///////////////////////////////////// Server ///////////////////////////////////
 Server::Server(): base_(nullptr), signal_event_(nullptr), listener_(nullptr),
-kafkaProducerShareLog_(nullptr), kafkaProducerSolvedShare_(nullptr),
+kafkaProducerShareLog_(nullptr),
+kafkaProducerSolvedShare_(nullptr),
 kafkaProducerNamecoinSolvedShare_(nullptr),
+kafkaProducerCommonEvents_(nullptr),
 isEnableSimulator_(false), isSubmitInvalidBlock_(false),
 kShareAvgSeconds_(10), // TODO: read from cfg
 jobRepository_(nullptr), userInfo_(nullptr), sessionIDManager_(nullptr)
@@ -711,6 +713,9 @@ Server::~Server() {
   }
   if (kafkaProducerNamecoinSolvedShare_ != nullptr) {
     delete kafkaProducerNamecoinSolvedShare_;
+  }
+  if (kafkaProducerCommonEvents_ != nullptr) {
+    delete kafkaProducerCommonEvents_;
   }
   if (jobRepository_ != nullptr) {
     delete jobRepository_;
@@ -747,6 +752,9 @@ bool Server::setup(const char *ip, const unsigned short port,
   kafkaProducerShareLog_ = new KafkaProducer(kafkaBrokers,
                                              KAFKA_TOPIC_SHARE_LOG,
                                              RD_KAFKA_PARTITION_UA);
+  kafkaProducerCommonEvents_ = new KafkaProducer(kafkaBrokers,
+                                                 KAFKA_TOPIC_COMMON_EVENTS,
+                                                 RD_KAFKA_PARTITION_UA);
 
   // job repository
   jobRepository_ = new JobRepository(kafkaBrokers, fileLastNotifyTime, this);
@@ -809,6 +817,23 @@ bool Server::setup(const char *ip, const unsigned short port,
     }
     if (!kafkaProducerNamecoinSolvedShare_->checkAlive()) {
       LOG(ERROR) << "kafka kafkaProducerNamecoinSolvedShare_ is NOT alive";
+      return false;
+    }
+  }
+
+  // kafkaProducerCommonEvents_
+  {
+    map<string, string> options;
+    options["queue.buffering.max.messages"] = "500000";
+    options["queue.buffering.max.ms"] = "1000";  // send every second
+    options["batch.num.messages"]     = "10000";
+
+    if (!kafkaProducerCommonEvents_->setup(&options)) {
+      LOG(ERROR) << "kafka kafkaProducerCommonEvents_ setup failure";
+      return false;
+    }
+    if (!kafkaProducerCommonEvents_->checkAlive()) {
+      LOG(ERROR) << "kafka kafkaProducerCommonEvents_ is NOT alive";
       return false;
     }
   }
@@ -1104,4 +1129,8 @@ void Server::sendSolvedShare2Kafka(const FoundBlock *foundBlock,
   memcpy(p, coinbaseBin.data(), coinbaseBin.size());
 
   kafkaProducerSolvedShare_->produce(buf.data(), buf.size());
+}
+
+void Server::sendCommonEvents2Kafka(const string &message) {
+  kafkaProducerCommonEvents_->produce(message.data(), message.size());
 }

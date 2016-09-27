@@ -251,6 +251,23 @@ StratumSession::~StratumSession() {
 void StratumSession::markAsDead() {
   // mark as dead
   isDead_ = true;
+
+  // sent event to kafka: miner_dead
+  {
+    string eventJson;
+    eventJson = Strings::Format("{\"created_at\":\"%s\","
+                                "\"type\":\"miner_dead\","
+                                "\"content\":{"
+                                "\"user_id\":%d,\"user_name\":\"%s\","
+                                "\"worker_name\":\"%s\","
+                                "\"client_agent\":\"%s\",\"ip\":\"%s\""
+                                "}}",
+                                date("%F %T").c_str(),
+                                worker_.userId_, worker_.userName_.c_str(),
+                                worker_.workerName_.c_str(),
+                                clientAgent_.c_str(), clientIp_.c_str());
+    server_->sendCommonEvents2Kafka(eventJson);
+  }
 }
 
 bool StratumSession::isDead() {
@@ -477,6 +494,23 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
 
   // send latest stratum job
   sendMiningNotify(server_->jobRepository_->getLatestStratumJobEx());
+
+  // sent events to kafka: miner_connect
+  {
+    string eventJson;
+    eventJson = Strings::Format("{\"created_at\":\"%s\","
+                                "\"type\":\"miner_connect\","
+                                "\"content\":{"
+                                "\"user_id\":%d,\"user_name\":\"%s\","
+                                "\"worker_name\":\"%s\","
+                                "\"client_agent\":\"%s\",\"ip\":\"%s\""
+                                "}}",
+                                date("%F %T").c_str(),
+                                worker_.userId_, worker_.userName_.c_str(),
+                                worker_.workerName_.c_str(),
+                                clientAgent_.c_str(), clientIp_.c_str());
+    server_->sendCommonEvents2Kafka(eventJson);
+  }
 }
 
 void StratumSession::handleExMessage_AuthorizeAgentWorker(const int64_t workerId,
