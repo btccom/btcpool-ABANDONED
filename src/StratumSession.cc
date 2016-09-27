@@ -217,7 +217,8 @@ bev_(bev), fd_(fd), server_(server)
   assert(kMaxNumLocalJobs_ <= 10);
 
   inBuf_  = evbuffer_new();
-  isPoolWatcher_ = false;
+  isLongTimeout_    = false;
+  isNiceHashClient_ = false;
 
   clientAgent_ = "unknown";
   // ipv4
@@ -239,7 +240,8 @@ StratumSession::~StratumSession() {
   }
 
   LOG(INFO) << "close stratum session, ip: " << clientIp_
-  << ", name: \"" << worker_.fullName_ << "\"";
+  << ", name: \"" << worker_.fullName_ << "\""
+  << ", agent: \"" << clientAgent_ << "\"";
 
 //  close(fd_);  // we don't need to close because we set 'BEV_OPT_CLOSE_ON_FREE'
   evbuffer_free(inBuf_);
@@ -369,6 +371,20 @@ void StratumSession::handleRequest_MultiVersion(const string &idStr,
 //  sendData(s);
 }
 
+static
+bool _isNiceHashAgent(const string &clientAgent) {
+  if (clientAgent.length() < 9) {
+    return false;
+  }
+  string agent = clientAgent;
+  // tolower
+  std::transform(agent.begin(), agent.end(), agent.begin(), ::tolower);
+  if (agent.substr(0, 9) == "nicehash/") {
+    return true;
+  }
+  return false;
+}
+
 void StratumSession::handleRequest_Subscribe(const string &idStr,
                                              const JsonNode &jparams) {
   if (state_ != CONNECTED) {
@@ -400,8 +416,12 @@ void StratumSession::handleRequest_Subscribe(const string &idStr,
   sendData(s);
 
   if (clientAgent_ == "__PoolWatcher__") {
-    isPoolWatcher_ = true;
+    isLongTimeout_ = true;
   }
+
+  // check if it's NinceHash/x.x.x
+  if (_isNiceHashAgent(clientAgent_))
+    isNiceHashClient_ = true;
 
   //
   // check if it's BTCAgent
@@ -411,7 +431,7 @@ void StratumSession::handleRequest_Subscribe(const string &idStr,
     LOG(INFO) << "agent model, client: " << clientAgent_;
     agentSessions_ = new AgentSessions(shareAvgSeconds_, this);
 
-    isPoolWatcher_ = true;  // will set long timeout
+    isLongTimeout_ = true;  // will set long timeout
   }
 }
 
@@ -453,7 +473,7 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
 
   // set read timeout to 10 mins, it's enought for most miners even usb miner.
   // if it's a pool watcher, set timeout to a week
-  setReadTimeout(isPoolWatcher_ ? 86400*7 : 60*10);
+  setReadTimeout(isLongTimeout_ ? 86400*7 : 60*10);
 
   // send latest stratum job
   sendMiningNotify(server_->jobRepository_->getLatestStratumJobEx());
@@ -526,7 +546,13 @@ void StratumSession::handleRequest_Submit(const string &idStr,
     responseError(idStr, StratumError::ILLEGAL_PARARMS);
     return;
   }
-  const uint8_t shortJobId   = (uint8_t)jparams.children()->at(1).uint32();
+
+  uint8_t shortJobId;
+  if (isNiceHashClient_) {
+    shortJobId = (uint8_t)(jparams.children()->at(1).uint64() % 10);
+  } else {
+    shortJobId = (uint8_t)jparams.children()->at(1).uint32();
+  }
   const uint64_t extraNonce2 = jparams.children()->at(2).uint64_hex();
   uint32_t nTime             = jparams.children()->at(3).uint32_hex();
   const uint32_t nonce       = jparams.children()->at(4).uint32_hex();
@@ -691,9 +717,28 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr) {
     currDiff_ = ljob.jobDifficulty_;
   }
 
-  sendData(exJobPtr->miningNotify1_);
-  sendData(Strings::Format("%u", ljob.shortJobId_));  // short jobId
-  sendData(exJobPtr->miningNotify2_);
+  string notifyStr;
+  notifyStr.reserve(2048);
+
+  // notify1
+  notifyStr.append(exJobPtr->miningNotify1_);
+
+  // jobId
+  if (isNiceHashClient_) {
+    //
+    // we need to send unique JobID to NiceHash Client, they have problems with
+    // short Job ID
+    //
+    const uint64_t niceHashJobId = (uint64_t)time(nullptr) * 10 + ljob.shortJobId_;
+  	notifyStr.append(Strings::Format("% " PRIu64"", niceHashJobId));
+  } else {
+    notifyStr.append(Strings::Format("%u", ljob.shortJobId_));  // short jobId
+  }
+
+  // notify2
+  notifyStr.append(exJobPtr->miningNotify2_);
+
+  sendData(notifyStr);  // send notify string
 
   // clear localJobs_
   while (localJobs_.size() >= kMaxNumLocalJobs_) {

@@ -198,8 +198,11 @@ private:
   size_t kMaxNumLocalJobs_;
 
   struct evbuffer *inBuf_;
-  bool   isPoolWatcher_;
+  bool   isLongTimeout_;
   uint8_t shortJobIdIdx_;
+
+  // nicehash has can't use short JobID
+  bool isNiceHashClient_;
 
   AgentSessions *agentSessions_;
 
