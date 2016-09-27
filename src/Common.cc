@@ -26,32 +26,16 @@
 
 #include <math.h>
 
-uint64 TargetToBdiff(uint256 &target) {
-  arith_uint256 m, t;
-  m.SetHex("0x00000000FFFF0000000000000000000000000000000000000000000000000000");
-  t = UintToArith256(target);
-  return strtoull((m / t).ToString().c_str(), NULL, 10);
+uint64 TargetToDiff(uint256 &target) {
+  arith_uint256 t = UintToArith256(target);
+  uint64_t difficulty;
+  BitsToDifficulty(t.GetCompact(), &difficulty);
+  return difficulty;
 }
 
-uint64 TargetToBdiff(const string &str) {
-  arith_uint256 m, t;
-  m.SetHex("0x00000000FFFF0000000000000000000000000000000000000000000000000000");
-  t.SetHex(str);
-  return strtoull((m / t).ToString().c_str(), NULL, 10);
-}
-
-uint64 TargetToPdiff(uint256 &target) {
-  arith_uint256 m, t;
-  m.SetHex("0x00000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
-  t = UintToArith256(target);
-  return strtoull((m / t).ToString().c_str(), NULL, 10);
-}
-
-uint64 TargetToPdiff(const string &str) {
-  arith_uint256 m, t;
-  m.SetHex("0x00000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
-  t.SetHex(str);
-  return strtoull((m / t).ToString().c_str(), NULL, 10);
+uint64 TargetToDiff(const string &str) {
+  uint256 t = uint256S(str);
+  return TargetToDiff(t);
 }
 
 void BitsToTarget(uint32 bits, uint256 & target) {
@@ -158,13 +142,15 @@ static const uint256 kDiff2TargetTable[] = {
   uint256S("000000000000000000000001fffe000000000000000000000000000000000000")  // 2^63
 };
 
-void DiffToTarget(uint64 diff, uint256 &target) {
-  // try to find by table
-  const uint64_t p = (uint64_t)log2(diff);
-  if (p < (sizeof(kDiff2TargetTable)/sizeof(kDiff2TargetTable[0])) &&
-      diff == (1ull << p)) {
-    target = kDiff2TargetTable[p];
-    return;
+void DiffToTarget(uint64 diff, uint256 &target, bool useTable) {
+  if (useTable) {
+    // try to find by table
+    const uint64_t p = (uint64_t)log2(diff);
+    if (p < (sizeof(kDiff2TargetTable)/sizeof(kDiff2TargetTable[0])) &&
+        diff == (1ull << p)) {
+      target = kDiff2TargetTable[p];
+      return;
+    }
   }
 
   // if we use the above table, it's big enough, we don't need to calc anymore

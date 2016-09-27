@@ -125,14 +125,11 @@ inline int64 HToBe(int64 v) {
   return (int64)HToBe((uint64)v);
 }
 
-
-uint64 TargetToBdiff(uint256 &target);
-uint64 TargetToBdiff(const string &str);
-uint64 TargetToPdiff(uint256 &target);
-uint64 TargetToPdiff(const string &str);
+uint64 TargetToDiff(uint256 &target);
+uint64 TargetToDiff(const string &str);
 
 void BitsToTarget(uint32 bits, uint256 & target);
-void DiffToTarget(uint64 diff, uint256 & target);
+void DiffToTarget(uint64 diff, uint256 & target, bool useTable=true);
 
 inline void BitsToDifficulty(uint32 bits, double *difficulty) {
   int nShift = (bits >> 24) & 0xff;
