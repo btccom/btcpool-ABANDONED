@@ -72,6 +72,15 @@ if [ ! -d "run_statshttpd" ]; then
   cd ..
 fi
 
+# poolwatcher
+if [ ! -d "run_poolwatcher" ]; then
+  mkdir "run_poolwatcher" && cd "run_poolwatcher"
+  mkdir "log_poolwatcher"
+  ln -s ../poolwatcher .
+  cp ../../src/poolwatcher/poolwatcher.cfg .
+  cd ..
+fi
+
 # simulator
 if [ ! -d "run_simulator" ]; then
   mkdir "run_simulator" && cd "run_simulator"
