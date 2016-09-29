@@ -253,7 +253,7 @@ void StratumSession::markAsDead() {
   isDead_ = true;
 
   // sent event to kafka: miner_dead
-  {
+  if (worker_.userId_ > 0) {
     string eventJson;
     eventJson = Strings::Format("{\"created_at\":\"%s\","
                                 "\"type\":\"miner_dead\","
