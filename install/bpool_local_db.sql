@@ -52,7 +52,7 @@ CREATE TABLE `mining_workers` (
   `reject_15m` bigint(20) NOT NULL DEFAULT '0',
   `accept_count` int(11) NOT NULL DEFAULT '0',
   `last_share_ip` char(16) NOT NULL DEFAULT '0.0.0.0',
-  `last_share_time` timestamp NOT NULL DEFAULT '1979-01-01 00:00:00',
+  `last_share_time` timestamp NOT NULL DEFAULT '1970-01-01 00:00:01',
   `miner_agent` varchar(30) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
