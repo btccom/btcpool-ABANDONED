@@ -26,6 +26,7 @@
 #include "utilities_js.hpp"
 
 #include <arpa/inet.h>
+#include <boost/algorithm/string.hpp>
 
 #include "StratumServer.h"
 
@@ -452,6 +453,58 @@ void StratumSession::handleRequest_Subscribe(const string &idStr,
   }
 }
 
+void StratumSession::_handleRequest_AuthorizePassword(const string &password) {
+  // testcase: TEST(StratumSession, SetDiff)
+  using namespace boost::algorithm;
+
+  uint64_t d = 0u, md = 0u;
+  vector<string> arr;  // key=value,key=value
+  split(arr, password, is_any_of(","));
+  if (arr.size() == 0)
+    return;
+
+  for (auto it = arr.begin(); it != arr.end(); it++) {
+    vector<string> arr2;  // key,value
+    split(arr2, *it, is_any_of("="));
+    if (arr2.size() != 2 || arr2[1].empty()) {
+      continue;
+    }
+
+    if (arr2[0] == "d") {
+      // 'd' : start difficulty
+      d = strtoull(arr2[1].c_str(), nullptr, 10);
+    }
+    else if (arr2[0] == "md") {
+      // 'md' : minimum difficulty
+      md = strtoull(arr2[1].c_str(), nullptr, 10);
+    }
+  }
+
+  // set min diff first
+  if (md >= DiffController::kMinDiff_) {
+    // diff must be 2^N
+    double i = 1;
+    while ((uint64_t)exp2(i) < md) {
+      i++;
+    }
+    md = (uint64_t)exp2(i);
+
+    diffController_.setMinDiff(md);
+  }
+
+  // than set current diff
+  if (d >= DiffController::kMinDiff_) {
+    // diff must be 2^N
+    double i = 1;
+    while ((uint64_t)exp2(i) < d) {
+      i++;
+    }
+    d = (uint64_t)exp2(i);
+
+    diffController_.resetCurDiff(d);
+  }
+}
+
 void StratumSession::handleRequest_Authorize(const string &idStr,
                                              const JsonNode &jparams) {
   if (state_ != SUBSCRIBED) {
@@ -468,6 +521,12 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
     responseError(idStr, StratumError::INVALID_USERNAME);
     return;
   }
+
+  const string password = jparams.children()->at(1).str();
+  if (!password.empty()) {
+    _handleRequest_AuthorizePassword(password);
+  }
+
   const string fullName = jparams.children()->at(0).str();
   const string userName = worker_.getUserName(fullName);
 

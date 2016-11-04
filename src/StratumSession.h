@@ -229,6 +229,7 @@ private:
   void handleRequest_SuggestDifficulty(const string &idStr, const JsonNode &jparams);
   void handleRequest_MultiVersion     (const string &idStr, const JsonNode &jparams);
   void _handleRequest_SetDifficulty(uint64_t suggestDiff);
+  void _handleRequest_AuthorizePassword(const string &password);
 
   LocalJob *findLocalJob(uint8_t shortJobId);
 

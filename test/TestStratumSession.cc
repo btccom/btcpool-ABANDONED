@@ -26,6 +26,8 @@
 #include "Common.h"
 #include "Utils.h"
 
+#include <boost/algorithm/string.hpp>
+
 #include "StratumSession.h"
 
 TEST(StratumSession, LocalShare) {
@@ -464,3 +466,140 @@ TEST(StratumSession, AgentSessions) {
   }
 }
 
+TEST(StratumSession, SetDiff) {
+  using namespace boost::algorithm;
+
+  {
+    string password = "d=1024";
+    uint64_t d = 0u, md = 0u;
+
+    vector<string> arr;  // key=value,key=value
+    split(arr, password, is_any_of(","));
+
+    for (auto it = arr.begin(); it != arr.end(); it++) {
+      vector<string> arr2;  // key,value
+      split(arr2, *it, is_any_of("="));
+      if (arr2.size() != 2 || arr2[1].empty()) {
+        continue;
+      }
+
+      if (arr2[0] == "d") {
+        // 'd' : start difficulty
+        d = strtoull(arr2[1].c_str(), nullptr, 10);
+      }
+      else if (arr2[0] == "md") {
+        // 'md' : minimum difficulty
+        md = strtoull(arr2[1].c_str(), nullptr, 10);
+      }
+    }
+
+    ASSERT_EQ(d, 1024u);
+    ASSERT_EQ(md, 0u);
+  }
+
+  {
+    string password = "md=2048";
+    uint64_t d = 0u, md = 0u;
+
+    vector<string> arr;  // key=value,key=value
+    split(arr, password, is_any_of(","));
+
+    for (auto it = arr.begin(); it != arr.end(); it++) {
+      vector<string> arr2;  // key,value
+      split(arr2, *it, is_any_of("="));
+      if (arr2.size() != 2 || arr2[1].empty()) {
+        continue;
+      }
+
+      if (arr2[0] == "d") {
+        // 'd' : start difficulty
+        d = strtoull(arr2[1].c_str(), nullptr, 10);
+      }
+      else if (arr2[0] == "md") {
+        // 'md' : minimum difficulty
+        md = strtoull(arr2[1].c_str(), nullptr, 10);
+      }
+    }
+
+    ASSERT_EQ(d, 0u);
+    ASSERT_EQ(md, 2048u);
+  }
+
+  {
+    string password = "d=1024,md=2048";
+    uint64_t d = 0u, md = 0u;
+
+    vector<string> arr;  // key=value,key=value
+    split(arr, password, is_any_of(","));
+
+    for (auto it = arr.begin(); it != arr.end(); it++) {
+      vector<string> arr2;  // key,value
+      split(arr2, *it, is_any_of("="));
+      if (arr2.size() != 2 || arr2[1].empty()) {
+        continue;
+      }
+
+      if (arr2[0] == "d") {
+        // 'd' : start difficulty
+        d = strtoull(arr2[1].c_str(), nullptr, 10);
+      }
+      else if (arr2[0] == "md") {
+        // 'md' : minimum difficulty
+        md = strtoull(arr2[1].c_str(), nullptr, 10);
+      }
+    }
+
+    ASSERT_EQ(d,  1024u);
+    ASSERT_EQ(md, 2048u);
+  }
+
+
+  {
+    string password = "d=1025,md=2500";
+    uint64_t d = 0u, md = 0u;
+
+    vector<string> arr;  // key=value,key=value
+    split(arr, password, is_any_of(","));
+
+    for (auto it = arr.begin(); it != arr.end(); it++) {
+      vector<string> arr2;  // key,value
+      split(arr2, *it, is_any_of("="));
+      if (arr2.size() != 2 || arr2[1].empty()) {
+        continue;
+      }
+
+      if (arr2[0] == "d") {
+        // 'd' : start difficulty
+        d = strtoull(arr2[1].c_str(), nullptr, 10);
+      }
+      else if (arr2[0] == "md") {
+        // 'md' : minimum difficulty
+        md = strtoull(arr2[1].c_str(), nullptr, 10);
+      }
+    }
+
+    // set min diff first
+    if (md >= DiffController::kMinDiff_) {
+      // diff must be 2^N
+      double i = 1;
+      while ((uint64_t)exp2(i) < md) {
+        i++;
+      }
+      md = (uint64_t)exp2(i);
+
+      ASSERT_EQ(md, 4096u);
+    }
+
+    // than set current diff
+    if (d >= DiffController::kMinDiff_) {
+      // diff must be 2^N
+      double i = 1;
+      while ((uint64_t)exp2(i) < d) {
+        i++;
+      }
+      d = (uint64_t)exp2(i);
+      
+      ASSERT_EQ(d,  2048u);
+    }
+  }
+}
