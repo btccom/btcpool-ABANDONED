@@ -333,6 +333,7 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
   nTime_    = jgbt["curtime"].uint32();
   minTime_  = jgbt["mintime"].uint32();
   coinbaseValue_ = jgbt["coinbasevalue"].int64();
+  witnessCommitment_ = jgbt["default_witness_commitment"].str();
   BitsToTarget(nBits_, networkTarget_);
 
   // previous block hash
@@ -460,6 +461,13 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     cbOut.push_back(CTxOut());
     cbOut[0].nValue = coinbaseValue_;
     cbOut[0].scriptPubKey = GetScriptForDestination(poolPayoutAddr.Get());
+
+    LOG(INFO) << "witness commitment" << witnessCommitment_.c_str();
+    vector<char> witnessCommitmentBin;
+    Hex2Bin(witnessCommitment_.c_str(), witnessCommitmentBin);
+    cbOut.push_back(CTxOut());
+    cbOut[1].nValue = 0;
+    cbOut[1].scriptPubKey = CScript((unsigned char*)witnessCommitmentBin.data(), (unsigned char*)witnessCommitmentBin.data() + witnessCommitmentBin.size());
 
     CMutableTransaction cbtx;
     cbtx.vin.push_back(cbIn);
