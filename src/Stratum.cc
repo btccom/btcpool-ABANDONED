@@ -402,12 +402,21 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
   {
     CTxIn cbIn;
     //
-    // block height, 4 bytes
+    // block height, 4 bytes in script: 0x03xxxxxx
     // https://github.com/bitcoin/bips/blob/master/bip-0034.mediawiki
     // https://github.com/bitcoin/bitcoin/pull/1526
     //
     cbIn.scriptSig = CScript();
     cbIn.scriptSig << (uint32_t)height_;
+
+    // add current timestamp to coinbase tx input, so if the block's merkle root
+    // hash is the same, there's no risk for miners to calc the same space.
+    // https://github.com/btccom/btcpool/issues/5
+    //
+    // 5 bytes in script: 0x04xxxxxxxx.
+    // eg. 0x0402363d58 -> 0x583d3602 = 1480406530 = 2016-11-29 16:02:10
+    //
+    cbIn.scriptSig << CScriptNum((uint32_t)time(nullptr));
 
     // pool's info
     cbIn.scriptSig.insert(cbIn.scriptSig.end(),

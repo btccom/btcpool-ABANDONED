@@ -192,8 +192,16 @@ TEST(Stratum, StratumJob) {
     ASSERT_EQ(sjob2.prevHash_, uint256S("000000004f2ea239532b2e77bb46c03b86643caac3fe92959a31fd2d03979c34"));
     ASSERT_EQ(sjob2.prevHashBeStr_, "03979c349a31fd2dc3fe929586643caabb46c03b532b2e774f2ea23900000000");
     ASSERT_EQ(sjob2.height_, 898487);
-    ASSERT_EQ(sjob2.coinbase1_,
-              "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff1903b7b50d2f4254432e434f4d2f");
+    // 46 bytes, 5 bytes (timestamp), 9 bytes (poolCoinbaseInfo)
+    // 01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff1e03b7b50d 0402363d58 2f4254432e434f4d2f
+    ASSERT_EQ(sjob2.coinbase1_.substr(0, 92),
+              "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff1e03b7b50d");
+    ASSERT_EQ(sjob2.coinbase1_.substr(102, 18), "2f4254432e434f4d2f");
+    // 0402363d58 -> 0x583d3602 = 1480406530 = 2016-11-29 16:02:10
+    uint32_t ts = (uint32_t)strtoull(sjob2.coinbase1_.substr(94, 8).c_str(), nullptr, 16);
+    ts = HToBe(ts);
+    ASSERT_EQ(ts == time(nullptr) || ts + 1 == time(nullptr), true);
+
     ASSERT_EQ(sjob2.coinbase2_,
               "ffffffff01c7cea212000000001976a914ca560088c0fb5e6f028faa11085e643e343a8f5c88ac00000000");
     ASSERT_EQ(sjob2.merkleBranch_.size(), 1);
