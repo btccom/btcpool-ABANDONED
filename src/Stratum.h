@@ -47,7 +47,7 @@
 // max coinbase tx size, bytes
 // WARNING: currently there is only 1 input and 1 output, 200 bytes is enough
 //
-#define COINBASE_TX_MAX_SIZE   200
+#define COINBASE_TX_MAX_SIZE   240
 
 // default worker name
 #define DEFAULT_WORKER_NAME    "__default__"
@@ -247,6 +247,7 @@ public:
   uint32_t nTime_;
   uint32_t minTime_;
   int64_t  coinbaseValue_;
+  string witnessCommitment_;
 
   uint256 networkTarget_;
 
