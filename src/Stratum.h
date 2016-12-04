@@ -45,9 +45,10 @@
 
 //
 // max coinbase tx size, bytes
-// WARNING: currently there is only 1 input and 1 output, 200 bytes is enough
+// WARNING: currently there is only 1 input and 1 or 2 output(if segwit has actived
+//          there will be 2 outputs), so 250 bytes is enough
 //
-#define COINBASE_TX_MAX_SIZE   240
+#define COINBASE_TX_MAX_SIZE   250
 
 // default worker name
 #define DEFAULT_WORKER_NAME    "__default__"
@@ -247,7 +248,8 @@ public:
   uint32_t nTime_;
   uint32_t minTime_;
   int64_t  coinbaseValue_;
-  string witnessCommitment_;
+  // if segwit is not active, it will be empty
+  string   witnessCommitment_;
 
   uint256 networkTarget_;
 

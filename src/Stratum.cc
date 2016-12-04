@@ -217,7 +217,7 @@ string StratumJob::serializeToJson() const {
                          ",\"height\":%d,\"coinbase1\":\"%s\",\"coinbase2\":\"%s\""
                          ",\"merkleBranch\":\"%s\""
                          ",\"nVersion\":%d,\"nBits\":%u,\"nTime\":%u"
-                         ",\"minTime\":%u,\"coinbaseValue\":%lld"
+                         ",\"minTime\":%u,\"coinbaseValue\":%lld,\"witnessCommitment\":\"%s\""
                          // namecoin, optional
                          ",\"nmcBlockHash\":\"%s\",\"nmcBits\":%u,\"nmcHeight\":%d"
                          ",\"nmcRpcAddr\":\"%s\",\"nmcRpcUserpass\":\"%s\""
@@ -229,6 +229,7 @@ string StratumJob::serializeToJson() const {
                          merkleBranchStr.size() ? merkleBranchStr.c_str() : "",
                          nVersion_, nBits_, nTime_,
                          minTime_, coinbaseValue_,
+                         witnessCommitment_.size() ? witnessCommitment_.c_str() : "",
                          // nmc
                          nmcAuxBlockHash_.ToString().c_str(),
                          nmcAuxBits_, nmcHeight_,
@@ -270,6 +271,13 @@ bool StratumJob::unserializeFromJson(const char *s, size_t len) {
   nTime_         = j["nTime"].uint32();
   minTime_       = j["minTime"].uint32();
   coinbaseValue_ = j["coinbaseValue"].int64();
+
+  // witnessCommitment, optional
+  // default_witness_commitment must be at least 38 bytes
+  if (j["default_witness_commitment"].type() == Utilities::JS::type::Str &&
+      j["default_witness_commitment"].str().length() >= 38*2) {
+    witnessCommitment_ = j["default_witness_commitment"].str();
+  }
 
   //
   // namecoin, optional
@@ -329,11 +337,16 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
   } else {
     nVersion_ = jgbt["version"].uint32();
   }
-  nBits_    = jgbt["bits"].uint32_hex();
-  nTime_    = jgbt["curtime"].uint32();
-  minTime_  = jgbt["mintime"].uint32();
+  nBits_         = jgbt["bits"].uint32_hex();
+  nTime_         = jgbt["curtime"].uint32();
+  minTime_       = jgbt["mintime"].uint32();
   coinbaseValue_ = jgbt["coinbasevalue"].int64();
-  witnessCommitment_ = jgbt["default_witness_commitment"].str();
+
+  // default_witness_commitment must be at least 38 bytes
+  if (jgbt["default_witness_commitment"].type() == Utilities::JS::type::Str &&
+      jgbt["default_witness_commitment"].str().length() >= 38*2) {
+    witnessCommitment_ = jgbt["default_witness_commitment"].str();
+  }
   BitsToTarget(nBits_, networkTarget_);
 
   // previous block hash
@@ -466,22 +479,30 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
       return false;
     }
 
+    //
+    // output[0]: pool payment address
+    //
     vector<CTxOut> cbOut;
     cbOut.push_back(CTxOut());
     cbOut[0].nValue = coinbaseValue_;
     cbOut[0].scriptPubKey = GetScriptForDestination(poolPayoutAddr.Get());
 
-    LOG(INFO) << "witness commitment" << witnessCommitment_.c_str();
-    vector<char> witnessCommitmentBin;
-    Hex2Bin(witnessCommitment_.c_str(), witnessCommitmentBin);
-    cbOut.push_back(CTxOut());
-    cbOut[1].nValue = 0;
-    cbOut[1].scriptPubKey = CScript((unsigned char*)witnessCommitmentBin.data(), (unsigned char*)witnessCommitmentBin.data() + witnessCommitmentBin.size());
+    //
+    // output[1]: witness commitment
+    //
+    if (!witnessCommitment_.empty()) {
+      DLOG(INFO) << "witness commitment: " << witnessCommitment_.c_str();
+      vector<char> binBuf;
+      Hex2Bin(witnessCommitment_.c_str(), binBuf);
+      cbOut.push_back(CTxOut());
+      cbOut[1].nValue = 0;
+      cbOut[1].scriptPubKey = CScript((unsigned char*)binBuf.data(),
+                                      (unsigned char*)binBuf.data() + binBuf.size());
+    }
 
     CMutableTransaction cbtx;
     cbtx.vin.push_back(cbIn);
     cbtx.vout = cbOut;
-    assert(cbtx.nVersion == 1);  // current our block version is 1
 
     vector<char> coinbaseTpl;
     {
