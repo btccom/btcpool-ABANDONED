@@ -285,8 +285,7 @@ TEST(Common, BitsToDifficulty) {
 }
 
 TEST(Common, formatDifficulty) {
-  ASSERT_EQ(formatDifficulty(UINT64_MAX),   UINT64_MAX/2);
-  ASSERT_EQ(formatDifficulty(UINT64_MAX/2), UINT64_MAX/2);
+  ASSERT_EQ(formatDifficulty(UINT64_MAX), 9223372036854775808ull);
 
   // 2^32 = UINT32_MAX + 1
   ASSERT_EQ(formatDifficulty(UINT32_MAX),               (uint64_t)UINT32_MAX + 1);

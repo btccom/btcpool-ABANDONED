@@ -153,9 +153,10 @@ inline void BitsToDifficulty(uint32 bits, uint64 *difficulty) {
 
 // diff must be 2^N
 inline uint64_t formatDifficulty(const uint64_t diff) {
-  // set UINT64_MAX/2 as maximum difficulty
-  if (diff >= UINT64_MAX / 2) {
-    return UINT64_MAX / 2;
+  // set 2^63 as maximum difficulty, 2^63 = 9223372036854775808
+  const uint64_t kMaxDiff = 9223372036854775808ull;
+  if (diff >= kMaxDiff) {
+    return kMaxDiff;
   }
 
   uint64_t newDiff = 1;
