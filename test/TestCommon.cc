@@ -284,3 +284,16 @@ TEST(Common, BitsToDifficulty) {
   ASSERT_EQ((uint64_t)(d * 10000.0), 163074209ull);
 }
 
+TEST(Common, formatDifficulty) {
+  ASSERT_EQ(formatDifficulty(UINT64_MAX),   UINT64_MAX/2);
+  ASSERT_EQ(formatDifficulty(UINT64_MAX/2), UINT64_MAX/2);
+
+  // 2^32 = UINT32_MAX + 1
+  ASSERT_EQ(formatDifficulty(UINT32_MAX),               (uint64_t)UINT32_MAX + 1);
+  ASSERT_EQ(formatDifficulty((uint64_t)UINT32_MAX + 1), (uint64_t)UINT32_MAX + 1);
+
+  ASSERT_EQ(formatDifficulty(0), 1);
+  ASSERT_EQ(formatDifficulty(1), 1);
+  ASSERT_EQ(formatDifficulty(2), 2);
+  ASSERT_EQ(formatDifficulty(3), 4);
+}
