@@ -480,27 +480,16 @@ void StratumSession::_handleRequest_AuthorizePassword(const string &password) {
     }
   }
 
+  d  = formatDifficulty(d);
+  md = formatDifficulty(md);
+
   // set min diff first
   if (md >= DiffController::kMinDiff_) {
-    // diff must be 2^N
-    double i = 1;
-    while ((uint64_t)exp2(i) < md) {
-      i++;
-    }
-    md = (uint64_t)exp2(i);
-
     diffController_.setMinDiff(md);
   }
 
   // than set current diff
   if (d >= DiffController::kMinDiff_) {
-    // diff must be 2^N
-    double i = 1;
-    while ((uint64_t)exp2(i) < d) {
-      i++;
-    }
-    d = (uint64_t)exp2(i);
-
     diffController_.resetCurDiff(d);
   }
 }
@@ -584,14 +573,7 @@ void StratumSession::handleExMessage_AuthorizeAgentWorker(const int64_t workerId
 }
 
 void StratumSession::_handleRequest_SetDifficulty(uint64_t suggestDiff) {
-  // suggestDiff must be 2^N
-  double i = 1;
-  while ((uint64_t)exp2(i) < suggestDiff) {
-    i++;
-  }
-  suggestDiff = (uint64_t)exp2(i);
-
-  diffController_.resetCurDiff(suggestDiff);
+  diffController_.resetCurDiff(formatDifficulty(suggestDiff));
 }
 
 void StratumSession::handleRequest_SuggestTarget(const string &idStr,
