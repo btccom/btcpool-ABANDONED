@@ -22,9 +22,9 @@ RUN apt-get install -y libboost-all-dev libzmq3-dev curl wget
 
 # build bitcoind
 RUN mkdir ~/source
-RUN cd ~/source && wget https://github.com/bitcoin/bitcoin/archive/v0.12.1.tar.gz -O v0.12.1.tar.gz
+RUN cd ~/source && wget https://github.com/bitcoin/bitcoin/archive/v0.13.2.tar.gz -O v0.13.2.tar.gz
 RUN cd ~/source \
-  && tar zxf v0.12.1.tar.gz && cd bitcoin-0.12.1 \
+  && tar zxf v0.13.2.tar.gz && cd bitcoin-0.13.2 \
   && ./autogen.sh \
   && ./configure --disable-wallet \
   && make -j4 && make install
@@ -42,10 +42,17 @@ ADD crontab.txt /etc/cron.d/bitcoind
 # logrotate
 ADD logrotate-bitcoind /etc/logrotate.d/bitcoind
 
+#
 # services
-RUN mkdir /etc/service/bitcoind
-ADD run /etc/service/bitcoind/run
+#
+# service for mainnet
+RUN mkdir    /etc/service/bitcoind
+ADD run      /etc/service/bitcoind/run
 RUN chmod +x /etc/service/bitcoind/run
+# service for testnet3
+#RUN mkdir        /etc/service/bitcoind_testnet3
+#ADD run_testnet3 /etc/service/bitcoind_testnet3/run
+#RUN chmod +x     /etc/service/bitcoind_testnet3/run
 
 # remove source & build files
 RUN rm -rf ~/source

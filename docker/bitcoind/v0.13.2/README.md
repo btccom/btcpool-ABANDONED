@@ -1,9 +1,11 @@
-Docker for Bitcoind v0.12.1
+Docker for Bitcoind v0.13.2
 ============================
 
 * OS: `Ubuntu 14.04 LTS`
 * Docker Image OS: `Ubuntu 16.04 LTS`
-* Bitcoind: `v0.12.1`
+* Bitcoind: `v0.13.2`
+
+**WARNING: Miners should not change blockmaxsize to blockmaxweight at this time. (v0.13.2)**
 
 ## Install Docker
 
@@ -22,13 +24,14 @@ service docker status
 cd /work
 
 git clone https://github.com/btccom/btcpool.git
-cd btcpool/docker/bitcoind/v0.12.1
+cd btcpool/docker/bitcoind/v0.13.2
 
-# If your server is in China, please check "Dockerfile" and uncomment some lines
+# If your server is in China, please check "Dockerfile" and uncomment some lines.
+# If you want to enable testnet3, please uncomment several lines behind `# service for testnet3`
 
 # build
-docker build -t bitcoind:0.12.1 .
-# docker build --no-cache -t bitcoind:0.12.1 .
+docker build -t bitcoind:0.13.2 .
+# docker build --no-cache -t bitcoind:0.13.2 .
 
 # mkdir for bitcoind
 mkdir -p /work/bitcoind
@@ -50,16 +53,11 @@ rpcallowip=172.16.0.0/12
 rpcallowip=192.168.0.0/16
 rpcallowip=10.0.0.0/8
 
-# we use ZMQ to get notification when new block is coming
-zmqpubrawblock=tcp://0.0.0.0:8331
-zmqpubrawtx=tcp://0.0.0.0:8331
-zmqpubhashtx=tcp://0.0.0.0:8331
-zmqpubhashblock=tcp://0.0.0.0:8331
-
-# use 2G memory for utxo, depends on your machine's memory
-dbcache=2000
+# use 1G memory for utxo, depends on your machine's memory
+dbcache=1000
 
 # use 1MB block when call GBT
+# Miners should not change blockmaxsize to blockmaxweight at this time.
 blockmaxsize=1000000
 ```
 
@@ -67,7 +65,7 @@ blockmaxsize=1000000
 
 ```
 # start docker
-docker run -it -v /work/bitcoind:/root/.bitcoin --name bitcoind -p 8333:8333 -p 8332:8332 -p 8331:8331 --restart always -d bitcoind:0.12.1
+docker run -it -v /work/bitcoind:/root/.bitcoin --name bitcoind -p 8333:8333 -p 8332:8332 -p 8331:8331 -p 18333:18333 -p 18332:18332 -p 18331:18331 --restart always -d bitcoind:0.13.2
 
 # login
 docker exec -it bitcoind /bin/bash

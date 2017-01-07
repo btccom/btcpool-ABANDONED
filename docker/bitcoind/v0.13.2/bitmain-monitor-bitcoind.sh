@@ -20,7 +20,7 @@ CONNS=`$BITCOIND_RPC getinfo | grep "connections" | awk '{print $2}' | awk -F","
 
 SERVICE="bpool.bitcoind.$WANIP"
 VALUE="height:$HEIGHT;conn:$CONNS;"
-MURL="http://monitor.bitmain.com/monitor/api/v1/message?service=$SERVICE&value=$VALUE"
+MURL="https://monitor.btc.com/monitor/api/v1/message?service=$SERVICE&value=$VALUE"
 
 if [[ $CONNS -ne 0 ]]; then
   curl --max-time 30 $MURL
