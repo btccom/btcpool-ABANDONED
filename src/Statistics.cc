@@ -1089,6 +1089,7 @@ bool ShareLogParser::isReachEOF() {
     LOG(ERROR) << "fstat fail: " << filePath_;
     return true;
   }
+  close(fd);
 
   return lastPosition_ == sb.st_size;
 }
