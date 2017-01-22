@@ -148,7 +148,7 @@ bool StatsServer::init() {
   // check db conf
   {
   	string value = poolDB_.getVariable("max_allowed_packet");
-    if (atoi(value.c_str()) < 16 * 1026 *1024) {
+    if (atoi(value.c_str()) < 16 * 1024 *1024) {
       LOG(INFO) << "db conf 'max_allowed_packet' is less than 16*1024*1024";
       return false;
     }
@@ -1306,7 +1306,7 @@ void ShareLogParser::removeExpiredDataFromDB() {
   lastRemoveTime = time(nullptr);
 
   //
-  // table.stats_workers_hour
+  // table.stats_workers_day
   //
   {
     const int32_t kDailyDataKeepDays_workers = 90; // 3 months
