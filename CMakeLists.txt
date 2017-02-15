@@ -66,6 +66,11 @@ if(NOT Boost_FOUND)
   message(FATAL_ERROR "Boost not found!")
 endif(NOT Boost_FOUND)
 
+find_package(ZookeeperC)
+if(NOT ZOOKEEPER_FOUND)
+  message(FATAL_ERROR "libzookeeper-mt not found!")
+endif(NOT ZOOKEEPER_FOUND)
+
 find_package(KafkaC)
 if(NOT KAFKA_FOUND)
   message(FATAL_ERROR "librdkafka not found!")
@@ -75,7 +80,7 @@ execute_process(COMMAND mysql_config --libs_r OUTPUT_VARIABLE MYSQL_LIB OUTPUT_S
 execute_process(COMMAND mysql_config --include OUTPUT_VARIABLE MYSQL_INCLUDE OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 include_directories(src test src/bitcoin src/bitcoin/secp256k1/include ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS} ${LIBEVENT_INCLUDE_DIR} ${MYSQL_INCLUDE})
-set(THIRD_LIBRARIES ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB} ${secp256k1_LIBRARIES} pthread mysqlclient gmp)
+set(THIRD_LIBRARIES ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${ZOOKEEPER_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB} ${secp256k1_LIBRARIES} pthread mysqlclient gmp)
 
 file(GLOB LIB_SOURCES src/*.cc src/bitcoin/*.cpp src/bitcoin/consensus/*.cpp src/bitcoin/crypto/*.cpp src/bitcoin/primitives/*.cpp src/bitcoin/script/*.cpp src/bitcoin/support/*.cpp)
 add_library(btcpool STATIC ${LIB_SOURCES})
