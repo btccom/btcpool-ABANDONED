@@ -38,6 +38,12 @@ int Zookeeper::nodeNameCompare(const void *pname1, const void *pname2) {
 
 void Zookeeper::globalWatcher(zhandle_t *zh, int type, int state, const char *path, void *zookeeper) {
   DLOG(INFO) << "Zookeeper::globalWatcher: type:" << type << ", state:" << state << ", path:" << path;
+
+  if (ZOO_SESSION_EVENT == type && ZOO_CONNECTING_STATE == state) {
+    ZookeeperException ex("Zookeeper: lost the connection from broker.");
+    LOG(FATAL) << ex.what();
+    throw ex;
+  }
 }
 
 void Zookeeper::lockWatcher(zhandle_t *zh, int type, int state, const char *path, void *pMutex) {
