@@ -80,14 +80,14 @@ void Zookeeper::getLock(const char *lockParentPath) {
   createNodesRecursively(lockParentPath);
   createLockNode(lockNodeBasePath, lockNodeFullPath, ZOOKEEPER_LOCK_PATH_MAX_LEN);
 
-  delete lockNodeBasePath;
+  delete[] lockNodeBasePath;
 
   // wait the lock
   // it isn't a busy waiting because doGetLock() will
   // block itself with pthread_mutex_lock().
   while (!doGetLock(lockParentPath, lockNodeFullPath));
 
-  delete lockNodeFullPath;
+  delete[] lockNodeFullPath;
 }
 
 bool Zookeeper::doGetLock(const char *lockParentPath, const char *lockNodePath) {
@@ -144,6 +144,7 @@ bool Zookeeper::doGetLock(const char *lockParentPath, const char *lockNodePath) 
 
     LOG(INFO) << "Zookeeper: watch the lock release for " << watchNodePath;
 
+    // watch the node with callback function
     stat = zoo_wexists(zh, watchNodePath, Zookeeper::lockWatcher, &mutex, NULL);
 
     if (ZOK != stat) {
@@ -151,8 +152,9 @@ bool Zookeeper::doGetLock(const char *lockParentPath, const char *lockNodePath) 
         " failed: " + zerror(stat));
     }
 
-    // block the thread until get the lock
-    // lock twice so the thread blocked
+    // block the thread for waiting watch event.
+    // lock twice so the thread blocked.
+    // the callback function Zookeeper::lockWatcher() will unlock the thread.
     pthread_mutex_lock(&mutex);
     pthread_mutex_lock(&mutex);
 
@@ -201,7 +203,7 @@ void Zookeeper::createNodesRecursively(const char *nodePath) {
     pathPoint ++;
   }
 
-  delete pathBuffer;
+  delete[] pathBuffer;
 
   stat = zoo_exists(zh, nodePath, 0, NULL);
 
