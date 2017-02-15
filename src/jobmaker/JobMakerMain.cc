@@ -46,10 +46,16 @@ using namespace libconfig;
 #define JOBMAKER_LOCK_NODE_PATH "/locks/jobmaker"
 
 JobMaker *gJobMaker = nullptr;
+Zookeeper *gZookeeper = nullptr;
 
 void handler(int sig) {
   if (gJobMaker) {
     gJobMaker->stop();
+  }
+
+  if (gZookeeper) {
+    delete gZookeeper;
+    gZookeeper = nullptr;
   }
 }
 
@@ -114,8 +120,8 @@ int main(int argc, char **argv) {
 
   try {
     // get lock from zookeeper
-    Zookeeper zoo("127.0.0.1:2181");
-    zoo.getLock(JOBMAKER_LOCK_NODE_PATH);
+    gZookeeper = new Zookeeper("127.0.0.1:2181");
+    gZookeeper->getLock(JOBMAKER_LOCK_NODE_PATH);
 
   } catch(const ZookeeperException &zooex) {
     LOG(FATAL) << zooex.what();
