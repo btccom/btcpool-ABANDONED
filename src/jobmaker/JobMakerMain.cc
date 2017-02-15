@@ -120,7 +120,7 @@ int main(int argc, char **argv) {
 
   try {
     // get lock from zookeeper
-    gZookeeper = new Zookeeper("127.0.0.1:2181");
+    gZookeeper = new Zookeeper(cfg.lookup("zookeeper.brokers"));
     gZookeeper->getLock(JOBMAKER_LOCK_NODE_PATH);
 
   } catch(const ZookeeperException &zooex) {
