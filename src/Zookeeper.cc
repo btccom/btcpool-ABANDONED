@@ -39,7 +39,7 @@ int Zookeeper::nodeNameCompare(const void *pname1, const void *pname2) {
 void Zookeeper::globalWatcher(zhandle_t *zh, int type, int state, const char *path, void *zookeeper) {
   DLOG(INFO) << "Zookeeper::globalWatcher: type:" << type << ", state:" << state << ", path:" << path;
 
-  if (ZOO_SESSION_EVENT == type && ZOO_CONNECTING_STATE == state) {
+  if (type == ZOO_SESSION_EVENT && state == ZOO_CONNECTING_STATE) {
     ZookeeperException ex("Zookeeper: lost the connection from broker.");
     LOG(FATAL) << ex.what();
     throw ex;
@@ -53,13 +53,13 @@ void Zookeeper::lockWatcher(zhandle_t *zh, int type, int state, const char *path
 Zookeeper::Zookeeper(const char *servers) {
   zh = zookeeper_init(servers, Zookeeper::globalWatcher, ZOOKEEPER_CONNECT_TIMEOUT, NULL, this, 0);
 
-  if (NULL == zh) {
+  if (zh == NULL) {
     throw ZookeeperException(string("Zookeeper init failed: ") + zerror(errno));
   }
 }
 
 Zookeeper::~Zookeeper() {
-  if (NULL != zh) {
+  if (zh != NULL) {
     zookeeper_close(zh);
   }
 }
@@ -106,7 +106,7 @@ bool Zookeeper::doGetLock(const char *lockParentPath, const char *lockNodePath) 
 
   stat = zoo_get_children(zh, lockParentPath, 0, &nodes);
 
-  if (ZOK != stat) {
+  if (stat != ZOK) {
     throw ZookeeperException(string("Zookeeper::doGetLock: get children for ") + lockParentPath +
       " failed:" + zerror(stat));
   }
@@ -119,7 +119,7 @@ bool Zookeeper::doGetLock(const char *lockParentPath, const char *lockNodePath) 
   LOG(INFO) << "Zookeeper: fight for lock with " << nodes.count << " clients";
 
   for (i=0; i<nodes.count; i++) {
-    if (0 == strcmp(myNodeName, nodes.data[i])) {
+    if (strcmp(myNodeName, nodes.data[i]) == 0) {
       myNodePosition = i;
 
       LOG(INFO) << "  * " << i << ". " << nodes.data[i];
@@ -129,7 +129,7 @@ bool Zookeeper::doGetLock(const char *lockParentPath, const char *lockNodePath) 
   }
 
   // the first client will get the lock.
-  if (0 == myNodePosition) {
+  if (myNodePosition == 0) {
     LOG(INFO) << "Zookeeper: got the lock!";
 
     return true;
@@ -148,7 +148,7 @@ bool Zookeeper::doGetLock(const char *lockParentPath, const char *lockNodePath) 
     // Watch the previous node with callback function.
     stat = zoo_wexists(zh, watchNodePath.c_str(), Zookeeper::lockWatcher, &mutex, NULL);
 
-    if (ZOK != stat) {
+    if (stat != ZOK) {
       throw ZookeeperException(string("Zookeeper::doGetLock: watch node ") + watchNodePath +
         " failed: " + zerror(stat));
     }
@@ -173,7 +173,7 @@ void Zookeeper::createLockNode(const char *nodePath, char *newNodePath, int newN
   stat = zoo_create(zh, nodePath, NULL, -1, &ZOO_READ_ACL_UNSAFE,
     ZOO_EPHEMERAL | ZOO_SEQUENCE, newNodePath, newNodePathMaxLen);
 
-  if (ZOK != stat) {
+  if (stat != ZOK) {
     throw ZookeeperException(string("Zookeeper::createLockNode: create node ") + nodePath +
       " failed: " + zerror(stat));
   }
@@ -201,7 +201,7 @@ void Zookeeper::createNodesRecursively(const char *nodePath) {
 
   stat = zoo_exists(zh, nodePath, 0, NULL);
 
-  if (ZOK != stat) {
+  if (stat != ZOK) {
     throw ZookeeperException(string("Zookeeper::createNodesRecursively: cannot create nodes ") + nodePath);
   }
 }
