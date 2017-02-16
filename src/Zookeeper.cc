@@ -75,7 +75,6 @@ void Zookeeper::getLock(const char *lockParentPath) {
   // Add 100 bytes for "/node" and the appened string likes "0000000293".
   // The final node path looks like this: "/locks/jobmaker/node0000000293".
   bufferLen = strlen(lockParentPath) + 100;
-
   lockNodeNewPathBuffer = new char[bufferLen];
 
   lockNodePath = string(lockParentPath) + "/node";
@@ -170,6 +169,8 @@ bool Zookeeper::doGetLock(const char *lockParentPath, const char *lockNodePath) 
 void Zookeeper::createLockNode(const char *nodePath, char *newNodePath, int newNodePathMaxLen) {
   int stat;
 
+  // the ZOO_EPHEMERAL node will disapper if the client offline.
+  // ZOO_SEQUENCE will appened a increasing sequence after nodePath (set as newNodePath).
   stat = zoo_create(zh, nodePath, NULL, -1, &ZOO_READ_ACL_UNSAFE,
     ZOO_EPHEMERAL | ZOO_SEQUENCE, newNodePath, newNodePathMaxLen);
 
@@ -187,12 +188,15 @@ void Zookeeper::createNodesRecursively(const char *nodePath) {
   string path = string(nodePath) + "/";
   int pathLen = path.length();
 
-  assert('/' == path[0]); // the first char must be '/'
+  // the path should be 2 or more words and the first char must be '/'
+  // (we cannot create the root node "/")
+  assert(pathLen >= 2 && path[0] == '/');
   
-  for (pos=0; pos<pathLen; pos++) {
+  // pos=1: skip the root node "/"
+  for (pos=1; pos<pathLen; pos++) {
     if (path[pos] == '/') {
       path[pos] = '\0';
-      
+
       zoo_create(zh, path.c_str(), NULL, -1, &ZOO_OPEN_ACL_UNSAFE, 0, NULL, 0);
 
       path[pos] = '/';
