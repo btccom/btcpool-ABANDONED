@@ -29,7 +29,7 @@
 #include "Zookeeper.h"
 
 ZookeeperException::ZookeeperException(const string &what_arg) : std::runtime_error(what_arg) {
-  // empty
+  // no more action than its parent
 }
 
 int Zookeeper::nodeNameCompare(const void *pname1, const void *pname2) {
@@ -65,29 +65,31 @@ Zookeeper::~Zookeeper() {
 }
 
 void Zookeeper::getLock(const char *lockParentPath) {
-  int len;
-  char *lockNodeBasePath;
-  char *lockNodeFullPath;
+  string lockNodePath = "";
+
+  // Zookeeper API need the c styled string as a new name buffer.
+  // It will append the path with a increasing sequence
+  char *lockNodeNewPathBuffer;
+  int bufferLen;
   
-  len = strlen(lockParentPath);
+  // Add 100 bytes for "/node" and the appened string likes "0000000293".
+  // The final node path looks like this: "/locks/jobmaker/node0000000293".
+  bufferLen = strlen(lockParentPath) + 100;
 
-  lockNodeBasePath = new char[ZOOKEEPER_LOCK_PATH_MAX_LEN];
-  lockNodeFullPath = new char[ZOOKEEPER_LOCK_PATH_MAX_LEN];
+  lockNodeNewPathBuffer = new char[bufferLen];
 
-  memcpy(lockNodeBasePath, lockParentPath, len);
-  memcpy(lockNodeBasePath + len, "/node\0", 6);
+  lockNodePath = string(lockParentPath) + "/node";
 
   createNodesRecursively(lockParentPath);
-  createLockNode(lockNodeBasePath, lockNodeFullPath, ZOOKEEPER_LOCK_PATH_MAX_LEN);
+  createLockNode(lockNodePath.c_str(), lockNodeNewPathBuffer, bufferLen);
 
-  delete[] lockNodeBasePath;
+  // Wait the lock.
+  // It isn't a busy waiting because doGetLock() will
+  // block itself with pthread_mutex_lock() until zookeeper
+  // event awake it.
+  while (!doGetLock(lockParentPath, lockNodeNewPathBuffer));
 
-  // wait the lock
-  // it isn't a busy waiting because doGetLock() will
-  // block itself with pthread_mutex_lock().
-  while (!doGetLock(lockParentPath, lockNodeFullPath));
-
-  delete[] lockNodeFullPath;
+  delete[] lockNodeNewPathBuffer;
 }
 
 bool Zookeeper::doGetLock(const char *lockParentPath, const char *lockNodePath) {
@@ -95,10 +97,11 @@ bool Zookeeper::doGetLock(const char *lockParentPath, const char *lockNodePath) 
   int stat = 0;
   int myNodePosition = -1;
   const char *myNodeName = NULL;
-  char watchNodePath[ZOOKEEPER_LOCK_PATH_MAX_LEN];
+  string watchNodePath = "";
   struct String_vector nodes = {0, NULL};
   pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
+  // get the name part (likes "node0000000293") from full path (likes "/locks/jobmaker/node0000000293").
   myNodeName = lockNodePath + strlen(lockParentPath) + 1;
 
   stat = zoo_get_children(zh, lockParentPath, 0, &nodes);
@@ -125,9 +128,9 @@ bool Zookeeper::doGetLock(const char *lockParentPath, const char *lockNodePath) 
     }
   }
 
-  // the first client get the lock.
+  // the first client will get the lock.
   if (0 == myNodePosition) {
-    LOG(INFO) << "Zookeeper: get the lock!";
+    LOG(INFO) << "Zookeeper: got the lock!";
 
     return true;
 
@@ -137,15 +140,13 @@ bool Zookeeper::doGetLock(const char *lockParentPath, const char *lockNodePath) 
     // myself should not be the first node or out of the range.
     assert(myNodePosition > 0 && myNodePosition < nodes.count);
 
-    // get the before node path
-    strcpy(watchNodePath, lockParentPath);
-    strcat(watchNodePath, "/");
-    strcat(watchNodePath, nodes.data[myNodePosition - 1]);
+    // get the previous node near myself
+    watchNodePath = string(lockParentPath) + "/" + nodes.data[myNodePosition - 1];
 
     LOG(INFO) << "Zookeeper: watch the lock release for " << watchNodePath;
 
-    // watch the node with callback function
-    stat = zoo_wexists(zh, watchNodePath, Zookeeper::lockWatcher, &mutex, NULL);
+    // Watch the previous node with callback function.
+    stat = zoo_wexists(zh, watchNodePath.c_str(), Zookeeper::lockWatcher, &mutex, NULL);
 
     if (ZOK != stat) {
       throw ZookeeperException(string("Zookeeper::doGetLock: watch node ") + watchNodePath +
@@ -158,6 +159,10 @@ bool Zookeeper::doGetLock(const char *lockParentPath, const char *lockNodePath) 
     pthread_mutex_lock(&mutex);
     pthread_mutex_lock(&mutex);
 
+    // If the previous node "disapper", the thread awoke
+    // and reture "get lock failed at this time",
+    // than getLock() will try again in its loop (The next time it
+    // may get the lock or just go forward a step in the queue).
     return false;
   }
 }
@@ -175,35 +180,24 @@ void Zookeeper::createLockNode(const char *nodePath, char *newNodePath, int newN
 }
 
 void Zookeeper::createNodesRecursively(const char *nodePath) {
-  int len;
-  char *pathBuffer;
-  char *pathPoint;
-  int stat;
+  int stat = 0;
+  int pos = 0;
 
-  len = strlen(nodePath);
+  // make it end with "/" so the last part of path will be created in the loop
+  string path = string(nodePath) + "/";
+  int pathLen = path.length();
 
-  pathBuffer = new char[len + 2];
+  assert('/' == path[0]); // the first char must be '/'
   
-  memcpy(pathBuffer, nodePath, len);
-  memcpy(pathBuffer + len, "/\0", 2); // make it end with "/\0" so the loop exit correctly
-
-  assert('/' == pathBuffer[0]); // the first char must be '/'
-  
-  pathPoint = pathBuffer + 1; // skip the first char '/'
-
-  while ('\0' != *pathPoint) {
-    if ('/' == *pathPoint) {
-      *pathPoint = '\0';
+  for (pos=0; pos<pathLen; pos++) {
+    if (path[pos] == '/') {
+      path[pos] = '\0';
       
-      zoo_create(zh, pathBuffer, NULL, -1, &ZOO_OPEN_ACL_UNSAFE, 0, NULL, 0);
+      zoo_create(zh, path.c_str(), NULL, -1, &ZOO_OPEN_ACL_UNSAFE, 0, NULL, 0);
 
-      *pathPoint = '/';
+      path[pos] = '/';
     }
-
-    pathPoint ++;
   }
-
-  delete[] pathBuffer;
 
   stat = zoo_exists(zh, nodePath, 0, NULL);
 
