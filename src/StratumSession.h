@@ -54,6 +54,9 @@
 
 #define BTCCOM_MINER_AGENT_PREFIX "btccom-agent/"
 
+// invalid share sliding window size: 60, unit: seconds
+#define INVALID_SHARE_SLIDING_WINDOWS_SIZE 60
+
 class Server;
 class StratumJobEx;
 class DiffController;
@@ -207,6 +210,9 @@ private:
   AgentSessions *agentSessions_;
 
   atomic<bool> isDead_;
+
+  // invalid share counter
+  StatsWindow<int64_t> invalidSharesCounter_;
 
   uint8_t allocShortJobId();
 

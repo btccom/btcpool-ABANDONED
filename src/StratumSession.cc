@@ -206,6 +206,7 @@ StratumSession::StratumSession(evutil_socket_t fd, struct bufferevent *bev,
                                const uint32_t extraNonce1) :
 shareAvgSeconds_(shareAvgSeconds), diffController_(shareAvgSeconds_),
 shortJobIdIdx_(0), agentSessions_(nullptr), isDead_(false),
+invalidSharesCounter_(INVALID_SHARE_SLIDING_WINDOWS_SIZE),
 bev_(bev), fd_(fd), server_(server)
 {
   state_ = CONNECTED;
@@ -702,17 +703,29 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   uint256 jobTarget;
   DiffToTarget(share.share_, jobTarget);
 
+  // we send share to kafka by default, but if there are lots of invalid
+  // shares in a short time, we just drop them.
+  bool isSendShareToKafka = true;
+
   int submitResult;
   LocalShare localShare(extraNonce2, nonce, nTime);
+
+  // can't find local share
   if (!localJob->addLocalShare(localShare)) {
     if (isAgentSession == false)
       responseError(idStr, StratumError::DUPLICATE_SHARE);
+
+    // add invalid share to counter
+    invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
+
     goto finish;
   }
 
+  // check block header
   submitResult = server_->checkShare(share, extraNonce1_, extraNonce2Hex,
                                      nTime, nonce, jobTarget,
                                      worker_.fullName_);
+
   if (submitResult == StratumError::NO_ERROR) {
     // accepted share
     share.result_ = Share::Result::ACCEPT;
@@ -727,13 +740,35 @@ void StratumSession::handleRequest_Submit(const string &idStr,
       responseTrue(idStr);
     }
   } else {
+    // reject share
     if (isAgentSession == false)
     	responseError(idStr, submitResult);
+
+    // add invalid share to counter
+    invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
   }
+
 
 finish:
   DLOG(INFO) << share.toString();
-  server_->sendShare2Kafka((const uint8_t *)&share, sizeof(Share));
+
+  // check if thers is invalid share spamming
+  if (share.result_ != Share::Result::ACCEPT) {
+    int64_t invalidSharesNum = invalidSharesCounter_.sum(time(nullptr),
+                                                         INVALID_SHARE_SLIDING_WINDOWS_SIZE);
+    // too much invalid shares, don't send them to kafka
+    if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_SIZE * 10) {
+      isSendShareToKafka = false;
+
+      LOG(WARNING) << "invalid share spamming, uid: " << worker_.userId_
+      << ", uname: \""  << worker_.userName_ << "\", agent: \""
+      << clientAgent_ << "\", ip: " << clientIp_;
+    }
+  }
+
+  if (isSendShareToKafka) {
+  	server_->sendShare2Kafka((const uint8_t *)&share, sizeof(Share));
+  }
   return;
 }
 
