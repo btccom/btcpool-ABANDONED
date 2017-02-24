@@ -192,6 +192,7 @@ public:
   StratumJob *sjob_;
   string miningNotify1_;
   string miningNotify2_;
+  string miningNotify2Clean_;  // clean flag always true
 
 public:
   StratumJobEx(StratumJob *sjob, bool isClean);
