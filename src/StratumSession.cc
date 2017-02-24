@@ -542,7 +542,7 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
   setReadTimeout(isLongTimeout_ ? 86400*7 : 60*10);
 
   // send latest stratum job
-  sendMiningNotify(server_->jobRepository_->getLatestStratumJobEx());
+  sendMiningNotify(server_->jobRepository_->getLatestStratumJobEx(), true/* is first job */);
 
   // sent events to kafka: miner_connect
   {
@@ -757,10 +757,11 @@ finish:
     int64_t invalidSharesNum = invalidSharesCounter_.sum(time(nullptr),
                                                          INVALID_SHARE_SLIDING_WINDOWS_SIZE);
     // too much invalid shares, don't send them to kafka
-    if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_SIZE * 10) {
+    if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT) {
       isSendShareToKafka = false;
 
-      LOG(WARNING) << "invalid share spamming, uid: " << worker_.userId_
+      LOG(WARNING) << "invalid share spamming, diff: "
+      << share.share_ << ", uid: " << worker_.userId_
       << ", uname: \""  << worker_.userName_ << "\", agent: \""
       << clientAgent_ << "\", ip: " << clientIp_;
     }
@@ -796,7 +797,8 @@ uint8_t StratumSession::allocShortJobId() {
   return shortJobIdIdx_++;
 }
 
-void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr) {
+void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr,
+                                      bool isFirstJob) {
   if (state_ < AUTHENTICATED || exJobPtr == nullptr) {
     return;
   }
@@ -846,7 +848,10 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr) {
   }
 
   // notify2
-  notifyStr.append(exJobPtr->miningNotify2_);
+  if (isFirstJob)
+  	notifyStr.append(exJobPtr->miningNotify2Clean_);
+  else
+    notifyStr.append(exJobPtr->miningNotify2_);
 
   sendData(notifyStr);  // send notify string
 

@@ -54,8 +54,9 @@
 
 #define BTCCOM_MINER_AGENT_PREFIX "btccom-agent/"
 
-// invalid share sliding window size: 60, unit: seconds
-#define INVALID_SHARE_SLIDING_WINDOWS_SIZE 60
+// invalid share sliding window size
+#define INVALID_SHARE_SLIDING_WINDOWS_SIZE       60  // unit: seconds
+#define INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT  20  // max number
 
 class Server;
 class StratumJobEx;
@@ -259,7 +260,7 @@ public:
   bool isDead();
 
   void sendSetDifficulty(const uint64_t difficulty);
-  void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr);
+  void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false);
   void sendData(const char *data, size_t len);
   inline void sendData(const string &str) {
     sendData(str.data(), str.size());
