@@ -757,10 +757,11 @@ finish:
     int64_t invalidSharesNum = invalidSharesCounter_.sum(time(nullptr),
                                                          INVALID_SHARE_SLIDING_WINDOWS_SIZE);
     // too much invalid shares, don't send them to kafka
-    if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_SIZE * 10) {
+    if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT) {
       isSendShareToKafka = false;
 
-      LOG(WARNING) << "invalid share spamming, uid: " << worker_.userId_
+      LOG(WARNING) << "invalid share spamming, diff: "
+      << share.share_ << ", uid: " << worker_.userId_
       << ", uname: \""  << worker_.userName_ << "\", agent: \""
       << clientAgent_ << "\", ip: " << clientIp_;
     }
