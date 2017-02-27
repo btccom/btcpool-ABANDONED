@@ -78,7 +78,7 @@ const char * StratumError::toString(int err) {
     case IP_BANNED:
       return "Ip banned";
     case INVALID_USERNAME:
-      return "Invliad username";
+      return "Invalid username";
     case INTERNAL_ERROR:
       return "Internal error";
     case TIME_TOO_OLD:
