@@ -38,15 +38,24 @@
 
 #include "Utils.h"
 #include "JobMaker.h"
+#include "Zookeeper.h"
 
 using namespace std;
 using namespace libconfig;
 
+#define JOBMAKER_LOCK_NODE_PATH "/locks/jobmaker"
+
 JobMaker *gJobMaker = nullptr;
+Zookeeper *gZookeeper = nullptr;
 
 void handler(int sig) {
   if (gJobMaker) {
     gJobMaker->stop();
+  }
+
+  if (gZookeeper) {
+    delete gZookeeper;
+    gZookeeper = nullptr;
   }
 }
 
@@ -106,6 +115,16 @@ int main(int argc, char **argv) {
   boost::interprocess::file_lock pidFileLock(optConf);
   if (pidFileLock.try_lock() == false) {
     LOG(FATAL) << "lock cfg file fail";
+    return(EXIT_FAILURE);
+  }
+
+  try {
+    // get lock from zookeeper
+    gZookeeper = new Zookeeper(cfg.lookup("zookeeper.brokers"));
+    gZookeeper->getLock(JOBMAKER_LOCK_NODE_PATH);
+
+  } catch(const ZookeeperException &zooex) {
+    LOG(FATAL) << zooex.what();
     return(EXIT_FAILURE);
   }
 

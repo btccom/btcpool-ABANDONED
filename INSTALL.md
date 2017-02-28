@@ -20,7 +20,7 @@ bash ./install_btcpool.sh
 apt-get update
 
 apt-get install -y build-essential autotools-dev libtool autoconf automake pkg-config cmake
-apt-get install -y openssl libssl-dev libcurl4-openssl-dev libconfig++-dev libboost-all-dev libgmp-dev libmysqlclient-dev
+apt-get install -y openssl libssl-dev libcurl4-openssl-dev libconfig++-dev libboost-all-dev libgmp-dev libmysqlclient-dev libzookeeper-mt-dev
 ```
 
 * zmq-v4.1.5
