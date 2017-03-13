@@ -124,13 +124,18 @@ int main(int argc, char **argv) {
       SelectParams(CBaseChainParams::MAIN);
     }
 
-    int32_t port = 3333;
+    int32_t            port = 3333;
+    uint32_t       serverId = 0;
+    int32_t shareAvgSeconds = 10;  // default share interval time 10 seconds
+
     cfg.lookupValue("sserver.port", port);
-    uint32_t serverId = 0;
     cfg.lookupValue("sserver.id", serverId);
     if (serverId > 0xFFu || serverId == 0) {
       LOG(FATAL) << "invalid server id, range: [1, 255]";
       return(EXIT_FAILURE);
+    }
+    if (cfg.exists("sserver.share_avg_seconds")) {
+    	cfg.lookupValue("sserver.share_avg_seconds", shareAvgSeconds);
     }
 
     MysqlConnectInfo *poolDBInfo = nullptr;
@@ -161,7 +166,8 @@ int main(int argc, char **argv) {
                                        *poolDBInfo, serverId,
                                        fileLastMiningNotifyTime,
                                        isEnableSimulator,
-                                       isSubmitInvalidBlock);
+                                       isSubmitInvalidBlock,
+                                       shareAvgSeconds);
 
     if (!gStratumServer->init()) {
       LOG(FATAL) << "init failure";
