@@ -54,7 +54,7 @@ poolPayoutAddr_(payoutAddr), kGbtLifeTime_(gbtLifeTime),
 fileLastJobTime_(fileLastJobTime),
 blockVersion_(0x20000000)  // TODO: cfg
 {
-  poolCoinbaseInfo_ = "/BTC.COM/";
+  poolCoinbaseInfo_ = "/BTC.COM/BCoin/";
 }
 
 JobMaker::~JobMaker() {
