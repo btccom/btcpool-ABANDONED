@@ -27,6 +27,7 @@ RUN cd ~/source \
   && tar zxf v0.14.0.tar.gz && cd bitcoin-0.14.0 \
   && wget https://patch-diff.githubusercontent.com/raw/bitcoin/bitcoin/pull/9953.patch -O 9953.patch \
   && patch -p1 < 9953.patch \
+  && sed -i 's/^static const int MAX_ADDNODE_CONNECTIONS = 8;/static const int MAX_ADDNODE_CONNECTIONS = 32;/' src/net.h \
   && ./autogen.sh \
   && ./configure --disable-wallet --disable-tests \
   && make && make install
