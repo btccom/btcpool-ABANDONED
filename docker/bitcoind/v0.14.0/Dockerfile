@@ -25,9 +25,12 @@ RUN mkdir ~/source
 RUN cd ~/source && wget https://github.com/bitcoin/bitcoin/archive/v0.14.0.tar.gz -O v0.14.0.tar.gz
 RUN cd ~/source \
   && tar zxf v0.14.0.tar.gz && cd bitcoin-0.14.0 \
+  && wget https://patch-diff.githubusercontent.com/raw/bitcoin/bitcoin/pull/9953.patch -O 9953.patch \
+  && patch -p1 < 9953.patch \
   && ./autogen.sh \
   && ./configure --disable-wallet --disable-tests \
-  && make -j4 && make install
+  && make && make install
+  #&& make -j$(nproc) && make install
 
 # mkdir bitcoind data dir
 RUN mkdir -p /root/.bitcoin
