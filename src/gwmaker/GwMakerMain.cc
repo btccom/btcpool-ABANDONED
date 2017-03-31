@@ -112,12 +112,12 @@ int main(int argc, char **argv) {
   signal(SIGTERM, handler);
   signal(SIGINT,  handler);
 
-  int32_t rpcCallInterval = 5;
-  cfg.lookupValue("gbtmaker.rpcinterval", rpcCallInterval);
+  int32_t pollPeriod = 5;
+  cfg.lookupValue("gwmaker.poll_period", pollPeriod);
   gGwMaker = new GwMaker(cfg.lookup("rskd.rpc_addr"),
                            cfg.lookup("rskd.rpc_userpwd"),
                            cfg.lookup("kafka.brokers"),
-                           rpcCallInterval);
+                           pollPeriod);
 
   try {
     if (!gGwMaker->init()) {

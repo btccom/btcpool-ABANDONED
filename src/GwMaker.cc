@@ -35,7 +35,7 @@
 GwMaker::GwMaker(const string &rskdRpcAddr, const string &rskdRpcUserpass,
                    const string &kafkaBrokers, uint32_t kRpcCallInterval)
 : running_(true), rskdRpcAddr_(rskdRpcAddr),
-rskdRpcUserpass_(rskdRpcUserpass),lastGwMakeTime_(0), kRpcCallInterval_(kRpcCallInterval),
+rskdRpcUserpass_(rskdRpcUserpass), kRpcCallInterval_(kRpcCallInterval),
 kafkaBrokers_(kafkaBrokers),
 kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGW, 0/* partition */)
 {
@@ -58,37 +58,7 @@ bool GwMaker::init() {
     return false;
   }
 
-  // check rskd
-//  {
-//    string response;
-//    string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getinfo\",\"params\":[]}";
-//    bool res = rskdRpcCall(rskdRpcAddr_.c_str(), rskdRpcUserpass_.c_str(),
-//                               request.c_str(), response);
-//    if (!res) {
-//      LOG(ERROR) << "bitcoind rpc call failure";
-//      return false;
-//    }
-//    LOG(INFO) << "bitcoind getinfo: " << response;
-//
-//    JsonNode r;
-//    if (!JsonNode::parse(response.c_str(),
-//                         response.c_str() + response.length(), r)) {
-//      LOG(ERROR) << "decode gbt failure";
-//      return false;
-//    }
-//
-//    // check fields
-//    if (r["result"].type() != Utilities::JS::type::Obj ||
-//        r["result"]["connections"].type() != Utilities::JS::type::Int ||
-//        r["result"]["blocks"].type()      != Utilities::JS::type::Int) {
-//      LOG(ERROR) << "getinfo missing some fields";
-//      return false;
-//    }
-//    if (r["result"]["connections"].int32() <= 0) {
-//      LOG(ERROR) << "bitcoind connections is zero";
-//      return false;
-//    }
-//  }
+  // TODO: check rskd is alive in a similar way as done for btcd
 
   return true;
 }
@@ -107,8 +77,9 @@ void GwMaker::kafkaProduceMsg(const void *payload, size_t len) {
 
 bool GwMaker::rskdRpcGw(string &response) {
   string request = "{\"jsonrpc\": \"2.0\", \"method\": \"mnr_getWork\", \"params\": [], \"id\": 1}";
-  bool res = rskdRpcCall(rskdRpcAddr_.c_str(), rskdRpcUserpass_.c_str(),
-                             request.c_str(), response);
+
+  bool res = rskdRpcCall(rskdRpcAddr_.c_str(), rskdRpcUserpass_.c_str(), request.c_str(), response);
+
   if (!res) {
     LOG(ERROR) << "rskd RPC failure";
     return false;
@@ -154,20 +125,13 @@ string GwMaker::makeRawGwMsg() {
                          gwHash.ToString().c_str());
 }
 
-void GwMaker::submitRawGbtMsg(bool checkTime) {
-  ScopeLock sl(lock_);
-
-  if (checkTime &&
-      lastGwMakeTime_ + kRpcCallInterval_ > time(nullptr)) {
-    return;
-  }
+void GwMaker::submitRawGwMsg() {
 
   const string rawGwMsg = makeRawGwMsg();
   if (rawGwMsg.length() == 0) {
     LOG(ERROR) << "get rawGw failure";
     return;
   }
-  lastGwMakeTime_ = (uint32_t)time(nullptr);
 
   // submit to Kafka
   LOG(INFO) << "submit to Kafka, msg len: " << rawGwMsg.length();
@@ -177,7 +141,7 @@ void GwMaker::submitRawGbtMsg(bool checkTime) {
 void GwMaker::run() {
 
   while (running_) {
-    sleep(1);
-    submitRawGbtMsg(true);
+    sleep(kRpcCallInterval_);
+    submitRawGwMsg();
   }
 }

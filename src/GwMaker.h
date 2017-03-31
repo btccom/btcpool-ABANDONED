@@ -30,11 +30,9 @@
 /////////////////////////////////// GwMaker ///////////////////////////////////
 class GwMaker {
   atomic<bool> running_;
-  mutex lock_;
 
   string rskdRpcAddr_;
   string rskdRpcUserpass_;
-  atomic<uint32_t> lastGwMakeTime_;
   uint32_t kRpcCallInterval_;
 
   string kafkaBrokers_;
@@ -43,7 +41,7 @@ class GwMaker {
   bool rskdRpcGw(string &resp);
   string makeRawGwMsg();
 
-  void submitRawGbtMsg(bool checkTime);
+  void submitRawGwMsg();
 
   void kafkaProduceMsg(const void *payload, size_t len);
 
