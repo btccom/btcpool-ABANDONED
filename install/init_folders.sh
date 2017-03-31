@@ -27,6 +27,15 @@ if [ ! -d "run_gbtmaker" ]; then
   cd ..
 fi
 
+# gwmaker
+if [ ! -d "run_gwmaker" ]; then
+  mkdir "run_gwmaker" && cd "run_gwmaker"
+  mkdir "log_gwmaker"
+  ln -s ../gwmaker .
+  cp ../../src/gwmaker/gwmaker.cfg .
+  cd ..
+fi
+
 # jobmaker
 if [ ! -d "run_jobmaker" ]; then
   mkdir "run_jobmaker" && cd "run_jobmaker"
