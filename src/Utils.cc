@@ -238,16 +238,13 @@ error:
   return false;
 }
 
-bool bitcoindRpcCall(const char *url, const char *userpwd, const char *reqData,
-                     string &response) {
+bool bitcoindRpcCall(const char *url, const char *userpwd, const char *reqData, string &response) {
   return httpPOST(url, userpwd, reqData, response, 5000/* timeout ms */);
 }
 
-bool rskdRpcCall(const char *url, const char *userpwd, const char *reqData,
-                     string &response) {
+bool rskdRpcCall(const char *url, const char *userpwd, const char *reqData, string &response) {
   return httpPOST(url, userpwd, reqData, response, 5000/* timeout ms */);
 }
-
 
 //
 // %y	Year, last two digits (00-99)	01
