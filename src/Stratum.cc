@@ -35,7 +35,7 @@
 #include <glog/logging.h>
 
 
-// filter for woker name and miner agent
+// filter for woker name and miner agent`
 string filterWorkerName(const string &workerName) {
   string s;
   s.reserve(workerName.size());
@@ -310,7 +310,8 @@ bool StratumJob::unserializeFromJson(const char *s, size_t len) {
 bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
                              const CBitcoinAddress &poolPayoutAddr,
                              const uint32_t blockVersion,
-                             const string &nmcAuxBlockJson) {
+                             const string &nmcAuxBlockJson,
+                             const string &latestRskBlockJson) {
   uint256 gbtHash = Hash(gbt, gbt + strlen(gbt));
   JsonNode r;
   if (!JsonNode::parse(gbt, gbt + strlen(gbt), r)) {
@@ -499,6 +500,20 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
       cbOut[1].scriptPubKey = CScript((unsigned char*)binBuf.data(),
                                       (unsigned char*)binBuf.data() + binBuf.size());
     }
+
+    //
+    // output[2]: RSK merge mining
+    //
+    // TODO: implement when all the data required is available at this point
+    // if (!rskMergeMining.enabled())) {
+    //   DLOG(INFO) << "merge mining: " << witnessCommitment_.c_str();
+    //   vector<char> binBuf;
+    //   Hex2Bin(witnessCommitment_.c_str(), binBuf);
+    //   cbOut.push_back(CTxOut());
+    //   cbOut[2].nValue = 0;
+    //   cbOut[2].scriptPubKey = CScript((unsigned char*)binBuf.data(),
+    //                                   (unsigned char*)binBuf.data() + binBuf.size());
+    // }
 
     CMutableTransaction cbtx;
     cbtx.vin.push_back(cbIn);

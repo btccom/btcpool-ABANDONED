@@ -46,6 +46,11 @@ class JobMaker {
   mutex auxJsonlock_;
   string latestNmcAuxBlockJson_;
 
+  // merged mining for RSK
+  KafkaConsumer kafkaRawGwConsumer_;  
+  mutex rskBlockAccessLock_;
+  string latestRskBlockJson_;
+
   uint32_t currBestHeight_;
   uint32_t lastJobSendTime_;
   bool isLastJobEmptyBlock_;
@@ -65,8 +70,10 @@ class JobMaker {
   uint32_t blockVersion_;
 
   thread threadConsumeNmcAuxBlock_;
+  thread threadConsumeRskRawGw_;
 
   void consumeNmcAuxBlockMsg(rd_kafka_message_t *rkmessage);
+  void consumeRawGwMsg(rd_kafka_message_t *rkmessage);
   void consumeRawGbtMsg(rd_kafka_message_t *rkmessage, bool needToSend);
   void addRawgbt(const char *str, size_t len);
 
@@ -77,6 +84,7 @@ class JobMaker {
 
   void checkAndSendStratumJob();
   void runThreadConsumeNmcAuxBlock();
+  void runThreadConsumeRawGw();
 
 public:
   JobMaker(const string &kafkaBrokers, uint32_t stratumJobInterval,
