@@ -119,10 +119,8 @@ string GwMaker::makeRawGwMsg() {
   << ", gbthash: " << gwHash.ToString();
 
   return Strings::Format("{\"created_at_ts\":%u,"
-                         "\"get_work_base64\":\"%s\","
-                         "\"gwhash\":\"%s\"}",
-                         (uint32_t)time(nullptr), EncodeBase64(gw).c_str(),
-                         gwHash.ToString().c_str());
+                         "\"blockHashForMergedMining\":\"%s\"}",
+                         (uint32_t)time(nullptr), r["result"]["blockHashForMergedMining"].str().c_str());
 }
 
 void GwMaker::submitRawGwMsg() {
