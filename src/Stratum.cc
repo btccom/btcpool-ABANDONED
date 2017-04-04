@@ -374,7 +374,6 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     makeMerkleBranch(vtxhashs, merkleBranch_);
   }
 
-
   //
   // namecoin merged mining
   //
@@ -410,6 +409,37 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
       nmcRpcAddr_      = jNmcAux["rpc_addr"].str();
       nmcRpcUserpass_  = jNmcAux["rpc_userpass"].str();
       BitsToTarget(nmcAuxBits_, nmcNetworkTarget_);
+    } while (0);
+  }
+
+  //
+  // rsk merged mining
+  //
+  if (!latestRskBlockJson.empty()) {
+    do {
+      JsonNode rskGetWork;
+      if (!JsonNode::parse(latestRskBlockJson.c_str(),
+                           latestRskBlockJson.c_str() + latestRskBlockJson.length(),
+                           rskGetWork)) {
+        LOG(ERROR) << "decode rsk getwork json fail: >" << rskGetWork << "<";
+        break;
+      }
+
+      // check fields created_at_ts
+      if (rskGetWork["created_at_ts"].type()    != Utilities::JS::type::Int ||
+          rskGetWork["blockHashForMergedMining"].type()  != Utilities::JS::type::Str) {
+        LOG(ERROR) << "rsk getwork fields failure";
+        break;
+      }
+      // check timestamp
+      if (rskGetWork["created_at_ts"].uint32() + 60u < time(nullptr)) {
+        LOG(ERROR) << "too old rsk getwork: " << date("%F %T", rskGetWork["created_at_ts"].uint32());
+        break;
+      }
+
+      // set rsk info
+      blockHashForMergedMining_ = rskGetWork["blockHashForMergedMining"].str();
+      // BitsToTarget(nmcAuxBits_, nmcNetworkTarget_);
     } while (0);
   }
 
@@ -504,16 +534,20 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     //
     // output[2]: RSK merge mining
     //
-    // TODO: implement when all the data required is available at this point
-    // if (!rskMergeMining.enabled())) {
-    //   DLOG(INFO) << "merge mining: " << witnessCommitment_.c_str();
-    //   vector<char> binBuf;
-    //   Hex2Bin(witnessCommitment_.c_str(), binBuf);
-    //   cbOut.push_back(CTxOut());
-    //   cbOut[2].nValue = 0;
-    //   cbOut[2].scriptPubKey = CScript((unsigned char*)binBuf.data(),
-    //                                   (unsigned char*)binBuf.data() + binBuf.size());
-    // }
+    if (!latestRskBlockJson.empty()) {
+      DLOG(INFO) << "RSK blockhash: " << blockHashForMergedMining_;
+      vector<char> binBuf;
+
+      string rskBlockTag = "\x52\x53\x4B\x42\x4C\x4F\x43\x4B\x3A";
+      string rskBlockHash = rskBlockTag + blockHashForMergedMining_.substr(2);
+
+      Hex2Bin(rskBlockHash.c_str(), binBuf);
+
+      cbOut.push_back(CTxOut());
+      cbOut[2].nValue = binBuf.size();
+      cbOut[2].scriptPubKey = CScript((unsigned char*)binBuf.data(),
+                                      (unsigned char*)binBuf.data() + binBuf.size());
+    }
 
     CMutableTransaction cbtx;
     cbtx.vin.push_back(cbIn);

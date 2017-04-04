@@ -267,6 +267,9 @@ public:
   string   nmcRpcAddr_;
   string   nmcRpcUserpass_;
 
+  // rsk merged mining
+  string   blockHashForMergedMining_;
+
 
 public:
   StratumJob();
