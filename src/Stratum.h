@@ -269,6 +269,7 @@ public:
 
   // rsk merged mining
   string   blockHashForMergedMining_;
+  uint256  rskNetworkTarget_;
 
 
 public:

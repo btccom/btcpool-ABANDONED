@@ -425,8 +425,11 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
         break;
       }
 
-      // check fields created_at_ts
-      if (rskGetWork["created_at_ts"].type()    != Utilities::JS::type::Int ||
+      //LOG(INFO) << "RSK_GET_WORK: { " << rskGetWork << " }";
+
+      // check fields are valid
+      if (rskGetWork["created_at_ts"].type()    != Utilities::JS::type::Int  ||
+          rskGetWork["target"].type()           != Utilities::JS::type::Str ||
           rskGetWork["blockHashForMergedMining"].type()  != Utilities::JS::type::Str) {
         LOG(ERROR) << "rsk getwork fields failure";
         break;
@@ -439,7 +442,7 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
 
       // set rsk info
       blockHashForMergedMining_ = rskGetWork["blockHashForMergedMining"].str();
-      // BitsToTarget(nmcAuxBits_, nmcNetworkTarget_);
+      string rskNetworkTarget_ = rskGetWork["target"].str().substr(2);
     } while (0);
   }
 
