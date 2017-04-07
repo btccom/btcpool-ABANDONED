@@ -447,7 +447,10 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
 
       // set rsk info
       blockHashForMergedMining_ = rskGetWork["blockHashForMergedMining"].str();
-      string rskNetworkTarget_ = rskGetWork["target"].str().substr(2);
+      rskNetworkTarget_ = uint256S(rskGetWork["target"].str().c_str());
+      feesForMiner_ = rskGetWork["feesPaidToMiner"].str();
+      rskdRpcAddress_ = rskGetWork["rskdRpcAddress"].str();
+      rskdRpcUserPwd_ = rskGetWork["rskdRpcUserPwd"].str();
     } while (0);
   }
 

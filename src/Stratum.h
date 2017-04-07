@@ -269,6 +269,9 @@ public:
 
   // rsk merged mining
   string   blockHashForMergedMining_;
+  string   rskdRpcAddress_;
+  string   rskdRpcUserPwd_;
+  string   feesForMiner_;
   uint256  rskNetworkTarget_;
 
 
