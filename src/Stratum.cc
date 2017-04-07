@@ -428,9 +428,14 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
       //LOG(INFO) << "RSK_GET_WORK: { " << rskGetWork << " }";
 
       // check fields are valid
-      if (rskGetWork["created_at_ts"].type()    != Utilities::JS::type::Int  ||
-          rskGetWork["target"].type()           != Utilities::JS::type::Str ||
-          rskGetWork["blockHashForMergedMining"].type()  != Utilities::JS::type::Str) {
+      if (rskGetWork["created_at_ts"].type()    != Utilities::JS::type::Int   ||
+          rskGetWork["rskdRpcAddress"].type()   != Utilities::JS::type::Str   ||
+          rskGetWork["rskdRpcUserPwd"].type()   != Utilities::JS::type::Str   ||
+          rskGetWork["parentBlockHash"].type()             != Utilities::JS::type::Str ||
+          rskGetWork["blockHashForMergedMining"].type()    != Utilities::JS::type::Str ||
+          rskGetWork["target"].type()                      != Utilities::JS::type::Str ||
+          rskGetWork["feesPaidToMiner"].type()             != Utilities::JS::type::Str ||
+          rskGetWork["notify"].type()                      != Utilities::JS::type::Bool) {
         LOG(ERROR) << "rsk getwork fields failure";
         break;
       }

@@ -119,11 +119,21 @@ string GwMaker::makeRawGwMsg() {
   << ", gbthash: " << gwHash.ToString();
 
   return Strings::Format("{\"created_at_ts\":%u,"
+                         "\"rskdRpcAddress\":\"%s\","
+                         "\"rskdRpcUserPwd\":\"%s\","
                          "\"target\":\"%s\","
-                         "\"blockHashForMergedMining\":\"%s\"}",
+                         "\"parentBlockHash\":\"%s\","
+                         "\"blockHashForMergedMining\":\"%s\","
+                         "\"feesPaidToMiner\":\"%s\","
+                         "\"notify\":\"%s\"}",
                          (uint32_t)time(nullptr), 
+                         rskdRpcAddr_.c_str(), 
+                         rskdRpcUserpass_.c_str(),
                          r["result"]["target"].str().c_str(), 
-                         r["result"]["blockHashForMergedMining"].str().c_str());
+                         r["result"]["parentBlockHash"].str().c_str(),
+                         r["result"]["blockHashForMergedMining"].str().c_str(),
+                         r["result"]["feesPaidToMiner"].str().c_str(),
+                         r["result"]["notify"].str().c_str());
 }
 
 void GwMaker::submitRawGwMsg() {
