@@ -1021,6 +1021,57 @@ int Server::checkShare(const Share &share,
 
   arith_uint256 bnBlockHash     = UintToArith256(blkHash);
   arith_uint256 bnNetworkTarget = UintToArith256(sjob->networkTarget_);
+  
+  arith_uint256 rskNetworkTarget = UintToArith256(sjob->rskNetworkTarget_);
+
+  //
+  // found new RSK block
+  //
+  if (isSubmitInvalidBlock_ == true || bnBlockHash <= rskNetworkTarget) {
+    //
+    // build data needed to submit block to RSK
+    //
+    RskSolvedShareData shareData;
+    shareData.jobId_    = share.jobId_;
+    shareData.workerId_ = share.workerHashId_;
+    shareData.userId_   = share.userId_;
+    shareData.height_   = sjob->height_;
+    shareData.feesForMiner_ = sjob->feesForMiner_;
+    shareData.rpcAddress_ = sjob->rskdRpcAddress_;
+    shareData.rpcUserPwd_ = sjob->rskdRpcUserPwd_;
+    memcpy(shareData.header80_, (const uint8_t *)&header, sizeof(CBlockHeader));
+    snprintf(shareData.workerFullName_, sizeof(shareData.workerFullName_), "%s", workFullName.c_str());
+    
+    //
+    // send to kafka topic
+    //
+    string buf;
+    buf.resize(sizeof(RskSolvedShareData) + coinbaseBin.size());
+    uint8_t *p = (uint8_t *)buf.data();
+
+    // RskSolvedShareData
+    memcpy(p, (const uint8_t *)&shareData, sizeof(RskSolvedShareData));
+    p += sizeof(RskSolvedShareData);
+
+    // coinbase TX
+    memcpy(p, coinbaseBin.data(), coinbaseBin.size());
+
+    // TODO(tincho): replace with RSK topic
+    kafkaProducerSolvedShare_->produce(buf.data(), buf.size());
+    //sendSolvedShare2Kafka(&shareData, coinbaseBin);
+
+    //
+    // mark jobs as stale
+    //
+    jobRepository_->markAllJobsAsStale();
+
+    //
+    // log the finding
+    //
+    LOG(INFO) << ">>>> found a new RSK block: " << blkHash.ToString()
+    << ", jobId: " << share.jobId_ << ", userId: " << share.userId_
+    << ", by: " << workFullName << " <<<<";
+  }
 
   //
   // found new block
