@@ -70,16 +70,19 @@ class BlockMaker {
   thread threadConsumeRawGbt_;
   thread threadConsumeStratumJob_;
   thread threadConsumeNamecoinSovledShare_;
+  thread threadConsumeRskSolvedShare_;
 
   void runThreadConsumeRawGbt();
   void runThreadConsumeSovledShare();
   void runThreadConsumeStratumJob();
   void runThreadConsumeNamecoinSovledShare();
+  void runThreadConsumeRskSolvedShare();
 
   void consumeRawGbt     (rd_kafka_message_t *rkmessage);
   void consumeStratumJob (rd_kafka_message_t *rkmessage);
   void consumeSovledShare(rd_kafka_message_t *rkmessage);
   void consumeNamecoinSovledShare(rd_kafka_message_t *rkmessage);
+  void consumeRskSolvedShare(rd_kafka_message_t *rkmessage);
 
   void addRawgbt(const char *str, size_t len);
 
@@ -105,6 +108,14 @@ class BlockMaker {
                                   const string &bitcoinBlockHash,
                                   const string &rpcAddress,
                                   const string &rpcUserpass);
+
+  void submitRskBlockNonBlocking(const string &rpcAddress,
+                                const string &rpcUserPwd,
+                                const string &blockHex);
+
+  void _submitRskBlockThread(const string &rpcAddress,
+                            const string &rpcUserPwd,
+                            const string &blockHex);
 
 public:
   BlockMaker(const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
