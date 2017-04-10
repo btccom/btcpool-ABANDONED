@@ -547,17 +547,18 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     //
     if (!latestRskBlockJson.empty()) {
       DLOG(INFO) << "RSK blockhash: " << blockHashForMergedMining_;
+      string rskBlockTag = "\x52\x53\x4B\x42\x4C\x4F\x43\x4B\x3A";
+      vector<char> rskTag(rskBlockTag.begin(), rskBlockTag.end());
       vector<char> binBuf;
 
-      string rskBlockTag = "\x52\x53\x4B\x42\x4C\x4F\x43\x4B\x3A";
-      string rskBlockHash = rskBlockTag + blockHashForMergedMining_.substr(2);
+      Hex2Bin(blockHashForMergedMining_.c_str(), binBuf);
 
-      Hex2Bin(rskBlockHash.c_str(), binBuf);
+      rskTag.insert(std::end(rskTag), std::begin(binBuf), std::end(binBuf));
 
       cbOut.push_back(CTxOut());
-      cbOut[2].nValue = binBuf.size();
-      cbOut[2].scriptPubKey = CScript((unsigned char*)binBuf.data(),
-                                      (unsigned char*)binBuf.data() + binBuf.size());
+      cbOut[2].nValue = 0;
+      cbOut[2].scriptPubKey = CScript((unsigned char*)rskTag.data(),
+                                      (unsigned char*)rskTag.data() + rskTag.size());
     }
 
     CMutableTransaction cbtx;
