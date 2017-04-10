@@ -673,6 +673,7 @@ kafkaProducerShareLog_(nullptr),
 kafkaProducerSolvedShare_(nullptr),
 kafkaProducerNamecoinSolvedShare_(nullptr),
 kafkaProducerCommonEvents_(nullptr),
+kafkaProducerRskSolvedShare_(nullptr),
 isEnableSimulator_(false), isSubmitInvalidBlock_(false),
 
 #ifndef WORK_WITH_STRATUM_SWITCHER
@@ -702,6 +703,9 @@ Server::~Server() {
   }
   if (kafkaProducerNamecoinSolvedShare_ != nullptr) {
     delete kafkaProducerNamecoinSolvedShare_;
+  }
+  if (kafkaProducerRskSolvedShare_ != nullptr) {
+    delete kafkaProducerRskSolvedShare_;
   }
   if (kafkaProducerCommonEvents_ != nullptr) {
     delete kafkaProducerCommonEvents_;
@@ -740,6 +744,9 @@ bool Server::setup(const char *ip, const unsigned short port,
                                                 RD_KAFKA_PARTITION_UA);
   kafkaProducerNamecoinSolvedShare_ = new KafkaProducer(kafkaBrokers,
                                                         KAFKA_TOPIC_NMC_SOLVED_SHARE,
+                                                        RD_KAFKA_PARTITION_UA);
+  kafkaProducerRskSolvedShare_ = new KafkaProducer(kafkaBrokers,
+                                                        KAFKA_TOPIC_RSK_SOLVED_SHARE,
                                                         RD_KAFKA_PARTITION_UA);
   kafkaProducerShareLog_ = new KafkaProducer(kafkaBrokers,
                                              KAFKA_TOPIC_SHARE_LOG,
@@ -811,6 +818,21 @@ bool Server::setup(const char *ip, const unsigned short port,
     }
     if (!kafkaProducerNamecoinSolvedShare_->checkAlive()) {
       LOG(ERROR) << "kafka kafkaProducerNamecoinSolvedShare_ is NOT alive";
+      return false;
+    }
+  }
+
+  // kafkaProducerRskSolvedShare_
+  {
+    map<string, string> options;
+    // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
+    options["queue.buffering.max.ms"] = "1";
+    if (!kafkaProducerRskSolvedShare_->setup(&options)) {
+      LOG(ERROR) << "kafka kafkaProducerRskSolvedShare_ setup failure";
+      return false;
+    }
+    if (!kafkaProducerRskSolvedShare_->checkAlive()) {
+      LOG(ERROR) << "kafka kafkaProducerRskSolvedShare_ is NOT alive";
       return false;
     }
   }
@@ -1027,7 +1049,7 @@ int Server::checkShare(const Share &share,
   //
   // found new RSK block
   //
-  if (isSubmitInvalidBlock_ == true || bnBlockHash <= rskNetworkTarget) {
+  if (isSubmitInvalidBlock_ || bnBlockHash <= rskNetworkTarget) {
     //
     // build data needed to submit block to RSK
     //
@@ -1056,9 +1078,7 @@ int Server::checkShare(const Share &share,
     // coinbase TX
     memcpy(p, coinbaseBin.data(), coinbaseBin.size());
 
-    // TODO(tincho): replace with RSK topic
-    kafkaProducerSolvedShare_->produce(buf.data(), buf.size());
-    //sendSolvedShare2Kafka(&shareData, coinbaseBin);
+    kafkaProducerRskSolvedShare_->produce(buf.data(), buf.size());
 
     //
     // mark jobs as stale

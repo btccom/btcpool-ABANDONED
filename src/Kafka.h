@@ -29,7 +29,6 @@
 #include <librdkafka/rdkafka.h>
 
 #define KAFKA_TOPIC_RAWGBT         "RawGbt"
-#define KAFKA_TOPIC_RAWGW          "RawGw"
 #define KAFKA_TOPIC_STRATUM_JOB    "StratumJob"
 #define KAFKA_TOPIC_SOLVED_SHARE   "SolvedShare"
 #define KAFKA_TOPIC_SHARE_LOG      "ShareLog"
@@ -38,6 +37,8 @@
 #define KAFKA_TOPIC_NMC_AUXBLOCK      "NMCAuxBlock"
 #define KAFKA_TOPIC_NMC_SOLVED_SHARE  "NMCSolvedShare"
 
+#define KAFKA_TOPIC_RAWGW             "RawGw"
+#define KAFKA_TOPIC_RSK_SOLVED_SHARE  "RskSolvedShare"
 
 ///////////////////////////////// KafkaConsumer ////////////////////////////////
 // Simple Consumer
