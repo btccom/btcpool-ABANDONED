@@ -116,7 +116,7 @@ string GwMaker::makeRawGwMsg() {
   << ", target: "               << r["result"]["target"].str()
   << ", fees paid to miner: "   << r["result"]["feesPaidToMiner"].str()
   << ", notify: " << r["result"]["notify"].boolean()
-  << ", gbthash: " << gwHash.ToString();
+  << ", gwhash: " << gwHash.ToString();
 
   return Strings::Format("{\"created_at_ts\":%u,"
                          "\"rskdRpcAddress\":\"%s\","
