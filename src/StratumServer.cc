@@ -1036,9 +1036,9 @@ int Server::checkShare(const Share &share,
     shareData.workerId_ = share.workerHashId_;
     shareData.userId_   = share.userId_;
     shareData.height_   = sjob->height_;
-    shareData.feesForMiner_ = sjob->feesForMiner_;
-    shareData.rpcAddress_ = sjob->rskdRpcAddress_;
-    shareData.rpcUserPwd_ = sjob->rskdRpcUserPwd_;
+    snprintf(shareData.feesForMiner_, sizeof(shareData.feesForMiner_), "%s", sjob->feesForMiner_.c_str());
+    snprintf(shareData.rpcAddress_, sizeof(shareData.rpcAddress_), "%s", sjob->rskdRpcAddress_.c_str());
+    snprintf(shareData.rpcUserPwd_, sizeof(shareData.rpcUserPwd_), "%s", sjob->rskdRpcUserPwd_.c_str());
     memcpy(shareData.header80_, (const uint8_t *)&header, sizeof(CBlockHeader));
     snprintf(shareData.workerFullName_, sizeof(shareData.workerFullName_), "%s", workFullName.c_str());
     
