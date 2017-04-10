@@ -447,7 +447,7 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
 
       // set rsk info
       blockHashForMergedMining_ = rskGetWork["blockHashForMergedMining"].str();
-      rskNetworkTarget_ = uint256S(rskGetWork["target"].str().c_str());
+      rskNetworkTarget_ = uint256S(rskGetWork["target"].str());
       feesForMiner_ = rskGetWork["feesPaidToMiner"].str();
       rskdRpcAddress_ = rskGetWork["rskdRpcAddress"].str();
       rskdRpcUserPwd_ = rskGetWork["rskdRpcUserPwd"].str();
