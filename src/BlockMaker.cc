@@ -39,6 +39,7 @@ kafkaConsumerRawGbt_     (kafkaBrokers, KAFKA_TOPIC_RAWGBT,       0/* patition *
 kafkaConsumerStratumJob_ (kafkaBrokers, KAFKA_TOPIC_STRATUM_JOB,  0/* patition */),
 kafkaConsumerSovledShare_(kafkaBrokers, KAFKA_TOPIC_SOLVED_SHARE, 0/* patition */),
 kafkaConsumerNamecoinSovledShare_(kafkaBrokers, KAFKA_TOPIC_NMC_SOLVED_SHARE, 0/* patition */),
+kafkaConsumerRskSolvedShare_(kafkaBrokers, KAFKA_TOPIC_RSK_SOLVED_SHARE, 0/* patition */),
 poolDB_(poolDB)
 {
 }
@@ -52,6 +53,9 @@ BlockMaker::~BlockMaker() {
 
   if (threadConsumeNamecoinSovledShare_.joinable())
     threadConsumeNamecoinSovledShare_.join();
+
+  if (threadConsumeRskSolvedShare_.joinable())
+    threadConsumeRskSolvedShare_.join();
 }
 
 void BlockMaker::stop() {
@@ -119,6 +123,19 @@ bool BlockMaker::init() {
   }
   if (!kafkaConsumerNamecoinSovledShare_.checkAlive()) {
     LOG(ERROR) << "kafka brokers is not alive: kafkaConsumerNamecoinSovledShare_";
+    return false;
+  }
+
+  //
+  // RSK Solved Share
+  //
+  // we need to consume the latest 2 messages, just in case
+  if (kafkaConsumerRskSolvedShare_.setup(RD_KAFKA_OFFSET_TAIL(2)) == false) {
+    LOG(INFO) << "setup kafkaConsumerRskSolvedShare_ fail";
+    return false;
+  }
+  if (!kafkaConsumerRskSolvedShare_.checkAlive()) {
+    LOG(ERROR) << "kafka brokers is not alive: kafkaConsumerRskSolvedShare_";
     return false;
   }
 
@@ -899,9 +916,9 @@ void BlockMaker::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
   }
 
   // submit to rskd
-  LOG(INFO) << "submit block: " << newblk.GetHash().ToString();
+  LOG(INFO) << "submit RSK block: " << newblk.GetHash().ToString();
   const string blockHex = EncodeHexBlock(newblk);
-  //submitRskBlockNonBlocking(shareData.rpcAddress_, shareData.rpcUserPwd_, blockHex);  // using thread
+  submitRskBlockNonBlocking(shareData.rpcAddress_, shareData.rpcUserPwd_, blockHex);  // using thread
 }
 
 void BlockMaker::runThreadConsumeRskSolvedShare() {
@@ -909,8 +926,7 @@ void BlockMaker::runThreadConsumeRskSolvedShare() {
 
   while (running_) {
     rd_kafka_message_t *rkmessage;
-    // TODO(tincho): replace with RSK topic
-    rkmessage = kafkaConsumerNamecoinSovledShare_.consumer(timeoutMs);
+    rkmessage = kafkaConsumerRskSolvedShare_.consumer(timeoutMs);
     if (rkmessage == nullptr) /* timeout */
       continue;
 

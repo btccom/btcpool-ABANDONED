@@ -57,6 +57,7 @@ class BlockMaker {
   KafkaConsumer kafkaConsumerStratumJob_;
   KafkaConsumer kafkaConsumerSovledShare_;
   KafkaConsumer kafkaConsumerNamecoinSovledShare_;
+  KafkaConsumer kafkaConsumerRskSolvedShare_;
 
   // submit new block to bitcoind
   // pair: <RpcAddress, RpcUserpass>
