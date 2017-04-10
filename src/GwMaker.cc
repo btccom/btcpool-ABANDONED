@@ -133,7 +133,7 @@ string GwMaker::makeRawGwMsg() {
                          r["result"]["parentBlockHash"].str().c_str(),
                          r["result"]["blockHashForMergedMining"].str().c_str(),
                          r["result"]["feesPaidToMiner"].str().c_str(),
-                         r["result"]["notify"].str().c_str());
+                         r["result"]["notify"].boolean() ? "true" : "false");
 }
 
 void GwMaker::submitRawGwMsg() {
