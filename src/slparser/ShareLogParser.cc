@@ -53,19 +53,21 @@ void handler(int sig) {
 void usage() {
   fprintf(stderr, "Usage:\n\tslparser -c \"slparser.cfg\" -l \"log_dir\"\n");
   fprintf(stderr, "\tslparser -c \"slparser.cfg\" -l \"log_dir2\" -d \"20160830\"\n");
+  fprintf(stderr, "\tslparser -c \"slparser.cfg\" -l \"log_dir3\" -d \"20160830\" -u \"puid(0: dump all, >0: someone's)\"\n");
 }
 
 int main(int argc, char **argv) {
   char *optLogDir = NULL;
   char *optConf   = NULL;
   int32_t optDate = 0;
+  int32_t optPUID = -1;  // pool user id
   int c;
 
   if (argc <= 1) {
     usage();
     return 1;
   }
-  while ((c = getopt(argc, argv, "c:l:d:h")) != -1) {
+  while ((c = getopt(argc, argv, "c:l:d:u:h")) != -1) {
     switch (c) {
       case 'c':
         optConf = optarg;
@@ -75,6 +77,9 @@ int main(int argc, char **argv) {
         break;
       case 'd':
         optDate = atoi(optarg);
+        break;
+      case 'u':
+        optPUID = atoi(optarg);
         break;
       case 'h': default:
         usage();
@@ -117,6 +122,27 @@ int main(int argc, char **argv) {
                                       cfg.lookup("pooldb.dbname"));
   }
 
+  //////////////////////////////////////////////////////////////////////////////
+  //  dump shares to stdout
+  //////////////////////////////////////////////////////////////////////////////
+  if (optDate != 0 && optPUID != -1) {
+    const string tsStr = Strings::Format("%04d-%02d-%02d 00:00:00",
+                                         optDate/10000,
+                                         optDate/100 % 100, optDate % 100);
+    const time_t ts = str2time(tsStr.c_str(), "%F %T");
+    std::set<int32_t> uids;
+    if (optPUID > 0)
+     uids.insert(optPUID);
+
+    ShareLogDumper sldumper(cfg.lookup("sharelog.data_dir"), ts, uids);
+    sldumper.dump2stdout();
+
+    google::ShutdownGoogleLogging();
+    return 0;
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+  //  re-run someday's share bin log
   //////////////////////////////////////////////////////////////////////////////
   if (optDate != 0) {
     const string tsStr = Strings::Format("%04d-%02d-%02d 00:00:00",

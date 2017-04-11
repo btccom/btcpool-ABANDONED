@@ -929,6 +929,75 @@ void ShareStatsDay::getShareStatsDay(ShareStats *stats) {
 }
 
 
+///////////////////////////////  ShareLogDumper  ///////////////////////////////
+ShareLogDumper::ShareLogDumper(const string &dataDir, time_t timestamp,
+                               const std::set<int32_t> &uids)
+: uids_(uids), isDumpAll_(false)
+{
+  filePath_ = getStatsFilePath(dataDir, timestamp);
+
+  if (uids_.empty())
+    isDumpAll_ = true;
+}
+
+ShareLogDumper::~ShareLogDumper() {
+}
+
+void ShareLogDumper::dump2stdout() {
+  FILE *f = nullptr;
+
+  // open file
+  LOG(INFO) << "open file: " << filePath_;
+  if ((f = fopen(filePath_.c_str(), "rb")) == nullptr) {
+    LOG(ERROR) << "open file fail: " << filePath_;
+    return;
+  }
+
+  // 2000000 * 48 = 96,000,000 Bytes
+  const uint32_t kElements = 2000000;
+  size_t readNum;
+  string buf;
+  buf.resize(kElements * sizeof(Share));
+
+  while (1) {
+    readNum = fread((uint8_t *)buf.data(), sizeof(Share), kElements, f);
+
+    if (readNum == 0) {
+      if (feof(f)) {
+        LOG(INFO) << "End-of-File reached: " << filePath_;
+        break;
+      }
+      LOG(INFO) << "read 0 bytes: " << filePath_;
+      continue;
+    }
+
+    parseShareLog((uint8_t *)buf.data(), readNum * sizeof(Share));
+  };
+
+  fclose(f);
+}
+
+void ShareLogDumper::parseShareLog(const uint8_t *buf, size_t len) {
+  assert(len % sizeof(Share) == 0);
+  const size_t size = len / sizeof(Share);
+
+  for (size_t i = 0; i < size; i++) {
+    parseShare((Share *)(buf + sizeof(Share)*i));
+  }
+}
+
+void ShareLogDumper::parseShare(const Share *share) {
+  if (!share->isValid()) {
+    LOG(ERROR) << "invalid share: " << share->toString();
+    return;
+  }
+
+  if (isDumpAll_ || uids_.find(share->userId_) != uids_.end()) {
+    // print to stdout
+    std::cout << share->toString() << std::endl;
+  }
+}
+
 ///////////////////////////////  ShareLogParser  ///////////////////////////////
 ShareLogParser::ShareLogParser(const string &dataDir, time_t timestamp,
                                const MysqlConnectInfo &poolDBInfo)

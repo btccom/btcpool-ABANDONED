@@ -382,6 +382,21 @@ public:
 };
 
 
+///////////////////////////////  ShareLogDumper  ///////////////////////////////
+class ShareLogDumper {
+  string filePath_;  // sharelog data file path
+  std::set<int32_t> uids_;  // if empty dump all user's shares
+  bool isDumpAll_;
+
+  void parseShareLog(const uint8_t *buf, size_t len);
+  void parseShare(const Share *share);
+
+public:
+  ShareLogDumper(const string &dataDir, time_t timestamp, const std::set<int32_t> &uids);
+  ~ShareLogDumper();
+
+  void dump2stdout();
+};
 
 ///////////////////////////////  ShareLogParser  ///////////////////////////////
 //
