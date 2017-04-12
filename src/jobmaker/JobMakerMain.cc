@@ -143,14 +143,15 @@ int main(int argc, char **argv) {
     }
 
     string fileLastJobTime;
-    uint32_t stratumJobInterval, gbtLifeTime;
+    uint32_t stratumJobInterval, gbtLifeTime, emptyGbtLifeTime;
     cfg.lookupValue("jobmaker.stratum_job_interval", stratumJobInterval);
     cfg.lookupValue("jobmaker.gbt_life_time", gbtLifeTime);
+    cfg.lookupValue("jobmaker.empty_gbt_life_time", emptyGbtLifeTime);
     cfg.lookupValue("jobmaker.file_last_job_time", fileLastJobTime);
 
     gJobMaker = new JobMaker(cfg.lookup("kafka.brokers"), stratumJobInterval,
                              cfg.lookup("pool.payout_address"), gbtLifeTime,
-                             fileLastJobTime);
+                             emptyGbtLifeTime, fileLastJobTime);
 
     if (!gJobMaker->init()) {
       LOG(FATAL) << "init failure";

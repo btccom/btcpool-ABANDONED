@@ -41,7 +41,7 @@
 ///////////////////////////////////  JobMaker  /////////////////////////////////
 JobMaker::JobMaker(const string &kafkaBrokers,  uint32_t stratumJobInterval,
                    const string &payoutAddr, uint32_t gbtLifeTime,
-                   const string &fileLastJobTime):
+                   uint32_t emptyGbtLifeTime, const string &fileLastJobTime):
 running_(true),
 kafkaBrokers_(kafkaBrokers),
 kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, RD_KAFKA_PARTITION_UA/* partition */),
@@ -51,7 +51,7 @@ currBestHeight_(0), lastJobSendTime_(0),
 isLastJobEmptyBlock_(false), isLastJobNewHeight_(false),
 stratumJobInterval_(stratumJobInterval),
 poolPayoutAddr_(payoutAddr), kGbtLifeTime_(gbtLifeTime),
-fileLastJobTime_(fileLastJobTime),
+kEmptyGbtLifeTime_(emptyGbtLifeTime), fileLastJobTime_(fileLastJobTime),
 blockVersion_(0x20000000)  // TODO: cfg
 {
   poolCoinbaseInfo_ = "/BTC.COM/";
@@ -304,10 +304,11 @@ void JobMaker::addRawgbt(const char *str, size_t len) {
   }
   assert(nodeGbt["result"]["height"].type() == Utilities::JS::type::Int);
   const uint32_t height = nodeGbt["result"]["height"].uint32();
+  const uint64_t emptyFlag = nodeGbt["result"]["transactions"].array().size() == 0 ? 0x80000000ULL : 0;
 
   {
     ScopeLock sl(lock_);
-    const uint64_t key = ((uint64_t)gbtTime << 32) + (uint64_t)height;
+    const uint64_t key = ((uint64_t)gbtTime << 32) + emptyFlag + (uint64_t)height;
     if (rawgbtMap_.find(key) == rawgbtMap_.end()) {
       rawgbtMap_.insert(std::make_pair(key, gbt));
     } else {
@@ -321,20 +322,30 @@ void JobMaker::addRawgbt(const char *str, size_t len) {
   }
 
   LOG(INFO) << "add rawgbt, height: "<< height << ", gbthash: "
-  << r["gbthash"].str().substr(0, 16) << "..., gbtTime(UTC): " << date("%F %T", gbtTime);
+  << r["gbthash"].str().substr(0, 16) << "..., gbtTime(UTC): " << date("%F %T", gbtTime)
+  << ", isEmpty:" << (emptyFlag != 0);
 }
 
 void JobMaker::clearTimeoutGbt() {
   // Maps (and sets) are sorted, so the first element is the smallest,
   // and the last element is the largest.
-  while (rawgbtMap_.size()) {
-    auto itr = rawgbtMap_.begin();
+
+  for (auto itr = rawgbtMap_.begin(); itr != rawgbtMap_.end(); itr++ ) {
+    uint32_t ts_now = time(nullptr);
     const uint32_t ts = (uint32_t)(itr->first >> 32);
-    if (ts + kGbtLifeTime_ > time(nullptr)) {
-      break;
+    const uint32_t isEmpty = (uint32_t)((itr->first & 0x80000000ULL) > 0);
+    const uint32_t height = (uint32_t)(itr->first & 0x7FFFFFFFULL);
+
+    if (isEmpty && ts + kEmptyGbtLifeTime_ > ts_now) {
+          continue;
     }
-    // remove the oldest gbt
-//    LOG(INFO) << "remove oldest rawgbt: " << date("%F %T", ts) << "|" << ts;
+
+    if (!isEmpty && ts + kGbtLifeTime_ > ts_now) {
+          continue;
+    }
+
+    // remove the timeout gbt
+    LOG(INFO) << "remove timeout rawgbt: " << date("%F %T", ts) << "|" << ts << ", height:" << height << ", isEmptyBlock:" << isEmpty;
     rawgbtMap_.erase(itr);
   }
 }
@@ -375,10 +386,11 @@ void JobMaker::sendStratumJob(const char *gbt) {
 void JobMaker::findNewBestHeight(std::map<uint64_t/* height + ts */, const char *> *gbtByHeight) {
   for (const auto &itr : rawgbtMap_) {
     const uint32_t timestamp = (uint32_t)((itr.first >> 32) & 0x00000000FFFFFFFFULL);
-    const uint32_t height    = (uint32_t)(itr.first         & 0x00000000FFFFFFFFULL);
+    const uint32_t emptyFlag = (uint32_t)(itr.first         & 0x0000000080000000ULL);
+    const uint32_t height    = (uint32_t)(itr.first         & 0x000000007FFFFFFFULL);
 
-    // using Map to sort by: height + timestamp
-    const uint64_t key = ((uint64_t)height << 32) + (uint64_t)timestamp;
+    // using Map to sort by: height + emptyFlag + timestamp
+    const uint64_t key = ((uint64_t)height << 32) + (uint64_t)emptyFlag + (uint64_t)timestamp;
     gbtByHeight->insert(std::make_pair(key, itr.second.c_str()));
   }
 }
@@ -419,7 +431,7 @@ void JobMaker::checkAndSendStratumJob() {
     LOG(WARNING) << "bestKey is the same as last one: " << lastSendBestKey;
     return;
   }
-  const uint32_t bestHeight = (uint32_t)((bestKey >> 32) & 0x00000000FFFFFFFFULL);
+  const uint32_t bestHeight = (uint32_t)((bestKey >> 32) & 0x000000007FFFFFFFULL);
   if (bestHeight != currBestHeight_) {
     LOG(INFO) << ">>>> found new best height: " << bestHeight
     << ", curr: " << currBestHeight_ << " <<<<";
