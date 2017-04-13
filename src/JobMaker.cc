@@ -386,11 +386,10 @@ void JobMaker::sendStratumJob(const char *gbt) {
 void JobMaker::findNewBestHeight(std::map<uint64_t/* height + ts */, const char *> *gbtByHeight) {
   for (const auto &itr : rawgbtMap_) {
     const uint32_t timestamp = (uint32_t)((itr.first >> 32) & 0x00000000FFFFFFFFULL);
-    const uint32_t emptyFlag = (uint32_t)(itr.first         & 0x0000000080000000ULL);
     const uint32_t height    = (uint32_t)(itr.first         & 0x000000007FFFFFFFULL);
 
-    // using Map to sort by: height + emptyFlag + timestamp
-    const uint64_t key = ((uint64_t)height << 32) + (uint64_t)emptyFlag + (uint64_t)timestamp;
+    // using Map to sort by: height + timestamp
+    const uint64_t key = ((uint64_t)height << 32) + (uint64_t)timestamp;
     gbtByHeight->insert(std::make_pair(key, itr.second.c_str()));
   }
 }
