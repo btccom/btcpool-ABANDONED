@@ -304,6 +304,7 @@ void JobMaker::addRawgbt(const char *str, size_t len) {
   }
   assert(nodeGbt["result"]["height"].type() == Utilities::JS::type::Int);
   const uint32_t height = nodeGbt["result"]["height"].uint32();
+  assert(height < 0x7FFFFFFFU);
   const uint64_t emptyFlag = nodeGbt["result"]["transactions"].array().size() == 0 ? 0x80000000ULL : 0;
 
   {
