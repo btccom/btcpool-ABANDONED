@@ -72,3 +72,43 @@ docker run -it -v /work/namecoind:/root/.namecoin --name namecoind -p 8334:8334 
 # login
 docker exec -it namecoind /bin/bash
 ```
+
+## Service Monitor
+
+There are two cron jobs in docker by default. Editing or deleting it by your want:
+
+```bash
+$ docker exec -it namecoind /bin/bash
+$ vim /etc/cron.d/namecoind
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+* * * * *   root bash /root/scripts/opsgenie-monitor-namecoind.sh > /dev/null 2>&1
+*/5 * * * * root bash /root/scripts/watch-namecoind.sh            > /dev/null 2>&1
+```
+
+### `opsgenie-monitor-namecoind.sh`
+
+It provides a monitor service with heartbeats of opsgenie.
+
+Setting `SERVICE` and `API_KEY` are necessary before it works.
+
+```bash
+$ vim /root/scripts/opsgenie-monitor-namecoind.sh
+...
+
+# the name of https://app.opsgenie.com/heartbeat
+SERVICE="namecoind.01"
+
+# api key of opsgenie
+API_KEY="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+...
+```
+
+### `watch-namecoind.sh`
+It calls `namecoin-cli getauxblock` and while the result is error/unexpected, it calls `namecoin-cli stop`. Then namecoind will be auto restarted by it's daemon.
+
+By default, the script runs per 5 minutes. Maybe we should disable it at the block-synchronization stage of namecoind, or it will be restarted regularly per 5 minutes and gearing down the speed of block-downloading.
+
+
