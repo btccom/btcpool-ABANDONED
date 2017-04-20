@@ -119,6 +119,16 @@ cd /work/kafka
 ./bin/kafka-topics.sh --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --alter --topic CommonEvents --config retention.ms=86400000
 ```
 
+Login to one of kafka machines, than create `rsk` topics for `btcpool`:
+
+```
+./bin/kafka-topics.sh --create --topic RawGw          --zookeeper 10.0.2.15:2181 --replication-factor 1 --partitions 1 &&
+./bin/kafka-topics.sh --create --topic RskSolvedShare --zookeeper 10.0.2.15:2181 --replication-factor 1 --partitions 1 &&
+
+# do not keep 'RawGw' message more than 12 hours
+./bin/kafka-configs.sh --zookeeper 10.0.2.15:2181 --alter --topic RawGw --config retention.ms=43200000
+```
+
 Check kafka topics stutus:
 
 ```
