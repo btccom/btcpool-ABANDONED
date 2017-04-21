@@ -129,7 +129,7 @@ Login to one of kafka machines, then create `rsk` topics for `btcpool`:
 ./bin/kafka-configs.sh --zookeeper 10.0.2.15:2181 --alter --topic RawGw --config retention.ms=43200000
 ```
 
-Check kafka topics stutus:
+Check kafka topics status:
 
 ```
 # show topics
@@ -148,6 +148,10 @@ Topic:NMCAuxBlock        PartitionCount:1         ReplicationFactor:3      Confi
          Topic: NMCAuxBlock       Partition: 0     Leader: 3        Replicas: 3,1  Isr: 3,1
 Topic:NMCSolvedShare     PartitionCount:1         ReplicationFactor:3      Configs:
          Topic: NMCSolvedShare    Partition: 0     Leader: 3        Replicas: 3,1  Isr: 3,1
+Topic:RawGw	PartitionCount:1	ReplicationFactor:1	Configs:retention.ms=43200000
+       	Topic: RawGw	Partition: 0	Leader: 1	Replicas: 1	Isr: 1
+Topic:RskSolvedShare	PartitionCount:1	ReplicationFactor:1	Configs:
+       	Topic: RskSolvedShare	Partition: 0	Leader: 1	Replicas: 1	Isr: 1
 ```
 
 Before you start btcpool's services, you need to stetup MySQL database and bitcoind/namecoind (if enable merged mining).
