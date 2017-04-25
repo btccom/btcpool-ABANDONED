@@ -452,10 +452,10 @@ void StatsServer::consumeShareLog(rd_kafka_message_t *rkmessage) {
 bool StatsServer::setupThreadConsume() {
   //
   // assume we have 100,000 online workers and every share per 10 seconds,
-  // so in 15 mins there will be 100000/10*900 = 9,000,000 shares.
-  // data size will be 9,000,000 * sizeof(Share) = 432,000,000 Bytes.
+  // so in 60 mins there will be 100000/10*3600 = 36,000,000 shares.
+  // data size will be 36,000,000 * sizeof(Share) = 1,728,000,000 Bytes.
   //
-  const int32_t kConsumeLatestN = 100000/10*900;  // 9,000,000
+  const int32_t kConsumeLatestN = 100000/10*3600;  // 36,000,000
 
   map<string, string> consumerOptions;
   // fetch.wait.max.ms:
