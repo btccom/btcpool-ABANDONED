@@ -12,12 +12,12 @@ cd $SROOT
 
 # the name of https://app.opsgenie.com/heartbeat
 SERVICE="namecoind.01"
-
 # api key of opsgenie
 API_KEY="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-
 # api endpoint
 MURL="https://api.opsgenie.com/v1/json/heartbeat/send"
+# error log
+LOG=/var/log/opsgenie-monitor-namecoind.log
 
 
 NAMECOIND_RPC="namecoin-cli "
@@ -25,9 +25,11 @@ NAMECOIND_RPC="namecoin-cli "
 #WANIP=`curl https://api.ipify.org`
 #WANIP=`curl http://ipinfo.io/ip`
 
-#NOERROR=`$NAMECOIND_RPC getinfo |  grep '"errors" : ""' | wc -l`
-HEIGHT=`$NAMECOIND_RPC getinfo | grep "blocks" | awk '{print $2}' | awk -F"," '{print $1}'`
-CONNS=`$NAMECOIND_RPC getinfo | grep "connections" | awk '{print $2}' | awk -F"," '{print $1}'`
+RPCINFO=`$NAMECOIND_RPC getinfo`
+#NOERROR=`echo "$RPCINFO" |  grep '"errors" : ""' | wc -l`
+HEIGHT=`echo "$RPCINFO" | grep "blocks" | awk '{print $2}' | awk -F"," '{print $1}'`
+CONNS=`echo "$RPCINFO" | grep "connections" | awk '{print $2}' | awk -F"," '{print $1}'`
+DATE=`date "+%Y-%m-%d %H:%M:%S"`
 
 #VALUE="height:$HEIGHT;conn:$CONNS;"
 
@@ -36,6 +38,15 @@ DATA=`cat << EOF
 EOF`
 
 if [[ $CONNS -ne 0 ]]; then
-  curl -XPOST --max-time 30 $MURL -d "$DATA"
-  exit 0
+  result=`curl -XPOST --max-time 30 -s -S $MURL -d "$DATA" 2>&1`
+  success=`echo "$result" | grep successful`
+
+  if [ "x$success" = "x" ]; then
+    echo "[$DATE] api response is not successful: $result" >>$LOG
+  fi
+
+  echo "$result"
+else
+  echo "[$DATE] namecoind's connections is 0: $RPCINFO" >>$LOG
+  echo "$RPCINFO"
 fi
