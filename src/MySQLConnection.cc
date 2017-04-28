@@ -103,25 +103,36 @@ void MySQLConnection::close() {
 }
 
 bool MySQLConnection::ping() {
-  if (!conn) {
-    open();
-  }
+  //
+  // mysql_ping():
+  //  Checks whether the connection to the server is working. If the connection
+  //  has gone down and auto-reconnect is enabled an attempt to reconnect is
+  //  made. If the connection is down and auto-reconnect is disabled,
+  //  mysql_ping() returns an error.
+  // Zero if the connection to the server is active. Nonzero if an error occurred.
+  //
 
-  if (conn) {
-    // mysql_ping():
-    //  Checks whether the connection to the server is working. If the connection
-    //  has gone down and auto-reconnect is enabled an attempt to reconnect is
-    //  made. If the connection is down and auto-reconnect is disabled,
-    //  mysql_ping() returns an error.
-    // Zero if the connection to the server is active. Nonzero if an error occurred.
-    int res = mysql_ping(conn);
-    if (res == 0) {
-      return true;
-    }
-    uint32_t error_no = mysql_errno(conn);
-    LOG(ERROR) << "mysql_ping() failure, error_no: " << error_no
-    << ", error_info: " << mysql_error(conn);
+  if (!conn) { open(); }
+
+  // ping
+  if (mysql_ping(conn) == 0) {
+    return true;
   }
+  LOG(ERROR) << "mysql_ping() failure, error_no: " << mysql_errno(conn)
+  << ", error_info: " << mysql_error(conn);
+
+  // re-connect
+  LOG(INFO) << "reconnect to mysql DB";
+  close();
+  open();
+
+  // ping again
+  if (mysql_ping(conn) == 0) {
+    return true;
+  }
+  LOG(ERROR) << "mysql_ping() failure, error_no: " << mysql_errno(conn)
+  << ", error_info: " << mysql_error(conn);
+
   return false;
 }
 

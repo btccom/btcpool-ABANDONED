@@ -56,6 +56,7 @@ class JobMaker {
   CBitcoinAddress poolPayoutAddr_;
 
   uint32_t kGbtLifeTime_;
+  uint32_t kEmptyGbtLifeTime_;
   string fileLastJobTime_;
 
   std::map<uint64_t/* timestamp + height */, string> rawgbtMap_;  // sorted gbt by timestamp
@@ -80,7 +81,7 @@ class JobMaker {
 public:
   JobMaker(const string &kafkaBrokers, uint32_t stratumJobInterval,
            const string &payoutAddr, uint32_t gbtLifeTime,
-           const string &fileLastJobTime);
+           uint32_t emptyGbtLifeTime, const string &fileLastJobTime);
   ~JobMaker();
 
   bool init();

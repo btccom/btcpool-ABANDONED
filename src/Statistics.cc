@@ -59,6 +59,7 @@ lastShareIP_(0), lastShareTime_(0),
 acceptShareSec_(STATS_SLIDING_WINDOW_SECONDS),
 rejectShareMin_(STATS_SLIDING_WINDOW_SECONDS/60)
 {
+  assert(STATS_SLIDING_WINDOW_SECONDS >= 3600);
 }
 
 void WorkerShares::processShare(const Share &share) {
@@ -89,6 +90,9 @@ WorkerStatus WorkerShares::getWorkerStatus() {
   s.accept15m_ = acceptShareSec_.sum(now, 900);
   s.reject15m_ = rejectShareMin_.sum(now/60, 15);
 
+  s.accept1h_ = acceptShareSec_.sum(now, 3600);
+  s.reject1h_ = rejectShareMin_.sum(now/60, 60);
+
   s.acceptCount_   = acceptCount_;
   s.lastShareIP_   = lastShareIP_;
   s.lastShareTime_ = lastShareTime_;
@@ -104,6 +108,9 @@ void WorkerShares::getWorkerStatus(WorkerStatus &s) {
   s.accept5m_  = acceptShareSec_.sum(now, 300);
   s.accept15m_ = acceptShareSec_.sum(now, 900);
   s.reject15m_ = rejectShareMin_.sum(now/60, 15);
+
+  s.accept1h_ = acceptShareSec_.sum(now, 3600);
+  s.reject1h_ = rejectShareMin_.sum(now/60, 60);
 
   s.acceptCount_   = acceptCount_;
   s.lastShareIP_   = lastShareIP_;
@@ -243,14 +250,16 @@ void StatsServer::_flushWorkersToDBThread() {
   "  `mining_workers`.`accept_1m`      =`mining_workers_tmp`.`accept_1m`, "
   "  `mining_workers`.`accept_5m`      =`mining_workers_tmp`.`accept_5m`, "
   "  `mining_workers`.`accept_15m`     =`mining_workers_tmp`.`accept_15m`, "
-  "  `mining_workers`.`reject_15m`     =`mining_workers_tmp`.`reject_15m`,"
+  "  `mining_workers`.`reject_15m`     =`mining_workers_tmp`.`reject_15m`, "
+  "  `mining_workers`.`accept_1h`      =`mining_workers_tmp`.`accept_1h`, "
+  "  `mining_workers`.`reject_1h`      =`mining_workers_tmp`.`reject_1h`, "
   "  `mining_workers`.`accept_count`   =`mining_workers_tmp`.`accept_count`,"
   "  `mining_workers`.`last_share_ip`  =`mining_workers_tmp`.`last_share_ip`,"
   "  `mining_workers`.`last_share_time`=`mining_workers_tmp`.`last_share_time`,"
   "  `mining_workers`.`updated_at`     =`mining_workers_tmp`.`updated_at` ";
   // fields for table.mining_workers
   const string fields = "`worker_id`,`puid`,`group_id`,`accept_1m`, `accept_5m`,"
-  "`accept_15m`, `reject_15m`, `accept_count`, `last_share_ip`,"
+  "`accept_15m`, `reject_15m`, `accept_1h`,`reject_1h`, `accept_count`, `last_share_ip`,"
   " `last_share_time`, `created_at`, `updated_at`";
   // values for multi-insert sql
   vector<string> values;
@@ -276,12 +285,16 @@ void StatsServer::_flushWorkersToDBThread() {
     const string nowStr = date("%F %T", time(nullptr));
 
     values.push_back(Strings::Format("%" PRId64",%d,%d,%" PRIu64",%" PRIu64","
-                                     "%" PRIu64",%" PRIu64",%d,\"%s\","
+                                     "%" PRIu64",%" PRIu64","  // accept_15m, reject_15m
+                                     "%" PRIu64",%" PRIu64","  // accept_1h,  reject_1h
+                                     "%d,\"%s\","
                                      "\"%s\",\"%s\",\"%s\"",
                                      workerId, userId,
                                      -1 * userId,  /* default group id */
-                                     status.accept1m_, status.accept5m_, status.accept15m_,
-                                     status.reject15m_, status.acceptCount_, ipStr,
+                                     status.accept1m_, status.accept5m_,
+                                     status.accept15m_, status.reject15m_,
+                                     status.accept1h_, status.reject1h_,
+                                     status.acceptCount_, ipStr,
                                      date("%F %T", status.lastShareTime_).c_str(),
                                      nowStr.c_str(), nowStr.c_str()));
   }
@@ -385,6 +398,8 @@ WorkerStatus StatsServer::mergeWorkerStatus(const vector<WorkerStatus> &workerSt
     s.accept5m_    += workerStatus[i].accept5m_;
     s.accept15m_   += workerStatus[i].accept15m_;
     s.reject15m_   += workerStatus[i].reject15m_;
+    s.accept1h_    += workerStatus[i].accept1h_;
+    s.reject1h_    += workerStatus[i].reject1h_;
     s.acceptCount_ += workerStatus[i].acceptCount_;
 
     if (workerStatus[i].lastShareTime_ > s.lastShareTime_) {
@@ -437,10 +452,10 @@ void StatsServer::consumeShareLog(rd_kafka_message_t *rkmessage) {
 bool StatsServer::setupThreadConsume() {
   //
   // assume we have 100,000 online workers and every share per 10 seconds,
-  // so in 15 mins there will be 100000/10*900 = 9,000,000 shares.
-  // data size will be 9,000,000 * sizeof(Share) = 432,000,000 Bytes.
+  // so in 60 mins there will be 100000/10*3600 = 36,000,000 shares.
+  // data size will be 36,000,000 * sizeof(Share) = 1,728,000,000 Bytes.
   //
-  const int32_t kConsumeLatestN = 100000/10*900;  // 9,000,000
+  const int32_t kConsumeLatestN = 100000/10*3600;  // 36,000,000
 
   map<string, string> consumerOptions;
   // fetch.wait.max.ms:
@@ -535,15 +550,18 @@ void StatsServer::httpdServerStatus(struct evhttp_request *req, void *arg) {
   evbuffer_add_printf(evb, "{\"err_no\":0,\"err_msg\":\"\","
                       "\"data\":{\"uptime\":\"%04u d %02u h %02u m %02u s\","
                       "\"request\":%" PRIu64",\"repbytes\":%" PRIu64","
-                      "\"pool\":{\"accept\":[%" PRIu64",%" PRIu64",%" PRIu64"],"
-                      "\"reject\":[0,0,%" PRIu64"],\"accept_count\":%" PRIu32","
+                      "\"pool\":{\"accept\":[%" PRIu64",%" PRIu64",%" PRIu64",%" PRIu64"],"
+                      "\"reject\":[0,0,%" PRIu64",%" PRIu64"],\"accept_count\":%" PRIu32","
                       "\"workers\":%" PRIu64",\"users\":%" PRIu64""
                       "}}}",
                       s.uptime_/86400, (s.uptime_%86400)/3600,
                       (s.uptime_%3600)/60, s.uptime_%60,
                       s.requestCount_, s.responseBytes_,
+                      // accept
                       s.poolStatus_.accept1m_, s.poolStatus_.accept5m_,
-                      s.poolStatus_.accept15m_, s.poolStatus_.reject15m_,
+                      s.poolStatus_.accept15m_, s.poolStatus_.accept1h_,
+                      // reject
+                      s.poolStatus_.reject15m_, s.poolStatus_.reject1h_,
                       s.poolStatus_.acceptCount_,
                       s.workerCount_, s.userCount_);
 
@@ -664,14 +682,15 @@ void StatsServer::getWorkerStatus(struct evbuffer *evb, const char *pUserId,
     }
 
     evbuffer_add_printf(evb,
-                        "%s\"%" PRId64"\":{\"accept\":[%" PRIu64",%" PRIu64",%" PRIu64"]"
-                        ",\"reject\":[0,0,%" PRIu64"],\"accept_count\":%" PRIu32""
+                        "%s\"%" PRId64"\":{\"accept\":[%" PRIu64",%" PRIu64",%" PRIu64",%" PRIu64"]"
+                        ",\"reject\":[0,0,%" PRIu64",%" PRIu64"],\"accept_count\":%" PRIu32""
                         ",\"last_share_ip\":\"%s\",\"last_share_time\":%u"
                         "%s}",
                         (i == 0 ? "" : ","),
                         (isMerge ? 0 : keys[i].workerId_),
-                        status.accept1m_, status.accept5m_, status.accept15m_,
-                        status.reject15m_, status.acceptCount_,
+                        status.accept1m_, status.accept5m_, status.accept15m_, status.accept1h_,
+                        status.reject15m_, status.reject1h_,
+                        status.acceptCount_,
                         ipStr, status.lastShareTime_,
                         extraInfo.length() ? extraInfo.c_str() : "");
     i++;

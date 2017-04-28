@@ -39,7 +39,7 @@
 #include <pthread.h>
 #include <memory>
 
-#define STATS_SLIDING_WINDOW_SECONDS 900
+#define STATS_SLIDING_WINDOW_SECONDS 3600
 
 
 ////////////////////////////////// StatsWindow /////////////////////////////////
@@ -148,8 +148,12 @@ public:
   // share, base on sliding window
   uint64_t accept1m_;
   uint64_t accept5m_;
+
   uint64_t accept15m_;
   uint64_t reject15m_;
+
+  uint64_t accept1h_;
+  uint64_t reject1h_;
 
   uint32_t acceptCount_;
 
@@ -157,8 +161,9 @@ public:
   uint32_t lastShareTime_;
 
   WorkerStatus():
-  accept1m_(0), accept5m_(0), accept15m_(0), reject15m_(0), acceptCount_(0),
-  lastShareIP_(0), lastShareTime_(0)
+  accept1m_(0), accept5m_(0), accept15m_(0), reject15m_(0),
+  accept1h_(0), reject1h_(0),
+  acceptCount_(0), lastShareIP_(0), lastShareTime_(0)
   {
   }
 
