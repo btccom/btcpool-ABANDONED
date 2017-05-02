@@ -269,6 +269,8 @@ class StatsServer {
   MySQLConnection  poolDB_;      // flush workers to table.mining_workers
   time_t kFlushDBInterval_;
   atomic<bool> isInserting_;     // flag mark if we are flushing db
+  
+  string fileLastFlushTime_;     // write last db flush time to the file
 
   // httpd
   struct event_base *base_;
@@ -297,7 +299,7 @@ public:
 public:
   StatsServer(const char *kafkaBrokers, const string &httpdHost,
               unsigned short httpdPort, const MysqlConnectInfo &poolDBInfo,
-              const time_t kFlushDBInterval);
+              const time_t kFlushDBInterval, const string &fileLastFlushTime);
   ~StatsServer();
 
   bool init();
