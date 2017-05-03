@@ -116,12 +116,15 @@ int main(int argc, char **argv) {
   cfg.lookupValue("nmcauxmaker.is_check_zmq", isCheckZmq);
   int32_t rpcCallInterval = 5;
   cfg.lookupValue("nmcauxmaker.rpcinterval", rpcCallInterval);
+  string fileLastRpcCallTime;
+  cfg.lookupValue("nmcauxmaker.file_last_rpc_call_time", fileLastRpcCallTime);
 
   gNMCAuxBlockMaker = new NMCAuxBlockMaker(cfg.lookup("namecoind.zmq_addr"),
                                            cfg.lookup("namecoind.rpc_addr"),
                                            cfg.lookup("namecoind.rpc_userpwd"),
                                            cfg.lookup("kafka.brokers"),
-                                           rpcCallInterval, isCheckZmq);
+                                           rpcCallInterval, fileLastRpcCallTime,
+                                           isCheckZmq);
 
   try {
     if (!gNMCAuxBlockMaker->init()) {

@@ -126,11 +126,12 @@ bool WorkerShares::isExpired() {
 ////////////////////////////////  StatsServer  ////////////////////////////////
 StatsServer::StatsServer(const char *kafkaBrokers, const string &httpdHost,
                          unsigned short httpdPort, const MysqlConnectInfo &poolDBInfo,
-                         const time_t kFlushDBInterval):
+                         const time_t kFlushDBInterval, const string &fileLastFlushTime):
 running_(true), totalWorkerCount_(0), totalUserCount_(0), uptime_(time(nullptr)),
 poolWorker_(0u/* worker id */, 0/* user id */),
 kafkaConsumer_(kafkaBrokers, KAFKA_TOPIC_SHARE_LOG, 0/* patition */),
 poolDB_(poolDBInfo), kFlushDBInterval_(kFlushDBInterval), isInserting_(false),
+fileLastFlushTime_(fileLastFlushTime),
 base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort),
 requestCount_(0), responseBytes_(0)
 {
@@ -325,6 +326,10 @@ void StatsServer::_flushWorkersToDBThread() {
     goto finish;
   }
   LOG(INFO) << "flush mining workers to DB... done, items: " << counter;
+  
+  // save flush timestamp to file, for monitor system
+  if (!fileLastFlushTime_.empty())
+  	writeTime2File(fileLastFlushTime_.c_str(), (uint32_t)time(nullptr));
 
 finish:
   isInserting_ = false;

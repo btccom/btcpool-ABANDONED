@@ -294,11 +294,13 @@ NMCAuxBlockMaker::NMCAuxBlockMaker(const string &zmqNamecoindAddr,
                                    const string &rpcUserpass,
                                    const string &kafkaBrokers,
                                    uint32_t kRpcCallInterval,
+                                   string fileLastRpcCallTime,
                                    bool isCheckZmq) :
 running_(true), zmqContext_(1/*i/o threads*/),
 zmqNamecoindAddr_(zmqNamecoindAddr),
 rpcAddr_(rpcAddr), rpcUserpass_(rpcUserpass),
 lastCallTime_(0), kRpcCallInterval_(kRpcCallInterval),
+fileLastRpcCallTime_(fileLastRpcCallTime),
 kafkaBrokers_(kafkaBrokers),
 kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_NMC_AUXBLOCK, 0/* partition */),
 isCheckZmq_(isCheckZmq)
@@ -431,6 +433,11 @@ void NMCAuxBlockMaker::submitAuxblockMsg(bool checkTime) {
   // submit to Kafka
   LOG(INFO) << "sumbit to Kafka, msg len: " << auxMsg.length();
   kafkaProduceMsg(auxMsg.c_str(), auxMsg.length());
+
+  // save the timestamp to file, for monitor system
+  if (!fileLastRpcCallTime_.empty()) {
+  	writeTime2File(fileLastRpcCallTime_.c_str(), lastCallTime_);
+  }
 }
 
 void NMCAuxBlockMaker::threadListenNamecoind() {

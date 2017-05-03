@@ -85,6 +85,7 @@ class NMCAuxBlockMaker {
   string rpcUserpass_;
   atomic<uint32_t> lastCallTime_;
   uint32_t kRpcCallInterval_;
+  string fileLastRpcCallTime_;
 
   string kafkaBrokers_;
   KafkaProducer kafkaProducer_;
@@ -103,7 +104,7 @@ public:
   NMCAuxBlockMaker(const string &zmqNamecoindAddr,
                    const string &rpcAddr, const string &rpcUserpass,
                    const string &kafkaBrokers, uint32_t kRpcCallInterval,
-                   bool isCheckZmq);
+                   string fileLastRpcCallTime, bool isCheckZmq);
   ~NMCAuxBlockMaker();
 
   bool init();
