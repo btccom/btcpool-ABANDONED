@@ -1,0 +1,6 @@
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+* * * * *   root bash /root/scripts/opsgenie-monitor-namecoind.sh > /dev/null 2>&1
+*/5 * * * * root bash /root/scripts/watch-namecoind.sh            > /dev/null 2>&1
+
