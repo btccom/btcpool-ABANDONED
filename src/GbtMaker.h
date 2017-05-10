@@ -72,7 +72,7 @@ public:
 
 //////////////////////////////// NMCAuxBlockMaker //////////////////////////////
 //
-// rpc call: ./namecoin-cli getauxblock
+// rpc call: ./namecoin-cli createauxblock N59bssPo1MbK3khwPELTEomyzYbHLb59uY
 //
 class NMCAuxBlockMaker {
   atomic<bool> running_;
@@ -90,9 +90,10 @@ class NMCAuxBlockMaker {
   string kafkaBrokers_;
   KafkaProducer kafkaProducer_;
   bool isCheckZmq_;
+  string coinbaseAddress_;  // nmc coinbase payout address
 
   bool checkNamecoindZMQ();
-  bool callRpcGetAuxBlock(string &resp);
+  bool callRpcCreateAuxBlock(string &resp);
   string makeAuxBlockMsg();
 
   void submitAuxblockMsg(bool checkTime);
@@ -104,7 +105,8 @@ public:
   NMCAuxBlockMaker(const string &zmqNamecoindAddr,
                    const string &rpcAddr, const string &rpcUserpass,
                    const string &kafkaBrokers, uint32_t kRpcCallInterval,
-                   string fileLastRpcCallTime, bool isCheckZmq);
+                   const string &fileLastRpcCallTime, bool isCheckZmq,
+                   const string &coinbaseAddress);
   ~NMCAuxBlockMaker();
 
   bool init();
