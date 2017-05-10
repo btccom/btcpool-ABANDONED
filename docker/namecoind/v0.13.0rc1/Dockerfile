@@ -45,7 +45,7 @@ RUN mkdir -p /root/.namecoin
 RUN mkdir -p /root/scripts
 
 # scripts
-ADD bitmain-monitor-namecoind.sh   /root/scripts/bitmain-monitor-namecoind.sh
+ADD opsgenie-monitor-namecoind.sh  /root/scripts/opsgenie-monitor-namecoind.sh
 ADD watch-namecoind.sh             /root/scripts/watch-namecoind.sh
 
 # crontab shell
