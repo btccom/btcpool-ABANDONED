@@ -115,4 +115,33 @@ public:
 };
 
 
+
+//////////////////////////////// RSKAuxBlockMaker //////////////////////////////
+class RSKAuxBlockMaker {
+  atomic<bool> running_;
+
+  string rskdRpcAddr_;
+  string rskdRpcUserpass_;
+  uint32_t kRpcCallInterval_;
+
+  string kafkaBrokers_;
+  KafkaProducer kafkaProducer_;
+
+  bool rskdRpcGetWork(string &resp);
+  string makeRawWorkMsg();
+
+  void submitRawGwMsg();
+
+  void kafkaProduceMsg(const void *payload, size_t len);
+
+public:
+  RSKAuxBlockMaker(const string &rskdRpcAddr, const string &rskdRpcUserpass,
+                   const string &kafkaBrokers, uint32_t kRpcCallInterval);
+  ~RSKAuxBlockMaker();
+
+  bool init();
+  void stop();
+  void run();
+};
+
 #endif

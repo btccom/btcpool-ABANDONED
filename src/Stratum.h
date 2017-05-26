@@ -284,7 +284,7 @@ public:
   string   nmcRpcUserpass_;
 
   // rsk merged mining
-  string   blockHashForMergedMining_;
+  string   rskAuxBlockHash_;
   string   rskdRpcAddress_;
   string   rskdRpcUserPwd_;
   string   feesForMiner_;

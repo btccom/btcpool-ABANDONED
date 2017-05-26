@@ -37,21 +37,21 @@
 #include "zmq.hpp"
 
 #include "Utils.h"
-#include "GwMaker.h"
+#include "GbtMaker.h"
 
 using namespace std;
 using namespace libconfig;
 
-GwMaker *gGwMaker = nullptr;
+RSKAuxBlockMaker *gRSKAuxBlockMaker = nullptr;
 
 void handler(int sig) {
-  if (gGwMaker) {
-    gGwMaker->stop();
+  if (gRSKAuxBlockMaker) {
+    gRSKAuxBlockMaker->stop();
   }
 }
 
 void usage() {
-  fprintf(stderr, "Usage:\n\tgwmaker -c \"gwmaker.cfg\" -l \"log_dir\"\n");
+  fprintf(stderr, "Usage:\n\tnmcauxmaker -c \"nmcauxmaker.cfg\" -l \"log_rskauxmaker\"\n");
 }
 
 int main(int argc, char **argv) {
@@ -113,19 +113,19 @@ int main(int argc, char **argv) {
   signal(SIGINT,  handler);
 
   int32_t pollPeriod = 5;
-  cfg.lookupValue("gwmaker.poll_period", pollPeriod);
-  gGwMaker = new GwMaker(cfg.lookup("rskd.rpc_addr"),
-                           cfg.lookup("rskd.rpc_userpwd"),
-                           cfg.lookup("kafka.brokers"),
-                           pollPeriod);
+  cfg.lookupValue("rskauxmaker.poll_period", pollPeriod);
+  gRSKAuxBlockMaker = new RSKAuxBlockMaker(cfg.lookup("rskd.rpc_addr"),
+                                           cfg.lookup("rskd.rpc_userpwd"),
+                                           cfg.lookup("kafka.brokers"),
+                                           pollPeriod);
 
   try {
-    if (!gGwMaker->init()) {
+    if (!gRSKAuxBlockMaker->init()) {
       LOG(FATAL) << "gwmaker init failure";
     } else {
-      gGwMaker->run();
+      gRSKAuxBlockMaker->run();
     }
-    delete gGwMaker;
+    delete gRSKAuxBlockMaker;
   } catch (std::exception & e) {
     LOG(FATAL) << "exception: " << e.what();
     return 1;

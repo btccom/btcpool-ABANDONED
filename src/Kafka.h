@@ -37,8 +37,8 @@
 #define KAFKA_TOPIC_NMC_AUXBLOCK      "NMCAuxBlock"
 #define KAFKA_TOPIC_NMC_SOLVED_SHARE  "NMCSolvedShare"
 
-#define KAFKA_TOPIC_RAWGW             "RawGw"
-#define KAFKA_TOPIC_RSK_SOLVED_SHARE  "RskSolvedShare"
+#define KAFKA_TOPIC_RSK_RAW_WORK      "RSKRawWork"
+#define KAFKA_TOPIC_RSK_SOLVED_SHARE  "RSKSolvedShare"
 
 ///////////////////////////////// KafkaConsumer ////////////////////////////////
 // Simple Consumer

@@ -45,9 +45,9 @@ JobMaker::JobMaker(const string &kafkaBrokers,  uint32_t stratumJobInterval,
 running_(true),
 kafkaBrokers_(kafkaBrokers),
 kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, RD_KAFKA_PARTITION_UA/* partition */),
-kafkaRawGbtConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT,       0/* partition */),
-kafkaNmcAuxConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_NMC_AUXBLOCK, 0/* partition */),
-kafkaRawGwConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGW, 0/* partition */),
+kafkaRawGbtConsumer_ (kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT,       0/* partition */),
+kafkaNmcAuxConsumer_ (kafkaBrokers_.c_str(), KAFKA_TOPIC_NMC_AUXBLOCK, 0/* partition */),
+kafkaRskWorkConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RSK_RAW_WORK, 0/* partition */),
 currBestHeight_(0), lastJobSendTime_(0),
 isLastJobEmptyBlock_(false), isLastJobNewHeight_(false),
 stratumJobInterval_(stratumJobInterval),
@@ -147,11 +147,11 @@ bool JobMaker::init() {
   {
     map<string, string> consumerOptions;
     consumerOptions["fetch.wait.max.ms"] = "5";
-    if (!kafkaRawGwConsumer_.setup(RD_KAFKA_OFFSET_TAIL(1), &consumerOptions)) {
+    if (!kafkaRskWorkConsumer_.setup(RD_KAFKA_OFFSET_TAIL(1), &consumerOptions)) {
       LOG(ERROR) << "kafka consumer rawgw block setup failure";
       return false;
     }
-    if (!kafkaRawGwConsumer_.checkAlive()) {
+    if (!kafkaRskWorkConsumer_.checkAlive()) {
       LOG(ERROR) << "kafka consumer rawgw block is NOT alive";
       return false;
     }
@@ -163,7 +163,7 @@ bool JobMaker::init() {
   //
   {
     rd_kafka_message_t *rkmessage;
-    rkmessage = kafkaRawGwConsumer_.consumer(1000/* timeout ms */);
+    rkmessage = kafkaRskWorkConsumer_.consumer(1000/* timeout ms */);
     if (rkmessage != nullptr) {
       consumeRawGwMsg(rkmessage);
       rd_kafka_message_destroy(rkmessage);
@@ -312,7 +312,7 @@ void JobMaker::runThreadConsumeRawGw() {
 
   while (running_) {
     rd_kafka_message_t *rkmessage;
-    rkmessage = kafkaRawGwConsumer_.consumer(timeoutMs);
+    rkmessage = kafkaRskWorkConsumer_.consumer(timeoutMs);
     if (rkmessage == nullptr) /* timeout */
       continue;
 

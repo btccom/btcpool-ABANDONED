@@ -581,3 +581,145 @@ void NMCAuxBlockMaker::run() {
     threadListenNamecoind.join();
 }
 
+
+
+//////////////////////////////// RSKAuxBlockMaker //////////////////////////////
+RSKAuxBlockMaker::RSKAuxBlockMaker(const string &rskdRpcAddr,
+                                   const string &rskdRpcUserpass,
+                                   const string &kafkaBrokers,
+                                   uint32_t kRpcCallInterval)
+: running_(true), rskdRpcAddr_(rskdRpcAddr),
+rskdRpcUserpass_(rskdRpcUserpass), kRpcCallInterval_(kRpcCallInterval),
+kafkaBrokers_(kafkaBrokers),
+kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RSK_RAW_WORK, 0/* partition */)
+{
+}
+
+RSKAuxBlockMaker::~RSKAuxBlockMaker() {}
+
+bool RSKAuxBlockMaker::init() {
+  map<string, string> options;
+  // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
+  options["queue.buffering.max.ms"] = "1";
+  if (!kafkaProducer_.setup(&options)) {
+    LOG(ERROR) << "kafka producer setup failure";
+    return false;
+  }
+
+  // setup kafka and check if it's alive
+  if (!kafkaProducer_.checkAlive()) {
+    LOG(ERROR) << "kafka is NOT alive";
+    return false;
+  }
+
+  // TODO: check rskd is alive in a similar way as done for btcd
+
+  return true;
+}
+
+void RSKAuxBlockMaker::stop() {
+  if (!running_) {
+    return;
+  }
+  running_ = false;
+  LOG(INFO) << "stop RSKAuxBlockMaker";
+}
+
+void RSKAuxBlockMaker::kafkaProduceMsg(const void *payload, size_t len) {
+  kafkaProducer_.produce(payload, len);
+}
+
+bool RSKAuxBlockMaker::rskdRpcGetWork(string &response) {
+  string request = "{\"jsonrpc\": \"2.0\", \"method\": \"mnr_getWork\", \"params\": [], \"id\": 1}";
+
+  bool res = rskdRpcCall(rskdRpcAddr_.c_str(), rskdRpcUserpass_.c_str(), request.c_str(), response);
+
+  if (!res) {
+    LOG(ERROR) << "rskd RPC failure";
+    return false;
+  }
+  return true;
+}
+
+string RSKAuxBlockMaker::makeRawWorkMsg() {
+  string workJson;
+  if (!rskdRpcGetWork(workJson)) {
+    return "";
+  }
+
+  //
+  // curl -u username:password -X POST --data '{"jsonrpc":"2.0","id":1,"params":[],"method":"mnr_getWork"}' 127.0.0.1:4444
+  // ----------------------------------------------------------------------------
+  // {"jsonrpc":"2.0","id":83,
+  //  "result":
+  //   {"blockHashForMergedMining":"0x6f090e534b7b683beb5b96549b808b536db60612aa1e3ca2e9eafb2fa43156ad",
+  //    "target":"0x0000000000000007464a5f1fc9d1ef4f5e2b5295918ad2d9c842697fc62f2428",
+  //    "feesPaidToMiner":"0",
+  //    "notify":false,
+  //    "parentBlockHash":"0x197a768485938cc0d601f7ce7f8dd68b65cf4dea608b0a05ff5b34e2fc2778d9"
+  //   }
+  // }
+  //
+
+  JsonNode r;
+  if (!JsonNode::parse(workJson.c_str(), workJson.c_str() + workJson.length(), r)) {
+    LOG(ERROR) << "decode work json failure: " << workJson;
+    return "";
+  }
+
+  // check fields
+  if (r["result"].type()                                != Utilities::JS::type::Obj ||
+      r["result"]["parentBlockHash"].type()             != Utilities::JS::type::Str ||
+      r["result"]["blockHashForMergedMining"].type()    != Utilities::JS::type::Str ||
+      r["result"]["target"].type()                      != Utilities::JS::type::Str ||
+      r["result"]["feesPaidToMiner"].type()             != Utilities::JS::type::Str ||
+      r["result"]["notify"].type()                      != Utilities::JS::type::Bool) {
+    LOG(ERROR) << "gw check fields failure";
+    return "";
+  }
+  const uint256 workHash = Hash(workJson.begin(), workJson.end());
+
+  LOG(INFO) << "GetWork success, parent hash: " << r["result"]["parentBlockHash"].str()
+  << ", block hash for merge mining: " << r["result"]["blockHashForMergedMining"].str()
+  << ", target: "               << r["result"]["target"].str()
+  << ", fees paid to miner: "   << r["result"]["feesPaidToMiner"].str()
+  << ", notify: " << r["result"]["notify"].boolean()
+  << ", work hash: " << workHash.ToString();
+
+  // build rsk work message(json), will send to MQ(Kafka)
+  return Strings::Format("{\"created_at_ts\":%u,"
+                         "\"rskdRpcAddress\":\"%s\","
+                         "\"rskdRpcUserPwd\":\"%s\","
+                         "\"target\":\"%s\","
+                         "\"parentBlockHash\":\"%s\","
+                         "\"blockHashForMergedMining\":\"%s\","
+                         "\"feesPaidToMiner\":\"%s\","
+                         "\"notify\":\"%s\"}",
+                         (uint32_t)time(nullptr),
+                         rskdRpcAddr_.c_str(),
+                         rskdRpcUserpass_.c_str(),
+                         r["result"]["target"].str().c_str(),
+                         r["result"]["parentBlockHash"].str().c_str(),
+                         r["result"]["blockHashForMergedMining"].str().c_str(),
+                         r["result"]["feesPaidToMiner"].str().c_str(),
+                         r["result"]["notify"].boolean() ? "true" : "false");
+}
+
+void RSKAuxBlockMaker::submitRawGwMsg() {
+  const string rskWorkMsg = makeRawWorkMsg();
+  if (rskWorkMsg.length() == 0) {
+    LOG(ERROR) << "get raw work failure";
+    return;
+  }
+
+  // submit to Kafka
+  LOG(INFO) << "submit to Kafka, msg len: " << rskWorkMsg.length();
+  kafkaProduceMsg(rskWorkMsg.c_str(), rskWorkMsg.length());
+}
+
+void RSKAuxBlockMaker::run() {
+  while (running_) {
+    sleep(kRpcCallInterval_);
+    submitRawGwMsg();
+  }
+}

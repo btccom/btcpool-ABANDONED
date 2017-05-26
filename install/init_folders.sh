@@ -27,15 +27,6 @@ if [ ! -d "run_gbtmaker" ]; then
   cd ..
 fi
 
-# gwmaker
-if [ ! -d "run_gwmaker" ]; then
-  mkdir "run_gwmaker" && cd "run_gwmaker"
-  mkdir "log_gwmaker"
-  ln -s ../gwmaker .
-  cp ../../src/gwmaker/gwmaker.cfg .
-  cd ..
-fi
-
 # jobmaker
 if [ ! -d "run_jobmaker" ]; then
   mkdir "run_jobmaker" && cd "run_jobmaker"
@@ -107,3 +98,13 @@ if [ ! -d "run_nmcauxmaker" ]; then
   cp ../../src/nmcauxmaker/nmcauxmaker.cfg .
   cd ..
 fi
+
+# rskauxmaker
+if [ ! -d "run_rskauxmaker" ]; then
+  mkdir "run_rskauxmaker" && cd "run_rskauxmaker"
+  mkdir "log_rskauxmaker"
+  ln -s ../rskauxmaker .
+  cp ../../src/rskauxmaker/rskauxmaker.cfg .
+  cd ..
+fi
+

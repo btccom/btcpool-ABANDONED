@@ -47,7 +47,7 @@ class JobMaker {
   string latestNmcAuxBlockJson_;
 
   // merged mining for RSK
-  KafkaConsumer kafkaRawGwConsumer_;  
+  KafkaConsumer kafkaRskWorkConsumer_;
   mutex rskBlockAccessLock_;
   string latestRskBlockJson_;
 

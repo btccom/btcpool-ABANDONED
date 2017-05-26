@@ -93,9 +93,9 @@ file(GLOB_RECURSE GBTMAKER_SOURCES src/gbtmaker/*.cc)
 add_executable(gbtmaker ${GBTMAKER_SOURCES})
 target_link_libraries(gbtmaker btcpool ${THIRD_LIBRARIES})
 
-set(GWMAKER_SOURCES src/gwmaker/GwMakerMain.cc)
-add_executable(gwmaker ${GWMAKER_SOURCES})
-target_link_libraries(gwmaker btcpool ${THIRD_LIBRARIES})
+set(GLOB_RECURSE RSK_AUXBLOCK_MAKER_SOURCES src/rskauxmaker/RskAuxBlockMakerMain.cc)
+add_executable(rskauxmaker ${RSK_AUXBLOCK_MAKER_SOURCES})
+target_link_libraries(rskauxmaker btcpool ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE NMC_AUXBLOCK_MAKER_SOURCES src/nmcauxmaker/*.cc)
 add_executable(nmcauxmaker ${NMC_AUXBLOCK_MAKER_SOURCES})
