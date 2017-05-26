@@ -93,7 +93,7 @@ file(GLOB_RECURSE GBTMAKER_SOURCES src/gbtmaker/*.cc)
 add_executable(gbtmaker ${GBTMAKER_SOURCES})
 target_link_libraries(gbtmaker btcpool ${THIRD_LIBRARIES})
 
-set(GLOB_RECURSE RSK_AUXBLOCK_MAKER_SOURCES src/rskauxmaker/RskAuxBlockMakerMain.cc)
+file(GLOB_RECURSE RSK_AUXBLOCK_MAKER_SOURCES src/rskauxmaker/RskAuxBlockMakerMain.cc)
 add_executable(rskauxmaker ${RSK_AUXBLOCK_MAKER_SOURCES})
 target_link_libraries(rskauxmaker btcpool ${THIRD_LIBRARIES})
 
