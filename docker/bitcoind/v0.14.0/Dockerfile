@@ -22,12 +22,16 @@ RUN apt-get install -y libboost-all-dev libzmq3-dev curl wget
 
 # build bitcoind
 RUN mkdir ~/source
-RUN cd ~/source && wget https://github.com/bitcoin/bitcoin/archive/v0.13.0.tar.gz -O v0.13.0.tar.gz
+RUN cd ~/source && wget https://github.com/bitcoin/bitcoin/archive/v0.14.0.tar.gz -O v0.14.0.tar.gz
 RUN cd ~/source \
-  && tar zxf v0.13.0.tar.gz && cd bitcoin-0.13.0 \
+  && tar zxf v0.14.0.tar.gz && cd bitcoin-0.14.0 \
+  && wget https://patch-diff.githubusercontent.com/raw/bitcoin/bitcoin/pull/9953.patch -O 9953.patch \
+  && patch -p1 < 9953.patch \
+  && sed -i 's/^static const int MAX_ADDNODE_CONNECTIONS = 8;/static const int MAX_ADDNODE_CONNECTIONS = 32;/' src/net.h \
   && ./autogen.sh \
-  && ./configure --disable-wallet \
-  && make -j4 && make install
+  && ./configure --disable-wallet --disable-tests \
+  && make && make install
+  #&& make -j$(nproc) && make install
 
 # mkdir bitcoind data dir
 RUN mkdir -p /root/.bitcoin
@@ -42,10 +46,17 @@ ADD crontab.txt /etc/cron.d/bitcoind
 # logrotate
 ADD logrotate-bitcoind /etc/logrotate.d/bitcoind
 
+#
 # services
-RUN mkdir /etc/service/bitcoind
-ADD run /etc/service/bitcoind/run
+#
+# service for mainnet
+RUN mkdir    /etc/service/bitcoind
+ADD run      /etc/service/bitcoind/run
 RUN chmod +x /etc/service/bitcoind/run
+# service for testnet3
+#RUN mkdir        /etc/service/bitcoind_testnet3
+#ADD run_testnet3 /etc/service/bitcoind_testnet3/run
+#RUN chmod +x     /etc/service/bitcoind_testnet3/run
 
 # remove source & build files
 RUN rm -rf ~/source

@@ -1,6 +1,6 @@
-/root/.bitcoin/debug.log {
+/root/.namecoin/debug.log {
     daily
-    rotate 3
+    rotate 7
     missingok
     copytruncate
 }

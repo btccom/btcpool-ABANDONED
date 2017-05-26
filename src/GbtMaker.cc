@@ -294,14 +294,17 @@ NMCAuxBlockMaker::NMCAuxBlockMaker(const string &zmqNamecoindAddr,
                                    const string &rpcUserpass,
                                    const string &kafkaBrokers,
                                    uint32_t kRpcCallInterval,
-                                   bool isCheckZmq) :
+                                   const string &fileLastRpcCallTime,
+                                   bool isCheckZmq,
+                                   const string &coinbaseAddress) :
 running_(true), zmqContext_(1/*i/o threads*/),
 zmqNamecoindAddr_(zmqNamecoindAddr),
 rpcAddr_(rpcAddr), rpcUserpass_(rpcUserpass),
 lastCallTime_(0), kRpcCallInterval_(kRpcCallInterval),
+fileLastRpcCallTime_(fileLastRpcCallTime),
 kafkaBrokers_(kafkaBrokers),
 kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_NMC_AUXBLOCK, 0/* partition */),
-isCheckZmq_(isCheckZmq)
+isCheckZmq_(isCheckZmq), coinbaseAddress_(coinbaseAddress)
 {
 }
 
@@ -339,13 +342,15 @@ bool NMCAuxBlockMaker::checkNamecoindZMQ() {
   return false;
 }
 
-bool NMCAuxBlockMaker::callRpcGetAuxBlock(string &resp) {
+bool NMCAuxBlockMaker::callRpcCreateAuxBlock(string &resp) {
   //
   // curl -v  --user "username:password"
-  // -d '{"jsonrpc": "1.0", "id":"curltest", "method": "getauxblock","params": []}'
+  // -d '{"jsonrpc": "1.0", "id":"curltest", "method": "createauxblock","params": []}'
   // -H 'content-type: text/plain;' "http://127.0.0.1:8336"
   //
-  string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getauxblock\",\"params\":[]}";
+  string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"createauxblock\",\"params\":[\"";
+  request += coinbaseAddress_;
+  request += "\"]}";
   bool res = bitcoindRpcCall(rpcAddr_.c_str(), rpcUserpass_.c_str(),
                              request.c_str(), resp);
   if (!res) {
@@ -357,15 +362,15 @@ bool NMCAuxBlockMaker::callRpcGetAuxBlock(string &resp) {
 
 string NMCAuxBlockMaker::makeAuxBlockMsg() {
   string aux;
-  if (!callRpcGetAuxBlock(aux)) {
+  if (!callRpcCreateAuxBlock(aux)) {
     return "";
   }
-  DLOG(INFO) << "getauxblock json: " << aux;
+  DLOG(INFO) << "createauxblock json: " << aux;
 
   JsonNode r;
   if (!JsonNode::parse(aux.c_str(),
                        aux.c_str() + aux.length(), r)) {
-    LOG(ERROR) << "decode getauxblock json failure: " << aux;
+    LOG(ERROR) << "decode createauxblock json failure: " << aux;
     return "";
   }
 
@@ -406,7 +411,7 @@ string NMCAuxBlockMaker::makeAuxBlockMsg() {
                                r["result"]["bits"].str().c_str(),
                                rpcAddr_.c_str(), rpcUserpass_.c_str());
 
-  LOG(INFO) << "getauxblock, height: " << r["result"]["height"].int32()
+  LOG(INFO) << "createauxblock, height: " << r["result"]["height"].int32()
   << ", hash: " << r["result"]["hash"].str()
   << ", previousblockhash: " << r["result"]["previousblockhash"].str();
 
@@ -423,7 +428,7 @@ void NMCAuxBlockMaker::submitAuxblockMsg(bool checkTime) {
 
   const string auxMsg = makeAuxBlockMsg();
   if (auxMsg.length() == 0) {
-    LOG(ERROR) << "getauxblock failure";
+    LOG(ERROR) << "createauxblock failure";
     return;
   }
   lastCallTime_ = (uint32_t)time(nullptr);
@@ -431,6 +436,11 @@ void NMCAuxBlockMaker::submitAuxblockMsg(bool checkTime) {
   // submit to Kafka
   LOG(INFO) << "sumbit to Kafka, msg len: " << auxMsg.length();
   kafkaProduceMsg(auxMsg.c_str(), auxMsg.length());
+
+  // save the timestamp to file, for monitor system
+  if (!fileLastRpcCallTime_.empty()) {
+  	writeTime2File(fileLastRpcCallTime_.c_str(), lastCallTime_);
+  }
 }
 
 void NMCAuxBlockMaker::threadListenNamecoind() {
@@ -523,6 +533,24 @@ bool NMCAuxBlockMaker::init() {
     }
   }
 
+  // check aux mining rpc commands: createauxblock & submitauxblock
+  {
+    string response;
+    string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"help\",\"params\":[]}";
+    bool res = bitcoindRpcCall(rpcAddr_.c_str(), rpcUserpass_.c_str(),
+                               request.c_str(), response);
+    if (!res) {
+      LOG(ERROR) << "namecoind rpc call failure";
+      return false;
+    }
+
+    if (response.find("createauxblock") == std::string::npos ||
+        response.find("submitauxblock") == std::string::npos) {
+      LOG(ERROR) << "namecoind doesn't support rpc commands: createauxblock and submitauxblock";
+      return false;
+    }
+  }
+
   if (isCheckZmq_ && !checkNamecoindZMQ())
     return false;
   
@@ -543,7 +571,7 @@ void NMCAuxBlockMaker::run() {
   //
   thread threadListenNamecoind = thread(&NMCAuxBlockMaker::threadListenNamecoind, this);
 
-  // getauxblock interval
+  // createauxblock interval
   while (running_) {
     sleep(1);
     submitAuxblockMsg(true);

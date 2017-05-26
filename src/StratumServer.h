@@ -246,7 +246,7 @@ public:
   SessionIDManager *sessionIDManager_;
 
 public:
-  Server();
+  Server(const int32_t shareAvgSeconds);
   ~Server();
 
   bool setup(const char *ip, const unsigned short port, const char *kafkaBrokers,
@@ -308,7 +308,8 @@ public:
                 const string &userAPIUrl, const MysqlConnectInfo &poolDBInfo,
                 const uint8_t serverId, const string &fileLastNotifyTime,
                 bool isEnableSimulator,
-                bool isSubmitInvalidBlock);
+                bool isSubmitInvalidBlock,
+                const int32_t shareAvgSeconds);
   ~StratumServer();
 
   bool init();

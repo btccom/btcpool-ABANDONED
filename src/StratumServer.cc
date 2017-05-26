@@ -660,8 +660,10 @@ StratumServer::StratumServer(const char *ip, const unsigned short port,
                              const char *kafkaBrokers, const string &userAPIUrl,
                              const MysqlConnectInfo &poolDBInfo,
                              const uint8_t serverId, const string &fileLastNotifyTime,
-                             bool isEnableSimulator, bool isSubmitInvalidBlock)
-:running_(true), ip_(ip), port_(port), serverId_(serverId),
+                             bool isEnableSimulator, bool isSubmitInvalidBlock,
+                             const int32_t shareAvgSeconds)
+:running_(true), server_(shareAvgSeconds),
+ip_(ip), port_(port), serverId_(serverId),
 fileLastNotifyTime_(fileLastNotifyTime),
 kafkaBrokers_(kafkaBrokers), userAPIUrl_(userAPIUrl), poolDBInfo_(poolDBInfo),
 isEnableSimulator_(isEnableSimulator), isSubmitInvalidBlock_(isSubmitInvalidBlock)
@@ -695,13 +697,14 @@ void StratumServer::run() {
 }
 
 ///////////////////////////////////// Server ///////////////////////////////////
-Server::Server(): base_(nullptr), signal_event_(nullptr), listener_(nullptr),
+Server::Server(const int32_t shareAvgSeconds):
+base_(nullptr), signal_event_(nullptr), listener_(nullptr),
 kafkaProducerShareLog_(nullptr),
 kafkaProducerSolvedShare_(nullptr),
 kafkaProducerNamecoinSolvedShare_(nullptr),
 kafkaProducerCommonEvents_(nullptr),
 isEnableSimulator_(false), isSubmitInvalidBlock_(false),
-kShareAvgSeconds_(10), // TODO: read from cfg
+kShareAvgSeconds_(shareAvgSeconds),
 jobRepository_(nullptr), userInfo_(nullptr), sessionIDManager_(nullptr)
 {
 }

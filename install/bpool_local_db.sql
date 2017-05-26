@@ -50,6 +50,8 @@ CREATE TABLE `mining_workers` (
   `accept_5m` bigint(20) NOT NULL DEFAULT '0',
   `accept_15m` bigint(20) NOT NULL DEFAULT '0',
   `reject_15m` bigint(20) NOT NULL DEFAULT '0',
+  `accept_1h` bigint(20) NOT NULL DEFAULT '0',
+  `reject_1h` bigint(20) NOT NULL DEFAULT '0',
   `accept_count` int(11) NOT NULL DEFAULT '0',
   `last_share_ip` char(16) NOT NULL DEFAULT '0.0.0.0',
   `last_share_time` timestamp NOT NULL DEFAULT '1970-01-01 00:00:01',
@@ -61,4 +63,4 @@ CREATE TABLE `mining_workers` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
--- 2016-09-09 03:56:14
+-- 2017-04-25 12:17:40

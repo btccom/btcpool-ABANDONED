@@ -1,9 +1,9 @@
-Docker for Namecoind v0.13.0rc1
+Docker for Namecoind btccom-v0.1-beta
 ============================
 
 * OS: `Ubuntu 14.04 LTS`
 * Docker Image OS: `Ubuntu 16.04 LTS`
-* Namecoind: `v0.13.0rc1`
+* Namecoind: `btccom-v0.1-beta`
 
 ## Install Docker
 
@@ -22,13 +22,13 @@ service docker status
 cd /work
 
 git clone https://github.com/btccom/btcpool.git
-cd btcpool/docker/namecoind/v0.13.0rc1
+cd btcpool/docker/namecoind/btccom-v0.1-beta
 
 # If your server is in China, please check "Dockerfile" and uncomment some lines
 
 # build
-docker build -t namecoind:0.13.0rc1 .
-# docker build --no-cache -t namecoind:0.13.0rc1 .
+docker build -t namecoind:btccom-v0.1-beta .
+# docker build --no-cache -t namecoind:btccom-v0.1-beta .
 
 # mkdir for namecoind
 mkdir -p /work/namecoind
@@ -56,9 +56,6 @@ zmqpubrawtx=tcp://0.0.0.0:8337
 zmqpubhashtx=tcp://0.0.0.0:8337
 zmqpubhashblock=tcp://0.0.0.0:8337
 
-# use 1G memory for utxo, depends on your machine's memory
-dbcache=1000
-
 # use 1MB block when call GBT
 blockmaxsize=1000000
 ```
@@ -67,7 +64,7 @@ blockmaxsize=1000000
 
 ```
 # start docker
-docker run -it -v /work/namecoind:/root/.namecoin --name namecoind -p 8334:8334 -p 8336:8336 -p 8337:8337 --restart always -d namecoind:0.13.0rc1
+docker run -it -v /work/namecoind:/root/.namecoin --name namecoind -p 8334:8334 -p 8336:8336 -p 8337:8337 --restart always -d namecoind:btccom-v0.1-beta
 
 # login
 docker exec -it namecoind /bin/bash

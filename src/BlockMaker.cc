@@ -407,13 +407,13 @@ void BlockMaker::_submitNamecoinBlockThread(const string &auxBlockHash,
                                             const string &rpcAddress,
                                             const string &rpcUserpass) {
   //
-  // request : getauxblock [<hash> <auxpow>]
+  // request : submitauxblock <hash> <auxpow>
   //
   {
-    const string request = Strings::Format("{\"id\":1,\"method\":\"getauxblock\",\"params\":[\"%s\",\"%s\"]}",
+    const string request = Strings::Format("{\"id\":1,\"method\":\"submitauxblock\",\"params\":[\"%s\",\"%s\"]}",
                                            auxBlockHash.c_str(),
                                            auxPow.c_str());
-    DLOG(INFO) << "getauxblock request: " << request;
+    DLOG(INFO) << "submitauxblock request: " << request;
     // try N times
     for (size_t i = 0; i < 3; i++) {
       string response;

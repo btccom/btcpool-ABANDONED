@@ -41,7 +41,7 @@
 ///////////////////////////////////  JobMaker  /////////////////////////////////
 JobMaker::JobMaker(const string &kafkaBrokers,  uint32_t stratumJobInterval,
                    const string &payoutAddr, uint32_t gbtLifeTime,
-                   const string &fileLastJobTime):
+                   uint32_t emptyGbtLifeTime, const string &fileLastJobTime):
 running_(true),
 kafkaBrokers_(kafkaBrokers),
 kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, RD_KAFKA_PARTITION_UA/* partition */),
@@ -51,7 +51,7 @@ currBestHeight_(0), lastJobSendTime_(0),
 isLastJobEmptyBlock_(false), isLastJobNewHeight_(false),
 stratumJobInterval_(stratumJobInterval),
 poolPayoutAddr_(payoutAddr), kGbtLifeTime_(gbtLifeTime),
-fileLastJobTime_(fileLastJobTime),
+kEmptyGbtLifeTime_(emptyGbtLifeTime), fileLastJobTime_(fileLastJobTime),
 blockVersion_(0x20000000)  // TODO: cfg
 {
   poolCoinbaseInfo_ = "/BTC.COM/BCoin/";
@@ -304,10 +304,15 @@ void JobMaker::addRawgbt(const char *str, size_t len) {
   }
   assert(nodeGbt["result"]["height"].type() == Utilities::JS::type::Int);
   const uint32_t height = nodeGbt["result"]["height"].uint32();
+  assert(height < 0x7FFFFFFFU);
+
+  assert(nodeGbt["result"]["transactions"].type() == Utilities::JS::type::Array);
+  // 0x80000000 : 1000 0000 0000 0000 0000 0000 0000 0000
+  const uint64_t emptyFlag = nodeGbt["result"]["transactions"].array().size() == 0 ? 0x80000000ULL : 0;
 
   {
     ScopeLock sl(lock_);
-    const uint64_t key = ((uint64_t)gbtTime << 32) + (uint64_t)height;
+    const uint64_t key = ((uint64_t)gbtTime << 32) + emptyFlag + (uint64_t)height;
     if (rawgbtMap_.find(key) == rawgbtMap_.end()) {
       rawgbtMap_.insert(std::make_pair(key, gbt));
     } else {
@@ -321,21 +326,36 @@ void JobMaker::addRawgbt(const char *str, size_t len) {
   }
 
   LOG(INFO) << "add rawgbt, height: "<< height << ", gbthash: "
-  << r["gbthash"].str().substr(0, 16) << "..., gbtTime(UTC): " << date("%F %T", gbtTime);
+  << r["gbthash"].str().substr(0, 16) << "..., gbtTime(UTC): " << date("%F %T", gbtTime)
+  << ", isEmpty:" << (emptyFlag != 0);
 }
 
 void JobMaker::clearTimeoutGbt() {
   // Maps (and sets) are sorted, so the first element is the smallest,
   // and the last element is the largest.
-  while (rawgbtMap_.size()) {
-    auto itr = rawgbtMap_.begin();
-    const uint32_t ts = (uint32_t)(itr->first >> 32);
-    if (ts + kGbtLifeTime_ > time(nullptr)) {
-      break;
+
+  const uint32_t ts_now = time(nullptr);
+
+  for (auto itr = rawgbtMap_.begin(); itr != rawgbtMap_.end(); ) {
+    const uint32_t ts  = (uint32_t)(itr->first >> 32);
+    const bool isEmpty = (itr->first & 0x80000000ULL) != 0;
+    // 0x7FFFFFFF : 0111 1111 1111 1111 1111 1111 1111 1111
+    const uint32_t height = (uint32_t)(itr->first & 0x7FFFFFFFULL);
+
+    // gbt expired time
+    const uint32_t expiredTime = ts + (isEmpty ? kEmptyGbtLifeTime_ : kGbtLifeTime_);
+
+    if (expiredTime > ts_now) {
+      // not expired
+      ++itr;
+    } else {
+      // remove expired gbt
+      LOG(INFO) << "remove timeout rawgbt: " << date("%F %T", ts) << "|" << ts <<
+      ", height:" << height << ", isEmptyBlock:" << (isEmpty ? 1 : 0);
+
+      // c++11: returns an iterator to the next element in the map
+      itr = rawgbtMap_.erase(itr);
     }
-    // remove the oldest gbt
-//    LOG(INFO) << "remove oldest rawgbt: " << date("%F %T", ts) << "|" << ts;
-    rawgbtMap_.erase(itr);
   }
 }
 
@@ -375,9 +395,9 @@ void JobMaker::sendStratumJob(const char *gbt) {
 void JobMaker::findNewBestHeight(std::map<uint64_t/* height + ts */, const char *> *gbtByHeight) {
   for (const auto &itr : rawgbtMap_) {
     const uint32_t timestamp = (uint32_t)((itr.first >> 32) & 0x00000000FFFFFFFFULL);
-    const uint32_t height    = (uint32_t)(itr.first         & 0x00000000FFFFFFFFULL);
+    const uint32_t height    = (uint32_t)(itr.first         & 0x000000007FFFFFFFULL);
 
-    // using Map to sort by: height + timestamp
+    // using Map to sort by: height + timestamp, without empty block flag
     const uint64_t key = ((uint64_t)height << 32) + (uint64_t)timestamp;
     gbtByHeight->insert(std::make_pair(key, itr.second.c_str()));
   }
@@ -419,7 +439,10 @@ void JobMaker::checkAndSendStratumJob() {
     LOG(WARNING) << "bestKey is the same as last one: " << lastSendBestKey;
     return;
   }
-  const uint32_t bestHeight = (uint32_t)((bestKey >> 32) & 0x00000000FFFFFFFFULL);
+
+  // "bestKey" doesn't include empty block flag anymore, just in case
+  const uint32_t bestHeight = (uint32_t)((bestKey >> 32) & 0x000000007FFFFFFFULL);
+
   if (bestHeight != currBestHeight_) {
     LOG(INFO) << ">>>> found new best height: " << bestHeight
     << ", curr: " << currBestHeight_ << " <<<<";

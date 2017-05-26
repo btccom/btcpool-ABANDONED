@@ -182,6 +182,11 @@ Use `supervisor` to manager services.
 ```
 apt-get install supervisor
 
+#
+# change open file limits, vim /etc/supervisor/supervisord.conf
+# in the [supervisord] section, add 'minfds=65535'.
+# $ service supervisor restart
+#
 cd /work/btcpool/build
 
 

@@ -39,7 +39,7 @@
 #include <pthread.h>
 #include <memory>
 
-#define STATS_SLIDING_WINDOW_SECONDS 900
+#define STATS_SLIDING_WINDOW_SECONDS 3600
 
 
 ////////////////////////////////// StatsWindow /////////////////////////////////
@@ -148,8 +148,12 @@ public:
   // share, base on sliding window
   uint64_t accept1m_;
   uint64_t accept5m_;
+
   uint64_t accept15m_;
   uint64_t reject15m_;
+
+  uint64_t accept1h_;
+  uint64_t reject1h_;
 
   uint32_t acceptCount_;
 
@@ -157,8 +161,9 @@ public:
   uint32_t lastShareTime_;
 
   WorkerStatus():
-  accept1m_(0), accept5m_(0), accept15m_(0), reject15m_(0), acceptCount_(0),
-  lastShareIP_(0), lastShareTime_(0)
+  accept1m_(0), accept5m_(0), accept15m_(0), reject15m_(0),
+  accept1h_(0), reject1h_(0),
+  acceptCount_(0), lastShareIP_(0), lastShareTime_(0)
   {
   }
 
@@ -264,6 +269,8 @@ class StatsServer {
   MySQLConnection  poolDB_;      // flush workers to table.mining_workers
   time_t kFlushDBInterval_;
   atomic<bool> isInserting_;     // flag mark if we are flushing db
+  
+  string fileLastFlushTime_;     // write last db flush time to the file
 
   // httpd
   struct event_base *base_;
@@ -292,7 +299,7 @@ public:
 public:
   StatsServer(const char *kafkaBrokers, const string &httpdHost,
               unsigned short httpdPort, const MysqlConnectInfo &poolDBInfo,
-              const time_t kFlushDBInterval);
+              const time_t kFlushDBInterval, const string &fileLastFlushTime);
   ~StatsServer();
 
   bool init();
@@ -382,6 +389,21 @@ public:
 };
 
 
+///////////////////////////////  ShareLogDumper  ///////////////////////////////
+class ShareLogDumper {
+  string filePath_;  // sharelog data file path
+  std::set<int32_t> uids_;  // if empty dump all user's shares
+  bool isDumpAll_;
+
+  void parseShareLog(const uint8_t *buf, size_t len);
+  void parseShare(const Share *share);
+
+public:
+  ShareLogDumper(const string &dataDir, time_t timestamp, const std::set<int32_t> &uids);
+  ~ShareLogDumper();
+
+  void dump2stdout();
+};
 
 ///////////////////////////////  ShareLogParser  ///////////////////////////////
 //

@@ -22,23 +22,15 @@ RUN apt-get install -y libboost-all-dev libzmq3-dev curl wget
 
 # download namecoind
 RUN mkdir ~/source
-RUN cd ~/source && wget https://github.com/namecoin/namecoin-core/archive/nc0.13.0rc1.tar.gz -O nc0.13.0rc1.tar.gz \
-  && tar zxf nc0.13.0rc1.tar.gz
-
-# bdb 4.8
-RUN cd ~/source/namecoin-core-nc0.13.0rc1 \
-  && mkdir -p /usr/local/db4 \
-  && wget 'http://download.oracle.com/berkeley-db/db-4.8.30.NC.tar.gz' \
-  && tar -xzvf db-4.8.30.NC.tar.gz \
-  && cd db-4.8.30.NC/build_unix \
-  && ../dist/configure --enable-cxx --disable-shared --with-pic --prefix=/usr/local/db4 \
-  && make install
+RUN cd ~/source && wget https://github.com/btccom/namecoin-core/archive/btccom-v0.1-beta.tar.gz -O btccom-v0.1-beta.tar.gz \
+  && tar zxf btccom-v0.1-beta.tar.gz
 
 # build namecoind
-RUN cd ~/source/namecoin-core-nc0.13.0rc1 \
+RUN cd ~/source/namecoin-core-btccom-v0.1-beta \
   && ./autogen.sh \
-  && ./configure LDFLAGS="-L/usr/local/db4/lib" CPPFLAGS="-I/usr/local/db4/include" --without-miniupnpc \
-  && make -j2 && make install
+  && ./configure --disable-wallet --without-miniupnpc --disable-tests \
+  && make && make install
+  #&& make -j$(nproc) && make install
 
 # mkdir namecoind data dir
 RUN mkdir -p /root/.namecoin
