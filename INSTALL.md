@@ -31,7 +31,7 @@ wget https://github.com/zeromq/zeromq4-1/releases/download/v4.1.5/zeromq-4.1.5.t
 tar zxvf zeromq-4.1.5.tar.gz
 cd zeromq-4.1.5
 ./autogen.sh && ./configure && make
-make check && make install && ldconfig
+make check && make install && sudo ldconfig
 ```
 
 * glog-v0.3.4
@@ -44,6 +44,17 @@ cd glog-0.3.4
 ./configure && make && make install
 ```
 
+```
+Solution to common installation problem
+
+https://github.com/taviso/ctypes.sh/issues/18
+
+more info
+
+https://github.com/threatstack/libmagic/issues/3
+https://github.com/google/autofdo/issues/38
+```
+
 * librdkafka-v0.9.1
 
 ```
@@ -52,7 +63,7 @@ mkdir -p /root/source && cd /root/source
 wget https://github.com/edenhill/librdkafka/archive/0.9.1.tar.gz
 tar zxvf 0.9.1.tar.gz
 cd librdkafka-0.9.1
-./configure && make && make install
+./configure && make && sudo make install
 ```
 
 * libevent
@@ -88,10 +99,15 @@ Now create folder for btcpool, if you are going to run all service in one machin
 cd /work/btcpool/build
 bash ../install/init_folders.sh
 ```
+```
+workaround when symbolic links are not available due to OS limitations
+
+bash ../install/init_executables.sh
+```
 
 **create kafka topics**
 
-Login to one of kafka machines, than create topics for `btcpool`:
+Login to one of kafka machines, then create topics for `btcpool`:
 
 ```
 cd /work/kafka
@@ -113,7 +129,17 @@ cd /work/kafka
 ./bin/kafka-topics.sh --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --alter --topic CommonEvents --config retention.ms=86400000
 ```
 
-Check kafka topics stutus:
+Login to one of kafka machines, then create `rsk` topics for `btcpool`:
+
+```
+./bin/kafka-topics.sh --create --topic RawGw          --zookeeper 10.0.2.15:2181 --replication-factor 1 --partitions 1 &&
+./bin/kafka-topics.sh --create --topic RskSolvedShare --zookeeper 10.0.2.15:2181 --replication-factor 1 --partitions 1 &&
+
+# do not keep 'RawGw' message more than 12 hours
+./bin/kafka-configs.sh --zookeeper 10.0.2.15:2181 --alter --topic RawGw --config retention.ms=43200000
+```
+
+Check kafka topics status:
 
 ```
 # show topics
@@ -132,17 +158,36 @@ Topic:NMCAuxBlock        PartitionCount:1         ReplicationFactor:3      Confi
          Topic: NMCAuxBlock       Partition: 0     Leader: 3        Replicas: 3,1  Isr: 3,1
 Topic:NMCSolvedShare     PartitionCount:1         ReplicationFactor:3      Configs:
          Topic: NMCSolvedShare    Partition: 0     Leader: 3        Replicas: 3,1  Isr: 3,1
+Topic:RawGw	PartitionCount:1	ReplicationFactor:1	Configs:retention.ms=43200000
+	Topic: RawGw	Partition: 0	Leader: 1	Replicas: 1	Isr: 1
+Topic:RskSolvedShare	PartitionCount:1	ReplicationFactor:1	Configs:
+	Topic: RskSolvedShare	Partition: 0	Leader: 1	Replicas: 1	Isr: 1
 ```
 
-Before you start btcpool's services, you need to stetup MySQL database and bitcoind/namecoind (if enable merged mining).
+Before you start btcpool's services, you need to stetup MySQL database and bitcoind/rskd/namecoind (if enable merged mining).
 
-Init MySQL database tables.
+Install MySQL on the server
 
+```
+https://www.digitalocean.com/community/tutorials/how-to-install-mysql-on-ubuntu-14-04
+```
+
+Create database.
 ```
 #
 # create database `bpool_local_db` and `bpool_local_stats_db`
 #
+# https://wiki.gandi.net/en/hosting/using-linux/tutorials/ubuntu/createdatabase
+```
 
+Test database creation OK.
+```
+test creation OK
+mysql -utincho -p
+use <database_name>;
+```
+Init MySQL database tables.
+```
 #
 # than create tables from sql
 #
@@ -151,7 +196,12 @@ mysql -uxxxx -p -h xxx.xxx.xxx bpool_local_db       < install/bpool_local_db.sql
 
 # bpool_local_stats_db
 mysql -uxxxx -p -h xxx.xxx.xxx bpool_local_stats_db < install/bpool_local_stats_db.sql
+```
 
+Test tables creation OK.
+```
+use <database_name>;
+show tables;
 ```
 
 **User list API** 

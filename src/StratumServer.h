@@ -227,6 +227,7 @@ class Server {
   KafkaProducer *kafkaProducerSolvedShare_;
   KafkaProducer *kafkaProducerNamecoinSolvedShare_;
   KafkaProducer *kafkaProducerCommonEvents_;
+  KafkaProducer *kafkaProducerRskSolvedShare_;
 
   //
   // WARNING: if enable simulator, all share will be accepted. only for test.
