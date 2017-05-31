@@ -6,6 +6,9 @@
 # @author Martin Medina
 # @since 2017-03
 #
+set -e
+SROOT=$(cd $(dirname "$0"); pwd)
+cd $SROOT/../build
 
 # blkmaker
 cd "run_blkmaker"
