@@ -11,12 +11,12 @@ Note: This is still a testbed and work in progress, all things could be changed.
 
 ## Install
 
-1. Install `Zookeeper`, or see [INSTALL-ZooKeeper.md](https://github.com/rootstock/btcpool/blob/master/docs/INSTALL-ZooKeeper.md)
+1. Install `Zookeeper`, or see [INSTALL-ZooKeeper.md](https://github.com/btccom/btcpool/blob/master/docs/INSTALL-ZooKeeper.md)
   * [https://zookeeper.apache.org/](https://zookeeper.apache.org/)
-2. Install `Kafka`, or see [INSTALL-Kafka.md](https://github.com/rootstock/btcpool/blob/master/docs/INSTALL-Kafka.md)
+2. Install `Kafka`, or see [INSTALL-Kafka.md](https://github.com/btccom/btcpool/blob/master/docs/INSTALL-Kafka.md)
   * [https://kafka.apache.org/](https://kafka.apache.org/)
 3. Install `Bitcoind`, need to enable ZMQ
-4. Install `BtcPool`, see [INSTALL.md](https://github.com/rootstock/btcpool/blob/master/INSTALL.md)
+4. Install `BtcPool`, see [INSTALL.md](https://github.com/btccom/btcpool/blob/master/INSTALL.md)
 
 ## Benchmark
 
@@ -26,8 +26,8 @@ We have test 100,000 miners online Benchmark. see [Benchmark-100000.md](https://
 
 BtcAgent is a kind of stratum proxy which use customize protocol to communicate with the pool. It's very efficient and designed for huge mining farm.
 
-* [AGENT.md](https://github.com/rootstock/btcpool/blob/master/docs/AGENT.md)
-* BtcAgent's [HomePage](https://github.com/rootstock/btcagent)
+* [AGENT.md](https://github.com/btccom/btcpool/blob/master/docs/AGENT.md)
+* BtcAgent's [HomePage](https://github.com/btccom/btcagent)
 
 ## Testing
 

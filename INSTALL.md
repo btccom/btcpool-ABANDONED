@@ -132,11 +132,11 @@ cd /work/kafka
 Login to one of kafka machines, then create `rsk` topics for `btcpool`:
 
 ```
-./bin/kafka-topics.sh --create --topic RawGw          --zookeeper 10.0.2.15:2181 --replication-factor 1 --partitions 1 &&
-./bin/kafka-topics.sh --create --topic RskSolvedShare --zookeeper 10.0.2.15:2181 --replication-factor 1 --partitions 1 &&
+./bin/kafka-topics.sh --create --topic RSKRawWork     --zookeeper 10.0.2.15:2181 --replication-factor 1 --partitions 1
+./bin/kafka-topics.sh --create --topic RSKSolvedShare --zookeeper 10.0.2.15:2181 --replication-factor 1 --partitions 1
 
-# do not keep 'RawGw' message more than 12 hours
-./bin/kafka-configs.sh --zookeeper 10.0.2.15:2181 --alter --topic RawGw --config retention.ms=43200000
+# do not keep 'RSKRawWork' message more than 12 hours
+./bin/kafka-configs.sh --zookeeper 10.0.2.15:2181 --alter --topic RSKRawWork --config retention.ms=43200000
 ```
 
 Check kafka topics status:
@@ -166,26 +166,8 @@ Topic:RskSolvedShare	PartitionCount:1	ReplicationFactor:1	Configs:
 
 Before you start btcpool's services, you need to stetup MySQL database and bitcoind/rskd/namecoind (if enable merged mining).
 
-Install MySQL on the server
+Install MySQL on the server and create database `bpool_local_db` and `bpool_local_stats_db`.
 
-```
-https://www.digitalocean.com/community/tutorials/how-to-install-mysql-on-ubuntu-14-04
-```
-
-Create database.
-```
-#
-# create database `bpool_local_db` and `bpool_local_stats_db`
-#
-# https://wiki.gandi.net/en/hosting/using-linux/tutorials/ubuntu/createdatabase
-```
-
-Test database creation OK.
-```
-test creation OK
-mysql -utincho -p
-use <database_name>;
-```
 Init MySQL database tables.
 ```
 #
