@@ -51,7 +51,7 @@ void handler(int sig) {
 }
 
 void usage() {
-  fprintf(stderr, "Usage:\n\tnmcauxmaker -c \"nmcauxmaker.cfg\" -l \"log_rskauxmaker\"\n");
+  fprintf(stderr, "Usage:\n\trskauxmaker -c \"rskauxmaker.cfg\" -l \"log_rskauxmaker\"\n");
 }
 
 int main(int argc, char **argv) {

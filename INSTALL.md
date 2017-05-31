@@ -132,11 +132,11 @@ cd /work/kafka
 Login to one of kafka machines, then create `rsk` topics for `btcpool`:
 
 ```
-./bin/kafka-topics.sh --create --topic RSKRawWork     --zookeeper 10.0.2.15:2181 --replication-factor 1 --partitions 1
-./bin/kafka-topics.sh --create --topic RSKSolvedShare --zookeeper 10.0.2.15:2181 --replication-factor 1 --partitions 1
+./bin/kafka-topics.sh --create --topic RSKRawWork     --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic RSKSolvedShare --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
 
 # do not keep 'RSKRawWork' message more than 12 hours
-./bin/kafka-configs.sh --zookeeper 10.0.2.15:2181 --alter --topic RSKRawWork --config retention.ms=43200000
+./bin/kafka-topics.sh --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --alter --topic RSKRawWork --config retention.ms=43200000
 ```
 
 Check kafka topics status:
@@ -146,7 +146,9 @@ Check kafka topics status:
 $ ./bin/kafka-topics.sh --describe --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181
 
 # if create all topics success, will output:
-Topic:RawGbt   	PartitionCount:1       	ReplicationFactor:2    	Configs:
+Topic:CommonEvents      PartitionCount:1        ReplicationFactor:3     Configs:retention.ms=86400000
+        Topic: CommonEvents     Partition: 0    Leader: 1       Replicas: 1,2 Isr: 1,2
+Topic:RawGbt   	PartitionCount:1       	ReplicationFactor:2    	Configs:retention.ms=43200000
        	Topic: RawGbt  	Partition: 0   	Leader: 1      	Replicas: 1,2  	Isr: 1,2
 Topic:ShareLog 	PartitionCount:1       	ReplicationFactor:2    	Configs:
        	Topic: ShareLog	Partition: 0   	Leader: 2      	Replicas: 2,1  	Isr: 2,1
@@ -158,10 +160,10 @@ Topic:NMCAuxBlock        PartitionCount:1         ReplicationFactor:3      Confi
          Topic: NMCAuxBlock       Partition: 0     Leader: 3        Replicas: 3,1  Isr: 3,1
 Topic:NMCSolvedShare     PartitionCount:1         ReplicationFactor:3      Configs:
          Topic: NMCSolvedShare    Partition: 0     Leader: 3        Replicas: 3,1  Isr: 3,1
-Topic:RawGw	PartitionCount:1	ReplicationFactor:1	Configs:retention.ms=43200000
-	Topic: RawGw	Partition: 0	Leader: 1	Replicas: 1	Isr: 1
-Topic:RskSolvedShare	PartitionCount:1	ReplicationFactor:1	Configs:
-	Topic: RskSolvedShare	Partition: 0	Leader: 1	Replicas: 1	Isr: 1
+Topic:RSKRawWork        PartitionCount:1        ReplicationFactor:2     Configs:retention.ms=43200000
+        Topic: RSKRawWork       Partition: 0    Leader: 1       Replicas: 1,2   Isr: 1,2
+Topic:RSKSolvedShare    PartitionCount:1        ReplicationFactor:2     Configs:
+        Topic: RSKSolvedShare   Partition: 0    Leader: 1       Replicas: 1,2   Isr: 1,2
 ```
 
 Before you start btcpool's services, you need to stetup MySQL database and bitcoind/rskd/namecoind (if enable merged mining).
