@@ -73,7 +73,7 @@ class JobMaker {
   thread threadConsumeRskRawGw_;
 
   void consumeNmcAuxBlockMsg(rd_kafka_message_t *rkmessage);
-  void consumeRawGwMsg(rd_kafka_message_t *rkmessage);
+  void consumeRskAuxBlockMsg(rd_kafka_message_t *rkmessage);
   void consumeRawGbtMsg(rd_kafka_message_t *rkmessage, bool needToSend);
   void addRawgbt(const char *str, size_t len);
 
@@ -84,7 +84,7 @@ class JobMaker {
 
   void checkAndSendStratumJob();
   void runThreadConsumeNmcAuxBlock();
-  void runThreadConsumeRawGw();
+  void runThreadConsumeRskAuxBlock();
 
 public:
   JobMaker(const string &kafkaBrokers, uint32_t stratumJobInterval,

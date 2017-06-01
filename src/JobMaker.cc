@@ -165,7 +165,7 @@ bool JobMaker::init() {
     rd_kafka_message_t *rkmessage;
     rkmessage = kafkaRskWorkConsumer_.consumer(1000/* timeout ms */);
     if (rkmessage != nullptr) {
-      consumeRawGwMsg(rkmessage);
+      consumeRskAuxBlockMsg(rkmessage);
       rd_kafka_message_destroy(rkmessage);
     }
   }
@@ -224,7 +224,7 @@ void JobMaker::consumeNmcAuxBlockMsg(rd_kafka_message_t *rkmessage) {
   }
 }
 
-void JobMaker::consumeRawGwMsg(rd_kafka_message_t *rkmessage) {
+void JobMaker::consumeRskAuxBlockMsg(rd_kafka_message_t *rkmessage) {
   // check error
   if (rkmessage->err) {
     if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
@@ -307,7 +307,7 @@ void JobMaker::runThreadConsumeNmcAuxBlock() {
   }
 }
 
-void JobMaker::runThreadConsumeRawGw() {
+void JobMaker::runThreadConsumeRskAuxBlock() {
   const int32_t timeoutMs = 1000;
 
   while (running_) {
@@ -316,7 +316,7 @@ void JobMaker::runThreadConsumeRawGw() {
     if (rkmessage == nullptr) /* timeout */
       continue;
 
-    consumeRawGwMsg(rkmessage);
+    consumeRskAuxBlockMsg(rkmessage);
 
     /* Return message to rdkafka */
     rd_kafka_message_destroy(rkmessage);
@@ -328,7 +328,7 @@ void JobMaker::run() {
   threadConsumeNmcAuxBlock_ = thread(&JobMaker::runThreadConsumeNmcAuxBlock, this);
 
   // start Rsk RawGw consumer thread
-  threadConsumeRskRawGw_ = thread(&JobMaker::runThreadConsumeRawGw, this);
+  threadConsumeRskRawGw_ = thread(&JobMaker::runThreadConsumeRskAuxBlock, this);
 
   const int32_t timeoutMs = 1000;
 
