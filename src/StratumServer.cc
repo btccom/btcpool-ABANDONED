@@ -1168,11 +1168,6 @@ int Server::checkShare(const Share &share,
     kafkaProducerRskSolvedShare_->produce(buf.data(), buf.size());
 
     //
-    // mark jobs as stale
-    //
-    jobRepository_->markAllJobsAsStale();
-
-    //
     // log the finding
     //
     LOG(INFO) << ">>>> found RSK block: " << blkHash.ToString()
