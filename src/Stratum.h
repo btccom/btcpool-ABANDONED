@@ -80,9 +80,9 @@ public:
   RskSolvedShareData(): jobId_(0), workerId_(0), userId_(0), height_(0) {
     memset(header80_,       0, sizeof(header80_));
     memset(workerFullName_, 0, sizeof(workerFullName_));
-    memset(feesForMiner_, 0, sizeof(feesForMiner_));
-    memset(rpcAddress_, 0, sizeof(rpcAddress_));
-    memset(rpcUserPwd_, 0, sizeof(rpcUserPwd_));
+    memset(feesForMiner_,   0, sizeof(feesForMiner_));
+    memset(rpcAddress_,     0, sizeof(rpcAddress_));
+    memset(rpcUserPwd_,     0, sizeof(rpcUserPwd_));
   }
 };
 
