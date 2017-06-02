@@ -210,7 +210,8 @@ string StratumJob::serializeToJson() const {
   }
 
   //
-  // we use key->value json string, so it's easy to update system
+  // we use key->value json string, so it's easy to update system.
+  // all key-value items SHOULD the same as StratumJob::unserializeFromJson().
   //
   return Strings::Format("{\"jobId\":%" PRIu64",\"gbtHash\":\"%s\""
                          ",\"prevHash\":\"%s\",\"prevHashBeStr\":\"%s\""
@@ -223,7 +224,7 @@ string StratumJob::serializeToJson() const {
                          ",\"nmcRpcAddr\":\"%s\",\"nmcRpcUserpass\":\"%s\""
                          // rsk, optional
                          ",\"rskBlockHashForMergedMining\":\"%s\",\"rskNetworkTarget\":\"0x%s\""
-                         ",\"rskFeesForMiner\":\"%s\""
+                         ",\"rskFeesForMiner\":\"%s\", \"rskParentBlockHash\":\"%s\""
                          ",\"rskdRpcAddress\":\"%s\",\"rskdRpcUserPwd\":\"%s\""
                          "}",
                          jobId_, gbtHash_.c_str(),
@@ -240,14 +241,18 @@ string StratumJob::serializeToJson() const {
                          nmcRpcAddr_.size()     ? nmcRpcAddr_.c_str()     : "",
                          nmcRpcUserpass_.size() ? nmcRpcUserpass_.c_str() : "",
                          // rsk
-                         rskAuxBlockHash_.size() ? rskAuxBlockHash_.c_str() : "",
+                         rskAuxBlockHash_.size()    ? rskAuxBlockHash_.c_str() : "",
                          rskNetworkTarget_.GetHex().c_str(),
-                         feesForMiner_.size()     ? feesForMiner_.c_str()   : "",
-                         rskdRpcAddress_.size()   ? rskdRpcAddress_.c_str() : "",
-                         rskdRpcUserPwd_.c_str()  ? rskdRpcUserPwd_.c_str() : "");
+                         rskFeesForMiner_.size()    ? rskFeesForMiner_.c_str() : "",
+                         rskParentBlockHash_.size() ? rskParentBlockHash_.c_str() : "",
+                         rskdRpcAddress_.size()     ? rskdRpcAddress_.c_str() : "",
+                         rskdRpcUserPwd_.c_str()    ? rskdRpcUserPwd_.c_str() : "");
 }
 
 bool StratumJob::unserializeFromJson(const char *s, size_t len) {
+  //
+  // all key-value items SHOULD the same as StratumJob::serializeToJson().
+  //
   JsonNode j;
   if (!JsonNode::parse(s, s + len, j)) {
     return false;
@@ -311,13 +316,15 @@ bool StratumJob::unserializeFromJson(const char *s, size_t len) {
   if (j["rskBlockHashForMergedMining"].type()   == Utilities::JS::type::Str &&
       j["rskNetworkTarget"].type()              == Utilities::JS::type::Str &&
       j["rskFeesForMiner"].type()               == Utilities::JS::type::Str &&
+      j["rskParentBlockHash"].type()            == Utilities::JS::type::Str &&
       j["rskdRpcAddress"].type()                == Utilities::JS::type::Str &&
       j["rskdRpcUserPwd"].type()                == Utilities::JS::type::Str) {
-    rskAuxBlockHash_   = j["rskBlockHashForMergedMining"].str();
-    rskNetworkTarget_  = uint256S(j["rskNetworkTarget"].str());
-    feesForMiner_      = j["rskFeesForMiner"].str();
-    rskdRpcAddress_    = j["rskdRpcAddress"].str();
-    rskdRpcUserPwd_    = j["rskdRpcUserPwd"].str();
+    rskAuxBlockHash_    = j["rskBlockHashForMergedMining"].str();
+    rskNetworkTarget_   = uint256S(j["rskNetworkTarget"].str());
+    rskFeesForMiner_    = j["rskFeesForMiner"].str();
+    rskParentBlockHash_ = j["rskParentBlockHash"].str();
+    rskdRpcAddress_     = j["rskdRpcAddress"].str();
+    rskdRpcUserPwd_     = j["rskdRpcUserPwd"].str();
   }
 
   const string merkleBranchStr = j["merkleBranch"].str();
@@ -472,11 +479,12 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
       }
 
       // set rsk info
-      rskAuxBlockHash_ = rskGetWork["blockHashForMergedMining"].str();
-      rskNetworkTarget_ = uint256S(rskGetWork["target"].str());
-      feesForMiner_ = rskGetWork["feesPaidToMiner"].str();
-      rskdRpcAddress_ = rskGetWork["rskdRpcAddress"].str();
-      rskdRpcUserPwd_ = rskGetWork["rskdRpcUserPwd"].str();
+      rskAuxBlockHash_    = rskGetWork["blockHashForMergedMining"].str();
+      rskNetworkTarget_   = uint256S(rskGetWork["target"].str());
+      rskFeesForMiner_    = rskGetWork["feesPaidToMiner"].str();
+      rskParentBlockHash_ = rskGetWork["parentBlockHash"].str();
+      rskdRpcAddress_     = rskGetWork["rskdRpcAddress"].str();
+      rskdRpcUserPwd_     = rskGetWork["rskdRpcUserPwd"].str();
     } while (0);
   }
 

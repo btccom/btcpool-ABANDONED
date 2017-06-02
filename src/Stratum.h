@@ -284,10 +284,11 @@ public:
   string   nmcRpcUserpass_;
 
   // rsk merged mining
-  string   rskAuxBlockHash_;
-  string   rskdRpcAddress_;
-  string   rskdRpcUserPwd_;
-  string   feesForMiner_;
+  string rskAuxBlockHash_;
+  string rskdRpcAddress_;
+  string rskdRpcUserPwd_;
+  string rskFeesForMiner_;
+  string rskParentBlockHash_;
   uint256  rskNetworkTarget_;
 
 
