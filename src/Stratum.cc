@@ -464,8 +464,9 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
         LOG(ERROR) << "rsk getwork fields failure";
         break;
       }
+
       // check timestamp
-      if (rskGetWork["created_at_ts"].uint32() + 60u < time(nullptr)) {
+      if (rskGetWork["created_at_ts"].uint32() + 120u < time(nullptr)) {
         LOG(ERROR) << "too old rsk getwork: " << date("%F %T", rskGetWork["created_at_ts"].uint32());
         break;
       }
