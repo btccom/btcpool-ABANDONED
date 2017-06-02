@@ -170,7 +170,7 @@ void JobRepository::runThreadConsume() {
     rd_kafka_message_destroy(rkmessage);  /* Return message to rdkafka */
 
     // check if we need to send mining notify
-    checkAndSendMiningNotify();
+    checkAndSendMiningNotifyInterval();
 
     tryCleanExpiredJobs();
   }
@@ -256,14 +256,40 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   // new non-empty job as quick as possible.
   if (isClean == false && exJobs_.size() >= 2) {
     auto itr = exJobs_.rbegin();
-    shared_ptr<StratumJobEx> exJob1 = itr->second;
+    shared_ptr<StratumJobEx> currJob = itr->second;
     itr++;
-    shared_ptr<StratumJobEx> exJob2 = itr->second;
+    shared_ptr<StratumJobEx> prevJob = itr->second;
 
-    if (exJob2->isClean_ == true &&
-        exJob2->sjob_->merkleBranch_.size() == 0 &&
-        exJob1->sjob_->merkleBranch_.size() != 0) {
+    // if new job's miners fee is much bigger than prev one, send the new job immediately
+    if (currJob->sjob_->coinbaseValue_ > prevJob->sjob_->coinbaseValue_ + 50000000/*0.5 btc*/) {
       sendMiningNotify(exJob);
+      return;
+    }
+
+    // previous job is empty and current one is not empty
+    if (prevJob->isClean_ == true &&
+        prevJob->sjob_->merkleBranch_.size() == 0 &&
+        currJob->sjob_->merkleBranch_.size() != 0) {
+      sendMiningNotify(exJob);
+      return;
+    }
+
+    // merged mining: nmc.
+    // nmc's block interval time is the same as bitcoin: 10 minutes.
+    if (prevJob->sjob_->nmcHeight_ != currJob->sjob_->nmcHeight_) {
+      sendMiningNotify(exJob);
+      return;
+    }
+
+    // merged mining: rsk.
+    // rsk's generate block every 10 seconds, it's a bit too often.
+    // right now not much value to merged mining rsk, so need to set the
+    // minimal intervals.
+    // TODO: change the minimal seconds in the future
+    if (prevJob->sjob_->rskParentBlockHash_ != currJob->sjob_->rskParentBlockHash_ &&
+        lastJobSendTime_ + 3 /* 3: minimal seconds */ <= time(nullptr)) {
+      sendMiningNotify(exJob);
+      return;
     }
   }
 }
@@ -275,7 +301,7 @@ void JobRepository::markAllJobsAsStale() {
   }
 }
 
-void JobRepository::checkAndSendMiningNotify() {
+void JobRepository::checkAndSendMiningNotifyInterval() {
   // last job is 'expried', send a new one
   if (exJobs_.size() &&
       lastJobSendTime_ + kMiningNotifyInterval_ <= time(nullptr))
