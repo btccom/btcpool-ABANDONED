@@ -1,6 +1,6 @@
 #include "NoteEncryption.hpp"
 #include <stdexcept>
-#include "sodium.h"
+#include <sodium.h>
 #include <boost/static_assert.hpp>
 #include "prf.h"
 

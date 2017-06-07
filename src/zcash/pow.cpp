@@ -14,7 +14,7 @@
 #include "uint256.h"
 #include "util.h"
 
-#include "sodium.h"
+#include <sodium.h>
 
 #ifdef ENABLE_RUST
 #include "librustzcash.h"

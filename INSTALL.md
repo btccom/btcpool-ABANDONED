@@ -67,6 +67,19 @@ make
 make install
 ```
 
+* libsodium
+
+```
+mkdir -p /root/source && cd /root/source
+wget https://download.libsodium.org/libsodium/releases/libsodium-1.0.11.tar.gz
+tar zxf libsodium-1.0.11.tar.gz
+cd libsodium-1.0.11
+./autogen.sh
+./configure
+make
+make install
+```
+
 ### btcpool
 
 ```

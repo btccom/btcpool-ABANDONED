@@ -49,7 +49,7 @@
 #include <condition_variable>
 #include <functional>
 
-#include "bitcoin/uint256.h"
+#include "zcash/uint256.h"
 
 using std::string;
 using std::vector;

@@ -28,10 +28,10 @@
 #include <sstream>
 #include <vector>
 
-#include "bitcoin/base58.h"
-#include "bitcoin/util.h"
-#include "bitcoin/utilstrencodings.h"
-#include "bitcoin/streams.h"
+#include "zcash/base58.h"
+#include "zcash/util.h"
+#include "zcash/utilstrencodings.h"
+#include "zcash/streams.h"
 
 #include "zmq.hpp"
 
