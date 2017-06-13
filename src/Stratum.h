@@ -124,7 +124,7 @@ public:
 
   // will call earn() in Statistics.cc when save earnings to database
   double earn() const {
-    if (jobBits_ == 0 || blkBits_ == 0) { return 0.0; }
+    if (jobBits_ == 0 || blkBits_ == 0 || blkHeight_ == 0) { return 0.0; }
     const double jobDiff = BitsToDifficulty(jobBits_);
     const double blkDiff = BitsToDifficulty(blkBits_);
 
@@ -136,22 +136,18 @@ public:
       auto vFoundersReward = blockSubsidy / 5;
       // Take some reward away from us
       blockSubsidy -= vFoundersReward;
+      assert(blockSubsidy >= 0);
     }
 
     return (double)blockSubsidy * jobDiff / blkDiff;  // unit: satoshi
   }
 
-//  double earn
-
   bool isValid() const {
     uint32_t jobTime = jobId2Time(jobId_);
 
-    /* TODO: increase timestamp check before 2020-01-01 */
-    if (userId_ > 0 && workerHashId_ != 0 && share_ > 0 &&
-        timestamp_ > 1467816952U /* 2016-07-06 14:55:52 UTC+0 */ &&
-        timestamp_ < 1577836800U /* 2020-01-01 00:00:00 UTC+0 */ &&
-        jobTime    > 1467816952U /* 2016-07-06 14:55:52 UTC+0 */ &&
-        jobTime    < 1577836800U /* 2020-01-01 00:00:00 UTC+0 */) {
+    if (userId_ > 0 && workerHashId_ != 0 && jobBits_ != 0 &&
+        blkTime_ > 1497348228U /* 2017-06-13 10:03:47 UTC+0 */ &&
+        jobTime  > 1497348228U /* 2017-06-13 10:03:47 UTC+0 */) {
       return true;
     }
     return false;
@@ -161,11 +157,15 @@ public:
     char ipStr[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &(ip_), ipStr, INET_ADDRSTRLEN);
     return Strings::Format("share(jobId: %" PRIu64", ip: %s, userId: %d, "
-                           "workerId: %" PRId64", timeStamp: %u/%s, share: %" PRIu64", "
-                           "blkBits: %08x, result: %d)",
+                           "workerId: %" PRId64", timeStamp: %u/%s, "
+                           "job(bits|diff): %08x|%f, "
+                           "blk(bits|diff): %08x|%f, "
+                           "result: %d)",
                            jobId_, ipStr, userId_, workerHashId_,
-                           timestamp_, date("%F %T", timestamp_).c_str(),
-                           share_, blkBits_, result_);
+                           blkTime_, date("%F %T", blkTime_).c_str(),
+                           jobBits_, BitsToDifficulty(jobBits_),
+                           blkBits_, BitsToDifficulty(blkBits_),
+                           result_);
   }
 };
 

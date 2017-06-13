@@ -67,30 +67,30 @@ class AgentSessions;
 //////////////////////////////// DiffController ////////////////////////////////
 class DiffController {
 public:
-  static const int32_t kMinDiff_       = 64;    // min diff
+  static const arith_uint256 KMinTarget_ =
+  arith_uint256("007fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+
   static const int32_t kDiffWindow_    = 900;   // time window, seconds, 60*N
   static const int32_t kRecordSeconds_ = 10;    // every N seconds as a record
 #ifdef NDEBUG
-  // If not debugging, set default to 16384
-  static const int32_t kDefaultDiff_   = 16384;  // default diff, 2^N
+  // if not debugging
+  static const arith_uint256 kDefaultTarget_  =
+  arith_uint256("0007ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 #else
   // debugging enabled
-  static const int32_t kDefaultDiff_   = 128;  // default diff, 2^N
+  static const arith_uint256 kDefaultTarget_  =
+  arith_uint256("007fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 #endif	/* NDEBUG */
 
 private:
-  time_t startTime_;  // first job send time
-  uint64  minDiff_;
-  uint64  curDiff_;
+  time_t  startTime_;         // first job send time
+  arith_uint256 minTarget_;   // miner's min target, use KMinTarget_ as default value
+  arith_uint256 curTarget_;
   int32_t shareAvgSeconds_;
-  int32_t curHashRateLevel_;
 
   StatsWindow<double> sharesNum_;  // share count
-  StatsWindow<uint64> shares_;     // share
 
-  uint64 _calcCurDiff();
-  int adjustHashRateLevel(const double hashRateT);
-  double minerCoefficient(const time_t now, const int64_t idx);
+  arith_uint256 _calcCurTarget();
 
   inline bool isFullWindow(const time_t now) {
     return now >= startTime_ + kDiffWindow_;
@@ -99,30 +99,30 @@ private:
 public:
   DiffController(const int32_t shareAvgSeconds) :
   startTime_(0),
-  minDiff_(kMinDiff_), curDiff_(kDefaultDiff_), curHashRateLevel_(0),
-  sharesNum_(kDiffWindow_/kRecordSeconds_), /* every N seconds as a record */
-  shares_   (kDiffWindow_/kRecordSeconds_)
+  minTarget_(KMinTarget_), curTarget_(kDefaultTarget_),
+  sharesNum_(kDiffWindow_/kRecordSeconds_) /* every N seconds as a record */
   {
     if (shareAvgSeconds >= 1 && shareAvgSeconds <= 60) {
       shareAvgSeconds_ = shareAvgSeconds;
     } else {
-      shareAvgSeconds_ = 8;
+      shareAvgSeconds_ = 5;  // out of range, use default
+      LOG(WARNING) << "share avg seconds out of range, use default value: 5";
     }
   }
 
   ~DiffController() {}
 
-  // recalc miner's diff before send an new stratum job
-  uint64 calcCurDiff();
+  // recalc miner's target/bits before send an new stratum job
+  uint32_t calcCurBits();
 
-  // we need to add every share, so we can calc worker's hashrate
-  void addAcceptedShare(const uint64 share);
+  // add one share
+  void addAcceptedShare();
 
   // maybe worker has it's own min diff
-  void setMinDiff(uint64 minDiff);
+  void setMinTarget(arith_uint256 target);
 
-  // use when handle cmd: mining.suggest_difficulty & mining.suggest_target
-  void resetCurDiff(uint64 curDiff);
+  // use when handle cmd: mining.suggest_target
+  void resetCurTarget(arith_uint256 target);
 };
 
 
@@ -170,10 +170,10 @@ public:
     uint64_t jobId_;
     uint32_t jobBits_;  // job difficulty
     uint32_t blkBits_;
-    uint8_t  shortJobId_;
+    uint16_t shortJobId_;
     std::set<LocalShare> submitShares_;
 
-    LocalJob(): jobId_(0), jobDifficulty_(0), blkBits_(0), shortJobId_(0) {}
+    LocalJob(): jobId_(0u), jobBits_(0u), blkBits_(0u), shortJobId_(0u) {}
 
     bool addLocalShare(const LocalShare &localShare) {
       auto itr = submitShares_.find(localShare);
@@ -196,27 +196,21 @@ private:
   uint32_t clientIpInt_;
 
   uint32_t extraNonce1_;   // MUST be unique across all servers
-  static const int kExtraNonce2Size_ = 8;  // extraNonce2 size is always 8 bytes
 
-  uint64_t currDiff_;
+  arith_uint256 currTarget_;
   std::deque<LocalJob> localJobs_;
   size_t kMaxNumLocalJobs_;
 
   struct evbuffer *inBuf_;
   bool   isLongTimeout_;
-  uint8_t shortJobIdIdx_;
-
-  // nicehash has can't use short JobID
-  bool isNiceHashClient_;
-
-  AgentSessions *agentSessions_;
+  uint16_t shortJobIdIdx_;
 
   atomic<bool> isDead_;
 
   // invalid share counter
   StatsWindow<int64_t> invalidSharesCounter_;
 
-  uint8_t allocShortJobId();
+  uint16_t allocShortJobId();
 
   void setup();
   void setReadTimeout(const int32_t timeout);
@@ -239,12 +233,7 @@ private:
   void _handleRequest_SetDifficulty(uint64_t suggestDiff);
   void _handleRequest_AuthorizePassword(const string &password);
 
-  LocalJob *findLocalJob(uint8_t shortJobId);
-
-  void handleExMessage_RegisterWorker     (const string *exMessage);
-  void handleExMessage_UnRegisterWorker   (const string *exMessage);
-  void handleExMessage_SubmitShare        (const string *exMessage);
-  void handleExMessage_SubmitShareWithTime(const string *exMessage);
+  LocalJob *findLocalJob(uint16_t shortJobId);
 
 public:
   struct bufferevent* bev_;
@@ -273,42 +262,8 @@ public:
                                             const string &workerName);
   void handleRequest_Submit(const string &idStr,
                             const uint8_t shortJobId, const uint64_t extraNonce2,
-                            const uint32_t nonce, uint32_t nTime,
-                            bool isAgentSession,
-                            DiffController *sessionDiffController);
+                            const uint32_t nonce, uint32_t nTime);
   uint32_t getSessionId() const;
-};
-
-
-///////////////////////////////// AgentSessions ////////////////////////////////
-class AgentSessions {
-  //
-  // sessionId is vector's index
-  //
-  // session ID range: [0, 65535], so vector max size is 65536
-  vector<int64_t> workerIds_;
-  vector<DiffController *> diffControllers_;
-  vector<uint8_t> curDiff2ExpVec_;
-  int32_t shareAvgSeconds_;
-  uint8_t kDefaultDiff2Exp_;
-
-  StratumSession *stratumSession_;
-
-public:
-  AgentSessions(const int32_t shareAvgSeconds, StratumSession *stratumSession);
-  ~AgentSessions();
-
-  int64_t getWorkerId(const uint16_t sessionId);
-
-  void handleExMessage_SubmitShare     (const string *exMessage, const bool isWithTime);
-  void handleExMessage_RegisterWorker  (const string *exMessage);
-  void handleExMessage_UnRegisterWorker(const string *exMessage);
-
-  void calcSessionsJobDiff(vector<uint8_t> &sessionsDiff2Exp);
-  void getSessionsChangedDiff(const vector<uint8_t> &sessionsDiff2Exp,
-                              string &data);
-  void getSetDiffCommand(map<uint8_t, vector<uint16_t> > &diffSessionIds,
-                         string &data);
 };
 
 #endif

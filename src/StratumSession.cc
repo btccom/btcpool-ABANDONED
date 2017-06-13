@@ -32,123 +32,47 @@
 
 
 //////////////////////////////// DiffController ////////////////////////////////
-void DiffController::setMinDiff(uint64 minDiff) {
-  if (minDiff < kMinDiff_) {
-    minDiff = kMinDiff_;
+void DiffController::setMinTarget(arith_uint256 target) {
+  if (target < KMinTarget_) {
+    target = KMinTarget_;
   }
-  minDiff_ = minDiff;
+  minTarget_ = target;
 }
 
-void DiffController::resetCurDiff(uint64 curDiff) {
-  if (curDiff < kMinDiff_) {
-    curDiff = kMinDiff_;
+void DiffController::resetCurTarget(arith_uint256 target) {
+  // don't less than system min target
+  if (target < KMinTarget_) {
+    target = KMinTarget_;
   }
-  if (curDiff < minDiff_) {
-    curDiff = minDiff_;
+  // don't less than use's min target
+  if (target < minTarget_) {
+    target = minTarget_;
   }
 
   // set to zero
   sharesNum_.mapMultiply(0);
-  shares_.mapMultiply(0);
-
-  curDiff_ = curDiff;
+  curTarget_ = target;
 }
 
-void DiffController::addAcceptedShare(const uint64 share) {
-  const int64 k = time(nullptr) / kRecordSeconds_;
-  sharesNum_.insert(k, 1.0);
-  shares_.insert(k, share);
+void DiffController::addAcceptedShare() {
+  const int64 idx = time(nullptr) / kRecordSeconds_;  // index
+  sharesNum_.insert(idx, 1.0);
 }
 
-
-//
-// level:  min ~ max, coefficient
-//
-// 0 :    0 ~    4 T,  1.0
-// 1 :    4 ~    8 T,  1.0
-// 2 :    8 ~   16 T,  1.0
-// 3 :   16 ~   32 T,  1.2
-// 4 :   32 ~   64 T,  1.5
-// 5 :   64 ~  128 T,  2.0
-// 6 :  128 ~  256 T,  3.0
-// 7 :  256 ~  512 T,  4.0
-// 8 :  512 ~  ... T,  6.0
-//
-
-static int __hashRateDown(int level) {
-  const int levels[] = {0, 4, 8, 16,   32, 64, 128, 256};
-  if (level >= 8) {
-    return 512;
+// call this function everytime before send 'notify.mininig'
+uint32_t DiffController::calcCurBits() {
+  arith_uint256 target = _calcCurTarget();
+  if (target < minTarget_) {
+    target = minTarget_;
   }
-  assert(level >= 0 && level <= 7);
-  return levels[level];
+  return TargetToBits(ArithToUint256(target));
 }
 
-static int __hashRateUp(int level) {
-  const int levels[] = {4, 8, 16, 32,   64, 128, 256, 512};
-  assert(level >= 0 && level <= 7);
-  if (level >= 8) {
-    return 0x7fffffffL;  // INT32_MAX
-  }
-  return levels[level];
-}
-
-// TODO: test case
-int DiffController::adjustHashRateLevel(const double hashRateT) {
-  // hashrate is always danceing,
-  // so need to use rate high and low to check it's level
-  const double rateHigh = 1.50;
-  const double rateLow  = 0.75;
-
-  // reduce level
-  if (curHashRateLevel_ > 0 && hashRateT < __hashRateDown(curHashRateLevel_)) {
-    while (curHashRateLevel_ > 0 &&
-           hashRateT <= __hashRateDown(curHashRateLevel_) * rateLow) {
-      curHashRateLevel_--;
-    }
-    return curHashRateLevel_;
-  }
-
-  // increase level
-  if (curHashRateLevel_ <= 7 && hashRateT > __hashRateUp(curHashRateLevel_)) {
-    while (curHashRateLevel_ <= 7 &&
-           hashRateT >= __hashRateUp(curHashRateLevel_) * rateHigh) {
-      curHashRateLevel_++;
-    }
-    return curHashRateLevel_;
-  }
-
-  return curHashRateLevel_;
-}
-
-double DiffController::minerCoefficient(const time_t now, const int64_t idx) {
-  if (now <= startTime_) {
-    return 1.0;
-  }
-  uint64_t shares    = shares_.sum(idx);
-  time_t shareWindow = isFullWindow(now) ? kDiffWindow_ : (now - startTime_);
-  double hashRateT   = (double)shares * pow(2, 32) / shareWindow / pow(10, 12);
-  adjustHashRateLevel(hashRateT);
-  assert(curHashRateLevel_ >= 0 && curHashRateLevel_ <= 8);
-
-  const double c[] = {1.0, 1.0, 1.0, 1.2, 1.5, 2.0, 3.0, 4.0, 6.0};
-  assert(sizeof(c)/sizeof(c[0]) == 9);
-  return c[curHashRateLevel_];
-}
-
-uint64 DiffController::calcCurDiff() {
-  uint64 diff = _calcCurDiff();
-  if (diff < minDiff_) {
-    diff = minDiff_;
-  }
-  return diff;
-}
-
-uint64 DiffController::_calcCurDiff() {
+arith_uint256 DiffController::_calcCurTarget() {
   const time_t now = time(nullptr);
   const int64 k = now / kRecordSeconds_;
   const double sharesCount = (double)sharesNum_.sum(k);
-  if (startTime_ == 0) {  // first time, we set the start time
+  if (startTime_ == 0) {  // first time, we set now as the start time
     startTime_ = time(nullptr);
   }
 
@@ -156,45 +80,36 @@ uint64 DiffController::_calcCurDiff() {
   const double kRateLow  = 0.40;
   double expectedCount = round(kDiffWindow_ / (double)shareAvgSeconds_);
 
-  if (isFullWindow(now)) { /* have a full window now */
-    // big miner have big expected share count to make it looks more smooth.
-    expectedCount *= minerCoefficient(now, k);
-  }
-  if (expectedCount > kDiffWindow_) {
-    expectedCount = kDiffWindow_;  // one second per share is enough
-  }
-
-  // this is for very low hashrate miner, eg. USB miners
-  // should received at least one share every 60 seconds
+  // this is for very low hashrate miner, should received at least one share every 60 seconds
   if (!isFullWindow(now) && now >= startTime_ + 60 &&
       sharesCount <= (int32_t)((now - startTime_)/60.0) &&
-      curDiff_ >= minDiff_*2) {
-    curDiff_ /= 2;
+      curTarget_ >= minTarget_*2) {
+    curTarget_ /= 2;
     sharesNum_.mapMultiply(2.0);
-    return curDiff_;
+    return curTarget_;
   }
 
   // too fast
   if (sharesCount > expectedCount * kRateHigh) {
     while (sharesNum_.sum(k) > expectedCount) {
-      curDiff_ *= 2;
+      curTarget_ *= 2;
       sharesNum_.mapDivide(2.0);
     }
-    return curDiff_;
+    return curTarget_;
   }
 
   // too slow
-  if (isFullWindow(now) && curDiff_ >= minDiff_*2) {
+  if (isFullWindow(now) && curTarget_ >= minTarget_*2) {
     while (sharesNum_.sum(k) < expectedCount * kRateLow &&
-           curDiff_ >= minDiff_*2) {
-      curDiff_ /= 2;
+           curTarget_ >= minTarget_*2) {
+      curTarget_ /= 2;
       sharesNum_.mapMultiply(2.0);
     }
-    assert(curDiff_ >= minDiff_);
-    return curDiff_;
+    assert(curTarget_ >= minTarget_);
+    return curTarget_;
   }
-  
-  return curDiff_;
+
+  return curTarget_;
 }
 
 
@@ -205,12 +120,12 @@ StratumSession::StratumSession(evutil_socket_t fd, struct bufferevent *bev,
                                const int32_t shareAvgSeconds,
                                const uint32_t extraNonce1) :
 shareAvgSeconds_(shareAvgSeconds), diffController_(shareAvgSeconds_),
-shortJobIdIdx_(0), agentSessions_(nullptr), isDead_(false),
+shortJobIdIdx_(0u), agentSessions_(nullptr), isDead_(false),
 invalidSharesCounter_(INVALID_SHARE_SLIDING_WINDOWS_SIZE),
 bev_(bev), fd_(fd), server_(server)
 {
   state_ = CONNECTED;
-  currDiff_    = 0U;
+  currTarget_  = arith_uint256();
   extraNonce1_ = extraNonce1;
 
   // usually stratum job interval is 30~60 seconds, 10 is enough for miners
@@ -236,11 +151,6 @@ bev_(bev), fd_(fd), server_(server)
 }
 
 StratumSession::~StratumSession() {
-  if (agentSessions_ != nullptr) {
-    delete agentSessions_;
-    agentSessions_ = nullptr;
-  }
-
   LOG(INFO) << "close stratum session, ip: " << clientIp_
   << ", name: \"" << worker_.fullName_ << "\""
   << ", agent: \"" << clientAgent_ << "\"";
@@ -367,41 +277,13 @@ void StratumSession::handleRequest(const string &idStr, const string &method,
   else if (method == "mining.authorize") {
     handleRequest_Authorize(idStr, jparams);
   }
-  else if (method == "mining.multi_version") {
-    handleRequest_MultiVersion(idStr, jparams);
-  }
   else if (method == "mining.suggest_target") {
     handleRequest_SuggestTarget(idStr, jparams);
-  }
-  else if (method == "mining.suggest_difficulty") {
-    handleRequest_SuggestDifficulty(idStr, jparams);
   } else {
     // unrecognised method, just ignore it
     LOG(WARNING) << "unrecognised method: \"" << method << "\""
     << ", client: " << clientIp_ << "/" << clientAgent_;
   }
-}
-
-void StratumSession::handleRequest_MultiVersion(const string &idStr,
-                                                const JsonNode &jparams) {
-//  // we ignore right now, 2016-07-04
-//  const string s = Strings::Format("{\"id\":%s,\"method\":\"mining.midstate_change\",\"params\":[4]}",
-//                                   idStr.c_str());
-//  sendData(s);
-}
-
-static
-bool _isNiceHashAgent(const string &clientAgent) {
-  if (clientAgent.length() < 9) {
-    return false;
-  }
-  string agent = clientAgent;
-  // tolower
-  std::transform(agent.begin(), agent.end(), agent.begin(), ::tolower);
-  if (agent.substr(0, 9) == "nicehash/") {
-    return true;
-  }
-  return false;
 }
 
 void StratumSession::handleRequest_Subscribe(const string &idStr,
@@ -417,40 +299,25 @@ void StratumSession::handleRequest_Subscribe(const string &idStr,
   //  params[1] = session id of pool [optional]
   //
   // client request eg.:
-  //  {"id": 1, "method": "mining.subscribe", "params": ["bfgminer/4.4.0-32-gac4e9b3", "01ad557d"]}
+  //  {"id": 1, "method": "mining.subscribe", "params": ["MINER_USER_AGENT", "SESSION_ID", "CONNECT_HOST", CONNECT_PORT]}
   //
   if (jparams.children()->size() >= 1) {
     clientAgent_ = jparams.children()->at(0).str().substr(0, 30);  // 30 is max len
     clientAgent_ = filterWorkerName(clientAgent_);
   }
 
-  //  result[0] = 2-tuple with name of subscribed notification and subscription ID.
-  //              Theoretically it may be used for unsubscribing, but obviously miners won't use it.
-  //  result[1] = ExtraNonce1, used for building the coinbase.
-  //  result[2] = Extranonce2_size, the number of bytes that the miner users for its ExtraNonce2 counter
-  assert(kExtraNonce2Size_ == 8);
-  const string s = Strings::Format("{\"id\":%s,\"result\":[[[\"mining.set_difficulty\",\"%08x\"]"
-                                   ",[\"mining.notify\",\"%08x\"]],\"%08x\",%d],\"error\":null}\n",
-                                   idStr.c_str(), extraNonce1_, extraNonce1_, extraNonce1_, kExtraNonce2Size_);
+  //
+  // Response:
+  // {"id": 1, "result": ["SESSION_ID", "NONCE_1"], "error": null}
+  // SESSION_ID:
+  //   Servers MAY set SESSION_ID to null to indicate that they do not support session resuming.
+  //
+  const string s = Strings::Format("{\"id\":%s,\"result\":[null,\"%08x%08x\"],\"error\":null}\n",
+                                   idStr.c_str(), 0u, extraNonce1_);
   sendData(s);
 
   if (clientAgent_ == "__PoolWatcher__") {
     isLongTimeout_ = true;
-  }
-
-  // check if it's NinceHash/x.x.x
-  if (_isNiceHashAgent(clientAgent_))
-    isNiceHashClient_ = true;
-
-  //
-  // check if it's BTCAgent
-  //
-  if (strncmp(clientAgent_.c_str(), BTCCOM_MINER_AGENT_PREFIX,
-              std::min(clientAgent_.length(), strlen(BTCCOM_MINER_AGENT_PREFIX))) == 0) {
-    LOG(INFO) << "agent model, client: " << clientAgent_;
-    agentSessions_ = new AgentSessions(shareAvgSeconds_, this);
-
-    isLongTimeout_ = true;  // will set long timeout
   }
 }
 
@@ -458,8 +325,8 @@ void StratumSession::_handleRequest_AuthorizePassword(const string &password) {
   // testcase: TEST(StratumSession, SetDiff)
   using namespace boost::algorithm;
 
-  uint64_t d = 0u, md = 0u;
-  vector<string> arr;  // key=value,key=value
+  arith_uint256 t, mt;  // target, min_target
+  vector<string> arr;   // key=value,key=value
   split(arr, password, is_any_of(","));
   if (arr.size() == 0)
     return;
@@ -471,26 +338,23 @@ void StratumSession::_handleRequest_AuthorizePassword(const string &password) {
       continue;
     }
 
-    if (arr2[0] == "d") {
-      // 'd' : start difficulty
-      d = strtoull(arr2[1].c_str(), nullptr, 10);
+    if (arr2[0] == "t") {
+      // 't' : start target
+      t = uint256(arr2[1]);
     }
-    else if (arr2[0] == "md") {
-      // 'md' : minimum difficulty
-      md = strtoull(arr2[1].c_str(), nullptr, 10);
+    else if (arr2[0] == "mt") {
+      // 'mt' : minimum target
+      mt = uint256(arr2[1]);
     }
   }
 
-  d  = formatDifficulty(d);
-  md = formatDifficulty(md);
-
   // set min diff first
-  if (md >= DiffController::kMinDiff_) {
-    diffController_.setMinDiff(md);
+  if (mt >= DiffController::KMinTarget_) {
+    diffController_.setMinTarget(mt);
   }
 
   // than set current diff
-  if (d >= DiffController::kMinDiff_) {
+  if (t >= DiffController::resetCurTarget) {
     diffController_.resetCurDiff(d);
   }
 }
@@ -505,7 +369,7 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
   //
   //  params[0] = user[.worker]
   //  params[1] = password
-  //  eg. {"params": ["slush.miner1", "password"], "id": 2, "method": "mining.authorize"}
+  //  eg. {"id": 2, "method": "mining.authorize", "params": ["WORKER_NAME", "WORKER_PASSWORD"]}
   //
   if (jparams.children()->size() < 1) {
     responseError(idStr, StratumError::INVALID_USERNAME);
@@ -573,10 +437,6 @@ void StratumSession::handleExMessage_AuthorizeAgentWorker(const int64_t workerId
                                 workerName, clientAgent);
 }
 
-void StratumSession::_handleRequest_SetDifficulty(uint64_t suggestDiff) {
-  diffController_.resetCurDiff(formatDifficulty(suggestDiff));
-}
-
 void StratumSession::handleRequest_SuggestTarget(const string &idStr,
                                                  const JsonNode &jparams) {
   if (state_ != CONNECTED) {
@@ -586,19 +446,8 @@ void StratumSession::handleRequest_SuggestTarget(const string &idStr,
     responseError(idStr, StratumError::ILLEGAL_PARARMS);
     return;
   }
-  _handleRequest_SetDifficulty(TargetToDiff(jparams.children()->at(0).str()));
-}
+  diffController_.resetCurTarget(uint256(jparams.children()->at(0).str()));
 
-void StratumSession::handleRequest_SuggestDifficulty(const string &idStr,
-                                                     const JsonNode &jparams) {
-  if (state_ != CONNECTED) {
-    return;  // suggest should be call before subscribe
-  }
-  if (jparams.children()->size() == 0) {
-    responseError(idStr, StratumError::ILLEGAL_PARARMS);
-    return;
-  }
-  _handleRequest_SetDifficulty(jparams.children()->at(0).uint64());
 }
 
 void StratumSession::handleRequest_Submit(const string &idStr,
@@ -641,9 +490,7 @@ void StratumSession::handleRequest_Submit(const string &idStr,
                                           const uint8_t shortJobId,
                                           const uint64_t extraNonce2,
                                           const uint32_t nonce,
-                                          uint32_t nTime,
-                                          bool isAgentSession,
-                                          DiffController *sessionDiffController) {
+                                          uint32_t nTime) {
   //
   // if share is from agent session, we don't need to send reply json
   //
@@ -715,7 +562,7 @@ void StratumSession::handleRequest_Submit(const string &idStr,
 
     // agent miner's diff controller
     if (isAgentSession && sessionDiffController != nullptr) {
-      sessionDiffController->addAcceptedShare(share.share_);
+      sessionDiffController->addAcceptedShare();
     }
 
     if (isAgentSession == false) {
@@ -772,10 +619,9 @@ void StratumSession::sendSetDifficulty(const uint64_t difficulty) {
   sendData(s);
 }
 
-uint8_t StratumSession::allocShortJobId() {
-  // return range: [0, 9]
-  if (shortJobIdIdx_ >= 10) {
-    UINT16_MAX
+uint16_t StratumSession::allocShortJobId() {
+  // return range: [0, UINT16_MAX]
+  if (shortJobIdIdx_ == UINT16_MAX) {
     shortJobIdIdx_ = 0;
   }
   return shortJobIdIdx_++;
@@ -807,17 +653,7 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr,
   // notify1
   notifyStr.append(exJobPtr->miningNotify1_);
 
-  // jobId
-  if (isNiceHashClient_) {
-    //
-    // we need to send unique JobID to NiceHash Client, they have problems with
-    // short Job ID
-    //
-    const uint64_t niceHashJobId = (uint64_t)time(nullptr) * 10 + ljob.shortJobId_;
-    notifyStr.append(Strings::Format("% " PRIu64"", niceHashJobId));
-  } else {
-    notifyStr.append(Strings::Format("%u", ljob.shortJobId_));  // short jobId
-  }
+  notifyStr.append(Strings::Format("%x", ljob.shortJobId_));  // short jobId
 
   // notify2
   if (isFirstJob)

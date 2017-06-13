@@ -88,7 +88,7 @@ public:
 class JobRepository {
   atomic<bool> running_;
   mutex lock_;
-  std::map<uint64_t/* jobId */, shared_ptr<StratumJobEx> > exJobs_;
+  std::map<uint64_t/* jobId */, shared_ptr<StratumJobEx>> exJobs_;
 
   KafkaConsumer kafkaConsumer_;  // consume topic: 'StratumJob'
   Server *server_;               // call server to send new job
@@ -107,7 +107,7 @@ class JobRepository {
   void consumeStratumJob(rd_kafka_message_t *rkmessage);
   void sendMiningNotify(shared_ptr<StratumJobEx> exJob);
   void tryCleanExpiredJobs();
-  void checkAndSendMiningNotify();
+  void checkAndSendMiningNotifyInterval();
 
 public:
   JobRepository(const char *kafkaBrokers, const string &fileLastNotifyTime,
@@ -183,16 +183,18 @@ class StratumJobEx {
   atomic<int32_t> state_;
 
   void makeMiningNotifyStr();
-  void generateCoinbaseTx(std::vector<char> *coinbaseBin,
-                          const uint32_t extraNonce1,
-                          const string &extraNonce2Hex);
 
 public:
   bool isClean_;
   StratumJob *sjob_;
+  //
+  // mining.notify = miningNotify1_ + jobId + miningNotify2_
+  // mining.notify = miningNotify1_ + jobId + miningNotify2True_
+  //
   string miningNotify1_;
   string miningNotify2_;
-  string miningNotify2Clean_;  // clean flag always true
+  // for new connections, the first job's clean flag always true
+  string miningNotify2True_;
 
 public:
   StratumJobEx(StratumJob *sjob, bool isClean);
@@ -202,13 +204,9 @@ public:
   bool isStale();
 
   void generateBlockHeader(CBlockHeader *header,
-                           std::vector<char> *coinbaseBin,
                            const uint32_t extraNonce1,
                            const string &extraNonce2Hex,
-                           const vector<uint256> &merkleBranch,
-                           const uint256 &hashPrevBlock,
-                           const uint32_t nBits, const int32_t nVersion,
-                           const uint32_t nTime, const uint32_t nonce);
+                           const uint32_t nTime);
 };
 
 

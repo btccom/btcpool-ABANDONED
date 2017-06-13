@@ -170,7 +170,7 @@ void JobRepository::runThreadConsume() {
     rd_kafka_message_destroy(rkmessage);  /* Return message to rdkafka */
 
     // check if we need to send mining notify
-    checkAndSendMiningNotify();
+    checkAndSendMiningNotifyInterval();
 
     tryCleanExpiredJobs();
   }
@@ -224,11 +224,11 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   }
 
   bool isClean = false;
-  if (latestPrevBlockHash_ != sjob->prevHash_) {
+  if (latestPrevBlockHash_ != sjob->header_.hashPrevBlock) {
     isClean = true;
-    latestPrevBlockHash_ = sjob->prevHash_;
+    latestPrevBlockHash_ = sjob->header_.hashPrevBlock;
     LOG(INFO) << "received new height statum job, height: " << sjob->height_
-    << ", prevhash: " << sjob->prevHash_.ToString();
+    << ", prevhash: " << sjob->header_.hashPrevBlock.ToString();
   }
 
   shared_ptr<StratumJobEx> exJob = std::make_shared<StratumJobEx>(sjob, isClean);
@@ -256,13 +256,13 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   // new non-empty job as quick as possible.
   if (isClean == false && exJobs_.size() >= 2) {
     auto itr = exJobs_.rbegin();
-    shared_ptr<StratumJobEx> exJob1 = itr->second;
+    shared_ptr<StratumJobEx> curr = itr->second;
     itr++;
-    shared_ptr<StratumJobEx> exJob2 = itr->second;
+    shared_ptr<StratumJobEx> prev = itr->second; // exJob2
 
-    if (exJob2->isClean_ == true &&
-        exJob2->sjob_->merkleBranch_.size() == 0 &&
-        exJob1->sjob_->merkleBranch_.size() != 0) {
+    if (prev->isClean_ == true &&
+        prev->sjob_->isEmptyBlock() == true &&
+        curr->sjob_->isEmptyBlock() == false) {
       sendMiningNotify(exJob);
     }
   }
@@ -316,11 +316,11 @@ void JobRepository::tryCleanExpiredJobs() {
       break;  // not expired
     }
 
-    // remove expired job
-    exJobs_.erase(itr);
-
     LOG(INFO) << "remove expired stratum job, id: " << itr->first
     << ", time: " << date("%F %T", jobTime);
+
+    // remove expired job
+    exJobs_.erase(itr);
   }
 }
 
@@ -566,45 +566,32 @@ StratumJobEx::~StratumJobEx() {
 }
 
 void StratumJobEx::makeMiningNotifyStr() {
-  string merkleBranchStr;
-  {
-    // '"'+ 64 + '"' + ',' = 67 bytes
-    merkleBranchStr.reserve(sjob_->merkleBranch_.size() * 67);
-    for (size_t i = 0; i < sjob_->merkleBranch_.size(); i++) {
-      //
-      // do NOT use GetHex() or uint256.ToString(), need to dump the memory
-      //
-      string merklStr;
-      Bin2Hex(sjob_->merkleBranch_[i].begin(), 32, merklStr);
-      merkleBranchStr.append("\"" + merklStr + "\",");
-    }
-    if (merkleBranchStr.length()) {
-      merkleBranchStr.resize(merkleBranchStr.length() - 1);  // remove last ','
-    }
-  }
-
+  //
+  // mining.notify()
+  //   {"id": null, "method": "mining.notify",
+  //    "params": ["JOB_ID", "VERSION", "PREVHASH", "MERKLEROOT",
+  //               "RESERVED", "TIME", "BITS", CLEAN_JOBS]}
+  //
   // we don't put jobId here, session will fill with the shortJobId
   miningNotify1_ = "{\"id\":null,\"method\":\"mining.notify\",\"params\":[\"";
 
-  miningNotify2_ = Strings::Format("\",\"%s\",\"%s\",\"%s\""
-                                   ",[%s]"
-                                   ",\"%08x\",\"%08x\",\"%08x\",%s"
-                                   "]}\n",
-                                   sjob_->prevHashBeStr_.c_str(),
-                                   sjob_->coinbase1_.c_str(), sjob_->coinbase2_.c_str(),
-                                   merkleBranchStr.c_str(),
-                                   sjob_->nVersion_, sjob_->nBits_, sjob_->nTime_,
+  const string prevHash   = hash2BEStr(sjob_->header_.hashPrevBlock);
+  const string merkleRoot = hash2BEStr(sjob_->header_.hashMerkleRoot);
+  miningNotify2_ = Strings::Format("\",\"%08x\",\"%s\",\"%s\","
+                                   "\"0000000000000000000000000000000000000000000000000000000000000000\","
+                                   "\"%08x\",\"%08x\",%s]}\n",
+                                   sjob_->header_.nVersion,
+                                   prevHash.c_str(), merkleRoot.c_str(),
+                                   sjob_->header_.nTime, sjob_->header_.nBits,
                                    isClean_ ? "true" : "false");
 
   // always set clean to true, reset of them is the same with miningNotify2_
-  miningNotify2Clean_ = Strings::Format("\",\"%s\",\"%s\",\"%s\""
-                                   ",[%s]"
-                                   ",\"%08x\",\"%08x\",\"%08x\",true"
-                                   "]}\n",
-                                   sjob_->prevHashBeStr_.c_str(),
-                                   sjob_->coinbase1_.c_str(), sjob_->coinbase2_.c_str(),
-                                   merkleBranchStr.c_str(),
-                                   sjob_->nVersion_, sjob_->nBits_, sjob_->nTime_);
+  miningNotify2True_ = Strings::Format("\",\"%08x\",\"%s\",\"%s\","
+                                       "\"0000000000000000000000000000000000000000000000000000000000000000\","
+                                       "\"%08x\",\"%08x\",true]}\n",
+                                       sjob_->header_.nVersion,
+                                       prevHash.c_str(), merkleRoot.c_str(),
+                                       sjob_->header_.nTime, sjob_->header_.nBits);
 }
 
 void StratumJobEx::markStale() {
@@ -617,42 +604,15 @@ bool StratumJobEx::isStale() {
   return (state_ == 1);
 }
 
-void StratumJobEx::generateCoinbaseTx(std::vector<char> *coinbaseBin,
-                                      const uint32_t extraNonce1,
-                                      const string &extraNonce2Hex) {
-  string coinbaseHex;
-  const string extraNonceStr = Strings::Format("%08x%s", extraNonce1, extraNonce2Hex.c_str());
-  coinbaseHex.append(sjob_->coinbase1_);
-  coinbaseHex.append(extraNonceStr);
-  coinbaseHex.append(sjob_->coinbase2_);
-  Hex2Bin((const char *)coinbaseHex.c_str(), *coinbaseBin);
-}
-
 void StratumJobEx::generateBlockHeader(CBlockHeader *header,
-                                       std::vector<char> *coinbaseBin,
                                        const uint32_t extraNonce1,
                                        const string &extraNonce2Hex,
-                                       const vector<uint256> &merkleBranch,
-                                       const uint256 &hashPrevBlock,
-                                       const uint32_t nBits, const int32_t nVersion,
-                                       const uint32_t nTime, const uint32_t nonce) {
-  generateCoinbaseTx(coinbaseBin, extraNonce1, extraNonce2Hex);
-
-  header->hashPrevBlock = hashPrevBlock;
-  header->nVersion      = nVersion;
-  header->nBits         = nBits;
-  header->nTime         = nTime;
-  header->nNonce        = nonce;
-
-  // hashMerkleRoot
-  header->hashMerkleRoot = Hash(coinbaseBin->begin(), coinbaseBin->end());
-
-  for (const uint256 & step : merkleBranch) {
-    header->hashMerkleRoot = Hash(BEGIN(header->hashMerkleRoot),
-                                  END  (header->hashMerkleRoot),
-                                  BEGIN(step),
-                                  END  (step));
-  }
+                                       const uint32_t nTime) {
+  *header = sjob_->header_;
+  string s = Strings::Format("%08x%08x%s", 0u, extraNonce1, extraNonce2Hex.c_str());
+  assert(s.length() == 64);
+  header->nNonce = uint256S(s);
+  header->nTime  = nTime;
 }
 
 ////////////////////////////////// StratumServer ///////////////////////////////
