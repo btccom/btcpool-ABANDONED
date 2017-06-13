@@ -60,17 +60,22 @@ inline string filterWorkerName(const char *workerName) {
 }
 
 ////////////////////////////////// FoundBlock //////////////////////////////////
+// n=200, k=9, 2^9 = 512
+// 21 bits * 512 / 8 = 1344
+// 140 + 3 bytes(1344_vint) + 1344 = 1487 Bytes
+#define ZEC_HEADER_FULL_SIZE 1487
+
 class FoundBlock {
 public:
   uint64_t jobId_;
   int64_t  workerId_;  // found by who
   int32_t  userId_;
   int32_t  height_;
-  uint8_t  header80_[80];
+  uint8_t  header_[ZEC_HEADER_FULL_SIZE];
   char     workerFullName_[40];  // <UserName>.<WorkerName>
 
   FoundBlock(): jobId_(0), workerId_(0), userId_(0), height_(0) {
-    memset(header80_,       0, sizeof(header80_));
+    memset(header_,         0, ZEC_HEADER_FULL_SIZE);
     memset(workerFullName_, 0, sizeof(workerFullName_));
   }
 };
@@ -90,12 +95,12 @@ public:
   int32_t  userId_;
   uint32_t jobBits_;
   uint32_t blkBits_;
-  uint32_t blkTime_;
   int32_t  blkHeight_;
+  uint32_t shareTime_;
   int32_t  result_;
 
   Share():jobId_(0), workerHashId_(0), ip_(0), userId_(0),
-  jobBits_(0), blkBits_(0), blkTime_(0), blkHeight_(0), result_(0) {}
+  jobBits_(0), blkBits_(0), blkHeight_(0), shareTime_(0), result_(0) {}
 
   Share(const Share &r) {
     jobId_        = r.jobId_;
@@ -104,8 +109,8 @@ public:
     userId_       = r.userId_;
     jobBits_      = r.jobBits_;
     blkBits_      = r.blkBits_;
-    blkTime_      = r.blkTime_;
     blkHeight_    = r.blkHeight_;
+    shareTime_    = r.shareTime_;
     result_       = r.result_;
   }
 
@@ -116,8 +121,8 @@ public:
     userId_       = r.userId_;
     jobBits_      = r.jobBits_;
     blkBits_      = r.blkBits_;
-    blkTime_      = r.blkTime_;
     blkHeight_    = r.blkHeight_;
+    shareTime_    = r.shareTime_;
     result_       = r.result_;
     return *this;
   }
@@ -146,8 +151,8 @@ public:
     uint32_t jobTime = jobId2Time(jobId_);
 
     if (userId_ > 0 && workerHashId_ != 0 && jobBits_ != 0 &&
-        blkTime_ > 1497348228U /* 2017-06-13 10:03:47 UTC+0 */ &&
-        jobTime  > 1497348228U /* 2017-06-13 10:03:47 UTC+0 */) {
+        shareTime_ > 1497348228U /* 2017-06-13 10:03:47 UTC+0 */ &&
+        jobTime    > 1497348228U /* 2017-06-13 10:03:47 UTC+0 */) {
       return true;
     }
     return false;
@@ -162,7 +167,7 @@ public:
                            "blk(bits|diff): %08x|%f, "
                            "result: %d)",
                            jobId_, ipStr, userId_, workerHashId_,
-                           blkTime_, date("%F %T", blkTime_).c_str(),
+                           shareTime_, date("%F %T", shareTime_).c_str(),
                            jobBits_, BitsToDifficulty(jobBits_),
                            blkBits_, BitsToDifficulty(blkBits_),
                            result_);

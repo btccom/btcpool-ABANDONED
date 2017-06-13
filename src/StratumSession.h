@@ -197,7 +197,7 @@ private:
 
   uint32_t extraNonce1_;   // MUST be unique across all servers
 
-  arith_uint256 currTarget_;
+  uint32_t currJobBits_;
   std::deque<LocalJob> localJobs_;
   size_t kMaxNumLocalJobs_;
 
@@ -249,7 +249,7 @@ public:
   void markAsDead();
   bool isDead();
 
-  void sendSetDifficulty(const uint64_t difficulty);
+  void sendSetTarget(const uint32_t bits);
   void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false);
   void sendData(const char *data, size_t len);
   inline void sendData(const string &str) {
@@ -257,12 +257,10 @@ public:
   }
   void readBuf(struct evbuffer *buf);
 
-  void handleExMessage_AuthorizeAgentWorker(const int64_t workerId,
-                                            const string &clientAgent,
-                                            const string &workerName);
   void handleRequest_Submit(const string &idStr,
-                            const uint8_t shortJobId, const uint64_t extraNonce2,
-                            const uint32_t nonce, uint32_t nTime);
+                            const uint16_t shortJobId,
+                            const string &nonce2hex, const string &solution,
+                            const uint32_t nTime);
   uint32_t getSessionId() const;
 };
 

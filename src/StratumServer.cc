@@ -967,14 +967,16 @@ void Server::eventCallback(struct bufferevent* bev, short events,
 }
 
 int Server::checkShare(const Share &share,
-                       const uint32 extraNonce1, const string &extraNonce2Hex,
-                       const uint32_t nTime, const uint32_t nonce,
-                       const uint256 &jobTarget, const string &workFullName) {
+                       const uint32_t nonce1,
+                       const string &nonce2hex,
+                       const string &solution,
+                       const uint32_t nTime,
+                       const string &workFullName) {
   shared_ptr<StratumJobEx> exJobPtr = jobRepository_->getStratumJobEx(share.jobId_);
   if (exJobPtr == nullptr) {
     return StratumError::JOB_NOT_FOUND;
   }
-  StratumJob *sjob = exJobPtr->sjob_;
+  StratumJob *sjob = exJobPtr->sjob_;  // alias
 
   if (exJobPtr->isStale()) {
     return StratumError::JOB_NOT_FOUND;
@@ -982,20 +984,22 @@ int Server::checkShare(const Share &share,
   if (nTime <= sjob->minTime_) {
     return StratumError::TIME_TOO_OLD;
   }
-  if (nTime > sjob->nTime_ + 600) {
+  if (nTime > sjob->maxTime_) {
     return StratumError::TIME_TOO_NEW;
   }
 
   CBlockHeader header;
-  std::vector<char> coinbaseBin;
-  exJobPtr->generateBlockHeader(&header, &coinbaseBin,
-                                extraNonce1, extraNonce2Hex,
-                                sjob->merkleBranch_, sjob->prevHash_,
-                                sjob->nBits_, sjob->nVersion_, nTime, nonce);
+  // put nonce & nTime
+  exJobPtr->generateBlockHeader(&header, nonce1, nonce2hex, nTime);
+  // put solution
+  header.nSolution = ParseHex(solution);
+
+  // get block hash
   uint256 blkHash = header.GetHash();
 
-  arith_uint256 bnBlockHash     = UintToArith256(blkHash);
-  arith_uint256 bnNetworkTarget = UintToArith256(sjob->networkTarget_);
+  const arith_uint256 bnBlockHash     = UintToArith256(blkHash);
+  const arith_uint256 bnNetworkTarget = UintToArith256(BitsToTarget(share.blkBits_));
+  const arith_uint256 bnJobTarget     = UintToArith256(BitsToTarget(share.jobBits_));
 
   //
   // found new block
@@ -1004,16 +1008,21 @@ int Server::checkShare(const Share &share,
     //
     // build found block
     //
+    CDataStream ssBlockHeader(SER_NETWORK, PROTOCOL_VERSION);
+    ssBlockHeader << header;
+    const string headerBin = ssBlockHeader.str();  // use std::string to save binary data
+    assert(headerBin.size() == ZEC_HEADER_FULL_SIZE);
+
     FoundBlock foundBlock;
     foundBlock.jobId_    = share.jobId_;
     foundBlock.workerId_ = share.workerHashId_;
     foundBlock.userId_   = share.userId_;
     foundBlock.height_   = sjob->height_;
-    memcpy(foundBlock.header80_, (const uint8_t *)&header, sizeof(CBlockHeader));
+    memcpy(foundBlock.header_, headerBin.data(), headerBin.size());
     snprintf(foundBlock.workerFullName_, sizeof(foundBlock.workerFullName_),
              "%s", workFullName.c_str());
     // send
-    sendSolvedShare2Kafka(&foundBlock, coinbaseBin);
+    sendSolvedShare2Kafka(&foundBlock);
 
     // mark jobs as stale
     jobRepository_->markAllJobsAsStale();
@@ -1026,57 +1035,19 @@ int Server::checkShare(const Share &share,
   // print out high diff share, 2^10 = 1024
   if ((bnBlockHash >> 10) <= bnNetworkTarget) {
     LOG(INFO) << "high diff share, blkhash: " << blkHash.ToString()
-    << ", diff: " << TargetToDiff(blkHash)
-    << ", networkDiff: " << TargetToDiff(sjob->networkTarget_)
+    << ", diff: "        << TargetToDifficulty(blkHash)
+    << ", networkDiff: " << TargetToDifficulty(BitsToTarget(share.blkBits_))
     << ", by: " << workFullName;
   }
 
-  //
-  // found namecoin block
-  //
-  if (sjob->nmcAuxBits_ != 0 &&
-      (isSubmitInvalidBlock_ == true || bnBlockHash <= UintToArith256(sjob->nmcNetworkTarget_))) {
-    //
-    // build namecoin solved share message
-    //
-    string blockHeaderHex;
-    Bin2Hex((const uint8_t *)&header, sizeof(CBlockHeader), blockHeaderHex);
-    DLOG(INFO) << "blockHeaderHex: " << blockHeaderHex;
-
-    string coinbaseTxHex;
-    Bin2Hex((const uint8_t *)coinbaseBin.data(), coinbaseBin.size(), coinbaseTxHex);
-    DLOG(INFO) << "coinbaseTxHex: " << coinbaseTxHex;
-
-    const string nmcAuxSolvedShare = Strings::Format("{\"job_id\":%" PRIu64","
-                                                     " \"aux_block_hash\":\"%s\","
-                                                     " \"block_header\":\"%s\","
-                                                     " \"coinbase_tx\":\"%s\","
-                                                     " \"rpc_addr\":\"%s\","
-                                                     " \"rpc_userpass\":\"%s\""
-                                                     "}",
-                                                     share.jobId_,
-                                                     sjob->nmcAuxBlockHash_.ToString().c_str(),
-                                                     blockHeaderHex.c_str(),
-                                                     coinbaseTxHex.c_str(),
-                                                     sjob->nmcRpcAddr_.size()     ? sjob->nmcRpcAddr_.c_str()     : "",
-                                                     sjob->nmcRpcUserpass_.size() ? sjob->nmcRpcUserpass_.c_str() : "");
-    // send found namecoin aux block to kafka
-    kafkaProducerNamecoinSolvedShare_->produce(nmcAuxSolvedShare.data(),
-                                               nmcAuxSolvedShare.size());
-
-    LOG(INFO) << ">>>> found namecoin block: " << sjob->nmcHeight_ << ", "
-    << sjob->nmcAuxBlockHash_.ToString()
-    << ", jobId: " << share.jobId_ << ", userId: " << share.userId_
-    << ", by: " << workFullName << " <<<<";
-  }
-
   // check share diff
-  if (isEnableSimulator_ == false && bnBlockHash >= UintToArith256(jobTarget)) {
+  if (isEnableSimulator_ == false && bnBlockHash > bnJobTarget) {
     return StratumError::LOW_DIFFICULTY;
   }
 
-  DLOG(INFO) << "blkHash: " << blkHash.ToString() << ", jobTarget: "
-  << jobTarget.ToString() << ", networkTarget: " << sjob->networkTarget_.ToString();
+  DLOG(INFO) << "blkHash: " << blkHash.ToString()
+  << ", jobTarget: "     << BitsToTarget(share.jobBits_).ToString()
+  << ", networkTarget: " << BitsToTarget(share.blkBits_).ToString();
 
   // reach here means an valid share
   return StratumError::NO_ERROR;
@@ -1086,23 +1057,8 @@ void Server::sendShare2Kafka(const uint8_t *data, size_t len) {
   kafkaProducerShareLog_->produce(data, len);
 }
 
-void Server::sendSolvedShare2Kafka(const FoundBlock *foundBlock,
-                                   const std::vector<char> &coinbaseBin) {
-  //
-  // solved share message:  FoundBlock + coinbase_Tx
-  //
-  string buf;
-  buf.resize(sizeof(FoundBlock) + coinbaseBin.size());
-  uint8_t *p = (uint8_t *)buf.data();
-
-  // FoundBlock
-  memcpy(p, (const uint8_t *)foundBlock, sizeof(FoundBlock));
-  p += sizeof(FoundBlock);
-
-  // coinbase TX
-  memcpy(p, coinbaseBin.data(), coinbaseBin.size());
-
-  kafkaProducerSolvedShare_->produce(buf.data(), buf.size());
+void Server::sendSolvedShare2Kafka(const FoundBlock *foundBlock) {
+  kafkaProducerSolvedShare_->produce((const uint8_t *)foundBlock, sizeof(FoundBlock));
 }
 
 void Server::sendCommonEvents2Kafka(const string &message) {

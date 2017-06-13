@@ -426,17 +426,6 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
   }
 }
 
-void StratumSession::handleExMessage_AuthorizeAgentWorker(const int64_t workerId,
-                                                          const string &clientAgent,
-                                                          const string &workerName) {
-  if (state_ != AUTHENTICATED) {
-    LOG(ERROR) << "curr stratum session has NOT auth yet";
-    return;
-  }
-  server_->userInfo_->addWorker(worker_.userId_, workerId,
-                                workerName, clientAgent);
-}
-
 void StratumSession::handleRequest_SuggestTarget(const string &idStr,
                                                  const JsonNode &jparams) {
   if (state_ != CONNECTED) {
@@ -447,7 +436,6 @@ void StratumSession::handleRequest_SuggestTarget(const string &idStr,
     return;
   }
   diffController_.resetCurTarget(uint256(jparams.children()->at(0).str()));
-
 }
 
 void StratumSession::handleRequest_Submit(const string &idStr,
@@ -461,89 +449,76 @@ void StratumSession::handleRequest_Submit(const string &idStr,
 
     return;
   }
-
-  //  params[0] = Worker Name
-  //  params[1] = Job ID
-  //  params[2] = ExtraNonce 2
-  //  params[3] = nTime
-  //  params[4] = nonce
+  // Request:
+  // {"id": 4, "method": "mining.submit", "params": ["WORKER_NAME", "JOB_ID", "TIME", "NONCE_2", "EQUIHASH_SOLUTION"]}
+  //
+  //  params[0] = WORKER_NAME
+  //  params[1] = JOB_ID
+  //  params[2] = TIME
+  //  params[3] = NONCE_2
+  //  params[4] = EQUIHASH_SOLUTION
   if (jparams.children()->size() < 5) {
     responseError(idStr, StratumError::ILLEGAL_PARARMS);
     return;
   }
 
-  uint8_t shortJobId;
-  if (isNiceHashClient_) {
-    shortJobId = (uint8_t)(jparams.children()->at(1).uint64() % 10);
-  } else {
-    shortJobId = (uint8_t)jparams.children()->at(1).uint32();
-  }
-  const uint64_t extraNonce2 = jparams.children()->at(2).uint64_hex();
-  uint32_t nTime             = jparams.children()->at(3).uint32_hex();
-  const uint32_t nonce       = jparams.children()->at(4).uint32_hex();
+  uint16_t shortJobId;
+  shortJobId = (uint16_t)jparams.children()->at(1).uint32_hex();
+  const uint32_t nTime   = jparams.children()->at(2).uint32_hex();
+  const string nonce2hex = jparams.children()->at(3).str();
+  const string solution  = jparams.children()->at(4).str();
 
-  handleRequest_Submit(idStr, shortJobId, extraNonce2, nonce, nTime,
-                       false /* not agent session */, nullptr);
+  if (nonce2hex.length()  != 32) {
+    responseError(idStr, StratumError::ILLEGAL_PARARMS);
+    return;
+  }
+
+  handleRequest_Submit(idStr, shortJobId, nonce2hex, solution, nTime);
 }
 
 void StratumSession::handleRequest_Submit(const string &idStr,
-                                          const uint8_t shortJobId,
-                                          const uint64_t extraNonce2,
-                                          const uint32_t nonce,
-                                          uint32_t nTime) {
-  //
-  // if share is from agent session, we don't need to send reply json
-  //
-  if (isAgentSession == true && agentSessions_ == nullptr) {
-    LOG(ERROR) << "can't find agentSession";
-    return;
-  }
-
-  const string extraNonce2Hex = Strings::Format("%016llx", extraNonce2);
-  assert(extraNonce2Hex.length()/2 == kExtraNonce2Size_);
-
+                                          const uint16_t shortJobId,
+                                          const string &nonce2hex,
+                                          const string &solution,
+                                          const uint32_t nTime) {
   LocalJob *localJob = findLocalJob(shortJobId);
   if (localJob == nullptr) {
     // if can't find localJob, could do nothing
-    if (isAgentSession == false)
-    	responseError(idStr, StratumError::JOB_NOT_FOUND);
+    responseError(idStr, StratumError::JOB_NOT_FOUND);
     return;
   }
 
-  // 0 means miner use stratum job's default block time
-  if (nTime == 0) {
-    shared_ptr<StratumJobEx> exjob;
-    exjob = server_->jobRepository_->getStratumJobEx(localJob->jobId_);
-    if (exjob.get() != NULL)
-    	nTime = exjob->sjob_->nTime_;
+  shared_ptr<StratumJobEx> exjob = server_->jobRepository_->getStratumJobEx(localJob->jobId_);
+  if (exjob.get() == nullptr) {
+    // if can't find StratumJobEx, could do nothing
+    responseError(idStr, StratumError::JOB_NOT_FOUND);
+    return;
   }
 
-  // TODO: add height
   Share share;
   share.jobId_        = localJob->jobId_;
   share.workerHashId_ = worker_.workerHashId_;
   share.ip_           = clientIpInt_;
   share.userId_       = worker_.userId_;
-  share.share_        = localJob->jobDifficulty_;
+  share.jobBits_      = localJob->jobBits_;
   share.blkBits_      = localJob->blkBits_;
-  share.timestamp_    = (uint32_t)time(nullptr);
+  share.blkHeight_    = exjob->sjob_->height_;
+  share.shareTime_    = (uint32_t)time(nullptr);
   share.result_       = Share::Result::REJECT;
-
-  // calc jobTarget
-  uint256 jobTarget;
-  DiffToTarget(share.share_, jobTarget);
 
   // we send share to kafka by default, but if there are lots of invalid
   // shares in a short time, we just drop them.
   bool isSendShareToKafka = true;
 
   int submitResult;
-  LocalShare localShare(extraNonce2, nonce, nTime);
+  LocalShare localShare(strtoll(nonce2hex.substr(0 , 16).c_str(), nullptr, 16),
+                        strtoll(nonce2hex.substr(16, 16).c_str(), nullptr, 16),
+                        nTime);
 
   // can't find local share
   if (!localJob->addLocalShare(localShare)) {
-    if (isAgentSession == false)
-      responseError(idStr, StratumError::DUPLICATE_SHARE);
+    // duplicate
+    responseError(idStr, StratumError::DUPLICATE_SHARE);
 
     // add invalid share to counter
     invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
@@ -551,28 +526,20 @@ void StratumSession::handleRequest_Submit(const string &idStr,
     goto finish;
   }
 
-  // check block header
-  submitResult = server_->checkShare(share, extraNonce1_, extraNonce2Hex,
-                                     nTime, nonce, jobTarget,
+  // build block header and check share
+  submitResult = server_->checkShare(share, extraNonce1_, nonce2hex,
+                                     solution, nTime,
                                      worker_.fullName_);
 
   if (submitResult == StratumError::NO_ERROR) {
     // accepted share
     share.result_ = Share::Result::ACCEPT;
 
-    // agent miner's diff controller
-    if (isAgentSession && sessionDiffController != nullptr) {
-      sessionDiffController->addAcceptedShare();
-    }
-
-    if (isAgentSession == false) {
-    	diffController_.addAcceptedShare(share.share_);
-      responseTrue(idStr);
-    }
+    diffController_.addAcceptedShare();
+    responseTrue(idStr);
   } else {
     // reject share
-    if (isAgentSession == false)
-    	responseError(idStr, submitResult);
+    responseError(idStr, submitResult);
 
     // add invalid share to counter
     invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
@@ -603,7 +570,7 @@ finish:
   return;
 }
 
-StratumSession::LocalJob *StratumSession::findLocalJob(uint8_t shortJobId) {
+StratumSession::LocalJob *StratumSession::findLocalJob(uint16_t shortJobId) {
   for (auto rit = localJobs_.rbegin(); rit != localJobs_.rend(); ++rit) {
     if (rit->shortJobId_ == shortJobId) {
       return &(*rit);
@@ -612,10 +579,11 @@ StratumSession::LocalJob *StratumSession::findLocalJob(uint8_t shortJobId) {
   return nullptr;
 }
 
-void StratumSession::sendSetDifficulty(const uint64_t difficulty) {
-  string s = Strings::Format("{\"id\":null,\"method\":\"mining.set_difficulty\""
-                             ",\"params\":[%" PRIu64"]}\n",
-                             difficulty);
+void StratumSession::sendSetTarget(const uint32_t bits) {
+  // {"id": null, "method": "mining.set_target", "params": ["TARGET"]}
+  string s = Strings::Format("{\"id\":null,\"method\":\"mining.set_target\""
+                             ",\"params\":[\"%s\"]}\n",
+                             BitsToTarget(bits).ToString().c_str());
   sendData(s);
 }
 
@@ -632,32 +600,33 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr,
   if (state_ < AUTHENTICATED || exJobPtr == nullptr) {
     return;
   }
-  StratumJob *sjob = exJobPtr->sjob_;
+  StratumJob *sjob = exJobPtr->sjob_;  // alias
 
   localJobs_.push_back(LocalJob());
   LocalJob &ljob = *(localJobs_.rbegin());
-  ljob.blkBits_       = sjob->nBits_;
   ljob.jobId_         = sjob->jobId_;
+  ljob.jobBits_       = sjob->diffController_.calcCurBits();
+  ljob.blkBits_       = sjob->header_.nBits;
   ljob.shortJobId_    = allocShortJobId();
-  ljob.jobDifficulty_ = diffController_.calcCurDiff();
 
-  // set difficulty
-  if (currDiff_ != ljob.jobDifficulty_) {
-    sendSetDifficulty(ljob.jobDifficulty_);
-    currDiff_ = ljob.jobDifficulty_;
+  // check if we need to 'mining.set_target'
+  if (currJobBits_ != ljob.jobBits_) {
+    sendSetTarget(ljob.jobBits_);
+    currJobBits_ = ljob.jobBits_;
   }
 
   string notifyStr;
-  notifyStr.reserve(2048);
+  notifyStr.reserve(1024);
 
   // notify1
   notifyStr.append(exJobPtr->miningNotify1_);
 
+  // jobId
   notifyStr.append(Strings::Format("%x", ljob.shortJobId_));  // short jobId
 
   // notify2
   if (isFirstJob)
-  	notifyStr.append(exJobPtr->miningNotify2Clean_);
+  	notifyStr.append(exJobPtr->miningNotify2True_);
   else
     notifyStr.append(exJobPtr->miningNotify2_);
 
@@ -793,12 +762,6 @@ void AgentSessions::handleExMessage_RegisterWorker(const string *exMessage) {
 
   // set curr diff to default Diff
   curDiff2ExpVec_[sessionId] = kDefaultDiff2Exp_;
-
-  // submit worker info to stratum session
-  // ptr can't be nullptr, just make it easy for test
-  if (stratumSession_ != nullptr)
-    stratumSession_->handleExMessage_AuthorizeAgentWorker(workerId, clientAgent,
-                                                          workerName);
 }
 
 void AgentSessions::handleExMessage_SubmitShare(const string *exMessage,
