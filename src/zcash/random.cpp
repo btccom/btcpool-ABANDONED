@@ -19,7 +19,7 @@
 #include <sys/time.h>
 #endif
 
-#include "sodium.h"
+#include <sodium.h>
 
 static inline int64_t GetPerformanceCounter()
 {

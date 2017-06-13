@@ -25,42 +25,52 @@
 
 #include <glog/logging.h>
 
-#include "bitcoin/util.h"
-#include "bitcoin/utilstrencodings.h"
+#include "zcash/util.h"
+#include "zcash/utilstrencodings.h"
 
 #include "Utils.h"
 #include "utilities_js.hpp"
 
-//
-// bitcoind zmq pub msg type: "hashblock", "hashtx", "rawblock", "rawtx"
-//
-#define BITCOIND_ZMQ_HASHBLOCK      "hashblock"
-#define BITCOIND_ZMQ_HASHTX         "hashtx"
+#include "zcash/random.h"
+#include "zcash/chainparams.h"
 
 //
-// namecoind zmq pub msg type: "hashblock", "hashtx", "rawblock", "rawtx"
+// zcashd zmq pub msg type: "hashblock", "hashtx", "rawblock", "rawtx"
 //
-#define NAMECOIND_ZMQ_HASHBLOCK      "hashblock"
-#define NAMECOIND_ZMQ_HASHTX         "hashtx"
+#define ZCASHD_ZMQ_HASHBLOCK      "hashblock"
+#define ZCASHD_ZMQ_HASHTX         "hashtx"
 
 
 ///////////////////////////////////  GbtMaker  /////////////////////////////////
-GbtMaker::GbtMaker(const string &zmqBitcoindAddr,
-                   const string &bitcoindRpcAddr, const string &bitcoindRpcUserpass,
+GbtMaker::GbtMaker(const string poolCoinbaseInfo, const string &poolPayoutAddr,
+                   const string &zmqZcashdAddr,
+                   const string &zcashdRpcAddr, const string &zcashdRpcUserpass,
                    const string &kafkaBrokers, uint32_t kRpcCallInterval,
                    bool isCheckZmq)
-: running_(true), zmqContext_(1/*i/o threads*/),
-zmqBitcoindAddr_(zmqBitcoindAddr), bitcoindRpcAddr_(bitcoindRpcAddr),
-bitcoindRpcUserpass_(bitcoindRpcUserpass), lastGbtMakeTime_(0), kRpcCallInterval_(kRpcCallInterval),
+: running_(true),
+poolCoinbaseInfo_(poolCoinbaseInfo), poolPayoutAddr_(poolPayoutAddr),
+zmqContext_(1/*i/o threads*/),
+zmqZcashdAddr_(zmqZcashdAddr), zcashdRpcAddr_(zcashdRpcAddr),
+zcashdRpcUserpass_(zcashdRpcUserpass), lastGbtMakeTime_(0), kRpcCallInterval_(kRpcCallInterval),
 kafkaBrokers_(kafkaBrokers),
 kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT, 0/* partition */),
-isCheckZmq_(isCheckZmq)
+isCheckZmq_(isCheckZmq), blockVersion_(0)
 {
+  if (poolCoinbaseInfo_.length() > 40) {
+    poolCoinbaseInfo_.resize(40);
+    LOG(WARNING) << "pool coinbase info is too long, cut to 40 bytes";
+  }
 }
 
 GbtMaker::~GbtMaker() {}
 
 bool GbtMaker::init() {
+  // check pool payout address
+  if (!poolPayoutAddr_.IsValid()) {
+    LOG(ERROR) << "invalid pool payout address";
+    return false;
+  }
+
   map<string, string> options;
   // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
   options["queue.buffering.max.ms"] = "1";
@@ -75,17 +85,17 @@ bool GbtMaker::init() {
     return false;
   }
 
-  // check bitcoind
+  // check zcash
   {
     string response;
     string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getinfo\",\"params\":[]}";
-    bool res = bitcoindRpcCall(bitcoindRpcAddr_.c_str(), bitcoindRpcUserpass_.c_str(),
+    bool res = zcashdRpcCall(zcashdRpcAddr_.c_str(), zcashdRpcUserpass_.c_str(),
                                request.c_str(), response);
     if (!res) {
-      LOG(ERROR) << "bitcoind rpc call failure";
+      LOG(ERROR) << "zcash rpc call failure";
       return false;
     }
-    LOG(INFO) << "bitcoind getinfo: " << response;
+    LOG(INFO) << "zcash getinfo: " << response;
 
     JsonNode r;
     if (!JsonNode::parse(response.c_str(),
@@ -102,46 +112,46 @@ bool GbtMaker::init() {
       return false;
     }
     if (r["result"]["connections"].int32() <= 0) {
-      LOG(ERROR) << "bitcoind connections is zero";
+      LOG(ERROR) << "zcash connections is zero";
       return false;
     }
   }
 
-  if (isCheckZmq_ && !checkBitcoindZMQ())
+  if (isCheckZmq_ && !checkZcashdZMQ())
     return false;
 
   return true;
 }
 
-bool GbtMaker::checkBitcoindZMQ() {
+bool GbtMaker::checkZcashdZMQ() {
   //
-  // bitcoind MUST with option: -zmqpubhashtx
+  // zcash MUST with option: -zmqpubhashtx
   //
   zmq::socket_t subscriber(zmqContext_, ZMQ_SUB);
-  subscriber.connect(zmqBitcoindAddr_);
+  subscriber.connect(zmqZcashdAddr_);
   subscriber.setsockopt(ZMQ_SUBSCRIBE,
-                        BITCOIND_ZMQ_HASHTX, strlen(BITCOIND_ZMQ_HASHTX));
+                        ZCASHD_ZMQ_HASHTX, strlen(ZCASHD_ZMQ_HASHTX));
   zmq::message_t ztype, zcontent;
 
-  LOG(INFO) << "check bitcoind zmq, waiting for zmq message 'hashtx'...";
+  LOG(INFO) << "check zcashd zmq, waiting for zmq message 'hashtx'...";
   try {
     subscriber.recv(&ztype);
     subscriber.recv(&zcontent);
   } catch (std::exception & e) {
-    LOG(ERROR) << "bitcoind zmq recv exception: " << e.what();
+    LOG(ERROR) << "zcashd zmq recv exception: " << e.what();
     return false;
   }
   const string type    = std::string(static_cast<char*>(ztype.data()),    ztype.size());
   const string content = std::string(static_cast<char*>(zcontent.data()), zcontent.size());
 
-  if (type == BITCOIND_ZMQ_HASHTX) {
+  if (type == ZCASHD_ZMQ_HASHTX) {
     string hashHex;
     Bin2Hex((const uint8 *)content.data(), content.size(), hashHex);
-    LOG(INFO) << "bitcoind zmq recv hashtx: " << hashHex;
+    LOG(INFO) << "zcashd zmq recv hashtx: " << hashHex;
     return true;
   }
 
-  LOG(ERROR) << "unknown zmq message type from bitcoind: " << type;
+  LOG(ERROR) << "unknown zmq message type from zcash: " << type;
   return false;
 }
 
@@ -157,12 +167,12 @@ void GbtMaker::kafkaProduceMsg(const void *payload, size_t len) {
   kafkaProducer_.produce(payload, len);
 }
 
-bool GbtMaker::bitcoindRpcGBT(string &response) {
-  string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getblocktemplate\",\"params\":[{\"rules\" : [\"segwit\"]}]}";
-  bool res = bitcoindRpcCall(bitcoindRpcAddr_.c_str(), bitcoindRpcUserpass_.c_str(),
+bool GbtMaker::zcashdRpcGBT(string &response) {
+  string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getblocktemplate\",\"params\":[]}";
+  bool res = bitcoindRpcCall(zcashdRpcAddr_.c_str(), zcashdRpcUserpass_.c_str(),
                              request.c_str(), response);
   if (!res) {
-    LOG(ERROR) << "bitcoind rpc failure";
+    LOG(ERROR) << "zcashd rpc failure";
     return false;
   }
   return true;
@@ -170,7 +180,7 @@ bool GbtMaker::bitcoindRpcGBT(string &response) {
 
 string GbtMaker::makeRawGbtMsg() {
   string gbt;
-  if (!bitcoindRpcGBT(gbt)) {
+  if (!zcashdRpcGBT(gbt)) {
     return "";
   }
 
@@ -182,37 +192,164 @@ string GbtMaker::makeRawGbtMsg() {
   }
 
   // check fields
-  if (r["result"].type()                      != Utilities::JS::type::Obj ||
-      r["result"]["previousblockhash"].type() != Utilities::JS::type::Str ||
-      r["result"]["height"].type()            != Utilities::JS::type::Int ||
-      r["result"]["coinbasevalue"].type()     != Utilities::JS::type::Int ||
-      r["result"]["bits"].type()              != Utilities::JS::type::Str ||
-      r["result"]["mintime"].type()           != Utilities::JS::type::Int ||
-      r["result"]["curtime"].type()           != Utilities::JS::type::Int ||
-      r["result"]["version"].type()           != Utilities::JS::type::Int) {
+  if (r["result"].type()                       != Utilities::JS::type::Obj ||
+      r["result"]["previousblockhash"].type()  != Utilities::JS::type::Str ||
+      r["result"]["height"].type()             != Utilities::JS::type::Int ||
+      r["result"]["transactions"].type()       != Utilities::JS::type::Array ||
+      r["result"]["coinbasetxn"].type()        != Utilities::JS::type::Obj ||
+      r["result"]["coinbasetxn"]["fee"].type() != Utilities::JS::type::Int ||
+      r["result"]["bits"].type()               != Utilities::JS::type::Str ||
+      r["result"]["mintime"].type()            != Utilities::JS::type::Int ||
+      r["result"]["curtime"].type()            != Utilities::JS::type::Int ||
+      r["result"]["version"].type()            != Utilities::JS::type::Int) {
     LOG(ERROR) << "gbt check fields failure";
     return "";
   }
-  const uint256 gbtHash = Hash(gbt.begin(), gbt.end());
 
-  LOG(INFO) << "gbt height: " << r["result"]["height"].uint32()
-  << ", prev_hash: "          << r["result"]["previousblockhash"].str()
-  << ", coinbase_value: "     << r["result"]["coinbasevalue"].uint64()
-  << ", bits: "    << r["result"]["bits"].str()
-  << ", mintime: " << r["result"]["mintime"].uint32()
-  << ", version: " << r["result"]["version"].uint32()
-  << "|0x" << Strings::Format("%08x", r["result"]["version"].uint32())
-  << ", gbthash: " << gbtHash.ToString();
+  JsonNode jgbt = r["result"];
 
-  return Strings::Format("{\"created_at_ts\":%u,"
-                         "\"block_template_base64\":\"%s\","
-                         "\"gbthash\":\"%s\"}",
-                         (uint32_t)time(nullptr), EncodeBase64(gbt).c_str(),
-                         gbtHash.ToString().c_str());
-//  return Strings::Format("{\"created_at_ts\":%u,"
-//                         "\"gbthash\":\"%s\"}",
-//                         (uint32_t)time(nullptr),
-//                         gbtHash.ToString().c_str());
+  const uint256 prevHash = uint256S(jgbt["previousblockhash"].str());
+  const int32_t height = jgbt["height"].int32();
+  int32_t nVersion = 0;
+  if (blockVersion_ != 0) {
+    nVersion = blockVersion_;
+  } else {
+    nVersion = jgbt["version"].uint32();
+  }
+  assert(nVersion != 0);
+  const uint32_t nBits   = jgbt["bits"].uint32();
+  const uint32_t nTime   = jgbt["curtime"].uint32();
+  const uint32_t minTime = jgbt["mintime"].uint32();
+  const uint32_t maxTime = nTime + 2*60*60 - 60/* sanitly */;
+
+  // fees from the block
+  const int64_t nFees = jgbt["coinbasetxn"]["fee"].int64() * -1;
+  if (nFees < 0) {
+    LOG(ERROR) << "invalid nFees: " << nFees;
+    return "";
+  }
+
+  // make coinbase transaction
+  {
+    CTxIn cbIn;
+    //
+    // block height, 4 bytes in script: 0x03xxxxxx
+    // https://github.com/bitcoin/bips/blob/master/bip-0034.mediawiki
+    // https://github.com/bitcoin/bitcoin/pull/1526
+    //
+    cbIn.scriptSig = CScript() << height << OP_0;
+
+    // add current timestamp to coinbase tx input, so if the block's merkle root
+    // hash is the same, there's no risk for miners to calc the same space.
+    // https://github.com/btccom/btcpool/issues/5
+    //
+    // 5 bytes in script: 0x04xxxxxxxx.
+    // eg. 0x0402363d58 -> 0x583d3602 = 1480406530 = 2016-11-29 16:02:10
+    //
+    cbIn.scriptSig << CScriptNum((uint32_t)time(nullptr));
+
+    // put a random hash, just in case. the same as above timestamp.
+    const uint256 randHash = GetRandHash();
+    cbIn.scriptSig.insert(cbIn.scriptSig.end(), randHash.begin(), randHash.end());
+
+    // pool's info
+    cbIn.scriptSig.insert(cbIn.scriptSig.end(),
+                          poolCoinbaseInfo_.begin(), poolCoinbaseInfo_.end());
+
+    //
+    // zcash/src/main.cpp: CheckTransaction()
+    //     if (tx.vin[0].scriptSig.size() < 2 || tx.vin[0].scriptSig.size() > 100)
+    //       return state.DoS(100, false, REJECT_INVALID, "bad-cb-length");
+    //
+    // 100: coinbase script sig max len, range: (2, 100).
+    //
+    if (cbIn.scriptSig.size() >= 99) {
+      cbIn.scriptSig.resize(99);
+      LOG(WARNING) << "coinbase input script size over than 100, shold < 100";
+    }
+
+    //
+    // output[0]: pool payment address
+    //
+    vector<CTxOut> cbOut;
+    cbOut.push_back(CTxOut());
+    // pool's address
+    cbOut[0].scriptPubKey = GetScriptForDestination(poolPayoutAddr_.Get());
+
+    const CChainParams& chainparams = Params();
+    cbOut[0].nValue = GetBlockSubsidy(height_, chainparams.GetConsensus());
+
+    if ((height_ > 0) && (height_ <= chainparams.GetConsensus().GetLastFoundersRewardBlockHeight())) {
+      // Founders reward is 20% of the block subsidy
+      auto vFoundersReward = cbOut[0].nValue / 5;
+      // Take some reward away from us
+      cbOut[0].nValue -= vFoundersReward;
+
+      // And give it to the founders
+      cbOut.push_back(CTxOut(vFoundersReward, chainparams.GetFoundersRewardScriptAtHeight(height_)));
+    }
+
+    // add fees
+    cbOut[0].nValue += nFees;
+
+    CMutableTransaction cbtx;
+    cbtx.vin.push_back(cbIn);
+    cbtx.vout = cbOut;
+  }
+
+  CBlock block;
+  // push coinbase tx
+  block.vtx.push_back(cbtx);
+  // push other txs
+  for (JsonNode & node : jgbt["transactions"].array()) {
+    CTransaction tx;
+    DecodeHexTx(tx, node["data"].str());
+    block.vtx.push_back(tx);
+  }
+
+  // clac merkle root hash, should do this after push all txs
+  const uint256 merkleRootHash = block.BuildMerkleTree();
+
+  // update header fields
+  block.nVersion       = nVersion;
+  block.hashPrevBlock  = prevHash;
+  block.hashMerkleRoot = merkleRootHash;
+  block.nTime  = nTime;
+  block.nBits  = nBits;
+  // block.hashReserved && block.nNonce will use default value(empty uint256)
+
+  const uint256 originalHash = block.GetHash();
+
+  // block hex string
+  CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
+  ssBlock << block;
+  const std::string blockHex = HexStr(ssBlock.begin(), ssBlock.end());
+
+  LOG(INFO) << "GBT height: " << height
+  << ", prev_hash: "          << block.hashPrevBlock.ToString()
+  << ", coinbase_value: "     << block.vtx[0].vin[0].nValue  // coinbase first output
+  << ", bits: "    << Strings::Format("%08x", block.nBits)
+  << ", mintime: " << minTime
+  << ", version: " << block.nVersion
+  << "|0x" << Strings::Format("%08x", block.nVersion)
+  << ", original_hash: " << originalHash.ToString();
+
+  const uint32_t nowTs = (uint32_t)time(nullptr);
+  //
+  // Kafka Message: KAFKA_TOPIC_RAWGBT
+  //
+  // StratumJob::initFromGbt() and JobMaker::addRawgbt() will decode this message
+  //
+  return Strings::Format("{\"original_hash\":\"%s\","
+                         "\"height\":%d,\"min_time\":%u,\"max_time\":%u,"
+                         "\"tx_count\":%d,\"created_at\":%u,\"created_at_str\":\"%s\","
+                         "\"block_hex\":\"%s\""
+                         "}",
+                         originalHash.ToString().c_str(),
+                         height, minTime, maxTime,
+                         (int32_t)block.vtx.size(),
+                         nowTs, date("%F %T", nowTs).c_str(),
+                         blockHex.c_str());
 }
 
 void GbtMaker::submitRawGbtMsg(bool checkTime) {
@@ -235,11 +372,11 @@ void GbtMaker::submitRawGbtMsg(bool checkTime) {
   kafkaProduceMsg(rawGbtMsg.c_str(), rawGbtMsg.length());
 }
 
-void GbtMaker::threadListenBitcoind() {
+void GbtMaker::threadListenZcashd() {
   zmq::socket_t subscriber(zmqContext_, ZMQ_SUB);
-  subscriber.connect(zmqBitcoindAddr_);
+  subscriber.connect(zmqZcashdAddr_);
   subscriber.setsockopt(ZMQ_SUBSCRIBE,
-                        BITCOIND_ZMQ_HASHBLOCK, strlen(BITCOIND_ZMQ_HASHBLOCK));
+                        ZCASHD_ZMQ_HASHBLOCK, strlen(ZCASHD_ZMQ_HASHBLOCK));
 
   while (running_) {
     zmq::message_t ztype, zcontent;
@@ -251,333 +388,37 @@ void GbtMaker::threadListenBitcoind() {
       }
       subscriber.recv(&zcontent);
     } catch (std::exception & e) {
-      LOG(ERROR) << "bitcoind zmq recv exception: " << e.what();
+      LOG(ERROR) << "zcash zmq recv exception: " << e.what();
       break;  // break big while
     }
     const string type    = std::string(static_cast<char*>(ztype.data()),    ztype.size());
     const string content = std::string(static_cast<char*>(zcontent.data()), zcontent.size());
 
-    if (type == BITCOIND_ZMQ_HASHBLOCK)
+    if (type == ZCASHD_ZMQ_HASHBLOCK)
     {
       string hashHex;
       Bin2Hex((const uint8 *)content.data(), content.size(), hashHex);
-      LOG(INFO) << ">>>> bitcoind recv hashblock: " << hashHex << " <<<<";
+      LOG(INFO) << ">>>> zcashd recv hashblock: " << hashHex << " <<<<";
       submitRawGbtMsg(false);
     }
     else
     {
-      LOG(ERROR) << "unknown message type from bitcoind: " << type;
+      LOG(ERROR) << "unknown message type from zcash: " << type;
     }
   } /* /while */
 
   subscriber.close();
-  LOG(INFO) << "stop thread listen to bitcoind";
+  LOG(INFO) << "stop thread listen to zcash";
 }
 
 void GbtMaker::run() {
-  thread threadListenBitcoind = thread(&GbtMaker::threadListenBitcoind, this);
+  thread threadListenZcashd = thread(&GbtMaker::threadListenZcashd, this);
 
   while (running_) {
     sleep(1);
     submitRawGbtMsg(true);
   }
 
-  if (threadListenBitcoind.joinable())
-    threadListenBitcoind.join();
+  if (threadListenZcashd.joinable())
+    threadListenZcashd.join();
 }
-
-
-
-//////////////////////////////// NMCAuxBlockMaker //////////////////////////////
-NMCAuxBlockMaker::NMCAuxBlockMaker(const string &zmqNamecoindAddr,
-                                   const string &rpcAddr,
-                                   const string &rpcUserpass,
-                                   const string &kafkaBrokers,
-                                   uint32_t kRpcCallInterval,
-                                   const string &fileLastRpcCallTime,
-                                   bool isCheckZmq,
-                                   const string &coinbaseAddress) :
-running_(true), zmqContext_(1/*i/o threads*/),
-zmqNamecoindAddr_(zmqNamecoindAddr),
-rpcAddr_(rpcAddr), rpcUserpass_(rpcUserpass),
-lastCallTime_(0), kRpcCallInterval_(kRpcCallInterval),
-fileLastRpcCallTime_(fileLastRpcCallTime),
-kafkaBrokers_(kafkaBrokers),
-kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_NMC_AUXBLOCK, 0/* partition */),
-isCheckZmq_(isCheckZmq), coinbaseAddress_(coinbaseAddress)
-{
-}
-
-NMCAuxBlockMaker::~NMCAuxBlockMaker() {}
-
-bool NMCAuxBlockMaker::checkNamecoindZMQ() {
-  //
-  // namecoind MUST with option: -zmqpubhashtx
-  //
-  zmq::socket_t subscriber(zmqContext_, ZMQ_SUB);
-  subscriber.connect(zmqNamecoindAddr_);
-  subscriber.setsockopt(ZMQ_SUBSCRIBE,
-                        NAMECOIND_ZMQ_HASHTX, strlen(NAMECOIND_ZMQ_HASHTX));
-  zmq::message_t ztype, zcontent;
-
-  LOG(INFO) << "check namecoind zmq, waiting for zmq message 'hashtx'...";
-  try {
-    subscriber.recv(&ztype);
-    subscriber.recv(&zcontent);
-  } catch (std::exception & e) {
-    LOG(ERROR) << "namecoind zmq recv exception: " << e.what();
-    return false;
-  }
-  const string type    = std::string(static_cast<char*>(ztype.data()),    ztype.size());
-  const string content = std::string(static_cast<char*>(zcontent.data()), zcontent.size());
-
-  if (type == NAMECOIND_ZMQ_HASHTX) {
-    string hashHex;
-    Bin2Hex((const uint8 *)content.data(), content.size(), hashHex);
-    LOG(INFO) << "namecoind zmq recv hashtx: " << hashHex;
-    return true;
-  }
-
-  LOG(ERROR) << "unknown zmq message type from namecoind: " << type;
-  return false;
-}
-
-bool NMCAuxBlockMaker::callRpcCreateAuxBlock(string &resp) {
-  //
-  // curl -v  --user "username:password"
-  // -d '{"jsonrpc": "1.0", "id":"curltest", "method": "createauxblock","params": []}'
-  // -H 'content-type: text/plain;' "http://127.0.0.1:8336"
-  //
-  string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"createauxblock\",\"params\":[\"";
-  request += coinbaseAddress_;
-  request += "\"]}";
-  bool res = bitcoindRpcCall(rpcAddr_.c_str(), rpcUserpass_.c_str(),
-                             request.c_str(), resp);
-  if (!res) {
-    LOG(ERROR) << "namecoind rpc failure";
-    return false;
-  }
-  return true;
-}
-
-string NMCAuxBlockMaker::makeAuxBlockMsg() {
-  string aux;
-  if (!callRpcCreateAuxBlock(aux)) {
-    return "";
-  }
-  DLOG(INFO) << "createauxblock json: " << aux;
-
-  JsonNode r;
-  if (!JsonNode::parse(aux.c_str(),
-                       aux.c_str() + aux.length(), r)) {
-    LOG(ERROR) << "decode createauxblock json failure: " << aux;
-    return "";
-  }
-
-  //
-  // {"result":
-  //    {"hash":"ae3384a9c21956efb385801ccd16e2799d3a88b4245c592e37dd0b46ea3bf0f5",
-  //     "chainid":1,
-  //     "previousblockhash":"ba22e44e25ce8197d3ed1468d3d8441977ff18394c94c9cb486836511e020108",
-  //     "coinbasevalue":2500000000,
-  //     "bits":"180a7f3c","height":303852,
-  //     "_target":"0000000000000000000000000000000000000000003c7f0a0000000000000000"
-  //    },
-  //    "error":null,"id":"curltest"
-  // }
-  //
-  // check fields
-  if (r["result"].type()                      != Utilities::JS::type::Obj ||
-      r["result"]["hash"].type()              != Utilities::JS::type::Str ||
-      r["result"]["chainid"].type()           != Utilities::JS::type::Int ||
-      r["result"]["previousblockhash"].type() != Utilities::JS::type::Str ||
-      r["result"]["coinbasevalue"].type()     != Utilities::JS::type::Int ||
-      r["result"]["bits"].type()              != Utilities::JS::type::Str ||
-      r["result"]["height"].type()            != Utilities::JS::type::Int) {
-    LOG(ERROR) << "namecoin aux check fields failure";
-    return "";
-  }
-
-  // message for kafka
-  string msg = Strings::Format("{\"created_at_ts\":%u,"
-                               " \"hash\":\"%s\", \"height\":%d,"
-                               " \"chainid\":%d,  \"bits\":\"%s\","
-                               " \"rpc_addr\":\"%s\", \"rpc_userpass\":\"%s\""
-                               "}",
-                               (uint32_t)time(nullptr),
-                               r["result"]["hash"].str().c_str(),
-                               r["result"]["height"].int32(),
-                               r["result"]["chainid"].int32(),
-                               r["result"]["bits"].str().c_str(),
-                               rpcAddr_.c_str(), rpcUserpass_.c_str());
-
-  LOG(INFO) << "createauxblock, height: " << r["result"]["height"].int32()
-  << ", hash: " << r["result"]["hash"].str()
-  << ", previousblockhash: " << r["result"]["previousblockhash"].str();
-
-  return msg;
-}
-
-void NMCAuxBlockMaker::submitAuxblockMsg(bool checkTime) {
-  ScopeLock sl(lock_);
-
-  if (checkTime &&
-      lastCallTime_ + kRpcCallInterval_ > time(nullptr)) {
-    return;
-  }
-
-  const string auxMsg = makeAuxBlockMsg();
-  if (auxMsg.length() == 0) {
-    LOG(ERROR) << "createauxblock failure";
-    return;
-  }
-  lastCallTime_ = (uint32_t)time(nullptr);
-
-  // submit to Kafka
-  LOG(INFO) << "sumbit to Kafka, msg len: " << auxMsg.length();
-  kafkaProduceMsg(auxMsg.c_str(), auxMsg.length());
-
-  // save the timestamp to file, for monitor system
-  if (!fileLastRpcCallTime_.empty()) {
-  	writeTime2File(fileLastRpcCallTime_.c_str(), lastCallTime_);
-  }
-}
-
-void NMCAuxBlockMaker::threadListenNamecoind() {
-  zmq::socket_t subscriber(zmqContext_, ZMQ_SUB);
-  subscriber.connect(zmqNamecoindAddr_);
-  subscriber.setsockopt(ZMQ_SUBSCRIBE,
-                        NAMECOIND_ZMQ_HASHBLOCK, strlen(NAMECOIND_ZMQ_HASHBLOCK));
-
-  while (running_) {
-    zmq::message_t ztype, zcontent;
-    try {
-      if (subscriber.recv(&ztype, ZMQ_DONTWAIT) == false) {
-        if (!running_) { break; }
-        usleep(50000);  // so we sleep and try again
-        continue;
-      }
-      subscriber.recv(&zcontent);
-    } catch (std::exception & e) {
-      LOG(ERROR) << "namecoind zmq recv exception: " << e.what();
-      break;  // break big while
-    }
-    const string type    = std::string(static_cast<char*>(ztype.data()),    ztype.size());
-    const string content = std::string(static_cast<char*>(zcontent.data()), zcontent.size());
-
-    if (type == NAMECOIND_ZMQ_HASHBLOCK)
-    {
-      string hashHex;
-      Bin2Hex((const uint8 *)content.data(), content.size(), hashHex);
-      LOG(INFO) << ">>>> namecoind recv hashblock: " << hashHex << " <<<<";
-      submitAuxblockMsg(false);
-    }
-    else
-    {
-      LOG(ERROR) << "unknown message type from namecoind: " << type;
-    }
-  } /* /while */
-
-  subscriber.close();
-  LOG(INFO) << "stop thread listen to namecoind";
-}
-
-void NMCAuxBlockMaker::kafkaProduceMsg(const void *payload, size_t len) {
-  kafkaProducer_.produce(payload, len);
-}
-
-bool NMCAuxBlockMaker::init() {
-  map<string, string> options;
-  // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
-  options["queue.buffering.max.ms"] = "1";
-  if (!kafkaProducer_.setup(&options)) {
-    LOG(ERROR) << "kafka producer setup failure";
-    return false;
-  }
-
-  // setup kafka and check if it's alive
-  if (!kafkaProducer_.checkAlive()) {
-    LOG(ERROR) << "kafka is NOT alive";
-    return false;
-  }
-
-  // check namecoind
-  {
-    string response;
-    string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getinfo\",\"params\":[]}";
-    bool res = bitcoindRpcCall(rpcAddr_.c_str(), rpcUserpass_.c_str(),
-                               request.c_str(), response);
-    if (!res) {
-      LOG(ERROR) << "namecoind rpc call failure";
-      return false;
-    }
-    LOG(INFO) << "namecoind getinfo: " << response;
-
-    JsonNode r;
-    if (!JsonNode::parse(response.c_str(),
-                         response.c_str() + response.length(), r)) {
-      LOG(ERROR) << "decode getinfo failure";
-      return false;
-    }
-
-    // check fields
-    if (r["result"].type() != Utilities::JS::type::Obj ||
-        r["result"]["connections"].type() != Utilities::JS::type::Int ||
-        r["result"]["blocks"].type()      != Utilities::JS::type::Int) {
-      LOG(ERROR) << "getinfo missing some fields";
-      return false;
-    }
-    if (r["result"]["connections"].int32() <= 0) {
-      LOG(ERROR) << "namecoind connections is zero";
-      return false;
-    }
-  }
-
-  // check aux mining rpc commands: createauxblock & submitauxblock
-  {
-    string response;
-    string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"help\",\"params\":[]}";
-    bool res = bitcoindRpcCall(rpcAddr_.c_str(), rpcUserpass_.c_str(),
-                               request.c_str(), response);
-    if (!res) {
-      LOG(ERROR) << "namecoind rpc call failure";
-      return false;
-    }
-
-    if (response.find("createauxblock") == std::string::npos ||
-        response.find("submitauxblock") == std::string::npos) {
-      LOG(ERROR) << "namecoind doesn't support rpc commands: createauxblock and submitauxblock";
-      return false;
-    }
-  }
-
-  if (isCheckZmq_ && !checkNamecoindZMQ())
-    return false;
-  
-  return true;
-}
-
-void NMCAuxBlockMaker::stop() {
-  if (!running_) {
-    return;
-  }
-  running_ = false;
-  LOG(INFO) << "stop namecoin auxblock maker";
-}
-
-void NMCAuxBlockMaker::run() {
-  //
-  // listen namecoind zmq for detect new block coming
-  //
-  thread threadListenNamecoind = thread(&NMCAuxBlockMaker::threadListenNamecoind, this);
-
-  // createauxblock interval
-  while (running_) {
-    sleep(1);
-    submitAuxblockMsg(true);
-  }
-
-  if (threadListenNamecoind.joinable())
-    threadListenNamecoind.join();
-}
-

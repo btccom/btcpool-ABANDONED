@@ -139,24 +139,26 @@ public:
 
   // shares submitted by this session, for duplicate share check
   struct LocalShare {
-    uint64_t exNonce2_;  // extra nonce2 fixed 8 bytes
-    uint32_t nonce_;     // nonce in block header
-    uint32_t time_;      // nTime in block header
+    // NONCE 1 is fixed 16 bytes
+    // NONCE 2 is fixed 16 bytes, use two uint64_t instead
+    uint64_t nonce2_1_;
+    uint64_t nonce2_2_;
+    uint32_t nTime_;
 
-    LocalShare(uint64_t exNonce2, uint32_t nonce, uint32_t time):
-    exNonce2_(exNonce2), nonce_(nonce), time_(time) {}
+    LocalShare(uint64_t nonce2_1, uint64_t nonce2_2, uint32_t time):
+    nonce2_1_(nonce2_1), nonce2_2_(nonce2_2), nTime_(time) {}
 
     LocalShare & operator=(const LocalShare &other) {
-      exNonce2_ = other.exNonce2_;
-      nonce_    = other.nonce_;
-      time_     = other.time_;
+      nonce2_1_ = other.nonce2_1_;
+      nonce2_2_ = other.nonce2_2_;
+      nTime_    = other.nTime_;
       return *this;
     }
 
     bool operator<(const LocalShare &r) const {
-      if (exNonce2_ < r.exNonce2_ ||
-          (exNonce2_ == r.exNonce2_ && nonce_ < r.nonce_) ||
-          (exNonce2_ == r.exNonce2_ && nonce_ == r.nonce_ && time_ < r.time_)) {
+      if (nonce2_1_ < r.nonce2_1_ ||
+          (nonce2_1_ == r.nonce2_1_ && nonce2_2_ < r.nonce2_2_) ||
+          (nonce2_1_ == r.nonce2_1_ && nonce2_2_ == r.nonce2_2_ && nTime_ < r.nTime_)) {
         return true;
       }
       return false;

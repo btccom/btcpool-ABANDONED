@@ -40,15 +40,10 @@
 #include "zcash/uint256.h"
 #include "zcash/base58.h"
 
-// TODO: update when next Halving
-#define BLOCK_REWARD 1250000000ll
-
-//
-// max coinbase tx size, bytes
-// WARNING: currently there is only 1 input and 1 or 2 output(if segwit has actived
-//          there will be 2 outputs), so 250 bytes is enough
-//
-#define COINBASE_TX_MAX_SIZE   250
+// TODO: update when next halving, about 2020-10.
+// current height: 127716 (2017-06-07), next halving about 40 months from now.
+// 25 ZEC * 80% = 10 ZEC.
+#define BLOCK_REWARD 1000000000ll
 
 // default worker name
 #define DEFAULT_WORKER_NAME    "__default__"
@@ -210,57 +205,42 @@ public:
 // Stratum Job
 //
 // https://slushpool.com/help/#!/manual/stratum-protocol
+// https://github.com/str4d/zips/blob/77-zip-stratum/drafts/str4d-stratum/draft1.rst
 //
 // "mining.notify"
 //
-// job_id   - ID of the job. Use this ID while submitting share generated
-//             from this job.
-// prevhash - Hash of previous block.
-// coinb1   - Initial part of coinbase transaction.
-// coinb2   - Final part of coinbase transaction.
-// merkle_branch - List of hashes, will be used for calculation of merkle root.
-//                 This is not a list of all transactions, it only contains
-//                 prepared hashes of steps of merkle tree algorithm.
-// version    - Bitcoin block version.
-// nbits      - Encoded current network difficulty
-// ntime      - Current ntime
-// clean_jobs - When true, server indicates that submitting shares from previous
-//              jobs don't have a sense and such shares will be rejected. When
-//              this flag is set, miner should also drop all previous jobs,
-//              so job_ids can be eventually rotated.
+// {"id": null,
+//  "method": "mining.notify",
+//  "params": ["JOB_ID", "VERSION", "PREVHASH", "MERKLEROOT",
+//             "RESERVED", "TIME", "BITS", CLEAN_JOBS
+//            ]
+// }
+//
+// JOB_ID     - The id of this job.
+// VERSION    - The block header version, encoded as in a block header (little-endian int32_t).
+// PREVHASH   - The 32-byte hash of the previous block, encoded as in a block header.
+// MERKLEROOT - The 32-byte Merkle root of the transactions in this block, encoded as in a block header.
+// RESERVED   - A 32-byte reserved field, encoded as in a block header.
+// TIME       - The block time suggested by the server, encoded as in a block header.
+// BITS       - The current network difficulty target, represented in compact format, encoded as in a block header.
+// CLEAN_JOBS - If true, a new block has arrived. The miner SHOULD abandon all previous jobs.
 //
 //
 class StratumJob {
 public:
-  // jobId: timestamp + gbtHash, hex string, we need to make sure jobId is
+  // jobId: timestamp + originalBlockHash, hex string, we need to make sure jobId is
   // unique in a some time, jobId can convert to uint64_t
   uint64_t jobId_;
-  string   gbtHash_;        // gbt hash id
-  uint256  prevHash_;
-  string   prevHashBeStr_;  // little-endian hex, memory's order
+  string   originalHash_;  // gbt hash
+
   int32_t  height_;
-  string   coinbase1_;
-  string   coinbase2_;
-  vector<uint256> merkleBranch_;
-
-  int32_t  nVersion_;
-  uint32_t nBits_;
-  uint32_t nTime_;
+  int32_t  txCount_;  // how many txs in this block, include coinbase
   uint32_t minTime_;
-  int64_t  coinbaseValue_;
-  // if segwit is not active, it will be empty
-  string   witnessCommitment_;
+  uint32_t maxTime_;
 
-  uint256 networkTarget_;
+  CBlockHeader header_;
 
-  // namecoin merged mining
-  uint32_t nmcAuxBits_;
-  uint256  nmcAuxBlockHash_;
-  uint256  nmcNetworkTarget_;
-  int32_t  nmcHeight_;
-  string   nmcRpcAddr_;
-  string   nmcRpcUserpass_;
-
+  void SetNull();
 
 public:
   StratumJob();
@@ -268,11 +248,8 @@ public:
   string serializeToJson() const;
   bool unserializeFromJson(const char *s, size_t len);
 
-  bool initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
-                   const CBitcoinAddress &poolPayoutAddr,
-                   const uint32_t blockVersion,
-                   const string &nmcAuxBlockJson);
-  bool isEmptyBlock();
+  bool initFromGbt(const char *gbt);
+  bool isEmptyBlock() const;
 };
 
 #endif

@@ -671,6 +671,7 @@ void StratumSession::handleRequest_Submit(const string &idStr,
     	nTime = exjob->sjob_->nTime_;
   }
 
+  // TODO: add height
   Share share;
   share.jobId_        = localJob->jobId_;
   share.workerHashId_ = worker_.workerHashId_;
@@ -792,6 +793,7 @@ void StratumSession::sendSetDifficulty(const uint64_t difficulty) {
 uint8_t StratumSession::allocShortJobId() {
   // return range: [0, 9]
   if (shortJobIdIdx_ >= 10) {
+    UINT16_MAX
     shortJobIdIdx_ = 0;
   }
   return shortJobIdIdx_++;

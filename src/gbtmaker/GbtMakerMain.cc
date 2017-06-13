@@ -112,13 +112,23 @@ int main(int argc, char **argv) {
   signal(SIGTERM, handler);
   signal(SIGINT,  handler);
 
+  // check if we are using testnet3
+  bool isTestnet3 = true;
+  cfg.lookupValue("testnet", isTestnet3);
+  if (isTestnet3) {
+    SelectParams(CBaseChainParams::TESTNET);
+    LOG(WARNING) << "using bitcoin testnet3";
+  } else {
+    SelectParams(CBaseChainParams::MAIN);
+  }
+
   bool isCheckZmq = true;
   cfg.lookupValue("gbtmaker.is_check_zmq", isCheckZmq);
   int32_t rpcCallInterval = 5;
   cfg.lookupValue("gbtmaker.rpcinterval", rpcCallInterval);
-  gGbtMaker = new GbtMaker(cfg.lookup("bitcoind.zmq_addr"),
-                           cfg.lookup("bitcoind.rpc_addr"),
-                           cfg.lookup("bitcoind.rpc_userpwd"),
+  gGbtMaker = new GbtMaker(cfg.lookup("zcashd.zmq_addr"),
+                           cfg.lookup("zcashd.rpc_addr"),
+                           cfg.lookup("zcashd.rpc_userpwd"),
                            cfg.lookup("kafka.brokers"),
                            rpcCallInterval, isCheckZmq);
 

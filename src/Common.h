@@ -49,6 +49,8 @@
 #include <condition_variable>
 #include <functional>
 
+#include "zcash/arith_uint256.h"
+#include "zcash/chainparams.h"
 #include "zcash/uint256.h"
 
 using std::string;
@@ -132,17 +134,26 @@ void BitsToTarget(uint32 bits, uint256 & target);
 void DiffToTarget(uint64 diff, uint256 & target, bool useTable=true);
 
 inline void BitsToDifficulty(uint32 bits, double *difficulty) {
+  uint32_t powLimit = UintToArith256(Params().GetConsensus().powLimit).GetCompact();
   int nShift = (bits >> 24) & 0xff;
-  double dDiff = (double)0x0000ffff / (double)(bits & 0x00ffffff);
-  while (nShift < 29) {
+  int nShiftAmount = (powLimit >> 24) & 0xff;
+
+  double dDiff =
+  (double)(powLimit & 0x00ffffff) /
+  (double)(bits & 0x00ffffff);
+
+  while (nShift < nShiftAmount)
+  {
     dDiff *= 256.0;
     nShift++;
   }
-  while (nShift > 29) {
+  while (nShift > nShiftAmount)
+  {
     dDiff /= 256.0;
     nShift--;
   }
-  *difficulty = dDiff;
+
+  return dDiff;
 }
 
 inline void BitsToDifficulty(uint32 bits, uint64 *difficulty) {

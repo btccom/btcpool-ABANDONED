@@ -42,31 +42,21 @@ class JobMaker {
   KafkaProducer kafkaProducer_;
   KafkaConsumer kafkaRawGbtConsumer_;
 
-  KafkaConsumer kafkaNmcAuxConsumer_;  // merged mining for namecoin
-  mutex auxJsonlock_;
-  string latestNmcAuxBlockJson_;
-
   uint32_t currBestHeight_;
   uint32_t lastJobSendTime_;
   bool isLastJobEmptyBlock_;
   bool isLastJobNewHeight_;
   uint32_t stratumJobInterval_;
 
-  string poolCoinbaseInfo_;
-  CBitcoinAddress poolPayoutAddr_;
-
   uint32_t kGbtLifeTime_;
   uint32_t kEmptyGbtLifeTime_;
   string fileLastJobTime_;
 
-  std::map<uint64_t/* timestamp + height */, string> rawgbtMap_;  // sorted gbt by timestamp
+  std::map<uint64_t/* timestamp + emptyFlag + height */, string> rawgbtMap_;  // sorted gbt by timestamp
 
-  deque<uint256> lastestGbtHash_;
+  deque<uint256> lastestOriginalBlockHash_;
   uint32_t blockVersion_;
 
-  thread threadConsumeNmcAuxBlock_;
-
-  void consumeNmcAuxBlockMsg(rd_kafka_message_t *rkmessage);
   void consumeRawGbtMsg(rd_kafka_message_t *rkmessage, bool needToSend);
   void addRawgbt(const char *str, size_t len);
 
@@ -76,13 +66,11 @@ class JobMaker {
   void sendStratumJob(const char *gbt);
 
   void checkAndSendStratumJob();
-  void runThreadConsumeNmcAuxBlock();
 
 public:
   JobMaker(const string &kafkaBrokers, uint32_t stratumJobInterval,
            const string &payoutAddr, uint32_t gbtLifeTime,
-           uint32_t emptyGbtLifeTime, const string &fileLastJobTime,
-           uint32_t blockVersion);
+           uint32_t emptyGbtLifeTime, const string &fileLastJobTime);
   ~JobMaker();
 
   bool init();

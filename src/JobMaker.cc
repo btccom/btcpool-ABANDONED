@@ -40,22 +40,17 @@
 
 ///////////////////////////////////  JobMaker  /////////////////////////////////
 JobMaker::JobMaker(const string &kafkaBrokers,  uint32_t stratumJobInterval,
-                   const string &payoutAddr, uint32_t gbtLifeTime,
-                   uint32_t emptyGbtLifeTime, const string &fileLastJobTime,
-                   uint32_t blockVersion):
+                   uint32_t gbtLifeTime,
+                   uint32_t emptyGbtLifeTime, const string &fileLastJobTime):
 running_(true),
 kafkaBrokers_(kafkaBrokers),
 kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, RD_KAFKA_PARTITION_UA/* partition */),
-kafkaRawGbtConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT,       0/* partition */),
-kafkaNmcAuxConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_NMC_AUXBLOCK, 0/* partition */),
+kafkaRawGbtConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT, 0/* partition */)
 currBestHeight_(0), lastJobSendTime_(0),
 isLastJobEmptyBlock_(false), isLastJobNewHeight_(false),
-stratumJobInterval_(stratumJobInterval),
-poolPayoutAddr_(payoutAddr), kGbtLifeTime_(gbtLifeTime),
-kEmptyGbtLifeTime_(emptyGbtLifeTime), fileLastJobTime_(fileLastJobTime),
-blockVersion_(blockVersion)
+stratumJobInterval_(stratumJobInterval), kGbtLifeTime_(gbtLifeTime),
+kEmptyGbtLifeTime_(emptyGbtLifeTime), fileLastJobTime_(fileLastJobTime)
 {
-  poolCoinbaseInfo_ = "/BTC.COM/";
 }
 
 JobMaker::~JobMaker() {
@@ -73,11 +68,6 @@ void JobMaker::stop() {
 
 bool JobMaker::init() {
   const int32_t consumeLatestN = 20;
-  // check pool payout address
-  if (!poolPayoutAddr_.IsValid()) {
-    LOG(ERROR) << "invalid pool payout address";
-    return false;
-  }
 
   /* setup kafka */
   {
@@ -109,37 +99,9 @@ bool JobMaker::init() {
       return false;
     }
   }
+
   // sleep 3 seconds, wait for the latest N messages transfer from broker to client
   sleep(3);
-
-  //
-  // consumer, namecoin aux block
-  //
-  {
-    map<string, string> consumerOptions;
-    consumerOptions["fetch.wait.max.ms"] = "5";
-    if (!kafkaNmcAuxConsumer_.setup(RD_KAFKA_OFFSET_TAIL(1), &consumerOptions)) {
-      LOG(ERROR) << "kafka consumer nmc aux block setup failure";
-      return false;
-    }
-    if (!kafkaNmcAuxConsumer_.checkAlive()) {
-      LOG(ERROR) << "kafka consumer nmc aux block is NOT alive";
-      return false;
-    }
-  }
-  sleep(1);
-
-  //
-  // consumer latest NmcAuxBlock
-  //
-  {
-    rd_kafka_message_t *rkmessage;
-    rkmessage = kafkaNmcAuxConsumer_.consumer(1000/* timeout ms */);
-    if (rkmessage != nullptr) {
-      consumeNmcAuxBlockMsg(rkmessage);
-      rd_kafka_message_destroy(rkmessage);
-    }
-  }
 
   //
   // consumer latest RawGbt N messages
@@ -159,40 +121,6 @@ bool JobMaker::init() {
   checkAndSendStratumJob();
 
   return true;
-}
-
-void JobMaker::consumeNmcAuxBlockMsg(rd_kafka_message_t *rkmessage) {
-  // check error
-  if (rkmessage->err) {
-    if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
-      // Reached the end of the topic+partition queue on the broker.
-      // Not really an error.
-      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
-      //      << "[" << rkmessage->partition << "] "
-      //      << " message queue at offset " << rkmessage->offset;
-      // acturlly
-      return;
-    }
-
-    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
-    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
-    << ": " << rd_kafka_message_errstr(rkmessage);
-
-    if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
-        rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
-      LOG(FATAL) << "consume fatal";
-      stop();
-    }
-    return;
-  }
-
-  // set json string
-  LOG(INFO) << "received nmcauxblock message, len: " << rkmessage->len;
-  {
-    ScopeLock sl(auxJsonlock_);
-    latestNmcAuxBlockJson_ = string((const char *)rkmessage->payload, rkmessage->len);
-    DLOG(INFO) << "latestNmcAuxBlockJson: " << latestNmcAuxBlockJson_;
-  }
 }
 
 void JobMaker::consumeRawGbtMsg(rd_kafka_message_t *rkmessage, bool needToSend) {
@@ -228,26 +156,7 @@ void JobMaker::consumeRawGbtMsg(rd_kafka_message_t *rkmessage, bool needToSend) 
   }
 }
 
-void JobMaker::runThreadConsumeNmcAuxBlock() {
-  const int32_t timeoutMs = 1000;
-
-  while (running_) {
-    rd_kafka_message_t *rkmessage;
-    rkmessage = kafkaNmcAuxConsumer_.consumer(timeoutMs);
-    if (rkmessage == nullptr) /* timeout */
-      continue;
-
-    consumeNmcAuxBlockMsg(rkmessage);
-
-    /* Return message to rdkafka */
-    rd_kafka_message_destroy(rkmessage);
-  }
-}
-
 void JobMaker::run() {
-  // start Nmc Aux Block consumer thread
-  threadConsumeNmcAuxBlock_ = thread(&JobMaker::runThreadConsumeNmcAuxBlock, this);
-
   const int32_t timeoutMs = 1000;
 
   while (running_) {
@@ -265,27 +174,44 @@ void JobMaker::run() {
 }
 
 void JobMaker::addRawgbt(const char *str, size_t len) {
+  //
+  //  Kafka Message: KAFKA_TOPIC_RAWGBT
+  //
+  //    "{\"original_block_hash\":\"%s\","
+  //    "\"height\":%d,\"min_time\":%u,"
+  //    "\"created_at\":%u,\"created_at_str\":\"%s\","
+  //    "\"block_hex\":\"%s\""
+  //    "}"
+  //
   JsonNode r;
   if (!JsonNode::parse(str, str + len, r)) {
     LOG(ERROR) << "parse rawgbt message to json fail";
     return;
   }
-  if (r["created_at_ts"].type()         != Utilities::JS::type::Int ||
-      r["block_template_base64"].type() != Utilities::JS::type::Str ||
-      r["gbthash"].type()               != Utilities::JS::type::Str) {
+
+  // check all fields here
+  if (r["original_hash"].type()  != Utilities::JS::type::Str ||
+      r["height"].type()         != Utilities::JS::type::Int ||
+      r["min_time"].type()       != Utilities::JS::type::Int ||
+      r["max_time"].type()       != Utilities::JS::type::Int ||
+      r["tx_count"].type()       != Utilities::JS::type::Int ||
+      r["created_at"].type()     != Utilities::JS::type::Int ||
+      r["created_at_str"].type() != Utilities::JS::type::Str ||
+      r["block_hex"].type()      != Utilities::JS::type::Str) {
     LOG(ERROR) << "invalid rawgbt: missing fields";
     return;
   }
 
-  const uint256 gbtHash = uint256S(r["gbthash"].str());
-  for (const auto &itr : lastestGbtHash_) {
-    if (gbtHash == itr) {
-      LOG(ERROR) << "duplicate gbt hash: " << gbtHash.ToString();
+  const uint256 originalBlockHash = uint256S(r["original_block_hash"].str());
+  for (const auto &itr : lastestOriginalBlockHash_) {
+    if (originalBlockHash == itr) {
+      LOG(ERROR) << "duplicate original block hash: " << originalBlockHash.ToString();
       return;
     }
   }
 
-  const uint32_t gbtTime = r["created_at_ts"].uint32();
+  // check message timestamp
+  const uint32_t gbtTime = r["created_at"].uint32();
   const int64_t timeDiff = (int64_t)time(nullptr) - (int64_t)gbtTime;
   if (labs(timeDiff) >= 60) {
     LOG(WARNING) << "rawgbt diff time is more than 60, ingore it";
@@ -295,39 +221,33 @@ void JobMaker::addRawgbt(const char *str, size_t len) {
     LOG(WARNING) << "rawgbt diff time is too large: " << timeDiff << " seconds";
   }
 
-  const string gbt = DecodeBase64(r["block_template_base64"].str());
-  assert(gbt.length() > 64);  // valid gbt string's len at least 64 bytes
-
-  JsonNode nodeGbt;
-  if (!JsonNode::parse(gbt.c_str(), gbt.c_str() + gbt.length(), nodeGbt)) {
-    LOG(ERROR) << "parse gbt message to json fail";
-    return;
-  }
-  assert(nodeGbt["result"]["height"].type() == Utilities::JS::type::Int);
-  const uint32_t height = nodeGbt["result"]["height"].uint32();
+  const uint32_t height  = r["height"].int32();
+  const uint32_t txCount = r["tx_count"].int32();
   assert(height < 0x7FFFFFFFU);
 
-  assert(nodeGbt["result"]["transactions"].type() == Utilities::JS::type::Array);
   // 0x80000000 : 1000 0000 0000 0000 0000 0000 0000 0000
-  const uint64_t emptyFlag = nodeGbt["result"]["transactions"].array().size() == 0 ? 0x80000000ULL : 0;
+  // only one tx(coinbase) means empty block.
+  // emptyFlag == 0 : not empty block
+  const uint64_t emptyFlag = (txCount == 1) ? 0x80000000ULL : 0;
 
   {
     ScopeLock sl(lock_);
     const uint64_t key = ((uint64_t)gbtTime << 32) + emptyFlag + (uint64_t)height;
     if (rawgbtMap_.find(key) == rawgbtMap_.end()) {
-      rawgbtMap_.insert(std::make_pair(key, gbt));
+      rawgbtMap_.insert(std::make_pair(key, string(str, len)));
     } else {
       LOG(ERROR) << "key already exist in rawgbtMap: " << key;
     }
   }
 
-  lastestGbtHash_.push_back(gbtHash);
-  while (lastestGbtHash_.size() > 20) {
-    lastestGbtHash_.pop_front();
+  lastestOriginalBlockHash_.push_back(gbtHash);
+  while (lastestOriginalBlockHash_.size() > 20) {
+    lastestOriginalBlockHash_.pop_front();
   }
 
-  LOG(INFO) << "add rawgbt, height: "<< height << ", gbthash: "
-  << r["gbthash"].str().substr(0, 16) << "..., gbtTime(UTC): " << date("%F %T", gbtTime)
+  LOG(INFO) << "add rawgbt, height: "<< height << ", original_block_hash: "
+  << originalBlockHash.ToString().substr(0, 16) << "...,"
+  << " gbtTime(UTC+0): " << date("%F %T", gbtTime)
   << ", isEmpty:" << (emptyFlag != 0);
 }
 
@@ -361,15 +281,8 @@ void JobMaker::clearTimeoutGbt() {
 }
 
 void JobMaker::sendStratumJob(const char *gbt) {
-  string latestNmcAuxBlockJson;
-  {
-    ScopeLock sl(auxJsonlock_);
-    latestNmcAuxBlockJson = latestNmcAuxBlockJson_;
-  }
-
   StratumJob sjob;
-  if (!sjob.initFromGbt(gbt, poolCoinbaseInfo_, poolPayoutAddr_, blockVersion_,
-                        latestNmcAuxBlockJson)) {
+  if (!sjob.initFromGbt(gbt)) {
     LOG(ERROR) << "init stratum job message from gbt str fail";
     return;
   }

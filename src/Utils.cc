@@ -340,3 +340,16 @@ bool fileExists(const char* file) {
   struct stat buf;
   return (stat(file, &buf) == 0);
 }
+
+string hash2BEStr(const uint256 &hash) {
+  // we need to convert to little-endian
+  // 00000000000000000328e9fea9914ad83b7404a838aa66aefb970e5689c2f63d
+  // 89c2f63dfb970e5638aa66ae3b7404a8a9914ad80328e9fe0000000000000000
+  string str;
+  for (int i = 0; i < 8; i++) {
+    uint32 a = *(uint32 *)(BEGIN(hash) + i * 4);
+    a = HToBe(a);
+    str += HexStr(BEGIN(a), END(a));
+  }
+  return str;
+}

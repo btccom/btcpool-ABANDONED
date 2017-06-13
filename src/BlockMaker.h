@@ -56,7 +56,6 @@ class BlockMaker {
   KafkaConsumer kafkaConsumerRawGbt_;
   KafkaConsumer kafkaConsumerStratumJob_;
   KafkaConsumer kafkaConsumerSovledShare_;
-  KafkaConsumer kafkaConsumerNamecoinSovledShare_;
 
   // submit new block to bitcoind
   // pair: <RpcAddress, RpcUserpass>
@@ -69,17 +68,14 @@ class BlockMaker {
 
   thread threadConsumeRawGbt_;
   thread threadConsumeStratumJob_;
-  thread threadConsumeNamecoinSovledShare_;
 
   void runThreadConsumeRawGbt();
   void runThreadConsumeSovledShare();
   void runThreadConsumeStratumJob();
-  void runThreadConsumeNamecoinSovledShare();
 
   void consumeRawGbt     (rd_kafka_message_t *rkmessage);
   void consumeStratumJob (rd_kafka_message_t *rkmessage);
   void consumeSovledShare(rd_kafka_message_t *rkmessage);
-  void consumeNamecoinSovledShare(rd_kafka_message_t *rkmessage);
 
   void addRawgbt(const char *str, size_t len);
 
@@ -94,17 +90,6 @@ class BlockMaker {
   void _submitBlockThread(const string &rpcAddress, const string &rpcUserpass,
                           const string &blockHex);
   bool checkBitcoinds();
-
-  void submitNamecoinBlockNonBlocking(const string &auxBlockHash,
-                                      const string &auxPow,
-                                      const string &bitcoinBlockHash,
-                                      const string &rpcAddress,
-                                      const string &rpcUserpass);
-  void _submitNamecoinBlockThread(const string &auxBlockHash,
-                                  const string &auxPow,
-                                  const string &bitcoinBlockHash,
-                                  const string &rpcAddress,
-                                  const string &rpcUserpass);
 
 public:
   BlockMaker(const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
