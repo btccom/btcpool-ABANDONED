@@ -250,4 +250,7 @@ template <typename Callable> void TraceThread(const char* name,  Callable func)
     }
 }
 
+// copy from main.h
+CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams);
+
 #endif // BITCOIN_UTIL_H
