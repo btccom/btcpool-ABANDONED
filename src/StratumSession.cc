@@ -682,24 +682,6 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   share.timestamp_    = (uint32_t)time(nullptr);
   share.result_       = Share::Result::REJECT;
 
-  if (isAgentSession == true) {
-    const uint16_t sessionId = (uint16_t)(extraNonce2 >> 32);
-
-    // reset to agent session's workerId
-    share.workerHashId_ = agentSessions_->getWorkerId(sessionId);
-    if (share.workerHashId_ == 0) {
-      LOG(ERROR) << "invalid workerId 0, sessionId: " << sessionId;
-      return;
-    }
-
-    // reset to agent session's diff
-    if (localJob->agentSessionsDiff2Exp_.size() < (size_t)sessionId + 1) {
-      LOG(ERROR) << "can't find agent session's diff, sessionId: " << sessionId;
-      return;
-    }
-    share.share_ = (uint64_t)exp2(localJob->agentSessionsDiff2Exp_[sessionId]);
-  }
-
   // calc jobTarget
   uint256 jobTarget;
   DiffToTarget(share.share_, jobTarget);
@@ -813,18 +795,6 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr,
   ljob.shortJobId_    = allocShortJobId();
   ljob.jobDifficulty_ = diffController_.calcCurDiff();
 
-  if (agentSessions_ != nullptr)
-  {
-    // calc diff and save to ljob
-    agentSessions_->calcSessionsJobDiff(ljob.agentSessionsDiff2Exp_);
-
-    // get ex-message
-    string exMessage;
-    agentSessions_->getSessionsChangedDiff(ljob.agentSessionsDiff2Exp_, exMessage);
-    if (exMessage.size())
-    	sendData(exMessage);
-  }
-
   // set difficulty
   if (currDiff_ != ljob.jobDifficulty_) {
     sendSetDifficulty(ljob.jobDifficulty_);
@@ -885,41 +855,6 @@ bool StratumSession::handleMessage() {
   uint8_t buf[4];
   evbuffer_copyout(inBuf_, buf, 4);
 
-  // handle ex-message
-  if (buf[0] == CMD_MAGIC_NUMBER) {
-    const uint16_t exMessageLen = *(uint16_t *)(buf + 2);
-
-    if (evBufLen < exMessageLen)  // didn't received the whole message yet
-      return false;
-
-    // copies and removes the first datlen bytes from the front of buf
-    // into the memory at data
-    string exMessage;
-    exMessage.resize(exMessageLen);
-    evbuffer_remove(inBuf_, (uint8_t *)exMessage.data(), exMessage.size());
-
-    switch (buf[1]) {
-      case CMD_SUBMIT_SHARE:
-        handleExMessage_SubmitShare(&exMessage);
-        break;
-      case CMD_SUBMIT_SHARE_WITH_TIME:
-        handleExMessage_SubmitShareWithTime(&exMessage);
-        break;
-      case CMD_REGISTER_WORKER:
-        handleExMessage_RegisterWorker(&exMessage);
-        break;
-      case CMD_UNREGISTER_WORKER:
-        handleExMessage_UnRegisterWorker(&exMessage);
-        break;
-
-      default:
-        LOG(ERROR) << "received unknown ex-message, type: " << buf[1]
-        << ", len: " << exMessageLen;
-        break;
-    }
-    return true;  // read message success, return true
-  }
-
   //
   // handle stratum message
   //
@@ -938,36 +873,6 @@ void StratumSession::readBuf(struct evbuffer *buf) {
 
   while (handleMessage()) {
   }
-}
-
-void StratumSession::handleExMessage_RegisterWorker(const string *exMessage) {
-  if (agentSessions_ == nullptr) {
-    return;
-  }
-  agentSessions_->handleExMessage_RegisterWorker(exMessage);
-}
-
-void StratumSession::handleExMessage_SubmitShare(const string *exMessage) {
-  if (agentSessions_ == nullptr) {
-    return;
-  }
-  // without timestamp
-  agentSessions_->handleExMessage_SubmitShare(exMessage, false);
-}
-
-void StratumSession::handleExMessage_SubmitShareWithTime(const string *exMessage) {
-  if (agentSessions_ == nullptr) {
-    return;
-  }
-  // with timestamp
-  agentSessions_->handleExMessage_SubmitShare(exMessage, true);
-}
-
-void StratumSession::handleExMessage_UnRegisterWorker(const string *exMessage) {
-  if (agentSessions_ == nullptr) {
-    return;
-  }
-  agentSessions_->handleExMessage_UnRegisterWorker(exMessage);
 }
 
 uint32_t StratumSession::getSessionId() const {

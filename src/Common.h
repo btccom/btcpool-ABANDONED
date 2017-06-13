@@ -127,39 +127,18 @@ inline int64 HToBe(int64 v) {
   return (int64)HToBe((uint64)v);
 }
 
-uint64 TargetToDiff(uint256 &target);
-uint64 TargetToDiff(const string &str);
+double BitsToDifficulty(uint32 bits);
 
-void BitsToTarget(uint32 bits, uint256 & target);
-void DiffToTarget(uint64 diff, uint256 & target, bool useTable=true);
-
-inline void BitsToDifficulty(uint32 bits, double *difficulty) {
-  uint32_t powLimit = UintToArith256(Params().GetConsensus().powLimit).GetCompact();
-  int nShift = (bits >> 24) & 0xff;
-  int nShiftAmount = (powLimit >> 24) & 0xff;
-
-  double dDiff =
-  (double)(powLimit & 0x00ffffff) /
-  (double)(bits & 0x00ffffff);
-
-  while (nShift < nShiftAmount)
-  {
-    dDiff *= 256.0;
-    nShift++;
-  }
-  while (nShift > nShiftAmount)
-  {
-    dDiff /= 256.0;
-    nShift--;
-  }
-
-  return dDiff;
+inline uint256 BitsToTarget(const uint32 bits) {
+  return ArithToUint256(arith_uint256().SetCompact(bits));
+}
+inline uint32 TargetToBits(const uint256 &target) {
+  arith_uint256 t = UintToArith256(target);
+  return t.GetCompact();
 }
 
-inline void BitsToDifficulty(uint32 bits, uint64 *difficulty) {
-  double diff;
-  BitsToDifficulty(bits, &diff);
-  *difficulty = (uint64)diff;
+inline double TargetToDifficulty(const uint256 &target) {
+  return BitsToDifficulty(TargetToBits(target));
 }
 
 // diff must be 2^N
