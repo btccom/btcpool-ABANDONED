@@ -83,27 +83,29 @@ public:
     REJECT    = 0,
     ACCEPT    = 1
   };
-  
+
   uint64_t jobId_;
   int64_t  workerHashId_;
   uint32_t ip_;
   int32_t  userId_;
-  uint64_t share_;
-  uint32_t timestamp_;
+  uint32_t jobBits_;
   uint32_t blkBits_;
+  uint32_t blkTime_;
+  int32_t  blkHeight_;
   int32_t  result_;
 
-  Share():jobId_(0), workerHashId_(0), ip_(0), userId_(0), share_(0),
-  timestamp_(0), blkBits_(0), result_(0) {}
+  Share():jobId_(0), workerHashId_(0), ip_(0), userId_(0),
+  jobBits_(0), blkBits_(0), blkTime_(0), blkHeight_(0), result_(0) {}
 
   Share(const Share &r) {
     jobId_        = r.jobId_;
     workerHashId_ = r.workerHashId_;
     ip_           = r.ip_;
     userId_       = r.userId_;
-    share_        = r.share_;
-    timestamp_    = r.timestamp_;
+    jobBits_      = r.jobBits_;
     blkBits_      = r.blkBits_;
+    blkTime_      = r.blkTime_;
+    blkHeight_    = r.blkHeight_;
     result_       = r.result_;
   }
 
@@ -112,19 +114,34 @@ public:
     workerHashId_ = r.workerHashId_;
     ip_           = r.ip_;
     userId_       = r.userId_;
-    share_        = r.share_;
-    timestamp_    = r.timestamp_;
+    jobBits_      = r.jobBits_;
     blkBits_      = r.blkBits_;
+    blkTime_      = r.blkTime_;
+    blkHeight_    = r.blkHeight_;
     result_       = r.result_;
     return *this;
   }
 
-  double score() const {
-    if (share_ == 0 || blkBits_ == 0) { return 0.0; }
-    double networkDifficulty = 0.0;
-    BitsToDifficulty(blkBits_, &networkDifficulty);
-    return (double)share_ / networkDifficulty;
+  // will call earn() in Statistics.cc when save earnings to database
+  double earn() const {
+    if (jobBits_ == 0 || blkBits_ == 0) { return 0.0; }
+    const double jobDiff = BitsToDifficulty(jobBits_);
+    const double blkDiff = BitsToDifficulty(blkBits_);
+
+    // get block reward and founders reward
+    const CChainParams& chainparams = Params();
+    int64_t blockSubsidy = GetBlockSubsidy(blkHeight_, chainparams.GetConsensus());
+    if ((blkHeight_ > 0) && (blkHeight_ <= chainparams.GetConsensus().GetLastFoundersRewardBlockHeight())) {
+      // Founders reward is 20% of the block subsidy
+      auto vFoundersReward = blockSubsidy / 5;
+      // Take some reward away from us
+      blockSubsidy -= vFoundersReward;
+    }
+
+    return (double)blockSubsidy * jobDiff / blkDiff;  // unit: satoshi
   }
+
+//  double earn
 
   bool isValid() const {
     uint32_t jobTime = jobId2Time(jobId_);
