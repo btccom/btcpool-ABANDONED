@@ -167,7 +167,7 @@ bool DecodeHexHeader(CBlockHeader& header, const std::string& strHexHeader)
     return false;
 
   std::vector<unsigned char> data(ParseHex(strHexHeader));
-  CDataStream ssHeader(data, SER_NETWORK, PROTOCOL_VERSION);
+  CDataStream ssHeader(data, SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
   try {
     ssHeader >> header;
   }
@@ -198,7 +198,7 @@ string StratumJob::serializeToJson() const {
   // we use key->value json string, so it's easy to update system
   // key-value items SHOULD the same as StratumJob::unserializeFromJson()
   //
-  CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
+  CDataStream ssBlock(SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
   ssBlock << header_;
   std::string headerHex = HexStr(ssBlock.begin(), ssBlock.end());
 

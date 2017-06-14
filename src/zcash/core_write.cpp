@@ -56,7 +56,7 @@ string FormatScript(const CScript& script)
 
 string EncodeHexTx(const CTransaction& tx)
 {
-    CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+    CDataStream ssTx(SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
     ssTx << tx;
     return HexStr(ssTx.begin(), ssTx.end());
 }

@@ -325,7 +325,7 @@ bool CBitcoinSecret::SetString(const std::string& strSecret)
 
 bool CZCPaymentAddress::Set(const libzcash::PaymentAddress& addr)
 {
-    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    CDataStream ss(SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
     ss << addr;
     std::vector<unsigned char> addrSerialized(ss.begin(), ss.end());
     assert(addrSerialized.size() == libzcash::SerializedPaymentAddressSize);
@@ -349,7 +349,7 @@ libzcash::PaymentAddress CZCPaymentAddress::Get() const
 
     std::vector<unsigned char> serialized(vchData.begin(), vchData.end());
 
-    CDataStream ss(serialized, SER_NETWORK, PROTOCOL_VERSION);
+    CDataStream ss(serialized, SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
     libzcash::PaymentAddress ret;
     ss >> ret;
     return ret;
@@ -357,7 +357,7 @@ libzcash::PaymentAddress CZCPaymentAddress::Get() const
 
 bool CZCSpendingKey::Set(const libzcash::SpendingKey& addr)
 {
-    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    CDataStream ss(SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
     ss << addr;
     std::vector<unsigned char> addrSerialized(ss.begin(), ss.end());
     assert(addrSerialized.size() == libzcash::SerializedSpendingKeySize);
@@ -381,7 +381,7 @@ libzcash::SpendingKey CZCSpendingKey::Get() const
 
     std::vector<unsigned char> serialized(vchData.begin(), vchData.end());
 
-    CDataStream ss(serialized, SER_NETWORK, PROTOCOL_VERSION);
+    CDataStream ss(serialized, SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
     libzcash::SpendingKey ret;
     ss >> ret;
     return ret;

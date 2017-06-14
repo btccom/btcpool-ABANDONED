@@ -1008,7 +1008,7 @@ int Server::checkShare(const Share &share,
     //
     // build found block
     //
-    CDataStream ssBlockHeader(SER_NETWORK, PROTOCOL_VERSION);
+    CDataStream ssBlockHeader(SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
     ssBlockHeader << header;
     const string headerBin = ssBlockHeader.str();  // use std::string to save binary data
     assert(headerBin.size() == ZEC_HEADER_FULL_SIZE);

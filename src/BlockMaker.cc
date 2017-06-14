@@ -25,7 +25,6 @@
 
 #include <boost/thread.hpp>
 
-#include "zcash/consensus/merkle.h"
 #include "zcash/core_io.h"
 #include "utilities_js.hpp"
 

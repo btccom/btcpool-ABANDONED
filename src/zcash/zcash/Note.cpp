@@ -62,7 +62,7 @@ NotePlaintext NotePlaintext::decrypt(const ZCNoteDecryption& decryptor,
 {
     auto plaintext = decryptor.decrypt(ciphertext, ephemeralKey, h_sig, nonce);
 
-    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    CDataStream ss(SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
     ss << plaintext;
 
     NotePlaintext ret;
@@ -77,7 +77,7 @@ ZCNoteEncryption::Ciphertext NotePlaintext::encrypt(ZCNoteEncryption& encryptor,
                                                     const uint256& pk_enc
                                                    ) const
 {
-    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    CDataStream ss(SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
     ss << (*this);
 
     ZCNoteEncryption::Plaintext pt;

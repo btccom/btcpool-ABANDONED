@@ -93,7 +93,7 @@ bool CheckEquihashSolution(const CBlockHeader *pblock, const CChainParams& param
     // I = the block header minus nonce and solution.
     CEquihashInput I{*pblock};
     // I||V
-    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    CDataStream ss(SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
     ss << I;
     ss << pblock->nNonce;
 

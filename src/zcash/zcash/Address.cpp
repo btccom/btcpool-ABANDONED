@@ -7,7 +7,7 @@
 namespace libzcash {
 
 uint256 PaymentAddress::GetHash() const {
-    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    CDataStream ss(SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
     ss << *this;
     return Hash(ss.begin(), ss.end());
 }

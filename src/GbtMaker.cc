@@ -320,7 +320,7 @@ string GbtMaker::makeRawGbtMsg() {
   const uint256 originalHash = block.GetHash();
 
   // block hex string
-  CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
+  CDataStream ssBlock(SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
   ssBlock << block;
   const std::string blockHex = HexStr(ssBlock.begin(), ssBlock.end());
 

@@ -9,7 +9,8 @@
  * network protocol versioning
  */
 
-static const int PROTOCOL_VERSION = 170002;
+// PROTOCOL_VERSION is conflict with MYSQL, change to BITCOIN_PROTOCOL_VERSION
+static const int BITCOIN_PROTOCOL_VERSION = 170002;
 
 //! initial proto version, to be increased after version/verack negotiation
 static const int INIT_PROTO_VERSION = 209;
