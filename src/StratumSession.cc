@@ -462,11 +462,10 @@ void StratumSession::handleRequest_Submit(const string &idStr,
     return;
   }
 
-  uint16_t shortJobId;
-  shortJobId = (uint16_t)jparams.children()->at(1).uint32_hex();
-  const uint32_t nTime   = jparams.children()->at(2).uint32_hex();
-  const string nonce2hex = jparams.children()->at(3).str();
-  const string solution  = jparams.children()->at(4).str();
+  const uint16_t shortJobId = (uint16_t)jparams.children()->at(1).uint32_hex();
+  const uint32_t nTime      = jparams.children()->at(2).uint32_hex();
+  const string nonce2hex    = jparams.children()->at(3).str();
+  const string solution     = jparams.children()->at(4).str();
 
   if (nonce2hex.length()  != 32) {
     responseError(idStr, StratumError::ILLEGAL_PARARMS);

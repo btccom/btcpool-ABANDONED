@@ -65,19 +65,21 @@ rejectShareMin_(STATS_SLIDING_WINDOW_SECONDS/60)
 void WorkerShares::processShare(const Share &share) {
   ScopeLock sl(lock_);
   const time_t now = time(nullptr);
-  if (now > share.timestamp_ + STATS_SLIDING_WINDOW_SECONDS) {
+  if (now > share.shareTime_ + STATS_SLIDING_WINDOW_SECONDS) {
     return;
   }
 
+  const double shareDiff = BitsToDifficulty(share.jobBits_);
+
   if (share.result_ == Share::Result::ACCEPT) {
     acceptCount_++;
-    acceptShareSec_.insert(share.timestamp_,    share.share_);
+    acceptShareSec_.insert(share.shareTime_,    shareDiff);
   } else {
-    rejectShareMin_.insert(share.timestamp_/60, share.share_);
+    rejectShareMin_.insert(share.shareTime_/60, shareDiff);
   }
 
   lastShareIP_   = share.ip_;
-  lastShareTime_ = share.timestamp_;
+  lastShareTime_ = share.shareTime_;
 }
 
 WorkerStatus WorkerShares::getWorkerStatus() {
@@ -285,16 +287,17 @@ void StatsServer::_flushWorkersToDBThread() {
     inet_ntop(AF_INET, &(status.lastShareIP_), ipStr, INET_ADDRSTRLEN);
     const string nowStr = date("%F %T", time(nullptr));
 
-    values.push_back(Strings::Format("%" PRId64",%d,%d,%" PRIu64",%" PRIu64","
-                                     "%" PRIu64",%" PRIu64","  // accept_15m, reject_15m
-                                     "%" PRIu64",%" PRIu64","  // accept_1h,  reject_1h
+    values.push_back(Strings::Format("%" PRId64",%d,%d,"
+                                     "%0.8f,%0.8f,"  // accept1m_,  accept5m_
+                                     "%0.8f,%0.8f,"  // accept_15m, reject_15m
+                                     "%0.8f,%0.8f,"  // accept_1h,  reject_1h
                                      "%d,\"%s\","
                                      "\"%s\",\"%s\",\"%s\"",
                                      workerId, userId,
                                      -1 * userId,  /* default group id */
-                                     status.accept1m_, status.accept5m_,
+                                     status.accept1m_,  status.accept5m_,
                                      status.accept15m_, status.reject15m_,
-                                     status.accept1h_, status.reject1h_,
+                                     status.accept1h_,  status.reject1h_,
                                      status.acceptCount_, ipStr,
                                      date("%F %T", status.lastShareTime_).c_str(),
                                      nowStr.c_str(), nowStr.c_str()));
@@ -555,8 +558,10 @@ void StatsServer::httpdServerStatus(struct evhttp_request *req, void *arg) {
   evbuffer_add_printf(evb, "{\"err_no\":0,\"err_msg\":\"\","
                       "\"data\":{\"uptime\":\"%04u d %02u h %02u m %02u s\","
                       "\"request\":%" PRIu64",\"repbytes\":%" PRIu64","
-                      "\"pool\":{\"accept\":[%" PRIu64",%" PRIu64",%" PRIu64",%" PRIu64"],"
-                      "\"reject\":[0,0,%" PRIu64",%" PRIu64"],\"accept_count\":%" PRIu32","
+                      // accept
+                      "\"pool\":{\"accept\":[%0.8f,%0.8f,%0.8f,%0.8f],"
+                      // reject
+                      "\"reject\":[0,0,%0.8f,%0.8f],\"accept_count\":%" PRIu32","
                       "\"workers\":%" PRIu64",\"users\":%" PRIu64""
                       "}}}",
                       s.uptime_/86400, (s.uptime_%86400)/3600,
@@ -687,8 +692,8 @@ void StatsServer::getWorkerStatus(struct evbuffer *evb, const char *pUserId,
     }
 
     evbuffer_add_printf(evb,
-                        "%s\"%" PRId64"\":{\"accept\":[%" PRIu64",%" PRIu64",%" PRIu64",%" PRIu64"]"
-                        ",\"reject\":[0,0,%" PRIu64",%" PRIu64"],\"accept_count\":%" PRIu32""
+                        "%s\"%" PRId64"\":{\"accept\":[%0.8f,%0.8f,%0.8f,%0.8f]"
+                        ",\"reject\":[0,0,%0.8f,%0.8f],\"accept_count\":%" PRIu32""
                         ",\"last_share_ip\":\"%s\",\"last_share_time\":%u"
                         "%s}",
                         (i == 0 ? "" : ","),
@@ -904,25 +909,27 @@ void ShareLogWriter::run() {
 ShareStatsDay::ShareStatsDay() {
   memset((uint8_t *)&shareAccept1h_[0], 0, sizeof(shareAccept1h_));
   memset((uint8_t *)&shareReject1h_[0], 0, sizeof(shareReject1h_));
-  memset((uint8_t *)&score1h_[0],       0, sizeof(score1h_));
-  shareAccept1d_   = 0;
-  shareReject1d_   = 0;
-  score1d_         = 0.0;
+  memset((uint8_t *)&earn1h_[0],        0, sizeof(earn1h_));
+  shareAccept1d_   = 0.0;
+  shareReject1d_   = 0.0;
+  earn1d_          = 0.0;
   modifyHoursFlag_ = 0x0u;
 }
 
 void ShareStatsDay::processShare(uint32_t hourIdx, const Share &share) {
   ScopeLock sl(lock_);
 
-  if (share.result_ == Share::Result::ACCEPT) {
-    shareAccept1h_[hourIdx] += share.share_;
-    shareAccept1d_          += share.share_;
+  const double shareDiff = BitsToDifficulty(share.jobBits_);
 
-    score1h_[hourIdx] += share.score();
-    score1d_          += share.score();
+  if (share.result_ == Share::Result::ACCEPT) {
+    shareAccept1h_[hourIdx] += shareDiff;
+    shareAccept1d_          += shareDiff;
+
+    earn1h_[hourIdx] += share.earn();
+    earn1d_          += share.earn();
   } else {
-    shareReject1h_[hourIdx] += share.share_;
-    shareReject1d_          += share.share_;
+    shareReject1h_[hourIdx] += shareDiff;
+    shareReject1d_          += shareDiff;
   }
   modifyHoursFlag_ |= (0x01u << hourIdx);
 }
@@ -934,7 +941,7 @@ void ShareStatsDay::getShareStatsHour(uint32_t hourIdx, ShareStats *stats) {
 
   stats->shareAccept_ = shareAccept1h_[hourIdx];
   stats->shareReject_ = shareReject1h_[hourIdx];
-  stats->earn_        = score1h_[hourIdx] * BLOCK_REWARD;
+  stats->earn_        = earn1h_[hourIdx];
   if (stats->shareReject_)
   	stats->rejectRate_  = (stats->shareReject_ * 1.0 / (stats->shareAccept_ + stats->shareReject_));
   else
@@ -945,7 +952,7 @@ void ShareStatsDay::getShareStatsDay(ShareStats *stats) {
   ScopeLock sl(lock_);
   stats->shareAccept_ = shareAccept1d_;
   stats->shareReject_ = shareReject1d_;
-  stats->earn_        = score1d_ * BLOCK_REWARD;
+  stats->earn_        = earn1d_;
   if (stats->shareReject_)
     stats->rejectRate_  = (stats->shareReject_ * 1.0 / (stats->shareAccept_ + stats->shareReject_));
   else
@@ -977,7 +984,7 @@ void ShareLogDumper::dump2stdout() {
     return;
   }
 
-  // 2000000 * 48 = 96,000,000 Bytes
+  // 2000000 * 44 = 88,000,000 Bytes
   const uint32_t kElements = 2000000;
   size_t readNum;
   string buf;
@@ -1195,7 +1202,7 @@ void ShareLogParser::generateHoursData(shared_ptr<ShareStatsDay> stats,
                                        vector<string> *valuesPoolHour) {
   assert(sizeof(stats->shareAccept1h_) / sizeof(stats->shareAccept1h_[0]) == 24);
   assert(sizeof(stats->shareReject1h_) / sizeof(stats->shareReject1h_[0]) == 24);
-  assert(sizeof(stats->score1h_)       / sizeof(stats->score1h_[0])       == 24);
+  assert(sizeof(stats->earn1h_)        / sizeof(stats->earn1h_[0]         == 24);
 
   string table, extraValues;
   // worker
@@ -1229,20 +1236,20 @@ void ShareLogParser::generateHoursData(shared_ptr<ShareStatsDay> stats,
       const string hourStr = Strings::Format("%s%02d", date("%Y%m%d", date_).c_str(), i);
       const int32_t hour = atoi(hourStr.c_str());
 
-      const uint64_t accept   = stats->shareAccept1h_[i];  // alias
-      const uint64_t reject   = stats->shareReject1h_[i];
+      const double accept   = stats->shareAccept1h_[i];  // alias
+      const double reject   = stats->shareReject1h_[i];
       double rejectRate = 0.0;
       if (reject)
       	rejectRate = (double)reject / (accept + reject);
       const string nowStr   = date("%F %T");
-      const string scoreStr = score2Str(stats->score1h_[i]);
-      const int64_t earn    = stats->score1h_[i] * BLOCK_REWARD;
 
-      valuesStr = Strings::Format("%s %d,%" PRIu64",%" PRIu64","
-                                  "  %lf,'%s',%" PRId64",'%s','%s'",
-                                  extraValues.c_str(),
-                                  hour, accept, reject, rejectRate, scoreStr.c_str(),
-                                  earn, nowStr.c_str(), nowStr.c_str());
+      valuesStr = Strings::Format("%s %d,"
+                                  "%lf,%lf,%lf"
+                                  "% " PRId64",'%s','%s'",
+                                  extraValues.c_str(), hour,
+                                  accept, reject, rejectRate,
+                                  (int64_t)stats->earn1h_[i],
+                                  nowStr.c_str(), nowStr.c_str());
     }  // for scope lock
 
     if (table == "stats_workers_hour") {
@@ -1289,7 +1296,7 @@ void ShareLogParser::flushHourOrDailyData(const vector<string> values,
 
   // fields for table.stats_xxxxx_hour
   fields = Strings::Format("%s `share_accept`,`share_reject`,`reject_rate`,"
-                           "`score`,`earn`,`created_at`,`updated_at`", extraFields.c_str());
+                           "`earn`,`created_at`,`updated_at`", extraFields.c_str());
 
   if (!multiInsert(poolDB_, tmpTableName, fields, values)) {
     LOG(ERROR) << "multi-insert table." << tmpTableName << " failure";
@@ -1304,7 +1311,6 @@ void ShareLogParser::flushHourOrDailyData(const vector<string> values,
                              "  `share_accept` = `t2`.`share_accept`, "
                              "  `share_reject` = `t2`.`share_reject`, "
                              "  `reject_rate`  = `t2`.`reject_rate`, "
-                             "  `score`        = `t2`.`score`, "
                              "  `earn`         = `t2`.`earn`, "
                              "  `updated_at`   = `t2`.`updated_at` ",
                              tableName.c_str(), tmpTableName.c_str());
@@ -1350,20 +1356,20 @@ void ShareLogParser::generateDailyData(shared_ptr<ShareStatsDay> stats,
     ScopeLock sl(stats->lock_);
     const int32_t day = atoi(date("%Y%m%d", date_).c_str());
 
-    const uint64_t accept   = stats->shareAccept1d_;  // alias
-    const uint64_t reject   = stats->shareReject1d_;
+    const double accept = stats->shareAccept1d_;  // alias
+    const double reject = stats->shareReject1d_;
     double rejectRate = 0.0;
     if (reject)
       rejectRate = (double)reject / (accept + reject);
-    const string nowStr   = date("%F %T");
-    const string scoreStr = score2Str(stats->score1d_);
-    const int64_t earn    = stats->score1d_ * BLOCK_REWARD;
+    const string nowStr = date("%F %T");
 
-    valuesStr = Strings::Format("%s %d,%" PRIu64",%" PRIu64","
-                                "  %lf,'%s',%" PRId64",'%s','%s'",
-                                extraValues.c_str(),
-                                day, accept, reject, rejectRate, scoreStr.c_str(),
-                                earn, nowStr.c_str(), nowStr.c_str());
+    valuesStr = Strings::Format("%s %d,"
+                                "%lf,%lf,%lf,"
+                                "% " PRId64",'%s','%s'",
+                                extraValues.c_str(), day,
+                                accept, reject, rejectRate,
+                                (int64_t)stats->earn1d_,
+                                nowStr.c_str(), nowStr.c_str());
   }  // for scope lock
 
   if (table == "stats_workers_day") {

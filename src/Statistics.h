@@ -146,14 +146,14 @@ T StatsWindow<T>::sum(int64_t beginRingIdx) {
 class WorkerStatus {
 public:
   // share, base on sliding window
-  uint64_t accept1m_;
-  uint64_t accept5m_;
+  double accept1m_;
+  double accept5m_;
 
-  uint64_t accept15m_;
-  uint64_t reject15m_;
+  double accept15m_;
+  double reject15m_;
 
-  uint64_t accept1h_;
-  uint64_t reject1h_;
+  double accept1h_;
+  double reject1h_;
 
   uint32_t acceptCount_;
 
@@ -161,8 +161,8 @@ public:
   uint32_t lastShareTime_;
 
   WorkerStatus():
-  accept1m_(0), accept5m_(0), accept15m_(0), reject15m_(0),
-  accept1h_(0), reject1h_(0),
+  accept1m_(0.0), accept5m_(0.0), accept15m_(0.0), reject15m_(0.0),
+  accept1h_(0.0), reject1h_(0.0),
   acceptCount_(0), lastShareIP_(0), lastShareTime_(0)
   {
   }
@@ -183,8 +183,8 @@ class WorkerShares {
   uint32_t lastShareIP_;
   uint32_t lastShareTime_;
 
-  StatsWindow<uint64_t> acceptShareSec_;
-  StatsWindow<uint64_t> rejectShareMin_;
+  StatsWindow<double> acceptShareSec_;
+  StatsWindow<double> rejectShareMin_;
 
 public:
   WorkerShares(const int64_t workerId, const int32_t userId);
@@ -353,10 +353,10 @@ public:
 /////////////////////////////////  ShareStats  /////////////////////////////////
 class ShareStats {
 public:
-  uint64_t shareAccept_;
-  uint64_t shareReject_;
-  double   rejectRate_;
-  int64_t  earn_;
+  double shareAccept_;
+  double shareReject_;
+  double rejectRate_;
+  double earn_;
 
   ShareStats(): shareAccept_(0U), shareReject_(0U), rejectRate_(0.0), earn_(0) {}
 };
@@ -368,14 +368,14 @@ public:
 class ShareStatsDay {
 public:
   // hours
-  uint64_t shareAccept1h_[24];
-  uint64_t shareReject1h_[24];
-  double   score1h_[24];  // only accept share
+  double shareAccept1h_[24];
+  double shareReject1h_[24];
+  double earn1h_[24];  // only accept share
 
   // daily
-  uint64_t shareAccept1d_;
-  uint64_t shareReject1d_;
-  double   score1d_;
+  double shareAccept1d_;
+  double shareReject1d_;
+  double earn1d_;
 
   // mark which hour data has been modified: 23, 22, ...., 0
   uint32_t modifyHoursFlag_;

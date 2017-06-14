@@ -40,11 +40,6 @@
 #include "zcash/uint256.h"
 #include "zcash/base58.h"
 
-// TODO: update when next halving, about 2020-10.
-// current height: 127716 (2017-06-07), next halving about 40 months from now.
-// 25 ZEC * 80% = 10 ZEC.
-#define BLOCK_REWARD 1000000000ll
-
 // default worker name
 #define DEFAULT_WORKER_NAME    "__default__"
 

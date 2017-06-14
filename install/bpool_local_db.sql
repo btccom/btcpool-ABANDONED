@@ -26,32 +26,18 @@ CREATE TABLE `found_blocks` (
   KEY `height` (`height`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-
-DROP TABLE IF EXISTS `found_nmc_blocks`;
-CREATE TABLE `found_nmc_blocks` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `bitcoin_block_hash` char(64) NOT NULL,
-  `aux_block_hash` char(64) NOT NULL,
-  `aux_pow` text NOT NULL,
-  `is_orphaned` tinyint(4) NOT NULL,
-  `created_at` datetime NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `aux_block_hash` (`aux_block_hash`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
 DROP TABLE IF EXISTS `mining_workers`;
 CREATE TABLE `mining_workers` (
   `worker_id` bigint(20) NOT NULL,
   `puid` int(11) NOT NULL,
   `group_id` int(11) NOT NULL,
   `worker_name` varchar(20) DEFAULT NULL,
-  `accept_1m` bigint(20) NOT NULL DEFAULT '0',
-  `accept_5m` bigint(20) NOT NULL DEFAULT '0',
-  `accept_15m` bigint(20) NOT NULL DEFAULT '0',
-  `reject_15m` bigint(20) NOT NULL DEFAULT '0',
-  `accept_1h` bigint(20) NOT NULL DEFAULT '0',
-  `reject_1h` bigint(20) NOT NULL DEFAULT '0',
+  `accept_1m`  decimal(20,8) NOT NULL DEFAULT '0.0',
+  `accept_5m`  decimal(20,8) NOT NULL DEFAULT '0.0',
+  `accept_15m` decimal(20,8) NOT NULL DEFAULT '0.0',
+  `reject_15m` decimal(20,8) NOT NULL DEFAULT '0.0',
+  `accept_1h`  decimal(20,8) NOT NULL DEFAULT '0.0',
+  `reject_1h`  decimal(20,8) NOT NULL DEFAULT '0.0',
   `accept_count` int(11) NOT NULL DEFAULT '0',
   `last_share_ip` char(16) NOT NULL DEFAULT '0.0.0.0',
   `last_share_time` timestamp NOT NULL DEFAULT '1970-01-01 00:00:01',
@@ -63,4 +49,4 @@ CREATE TABLE `mining_workers` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
--- 2017-04-25 12:17:40
+-- 2017-06-14 12:17:40
