@@ -4,7 +4,7 @@
 
 #include "zcash/IncrementalMerkleTree.hpp"
 #include "crypto/sha256.h"
-#include "zcash/util.h"
+#include "zcash/util.hpp"
 
 namespace libzcash {
 

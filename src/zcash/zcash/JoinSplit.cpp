@@ -2,7 +2,7 @@
 #include "prf.h"
 #include <sodium.h>
 
-#include "zcash/util.h"
+#include "zcash/util.hpp"
 
 #include <memory>
 
