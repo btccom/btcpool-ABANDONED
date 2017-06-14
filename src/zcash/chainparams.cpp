@@ -3,7 +3,6 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "main.h"
 #include "crypto/equihash.h"
 
 #include "util.h"
@@ -13,11 +12,17 @@
 
 #include <boost/assign/list_of.hpp>
 
+#include "arith_uint256.h"
 #include "base58.h"
 
 using namespace std;
 
 #include "chainparamsseeds.h"
+
+// from main.h
+#define equihash_parameters_acceptable(N, K) \
+    ((CBlockHeader::HEADER_SIZE + equihash_solution_size(N, K))*MAX_HEADERS_RESULTS < \
+    MAX_PROTOCOL_MESSAGE_LENGTH-1000)
 
 /**
  * Main network

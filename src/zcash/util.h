@@ -14,6 +14,8 @@
 #include "config/bitcoin-config.h"
 #endif
 
+#include "amount.h"
+#include "chainparams.h"
 #include "compat.h"
 #include "tinyformat.h"
 #include "utiltime.h"
@@ -142,11 +144,11 @@ void ShrinkDebugFile();
 void runCommand(const std::string& strCommand);
 const boost::filesystem::path GetExportDir();
 
-/** Returns privacy notice (for -version, -help and metrics screen) */
-std::string PrivacyInfo();
-
-/** Returns licensing information (for -version) */
-std::string LicenseInfo();
+///** Returns privacy notice (for -version, -help and metrics screen) */
+//std::string PrivacyInfo();
+//
+///** Returns licensing information (for -version) */
+//std::string LicenseInfo();
 
 inline bool IsSwitchChar(char c)
 {

@@ -45,7 +45,7 @@ JobMaker::JobMaker(const string &kafkaBrokers,  uint32_t stratumJobInterval,
 running_(true),
 kafkaBrokers_(kafkaBrokers),
 kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, RD_KAFKA_PARTITION_UA/* partition */),
-kafkaRawGbtConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT, 0/* partition */)
+kafkaRawGbtConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT, 0/* partition */),
 currBestHeight_(0), lastJobSendTime_(0),
 isLastJobEmptyBlock_(false), isLastJobNewHeight_(false),
 stratumJobInterval_(stratumJobInterval), kGbtLifeTime_(gbtLifeTime),
@@ -54,8 +54,6 @@ kEmptyGbtLifeTime_(emptyGbtLifeTime), fileLastJobTime_(fileLastJobTime)
 }
 
 JobMaker::~JobMaker() {
-  if (threadConsumeNmcAuxBlock_.joinable())
-    threadConsumeNmcAuxBlock_.join();
 }
 
 void JobMaker::stop() {
@@ -240,7 +238,7 @@ void JobMaker::addRawgbt(const char *str, size_t len) {
     }
   }
 
-  lastestOriginalBlockHash_.push_back(gbtHash);
+  lastestOriginalBlockHash_.push_back(originalBlockHash);
   while (lastestOriginalBlockHash_.size() > 20) {
     lastestOriginalBlockHash_.pop_front();
   }

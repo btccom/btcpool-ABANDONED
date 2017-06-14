@@ -28,6 +28,7 @@
 #include "Utils.h"
 #include "utilities_js.hpp"
 
+#include "zcash/core_io.h"
 #include "zcash/chainparams.h"
 #include "zcash/util.h"
 #include "zcash/utilstrencodings.h"
@@ -88,7 +89,7 @@ bool GbtMaker::init() {
   {
     string response;
     string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getinfo\",\"params\":[]}";
-    bool res = zcashdRpcCall(zcashdRpcAddr_.c_str(), zcashdRpcUserpass_.c_str(),
+    bool res = bitcoindRpcCall(zcashdRpcAddr_.c_str(), zcashdRpcUserpass_.c_str(),
                                request.c_str(), response);
     if (!res) {
       LOG(ERROR) << "zcash rpc call failure";
@@ -229,6 +230,7 @@ string GbtMaker::makeRawGbtMsg() {
   }
 
   // make coinbase transaction
+  CMutableTransaction cbtx;
   {
     CTxIn cbIn;
     //
@@ -276,22 +278,21 @@ string GbtMaker::makeRawGbtMsg() {
     cbOut[0].scriptPubKey = GetScriptForDestination(poolPayoutAddr_.Get());
 
     const CChainParams& chainparams = Params();
-    cbOut[0].nValue = GetBlockSubsidy(height_, chainparams.GetConsensus());
+    cbOut[0].nValue = GetBlockSubsidy(height, chainparams.GetConsensus());
 
-    if ((height_ > 0) && (height_ <= chainparams.GetConsensus().GetLastFoundersRewardBlockHeight())) {
+    if ((height > 0) && (height <= chainparams.GetConsensus().GetLastFoundersRewardBlockHeight())) {
       // Founders reward is 20% of the block subsidy
       auto vFoundersReward = cbOut[0].nValue / 5;
       // Take some reward away from us
       cbOut[0].nValue -= vFoundersReward;
 
       // And give it to the founders
-      cbOut.push_back(CTxOut(vFoundersReward, chainparams.GetFoundersRewardScriptAtHeight(height_)));
+      cbOut.push_back(CTxOut(vFoundersReward, chainparams.GetFoundersRewardScriptAtHeight(height)));
     }
 
     // add fees
     cbOut[0].nValue += nFees;
-
-    CMutableTransaction cbtx;
+    // input & outputs
     cbtx.vin.push_back(cbIn);
     cbtx.vout = cbOut;
   }
@@ -326,7 +327,7 @@ string GbtMaker::makeRawGbtMsg() {
 
   LOG(INFO) << "GBT height: " << height
   << ", prev_hash: "          << block.hashPrevBlock.ToString()
-  << ", coinbase_value: "     << block.vtx[0].vin[0].nValue  // coinbase first output
+  << ", coinbase_value: "     << block.vtx[0].GetValueOut()
   << ", bits: "    << Strings::Format("%08x", block.nBits)
   << ", mintime: " << minTime
   << ", version: " << block.nVersion

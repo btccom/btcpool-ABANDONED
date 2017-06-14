@@ -20,7 +20,7 @@
 #include "script/script.h"
 #include "script/standard.h"
 #include "support/allocators/zeroafterfree.h"
-#include "zcash/Address.hpp"
+//#include "zcash/Address.hpp"
 
 #include <string>
 #include <vector>
@@ -96,27 +96,27 @@ public:
     bool operator> (const CBase58Data& b58) const { return CompareTo(b58) >  0; }
 };
 
-class CZCPaymentAddress : public CBase58Data {
-public:
-    bool Set(const libzcash::PaymentAddress& addr);
-    CZCPaymentAddress() {}
-
-    CZCPaymentAddress(const std::string& strAddress) { SetString(strAddress.c_str(), 2); }
-    CZCPaymentAddress(const libzcash::PaymentAddress& addr) { Set(addr); }
-
-    libzcash::PaymentAddress Get() const;
-};
-
-class CZCSpendingKey : public CBase58Data {
-public:
-    bool Set(const libzcash::SpendingKey& addr);
-    CZCSpendingKey() {}
-
-    CZCSpendingKey(const std::string& strAddress) { SetString(strAddress.c_str(), 2); }
-    CZCSpendingKey(const libzcash::SpendingKey& addr) { Set(addr); }
-
-    libzcash::SpendingKey Get() const;
-};
+//class CZCPaymentAddress : public CBase58Data {
+//public:
+//    bool Set(const libzcash::PaymentAddress& addr);
+//    CZCPaymentAddress() {}
+//
+//    CZCPaymentAddress(const std::string& strAddress) { SetString(strAddress.c_str(), 2); }
+//    CZCPaymentAddress(const libzcash::PaymentAddress& addr) { Set(addr); }
+//
+//    libzcash::PaymentAddress Get() const;
+//};
+//
+//class CZCSpendingKey : public CBase58Data {
+//public:
+//    bool Set(const libzcash::SpendingKey& addr);
+//    CZCSpendingKey() {}
+//
+//    CZCSpendingKey(const std::string& strAddress) { SetString(strAddress.c_str(), 2); }
+//    CZCSpendingKey(const libzcash::SpendingKey& addr) { Set(addr); }
+//
+//    libzcash::SpendingKey Get() const;
+//};
 
 /** base58-encoded Bitcoin addresses.
  * Public-key-hash-addresses have version 0 (or 111 testnet).

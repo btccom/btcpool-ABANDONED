@@ -9,7 +9,7 @@
 #include "script/script.h"
 #include "serialize.h"
 #include "streams.h"
-#include <univalue.h>
+//#include <univalue.h>
 #include "util.h"
 #include "utilstrencodings.h"
 #include "version.h"
@@ -124,13 +124,13 @@ bool DecodeHexBlk(CBlock& block, const std::string& strHexBlk)
     return true;
 }
 
-uint256 ParseHashUV(const UniValue& v, const string& strName)
-{
-    string strHex;
-    if (v.isStr())
-        strHex = v.getValStr();
-    return ParseHashStr(strHex, strName);  // Note: ParseHashStr("") throws a runtime_error
-}
+//uint256 ParseHashUV(const UniValue& v, const string& strName)
+//{
+//    string strHex;
+//    if (v.isStr())
+//        strHex = v.getValStr();
+//    return ParseHashStr(strHex, strName);  // Note: ParseHashStr("") throws a runtime_error
+//}
 
 uint256 ParseHashStr(const std::string& strHex, const std::string& strName)
 {
@@ -142,12 +142,12 @@ uint256 ParseHashStr(const std::string& strHex, const std::string& strName)
     return result;
 }
 
-vector<unsigned char> ParseHexUV(const UniValue& v, const string& strName)
-{
-    string strHex;
-    if (v.isStr())
-        strHex = v.getValStr();
-    if (!IsHex(strHex))
-        throw runtime_error(strName+" must be hexadecimal string (not '"+strHex+"')");
-    return ParseHex(strHex);
-}
+//vector<unsigned char> ParseHexUV(const UniValue& v, const string& strName)
+//{
+//    string strHex;
+//    if (v.isStr())
+//        strHex = v.getValStr();
+//    if (!IsHex(strHex))
+//        throw runtime_error(strName+" must be hexadecimal string (not '"+strHex+"')");
+//    return ParseHex(strHex);
+//}

@@ -169,25 +169,6 @@ void BlockMaker::addRawgbt(const char *str, size_t len) {
     return;
   }
 
-//  const string gbt = DecodeBase64(r["block_template_base64"].str());
-//  assert(gbt.length() > 64);  // valid gbt string's len at least 64 bytes
-//
-//  JsonNode nodeGbt;
-//  if (!JsonNode::parse(gbt.c_str(), gbt.c_str() + gbt.length(), nodeGbt)) {
-//    LOG(ERROR) << "parse gbt message to json fail";
-//    return;
-//  }
-//  JsonNode jgbt = nodeGbt["result"];
-//
-//  // transaction without coinbase_tx
-//  shared_ptr<vector<CTransaction>> vtxs = std::make_shared<std::vector<CTransaction>>();
-//  for (JsonNode & node : jgbt["transactions"].array()) {
-//    CTransaction tx;
-//    DecodeHexTx(tx, node["data"].str());
-//    vtxs->push_back(tx);
-//  }
-//
-//  LOG(INFO) << "insert rawgbt: " << gbtHash.ToString() << ", txs: " << vtxs->size();
   insertRawGbt(gbtHash, block);
 }
 

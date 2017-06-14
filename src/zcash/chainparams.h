@@ -12,6 +12,11 @@
 
 #include <vector>
 
+// from main.h
+static const unsigned int MAX_HEADERS_RESULTS = 160;
+// from net.h
+static const unsigned int MAX_PROTOCOL_MESSAGE_LENGTH = 2 * 1024 * 1024;
+
 struct CDNSSeedData {
     std::string name, host;
     CDNSSeedData(const std::string &strName, const std::string &strHost) : name(strName), host(strHost) {}

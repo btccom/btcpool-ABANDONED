@@ -19,19 +19,19 @@ bool CPubKey::Verify(const uint256 &hash, const std::vector<unsigned char>& vchS
     return true;
 }
 
-bool CPubKey::RecoverCompact(const uint256 &hash, const std::vector<unsigned char>& vchSig) {
-    if (vchSig.size() != 65)
-        return false;
-    int recid = (vchSig[0] - 27) & 3;
-    bool fComp = ((vchSig[0] - 27) & 4) != 0;
-    CECKey key;
-    if (!key.Recover(hash, &vchSig[1], recid))
-        return false;
-    std::vector<unsigned char> pubkey;
-    key.GetPubKey(pubkey, fComp);
-    Set(pubkey.begin(), pubkey.end());
-    return true;
-}
+//bool CPubKey::RecoverCompact(const uint256 &hash, const std::vector<unsigned char>& vchSig) {
+//    if (vchSig.size() != 65)
+//        return false;
+//    int recid = (vchSig[0] - 27) & 3;
+//    bool fComp = ((vchSig[0] - 27) & 4) != 0;
+//    CECKey key;
+//    if (!key.Recover(hash, &vchSig[1], recid))
+//        return false;
+//    std::vector<unsigned char> pubkey;
+//    key.GetPubKey(pubkey, fComp);
+//    Set(pubkey.begin(), pubkey.end());
+//    return true;
+//}
 
 bool CPubKey::IsFullyValid() const {
     if (!IsValid())

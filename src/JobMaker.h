@@ -68,8 +68,8 @@ class JobMaker {
   void checkAndSendStratumJob();
 
 public:
-  JobMaker(const string &kafkaBrokers, uint32_t stratumJobInterval,
-           const string &payoutAddr, uint32_t gbtLifeTime,
+  JobMaker(const string &kafkaBrokers,  uint32_t stratumJobInterval,
+           uint32_t gbtLifeTime,
            uint32_t emptyGbtLifeTime, const string &fileLastJobTime);
   ~JobMaker();
 
