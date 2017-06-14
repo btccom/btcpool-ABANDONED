@@ -60,7 +60,7 @@ inline string filterWorkerName(const char *workerName) {
 // 140 + 3 bytes(1344_vint) + 1344 = 1487 Bytes
 #define ZEC_HEADER_FULL_SIZE 1487
 
-class FoundBlock {
+class FoundBlock {  // will use as c-struct to copy data
 public:
   uint64_t jobId_;
   int64_t  workerId_;  // found by who
@@ -69,10 +69,14 @@ public:
   uint8_t  header_[ZEC_HEADER_FULL_SIZE];
   char     workerFullName_[40];  // <UserName>.<WorkerName>
 
+public:
   FoundBlock(): jobId_(0), workerId_(0), userId_(0), height_(0) {
     memset(header_,         0, ZEC_HEADER_FULL_SIZE);
     memset(workerFullName_, 0, sizeof(workerFullName_));
   }
+
+  void setHeader(const CBlockHeader &header);
+  CBlockHeader getHeader();
 };
 
 ///////////////////////////////////// Share ////////////////////////////////////

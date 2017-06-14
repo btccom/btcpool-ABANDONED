@@ -54,6 +54,29 @@ string filterWorkerName(const string &workerName) {
 }
 
 
+////////////////////////////////// FoundBlock //////////////////////////////////
+void FoundBlock::setHeader(const CBlockHeader &header) {
+  CDataStream ssBlockHeader(SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
+  ssBlockHeader << header;
+  const string headerBin = ssBlockHeader.str();  // use std::string to save binary data
+  assert(headerBin.size() == ZEC_HEADER_FULL_SIZE);
+  // set header data
+  memcpy(header_, headerBin.data(), headerBin.size());
+}
+
+CBlockHeader FoundBlock::getHeader() {
+  CBlockHeader header;
+  std::vector<unsigned char> dataHeader(header_, header_ + ZEC_HEADER_FULL_SIZE);
+  CDataStream ssHeader(dataHeader, SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
+  try {
+    ssHeader >> header;
+  }
+  catch (const std::exception&) {
+  }
+  return header;
+}
+
+
 //////////////////////////////// StratumError ////////////////////////////////
 const char * StratumError::toString(int err) {
   switch (err) {

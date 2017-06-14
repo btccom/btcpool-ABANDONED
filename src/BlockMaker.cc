@@ -137,52 +137,65 @@ void BlockMaker::consumeRawGbt(rd_kafka_message_t *rkmessage) {
 }
 
 void BlockMaker::addRawgbt(const char *str, size_t len) {
+  //
+  // Kafka Message: KAFKA_TOPIC_RAWGBT
+  //
   JsonNode r;
   if (!JsonNode::parse(str, str + len, r)) {
     LOG(ERROR) << "parse rawgbt message to json fail";
     return;
   }
-  if (r["created_at_ts"].type()         != Utilities::JS::type::Int ||
-      r["block_template_base64"].type() != Utilities::JS::type::Str ||
-      r["gbthash"].type()               != Utilities::JS::type::Str) {
+  if (r["original_hash"].type()  != Utilities::JS::type::Str ||
+      r["height"].type()         != Utilities::JS::type::Int ||
+      r["min_time"].type()       != Utilities::JS::type::Int ||
+      r["max_time"].type()       != Utilities::JS::type::Int ||
+      r["tx_count"].type()       != Utilities::JS::type::Int ||
+      r["created_at"].type()     != Utilities::JS::type::Int ||
+      r["created_at_str"].type() != Utilities::JS::type::Str ||
+      r["block_hex"].type()      != Utilities::JS::type::Str) {
     LOG(ERROR) << "invalid rawgbt: missing fields";
     return;
   }
 
-  const uint256 gbtHash = uint256S(r["gbthash"].str());
+  const uint256 gbtHash = uint256S(r["original_hash"].str());
   if (rawGbtMap_.find(gbtHash) != rawGbtMap_.end()) {
     LOG(ERROR) << "already exist raw gbt, ingore: " << gbtHash.ToString();
     return;
   }
 
-  const string gbt = DecodeBase64(r["block_template_base64"].str());
-  assert(gbt.length() > 64);  // valid gbt string's len at least 64 bytes
-
-  JsonNode nodeGbt;
-  if (!JsonNode::parse(gbt.c_str(), gbt.c_str() + gbt.length(), nodeGbt)) {
-    LOG(ERROR) << "parse gbt message to json fail";
+  CBlock block;
+  if (!DecodeHexBlk(block, r["block_hex"].str())) {
+    LOG(ERROR) << "decode block failure, ingore: " << gbtHash.ToString();
     return;
   }
-  JsonNode jgbt = nodeGbt["result"];
 
-  // transaction without coinbase_tx
-  shared_ptr<vector<CTransaction>> vtxs = std::make_shared<std::vector<CTransaction>>();
-  for (JsonNode & node : jgbt["transactions"].array()) {
-    CTransaction tx;
-    DecodeHexTx(tx, node["data"].str());
-    vtxs->push_back(tx);
-  }
-
-  LOG(INFO) << "insert rawgbt: " << gbtHash.ToString() << ", txs: " << vtxs->size();
-  insertRawGbt(gbtHash, vtxs);
+//  const string gbt = DecodeBase64(r["block_template_base64"].str());
+//  assert(gbt.length() > 64);  // valid gbt string's len at least 64 bytes
+//
+//  JsonNode nodeGbt;
+//  if (!JsonNode::parse(gbt.c_str(), gbt.c_str() + gbt.length(), nodeGbt)) {
+//    LOG(ERROR) << "parse gbt message to json fail";
+//    return;
+//  }
+//  JsonNode jgbt = nodeGbt["result"];
+//
+//  // transaction without coinbase_tx
+//  shared_ptr<vector<CTransaction>> vtxs = std::make_shared<std::vector<CTransaction>>();
+//  for (JsonNode & node : jgbt["transactions"].array()) {
+//    CTransaction tx;
+//    DecodeHexTx(tx, node["data"].str());
+//    vtxs->push_back(tx);
+//  }
+//
+//  LOG(INFO) << "insert rawgbt: " << gbtHash.ToString() << ", txs: " << vtxs->size();
+  insertRawGbt(gbtHash, block);
 }
 
-void BlockMaker::insertRawGbt(const uint256 &gbtHash,
-                              shared_ptr<vector<CTransaction>> vtxs) {
+void BlockMaker::insertRawGbt(const uint256 &gbtHash, const CBlock &block) {
   ScopeLock ls(rawGbtLock_);
 
   // insert rawgbt
-  rawGbtMap_[gbtHash] = vtxs;
+  rawGbtMap_[gbtHash] = block;
   rawGbtQ_.push_back(gbtHash);
 
   // remove rawgbt if need
@@ -192,65 +205,6 @@ void BlockMaker::insertRawGbt(const uint256 &gbtHash,
     rawGbtMap_.erase(h);   // delete from map
     rawGbtQ_.pop_front();  // delete from Q
   }
-}
-
-static
-string _buildAuxPow(const CBlock *block) {
-  //
-  // see: https://en.bitcoin.it/wiki/Merged_mining_specification
-  //
-  string auxPow;
-
-  //
-  // build auxpow
-  //
-  // 1. coinbase hex
-  {
-    CDataStream ssTx(SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
-    ssTx << block->vtx[0];
-    auxPow += HexStr(ssTx.begin(), ssTx.end());
-  }
-
-  // 2. block_hash
-  auxPow += block->GetHash().GetHex();
-
-  // 3. coinbase_branch, Merkle branch
-  {
-    vector<uint256> merkleBranch = BlockMerkleBranch(*block, 0/* position */);
-
-    // Number of links in branch
-    // should be Variable integer, but can't over than 0xfd, so we just print
-    // out 2 hex char
-    // https://en.bitcoin.it/wiki/Protocol_specification#Variable_length_integer
-    auxPow += Strings::Format("%02x", merkleBranch.size());
-
-    // merkle branch
-    for (auto &itr : merkleBranch) {
-      // dump 32 bytes from memory
-      string hex;
-      Bin2Hex(itr.begin(), 32, hex);
-      auxPow += hex;
-    }
-
-    // branch_side_mask is always going to be all zeroes, because the branch
-    // hashes will always be "on the right" of the working hash
-    auxPow += "00000000";
-  }
-
-  // 4. Aux Blockchain Link
-  {
-    auxPow += "00";        // Number of links in branch
-    auxPow += "00000000";  // Branch sides bitmask
-  }
-
-  // 5. Parent Block Header
-  {
-    CDataStream ssBlock(SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
-    ssBlock << block->GetBlockHeader();
-    auxPow += HexStr(ssBlock.begin(), ssBlock.end());
-  }
-
-  return auxPow;
 }
 
 void BlockMaker::consumeSovledShare(rd_kafka_message_t *rkmessage) {
@@ -281,33 +235,25 @@ void BlockMaker::consumeSovledShare(rd_kafka_message_t *rkmessage) {
   LOG(INFO) << "received SolvedShare message, len: " << rkmessage->len;
 
   //
-  // solved share message:  FoundBlock + coinbase_Tx
+  // solved share message:  FoundBlock
   //
   FoundBlock foundBlock;
-  CBlockHeader blkHeader;
-  vector<char> coinbaseTxBin;
-
+  CBlockHeader foundHeader;
   {
-    if (rkmessage->len <= sizeof(FoundBlock)) {
+    if (rkmessage->len != sizeof(FoundBlock)) {
       LOG(ERROR) << "invalid SolvedShare length: " << rkmessage->len;
       return;
     }
-    coinbaseTxBin.resize(rkmessage->len - sizeof(FoundBlock));
-
-    // foundBlock
+    // get FoundBLock message
     memcpy((uint8_t *)&foundBlock, (const uint8_t *)rkmessage->payload, sizeof(FoundBlock));
-
-    // coinbase tx
-    memcpy((uint8_t *)coinbaseTxBin.data(),
-           (const uint8_t *)rkmessage->payload + sizeof(FoundBlock),
-           coinbaseTxBin.size());
-    // copy header
-    memcpy((uint8_t *)&blkHeader, foundBlock.header80_, sizeof(CBlockHeader));
+    // decode header
+    foundHeader = foundBlock.getHeader();
   }
+
+  CBlock block;
 
   // get gbtHash and rawgbt (vtxs)
   uint256 gbtHash;
-  shared_ptr<vector<CTransaction>> vtxs;
   {
     ScopeLock sl(jobIdMapLock_);
     if (jobId2GbtHash_.find(foundBlock.jobId_) != jobId2GbtHash_.end()) {
@@ -320,37 +266,38 @@ void BlockMaker::consumeSovledShare(rd_kafka_message_t *rkmessage) {
       LOG(ERROR) << "can't find this gbthash in rawGbtMap_: " << gbtHash.ToString();
       return;
     }
-    vtxs = rawGbtMap_[gbtHash];
+    block = rawGbtMap_[gbtHash];  // copy from gbt
   }
-  assert(vtxs.get() != nullptr);
 
   //
-  // build new block
+  // copy some header fields
   //
-  CBlock newblk(blkHeader);
-
-  // put coinbase tx
-  {
-    CSerializeData sdata;
-    sdata.insert(sdata.end(), coinbaseTxBin.begin(), coinbaseTxBin.end());
-    newblk.vtx.push_back(CTransaction());
-    CDataStream c(sdata, SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
-    c >> newblk.vtx[newblk.vtx.size() - 1];
-  }
-
-  // put other txs
-  if (vtxs->size()) {
-    newblk.vtx.insert(newblk.vtx.end(), vtxs->begin(), vtxs->end());
-  }
+  block.nTime     = foundHeader.nTime;
+  block.nNonce    = foundHeader.nNonce;
+  block.nSolution = foundHeader.nSolution;
+  assert(block.nBits    == foundHeader.nBits);
+  assert(block.nVersion == foundHeader.nVersion);
+  assert(block.hashReserved   == foundHeader.hashReserved);
+  assert(block.hashPrevBlock  == foundHeader.hashPrevBlock);
+  assert(block.hashMerkleRoot == foundHeader.hashMerkleRoot);
 
   // submit to bitcoind
-  LOG(INFO) << "submit block: " << newblk.GetHash().ToString();
-  const string blockHex = EncodeHexBlock(newblk);
+  LOG(INFO) << "submit block: " << block.GetHash().ToString();
+
+  // encode block
+  string blockHex;
+  {
+    CDataStream ssBlock(SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
+    ssBlock << block;
+    blockHex = HexStr(ssBlock.begin(), ssBlock.end());
+  }
+
+  // submit block hex
   submitBlockNonBlocking(blockHex);  // using thread
 
   // save to DB, using thread
-  saveBlockToDBNonBlocking(foundBlock, blkHeader,
-                           newblk.vtx[0].GetValueOut(),  // coinbase value
+  saveBlockToDBNonBlocking(foundBlock, block.GetBlockHeader(),
+                           block.vtx[0].GetValueOut(),  // coinbase value
                            blockHex.length()/2);
 }
 
@@ -495,7 +442,8 @@ void BlockMaker::consumeStratumJob(rd_kafka_message_t *rkmessage) {
     return;
   }
 
-  const uint256 gbtHash = uint256S(sjob->gbtHash_);
+  // we only need the relation between jobId <-> gbtHash
+  const uint256 gbtHash = uint256S(sjob->originalHash_);
   {
     ScopeLock sl(jobIdMapLock_);
     jobId2GbtHash_[sjob->jobId_] = gbtHash;
