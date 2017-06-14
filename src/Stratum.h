@@ -266,7 +266,7 @@ public:
   bool unserializeFromJson(const char *s, size_t len);
 
   bool initFromGbt(const char *gbt);
-  bool isEmptyBlock() const;
+  bool isEmptyBlock();
 };
 
 #endif

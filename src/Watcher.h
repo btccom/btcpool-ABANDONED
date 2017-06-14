@@ -38,7 +38,7 @@
 #include <set>
 
 #include "utilities_js.hpp"
-#include "bitcoin/base58.h"
+#include "zcash/base58.h"
 
 #define BTCCOM_WATCHER_AGENT   "btc.com-watcher/0.1"
 

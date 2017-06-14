@@ -25,8 +25,8 @@
 
 #include <boost/thread.hpp>
 
-#include "bitcoin/consensus/merkle.h"
-#include "bitcoin/core_io.h"
+#include "zcash/consensus/merkle.h"
+#include "zcash/core_io.h"
 #include "utilities_js.hpp"
 
 

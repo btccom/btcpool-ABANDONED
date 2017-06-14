@@ -163,7 +163,7 @@ int64_t StratumWorker::calcWorkerId(const string &workerName) {
 static
 bool DecodeHexHeader(CBlockHeader& header, const std::string& strHexHeader)
 {
-  if (!IsHex(strHexBlk))
+  if (!IsHex(strHexHeader))
     return false;
 
   std::vector<unsigned char> data(ParseHex(strHexHeader));
@@ -257,7 +257,7 @@ bool StratumJob::initFromGbt(const char *gbt) {
   //  "}"
   //
   JsonNode r;
-  if (!JsonNode::parse(gbt, str + len, r)) {
+  if (!JsonNode::parse(gbt, gbt + strlen(gbt), r)) {
     LOG(ERROR) << "parse rawgbt message to json fail";
     return false;
   }
@@ -291,7 +291,7 @@ bool StratumJob::initFromGbt(const char *gbt) {
   // jobId: timestamp + originalHash, we need to make sure jobId is unique
   // jobId can convert to uint64_t
   const string jobIdStr = Strings::Format("%08x%s", header_.nTime,
-                                          originalHash_.ToString().substr(0, 8).c_str());
+                                          originalHash_.substr(0, 8).c_str());
   assert(jobIdStr.length() == 16);
   jobId_ = strtoull(jobIdStr.c_str(), nullptr, 16/* hex */);
 

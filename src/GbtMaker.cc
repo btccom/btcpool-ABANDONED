@@ -25,14 +25,13 @@
 
 #include <glog/logging.h>
 
-#include "zcash/util.h"
-#include "zcash/utilstrencodings.h"
-
 #include "Utils.h"
 #include "utilities_js.hpp"
 
-#include "zcash/random.h"
 #include "zcash/chainparams.h"
+#include "zcash/util.h"
+#include "zcash/utilstrencodings.h"
+#include "zcash/random.h"
 
 //
 // zcashd zmq pub msg type: "hashblock", "hashtx", "rawblock", "rawtx"

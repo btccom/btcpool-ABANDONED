@@ -23,8 +23,8 @@
 */
 #include "Utils.h"
 
-#include "bitcoin/util.h"
-#include "bitcoin/streams.h"
+#include "zcash/util.h"
+#include "zcash/streams.h"
 
 #include <stdarg.h>
 #include <sys/stat.h>

@@ -602,7 +602,7 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr,
   localJobs_.push_back(LocalJob());
   LocalJob &ljob = *(localJobs_.rbegin());
   ljob.jobId_         = sjob->jobId_;
-  ljob.jobBits_       = sjob->diffController_.calcCurBits();
+  ljob.jobBits_       = diffController_.calcCurBits();
   ljob.blkBits_       = sjob->header_.nBits;
   ljob.shortJobId_    = allocShortJobId();
 

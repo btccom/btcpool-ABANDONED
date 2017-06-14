@@ -32,8 +32,8 @@
 #include <event2/listener.h>
 #include <glog/logging.h>
 
-#include "bitcoin/chainparams.h"
-#include "bitcoin/utilstrencodings.h"
+#include "zcash/chainparams.h"
+#include "zcash/utilstrencodings.h"
 
 static
 bool tryReadLine(string &line, struct bufferevent *bufev) {

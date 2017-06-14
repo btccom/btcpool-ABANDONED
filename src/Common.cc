@@ -22,7 +22,7 @@
  THE SOFTWARE.
  */
 #include "Common.h"
-#include "bitcoin/arith_uint256.h"
+#include "zcash/arith_uint256.h"
 
 #include <math.h>
 
