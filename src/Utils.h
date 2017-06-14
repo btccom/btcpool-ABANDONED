@@ -76,20 +76,7 @@ public:
   static void Append(string & dest, const char * fmt, ...);
 };
 
-string score2Str(double s);
-
-// we use G, so never overflow
-inline double share2HashrateG(uint64_t share, uint32_t timeDiff) {
-  //    G: 1000000000.0
-  // 2^32: 4294967296.0
-  return share * (4294967296.0 / 1000000000.0 / timeDiff);
-}
-inline double share2HashrateT(uint64_t share, uint32_t timeDiff) {
-  return share2HashrateG(share, timeDiff) / 1000.0;
-}
-inline double share2HashrateP(uint64_t share, uint32_t timeDiff) {
-  return share2HashrateG(share, timeDiff) / 1000000.0;
-}
+//string score2Str(double s);
 
 bool fileExists(const char* file);
 

@@ -54,18 +54,3 @@ TEST(Utils, date) {
   // 1418051254 -> 2014-12-08 15:07:34 GMT
   ASSERT_EQ(date("%F %T", 1418051254), "2014-12-08 15:07:34");
 }
-
-TEST(Utils, share2HashrateG) {
-  double h;
-
-  // if minser's hashrate is 15 Ehs, the diff will be around 32,000,000,000.
-  // if diff = 32,000,000,000, every 10 secons per share,
-  // hashrate will 1.37439e+10 Ghs ~ 13743895347 Ghs
-  h = share2HashrateG(32000000000, 10);
-  ASSERT_EQ((int64_t)h, 13743895347);
-
-  // if diff = 1, every 10 secons per share,
-  // hashrate will 0.429497 Ghs ~ 429 Mhs
-  h = share2HashrateG(1, 10);
-  ASSERT_EQ((int64_t)(h*1000), 429);
-}

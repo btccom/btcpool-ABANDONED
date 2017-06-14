@@ -120,12 +120,11 @@ StratumSession::StratumSession(evutil_socket_t fd, struct bufferevent *bev,
                                const int32_t shareAvgSeconds,
                                const uint32_t extraNonce1) :
 shareAvgSeconds_(shareAvgSeconds), diffController_(shareAvgSeconds_),
-shortJobIdIdx_(0u), agentSessions_(nullptr), isDead_(false),
+shortJobIdIdx_(0u), isDead_(false),
 invalidSharesCounter_(INVALID_SHARE_SLIDING_WINDOWS_SIZE),
 bev_(bev), fd_(fd), server_(server)
 {
   state_ = CONNECTED;
-  currTarget_  = arith_uint256();
   extraNonce1_ = extraNonce1;
 
   // usually stratum job interval is 30~60 seconds, 10 is enough for miners
@@ -135,7 +134,6 @@ bev_(bev), fd_(fd), server_(server)
 
   inBuf_  = evbuffer_new();
   isLongTimeout_    = false;
-  isNiceHashClient_ = false;
 
   clientAgent_ = "unknown";
   // ipv4
@@ -340,11 +338,11 @@ void StratumSession::_handleRequest_AuthorizePassword(const string &password) {
 
     if (arr2[0] == "t") {
       // 't' : start target
-      t = uint256(arr2[1]);
+      t = arith_uint256(arr2[1]);
     }
     else if (arr2[0] == "mt") {
       // 'mt' : minimum target
-      mt = uint256(arr2[1]);
+      mt = arith_uint256(arr2[1]);
     }
   }
 
@@ -354,8 +352,8 @@ void StratumSession::_handleRequest_AuthorizePassword(const string &password) {
   }
 
   // than set current diff
-  if (t >= DiffController::resetCurTarget) {
-    diffController_.resetCurDiff(d);
+  if (t >= DiffController::KMinTarget_) {
+    diffController_.resetCurTarget(t);
   }
 }
 
@@ -435,7 +433,7 @@ void StratumSession::handleRequest_SuggestTarget(const string &idStr,
     responseError(idStr, StratumError::ILLEGAL_PARARMS);
     return;
   }
-  diffController_.resetCurTarget(uint256(jparams.children()->at(0).str()));
+  diffController_.resetCurTarget(arith_uint256(jparams.children()->at(0).str()));
 }
 
 void StratumSession::handleRequest_Submit(const string &idStr,
@@ -557,7 +555,7 @@ finish:
       isSendShareToKafka = false;
 
       LOG(WARNING) << "invalid share spamming, diff: "
-      << share.share_ << ", uid: " << worker_.userId_
+      << BitsToDifficulty(share.jobBits_) << ", uid: " << worker_.userId_
       << ", uname: \""  << worker_.userName_ << "\", agent: \""
       << clientAgent_ << "\", ip: " << clientIp_;
     }
@@ -681,242 +679,4 @@ void StratumSession::readBuf(struct evbuffer *buf) {
 
 uint32_t StratumSession::getSessionId() const {
   return extraNonce1_;
-}
-
-
-///////////////////////////////// AgentSessions ////////////////////////////////
-AgentSessions::AgentSessions(const int32_t shareAvgSeconds,
-                             StratumSession *stratumSession)
-:shareAvgSeconds_(shareAvgSeconds), stratumSession_(stratumSession)
-{
-  kDefaultDiff2Exp_ = (uint8_t)log2(DiffController::kDefaultDiff_);
-
-  // we just pre-alloc all
-  workerIds_.resize(UINT16_MAX, 0);
-  diffControllers_.resize(UINT16_MAX, nullptr);
-  curDiff2ExpVec_.resize(UINT16_MAX, kDefaultDiff2Exp_);
-}
-
-AgentSessions::~AgentSessions() {
-  for (auto ptr : diffControllers_) {
-    if (ptr != nullptr) {
-      delete ptr;
-    }
-  }
-}
-
-int64_t AgentSessions::getWorkerId(const uint16_t sessionId) {
-  return workerIds_[sessionId];
-}
-
-void AgentSessions::handleExMessage_RegisterWorker(const string *exMessage) {
-  //
-  // CMD_REGISTER_WORKER:
-  // | magic_number(1) | cmd(1) | len (2) | session_id(2) | clientAgent | worker_name |
-  //
-  if (exMessage->size() < 8 || exMessage->size() > 100 /* 100 bytes is big enough */)
-    return;
-
-  const uint8_t *p = (uint8_t *)exMessage->data();
-  const uint16_t sessionId = *(uint16_t *)(p + 4);
-  if (sessionId > AGENT_MAX_SESSION_ID)
-    return;
-
-  // copy out string and make sure end with zero
-  string clientStr;
-  clientStr.append(exMessage->begin() + 6, exMessage->end());
-  clientStr[clientStr.size() - 1] = '\0';
-
-  // client agent
-  const char *clientAgentPtr = clientStr.c_str();
-  const string clientAgent = filterWorkerName(clientAgentPtr);
-
-  // worker name
-  string workerName;
-  if (strlen(clientAgentPtr) < clientStr.size() - 2) {
-    workerName = filterWorkerName(clientAgentPtr + strlen(clientAgentPtr) + 1);
-  }
-  if (workerName.empty())
-    workerName = DEFAULT_WORKER_NAME;
-
-  // worker Id
-  const int64_t workerId = StratumWorker::calcWorkerId(workerName);
-
-  DLOG(INFO) << "[agent] clientAgent: " << clientAgent
-  << ", workerName: " << workerName << ", workerId: "
-  << workerId << ", session id:" << sessionId;
-
-  // set sessionId -> workerId
-  workerIds_[sessionId] = workerId;
-
-  // deletes managed object
-  if (diffControllers_[sessionId] != nullptr) {
-    delete diffControllers_[sessionId];
-    diffControllers_[sessionId] = nullptr;
-  }
-
-  // acquires new pointer
-  assert(diffControllers_[sessionId] == nullptr);
-  diffControllers_[sessionId] = new DiffController(shareAvgSeconds_);
-
-  // set curr diff to default Diff
-  curDiff2ExpVec_[sessionId] = kDefaultDiff2Exp_;
-}
-
-void AgentSessions::handleExMessage_SubmitShare(const string *exMessage,
-                                                const bool isWithTime) {
-  //
-  // CMD_SUBMIT_SHARE / CMD_SUBMIT_SHARE_WITH_TIME:
-  // | magic_number(1) | cmd(1) | len (2) | jobId (uint8_t) | session_id (uint16_t) |
-  // | extra_nonce2 (uint32_t) | nNonce (uint32_t) | [nTime (uint32_t) |]
-  //
-  if (exMessage->size() != (isWithTime ? 19 : 15))
-    return;
-
-  const uint8_t *p = (uint8_t *)exMessage->data();
-  const uint8_t shortJobId = *(uint8_t  *)(p +  4);
-  const uint16_t sessionId = *(uint16_t *)(p +  5);
-  if (sessionId > AGENT_MAX_SESSION_ID)
-    return;
-
-  const uint32_t  exNonce2 = *(uint32_t *)(p +  7);
-  const uint32_t     nonce = *(uint32_t *)(p + 11);
-  const uint32_t time = (isWithTime == false ? 0 : *(uint32_t *)(p + 15));
-
-  const uint64_t fullExtraNonce2 = ((uint64_t)sessionId << 32) | (uint64_t)exNonce2;
-
-  // debug
-  string logLine = Strings::Format("[agent] shortJobId: %02x, sessionId: %08x"
-                                   ", exNonce2: %016llx, nonce: %08x, time: %08x",
-                                   shortJobId, (uint32_t)sessionId,
-                                   fullExtraNonce2, nonce, time);
-  DLOG(INFO) << logLine;
-
-  if (stratumSession_ != nullptr)
-    stratumSession_->handleRequest_Submit("null", shortJobId,
-                                          fullExtraNonce2, nonce, time,
-                                          true /* submit by agent's miner */,
-                                          diffControllers_[sessionId]);
-}
-
-void AgentSessions::handleExMessage_UnRegisterWorker(const string *exMessage) {
-  //
-  // CMD_UNREGISTER_WORKER:
-  // | magic_number(1) | cmd(1) | len (2) | session_id(2) |
-  //
-  if (exMessage->size() != 6)
-    return;
-
-  const uint8_t *p = (uint8_t *)exMessage->data();
-  const uint16_t sessionId = *(uint16_t *)(p +  4);
-  if (sessionId > AGENT_MAX_SESSION_ID)
-    return;
-
-  DLOG(INFO) << "[agent] sessionId: " << sessionId;
-
-  // un-register worker
-  workerIds_[sessionId] = 0;
-
-  // set curr diff to default Diff
-  curDiff2ExpVec_[sessionId] = kDefaultDiff2Exp_;
-
-  // release diff controller
-  if (diffControllers_[sessionId] != nullptr) {
-    delete diffControllers_[sessionId];
-    diffControllers_[sessionId] = nullptr;
-  }
-}
-
-void AgentSessions::calcSessionsJobDiff(vector<uint8_t> &sessionsDiff2Exp) {
-  sessionsDiff2Exp.clear();
-  sessionsDiff2Exp.resize(UINT16_MAX, kDefaultDiff2Exp_);
-
-  for (size_t i = 0; i < diffControllers_.size(); i++) {
-    if (diffControllers_[i] == nullptr) {
-      continue;
-    }
-    const uint64_t diff = diffControllers_[i]->calcCurDiff();
-    sessionsDiff2Exp[i] = (uint8_t)log2(diff);
-  }
-}
-
-void AgentSessions::getSessionsChangedDiff(const vector<uint8_t> &sessionsDiff2Exp,
-                                           string &data) {
-  vector<uint32_t> changedDiff2Exp;
-  changedDiff2Exp.resize(UINT16_MAX, 0u);
-  assert(curDiff2ExpVec_.size() == sessionsDiff2Exp.size());
-
-  // get changed diff and set to new diff
-  for (size_t i = 0; i < curDiff2ExpVec_.size(); i++) {
-    if (curDiff2ExpVec_[i] == sessionsDiff2Exp[i]) {
-      continue;
-    }
-    changedDiff2Exp[i] = sessionsDiff2Exp[i];
-    curDiff2ExpVec_[i] = sessionsDiff2Exp[i];  // set new diff
-  }
-
-  // diff_2exp -> session_id | session_id | ... | session_id
-  map<uint8_t, vector<uint16_t> > diffSessionIds;
-  for (uint32_t i = 0; i < changedDiff2Exp.size(); i++) {
-    if (changedDiff2Exp[i] == 0u) {
-      continue;
-    }
-    diffSessionIds[changedDiff2Exp[i]].push_back((uint16_t)i);
-  }
-
-  getSetDiffCommand(diffSessionIds, data);
-}
-
-void AgentSessions::getSetDiffCommand(map<uint8_t, vector<uint16_t> > &diffSessionIds,
-                                      string &data) {
-  //
-  // CMD_MINING_SET_DIFF:
-  // | magic_number(1) | cmd(1) | len (2) | diff_2_exp(1) | count(2) | session_id (2) ... |
-  //
-  //
-  // max session id count is 32,764, each message's max length is UINT16_MAX.
-  //     65535 -1-1-2-1-2 = 65,528
-  //     65,528 / 2 = 32,764
-  //
-  data.clear();
-  const size_t kMaxCount = 32764;
-
-  for (auto it = diffSessionIds.begin(); it != diffSessionIds.end(); it++) {
-
-    while (it->second.size() > 0) {
-      size_t count = std::min(kMaxCount, it->second.size());
-
-      string buf;
-      const uint16_t len = 1+1+2+1+2+ count * 2;
-      buf.resize(len);
-      uint8_t *p = (uint8_t *)buf.data();
-
-      // cmd
-      *p++ = CMD_MAGIC_NUMBER;
-      *p++ = CMD_MINING_SET_DIFF;
-
-      // len
-      *(uint16_t *)p = len;
-      p += 2;
-
-      // diff, 2 exp
-      *p++ = it->first;
-
-      // count
-      *(uint16_t *)p = (uint16_t)count;
-      p += 2;
-
-      // session ids
-      for (size_t j = 0; j < count; j++) {
-        *(uint16_t *)p = it->second[j];
-        p += 2;
-      }
-
-      // remove the first `count` elements from vector
-      it->second.erase(it->second.begin(), it->second.begin() + count);
-
-      data.append(buf);
-      
-    } /* /while */
-  } /* /for */
 }

@@ -275,7 +275,7 @@ void JobRepository::markAllJobsAsStale() {
   }
 }
 
-void JobRepository::checkAndSendMiningNotify() {
+void JobRepository::checkAndSendMiningNotifyInterval() {
   // last job is 'expried', send a new one
   if (exJobs_.size() &&
       lastJobSendTime_ + kMiningNotifyInterval_ <= time(nullptr))

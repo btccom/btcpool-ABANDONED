@@ -67,20 +67,12 @@ class AgentSessions;
 //////////////////////////////// DiffController ////////////////////////////////
 class DiffController {
 public:
-  static const arith_uint256 KMinTarget_ =
-  arith_uint256("007fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+  static const arith_uint256 KMinTarget_;
 
   static const int32_t kDiffWindow_    = 900;   // time window, seconds, 60*N
   static const int32_t kRecordSeconds_ = 10;    // every N seconds as a record
-#ifdef NDEBUG
-  // if not debugging
-  static const arith_uint256 kDefaultTarget_  =
-  arith_uint256("0007ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-#else
-  // debugging enabled
-  static const arith_uint256 kDefaultTarget_  =
-  arith_uint256("007fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-#endif	/* NDEBUG */
+
+  static const arith_uint256 kDefaultTarget_;
 
 private:
   time_t  startTime_;         // first job send time
@@ -124,7 +116,18 @@ public:
   // use when handle cmd: mining.suggest_target
   void resetCurTarget(arith_uint256 target);
 };
+// static vars
+const arith_uint256 DiffController::KMinTarget_ =
+arith_uint256("007fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 
+const arith_uint256 DiffController::kDefaultTarget_  =
+#ifdef NDEBUG
+// if not debugging
+arith_uint256("0007ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+#else
+// debugging enabled
+arith_uint256("007fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+#endif	/* NDEBUG */
 
 
 //////////////////////////////// StratumSession ////////////////////////////////

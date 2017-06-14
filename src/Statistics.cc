@@ -33,6 +33,7 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/thread.hpp>
 
+#include <assert.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -181,7 +182,7 @@ void StatsServer::processShare(const Share &share) {
   const time_t now = time(nullptr);
 
   // ignore too old shares
-  if (now > share.timestamp_ + STATS_SLIDING_WINDOW_SECONDS) {
+  if (now > share.shareTime_ + STATS_SLIDING_WINDOW_SECONDS) {
     return;
   }
   poolWorker_.processShare(share);
@@ -840,7 +841,7 @@ bool ShareLogWriter::flushToDisk() {
   std::set<FILE*> usedHandlers;
 
   for (const auto& share : shares_) {
-    const uint32_t ts = share.timestamp_ - (share.timestamp_ % 86400);
+    const uint32_t ts = share.shareTime_ - (share.shareTime_ % 86400);
     FILE *f = getFileHandler(ts);
     if (f == nullptr)
       return false;
@@ -1101,7 +1102,7 @@ void ShareLogParser::parseShare(const Share *share) {
   }
   pthread_rwlock_unlock(&rwlock_);
 
-  const uint32_t hourIdx = getHourIdx(share->timestamp_);
+  const uint32_t hourIdx = getHourIdx(share->shareTime_);
   workersStats_[wkey]->processShare(hourIdx, *share);
   workersStats_[ukey]->processShare(hourIdx, *share);
   workersStats_[pkey]->processShare(hourIdx, *share);
@@ -1202,7 +1203,7 @@ void ShareLogParser::generateHoursData(shared_ptr<ShareStatsDay> stats,
                                        vector<string> *valuesPoolHour) {
   assert(sizeof(stats->shareAccept1h_) / sizeof(stats->shareAccept1h_[0]) == 24);
   assert(sizeof(stats->shareReject1h_) / sizeof(stats->shareReject1h_[0]) == 24);
-  assert(sizeof(stats->earn1h_)        / sizeof(stats->earn1h_[0]         == 24);
+  assert(sizeof(stats->earn1h_)        / sizeof(stats->earn1h_[0])        == 24);
 
   string table, extraValues;
   // worker
@@ -1630,10 +1631,10 @@ void ShareLogParserServer::getShareStats(struct evbuffer *evb, const char *pUser
       	rejectRate = 1.0 * s->shareReject_ / (s->shareAccept_ + s->shareReject_);
 
       evbuffer_add_printf(evb,
-                          "%s{\"hour\":%d,\"accept\":%" PRIu64",\"reject\":%" PRIu64","
-                          "\"reject_rate\":%lf,\"earn\":%" PRId64"}",
+                          "%s{\"hour\":%d,\"accept\":%0.8f,\"reject\":%0.8f,"
+                          "\"reject_rate\":%0.6f,\"earn\":%" PRId64"}",
                           (j == 0 ? "" : ","), hour,
-                          s->shareAccept_, s->shareReject_, rejectRate, s->earn_);
+                          s->shareAccept_, s->shareReject_, rejectRate, (int64_t)s->earn_);
     }
     evbuffer_add_printf(evb, "]");
   }
@@ -1780,22 +1781,20 @@ void ShareLogParserServer::httpdServerStatus(struct evhttp_request *req, void *a
                       "\"data\":{\"uptime\":\"%04u d %02u h %02u m %02u s\","
                       "\"request\":%" PRIu64",\"repbytes\":%" PRIu64","
                       "\"pool\":{\"today\":{"
-                      "\"hashrate_t\":%lf,\"accept\":%" PRIu64","
-                      "\"reject\":%" PRIu64",\"reject_rate\":%lf,\"earn\":%" PRId64"},"
-                      "\"curr_hour\":{\"hashrate_t\":%lf,\"accept\":%" PRIu64","
-                      "\"reject\":%" PRIu64",\"reject_rate\":%lf,\"earn\":%" PRId64"}}"
+                      "\"accept\":%0.8f,\"reject\":%0.8f,"
+                      "\"reject_rate\":%0.6f,\"earn\":%" PRId64"},"
+                      "\"curr_hour\":{\"accept\":%0.8f,\"reject\":%0.8f,"
+                      "\"reject_rate\":%0.6f,\"earn\":%" PRId64"}}"
                       "}}",
                       s.uptime_/86400, (s.uptime_%86400)/3600,
                       (s.uptime_%3600)/60, s.uptime_%60,
                       s.requestCount_, s.responseBytes_,
                       // pool today
-                      share2HashrateT(s.stats[0].shareAccept_, now % 86400),
                       s.stats[0].shareAccept_,
-                      s.stats[0].shareReject_, rejectRate0, s.stats[0].earn_,
+                      s.stats[0].shareReject_, rejectRate0, (int64_t)s.stats[0].earn_,
                       // pool current hour
-                      share2HashrateT(s.stats[1].shareAccept_, now % 3600),
                       s.stats[1].shareAccept_,
-                      s.stats[1].shareReject_, rejectRate1, s.stats[1].earn_);
+                      s.stats[1].shareReject_, rejectRate1, (int64_t)s.stats[1].earn_);
 
   server->responseBytes_ += evbuffer_get_length(evb);
   evhttp_send_reply(req, HTTP_OK, "OK", evb);
