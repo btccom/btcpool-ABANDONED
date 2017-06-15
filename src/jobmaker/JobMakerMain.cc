@@ -118,6 +118,19 @@ int main(int argc, char **argv) {
     return(EXIT_FAILURE);
   }
 
+  signal(SIGTERM, handler);
+  signal(SIGINT,  handler);
+
+  // check if we are using testnet3
+  bool isTestnet3 = true;
+  cfg.lookupValue("testnet", isTestnet3);
+  if (isTestnet3) {
+    SelectParams(CBaseChainParams::TESTNET);
+    LOG(WARNING) << "using bitcoin testnet3";
+  } else {
+    SelectParams(CBaseChainParams::MAIN);
+  }
+
   try {
     // get lock from zookeeper
     gZookeeper = new Zookeeper(cfg.lookup("zookeeper.brokers"));
@@ -128,37 +141,21 @@ int main(int argc, char **argv) {
     return(EXIT_FAILURE);
   }
 
-  signal(SIGTERM, handler);
-  signal(SIGINT,  handler);
-
   try {
-    // check if we are using testnet3
-    bool isTestnet3 = true;
-    cfg.lookupValue("testnet", isTestnet3);
-    if (isTestnet3) {
-      SelectParams(CBaseChainParams::TESTNET);
-      LOG(WARNING) << "using bitcoin testnet3";
-    } else {
-      SelectParams(CBaseChainParams::MAIN);
-    }
-
     string fileLastJobTime;
-
     // with default values
     uint32_t stratumJobInterval = 20;  // seconds
     uint32_t gbtLifeTime        = 90;
     uint32_t emptyGbtLifeTime   = 15;
-    uint32_t blockVersion       = 0u;
 
     cfg.lookupValue("jobmaker.stratum_job_interval", stratumJobInterval);
     cfg.lookupValue("jobmaker.gbt_life_time",        gbtLifeTime);
     cfg.lookupValue("jobmaker.empty_gbt_life_time",  emptyGbtLifeTime);
     cfg.lookupValue("jobmaker.file_last_job_time",   fileLastJobTime);
-    cfg.lookupValue("jobmaker.block_version",        blockVersion);
 
-    gJobMaker = new JobMaker(cfg.lookup("kafka.brokers"), stratumJobInterval,
-                             cfg.lookup("pool.payout_address"), gbtLifeTime,
-                             emptyGbtLifeTime, fileLastJobTime, blockVersion);
+    gJobMaker = new JobMaker(cfg.lookup("kafka.brokers"),
+                             stratumJobInterval,
+                             gbtLifeTime, emptyGbtLifeTime, fileLastJobTime);
 
     if (!gJobMaker->init()) {
       LOG(FATAL) << "init failure";

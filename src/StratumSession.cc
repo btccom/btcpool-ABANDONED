@@ -347,14 +347,10 @@ void StratumSession::_handleRequest_AuthorizePassword(const string &password) {
   }
 
   // set min diff first
-  if (mt >= DiffController::KMinTarget_) {
-    diffController_.setMinTarget(mt);
-  }
+  diffController_.setMinTarget(mt);
 
   // than set current diff
-  if (t >= DiffController::KMinTarget_) {
-    diffController_.resetCurTarget(t);
-  }
+  diffController_.resetCurTarget(t);
 }
 
 void StratumSession::handleRequest_Authorize(const string &idStr,

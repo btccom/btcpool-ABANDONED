@@ -46,7 +46,7 @@ GbtMaker::GbtMaker(const string poolCoinbaseInfo, const string &poolPayoutAddr,
                    const string &zmqZcashdAddr,
                    const string &zcashdRpcAddr, const string &zcashdRpcUserpass,
                    const string &kafkaBrokers, uint32_t kRpcCallInterval,
-                   bool isCheckZmq)
+                   bool isCheckZmq, int32_t blockVersion)
 : running_(true),
 poolCoinbaseInfo_(poolCoinbaseInfo), poolPayoutAddr_(poolPayoutAddr),
 zmqContext_(1/*i/o threads*/),
@@ -54,7 +54,7 @@ zmqZcashdAddr_(zmqZcashdAddr), zcashdRpcAddr_(zcashdRpcAddr),
 zcashdRpcUserpass_(zcashdRpcUserpass), lastGbtMakeTime_(0), kRpcCallInterval_(kRpcCallInterval),
 kafkaBrokers_(kafkaBrokers),
 kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT, 0/* partition */),
-isCheckZmq_(isCheckZmq), blockVersion_(0)
+isCheckZmq_(isCheckZmq), blockVersion_(blockVersion)
 {
   if (poolCoinbaseInfo_.length() > 40) {
     poolCoinbaseInfo_.resize(40);

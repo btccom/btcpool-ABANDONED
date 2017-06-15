@@ -67,12 +67,12 @@ class AgentSessions;
 //////////////////////////////// DiffController ////////////////////////////////
 class DiffController {
 public:
-  static const arith_uint256 KMinTarget_;
+//  static const arith_uint256 KMinTarget_;
+  arith_uint256 KMinTarget_;
+  arith_uint256 kDefaultTarget_;
 
   static const int32_t kDiffWindow_    = 900;   // time window, seconds, 60*N
   static const int32_t kRecordSeconds_ = 10;    // every N seconds as a record
-
-  static const arith_uint256 kDefaultTarget_;
 
 private:
   time_t  startTime_;         // first job send time
@@ -90,6 +90,14 @@ private:
 
 public:
   DiffController(const int32_t shareAvgSeconds) :
+  KMinTarget_(arith_uint256("007fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")),
+#ifdef NDEBUG
+  // if not debugging
+  kDefaultTarget_(arith_uint256("0007ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")),
+#else
+  // debugging enabled
+  kDefaultTarget_(arith_uint256("007fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")),
+#endif	/* NDEBUG */
   startTime_(0),
   minTarget_(KMinTarget_), curTarget_(kDefaultTarget_),
   sharesNum_(kDiffWindow_/kRecordSeconds_) /* every N seconds as a record */
@@ -116,19 +124,6 @@ public:
   // use when handle cmd: mining.suggest_target
   void resetCurTarget(arith_uint256 target);
 };
-// static vars
-const arith_uint256 DiffController::KMinTarget_ =
-arith_uint256("007fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-
-const arith_uint256 DiffController::kDefaultTarget_  =
-#ifdef NDEBUG
-// if not debugging
-arith_uint256("0007ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-#else
-// debugging enabled
-arith_uint256("007fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-#endif	/* NDEBUG */
-
 
 //////////////////////////////// StratumSession ////////////////////////////////
 class StratumSession {

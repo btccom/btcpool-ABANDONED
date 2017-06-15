@@ -126,12 +126,18 @@ int main(int argc, char **argv) {
   cfg.lookupValue("gbtmaker.is_check_zmq", isCheckZmq);
   int32_t rpcCallInterval = 5;
   cfg.lookupValue("gbtmaker.rpcinterval", rpcCallInterval);
-  gGbtMaker = new GbtMaker(cfg.lookup("zcashd.zmq_addr"),
+  int32_t blockVersion = 0;
+  cfg.lookupValue("gbtmaker.block_version", blockVersion);
+
+  gGbtMaker = new GbtMaker(cfg.lookup("pool.coinbase_str"),
+                           cfg.lookup("pool.payout_address"),
+                           cfg.lookup("zcashd.zmq_addr"),
                            cfg.lookup("zcashd.rpc_addr"),
                            cfg.lookup("zcashd.rpc_userpwd"),
                            cfg.lookup("kafka.brokers"),
-                           rpcCallInterval, isCheckZmq);
-
+                           rpcCallInterval, isCheckZmq,
+                           blockVersion);
+  
   try {
     if (!gGbtMaker->init()) {
       LOG(FATAL) << "gbtmaker init failure";

@@ -69,7 +69,7 @@ public:
            const string &zmqZcashdAddr,
            const string &zcashdRpcAddr, const string &zcashdRpcUserpass,
            const string &kafkaBrokers, uint32_t kRpcCallInterval,
-           bool isCheckZmq);
+           bool isCheckZmq, int32_t blockVersion);
   ~GbtMaker();
 
   bool init();

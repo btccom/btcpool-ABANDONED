@@ -113,17 +113,17 @@ int main(int argc, char **argv) {
   signal(SIGTERM, handler);
   signal(SIGINT,  handler);
 
-  try {
-    // check if we are using testnet3
-    bool isTestnet3 = true;
-    cfg.lookupValue("testnet", isTestnet3);
-    if (isTestnet3) {
-      SelectParams(CBaseChainParams::TESTNET);
-      LOG(WARNING) << "using bitcoin testnet3";
-    } else {
-      SelectParams(CBaseChainParams::MAIN);
-    }
+  // check if we are using testnet3
+  bool isTestnet3 = true;
+  cfg.lookupValue("testnet", isTestnet3);
+  if (isTestnet3) {
+    SelectParams(CBaseChainParams::TESTNET);
+    LOG(WARNING) << "using bitcoin testnet3";
+  } else {
+    SelectParams(CBaseChainParams::MAIN);
+  }
 
+  try {
     int32_t            port = 3333;
     uint32_t       serverId = 0;
     int32_t shareAvgSeconds = 10;  // default share interval time 10 seconds
