@@ -108,6 +108,8 @@ const char * StratumError::toString(int err) {
       return "Time too old";
     case TIME_TOO_NEW:
       return "Time too new";
+    case INVALID_SOLUTION:
+      return "Invalid solution";
 
     case UNKNOWN: default:
       return "Unknown";

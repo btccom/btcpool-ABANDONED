@@ -31,6 +31,7 @@
 #include "zcash/arith_uint256.h"
 #include "zcash/utilstrencodings.h"
 #include "zcash/hash.h"
+#include "zcash/pow.h"
 
 #include "utilities_js.hpp"
 
@@ -997,9 +998,20 @@ int Server::checkShare(const Share &share,
   // get block hash
   uint256 blkHash = header.GetHash();
 
+  // Check Equihash solution is valid
+  if (CheckEquihashSolution(&header, Params()) == false) {
+    return StratumError::INVALID_SOLUTION;
+  }
+
+  // check POW
   const arith_uint256 bnBlockHash     = UintToArith256(blkHash);
   const arith_uint256 bnNetworkTarget = UintToArith256(BitsToTarget(share.blkBits_));
   const arith_uint256 bnJobTarget     = UintToArith256(BitsToTarget(share.jobBits_));
+
+  // check share diff
+  if (isEnableSimulator_ == false && bnBlockHash > bnJobTarget) {
+    return StratumError::LOW_DIFFICULTY;
+  }
 
   //
   // found new block
@@ -1035,11 +1047,6 @@ int Server::checkShare(const Share &share,
     << ", diff: "        << TargetToDifficulty(blkHash)
     << ", networkDiff: " << TargetToDifficulty(BitsToTarget(share.blkBits_))
     << ", by: " << workFullName;
-  }
-
-  // check share diff
-  if (isEnableSimulator_ == false && bnBlockHash > bnJobTarget) {
-    return StratumError::LOW_DIFFICULTY;
   }
 
   DLOG(INFO) << "blkHash: " << blkHash.ToString()
