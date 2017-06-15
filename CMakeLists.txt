@@ -8,12 +8,13 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 # cmake -DCMAKE_BUILD_TYPE=Release ..
 #
 message("CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
+# -DCURVE_ALT_BN128 -DBINARY_OUTPUT -DNO_PT_COMPRESSION=1 is for libsnark
 IF(CMAKE_BUILD_TYPE MATCHES Debug)
   message("Debug build.")
-  set(CMAKE_CXX_FLAGS "-fpermissive -g -O0 -Wall")
+  set(CMAKE_CXX_FLAGS "-fpermissive -g -O0 -Wall -DCURVE_ALT_BN128 -DBINARY_OUTPUT -DNO_PT_COMPRESSION=1")
 ELSEIF(CMAKE_BUILD_TYPE MATCHES Release)
   message("Release build.")
-  set(CMAKE_CXX_FLAGS "-fpermissive -O2 -Wall")
+  set(CMAKE_CXX_FLAGS "-fpermissive -O2 -Wall -DCURVE_ALT_BN128 -DBINARY_OUTPUT -DNO_PT_COMPRESSION=1")
 ELSE()
   message("Some other build type.")
 ENDIF()
@@ -30,6 +31,8 @@ if (NOT EXISTS ${secp256k1_LIBRARIES})
   execute_process(WORKING_DIRECTORY "${secp256k1_DIR}" COMMAND ./configure)
   execute_process(WORKING_DIRECTORY "${secp256k1_DIR}" COMMAND make)
 endif()
+
+set(libsnark_LIBRARIES "${CMAKE_CURRENT_BINARY_DIR}/libsnark-9ada3f84ab484c57b2247c2f41091fd6a0916573/libsnark.a")
 
 find_package(OpenSSL)
 if(NOT OPENSSL_FOUND)
@@ -76,11 +79,16 @@ if(NOT KAFKA_FOUND)
   message(FATAL_ERROR "librdkafka not found!")
 endif(NOT KAFKA_FOUND)
 
+find_package(libsodium)
+if(NOT LIBSODIUM_FOUND)
+  message(FATAL_ERROR "libsodium not found!")
+endif(NOT LIBSODIUM_FOUND)
+
 execute_process(COMMAND mysql_config --libs_r OUTPUT_VARIABLE MYSQL_LIB OUTPUT_STRIP_TRAILING_WHITESPACE)
 execute_process(COMMAND mysql_config --include OUTPUT_VARIABLE MYSQL_INCLUDE OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-include_directories(src test src/zcash src/zcash/secp256k1/include ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS} ${LIBEVENT_INCLUDE_DIR} ${MYSQL_INCLUDE})
-set(THIRD_LIBRARIES ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${ZOOKEEPER_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB} ${secp256k1_LIBRARIES} pthread mysqlclient gmp)
+include_directories(src test src/zcash src/zcash/secp256k1/include src/libsnark ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS} ${LIBEVENT_INCLUDE_DIR} ${MYSQL_INCLUDE} ${LIBSODIUM_INCLUDE_DIRS})
+set(THIRD_LIBRARIES ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${ZOOKEEPER_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB} ${secp256k1_LIBRARIES} ${LIBSODIUM_LIBRARIES} ${libsnark_LIBRARIES} pthread mysqlclient gmp gomp)
 
 file(GLOB LIB_SOURCES src/*.cc src/zcash/*.cpp src/zcash/consensus/*.cpp src/zcash/crypto/*.cpp src/zcash/primitives/*.cpp src/zcash/script/*.cpp src/zcash/support/*.cpp src/zcash/zcash/*.cpp)
 add_library(zecpool STATIC ${LIB_SOURCES})
