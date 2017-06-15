@@ -101,10 +101,6 @@ file(GLOB_RECURSE GBTMAKER_SOURCES src/gbtmaker/*.cc)
 add_executable(gbtmaker ${GBTMAKER_SOURCES})
 target_link_libraries(gbtmaker zecpool ${THIRD_LIBRARIES})
 
-file(GLOB_RECURSE NMC_AUXBLOCK_MAKER_SOURCES src/nmcauxmaker/*.cc)
-add_executable(nmcauxmaker ${NMC_AUXBLOCK_MAKER_SOURCES})
-target_link_libraries(nmcauxmaker zecpool ${THIRD_LIBRARIES})
-
 file(GLOB_RECURSE JOBMAKER_SOURCES src/jobmaker/*.cc)
 add_executable(jobmaker ${JOBMAKER_SOURCES})
 target_link_libraries(jobmaker zecpool ${THIRD_LIBRARIES})
