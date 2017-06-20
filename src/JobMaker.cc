@@ -200,7 +200,7 @@ void JobMaker::addRawgbt(const char *str, size_t len) {
     return;
   }
 
-  const uint256 originalBlockHash = uint256S(r["original_block_hash"].str());
+  const uint256 originalBlockHash = uint256S(r["original_hash"].str());
   for (const auto &itr : lastestOriginalBlockHash_) {
     if (originalBlockHash == itr) {
       LOG(ERROR) << "duplicate original block hash: " << originalBlockHash.ToString();

@@ -217,7 +217,7 @@ string GbtMaker::makeRawGbtMsg() {
     nVersion = jgbt["version"].uint32();
   }
   assert(nVersion != 0);
-  const uint32_t nBits   = jgbt["bits"].uint32();
+  const uint32_t nBits   = jgbt["bits"].uint32_hex();
   const uint32_t nTime   = jgbt["curtime"].uint32();
   const uint32_t minTime = jgbt["mintime"].uint32();
   const uint32_t maxTime = nTime + 2*60*60 - 60/* sanitly */;
