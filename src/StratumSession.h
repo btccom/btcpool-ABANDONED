@@ -141,22 +141,25 @@ public:
     // NONCE 2 is fixed 16 bytes, use two uint64_t instead
     uint64_t nonce2_1_;
     uint64_t nonce2_2_;
-    uint32_t nTime_;
+    uint64_t timeAndSolutionCrc_;
 
-    LocalShare(uint64_t nonce2_1, uint64_t nonce2_2, uint32_t time):
-    nonce2_1_(nonce2_1), nonce2_2_(nonce2_2), nTime_(time) {}
+    LocalShare(uint64_t nonce2_1, uint64_t nonce2_2,
+               uint32_t time, uint32_t solutionCrc):
+    nonce2_1_(nonce2_1), nonce2_2_(nonce2_2) {
+      timeAndSolutionCrc_ = ((uint64_t)solutionCrc << 32) + (uint64_t)time;
+    }
 
     LocalShare & operator=(const LocalShare &other) {
       nonce2_1_ = other.nonce2_1_;
       nonce2_2_ = other.nonce2_2_;
-      nTime_    = other.nTime_;
+      timeAndSolutionCrc_ = other.timeAndSolutionCrc_;
       return *this;
     }
 
     bool operator<(const LocalShare &r) const {
       if (nonce2_1_ < r.nonce2_1_ ||
           (nonce2_1_ == r.nonce2_1_ && nonce2_2_ < r.nonce2_2_) ||
-          (nonce2_1_ == r.nonce2_1_ && nonce2_2_ == r.nonce2_2_ && nTime_ < r.nTime_)) {
+          (nonce2_1_ == r.nonce2_1_ && nonce2_2_ == r.nonce2_2_ && timeAndSolutionCrc_ < r.timeAndSolutionCrc_)) {
         return true;
       }
       return false;
@@ -257,7 +260,8 @@ public:
 
   void handleRequest_Submit(const string &idStr,
                             const uint16_t shortJobId,
-                            const string &nonce2hex, const string &solution,
+                            const string &nonce2hex,
+                            const std::vector<unsigned char> &solution,
                             const uint32_t nTime);
   uint32_t getSessionId() const;
 };

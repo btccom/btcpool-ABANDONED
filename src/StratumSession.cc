@@ -440,6 +440,34 @@ void StratumSession::handleRequest_SuggestTarget(const string &idStr,
   diffController_.resetCurTarget(arith_uint256(jparams.children()->at(0).str()));
 }
 
+static
+int32_t getSolutionVintSize() {
+  //
+  // put solution, see more:
+  // https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
+  //
+  const CChainParams& chainparams = Params();
+
+  if (chainparams.EquihashN() == 200 && chainparams.EquihashK() == 9) {
+    // for mainnet and testnet3, nEquihashN(200) and nEquihashK(9) is the same value.
+    // the client return the solution alwasy start with: "fd4005".
+    //
+    // 0xFD followed by the length as uint16_t, 0x4005 -> 0x0540 = 1344
+    // N = 200, K = 9, N / (K + 1) + 1 = 21
+    // 21 bits * 2^9 / 8 = 1344 bytes
+    //
+    // solution is two parts: 3 bytes(1344_vint) + 1344 bytes
+    return 3;
+  } else if (chainparams.EquihashN() == 48 && chainparams.EquihashK() == 5) {
+    // for Regression testnet: const size_t N = 48, K = 5;
+    // N = 48, K = 5, N / (K + 1) + 1 = 9
+    // 9 bits * 2^5 / 8 = 36 bytes = 0x24
+    // the client return the solution alwasy start with: "24", 1 bytes
+    return 1;
+  }
+  return 3; // default size
+}
+
 void StratumSession::handleRequest_Submit(const string &idStr,
                                           const JsonNode &jparams) {
   if (state_ != AUTHENTICATED) {
@@ -467,12 +495,15 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   const uint16_t shortJobId = (uint16_t)jparams.children()->at(1).uint32_hex();
   const uint32_t nTime      = SwapUint(jparams.children()->at(2).uint32_hex());
   const string nonce2hex    = jparams.children()->at(3).str();
-  const string solution     = jparams.children()->at(4).str();
+  const string solutionStr  = jparams.children()->at(4).str();
 
   if (nonce2hex.length() != 16*2) {
     responseError(idStr, StratumError::ILLEGAL_PARARMS);
     return;
   }
+
+  const int32_t solutionVintSize = getSolutionVintSize();
+  const std::vector<unsigned char> solution = ParseHex(solutionStr.substr(solutionVintSize*2));
 
   handleRequest_Submit(idStr, shortJobId, nonce2hex, solution, nTime);
 }
@@ -480,7 +511,7 @@ void StratumSession::handleRequest_Submit(const string &idStr,
 void StratumSession::handleRequest_Submit(const string &idStr,
                                           const uint16_t shortJobId,
                                           const string &nonce2hex,
-                                          const string &solution,
+                                          const std::vector<unsigned char> &solution,
                                           const uint32_t nTime) {
   LocalJob *localJob = findLocalJob(shortJobId);
   if (localJob == nullptr) {
@@ -515,7 +546,8 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   int submitResult;
   LocalShare localShare(strtoul(nonce2hex.substr(0 , 16).c_str(), nullptr, 16),
                         strtoul(nonce2hex.substr(16, 16).c_str(), nullptr, 16),
-                        nTime);
+                        nTime,
+                        crc32c(solution.data(), solution.size()));
 
   // can't add local share, duplicate
   if (!localJob->addLocalShare(localShare)) {

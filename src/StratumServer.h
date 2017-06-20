@@ -269,7 +269,7 @@ public:
   int checkShare(const Share &share,
                  const uint32_t nonce1,
                  const string &nonce2hex,
-                 const string &solution,
+                 const std::vector<unsigned char> &solution,
                  const uint32_t nTime,
                  const string &workFullName);
   void sendShare2Kafka      (const uint8_t *data, size_t len);

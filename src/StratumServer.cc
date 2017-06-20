@@ -29,7 +29,6 @@
 #include "Utils.h"
 
 #include "zcash/arith_uint256.h"
-#include "zcash/utilstrencodings.h"
 #include "zcash/hash.h"
 #include "zcash/pow.h"
 
@@ -948,38 +947,10 @@ void Server::eventCallback(struct bufferevent* bev, short events,
   server->removeConnection(conn->fd_);
 }
 
-static
-int32_t getSolutionVintSize() {
-  //
-  // put solution, see more:
-  // https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
-  //
-  const CChainParams& chainparams = Params();
-
-  if (chainparams.EquihashN() == 200 && chainparams.EquihashK() == 9) {
-    // for mainnet and testnet3, nEquihashN(200) and nEquihashK(9) is the same value.
-    // the client return the solution alwasy start with: "fd4005".
-    //
-    // 0xFD followed by the length as uint16_t, 0x4005 -> 0x0540 = 1344
-    // N = 200, K = 9, N / (K + 1) + 1 = 21
-    // 21 bits * 2^9 / 8 = 1344 bytes
-    //
-    // solution is two parts: 3 bytes(1344_vint) + 1344 bytes
-    return 3;
-  } else if (chainparams.EquihashN() == 48 && chainparams.EquihashK() == 5) {
-    // for Regression testnet: const size_t N = 48, K = 5;
-    // N = 48, K = 5, N / (K + 1) + 1 = 9
-    // 9 bits * 2^5 / 8 = 36 bytes = 0x24
-    // the client return the solution alwasy start with: "24", 1 bytes
-    return 1;
-  }
-  return 3; // default size
-}
-
 int Server::checkShare(const Share &share,
                        const uint32_t nonce1,
                        const string &nonce2hex,
-                       const string &solution,
+                       const std::vector<unsigned char> &solution,
                        const uint32_t nTime,
                        const string &workFullName) {
   shared_ptr<StratumJobEx> exJobPtr = jobRepository_->getStratumJobEx(share.jobId_);
@@ -1002,8 +973,7 @@ int Server::checkShare(const Share &share,
   // put nonce & nTime
   exJobPtr->generateBlockHeader(&header, nonce1, nonce2hex, nTime);
   // put solution
-  const int32_t solutionVintSize = getSolutionVintSize();
-  header.nSolution = ParseHex(solution.substr(solutionVintSize*2));
+  header.nSolution = solution;
 
   // get block hash
   uint256 blkHash = header.GetHash();
