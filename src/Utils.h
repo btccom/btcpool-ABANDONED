@@ -86,4 +86,6 @@ string getNotifyUint32Str(const uint32_t var);
 
 bool DecodeHexHeader(CBlockHeader& header, const std::string& strHexHeader);
 
+uint32_t crc32c(const unsigned char *buf, size_t len);
+
 #endif
