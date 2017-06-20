@@ -185,26 +185,6 @@ int64_t StratumWorker::calcWorkerId(const string &workerName) {
 
 
 //////////////////////////////////  StratumJob  ////////////////////////////////
-static
-bool DecodeHexHeader(CBlockHeader& header, const std::string& strHexHeader)
-{
-  if (!IsHex(strHexHeader))
-    return false;
-
-  std::vector<unsigned char> data(ParseHex(strHexHeader));
-  CDataStream ssHeader(data, SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
-  try {
-    ssHeader >> header;
-  }
-  catch (const std::exception&) {
-    return false;
-  }
-
-  return true;
-}
-
-//-----------------------------------------------------------------
-
 StratumJob::StratumJob() {
   SetNull();
 }
@@ -257,10 +237,10 @@ bool StratumJob::unserializeFromJson(const char *s, size_t len) {
 
   jobId_        = j["jobId"].uint64();
   originalHash_ = j["originalHash"].str();
-  minTime_      = j["min_time"].uint32();
-  maxTime_      = j["max_time"].uint32();
   height_       = j["height"].int32();
-  txCount_      = j["tx_count"].int32();
+  txCount_      = j["txCount"].int32();
+  minTime_      = j["minTime"].uint32();
+  maxTime_      = j["maxTime"].uint32();
 
   if (DecodeHexHeader(header_, j["header"].str()) == false) {
     goto error;

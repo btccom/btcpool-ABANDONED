@@ -32,6 +32,7 @@
 #include "zcash/util.h"
 #include "zcash/utilstrencodings.h"
 #include "zcash/streams.h"
+#include "zcash/primitives/block.h"
 
 #include "zmq.hpp"
 
@@ -80,6 +81,9 @@ public:
 
 bool fileExists(const char* file);
 
-string hash2BEStr(const uint256 &hash);
+string getNotifyHashStr(const uint256 &hash);
+string getNotifyUint32Str(const uint32_t var);
+
+bool DecodeHexHeader(CBlockHeader& header, const std::string& strHexHeader);
 
 #endif

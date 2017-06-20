@@ -323,15 +323,40 @@ bool fileExists(const char* file) {
   return (stat(file, &buf) == 0);
 }
 
-string hash2BEStr(const uint256 &hash) {
+string getNotifyHashStr(const uint256 &hash) {
   // we need to convert to little-endian
   // 00000000000000000328e9fea9914ad83b7404a838aa66aefb970e5689c2f63d
   // 89c2f63dfb970e5638aa66ae3b7404a8a9914ad80328e9fe0000000000000000
   string str;
   for (int i = 0; i < 8; i++) {
     uint32 a = *(uint32 *)(BEGIN(hash) + i * 4);
-    a = HToBe(a);
     str += HexStr(BEGIN(a), END(a));
   }
   return str;
+}
+
+string getNotifyUint32Str(const uint32_t var) {
+  string str;
+
+  uint32 a = *(uint32 *)(BEGIN(var));
+  str += HexStr(BEGIN(a), END(a));
+
+  return str;
+}
+
+bool DecodeHexHeader(CBlockHeader& header, const std::string& strHexHeader)
+{
+  if (!IsHex(strHexHeader))
+    return false;
+
+  std::vector<unsigned char> data(ParseHex(strHexHeader));
+  CDataStream ssHeader(data, SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
+  try {
+    ssHeader >> header;
+  }
+  catch (const std::exception&) {
+    return false;
+  }
+
+  return true;
 }
