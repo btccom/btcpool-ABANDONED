@@ -278,6 +278,11 @@ void StratumSession::handleRequest(const string &idStr, const string &method,
   }
   else if (method == "mining.suggest_target") {
     handleRequest_SuggestTarget(idStr, jparams);
+  }
+  else if (method == "mining.extranonce.subscribe") {
+    // ignore method: mining.extranonce.subscribe
+    LOG(INFO) << "ignore method: mining.extranonce.subscribe"
+    << ", client: " << clientIp_ << "/" << clientAgent_;
   } else {
     // unrecognised method, just ignore it
     LOG(WARNING) << "unrecognised method: \"" << method << "\""
@@ -605,7 +610,6 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr,
   ljob.shortJobId_ = allocShortJobId();
 
   // check if we need to 'mining.set_target'
-  DLOG(INFO) << "currJobBits_: " << currJobBits_ << ", ljob.jobBits_: " << ljob.jobBits_;
   if (currJobBits_ != ljob.jobBits_) {
     sendSetTarget(ljob.jobBits_);
     currJobBits_ = ljob.jobBits_;
