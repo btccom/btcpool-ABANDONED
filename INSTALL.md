@@ -6,12 +6,12 @@ Install BTC.COM Pool
 
 ## Build
 
-If you are the first time build btcpool, you could run `bash install/install_btcpool.sh` instead of exec these shell commands one by one.
+If you are the first time build zecpool, you could run `bash install/install_zecpool.sh` instead of exec these shell commands one by one.
 
 ```
 cd /work
-wget https://raw.githubusercontent.com/btccom/btcpool/master/install/install_btcpool.sh
-bash ./install_btcpool.sh
+wget https://raw.githubusercontent.com/btccom/zecpool/master/install/install_zecpool.sh
+bash ./install_zecpool.sh
 ```
 
 ### Dependency
@@ -80,12 +80,12 @@ make
 make install
 ```
 
-### btcpool
+### zecpool
 
 ```
 mkdir -p /work && cd /work
-git clone https://github.com/btccom/btcpool.git
-cd /work/btcpool
+git clone https://github.com/btccom/zecpool.git
+cd /work/zecpool
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
 make
@@ -93,18 +93,18 @@ make
 
 ---
 
-## Init btcpool
+## Init zecpool
 
-Now create folder for btcpool, if you are going to run all service in one machine you could run `install/init_folders.sh` as below.
+Now create folder for zecpool, if you are going to run all service in one machine you could run `install/init_folders.sh` as below.
 
 ```
-cd /work/btcpool/build
+cd /work/zecpool/build
 bash ../install/init_folders.sh
 ```
 
 **create kafka topics**
 
-Login to one of kafka machines, than create topics for `btcpool`:
+Login to one of kafka machines, than create topics for `zecpool`:
 
 ```
 cd /work/kafka
@@ -112,18 +112,16 @@ cd /work/kafka
 #
 # "10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181" is ZooKeeper cluster.
 #
-./bin/kafka-topics.sh --create --topic RawGbt         --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
-./bin/kafka-topics.sh --create --topic StratumJob     --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1 
-./bin/kafka-topics.sh --create --topic SolvedShare    --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 3 --partitions 1 
-./bin/kafka-topics.sh --create --topic ShareLog       --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
-./bin/kafka-topics.sh --create --topic NMCAuxBlock    --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
-./bin/kafka-topics.sh --create --topic NMCSolvedShare --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
-./bin/kafka-topics.sh --create --topic CommonEvents   --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic ZEC_RawGbt         --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic ZEC_StratumJob     --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1 
+./bin/kafka-topics.sh --create --topic ZEC_SolvedShare    --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 3 --partitions 1 
+./bin/kafka-topics.sh --create --topic ZEC_ShareLog       --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic ZEC_CommonEvents   --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
 
 # do not keep 'RawGbt' message more than 12 hours
-./bin/kafka-topics.sh --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --alter --topic RawGbt       --config retention.ms=43200000
+./bin/kafka-topics.sh --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --alter --topic ZEC_RawGbt       --config retention.ms=43200000
 # 'CommonEvents': 24 hours
-./bin/kafka-topics.sh --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --alter --topic CommonEvents --config retention.ms=86400000
+./bin/kafka-topics.sh --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --alter --topic ZEC_CommonEvents --config retention.ms=86400000
 ```
 
 Check kafka topics stutus:
@@ -147,23 +145,23 @@ Topic:NMCSolvedShare     PartitionCount:1         ReplicationFactor:3      Confi
          Topic: NMCSolvedShare    Partition: 0     Leader: 3        Replicas: 3,1  Isr: 3,1
 ```
 
-Before you start btcpool's services, you need to stetup MySQL database and bitcoind/namecoind (if enable merged mining).
+Before you start zecpool's services, you need to stetup MySQL database and bitcoind/namecoind (if enable merged mining).
 
 Init MySQL database tables.
 
 ```
 #
-# create database `bpool_local_db` and `bpool_local_stats_db`
+# create database `zpool_local_db` and `zpool_local_stats_db`
 #
 
 #
 # than create tables from sql
 #
-# bpool_local_db
-mysql -uxxxx -p -h xxx.xxx.xxx bpool_local_db       < install/bpool_local_db.sql
+# zpool_local_db
+mysql -uxxxx -p -h xxx.xxx.xxx zpool_local_db       < install/zpool_local_db.sql
 
-# bpool_local_stats_db
-mysql -uxxxx -p -h xxx.xxx.xxx bpool_local_stats_db < install/bpool_local_stats_db.sql
+# zpool_local_stats_db
+mysql -uxxxx -p -h xxx.xxx.xxx zpool_local_stats_db < install/zpool_local_stats_db.sql
 
 ```
 
@@ -200,7 +198,7 @@ apt-get install supervisor
 # in the [supervisord] section, add 'minfds=65535'.
 # $ service supervisor restart
 #
-cd /work/btcpool/build
+cd /work/zecpool/build
 
 
 ################################################################################
@@ -255,14 +253,14 @@ $ supervisorctl
 > status
 ```
 
-## Upgrade btcpool
+## Upgrade zecpool
 
 Check release note and upgrade guide. Maybe add some config options to config file or change something of database table. 
 
 Get the latest codes and rebuild:
 
 ```
-cd /work/btcpool/build
+cd /work/zecpool/build
 git pull
 cmake -DCMAKE_BUILD_TYPE=Release ..
 make

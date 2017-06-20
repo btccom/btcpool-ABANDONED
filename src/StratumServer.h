@@ -223,7 +223,6 @@ class Server {
   // kafka producers
   KafkaProducer *kafkaProducerShareLog_;
   KafkaProducer *kafkaProducerSolvedShare_;
-  KafkaProducer *kafkaProducerNamecoinSolvedShare_;
   KafkaProducer *kafkaProducerCommonEvents_;
 
   //
