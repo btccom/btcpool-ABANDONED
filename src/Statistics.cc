@@ -1245,7 +1245,7 @@ void ShareLogParser::generateHoursData(shared_ptr<ShareStatsDay> stats,
       const string nowStr   = date("%F %T");
 
       valuesStr = Strings::Format("%s %d,"
-                                  "%lf,%lf,%lf"
+                                  "%lf,%lf,%lf,"
                                   "% " PRId64",'%s','%s'",
                                   extraValues.c_str(), hour,
                                   accept, reject, rejectRate,
