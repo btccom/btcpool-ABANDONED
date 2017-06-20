@@ -52,6 +52,7 @@
 #include "zcash/arith_uint256.h"
 #include "zcash/chainparams.h"
 #include "zcash/uint256.h"
+#include "zcash/utilstrencodings.h"
 
 using std::string;
 using std::vector;
@@ -83,20 +84,16 @@ typedef unique_lock<mutex> UniqueLock;
 typedef condition_variable Condition;
 
 
-/**
- * byte order conversion utils
- */
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-inline uint16 HToBe(uint16 v) {
+inline uint16 SwapUint(uint16 v) {
   return (v >> 8) | (v << 8);
 }
-inline uint32 HToBe(uint32 v) {
+inline uint32 SwapUint(uint32 v) {
   return ((v & 0xff000000) >> 24) |
   ((v & 0x00ff0000) >> 8) |
   ((v & 0x0000ff00) << 8) |
   ((v & 0x000000ff) << 24);
 }
-inline uint64 HToBe(uint64 v) {
+inline uint64 SwapUint(uint64 v) {
   return ((v & 0xff00000000000000ULL) >> 56) |
   ((v & 0x00ff000000000000ULL) >> 40) |
   ((v & 0x0000ff0000000000ULL) >> 24) |
@@ -106,25 +103,14 @@ inline uint64 HToBe(uint64 v) {
   ((v & 0x000000000000ff00ULL) << 40) |
   ((v & 0x00000000000000ffULL) << 56);
 }
-#else
-inline uint16 HToBe(uint16 v) {
-  return v;
-}
-inline uint32 HToBe(uint32 v) {
-  return v;
-}
-inline uint64 HToBe(uint64 v) {
-  return v;
-}
-#endif
-inline int16 HToBe(int16 v) {
-  return (int16)HToBe((uint16)v);
-}
-inline int32 HToBe(int32 v) {
-  return (int32)HToBe((uint32)v);
-}
-inline int64 HToBe(int64 v) {
-  return (int64)HToBe((uint64)v);
+
+inline uint256 SwapUint(uint256 &hash) {
+  uint256 h;
+  for (int i = 0; i < 8; i++) {
+    uint32 a = *(uint32 *)(BEGIN(hash) + i * 4);
+    *(uint32 *)(BEGIN(h) + (7 - i) * 4) = SwapUint(a);
+  }
+  return h;
 }
 
 double BitsToDifficulty(uint32 bits);
