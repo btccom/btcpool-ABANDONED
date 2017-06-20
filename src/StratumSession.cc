@@ -32,21 +32,21 @@
 
 
 //////////////////////////////// DiffController ////////////////////////////////
-void DiffController::setMinTarget(arith_uint256 target) {
-  if (target < KMinTarget_) {
-    target = KMinTarget_;
+void DiffController::setMaxTarget(arith_uint256 target) {
+  if (target > KMaxTarget_) {
+    target = KMaxTarget_;
   }
-  minTarget_ = target;
+  maxTarget_ = target;
 }
 
 void DiffController::resetCurTarget(arith_uint256 target) {
-  // don't less than system min target
-  if (target < KMinTarget_) {
-    target = KMinTarget_;
+  // don't large than system max target
+  if (target > KMaxTarget_) {
+    target = KMaxTarget_;
   }
-  // don't less than use's min target
-  if (target < minTarget_) {
-    target = minTarget_;
+  // don't large than use's max target
+  if (target > maxTarget_) {
+    target = maxTarget_;
   }
 
   // set to zero
@@ -62,8 +62,8 @@ void DiffController::addAcceptedShare() {
 // call this function everytime before send 'notify.mininig'
 uint32_t DiffController::calcCurBits() {
   arith_uint256 target = _calcCurTarget();
-  if (target < minTarget_) {
-    target = minTarget_;
+  if (target > maxTarget_) {
+    target = maxTarget_;
   }
   return TargetToBits(ArithToUint256(target));
 }
@@ -83,8 +83,8 @@ arith_uint256 DiffController::_calcCurTarget() {
   // this is for very low hashrate miner, should received at least one share every 60 seconds
   if (!isFullWindow(now) && now >= startTime_ + 60 &&
       sharesCount <= (int32_t)((now - startTime_)/60.0) &&
-      curTarget_ >= minTarget_*2) {
-    curTarget_ /= 2;
+      curTarget_*2 <= maxTarget_) {
+    curTarget_ *= 2;
     sharesNum_.mapMultiply(2.0);
     return curTarget_;
   }
@@ -92,20 +92,20 @@ arith_uint256 DiffController::_calcCurTarget() {
   // too fast
   if (sharesCount > expectedCount * kRateHigh) {
     while (sharesNum_.sum(k) > expectedCount) {
-      curTarget_ *= 2;
+      curTarget_ /= 2;
       sharesNum_.mapDivide(2.0);
     }
     return curTarget_;
   }
 
   // too slow
-  if (isFullWindow(now) && curTarget_ >= minTarget_*2) {
+  if (isFullWindow(now) && curTarget_ <= maxTarget_*2) {
     while (sharesNum_.sum(k) < expectedCount * kRateLow &&
-           curTarget_ >= minTarget_*2) {
-      curTarget_ /= 2;
+           curTarget_*2 <= maxTarget_) {
+      curTarget_ *= 2;
       sharesNum_.mapMultiply(2.0);
     }
-    assert(curTarget_ >= minTarget_);
+    assert(curTarget_ <= maxTarget_);
     return curTarget_;
   }
 
@@ -126,6 +126,7 @@ bev_(bev), fd_(fd), server_(server)
 {
   state_ = CONNECTED;
   extraNonce1_ = extraNonce1;
+  currJobBits_ = 0u;
 
   // usually stratum job interval is 30~60 seconds, 10 is enough for miners
   // should <= 10, we use short_job_id,  range: [0 ~ 9]. do NOT change it.
@@ -310,8 +311,8 @@ void StratumSession::handleRequest_Subscribe(const string &idStr,
   // SESSION_ID:
   //   Servers MAY set SESSION_ID to null to indicate that they do not support session resuming.
   //
-  const string s = Strings::Format("{\"id\":%s,\"result\":[null,\"%08x%08x\"],\"error\":null}\n",
-                                   idStr.c_str(), 0u, extraNonce1_);
+  const string s = Strings::Format("{\"id\":%s,\"result\":[null,\"%08x%08x%08x%08x\"],\"error\":null}\n",
+                                   idStr.c_str(), 0u, 0u, 0u, extraNonce1_);
   sendData(s);
 
   if (clientAgent_ == "__PoolWatcher__") {
@@ -323,7 +324,7 @@ void StratumSession::_handleRequest_AuthorizePassword(const string &password) {
   // testcase: TEST(StratumSession, SetDiff)
   using namespace boost::algorithm;
 
-  arith_uint256 t, mt;  // target, min_target
+  arith_uint256 t = 0, mt = 0;  // target, max_target
   vector<string> arr;   // key=value,key=value
   split(arr, password, is_any_of(","));
   if (arr.size() == 0)
@@ -336,21 +337,23 @@ void StratumSession::_handleRequest_AuthorizePassword(const string &password) {
       continue;
     }
 
-    if (arr2[0] == "t") {
+    if (arr2[0] == "t" && arr2[1].length() == 64) {
       // 't' : start target
       t = arith_uint256(arr2[1]);
     }
-    else if (arr2[0] == "mt") {
-      // 'mt' : minimum target
+    else if (arr2[0] == "mt" && arr2[1].length() == 64) {
+      // 'mt' : max target
       mt = arith_uint256(arr2[1]);
     }
   }
 
-  // set min diff first
-  diffController_.setMinTarget(mt);
+  // set max diff first
+  if (mt != 0)
+    diffController_.setMaxTarget(mt);
 
   // than set current diff
-  diffController_.resetCurTarget(t);
+  if (t != 0)
+    diffController_.resetCurTarget(t);
 }
 
 void StratumSession::handleRequest_Authorize(const string &idStr,
@@ -451,17 +454,17 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   //  params[2] = TIME
   //  params[3] = NONCE_2
   //  params[4] = EQUIHASH_SOLUTION
-  if (jparams.children()->size() < 5) {
+  if (jparams.children()->size() != 5) {
     responseError(idStr, StratumError::ILLEGAL_PARARMS);
     return;
   }
 
   const uint16_t shortJobId = (uint16_t)jparams.children()->at(1).uint32_hex();
-  const uint32_t nTime      = jparams.children()->at(2).uint32_hex();
+  const uint32_t nTime      = SwapUint(jparams.children()->at(2).uint32_hex());
   const string nonce2hex    = jparams.children()->at(3).str();
   const string solution     = jparams.children()->at(4).str();
 
-  if (nonce2hex.length()  != 32) {
+  if (nonce2hex.length() != 16*2) {
     responseError(idStr, StratumError::ILLEGAL_PARARMS);
     return;
   }
@@ -476,6 +479,7 @@ void StratumSession::handleRequest_Submit(const string &idStr,
                                           const uint32_t nTime) {
   LocalJob *localJob = findLocalJob(shortJobId);
   if (localJob == nullptr) {
+    DLOG(ERROR) << "can't find LocalJob, shortJobId: " << shortJobId;
     // if can't find localJob, could do nothing
     responseError(idStr, StratumError::JOB_NOT_FOUND);
     return;
@@ -504,13 +508,12 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   bool isSendShareToKafka = true;
 
   int submitResult;
-  LocalShare localShare(strtoll(nonce2hex.substr(0 , 16).c_str(), nullptr, 16),
-                        strtoll(nonce2hex.substr(16, 16).c_str(), nullptr, 16),
+  LocalShare localShare(strtoul(nonce2hex.substr(0 , 16).c_str(), nullptr, 16),
+                        strtoul(nonce2hex.substr(16, 16).c_str(), nullptr, 16),
                         nTime);
 
-  // can't find local share
+  // can't add local share, duplicate
   if (!localJob->addLocalShare(localShare)) {
-    // duplicate
     responseError(idStr, StratumError::DUPLICATE_SHARE);
 
     // add invalid share to counter
@@ -537,7 +540,6 @@ void StratumSession::handleRequest_Submit(const string &idStr,
     // add invalid share to counter
     invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
   }
-
 
 finish:
   DLOG(INFO) << share.toString();
@@ -597,12 +599,13 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr,
 
   localJobs_.push_back(LocalJob());
   LocalJob &ljob = *(localJobs_.rbegin());
-  ljob.jobId_         = sjob->jobId_;
-  ljob.jobBits_       = diffController_.calcCurBits();
-  ljob.blkBits_       = sjob->header_.nBits;
-  ljob.shortJobId_    = allocShortJobId();
+  ljob.jobId_      = sjob->jobId_;
+  ljob.jobBits_    = diffController_.calcCurBits();
+  ljob.blkBits_    = sjob->header_.nBits;
+  ljob.shortJobId_ = allocShortJobId();
 
   // check if we need to 'mining.set_target'
+  DLOG(INFO) << "currJobBits_: " << currJobBits_ << ", ljob.jobBits_: " << ljob.jobBits_;
   if (currJobBits_ != ljob.jobBits_) {
     sendSetTarget(ljob.jobBits_);
     currJobBits_ = ljob.jobBits_;
@@ -635,7 +638,7 @@ void StratumSession::sendData(const char *data, size_t len) {
   // add data to a bufferevent’s output buffer
   // it is automatically locked so we don't need to lock
   bufferevent_write(bev_, data, len);
-//  DLOG(INFO) << "send(" << len << "): " << data;
+  DLOG(INFO) << "send(" << len << "): " << data;
 }
 
 // if read a message (ex-message or stratum) success should return true,

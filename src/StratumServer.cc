@@ -576,23 +576,25 @@ void StratumJobEx::makeMiningNotifyStr() {
   // we don't put jobId here, session will fill with the shortJobId
   miningNotify1_ = "{\"id\":null,\"method\":\"mining.notify\",\"params\":[\"";
 
-  const string prevHash   = hash2BEStr(sjob_->header_.hashPrevBlock);
-  const string merkleRoot = hash2BEStr(sjob_->header_.hashMerkleRoot);
-  miningNotify2_ = Strings::Format("\",\"%08x\",\"%s\",\"%s\","
+  const string prevHash   = getNotifyHashStr(sjob_->header_.hashPrevBlock);
+  const string merkleRoot = getNotifyHashStr(sjob_->header_.hashMerkleRoot);
+  miningNotify2_ = Strings::Format("\",\"%s\",\"%s\",\"%s\","
                                    "\"0000000000000000000000000000000000000000000000000000000000000000\","
-                                   "\"%08x\",\"%08x\",%s]}\n",
-                                   sjob_->header_.nVersion,
+                                   "\"%s\",\"%s\",%s]}\n",
+                                   getNotifyUint32Str(sjob_->header_.nVersion).c_str(),
                                    prevHash.c_str(), merkleRoot.c_str(),
-                                   sjob_->header_.nTime, sjob_->header_.nBits,
+                                   getNotifyUint32Str(sjob_->header_.nTime).c_str(),
+                                   getNotifyUint32Str(sjob_->header_.nBits).c_str(),
                                    isClean_ ? "true" : "false");
 
   // always set clean to true, reset of them is the same with miningNotify2_
-  miningNotify2True_ = Strings::Format("\",\"%08x\",\"%s\",\"%s\","
+  miningNotify2True_ = Strings::Format("\",\"%s\",\"%s\",\"%s\","
                                        "\"0000000000000000000000000000000000000000000000000000000000000000\","
-                                       "\"%08x\",\"%08x\",true]}\n",
-                                       sjob_->header_.nVersion,
+                                       "\"%s\",\"%s\",true]}\n",
+                                       getNotifyUint32Str(sjob_->header_.nVersion).c_str(),
                                        prevHash.c_str(), merkleRoot.c_str(),
-                                       sjob_->header_.nTime, sjob_->header_.nBits);
+                                       getNotifyUint32Str(sjob_->header_.nTime).c_str(),
+                                       getNotifyUint32Str(sjob_->header_.nBits).c_str());
 }
 
 void StratumJobEx::markStale() {
@@ -610,9 +612,10 @@ void StratumJobEx::generateBlockHeader(CBlockHeader *header,
                                        const string &extraNonce2Hex,
                                        const uint32_t nTime) {
   *header = sjob_->header_;
-  string s = Strings::Format("%08x%08x%s", 0u, extraNonce1, extraNonce2Hex.c_str());
+  string s = Strings::Format("%08x%08x%08x%08x%s", 0u, 0u, 0u, extraNonce1, extraNonce2Hex.c_str());
+  uint256 nonce = uint256S(s);
   assert(s.length() == 64);
-  header->nNonce = uint256S(s);
+  header->nNonce = SwapUint(nonce);
   header->nTime  = nTime;
 }
 
@@ -662,7 +665,6 @@ Server::Server(const int32_t shareAvgSeconds):
 base_(nullptr), signal_event_(nullptr), listener_(nullptr),
 kafkaProducerShareLog_(nullptr),
 kafkaProducerSolvedShare_(nullptr),
-kafkaProducerNamecoinSolvedShare_(nullptr),
 kafkaProducerCommonEvents_(nullptr),
 isEnableSimulator_(false), isSubmitInvalidBlock_(false),
 kShareAvgSeconds_(shareAvgSeconds),
@@ -685,9 +687,6 @@ Server::~Server() {
   }
   if (kafkaProducerSolvedShare_ != nullptr) {
     delete kafkaProducerSolvedShare_;
-  }
-  if (kafkaProducerNamecoinSolvedShare_ != nullptr) {
-    delete kafkaProducerNamecoinSolvedShare_;
   }
   if (kafkaProducerCommonEvents_ != nullptr) {
     delete kafkaProducerCommonEvents_;
@@ -721,9 +720,6 @@ bool Server::setup(const char *ip, const unsigned short port,
   kafkaProducerSolvedShare_ = new KafkaProducer(kafkaBrokers,
                                                 KAFKA_TOPIC_SOLVED_SHARE,
                                                 RD_KAFKA_PARTITION_UA);
-  kafkaProducerNamecoinSolvedShare_ = new KafkaProducer(kafkaBrokers,
-                                                        KAFKA_TOPIC_NMC_SOLVED_SHARE,
-                                                        RD_KAFKA_PARTITION_UA);
   kafkaProducerShareLog_ = new KafkaProducer(kafkaBrokers,
                                              KAFKA_TOPIC_SHARE_LOG,
                                              RD_KAFKA_PARTITION_UA);
@@ -777,21 +773,6 @@ bool Server::setup(const char *ip, const unsigned short port,
     }
     if (!kafkaProducerSolvedShare_->checkAlive()) {
       LOG(ERROR) << "kafka kafkaProducerSolvedShare_ is NOT alive";
-      return false;
-    }
-  }
-
-  // kafkaProducerNamecoinSolvedShare_
-  {
-    map<string, string> options;
-    // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
-    options["queue.buffering.max.ms"] = "1";
-    if (!kafkaProducerNamecoinSolvedShare_->setup(&options)) {
-      LOG(ERROR) << "kafka kafkaProducerNamecoinSolvedShare_ setup failure";
-      return false;
-    }
-    if (!kafkaProducerNamecoinSolvedShare_->checkAlive()) {
-      LOG(ERROR) << "kafka kafkaProducerNamecoinSolvedShare_ is NOT alive";
       return false;
     }
   }
@@ -992,8 +973,18 @@ int Server::checkShare(const Share &share,
   CBlockHeader header;
   // put nonce & nTime
   exJobPtr->generateBlockHeader(&header, nonce1, nonce2hex, nTime);
-  // put solution
-  header.nSolution = ParseHex(solution);
+
+  CDataStream ssHeader(SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
+  ssHeader << header;
+  std::string headerHex = HexStr(ssHeader.begin(), ssHeader.end());
+
+  // add solution hex
+  headerHex = headerHex.substr(0, CBlockHeader::HEADER_SIZE*2) + solution;
+
+  if (!DecodeHexHeader(header, headerHex)) {
+    DLOG(ERROR) << "decode hex header failure";
+    return StratumError::INVALID_SOLUTION;
+  }
 
   // get block hash
   uint256 blkHash = header.GetHash();

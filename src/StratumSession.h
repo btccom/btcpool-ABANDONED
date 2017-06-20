@@ -67,8 +67,8 @@ class AgentSessions;
 //////////////////////////////// DiffController ////////////////////////////////
 class DiffController {
 public:
-//  static const arith_uint256 KMinTarget_;
-  arith_uint256 KMinTarget_;
+//  static const arith_uint256 KMaxTarget_;
+  arith_uint256 KMaxTarget_;
   arith_uint256 kDefaultTarget_;
 
   static const int32_t kDiffWindow_    = 900;   // time window, seconds, 60*N
@@ -76,7 +76,7 @@ public:
 
 private:
   time_t  startTime_;         // first job send time
-  arith_uint256 minTarget_;   // miner's min target, use KMinTarget_ as default value
+  arith_uint256 maxTarget_;   // miner's max target, use KMaxTarget_ as default value
   arith_uint256 curTarget_;
   int32_t shareAvgSeconds_;
 
@@ -90,7 +90,7 @@ private:
 
 public:
   DiffController(const int32_t shareAvgSeconds) :
-  KMinTarget_(arith_uint256("007fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")),
+  KMaxTarget_(arith_uint256("007fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")),
 #ifdef NDEBUG
   // if not debugging
   kDefaultTarget_(arith_uint256("0007ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")),
@@ -99,7 +99,7 @@ public:
   kDefaultTarget_(arith_uint256("007fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")),
 #endif	/* NDEBUG */
   startTime_(0),
-  minTarget_(KMinTarget_), curTarget_(kDefaultTarget_),
+  maxTarget_(KMaxTarget_), curTarget_(kDefaultTarget_),
   sharesNum_(kDiffWindow_/kRecordSeconds_) /* every N seconds as a record */
   {
     if (shareAvgSeconds >= 1 && shareAvgSeconds <= 60) {
@@ -118,8 +118,8 @@ public:
   // add one share
   void addAcceptedShare();
 
-  // maybe worker has it's own min diff
-  void setMinTarget(arith_uint256 target);
+  // maybe worker has it's own max diff
+  void setMaxTarget(arith_uint256 target);
 
   // use when handle cmd: mining.suggest_target
   void resetCurTarget(arith_uint256 target);
