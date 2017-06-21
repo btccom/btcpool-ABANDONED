@@ -55,9 +55,12 @@ inline string filterWorkerName(const char *workerName) {
 }
 
 ////////////////////////////////// FoundBlock //////////////////////////////////
+// for mainnet & testnet:
+//
 // n=200, k=9, 2^9 = 512
 // 21 bits * 512 / 8 = 1344
 // 140 + 3 bytes(1344_vint) + 1344 = 1487 Bytes
+//
 #define ZEC_HEADER_FULL_SIZE 1487
 
 class FoundBlock {  // will use as c-struct to copy data
