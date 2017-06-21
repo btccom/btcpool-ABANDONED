@@ -99,6 +99,16 @@ int main(int argc, char **argv) {
     return(EXIT_FAILURE);
   }
 
+  // check if we are using testnet3
+  bool isTestnet3 = true;
+  cfg.lookupValue("testnet", isTestnet3);
+  if (isTestnet3) {
+    SelectParams(CBaseChainParams::TESTNET);
+    LOG(WARNING) << "using bitcoin testnet3";
+  } else {
+    SelectParams(CBaseChainParams::MAIN);
+  }
+
   // lock cfg file:
   //    you can't run more than one process with the same config file
   boost::interprocess::file_lock pidFileLock(optConf);
@@ -125,12 +135,12 @@ int main(int argc, char **argv) {
   // add bitcoinds
   {
     const Setting &root = cfg.getRoot();
-    const Setting &bitcoinds = root["bitcoinds"];
+    const Setting &zcashds = root["zcashds"];
 
-    for (int i = 0; i < bitcoinds.getLength(); i++) {
+    for (int i = 0; i < zcashds.getLength(); i++) {
       string rpcAddr, rpcUserpwd;
-      bitcoinds[i].lookupValue("rpc_addr",    rpcAddr);
-      bitcoinds[i].lookupValue("rpc_userpwd", rpcUserpwd);
+      zcashds[i].lookupValue("rpc_addr",    rpcAddr);
+      zcashds[i].lookupValue("rpc_userpwd", rpcUserpwd);
       gBlockMaker->addBitcoind(rpcAddr, rpcUserpwd);
     }
   }
