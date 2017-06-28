@@ -298,14 +298,14 @@ void BlockMaker::_saveBlockToDBThread(const FoundBlock &foundBlock,
   string sql;
   sql = Strings::Format("INSERT INTO `found_blocks` "
                         " (`puid`, `worker_id`, `worker_full_name`, `job_id`"
-                        "  ,`height`, `hash`, `rewards`, `size`, `prev_hash`"
+                        "  ,`height`,`is_orphaned`,`hash`, `rewards`, `size`, `prev_hash`"
                         "  ,`bits`, `version`, `created_at`)"
-                        " VALUES (%d,%" PRId64",\"%s\", %" PRIu64",%d,\"%s\""
+                        " VALUES (%d,%" PRId64",\"%s\", %" PRIu64",%d,%d,\"%s\""
                         "  ,%" PRId64",%d,\"%s\",%u,%d,\"%s\"); ",
                         foundBlock.userId_, foundBlock.workerId_,
                         // filter again, just in case
                         filterWorkerName(foundBlock.workerFullName_).c_str(),
-                        foundBlock.jobId_, foundBlock.height_,
+                        foundBlock.jobId_, foundBlock.height_, 0/*is_orphaned*/,
                         header.GetHash().ToString().c_str(),
                         coinbaseValue, blksize,
                         header.hashPrevBlock.ToString().c_str(),
