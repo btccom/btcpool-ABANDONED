@@ -184,6 +184,10 @@ string GbtMaker::makeRawGbtMsg() {
     return "";
   }
 
+  return parseRawGbtMsg(gbt);
+}
+
+string GbtMaker::parseRawGbtMsg(const string &gbt) {
   JsonNode r;
   if (!JsonNode::parse(gbt.c_str(),
                       gbt.c_str() + gbt.length(), r)) {

@@ -72,6 +72,8 @@ public:
            bool isCheckZmq, int32_t blockVersion);
   ~GbtMaker();
 
+  string parseRawGbtMsg(const string &gbt);  // for test, make it public
+
   bool init();
   void stop();
   void run();
