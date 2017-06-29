@@ -174,8 +174,9 @@ TEST(ShareStatsDay, ShareStatsDay) {
     const double kDiff   = BitsToDifficulty(kBits);
     // bits
     share.blkBits_ = kBits;
+    share.jobBits_ = kBits;
     // height
-    share.blkHeight_ = 1;
+    share.blkHeight_ = 20000;
 
     // accept
     share.result_ = Share::ACCEPT;
@@ -194,12 +195,12 @@ TEST(ShareStatsDay, ShareStatsDay) {
       stats.getShareStatsHour(i, &ss);
       ASSERT_EQ(ss.shareAccept_, kDiff);
       ASSERT_EQ(ss.shareReject_, kDiff);
-      ASSERT_EQ(ss.earn_, 12.5 * 0.8);
+      ASSERT_EQ(ss.earn_, 12.5 * 0.8 * COIN);
     }
     stats.getShareStatsDay(&ss);
     ASSERT_EQ(ss.shareAccept_, kDiff * 24);
     ASSERT_EQ(ss.shareReject_, kDiff * 24);
-    ASSERT_EQ(ss.earn_, 12.5 * 0.8 * 24);
+    ASSERT_EQ(ss.earn_, 12.5 * 0.8 * COIN * 24 );
   }
 }
 

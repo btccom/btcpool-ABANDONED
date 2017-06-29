@@ -146,7 +146,6 @@ public:
       assert(blockSubsidy >= 0);
     }
 
-    LOG(INFO) << "blockSubsidy: " << blockSubsidy << ", jobDiff: " << jobDiff << ", blkDiff: " << blkDiff;
     return (double)blockSubsidy * jobDiff / blkDiff;  // unit: satoshi
   }
 
