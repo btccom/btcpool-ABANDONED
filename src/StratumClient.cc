@@ -31,7 +31,7 @@
 ///////////////////////////////// StratumClient ////////////////////////////////
 StratumClient::StratumClient(struct event_base* base,
                              const string &workerFullName)
-: workerFullName_(workerFullName), isMining_(false)
+: workerFullName_(workerFullName)
 {
   inBuf_ = evbuffer_new();
   bev_ = bufferevent_socket_new(base, -1, BEV_OPT_CLOSE_ON_FREE|BEV_OPT_THREADSAFE);
@@ -43,11 +43,7 @@ StratumClient::StratumClient(struct event_base* base,
   bufferevent_enable(bev_, EV_READ|EV_WRITE);
 
   state_ = INIT;
-  latestDiff_ = 1;
-
-  extraNonce1_ = 0u;
-  extraNonce2Size_ = 8;
-  extraNonce2_ = 0u;
+  extraNonce2Size_ = 16;
 }
 
 StratumClient::~StratumClient() {
@@ -112,9 +108,9 @@ void StratumClient::handleLine(const string &line) {
       latestJobId_ = jparamsArr[0].str();
       DLOG(INFO) << "latestJobId_: " << latestJobId_;
     }
-    else if (jmethod.str() == "mining.set_difficulty") {
-      latestDiff_ = jparamsArr[0].uint32();
-      DLOG(INFO) << "latestDiff_: " << latestDiff_;
+    else if (jmethod.str() == "mining.set_target") {
+      latestTarget_ = uint256S(jparamsArr[0].str());
+      DLOG(INFO) << "latestTarget_: " << latestTarget_.ToString();
     }
     else
     {
@@ -136,25 +132,28 @@ void StratumClient::handleLine(const string &line) {
   }
 
   if (state_ == CONNECTED) {
-    //
-    // {"id":1,"result":[[["mining.set_difficulty","01000002"],
-    //                    ["mining.notify","01000002"]],"01000002",8],"error":null}
+    // Response:
+    // {"id": 1, "result": ["SESSION_ID", "NONCE_1"], "error": null}
     //
     if (jerror.type() != Utilities::JS::type::Null) {
       LOG(ERROR) << "json result is null, err: " << jerror.str();
       return;
     }
     auto resArr = jresult.array();
-    if (resArr.size() != 3) {
-      LOG(ERROR) << "result element's number is NOT 3: " << line;
+    if (resArr.size() != 2) {
+      LOG(ERROR) << "result element's number is NOT 2: " << line;
       return;
     }
 
-    extraNonce1_     = resArr[1].uint32_hex();
-    extraNonce2Size_ = resArr[2].int32();
-    DLOG(INFO) << "extraNonce1_: " << extraNonce1_ << ", extraNonce2Size_: " << extraNonce2Size_;
+    // for zecpool:
+    // SESSION_ID is null, NONCE_1 hex length is 32 bytes
+    extraNonce1Str_  = resArr[1].str();
+    extraNonce2Size_ = 32 - (int32_t)extraNonce1Str_.length()/2;
+    DLOG(INFO) << "extraNonce1_: " << extraNonce1Str_ << ", extraNonce2Size_: " << extraNonce2Size_;
 
+    // Request:
     // mining.authorize
+    // {"id": 2, "method": "mining.authorize", "params": ["WORKER_NAME", "WORKER_PASSWORD"]}
     state_ = SUBSCRIBED;
     string s = Strings::Format("{\"id\": 1, \"method\": \"mining.authorize\","
                                "\"params\": [\"\%s\", \"\"]}\n",
@@ -173,20 +172,27 @@ void StratumClient::submitShare() {
   if (state_ != AUTHENTICATED)
     return;
 
-  extraNonce2_++;
-  string extraNonce2Str;
-  // little-endian
-  Bin2Hex((uint8_t *)&extraNonce2_, extraNonce2Size_, extraNonce2Str);
+  static uint64_t extraNonce2 = 0;
 
-  // simulate miner
+  string extraNonce2Str = Strings::Format("%llx", extraNonce2++);
+  while (extraNonce2Str.length() < (size_t)extraNonce2Size_ * 2) {
+    extraNonce2Str.append("0");
+  }
+  assert(extraNonce2Str.length() == (size_t)extraNonce2Size_ * 2);
+
+  const string solutionStr = "fd40050119702e14c2c20a178f81b5b9cd40b9b33a2fc15513eb48da1e58f7933ad58482196db5558190d1d9260a8abaf624286ce5c65b313676ebc3b2bec41c1af20f255605246567bf513cc16a6dd9ffda38afb2b15504f000fb58dc9fa35490a41df9ce8af5c53cd5b58a2102da9eaa1550d575eb26da4dbe75df0c3c9d05170f9cfafe461774d5afa823a325e5a5c1081df232f11f44daa22c0a8ea501fc53acc9d019415366d492400140ac6d40c23c34727ba202f697d9c2b96fda78f55a42e6f641680c899225066370487b5ec4725ee6ff063bdb722d9eb57b333b537d24b49931dcb4de77191cd5a2de0b73bb6bdfdd74e3934f119967749eb3ac07da258b6c49c8c0c7a77122f58f63888932462b37298634d40613147faddb85513fb5f89a4d11fd815908bccd6eb1c795b89c606384836c6fd11963d0a00212b58b1a56d19fa5583665cd01405e9a30007e437303aed2d4a14df53911503442a2b354f98f536ff9d71371313637f73c59c116a3a4165b1c517758d3c0831aef2697154e3a458a1545c03cfa70b9cfbf7afbe726423b98c50d0f73ec7983bb4cbd4859feaff1efad0565132399063831b1173777ead4a7d5ffa9dbb13920e4431c284f0bf12c51e503a6b4ea165c7bfe276012eaae5dce0fb1628d45e8087e6d93ab6567fc6b4f2219b5101b5bb2cf8c5ce508ceeaf1a95a08fe299e0a4c8ae99dd5ae5dd82a8587c533d3df76495ead8f2a98a9ad9bd0cfebda90272f0cd4efce70f614133e0d15bd756524d21fb8bcbc4f63e631033c86fb173d3197ad3c72e2826b94751539e4fd798acd3218aae5159656e053116e0733f485e8d3c8eab23b65d50b2e1f665731df494b3b3016822b0e92dd1cbddf2b741223fa6e1d50a614f7cec284101fbe56fd919635e5512497517849e2fe39c7b0f2ea016f62a4fb20fbc6aa0190ef04850b38734e996391ba3a6b05c57cd080ea16781281bd31eb83f5ab64e033fa596e1d76bf0e47079900be46d8db11595070c78f0871908c72d026eb4d8316cd9fe2c6ff606db9ecf0760b92af1cbdc4ea05b0be69ea9ed24d4261a4efd55638f5de4f2f62b91cce31def5118875507d9261edc5ac9f6580fe6c3f275b13a3b9389df5da8405d822b6108da83894d9ec43031434bd121bad4fff27a590efac0e36c0f20c870596a7a0ecd3016ca92346ad93ee15aac341d65a8588875e91c4b3fc95ad04fa8e1274caf6c0f85c50772f215610abe553693d2394320da91eed1c095742f543432c18f4f8a8b3d6e1062962d4febda6d97badcf1709a2011ee756d7f8b1553224de680affa7ff6ff174f497069b20aadff77bb811cecddf222d30d372822e81c2ae6323f101de23cc6518e86c074ffcfe5dea444a9414586142913ba2a4c9b47d03d969675b4b77048c3f4255d025d891d0e351beaea9b5d8de78976f33012f7e7e528ad7fc41c4746d32a19ec7421de3ff16b449f4956a80ebecdf143e6a3ea4af2b051eca9127526796c797cfe6f61ad6fa7ecf80327eebd915aa05dfca2f6b74bc89ff2ba11c0e78dde4c0928bed4b06a1560794d5511d5b7271a995390a4def8bfc5b711bd324c85e4d901894ed23eeae26acc94fa27348ee1be5f0f3d1c89c7d65c5b1c51c4a9ce982109c86c80c9b249425d1c569002a81aecff1580a1ea0d64aed206526047f4d5404e846c9dd58fc4f0eaf387c172515b9339500480fad5d1fa3df3a6cf04faff91dd94f23b183f4ec0c2c4134c4e42d324a9d4db38db844c70ff1f09feeca3b4fc1a5b5b20a57de1aac82bfb19335483df2cc96b6d9d93ee43547643b32bdfc99507926ea7da8d0ddad2fd0f9d3dd71b9f28e2cb9584d2e2b83e4260351075b1027e5189cb0a24ac8d2fc28ba";
+
+  // mining.submit
+  // Request:
+  // {"id": 4, "method": "mining.submit", "params": ["WORKER_NAME", "JOB_ID", "TIME", "NONCE_2", "EQUIHASH_SOLUTION"]}
   string s;
-  s = Strings::Format("{\"params\": [\"%s\",\"%s\",\"%s\",\"%08x\",\"%08x\"]"
+  const uint32_t now = (uint32_t)time(nullptr);
+  s = Strings::Format("{\"params\": [\"%s\",\"%s\",\"%08x\",\"%s\",\"%s\"]"
                       ",\"id\":4,\"method\": \"mining.submit\"}\n",
                       workerFullName_.c_str(),
                       latestJobId_.c_str(),
-                      extraNonce2Str.c_str(),
-                      (uint32_t)time(nullptr) /* ntime */,
-                      (uint32_t)time(nullptr) /* nonce */);
+                      SwapUint(now),
+                      extraNonce2Str.c_str(), solutionStr.c_str());
   sendData(s);
 }
 
@@ -247,8 +253,10 @@ void StratumClientWrapper::eventCallback(struct bufferevent *bev,
 
   if (events & BEV_EVENT_CONNECTED) {
     client->state_ = StratumClient::State::CONNECTED;
-    // subscribe
-    client->sendData("{\"id\":1,\"method\":\"mining.subscribe\",\"params\":[\"__simulator__/0.1\"]}\n");
+    // mining.subscribe()
+    // Request:
+    // {"id": 1, "method": "mining.subscribe", "params": ["MINER_USER_AGENT", "SESSION_ID", "CONNECT_HOST", CONNECT_PORT]}
+    client->sendData("{\"id\":1,\"method\":\"mining.subscribe\",\"params\":[\"__simulator__/0.1\", null, null, null]}\n");
   }
   else if (events & BEV_EVENT_ERROR) {
     /* An error occured while connecting. */
@@ -292,7 +300,7 @@ void StratumClientWrapper::runThreadSubmitShares() {
   time_t lastSendTime = 0;
 
   while (running_) {
-    if (lastSendTime + 10 > time(nullptr)) {
+    if (lastSendTime + 6 > time(nullptr)) {
       sleep(1);
       continue;
     }

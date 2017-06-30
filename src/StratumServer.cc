@@ -979,7 +979,7 @@ int Server::checkShare(const Share &share,
   uint256 blkHash = header.GetHash();
 
   // Check Equihash solution is valid
-  if (CheckEquihashSolution(&header, Params()) == false) {
+  if (isEnableSimulator_ == false && CheckEquihashSolution(&header, Params()) == false) {
     return StratumError::INVALID_SOLUTION;
   }
 

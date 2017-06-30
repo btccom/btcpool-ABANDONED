@@ -45,13 +45,11 @@ class StratumClient {
   struct bufferevent *bev_;
   struct evbuffer *inBuf_;
 
-  uint32_t extraNonce1_;  // session ID
-  int32_t  extraNonce2Size_;
-  uint64_t extraNonce2_;
-  string workerFullName_;
-  bool isMining_;
-  string   latestJobId_;
-  uint32_t latestDiff_;
+  string  extraNonce1Str_;  // nonce_1
+  int32_t extraNonce2Size_; // nonce_2 size
+  string  workerFullName_;
+  string  latestJobId_;
+  uint256 latestTarget_;
 
   bool tryReadLine(string &line);
   void handleLine(const string &line);
