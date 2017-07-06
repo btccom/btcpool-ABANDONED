@@ -3,13 +3,13 @@ Install Supervisor
 
 Supervisor is a client/server system that allows its users to monitor and control a number of processes on UNIX operating systems.
 
-##Install Supervisor
+## Install Supervisor
 
 ```
 apt-get install supervisor
 ```
 
-##Setup Supervisor for a certain process
+## Setup Supervisor for a certain process
 
 For each process a configuration file (for example. process.conf) must be created in the following path:
 
@@ -26,7 +26,7 @@ autorestart=true
 startsecs=6
 startretries=20
 ```
-##Start process
+## Start process
 
 ```
 $ supervisorctl
