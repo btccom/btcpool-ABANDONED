@@ -54,7 +54,9 @@ server.2=10.0.0.2:2888:3888
 server.3=10.0.0.3:2888:3888
 ```
 
-**start/stop service**
+Any of the following options can be used to start/stop the service
+
+**manually**
 
 ```
 # after all things done, restart it 
@@ -62,3 +64,19 @@ service zookeeper restart
 
 #service zookeeper start/stop/restart/status
 ```
+
+**using supervisor**
+
+1. Install `Supervisor`, see [INSTALL-Supervisor.md](https://github.com/rootstock/btcpool/blob/master/docs/INSTALL-Supervisor.md)
+2. Create zookeeper.conf
+
+```
+[program:zookeeper]
+command=/usr/share/zookeeper/bin/zkServer.sh start-foreground
+stdout_logfile=/logs/zookeeper.out
+stderr_logfile=/logs/zookeeper.err
+autorestart=true
+stopsignal=KILL
+```         
+
+
