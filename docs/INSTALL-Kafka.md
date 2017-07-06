@@ -50,7 +50,9 @@ listeners=PLAINTEXT://10.0.0.4:9092
 zookeeper.connect=10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181
 ```
 
-**start server**
+Any of the following options can be used to start the server
+
+**manually**
 
 ```
 cd /work/kafka
@@ -61,32 +63,18 @@ nohup /work/kafka/bin/kafka-server-start.sh /work/kafka/config/server.properties
 # ./bin/kafka-server-stop.sh /work/kafka/config/server.properties
 ```
 
-**use supervisor**
+**using supervisor**
 
-Recommend to use `supervisor` to manage Kafka service.
+1. Install `Supervisor`, see [INSTALL-Supervisor.md](https://github.com/rootstock/btcpool/blob/master/docs/INSTALL-Supervisor.md)
+2. Create kafka.conf
 
-```
-apt-get install supervisor
-```
-
-edit conf file `vim /etc/supervisor/conf.d/kafka.conf`:
-
-```
-[program:kafka]
-directory=/work/kafka
-command=/work/kafka/bin/kafka-server-start.sh /work/kafka/config/server.properties
-autostart=true
-autorestart=true
-startsecs=6
-startretries=20
-```
-
-```
-$ supervisorctl
-> reread
-> update
-> status
-
-or 
-> start/stop kafka
-```
+  ```
+  [program:kafka]
+  directory=/work/kafka
+  command=/work/kafka/bin/kafka-server-start.sh /work/kafka/config/server.properties
+  autostart=true
+  autorestart=true
+  startsecs=6
+  startretries=20
+  ```
+3. Start Kafka from supervisor 
