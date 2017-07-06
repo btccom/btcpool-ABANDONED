@@ -1,7 +1,6 @@
-Install Supervisor
-==================
+## About
 
-Supervisor is a client/server system that allows its users to monitor and control a number of processes on UNIX operating systems.
+Supervisor is a client/server system that allows its users to monitor and control a number of processes on UNIX-like operating systems.
 
 ## Install Supervisor
 
