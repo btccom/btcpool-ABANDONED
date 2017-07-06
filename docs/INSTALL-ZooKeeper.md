@@ -70,13 +70,14 @@ service zookeeper restart
 1. Install `Supervisor`, see [INSTALL-Supervisor.md](https://github.com/rootstock/btcpool/blob/master/docs/INSTALL-Supervisor.md)
 2. Create zookeeper.conf
 
-```
-[program:zookeeper]
-command=/usr/share/zookeeper/bin/zkServer.sh start-foreground
-stdout_logfile=/logs/zookeeper.out
-stderr_logfile=/logs/zookeeper.err
-autorestart=true
-stopsignal=KILL
-```         
+  ```
+  [program:zookeeper]
+  command=/usr/share/zookeeper/bin/zkServer.sh start-foreground
+  stdout_logfile=/logs/zookeeper.out
+  stderr_logfile=/logs/zookeeper.err
+  autorestart=true
+  stopsignal=KILL
+  ```
+3. Start zookeeper from supervisor 
 
 
