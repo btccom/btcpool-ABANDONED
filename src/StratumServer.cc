@@ -631,12 +631,14 @@ StratumServer::StratumServer(const char *ip, const unsigned short port,
                              const char *kafkaBrokers, const string &userAPIUrl,
                              const uint8_t serverId, const string &fileLastNotifyTime,
                              bool isEnableSimulator, bool isSubmitInvalidBlock,
+                             bool isDevModeEnable, float minerDifficulty,
                              const int32_t shareAvgSeconds)
 :running_(true), server_(shareAvgSeconds),
 ip_(ip), port_(port), serverId_(serverId),
 fileLastNotifyTime_(fileLastNotifyTime),
 kafkaBrokers_(kafkaBrokers), userAPIUrl_(userAPIUrl),
-isEnableSimulator_(isEnableSimulator), isSubmitInvalidBlock_(isSubmitInvalidBlock)
+isEnableSimulator_(isEnableSimulator), isSubmitInvalidBlock_(isSubmitInvalidBlock),
+isDevModeEnable_(isDevModeEnable), minerDifficulty_(minerDifficulty)
 {
 }
 
@@ -646,7 +648,8 @@ StratumServer::~StratumServer() {
 bool StratumServer::init() {
   if (!server_.setup(ip_.c_str(), port_, kafkaBrokers_.c_str(),
                      userAPIUrl_, serverId_, fileLastNotifyTime_,
-                     isEnableSimulator_, isSubmitInvalidBlock_)) {
+                     isEnableSimulator_, isSubmitInvalidBlock_,
+                     isDevModeEnable_, minerDifficulty_)) {
     LOG(ERROR) << "fail to setup server";
     return false;
   }
@@ -680,6 +683,7 @@ isEnableSimulator_(false), isSubmitInvalidBlock_(false),
 sessionIDManager_(nullptr),
 #endif
 
+isDevModeEnable_(false), minerDifficulty_(1.0),
 kShareAvgSeconds_(shareAvgSeconds),
 jobRepository_(nullptr), userInfo_(nullptr)
 {
@@ -728,7 +732,8 @@ bool Server::setup(const char *ip, const unsigned short port,
                    const char *kafkaBrokers,
                    const string &userAPIUrl,
                    const uint8_t serverId, const string &fileLastNotifyTime,
-                   bool isEnableSimulator, bool isSubmitInvalidBlock) {
+                   bool isEnableSimulator, bool isSubmitInvalidBlock,
+                   bool isDevModeEnable, float minerDifficulty) {
   if (isEnableSimulator) {
     isEnableSimulator_ = true;
     LOG(WARNING) << "Simulator is enabled, all share will be accepted";
@@ -737,6 +742,12 @@ bool Server::setup(const char *ip, const unsigned short port,
   if (isSubmitInvalidBlock) {
     isSubmitInvalidBlock_ = true;
     LOG(WARNING) << "submit invalid block is enabled, all block will be submited";
+  }
+
+  if (isDevModeEnable) {
+    isDevModeEnable_ = true;
+    minerDifficulty_ = minerDifficulty;
+    LOG(INFO) << "development mode is enabled with difficulty: " << minerDifficulty;
   }
 
   kafkaProducerSolvedShare_ = new KafkaProducer(kafkaBrokers,

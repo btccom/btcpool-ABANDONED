@@ -248,6 +248,15 @@ public:
   SessionIDManager *sessionIDManager_;
 #endif
 
+  //
+  // WARNING: if enable, difficulty sent to miners is always minerDifficulty_. 
+  //          for development
+  //
+  bool isDevModeEnable_;
+  //
+  // WARNING: difficulty to send to miners. for development
+  //
+  float minerDifficulty_;
   const int32_t kShareAvgSeconds_;
   JobRepository *jobRepository_;
   UserInfo *userInfo_;
@@ -260,7 +269,9 @@ public:
              const string &userAPIUrl,
              const uint8_t serverId, const string &fileLastNotifyTime,
              bool isEnableSimulator,
-             bool isSubmitInvalidBlock);
+             bool isSubmitInvalidBlock,
+             bool isDevModeEnable,
+             float minerDifficulty);
   void run();
   void stop();
 
@@ -301,12 +312,17 @@ class StratumServer {
   string kafkaBrokers_;
   string userAPIUrl_;
 
-
   // if enable simulator, all share will be accepted
   bool isEnableSimulator_;
 
   // if enable it, will make block and submit
   bool isSubmitInvalidBlock_;
+  
+  // if enable, difficulty sent to miners is always minerDifficulty_
+  bool isDevModeEnable_;
+
+  // difficulty to send to miners. for development
+  float minerDifficulty_;
 
 public:
   StratumServer(const char *ip, const unsigned short port,
@@ -315,6 +331,8 @@ public:
                 const uint8_t serverId, const string &fileLastNotifyTime,
                 bool isEnableSimulator,
                 bool isSubmitInvalidBlock,
+                bool isDevModeEnable,
+                float minerDifficulty,
                 const int32_t shareAvgSeconds);
   ~StratumServer();
 

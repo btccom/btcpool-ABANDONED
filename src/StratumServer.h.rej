@@ -1,0 +1,32 @@
+diff a/src/StratumServer.h b/src/StratumServer.h	(rejected hunks)
+@@ -260,7 +269,9 @@ public:
+              const string &userAPIUrl, const  MysqlConnectInfo &dbInfo,
+              const uint8_t serverId, const string &fileLastNotifyTime,
+              bool isEnableSimulator,
+-             bool isSubmitInvalidBlock);
++             bool isSubmitInvalidBlock,
++             bool isDevModeEnable,
++             float minerDifficulty);
+   void run();
+   void stop();
+ 
+@@ -302,13 +313,18 @@ class StratumServer {
+   string userAPIUrl_;
+   MysqlConnectInfo poolDBInfo_;
+ 
+-
+   // if enable simulator, all share will be accepted
+   bool isEnableSimulator_;
+ 
+   // if enable it, will make block and submit
+   bool isSubmitInvalidBlock_;
+ 
++  // if enable, difficulty sent to miners is always minerDifficulty_
++  bool isDevModeEnable_;
++
++  // difficulty to send to miners. for development
++  float minerDifficulty_;
++
+ public:
+   StratumServer(const char *ip, const unsigned short port,
+                 const char *kafkaBrokers,

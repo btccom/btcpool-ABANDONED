@@ -143,6 +143,13 @@ int main(int argc, char **argv) {
     cfg.lookupValue("sserver.enable_simulator", isEnableSimulator);
     bool isSubmitInvalidBlock = false;
     cfg.lookupValue("sserver.enable_submit_invalid_block", isSubmitInvalidBlock);
+
+    bool isDevModeEnabled = false;
+    cfg.lookupValue("sserver.enable_dev_mode", isDevModeEnabled);
+    string minerDifficultyString;
+    cfg.lookupValue("sserver.miner_difficulty", minerDifficultyString);
+    float minerDifficulty = ::atof(minerDifficultyString.c_str());
+    
     string fileLastMiningNotifyTime;
     cfg.lookupValue("sserver.file_last_notify_time", fileLastMiningNotifyTime);
 
@@ -157,6 +164,8 @@ int main(int argc, char **argv) {
                                        fileLastMiningNotifyTime,
                                        isEnableSimulator,
                                        isSubmitInvalidBlock,
+                                       isDevModeEnabled,
+                                       minerDifficulty,
                                        shareAvgSeconds);
 
     if (!gStratumServer->init()) {
