@@ -12,7 +12,8 @@ cd $SROOT
 BITCOIND_RPC="bitcoin-cli "
 #WANIP=`ip addr | grep 'state UP' -A2 | tail -n1 | awk '{print $2}' | cut -f1  -d'/'`
 #WANIP=`curl https://api.ipify.org`
-WANIP=`curl http://ipinfo.io/ip`
+#WANIP=`curl http://ipinfo.io/ip`
+WANIP=`curl -sL https://ip.btc.com`
 
 #NOERROR=`$BITCOIND_RPC getinfo |  grep '"errors" : ""' | wc -l`
 HEIGHT=`$BITCOIND_RPC getinfo | grep "blocks" | awk '{print $2}' | awk -F"," '{print $1}'`
