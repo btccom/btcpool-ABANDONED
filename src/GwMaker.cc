@@ -21,6 +21,15 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
+
+/**
+  File: GwMaker.cc
+  Purpose: Poll RSK node to get new work and send it to Kafka "RawGw" topic
+
+  @author Martin Medina
+  @version 1.0 30/03/17 
+*/
+
 #include "GwMaker.h"
 
 #include <glog/logging.h>
