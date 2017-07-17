@@ -82,7 +82,7 @@ class JobMaker {
   bool isReachTimeout();
   void sendStratumJob(const char *gbt);
 
-  void checkAndSendStratumJob();
+  void checkAndSendStratumJob(bool isOnlyRskUpdate);
   void runThreadConsumeNmcAuxBlock();
   void runThreadConsumeRawGw();
 

@@ -189,7 +189,7 @@ bool JobMaker::init() {
     rd_kafka_message_destroy(rkmessage);
   }
   LOG(INFO) << "consume latest rawgbt messages done";
-  checkAndSendStratumJob();
+  checkAndSendStratumJob(false);
 
   return true;
 }
@@ -260,6 +260,8 @@ void JobMaker::consumeRawGwMsg(rd_kafka_message_t *rkmessage) {
     latestRskBlockJson_ = string((const char *)rkmessage->payload, rkmessage->len);
     DLOG(INFO) << "latestRskBlockJson: " << latestRskBlockJson_;
   }
+
+  checkAndSendStratumJob(true);
 }
 
 void JobMaker::consumeRawGbtMsg(rd_kafka_message_t *rkmessage, bool needToSend) {
@@ -291,7 +293,7 @@ void JobMaker::consumeRawGbtMsg(rd_kafka_message_t *rkmessage, bool needToSend) 
   addRawgbt((const char *)rkmessage->payload, rkmessage->len);
 
   if (needToSend) {
-    checkAndSendStratumJob();
+    checkAndSendStratumJob(false);
   }
 }
 
@@ -510,7 +512,7 @@ bool JobMaker::isReachTimeout() {
   return false;
 }
 
-void JobMaker::checkAndSendStratumJob() {
+void JobMaker::checkAndSendStratumJob(bool isOnlyRskUpdate) {
   static uint64_t lastSendBestKey = 0; /* height + ts */
 
   ScopeLock sl(lock_);
@@ -528,7 +530,7 @@ void JobMaker::checkAndSendStratumJob() {
 
   // key: height + timestamp
   const uint64_t bestKey = gbtByHeight.rbegin()->first;
-  if (bestKey == lastSendBestKey) {
+  if (bestKey == lastSendBestKey && !isOnlyRskUpdate) {
     LOG(WARNING) << "bestKey is the same as last one: " << lastSendBestKey;
     return;
   }
@@ -536,14 +538,14 @@ void JobMaker::checkAndSendStratumJob() {
   // "bestKey" doesn't include empty block flag anymore, just in case
   const uint32_t bestHeight = (uint32_t)((bestKey >> 32) & 0x000000007FFFFFFFULL);
 
-  if (bestHeight != currBestHeight_) {
+  if (bestHeight != currBestHeight_ && !isOnlyRskUpdate) {
     LOG(INFO) << ">>>> found new best height: " << bestHeight
     << ", curr: " << currBestHeight_ << " <<<<";
     isFindNewHeight = true;
     currBestHeight_ = bestHeight;
   }
 
-  if (isFindNewHeight || isReachTimeout()) {
+  if (isFindNewHeight || isReachTimeout() || isOnlyRskUpdate) {
     lastSendBestKey     = bestKey;
     isLastJobNewHeight_ = isFindNewHeight;
 
