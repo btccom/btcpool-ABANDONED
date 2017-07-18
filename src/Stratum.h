@@ -25,6 +25,7 @@
 #define STRATUM_H_
 
 #include "Common.h"
+#include "utilities_js.hpp"
 #include "Utils.h"
 
 #include <arpa/inet.h>
@@ -84,6 +85,19 @@ public:
     memset(rpcAddress_, 0, sizeof(rpcAddress_));
     memset(rpcUserPwd_, 0, sizeof(rpcUserPwd_));
   }
+};
+
+////////////////////////////////// GetWork //////////////////////////////////
+class GetWork {
+  
+  string raw_;
+
+public:
+  JsonNode parsed_;
+
+  GetWork(string raw): raw_(raw) { }
+
+  bool parse();
 };
 
 ////////////////////////////////// FoundBlock //////////////////////////////////

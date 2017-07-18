@@ -29,7 +29,6 @@
 #include "bitcoin/uint256.h"
 #include "bitcoin/util.h"
 
-#include "utilities_js.hpp"
 #include "Utils.h"
 
 #include <glog/logging.h>
@@ -440,42 +439,16 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
   // rsk merged mining
   //
   if (!latestRskBlockJson.empty()) {
-    do {
-      JsonNode rskGetWork;
-      if (!JsonNode::parse(latestRskBlockJson.c_str(),
-                           latestRskBlockJson.c_str() + latestRskBlockJson.length(),
-                           rskGetWork)) {
-        LOG(ERROR) << "decode rsk getwork json fail: >" << rskGetWork << "<";
-        break;
-      }
-
-      //LOG(INFO) << "RSK_GET_WORK: { " << rskGetWork << " }";
-
-      // check fields are valid
-      if (rskGetWork["created_at_ts"].type()    != Utilities::JS::type::Int   ||
-          rskGetWork["rskdRpcAddress"].type()   != Utilities::JS::type::Str   ||
-          rskGetWork["rskdRpcUserPwd"].type()   != Utilities::JS::type::Str   ||
-          rskGetWork["parentBlockHash"].type()             != Utilities::JS::type::Str ||
-          rskGetWork["blockHashForMergedMining"].type()    != Utilities::JS::type::Str ||
-          rskGetWork["target"].type()                      != Utilities::JS::type::Str ||
-          rskGetWork["feesPaidToMiner"].type()             != Utilities::JS::type::Str ||
-          rskGetWork["notify"].type()                      != Utilities::JS::type::Str) {
-        LOG(ERROR) << "rsk getwork fields failure";
-        break;
-      }
-      // check timestamp
-      if (rskGetWork["created_at_ts"].uint32() + 60u < time(nullptr)) {
-        LOG(ERROR) << "too old rsk getwork: " << date("%F %T", rskGetWork["created_at_ts"].uint32());
-        break;
-      }
-
+    GetWork *getWork = new GetWork(latestRskBlockJson); 
+    
+    if (getWork->parse()) {
       // set rsk info
-      blockHashForMergedMining_ = rskGetWork["blockHashForMergedMining"].str();
-      rskNetworkTarget_ = uint256S(rskGetWork["target"].str());
-      feesForMiner_ = rskGetWork["feesPaidToMiner"].str();
-      rskdRpcAddress_ = rskGetWork["rskdRpcAddress"].str();
-      rskdRpcUserPwd_ = rskGetWork["rskdRpcUserPwd"].str();
-    } while (0);
+      blockHashForMergedMining_ = getWork->parsed_["blockHashForMergedMining"].str();
+      rskNetworkTarget_ = uint256S(getWork->parsed_["target"].str());
+      feesForMiner_ = getWork->parsed_["feesPaidToMiner"].str();
+      rskdRpcAddress_ = getWork->parsed_["rskdRpcAddress"].str();
+      rskdRpcUserPwd_ = getWork->parsed_["rskdRpcUserPwd"].str();
+    }
   }
 
   // make coinbase1 & coinbase2
@@ -616,4 +589,40 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
 
 bool StratumJob::isEmptyBlock() {
   return merkleBranch_.size() == 0 ? true : false;
+}
+
+////////////////////////////////// GetWork //////////////////////////////////
+bool GetWork::parse() {
+
+  JsonNode parsedGetWork_;
+  // check is valid json
+  if (!JsonNode::parse(raw_.c_str(),
+                       raw_.c_str() + raw_.length(),
+                       parsedGetWork_)) {
+    LOG(ERROR) << "decode rsk getwork json fail: >" << raw_ << "<";
+    return false;
+  }
+
+  // check fields are valid
+  if (parsedGetWork_["created_at_ts"].type()    != Utilities::JS::type::Int   ||
+      parsedGetWork_["rskdRpcAddress"].type()   != Utilities::JS::type::Str   ||
+      parsedGetWork_["rskdRpcUserPwd"].type()   != Utilities::JS::type::Str   ||
+      parsedGetWork_["parentBlockHash"].type()             != Utilities::JS::type::Str ||
+      parsedGetWork_["blockHashForMergedMining"].type()    != Utilities::JS::type::Str ||
+      parsedGetWork_["target"].type()                      != Utilities::JS::type::Str ||
+      parsedGetWork_["feesPaidToMiner"].type()             != Utilities::JS::type::Str ||
+      parsedGetWork_["notify"].type()                      != Utilities::JS::type::Str) {
+    LOG(ERROR) << "rsk getwork fields failure";
+    return false;
+  }
+
+  // check timestamp
+  if (parsedGetWork_["created_at_ts"].uint32() + 60u < time(nullptr)) {
+    LOG(ERROR) << "too old rsk getwork: " << date("%F %T", parsedGetWork_["created_at_ts"].uint32());
+    return false;
+  }
+
+  parsed_ = parsedGetWork_;
+
+  return true;
 }
