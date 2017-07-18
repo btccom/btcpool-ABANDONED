@@ -24,7 +24,7 @@ service docker status
 cd /work
 
 git clone https://github.com/btccom/btcpool.git
-cd btcpool/docker/bitcoind/v0.14.0
+cd btcpool/docker/bitcoind/segsignal-v0.14.2
 
 # If your server is in China, please check "Dockerfile" and uncomment some lines.
 # If you want to enable testnet3, please uncomment several lines behind `# service for testnet3`
