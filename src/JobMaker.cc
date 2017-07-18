@@ -257,8 +257,8 @@ void JobMaker::consumeRawGwMsg(rd_kafka_message_t *rkmessage) {
   LOG(INFO) << "received rawgw message, len: " << rkmessage->len;
   {
     ScopeLock sl(rskBlockAccessLock_);
-    latestRskBlockJson_ = string((const char *)rkmessage->payload, rkmessage->len);
-    DLOG(INFO) << "latestRskBlockJson: " << latestRskBlockJson_;
+    currentRskBlockJson_ = string((const char *)rkmessage->payload, rkmessage->len);
+    DLOG(INFO) << "currentRskBlockJson: " << currentRskBlockJson_;
   }
 
   checkAndSendStratumJob(true);
@@ -455,15 +455,15 @@ void JobMaker::sendStratumJob(const char *gbt) {
     latestNmcAuxBlockJson = latestNmcAuxBlockJson_;
   }
 
-  string latestRskBlockJson;
+  string currentRskBlockJson;
   {
     ScopeLock sl(rskBlockAccessLock_);
-    latestRskBlockJson = latestRskBlockJson_;
+    currentRskBlockJson = currentRskBlockJson_;
   }
 
   StratumJob sjob;
   if (!sjob.initFromGbt(gbt, poolCoinbaseInfo_, poolPayoutAddr_, blockVersion_,
-                        latestNmcAuxBlockJson, latestRskBlockJson)) {
+                        latestNmcAuxBlockJson, currentRskBlockJson)) {
     LOG(ERROR) << "init stratum job message from gbt str fail";
     return;
   }
