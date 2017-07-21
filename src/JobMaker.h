@@ -49,8 +49,8 @@ class JobMaker {
   // merged mining for RSK
   KafkaConsumer kafkaRawGwConsumer_;  
   mutex rskBlockAccessLock_;
-  string previousRskBlockJson_;
-  string currentRskBlockJson_;
+  GetWork *previousRskBlockJson_;
+  GetWork *currentRskBlockJson_;
 
   uint32_t currBestHeight_;
   uint32_t lastJobSendTime_;
@@ -83,6 +83,7 @@ class JobMaker {
   bool isReachTimeout();
   void sendStratumJob(const char *gbt);
 
+  bool triggerRskUpdate();
   void checkAndSendStratumJob(bool isOnlyRskUpdate);
   void runThreadConsumeNmcAuxBlock();
   void runThreadConsumeRawGw();

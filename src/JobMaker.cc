@@ -257,11 +257,33 @@ void JobMaker::consumeRawGwMsg(rd_kafka_message_t *rkmessage) {
   LOG(INFO) << "received rawgw message, len: " << rkmessage->len;
   {
     ScopeLock sl(rskBlockAccessLock_);
-    currentRskBlockJson_ = string((const char *)rkmessage->payload, rkmessage->len);
-    DLOG(INFO) << "currentRskBlockJson: " << currentRskBlockJson_;
+    
+    string rawGetWork = string((const char *)rkmessage->payload, rkmessage->len);
+    GetWork *rskWork = new GetWork();
+    if(rskWork->initFromGw(rawGetWork)) {
+
+      if (previousRskBlockJson_) {
+        delete previousRskBlockJson_;
+        previousRskBlockJson_ = NULL;
+      }
+
+      previousRskBlockJson_ = currentRskBlockJson_;
+      currentRskBlockJson_ = rskWork;
+
+      DLOG(INFO) << "currentRskBlockJson: " << rawGetWork;
+    } else {
+      delete rskWork;
+    }
   }
 
-  checkAndSendStratumJob(true);
+  if(triggerRskUpdate()) { 
+    checkAndSendStratumJob(true);
+  }
+}
+
+bool JobMaker::triggerRskUpdate()
+{
+  return true;
 }
 
 void JobMaker::consumeRawGbtMsg(rd_kafka_message_t *rkmessage, bool needToSend) {
@@ -455,10 +477,10 @@ void JobMaker::sendStratumJob(const char *gbt) {
     latestNmcAuxBlockJson = latestNmcAuxBlockJson_;
   }
 
-  string currentRskBlockJson;
+  GetWork currentRskBlockJson;
   {
     ScopeLock sl(rskBlockAccessLock_);
-    currentRskBlockJson = currentRskBlockJson_;
+    currentRskBlockJson = *currentRskBlockJson_;
   }
 
   StratumJob sjob;

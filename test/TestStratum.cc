@@ -181,7 +181,8 @@ TEST(Stratum, StratumJob) {
     SelectParams(CBaseChainParams::TESTNET);
     CBitcoinAddress poolPayoutAddrTestnet("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U");
     ASSERT_EQ(poolPayoutAddrTestnet.IsValid(), true);
-    res = sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion, "", "");
+    GetWork rskWork;
+    res = sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion, "", rskWork);
     ASSERT_EQ(res, true);
 
     const string jsonStr = sjob.serializeToJson();
@@ -315,7 +316,8 @@ TEST(Stratum, StratumJobWithWitnessCommitment) {
     SelectParams(CBaseChainParams::TESTNET);
     CBitcoinAddress poolPayoutAddrTestnet("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U");
     ASSERT_EQ(poolPayoutAddrTestnet.IsValid(), true);
-    res = sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion, "", "");
+    GetWork rskWork;
+    res = sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion, "", rskWork);
     ASSERT_EQ(res, true);
 
     const string jsonStr = sjob.serializeToJson();

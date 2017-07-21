@@ -89,15 +89,26 @@ public:
 
 ////////////////////////////////// GetWork //////////////////////////////////
 class GetWork {
-  
-  string raw_;
+  string blockHash_;
+  string target_;
+  string fees_;
+  string rpcAddress_;
+  string rpcUserPwd_;
+  string notifyFlag_;
+
+  bool initialized_;
 
 public:
-  JsonNode parsed_;
+  GetWork();
 
-  GetWork(string raw): raw_(raw) { }
-
-  bool parse();
+  bool initFromGw(const string &rawGetWork);
+  bool isInitialized() const;
+  string getBlockHash() const;
+  string getTarget() const;
+  string getFees() const;
+  string getRpcAddress() const;
+  string getRpcUserPwd() const;
+  string getNotifyFlag() const;
 };
 
 ////////////////////////////////// FoundBlock //////////////////////////////////
@@ -321,7 +332,7 @@ public:
                    const CBitcoinAddress &poolPayoutAddr,
                    const uint32_t blockVersion,
                    const string &nmcAuxBlockJson,
-                   const string &latestRskBlockJson);
+                   const GetWork &latestRskBlockJson);
   bool isEmptyBlock();
 };
 

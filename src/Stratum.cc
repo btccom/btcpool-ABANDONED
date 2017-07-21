@@ -334,7 +334,7 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
                              const CBitcoinAddress &poolPayoutAddr,
                              const uint32_t blockVersion,
                              const string &nmcAuxBlockJson,
-                             const string &latestRskBlockJson) {
+                             const GetWork &latestRskBlockJson) {
   uint256 gbtHash = Hash(gbt, gbt + strlen(gbt));
   JsonNode r;
   if (!JsonNode::parse(gbt, gbt + strlen(gbt), r)) {
@@ -434,21 +434,18 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
       BitsToTarget(nmcAuxBits_, nmcNetworkTarget_);
     } while (0);
   }
-
+  
   //
   // rsk merged mining
   //
-  if (!latestRskBlockJson.empty()) {
-    GetWork *getWork = new GetWork(latestRskBlockJson); 
-    
-    if (getWork->parse()) {
-      // set rsk info
-      blockHashForMergedMining_ = getWork->parsed_["blockHashForMergedMining"].str();
-      rskNetworkTarget_ = uint256S(getWork->parsed_["target"].str());
-      feesForMiner_ = getWork->parsed_["feesPaidToMiner"].str();
-      rskdRpcAddress_ = getWork->parsed_["rskdRpcAddress"].str();
-      rskdRpcUserPwd_ = getWork->parsed_["rskdRpcUserPwd"].str();
-    }
+  if (latestRskBlockJson.isInitialized()) {
+
+    // set rsk info
+    blockHashForMergedMining_ = latestRskBlockJson.getBlockHash();
+    rskNetworkTarget_ = uint256S(latestRskBlockJson.getTarget());
+    feesForMiner_ = latestRskBlockJson.getFees();
+    rskdRpcAddress_ = latestRskBlockJson.getRpcAddress();
+    rskdRpcUserPwd_ = latestRskBlockJson.getRpcUserPwd();
   }
 
   // make coinbase1 & coinbase2
@@ -542,7 +539,7 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     //
     // output[2]: RSK merge mining
     //
-    if (!latestRskBlockJson.empty()) {
+    if (latestRskBlockJson.isInitialized()) {
       DLOG(INFO) << "RSK blockhash: " << blockHashForMergedMining_;
       string rskBlockTag = "\x52\x53\x4B\x42\x4C\x4F\x43\x4B\x3A";
       vector<char> rskTag(rskBlockTag.begin(), rskBlockTag.end());
@@ -592,37 +589,77 @@ bool StratumJob::isEmptyBlock() {
 }
 
 ////////////////////////////////// GetWork //////////////////////////////////
-bool GetWork::parse() {
 
-  JsonNode parsedGetWork_;
+GetWork::GetWork() : initialized_(false) {}
+
+bool GetWork::initFromGw(const string &rawGetWork) {
+
+  JsonNode work;
+
   // check is valid json
-  if (!JsonNode::parse(raw_.c_str(),
-                       raw_.c_str() + raw_.length(),
-                       parsedGetWork_)) {
-    LOG(ERROR) << "decode rsk getwork json fail: >" << raw_ << "<";
+  if (!JsonNode::parse(rawGetWork.c_str(),
+                       rawGetWork.c_str() + rawGetWork.length(),
+                       work)) {
+    LOG(ERROR) << "decode rsk getwork json fail: >" << rawGetWork << "<";
     return false;
   }
 
   // check fields are valid
-  if (parsedGetWork_["created_at_ts"].type()    != Utilities::JS::type::Int   ||
-      parsedGetWork_["rskdRpcAddress"].type()   != Utilities::JS::type::Str   ||
-      parsedGetWork_["rskdRpcUserPwd"].type()   != Utilities::JS::type::Str   ||
-      parsedGetWork_["parentBlockHash"].type()             != Utilities::JS::type::Str ||
-      parsedGetWork_["blockHashForMergedMining"].type()    != Utilities::JS::type::Str ||
-      parsedGetWork_["target"].type()                      != Utilities::JS::type::Str ||
-      parsedGetWork_["feesPaidToMiner"].type()             != Utilities::JS::type::Str ||
-      parsedGetWork_["notify"].type()                      != Utilities::JS::type::Str) {
+  if (work["created_at_ts"].type()    != Utilities::JS::type::Int   ||
+      work["rskdRpcAddress"].type()   != Utilities::JS::type::Str   ||
+      work["rskdRpcUserPwd"].type()   != Utilities::JS::type::Str   ||
+      work["parentBlockHash"].type()             != Utilities::JS::type::Str ||
+      work["blockHashForMergedMining"].type()    != Utilities::JS::type::Str ||
+      work["target"].type()                      != Utilities::JS::type::Str ||
+      work["feesPaidToMiner"].type()             != Utilities::JS::type::Str ||
+      work["notify"].type()                      != Utilities::JS::type::Str) {
     LOG(ERROR) << "rsk getwork fields failure";
     return false;
   }
 
   // check timestamp
-  if (parsedGetWork_["created_at_ts"].uint32() + 60u < time(nullptr)) {
-    LOG(ERROR) << "too old rsk getwork: " << date("%F %T", parsedGetWork_["created_at_ts"].uint32());
+  if (work["created_at_ts"].uint32() + 60u < time(nullptr)) {
+    LOG(ERROR) << "too old rsk getwork: " << date("%F %T", work["created_at_ts"].uint32());
     return false;
   }
 
-  parsed_ = parsedGetWork_;
+  blockHash_ = work["blockHashForMergedMining"].str();
+  target_ = work["target"].str();
+  fees_ = work["feesPaidToMiner"].str();
+  rpcAddress_ = work["rskdRpcAddress"].str(); 
+  rpcUserPwd_ = work["rskdRpcUserPwd"].str();
+  notifyFlag_ = work["notify"].str();
+
+  initialized_ = true;
 
   return true;
 }
+
+bool GetWork::isInitialized() const {
+  return initialized_; 
+}
+
+string GetWork::getBlockHash() const {
+  return blockHash_;
+}
+
+string GetWork::getTarget() const {
+  return target_;
+}
+
+string GetWork::getFees() const {
+  return fees_;
+}
+
+string GetWork::getRpcAddress() const {
+  return rpcAddress_;
+}
+
+string GetWork::getRpcUserPwd() const {
+  return rpcUserPwd_;
+}
+
+string GetWork::getNotifyFlag() const {
+  return notifyFlag_;
+}
+
