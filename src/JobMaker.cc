@@ -283,7 +283,24 @@ void JobMaker::consumeRawGwMsg(rd_kafka_message_t *rkmessage) {
 
 bool JobMaker::triggerRskUpdate()
 {
-  return true;
+  GetWork currentRskWork;
+  GetWork previousRskWork;
+  {
+    ScopeLock sl(rskBlockAccessLock_);
+    if (!previousRskBlockJson_ || !currentRskBlockJson_) {
+      return false;
+    }
+    currentRskWork = *currentRskBlockJson_;
+    previousRskWork = *previousRskBlockJson_;
+  }
+
+  int notifyPolicy = 1;
+  bool notify_flag_update = notifyPolicy == 1 && currentRskWork.getNotifyFlag();
+  bool different_block_hashUpdate = notifyPolicy == 2 && 
+                                      (currentRskWork.getBlockHash() != 
+                                        previousRskWork.getBlockHash());
+
+  return notify_flag_update || different_block_hashUpdate;
 }
 
 void JobMaker::consumeRawGbtMsg(rd_kafka_message_t *rkmessage, bool needToSend) {

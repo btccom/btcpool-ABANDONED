@@ -94,7 +94,7 @@ class GetWork {
   string fees_;
   string rpcAddress_;
   string rpcUserPwd_;
-  string notifyFlag_;
+  bool notifyFlag_;
 
   bool initialized_;
 
@@ -108,7 +108,7 @@ public:
   string getFees() const;
   string getRpcAddress() const;
   string getRpcUserPwd() const;
-  string getNotifyFlag() const;
+  bool getNotifyFlag() const;
 };
 
 ////////////////////////////////// FoundBlock //////////////////////////////////

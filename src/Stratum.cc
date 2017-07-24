@@ -628,7 +628,7 @@ bool GetWork::initFromGw(const string &rawGetWork) {
   fees_ = work["feesPaidToMiner"].str();
   rpcAddress_ = work["rskdRpcAddress"].str(); 
   rpcUserPwd_ = work["rskdRpcUserPwd"].str();
-  notifyFlag_ = work["notify"].str();
+  notifyFlag_ = work["notify"].boolean();
 
   initialized_ = true;
 
@@ -659,7 +659,7 @@ string GetWork::getRpcUserPwd() const {
   return rpcUserPwd_;
 }
 
-string GetWork::getNotifyFlag() const {
+bool GetWork::getNotifyFlag() const {
   return notifyFlag_;
 }
 
