@@ -43,6 +43,7 @@
 JobMaker::JobMaker(const string &kafkaBrokers,  uint32_t stratumJobInterval,
                    const string &payoutAddr, uint32_t gbtLifeTime,
                    uint32_t emptyGbtLifeTime, const string &fileLastJobTime,
+				   uint32_t rskNotifyPolicy,
                    uint32_t blockVersion, const string &poolCoinbaseInfo):
 running_(true),
 kafkaBrokers_(kafkaBrokers),
@@ -50,7 +51,7 @@ kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, RD_KAFKA_PARTITIO
 kafkaRawGbtConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT,       0/* partition */),
 kafkaNmcAuxConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_NMC_AUXBLOCK, 0/* partition */),
 kafkaRawGwConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGW, 0/* partition */),
-currBestHeight_(0), lastJobSendTime_(0),
+rskNotifyPolicy_(rskNotifyPolicy), currBestHeight_(0), lastJobSendTime_(0),
 isLastJobEmptyBlock_(false), isLastJobNewHeight_(false),
 stratumJobInterval_(stratumJobInterval),
 poolCoinbaseInfo_(poolCoinbaseInfo), poolPayoutAddr_(payoutAddr),
@@ -294,9 +295,8 @@ bool JobMaker::triggerRskUpdate()
     previousRskWork = *previousRskBlockJson_;
   }
 
-  int notifyPolicy = 1;
-  bool notify_flag_update = notifyPolicy == 1 && currentRskWork.getNotifyFlag();
-  bool different_block_hashUpdate = notifyPolicy == 2 && 
+  bool notify_flag_update = rskNotifyPolicy_ == 1 && currentRskWork.getNotifyFlag();
+  bool different_block_hashUpdate = rskNotifyPolicy_ == 2 && 
                                       (currentRskWork.getBlockHash() != 
                                         previousRskWork.getBlockHash());
 

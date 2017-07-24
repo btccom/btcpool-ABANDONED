@@ -149,6 +149,7 @@ int main(int argc, char **argv) {
     uint32_t stratumJobInterval = 20;  // seconds
     uint32_t gbtLifeTime        = 90;
     uint32_t emptyGbtLifeTime   = 15;
+	uint32_t rskNotifyPolicy    = 0u;
     uint32_t blockVersion       = 0u;
 
     cfg.lookupValue("jobmaker.stratum_job_interval", stratumJobInterval);
@@ -157,11 +158,12 @@ int main(int argc, char **argv) {
     cfg.lookupValue("jobmaker.file_last_job_time",   fileLastJobTime);
     cfg.lookupValue("jobmaker.block_version",        blockVersion);
 	cfg.lookupValue("pool.coinbase_info",            poolCoinbaseInfo);
+	cfg.lookupValue("jobmaker.rsk_notify_policy", rskNotifyPolicy);
 
     gJobMaker = new JobMaker(cfg.lookup("kafka.brokers"), stratumJobInterval,
                              cfg.lookup("pool.payout_address"), gbtLifeTime,
-                             emptyGbtLifeTime, fileLastJobTime, blockVersion,
-							 poolCoinbaseInfo);
+                             emptyGbtLifeTime, fileLastJobTime, 
+							 rskNotifyPolicy, blockVersion, poolCoinbaseInfo);
 
     if (!gJobMaker->init()) {
       LOG(FATAL) << "init failure";

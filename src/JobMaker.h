@@ -51,6 +51,7 @@ class JobMaker {
   mutex rskBlockAccessLock_;
   GetWork *previousRskBlockJson_;
   GetWork *currentRskBlockJson_;
+  uint32_t rskNotifyPolicy_;
 
   uint32_t currBestHeight_;
   uint32_t lastJobSendTime_;
@@ -92,7 +93,8 @@ public:
   JobMaker(const string &kafkaBrokers, uint32_t stratumJobInterval,
            const string &payoutAddr, uint32_t gbtLifeTime,
            uint32_t emptyGbtLifeTime, const string &fileLastJobTime,
-           uint32_t blockVersion, const string &poolCoinbaseInfo);
+           uint32_t rskNotifyPolicy, uint32_t blockVersion,
+					const string &poolCoinbaseInfo);
   ~JobMaker();
 
   bool init();
