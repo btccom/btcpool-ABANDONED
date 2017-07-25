@@ -146,9 +146,8 @@ int main(int argc, char **argv) {
 
     bool isDevModeEnabled = false;
     cfg.lookupValue("sserver.enable_dev_mode", isDevModeEnabled);
-    string minerDifficultyString;
-    cfg.lookupValue("sserver.miner_difficulty", minerDifficultyString);
-    float minerDifficulty = ::atof(minerDifficultyString.c_str());
+    float minerDifficulty;
+    cfg.lookupValue("sserver.miner_difficulty", minerDifficulty);
     
     string fileLastMiningNotifyTime;
     cfg.lookupValue("sserver.file_last_notify_time", fileLastMiningNotifyTime);
