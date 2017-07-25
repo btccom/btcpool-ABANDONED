@@ -231,11 +231,12 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   if (latestPrevBlockHash_ != sjob->prevHash_) {
     isClean = true;
     latestPrevBlockHash_ = sjob->prevHash_;
-    LOG(INFO) << "received new height statum job, height: " << sjob->height_
+    LOG(INFO) << "received new height stratum job, height: " << sjob->height_
     << ", prevhash: " << sjob->prevHash_.ToString();
   }
 
-  shared_ptr<StratumJobEx> exJob = std::make_shared<StratumJobEx>(sjob, isClean);
+  bool isRskClean = sjob->isRskCleanJob_;
+  shared_ptr<StratumJobEx> exJob = std::make_shared<StratumJobEx>(sjob, isClean || isRskClean);
   {
     ScopeLock sl(lock_);
 
@@ -251,7 +252,7 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   }
 
   // if job has clean flag, call server to send job
-  if (isClean) {
+  if (isClean || isRskClean) {
     sendMiningNotify(exJob);
     return;
   }
