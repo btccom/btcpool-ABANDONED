@@ -198,7 +198,7 @@ int64 findExtraNonceStart(const vector<char> &coinbaseOriTpl,
 
 //////////////////////////////////  StratumJob  ////////////////////////////////
 StratumJob::StratumJob(): jobId_(0), height_(0), nVersion_(0), nBits_(0U),
-nTime_(0U), minTime_(0U), coinbaseValue_(0), nmcAuxBits_(0u) {
+nTime_(0U), minTime_(0U), coinbaseValue_(0), nmcAuxBits_(0u), isRskCleanJob_(false) {
 }
 
 string StratumJob::serializeToJson() const {
@@ -220,9 +220,11 @@ string StratumJob::serializeToJson() const {
                          // namecoin, optional
                          ",\"nmcBlockHash\":\"%s\",\"nmcBits\":%u,\"nmcHeight\":%d"
                          ",\"nmcRpcAddr\":\"%s\",\"nmcRpcUserpass\":\"%s\""
+                         // rsk 
                          ",\"rskBlockHashForMergedMining\":\"%s\",\"rskNetworkTarget\":\"0x%s\""
                          ",\"rskFeesForMiner\":\"%s\""
                          ",\"rskdRpcAddress\":\"%s\",\"rskdRpcUserPwd\":\"%s\""
+                         ",\"isRskCleanJob\":%s"
                          "}",
                          jobId_, gbtHash_.c_str(),
                          prevHash_.ToString().c_str(), prevHashBeStr_.c_str(),
@@ -242,7 +244,8 @@ string StratumJob::serializeToJson() const {
                          rskNetworkTarget_.GetHex().c_str(),
                          feesForMiner_.size()             ? feesForMiner_.c_str()             : "",
                          rskdRpcAddress_.size()           ? rskdRpcAddress_.c_str()           : "",
-                         rskdRpcUserPwd_.c_str()          ? rskdRpcUserPwd_.c_str()           : "");
+                         rskdRpcUserPwd_.c_str()          ? rskdRpcUserPwd_.c_str()           : "",
+                         isRskCleanJob_ ? "true" : "false");
 }
 
 bool StratumJob::unserializeFromJson(const char *s, size_t len) {
@@ -310,12 +313,14 @@ bool StratumJob::unserializeFromJson(const char *s, size_t len) {
       j["rskNetworkTarget"].type()              == Utilities::JS::type::Str &&
       j["rskFeesForMiner"].type()               == Utilities::JS::type::Str &&
       j["rskdRpcAddress"].type()                == Utilities::JS::type::Str &&
-      j["rskdRpcUserPwd"].type()                == Utilities::JS::type::Str) {
+      j["rskdRpcUserPwd"].type()                == Utilities::JS::type::Str &&
+      j["isRskCleanJob"].type()                 == Utilities::JS::type::Bool) {
     blockHashForMergedMining_ = j["rskBlockHashForMergedMining"].str();
     rskNetworkTarget_         = uint256S(j["rskNetworkTarget"].str());
     feesForMiner_             = j["rskFeesForMiner"].str();
     rskdRpcAddress_           = j["rskdRpcAddress"].str();
     rskdRpcUserPwd_           = j["rskdRpcUserPwd"].str();
+    isRskCleanJob_            = j["isRskCleanJob"].boolean();
   }
 
   const string merkleBranchStr = j["merkleBranch"].str();
@@ -446,6 +451,7 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     feesForMiner_ = latestRskBlockJson.getFees();
     rskdRpcAddress_ = latestRskBlockJson.getRpcAddress();
     rskdRpcUserPwd_ = latestRskBlockJson.getRpcUserPwd();
+    isRskCleanJob_ = latestRskBlockJson.getIsCleanJob();
   }
 
   // make coinbase1 & coinbase2
@@ -661,5 +667,15 @@ string GetWork::getRpcUserPwd() const {
 
 bool GetWork::getNotifyFlag() const {
   return notifyFlag_;
+}
+
+bool GetWork::isCleanJob_;
+
+void GetWork::setIsCleanJob(bool cleanJob) {
+  isCleanJob_ = cleanJob;
+}
+
+bool GetWork::getIsCleanJob() const {
+  return isCleanJob_;
 }
 

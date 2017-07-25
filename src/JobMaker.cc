@@ -61,6 +61,8 @@ blockVersion_(blockVersion)
 {
 	LOG(INFO) << "Block Version: " << std::hex << blockVersion_;
 	LOG(INFO) << "Coinbase Info: " << poolCoinbaseInfo_;
+  poolCoinbaseInfo_ = "/BTC.COM/";
+  GetWork::setIsCleanJob(rskNotifyPolicy != 0);
 }
 
 JobMaker::~JobMaker() {

@@ -89,13 +89,14 @@ public:
 
 ////////////////////////////////// GetWork //////////////////////////////////
 class GetWork {
+  static bool isCleanJob_;
+
   string blockHash_;
   string target_;
   string fees_;
   string rpcAddress_;
   string rpcUserPwd_;
   bool notifyFlag_;
-
   bool initialized_;
 
 public:
@@ -109,6 +110,8 @@ public:
   string getRpcAddress() const;
   string getRpcUserPwd() const;
   bool getNotifyFlag() const;
+  static void setIsCleanJob(bool cleanJob);
+  bool getIsCleanJob() const;
 };
 
 ////////////////////////////////// FoundBlock //////////////////////////////////
@@ -320,6 +323,7 @@ public:
   string   rskdRpcUserPwd_;
   string   feesForMiner_;
   uint256  rskNetworkTarget_;
+  bool     isRskCleanJob_;
 
 
 public:
