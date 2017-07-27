@@ -48,9 +48,9 @@ class JobMaker {
 
   // merged mining for RSK
   KafkaConsumer kafkaRawGwConsumer_;  
-  mutex rskBlockAccessLock_;
-  RskWork *previousRskBlockJson_;
-  RskWork *currentRskBlockJson_;
+  mutex rskWorkAccessLock_;
+  RskWork *previousRskWork_;
+  RskWork *currentRskWork_;
   uint32_t rskNotifyPolicy_;
 
   uint32_t currBestHeight_;

@@ -259,19 +259,19 @@ void JobMaker::consumeRawGwMsg(rd_kafka_message_t *rkmessage) {
   // set json string
   LOG(INFO) << "received rawgw message, len: " << rkmessage->len;
   {
-    ScopeLock sl(rskBlockAccessLock_);
+    ScopeLock sl(rskWorkAccessLock_);
     
     string rawGetWork = string((const char *)rkmessage->payload, rkmessage->len);
     RskWork *rskWork = new RskWork();
     if(rskWork->initFromGw(rawGetWork)) {
 
-      if (previousRskBlockJson_) {
-        delete previousRskBlockJson_;
-        previousRskBlockJson_ = NULL;
+      if (previousRskWork_) {
+        delete previousRskWork_;
+        previousRskWork_ = NULL;
       }
 
-      previousRskBlockJson_ = currentRskBlockJson_;
-      currentRskBlockJson_ = rskWork;
+      previousRskWork_ = currentRskWork_;
+      currentRskWork_ = rskWork;
 
       DLOG(INFO) << "currentRskBlockJson: " << rawGetWork;
     } else {
@@ -289,12 +289,12 @@ bool JobMaker::triggerRskUpdate()
   RskWork currentRskWork;
   RskWork previousRskWork;
   {
-    ScopeLock sl(rskBlockAccessLock_);
-    if (!previousRskBlockJson_ || !currentRskBlockJson_) {
+    ScopeLock sl(rskWorkAccessLock_);
+    if (!previousRskWork_ || !currentRskWork_) {
       return false;
     }
-    currentRskWork = *currentRskBlockJson_;
-    previousRskWork = *previousRskBlockJson_;
+    currentRskWork = *currentRskWork_;
+    previousRskWork = *previousRskWork_;
   }
 
   bool notify_flag_update = rskNotifyPolicy_ == 1 && currentRskWork.getNotifyFlag();
@@ -498,8 +498,8 @@ void JobMaker::sendStratumJob(const char *gbt) {
 
   RskWork currentRskBlockJson;
   {
-    ScopeLock sl(rskBlockAccessLock_);
-    currentRskBlockJson = *currentRskBlockJson_;
+    ScopeLock sl(rskWorkAccessLock_);
+    currentRskBlockJson = *currentRskWork_;
   }
 
   StratumJob sjob;
