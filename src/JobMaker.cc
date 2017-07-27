@@ -62,7 +62,7 @@ blockVersion_(blockVersion)
 	LOG(INFO) << "Block Version: " << std::hex << blockVersion_;
 	LOG(INFO) << "Coinbase Info: " << poolCoinbaseInfo_;
   poolCoinbaseInfo_ = "/BTC.COM/";
-  GetWork::setIsCleanJob(rskNotifyPolicy != 0);
+  RskWork::setIsCleanJob(rskNotifyPolicy != 0);
 }
 
 JobMaker::~JobMaker() {
@@ -262,7 +262,7 @@ void JobMaker::consumeRawGwMsg(rd_kafka_message_t *rkmessage) {
     ScopeLock sl(rskBlockAccessLock_);
     
     string rawGetWork = string((const char *)rkmessage->payload, rkmessage->len);
-    GetWork *rskWork = new GetWork();
+    RskWork *rskWork = new RskWork();
     if(rskWork->initFromGw(rawGetWork)) {
 
       if (previousRskBlockJson_) {
@@ -286,8 +286,8 @@ void JobMaker::consumeRawGwMsg(rd_kafka_message_t *rkmessage) {
 
 bool JobMaker::triggerRskUpdate()
 {
-  GetWork currentRskWork;
-  GetWork previousRskWork;
+  RskWork currentRskWork;
+  RskWork previousRskWork;
   {
     ScopeLock sl(rskBlockAccessLock_);
     if (!previousRskBlockJson_ || !currentRskBlockJson_) {
@@ -496,7 +496,7 @@ void JobMaker::sendStratumJob(const char *gbt) {
     latestNmcAuxBlockJson = latestNmcAuxBlockJson_;
   }
 
-  GetWork currentRskBlockJson;
+  RskWork currentRskBlockJson;
   {
     ScopeLock sl(rskBlockAccessLock_);
     currentRskBlockJson = *currentRskBlockJson_;

@@ -87,8 +87,8 @@ public:
   }
 };
 
-////////////////////////////////// GetWork //////////////////////////////////
-class GetWork {
+////////////////////////////////// RskWork //////////////////////////////////
+class RskWork {
   static bool isCleanJob_;
 
   string blockHash_;
@@ -100,7 +100,7 @@ class GetWork {
   bool initialized_;
 
 public:
-  GetWork();
+  RskWork();
 
   bool initFromGw(const string &rawGetWork);
   bool isInitialized() const;
@@ -336,7 +336,7 @@ public:
                    const CBitcoinAddress &poolPayoutAddr,
                    const uint32_t blockVersion,
                    const string &nmcAuxBlockJson,
-                   const GetWork &latestRskBlockJson);
+                   const RskWork &latestRskBlockJson);
   bool isEmptyBlock();
 };
 

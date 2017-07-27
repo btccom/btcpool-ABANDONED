@@ -339,7 +339,7 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
                              const CBitcoinAddress &poolPayoutAddr,
                              const uint32_t blockVersion,
                              const string &nmcAuxBlockJson,
-                             const GetWork &latestRskBlockJson) {
+                             const RskWork &latestRskBlockJson) {
   uint256 gbtHash = Hash(gbt, gbt + strlen(gbt));
   JsonNode r;
   if (!JsonNode::parse(gbt, gbt + strlen(gbt), r)) {
@@ -594,11 +594,11 @@ bool StratumJob::isEmptyBlock() {
   return merkleBranch_.size() == 0 ? true : false;
 }
 
-////////////////////////////////// GetWork //////////////////////////////////
+////////////////////////////////// RskWork //////////////////////////////////
 
-GetWork::GetWork() : initialized_(false) {}
+RskWork::RskWork() : initialized_(false) {}
 
-bool GetWork::initFromGw(const string &rawGetWork) {
+bool RskWork::initFromGw(const string &rawGetWork) {
 
   JsonNode work;
 
@@ -641,41 +641,41 @@ bool GetWork::initFromGw(const string &rawGetWork) {
   return true;
 }
 
-bool GetWork::isInitialized() const {
+bool RskWork::isInitialized() const {
   return initialized_; 
 }
 
-string GetWork::getBlockHash() const {
+string RskWork::getBlockHash() const {
   return blockHash_;
 }
 
-string GetWork::getTarget() const {
+string RskWork::getTarget() const {
   return target_;
 }
 
-string GetWork::getFees() const {
+string RskWork::getFees() const {
   return fees_;
 }
 
-string GetWork::getRpcAddress() const {
+string RskWork::getRpcAddress() const {
   return rpcAddress_;
 }
 
-string GetWork::getRpcUserPwd() const {
+string RskWork::getRpcUserPwd() const {
   return rpcUserPwd_;
 }
 
-bool GetWork::getNotifyFlag() const {
+bool RskWork::getNotifyFlag() const {
   return notifyFlag_;
 }
 
-bool GetWork::isCleanJob_;
+bool RskWork::isCleanJob_;
 
-void GetWork::setIsCleanJob(bool cleanJob) {
+void RskWork::setIsCleanJob(bool cleanJob) {
   isCleanJob_ = cleanJob;
 }
 
-bool GetWork::getIsCleanJob() const {
+bool RskWork::getIsCleanJob() const {
   return isCleanJob_;
 }
 
