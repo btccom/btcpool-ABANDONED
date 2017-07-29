@@ -42,7 +42,7 @@
 JobMaker::JobMaker(const string &kafkaBrokers,  uint32_t stratumJobInterval,
                    const string &payoutAddr, uint32_t gbtLifeTime,
                    uint32_t emptyGbtLifeTime, const string &fileLastJobTime,
-                   uint32_t blockVersion):
+                   uint32_t blockVersion, const string &poolCoinbaseInfo):
 running_(true),
 kafkaBrokers_(kafkaBrokers),
 kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, RD_KAFKA_PARTITION_UA/* partition */),
@@ -53,9 +53,9 @@ isLastJobEmptyBlock_(false), isLastJobNewHeight_(false),
 stratumJobInterval_(stratumJobInterval),
 poolPayoutAddr_(payoutAddr), kGbtLifeTime_(gbtLifeTime),
 kEmptyGbtLifeTime_(emptyGbtLifeTime), fileLastJobTime_(fileLastJobTime),
-blockVersion_(blockVersion)
+blockVersion_(blockVersion), poolCoinbaseInfo_(poolCoinbaseInfo)
 {
-  poolCoinbaseInfo_ = "/BTC.COM/";
+	LOG(INFO) << "Coinbase info: " << poolCoinbaseInfo_;
 }
 
 JobMaker::~JobMaker() {
