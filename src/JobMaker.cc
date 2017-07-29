@@ -23,6 +23,7 @@
  */
 #include "JobMaker.h"
 
+#include <iostream>
 #include <stdlib.h>
 
 #include <glog/logging.h>
@@ -51,11 +52,13 @@ kafkaNmcAuxConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_NMC_AUXBLOCK, 0/* partit
 currBestHeight_(0), lastJobSendTime_(0),
 isLastJobEmptyBlock_(false), isLastJobNewHeight_(false),
 stratumJobInterval_(stratumJobInterval),
-poolPayoutAddr_(payoutAddr), kGbtLifeTime_(gbtLifeTime),
-kEmptyGbtLifeTime_(emptyGbtLifeTime), fileLastJobTime_(fileLastJobTime),
-blockVersion_(blockVersion), poolCoinbaseInfo_(poolCoinbaseInfo)
+poolCoinbaseInfo_(poolCoinbaseInfo), poolPayoutAddr_(payoutAddr),
+kGbtLifeTime_(gbtLifeTime), kEmptyGbtLifeTime_(emptyGbtLifeTime),
+fileLastJobTime_(fileLastJobTime),
+blockVersion_(blockVersion)
 {
-	LOG(INFO) << "Coinbase info: " << poolCoinbaseInfo_;
+	LOG(INFO) << "Block Version: " << std::hex << blockVersion_;
+	LOG(INFO) << "Coinbase Info: " << poolCoinbaseInfo_;
 }
 
 JobMaker::~JobMaker() {
