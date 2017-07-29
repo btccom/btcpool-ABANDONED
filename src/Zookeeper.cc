@@ -23,6 +23,7 @@
  */
 
 #include <pthread.h>
+#include <unistd.h>
 #include <zookeeper/zookeeper.h>
 #include <zookeeper/proto.h>
 #include <glog/logging.h>
@@ -55,6 +56,20 @@ Zookeeper::Zookeeper(const char *servers) {
 
   if (zh == NULL) {
     throw ZookeeperException(string("Zookeeper init failed: ") + zerror(errno));
+  }
+  
+  for (int i=0; i<=20 && zoo_state(zh)!=ZOO_CONNECTED_STATE; i+=5)
+  {
+    LOG(INFO) << "Zookeeper: connecting to zookeeper brokers: " << i << "s";
+
+	sleep(5);
+  }
+  
+  if (zoo_state(zh)!=ZOO_CONNECTED_STATE)
+  {
+	ZookeeperException ex("Zookeeper: connecting to zookeeper brokers failed!");
+    LOG(FATAL) << ex.what();
+    throw ex;
   }
 }
 
