@@ -3,7 +3,7 @@
   Purpose: Object that represents RSK data needed to build a solution block
 
   @author Martin Medina
-  @copyright RSK
+  @copyright RSK Labs Ltd.
 */
 
 #ifndef RSK_SOLVED_SHARE_DATA_H_

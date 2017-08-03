@@ -802,7 +802,12 @@ void BlockMaker::runThreadConsumeNamecoinSovledShare() {
   }
 }
 
-//// RSKD
+/**
+  Beginning of methods needed to consume a solved share and submit a block to RSK node.
+
+  @author Martin Medina
+  @copyright RSK Labs Ltd.
+*/
 void BlockMaker::submitRskBlockNonBlocking(const string &rpcAddress,
                                         const string &rpcUserPwd,
                                         const string &blockHex) {
@@ -966,6 +971,7 @@ void BlockMaker::runThreadConsumeRskSolvedShare() {
     rd_kafka_message_destroy(rkmessage);
   }
 }
+//// End of methods added to merge mine for RSK
 
 void BlockMaker::run() {
   // setup threads

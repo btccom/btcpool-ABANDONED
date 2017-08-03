@@ -3,7 +3,7 @@
   Purpose: Poll RSK node to get new work and send it to Kafka "RawGw" topic
 
   @author Martin Medina
-  @copyright RSK
+  @copyright RSK Labs Ltd.
   @version 1.0 30/03/17 
 */
 

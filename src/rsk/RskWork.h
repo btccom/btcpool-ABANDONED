@@ -3,7 +3,7 @@
   Purpose: Object that represents RSK data needed to generate a new job
 
   @author Martin Medina
-  @copyright RSK
+  @copyright RSK Labs Ltd.
 */
 
 #ifndef RSK_WORK_H_
