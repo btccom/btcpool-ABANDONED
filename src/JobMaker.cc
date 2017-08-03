@@ -231,6 +231,62 @@ void JobMaker::consumeNmcAuxBlockMsg(rd_kafka_message_t *rkmessage) {
   }
 }
 
+void JobMaker::consumeRawGbtMsg(rd_kafka_message_t *rkmessage, bool needToSend) {
+  // check error
+  if (rkmessage->err) {
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
+      // Reached the end of the topic+partition queue on the broker.
+      // Not really an error.
+//      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
+//      << "[" << rkmessage->partition << "] "
+//      << " message queue at offset " << rkmessage->offset;
+      // acturlly
+      return;
+    }
+
+    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
+               << "[" << rkmessage->partition << "] offset " << rkmessage->offset
+               << ": " << rd_kafka_message_errstr(rkmessage);
+
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
+        rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
+      LOG(FATAL) << "consume fatal";
+      stop();
+    }
+    return;
+  }
+
+  LOG(INFO) << "received rawgbt message, len: " << rkmessage->len;
+  addRawgbt((const char *)rkmessage->payload, rkmessage->len);
+
+  if (needToSend) {
+    checkAndSendStratumJob(false);
+  }
+}
+
+void JobMaker::runThreadConsumeNmcAuxBlock() {
+  const int32_t timeoutMs = 1000;
+
+  while (running_) {
+    rd_kafka_message_t *rkmessage;
+    rkmessage = kafkaNmcAuxConsumer_.consumer(timeoutMs);
+    if (rkmessage == nullptr) /* timeout */
+      continue;
+
+    consumeNmcAuxBlockMsg(rkmessage);
+
+    /* Return message to rdkafka */
+    rd_kafka_message_destroy(rkmessage);
+  }
+}
+
+/**
+  Beginning of methods needed to consume a raw get work message and extract its info.
+  Info will then be used to create add RSK merge mining data into stratum jobs.
+
+  @author Martin Medina
+  @copyright RSK Labs Ltd.
+*/
 void JobMaker::consumeRawGwMsg(rd_kafka_message_t *rkmessage) {
   // check error
   if (rkmessage->err) {
@@ -305,55 +361,6 @@ bool JobMaker::triggerRskUpdate()
   return notify_flag_update || different_block_hashUpdate;
 }
 
-void JobMaker::consumeRawGbtMsg(rd_kafka_message_t *rkmessage, bool needToSend) {
-  // check error
-  if (rkmessage->err) {
-    if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
-      // Reached the end of the topic+partition queue on the broker.
-      // Not really an error.
-//      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
-//      << "[" << rkmessage->partition << "] "
-//      << " message queue at offset " << rkmessage->offset;
-      // acturlly 
-      return;
-    }
-
-    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
-    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
-    << ": " << rd_kafka_message_errstr(rkmessage);
-
-    if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
-        rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
-      LOG(FATAL) << "consume fatal";
-      stop();
-    }
-    return;
-  }
-
-  LOG(INFO) << "received rawgbt message, len: " << rkmessage->len;
-  addRawgbt((const char *)rkmessage->payload, rkmessage->len);
-
-  if (needToSend) {
-    checkAndSendStratumJob(false);
-  }
-}
-
-void JobMaker::runThreadConsumeNmcAuxBlock() {
-  const int32_t timeoutMs = 1000;
-
-  while (running_) {
-    rd_kafka_message_t *rkmessage;
-    rkmessage = kafkaNmcAuxConsumer_.consumer(timeoutMs);
-    if (rkmessage == nullptr) /* timeout */
-      continue;
-
-    consumeNmcAuxBlockMsg(rkmessage);
-
-    /* Return message to rdkafka */
-    rd_kafka_message_destroy(rkmessage);
-  }
-}
-
 void JobMaker::runThreadConsumeRawGw() {
   const int32_t timeoutMs = 1000;
 
@@ -369,6 +376,7 @@ void JobMaker::runThreadConsumeRawGw() {
     rd_kafka_message_destroy(rkmessage);
   }
 }
+//// End of methods added to merge mine for RSK
 
 void JobMaker::run() {
   // start Nmc Aux Block consumer thread
