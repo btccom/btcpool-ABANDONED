@@ -32,10 +32,12 @@
 #include <deque>
 #include <vector>
 #include <unordered_map>
+#include <boost/date_time/posix_time/posix_time.hpp>
 
 #include "bitcoin/uint256.h"
 #include "bitcoin/base58.h"
 
+namespace bpt = boost::posix_time;
 
 ////////////////////////////////// BlockMaker //////////////////////////////////
 class BlockMaker {
@@ -52,6 +54,9 @@ class BlockMaker {
   size_t kMaxStratumJobNum_;
   // key: jobId, value: gbthash
   std::map<uint64_t, uint256> jobId2GbtHash_;
+
+  bpt::ptime lastSubmittedBlockTime;
+  uint32_t submittedRskBlocks;
 
   KafkaConsumer kafkaConsumerRawGbt_;
   KafkaConsumer kafkaConsumerStratumJob_;

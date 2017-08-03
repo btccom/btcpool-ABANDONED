@@ -29,12 +29,13 @@
 #include "bitcoin/core_io.h"
 #include "utilities_js.hpp"
 
-
 ////////////////////////////////// BlockMaker //////////////////////////////////
 BlockMaker::BlockMaker(const char *kafkaBrokers, const MysqlConnectInfo &poolDB):
 running_(true),
 kMaxRawGbtNum_(100),    /* if 5 seconds a rawgbt, will hold 100*5/60 = 8 mins rawgbt */
 kMaxStratumJobNum_(120), /* if 30 seconds a stratum job, will hold 60 mins stratum job */
+lastSubmittedBlockTime(),
+submittedRskBlocks(0),
 kafkaConsumerRawGbt_     (kafkaBrokers, KAFKA_TOPIC_RAWGBT,       0/* patition */),
 kafkaConsumerStratumJob_ (kafkaBrokers, KAFKA_TOPIC_STRATUM_JOB,  0/* patition */),
 kafkaConsumerSovledShare_(kafkaBrokers, KAFKA_TOPIC_SOLVED_SHARE, 0/* patition */),
@@ -915,10 +916,31 @@ void BlockMaker::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
     newblk.vtx.insert(newblk.vtx.end(), vtxs->begin(), vtxs->end());
   }
 
-  // submit to rskd
-  LOG(INFO) << "submit RSK block: " << newblk.GetHash().ToString();
-  const string blockHex = EncodeHexBlock(newblk);
-  submitRskBlockNonBlocking(shareData.rpcAddress_, shareData.rpcUserPwd_, blockHex);  // using thread
+  // no more than 2 submissions per second can be made to RSK node
+  uint32_t maxSubmissionsPerSecond = 2;
+  int64_t oneSecondWindowInMs = 1000;
+
+  if (lastSubmittedBlockTime.is_not_a_date_time()) {
+    lastSubmittedBlockTime = bpt::microsec_clock::universal_time();
+  }
+
+  bpt::ptime currentTime(bpt::microsec_clock::universal_time());
+  bpt::time_duration elapsed = currentTime - lastSubmittedBlockTime;
+
+  if (elapsed.total_milliseconds() > oneSecondWindowInMs) {
+    lastSubmittedBlockTime = currentTime;
+    submittedRskBlocks = 0;
+    elapsed = currentTime - lastSubmittedBlockTime;
+  }
+
+  if (elapsed.total_milliseconds() < oneSecondWindowInMs && submittedRskBlocks < maxSubmissionsPerSecond) {
+    // submit to RSK node
+    LOG(INFO) << "submit RSK block: " << newblk.GetHash().ToString();
+    const string blockHex = EncodeHexBlock(newblk);
+    submitRskBlockNonBlocking(shareData.rpcAddress_, shareData.rpcUserPwd_, blockHex);  // using thread
+
+    submittedRskBlocks++;
+  }
 }
 
 void BlockMaker::runThreadConsumeRskSolvedShare() {
