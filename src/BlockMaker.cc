@@ -837,11 +837,6 @@ void BlockMaker::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
   if (rkmessage->err) {
     if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
       // Reached the end of the topic+partition queue on the broker.
-      // Not really an error.
-      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
-      //      << "[" << rkmessage->partition << "] "
-      //      << " message queue at offset " << rkmessage->offset;
-      // acturlly
       return;
     }
 
@@ -865,7 +860,6 @@ void BlockMaker::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
   RskSolvedShareData shareData;
   CBlockHeader blkHeader;
   vector<char> coinbaseTxBin;
-
   {
     if (rkmessage->len <= sizeof(RskSolvedShareData)) {
       LOG(ERROR) << "invalid RskSolvedShareData length: " << rkmessage->len;
@@ -919,31 +913,42 @@ void BlockMaker::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
     newblk.vtx.insert(newblk.vtx.end(), vtxs->begin(), vtxs->end());
   }
 
-  // no more than 2 submissions per second can be made to RSK node
-  uint32_t maxSubmissionsPerSecond = 2;
-  int64_t oneSecondWindowInMs = 1000;
-
-  if (lastSubmittedBlockTime.is_not_a_date_time()) {
-    lastSubmittedBlockTime = bpt::microsec_clock::universal_time();
-  }
-
-  bpt::ptime currentTime(bpt::microsec_clock::universal_time());
-  bpt::time_duration elapsed = currentTime - lastSubmittedBlockTime;
-
-  if (elapsed.total_milliseconds() > oneSecondWindowInMs) {
-    lastSubmittedBlockTime = currentTime;
-    submittedRskBlocks = 0;
-    elapsed = currentTime - lastSubmittedBlockTime;
-  }
-
-  if (elapsed.total_milliseconds() < oneSecondWindowInMs && submittedRskBlocks < maxSubmissionsPerSecond) {
-    // submit to RSK node
+  if (submitToRskNode()) {
     LOG(INFO) << "submit RSK block: " << newblk.GetHash().ToString();
     const string blockHex = EncodeHexBlock(newblk);
     submitRskBlockNonBlocking(shareData.rpcAddress_, shareData.rpcUserPwd_, blockHex);  // using thread
-
-    submittedRskBlocks++;
   }
+}
+
+/**
+  Anti flooding mechanism.
+  No more than 2 submissions per second can be made to RSK node.
+
+  @returns true if block can be submitted to RSK node. false otherwise.
+*/
+bool BlockMaker::submitToRskNode() {
+    uint32_t maxSubmissionsPerSecond = 2;
+    int64_t oneSecondWindowInMs = 1000;
+
+    if (lastSubmittedBlockTime.is_not_a_date_time()) {
+        lastSubmittedBlockTime = bpt::microsec_clock::universal_time();
+    }
+
+    bpt::ptime currentTime(bpt::microsec_clock::universal_time());
+    bpt::time_duration elapsed = currentTime - lastSubmittedBlockTime;
+
+    if (elapsed.total_milliseconds() > oneSecondWindowInMs) {
+        lastSubmittedBlockTime = currentTime;
+        submittedRskBlocks = 0;
+        elapsed = currentTime - lastSubmittedBlockTime;
+    }
+
+    if (elapsed.total_milliseconds() < oneSecondWindowInMs && submittedRskBlocks < maxSubmissionsPerSecond) {
+        submittedRskBlocks++;
+        return true;
+    }
+
+    return false;
 }
 
 void BlockMaker::runThreadConsumeRskSolvedShare() {

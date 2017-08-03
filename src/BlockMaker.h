@@ -124,6 +124,7 @@ class BlockMaker {
   void _submitRskBlockThread(const string &rpcAddress,
                             const string &rpcUserPwd,
                             const string &blockHex);
+  bool submitToRskNode();
 
 public:
   BlockMaker(const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
