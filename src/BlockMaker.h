@@ -37,6 +37,8 @@
 #include "bitcoin/uint256.h"
 #include "bitcoin/base58.h"
 
+#include "rsk/RskWork.h"
+
 namespace bpt = boost::posix_time;
 
 ////////////////////////////////// BlockMaker //////////////////////////////////

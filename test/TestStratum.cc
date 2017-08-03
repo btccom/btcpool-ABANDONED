@@ -33,6 +33,8 @@
 #include "bitcoin/uint256.h"
 #include "bitcoin/util.h"
 
+#include "rsk/RskWork.h"
+
 #include <stdint.h>
 
 TEST(Stratum, jobId2Time) {

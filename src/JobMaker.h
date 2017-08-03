@@ -31,6 +31,8 @@
 #include "bitcoin/uint256.h"
 #include "bitcoin/base58.h"
 
+#include "rsk/RskWork.h"
+
 #include <map>
 #include <deque>
 

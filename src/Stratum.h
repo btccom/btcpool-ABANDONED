@@ -41,6 +41,8 @@
 #include "bitcoin/uint256.h"
 #include "bitcoin/base58.h"
 
+#include "rsk/RskWork.h"
+
 // TODO: update when next Halving
 #define BLOCK_REWARD 1250000000ll
 
@@ -64,33 +66,6 @@ string filterWorkerName(const string &workerName);
 inline string filterWorkerName(const char *workerName) {
   return filterWorkerName(std::string(workerName));
 }
-
-////////////////////////////////// RskWork //////////////////////////////////
-class RskWork {
-  static bool isCleanJob_;
-
-  string blockHash_;
-  string target_;
-  string fees_;
-  string rpcAddress_;
-  string rpcUserPwd_;
-  bool notifyFlag_;
-  bool initialized_;
-
-public:
-  RskWork();
-
-  bool initFromGw(const string &rawGetWork);
-  bool isInitialized() const;
-  string getBlockHash() const;
-  string getTarget() const;
-  string getFees() const;
-  string getRpcAddress() const;
-  string getRpcUserPwd() const;
-  bool getNotifyFlag() const;
-  static void setIsCleanJob(bool cleanJob);
-  bool getIsCleanJob() const;
-};
 
 ////////////////////////////////// FoundBlock //////////////////////////////////
 class FoundBlock {
