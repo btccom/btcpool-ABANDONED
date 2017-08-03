@@ -32,6 +32,8 @@
 #include "bitcoin/utilstrencodings.h"
 #include "bitcoin/hash.h"
 
+#include "rsk/RskSolvedShareData.h"
+
 #include "utilities_js.hpp"
 
 
