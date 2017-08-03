@@ -841,8 +841,7 @@ void StratumSession::sendSetDifficulty(const uint64_t difficulty) {
   } else {
     s = Strings::Format("{\"id\":null,\"method\":\"mining.set_difficulty\""
                          ",\"params\":[%.3f]}\n",
-                         server_->minerDifficulty_);                           
-                         // ",\"params\":[0.005]}\n");
+                         server_->minerDifficulty_);
   }
 
   sendData(s);
