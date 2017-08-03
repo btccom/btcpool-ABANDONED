@@ -827,7 +827,7 @@ void BlockMaker::_submitRskBlockThread(const string &rpcAddress,
     bool res = rskdRpcCall(rpcAddress.c_str(), rpcUserPwd.c_str(), request.c_str(), response);
 
     // success
-    if (res == true) {
+    if (res) {
       LOG(INFO) << "rpc call success, submit block response: " << response;
       break;
     }
