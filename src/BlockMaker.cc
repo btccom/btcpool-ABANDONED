@@ -27,6 +27,9 @@
 
 #include "bitcoin/consensus/merkle.h"
 #include "bitcoin/core_io.h"
+
+#include "rsk/RskSolvedShareData.h"
+
 #include "utilities_js.hpp"
 
 ////////////////////////////////// BlockMaker //////////////////////////////////
