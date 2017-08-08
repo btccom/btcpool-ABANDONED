@@ -1171,7 +1171,7 @@ int Server::checkShare(const Share &share,
     rskSolvedShare.workerId_ = share.workerHashId_;
     rskSolvedShare.userId_   = share.userId_;
     rskSolvedShare.height_   = sjob->height_;
-    snprintf(rskSolvedShare.feesForMiner_,   sizeof(rskSolvedShare.feesForMiner_), "%s", sjob->feesForMiner_.c_str());
+    snprintf(rskSolvedShare.feesForMiner_,   sizeof(rskSolvedShare.feesForMiner_), "%s", sjob->rskFeesForMiner_.c_str());
     snprintf(rskSolvedShare.rpcAddress_,     sizeof(rskSolvedShare.rpcAddress_),   "%s", sjob->rskdRpcAddress_.c_str());
     snprintf(rskSolvedShare.rpcUserPwd_,     sizeof(rskSolvedShare.rpcUserPwd_),   "%s", sjob->rskdRpcUserPwd_.c_str());
     memcpy(rskSolvedShare.header80_,         (const uint8_t *)&header, sizeof(CBlockHeader));
