@@ -10,7 +10,7 @@ If you want to run BTCPool on a 32-bit operating system, you must fix the proble
 
 ## Build
 
-If you are the first time build btcpool, you could run `bash install/install_btcpool.sh` instead of exec these shell commands one by one.
+If it is the first time you build btcpool, you can run `bash install/install_btcpool.sh` instead of executing the commands on the `dependency` section one by one.
 
 ```
 cd /work
@@ -88,7 +88,7 @@ make
 
 ## Init btcpool
 
-Now create folder for btcpool, if you are going to run all service in one machine you could run `install/init_folders.sh` as below.
+Create a folder for btcpool, if all services are going to be run in one machine you can run `install/init_folders.sh` as below.
 
 ```
 cd /work/btcpool/build
@@ -154,7 +154,7 @@ Topic:RskSolvedShare	PartitionCount:1	ReplicationFactor:1	Configs:
        	Topic: RskSolvedShare	Partition: 0	Leader: 1	Replicas: 1	Isr: 1
 ```
 
-Before you start btcpool's services, you need to stetup MySQL database and bitcoind/namecoind (if enable merged mining).
+Before starting btcpool's services, MySQL database and bitcoind needs to be setup. Also start Rsk node or namecoind if merged mining for any of those chains.
 
 Init MySQL database tables.
 
@@ -164,7 +164,7 @@ Init MySQL database tables.
 #
 
 #
-# than create tables from sql
+# then create tables from sql
 #
 # bpool_local_db
 mysql -uxxxx -p -h xxx.xxx.xxx bpool_local_db       < install/bpool_local_db.sql
@@ -223,6 +223,10 @@ cp ../install/supervisord/sharelogger.conf   /etc/supervisor/conf.d
 # from other pools. this could reduce pool's orphan block rate.
 #
 cp ../install/supervisord/poolwatcher.conf   /etc/supervisor/conf.d
+#
+# enable rsk merged mining
+#
+cp ../install/supervisord/gwmaker.conf   /etc/supervisor/conf.d
 #
 # enable namecoin merged mining
 #
