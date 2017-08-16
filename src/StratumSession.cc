@@ -372,15 +372,19 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
   //  params[0] = user[.worker]
   //  params[1] = password
   //  eg. {"id": 2, "method": "mining.authorize", "params": ["WORKER_NAME", "WORKER_PASSWORD"]}
+  //  the password may be omitted.
+  //  eg. {"params": ["slush.miner1"], "id": 2, "method": "mining.authorize"}
   //
   if (jparams.children()->size() < 1) {
     responseError(idStr, StratumError::INVALID_USERNAME);
     return;
   }
 
-  const string password = jparams.children()->at(1).str();
-  if (!password.empty()) {
-    _handleRequest_AuthorizePassword(password);
+  if (jparams.children()->size() > 1) {
+    const string password = jparams.children()->at(1).str();
+    if (!password.empty()) {
+      _handleRequest_AuthorizePassword(password);
+    }
   }
 
   const string fullName = jparams.children()->at(0).str();
