@@ -917,7 +917,7 @@ bool StratumSession::handleMessage() {
       default:
         LOG(ERROR) << "received unknown ex-message, type: " << buf[1]
         << ", len: " << exMessageLen;
-        break;
+        return false;
     }
     return true;  // read message success, return true
   }
