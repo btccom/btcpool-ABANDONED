@@ -891,6 +891,20 @@ bool StratumSession::handleMessage() {
   if (buf[0] == CMD_MAGIC_NUMBER) {
     const uint16_t exMessageLen = *(uint16_t *)(buf + 2);
 
+    //
+    // It is not a valid message if exMessageLen < 4, because the length of
+    // message header (1 byte magic_number + 1 byte type/cmd + 2 bytes length)
+    // is 4. The header length is included in exMessageLen.
+    //
+    // Without the checking at below, send "\x0f\xff\x00\x00" to the sserver,
+    // and it will fall into infinite loop with handleMessage() calling.
+    //
+    if (exMessageLen < 4) {
+      LOG(ERROR) << "received invalid ex-message, type: " << std::hex << (int)buf[1]
+        << ", len: " << exMessageLen;
+      return false;
+    }
+    
     if (evBufLen < exMessageLen)  // didn't received the whole message yet
       return false;
 
@@ -915,9 +929,9 @@ bool StratumSession::handleMessage() {
         break;
 
       default:
-        LOG(ERROR) << "received unknown ex-message, type: " << buf[1]
+        LOG(ERROR) << "received unknown ex-message, type: " << std::hex << (int)buf[1]
         << ", len: " << exMessageLen;
-        return false;
+        break;
     }
     return true;  // read message success, return true
   }
