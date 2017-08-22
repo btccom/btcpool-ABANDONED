@@ -1057,10 +1057,24 @@ bool ShareLogParser::init() {
 
   // try to open file
   FILE *f = fopen(filePath_.c_str(), "rb");
+
   if (f == nullptr) {
-    LOG(ERROR) << "open file fail: " << filePath_;
-    return false;
+    LOG(ERROR) << "open file fail, try create it: " << filePath_;
+
+    f = fopen(filePath_.c_str(), "ab");
+
+    if (f == nullptr) {
+      LOG(ERROR) << "create file fail: " << filePath_;
+      return false;
+    }
+    else {
+      LOG(INFO) << "create file success: " << filePath_;
+    }
   }
+  else {
+    LOG(INFO) << "open file success: " << filePath_;
+  }
+
   fclose(f);
 
   return true;
