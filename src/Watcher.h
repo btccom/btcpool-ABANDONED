@@ -36,11 +36,14 @@
 #include <bitset>
 #include <map>
 #include <set>
+#include <boost/thread/shared_mutex.hpp>
 
 #include "utilities_js.hpp"
 #include "bitcoin/base58.h"
 
-#define BTCCOM_WATCHER_AGENT   "btc.com-watcher/0.1"
+#include "Stratum.h"
+
+#define BTCCOM_WATCHER_AGENT   "btc.com-watcher/0.2"
 
 
 class PoolWatchClient;
@@ -58,6 +61,13 @@ class ClientContainer {
 
   string kafkaBrokers_;
   KafkaProducer kafkaProducer_;  // produce GBT message
+  KafkaConsumer kafkaStratumJobConsumer_;  // consume topic: 'StratumJob'
+
+  StratumJob *poolStratumJob_; // the last stratum job from the pool itself
+  boost::shared_mutex stratumJobMutex_;
+  thread threadStratumJobConsume_;
+
+  void runThreadStratumJobConsume();
 
 public:
   ClientContainer(const string &kafkaBrokers);
@@ -77,6 +87,9 @@ public:
 
   static void readCallback (struct bufferevent *bev, void *ptr);
   static void eventCallback(struct bufferevent *bev, short events, void *ptr);
+
+  boost::shared_lock<boost::shared_mutex> getPoolStratumJobReadLock();
+  const StratumJob * getPoolStratumJob();
 };
 
 
