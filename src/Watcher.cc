@@ -523,21 +523,21 @@ void PoolWatchClient::handleStratumMessage(const string &line) {
           if (blockHeight == poolStratumJob->height_) {
             LOG(INFO) << "<" << poolName_ << "> discard the job: height is same as pool."
                                       << " pool height: " << poolStratumJob->height_
-                                      << " the job height: " << blockHeight;
+                                      << ", the job height: " << blockHeight;
             return;
           }
 
           if (blockHeight != poolStratumJob->height_ + 1) {
             LOG(WARNING) << "<" << poolName_ << "> discard the job: height jumping too much."
                                       << " pool height: " << poolStratumJob->height_
-                                      << " the job height: " << blockHeight;
+                                      << ", the job height: " << blockHeight;
             return;
           }
 
           if (nBits != poolStratumJob->nBits_) {
             LOG(WARNING) << "<" << poolName_ << "> discard the job: nBits different from pool job."
                                       << " pool nBits: " << poolStratumJob->nBits_
-                                      << " the job nBits: " << nBits;
+                                      << ", the job nBits: " << nBits;
             return;
           }
         }
