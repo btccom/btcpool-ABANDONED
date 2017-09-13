@@ -128,6 +128,12 @@ public:
     if (share_ == 0 || blkBits_ == 0) { return 0.0; }
     double networkDifficulty = 0.0;
     BitsToDifficulty(blkBits_, &networkDifficulty);
+
+    // Network diff may less than share diff on testnet or regression test network.
+    // On regression test network, the network diff may be zero.
+    // But no matter how low the network diff is, you can only dig one block at a time.
+    if (networkDifficulty < (double)share_) { return 1.0; }
+
     return (double)share_ / networkDifficulty;
   }
 
