@@ -10,7 +10,7 @@ CREATE TABLE `found_blocks` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `puid` int(11) NOT NULL,
   `worker_id` bigint(20) NOT NULL,
-  `worker_full_name` varchar(20) NOT NULL,
+  `worker_full_name` varchar(50) NOT NULL,
   `job_id` bigint(20) unsigned NOT NULL,
   `height` int(11) NOT NULL,
   `is_orphaned` tinyint(4) NOT NULL DEFAULT '0',
