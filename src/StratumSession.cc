@@ -410,6 +410,49 @@ void StratumSession::handleRequest_Subscribe(const string &idStr,
     responseError(idStr, StratumError::UNKNOWN);
     return;
   }
+
+
+#ifdef WORK_WITH_STRATUM_SWITCHER
+
+  //
+  // For working with StratumSwitcher, the ExtraNonce1 must be provided as param 2.
+  // 
+  //  params[0] = client version           [require]
+  //  params[1] = session id / ExtraNonce1 [require]
+  //  params[2] = miner's real IP (unit32) [optional]
+  //
+  //  StratumSwitcher request eg.:
+  //  {"id": 1, "method": "mining.subscribe", "params": ["StratumSwitcher/0.1", "01ad557d", 203569230]}
+  //  203569230 -> 12.34.56.78
+  //
+
+  if (jparams.children()->size() < 2) {
+    responseError(idStr, StratumError::ILLEGAL_PARARMS);
+    return;
+  }
+
+  state_ = SUBSCRIBED;
+
+  clientAgent_ = jparams.children()->at(0).str().substr(0, 30);  // 30 is max len
+  clientAgent_ = filterWorkerName(clientAgent_);
+
+  string extraNonce1Str = jparams.children()->at(1).str().substr(0, 8);  // 8 is max len
+  sscanf(extraNonce1Str.c_str(), "%x", &extraNonce1_); // convert hex to int
+
+  // receive miner's IP from stratumSwitcher
+  if (jparams.children()->size() >= 3) {
+    clientIpInt_ = htonl(jparams.children()->at(2).uint32());
+
+    // ipv4
+    clientIp_.resize(INET_ADDRSTRLEN);
+    struct in_addr addr;
+    addr.s_addr = clientIpInt_;
+    clientIp_ = inet_ntop(AF_INET, &addr, (char *)clientIp_.data(), (socklen_t)clientIp_.size());
+    LOG(INFO) << "client real IP: " << clientIp_;
+  }
+
+#else
+
   state_ = SUBSCRIBED;
 
   //
@@ -423,6 +466,9 @@ void StratumSession::handleRequest_Subscribe(const string &idStr,
     clientAgent_ = jparams.children()->at(0).str().substr(0, 30);  // 30 is max len
     clientAgent_ = filterWorkerName(clientAgent_);
   }
+
+#endif // WORK_WITH_STRATUM_SWITCHER
+
 
   //  result[0] = 2-tuple with name of subscribed notification and subscription ID.
   //              Theoretically it may be used for unsubscribing, but obviously miners won't use it.

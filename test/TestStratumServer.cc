@@ -29,6 +29,8 @@
 #include "StratumServer.h"
 
 
+#ifndef WORK_WITH_STRATUM_SWITCHER
+
 TEST(StratumServer, SessionIDManager) {
   SessionIDManager m(0xFFU);
   uint32_t j, sessionID;
@@ -57,3 +59,5 @@ TEST(StratumServer, SessionIDManager) {
   ASSERT_EQ(sessionID, j);
   ASSERT_EQ(m.ifFull(), true);
 }
+
+#endif // #ifndef WORK_WITH_STRATUM_SWITCHER

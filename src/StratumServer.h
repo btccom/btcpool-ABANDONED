@@ -51,6 +51,8 @@ class Server;
 class StratumJobEx;
 
 
+#ifndef WORK_WITH_STRATUM_SWITCHER
+
 //////////////////////////////// SessionIDManager //////////////////////////////
 // DO NOT CHANGE
 #define MAX_SESSION_INDEX_SERVER   0x00FFFFFEu   // 16777214
@@ -82,6 +84,7 @@ public:
   void freeSessionId(uint32_t sessionId);
 };
 
+#endif // #ifndef WORK_WITH_STRATUM_SWITCHER
 
 
 ////////////////////////////////// JobRepository ///////////////////////////////
@@ -240,10 +243,13 @@ class Server {
   bool isSubmitInvalidBlock_;
 
 public:
+#ifndef WORK_WITH_STRATUM_SWITCHER
+  SessionIDManager *sessionIDManager_;
+#endif
+
   const int32_t kShareAvgSeconds_;
   JobRepository *jobRepository_;
   UserInfo *userInfo_;
-  SessionIDManager *sessionIDManager_;
 
 public:
   Server(const int32_t shareAvgSeconds);

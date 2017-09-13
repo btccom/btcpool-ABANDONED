@@ -75,6 +75,8 @@ git clone https://github.com/btccom/btcpool.git
 cd /work/btcpool
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
+# Build a special version of pool's stratum server, so you can run it with a stratum switcher:
+# cmake -DCMAKE_BUILD_TYPE=Release -DPOOL__WORK_WITH_STRATUM_SWITCHER=ON ..
 make
 ```
 
