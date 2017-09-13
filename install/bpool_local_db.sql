@@ -13,7 +13,7 @@ CREATE TABLE `found_blocks` (
   `worker_full_name` varchar(20) NOT NULL,
   `job_id` bigint(20) unsigned NOT NULL,
   `height` int(11) NOT NULL,
-  `is_orphaned` tinyint(4) NOT NULL,
+  `is_orphaned` tinyint(4) NOT NULL DEFAULT '0',
   `hash` char(64) NOT NULL,
   `rewards` bigint(20) NOT NULL,
   `size` int(11) NOT NULL,
@@ -33,7 +33,7 @@ CREATE TABLE `found_nmc_blocks` (
   `bitcoin_block_hash` char(64) NOT NULL,
   `aux_block_hash` char(64) NOT NULL,
   `aux_pow` text NOT NULL,
-  `is_orphaned` tinyint(4) NOT NULL,
+  `is_orphaned` tinyint(4) NOT NULL DEFAULT '0',
   `created_at` datetime NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `aux_block_hash` (`aux_block_hash`)
