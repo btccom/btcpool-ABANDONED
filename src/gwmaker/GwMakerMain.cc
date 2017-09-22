@@ -112,7 +112,7 @@ int main(int argc, char **argv) {
   signal(SIGTERM, handler);
   signal(SIGINT,  handler);
 
-  int32_t pollPeriod = 5;
+  uint32_t pollPeriod = 5;
   cfg.lookupValue("gwmaker.poll_period", pollPeriod);
   gGwMaker = new GwMaker(cfg.lookup("rskd.rpc_addr"),
                            cfg.lookup("rskd.rpc_userpwd"),
