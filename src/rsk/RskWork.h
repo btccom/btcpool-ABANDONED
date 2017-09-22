@@ -16,6 +16,7 @@
 class RskWork {
   static bool isCleanJob_;
 
+  u_int32_t created_at;
   string blockHash_;
   string target_;
   string fees_;
@@ -29,6 +30,7 @@ public:
 
   bool initFromGw(const string &rawGetWork);
   bool isInitialized() const;
+  u_int32_t getCreatedAt() const;
   string getBlockHash() const;
   string getTarget() const;
   string getFees() const;

@@ -43,6 +43,7 @@ bool RskWork::initFromGw(const string &rawGetWork) {
     return false;
   }
 
+  created_at = work["created_at_ts"].uint32();
   blockHash_ = work["blockHashForMergedMining"].str();
   target_ = work["target"].str();
   fees_ = work["feesPaidToMiner"].str();
@@ -57,6 +58,10 @@ bool RskWork::initFromGw(const string &rawGetWork) {
 
 bool RskWork::isInitialized() const {
   return initialized_; 
+}
+
+u_int32_t RskWork::getCreatedAt() const {
+  return created_at;
 }
 
 string RskWork::getBlockHash() const {

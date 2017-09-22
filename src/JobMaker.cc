@@ -340,8 +340,7 @@ void JobMaker::consumeRawGwMsg(rd_kafka_message_t *rkmessage) {
   }
 }
 
-bool JobMaker::triggerRskUpdate()
-{
+bool JobMaker::triggerRskUpdate() {
   RskWork currentRskWork;
   RskWork previousRskWork;
   {
@@ -359,6 +358,30 @@ bool JobMaker::triggerRskUpdate()
                                         previousRskWork.getBlockHash());
 
   return notify_flag_update || different_block_hashUpdate;
+}
+
+void JobMaker::clearTimeoutGw() {
+  RskWork currentRskWork;
+  RskWork previousRskWork;
+  {
+    ScopeLock sl(rskWorkAccessLock_);
+    if (!previousRskWork_ || !currentRskWork_) {
+      return;
+    }
+
+    const uint32_t ts_now = time(nullptr);
+    currentRskWork = *currentRskWork_;
+    if(currentRskWork.getCreatedAt() + 120u < ts_now) {
+      delete currentRskWork_;
+      currentRskWork_ = NULL;
+    }
+
+    previousRskWork = *previousRskWork_;
+    if(previousRskWork.getCreatedAt() + 120u < ts_now) {
+      delete previousRskWork_;
+      previousRskWork_ = NULL;
+    }
+  }
 }
 
 void JobMaker::runThreadConsumeRawGw() {
@@ -572,6 +595,7 @@ void JobMaker::checkAndSendStratumJob(bool isOnlyRskUpdate) {
 
   // clean expired gbt first
   clearTimeoutGbt();
+  clearTimeoutGw();
 
   // we need to build 'gbtByHeight' first
   findNewBestHeight(&gbtByHeight);
