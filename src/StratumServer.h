@@ -154,8 +154,8 @@ class UserInfo {
   // workerName
   mutex workerNameLock_;
   std::deque<WorkerName> workerNameQ_;
+  Server *server_;
 
-  MySQLConnection db_;
   thread threadInsertWorkerName_;
   void runThreadInsertWorkerName();
   int32_t insertWorkerName();
@@ -165,11 +165,11 @@ class UserInfo {
   int32_t incrementalUpdateUsers();
 
 public:
-  UserInfo(const string &apiUrl, const MysqlConnectInfo &dbInfo);
+  UserInfo(const string &apiUrl);
   ~UserInfo();
 
   void stop();
-  bool setupThreads();
+  bool setupThreads(Server *server);
 
   int32_t getUserId(const string userName);
   void addWorker(const int32_t userId, const int64_t workerId,
@@ -256,7 +256,7 @@ public:
   ~Server();
 
   bool setup(const char *ip, const unsigned short port, const char *kafkaBrokers,
-             const string &userAPIUrl, const  MysqlConnectInfo &dbInfo,
+             const string &userAPIUrl,
              const uint8_t serverId, const string &fileLastNotifyTime,
              bool isEnableSimulator,
              bool isSubmitInvalidBlock);
@@ -299,7 +299,6 @@ class StratumServer {
 
   string kafkaBrokers_;
   string userAPIUrl_;
-  MysqlConnectInfo poolDBInfo_;
 
 
   // if enable simulator, all share will be accepted
@@ -311,7 +310,7 @@ class StratumServer {
 public:
   StratumServer(const char *ip, const unsigned short port,
                 const char *kafkaBrokers,
-                const string &userAPIUrl, const MysqlConnectInfo &poolDBInfo,
+                const string &userAPIUrl,
                 const uint8_t serverId, const string &fileLastNotifyTime,
                 bool isEnableSimulator,
                 bool isSubmitInvalidBlock,

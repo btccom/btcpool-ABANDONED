@@ -138,16 +138,6 @@ int main(int argc, char **argv) {
     	cfg.lookupValue("sserver.share_avg_seconds", shareAvgSeconds);
     }
 
-    MysqlConnectInfo *poolDBInfo = nullptr;
-    {
-      int32_t poolDBPort = 3306;
-      cfg.lookupValue("pooldb.port", poolDBPort);
-
-      poolDBInfo = new MysqlConnectInfo(cfg.lookup("pooldb.host"), poolDBPort,
-                                        cfg.lookup("pooldb.username"),
-                                        cfg.lookup("pooldb.password"),
-                                        cfg.lookup("pooldb.dbname"));
-    }
 
     bool isEnableSimulator = false;
     cfg.lookupValue("sserver.enable_simulator", isEnableSimulator);
@@ -163,7 +153,7 @@ int main(int argc, char **argv) {
                                        (unsigned short)port,
                                        cfg.lookup("kafka.brokers").c_str(),
                                        cfg.lookup("users.list_id_api_url"),
-                                       *poolDBInfo, serverId,
+                                       serverId,
                                        fileLastMiningNotifyTime,
                                        isEnableSimulator,
                                        isSubmitInvalidBlock,

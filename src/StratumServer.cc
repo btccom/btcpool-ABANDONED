@@ -330,9 +330,8 @@ void JobRepository::tryCleanExpiredJobs() {
 
 
 //////////////////////////////////// UserInfo /////////////////////////////////
-UserInfo::UserInfo(const string &apiUrl, const MysqlConnectInfo &dbInfo):
-running_(true), apiUrl_(apiUrl), lastMaxUserId_(0),
-db_(dbInfo)
+UserInfo::UserInfo(const string &apiUrl):
+running_(true), apiUrl_(apiUrl), lastMaxUserId_(0)
 {
   pthread_rwlock_init(&rwlock_, nullptr);
 }
@@ -425,12 +424,8 @@ void UserInfo::runThreadUpdate() {
   }
 }
 
-bool UserInfo::setupThreads() {
-  // check db available
-  if (!db_.ping()) {
-    LOG(ERROR) << "connect db failure";
-    return false;
-  }
+bool UserInfo::setupThreads(Server *server) {
+  server_ = server;
 
   //
   // get all user list, incremental update model.
@@ -497,53 +492,26 @@ int32_t UserInfo::insertWorkerName() {
   if (itr == workerNameQ_.end())
     return 0;
 
-  string sql;
-  char **row = nullptr;
-  MySQLResult res;
-  const string nowStr = date("%F %T");
 
-  // find the miner
-  sql = Strings::Format("SELECT `group_id`,`worker_name` FROM `mining_workers` "
-                        " WHERE `puid`=%d AND `worker_id`= %" PRId64"",
-                        itr->userId_, itr->workerId_);
-  db_.query(sql, res);
-
-  if (res.numRows() != 0 && (row = res.nextRow()) != nullptr) {
-    const int32_t groupId = atoi(row[0]);
-
-    // group Id == 0: means the miner's status is 'deleted'
-    // we need to move from 'deleted' group to 'default' group.
-    sql = Strings::Format("UPDATE `mining_workers` SET `group_id`=%d, "
-                          " `worker_name`=\"%s\", `miner_agent`=\"%s\", "
-                          " `updated_at`=\"%s\" "
-                          " WHERE `puid`=%d AND `worker_id`= %" PRId64"",
-                          groupId == 0 ? itr->userId_ * -1 : groupId,
-                          itr->workerName_, itr->minerAgent_,
-                          nowStr.c_str(),
-                          itr->userId_, itr->workerId_);
-    db_.execute(sql);
+  // sent events to kafka: worker_update
+  {
+    string eventJson;
+    eventJson = Strings::Format("{\"created_at\":\"%s\","
+                                 "\"type\":\"worker_update\","
+                                 "\"content\":{"
+                                     "\"user_id\":%d,"
+                                     "\"worker_id\":\"%ld\","
+                                     "\"worker_name\":\"%s\","
+                                     "\"miner_agent\":\"%s\""
+                                "}}",
+                                date("%F %T").c_str(),
+                                itr->userId_,
+                                itr->workerId_,
+                                itr->workerName_,
+                                itr->minerAgent_);
+    server_->sendCommonEvents2Kafka(eventJson);
   }
-  else {
-    // we have to use 'ON DUPLICATE KEY UPDATE', because 'statshttpd' may insert
-    // items to table.mining_workers between we 'select' and 'insert' gap.
-    // 'statshttpd' will always set an empty 'worker_name'.
-    sql = Strings::Format("INSERT INTO `mining_workers`(`puid`,`worker_id`,"
-                          " `group_id`,`worker_name`,`miner_agent`,"
-                          " `created_at`,`updated_at`) "
-                          " VALUES(%d,%" PRId64",%d,\"%s\",\"%s\",\"%s\",\"%s\")"
-                          " ON DUPLICATE KEY UPDATE "
-                          " `worker_name`= \"%s\",`miner_agent`=\"%s\",`updated_at`=\"%s\" ",
-                          itr->userId_, itr->workerId_,
-                          itr->userId_ * -1,  // default group id
-                          itr->workerName_, itr->minerAgent_,
-                          nowStr.c_str(), nowStr.c_str(),
-                          itr->workerName_, itr->minerAgent_,
-                          nowStr.c_str());
-    if (db_.execute(sql) == false) {
-      LOG(ERROR) << "insert worker name failure";
-      return 0;
-    }
-  }
+
 
   {
     ScopeLock sl(workerNameLock_);
@@ -662,14 +630,13 @@ void StratumJobEx::generateBlockHeader(CBlockHeader *header,
 ////////////////////////////////// StratumServer ///////////////////////////////
 StratumServer::StratumServer(const char *ip, const unsigned short port,
                              const char *kafkaBrokers, const string &userAPIUrl,
-                             const MysqlConnectInfo &poolDBInfo,
                              const uint8_t serverId, const string &fileLastNotifyTime,
                              bool isEnableSimulator, bool isSubmitInvalidBlock,
                              const int32_t shareAvgSeconds)
 :running_(true), server_(shareAvgSeconds),
 ip_(ip), port_(port), serverId_(serverId),
 fileLastNotifyTime_(fileLastNotifyTime),
-kafkaBrokers_(kafkaBrokers), userAPIUrl_(userAPIUrl), poolDBInfo_(poolDBInfo),
+kafkaBrokers_(kafkaBrokers), userAPIUrl_(userAPIUrl),
 isEnableSimulator_(isEnableSimulator), isSubmitInvalidBlock_(isSubmitInvalidBlock)
 {
 }
@@ -679,7 +646,7 @@ StratumServer::~StratumServer() {
 
 bool StratumServer::init() {
   if (!server_.setup(ip_.c_str(), port_, kafkaBrokers_.c_str(),
-                     userAPIUrl_, poolDBInfo_, serverId_, fileLastNotifyTime_,
+                     userAPIUrl_, serverId_, fileLastNotifyTime_,
                      isEnableSimulator_, isSubmitInvalidBlock_)) {
     LOG(ERROR) << "fail to setup server";
     return false;
@@ -756,7 +723,7 @@ Server::~Server() {
 
 bool Server::setup(const char *ip, const unsigned short port,
                    const char *kafkaBrokers,
-                   const string &userAPIUrl, const MysqlConnectInfo &dbInfo,
+                   const string &userAPIUrl,
                    const uint8_t serverId, const string &fileLastNotifyTime,
                    bool isEnableSimulator, bool isSubmitInvalidBlock) {
   if (isEnableSimulator) {
@@ -789,8 +756,8 @@ bool Server::setup(const char *ip, const unsigned short port,
   }
 
   // user info
-  userInfo_ = new UserInfo(userAPIUrl, dbInfo);
-  if (!userInfo_->setupThreads()) {
+  userInfo_ = new UserInfo(userAPIUrl);
+  if (!userInfo_->setupThreads(this)) {
     return false;
   }
 
