@@ -165,11 +165,11 @@ class UserInfo {
   int32_t incrementalUpdateUsers();
 
 public:
-  UserInfo(const string &apiUrl);
+  UserInfo(const string &apiUrl, Server *server);
   ~UserInfo();
 
   void stop();
-  bool setupThreads(Server *server);
+  bool setupThreads();
 
   int32_t getUserId(const string userName);
   void addWorker(const int32_t userId, const int64_t workerId,

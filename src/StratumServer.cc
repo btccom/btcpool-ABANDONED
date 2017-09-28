@@ -330,8 +330,9 @@ void JobRepository::tryCleanExpiredJobs() {
 
 
 //////////////////////////////////// UserInfo /////////////////////////////////
-UserInfo::UserInfo(const string &apiUrl):
-running_(true), apiUrl_(apiUrl), lastMaxUserId_(0)
+UserInfo::UserInfo(const string &apiUrl, Server *server):
+running_(true), apiUrl_(apiUrl), lastMaxUserId_(0),
+server_(server)
 {
   pthread_rwlock_init(&rwlock_, nullptr);
 }
@@ -424,9 +425,7 @@ void UserInfo::runThreadUpdate() {
   }
 }
 
-bool UserInfo::setupThreads(Server *server) {
-  server_ = server;
-
+bool UserInfo::setupThreads() {
   //
   // get all user list, incremental update model.
   //
@@ -756,8 +755,8 @@ bool Server::setup(const char *ip, const unsigned short port,
   }
 
   // user info
-  userInfo_ = new UserInfo(userAPIUrl);
-  if (!userInfo_->setupThreads(this)) {
+  userInfo_ = new UserInfo(userAPIUrl, this);
+  if (!userInfo_->setupThreads()) {
     return false;
   }
 
