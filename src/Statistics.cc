@@ -26,6 +26,7 @@
 #include "Common.h"
 #include "Stratum.h"
 #include "Utils.h"
+#include "utilities_js.hpp"
 
 #include <algorithm>
 #include <string>
@@ -130,7 +131,9 @@ StatsServer::StatsServer(const char *kafkaBrokers, const string &httpdHost,
 running_(true), totalWorkerCount_(0), totalUserCount_(0), uptime_(time(nullptr)),
 poolWorker_(0u/* worker id */, 0/* user id */),
 kafkaConsumer_(kafkaBrokers, KAFKA_TOPIC_SHARE_LOG, 0/* patition */),
-poolDB_(poolDBInfo), kFlushDBInterval_(kFlushDBInterval), isInserting_(false),
+kafkaConsumerCommonEvents_(kafkaBrokers, KAFKA_TOPIC_COMMON_EVENTS, 0/* patition */),
+poolDB_(poolDBInfo), poolDBCommonEvents_(poolDBInfo),
+kFlushDBInterval_(kFlushDBInterval), isInserting_(false),
 fileLastFlushTime_(fileLastFlushTime),
 base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort),
 requestCount_(0), responseBytes_(0)
@@ -143,6 +146,9 @@ StatsServer::~StatsServer() {
 
   if (threadConsume_.joinable())
     threadConsume_.join();
+ 
+  if (threadConsumeCommonEvents_.joinable())
+    threadConsumeCommonEvents_.join();
 
   pthread_rwlock_destroy(&rwlock_);
 }
@@ -153,7 +159,12 @@ bool StatsServer::init() {
     return false;
   }
 
-  // check db conf
+  if (!poolDBCommonEvents_.ping()) {
+    LOG(INFO) << "common events db ping failure";
+    return false;
+  }
+
+  // check db conf (only poolDB_ needs)
   {
   	string value = poolDB_.getVariable("max_allowed_packet");
     if (atoi(value.c_str()) < 16 * 1024 *1024) {
@@ -455,29 +466,58 @@ void StatsServer::consumeShareLog(rd_kafka_message_t *rkmessage) {
 }
 
 bool StatsServer::setupThreadConsume() {
-  //
-  // assume we have 100,000 online workers and every share per 10 seconds,
-  // so in 60 mins there will be 100000/10*3600 = 36,000,000 shares.
-  // data size will be 36,000,000 * sizeof(Share) = 1,728,000,000 Bytes.
-  //
-  const int32_t kConsumeLatestN = 100000/10*3600;  // 36,000,000
+  // kafkaConsumer_
+  {
+    //
+    // assume we have 100,000 online workers and every share per 10 seconds,
+    // so in 60 mins there will be 100000/10*3600 = 36,000,000 shares.
+    // data size will be 36,000,000 * sizeof(Share) = 1,728,000,000 Bytes.
+    //
+    const int32_t kConsumeLatestN = 100000/10*3600;  // 36,000,000
 
-  map<string, string> consumerOptions;
-  // fetch.wait.max.ms:
-  // Maximum time the broker may wait to fill the response with fetch.min.bytes.
-  consumerOptions["fetch.wait.max.ms"] = "200";
-  if (kafkaConsumer_.setup(RD_KAFKA_OFFSET_TAIL(kConsumeLatestN),
-                           &consumerOptions) == false) {
-    LOG(INFO) << "setup consumer fail";
-    return false;
+    map<string, string> consumerOptions;
+    // fetch.wait.max.ms:
+    // Maximum time the broker may wait to fill the response with fetch.min.bytes.
+    consumerOptions["fetch.wait.max.ms"] = "200";
+
+    if (kafkaConsumer_.setup(RD_KAFKA_OFFSET_TAIL(kConsumeLatestN),
+                             &consumerOptions) == false) {
+      LOG(INFO) << "setup consumer fail";
+      return false;
+    }
+
+    if (!kafkaConsumer_.checkAlive()) {
+      LOG(ERROR) << "kafka brokers is not alive";
+      return false;
+    }
   }
 
-  if (!kafkaConsumer_.checkAlive()) {
-    LOG(ERROR) << "kafka brokers is not alive";
-    return false;
+  // kafkaConsumerCommonEvents_
+  {
+    // assume we have 100,000 online workers
+    const int32_t kConsumeLatestN = 100000;
+
+    map<string, string> consumerOptions;
+    // fetch.wait.max.ms:
+    // Maximum time the broker may wait to fill the response with fetch.min.bytes.
+    consumerOptions["fetch.wait.max.ms"] = "600";
+
+    if (kafkaConsumerCommonEvents_.setup(RD_KAFKA_OFFSET_TAIL(kConsumeLatestN),
+                                         &consumerOptions) == false) {
+      LOG(INFO) << "setup common events consumer fail";
+      return false;
+    }
+  
+    if (!kafkaConsumerCommonEvents_.checkAlive()) {
+      LOG(ERROR) << "common events kafka brokers is not alive";
+      return false;
+    }
   }
 
+  // run threads
   threadConsume_ = thread(&StatsServer::runThreadConsume, this);
+  threadConsumeCommonEvents_ = thread(&StatsServer::runThreadConsumeCommonEvents, this);
+  
   return true;
 }
 
@@ -528,6 +568,149 @@ void StatsServer::runThreadConsume() {
   LOG(INFO) << "stop sharelog consume thread";
 
   stop();  // if thread exit, we must call server to stop
+}
+
+void StatsServer::runThreadConsumeCommonEvents() {
+  LOG(INFO) << "start common events consume thread";
+
+  const int32_t kTimeoutMs = 3000;  // consumer timeout
+
+  while (running_) {
+    //
+    // consume message
+    //
+    rd_kafka_message_t *rkmessage;
+    rkmessage = kafkaConsumerCommonEvents_.consumer(kTimeoutMs);
+
+    // timeout, most of time it's not nullptr and set an error:
+    //          rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF
+    if (rkmessage == nullptr) {
+      continue;
+    }
+
+    // consume share log
+    consumeCommonEvents(rkmessage);
+    rd_kafka_message_destroy(rkmessage);  /* Return message to rdkafka */
+  }
+
+  LOG(INFO) << "stop common events consume thread";
+}
+
+void StatsServer::consumeCommonEvents(rd_kafka_message_t *rkmessage) {
+  // check error
+  if (rkmessage->err) {
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
+      // Reached the end of the topic+partition queue on the broker.
+      // Not really an error.
+      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
+      //      << "[" << rkmessage->partition << "] "
+      //      << " message queue at offset " << rkmessage->offset;
+      // acturlly
+      return;
+    }
+
+    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
+    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
+    << ": " << rd_kafka_message_errstr(rkmessage);
+
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
+        rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
+      LOG(FATAL) << "consume fatal";
+    }
+    return;
+  }
+
+  const char *message = (const char*)rkmessage->payload;
+  DLOG(INFO) << "A New Common Event: " << string(message, rkmessage->len);
+
+  JsonNode r;
+  if (!JsonNode::parse(message, message + rkmessage->len, r)) {
+    LOG(ERROR) << "decode common event failure";
+    return;
+  }
+
+  // check fields
+  if (r["type"].type()    != Utilities::JS::type::Str ||
+      r["content"].type() != Utilities::JS::type::Obj) {
+    LOG(ERROR) << "common event missing some fields";
+    return;
+  }
+
+  // update worker status
+  if (r["type"].str() == "worker_update") {
+    // check fields
+    if (r["content"]["user_id"].type()     != Utilities::JS::type::Int ||
+        r["content"]["worker_id"].type()   != Utilities::JS::type::Int ||
+        r["content"]["worker_name"].type() != Utilities::JS::type::Str ||
+        r["content"]["miner_agent"].type() != Utilities::JS::type::Str) {
+      LOG(ERROR) << "common event `worker_update` missing some fields";
+      return;
+    }
+
+    int32_t userId    = r["content"]["user_id"].int32();
+    int64_t workerId  = r["content"]["worker_id"].int64();
+    string workerName = filterWorkerName(r["content"]["worker_name"].str());
+    string minerAgent = filterWorkerName(r["content"]["miner_agent"].str());
+
+    updateWorkerStatus(userId, workerId, workerName.c_str(), minerAgent.c_str());
+  }
+
+}
+
+bool StatsServer::updateWorkerStatus(const int32_t userId, const int64_t workerId,
+                                     const char *workerName, const char *minerAgent) {
+  string sql;
+  char **row = nullptr;
+  MySQLResult res;
+  const string nowStr = date("%F %T");
+
+  // find the miner
+  sql = Strings::Format("SELECT `group_id`,`worker_name` FROM `mining_workers` "
+                        " WHERE `puid`=%d AND `worker_id`= %" PRId64"",
+                        userId, workerId);
+  poolDBCommonEvents_.query(sql, res);
+
+  if (res.numRows() != 0 && (row = res.nextRow()) != nullptr) {
+    const int32_t groupId = atoi(row[0]);
+
+    // group Id == 0: means the miner's status is 'deleted'
+    // we need to move from 'deleted' group to 'default' group.
+    sql = Strings::Format("UPDATE `mining_workers` SET `group_id`=%d, "
+                          " `worker_name`=\"%s\", `miner_agent`=\"%s\", "
+                          " `updated_at`=\"%s\" "
+                          " WHERE `puid`=%d AND `worker_id`= %" PRId64"",
+                          groupId == 0 ? userId * -1 : groupId,
+                          workerName, minerAgent,
+                          nowStr.c_str(),
+                          userId, workerId);
+    if (poolDBCommonEvents_.execute(sql) == false) {
+      LOG(ERROR) << "update worker status failure";
+      return false;
+    }
+  }
+  else {
+    // we have to use 'ON DUPLICATE KEY UPDATE', because 'statshttpd' may insert
+    // items to table.mining_workers between we 'select' and 'insert' gap.
+    // 'statshttpd' will always set an empty 'worker_name'.
+    sql = Strings::Format("INSERT INTO `mining_workers`(`puid`,`worker_id`,"
+                          " `group_id`,`worker_name`,`miner_agent`,"
+                          " `created_at`,`updated_at`) "
+                          " VALUES(%d,%" PRId64",%d,\"%s\",\"%s\",\"%s\",\"%s\")"
+                          " ON DUPLICATE KEY UPDATE "
+                          " `worker_name`= \"%s\",`miner_agent`=\"%s\",`updated_at`=\"%s\" ",
+                          userId, workerId,
+                          userId * -1,  // default group id
+                          workerName, minerAgent,
+                          nowStr.c_str(), nowStr.c_str(),
+                          workerName, minerAgent,
+                          nowStr.c_str());
+    if (poolDBCommonEvents_.execute(sql) == false) {
+      LOG(ERROR) << "insert worker name failure";
+      return false;
+    }
+  }
+
+  return true;
 }
 
 StatsServer::ServerStatus StatsServer::getServerStatus() {

@@ -266,7 +266,11 @@ class StatsServer {
   KafkaConsumer kafkaConsumer_;  // consume topic: 'ShareLog'
   thread threadConsume_;
 
-  MySQLConnection  poolDB_;      // flush workers to table.mining_workers
+  KafkaConsumer kafkaConsumerCommonEvents_;  // consume topic: 'CommonEvents'
+  thread threadConsumeCommonEvents_;
+
+  MySQLConnection  poolDB_;             // flush workers to table.mining_workers
+  MySQLConnection  poolDBCommonEvents_; // insert or update workers from table.mining_workers
   time_t kFlushDBInterval_;
   atomic<bool> isInserting_;     // flag mark if we are flushing db
   
@@ -279,6 +283,11 @@ class StatsServer {
 
   void runThreadConsume();
   void consumeShareLog(rd_kafka_message_t *rkmessage);
+
+  void runThreadConsumeCommonEvents();
+  void consumeCommonEvents(rd_kafka_message_t *rkmessage);
+  bool updateWorkerStatus(const int32_t userId, const int64_t workerId,
+                          const char *workerName, const char *minerAgent);
 
   void _processShare(WorkerKey &key1, WorkerKey &key2, const Share &share);
   void processShare(const Share &share);
