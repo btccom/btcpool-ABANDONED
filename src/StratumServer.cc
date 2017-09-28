@@ -500,7 +500,7 @@ int32_t UserInfo::insertWorkerName() {
                                  "\"type\":\"worker_update\","
                                  "\"content\":{"
                                      "\"user_id\":%d,"
-                                     "\"worker_id\":\"%ld\","
+                                     "\"worker_id\":%ld,"
                                      "\"worker_name\":\"%s\","
                                      "\"miner_agent\":\"%s\""
                                 "}}",
