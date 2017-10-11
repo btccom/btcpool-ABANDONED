@@ -1,11 +1,9 @@
-Docker for Bitcoind v0.14.0
+Docker for Bitcoind v0.15.0.1
 ============================
 
 * OS: `Ubuntu 14.04 LTS`
 * Docker Image OS: `Ubuntu 16.04 LTS`
-* Bitcoind: `v0.14.0`
-
-**WARNING: Miners should not change blockmaxsize to blockmaxweight at this time. (v0.15.0.1)**
+* Bitcoind: `v0.15.0.1`
 
 ## Install Docker
 
@@ -31,7 +29,7 @@ cd btcpool/docker/bitcoind/v0.15.0.1
 
 # build
 docker build -t bitcoind:0.15.0.1 .
-# docker build --no-cache -t bitcoind:0.14.0 .
+# docker build --no-cache -t bitcoind:0.15.0.1 .
 
 # mkdir for bitcoind
 mkdir -p /work/bitcoind
@@ -56,9 +54,8 @@ rpcallowip=10.0.0.0/8
 # use 1G memory for utxo, depends on your machine's memory
 dbcache=1000
 
-# use 1MB block when call GBT
-# Miners should not change blockmaxsize to blockmaxweight at this time.
-blockmaxsize=1000000
+# set maximum BIP141 block weight
+blockmaxweight=4000000
 ```
 
 ## Start Docker Container
