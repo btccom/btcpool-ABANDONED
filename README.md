@@ -5,6 +5,8 @@ BTCPool is backend system of [https://pool.btc.com](https://pool.btc.com).
 
 Note: This is still a testbed and work in progress, all things could be changed.
 
+See Also: [BTCPool backend of Bitcoin Cash](https://github.com/btccom/btcpool).
+
 ## Architecture
 
 ![Architecture](docs/btcpool.png)
