@@ -1,4 +1,4 @@
-# example : modify the config file to deploy pool function
+# Example : Modify the Config File to Deploy Pool Function
 if you want to run all pool function in one machine, the follow config maybe be useful.
 
 ### start sserver service：
@@ -101,7 +101,7 @@ users = {
 };
 ```
 
-###start php service
+### start php service
 vim /etc/supervisor/conf.d/php-web.conf
 ```conf
 [program:php-web]
