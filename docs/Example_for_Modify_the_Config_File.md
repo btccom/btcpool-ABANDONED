@@ -1,11 +1,11 @@
-﻿#example : modify the config file to deploy pool function
+# example : modify the config file to deploy pool function
 if you want to run all pool function in one machine, the follow config maybe be useful.
 
-###start sserver service：
+### start sserver service：
 1. vim  /work/btcpool/build/run_gbtmaker/gbtmaker.cfg
-```
-config your params for bitcoind And kafka
-example : 
+```conf
+# config your params for bitcoind And kafka
+# example : 
 bitcoind = {
     zmq_addr = "tcp://127.0.0.1:18331"
     rpc_addr    = "http://127.0.0.1:18554";  // http://127.0.0.1:8332
@@ -15,11 +15,11 @@ kafka = {
     brokers = "127.0.0.1:9092"
 }
 ```
-<br>
+
 2. vim  /work/btcpool/build/run_blkmaker/blkmaker.cfg
-```
-config your params for bitcoinds, kafka, pooldb;
-example :
+```conf
+# config your params for bitcoinds, kafka, pooldb;
+# example :
 bitcoinds = (
 {
     rpc_addr    = "http://127.0.0.1:18554";  // http://127.0.0.1:8332
@@ -37,10 +37,10 @@ pooldb = {
   dbname = "bpool_local_db";
 };
 ```
-<br>
+
 3. vim  /work/btcpool/build/run_blkmaker/statshttpd.cfg
-```
-#config your params for kafka, statahttpd, pooldb
+```conf
+# config your params for kafka, statahttpd, pooldb
 kafka = {
   brokers = "127.0.0.1:9092";
 };
@@ -58,10 +58,10 @@ pooldb = {
   dbname = "bpool_local_db";
 };
 ```
-<br>
+
 4. vim /work/btcpool/build/run_jobmaker/jobmaker.cfg
-```
-config your params for testnet, jobmaker, kafka, zookeeper And pool;
+```conf
+# config your params for testnet, jobmaker, kafka, zookeeper And pool;
 # default is using testnet3
 testnet = true;
 jobmaker = {
@@ -78,10 +78,10 @@ zookeeper = {
   brokers = "127.0.0.1:2181";
 };
 ```
-<br>
+
 5. vim /work/btcpool/build/run_sserver/sserver.cfg
-```
-config your params for testnet, kafka, sserver And users;
+```conf
+# config your params for testnet, kafka, sserver And users;
 # default is using testnet3
 testnet = true;
 kafka = {
@@ -103,7 +103,7 @@ users = {
 
 ###start php service
 vim /etc/supervisor/conf.d/php-web.conf
-```
+```conf
 [program:php-web]
 directory=/work/script/web
 command=/usr/bin/php -S localhost:8000 -t /work/script/web/
@@ -120,7 +120,7 @@ create php script
 `mkdir -p /work/script/web`
 edit conf
 `vim /work/script/web/userlist.php`
-```
+```php
 <?php
 header('Content-Type: application/json');
 $last_id = (int) $_GET['last_id'];
