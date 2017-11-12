@@ -51,6 +51,8 @@ class Server;
 class StratumJobEx;
 
 
+#ifndef WORK_WITH_STRATUM_SWITCHER
+
 //////////////////////////////// SessionIDManager //////////////////////////////
 // DO NOT CHANGE
 #define MAX_SESSION_INDEX_SERVER   0x00FFFFFEu   // 16777214
@@ -82,6 +84,7 @@ public:
   void freeSessionId(uint32_t sessionId);
 };
 
+#endif // #ifndef WORK_WITH_STRATUM_SWITCHER
 
 
 ////////////////////////////////// JobRepository ///////////////////////////////
@@ -151,8 +154,8 @@ class UserInfo {
   // workerName
   mutex workerNameLock_;
   std::deque<WorkerName> workerNameQ_;
+  Server *server_;
 
-  MySQLConnection db_;
   thread threadInsertWorkerName_;
   void runThreadInsertWorkerName();
   int32_t insertWorkerName();
@@ -162,7 +165,7 @@ class UserInfo {
   int32_t incrementalUpdateUsers();
 
 public:
-  UserInfo(const string &apiUrl, const MysqlConnectInfo &dbInfo);
+  UserInfo(const string &apiUrl, Server *server);
   ~UserInfo();
 
   void stop();
@@ -240,17 +243,20 @@ class Server {
   bool isSubmitInvalidBlock_;
 
 public:
+#ifndef WORK_WITH_STRATUM_SWITCHER
+  SessionIDManager *sessionIDManager_;
+#endif
+
   const int32_t kShareAvgSeconds_;
   JobRepository *jobRepository_;
   UserInfo *userInfo_;
-  SessionIDManager *sessionIDManager_;
 
 public:
   Server(const int32_t shareAvgSeconds);
   ~Server();
 
   bool setup(const char *ip, const unsigned short port, const char *kafkaBrokers,
-             const string &userAPIUrl, const  MysqlConnectInfo &dbInfo,
+             const string &userAPIUrl,
              const uint8_t serverId, const string &fileLastNotifyTime,
              bool isEnableSimulator,
              bool isSubmitInvalidBlock);
@@ -293,7 +299,6 @@ class StratumServer {
 
   string kafkaBrokers_;
   string userAPIUrl_;
-  MysqlConnectInfo poolDBInfo_;
 
 
   // if enable simulator, all share will be accepted
@@ -305,7 +310,7 @@ class StratumServer {
 public:
   StratumServer(const char *ip, const unsigned short port,
                 const char *kafkaBrokers,
-                const string &userAPIUrl, const MysqlConnectInfo &poolDBInfo,
+                const string &userAPIUrl,
                 const uint8_t serverId, const string &fileLastNotifyTime,
                 bool isEnableSimulator,
                 bool isSubmitInvalidBlock,

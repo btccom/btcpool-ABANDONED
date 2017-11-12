@@ -81,7 +81,8 @@ class JobMaker {
 public:
   JobMaker(const string &kafkaBrokers, uint32_t stratumJobInterval,
            const string &payoutAddr, uint32_t gbtLifeTime,
-           uint32_t emptyGbtLifeTime, const string &fileLastJobTime);
+           uint32_t emptyGbtLifeTime, const string &fileLastJobTime,
+           uint32_t blockVersion, const string &poolCoinbaseInfo);
   ~JobMaker();
 
   bool init();

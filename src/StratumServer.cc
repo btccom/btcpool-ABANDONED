@@ -35,6 +35,8 @@
 #include "utilities_js.hpp"
 
 
+#ifndef WORK_WITH_STRATUM_SWITCHER
+
 //////////////////////////////// SessionIDManager //////////////////////////////
 SessionIDManager::SessionIDManager(const uint8_t serverId) :
 serverId_(serverId), count_(0), allocIdx_(0)
@@ -83,6 +85,8 @@ void SessionIDManager::freeSessionId(uint32_t sessionId) {
   sessionIds_.set(idx, false);
   count_--;
 }
+
+#endif // #ifndef WORK_WITH_STRATUM_SWITCHER
 
 
 ////////////////////////////////// JobRepository ///////////////////////////////
@@ -326,9 +330,9 @@ void JobRepository::tryCleanExpiredJobs() {
 
 
 //////////////////////////////////// UserInfo /////////////////////////////////
-UserInfo::UserInfo(const string &apiUrl, const MysqlConnectInfo &dbInfo):
+UserInfo::UserInfo(const string &apiUrl, Server *server):
 running_(true), apiUrl_(apiUrl), lastMaxUserId_(0),
-db_(dbInfo)
+server_(server)
 {
   pthread_rwlock_init(&rwlock_, nullptr);
 }
@@ -422,12 +426,6 @@ void UserInfo::runThreadUpdate() {
 }
 
 bool UserInfo::setupThreads() {
-  // check db available
-  if (!db_.ping()) {
-    LOG(ERROR) << "connect db failure";
-    return false;
-  }
-
   //
   // get all user list, incremental update model.
   //
@@ -493,53 +491,26 @@ int32_t UserInfo::insertWorkerName() {
   if (itr == workerNameQ_.end())
     return 0;
 
-  string sql;
-  char **row = nullptr;
-  MySQLResult res;
-  const string nowStr = date("%F %T");
 
-  // find the miner
-  sql = Strings::Format("SELECT `group_id`,`worker_name` FROM `mining_workers` "
-                        " WHERE `puid`=%d AND `worker_id`= %" PRId64"",
-                        itr->userId_, itr->workerId_);
-  db_.query(sql, res);
-
-  if (res.numRows() != 0 && (row = res.nextRow()) != nullptr) {
-    const int32_t groupId = atoi(row[0]);
-
-    // group Id == 0: means the miner's status is 'deleted'
-    // we need to move from 'deleted' group to 'default' group.
-    sql = Strings::Format("UPDATE `mining_workers` SET `group_id`=%d, "
-                          " `worker_name`=\"%s\", `miner_agent`=\"%s\", "
-                          " `updated_at`=\"%s\" "
-                          " WHERE `puid`=%d AND `worker_id`= %" PRId64"",
-                          groupId == 0 ? itr->userId_ * -1 : groupId,
-                          itr->workerName_, itr->minerAgent_,
-                          nowStr.c_str(),
-                          itr->userId_, itr->workerId_);
-    db_.execute(sql);
+  // sent events to kafka: worker_update
+  {
+    string eventJson;
+    eventJson = Strings::Format("{\"created_at\":\"%s\","
+                                 "\"type\":\"worker_update\","
+                                 "\"content\":{"
+                                     "\"user_id\":%d,"
+                                     "\"worker_id\":%ld,"
+                                     "\"worker_name\":\"%s\","
+                                     "\"miner_agent\":\"%s\""
+                                "}}",
+                                date("%F %T").c_str(),
+                                itr->userId_,
+                                itr->workerId_,
+                                itr->workerName_,
+                                itr->minerAgent_);
+    server_->sendCommonEvents2Kafka(eventJson);
   }
-  else {
-    // we have to use 'ON DUPLICATE KEY UPDATE', because 'statshttpd' may insert
-    // items to table.mining_workers between we 'select' and 'insert' gap.
-    // 'statshttpd' will always set an empty 'worker_name'.
-    sql = Strings::Format("INSERT INTO `mining_workers`(`puid`,`worker_id`,"
-                          " `group_id`,`worker_name`,`miner_agent`,"
-                          " `created_at`,`updated_at`) "
-                          " VALUES(%d,%" PRId64",%d,\"%s\",\"%s\",\"%s\",\"%s\")"
-                          " ON DUPLICATE KEY UPDATE "
-                          " `worker_name`= \"%s\",`miner_agent`=\"%s\",`updated_at`=\"%s\" ",
-                          itr->userId_, itr->workerId_,
-                          itr->userId_ * -1,  // default group id
-                          itr->workerName_, itr->minerAgent_,
-                          nowStr.c_str(), nowStr.c_str(),
-                          itr->workerName_, itr->minerAgent_,
-                          nowStr.c_str());
-    if (db_.execute(sql) == false) {
-      LOG(ERROR) << "insert worker name failure";
-      return 0;
-    }
-  }
+
 
   {
     ScopeLock sl(workerNameLock_);
@@ -658,14 +629,13 @@ void StratumJobEx::generateBlockHeader(CBlockHeader *header,
 ////////////////////////////////// StratumServer ///////////////////////////////
 StratumServer::StratumServer(const char *ip, const unsigned short port,
                              const char *kafkaBrokers, const string &userAPIUrl,
-                             const MysqlConnectInfo &poolDBInfo,
                              const uint8_t serverId, const string &fileLastNotifyTime,
                              bool isEnableSimulator, bool isSubmitInvalidBlock,
                              const int32_t shareAvgSeconds)
 :running_(true), server_(shareAvgSeconds),
 ip_(ip), port_(port), serverId_(serverId),
 fileLastNotifyTime_(fileLastNotifyTime),
-kafkaBrokers_(kafkaBrokers), userAPIUrl_(userAPIUrl), poolDBInfo_(poolDBInfo),
+kafkaBrokers_(kafkaBrokers), userAPIUrl_(userAPIUrl),
 isEnableSimulator_(isEnableSimulator), isSubmitInvalidBlock_(isSubmitInvalidBlock)
 {
 }
@@ -675,7 +645,7 @@ StratumServer::~StratumServer() {
 
 bool StratumServer::init() {
   if (!server_.setup(ip_.c_str(), port_, kafkaBrokers_.c_str(),
-                     userAPIUrl_, poolDBInfo_, serverId_, fileLastNotifyTime_,
+                     userAPIUrl_, serverId_, fileLastNotifyTime_,
                      isEnableSimulator_, isSubmitInvalidBlock_)) {
     LOG(ERROR) << "fail to setup server";
     return false;
@@ -704,8 +674,13 @@ kafkaProducerSolvedShare_(nullptr),
 kafkaProducerNamecoinSolvedShare_(nullptr),
 kafkaProducerCommonEvents_(nullptr),
 isEnableSimulator_(false), isSubmitInvalidBlock_(false),
+
+#ifndef WORK_WITH_STRATUM_SWITCHER
+sessionIDManager_(nullptr),
+#endif
+
 kShareAvgSeconds_(shareAvgSeconds),
-jobRepository_(nullptr), userInfo_(nullptr), sessionIDManager_(nullptr)
+jobRepository_(nullptr), userInfo_(nullptr)
 {
 }
 
@@ -737,14 +712,17 @@ Server::~Server() {
   if (userInfo_ != nullptr) {
     delete userInfo_;
   }
+
+#ifndef WORK_WITH_STRATUM_SWITCHER
   if (sessionIDManager_ != nullptr) {
     delete sessionIDManager_;
   }
+#endif
 }
 
 bool Server::setup(const char *ip, const unsigned short port,
                    const char *kafkaBrokers,
-                   const string &userAPIUrl, const MysqlConnectInfo &dbInfo,
+                   const string &userAPIUrl,
                    const uint8_t serverId, const string &fileLastNotifyTime,
                    bool isEnableSimulator, bool isSubmitInvalidBlock) {
   if (isEnableSimulator) {
@@ -777,12 +755,14 @@ bool Server::setup(const char *ip, const unsigned short port,
   }
 
   // user info
-  userInfo_ = new UserInfo(userAPIUrl, dbInfo);
+  userInfo_ = new UserInfo(userAPIUrl, this);
   if (!userInfo_->setupThreads()) {
     return false;
   }
 
+#ifndef WORK_WITH_STRATUM_SWITCHER
   sessionIDManager_ = new SessionIDManager(serverId);
+#endif
 
   // kafkaProducerShareLog_
   {
@@ -911,7 +891,10 @@ void Server::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {
     StratumSession *conn = itr->second;  // alias
 
     if (conn->isDead()) {
+#ifndef WORK_WITH_STRATUM_SWITCHER
       sessionIDManager_->freeSessionId(conn->getSessionId());
+#endif
+
       delete conn;
       itr = connections_.erase(itr);
     } else {
@@ -950,11 +933,13 @@ void Server::listenerCallback(struct evconnlistener* listener,
   struct bufferevent *bev;
   uint32_t sessionID = 0u;
 
+#ifndef WORK_WITH_STRATUM_SWITCHER
   // can't alloc session Id
   if (server->sessionIDManager_->allocSessionId(&sessionID) == false) {
     close(fd);
     return;
   }
+#endif
 
   bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE|BEV_OPT_THREADSAFE);
   if(bev == nullptr) {

@@ -242,32 +242,42 @@ void GbtMaker::threadListenBitcoind() {
                         BITCOIND_ZMQ_HASHBLOCK, strlen(BITCOIND_ZMQ_HASHBLOCK));
 
   while (running_) {
-    zmq::message_t ztype, zcontent;
+    zmq::message_t zType, zContent, zSequence;
     try {
-      if (subscriber.recv(&ztype, ZMQ_DONTWAIT) == false) {
+      // if we use block mode, can't quit this thread
+      if (subscriber.recv(&zType, ZMQ_DONTWAIT) == false) {
         if (!running_) { break; }
-        usleep(50000);  // so we sleep and try again
+        usleep(20000);  // so we sleep and try again
         continue;
       }
-      subscriber.recv(&zcontent);
+      subscriber.recv(&zContent);
+      subscriber.recv(&zSequence);
     } catch (std::exception & e) {
       LOG(ERROR) << "bitcoind zmq recv exception: " << e.what();
       break;  // break big while
     }
-    const string type    = std::string(static_cast<char*>(ztype.data()),    ztype.size());
-    const string content = std::string(static_cast<char*>(zcontent.data()), zcontent.size());
+    const string type     = std::string(static_cast<char*>(zType.data()),     zType.size());
+    const string content  = std::string(static_cast<char*>(zContent.data()),  zContent.size());
+    const string sequence = std::string(static_cast<char*>(zSequence.data()), zSequence.size());
 
     if (type == BITCOIND_ZMQ_HASHBLOCK)
     {
       string hashHex;
       Bin2Hex((const uint8 *)content.data(), content.size(), hashHex);
-      LOG(INFO) << ">>>> bitcoind recv hashblock: " << hashHex << " <<<<";
-      submitRawGbtMsg(false);
+      string sequenceHex;
+      Bin2Hex((const uint8 *)sequence.data(), sequence.size(), sequenceHex);
+      LOG(INFO) << ">>>> bitcoind recv hashblock: " << hashHex << ", sequence: " << sequenceHex << " <<<<";
     }
     else
     {
       LOG(ERROR) << "unknown message type from bitcoind: " << type;
     }
+
+    // sometimes will decode zmq message fail, no matter what it is, we just
+    // call gbt again
+    LOG(INFO) << "get zmq message, call rpc getblocktemplate";
+    submitRawGbtMsg(false);
+
   } /* /while */
 
   subscriber.close();

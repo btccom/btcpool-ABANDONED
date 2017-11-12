@@ -23,6 +23,7 @@
  */
 #include "JobMaker.h"
 
+#include <iostream>
 #include <stdlib.h>
 
 #include <glog/logging.h>
@@ -41,7 +42,8 @@
 ///////////////////////////////////  JobMaker  /////////////////////////////////
 JobMaker::JobMaker(const string &kafkaBrokers,  uint32_t stratumJobInterval,
                    const string &payoutAddr, uint32_t gbtLifeTime,
-                   uint32_t emptyGbtLifeTime, const string &fileLastJobTime):
+                   uint32_t emptyGbtLifeTime, const string &fileLastJobTime,
+                   uint32_t blockVersion, const string &poolCoinbaseInfo):
 running_(true),
 kafkaBrokers_(kafkaBrokers),
 kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, RD_KAFKA_PARTITION_UA/* partition */),
@@ -50,11 +52,13 @@ kafkaNmcAuxConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_NMC_AUXBLOCK, 0/* partit
 currBestHeight_(0), lastJobSendTime_(0),
 isLastJobEmptyBlock_(false), isLastJobNewHeight_(false),
 stratumJobInterval_(stratumJobInterval),
-poolPayoutAddr_(payoutAddr), kGbtLifeTime_(gbtLifeTime),
-kEmptyGbtLifeTime_(emptyGbtLifeTime), fileLastJobTime_(fileLastJobTime),
-blockVersion_(0x20000000)  // TODO: cfg
+poolCoinbaseInfo_(poolCoinbaseInfo), poolPayoutAddr_(payoutAddr),
+kGbtLifeTime_(gbtLifeTime), kEmptyGbtLifeTime_(emptyGbtLifeTime),
+fileLastJobTime_(fileLastJobTime),
+blockVersion_(blockVersion)
 {
-  poolCoinbaseInfo_ = "/BTC.COM/";
+	LOG(INFO) << "Block Version: " << std::hex << blockVersion_;
+	LOG(INFO) << "Coinbase Info: " << poolCoinbaseInfo_;
 }
 
 JobMaker::~JobMaker() {

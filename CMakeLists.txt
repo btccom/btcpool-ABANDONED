@@ -128,3 +128,17 @@ target_link_libraries(simulator btcpool ${THIRD_LIBRARIES})
 file(GLOB_RECURSE POOLWATCHER_SOURCES src/poolwatcher/*.cc)
 add_executable(poolwatcher ${POOLWATCHER_SOURCES})
 target_link_libraries(poolwatcher btcpool ${THIRD_LIBRARIES})
+
+
+###
+# work with stratum switcher
+###
+option(POOL__WORK_WITH_STRATUM_SWITCHER
+"Work with Stratum Switcher" OFF)
+
+if(POOL__WORK_WITH_STRATUM_SWITCHER)
+  message("-- Work with Stratum Switcher (-DPOOL__WORK_WITH_STRATUM_SWITCHER=ON)")
+  add_definitions(-DWORK_WITH_STRATUM_SWITCHER)
+else()
+  message("-- Work without Stratum Switcher (-DPOOL__WORK_WITH_STRATUM_SWITCHER=OFF)")
+endif()

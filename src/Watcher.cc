@@ -125,7 +125,9 @@ string convertPrevHash(const string &prevHash) {
 ///////////////////////////////// ClientContainer //////////////////////////////
 ClientContainer::ClientContainer(const string &kafkaBrokers)
 :running_(true), kafkaBrokers_(kafkaBrokers),
-kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT, 0/* partition */)
+kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT, 0/* partition */),
+kafkaStratumJobConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, 0/*patition*/),
+poolStratumJob_(nullptr)
 {
   base_ = event_base_new();
   assert(base_ != nullptr);
@@ -133,6 +135,96 @@ kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT, 0/* partition */)
 
 ClientContainer::~ClientContainer() {
   event_base_free(base_);
+}
+
+boost::shared_lock<boost::shared_mutex> ClientContainer::getPoolStratumJobReadLock() {
+  return boost::shared_lock<boost::shared_mutex>(stratumJobMutex_);
+}
+
+const StratumJob * ClientContainer::getPoolStratumJob() {
+  return poolStratumJob_;
+}
+
+void ClientContainer::runThreadStratumJobConsume() {
+  LOG(INFO) << "start stratum job consume thread";
+  
+  const int32_t kTimeoutMs = 1000;
+
+  while (running_) {
+    rd_kafka_message_t *rkmessage;
+    rkmessage = kafkaStratumJobConsumer_.consumer(kTimeoutMs);
+
+    // timeout, most of time it's not nullptr and set an error:
+    //          rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF
+    if (rkmessage == nullptr) {
+      continue;
+    }
+
+    // check error
+    if (rkmessage->err) {
+      if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
+        // Reached the end of the topic+partition queue on the broker.
+        // Not really an error.
+        //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
+        //      << "[" << rkmessage->partition << "] "
+        //      << " message queue at offset " << rkmessage->offset;
+        // acturlly
+        continue;
+      }
+    
+      LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
+      << "[" << rkmessage->partition << "] offset " << rkmessage->offset
+      << ": " << rd_kafka_message_errstr(rkmessage);
+    
+      if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
+          rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
+        LOG(FATAL) << "consume fatal";
+      }
+      return;
+    }
+  
+    StratumJob *sjob = new StratumJob();
+    bool res = sjob->unserializeFromJson((const char *)rkmessage->payload,
+                                         rkmessage->len);
+    if (res == false) {
+      LOG(ERROR) << "unserialize stratum job fail";
+      delete sjob;
+      return;
+    }
+    // make sure the job is not expired.
+    if (jobId2Time(sjob->jobId_) + 60 < time(nullptr)) {
+      LOG(ERROR) << "too large delay from kafka to receive topic 'StratumJob'";
+      delete sjob;
+      return;
+    }
+
+    DLOG(INFO) << "[POOL] stratum job received, height: " << sjob->height_
+              << ", prevhash: " << sjob->prevHash_.ToString()
+              << ", nBits: " << sjob->nBits_;
+
+    {
+      // get a write lock before change this->poolStratumJob_
+      // it will unlock by itself in destructor.
+      boost::unique_lock<boost::shared_mutex> writeLock(stratumJobMutex_);
+
+      uint256 oldPrevHash;
+
+      if (poolStratumJob_ != nullptr) {
+        oldPrevHash = poolStratumJob_->prevHash_;
+        delete poolStratumJob_;
+      }
+
+      poolStratumJob_ = sjob;
+
+      if (oldPrevHash != sjob->prevHash_) {
+        LOG(INFO) << "[POOL] prev block changed, height: " << sjob->height_
+                  << ", prevhash: " << sjob->prevHash_.ToString()
+                  << ", nBits: " << sjob->nBits_;
+      }
+    }
+  }
+
+  LOG(INFO) << "stop jstratum job consume thread";
 }
 
 void ClientContainer::run() {
@@ -168,6 +260,27 @@ bool ClientContainer::init() {
       LOG(ERROR) << "kafka producer is NOT alive";
       return false;
     }
+  }
+
+  /* setup threadStratumJobConsume */
+  {
+    const int32_t kConsumeLatestN = 1;
+    
+    // we need to consume the latest one
+    map<string, string> consumerOptions;
+    consumerOptions["fetch.wait.max.ms"] = "10";
+    if (kafkaStratumJobConsumer_.setup(RD_KAFKA_OFFSET_TAIL(kConsumeLatestN),
+        &consumerOptions) == false) {
+      LOG(INFO) << "setup stratumJobConsume fail";
+      return false;
+    }
+  
+    if (!kafkaStratumJobConsumer_.checkAlive()) {
+      LOG(ERROR) << "kafka brokers is not alive";
+      return false;
+    }
+
+    threadStratumJobConsume_ = thread(&ClientContainer::runThreadStratumJobConsume, this);
   }
 
   return true;
@@ -355,7 +468,7 @@ bool PoolWatchClient::handleMessage() {
 }
 
 void PoolWatchClient::handleStratumMessage(const string &line) {
-  DLOG(INFO) << poolName_ << " UpPoolWatchClient recv(" << line.size() << "): " << line;
+  DLOG(INFO) << "<" << poolName_ << "> UpPoolWatchClient recv(" << line.size() << "): " << line;
 
   JsonNode jnode;
   if (!JsonNode::parse(line.data(), line.data() + line.size(), jnode)) {
@@ -384,11 +497,53 @@ void PoolWatchClient::handleStratumMessage(const string &line) {
         const uint32_t nBits       = jparamsArr[6].uint32_hex();
         const uint32_t nVersion    = jparamsArr[5].uint32_hex();
 
+        lastPrevBlockHash_ = prevHash;
+        LOG(INFO) << "<" << poolName_ << "> prev block changed, height: " << blockHeight
+                               << ", prev_hash: " << prevHash
+                               << ", nBits: " << nBits;
+
+        //////////////////////////////////////////////////////////////////////////
+        // To ensure the external job is not deviation from the blockchain.
+        // 
+        // eg. a Bitcoin pool may receive a Bitcoin Cash job from a external
+        // stratum server, because the stratum server is automatic switched
+        // between Bitcoin and Bitcoin Cash depending on profit.
+        //////////////////////////////////////////////////////////////////////////
+        {
+          // get a read lock before lookup this->poolStratumJob_
+          // it will unlock by itself in destructor.
+          auto readLock = container_->getPoolStratumJobReadLock();
+          const StratumJob *poolStratumJob = container_->getPoolStratumJob();
+
+          if (poolStratumJob == nullptr) {
+            LOG(WARNING) << "<" << poolName_ << "> discard the job: pool stratum job is empty";
+            return;
+          }
+
+          if (blockHeight == poolStratumJob->height_) {
+            LOG(INFO) << "<" << poolName_ << "> discard the job: height is same as pool."
+                                      << " pool height: " << poolStratumJob->height_
+                                      << ", the job height: " << blockHeight;
+            return;
+          }
+
+          if (blockHeight != poolStratumJob->height_ + 1) {
+            LOG(WARNING) << "<" << poolName_ << "> discard the job: height jumping too much."
+                                      << " pool height: " << poolStratumJob->height_
+                                      << ", the job height: " << blockHeight;
+            return;
+          }
+
+          if (nBits != poolStratumJob->nBits_) {
+            LOG(WARNING) << "<" << poolName_ << "> discard the job: nBits different from pool job."
+                                      << " pool nBits: " << poolStratumJob->nBits_
+                                      << ", the job nBits: " << nBits;
+            return;
+          }
+        }
+
         container_->makeEmptyGBT(blockHeight, nBits, prevHash, blockTime, nVersion);
 
-        lastPrevBlockHash_ = prevHash;
-        LOG(INFO) << poolName_ << " prev block changed, height: " << blockHeight
-        << ", prev_hash: " << prevHash;
       }
     }
     else {
@@ -415,18 +570,18 @@ void PoolWatchClient::handleStratumMessage(const string &line) {
     //                    ["mining.notify","01000002"]],"01000002",8],"error":null}
     //
     if (jerror.type() != Utilities::JS::type::Null) {
-      LOG(ERROR) << poolName_ << " json result is null, err: " << jerror.str();
+      LOG(ERROR) << "<" << poolName_ << "> json result is null, err: " << jerror.str();
       return;
     }
     std::vector<JsonNode> resArr = jresult.array();
     if (resArr.size() < 3) {
-      LOG(ERROR) << poolName_ << " result element's number is less than 3: " << line;
+      LOG(ERROR) << "<" << poolName_ << "> result element's number is less than 3: " << line;
       return;
     }
 
     extraNonce1_     = resArr[1].uint32_hex();
     extraNonce2Size_ = resArr[2].uint32();
-    LOG(INFO) << poolName_ << " extraNonce1: " << extraNonce1_
+    LOG(INFO) << "<" << poolName_ << "> extraNonce1: " << extraNonce1_
     << ", extraNonce2 Size: " << extraNonce2Size_;
 
     // subscribe successful
@@ -443,7 +598,7 @@ void PoolWatchClient::handleStratumMessage(const string &line) {
   if (state_ == SUBSCRIBED && jresult.boolean() == true) {
     // authorize successful
     state_ = AUTHENTICATED;
-    LOG(INFO) << poolName_ << " auth success, name: \"" << workerName_ << "\"";
+    LOG(INFO) << "<" << poolName_ << "> auth success, name: \"" << workerName_ << "\"";
     return;
   }
 }

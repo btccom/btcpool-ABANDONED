@@ -4,6 +4,10 @@ Install BTC.COM Pool
 * OS: `Ubuntu 14.04 LTS, 64 Bits`
 * OS: `Ubuntu 16.04 LTS, 64 Bits`
 
+**BTCPool has a known compatibility issue with 32-bit operating systems. https://github.com/btccom/btcpool/issues/38**
+
+If you want to run BTCPool on a 32-bit operating system, you must fix the problem first. Or, choose a 64-bit operating system.
+
 ## Build
 
 If you are the first time build btcpool, you could run `bash install/install_btcpool.sh` instead of exec these shell commands one by one.
@@ -75,6 +79,8 @@ git clone https://github.com/btccom/btcpool.git
 cd /work/btcpool
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
+# Build a special version of pool's stratum server, so you can run it with a stratum switcher:
+# cmake -DCMAKE_BUILD_TYPE=Release -DPOOL__WORK_WITH_STRATUM_SWITCHER=ON ..
 make
 ```
 
