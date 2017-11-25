@@ -308,15 +308,13 @@ void JobMaker::addRawgbt(const char *str, size_t len) {
   }
   assert(nodeGbt["result"]["height"].type() == Utilities::JS::type::Int);
   const uint32_t height = nodeGbt["result"]["height"].uint32();
-  assert(height < 0x7FFFFFFFU);
 
   assert(nodeGbt["result"]["transactions"].type() == Utilities::JS::type::Array);
-  // 0x80000000 : 1000 0000 0000 0000 0000 0000 0000 0000
-  const uint64_t emptyFlag = nodeGbt["result"]["transactions"].array().size() == 0 ? 0x80000000ULL : 0;
+  const bool isEmptyBlock = nodeGbt["result"]["transactions"].array().size() == 0;
 
   {
     ScopeLock sl(lock_);
-    const uint64_t key = ((uint64_t)gbtTime << 32) + emptyFlag + (uint64_t)height;
+    const uint64_t key = makeGbtKey(gbtTime, isEmptyBlock, height);
     if (rawgbtMap_.find(key) == rawgbtMap_.end()) {
       rawgbtMap_.insert(std::make_pair(key, gbt));
     } else {
@@ -331,7 +329,7 @@ void JobMaker::addRawgbt(const char *str, size_t len) {
 
   LOG(INFO) << "add rawgbt, height: "<< height << ", gbthash: "
   << r["gbthash"].str().substr(0, 16) << "..., gbtTime(UTC): " << date("%F %T", gbtTime)
-  << ", isEmpty:" << (emptyFlag != 0);
+  << ", isEmpty:" << isEmptyBlock;
 }
 
 void JobMaker::clearTimeoutGbt() {
@@ -341,10 +339,9 @@ void JobMaker::clearTimeoutGbt() {
   const uint32_t ts_now = time(nullptr);
 
   for (auto itr = rawgbtMap_.begin(); itr != rawgbtMap_.end(); ) {
-    const uint32_t ts  = (uint32_t)(itr->first >> 32);
-    const bool isEmpty = (itr->first & 0x80000000ULL) != 0;
-    // 0x7FFFFFFF : 0111 1111 1111 1111 1111 1111 1111 1111
-    const uint32_t height = (uint32_t)(itr->first & 0x7FFFFFFFULL);
+    const uint32_t ts  = gbtKeyGetTime(itr->first);
+    const bool isEmpty = gbtKeyIsEmptyBlock(itr->first);
+    const uint32_t height = gbtKeyGetHeight(itr->first);
 
     // gbt expired time
     const uint32_t expiredTime = ts + (isEmpty ? kEmptyGbtLifeTime_ : kGbtLifeTime_);
@@ -396,17 +393,6 @@ void JobMaker::sendStratumJob(const char *gbt) {
   LOG(INFO) << "sjob: " << msg;
 }
 
-void JobMaker::findNewBestHeight(std::map<uint64_t/* height + ts */, const char *> *gbtByHeight) {
-  for (const auto &itr : rawgbtMap_) {
-    const uint32_t timestamp = (uint32_t)((itr.first >> 32) & 0x00000000FFFFFFFFULL);
-    const uint32_t height    = (uint32_t)(itr.first         & 0x000000007FFFFFFFULL);
-
-    // using Map to sort by: height + timestamp, without empty block flag
-    const uint64_t key = ((uint64_t)height << 32) + (uint64_t)timestamp;
-    gbtByHeight->insert(std::make_pair(key, itr.second.c_str()));
-  }
-}
-
 bool JobMaker::isReachTimeout() {
   uint32_t intervalSeconds = stratumJobInterval_;
 
@@ -422,25 +408,28 @@ bool JobMaker::isReachTimeout() {
 }
 
 void JobMaker::checkAndSendStratumJob() {
-  static uint64_t lastSendBestKey = 0; /* height + ts */
+  static uint64_t lastSendBestKey = 0;
 
   ScopeLock sl(lock_);
-  if (rawgbtMap_.size() == 0) {
-    return;
-  }
-  std::map<uint64_t/* height + ts */, const char *> gbtByHeight;
 
   // clean expired gbt first
   clearTimeoutGbt();
 
-  // we need to build 'gbtByHeight' first
-  findNewBestHeight(&gbtByHeight);
+  if (rawgbtMap_.size() == 0) {
+    LOG(WARNING) << "RawGbt Map is empty";
+    return;
+  }
+
   bool isFindNewHeight = false;
   bool needUpdateEmptyBlockJob = false;
 
-  // key: empty_block_flag + height + timestamp
-  const uint64_t bestKey = gbtByHeight.rbegin()->first;
-  const bool currentGbtIsEmpty = (gbtByHeight.rbegin()->first & 0x80000000ULL) != 0;
+  // rawgbtMap_ is sorted gbt by (timestamp + height + emptyFlag),
+  // so the last item is the newest/best item.
+  // @see makeGbtKey()
+  const uint64_t bestKey = rawgbtMap_.rbegin()->first;
+
+  const uint32_t bestHeight = gbtKeyGetHeight(bestKey);
+  const bool currentGbtIsEmpty = gbtKeyIsEmptyBlock(bestKey);
   
   // if last job is an empty block job, we need to 
   // send a new non-empty job as quick as possible.
@@ -454,9 +443,6 @@ void JobMaker::checkAndSendStratumJob() {
     return;
   }
 
-  // get bestHeight without empty block flag
-  const uint32_t bestHeight = (uint32_t)((bestKey >> 32) & 0x000000007FFFFFFFULL);
-
   if (bestHeight != currBestHeight_) {
     LOG(INFO) << ">>>> found new best height: " << bestHeight
     << ", curr: " << currBestHeight_ << " <<<<";
@@ -468,8 +454,33 @@ void JobMaker::checkAndSendStratumJob() {
     lastSendBestKey     = bestKey;
     isLastJobNewHeight_ = isFindNewHeight;
 
-    sendStratumJob(gbtByHeight.rbegin()->second);
+    sendStratumJob(rawgbtMap_.rbegin()->second.c_str());
   }
 }
 
+uint64_t JobMaker::makeGbtKey(uint32_t gbtTime, bool isEmptyBlock, uint32_t height) {
+  assert(height < 0x7FFFFFFFU);
 
+  //
+  // gbtKey:
+  //  --------------------------------------------------------------------------------------
+  // |               32 bits               |               31 bits              | 1 bit     |
+  // | xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx | xxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx | x         |
+  // |               gbtTime               |               height               | emptyFlag |
+  //  --------------------------------------------------------------------------------------
+  // use (!isEmptyBlock) so the key of non-empty block will large than the key of empty block.
+  //
+  return (((uint64_t)gbtTime) << 32) | (((uint64_t)height) << 1) | ((uint64_t)(!isEmptyBlock));
+}
+
+uint32_t JobMaker::gbtKeyGetTime(uint64_t gbtKey) {
+  return (uint32_t)(gbtKey >> 32);
+}
+
+uint32_t JobMaker::gbtKeyGetHeight(uint64_t gbtKey) {
+  return (uint32_t)((gbtKey >> 1) & 0x7FFFFFFFU);
+}
+
+bool JobMaker::gbtKeyIsEmptyBlock(uint64_t gbtKey) {
+  return !((bool)(gbtKey & 1ULL));
+}

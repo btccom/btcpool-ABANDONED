@@ -59,7 +59,7 @@ class JobMaker {
   uint32_t kEmptyGbtLifeTime_;
   string fileLastJobTime_;
 
-  std::map<uint64_t/* timestamp + height */, string> rawgbtMap_;  // sorted gbt by timestamp
+  std::map<uint64_t/* @see makeGbtKey() */, string> rawgbtMap_;  // sorted gbt by timestamp
 
   deque<uint256> lastestGbtHash_;
   uint32_t blockVersion_;
@@ -71,12 +71,16 @@ class JobMaker {
   void addRawgbt(const char *str, size_t len);
 
   void clearTimeoutGbt();
-  void findNewBestHeight(std::map<uint64_t/* height + ts */, const char *> *gbtByHeight);
   bool isReachTimeout();
   void sendStratumJob(const char *gbt);
 
   void checkAndSendStratumJob();
   void runThreadConsumeNmcAuxBlock();
+
+  inline uint64_t makeGbtKey(uint32_t gbtTime, bool isEmptyBlock, uint32_t height);
+  inline uint32_t gbtKeyGetTime(uint64_t gbtKey);
+  inline uint32_t gbtKeyGetHeight(uint64_t gbtKey);
+  inline bool gbtKeyIsEmptyBlock(uint64_t gbtKey);
 
 public:
   JobMaker(const string &kafkaBrokers, uint32_t stratumJobInterval,
