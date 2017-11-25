@@ -326,13 +326,6 @@ void StatsServer::_flushWorkersToDBThread() {
     goto finish;
   }
 
-  //check conditions before multi-insert, if there is no need, do info LOG instead of ERROR.
-  // It's a common case when the pool is run in the testnet with computer miner instead of ASCII miners.
-  if(fields.size() == 0 || values.size() == 0 || tmpTableName.length() == 0){
-  	LOG(INFO) << "multi-insert table." << tmpTableName << " failure because of empty info";
-  	goto finish;
-  }
-
   if (!multiInsert(poolDB_, "mining_workers_tmp", fields, values)) {
     LOG(ERROR) << "mul-insert table.mining_workers_tmp failure";
     goto finish;
@@ -1475,6 +1468,11 @@ void ShareLogParser::flushHourOrDailyData(const vector<string> values,
     return;
   }
 
+  if (values.size() == 0) {
+    LOG(INFO) << "no active workers";
+    return;
+  }
+
   // drop tmp table
   const string sqlDropTmpTable = Strings::Format("DROP TABLE IF EXISTS `%s`;",
                                                  tmpTableName.c_str());
@@ -1494,13 +1492,6 @@ void ShareLogParser::flushHourOrDailyData(const vector<string> values,
   // fields for table.stats_xxxxx_hour
   fields = Strings::Format("%s `share_accept`,`share_reject`,`reject_rate`,"
                            "`score`,`earn`,`created_at`,`updated_at`", extraFields.c_str());
-
-  //check conditions before multi-insert, if there is no need, do info LOG instead of ERROR.
-  // It's a common case when the pool is run in the testnet with computer miner instead of ASCII miners
-  if(fields.size() == 0 || values.size() == 0 || tmpTableName.length() == 0){
-  	LOG(INFO) << "multi-insert table." << tmpTableName << " failure because of empty info";
-  	return;
-  }
 
   if (!multiInsert(poolDB_, tmpTableName, fields, values)) {
     LOG(ERROR) << "multi-insert table." << tmpTableName << " failure";
