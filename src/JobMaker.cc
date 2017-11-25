@@ -436,15 +436,25 @@ void JobMaker::checkAndSendStratumJob() {
   // we need to build 'gbtByHeight' first
   findNewBestHeight(&gbtByHeight);
   bool isFindNewHeight = false;
+  bool needUpdateEmptyBlockJob = false;
 
-  // key: height + timestamp
+  // key: empty_block_flag + height + timestamp
   const uint64_t bestKey = gbtByHeight.rbegin()->first;
-  if (bestKey == lastSendBestKey) {
+  const bool currentGbtIsEmpty = (gbtByHeight.rbegin()->first & 0x80000000ULL) != 0;
+  
+  // if last job is an empty block job, we need to 
+  // send a new non-empty job as quick as possible.
+  if (isLastJobEmptyBlock_ && !currentGbtIsEmpty) {
+    needUpdateEmptyBlockJob = true;
+    LOG(INFO) << "--------update last empty block job--------";
+  }
+
+  if (!needUpdateEmptyBlockJob && bestKey == lastSendBestKey) {
     LOG(WARNING) << "bestKey is the same as last one: " << lastSendBestKey;
     return;
   }
 
-  // "bestKey" doesn't include empty block flag anymore, just in case
+  // get bestHeight without empty block flag
   const uint32_t bestHeight = (uint32_t)((bestKey >> 32) & 0x000000007FFFFFFFULL);
 
   if (bestHeight != currBestHeight_) {
@@ -453,9 +463,6 @@ void JobMaker::checkAndSendStratumJob() {
     isFindNewHeight = true;
     currBestHeight_ = bestHeight;
   }
-
-  const bool currentGbtIsEmpty = (gbtByHeight.rbegin()->first & 0x80000000ULL) != 0;
-  const bool needUpdateEmptyBlockJob = isLastJobEmptyBlock_ && !currentGbtIsEmpty;
 
   if (isFindNewHeight || needUpdateEmptyBlockJob || isReachTimeout()) {
     lastSendBestKey     = bestKey;
