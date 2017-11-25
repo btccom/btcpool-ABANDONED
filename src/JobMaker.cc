@@ -454,7 +454,10 @@ void JobMaker::checkAndSendStratumJob() {
     currBestHeight_ = bestHeight;
   }
 
-  if (isFindNewHeight || isReachTimeout()) {
+  const bool currentGbtIsEmpty = (gbtByHeight.rbegin()->first & 0x80000000ULL) != 0;
+  const bool needUpdateEmptyBlockJob = isLastJobEmptyBlock_ && !currentGbtIsEmpty;
+
+  if (isFindNewHeight || needUpdateEmptyBlockJob || isReachTimeout()) {
     lastSendBestKey     = bestKey;
     isLastJobNewHeight_ = isFindNewHeight;
 
