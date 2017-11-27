@@ -478,7 +478,7 @@ uint32_t JobMaker::gbtKeyGetTime(uint64_t gbtKey) {
 }
 
 uint32_t JobMaker::gbtKeyGetHeight(uint64_t gbtKey) {
-  return (uint32_t)((gbtKey >> 1) & 0x7FFFFFFFU);
+  return (uint32_t)((gbtKey >> 1) & 0x7FFFFFFFULL);
 }
 
 bool JobMaker::gbtKeyIsEmptyBlock(uint64_t gbtKey) {
