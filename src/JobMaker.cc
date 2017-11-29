@@ -396,11 +396,6 @@ void JobMaker::sendStratumJob(const char *gbt) {
 bool JobMaker::isReachTimeout() {
   uint32_t intervalSeconds = stratumJobInterval_;
 
-  // if last job is new height and empty block, reduce interval seconds
-  if (isLastJobNewHeight_ && isLastJobEmptyBlock_) {
-    intervalSeconds = 10;
-  }
-
   if (lastJobSendTime_ + intervalSeconds <= time(nullptr)) {
     return true;
   }
