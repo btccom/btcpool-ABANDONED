@@ -50,7 +50,7 @@ kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, RD_KAFKA_PARTITIO
 kafkaRawGbtConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT,       0/* partition */),
 kafkaNmcAuxConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_NMC_AUXBLOCK, 0/* partition */),
 currBestHeight_(0), lastJobSendTime_(0),
-isLastJobEmptyBlock_(false), isLastJobNewHeight_(false),
+isLastJobEmptyBlock_(false),
 stratumJobInterval_(stratumJobInterval),
 poolCoinbaseInfo_(poolCoinbaseInfo), poolPayoutAddr_(payoutAddr),
 kGbtLifeTime_(gbtLifeTime), kEmptyGbtLifeTime_(emptyGbtLifeTime),
@@ -449,7 +449,6 @@ void JobMaker::checkAndSendStratumJob() {
 
   if (isFindNewHeight || needUpdateEmptyBlockJob || isReachTimeout()) {
     lastSendBestKey     = bestKey;
-    isLastJobNewHeight_ = isFindNewHeight;
     currBestHeight_     = bestHeight;
 
     sendStratumJob(rawgbtMap_.rbegin()->second.c_str());
