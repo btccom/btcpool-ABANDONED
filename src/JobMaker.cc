@@ -443,14 +443,14 @@ void JobMaker::checkAndSendStratumJob() {
   // isReachTimeout() will allow the new job sending.
   if (bestHeight > currBestHeight_) {
     LOG(INFO) << ">>>> found new best height: " << bestHeight
-    << ", curr: " << currBestHeight_ << " <<<<";
+              << ", curr: " << currBestHeight_ << " <<<<";
     isFindNewHeight = true;
-    currBestHeight_ = bestHeight;
   }
 
   if (isFindNewHeight || needUpdateEmptyBlockJob || isReachTimeout()) {
     lastSendBestKey     = bestKey;
     isLastJobNewHeight_ = isFindNewHeight;
+    currBestHeight_     = bestHeight;
 
     sendStratumJob(rawgbtMap_.rbegin()->second.c_str());
   }
