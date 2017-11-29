@@ -433,7 +433,7 @@ void JobMaker::checkAndSendStratumJob() {
   
   // if last job is an empty block job, we need to 
   // send a new non-empty job as quick as possible.
-  if (isLastJobEmptyBlock_ && !currentGbtIsEmpty) {
+  if (bestHeight == currBestHeight_ && isLastJobEmptyBlock_ && !currentGbtIsEmpty) {
     needUpdateEmptyBlockJob = true;
     LOG(INFO) << "--------update last empty block job--------";
   }
@@ -443,7 +443,10 @@ void JobMaker::checkAndSendStratumJob() {
     return;
   }
 
-  if (bestHeight != currBestHeight_) {
+  // The height cannot reduce in normal.
+  // However, if there is indeed a height reduce,
+  // isReachTimeout() will allow the new job sending.
+  if (bestHeight > currBestHeight_) {
     LOG(INFO) << ">>>> found new best height: " << bestHeight
     << ", curr: " << currBestHeight_ << " <<<<";
     isFindNewHeight = true;
