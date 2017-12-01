@@ -1,7 +1,7 @@
 Install Kafka
 ==============
 
-* OS: `Ubuntu 14.04 LTS, 64 Bits`
+* OS: `Ubuntu 14.04 LTS, 64 Bits`, `Ubuntu 16.04 LTS, 64 Bits`
 * Kafka: `v0.10.0.0`
 * see more: https://kafka.apache.org/documentation.html#quickstart
 

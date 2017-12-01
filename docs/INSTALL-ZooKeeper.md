@@ -1,7 +1,7 @@
 Install ZooKeeper
 =================
 
-* OS: `Ubuntu 14.04 LTS, 64 Bits`
+* OS: `Ubuntu 14.04 LTS, 64 Bits`, `Ubuntu 16.04 LTS, 64 Bits`
 * ZooKeeper: `v3.4.5`
 
 ---
