@@ -110,7 +110,7 @@ class JobRepository {
   void consumeStratumJob(rd_kafka_message_t *rkmessage);
   void sendMiningNotify(shared_ptr<StratumJobEx> exJob);
   void tryCleanExpiredJobs();
-  void checkAndSendMiningNotify();
+  void checkAndSendMiningNotifyInterval();
 
 public:
   JobRepository(const char *kafkaBrokers, const string &fileLastNotifyTime,
@@ -230,6 +230,7 @@ class Server {
   KafkaProducer *kafkaProducerSolvedShare_;
   KafkaProducer *kafkaProducerNamecoinSolvedShare_;
   KafkaProducer *kafkaProducerCommonEvents_;
+  KafkaProducer *kafkaProducerRskSolvedShare_;
 
   //
   // WARNING: if enable simulator, all share will be accepted. only for test.

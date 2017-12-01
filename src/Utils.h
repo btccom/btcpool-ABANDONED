@@ -59,6 +59,8 @@ bool httpPOST(const char *url, const char *userpwd,
 bool bitcoindRpcCall(const char *url, const char *userpwd, const char *reqData,
                      string &response);
 
+bool rskdRpcCall(const char *url, const char *userpwd, const char *reqData, string &response);
+
 string date(const char *format, const time_t timestamp);
 inline string date(const char *format) {
   return date(format, time(nullptr));

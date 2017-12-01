@@ -47,8 +47,9 @@ JobMaker::JobMaker(const string &kafkaBrokers,  uint32_t stratumJobInterval,
 running_(true),
 kafkaBrokers_(kafkaBrokers),
 kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, RD_KAFKA_PARTITION_UA/* partition */),
-kafkaRawGbtConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT,       0/* partition */),
-kafkaNmcAuxConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_NMC_AUXBLOCK, 0/* partition */),
+kafkaRawGbtConsumer_ (kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT,       0/* partition */),
+kafkaNmcAuxConsumer_ (kafkaBrokers_.c_str(), KAFKA_TOPIC_NMC_AUXBLOCK, 0/* partition */),
+kafkaRskWorkConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RSK_RAW_WORK, 0/* partition */),
 currBestHeight_(0), lastJobSendTime_(0),
 isLastJobEmptyBlock_(false),
 stratumJobInterval_(stratumJobInterval),
@@ -145,6 +146,35 @@ bool JobMaker::init() {
   }
 
   //
+  // consumer RSK messages
+  //
+  {
+    map<string, string> consumerOptions;
+    consumerOptions["fetch.wait.max.ms"] = "5";
+    if (!kafkaRskWorkConsumer_.setup(RD_KAFKA_OFFSET_TAIL(1), &consumerOptions)) {
+      LOG(ERROR) << "kafka consumer rawgw block setup failure";
+      return false;
+    }
+    if (!kafkaRskWorkConsumer_.checkAlive()) {
+      LOG(ERROR) << "kafka consumer rawgw block is NOT alive";
+      return false;
+    }
+  }
+  sleep(1);
+
+  //
+  // consumer latest RSK get work
+  //
+  {
+    rd_kafka_message_t *rkmessage;
+    rkmessage = kafkaRskWorkConsumer_.consumer(1000/* timeout ms */);
+    if (rkmessage != nullptr) {
+      consumeRskAuxBlockMsg(rkmessage);
+      rd_kafka_message_destroy(rkmessage);
+    }
+  }
+
+  //
   // consumer latest RawGbt N messages
   //
   // read latest gbtmsg from kafka
@@ -198,6 +228,40 @@ void JobMaker::consumeNmcAuxBlockMsg(rd_kafka_message_t *rkmessage) {
   }
 }
 
+void JobMaker::consumeRskAuxBlockMsg(rd_kafka_message_t *rkmessage) {
+  // check error
+  if (rkmessage->err) {
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
+      // Reached the end of the topic+partition queue on the broker.
+      // Not really an error.
+      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
+      //      << "[" << rkmessage->partition << "] "
+      //      << " message queue at offset " << rkmessage->offset;
+      // acturlly
+      return;
+    }
+
+    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
+    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
+    << ": " << rd_kafka_message_errstr(rkmessage);
+
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
+        rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
+      LOG(FATAL) << "consume fatal";
+      stop();
+    }
+    return;
+  }
+
+  // set json string
+  LOG(INFO) << "received rawgw message, len: " << rkmessage->len;
+  {
+    ScopeLock sl(rskBlockAccessLock_);
+    latestRskBlockJson_ = string((const char *)rkmessage->payload, rkmessage->len);
+    DLOG(INFO) << "latestRskBlockJson: " << latestRskBlockJson_;
+  }
+}
+
 void JobMaker::consumeRawGbtMsg(rd_kafka_message_t *rkmessage, bool needToSend) {
   // check error
   if (rkmessage->err) {
@@ -247,9 +311,28 @@ void JobMaker::runThreadConsumeNmcAuxBlock() {
   }
 }
 
+void JobMaker::runThreadConsumeRskAuxBlock() {
+  const int32_t timeoutMs = 1000;
+
+  while (running_) {
+    rd_kafka_message_t *rkmessage;
+    rkmessage = kafkaRskWorkConsumer_.consumer(timeoutMs);
+    if (rkmessage == nullptr) /* timeout */
+      continue;
+
+    consumeRskAuxBlockMsg(rkmessage);
+
+    /* Return message to rdkafka */
+    rd_kafka_message_destroy(rkmessage);
+  }
+}
+
 void JobMaker::run() {
   // start Nmc Aux Block consumer thread
   threadConsumeNmcAuxBlock_ = thread(&JobMaker::runThreadConsumeNmcAuxBlock, this);
+
+  // start Rsk RawGw consumer thread
+  threadConsumeRskRawGw_ = thread(&JobMaker::runThreadConsumeRskAuxBlock, this);
 
   const int32_t timeoutMs = 1000;
 
@@ -367,9 +450,15 @@ void JobMaker::sendStratumJob(const char *gbt) {
     latestNmcAuxBlockJson = latestNmcAuxBlockJson_;
   }
 
+  string latestRskBlockJson;
+  {
+    ScopeLock sl(rskBlockAccessLock_);
+    latestRskBlockJson = latestRskBlockJson_;
+  }
+
   StratumJob sjob;
   if (!sjob.initFromGbt(gbt, poolCoinbaseInfo_, poolPayoutAddr_, blockVersion_,
-                        latestNmcAuxBlockJson)) {
+                        latestNmcAuxBlockJson, latestRskBlockJson)) {
     LOG(ERROR) << "init stratum job message from gbt str fail";
     return;
   }

@@ -210,7 +210,8 @@ string StratumJob::serializeToJson() const {
   }
 
   //
-  // we use key->value json string, so it's easy to update system
+  // we use key->value json string, so it's easy to update system.
+  // all key-value items SHOULD the same as StratumJob::unserializeFromJson().
   //
   return Strings::Format("{\"jobId\":%" PRIu64",\"gbtHash\":\"%s\""
                          ",\"prevHash\":\"%s\",\"prevHashBeStr\":\"%s\""
@@ -221,6 +222,10 @@ string StratumJob::serializeToJson() const {
                          // namecoin, optional
                          ",\"nmcBlockHash\":\"%s\",\"nmcBits\":%u,\"nmcHeight\":%d"
                          ",\"nmcRpcAddr\":\"%s\",\"nmcRpcUserpass\":\"%s\""
+                         // rsk, optional
+                         ",\"rskBlockHashForMergedMining\":\"%s\",\"rskNetworkTarget\":\"0x%s\""
+                         ",\"rskFeesForMiner\":\"%s\", \"rskParentBlockHash\":\"%s\""
+                         ",\"rskdRpcAddress\":\"%s\",\"rskdRpcUserPwd\":\"%s\""
                          "}",
                          jobId_, gbtHash_.c_str(),
                          prevHash_.ToString().c_str(), prevHashBeStr_.c_str(),
@@ -234,10 +239,20 @@ string StratumJob::serializeToJson() const {
                          nmcAuxBlockHash_.ToString().c_str(),
                          nmcAuxBits_, nmcHeight_,
                          nmcRpcAddr_.size()     ? nmcRpcAddr_.c_str()     : "",
-                         nmcRpcUserpass_.size() ? nmcRpcUserpass_.c_str() : "");
+                         nmcRpcUserpass_.size() ? nmcRpcUserpass_.c_str() : "",
+                         // rsk
+                         rskAuxBlockHash_.size()    ? rskAuxBlockHash_.c_str() : "",
+                         rskNetworkTarget_.GetHex().c_str(),
+                         rskFeesForMiner_.size()    ? rskFeesForMiner_.c_str() : "",
+                         rskParentBlockHash_.size() ? rskParentBlockHash_.c_str() : "",
+                         rskdRpcAddress_.size()     ? rskdRpcAddress_.c_str() : "",
+                         rskdRpcUserPwd_.c_str()    ? rskdRpcUserPwd_.c_str() : "");
 }
 
 bool StratumJob::unserializeFromJson(const char *s, size_t len) {
+  //
+  // all key-value items SHOULD the same as StratumJob::serializeToJson().
+  //
   JsonNode j;
   if (!JsonNode::parse(s, s + len, j)) {
     return false;
@@ -295,6 +310,23 @@ bool StratumJob::unserializeFromJson(const char *s, size_t len) {
     BitsToTarget(nmcAuxBits_, nmcNetworkTarget_);
   }
 
+  //
+  // rsk, optional
+  //
+  if (j["rskBlockHashForMergedMining"].type()   == Utilities::JS::type::Str &&
+      j["rskNetworkTarget"].type()              == Utilities::JS::type::Str &&
+      j["rskFeesForMiner"].type()               == Utilities::JS::type::Str &&
+      j["rskParentBlockHash"].type()            == Utilities::JS::type::Str &&
+      j["rskdRpcAddress"].type()                == Utilities::JS::type::Str &&
+      j["rskdRpcUserPwd"].type()                == Utilities::JS::type::Str) {
+    rskAuxBlockHash_    = j["rskBlockHashForMergedMining"].str();
+    rskNetworkTarget_   = uint256S(j["rskNetworkTarget"].str());
+    rskFeesForMiner_    = j["rskFeesForMiner"].str();
+    rskParentBlockHash_ = j["rskParentBlockHash"].str();
+    rskdRpcAddress_     = j["rskdRpcAddress"].str();
+    rskdRpcUserPwd_     = j["rskdRpcUserPwd"].str();
+  }
+
   const string merkleBranchStr = j["merkleBranch"].str();
   const size_t merkleBranchCount = merkleBranchStr.length() / 64;
   merkleBranch_.resize(merkleBranchCount);
@@ -310,7 +342,8 @@ bool StratumJob::unserializeFromJson(const char *s, size_t len) {
 bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
                              const CBitcoinAddress &poolPayoutAddr,
                              const uint32_t blockVersion,
-                             const string &nmcAuxBlockJson) {
+                             const string &nmcAuxBlockJson,
+                             const string &latestRskBlockJson) {
   uint256 gbtHash = Hash(gbt, gbt + strlen(gbt));
   JsonNode r;
   if (!JsonNode::parse(gbt, gbt + strlen(gbt), r)) {
@@ -373,7 +406,6 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     makeMerkleBranch(vtxhashs, merkleBranch_);
   }
 
-
   //
   // namecoin merged mining
   //
@@ -409,6 +441,50 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
       nmcRpcAddr_      = jNmcAux["rpc_addr"].str();
       nmcRpcUserpass_  = jNmcAux["rpc_userpass"].str();
       BitsToTarget(nmcAuxBits_, nmcNetworkTarget_);
+    } while (0);
+  }
+
+  //
+  // rsk merged mining
+  //
+  if (!latestRskBlockJson.empty()) {
+    do {
+      JsonNode rskGetWork;
+      if (!JsonNode::parse(latestRskBlockJson.c_str(),
+                           latestRskBlockJson.c_str() + latestRskBlockJson.length(),
+                           rskGetWork)) {
+        LOG(ERROR) << "decode rsk getwork json fail: >" << rskGetWork << "<";
+        break;
+      }
+
+      //LOG(INFO) << "RSK_GET_WORK: { " << rskGetWork << " }";
+
+      // check fields are valid
+      if (rskGetWork["created_at_ts"].type()    != Utilities::JS::type::Int   ||
+          rskGetWork["rskdRpcAddress"].type()   != Utilities::JS::type::Str   ||
+          rskGetWork["rskdRpcUserPwd"].type()   != Utilities::JS::type::Str   ||
+          rskGetWork["parentBlockHash"].type()             != Utilities::JS::type::Str ||
+          rskGetWork["blockHashForMergedMining"].type()    != Utilities::JS::type::Str ||
+          rskGetWork["target"].type()                      != Utilities::JS::type::Str ||
+          rskGetWork["feesPaidToMiner"].type()             != Utilities::JS::type::Str ||
+          rskGetWork["notify"].type()                      != Utilities::JS::type::Str) {
+        LOG(ERROR) << "rsk getwork fields failure";
+        break;
+      }
+
+      // check timestamp
+      if (rskGetWork["created_at_ts"].uint32() + 120u < time(nullptr)) {
+        LOG(ERROR) << "too old rsk getwork: " << date("%F %T", rskGetWork["created_at_ts"].uint32());
+        break;
+      }
+
+      // set rsk info
+      rskAuxBlockHash_    = rskGetWork["blockHashForMergedMining"].str();
+      rskNetworkTarget_   = uint256S(rskGetWork["target"].str());
+      rskFeesForMiner_    = rskGetWork["feesPaidToMiner"].str();
+      rskParentBlockHash_ = rskGetWork["parentBlockHash"].str();
+      rskdRpcAddress_     = rskGetWork["rskdRpcAddress"].str();
+      rskdRpcUserPwd_     = rskGetWork["rskdRpcUserPwd"].str();
     } while (0);
   }
 
@@ -488,16 +564,35 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     cbOut[0].scriptPubKey = GetScriptForDestination(poolPayoutAddr.Get());
 
     //
-    // output[1]: witness commitment
+    // output[n]: witness commitment, optional
     //
     if (!witnessCommitment_.empty()) {
       DLOG(INFO) << "witness commitment: " << witnessCommitment_.c_str();
       vector<char> binBuf;
       Hex2Bin(witnessCommitment_.c_str(), binBuf);
       cbOut.push_back(CTxOut());
-      cbOut[1].nValue = 0;
-      cbOut[1].scriptPubKey = CScript((unsigned char*)binBuf.data(),
-                                      (unsigned char*)binBuf.data() + binBuf.size());
+      cbOut[cbOut.size() - 1].nValue = 0;
+      cbOut[cbOut.size() - 1].scriptPubKey = CScript((unsigned char*)binBuf.data(),
+                                                     (unsigned char*)binBuf.data() + binBuf.size());
+    }
+
+    //
+    // output[n]: RSK merge mining, optional
+    //
+    if (!latestRskBlockJson.empty()) {
+      DLOG(INFO) << "RSK blockhash: " << rskAuxBlockHash_;
+      string rskBlockTag = "\x52\x53\x4B\x42\x4C\x4F\x43\x4B\x3A";
+      vector<char> rskTag(rskBlockTag.begin(), rskBlockTag.end());
+      vector<char> binBuf;
+
+      Hex2Bin(rskAuxBlockHash_.c_str(), binBuf);
+
+      rskTag.insert(std::end(rskTag), std::begin(binBuf), std::end(binBuf));
+
+      cbOut.push_back(CTxOut());
+      cbOut[cbOut.size() - 1].nValue = 0;
+      cbOut[cbOut.size() - 1].scriptPubKey = CScript((unsigned char*)rskTag.data(),
+                                                     (unsigned char*)rskTag.data() + rskTag.size());
     }
 
     CMutableTransaction cbtx;

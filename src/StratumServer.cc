@@ -174,7 +174,7 @@ void JobRepository::runThreadConsume() {
     rd_kafka_message_destroy(rkmessage);  /* Return message to rdkafka */
 
     // check if we need to send mining notify
-    checkAndSendMiningNotify();
+    checkAndSendMiningNotifyInterval();
 
     tryCleanExpiredJobs();
   }
@@ -260,14 +260,40 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   // new non-empty job as quick as possible.
   if (isClean == false && exJobs_.size() >= 2) {
     auto itr = exJobs_.rbegin();
-    shared_ptr<StratumJobEx> exJob1 = itr->second;
+    shared_ptr<StratumJobEx> currJob = itr->second;
     itr++;
-    shared_ptr<StratumJobEx> exJob2 = itr->second;
+    shared_ptr<StratumJobEx> prevJob = itr->second;
 
-    if (exJob2->isClean_ == true &&
-        exJob2->sjob_->merkleBranch_.size() == 0 &&
-        exJob1->sjob_->merkleBranch_.size() != 0) {
+    // if new job's miners fee is much bigger than prev one, send the new job immediately
+    if (currJob->sjob_->coinbaseValue_ > prevJob->sjob_->coinbaseValue_ + 50000000/*0.5 btc*/) {
       sendMiningNotify(exJob);
+      return;
+    }
+
+    // previous job is empty and current one is not empty
+    if (prevJob->isClean_ == true &&
+        prevJob->sjob_->merkleBranch_.size() == 0 &&
+        currJob->sjob_->merkleBranch_.size() != 0) {
+      sendMiningNotify(exJob);
+      return;
+    }
+
+    // merged mining: nmc.
+    // nmc's block interval time is the same as bitcoin: 10 minutes.
+    if (prevJob->sjob_->nmcHeight_ != currJob->sjob_->nmcHeight_) {
+      sendMiningNotify(exJob);
+      return;
+    }
+
+    // merged mining: rsk.
+    // rsk's generate block every 10 seconds, it's a bit too often.
+    // right now not much value to merged mining rsk, so need to set the
+    // minimal intervals.
+    // TODO: change the minimal seconds in the future
+    if (prevJob->sjob_->rskParentBlockHash_ != currJob->sjob_->rskParentBlockHash_ &&
+        lastJobSendTime_ + 3 /* 3: minimal seconds */ <= time(nullptr)) {
+      sendMiningNotify(exJob);
+      return;
     }
   }
 }
@@ -279,7 +305,7 @@ void JobRepository::markAllJobsAsStale() {
   }
 }
 
-void JobRepository::checkAndSendMiningNotify() {
+void JobRepository::checkAndSendMiningNotifyInterval() {
   // last job is 'expried', send a new one
   if (exJobs_.size() &&
       lastJobSendTime_ + kMiningNotifyInterval_ <= time(nullptr))
@@ -673,6 +699,7 @@ kafkaProducerShareLog_(nullptr),
 kafkaProducerSolvedShare_(nullptr),
 kafkaProducerNamecoinSolvedShare_(nullptr),
 kafkaProducerCommonEvents_(nullptr),
+kafkaProducerRskSolvedShare_(nullptr),
 isEnableSimulator_(false), isSubmitInvalidBlock_(false),
 
 #ifndef WORK_WITH_STRATUM_SWITCHER
@@ -702,6 +729,9 @@ Server::~Server() {
   }
   if (kafkaProducerNamecoinSolvedShare_ != nullptr) {
     delete kafkaProducerNamecoinSolvedShare_;
+  }
+  if (kafkaProducerRskSolvedShare_ != nullptr) {
+    delete kafkaProducerRskSolvedShare_;
   }
   if (kafkaProducerCommonEvents_ != nullptr) {
     delete kafkaProducerCommonEvents_;
@@ -740,6 +770,9 @@ bool Server::setup(const char *ip, const unsigned short port,
                                                 RD_KAFKA_PARTITION_UA);
   kafkaProducerNamecoinSolvedShare_ = new KafkaProducer(kafkaBrokers,
                                                         KAFKA_TOPIC_NMC_SOLVED_SHARE,
+                                                        RD_KAFKA_PARTITION_UA);
+  kafkaProducerRskSolvedShare_ = new KafkaProducer(kafkaBrokers,
+                                                        KAFKA_TOPIC_RSK_SOLVED_SHARE,
                                                         RD_KAFKA_PARTITION_UA);
   kafkaProducerShareLog_ = new KafkaProducer(kafkaBrokers,
                                              KAFKA_TOPIC_SHARE_LOG,
@@ -811,6 +844,21 @@ bool Server::setup(const char *ip, const unsigned short port,
     }
     if (!kafkaProducerNamecoinSolvedShare_->checkAlive()) {
       LOG(ERROR) << "kafka kafkaProducerNamecoinSolvedShare_ is NOT alive";
+      return false;
+    }
+  }
+
+  // kafkaProducerRskSolvedShare_
+  {
+    map<string, string> options;
+    // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
+    options["queue.buffering.max.ms"] = "1";
+    if (!kafkaProducerRskSolvedShare_->setup(&options)) {
+      LOG(ERROR) << "kafka kafkaProducerRskSolvedShare_ setup failure";
+      return false;
+    }
+    if (!kafkaProducerRskSolvedShare_->checkAlive()) {
+      LOG(ERROR) << "kafka kafkaProducerRskSolvedShare_ is NOT alive";
       return false;
     }
   }
@@ -1091,6 +1139,49 @@ int Server::checkShare(const Share &share,
 
     LOG(INFO) << ">>>> found namecoin block: " << sjob->nmcHeight_ << ", "
     << sjob->nmcAuxBlockHash_.ToString()
+    << ", jobId: " << share.jobId_ << ", userId: " << share.userId_
+    << ", by: " << workFullName << " <<<<";
+  }
+
+  //
+  // found new RSK block
+  //
+  if (!sjob->rskAuxBlockHash_.empty() &&
+      (isSubmitInvalidBlock_ || bnBlockHash <= UintToArith256(sjob->rskNetworkTarget_))) {
+    //
+    // build data needed to submit block to RSK
+    //
+    RskSolvedShareData rskSolvedShare;
+    rskSolvedShare.jobId_    = share.jobId_;
+    rskSolvedShare.workerId_ = share.workerHashId_;
+    rskSolvedShare.userId_   = share.userId_;
+    rskSolvedShare.height_   = sjob->height_;
+    snprintf(rskSolvedShare.feesForMiner_,   sizeof(rskSolvedShare.feesForMiner_), "%s", sjob->rskFeesForMiner_.c_str());
+    snprintf(rskSolvedShare.rpcAddress_,     sizeof(rskSolvedShare.rpcAddress_),   "%s", sjob->rskdRpcAddress_.c_str());
+    snprintf(rskSolvedShare.rpcUserPwd_,     sizeof(rskSolvedShare.rpcUserPwd_),   "%s", sjob->rskdRpcUserPwd_.c_str());
+    memcpy(rskSolvedShare.header80_,         (const uint8_t *)&header, sizeof(CBlockHeader));
+    snprintf(rskSolvedShare.workerFullName_, sizeof(rskSolvedShare.workerFullName_), "%s", workFullName.c_str());
+
+    //
+    // send to kafka topic
+    //
+    string buf;
+    buf.resize(sizeof(RskSolvedShareData) + coinbaseBin.size());
+    uint8_t *p = (uint8_t *)buf.data();
+
+    // RskSolvedShareData
+    memcpy(p, (const uint8_t *)&rskSolvedShare, sizeof(RskSolvedShareData));
+    p += sizeof(RskSolvedShareData);
+
+    // coinbase TX
+    memcpy(p, coinbaseBin.data(), coinbaseBin.size());
+
+    kafkaProducerRskSolvedShare_->produce(buf.data(), buf.size());
+
+    //
+    // log the finding
+    //
+    LOG(INFO) << ">>>> found RSK block: " << blkHash.ToString()
     << ", jobId: " << share.jobId_ << ", userId: " << share.userId_
     << ", by: " << workFullName << " <<<<";
   }

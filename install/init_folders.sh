@@ -6,8 +6,9 @@
 # @author Kevin Pan
 # @since 2016-08
 #
-
-cd /work/btcpool/build
+set -e
+SROOT=$(cd $(dirname "$0"); pwd)
+cd $SROOT/../build
 
 # blkmaker
 if [ ! -d "run_blkmaker" ]; then
@@ -98,3 +99,13 @@ if [ ! -d "run_nmcauxmaker" ]; then
   cp ../../src/nmcauxmaker/nmcauxmaker.cfg .
   cd ..
 fi
+
+# rskauxmaker
+if [ ! -d "run_rskauxmaker" ]; then
+  mkdir "run_rskauxmaker" && cd "run_rskauxmaker"
+  mkdir "log_rskauxmaker"
+  ln -s ../rskauxmaker .
+  cp ../../src/rskauxmaker/rskauxmaker.cfg .
+  cd ..
+fi
+
