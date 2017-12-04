@@ -7,7 +7,9 @@ The pool backend work with Bitcoin.
 
 Note: This is still a testbed and work in progress, all things could be changed.
 
-See Also: [BTCPool for Bitcoin Cash](https://github.com/btccom/bccpool).
+See Also:
+* [BTCPool for Bitcoin Cash](https://github.com/btccom/bccpool)
+* [Stratum Switcher](https://github.com/btccom/stratumSwitcher)
 
 ## Architecture
 
