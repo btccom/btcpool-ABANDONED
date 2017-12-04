@@ -7,7 +7,8 @@
 # @since 2016-08
 #
 
-cd /work/btcpool/build
+# No longer restrict the installation folder
+# cd /work/btcpool/build
 
 # blkmaker
 if [ ! -d "run_blkmaker" ]; then
