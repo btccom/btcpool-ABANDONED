@@ -6,7 +6,14 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 #
 # cmake -DCMAKE_BUILD_TYPE=Debug ..
 # cmake -DCMAKE_BUILD_TYPE=Release ..
+# 
+# default: Release
 #
+
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
+
 message("CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
 IF(CMAKE_BUILD_TYPE MATCHES Debug)
   message("Debug build.")
@@ -142,3 +149,59 @@ if(POOL__WORK_WITH_STRATUM_SWITCHER)
 else()
   message("-- Work without Stratum Switcher (-DPOOL__WORK_WITH_STRATUM_SWITCHER=OFF)")
 endif()
+
+
+###
+# Debian/Ubuntu software package
+###
+set(CPACK_GENERATOR "DEB")
+set(CPACK_PACKAGE_NAME "btcpool-bitcoin")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "YihaoPeng yihao.peng@bitmain.com")
+
+# install prefix
+if(NOT POOL__INSTALL_PREFIX)
+  set(POOL__INSTALL_PREFIX "/work/btcpool.btc")
+endif()
+message("-- Package Install Prefix (-DPOOL__INSTALL_PREFIX=<path>): ${POOL__INSTALL_PREFIX}")
+set(CMAKE_INSTALL_PREFIX ${POOL__INSTALL_PREFIX})
+
+# init folders & copy configure files
+install(CODE "execute_process(WORKING_DIRECTORY ${CMAKE_BINARY_DIR} COMMAND ${CMAKE_SOURCE_DIR}/install/init_folders.sh)")
+
+# install targets , dirs & files
+install(TARGETS
+            blkmaker
+            gbtmaker
+            jobmaker
+            nmcauxmaker
+            poolwatcher
+            sharelogger
+            simulator
+            slparser
+            sserver
+            statshttpd
+            unittest
+        DESTINATION
+            build)
+
+install(DIRECTORY
+            docs
+            install
+        DESTINATION
+            .)
+
+install(DIRECTORY
+            ${CMAKE_BINARY_DIR}/run_blkmaker
+            ${CMAKE_BINARY_DIR}/run_gbtmaker
+            ${CMAKE_BINARY_DIR}/run_jobmaker
+            ${CMAKE_BINARY_DIR}/run_nmcauxmaker
+            ${CMAKE_BINARY_DIR}/run_poolwatcher
+            ${CMAKE_BINARY_DIR}/run_sharelogger
+            ${CMAKE_BINARY_DIR}/run_simulator
+            ${CMAKE_BINARY_DIR}/run_slparser
+            ${CMAKE_BINARY_DIR}/run_sserver
+            ${CMAKE_BINARY_DIR}/run_statshttpd
+        DESTINATION
+            build)
+
+include(CPack)
