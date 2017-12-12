@@ -158,6 +158,8 @@ set(CPACK_GENERATOR "DEB")
 set(CPACK_PACKAGE_NAME "btcpool-bitcoin")
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "YihaoPeng yihao.peng@bitmain.com")
 
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+
 # install prefix
 if(NOT POOL__INSTALL_PREFIX)
   set(POOL__INSTALL_PREFIX "/work/btcpool.btc")
