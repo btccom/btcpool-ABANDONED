@@ -152,15 +152,8 @@ endif()
 
 
 ###
-# Debian/Ubuntu software package
+# `make install` support
 ###
-set(CPACK_GENERATOR "DEB")
-set(CPACK_PACKAGE_NAME "btcpool-bitcoin")
-set(CPACK_DEBIAN_PACKAGE_MAINTAINER "YihaoPeng yihao.peng@bitmain.com")
-
-# the dependencies
-set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
-SET(CPACK_DEBIAN_PACKAGE_DEPENDS "librdkafka1 (>= 0.9.1-1)")
 
 # install prefix
 if(NOT POOL__INSTALL_PREFIX)
@@ -215,5 +208,22 @@ install(DIRECTORY
             ${CMAKE_BINARY_DIR}/run_statshttpd
         DESTINATION
             ${POOL__INSTALL_PREFIX}/build)
+
+
+###
+# Debian/Ubuntu software package
+###
+if(POOL__GENERATE_DEB_PACKAGE)
+  message("-- Generate Debian/Ubuntu software package (-DPOOL__GENERATE_DEB_PACKAGE=ON)")
+  set(CPACK_GENERATOR "DEB")
+  set(CPACK_PACKAGE_NAME "btcpool-bitcoin")
+  set(CPACK_DEBIAN_PACKAGE_MAINTAINER "YihaoPeng yihao.peng@bitmain.com")
+
+  # the dependencies
+  set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+  set(CPACK_DEBIAN_PACKAGE_DEPENDS "librdkafka1 (>= 0.9.1-1)")
+else()
+  message("-- Don't generate Debian/Ubuntu software package (-DPOOL__GENERATE_DEB_PACKAGE=OFF)")
+endif()
 
 include(CPack)
