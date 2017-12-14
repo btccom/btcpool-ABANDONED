@@ -29,13 +29,16 @@ set(CMAKE_CXX_COMPILER "g++")
 set(CMAKE_C_COMPILER "gcc")
 set(CMAKE_CXX_COMPILER_ARG1 "-std=c++0x ")
 
-set(secp256k1_DIR "${CMAKE_CURRENT_BINARY_DIR}/../src/bitcoin/secp256k1")
+set(secp256k1_DIR "${CMAKE_SOURCE_DIR}/src/bitcoin/secp256k1")
 set(secp256k1_LIBRARIES "${secp256k1_DIR}/.libs/libsecp256k1.a")
 if (NOT EXISTS ${secp256k1_LIBRARIES})
   message(STATUS "build secp256k1...")
   execute_process(WORKING_DIRECTORY "${secp256k1_DIR}" COMMAND ./autogen.sh)
   execute_process(WORKING_DIRECTORY "${secp256k1_DIR}" COMMAND ./configure)
   execute_process(WORKING_DIRECTORY "${secp256k1_DIR}" COMMAND make)
+endif()
+if (NOT EXISTS ${secp256k1_LIBRARIES})
+  message(FATAL_ERROR "build secp256k1 failed!")
 endif()
 
 find_package(OpenSSL)
@@ -163,7 +166,7 @@ message("-- Package Install Prefix (-DPOOL__INSTALL_PREFIX=<path>): ${POOL__INST
 set(CMAKE_INSTALL_PREFIX ${POOL__INSTALL_PREFIX})
 
 # init folders & copy configure files
-install(CODE "execute_process(WORKING_DIRECTORY ${CMAKE_BINARY_DIR} COMMAND ${CMAKE_SOURCE_DIR}/install/init_folders.sh)")
+install(CODE "execute_process(WORKING_DIRECTORY ${CMAKE_BINARY_DIR} COMMAND bash ${CMAKE_SOURCE_DIR}/install/init_folders.sh)")
 
 # install targets , dirs & files
 install(TARGETS
