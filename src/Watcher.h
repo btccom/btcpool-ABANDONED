@@ -68,6 +68,7 @@ class ClientContainer {
   thread threadStratumJobConsume_;
 
   void runThreadStratumJobConsume();
+  void consumeStratumJob(rd_kafka_message_t *rkmessage);
 
 public:
   ClientContainer(const string &kafkaBrokers);
