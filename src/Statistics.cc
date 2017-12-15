@@ -549,6 +549,7 @@ void StatsServer::runThreadConsume() {
       if (isInitializing) {
         if (lastShareTime_ + 60 < time(nullptr)) {
           LOG(INFO) << "consuming history shares: " << date("%F %T", lastShareTime_);
+          lastFlushDBTime = time(nullptr);
         } else {
           isInitializing = false;
         }
