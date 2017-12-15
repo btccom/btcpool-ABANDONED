@@ -273,6 +273,8 @@ class StatsServer {
   MySQLConnection  poolDBCommonEvents_; // insert or update workers from table.mining_workers
   time_t kFlushDBInterval_;
   atomic<bool> isInserting_;     // flag mark if we are flushing db
+
+  time_t lastShareTime_; // the generating time of the last share it consumes.
   
   string fileLastFlushTime_;     // write last db flush time to the file
 
