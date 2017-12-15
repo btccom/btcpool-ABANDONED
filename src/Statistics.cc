@@ -125,6 +125,8 @@ bool WorkerShares::isExpired() {
 
 
 ////////////////////////////////  StatsServer  ////////////////////////////////
+atomic<bool> StatsServer::isInitializing_(true);
+
 StatsServer::StatsServer(const char *kafkaBrokers, const string &httpdHost,
                          unsigned short httpdPort, const MysqlConnectInfo &poolDBInfo,
                          const time_t kFlushDBInterval, const string &fileLastFlushTime):
@@ -138,6 +140,8 @@ fileLastFlushTime_(fileLastFlushTime),
 base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort),
 requestCount_(0), responseBytes_(0)
 {
+  isInitializing_ = true;
+  
   pthread_rwlock_init(&rwlock_, nullptr);
 }
 
@@ -525,45 +529,48 @@ bool StatsServer::setupThreadConsume() {
 
 void StatsServer::runThreadConsume() {
   LOG(INFO) << "start sharelog consume thread";
-  bool   isInitializing  = true;
-  time_t lastCleanTime   = time(nullptr);
-  time_t lastFlushDBTime = time(nullptr);
+  time_t lastCleanTime     = time(nullptr);
+  time_t lastFlushDBTime   = time(nullptr);
 
   const time_t kExpiredCleanInterval = 60*30;
   const int32_t kTimeoutMs = 1000;  // consumer timeout
 
   while (running_) {
-    //
-    // try to remove expired workers
-    //
-    if (lastCleanTime + kExpiredCleanInterval < time(nullptr)) {
-      removeExpiredWorkers();
-      lastCleanTime = time(nullptr);
-    }
+    // don't flush database while consuming history shares.
+    // otherwise, users' hashrate will be updated to 0 when statshttpd restarted.
+    if (isInitializing_) {
 
-    //
-    // flush workers to table.mining_workers
-    //
-    if (lastFlushDBTime + kFlushDBInterval_ < time(nullptr)) {
-      // the initialization ends after consuming a share that generated in the last minute.
-      if (isInitializing) {
+      if (lastFlushDBTime + kFlushDBInterval_ < time(nullptr)) {
+        // the initialization ends after consuming a share that generated in the last minute.
         if (lastShareTime_ + 60 < time(nullptr)) {
           LOG(INFO) << "consuming history shares: " << date("%F %T", lastShareTime_);
           lastFlushDBTime = time(nullptr);
         } else {
-          isInitializing = false;
+          isInitializing_ = false;
         }
       }
 
-      // don't flush database while consuming history shares.
-      // otherwise, users' hashrate will be updated to 0 when it is restarted.
-      if (!isInitializing) {
+    } else {
+      
+      //
+      // try to remove expired workers
+      //
+      if (lastCleanTime + kExpiredCleanInterval < time(nullptr)) {
+        removeExpiredWorkers();
+        lastCleanTime = time(nullptr);
+      }
+
+      //
+      // flush workers to table.mining_workers
+      //
+      if (lastFlushDBTime + kFlushDBInterval_ < time(nullptr)) {
         // will use thread to flush data to DB.
         // it's very fast because we use insert statement with multiple values
         // and merge table when flush data to DB.
         flushWorkersToDB();
         lastFlushDBTime = time(nullptr);
       }
+
     }
 
     //
@@ -750,6 +757,16 @@ void StatsServer::httpdServerStatus(struct evhttp_request *req, void *arg) {
   server->requestCount_++;
 
   struct evbuffer *evb = evbuffer_new();
+
+  // service is initializing, return
+  if (isInitializing_) {
+    evbuffer_add_printf(evb, "{\"err_no\":2,\"err_msg\":\"service is initializing...\"}");
+    evhttp_send_reply(req, HTTP_OK, "OK", evb);
+    evbuffer_free(evb);
+
+    return;
+  }
+  
   StatsServer::ServerStatus s = server->getServerStatus();
 
   evbuffer_add_printf(evb, "{\"err_no\":0,\"err_msg\":\"\","
@@ -806,6 +823,15 @@ void StatsServer::httpdGetWorkerStatus(struct evhttp_request *req, void *arg) {
 
   // evbuffer for output
   struct evbuffer *evb = evbuffer_new();
+
+  // service is initializing, return
+  if (isInitializing_) {
+    evbuffer_add_printf(evb, "{\"err_no\":2,\"err_msg\":\"service is initializing...\"}");
+    evhttp_send_reply(req, HTTP_OK, "OK", evb);
+    evbuffer_free(evb);
+
+    return;
+  }
 
   // query is empty, return
   if (query == nullptr) {
