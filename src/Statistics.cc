@@ -189,6 +189,8 @@ void StatsServer::stop() {
 void StatsServer::processShare(const Share &share) {
   const time_t now = time(nullptr);
 
+  lastShareTime_ = share.timestamp_;
+
   // ignore too old shares
   if (now > share.timestamp_ + STATS_SLIDING_WINDOW_SECONDS) {
     return;
@@ -523,6 +525,7 @@ bool StatsServer::setupThreadConsume() {
 
 void StatsServer::runThreadConsume() {
   LOG(INFO) << "start sharelog consume thread";
+  bool   isInitializing  = true;
   time_t lastCleanTime   = time(nullptr);
   time_t lastFlushDBTime = time(nullptr);
 
@@ -542,11 +545,24 @@ void StatsServer::runThreadConsume() {
     // flush workers to table.mining_workers
     //
     if (lastFlushDBTime + kFlushDBInterval_ < time(nullptr)) {
-      // will use thread to flush data to DB.
-      // it's very fast because we use insert statement with multiple values
-      // and merge table when flush data to DB.
-      flushWorkersToDB();
-      lastFlushDBTime = time(nullptr);
+      // the initialization ends after consuming a share that generated in the last minute.
+      if (isInitializing) {
+        if (lastShareTime_ + 60 < time(nullptr)) {
+          LOG(INFO) << "consuming history shares: " << date("%F %T", lastShareTime_);
+        } else {
+          isInitializing = false;
+        }
+      }
+
+      // don't flush database while consuming history shares.
+      // otherwise, users' hashrate will be updated to 0 when it is restarted.
+      if (!isInitializing) {
+        // will use thread to flush data to DB.
+        // it's very fast because we use insert statement with multiple values
+        // and merge table when flush data to DB.
+        flushWorkersToDB();
+        lastFlushDBTime = time(nullptr);
+      }
     }
 
     //
