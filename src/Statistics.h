@@ -274,7 +274,8 @@ class StatsServer {
   time_t kFlushDBInterval_;
   atomic<bool> isInserting_;     // flag mark if we are flushing db
 
-  time_t lastShareTime_; // the generating time of the last share it consumes.
+  time_t lastShareTime_; // the generating time of the last consumed share
+  static atomic<bool> isInitializing_; // if true, the database will not be flushed and the HTTP API will return an error
   
   string fileLastFlushTime_;     // write last db flush time to the file
 
