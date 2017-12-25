@@ -129,14 +129,29 @@ TEST(Stratum, StratumWorker) {
   ASSERT_EQ(w.fullName_,   "abcdefg.__default__");
 }
 
+TEST(JobMaker, BitcoinAddress) {
+  SelectParams(CBaseChainParams::MAIN);
+  ASSERT_EQ(IsValidDestinationString("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"), true);
+  ASSERT_EQ(IsValidDestinationString("1A1zP1eP5QGefi2DMPPfTL5SLmv7DivfNa"), false);
+  ASSERT_EQ(IsValidDestinationString("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"), true);
+  ASSERT_EQ(IsValidDestinationString("bc1qw508c6qejxtdg4y5r3zarvary4c5xw7kv8f3t4"), false);
+  ASSERT_EQ(IsValidDestinationString("bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3"), true);
+  ASSERT_EQ(IsValidDestinationString("bc1qrp33g0q5c5txsp8arysrx4k6zdkfs4nde4xj0gdcccefvpysxf3qccfmv3"), false);
+
+  SelectParams(CBaseChainParams::TESTNET);
+  ASSERT_EQ(IsValidDestinationString("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U"), true);
+  ASSERT_EQ(IsValidDestinationString("myxopLJB19oFtNBdrADD5Z34Aw6P8o9P8U"), false);
+  ASSERT_EQ(IsValidDestinationString("tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx"), true);
+  ASSERT_EQ(IsValidDestinationString("tb1qw508d6qejxtdg6y5r3zarvary0c5xw7kxpjzsx"), false);
+  ASSERT_EQ(IsValidDestinationString("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7"), true);
+  ASSERT_EQ(IsValidDestinationString("tb1qrp33g0q5c5txsp9arysrx4k6zdkgs4nce4xj0gdcccefvpysxf3q0sl5k7"), false);
+}
+
 TEST(Stratum, StratumJob) {
   StratumJob sjob;
   string poolCoinbaseInfo = "/BTC.COM/";
   uint32_t blockVersion = 0;
   bool res;
-
-  SelectParams(CBaseChainParams::MAIN);
-  ASSERT_EQ(IsValidDestinationString("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"), true);
 
   {
     string gbt;
@@ -210,12 +225,12 @@ TEST(Stratum, StratumJob) {
               "1976a914ca560088c0fb5e6f028faa11085e643e343a8f5c88ac"
               // lock_time
               "00000000");
-    ASSERT_EQ(sjob2.merkleBranch_.size(), 1);
+    ASSERT_EQ(sjob2.merkleBranch_.size(), 1U);
     ASSERT_EQ(sjob2.merkleBranch_[0], uint256S("bd36bd4fff574b573152e7d4f64adf2bb1c9ab0080a12f8544c351f65aca79ff"));
     ASSERT_EQ(sjob2.nVersion_, 536870912);
-    ASSERT_EQ(sjob2.nBits_,    436308706);
-    ASSERT_EQ(sjob2.nTime_,    1469006933);
-    ASSERT_EQ(sjob2.minTime_,  1469001544);
+    ASSERT_EQ(sjob2.nBits_,    436308706U);
+    ASSERT_EQ(sjob2.nTime_,    1469006933U);
+    ASSERT_EQ(sjob2.minTime_,  1469001544U);
     ASSERT_EQ(sjob2.coinbaseValue_, 312659655);
     ASSERT_GE(time(nullptr), jobId2Time(sjob2.jobId_));
   }
@@ -341,9 +356,137 @@ TEST(Stratum, StratumJobWithWitnessCommitment) {
               "00000000");
 
     ASSERT_EQ(sjob2.nVersion_, 536870912);
-    ASSERT_EQ(sjob2.nBits_,    0x1a171448u);
-    ASSERT_EQ(sjob2.nTime_,    1480834892);
-    ASSERT_EQ(sjob2.minTime_,  1480831053);
+    ASSERT_EQ(sjob2.nBits_,    0x1a171448U);
+    ASSERT_EQ(sjob2.nTime_,    1480834892U);
+    ASSERT_EQ(sjob2.minTime_,  1480831053U);
+    ASSERT_EQ(sjob2.coinbaseValue_, 319367518);
+    ASSERT_GE(time(nullptr), jobId2Time(sjob2.jobId_));
+  }
+}
+
+
+TEST(Stratum, StratumJobWithSegwitPayoutAddr) {
+  StratumJob sjob;
+  string poolCoinbaseInfo = "/BTC.COM/";
+  uint32_t blockVersion = 0;
+  bool res;
+
+  {
+    string gbt;
+    gbt += "{\"result\":";
+    gbt += "{";
+    gbt += "  \"capabilities\": [";
+    gbt += "    \"proposal\"";
+    gbt += "  ],";
+    gbt += "  \"version\": 536870912,";
+    gbt += "  \"rules\": [";
+    gbt += "    \"csv\",";
+    gbt += "    \"!segwit\"";
+    gbt += "  ],";
+    gbt += "  \"vbavailable\": {";
+    gbt += "  },";
+    gbt += "  \"vbrequired\": 0,";
+    gbt += "  \"previousblockhash\": \"0000000000000047e5bda122407654b25d52e0f3eeb00c152f631f70e9803772\",";
+    gbt += "  \"transactions\": [";
+    gbt += "    {";
+    gbt += "      \"data\": \"0100000002449f651247d5c09d3020c30616cb1807c268e2c2346d1de28442b89ef34c976d000000006a47304402203eae3868946a312ba712f9c9a259738fee6e3163b05d206e0f5b6c7980";
+    gbt += "161756022017827f248432f7313769f120fb3b7a65137bf93496a1ae7d6a775879fbdfb8cd0121027d7b71dab3bb16582c97fc0ccedeacd8f75ebee62fa9c388290294ee3bc3e935feffffffcbc82a21497f8db";
+    gbt += "8d57d054fefea52aba502a074ed984efc81ec2ef211194aa6010000006a47304402207f5462295e52fb4213f1e63802d8fe9ec020ac8b760535800564694ea87566a802205ee01096fc9268eac483136ce08250";
+    gbt += "6ac951a7dbc9e4ae24dca07ca2a1fdf2f30121023b86e60ef66fe8ace403a0d77d27c80ba9ba5404ee796c47c03c73748e59d125feffffff0286c35b00000000001976a914ab29f668d284fd2d65cec5f098432";
+    gbt += "c4ece01055488ac8093dc14000000001976a914ac19d3fd17710e6b9a331022fe92c693fdf6659588ac8dd70f00\",";
+    gbt += "      \"txid\": \"c284853b65e7887c5fd9b635a932e2e0594d19849b22914a8e6fb180fea0954f\",";
+    gbt += "      \"hash\": \"c284853b65e7887c5fd9b635a932e2e0594d19849b22914a8e6fb180fea0954f\",";
+    gbt += "      \"depends\": [";
+    gbt += "      ],";
+    gbt += "      \"fee\": 37400,";
+    gbt += "      \"sigops\": 8,";
+    gbt += "      \"weight\": 1488";
+    gbt += "    },";
+    gbt += "    {";
+    gbt += "      \"data\": \"0100000001043f5e73755b5c6919b4e361f4cae84c8805452de3df265a6e2d3d71cbcb385501000000da0047304402202b14552521cd689556d2e44d914caf2195da37b80de4f8cd0fad9adf";
+    gbt += "7ef768ef022026fcddd992f447c39c48c3ce50c5960e2f086ebad455159ffc3e36a5624af2f501483045022100f2b893e495f41b22cd83df6908c2fa4f917fd7bce9f8da14e6ab362042e11f7d022075bc2451e";
+    gbt += "1cf2ae2daec0f109a3aceb6558418863070f5e84c945262018503240147522102632178d046673c9729d828cfee388e121f497707f810c131e0d3fc0fe0bd66d62103a0951ec7d3a9da9de171617026442fcd30";
+    gbt += "f34d66100fab539853b43f508787d452aeffffffff0240420f000000000017a9143e9a6b79be836762c8ef591cf16b76af1327ced58790dfdf8c0000000017a9148ce5408cfeaddb7ccb2545ded41ef47810945";
+    gbt += "4848700000000\",";
+    gbt += "      \"txid\": \"28b1a5c2f0bb667aea38e760b6d55163abc9be9f1f830d9969edfab902d17a0f\",";
+    gbt += "      \"hash\": \"28b1a5c2f0bb667aea38e760b6d55163abc9be9f1f830d9969edfab902d17a0f\",";
+    gbt += "      \"depends\": [";
+    gbt += "      ],";
+    gbt += "      \"fee\": 20000,";
+    gbt += "      \"sigops\": 8,";
+    gbt += "      \"weight\": 1332";
+    gbt += "    },";
+    gbt += "    {";
+    gbt += "      \"data\": \"01000000013faf73481d6b96c2385b9a4300f8974b1b30c34be30000c7dcef11f68662de4501000000db00483045022100f9881f4c867b5545f6d7a730ae26f598107171d0f68b860bd973db";
+    gbt += "b855e073a002207b511ead1f8be8a55c542ce5d7e91acfb697c7fa2acd2f322b47f177875bffc901483045022100a37aa9998b9867633ab6484ad08b299de738a86ae997133d827717e7ed73d953022011e3f99";
+    gbt += "d1bd1856f6a7dc0bf611de6d1b2efb60c14fc5931ba09da01558757f60147522102632178d046673c9729d828cfee388e121f497707f810c131e0d3fc0fe0bd66d62103a0951ec7d3a9da9de171617026442fcd";
+    gbt += "30f34d66100fab539853b43f508787d452aeffffffff0240420f000000000017a9148d57003ecbaa310a365f8422602cc507a702197e87806868a90000000017a9148ce5408cfeaddb7ccb2545ded41ef478109";
+    gbt += "454848700000000\",";
+    gbt += "      \"txid\": \"67878210e268d87b4e6587db8c6e367457cea04820f33f01d626adbe5619b3dd\",";
+    gbt += "      \"hash\": \"67878210e268d87b4e6587db8c6e367457cea04820f33f01d626adbe5619b3dd\",";
+    gbt += "      \"depends\": [";
+    gbt += "      ],";
+    gbt += "      \"fee\": 20000,";
+    gbt += "      \"sigops\": 8,";
+    gbt += "      \"weight\": 1336";
+    gbt += "    },";
+    gbt += "  ],";
+    gbt += "  \"coinbaseaux\": {";
+    gbt += "    \"flags\": \"\"";
+    gbt += "  },";
+    gbt += "  \"coinbasevalue\": 319367518,";
+    gbt += "  \"longpollid\": \"0000000000000047e5bda122407654b25d52e0f3eeb00c152f631f70e9803772604597\",";
+    gbt += "  \"target\": \"0000000000001714480000000000000000000000000000000000000000000000\",";
+    gbt += "  \"mintime\": 1480831053,";
+    gbt += "  \"mutable\": [";
+    gbt += "    \"time\",";
+    gbt += "    \"transactions\",";
+    gbt += "    \"prevblock\"";
+    gbt += "  ],";
+    gbt += "  \"noncerange\": \"00000000ffffffff\",";
+    gbt += "  \"sigoplimit\": 80000,";
+    gbt += "  \"sizelimit\": 4000000,";
+    gbt += "  \"weightlimit\": 4000000,";
+    gbt += "  \"curtime\": 1480834892,";
+    gbt += "  \"bits\": \"1a171448\",";
+    gbt += "  \"height\": 1038222,";
+    gbt += "  \"default_witness_commitment\": \"6a24aa21a9ed842a6d6672504c2b7abb796fdd7cfbd7262977b71b945452e17fbac69ed22bf8\"";
+    gbt += "}}";
+
+    blockVersion = 0;
+    SelectParams(CBaseChainParams::TESTNET);
+    ASSERT_EQ(IsValidDestinationString("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7"), true);
+    CTxDestination poolPayoutAddrTestnet = DecodeDestination("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7");
+    res = sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion, "");
+    ASSERT_EQ(res, true);
+
+    const string jsonStr = sjob.serializeToJson();
+    StratumJob sjob2;
+    res = sjob2.unserializeFromJson(jsonStr.c_str(), jsonStr.length());
+    ASSERT_EQ(res, true);
+
+    ASSERT_EQ(sjob2.prevHash_, uint256S("0000000000000047e5bda122407654b25d52e0f3eeb00c152f631f70e9803772"));
+    ASSERT_EQ(sjob2.prevHashBeStr_, "e98037722f631f70eeb00c155d52e0f3407654b2e5bda1220000004700000000");
+    ASSERT_EQ(sjob2.height_, 1038222);
+
+    ASSERT_EQ(sjob2.coinbase2_,
+              "ffffffff"  // sequence
+              "02"        // 2 outputs
+              // 5e29091300000000 -> 000000001309295e -> 319367518
+              "5e29091300000000"
+              // 0x22 -> 34 bytes
+              "2200201863143c14c5166804bd19203356da136c985678cd4d27a1b8c6329604903262"
+              //
+              "0000000000000000"
+              // 0x26 -> 38 bytes
+              "266a24aa21a9ed842a6d6672504c2b7abb796fdd7cfbd7262977b71b945452e17fbac69ed22bf8"
+              // lock_time
+              "00000000");
+
+    ASSERT_EQ(sjob2.nVersion_, 536870912);
+    ASSERT_EQ(sjob2.nBits_,    0x1a171448U);
+    ASSERT_EQ(sjob2.nTime_,    1480834892U);
+    ASSERT_EQ(sjob2.minTime_,  1480831053U);
     ASSERT_EQ(sjob2.coinbaseValue_, 319367518);
     ASSERT_GE(time(nullptr), jobId2Time(sjob2.jobId_));
   }
