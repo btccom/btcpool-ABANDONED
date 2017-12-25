@@ -38,6 +38,42 @@
 #define KAFKA_TOPIC_NMC_SOLVED_SHARE  "NMCSolvedShare"
 
 
+///////////////////////////////////////////////////////////////////////
+// librdkafka options
+// https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
+///////////////////////////////////////////////////////////////////////
+
+// Maximum transmit message size.
+// The RawGbt message may large than 30MB while the block size reach 8MB.
+// So allow the message to reach 60MB.
+#define RDKAFKA_MESSAGE_MAX_BYTES            "60000000"
+
+// Maximum number of bytes per topic+partition to request when
+// fetching messages from the broker
+#define RDKAFKA_FETCH_MESSAGE_MAX_BYTES      "60000000"
+
+// Maximum number of kilobytes per topic+partition in the local consumer
+// queue. This value may be overshot by fetch.message.max.bytes.
+#define RDKAFKA_QUEUED_MAX_MESSAGES_KBYTES   "60000000"
+
+// compression codec to use for compressing message sets
+#define RDKAFKA_COMPRESSION_CODEC            "snappy"
+
+// Maximum number of messages allowed on the producer queue.
+#define RDKAFKA_QUEUE_BUFFERING_MAX_MESSAGES "100000"
+
+// Maximum time, in milliseconds, for buffering data on the producer queue.
+// set to 1 (0 is an illegal value here), deliver msg as soon as possible.
+#define RDKAFKA_QUEUE_BUFFERING_MAX_MS       "1000"
+
+// Maximum number of messages batched in one MessageSet.
+#define RDKAFKA_BATCH_NUM_MESSAGES           "1000"
+
+// Maximum time the broker may wait to fill the response with fetch.min.bytes
+#define RDKAFKA_CONSUMER_FETCH_WAIT_MAX_MS            "10"
+#define RDKAFKA_HIGH_LEVEL_CONSUMER_FETCH_WAIT_MAX_MS "50"
+
+
 ///////////////////////////////// KafkaConsumer ////////////////////////////////
 // Simple Consumer
 class KafkaConsumer {

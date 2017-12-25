@@ -46,7 +46,7 @@ class BlockMaker {
   // key: gbthash
   std::deque<uint256> rawGbtQ_;
   // key: gbthash, value: block template json
-  std::map<uint256, shared_ptr<vector<CTransaction> > > rawGbtMap_;
+  std::map<uint256, shared_ptr<vector<CTransactionRef> > > rawGbtMap_;
 
   mutex jobIdMapLock_;
   size_t kMaxStratumJobNum_;
@@ -65,7 +65,7 @@ class BlockMaker {
   MysqlConnectInfo poolDB_;      // save blocks to table.found_blocks
 
   void insertRawGbt(const uint256 &gbtHash,
-                    shared_ptr<vector<CTransaction>> vtxs);
+                    shared_ptr<vector<CTransactionRef>> vtxs);
 
   thread threadConsumeRawGbt_;
   thread threadConsumeStratumJob_;

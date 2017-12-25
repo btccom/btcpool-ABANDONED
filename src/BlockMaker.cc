@@ -27,6 +27,7 @@
 
 #include "bitcoin/consensus/merkle.h"
 #include "bitcoin/core_io.h"
+#include "bitcoin/added_functions.h"
 #include "utilities_js.hpp"
 
 
@@ -184,11 +185,11 @@ void BlockMaker::addRawgbt(const char *str, size_t len) {
   JsonNode jgbt = nodeGbt["result"];
 
   // transaction without coinbase_tx
-  shared_ptr<vector<CTransaction>> vtxs = std::make_shared<std::vector<CTransaction>>();
+  shared_ptr<vector<CTransactionRef>> vtxs = std::make_shared<vector<CTransactionRef>>();
   for (JsonNode & node : jgbt["transactions"].array()) {
-    CTransaction tx;
+    CMutableTransaction tx;
     DecodeHexTx(tx, node["data"].str());
-    vtxs->push_back(tx);
+    vtxs->push_back(MakeTransactionRef(std::move(tx)));
   }
 
   LOG(INFO) << "insert rawgbt: " << gbtHash.ToString() << ", txs: " << vtxs->size();
@@ -196,7 +197,7 @@ void BlockMaker::addRawgbt(const char *str, size_t len) {
 }
 
 void BlockMaker::insertRawGbt(const uint256 &gbtHash,
-                              shared_ptr<vector<CTransaction>> vtxs) {
+                              shared_ptr<vector<CTransactionRef>> vtxs) {
   ScopeLock ls(rawGbtLock_);
 
   // insert rawgbt
@@ -224,7 +225,7 @@ string _buildAuxPow(const CBlock *block) {
   //
   // 1. coinbase hex
   {
-    CDataStream ssTx(SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
+    CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
     ssTx << block->vtx[0];
     auxPow += HexStr(ssTx.begin(), ssTx.end());
   }
@@ -263,7 +264,7 @@ string _buildAuxPow(const CBlock *block) {
 
   // 5. Parent Block Header
   {
-    CDataStream ssBlock(SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
+    CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
     ssBlock << block->GetBlockHeader();
     auxPow += HexStr(ssBlock.begin(), ssBlock.end());
   }
@@ -343,7 +344,7 @@ void BlockMaker::consumeNamecoinSovledShare(rd_kafka_message_t *rkmessage) {
 
   // get gbtHash and rawgbt (vtxs)
   uint256 gbtHash;
-  shared_ptr<vector<CTransaction>> vtxs;
+  shared_ptr<vector<CTransactionRef>> vtxs;
   {
     ScopeLock sl(jobIdMapLock_);
     if (jobId2GbtHash_.find(jobId) != jobId2GbtHash_.end()) {
@@ -369,8 +370,8 @@ void BlockMaker::consumeNamecoinSovledShare(rd_kafka_message_t *rkmessage) {
   {
     CSerializeData sdata;
     sdata.insert(sdata.end(), coinbaseTxBin.begin(), coinbaseTxBin.end());
-    newblk.vtx.push_back(CTransaction());
-    CDataStream c(sdata, SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
+    newblk.vtx.push_back(MakeTransactionRef());
+    CDataStream c(sdata, SER_NETWORK, PROTOCOL_VERSION);
     c >> newblk.vtx[newblk.vtx.size() - 1];
   }
 
@@ -513,7 +514,7 @@ void BlockMaker::consumeSovledShare(rd_kafka_message_t *rkmessage) {
 
   // get gbtHash and rawgbt (vtxs)
   uint256 gbtHash;
-  shared_ptr<vector<CTransaction>> vtxs;
+  shared_ptr<vector<CTransactionRef>> vtxs;
   {
     ScopeLock sl(jobIdMapLock_);
     if (jobId2GbtHash_.find(foundBlock.jobId_) != jobId2GbtHash_.end()) {
@@ -539,8 +540,8 @@ void BlockMaker::consumeSovledShare(rd_kafka_message_t *rkmessage) {
   {
     CSerializeData sdata;
     sdata.insert(sdata.end(), coinbaseTxBin.begin(), coinbaseTxBin.end());
-    newblk.vtx.push_back(CTransaction());
-    CDataStream c(sdata, SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
+    newblk.vtx.push_back(MakeTransactionRef());
+    CDataStream c(sdata, SER_NETWORK, PROTOCOL_VERSION);
     c >> newblk.vtx[newblk.vtx.size() - 1];
   }
 
@@ -556,7 +557,7 @@ void BlockMaker::consumeSovledShare(rd_kafka_message_t *rkmessage) {
 
   // save to DB, using thread
   saveBlockToDBNonBlocking(foundBlock, blkHeader,
-                           newblk.vtx[0].GetValueOut(),  // coinbase value
+                           newblk.vtx[0]->GetValueOut(),  // coinbase value
                            blockHex.length()/2);
 }
 
