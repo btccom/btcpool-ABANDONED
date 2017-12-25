@@ -52,13 +52,14 @@ kafkaNmcAuxConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_NMC_AUXBLOCK, 0/* partit
 currBestHeight_(0), lastJobSendTime_(0),
 isLastJobEmptyBlock_(false),
 stratumJobInterval_(stratumJobInterval),
-poolCoinbaseInfo_(poolCoinbaseInfo), poolPayoutAddr_(payoutAddr),
+poolCoinbaseInfo_(poolCoinbaseInfo), poolPayoutAddrStr_(payoutAddr),
 kGbtLifeTime_(gbtLifeTime), kEmptyGbtLifeTime_(emptyGbtLifeTime),
 fileLastJobTime_(fileLastJobTime),
 blockVersion_(blockVersion)
 {
 	LOG(INFO) << "Block Version: " << std::hex << blockVersion_;
 	LOG(INFO) << "Coinbase Info: " << poolCoinbaseInfo_;
+  LOG(INFO) << "Payout Address: " << poolPayoutAddrStr_;
 }
 
 JobMaker::~JobMaker() {
@@ -76,11 +77,14 @@ void JobMaker::stop() {
 
 bool JobMaker::init() {
   const int32_t consumeLatestN = 20;
+
   // check pool payout address
-  if (!poolPayoutAddr_.IsValid()) {
+  if (!IsValidDestinationString(poolPayoutAddrStr_)) {
     LOG(ERROR) << "invalid pool payout address";
     return false;
   }
+
+  poolPayoutAddr_ = DecodeDestination(poolPayoutAddrStr_);
 
   /* setup kafka */
   {

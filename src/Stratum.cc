@@ -308,7 +308,7 @@ bool StratumJob::unserializeFromJson(const char *s, size_t len) {
 }
 
 bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
-                             const CBitcoinAddress &poolPayoutAddr,
+                             const CTxDestination &poolPayoutAddr,
                              const uint32_t blockVersion,
                              const string &nmcAuxBlockJson) {
   uint256 gbtHash = Hash(gbt, gbt + strlen(gbt));
@@ -485,7 +485,7 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     vector<CTxOut> cbOut;
     cbOut.push_back(CTxOut());
     cbOut[0].nValue = coinbaseValue_;
-    cbOut[0].scriptPubKey = GetScriptForDestination(poolPayoutAddr.Get());
+    cbOut[0].scriptPubKey = GetScriptForDestination(poolPayoutAddr);
 
     //
     // output[1]: witness commitment

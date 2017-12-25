@@ -136,8 +136,7 @@ TEST(Stratum, StratumJob) {
   bool res;
 
   SelectParams(CBaseChainParams::MAIN);
-  CBitcoinAddress poolPayoutAddrMainnet("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa");
-  ASSERT_EQ(poolPayoutAddrMainnet.IsValid(), true);
+  ASSERT_EQ(IsValidDestinationString("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"), true);
 
   {
     string gbt;
@@ -179,8 +178,8 @@ TEST(Stratum, StratumJob) {
 
     blockVersion = 0;
     SelectParams(CBaseChainParams::TESTNET);
-    CBitcoinAddress poolPayoutAddrTestnet("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U");
-    ASSERT_EQ(poolPayoutAddrTestnet.IsValid(), true);
+    ASSERT_EQ(IsValidDestinationString("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U"), true);
+    CTxDestination poolPayoutAddrTestnet = DecodeDestination("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U");
     res = sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion, "");
     ASSERT_EQ(res, true);
 
@@ -313,8 +312,8 @@ TEST(Stratum, StratumJobWithWitnessCommitment) {
 
     blockVersion = 0;
     SelectParams(CBaseChainParams::TESTNET);
-    CBitcoinAddress poolPayoutAddrTestnet("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U");
-    ASSERT_EQ(poolPayoutAddrTestnet.IsValid(), true);
+    ASSERT_EQ(IsValidDestinationString("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U"), true);
+    CTxDestination poolPayoutAddrTestnet = DecodeDestination("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U");
     res = sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion, "");
     ASSERT_EQ(res, true);
 

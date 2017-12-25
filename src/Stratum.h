@@ -275,7 +275,7 @@ public:
   bool unserializeFromJson(const char *s, size_t len);
 
   bool initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
-                   const CBitcoinAddress &poolPayoutAddr,
+                   const CTxDestination &poolPayoutAddr,
                    const uint32_t blockVersion,
                    const string &nmcAuxBlockJson);
   bool isEmptyBlock();
