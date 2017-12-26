@@ -82,20 +82,20 @@ topic_(nullptr)
   LOG(INFO) << "consumer librdkafka version: " << rd_kafka_version_str();
 
   // Maximum transmit message size.
-  defaultOptions_["message.max.bytes"] = "20000000";
+  defaultOptions_["message.max.bytes"] = RDKAFKA_MESSAGE_MAX_BYTES;
   // compression codec to use for compressing message sets
-  defaultOptions_["compression.codec"] = "snappy";
+  defaultOptions_["compression.codec"] = RDKAFKA_COMPRESSION_CODEC;
 
   // Maximum number of kilobytes per topic+partition in the local consumer
   // queue. This value may be overshot by fetch.message.max.bytes.
-  defaultOptions_["queued.max.messages.kbytes"] = "20000000";
+  defaultOptions_["queued.max.messages.kbytes"] = RDKAFKA_QUEUED_MAX_MESSAGES_KBYTES;
 
   // Maximum number of bytes per topic+partition to request when
   // fetching messages from the broker
-  defaultOptions_["fetch.message.max.bytes"] = "20000000";
+  defaultOptions_["fetch.message.max.bytes"] = RDKAFKA_FETCH_MESSAGE_MAX_BYTES;
 
   // Maximum time the broker may wait to fill the response with fetch.min.bytes
-  defaultOptions_["fetch.wait.max.ms"] = "10";
+  defaultOptions_["fetch.wait.max.ms"] = RDKAFKA_CONSUMER_FETCH_WAIT_MAX_MS;
 }
 
 KafkaConsumer::~KafkaConsumer() {
@@ -246,19 +246,15 @@ bool KafkaHighLevelConsumer::setup() {
   char errstr[1024];
   rd_kafka_resp_err_t err;
   //
-  // rdkafka options:
-  //
-  // message.max.bytes:
-  //         Maximum transmit message size. 20000000 = 20,000,000
-  //
-  // TODO: increase 'message.max.bytes' in the feature
+  // rdkafka options
   //
   const vector<string> conKeys = {"message.max.bytes", "compression.codec",
     "queued.max.messages.kbytes","fetch.message.max.bytes","fetch.wait.max.ms",
     "group.id" /* Consumer groups require a group id */
   };
-  const vector<string> conVals = {"20000000", "snappy",
-    "20000000","20000000","50", groupStr_.c_str()};
+  const vector<string> conVals = {RDKAFKA_MESSAGE_MAX_BYTES, RDKAFKA_COMPRESSION_CODEC,
+    RDKAFKA_QUEUED_MAX_MESSAGES_KBYTES,RDKAFKA_FETCH_MESSAGE_MAX_BYTES,
+    RDKAFKA_HIGH_LEVEL_CONSUMER_FETCH_WAIT_MAX_MS, groupStr_.c_str()};
   assert(conKeys.size() == conVals.size());
 
   for (size_t i = 0; i < conKeys.size(); i++) {
@@ -355,20 +351,20 @@ producer_(nullptr), topic_(nullptr)
   // https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
   //
   // Maximum transmit message size.
-  defaultOptions_["message.max.bytes"] = "20000000";
+  defaultOptions_["message.max.bytes"] = RDKAFKA_MESSAGE_MAX_BYTES;
 
   // compression codec to use for compressing message sets
-  defaultOptions_["compression.codec"] = "snappy";
+  defaultOptions_["compression.codec"] = RDKAFKA_COMPRESSION_CODEC;
 
   // Maximum number of messages allowed on the producer queue.
-  defaultOptions_["queue.buffering.max.messages"] = "100000";
+  defaultOptions_["queue.buffering.max.messages"] = RDKAFKA_QUEUE_BUFFERING_MAX_MESSAGES;
 
   // Maximum time, in milliseconds, for buffering data on the producer queue.
   // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
-  defaultOptions_["queue.buffering.max.ms"] = "1000";
+  defaultOptions_["queue.buffering.max.ms"] = RDKAFKA_QUEUE_BUFFERING_MAX_MS;
 
   // Maximum number of messages batched in one MessageSet.
-  defaultOptions_["batch.num.messages"] = "1000";
+  defaultOptions_["batch.num.messages"] = RDKAFKA_BATCH_NUM_MESSAGES;
 }
 
 KafkaProducer::~KafkaProducer() {

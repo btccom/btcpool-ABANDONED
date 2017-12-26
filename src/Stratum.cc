@@ -308,7 +308,7 @@ bool StratumJob::unserializeFromJson(const char *s, size_t len) {
 }
 
 bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
-                             const CBitcoinAddress &poolPayoutAddr,
+                             const CTxDestination &poolPayoutAddr,
                              const uint32_t blockVersion,
                              const string &nmcAuxBlockJson) {
   uint256 gbtHash = Hash(gbt, gbt + strlen(gbt));
@@ -364,9 +364,9 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     // read txs hash/data
     vector<uint256> vtxhashs;  // txs without coinbase
     for (JsonNode & node : jgbt["transactions"].array()) {
-      CTransaction tx;
+      CMutableTransaction tx;
       DecodeHexTx(tx, node["data"].str());
-      vtxhashs.push_back(tx.GetHash());
+      vtxhashs.push_back(MakeTransactionRef(std::move(tx))->GetHash());
     }
     // make merkleSteps and merkle branch
     vector<uint256> merkleSteps;
@@ -485,7 +485,7 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     vector<CTxOut> cbOut;
     cbOut.push_back(CTxOut());
     cbOut[0].nValue = coinbaseValue_;
-    cbOut[0].scriptPubKey = GetScriptForDestination(poolPayoutAddr.Get());
+    cbOut[0].scriptPubKey = GetScriptForDestination(poolPayoutAddr);
 
     //
     // output[1]: witness commitment
@@ -507,7 +507,7 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     vector<char> coinbaseTpl;
     {
       CSerializeData sdata;
-      CDataStream ssTx(SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
+      CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
       ssTx << cbtx;  // put coinbase CTransaction to CDataStream
       ssTx.GetAndClear(sdata);  // dump coinbase bin to coinbaseTpl
       coinbaseTpl.insert(coinbaseTpl.end(), sdata.begin(), sdata.end());

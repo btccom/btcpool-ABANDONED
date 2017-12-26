@@ -52,7 +52,8 @@ class JobMaker {
   uint32_t stratumJobInterval_;
 
   string poolCoinbaseInfo_;
-  CBitcoinAddress poolPayoutAddr_;
+  string poolPayoutAddrStr_;
+  CTxDestination poolPayoutAddr_;
 
   uint32_t kGbtLifeTime_;
   uint32_t kEmptyGbtLifeTime_;

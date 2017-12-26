@@ -25,6 +25,11 @@ ELSE()
   message("Some other build type.")
 ENDIF()
 
+
+# add a macro that needed by codes copied from bitcoinABC
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_CONFIG_H")
+
+
 set(CMAKE_CXX_COMPILER "g++")
 set(CMAKE_C_COMPILER "gcc")
 set(CMAKE_CXX_COMPILER_ARG1 "-std=c++0x ")
@@ -34,7 +39,7 @@ set(secp256k1_LIBRARIES "${secp256k1_DIR}/.libs/libsecp256k1.a")
 if (NOT EXISTS ${secp256k1_LIBRARIES})
   message(STATUS "build secp256k1...")
   execute_process(WORKING_DIRECTORY "${secp256k1_DIR}" COMMAND ./autogen.sh)
-  execute_process(WORKING_DIRECTORY "${secp256k1_DIR}" COMMAND ./configure)
+  execute_process(WORKING_DIRECTORY "${secp256k1_DIR}" COMMAND ./configure --enable-module-recovery)
   execute_process(WORKING_DIRECTORY "${secp256k1_DIR}" COMMAND make)
 endif()
 if (NOT EXISTS ${secp256k1_LIBRARIES})
@@ -167,8 +172,10 @@ endif()
 message("-- Package Install Prefix (-DPOOL__INSTALL_PREFIX=<path>): ${POOL__INSTALL_PREFIX}")
 set(CMAKE_INSTALL_PREFIX ${POOL__INSTALL_PREFIX})
 
+set(PACKAGE_TMP_DIR ${CMAKE_BINARY_DIR}/package_tmp)
+
 # init folders & copy configure files
-install(CODE "execute_process(WORKING_DIRECTORY ${CMAKE_BINARY_DIR} COMMAND bash ${CMAKE_SOURCE_DIR}/install/init_folders.sh)")
+install(CODE "execute_process(WORKING_DIRECTORY ${CMAKE_BINARY_DIR} COMMAND bash ${CMAKE_SOURCE_DIR}/install/init_package_folders.sh)")
 
 # install targets , dirs & files
 install(TARGETS
@@ -201,16 +208,16 @@ install(DIRECTORY
             ${POOL__INSTALL_PREFIX})
 
 install(DIRECTORY
-            ${CMAKE_BINARY_DIR}/run_blkmaker
-            ${CMAKE_BINARY_DIR}/run_gbtmaker
-            ${CMAKE_BINARY_DIR}/run_jobmaker
-            ${CMAKE_BINARY_DIR}/run_nmcauxmaker
-            ${CMAKE_BINARY_DIR}/run_poolwatcher
-            ${CMAKE_BINARY_DIR}/run_sharelogger
-            ${CMAKE_BINARY_DIR}/run_simulator
-            ${CMAKE_BINARY_DIR}/run_slparser
-            ${CMAKE_BINARY_DIR}/run_sserver
-            ${CMAKE_BINARY_DIR}/run_statshttpd
+            ${PACKAGE_TMP_DIR}/run_blkmaker
+            ${PACKAGE_TMP_DIR}/run_gbtmaker
+            ${PACKAGE_TMP_DIR}/run_jobmaker
+            ${PACKAGE_TMP_DIR}/run_nmcauxmaker
+            ${PACKAGE_TMP_DIR}/run_poolwatcher
+            ${PACKAGE_TMP_DIR}/run_sharelogger
+            ${PACKAGE_TMP_DIR}/run_simulator
+            ${PACKAGE_TMP_DIR}/run_slparser
+            ${PACKAGE_TMP_DIR}/run_sserver
+            ${PACKAGE_TMP_DIR}/run_statshttpd
         DESTINATION
             ${POOL__INSTALL_PREFIX}/build)
 
