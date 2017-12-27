@@ -27,7 +27,7 @@
 
 #include "bitcoin/consensus/merkle.h"
 #include "bitcoin/core_io.h"
-#include "bitcoin/added_functions.h"
+#include "BitcoinUtils.h"
 #include "utilities_js.hpp"
 
 

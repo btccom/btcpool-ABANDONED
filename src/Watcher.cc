@@ -34,7 +34,7 @@
 
 #include "bitcoin/chainparams.h"
 #include "bitcoin/utilstrencodings.h"
-#include "bitcoin/added_functions.h"
+#include "BitcoinUtils.h"
 
 static
 bool tryReadLine(string &line, struct bufferevent *bufev) {

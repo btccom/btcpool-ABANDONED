@@ -26,7 +26,7 @@ ELSE()
 ENDIF()
 
 
-# add a macro that needed by codes copied from bitcoinABC
+# add a macro that needed by codes copied from Bitcoin Core
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_CONFIG_H")
 
 
@@ -34,6 +34,47 @@ set(CMAKE_CXX_COMPILER "g++")
 set(CMAKE_C_COMPILER "gcc")
 set(CMAKE_CXX_COMPILER_ARG1 "-std=c++0x ")
 
+
+#
+# Bitcoin Core Root
+#
+message("-- Bitcoin Core source code root directory: -DBITCOIN_SRC_ROOT=${BITCOIN_SRC_ROOT}")
+if (NOT EXISTS "${BITCOIN_SRC_ROOT}/src/version.h")
+  message(FATAL_ERROR "The source code of Bitcoin Core not exists!")
+endif()
+
+# create a link to bitcoin source code
+execute_process(WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" COMMAND rm src/bitcoin)
+execute_process(WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" COMMAND ln -s ${BITCOIN_SRC_ROOT}/src src/bitcoin)
+
+
+#
+# Bitcoin Core libs
+#
+set(BITCOIN_LIBRARIES
+  "${BITCOIN_SRC_ROOT}/src/libbitcoin_common.a"
+  "${BITCOIN_SRC_ROOT}/src/libbitcoin_consensus.a"
+  "${BITCOIN_SRC_ROOT}/src/libbitcoin_util.a"
+  "${BITCOIN_SRC_ROOT}/src/crypto/libbitcoin_crypto.a")
+
+list(GET BITCOIN_LIBRARIES 0 BITCOIN_LIBRARIE)
+if (NOT EXISTS ${BITCOIN_LIBRARIE})
+  message(STATUS "building Bitcoin Core...")
+  execute_process(WORKING_DIRECTORY "${BITCOIN_SRC_ROOT}" COMMAND ./autogen.sh)
+  execute_process(WORKING_DIRECTORY "${BITCOIN_SRC_ROOT}" COMMAND ./configure --disable-wallet --disable-tests --disable-bench)
+  execute_process(WORKING_DIRECTORY "${BITCOIN_SRC_ROOT}" COMMAND make)
+endif()
+
+foreach(BITCOIN_LIBRARIE ${BITCOIN_LIBRARIES})
+  if (NOT EXISTS ${BITCOIN_LIBRARIE})
+    message(FATAL_ERROR "${BITCOIN_LIBRARIE} not exists!")
+  endif()
+endforeach()
+
+
+#
+# libsecp256k1
+#
 set(secp256k1_DIR "${CMAKE_SOURCE_DIR}/src/bitcoin/secp256k1")
 set(secp256k1_LIBRARIES "${secp256k1_DIR}/.libs/libsecp256k1.a")
 if (NOT EXISTS ${secp256k1_LIBRARIES})
@@ -49,55 +90,70 @@ endif()
 find_package(OpenSSL)
 if(NOT OPENSSL_FOUND)
   message(FATAL_ERROR "OpenSSL not found!")
-endif(NOT OPENSSL_FOUND)
+endif()
 
 find_package(LibConfig)
 if(NOT LIBCONFIG_FOUND)
   message(FATAL_ERROR "LibConfig not found!")
-endif(NOT LIBCONFIG_FOUND)
+endif()
 
 find_package(Glog)
 if(NOT GLOG_FOUND)
 message(FATAL_ERROR "Glog not found!")
-endif(NOT GLOG_FOUND)
+endif()
 
 find_package(libzmq)
 if(NOT LIBZMQ_FOUND)
   message(FATAL_ERROR "libzmq not found!")
-endif(NOT LIBZMQ_FOUND)
+endif()
 
 find_package(CURL)
 if(NOT CURL_FOUND)
   message(FATAL_ERROR "libcurl not found!")
-endif(NOT CURL_FOUND)
+endif()
 
 find_package(LibEvent)
 if(NOT LibEvent_FOUND)
   message(FATAL_ERROR "libevent2 not found!")
-endif(NOT LibEvent_FOUND)
+endif()
 
 find_package(Boost 1.36.0 COMPONENTS thread filesystem system regex program_options)
 if(NOT Boost_FOUND)
   message(FATAL_ERROR "Boost not found!")
-endif(NOT Boost_FOUND)
+endif()
 
 find_package(ZookeeperC)
 if(NOT ZOOKEEPER_FOUND)
   message(FATAL_ERROR "libzookeeper-mt not found!")
-endif(NOT ZOOKEEPER_FOUND)
+endif()
+
+find_package(LibGMP)
+if(NOT GMP_FOUND)
+  message(FATAL_ERROR "libgmp not found!")
+endif()
 
 find_package(KafkaC)
 if(NOT KAFKA_FOUND)
   message(FATAL_ERROR "librdkafka not found!")
-endif(NOT KAFKA_FOUND)
+endif()
+message("") # add an empty line
 
 execute_process(COMMAND mysql_config --libs_r OUTPUT_VARIABLE MYSQL_LIB OUTPUT_STRIP_TRAILING_WHITESPACE)
 execute_process(COMMAND mysql_config --include OUTPUT_VARIABLE MYSQL_INCLUDE OUTPUT_STRIP_TRAILING_WHITESPACE)
+message("-- MySQL include: ${MYSQL_INCLUDE}")
+message("-- MySQL library: ${MYSQL_LIB}")
+if(NOT MYSQL_LIB)
+  message(FATAL_ERROR "MySQL library not found!")
+endif()
+if(NOT MYSQL_INCLUDE)
+  message(FATAL_ERROR "MySQL header not found!")
+endif()
+message("") # add an empty line
 
-include_directories(src test src/bitcoin src/bitcoin/secp256k1/include ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS} ${LIBEVENT_INCLUDE_DIR} ${MYSQL_INCLUDE})
-set(THIRD_LIBRARIES ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${ZOOKEEPER_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB} ${secp256k1_LIBRARIES} pthread mysqlclient gmp)
+include_directories(src test src/bitcoin src/bitcoin/config src/bitcoin/secp256k1/include ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS} ${LIBEVENT_INCLUDE_DIR} ${MYSQL_INCLUDE})
+set(THIRD_LIBRARIES ${BITCOIN_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${ZOOKEEPER_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB} ${secp256k1_LIBRARIES} pthread mysqlclient gmp)
 
-file(GLOB LIB_SOURCES src/*.cc src/bitcoin/*.cpp src/bitcoin/consensus/*.cpp src/bitcoin/crypto/*.cpp src/bitcoin/primitives/*.cpp src/bitcoin/script/*.cpp src/bitcoin/support/*.cpp)
+file(GLOB LIB_SOURCES src/*.cc)
 add_library(btcpool STATIC ${LIB_SOURCES})
 
 file(GLOB_RECURSE TEST_SOURCES test/*.cc)
