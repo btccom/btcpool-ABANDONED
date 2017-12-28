@@ -415,7 +415,7 @@ TEST(StratumSession, AgentSessions) {
   	agent.getSetDiffCommand(diffSessionIds, data);
 
     uint8_t *p = (uint8_t *)data.data();
-    ASSERT_EQ(data.length(), 9);
+    ASSERT_EQ(data.length(), 9U);
     ASSERT_EQ(*(uint8_t  *)(p+ 4), 1);  // diff_2exp
     ASSERT_EQ(*(uint16_t *)(p+ 5), 1);  // count
     ASSERT_EQ(*(uint16_t *)(p+ 7), 0);  // first session id
