@@ -25,8 +25,8 @@
 
 #include <glog/logging.h>
 
-#include "bitcoin/util.h"
-#include "bitcoin/utilstrencodings.h"
+#include <util.h>
+#include <utilstrencodings.h>
 
 #include "Utils.h"
 #include "utilities_js.hpp"

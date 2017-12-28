@@ -37,8 +37,8 @@
 
 #include <glog/logging.h>
 
-#include "bitcoin/uint256.h"
-#include "bitcoin/base58.h"
+#include <uint256.h>
+#include <base58.h>
 
 // TODO: update when next Halving
 #define BLOCK_REWARD 1250000000ll

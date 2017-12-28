@@ -28,8 +28,8 @@
 #include "Kafka.h"
 #include "Stratum.h"
 
-#include "bitcoin/uint256.h"
-#include "bitcoin/base58.h"
+#include <uint256.h>
+#include <base58.h>
 
 #include <map>
 #include <deque>

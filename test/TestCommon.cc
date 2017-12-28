@@ -28,8 +28,8 @@
 #include "Common.h"
 #include "Utils.h"
 
-#include "bitcoin/uint256.h"
-#include "bitcoin/arith_uint256.h"
+#include <uint256.h>
+#include <arith_uint256.h>
 
 TEST(Common, score2Str) {
   // 10e-25

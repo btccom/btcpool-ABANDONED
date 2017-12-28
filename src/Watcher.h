@@ -39,7 +39,7 @@
 #include <boost/thread/shared_mutex.hpp>
 
 #include "utilities_js.hpp"
-#include "bitcoin/base58.h"
+#include <base58.h>
 
 #include "Stratum.h"
 

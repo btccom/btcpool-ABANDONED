@@ -26,11 +26,11 @@
 
 #include <string>
 
-#include "bitcoin/core_io.h"
-#include "bitcoin/streams.h"
-#include "bitcoin/amount.h"
-#include "bitcoin/chainparams.h"
-#include "bitcoin/utilstrencodings.h"
+#include <core_io.h>
+#include <streams.h>
+#include <amount.h>
+#include <chainparams.h>
+#include <utilstrencodings.h>
 
 std::string EncodeHexBlock(const CBlock &block);
 

@@ -35,7 +35,7 @@
 
 #include <glog/logging.h>
 
-#include "bitcoin/uint256.h"
+#include <uint256.h>
 #include "utilities_js.hpp"
 #include "Stratum.h"
 #include "Statistics.h"

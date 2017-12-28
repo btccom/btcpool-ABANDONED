@@ -27,11 +27,11 @@
 #include "Utils.h"
 #include "Stratum.h"
 
-#include "bitcoin/chainparams.h"
-#include "bitcoin/hash.h"
-#include "bitcoin/script/script.h"
-#include "bitcoin/uint256.h"
-#include "bitcoin/util.h"
+#include <chainparams.h>
+#include <hash.h>
+#include <script/script.h>
+#include <uint256.h>
+#include <util.h>
 
 #include <stdint.h>
 

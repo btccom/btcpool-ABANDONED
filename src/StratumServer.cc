@@ -28,9 +28,9 @@
 #include "MySQLConnection.h"
 #include "Utils.h"
 
-#include "bitcoin/arith_uint256.h"
-#include "bitcoin/utilstrencodings.h"
-#include "bitcoin/hash.h"
+#include <arith_uint256.h>
+#include <utilstrencodings.h>
+#include <hash.h>
 
 #include "utilities_js.hpp"
 

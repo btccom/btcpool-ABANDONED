@@ -23,11 +23,11 @@
  */
 #include "Stratum.h"
 
-#include "bitcoin/core_io.h"
-#include "bitcoin/hash.h"
-#include "bitcoin/script/script.h"
-#include "bitcoin/uint256.h"
-#include "bitcoin/util.h"
+#include <core_io.h>
+#include <hash.h>
+#include <script/script.h>
+#include <uint256.h>
+#include <util.h>
 
 #include "utilities_js.hpp"
 #include "Utils.h"

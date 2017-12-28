@@ -32,8 +32,8 @@
 #include <event2/listener.h>
 #include <glog/logging.h>
 
-#include "bitcoin/chainparams.h"
-#include "bitcoin/utilstrencodings.h"
+#include <chainparams.h>
+#include <utilstrencodings.h>
 #include "BitcoinUtils.h"
 
 static

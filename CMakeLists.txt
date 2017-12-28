@@ -25,6 +25,14 @@ ELSE()
   message("Some other build type.")
 ENDIF()
 
+# The number of concurrent jobs when compiling a third-party library
+if(JOBS)
+  message("-- concurrent jobs: -DJOBS=${JOBS}")
+  set(MAKE_JOBS "-j${JOBS}") 
+else()
+  message("-- concurrent jobs: -DJOBS=1")
+  set(MAKE_JOBS "") 
+endif()
 
 # add a macro that needed by codes copied from Bitcoin Core
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_CONFIG_H")
@@ -43,11 +51,6 @@ if (NOT EXISTS "${BITCOIN_SRC_ROOT}/src/version.h")
   message(FATAL_ERROR "The source code of Bitcoin Core not exists!")
 endif()
 
-# create a link to bitcoin source code
-execute_process(WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" COMMAND rm src/bitcoin)
-execute_process(WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" COMMAND ln -s ${BITCOIN_SRC_ROOT}/src src/bitcoin)
-
-
 #
 # Bitcoin Core libs
 #
@@ -62,7 +65,7 @@ if (NOT EXISTS ${BITCOIN_LIBRARIE})
   message(STATUS "building Bitcoin Core...")
   execute_process(WORKING_DIRECTORY "${BITCOIN_SRC_ROOT}" COMMAND ./autogen.sh)
   execute_process(WORKING_DIRECTORY "${BITCOIN_SRC_ROOT}" COMMAND ./configure --disable-wallet --disable-tests --disable-bench)
-  execute_process(WORKING_DIRECTORY "${BITCOIN_SRC_ROOT}" COMMAND make)
+  execute_process(WORKING_DIRECTORY "${BITCOIN_SRC_ROOT}" COMMAND make ${MAKE_JOBS})
 endif()
 
 foreach(BITCOIN_LIBRARIE ${BITCOIN_LIBRARIES})
@@ -75,13 +78,13 @@ endforeach()
 #
 # libsecp256k1
 #
-set(secp256k1_DIR "${CMAKE_SOURCE_DIR}/src/bitcoin/secp256k1")
+set(secp256k1_DIR "${BITCOIN_SRC_ROOT}/src/secp256k1")
 set(secp256k1_LIBRARIES "${secp256k1_DIR}/.libs/libsecp256k1.a")
 if (NOT EXISTS ${secp256k1_LIBRARIES})
   message(STATUS "build secp256k1...")
   execute_process(WORKING_DIRECTORY "${secp256k1_DIR}" COMMAND ./autogen.sh)
   execute_process(WORKING_DIRECTORY "${secp256k1_DIR}" COMMAND ./configure --enable-module-recovery)
-  execute_process(WORKING_DIRECTORY "${secp256k1_DIR}" COMMAND make)
+  execute_process(WORKING_DIRECTORY "${secp256k1_DIR}" COMMAND make ${MAKE_JOBS})
 endif()
 if (NOT EXISTS ${secp256k1_LIBRARIES})
   message(FATAL_ERROR "build secp256k1 failed!")
@@ -150,8 +153,12 @@ if(NOT MYSQL_INCLUDE)
 endif()
 message("") # add an empty line
 
-include_directories(src test src/bitcoin src/bitcoin/config src/bitcoin/secp256k1/include ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS} ${LIBEVENT_INCLUDE_DIR} ${MYSQL_INCLUDE})
-set(THIRD_LIBRARIES ${BITCOIN_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${ZOOKEEPER_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB} ${secp256k1_LIBRARIES} pthread mysqlclient gmp)
+include_directories(src test ${BITCOIN_SRC_ROOT}/src ${BITCOIN_SRC_ROOT}/src/config ${BITCOIN_SRC_ROOT}/src/secp256k1/include
+                    ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS}
+                    ${LIBEVENT_INCLUDE_DIR} ${MYSQL_INCLUDE})
+set(THIRD_LIBRARIES ${BITCOIN_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY}
+                    ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${ZOOKEEPER_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBEVENT_LIB}
+                    ${LIBEVENT_PTHREADS_LIB} ${secp256k1_LIBRARIES} pthread ${MYSQL_LIB} ${GMP_LIBRARIES})
 
 file(GLOB LIB_SOURCES src/*.cc)
 add_library(btcpool STATIC ${LIB_SOURCES})

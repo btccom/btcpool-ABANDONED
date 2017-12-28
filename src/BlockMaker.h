@@ -33,8 +33,8 @@
 #include <vector>
 #include <unordered_map>
 
-#include "bitcoin/uint256.h"
-#include "bitcoin/base58.h"
+#include <uint256.h>
+#include <base58.h>
 
 
 ////////////////////////////////// BlockMaker //////////////////////////////////
