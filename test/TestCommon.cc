@@ -134,7 +134,7 @@ TEST(Common, TargetToDiff) {
   // 0x00000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF /
   // 0x00000000000404CB000000000000000000000000000000000000000000000000
   // = 16307.669773817162 (pdiff)
-  ASSERT_EQ(TargetToDiff("0x00000000000404CB000000000000000000000000000000000000000000000000"), 16307);
+  ASSERT_EQ(TargetToDiff("0x00000000000404CB000000000000000000000000000000000000000000000000"), 16307ULL);
 
 //  uint256 t;
 //  DiffToTarget(pow(2, 0), t);
@@ -291,8 +291,8 @@ TEST(Common, formatDifficulty) {
   ASSERT_EQ(formatDifficulty(UINT32_MAX),               (uint64_t)UINT32_MAX + 1);
   ASSERT_EQ(formatDifficulty((uint64_t)UINT32_MAX + 1), (uint64_t)UINT32_MAX + 1);
 
-  ASSERT_EQ(formatDifficulty(0), 1);
-  ASSERT_EQ(formatDifficulty(1), 1);
-  ASSERT_EQ(formatDifficulty(2), 2);
-  ASSERT_EQ(formatDifficulty(3), 4);
+  ASSERT_EQ(formatDifficulty(0), 1ULL);
+  ASSERT_EQ(formatDifficulty(1), 1ULL);
+  ASSERT_EQ(formatDifficulty(2), 2ULL);
+  ASSERT_EQ(formatDifficulty(3), 4ULL);
 }

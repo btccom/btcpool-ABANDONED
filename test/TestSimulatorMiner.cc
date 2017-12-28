@@ -93,7 +93,7 @@ TEST(SIMULATOR, miner) {
     }
     extraNonce1 = resArr[1].uint32_hex();
     LOG(INFO) << "extraNonce1: " << extraNonce1;
-    ASSERT_NE(extraNonce1, 0);
+    ASSERT_NE(extraNonce1, 0U);
     ASSERT_EQ(resArr[2].int32(), 8);
   }
 

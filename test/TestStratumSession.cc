@@ -119,7 +119,7 @@ TEST(StratumSession, AgentSessions_RegisterWorker) {
   strcpy((char *)p, workerName.c_str());
   p += strlen(workerName.c_str()) + 1;
 
-  ASSERT_EQ(p - (uint8_t *)exMessage.data(), exMessage.size());
+  ASSERT_EQ((size_t)(p - (uint8_t *)exMessage.data()), exMessage.size());
 
   agent.handleExMessage_RegisterWorker(&exMessage);
   // please check ouput log
@@ -157,7 +157,7 @@ TEST(StratumSession, AgentSessions_RegisterWorker2) {
   strcpy((char *)p, workerName.c_str());
   p += strlen(workerName.c_str()) + 1;
 
-  ASSERT_EQ(p - (uint8_t *)exMessage.data(), exMessage.size());
+  ASSERT_EQ((size_t)(p - (uint8_t *)exMessage.data()), exMessage.size());
 
   agent.handleExMessage_RegisterWorker(&exMessage);
   // please check ouput log
@@ -195,7 +195,7 @@ TEST(StratumSession, AgentSessions_RegisterWorker3) {
   strcpy((char *)p, workerName.c_str());
   p += strlen(workerName.c_str()) + 1;
 
-  ASSERT_EQ(p - (uint8_t *)exMessage.data(), exMessage.size());
+  ASSERT_EQ((size_t)(p - (uint8_t *)exMessage.data()), exMessage.size());
 
   agent.handleExMessage_RegisterWorker(&exMessage);
   // please check ouput log
@@ -229,7 +229,7 @@ TEST(StratumSession, AgentSessions_RegisterWorker4) {
   // worker name
   p++;
 
-  ASSERT_EQ(p - (uint8_t *)exMessage.data(), exMessage.size());
+  ASSERT_EQ((size_t)(p - (uint8_t *)exMessage.data()), exMessage.size());
 
   //
   // empty agent and name
@@ -323,7 +323,7 @@ TEST(StratumSession, AgentSessions_SubmitShare) {
   *(uint32_t *)p = 0x90abcdef;  // 2427178479
   p += 4;
 
-  ASSERT_EQ(p - (uint8_t *)exMessage.data(), exMessage.size());
+  ASSERT_EQ((size_t)(p - (uint8_t *)exMessage.data()), exMessage.size());
 
   agent.handleExMessage_SubmitShare(&exMessage, false);
   // please check ouput log
@@ -366,7 +366,7 @@ TEST(StratumSession, AgentSessions_SubmitShare_with_time) {
   *(uint32_t *)p = 0xcdef90abu;  // 3455029419
   p += 4;
 
-  ASSERT_EQ(p - (uint8_t *)exMessage.data(), exMessage.size());
+  ASSERT_EQ((size_t)(p - (uint8_t *)exMessage.data()), exMessage.size());
 
   agent.handleExMessage_SubmitShare(&exMessage, true);
   // please check ouput log
