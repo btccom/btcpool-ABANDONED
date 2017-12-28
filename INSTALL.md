@@ -11,7 +11,7 @@ If you want to run BTCPool on a 32-bit operating system, you must fix the proble
 
 ## Build
 
-If you are the first time build btcpool, you could run `bash install/install_btcpool.sh` instead of exec these shell commands one by one.
+[Need fix] If you are the first time build btcpool, you could run `bash install/install_btcpool.sh` instead of exec these shell commands one by one.
 
 ```
 cd /work
@@ -21,37 +21,18 @@ bash ./install_btcpool.sh
 
 ### Dependency
 
-```
+#### Ubuntu
+```bash
 apt-get update
-
-apt-get install -y build-essential autotools-dev libtool autoconf automake pkg-config cmake
-apt-get install -y openssl libssl-dev libcurl4-openssl-dev libconfig++-dev libboost-all-dev libgmp-dev libmysqlclient-dev libzookeeper-mt-dev
-```
-
-* zmq-v4.1.5
-
-```
-mkdir -p /root/source && cd /root/source
-wget https://github.com/zeromq/zeromq4-1/releases/download/v4.1.5/zeromq-4.1.5.tar.gz
-tar zxvf zeromq-4.1.5.tar.gz
-cd zeromq-4.1.5
-./autogen.sh && ./configure && make
-make check && make install && ldconfig
-```
-
-* glog-v0.3.4
-
-```
-mkdir -p /root/source && cd /root/source
-wget https://github.com/google/glog/archive/v0.3.4.tar.gz
-tar zxvf v0.3.4.tar.gz
-cd glog-0.3.4
-./configure && make && make install
+apt-get install -y build-essential autotools-dev libtool autoconf automake pkg-config cmake \
+                   openssl libssl-dev libcurl4-openssl-dev libconfig++-dev \
+                   libboost-all-dev libgmp-dev libmysqlclient-dev libzookeeper-mt-dev \
+                   libzmq3-dev libgoogle-glog-dev libevent-dev
 ```
 
 * librdkafka-v0.9.1
 
-```
+```bash
 apt-get install -y zlib1g zlib1g-dev
 mkdir -p /root/source && cd /root/source
 wget https://github.com/edenhill/librdkafka/archive/0.9.1.tar.gz
@@ -60,16 +41,12 @@ cd librdkafka-0.9.1
 ./configure && make && make install
 ```
 
-* libevent
+#### macOS
 
-```
-mkdir -p /root/source && cd /root/source
-wget https://github.com/libevent/libevent/releases/download/release-2.0.22-stable/libevent-2.0.22-stable.tar.gz
-tar zxvf libevent-2.0.22-stable.tar.gz
-cd libevent-2.0.22-stable
-./configure
-make
-make install
+Please install [brew](https://brew.sh/) first.
+
+```bash
+TODO: finish it.
 ```
 
 ### btcpool
