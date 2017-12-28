@@ -19,7 +19,7 @@ wget https://raw.githubusercontent.com/btccom/btcpool/master/install/install_btc
 bash ./install_btcpool.sh
 ```
 
-### Dependency
+### Install dependency
 
 #### Ubuntu
 ```bash
@@ -46,10 +46,20 @@ cd librdkafka-0.9.1
 Please install [brew](https://brew.sh/) first.
 
 ```bash
-TODO: finish it.
+brew install cmake openssl libconfig boost mysql zmq gmp libevent zookeeper librdkafka
 ```
 
-### btcpool
+* glog-v0.3.4
+
+```
+mkdir -p /root/source && cd /root/source
+wget https://github.com/google/glog/archive/v0.3.4.tar.gz
+tar zxvf v0.3.4.tar.gz
+cd glog-0.3.4
+./configure && make && make install
+```
+
+### Build btcpool
 
 ```bash
 mkdir -p /work && cd /work
@@ -62,6 +72,9 @@ mkdir build && cd build
 cmake -DBITCOIN_SRC_ROOT=/work/bitcoin ..
 make
 
+# Release build at macOS:
+cmake -DBITCOIN_SRC_ROOT=/work/bitcoin -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl ..
+
 # Debug build:
 cmake -DCMAKE_BUILD_TYPE=Debug -DBITCOIN_SRC_ROOT=/work/bitcoin ..
 make
@@ -70,6 +83,8 @@ make
 cmake -DBITCOIN_SRC_ROOT=/work/bitcoin -DPOOL__WORK_WITH_STRATUM_SWITCHER=ON ..
 make
 ```
+
+See also: [Stratum Switcher](https://github.com/btccom/stratumSwitcher).
 
 ---
 
