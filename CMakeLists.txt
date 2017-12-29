@@ -9,20 +9,16 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 # 
 # default: Release
 #
-
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
-
-message("CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
+message("-- build type: -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
 IF(CMAKE_BUILD_TYPE MATCHES Debug)
-  message("Debug build.")
   set(CMAKE_CXX_FLAGS "-g -O0 -Wall")
 ELSEIF(CMAKE_BUILD_TYPE MATCHES Release)
-  message("Release build.")
   set(CMAKE_CXX_FLAGS "-O2 -Wall")
 ELSE()
-  message("Some other build type.")
+  set(CMAKE_CXX_FLAGS "-Wall")
 ENDIF()
 
 # The number of concurrent jobs when compiling a third-party library
@@ -37,7 +33,7 @@ endif()
 # add a macro that needed by codes copied from Bitcoin Core
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_CONFIG_H")
 
-
+# compiler options
 set(CMAKE_CXX_COMPILER "g++")
 set(CMAKE_C_COMPILER "gcc")
 set(CMAKE_CXX_COMPILER_ARG1 "-std=c++0x ")
