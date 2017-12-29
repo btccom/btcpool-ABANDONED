@@ -42,7 +42,7 @@ set(CMAKE_CXX_COMPILER_ARG1 "-std=c++0x ")
 #
 # Bitcoin Core Root
 #
-message("-- Bitcoin Core source code root directory: -DBITCOIN_SRC_ROOT=${BITCOIN_SRC_ROOT}")
+message("-- root directory of Bitcoin Core source code: -DBITCOIN_SRC_ROOT=${BITCOIN_SRC_ROOT}")
 if (NOT EXISTS "${BITCOIN_SRC_ROOT}/src/version.h")
   message(FATAL_ERROR "The source code of Bitcoin Core not exists!")
 endif()
@@ -60,7 +60,7 @@ list(GET BITCOIN_LIBRARIES 0 BITCOIN_LIBRARIE)
 if (NOT EXISTS ${BITCOIN_LIBRARIE})
   message(STATUS "building Bitcoin Core...")
   execute_process(WORKING_DIRECTORY "${BITCOIN_SRC_ROOT}" COMMAND ./autogen.sh)
-  execute_process(WORKING_DIRECTORY "${BITCOIN_SRC_ROOT}" COMMAND ./configure --disable-wallet --disable-tests --disable-bench)
+  execute_process(WORKING_DIRECTORY "${BITCOIN_SRC_ROOT}" COMMAND ./configure --with-gui=no --disable-wallet --disable-tests --disable-bench)
   execute_process(WORKING_DIRECTORY "${BITCOIN_SRC_ROOT}" COMMAND make ${MAKE_JOBS})
 endif()
 
