@@ -22,9 +22,9 @@ RUN apt-get install -y libboost-all-dev libzmq3-dev curl wget net-tools
 
 # build bitcoind
 RUN mkdir ~/source
-RUN cd ~/source && wget https://github.com/bitcoin/bitcoin/archive/v0.15.1.tar.gz
+RUN cd ~/source && wget https://github.com/UnitedBitcoin/UnitedBitcoin/archive/v1.0.5.0.tar.gz
 RUN cd ~/source \
-  && tar zxf v0.15.1.tar.gz && cd bitcoin-0.15.1 \
+  && tar zxf v1.0.5.0.tar.gz && cd UnitedBitcoin-1.0.5.0 \
   && ./autogen.sh \
   && ./configure --disable-wallet --disable-tests \
   && make && make install
