@@ -35,6 +35,11 @@ RUN cd ~/source \
   && ./configure --disable-bench --disable-tests \
   && make && make install
 
+# make some alias
+RUN ln -s ubcd /usr/local/bin/bitcoind \
+  && ln -s ubc-cli /usr/local/bin/bitcoin-cli \
+  && ln -s ubc-tx /usr/local/bin/bitcoin-tx
+
 # mkdir bitcoind data dir
 RUN mkdir -p /root/.bitcoin
 RUN mkdir -p /root/scripts
