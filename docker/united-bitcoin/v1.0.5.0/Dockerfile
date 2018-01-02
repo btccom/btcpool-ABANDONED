@@ -20,13 +20,19 @@ RUN apt-get update
 RUN apt-get install -y build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils python3
 RUN apt-get install -y libboost-all-dev libzmq3-dev curl wget net-tools
 
+# install libdb for wallet
+RUN apt-get install -y software-properties-common \
+  && add-apt-repository -y ppa:bitcoin/bitcoin \
+  && apt-get -y update \
+  && apt-get install -y libdb4.8-dev libdb4.8++-dev
+
 # build bitcoind
 RUN mkdir ~/source
 RUN cd ~/source && wget https://github.com/UnitedBitcoin/UnitedBitcoin/archive/v1.0.5.0.tar.gz
 RUN cd ~/source \
   && tar zxf v1.0.5.0.tar.gz && cd UnitedBitcoin-1.0.5.0 \
   && ./autogen.sh \
-  && ./configure --disable-wallet --disable-tests \
+  && ./configure --disable-bench --disable-tests \
   && make && make install
 
 # mkdir bitcoind data dir
