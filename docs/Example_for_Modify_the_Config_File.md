@@ -97,7 +97,7 @@ sserver = {
    share_avg_seconds = 10;
 };
 users = {
-    :list_id_api_url = "http://localhost:8000/userlist.php";
+    list_id_api_url = "http://localhost:8000/userlist.php";
 };
 ```
 
