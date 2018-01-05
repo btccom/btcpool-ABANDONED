@@ -367,6 +367,18 @@ int32_t UserInfo::getUserId(const string userName) {
   return 0;  // not found
 }
 
+// getCoinbaseInfo 
+string UserInfo::getCoinbaseInfo(int32_t userId) {
+  pthread_rwlock_rdlock(&rwlock_);
+  auto itr = idCoinbaseInfos_.find(userId);
+  pthread_rwlock_unlock(&rwlock_);
+
+  if (itr != idCoinbaseInfos_.end()) {
+    return itr->second;
+  }
+  return "";  // not found
+}
+
 int32_t UserInfo::incrementalUpdateUsers() {
   //
   // WARNING: The API is incremental update, we use `?last_id=` to make sure
@@ -392,15 +404,28 @@ int32_t UserInfo::incrementalUpdateUsers() {
   if (vUser->size() == 0) {
     return 0;
   }
-
+  
   pthread_rwlock_wrlock(&rwlock_);
   for (const auto &itr : *vUser) {
+    
     const string  userName(itr.key_start(), itr.key_end() - itr.key_start());
-    const int32_t userId   = itr.int32();
-    if (userId > lastMaxUserId_) {
-      lastMaxUserId_ = userId;
+    
+    if (itr.type() != Utilities::JS::type::Obj) {
+      LOG(ERROR) << "invalid data, should key  - value" << itr.type();
+      return -1;
     }
-    nameIds_.insert(std::make_pair(userName, userId));
+
+    int32_t userId_ = itr["puid"].int32();
+    const string coinbaseInfo_ = irt["coinbase"].string();
+
+  
+    // const int32_t userId   = itr.int32();
+    // if (userId > lastMaxUserId_) {
+    //   lastMaxUserId_ = userId;
+    // }
+    nameIds_.insert(std::make_pair(userName, userId_));
+    idCoinbaseInfos_.insert(std::make_pair(userId_, coinbaseInfo_));
+
   }
   pthread_rwlock_unlock(&rwlock_);
 
@@ -557,23 +582,24 @@ void StratumJobEx::makeMiningNotifyStr() {
   // we don't put jobId here, session will fill with the shortJobId
   miningNotify1_ = "{\"id\":null,\"method\":\"mining.notify\",\"params\":[\"";
 
-  miningNotify2_ = Strings::Format("\",\"%s\",\"%s\",\"%s\""
+  miningNotify2_ = Strings::Format("\",\"%s\",\"%s\"",
+                                   sjob_->prevHashBeStr_.c_str(),
+                                   sjob_->coinbase1_.c_str());
+
+  miningNotify3_ = Strings::Format(",\"%s\""
                                    ",[%s]"
                                    ",\"%08x\",\"%08x\",\"%08x\",%s"
                                    "]}\n",
-                                   sjob_->prevHashBeStr_.c_str(),
-                                   sjob_->coinbase1_.c_str(), sjob_->coinbase2_.c_str(),
+                                   sjob_->coinbase2_.c_str(),
                                    merkleBranchStr.c_str(),
                                    sjob_->nVersion_, sjob_->nBits_, sjob_->nTime_,
                                    isClean_ ? "true" : "false");
-
   // always set clean to true, reset of them is the same with miningNotify2_
-  miningNotify2Clean_ = Strings::Format("\",\"%s\",\"%s\",\"%s\""
+  miningNotify3Clean_ = Strings::Format(",\"%s\""
                                    ",[%s]"
                                    ",\"%08x\",\"%08x\",\"%08x\",true"
                                    "]}\n",
-                                   sjob_->prevHashBeStr_.c_str(),
-                                   sjob_->coinbase1_.c_str(), sjob_->coinbase2_.c_str(),
+                                   sjob_->coinbase2_.c_str(),
                                    merkleBranchStr.c_str(),
                                    sjob_->nVersion_, sjob_->nBits_, sjob_->nTime_);
 }
@@ -590,10 +616,12 @@ bool StratumJobEx::isStale() {
 
 void StratumJobEx::generateCoinbaseTx(std::vector<char> *coinbaseBin,
                                       const uint32_t extraNonce1,
-                                      const string &extraNonce2Hex) {
+                                      const string &extraNonce2Hex,
+                                      const string &userCoinbaseInfo) {
   string coinbaseHex;
   const string extraNonceStr = Strings::Format("%08x%s", extraNonce1, extraNonce2Hex.c_str());
   coinbaseHex.append(sjob_->coinbase1_);
+  coinbaseHex.append(userCoinbaseInfo);
   coinbaseHex.append(extraNonceStr);
   coinbaseHex.append(sjob_->coinbase2_);
   Hex2Bin((const char *)coinbaseHex.c_str(), *coinbaseBin);
@@ -601,13 +629,14 @@ void StratumJobEx::generateCoinbaseTx(std::vector<char> *coinbaseBin,
 
 void StratumJobEx::generateBlockHeader(CBlockHeader *header,
                                        std::vector<char> *coinbaseBin,
+                                       const string   &userCoinbaseInfo,
                                        const uint32_t extraNonce1,
                                        const string &extraNonce2Hex,
                                        const vector<uint256> &merkleBranch,
                                        const uint256 &hashPrevBlock,
                                        const uint32_t nBits, const int32_t nVersion,
                                        const uint32_t nTime, const uint32_t nonce) {
-  generateCoinbaseTx(coinbaseBin, extraNonce1, extraNonce2Hex);
+  generateCoinbaseTx(coinbaseBin, extraNonce1, extraNonce2Hex, userCoinbaseInfo);
 
   header->hashPrevBlock = hashPrevBlock;
   header->nVersion      = nVersion;
@@ -991,7 +1020,7 @@ void Server::eventCallback(struct bufferevent* bev, short events,
   server->removeConnection(conn->fd_);
 }
 
-int Server::checkShare(const Share &share,
+int Server::checkShare(const Share &share,       const string &userCoinbaseInfo,
                        const uint32 extraNonce1, const string &extraNonce2Hex,
                        const uint32_t nTime, const uint32_t nonce,
                        const uint256 &jobTarget, const string &workFullName) {
@@ -1013,7 +1042,7 @@ int Server::checkShare(const Share &share,
 
   CBlockHeader header;
   std::vector<char> coinbaseBin;
-  exJobPtr->generateBlockHeader(&header, &coinbaseBin,
+  exJobPtr->generateBlockHeader(&header, &coinbaseBin, userCoinbaseInfo,
                                 extraNonce1, extraNonce2Hex,
                                 sjob->merkleBranch_, sjob->prevHash_,
                                 sjob->nBits_, sjob->nVersion_, nTime, nonce);

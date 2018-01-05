@@ -260,7 +260,7 @@ public:
   bool isDead();
 
   void sendSetDifficulty(const uint64_t difficulty);
-  void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false);
+  void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, const string &userCoinbaseInfo, bool isFirstJob=false);
   void sendData(const char *data, size_t len);
   inline void sendData(const string &str) {
     sendData(str.data(), str.size());

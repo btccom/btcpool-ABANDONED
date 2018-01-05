@@ -151,6 +151,8 @@ class UserInfo {
   std::unordered_map<string, int32_t> nameIds_;
   int32_t lastMaxUserId_;
 
+  // userId -> userCoinbaseInfo
+  std::unordered_map<int32_t, string> idCoinbaseInfos_;
   // workerName
   mutex workerNameLock_;
   std::deque<WorkerName> workerNameQ_;
@@ -195,7 +197,9 @@ public:
   StratumJob *sjob_;
   string miningNotify1_;
   string miningNotify2_;
-  string miningNotify2Clean_;  // clean flag always true
+  string miningNotify3_;
+
+  string miningNotify3Clean_;  // clean flag always true
 
 public:
   StratumJobEx(StratumJob *sjob, bool isClean);

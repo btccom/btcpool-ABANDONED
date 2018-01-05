@@ -576,6 +576,13 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
     return;
   }
 
+  // get user's coinbase info which to append coinbase1 
+  const string userCoinbaseInfo = server_->userInfo_->getCoinbaseInfo(userId);
+  if (userCoinbaseInfo.size() < 0) {
+    responseError(idStr, StratumError::INVALID_USERNAME);
+    return;
+  }
+
   // auth success
   responseTrue(idStr);
   state_ = AUTHENTICATED;
@@ -590,9 +597,10 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
   // set read timeout to 10 mins, it's enought for most miners even usb miner.
   // if it's a pool watcher, set timeout to a week
   setReadTimeout(isLongTimeout_ ? 86400*7 : 60*10);
-
+  
   // send latest stratum job
-  sendMiningNotify(server_->jobRepository_->getLatestStratumJobEx(), true/* is first job */);
+  // send userCoinbaseInfo
+  sendMiningNotify(server_->jobRepository_->getLatestStratumJobEx(), userCoinbaseInfo, true/* is first job */);
 
   // sent events to kafka: miner_connect
   {
@@ -770,9 +778,9 @@ void StratumSession::handleRequest_Submit(const string &idStr,
 
     goto finish;
   }
-
+  const string userCoinbaseInfo = server_->userInfo_->getCoinbaseInfo(share.userId_);
   // check block header
-  submitResult = server_->checkShare(share, extraNonce1_, extraNonce2Hex,
+  submitResult = server_->checkShare(share, userCoinbaseInfo, extraNonce1_, extraNonce2Hex,
                                      nTime, nonce, jobTarget,
                                      worker_.fullName_);
 
@@ -847,7 +855,7 @@ uint8_t StratumSession::allocShortJobId() {
   return shortJobIdIdx_++;
 }
 
-void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr,
+void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, const string &userCoinbaseInfo,
                                       bool isFirstJob) {
   if (state_ < AUTHENTICATED || exJobPtr == nullptr) {
     return;
@@ -897,11 +905,16 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr,
     notifyStr.append(Strings::Format("%u", ljob.shortJobId_));  // short jobId
   }
 
-  // notify2
+  // add the User's coinbaseInfo to the coinbase1's tail
+  notifyStr.append(userCoinbaseInfo);
+  notifyStr.append(exJobPtr->miningNotify2_);
+
+  
+  // notify3
   if (isFirstJob)
-  	notifyStr.append(exJobPtr->miningNotify2Clean_);
+  	notifyStr.append(exJobPtr->miningNotify3Clean_);
   else
-    notifyStr.append(exJobPtr->miningNotify2_);
+    notifyStr.append(exJobPtr->miningNotify3_);
 
   sendData(notifyStr);  // send notify string
 
