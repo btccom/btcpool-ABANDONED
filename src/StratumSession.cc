@@ -578,7 +578,7 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
 
   // get user's coinbase info which to append coinbase1 
   const string userCoinbaseInfo = server_->userInfo_->getCoinbaseInfo(userId);
-  if (userCoinbaseInfo.size() < 0) {
+  if (userCoinbaseInfo.size() <= 0) {
     responseError(idStr, StratumError::INVALID_USERNAME);
     return;
   }
@@ -739,6 +739,9 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   share.timestamp_    = (uint32_t)time(nullptr);
   share.result_       = Share::Result::REJECT;
 
+  // get user CoinbaseInfo
+  const string userCoinbaseInfo = server_->userInfo_->getCoinbaseInfo(share.userId_);
+
   if (isAgentSession == true) {
     const uint16_t sessionId = (uint16_t)(extraNonce2 >> 32);
 
@@ -778,7 +781,7 @@ void StratumSession::handleRequest_Submit(const string &idStr,
 
     goto finish;
   }
-  const string userCoinbaseInfo = server_->userInfo_->getCoinbaseInfo(share.userId_);
+
   // check block header
   submitResult = server_->checkShare(share, userCoinbaseInfo, extraNonce1_, extraNonce2Hex,
                                      nTime, nonce, jobTarget,

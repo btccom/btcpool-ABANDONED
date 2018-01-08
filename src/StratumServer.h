@@ -174,6 +174,7 @@ public:
   bool setupThreads();
 
   int32_t getUserId(const string userName);
+  string  getCoinbaseInfo(int32_t userId);
   void addWorker(const int32_t userId, const int64_t workerId,
                  const string &workerName, const string &minerAgent);
 };
@@ -190,7 +191,8 @@ class StratumJobEx {
   void makeMiningNotifyStr();
   void generateCoinbaseTx(std::vector<char> *coinbaseBin,
                           const uint32_t extraNonce1,
-                          const string &extraNonce2Hex);
+                          const string &extraNonce2Hex,
+                          const string &generateBlockHeader);
 
 public:
   bool isClean_;
@@ -210,6 +212,7 @@ public:
 
   void generateBlockHeader(CBlockHeader *header,
                            std::vector<char> *coinbaseBin,
+                           const string &userCoinbaseInfo,
                            const uint32_t extraNonce1,
                            const string &extraNonce2Hex,
                            const vector<uint256> &merkleBranch,
@@ -279,7 +282,7 @@ public:
   static void readCallback (struct bufferevent *, void *connection);
   static void eventCallback(struct bufferevent *, short, void *connection);
 
-  int checkShare(const Share &share,
+  int checkShare(const Share &share,      const string &userCoinbaseInfo,
                  const uint32 extraNonce1, const string &extraNonce2Hex,
                  const uint32_t nTime, const uint32_t nonce,
                  const uint256 &jobTarget, const string &workFullName);

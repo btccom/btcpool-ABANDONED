@@ -406,17 +406,17 @@ int32_t UserInfo::incrementalUpdateUsers() {
   }
   
   pthread_rwlock_wrlock(&rwlock_);
-  for (const auto &itr : *vUser) {
+  for (JsonNode &itr : *vUser) {
     
     const string  userName(itr.key_start(), itr.key_end() - itr.key_start());
     
     if (itr.type() != Utilities::JS::type::Obj) {
-      LOG(ERROR) << "invalid data, should key  - value" << itr.type();
+      LOG(ERROR) << "invalid data, should key  - value" << std::endl;
       return -1;
     }
 
-    int32_t userId_ = itr["puid"].int32();
-    const string coinbaseInfo_ = irt["coinbase"].string();
+    auto userId_ = itr["puid"].int32();
+    auto coinbaseInfo_ = itr["coinbase"].str();
 
   
     // const int32_t userId   = itr.int32();
@@ -1042,7 +1042,8 @@ int Server::checkShare(const Share &share,       const string &userCoinbaseInfo,
 
   CBlockHeader header;
   std::vector<char> coinbaseBin;
-  exJobPtr->generateBlockHeader(&header, &coinbaseBin, userCoinbaseInfo,
+  exJobPtr->generateBlockHeader(&header, &coinbaseBin,
+                                userCoinbaseInfo,
                                 extraNonce1, extraNonce2Hex,
                                 sjob->merkleBranch_, sjob->prevHash_,
                                 sjob->nBits_, sjob->nVersion_, nTime, nonce);
