@@ -585,11 +585,11 @@ void StratumJobEx::makeMiningNotifyStr() {
   // we don't put jobId here, session will fill with the shortJobId
   miningNotify1_ = "{\"id\":null,\"method\":\"mining.notify\",\"params\":[\"";
 
-  miningNotify2_ = Strings::Format("\",\"%s\",\"%s\"",
+  miningNotify2_ = Strings::Format("\",\"%s\",\"%s",
                                    sjob_->prevHashBeStr_.c_str(),
                                    sjob_->coinbase1_.c_str());
 
-  miningNotify3_ = Strings::Format(",\"%s\""
+  miningNotify3_ = Strings::Format("\",\"%s\""
                                    ",[%s]"
                                    ",\"%08x\",\"%08x\",\"%08x\",%s"
                                    "]}\n",
@@ -598,7 +598,7 @@ void StratumJobEx::makeMiningNotifyStr() {
                                    sjob_->nVersion_, sjob_->nBits_, sjob_->nTime_,
                                    isClean_ ? "true" : "false");
   // always set clean to true, reset of them is the same with miningNotify2_
-  miningNotify3Clean_ = Strings::Format(",\"%s\""
+  miningNotify3Clean_ = Strings::Format("\",\"%s\""
                                    ",[%s]"
                                    ",\"%08x\",\"%08x\",\"%08x\",true"
                                    "]}\n",
