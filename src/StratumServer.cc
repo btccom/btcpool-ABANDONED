@@ -930,6 +930,7 @@ void Server::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {
       delete conn;
       itr = connections_.erase(itr);
     } else {
+
       conn->sendMiningNotify(exJobPtr);
       ++itr;
     }

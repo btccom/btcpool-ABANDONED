@@ -578,10 +578,7 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
 
   // get user's coinbase info which to append coinbase1 
   const string userCoinbaseInfo = server_->userInfo_->getCoinbaseInfo(userId);
-  if (userCoinbaseInfo.size() <= 0) {
-    responseError(idStr, StratumError::INVALID_USERNAME);
-    return;
-  }
+  LOG(INFO) << "user id: " << userId << ", coinbase info: " << userCoinbaseInfo;
 
   // auth success
   responseTrue(idStr);
@@ -599,8 +596,7 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
   setReadTimeout(isLongTimeout_ ? 86400*7 : 60*10);
   
   // send latest stratum job
-  // send userCoinbaseInfo
-  sendMiningNotify(server_->jobRepository_->getLatestStratumJobEx(), userCoinbaseInfo, true/* is first job */);
+  sendMiningNotify(server_->jobRepository_->getLatestStratumJobEx(), true/* is first job */);
 
   // sent events to kafka: miner_connect
   {
@@ -858,8 +854,7 @@ uint8_t StratumSession::allocShortJobId() {
   return shortJobIdIdx_++;
 }
 
-void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, const string &userCoinbaseInfo,
-                                      bool isFirstJob) {
+void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
   if (state_ < AUTHENTICATED || exJobPtr == nullptr) {
     return;
   }
@@ -912,6 +907,7 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, const s
   notifyStr.append(exJobPtr->miningNotify2_);
 
   // add the User's coinbaseInfo to the coinbase1's tail
+  string userCoinbaseInfo = server_->userInfo_->getCoinbaseInfo(worker_.userId_);
   notifyStr.append(userCoinbaseInfo);
 
   // notify3
