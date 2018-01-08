@@ -415,17 +415,19 @@ int32_t UserInfo::incrementalUpdateUsers() {
       return -1;
     }
 
-    auto userId = itr["puid"].int32();
-    auto coinbaseInfo = itr["coinbase"].str();
+    int32 userId = itr["puid"].int32();
+    string coinbaseInfo = itr["coinbase"].str();
+    string coinbaseHex;
+    Bin2Hex((const uint8_t *)coinbaseInfo.c_str(), coinbaseInfo.size(), coinbaseHex);
 
-  
+
     // const int32_t userId   = itr.int32();
 
     if (userId > lastMaxUserId_) {
       lastMaxUserId_ = userId;
     }
     nameIds_.insert(std::make_pair(userName, userId));
-    idCoinbaseInfos_.insert(std::make_pair(userId, coinbaseInfo));
+    idCoinbaseInfos_.insert(std::make_pair(userId, coinbaseHex));
 
   }
   pthread_rwlock_unlock(&rwlock_);

@@ -908,11 +908,12 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, const s
     notifyStr.append(Strings::Format("%u", ljob.shortJobId_));  // short jobId
   }
 
-  // add the User's coinbaseInfo to the coinbase1's tail
-  notifyStr.append(userCoinbaseInfo);
+
   notifyStr.append(exJobPtr->miningNotify2_);
 
-  
+  // add the User's coinbaseInfo to the coinbase1's tail
+  notifyStr.append(userCoinbaseInfo);
+
   // notify3
   if (isFirstJob)
   	notifyStr.append(exJobPtr->miningNotify3Clean_);
