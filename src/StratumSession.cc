@@ -576,10 +576,6 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
     return;
   }
 
-  // get user's coinbase info which to append coinbase1 
-  const string userCoinbaseInfo = server_->userInfo_->getCoinbaseInfo(userId);
-  LOG(INFO) << "user id: " << userId << ", coinbase info: " << userCoinbaseInfo;
-
   // auth success
   responseTrue(idStr);
   state_ = AUTHENTICATED;
@@ -735,8 +731,8 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   share.timestamp_    = (uint32_t)time(nullptr);
   share.result_       = Share::Result::REJECT;
 
-  // get user CoinbaseInfo
-  const string userCoinbaseInfo = server_->userInfo_->getCoinbaseInfo(share.userId_);
+  string coinbaseHex;
+  Bin2Hex((const uint8_t *)localJob->userCoinbaseInfo_.c_str(), localJob->userCoinbaseInfo_.size(), coinbaseHex);
 
   if (isAgentSession == true) {
     const uint16_t sessionId = (uint16_t)(extraNonce2 >> 32);
@@ -778,8 +774,9 @@ void StratumSession::handleRequest_Submit(const string &idStr,
     goto finish;
   }
 
+
   // check block header
-  submitResult = server_->checkShare(share, userCoinbaseInfo, extraNonce1_, extraNonce2Hex,
+  submitResult = server_->checkShare(share, coinbaseHex, extraNonce1_, extraNonce2Hex,
                                      nTime, nonce, jobTarget,
                                      worker_.fullName_);
 
@@ -860,12 +857,16 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool is
   }
   StratumJob *sjob = exJobPtr->sjob_;
 
+  // add the User's coinbaseInfo to the coinbase1's tail
+  string userCoinbaseInfo = server_->userInfo_->getCoinbaseInfo(worker_.userId_);
+
   localJobs_.push_back(LocalJob());
   LocalJob &ljob = *(localJobs_.rbegin());
   ljob.blkBits_       = sjob->nBits_;
   ljob.jobId_         = sjob->jobId_;
   ljob.shortJobId_    = allocShortJobId();
   ljob.jobDifficulty_ = diffController_.calcCurDiff();
+  ljob.userCoinbaseInfo_ = userCoinbaseInfo;
 
   if (agentSessions_ != nullptr)
   {
@@ -907,9 +908,10 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool is
   const string miningNotify2WithoutUserCoinbaseInfo = exJobPtr->miningNotify2_.substr(0, exJobPtr->miningNotify2_.size()-20);
   notifyStr.append(miningNotify2WithoutUserCoinbaseInfo);
 
-  // add the User's coinbaseInfo to the coinbase1's tail
-  string userCoinbaseInfo = server_->userInfo_->getCoinbaseInfo(worker_.userId_);
-  notifyStr.append(userCoinbaseInfo);
+   //  convert string to hex
+  string coinbaseHex;
+  Bin2Hex((const uint8_t *)ljob.userCoinbaseInfo_.c_str(), ljob.userCoinbaseInfo_.size(), coinbaseHex);
+  notifyStr.append(coinbaseHex);
 
   // notify3
   if (isFirstJob)

@@ -169,6 +169,7 @@ public:
     uint64_t jobDifficulty_;     // difficulty of this job
     uint32_t blkBits_;
     uint8_t  shortJobId_;
+    string   userCoinbaseInfo_;
     std::set<LocalShare> submitShares_;
     std::vector<uint8_t> agentSessionsDiff2Exp_;
 
