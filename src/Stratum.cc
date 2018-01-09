@@ -437,7 +437,7 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
                           poolCoinbaseInfo.begin(), poolCoinbaseInfo.end());
 #ifdef  USER_DEFINED_COINBASE_INFO
     // reserved by user coinbase info
-    string userCoinbaseInfoPadding("00000000000000000000");
+    string userCoinbaseInfoPadding("\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20");
     cbIn.scriptSig.insert(cbIn.scriptSig.end(), userCoinbaseInfoPadding.begin(), userCoinbaseInfoPadding.end());
 #endif
     //
