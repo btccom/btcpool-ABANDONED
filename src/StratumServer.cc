@@ -417,6 +417,8 @@ int32_t UserInfo::incrementalUpdateUsers() {
 
     int32 userId = itr["puid"].int32();
     string coinbaseInfo = itr["coinbase"].str();
+    coinbaseInfo.resize(10);
+
     string coinbaseHex;
     Bin2Hex((const uint8_t *)coinbaseInfo.c_str(), coinbaseInfo.size(), coinbaseHex);
 
@@ -623,7 +625,8 @@ void StratumJobEx::generateCoinbaseTx(std::vector<char> *coinbaseBin,
                                       const string &userCoinbaseInfo) {
   string coinbaseHex;
   const string extraNonceStr = Strings::Format("%08x%s", extraNonce1, extraNonce2Hex.c_str());
-  coinbaseHex.append(sjob_->coinbase1_);
+  const string coinbaseWithoutUserCoinbaseInfo = sjob_->coinbase1_.substr(0, sjob_->coinbase1_.size()-20);
+  coinbaseHex.append(coinbaseWithoutUserCoinbaseInfo);
   coinbaseHex.append(userCoinbaseInfo);
   coinbaseHex.append(extraNonceStr);
   coinbaseHex.append(sjob_->coinbase2_);

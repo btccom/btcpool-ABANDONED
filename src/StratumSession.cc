@@ -904,7 +904,8 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool is
   }
 
 
-  notifyStr.append(exJobPtr->miningNotify2_);
+  const string miningNotify2WithoutUserCoinbaseInfo = exJobPtr->miningNotify2_.substr(0, exJobPtr->miningNotify2_.size()-20);
+  notifyStr.append(miningNotify2WithoutUserCoinbaseInfo);
 
   // add the User's coinbaseInfo to the coinbase1's tail
   string userCoinbaseInfo = server_->userInfo_->getCoinbaseInfo(worker_.userId_);
