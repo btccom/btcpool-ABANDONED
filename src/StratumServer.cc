@@ -356,7 +356,7 @@ void UserInfo::stop() {
 
   running_ = false;
 }
-
+#ifdef USER_DEFINED_COINBASE_INFO
 int32_t UserInfo::getUserId(const string userName) {
   pthread_rwlock_rdlock(&rwlock_);
   auto itr = nameIds_.find(userName);
@@ -368,7 +368,7 @@ int32_t UserInfo::getUserId(const string userName) {
   return 0;  // not found
 }
 
-// getCoinbaseInfo 
+// getCoinbaseInfo
 string UserInfo::getCoinbaseInfo(int32_t userId) {
   pthread_rwlock_rdlock(&rwlock_);
   auto itr = idCoinbaseInfos_.find(userId);
@@ -411,9 +411,9 @@ int32_t UserInfo::incrementalUpdateUsers() {
 
   pthread_rwlock_wrlock(&rwlock_);
   for (JsonNode &itr : *vUser) {
-    
+
     const string  userName(itr.key_start(), itr.key_end() - itr.key_start());
-    
+
     if (itr.type() != Utilities::JS::type::Obj) {
       LOG(ERROR) << "invalid data, should key  - value" << std::endl;
       return -1;
@@ -445,7 +445,60 @@ int32_t UserInfo::incrementalUpdateUsers() {
 
   return vUser->size();
 }
+#else
 
+int32_t UserInfo::getUserId(const string userName) {
+  pthread_rwlock_rdlock(&rwlock_);
+  auto itr = nameIds_.find(userName);
+  pthread_rwlock_unlock(&rwlock_);
+
+  if (itr != nameIds_.end()) {
+    return itr->second;
+  }
+  return 0;  // not found
+}
+
+int32_t UserInfo::incrementalUpdateUsers() {
+  //
+  // WARNING: The API is incremental update, we use `?last_id=` to make sure
+  //          always get the new data. Make sure you have use `last_id` in API.
+  //
+  const string url = Strings::Format("%s?last_id=%d", apiUrl_.c_str(), lastMaxUserId_);
+  string resp;
+  if (!httpGET(url.c_str(), resp, 10000/* timeout ms */)) {
+    LOG(ERROR) << "http get request user list fail, url: " << url;
+    return -1;
+  }
+
+  JsonNode r;
+  if (!JsonNode::parse(resp.c_str(), resp.c_str() + resp.length(), r)) {
+    LOG(ERROR) << "decode json fail, json: " << resp;
+    return -1;
+  }
+  if (r["data"].type() == Utilities::JS::type::Undefined) {
+    LOG(ERROR) << "invalid data, should key->value, type: " << (int)r["data"].type();
+    return -1;
+  }
+  auto vUser = r["data"].children();
+  if (vUser->size() == 0) {
+    return 0;
+  }
+
+  pthread_rwlock_wrlock(&rwlock_);
+  for (const auto &itr : *vUser) {
+    const string  userName(itr.key_start(), itr.key_end() - itr.key_start());
+    const int32_t userId   = itr.int32();
+    if (userId > lastMaxUserId_) {
+      lastMaxUserId_ = userId;
+    }
+    nameIds_.insert(std::make_pair(userName, userId));
+  }
+  pthread_rwlock_unlock(&rwlock_);
+
+  return vUser->size();
+}
+
+#endif
 void UserInfo::runThreadUpdate() {
   const time_t updateInterval = 10;  // seconds
   time_t lastUpdateTime = time(nullptr);
@@ -595,7 +648,7 @@ void StratumJobEx::makeMiningNotifyStr() {
 
   // we don't put jobId here, session will fill with the shortJobId
   miningNotify1_ = "{\"id\":null,\"method\":\"mining.notify\",\"params\":[\"";
-
+#ifdef USER_DEFINED_COINBASE_INFO
   miningNotify2_ = Strings::Format("\",\"%s\",\"%s",
                                    sjob_->prevHashBeStr_.c_str(),
                                    sjob_->coinbase1_.c_str());
@@ -616,6 +669,27 @@ void StratumJobEx::makeMiningNotifyStr() {
                                    sjob_->coinbase2_.c_str(),
                                    merkleBranchStr.c_str(),
                                    sjob_->nVersion_, sjob_->nBits_, sjob_->nTime_);
+#else
+  miningNotify2_ = Strings::Format("\",\"%s\",\"%s\",\"%s\""
+                                   ",[%s]"
+                                   ",\"%08x\",\"%08x\",\"%08x\",%s"
+                                   "]}\n",
+                                   sjob_->prevHashBeStr_.c_str(),
+                                   sjob_->coinbase1_.c_str(), sjob_->coinbase2_.c_str(),
+                                   merkleBranchStr.c_str(),
+                                   sjob_->nVersion_, sjob_->nBits_, sjob_->nTime_,
+                                   isClean_ ? "true" : "false");
+
+  // always set clean to true, reset of them is the same with miningNotify2_
+  miningNotify2Clean_ = Strings::Format("\",\"%s\",\"%s\",\"%s\""
+                                   ",[%s]"
+                                   ",\"%08x\",\"%08x\",\"%08x\",true"
+                                   "]}\n",
+                                   sjob_->prevHashBeStr_.c_str(),
+                                   sjob_->coinbase1_.c_str(), sjob_->coinbase2_.c_str(),
+                                   merkleBranchStr.c_str(),
+                                   sjob_->nVersion_, sjob_->nBits_, sjob_->nTime_);
+#endif
 }
 
 void StratumJobEx::markStale() {
@@ -627,7 +701,7 @@ bool StratumJobEx::isStale() {
   // 0: MINING, 1: STALE
   return (state_ == 1);
 }
-
+#ifdef  USER_DEFINED_COINBASE_INFO
 void StratumJobEx::generateCoinbaseTx(std::vector<char> *coinbaseBin,
                                       const uint32_t extraNonce1,
                                       const string &extraNonce2Hex,
@@ -670,6 +744,45 @@ void StratumJobEx::generateBlockHeader(CBlockHeader *header,
   }
 }
 
+#else
+void StratumJobEx::generateCoinbaseTx(std::vector<char> *coinbaseBin,
+                                      const uint32_t extraNonce1,
+                                      const string &extraNonce2Hex) {
+  string coinbaseHex;
+  const string extraNonceStr = Strings::Format("%08x%s", extraNonce1, extraNonce2Hex.c_str());
+  coinbaseHex.append(sjob_->coinbase1_);
+  coinbaseHex.append(extraNonceStr);
+  coinbaseHex.append(sjob_->coinbase2_);
+  Hex2Bin((const char *)coinbaseHex.c_str(), *coinbaseBin);
+}
+
+void StratumJobEx::generateBlockHeader(CBlockHeader *header,
+                                       std::vector<char> *coinbaseBin,
+                                       const uint32_t extraNonce1,
+                                       const string &extraNonce2Hex,
+                                       const vector<uint256> &merkleBranch,
+                                       const uint256 &hashPrevBlock,
+                                       const uint32_t nBits, const int32_t nVersion,
+                                       const uint32_t nTime, const uint32_t nonce) {
+  generateCoinbaseTx(coinbaseBin, extraNonce1, extraNonce2Hex);
+
+  header->hashPrevBlock = hashPrevBlock;
+  header->nVersion      = nVersion;
+  header->nBits         = nBits;
+  header->nTime         = nTime;
+  header->nNonce        = nonce;
+
+  // hashMerkleRoot
+  header->hashMerkleRoot = Hash(coinbaseBin->begin(), coinbaseBin->end());
+
+  for (const uint256 & step : merkleBranch) {
+    header->hashMerkleRoot = Hash(BEGIN(header->hashMerkleRoot),
+                                  END  (header->hashMerkleRoot),
+                                  BEGIN(step),
+                                  END  (step));
+  }
+}
+#endif
 ////////////////////////////////// StratumServer ///////////////////////////////
 StratumServer::StratumServer(const char *ip, const unsigned short port,
                              const char *kafkaBrokers, const string &userAPIUrl,
@@ -1035,7 +1148,7 @@ void Server::eventCallback(struct bufferevent* bev, short events,
   }
   server->removeConnection(conn->fd_);
 }
-
+#ifdef USER_DEFINED_COINBASE_INFO
 int Server::checkShare(const Share &share,       const string &userCoinbaseInfo,
                        const uint32 extraNonce1, const string &extraNonce2Hex,
                        const uint32_t nTime, const uint32_t nonce,
@@ -1152,6 +1265,123 @@ int Server::checkShare(const Share &share,       const string &userCoinbaseInfo,
   // reach here means an valid share
   return StratumError::NO_ERROR;
 }
+#else
+int Server::checkShare(const Share &share,
+                       const uint32 extraNonce1, const string &extraNonce2Hex,
+                       const uint32_t nTime, const uint32_t nonce,
+                       const uint256 &jobTarget, const string &workFullName) {
+  shared_ptr<StratumJobEx> exJobPtr = jobRepository_->getStratumJobEx(share.jobId_);
+  if (exJobPtr == nullptr) {
+    return StratumError::JOB_NOT_FOUND;
+  }
+  StratumJob *sjob = exJobPtr->sjob_;
+
+  if (exJobPtr->isStale()) {
+    return StratumError::JOB_NOT_FOUND;
+  }
+  if (nTime <= sjob->minTime_) {
+    return StratumError::TIME_TOO_OLD;
+  }
+  if (nTime > sjob->nTime_ + 600) {
+    return StratumError::TIME_TOO_NEW;
+  }
+
+  CBlockHeader header;
+  std::vector<char> coinbaseBin;
+  exJobPtr->generateBlockHeader(&header, &coinbaseBin,
+                                extraNonce1, extraNonce2Hex,
+                                sjob->merkleBranch_, sjob->prevHash_,
+                                sjob->nBits_, sjob->nVersion_, nTime, nonce);
+  uint256 blkHash = header.GetHash();
+
+  arith_uint256 bnBlockHash     = UintToArith256(blkHash);
+  arith_uint256 bnNetworkTarget = UintToArith256(sjob->networkTarget_);
+
+  //
+  // found new block
+  //
+  if (isSubmitInvalidBlock_ == true || bnBlockHash <= bnNetworkTarget) {
+    //
+    // build found block
+    //
+    FoundBlock foundBlock;
+    foundBlock.jobId_    = share.jobId_;
+    foundBlock.workerId_ = share.workerHashId_;
+    foundBlock.userId_   = share.userId_;
+    foundBlock.height_   = sjob->height_;
+    memcpy(foundBlock.header80_, (const uint8_t *)&header, sizeof(CBlockHeader));
+    snprintf(foundBlock.workerFullName_, sizeof(foundBlock.workerFullName_),
+             "%s", workFullName.c_str());
+    // send
+    sendSolvedShare2Kafka(&foundBlock, coinbaseBin);
+
+    // mark jobs as stale
+    jobRepository_->markAllJobsAsStale();
+
+    LOG(INFO) << ">>>> found a new block: " << blkHash.ToString()
+    << ", jobId: " << share.jobId_ << ", userId: " << share.userId_
+    << ", by: " << workFullName << " <<<<";
+  }
+
+  // print out high diff share, 2^10 = 1024
+  if ((bnBlockHash >> 10) <= bnNetworkTarget) {
+    LOG(INFO) << "high diff share, blkhash: " << blkHash.ToString()
+    << ", diff: " << TargetToDiff(blkHash)
+    << ", networkDiff: " << TargetToDiff(sjob->networkTarget_)
+    << ", by: " << workFullName;
+  }
+
+  //
+  // found namecoin block
+  //
+  if (sjob->nmcAuxBits_ != 0 &&
+      (isSubmitInvalidBlock_ == true || bnBlockHash <= UintToArith256(sjob->nmcNetworkTarget_))) {
+    //
+    // build namecoin solved share message
+    //
+    string blockHeaderHex;
+    Bin2Hex((const uint8_t *)&header, sizeof(CBlockHeader), blockHeaderHex);
+    DLOG(INFO) << "blockHeaderHex: " << blockHeaderHex;
+
+    string coinbaseTxHex;
+    Bin2Hex((const uint8_t *)coinbaseBin.data(), coinbaseBin.size(), coinbaseTxHex);
+    DLOG(INFO) << "coinbaseTxHex: " << coinbaseTxHex;
+
+    const string nmcAuxSolvedShare = Strings::Format("{\"job_id\":%" PRIu64","
+                                                     " \"aux_block_hash\":\"%s\","
+                                                     " \"block_header\":\"%s\","
+                                                     " \"coinbase_tx\":\"%s\","
+                                                     " \"rpc_addr\":\"%s\","
+                                                     " \"rpc_userpass\":\"%s\""
+                                                     "}",
+                                                     share.jobId_,
+                                                     sjob->nmcAuxBlockHash_.ToString().c_str(),
+                                                     blockHeaderHex.c_str(),
+                                                     coinbaseTxHex.c_str(),
+                                                     sjob->nmcRpcAddr_.size()     ? sjob->nmcRpcAddr_.c_str()     : "",
+                                                     sjob->nmcRpcUserpass_.size() ? sjob->nmcRpcUserpass_.c_str() : "");
+    // send found namecoin aux block to kafka
+    kafkaProducerNamecoinSolvedShare_->produce(nmcAuxSolvedShare.data(),
+                                               nmcAuxSolvedShare.size());
+
+    LOG(INFO) << ">>>> found namecoin block: " << sjob->nmcHeight_ << ", "
+    << sjob->nmcAuxBlockHash_.ToString()
+    << ", jobId: " << share.jobId_ << ", userId: " << share.userId_
+    << ", by: " << workFullName << " <<<<";
+  }
+
+  // check share diff
+  if (isEnableSimulator_ == false && bnBlockHash >= UintToArith256(jobTarget)) {
+    return StratumError::LOW_DIFFICULTY;
+  }
+
+  DLOG(INFO) << "blkHash: " << blkHash.ToString() << ", jobTarget: "
+  << jobTarget.ToString() << ", networkTarget: " << sjob->networkTarget_.ToString();
+
+  // reach here means an valid share
+  return StratumError::NO_ERROR;
+}
+#endif
 
 void Server::sendShare2Kafka(const uint8_t *data, size_t len) {
   kafkaProducerShareLog_->produce(data, len);

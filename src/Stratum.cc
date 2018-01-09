@@ -435,11 +435,11 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     // pool's info
     cbIn.scriptSig.insert(cbIn.scriptSig.end(),
                           poolCoinbaseInfo.begin(), poolCoinbaseInfo.end());
-
+#ifdef  USER_DEFINED_COINBASE_INFO
     // reserved by user coinbase info
     string userCoinbaseInfoPadding("00000000000000000000");
     cbIn.scriptSig.insert(cbIn.scriptSig.end(), userCoinbaseInfoPadding.begin(), userCoinbaseInfoPadding.end());
-
+#endif
     //
     // put namecoin merged mining info, 44 bytes
     // https://en.bitcoin.it/wiki/Merged_mining_specification
