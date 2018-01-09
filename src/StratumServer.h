@@ -150,7 +150,7 @@ class UserInfo {
   // username -> userId
   std::unordered_map<string, int32_t> nameIds_;
   int32_t lastMaxUserId_;
-
+  int64_t lastTime_;
   // userId -> userCoinbaseInfo
   std::unordered_map<int32_t, string> idCoinbaseInfos_;
   // workerName

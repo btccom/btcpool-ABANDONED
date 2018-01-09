@@ -31,6 +31,7 @@
 #include <arith_uint256.h>
 #include <utilstrencodings.h>
 #include <hash.h>
+#include <inttypes.h>
 
 #include "utilities_js.hpp"
 
@@ -384,7 +385,7 @@ int32_t UserInfo::incrementalUpdateUsers() {
   // WARNING: The API is incremental update, we use `?last_id=` to make sure
   //          always get the new data. Make sure you have use `last_id` in API.
   //
-  const string url = Strings::Format("%s?last_id=%d", apiUrl_.c_str(), lastMaxUserId_);
+  const string url = Strings::Format("%s?last_id=%d&last_time=%" PRId64, apiUrl_.c_str(), lastMaxUserId_, lastTime_);
   string resp;
   if (!httpGET(url.c_str(), resp, 10000/* timeout ms */)) {
     LOG(ERROR) << "http get request user list fail, url: " << url;
@@ -400,11 +401,14 @@ int32_t UserInfo::incrementalUpdateUsers() {
     LOG(ERROR) << "invalid data, should key->value, type: " << (int)r["data"].type();
     return -1;
   }
-  auto vUser = r["data"].children();
+  JsonNode data = r["data"];
+
+  auto vUser = data["users"].children();
   if (vUser->size() == 0) {
     return 0;
   }
-  
+  lastTime_ = data["time"].int64();
+
   pthread_rwlock_wrlock(&rwlock_);
   for (JsonNode &itr : *vUser) {
     
@@ -430,11 +434,11 @@ int32_t UserInfo::incrementalUpdateUsers() {
     if (userId > lastMaxUserId_) {
       lastMaxUserId_ = userId;
     }
-    nameIds_.insert(std::make_pair(userName, userId));
+    nameIds_[userName] = userId;
 
     // get user's coinbase info
     LOG(INFO) << "user id: " << userId << ", coinbase info: " << coinbaseInfo;
-    idCoinbaseInfos_.insert(std::make_pair(userId, coinbaseInfo));
+    idCoinbaseInfos_[userId] = coinbaseInfo;
 
   }
   pthread_rwlock_unlock(&rwlock_);
