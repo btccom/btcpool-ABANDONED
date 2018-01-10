@@ -605,7 +605,7 @@ void BlockMaker::_saveBlockToDBThread(const FoundBlock &foundBlock,
 }
 
 bool BlockMaker::checkBitcoinds() {
-  const string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getinfo\",\"params\":[]}";
+  const string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getnetworkinfo\",\"params\":[]}";
 
   if (bitcoindRpcUri_.size() == 0)
     return false;
@@ -626,7 +626,7 @@ bool BlockMaker::checkBitcoinds() {
     JsonNode result = r["result"];
     if (result.type() == Utilities::JS::type::Null ||
         result["connections"].int32() == 0) {
-      LOG(ERROR) << "bitcoind is NOT works fine, getinfo: " << response;
+      LOG(ERROR) << "bitcoind is NOT works fine, getnetworkinfo: " << response;
       return false;
     }
   }

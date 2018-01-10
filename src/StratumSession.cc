@@ -590,7 +590,7 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
   // set read timeout to 10 mins, it's enought for most miners even usb miner.
   // if it's a pool watcher, set timeout to a week
   setReadTimeout(isLongTimeout_ ? 86400*7 : 60*10);
-
+  
   // send latest stratum job
   sendMiningNotify(server_->jobRepository_->getLatestStratumJobEx(), true/* is first job */);
 
@@ -730,6 +730,10 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   share.blkBits_      = localJob->blkBits_;
   share.timestamp_    = (uint32_t)time(nullptr);
   share.result_       = Share::Result::REJECT;
+#ifdef USER_DEFINED_COINBASE_INFO
+  string coinbaseHex;
+  Bin2Hex((const uint8_t *)localJob->userCoinbaseInfo_.c_str(), localJob->userCoinbaseInfo_.size(), coinbaseHex);
+#endif
 
   if (isAgentSession == true) {
     const uint16_t sessionId = (uint16_t)(extraNonce2 >> 32);
@@ -771,10 +775,17 @@ void StratumSession::handleRequest_Submit(const string &idStr,
     goto finish;
   }
 
+#ifdef  USER_DEFINED_COINBASE_INFO
+  // check block header
+  submitResult = server_->checkShare(share, coinbaseHex, extraNonce1_, extraNonce2Hex,
+                                     nTime, nonce, jobTarget,
+                                     worker_.fullName_);
+#else
   // check block header
   submitResult = server_->checkShare(share, extraNonce1_, extraNonce2Hex,
                                      nTime, nonce, jobTarget,
                                      worker_.fullName_);
+#endif
 
   if (submitResult == StratumError::NO_ERROR) {
     // accepted share
@@ -846,7 +857,83 @@ uint8_t StratumSession::allocShortJobId() {
   }
   return shortJobIdIdx_++;
 }
+#ifdef USER_DEFINED_COINBASE_INFO
+void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
+  if (state_ < AUTHENTICATED || exJobPtr == nullptr) {
+    return;
+  }
+  StratumJob *sjob = exJobPtr->sjob_;
 
+  // add the User's coinbaseInfo to the coinbase1's tail
+  string userCoinbaseInfo = server_->userInfo_->getCoinbaseInfo(worker_.userId_);
+
+  localJobs_.push_back(LocalJob());
+  LocalJob &ljob = *(localJobs_.rbegin());
+  ljob.blkBits_       = sjob->nBits_;
+  ljob.jobId_         = sjob->jobId_;
+  ljob.shortJobId_    = allocShortJobId();
+  ljob.jobDifficulty_ = diffController_.calcCurDiff();
+  ljob.userCoinbaseInfo_ = userCoinbaseInfo;
+
+  if (agentSessions_ != nullptr)
+  {
+    // calc diff and save to ljob
+    agentSessions_->calcSessionsJobDiff(ljob.agentSessionsDiff2Exp_);
+
+    // get ex-message
+    string exMessage;
+    agentSessions_->getSessionsChangedDiff(ljob.agentSessionsDiff2Exp_, exMessage);
+    if (exMessage.size())
+    	sendData(exMessage);
+  }
+
+  // set difficulty
+  if (currDiff_ != ljob.jobDifficulty_) {
+    sendSetDifficulty(ljob.jobDifficulty_);
+    currDiff_ = ljob.jobDifficulty_;
+  }
+
+  string notifyStr;
+  notifyStr.reserve(2048);
+
+  // notify1
+  notifyStr.append(exJobPtr->miningNotify1_);
+
+  // jobId
+  if (isNiceHashClient_) {
+    //
+    // we need to send unique JobID to NiceHash Client, they have problems with
+    // short Job ID
+    //
+    const uint64_t niceHashJobId = (uint64_t)time(nullptr) * 10 + ljob.shortJobId_;
+    notifyStr.append(Strings::Format("% " PRIu64"", niceHashJobId));
+  } else {
+    notifyStr.append(Strings::Format("%u", ljob.shortJobId_));  // short jobId
+  }
+
+
+  const string miningNotify2WithoutUserCoinbaseInfo = exJobPtr->miningNotify2_.substr(0, exJobPtr->miningNotify2_.size()-20);
+  notifyStr.append(miningNotify2WithoutUserCoinbaseInfo);
+
+   //  convert string to hex
+  string coinbaseHex;
+  Bin2Hex((const uint8_t *)ljob.userCoinbaseInfo_.c_str(), ljob.userCoinbaseInfo_.size(), coinbaseHex);
+  notifyStr.append(coinbaseHex);
+
+  // notify3
+  if (isFirstJob)
+  	notifyStr.append(exJobPtr->miningNotify3Clean_);
+  else
+    notifyStr.append(exJobPtr->miningNotify3_);
+
+  sendData(notifyStr);  // send notify string
+
+  // clear localJobs_
+  while (localJobs_.size() >= kMaxNumLocalJobs_) {
+    localJobs_.pop_front();
+  }
+}
+#else
 void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr,
                                       bool isFirstJob) {
   if (state_ < AUTHENTICATED || exJobPtr == nullptr) {
@@ -910,6 +997,7 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr,
     localJobs_.pop_front();
   }
 }
+#endif
 
 void StratumSession::sendData(const char *data, size_t len) {
   // add data to a bufferevent’s output buffer

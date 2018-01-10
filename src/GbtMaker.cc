@@ -75,17 +75,17 @@ bool GbtMaker::init() {
     return false;
   }
 
-  // check bitcoind
+  // check bitcoind network
   {
     string response;
-    string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getinfo\",\"params\":[]}";
+    string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getnetworkinfo\",\"params\":[]}";
     bool res = bitcoindRpcCall(bitcoindRpcAddr_.c_str(), bitcoindRpcUserpass_.c_str(),
                                request.c_str(), response);
     if (!res) {
       LOG(ERROR) << "bitcoind rpc call failure";
       return false;
     }
-    LOG(INFO) << "bitcoind getinfo: " << response;
+    LOG(INFO) << "bitcoind getnetworkinfo: " << response;
 
     JsonNode r;
     if (!JsonNode::parse(response.c_str(),
@@ -96,9 +96,8 @@ bool GbtMaker::init() {
 
     // check fields
     if (r["result"].type() != Utilities::JS::type::Obj ||
-        r["result"]["connections"].type() != Utilities::JS::type::Int ||
-        r["result"]["blocks"].type()      != Utilities::JS::type::Int) {
-      LOG(ERROR) << "getinfo missing some fields";
+        r["result"]["connections"].type() != Utilities::JS::type::Int) {
+      LOG(ERROR) << "getnetworkinfo missing some fields";
       return false;
     }
     if (r["result"]["connections"].int32() <= 0) {

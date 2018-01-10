@@ -209,6 +209,8 @@ add_executable(poolwatcher ${POOLWATCHER_SOURCES})
 target_link_libraries(poolwatcher btcpool ${THIRD_LIBRARIES})
 
 
+set(POOL__DEB_PACKNAME_POSTFIX "")
+
 ###
 # work with stratum switcher
 ###
@@ -218,10 +220,23 @@ option(POOL__WORK_WITH_STRATUM_SWITCHER
 if(POOL__WORK_WITH_STRATUM_SWITCHER)
   message("-- Work with Stratum Switcher (-DPOOL__WORK_WITH_STRATUM_SWITCHER=ON)")
   add_definitions(-DWORK_WITH_STRATUM_SWITCHER)
-  set(POOL__DEB_PACKNAME_POSTFIX "-withswitcher")
+  set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-withswitcher")
 else()
   message("-- Work without Stratum Switcher (-DPOOL__WORK_WITH_STRATUM_SWITCHER=OFF)")
-  set(POOL__DEB_PACKNAME_POSTFIX "")
+endif()
+
+###
+# user defined coinbase info
+###
+option(POOL__USER_DEFINED_COINBASE_INFO
+"User defined Coinbase Info" OFF)
+
+if (POOL__USER_DEFINED_COINBASE_INFO)
+  message("-- User defined Coinbase Info (-DPOOL__USER_DEFINED_COINBASE_INFO=ON)")
+  add_definitions(-DUSER_DEFINED_COINBASE_INFO)
+  set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-usercoinbase")
+else()
+  message("-- User defined Coinbase Info (-DPOOL__USER_DEFINED_COINBASE_INFO=OFF)")
 endif()
 
 

@@ -150,6 +150,11 @@ class UserInfo {
   // username -> userId
   std::unordered_map<string, int32_t> nameIds_;
   int32_t lastMaxUserId_;
+#ifdef USER_DEFINED_COINBASE_INFO
+  int64_t lastTime_;
+  // userId -> userCoinbaseInfo
+  std::unordered_map<int32_t, string> idCoinbaseInfos_;
+#endif
 
   // workerName
   mutex workerNameLock_;
@@ -172,6 +177,10 @@ public:
   bool setupThreads();
 
   int32_t getUserId(const string userName);
+
+#ifdef USER_DEFINED_COINBASE_INFO
+  string  getCoinbaseInfo(int32_t userId);
+#endif
   void addWorker(const int32_t userId, const int64_t workerId,
                  const string &workerName, const string &minerAgent);
 };
@@ -186,16 +195,30 @@ class StratumJobEx {
   atomic<int32_t> state_;
 
   void makeMiningNotifyStr();
+
+#ifdef USER_DEFINED_COINBASE_INFO
+  void generateCoinbaseTx(std::vector<char> *coinbaseBin,
+                          const uint32_t extraNonce1,
+                          const string &extraNonce2Hex,
+                          const string &generateBlockHeader);
+#else
   void generateCoinbaseTx(std::vector<char> *coinbaseBin,
                           const uint32_t extraNonce1,
                           const string &extraNonce2Hex);
+#endif
 
 public:
   bool isClean_;
   StratumJob *sjob_;
   string miningNotify1_;
   string miningNotify2_;
+#ifdef USER_DEFINED_COINBASE_INFO
+  string miningNotify3_;
+
+  string miningNotify3Clean_;  // clean flag always true
+#else
   string miningNotify2Clean_;  // clean flag always true
+#endif
 
 public:
   StratumJobEx(StratumJob *sjob, bool isClean);
@@ -203,8 +226,18 @@ public:
 
   void markStale();
   bool isStale();
-
-  void generateBlockHeader(CBlockHeader *header,
+#ifdef USER_DEFINED_COINBASE_INFO
+  void generateBlockHeader(CBlockHeader  *header,
+                           std::vector<char> *coinbaseBin,
+                           const string &userCoinbaseInfo,
+                           const uint32_t extraNonce1,
+                           const string &extraNonce2Hex,
+                           const vector<uint256> &merkleBranch,
+                           const uint256 &hashPrevBlock,
+                           const uint32_t nBits, const int32_t nVersion,
+                           const uint32_t nTime, const uint32_t nonce);
+#else
+void generateBlockHeader(CBlockHeader *header,
                            std::vector<char> *coinbaseBin,
                            const uint32_t extraNonce1,
                            const string &extraNonce2Hex,
@@ -212,6 +245,7 @@ public:
                            const uint256 &hashPrevBlock,
                            const uint32_t nBits, const int32_t nVersion,
                            const uint32_t nTime, const uint32_t nonce);
+#endif
 };
 
 
@@ -274,11 +308,17 @@ public:
                                int socklen, void* server);
   static void readCallback (struct bufferevent *, void *connection);
   static void eventCallback(struct bufferevent *, short, void *connection);
-
+#ifdef  USER_DEFINED_COINBASE_INFO
+  int checkShare(const Share &share,      const string &userCoinbaseInfo,
+                 const uint32 extraNonce1, const string &extraNonce2Hex,
+                 const uint32_t nTime, const uint32_t nonce,
+                 const uint256 &jobTarget, const string &workFullName);
+#else
   int checkShare(const Share &share,
                  const uint32 extraNonce1, const string &extraNonce2Hex,
                  const uint32_t nTime, const uint32_t nonce,
                  const uint256 &jobTarget, const string &workFullName);
+#endif
   void sendShare2Kafka      (const uint8_t *data, size_t len);
   void sendSolvedShare2Kafka(const FoundBlock *foundBlock,
                              const std::vector<char> &coinbaseBin);
