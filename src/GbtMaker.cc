@@ -513,27 +513,26 @@ bool NMCAuxBlockMaker::init() {
   // check namecoind
   {
     string response;
-    string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getinfo\",\"params\":[]}";
+    string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getnetworkinfo\",\"params\":[]}";
     bool res = bitcoindRpcCall(rpcAddr_.c_str(), rpcUserpass_.c_str(),
                                request.c_str(), response);
     if (!res) {
       LOG(ERROR) << "namecoind rpc call failure";
       return false;
     }
-    LOG(INFO) << "namecoind getinfo: " << response;
+    LOG(INFO) << "namecoind getnetworkinfo: " << response;
 
     JsonNode r;
     if (!JsonNode::parse(response.c_str(),
                          response.c_str() + response.length(), r)) {
-      LOG(ERROR) << "decode getinfo failure";
+      LOG(ERROR) << "decode getnetworkinfo failure";
       return false;
     }
 
     // check fields
     if (r["result"].type() != Utilities::JS::type::Obj ||
-        r["result"]["connections"].type() != Utilities::JS::type::Int ||
-        r["result"]["blocks"].type()      != Utilities::JS::type::Int) {
-      LOG(ERROR) << "getinfo missing some fields";
+        r["result"]["connections"].type() != Utilities::JS::type::Int) {
+      LOG(ERROR) << "getnetworkinfo missing some fields";
       return false;
     }
     if (r["result"]["connections"].int32() <= 0) {
