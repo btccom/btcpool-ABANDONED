@@ -407,15 +407,29 @@ string NMCAuxBlockMaker::makeAuxBlockMsg() {
     return "";
   }
 
+  // the MergedMiningProxy will indicate (optional) merkle_size and merkle_nonce
+  // https://github.com/btccom/stratumSwitcher/tree/master/mergedMiningProxy
+  int32_t merkleSize  = 1;
+  int32_t merkleNonce = 0;
+
+  if (r["result"]["merkle_size"].type() == Utilities::JS::type::Int) {
+    merkleSize = r["result"]["merkle_size"].int32();
+  }
+  if (r["result"]["merkle_nonce"].type() == Utilities::JS::type::Int) {
+    merkleNonce = r["result"]["merkle_nonce"].int32();
+  }
+
   // message for kafka
   string msg = Strings::Format("{\"created_at_ts\":%u,"
                                " \"hash\":\"%s\", \"height\":%d,"
+                               " \"merkle_size\":%d, \"merkle_nonce\":%d,"
                                " \"chainid\":%d,  \"bits\":\"%s\","
                                " \"rpc_addr\":\"%s\", \"rpc_userpass\":\"%s\""
                                "}",
                                (uint32_t)time(nullptr),
                                r["result"]["hash"].str().c_str(),
                                r["result"]["height"].int32(),
+                               merkleSize, merkleNonce,
                                r["result"]["chainid"].int32(),
                                r["result"]["bits"].str().c_str(),
                                rpcAddr_.c_str(), rpcUserpass_.c_str());

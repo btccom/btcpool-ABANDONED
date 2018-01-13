@@ -389,6 +389,8 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
       // check fields created_at_ts
       if (jNmcAux["created_at_ts"].type() != Utilities::JS::type::Int ||
           jNmcAux["hash"].type()          != Utilities::JS::type::Str ||
+          jNmcAux["merkle_size"].type()   != Utilities::JS::type::Int ||
+          jNmcAux["merkle_nonce"].type()  != Utilities::JS::type::Int ||
           jNmcAux["height"].type()        != Utilities::JS::type::Int ||
           jNmcAux["bits"].type()          != Utilities::JS::type::Str ||
           jNmcAux["rpc_addr"].type()      != Utilities::JS::type::Str ||
@@ -403,11 +405,13 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
       }
 
       // set nmc aux info
-      nmcAuxBlockHash_ = uint256S(jNmcAux["hash"].str());
-      nmcAuxBits_      = jNmcAux["bits"].uint32_hex();
-      nmcHeight_       = jNmcAux["height"].int32();
-      nmcRpcAddr_      = jNmcAux["rpc_addr"].str();
-      nmcRpcUserpass_  = jNmcAux["rpc_userpass"].str();
+      nmcAuxBlockHash_   = uint256S(jNmcAux["hash"].str());
+      nmcAuxMerkleSize_  = jNmcAux["merkle_size"].int32();
+      nmcAuxMerkleNonce_ = jNmcAux["merkle_nonce"].int32();
+      nmcAuxBits_        = jNmcAux["bits"].uint32_hex();
+      nmcHeight_         = jNmcAux["height"].int32();
+      nmcRpcAddr_        = jNmcAux["rpc_addr"].str();
+      nmcRpcUserpass_    = jNmcAux["rpc_userpass"].str();
       BitsToTarget(nmcAuxBits_, nmcNetworkTarget_);
     } while (0);
   }
@@ -445,13 +449,16 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     // https://en.bitcoin.it/wiki/Merged_mining_specification
     //
     if (nmcAuxBits_ != 0u) {
+      string merkleSize, merkleNonce;
+      Bin2Hex((uint8_t *)&nmcAuxMerkleSize_,  4, merkleSize);
+      Bin2Hex((uint8_t *)&nmcAuxMerkleNonce_, 4, merkleNonce);
       string mergedMiningCoinbase = Strings::Format("%s%s%s%s",
                                                     // magic: 0xfa, 0xbe, 0x6d('m'), 0x6d('m')
                                                     "fabe6d6d",
                                                     // block_hash: Hash of the AuxPOW block header
                                                     nmcAuxBlockHash_.ToString().c_str(),
-                                                    "01000000",  // merkle_size : 1
-                                                    "00000000"   // merkle_nonce: 0
+                                                    merkleSize.c_str(), // merkle_size : 1
+                                                    merkleNonce.c_str() // merkle_nonce: 0
                                                     );
       vector<char> mergedMiningBin;
       Hex2Bin(mergedMiningCoinbase.c_str(), mergedMiningBin);

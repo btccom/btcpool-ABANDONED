@@ -262,6 +262,8 @@ public:
   // namecoin merged mining
   uint32_t nmcAuxBits_;
   uint256  nmcAuxBlockHash_;
+  int32_t  nmcAuxMerkleSize_;
+  int32_t  nmcAuxMerkleNonce_;
   uint256  nmcNetworkTarget_;
   int32_t  nmcHeight_;
   string   nmcRpcAddr_;
