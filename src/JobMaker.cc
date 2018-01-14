@@ -314,6 +314,26 @@ void JobMaker::addRawgbt(const char *str, size_t len) {
 
   {
     ScopeLock sl(lock_);
+
+    if (rawgbtMap_.size() > 0) {
+      const uint64_t bestKey = rawgbtMap_.rbegin()->first;
+      const uint32_t bestTime = gbtKeyGetTime(bestKey);
+      const uint32_t bestHeight = gbtKeyGetHeight(bestKey);
+      const bool     bestIsEmpty = gbtKeyIsEmptyBlock(bestKey);
+
+      // To prevent the job's block height ups and downs
+      // when the block height of two bitcoind is not synchronized.
+      // The block height downs must past twice the time of stratumJobInterval_
+      // without the higher height GBT received.
+      if (height < bestHeight && !bestIsEmpty && 
+          gbtTime - bestTime < 2 * stratumJobInterval_) {
+        LOG(WARNING) << "skip low height GBT. height: " << height
+                     << ", best height: " << bestHeight
+                     << ", elapsed time after best GBT: " << (gbtTime - bestTime) << "s";
+        return;
+      }
+    }
+
     const uint64_t key = makeGbtKey(gbtTime, isEmptyBlock, height);
     if (rawgbtMap_.find(key) == rawgbtMap_.end()) {
       rawgbtMap_.insert(std::make_pair(key, gbt));
