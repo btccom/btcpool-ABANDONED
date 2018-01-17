@@ -470,6 +470,12 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     cbIn.scriptSig.insert(cbIn.scriptSig.end(), userCoinbaseInfoPadding.begin(), userCoinbaseInfoPadding.end());
   #endif
 
+    //  placeHolder: extra nonce1 (4bytes) + extra nonce2 (8bytes)
+    const vector<char> placeHolder(4 + 8, 0xEE);
+    // pub extra nonce place holder
+    cbIn.scriptSig.insert(cbIn.scriptSig.end(), placeHolder.begin(), placeHolder.end());
+
+    // 100: coinbase script sig max len, range: (2, 100).
     //
     // bitcoind/src/main.cpp: CheckTransaction()
     //   if (tx.IsCoinBase())
@@ -478,18 +484,8 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     //       return state.DoS(100, false, REJECT_INVALID, "bad-cb-length");
     //   }
     //
-    // 100: coinbase script sig max len, range: (2, 100).
-    //  12: extra nonce1 (4bytes) + extra nonce2 (8bytes)
-    //
-    const vector<char> placeHolder(4 + 8, 0xEE);
-    const size_t maxScriptSigLen = 100 - placeHolder.size();
-    if (cbIn.scriptSig.size() > maxScriptSigLen) {
-      cbIn.scriptSig.resize(maxScriptSigLen);
-    }
-    // pub extra nonce place holder
-    cbIn.scriptSig.insert(cbIn.scriptSig.end(), placeHolder.begin(), placeHolder.end());
     if (cbIn.scriptSig.size() >= 100) {
-      LOG(ERROR) << "coinbase input script size over than 100, shold < 100";
+      LOG(FATAL) << "coinbase input script size over than 100, shold < 100";
       return false;
     }
 
@@ -529,7 +525,7 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
 
     // check coinbase tx size
     if (coinbaseTpl.size() >= COINBASE_TX_MAX_SIZE) {
-      LOG(ERROR) << "conbase tx size " << coinbaseTpl.size()
+      LOG(FATAL) << "conbase tx size " << coinbaseTpl.size()
       << " is over than max " << COINBASE_TX_MAX_SIZE;
       return false;
     }
