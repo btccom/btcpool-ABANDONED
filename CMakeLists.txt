@@ -214,8 +214,7 @@ set(POOL__DEB_PACKNAME_POSTFIX "")
 ###
 # work with stratum switcher
 ###
-option(POOL__WORK_WITH_STRATUM_SWITCHER
-"Work with Stratum Switcher" OFF)
+option(POOL__WORK_WITH_STRATUM_SWITCHER "Work with Stratum Switcher" OFF)
 
 if(POOL__WORK_WITH_STRATUM_SWITCHER)
   message("-- Work with Stratum Switcher (-DPOOL__WORK_WITH_STRATUM_SWITCHER=ON)")
@@ -225,18 +224,25 @@ else()
   message("-- Work without Stratum Switcher (-DPOOL__WORK_WITH_STRATUM_SWITCHER=OFF)")
 endif()
 
+
 ###
 # user defined coinbase info
 ###
-option(POOL__USER_DEFINED_COINBASE_INFO
-"User defined Coinbase Info" OFF)
+option(POOL__USER_DEFINED_COINBASE "User defined Coinbase Info" OFF)
 
-if (POOL__USER_DEFINED_COINBASE_INFO)
-  message("-- User defined Coinbase Info (-DPOOL__USER_DEFINED_COINBASE_INFO=ON)")
-  add_definitions(-DUSER_DEFINED_COINBASE_INFO)
-  set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-usercoinbase")
+# the size of user defined coinbase, default is 10 bytes
+if (NOT POOL__USER_DEFINED_COINBASE_SIZE)
+  set(POOL__USER_DEFINED_COINBASE_SIZE 10)
+endif()
+
+if (POOL__USER_DEFINED_COINBASE)
+  message("-- User defined coinbase enabled (-DPOOL__USER_DEFINED_COINBASE=ON)")
+  message("-- The size of user defined coinbase: ${POOL__USER_DEFINED_COINBASE_SIZE} Bytes (-DPOOL__USER_DEFINED_COINBASE_SIZE=${POOL__USER_DEFINED_COINBASE_SIZE})")
+  add_definitions(-DUSER_DEFINED_COINBASE)
+  add_definitions(-DUSER_DEFINED_COINBASE_SIZE=${POOL__USER_DEFINED_COINBASE_SIZE})
+  set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-usercoinbase${POOL__USER_DEFINED_COINBASE_SIZE}")
 else()
-  message("-- User defined Coinbase Info (-DPOOL__USER_DEFINED_COINBASE_INFO=OFF)")
+  message("-- User defined coinbase info disabled (-DPOOL__USER_DEFINED_COINBASE=OFF)")
 endif()
 
 
