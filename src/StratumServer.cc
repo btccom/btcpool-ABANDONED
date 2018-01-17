@@ -695,6 +695,7 @@ void StratumJobEx::generateCoinbaseTx(std::vector<char> *coinbaseBin,
   if (userCoinbaseInfo != nullptr) {
     string userCoinbaseHex;
     Bin2Hex((uint8*)(*userCoinbaseInfo).c_str(), (*userCoinbaseInfo).size(), userCoinbaseHex);
+    // replace the last `userCoinbaseHex.size()` bytes to `userCoinbaseHex`
     coinbase1.replace(coinbase1.size()-userCoinbaseHex.size(), userCoinbaseHex.size(), userCoinbaseHex);
   }
 #endif

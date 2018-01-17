@@ -861,16 +861,18 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool is
   }
   StratumJob *sjob = exJobPtr->sjob_;
 
-  // add the User's coinbaseInfo to the coinbase1's tail
-  string userCoinbaseInfo = server_->userInfo_->getCoinbaseInfo(worker_.userId_);
-
   localJobs_.push_back(LocalJob());
   LocalJob &ljob = *(localJobs_.rbegin());
   ljob.blkBits_       = sjob->nBits_;
   ljob.jobId_         = sjob->jobId_;
   ljob.shortJobId_    = allocShortJobId();
   ljob.jobDifficulty_ = diffController_.calcCurDiff();
+
+#ifdef USER_DEFINED_COINBASE
+  // add the User's coinbaseInfo to the coinbase1's tail
+  string userCoinbaseInfo = server_->userInfo_->getCoinbaseInfo(worker_.userId_);
   ljob.userCoinbaseInfo_ = userCoinbaseInfo;
+#endif
 
   if (agentSessions_ != nullptr)
   {
@@ -916,6 +918,7 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool is
 #ifdef USER_DEFINED_COINBASE
   string userCoinbaseHex;
   Bin2Hex((const uint8_t *)ljob.userCoinbaseInfo_.c_str(), ljob.userCoinbaseInfo_.size(), userCoinbaseHex);
+  // replace the last `userCoinbaseHex.size()` bytes to `userCoinbaseHex`
   coinbase1.replace(coinbase1.size()-userCoinbaseHex.size(), userCoinbaseHex.size(), userCoinbaseHex);
 #endif
 
