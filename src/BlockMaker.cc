@@ -649,6 +649,7 @@ void BlockMaker::_submitBlockThread(const string &rpcAddress,
   request += blockHex + "\"]}";
 
   LOG(INFO) << "submit block to: " << rpcAddress;
+  DLOG(INFO) << "submitblock request: " << request;
   // try N times
   for (size_t i = 0; i < 3; i++) {
     string response;
