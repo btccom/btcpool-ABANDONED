@@ -38,7 +38,8 @@ RUN cd ~/source \
 # make some alias
 RUN ln -s ubcd /usr/local/bin/bitcoind \
   && ln -s ubc-cli /usr/local/bin/bitcoin-cli \
-  && ln -s ubc-tx /usr/local/bin/bitcoin-tx
+  && ln -s ubc-tx /usr/local/bin/bitcoin-tx \
+  && ln -s /root/.bitcoin /root/.unitedbitcoin
 
 # mkdir bitcoind data dir
 RUN mkdir -p /root/.bitcoin
