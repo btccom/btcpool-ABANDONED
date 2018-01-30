@@ -30,7 +30,7 @@ else()
   set(MAKE_JOBS "") 
 endif()
 
-# add a macro that needed by codes copied from Bitcoin Core
+# add a macro that needed by chain's source code
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_CONFIG_H")
 
 # compiler options
@@ -40,28 +40,60 @@ set(CMAKE_CXX_COMPILER_ARG1 "-std=c++0x ")
 
 
 #
-# Bitcoin Core Root
+# Chain Type
 #
-message("-- root directory of Bitcoin Core source code: -DBITCOIN_SRC_ROOT=${BITCOIN_SRC_ROOT}")
-if (NOT EXISTS "${BITCOIN_SRC_ROOT}/src/version.h")
-  message(FATAL_ERROR "The source code of Bitcoin Core not exists!")
+if(NOT CHAIN_TYPE)
+  message(FATAL_ERROR "chain type not defined! (-DCHAIN_TYPE=BTC|BCH|UBTC|SBTC)")
+endif()
+# Bitcoin
+if (CHAIN_TYPE MATCHES "BTC")
+  set(CHAIN_NAME "Bitcoin Core")
+  add_definitions(-DKAFKA_TOPIC_PREFIX="")
+# BitcoinCash
+elseif(CHAIN_TYPE MATCHES "BCH")
+  set(CHAIN_NAME "Bitcoin ABC")
+  add_definitions(-DKAFKA_TOPIC_PREFIX="")
+# UnitiedBitcoin
+elseif(CHAIN_TYPE MATCHES "UBTC")
+  set(CHAIN_NAME "United Bitcoin")
+  add_definitions(-DKAFKA_TOPIC_PREFIX="UBTC_")
+# SuperBitcoin
+elseif(CHAIN_TYPE MATCHES "SBTC")
+  set(CHAIN_NAME "Super Bitcoin")
+  add_definitions(-DKAFKA_TOPIC_PREFIX="SBTC_")
+# Unknown
+else()
+  message("unknown chain type! (-DCHAIN_TYPE=${CHAIN_TYPE})")
+  message(FATAL_ERROR "supported chain type: BTC|BCH|UBTC|SBTC")
+endif()
+message("-- chain type: ${CHAIN_NAME} (-DCHAIN_TYPE=${CHAIN_TYPE})")
+
+#
+# Root Dir of Chain's Source Code
+#
+if(NOT CHAIN_SRC_ROOT)
+  message(FATAL_ERROR "root dir of chain's source code not defined! (-DCHAIN_SRC_ROOT=<path>)")
+endif()
+message("-- root dir of ${CHAIN_NAME}: -DCHAIN_SRC_ROOT=${CHAIN_SRC_ROOT}")
+if (NOT EXISTS "${CHAIN_SRC_ROOT}/src/version.h")
+  message(FATAL_ERROR "The source code of ${CHAIN_NAME} not exists!")
 endif()
 
 #
-# Bitcoin Core libs
+# chain's libs
 #
 set(BITCOIN_LIBRARIES
-  "${BITCOIN_SRC_ROOT}/src/libbitcoin_common.a"
-  "${BITCOIN_SRC_ROOT}/src/libbitcoin_consensus.a"
-  "${BITCOIN_SRC_ROOT}/src/libbitcoin_util.a"
-  "${BITCOIN_SRC_ROOT}/src/crypto/libbitcoin_crypto.a")
+  "${CHAIN_SRC_ROOT}/src/libbitcoin_common.a"
+  "${CHAIN_SRC_ROOT}/src/libbitcoin_consensus.a"
+  "${CHAIN_SRC_ROOT}/src/libbitcoin_util.a"
+  "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto.a")
 
 list(GET BITCOIN_LIBRARIES 0 BITCOIN_LIBRARIE)
 if (NOT EXISTS ${BITCOIN_LIBRARIE})
-  message(STATUS "building Bitcoin Core...")
-  execute_process(WORKING_DIRECTORY "${BITCOIN_SRC_ROOT}" COMMAND ./autogen.sh)
-  execute_process(WORKING_DIRECTORY "${BITCOIN_SRC_ROOT}" COMMAND ./configure --with-gui=no --disable-wallet --disable-tests --disable-bench)
-  execute_process(WORKING_DIRECTORY "${BITCOIN_SRC_ROOT}" COMMAND make ${MAKE_JOBS})
+  message(STATUS "building ${CHAIN_NAME}...")
+  execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./autogen.sh)
+  execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./configure --with-gui=no --disable-wallet --disable-tests --disable-bench)
+  execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND make ${MAKE_JOBS})
 endif()
 
 foreach(BITCOIN_LIBRARIE ${BITCOIN_LIBRARIES})
@@ -74,7 +106,7 @@ endforeach()
 #
 # libsecp256k1
 #
-set(secp256k1_DIR "${BITCOIN_SRC_ROOT}/src/secp256k1")
+set(secp256k1_DIR "${CHAIN_SRC_ROOT}/src/secp256k1")
 set(secp256k1_LIBRARIES "${secp256k1_DIR}/.libs/libsecp256k1.a")
 if (NOT EXISTS ${secp256k1_LIBRARIES})
   message(STATUS "build secp256k1...")
@@ -154,7 +186,7 @@ if(NOT MYSQL_INCLUDE)
 endif()
 message("") # add an empty line
 
-include_directories(src test ${BITCOIN_SRC_ROOT}/src ${BITCOIN_SRC_ROOT}/src/config ${BITCOIN_SRC_ROOT}/src/secp256k1/include
+include_directories(src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config ${CHAIN_SRC_ROOT}/src/secp256k1/include
                     ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS}
                     ${LIBEVENT_INCLUDE_DIR} ${MYSQL_INCLUDE})
 set(THIRD_LIBRARIES ${BITCOIN_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY}
