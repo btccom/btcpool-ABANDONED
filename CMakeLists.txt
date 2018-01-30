@@ -3,16 +3,18 @@ cmake_minimum_required (VERSION 2.6)
 project (BTCPOOL)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
+###################################### Options ######################################
+message("") # empty line
+message("------------------------------- Options -------------------------------")
+
 #
-# cmake -DCMAKE_BUILD_TYPE=Debug ..
-# cmake -DCMAKE_BUILD_TYPE=Release ..
-# 
-# default: Release
+# Build Type: -DCMAKE_BUILD_TYPE=Debug|Release
+# Default: Release
 #
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
-message("-- build type: -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
+message("-- Build Type: ${CMAKE_BUILD_TYPE} (-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE})")
 IF(CMAKE_BUILD_TYPE MATCHES Debug)
   set(CMAKE_CXX_FLAGS "-g -O0 -Wall")
 ELSEIF(CMAKE_BUILD_TYPE MATCHES Release)
@@ -21,29 +23,25 @@ ELSE()
   set(CMAKE_CXX_FLAGS "-Wall")
 ENDIF()
 
-# The number of concurrent jobs when compiling a third-party library
-if(JOBS)
-  message("-- concurrent jobs: -DJOBS=${JOBS}")
-  set(MAKE_JOBS "-j${JOBS}") 
-else()
-  message("-- concurrent jobs: -DJOBS=1")
-  set(MAKE_JOBS "") 
-endif()
-
-# add a macro that needed by chain's source code
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_CONFIG_H")
-
 # compiler options
 set(CMAKE_CXX_COMPILER "g++")
 set(CMAKE_C_COMPILER "gcc")
-set(CMAKE_CXX_COMPILER_ARG1 "-std=c++0x ")
+set(CMAKE_CXX_COMPILER_ARG1 "-std=c++0x")
 
+# The number of concurrent jobs when compiling a third-party library
+if(JOBS)
+  message("-- Concurrent Jobs: ${JOBS} (-DJOBS=${JOBS})")
+  set(MAKE_JOBS "-j${JOBS}") 
+else()
+  message("-- Concurrent Jobs: (-DJOBS=1)")
+  set(MAKE_JOBS "") 
+endif()
 
 #
 # Chain Type
 #
 if(NOT CHAIN_TYPE)
-  message(FATAL_ERROR "chain type not defined! (-DCHAIN_TYPE=BTC|BCH|UBTC|SBTC)")
+  message(FATAL_ERROR "Chain type not defined! (-DCHAIN_TYPE=BTC|BCH|UBTC|SBTC)")
 endif()
 # Bitcoin
 if (CHAIN_TYPE MATCHES "BTC")
@@ -63,21 +61,87 @@ elseif(CHAIN_TYPE MATCHES "SBTC")
   add_definitions(-DKAFKA_TOPIC_PREFIX="SBTC_")
 # Unknown
 else()
-  message("unknown chain type! (-DCHAIN_TYPE=${CHAIN_TYPE})")
-  message(FATAL_ERROR "supported chain type: BTC|BCH|UBTC|SBTC")
+  message("Unknown chain type! (-DCHAIN_TYPE=${CHAIN_TYPE})")
+  message(FATAL_ERROR "Supported chain type: BTC|BCH|UBTC|SBTC")
 endif()
-message("-- chain type: ${CHAIN_NAME} (-DCHAIN_TYPE=${CHAIN_TYPE})")
+message("-- Chain Type: ${CHAIN_NAME} (-DCHAIN_TYPE=${CHAIN_TYPE})")
+
+# add a macro that needed by chain's source code
+add_definitions(-DHAVE_CONFIG_H)
+
 
 #
 # Root Dir of Chain's Source Code
 #
 if(NOT CHAIN_SRC_ROOT)
-  message(FATAL_ERROR "root dir of chain's source code not defined! (-DCHAIN_SRC_ROOT=<path>)")
+  message(FATAL_ERROR "Root dir of chain's source code not defined! (-DCHAIN_SRC_ROOT=<path>)")
 endif()
-message("-- root dir of ${CHAIN_NAME}: -DCHAIN_SRC_ROOT=${CHAIN_SRC_ROOT}")
+message("-- Root Dir of ${CHAIN_NAME}: ${CHAIN_SRC_ROOT} (-DCHAIN_SRC_ROOT=${CHAIN_SRC_ROOT})")
 if (NOT EXISTS "${CHAIN_SRC_ROOT}/src/version.h")
   message(FATAL_ERROR "The source code of ${CHAIN_NAME} not exists!")
 endif()
+
+
+# packname postfix will be different with some optional feature enabled
+set(POOL__DEB_PACKNAME_POSTFIX "")
+
+###
+# work with stratum switcher
+###
+option(POOL__WORK_WITH_STRATUM_SWITCHER "Work with Stratum Switcher" OFF)
+
+if(POOL__WORK_WITH_STRATUM_SWITCHER)
+  message("-- Work with Stratum Switcher: Enabled (-DPOOL__WORK_WITH_STRATUM_SWITCHER=ON)")
+  add_definitions(-DWORK_WITH_STRATUM_SWITCHER)
+  set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-withswitcher")
+else()
+  message("-- Work with Stratum Switcher: Disabled (-DPOOL__WORK_WITH_STRATUM_SWITCHER=OFF)")
+endif()
+
+
+###
+# user defined coinbase info
+###
+option(POOL__USER_DEFINED_COINBASE "User Defined Coinbase" OFF)
+
+# the size of user defined coinbase, default is 10 bytes
+if (NOT POOL__USER_DEFINED_COINBASE_SIZE)
+  set(POOL__USER_DEFINED_COINBASE_SIZE 10)
+endif()
+
+if (POOL__USER_DEFINED_COINBASE)
+  message("-- User Defined Coinbase: Enabled (-DPOOL__USER_DEFINED_COINBASE=ON)")
+  message("-- The Size of User Defined Coinbase: ${POOL__USER_DEFINED_COINBASE_SIZE} Bytes (-DPOOL__USER_DEFINED_COINBASE_SIZE=${POOL__USER_DEFINED_COINBASE_SIZE})")
+  add_definitions(-DUSER_DEFINED_COINBASE)
+  add_definitions(-DUSER_DEFINED_COINBASE_SIZE=${POOL__USER_DEFINED_COINBASE_SIZE})
+  set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-usercoinbase${POOL__USER_DEFINED_COINBASE_SIZE}")
+else()
+  message("-- User Defined Coinbase: Disabled (-DPOOL__USER_DEFINED_COINBASE=OFF)")
+endif()
+
+
+###
+# options for install & package
+###
+
+# install prefix
+if(NOT POOL__INSTALL_PREFIX)
+  set(POOL__INSTALL_PREFIX "/work/btcpool.btc")
+endif()
+message("-- Install Prefix: ${POOL__INSTALL_PREFIX} (-DPOOL__INSTALL_PREFIX=${POOL__INSTALL_PREFIX})")
+set(CMAKE_INSTALL_PREFIX ${POOL__INSTALL_PREFIX})
+
+# Debian/Ubuntu software package
+if(POOL__GENERATE_DEB_PACKAGE)
+  message("-- Generate Debian/Ubuntu software package: Enabled (-DPOOL__GENERATE_DEB_PACKAGE=ON)")
+else()
+  message("-- Generate Debian/Ubuntu software package: Disabled (-DPOOL__GENERATE_DEB_PACKAGE=OFF)")
+endif()
+
+
+###################################### Libs ######################################
+message("") # empty line
+message("------------------------------- Libs -------------------------------")
 
 #
 # chain's libs
@@ -184,7 +248,9 @@ endif()
 if(NOT MYSQL_INCLUDE)
   message(FATAL_ERROR "MySQL header not found!")
 endif()
-message("") # add an empty line
+
+
+###################################### Targets ######################################
 
 include_directories(src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config ${CHAIN_SRC_ROOT}/src/secp256k1/include
                     ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS}
@@ -241,53 +307,13 @@ add_executable(poolwatcher ${POOLWATCHER_SOURCES})
 target_link_libraries(poolwatcher btcpool ${THIRD_LIBRARIES})
 
 
-set(POOL__DEB_PACKNAME_POSTFIX "")
-
-###
-# work with stratum switcher
-###
-option(POOL__WORK_WITH_STRATUM_SWITCHER "Work with Stratum Switcher" OFF)
-
-if(POOL__WORK_WITH_STRATUM_SWITCHER)
-  message("-- Work with Stratum Switcher (-DPOOL__WORK_WITH_STRATUM_SWITCHER=ON)")
-  add_definitions(-DWORK_WITH_STRATUM_SWITCHER)
-  set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-withswitcher")
-else()
-  message("-- Work without Stratum Switcher (-DPOOL__WORK_WITH_STRATUM_SWITCHER=OFF)")
-endif()
-
-
-###
-# user defined coinbase info
-###
-option(POOL__USER_DEFINED_COINBASE "User defined Coinbase Info" OFF)
-
-# the size of user defined coinbase, default is 10 bytes
-if (NOT POOL__USER_DEFINED_COINBASE_SIZE)
-  set(POOL__USER_DEFINED_COINBASE_SIZE 10)
-endif()
-
-if (POOL__USER_DEFINED_COINBASE)
-  message("-- User defined coinbase enabled (-DPOOL__USER_DEFINED_COINBASE=ON)")
-  message("-- The size of user defined coinbase: ${POOL__USER_DEFINED_COINBASE_SIZE} Bytes (-DPOOL__USER_DEFINED_COINBASE_SIZE=${POOL__USER_DEFINED_COINBASE_SIZE})")
-  add_definitions(-DUSER_DEFINED_COINBASE)
-  add_definitions(-DUSER_DEFINED_COINBASE_SIZE=${POOL__USER_DEFINED_COINBASE_SIZE})
-  set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-usercoinbase${POOL__USER_DEFINED_COINBASE_SIZE}")
-else()
-  message("-- User defined coinbase info disabled (-DPOOL__USER_DEFINED_COINBASE=OFF)")
-endif()
-
+###################################### Install & Package ######################################
+message("") # empty line
+message("------------------------------- Install & Package -------------------------------")
 
 ###
 # `make install` support
 ###
-
-# install prefix
-if(NOT POOL__INSTALL_PREFIX)
-  set(POOL__INSTALL_PREFIX "/work/btcpool.btc")
-endif()
-message("-- Package Install Prefix (-DPOOL__INSTALL_PREFIX=<path>): ${POOL__INSTALL_PREFIX}")
-set(CMAKE_INSTALL_PREFIX ${POOL__INSTALL_PREFIX})
 
 set(PACKAGE_TMP_DIR ${CMAKE_BINARY_DIR}/package_tmp)
 
@@ -338,21 +364,17 @@ install(DIRECTORY
         DESTINATION
             ${POOL__INSTALL_PREFIX}/build)
 
-
-###
-# Debian/Ubuntu software package
-###
+# generate deb package by CPack
 if(POOL__GENERATE_DEB_PACKAGE)
-  message("-- Generate Debian/Ubuntu software package (-DPOOL__GENERATE_DEB_PACKAGE=ON)")
   set(CPACK_GENERATOR "DEB")
   set(CPACK_PACKAGE_NAME "btcpool-bitcoin${POOL__DEB_PACKNAME_POSTFIX}")
   set(CPACK_DEBIAN_PACKAGE_MAINTAINER "YihaoPeng yihao.peng@bitmain.com")
 
+  message("-- Package Name: ${CPACK_PACKAGE_NAME}")
+
   # the dependencies
   set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
   set(CPACK_DEBIAN_PACKAGE_DEPENDS "librdkafka1 (>= 0.9.1-1)")
-else()
-  message("-- Don't generate Debian/Ubuntu software package (-DPOOL__GENERATE_DEB_PACKAGE=OFF)")
-endif()
 
-include(CPack)
+  include(CPack)
+endif()
