@@ -7,6 +7,9 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 message("") # empty line
 message("------------------------------- Options -------------------------------")
 
+# packname postfix will be different with some optional feature enabled
+set(POOL__DEB_PACKNAME_POSTFIX "")
+
 #
 # Build Type: -DCMAKE_BUILD_TYPE=Debug|Release
 # Default: Release
@@ -44,21 +47,25 @@ if(NOT CHAIN_TYPE)
   message(FATAL_ERROR "Chain type not defined! (-DCHAIN_TYPE=BTC|BCH|UBTC|SBTC)")
 endif()
 # Bitcoin
-if (CHAIN_TYPE MATCHES "BTC")
+if (CHAIN_TYPE STREQUAL "BTC")
   set(CHAIN_NAME "Bitcoin Core")
   add_definitions(-DKAFKA_TOPIC_PREFIX="")
+  set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-bitcoin")
 # BitcoinCash
-elseif(CHAIN_TYPE MATCHES "BCH")
+elseif(CHAIN_TYPE STREQUAL "BCH")
   set(CHAIN_NAME "Bitcoin ABC")
   add_definitions(-DKAFKA_TOPIC_PREFIX="")
+  set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-bitcoincash")
 # UnitiedBitcoin
-elseif(CHAIN_TYPE MATCHES "UBTC")
+elseif(CHAIN_TYPE STREQUAL "UBTC")
   set(CHAIN_NAME "United Bitcoin")
   add_definitions(-DKAFKA_TOPIC_PREFIX="UBTC_")
+  set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-unitedbitcoin")
 # SuperBitcoin
-elseif(CHAIN_TYPE MATCHES "SBTC")
+elseif(CHAIN_TYPE STREQUAL "SBTC")
   set(CHAIN_NAME "Super Bitcoin")
   add_definitions(-DKAFKA_TOPIC_PREFIX="SBTC_")
+  set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-superbitcoin")
 # Unknown
 else()
   message("Unknown chain type! (-DCHAIN_TYPE=${CHAIN_TYPE})")
@@ -81,9 +88,6 @@ if (NOT EXISTS "${CHAIN_SRC_ROOT}/src/version.h")
   message(FATAL_ERROR "The source code of ${CHAIN_NAME} not exists!")
 endif()
 
-
-# packname postfix will be different with some optional feature enabled
-set(POOL__DEB_PACKNAME_POSTFIX "")
 
 ###
 # work with stratum switcher
@@ -367,7 +371,7 @@ install(DIRECTORY
 # generate deb package by CPack
 if(POOL__GENERATE_DEB_PACKAGE)
   set(CPACK_GENERATOR "DEB")
-  set(CPACK_PACKAGE_NAME "btcpool-bitcoin${POOL__DEB_PACKNAME_POSTFIX}")
+  set(CPACK_PACKAGE_NAME "btcpool${POOL__DEB_PACKNAME_POSTFIX}")
   set(CPACK_DEBIAN_PACKAGE_MAINTAINER "YihaoPeng yihao.peng@bitmain.com")
 
   message("-- Package Name: ${CPACK_PACKAGE_NAME}")
