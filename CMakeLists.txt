@@ -49,29 +49,47 @@ endif()
 # Bitcoin
 if (CHAIN_TYPE STREQUAL "BTC")
   set(CHAIN_NAME "Bitcoin Core")
-  add_definitions(-DKAFKA_TOPIC_PREFIX="")
   set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-bitcoin")
+
+  add_definitions(-DCHAIN_TYPE_BTC)
+  add_definitions(-DKAFKA_TOPIC_PREFIX="")
+  add_definitions(-DZOOKEEPER_NODE_PREFIX="")
+
 # BitcoinCash
 elseif(CHAIN_TYPE STREQUAL "BCH")
   set(CHAIN_NAME "Bitcoin ABC")
-  add_definitions(-DKAFKA_TOPIC_PREFIX="")
   set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-bitcoincash")
+
+  add_definitions(-DCHAIN_TYPE_BCH)
+  add_definitions(-DKAFKA_TOPIC_PREFIX="")
+  add_definitions(-DZOOKEEPER_NODE_PREFIX="")
+
 # UnitiedBitcoin
 elseif(CHAIN_TYPE STREQUAL "UBTC")
   set(CHAIN_NAME "United Bitcoin")
-  add_definitions(-DKAFKA_TOPIC_PREFIX="UBTC_")
   set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-unitedbitcoin")
+
+  add_definitions(-DCHAIN_TYPE_UBTC)
+  add_definitions(-DKAFKA_TOPIC_PREFIX="UBTC_")
+  add_definitions(-DZOOKEEPER_NODE_POSTFIX="_ubtc")
+
 # SuperBitcoin
 elseif(CHAIN_TYPE STREQUAL "SBTC")
   set(CHAIN_NAME "Super Bitcoin")
-  add_definitions(-DKAFKA_TOPIC_PREFIX="SBTC_")
   set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-superbitcoin")
+
+  add_definitions(-DCHAIN_TYPE_SBTC)
+  add_definitions(-DKAFKA_TOPIC_PREFIX="SBTC_")
+  add_definitions(-DZOOKEEPER_NODE_POSTFIX="_sbtc")
+
 # Unknown
 else()
   message("Unknown chain type! (-DCHAIN_TYPE=${CHAIN_TYPE})")
   message(FATAL_ERROR "Supported chain type: BTC|BCH|UBTC|SBTC")
 endif()
+
 message("-- Chain Type: ${CHAIN_NAME} (-DCHAIN_TYPE=${CHAIN_TYPE})")
+
 
 # add a macro that needed by chain's source code
 add_definitions(-DHAVE_CONFIG_H)
