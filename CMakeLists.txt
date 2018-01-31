@@ -359,7 +359,6 @@ install(TARGETS
             ${POOL__INSTALL_PREFIX}/build)
 
 install(FILES
-            INSTALL.md
             LICENSE
             README.md
         DESTINATION
