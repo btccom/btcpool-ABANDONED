@@ -50,24 +50,27 @@ endif()
 if (CHAIN_TYPE STREQUAL "BTC")
   set(CHAIN_NAME "Bitcoin Core")
   set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-bitcoin")
+  set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.btc")
 
   add_definitions(-DCHAIN_TYPE_BTC)
-  add_definitions(-DKAFKA_TOPIC_PREFIX="")
-  add_definitions(-DZOOKEEPER_NODE_PREFIX="")
+  add_definitions(-DKAFKA_TOPIC_PREFIX="") # for compatibility with old deployments, let it empty.
+  add_definitions(-DZOOKEEPER_NODE_PREFIX="") # for compatibility with old deployments, let it empty.
 
 # BitcoinCash
 elseif(CHAIN_TYPE STREQUAL "BCH")
   set(CHAIN_NAME "Bitcoin ABC")
   set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-bitcoincash")
+  set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.bcc") # for compatibility with old deployments, use bcc instead of bch.
 
   add_definitions(-DCHAIN_TYPE_BCH)
-  add_definitions(-DKAFKA_TOPIC_PREFIX="")
-  add_definitions(-DZOOKEEPER_NODE_PREFIX="")
+  add_definitions(-DKAFKA_TOPIC_PREFIX="") # for compatibility with old deployments, let it empty.
+  add_definitions(-DZOOKEEPER_NODE_PREFIX="") # for compatibility with old deployments, let it empty.
 
 # UnitiedBitcoin
 elseif(CHAIN_TYPE STREQUAL "UBTC")
   set(CHAIN_NAME "United Bitcoin")
   set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-unitedbitcoin")
+  set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.ubtc")
 
   add_definitions(-DCHAIN_TYPE_UBTC)
   add_definitions(-DKAFKA_TOPIC_PREFIX="UBTC_")
@@ -77,6 +80,7 @@ elseif(CHAIN_TYPE STREQUAL "UBTC")
 elseif(CHAIN_TYPE STREQUAL "SBTC")
   set(CHAIN_NAME "Super Bitcoin")
   set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-superbitcoin")
+  set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.sbtc")
 
   add_definitions(-DCHAIN_TYPE_SBTC)
   add_definitions(-DKAFKA_TOPIC_PREFIX="SBTC_")
@@ -148,7 +152,7 @@ endif()
 
 # install prefix
 if(NOT POOL__INSTALL_PREFIX)
-  set(POOL__INSTALL_PREFIX "/work/btcpool.btc")
+  set(POOL__INSTALL_PREFIX ${POOL__DEFAULT_INSTALL_PREFIX})
 endif()
 message("-- Install Prefix: ${POOL__INSTALL_PREFIX} (-DPOOL__INSTALL_PREFIX=${POOL__INSTALL_PREFIX})")
 set(CMAKE_INSTALL_PREFIX ${POOL__INSTALL_PREFIX})
