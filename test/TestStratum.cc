@@ -25,6 +25,7 @@
 #include "gtest/gtest.h"
 #include "Common.h"
 #include "Utils.h"
+#include "BitcoinUtils.h"
 #include "Stratum.h"
 
 #include <chainparams.h>

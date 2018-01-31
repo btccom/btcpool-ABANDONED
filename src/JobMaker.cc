@@ -37,6 +37,7 @@
 
 #include "utilities_js.hpp"
 #include "Utils.h"
+#include "BitcoinUtils.h"
 
 
 ///////////////////////////////////  JobMaker  /////////////////////////////////
