@@ -43,7 +43,7 @@
 using namespace std;
 using namespace libconfig;
 
-#define JOBMAKER_LOCK_NODE_PATH "/locks/jobmaker"
+#define JOBMAKER_LOCK_NODE_PATH "/locks/jobmaker" ZOOKEEPER_NODE_POSTFIX
 
 JobMaker *gJobMaker = nullptr;
 Zookeeper *gZookeeper = nullptr;

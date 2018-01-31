@@ -28,14 +28,14 @@
 
 #include <librdkafka/rdkafka.h>
 
-#define KAFKA_TOPIC_RAWGBT         "RawGbt"
-#define KAFKA_TOPIC_STRATUM_JOB    "StratumJob"
-#define KAFKA_TOPIC_SOLVED_SHARE   "SolvedShare"
-#define KAFKA_TOPIC_SHARE_LOG      "ShareLog"
-#define KAFKA_TOPIC_COMMON_EVENTS  "CommonEvents"
+#define KAFKA_TOPIC_RAWGBT            KAFKA_TOPIC_PREFIX "RawGbt"
+#define KAFKA_TOPIC_STRATUM_JOB       KAFKA_TOPIC_PREFIX "StratumJob"
+#define KAFKA_TOPIC_SOLVED_SHARE      KAFKA_TOPIC_PREFIX "SolvedShare"
+#define KAFKA_TOPIC_SHARE_LOG         KAFKA_TOPIC_PREFIX "ShareLog"
+#define KAFKA_TOPIC_COMMON_EVENTS     KAFKA_TOPIC_PREFIX "CommonEvents"
 
-#define KAFKA_TOPIC_NMC_AUXBLOCK      "NMCAuxBlock"
-#define KAFKA_TOPIC_NMC_SOLVED_SHARE  "NMCSolvedShare"
+#define KAFKA_TOPIC_NMC_AUXBLOCK      KAFKA_TOPIC_PREFIX "NMCAuxBlock"
+#define KAFKA_TOPIC_NMC_SOLVED_SHARE  KAFKA_TOPIC_PREFIX "NMCSolvedShare"
 
 
 ///////////////////////////////////////////////////////////////////////
