@@ -36,7 +36,7 @@ if(JOBS)
   message("-- Concurrent Jobs: ${JOBS} (-DJOBS=${JOBS})")
   set(MAKE_JOBS "-j${JOBS}") 
 else()
-  message("-- Concurrent Jobs: (-DJOBS=1)")
+  message("-- Concurrent Jobs: 1 (-DJOBS=1)")
   set(MAKE_JOBS "") 
 endif()
 
