@@ -35,7 +35,7 @@
 #include <libconfig.h++>
 #include <event2/thread.h>
 
-#include "zmq.hpp"
+#include <zmq.hpp>
 
 #include "Utils.h"
 #include "StratumServer.h"
