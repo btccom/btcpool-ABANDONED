@@ -252,7 +252,7 @@ public:
   struct bufferevent* bev_;
   evutil_socket_t fd_;
   Server *server_;
-
+  int32_t height_;
 public:
   StratumSession(evutil_socket_t fd, struct bufferevent *bev,
                  Server *server, struct sockaddr *saddr,

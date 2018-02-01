@@ -97,7 +97,7 @@ public:
   uint32_t timestamp_;
   uint32_t blkBits_;
   int32_t  result_;
-
+  int32_t  height_;
   Share():jobId_(0), workerHashId_(0), ip_(0), userId_(0), share_(0),
   timestamp_(0), blkBits_(0), result_(0) {}
 
@@ -140,15 +140,22 @@ public:
   bool isValid() const {
     uint32_t jobTime = jobId2Time(jobId_);
 
-    /* TODO: increase timestamp check before 2020-01-01 */
-    if (userId_ > 0 && workerHashId_ != 0 && share_ > 0 &&
-        timestamp_ > 1467816952U /* 2016-07-06 14:55:52 UTC+0 */ &&
-        timestamp_ < 1577836800U /* 2020-01-01 00:00:00 UTC+0 */ &&
-        jobTime    > 1467816952U /* 2016-07-06 14:55:52 UTC+0 */ &&
-        jobTime    < 1577836800U /* 2020-01-01 00:00:00 UTC+0 */) {
-      return true;
-    }
-    return false;
+//    /* TODO: increase timestamp check before 2020-01-01 */
+//    if (userId_ > 0 && workerHashId_ != 0 && share_ > 0 &&
+//        timestamp_ > 1467816952U /* 2016-07-06 14:55:52 UTC+0 */ &&
+//        timestamp_ < 1577836800U /* 2020-01-01 00:00:00 UTC+0 */ &&
+//        jobTime    > 1467816952U /* 2016-07-06 14:55:52 UTC+0 */ &&
+//        jobTime    < 1577836800U /* 2020-01-01 00:00:00 UTC+0 */) {
+//      return true;
+//    }
+//    /* according check before 2020-01-01 */
+//    if (userId_ > 0 && workerHashId_ != 0 && share_ > 0 &&
+//        height_ >= 420000U  &&
+//        height_ <  630000U
+//        ) {
+//      return true;
+//    }
+    return true;
   }
 
   string toString() const {
