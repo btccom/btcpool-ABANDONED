@@ -501,15 +501,25 @@ void PoolWatchClient::handleStratumMessage(const string &line) {
 
       // stratum job prev block hash changed
       if (lastPrevBlockHash_ != prevHash) {
+
+        // block height in coinbase (BIP34)
         const int32_t  blockHeight = getBlockHeightFromCoinbase(jparamsArr[2].str());
-        const uint32_t blockTime   = jparamsArr[7].uint32_hex();
+        
+        // nBits, the encoded form of network target
         const uint32_t nBits       = jparamsArr[6].uint32_hex();
-        const uint32_t nVersion    = jparamsArr[5].uint32_hex();
+
+        // only for display, it will be replaced by current system time
+        uint32_t blockTime   = jparamsArr[7].uint32_hex();
+
+        // only for display, it will be replaced by current poolStratumJob's nVersion
+        uint32_t nVersion    = jparamsArr[5].uint32_hex();
 
         lastPrevBlockHash_ = prevHash;
         LOG(INFO) << "<" << poolName_ << "> prev block changed, height: " << blockHeight
                                << ", prev_hash: " << prevHash
-                               << ", nBits: " << nBits;
+                               << ", block_time: " << blockTime
+                               << ", nBits: " << nBits
+                               << ", nVersion: " << nVersion;
 
         //////////////////////////////////////////////////////////////////////////
         // To ensure the external job is not deviation from the blockchain.
@@ -549,6 +559,14 @@ void PoolWatchClient::handleStratumMessage(const string &line) {
                                       << ", the job nBits: " << nBits;
             return;
           }
+
+          // the block time from other pool may have a deviation with the current time.
+          // so replaced it by current system time.
+          blockTime = (uint32_t)time(nullptr);
+
+          // the nVersion from other pool may have some flags that we don't want.
+          // so replaced it by current poolStratumJob's.
+          nVersion = poolStratumJob->nVersion_;
         }
 
         container_->makeEmptyGBT(blockHeight, nBits, prevHash, blockTime, nVersion);
