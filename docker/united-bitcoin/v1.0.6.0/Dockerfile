@@ -28,9 +28,9 @@ RUN apt-get install -y software-properties-common \
 
 # build bitcoind
 RUN mkdir ~/source
-RUN cd ~/source && wget https://github.com/UnitedBitcoin/UnitedBitcoin/archive/v1.0.5.0.tar.gz
+RUN cd ~/source && wget https://github.com/UnitedBitcoin/UnitedBitcoin/archive/v1.0.6.0.tar.gz
 RUN cd ~/source \
-  && tar zxf v1.0.5.0.tar.gz && cd UnitedBitcoin-1.0.5.0 \
+  && tar zxf v1.0.6.0.tar.gz && cd UnitedBitcoin-1.0.6.0 \
   && ./autogen.sh \
   && ./configure --disable-bench --disable-tests \
   && make && make install
@@ -38,7 +38,8 @@ RUN cd ~/source \
 # make some alias
 RUN ln -s ubcd /usr/local/bin/bitcoind \
   && ln -s ubc-cli /usr/local/bin/bitcoin-cli \
-  && ln -s ubc-tx /usr/local/bin/bitcoin-tx
+  && ln -s ubc-tx /usr/local/bin/bitcoin-tx \
+  && ln -s /root/.bitcoin /root/.unitedbitcoin
 
 # mkdir bitcoind data dir
 RUN mkdir -p /root/.bitcoin
