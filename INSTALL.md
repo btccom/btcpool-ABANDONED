@@ -1,7 +1,6 @@
 Install BTC.COM Pool
 =====================
 
-* OS: `Ubuntu 14.04 LTS, 64 Bits`
 * OS: `Ubuntu 16.04 LTS, 64 Bits`
 
 **BTCPool has a known compatibility issue with 32-bit operating systems. https://github.com/btccom/btcpool/issues/38**
