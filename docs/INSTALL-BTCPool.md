@@ -231,12 +231,16 @@ bash ../install/init_folders.sh
 
 Login to one of kafka machines, than create topics for `btcpool`:
 
-```
+```bash
 cd /work/kafka
 
-#
-# "10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181" is ZooKeeper cluster.
-#
+# "10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181" at below is ZooKeeper cluster.
+```
+
+Topics for Bitcoin or BitcoinCash
+```bash
+# For compatibility with old deployments, topics of BTCPool for Bitcoin and BitcoinCash have the same names.
+# So we cannot share the same kafka cluster with these two blockchains.
 ./bin/kafka-topics.sh --create --topic RawGbt         --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
 ./bin/kafka-topics.sh --create --topic StratumJob     --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1 
 ./bin/kafka-topics.sh --create --topic SolvedShare    --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 3 --partitions 1 
@@ -249,6 +253,42 @@ cd /work/kafka
 ./bin/kafka-topics.sh --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --alter --topic RawGbt       --config retention.ms=21600000
 # 'CommonEvents': 12 hours
 ./bin/kafka-topics.sh --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --alter --topic CommonEvents --config retention.ms=43200000
+```
+
+Topics for UnitedBitcoin
+```bash
+# For compatibility with old deployments, topics of BTCPool for Bitcoin and BitcoinCash have the same names.
+# So we cannot share the same kafka cluster with these two blockchains.
+./bin/kafka-topics.sh --create --topic UBTC_RawGbt         --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic UBTC_StratumJob     --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1 
+./bin/kafka-topics.sh --create --topic UBTC_SolvedShare    --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 3 --partitions 1 
+./bin/kafka-topics.sh --create --topic UBTC_ShareLog       --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic UBTC_NMCAuxBlock    --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic UBTC_NMCSolvedShare --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic UBTC_CommonEvents   --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
+
+# do not keep 'RawGbt' message more than 6 hours
+./bin/kafka-topics.sh --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --alter --topic UBTC_RawGbt       --config retention.ms=21600000
+# 'CommonEvents': 12 hours
+./bin/kafka-topics.sh --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --alter --topic UBTC_CommonEvents --config retention.ms=43200000
+```
+
+Topics for SuperBitcoin
+```bash
+# For compatibility with old deployments, topics of BTCPool for Bitcoin and BitcoinCash have the same names.
+# So we cannot share the same kafka cluster with these two blockchains.
+./bin/kafka-topics.sh --create --topic SBTC_RawGbt         --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic SBTC_StratumJob     --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1 
+./bin/kafka-topics.sh --create --topic SBTC_SolvedShare    --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 3 --partitions 1 
+./bin/kafka-topics.sh --create --topic SBTC_ShareLog       --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic SBTC_NMCAuxBlock    --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic SBTC_NMCSolvedShare --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic SBTC_CommonEvents   --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
+
+# do not keep 'RawGbt' message more than 6 hours
+./bin/kafka-topics.sh --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --alter --topic SBTC_RawGbt       --config retention.ms=21600000
+# 'CommonEvents': 12 hours
+./bin/kafka-topics.sh --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --alter --topic SBTC_CommonEvents --config retention.ms=43200000
 ```
 
 Check kafka topics stutus:
