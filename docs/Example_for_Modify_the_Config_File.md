@@ -234,9 +234,13 @@ stdout_logfile_backups=5
 stdout_logfile=/work/script/php-web.log
 ```
 create php script 
-`mkdir -p /work/script/web`
+```
+mkdir -p /work/script/web
+```
 edit conf
-`vim /work/script/web/userlist.php`
+```
+vim /work/script/web/userlist.php
+```
 ```php
 <?php
 header('Content-Type: application/json');
