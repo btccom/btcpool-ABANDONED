@@ -33,11 +33,14 @@ apt-get install -y build-essential autotools-dev libtool autoconf automake pkg-c
 
 Sometimes one or two packages will fail due to dependency problems, and you can try `aptitude`.
 ```bash
+apt-get update
 apt-get install -y aptitude
+
 aptitude install build-essential autotools-dev libtool autoconf automake pkg-config cmake \
                    openssl libssl-dev libcurl4-openssl-dev libconfig++-dev \
                    libboost-all-dev libgmp-dev libmysqlclient-dev libzookeeper-mt-dev \
                    libzmq3-dev libgoogle-glog-dev libevent-dev
+
 # Input `n` if the solution is `NOT INSTALL` some package.
 # Eventually aptitude will give a solution that downgrade some packages to allow all packages to be installed.
 ```
