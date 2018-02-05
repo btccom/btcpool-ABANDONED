@@ -25,6 +25,7 @@
 #define STRATUM_H_
 
 #include "Common.h"
+#include "utilities_js.hpp"
 #include "Utils.h"
 
 #include <arpa/inet.h>
@@ -39,6 +40,8 @@
 
 #include <uint256.h>
 #include <base58.h>
+
+#include "rsk/RskWork.h"
 
 // TODO: update when next Halving
 #define BLOCK_REWARD 1250000000ll
@@ -269,6 +272,14 @@ public:
   string   nmcRpcAddr_;
   string   nmcRpcUserpass_;
 
+  // rsk merged mining
+  string   blockHashForMergedMining_;
+  string   rskdRpcAddress_;
+  string   rskdRpcUserPwd_;
+  string   feesForMiner_;
+  uint256  rskNetworkTarget_;
+  bool     isRskCleanJob_;
+
 
 public:
   StratumJob();
@@ -279,7 +290,8 @@ public:
   bool initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
                    const CTxDestination &poolPayoutAddr,
                    const uint32_t blockVersion,
-                   const string &nmcAuxBlockJson);
+                   const string &nmcAuxBlockJson,
+                   const RskWork &latestRskBlockJson);
   bool isEmptyBlock();
 };
 

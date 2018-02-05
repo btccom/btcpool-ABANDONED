@@ -37,6 +37,9 @@
 #define KAFKA_TOPIC_NMC_AUXBLOCK      KAFKA_TOPIC_PREFIX "NMCAuxBlock"
 #define KAFKA_TOPIC_NMC_SOLVED_SHARE  KAFKA_TOPIC_PREFIX "NMCSolvedShare"
 
+#define KAFKA_TOPIC_RAWGW             KAFKA_TOPIC_PREFIX "RawGw"
+#define KAFKA_TOPIC_RSK_SOLVED_SHARE  KAFKA_TOPIC_PREFIX "RskSolvedShare"
+
 
 ///////////////////////////////////////////////////////////////////////
 // librdkafka options
@@ -72,7 +75,6 @@
 // Maximum time the broker may wait to fill the response with fetch.min.bytes
 #define RDKAFKA_CONSUMER_FETCH_WAIT_MAX_MS            "10"
 #define RDKAFKA_HIGH_LEVEL_CONSUMER_FETCH_WAIT_MAX_MS "50"
-
 
 ///////////////////////////////// KafkaConsumer ////////////////////////////////
 // Simple Consumer

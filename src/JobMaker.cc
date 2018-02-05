@@ -44,12 +44,15 @@
 JobMaker::JobMaker(const string &kafkaBrokers,  uint32_t stratumJobInterval,
                    const string &payoutAddr, uint32_t gbtLifeTime,
                    uint32_t emptyGbtLifeTime, const string &fileLastJobTime,
+                   uint32_t rskNotifyPolicy,
                    uint32_t blockVersion, const string &poolCoinbaseInfo):
 running_(true),
 kafkaBrokers_(kafkaBrokers),
 kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, RD_KAFKA_PARTITION_UA/* partition */),
 kafkaRawGbtConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT,       0/* partition */),
 kafkaNmcAuxConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_NMC_AUXBLOCK, 0/* partition */),
+kafkaRawGwConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGW, 0/* partition */),
+rskNotifyPolicy_(rskNotifyPolicy),
 currBestHeight_(0), lastJobSendTime_(0),
 isLastJobEmptyBlock_(false),
 stratumJobInterval_(stratumJobInterval),
@@ -61,6 +64,8 @@ blockVersion_(blockVersion)
 	LOG(INFO) << "Block Version: " << std::hex << blockVersion_;
 	LOG(INFO) << "Coinbase Info: " << poolCoinbaseInfo_;
   LOG(INFO) << "Payout Address: " << poolPayoutAddrStr_;
+
+  RskWork::setIsCleanJob(rskNotifyPolicy != 0);
 }
 
 JobMaker::~JobMaker() {
@@ -150,6 +155,35 @@ bool JobMaker::init() {
   }
 
   //
+  // consumer RSK messages
+  //
+  {
+    map<string, string> consumerOptions;
+    consumerOptions["fetch.wait.max.ms"] = "5";
+    if (!kafkaRawGwConsumer_.setup(RD_KAFKA_OFFSET_TAIL(1), &consumerOptions)) {
+      LOG(ERROR) << "kafka consumer rawgw block setup failure";
+      return false;
+    }
+    if (!kafkaRawGwConsumer_.checkAlive()) {
+      LOG(ERROR) << "kafka consumer rawgw block is NOT alive";
+      return false;
+    }
+  }
+  sleep(1);
+
+  //
+  // consumer latest RSK get work
+  //
+  {
+    rd_kafka_message_t *rkmessage;
+    rkmessage = kafkaRawGwConsumer_.consumer(1000/* timeout ms */);
+    if (rkmessage != nullptr) {
+      consumeRawGwMsg(rkmessage);
+      rd_kafka_message_destroy(rkmessage);
+    }
+  }
+
+  //
   // consumer latest RawGbt N messages
   //
   // read latest gbtmsg from kafka
@@ -164,7 +198,7 @@ bool JobMaker::init() {
     rd_kafka_message_destroy(rkmessage);
   }
   LOG(INFO) << "consume latest rawgbt messages done";
-  checkAndSendStratumJob();
+  checkAndSendStratumJob(false);
 
   return true;
 }
@@ -212,13 +246,13 @@ void JobMaker::consumeRawGbtMsg(rd_kafka_message_t *rkmessage, bool needToSend) 
 //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
 //      << "[" << rkmessage->partition << "] "
 //      << " message queue at offset " << rkmessage->offset;
-      // acturlly 
+      // acturlly
       return;
     }
 
     LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
-    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
-    << ": " << rd_kafka_message_errstr(rkmessage);
+               << "[" << rkmessage->partition << "] offset " << rkmessage->offset
+               << ": " << rd_kafka_message_errstr(rkmessage);
 
     if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
         rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
@@ -232,7 +266,7 @@ void JobMaker::consumeRawGbtMsg(rd_kafka_message_t *rkmessage, bool needToSend) 
   addRawgbt((const char *)rkmessage->payload, rkmessage->len);
 
   if (needToSend) {
-    checkAndSendStratumJob();
+    checkAndSendStratumJob(false);
   }
 }
 
@@ -252,9 +286,133 @@ void JobMaker::runThreadConsumeNmcAuxBlock() {
   }
 }
 
+/**
+  Beginning of methods needed to consume a raw get work message and extract its info.
+  Info will then be used to create add RSK merge mining data into stratum jobs.
+
+  @author Martin Medina
+  @copyright RSK Labs Ltd.
+*/
+void JobMaker::consumeRawGwMsg(rd_kafka_message_t *rkmessage) {
+  // check error
+  if (rkmessage->err) {
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
+      // Reached the end of the topic+partition queue on the broker.
+      // Not really an error.
+      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
+      //      << "[" << rkmessage->partition << "] "
+      //      << " message queue at offset " << rkmessage->offset;
+      // acturlly
+      return;
+    }
+
+    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
+    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
+    << ": " << rd_kafka_message_errstr(rkmessage);
+
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
+        rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
+      LOG(FATAL) << "consume fatal";
+      stop();
+    }
+    return;
+  }
+
+  // set json string
+  LOG(INFO) << "received rawgw message, len: " << rkmessage->len;
+  {
+    ScopeLock sl(rskWorkAccessLock_);
+    
+    string rawGetWork = string((const char *)rkmessage->payload, rkmessage->len);
+    RskWork *rskWork = new RskWork();
+    if(rskWork->initFromGw(rawGetWork)) {
+
+      if (previousRskWork_) {
+        delete previousRskWork_;
+        previousRskWork_ = NULL;
+      }
+
+      previousRskWork_ = currentRskWork_;
+      currentRskWork_ = rskWork;
+
+      DLOG(INFO) << "currentRskBlockJson: " << rawGetWork;
+    } else {
+      delete rskWork;
+    }
+  }
+
+  if(triggerRskUpdate()) { 
+    checkAndSendStratumJob(true);
+  }
+}
+
+bool JobMaker::triggerRskUpdate() {
+  RskWork currentRskWork;
+  RskWork previousRskWork;
+  {
+    ScopeLock sl(rskWorkAccessLock_);
+    if (!previousRskWork_ || !currentRskWork_) {
+      return false;
+    }
+    currentRskWork = *currentRskWork_;
+    previousRskWork = *previousRskWork_;
+  }
+
+  bool notify_flag_update = rskNotifyPolicy_ == 1 && currentRskWork.getNotifyFlag();
+  bool different_block_hashUpdate = rskNotifyPolicy_ == 2 && 
+                                      (currentRskWork.getBlockHash() != 
+                                        previousRskWork.getBlockHash());
+
+  return notify_flag_update || different_block_hashUpdate;
+}
+
+void JobMaker::clearTimeoutGw() {
+  RskWork currentRskWork;
+  RskWork previousRskWork;
+  {
+    ScopeLock sl(rskWorkAccessLock_);
+    if (!previousRskWork_ || !currentRskWork_) {
+      return;
+    }
+
+    const uint32_t ts_now = time(nullptr);
+    currentRskWork = *currentRskWork_;
+    if(currentRskWork.getCreatedAt() + 120u < ts_now) {
+      delete currentRskWork_;
+      currentRskWork_ = NULL;
+    }
+
+    previousRskWork = *previousRskWork_;
+    if(previousRskWork.getCreatedAt() + 120u < ts_now) {
+      delete previousRskWork_;
+      previousRskWork_ = NULL;
+    }
+  }
+}
+
+void JobMaker::runThreadConsumeRawGw() {
+  const int32_t timeoutMs = 1000;
+
+  while (running_) {
+    rd_kafka_message_t *rkmessage;
+    rkmessage = kafkaRawGwConsumer_.consumer(timeoutMs);
+    if (rkmessage == nullptr) /* timeout */
+      continue;
+
+    consumeRawGwMsg(rkmessage);
+
+    /* Return message to rdkafka */
+    rd_kafka_message_destroy(rkmessage);
+  }
+}
+//// End of methods added to merge mine for RSK
+
 void JobMaker::run() {
   // start Nmc Aux Block consumer thread
   threadConsumeNmcAuxBlock_ = thread(&JobMaker::runThreadConsumeNmcAuxBlock, this);
+
+  // start Rsk RawGw consumer thread
+  threadConsumeRskRawGw_ = thread(&JobMaker::runThreadConsumeRawGw, this);
 
   const int32_t timeoutMs = 1000;
 
@@ -392,9 +550,15 @@ void JobMaker::sendStratumJob(const char *gbt) {
     latestNmcAuxBlockJson = latestNmcAuxBlockJson_;
   }
 
+  RskWork currentRskBlockJson;
+  {
+    ScopeLock sl(rskWorkAccessLock_);
+    currentRskBlockJson = *(currentRskWork_ ? currentRskWork_ : new RskWork());
+  }
+
   StratumJob sjob;
   if (!sjob.initFromGbt(gbt, poolCoinbaseInfo_, poolPayoutAddr_, blockVersion_,
-                        latestNmcAuxBlockJson)) {
+                        latestNmcAuxBlockJson, currentRskBlockJson)) {
     LOG(ERROR) << "init stratum job message from gbt str fail";
     return;
   }
@@ -427,13 +591,14 @@ bool JobMaker::isReachTimeout() {
   return false;
 }
 
-void JobMaker::checkAndSendStratumJob() {
+void JobMaker::checkAndSendStratumJob(bool isRskUpdate) {
   static uint64_t lastSendBestKey = 0;
 
   ScopeLock sl(lock_);
 
   // clean expired gbt first
   clearTimeoutGbt();
+  clearTimeoutGw();
 
   if (rawgbtMap_.size() == 0) {
     LOG(WARNING) << "RawGbt Map is empty";
@@ -458,7 +623,7 @@ void JobMaker::checkAndSendStratumJob() {
     LOG(INFO) << "--------update last empty block job--------";
   }
 
-  if (!needUpdateEmptyBlockJob && bestKey == lastSendBestKey) {
+  if (!needUpdateEmptyBlockJob && !isRskUpdate && bestKey == lastSendBestKey) {
     LOG(WARNING) << "bestKey is the same as last one: " << lastSendBestKey;
     return;
   }
@@ -472,7 +637,7 @@ void JobMaker::checkAndSendStratumJob() {
     isFindNewHeight = true;
   }
 
-  if (isFindNewHeight || needUpdateEmptyBlockJob || isReachTimeout()) {
+  if (isFindNewHeight || needUpdateEmptyBlockJob || isRskUpdate || isReachTimeout()) {
     lastSendBestKey     = bestKey;
     currBestHeight_     = bestHeight;
 

@@ -54,7 +54,7 @@ if (CHAIN_TYPE STREQUAL "BTC")
 
   add_definitions(-DCHAIN_TYPE_BTC)
   add_definitions(-DKAFKA_TOPIC_PREFIX="") # for compatibility with old deployments, let it empty.
-  add_definitions(-DZOOKEEPER_NODE_PREFIX="") # for compatibility with old deployments, let it empty.
+  add_definitions(-DZOOKEEPER_NODE_POSTFIX="") # for compatibility with old deployments, let it empty.
 
 # BitcoinCash
 elseif(CHAIN_TYPE STREQUAL "BCH")
@@ -64,7 +64,7 @@ elseif(CHAIN_TYPE STREQUAL "BCH")
 
   add_definitions(-DCHAIN_TYPE_BCH)
   add_definitions(-DKAFKA_TOPIC_PREFIX="") # for compatibility with old deployments, let it empty.
-  add_definitions(-DZOOKEEPER_NODE_PREFIX="") # for compatibility with old deployments, let it empty.
+  add_definitions(-DZOOKEEPER_NODE_POSTFIX="") # for compatibility with old deployments, let it empty.
 
 # UnitiedBitcoin
 elseif(CHAIN_TYPE STREQUAL "UBTC")
@@ -285,7 +285,7 @@ set(THIRD_LIBRARIES ${BITCOIN_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL
                     ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${ZOOKEEPER_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBEVENT_LIB}
                     ${LIBEVENT_PTHREADS_LIB} ${secp256k1_LIBRARIES} ${PTHREAD_LIBRARIES} ${MYSQL_LIB} ${GMP_LIBRARIES})
 
-file(GLOB LIB_SOURCES src/*.cc)
+file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc)
 add_library(btcpool STATIC ${LIB_SOURCES})
 
 file(GLOB_RECURSE TEST_SOURCES test/*.cc)
@@ -295,6 +295,10 @@ target_link_libraries(unittest btcpool ${THIRD_LIBRARIES})
 file(GLOB_RECURSE GBTMAKER_SOURCES src/gbtmaker/*.cc)
 add_executable(gbtmaker ${GBTMAKER_SOURCES})
 target_link_libraries(gbtmaker btcpool ${THIRD_LIBRARIES})
+
+set(GWMAKER_SOURCES src/gwmaker/GwMakerMain.cc)
+add_executable(gwmaker ${GWMAKER_SOURCES})
+target_link_libraries(gwmaker btcpool ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE NMC_AUXBLOCK_MAKER_SOURCES src/nmcauxmaker/*.cc)
 add_executable(nmcauxmaker ${NMC_AUXBLOCK_MAKER_SOURCES})

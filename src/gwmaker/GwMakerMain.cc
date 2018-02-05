@@ -1,7 +1,7 @@
 /*
  The MIT License (MIT)
 
- Copyright (c) [2016] [BTC.COM]
+ Copyright (C) 2017 RSK Labs Ltd.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -33,26 +33,25 @@
 #include <boost/interprocess/sync/file_lock.hpp>
 #include <glog/logging.h>
 #include <libconfig.h++>
-#include <event2/thread.h>
 
-#include <zmq.hpp>
+#include "zmq.hpp"
 
 #include "Utils.h"
-#include "StratumServer.h"
+#include "GwMaker.h"
 
 using namespace std;
 using namespace libconfig;
 
-StratumServer *gStratumServer = nullptr;
+GwMaker *gGwMaker = nullptr;
 
 void handler(int sig) {
-  if (gStratumServer) {
-    gStratumServer->stop();
+  if (gGwMaker) {
+    gGwMaker->stop();
   }
 }
 
 void usage() {
-  fprintf(stderr, "Usage:\n\tsserver -c \"sserver.cfg\" -l \"log_dir\"\n");
+  fprintf(stderr, "Usage:\n\tgwmaker -c \"gwmaker.cfg\" -l \"log_dir\"\n");
 }
 
 int main(int argc, char **argv) {
@@ -103,7 +102,7 @@ int main(int argc, char **argv) {
   }
 
   // lock cfg file:
-  //    you can't run more than one process with the same config file
+  // you can't run more than one process with the same config file
   boost::interprocess::file_lock pidFileLock(optConf);
   if (pidFileLock.try_lock() == false) {
     LOG(FATAL) << "lock cfg file fail";
@@ -113,68 +112,21 @@ int main(int argc, char **argv) {
   signal(SIGTERM, handler);
   signal(SIGINT,  handler);
 
+  uint32_t pollPeriod = 5;
+  cfg.lookupValue("gwmaker.poll_period", pollPeriod);
+  gGwMaker = new GwMaker(cfg.lookup("rskd.rpc_addr"),
+                           cfg.lookup("rskd.rpc_userpwd"),
+                           cfg.lookup("kafka.brokers"),
+                           pollPeriod);
+
   try {
-    // check if we are using testnet3
-    bool isTestnet3 = true;
-    cfg.lookupValue("testnet", isTestnet3);
-    if (isTestnet3) {
-      SelectParams(CBaseChainParams::TESTNET);
-      LOG(WARNING) << "using bitcoin testnet3";
+    if (!gGwMaker->init()) {
+      LOG(FATAL) << "gwmaker init failure";
     } else {
-      SelectParams(CBaseChainParams::MAIN);
+      gGwMaker->run();
     }
-
-    int32_t            port = 3333;
-    uint32_t       serverId = 0;
-    int32_t shareAvgSeconds = 10;  // default share interval time 10 seconds
-
-    cfg.lookupValue("sserver.port", port);
-    cfg.lookupValue("sserver.id", serverId);
-    if (serverId > 0xFFu || serverId == 0) {
-      LOG(FATAL) << "invalid server id, range: [1, 255]";
-      return(EXIT_FAILURE);
-    }
-    if (cfg.exists("sserver.share_avg_seconds")) {
-    	cfg.lookupValue("sserver.share_avg_seconds", shareAvgSeconds);
-    }
-
-
-    bool isEnableSimulator = false;
-    cfg.lookupValue("sserver.enable_simulator", isEnableSimulator);
-    bool isSubmitInvalidBlock = false;
-    cfg.lookupValue("sserver.enable_submit_invalid_block", isSubmitInvalidBlock);
-
-    bool isDevModeEnabled = false;
-    cfg.lookupValue("sserver.enable_dev_mode", isDevModeEnabled);
-    float minerDifficulty;
-    cfg.lookupValue("sserver.miner_difficulty", minerDifficulty);
-    
-    string fileLastMiningNotifyTime;
-    cfg.lookupValue("sserver.file_last_notify_time", fileLastMiningNotifyTime);
-
-    evthread_use_pthreads();
-
-    // new StratumServer
-    gStratumServer = new StratumServer(cfg.lookup("sserver.ip").c_str(),
-                                       (unsigned short)port,
-                                       cfg.lookup("kafka.brokers").c_str(),
-                                       cfg.lookup("users.list_id_api_url"),
-                                       serverId,
-                                       fileLastMiningNotifyTime,
-                                       isEnableSimulator,
-                                       isSubmitInvalidBlock,
-                                       isDevModeEnabled,
-                                       minerDifficulty,
-                                       shareAvgSeconds);
-
-    if (!gStratumServer->init()) {
-      LOG(FATAL) << "init failure";
-    } else {
-      gStratumServer->run();
-    }
-    delete gStratumServer;
-  }
-  catch (std::exception & e) {
+    delete gGwMaker;
+  } catch (std::exception & e) {
     LOG(FATAL) << "exception: " << e.what();
     return 1;
   }

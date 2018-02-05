@@ -33,6 +33,8 @@
 #include <hash.h>
 #include <inttypes.h>
 
+#include "rsk/RskSolvedShareData.h"
+
 #include "utilities_js.hpp"
 
 
@@ -232,10 +234,23 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   if (latestPrevBlockHash_ != sjob->prevHash_) {
     isClean = true;
     latestPrevBlockHash_ = sjob->prevHash_;
-    LOG(INFO) << "received new height statum job, height: " << sjob->height_
+    LOG(INFO) << "received new height stratum job, height: " << sjob->height_
     << ", prevhash: " << sjob->prevHash_.ToString();
   }
 
+  bool isRskClean = sjob->isRskCleanJob_;
+
+  // 
+  // The `clean_jobs` field should be `true` ONLY IF a new block found in Bitcoin blockchains.
+  // Most miner implements will never submit their previous shares if the field is `true`.
+  // There will be a huge loss of hashrates and earnings if the field is often `true`.
+  // 
+  // There is the definition from <https://slushpool.com/help/manual/stratum-protocol>:
+  // 
+  // clean_jobs - When true, server indicates that submitting shares from previous jobs
+  // don't have a sense and such shares will be rejected. When this flag is set,
+  // miner should also drop all previous jobs.
+  // 
   shared_ptr<StratumJobEx> exJob = std::make_shared<StratumJobEx>(sjob, isClean);
   {
     ScopeLock sl(lock_);
@@ -252,7 +267,7 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   }
 
   // if job has clean flag, call server to send job
-  if (isClean) {
+  if (isClean || isRskClean) {
     sendMiningNotify(exJob);
     return;
   }
@@ -739,12 +754,14 @@ StratumServer::StratumServer(const char *ip, const unsigned short port,
                              const char *kafkaBrokers, const string &userAPIUrl,
                              const uint8_t serverId, const string &fileLastNotifyTime,
                              bool isEnableSimulator, bool isSubmitInvalidBlock,
+                             bool isDevModeEnable, float minerDifficulty,
                              const int32_t shareAvgSeconds)
 :running_(true), server_(shareAvgSeconds),
 ip_(ip), port_(port), serverId_(serverId),
 fileLastNotifyTime_(fileLastNotifyTime),
 kafkaBrokers_(kafkaBrokers), userAPIUrl_(userAPIUrl),
-isEnableSimulator_(isEnableSimulator), isSubmitInvalidBlock_(isSubmitInvalidBlock)
+isEnableSimulator_(isEnableSimulator), isSubmitInvalidBlock_(isSubmitInvalidBlock),
+isDevModeEnable_(isDevModeEnable), minerDifficulty_(minerDifficulty)
 {
 }
 
@@ -754,7 +771,8 @@ StratumServer::~StratumServer() {
 bool StratumServer::init() {
   if (!server_.setup(ip_.c_str(), port_, kafkaBrokers_.c_str(),
                      userAPIUrl_, serverId_, fileLastNotifyTime_,
-                     isEnableSimulator_, isSubmitInvalidBlock_)) {
+                     isEnableSimulator_, isSubmitInvalidBlock_,
+                     isDevModeEnable_, minerDifficulty_)) {
     LOG(ERROR) << "fail to setup server";
     return false;
   }
@@ -781,12 +799,14 @@ kafkaProducerShareLog_(nullptr),
 kafkaProducerSolvedShare_(nullptr),
 kafkaProducerNamecoinSolvedShare_(nullptr),
 kafkaProducerCommonEvents_(nullptr),
+kafkaProducerRskSolvedShare_(nullptr),
 isEnableSimulator_(false), isSubmitInvalidBlock_(false),
 
 #ifndef WORK_WITH_STRATUM_SWITCHER
 sessionIDManager_(nullptr),
 #endif
 
+isDevModeEnable_(false), minerDifficulty_(1.0),
 kShareAvgSeconds_(shareAvgSeconds),
 jobRepository_(nullptr), userInfo_(nullptr)
 {
@@ -811,6 +831,9 @@ Server::~Server() {
   if (kafkaProducerNamecoinSolvedShare_ != nullptr) {
     delete kafkaProducerNamecoinSolvedShare_;
   }
+  if (kafkaProducerRskSolvedShare_ != nullptr) {
+    delete kafkaProducerRskSolvedShare_;
+  }
   if (kafkaProducerCommonEvents_ != nullptr) {
     delete kafkaProducerCommonEvents_;
   }
@@ -832,7 +855,8 @@ bool Server::setup(const char *ip, const unsigned short port,
                    const char *kafkaBrokers,
                    const string &userAPIUrl,
                    const uint8_t serverId, const string &fileLastNotifyTime,
-                   bool isEnableSimulator, bool isSubmitInvalidBlock) {
+                   bool isEnableSimulator, bool isSubmitInvalidBlock,
+                   bool isDevModeEnable, float minerDifficulty) {
   if (isEnableSimulator) {
     isEnableSimulator_ = true;
     LOG(WARNING) << "Simulator is enabled, all share will be accepted";
@@ -843,11 +867,20 @@ bool Server::setup(const char *ip, const unsigned short port,
     LOG(WARNING) << "submit invalid block is enabled, all block will be submited";
   }
 
+  if (isDevModeEnable) {
+    isDevModeEnable_ = true;
+    minerDifficulty_ = minerDifficulty;
+    LOG(INFO) << "development mode is enabled with difficulty: " << minerDifficulty;
+  }
+
   kafkaProducerSolvedShare_ = new KafkaProducer(kafkaBrokers,
                                                 KAFKA_TOPIC_SOLVED_SHARE,
                                                 RD_KAFKA_PARTITION_UA);
   kafkaProducerNamecoinSolvedShare_ = new KafkaProducer(kafkaBrokers,
                                                         KAFKA_TOPIC_NMC_SOLVED_SHARE,
+                                                        RD_KAFKA_PARTITION_UA);
+  kafkaProducerRskSolvedShare_ = new KafkaProducer(kafkaBrokers,
+                                                        KAFKA_TOPIC_RSK_SOLVED_SHARE,
                                                         RD_KAFKA_PARTITION_UA);
   kafkaProducerShareLog_ = new KafkaProducer(kafkaBrokers,
                                              KAFKA_TOPIC_SHARE_LOG,
@@ -919,6 +952,21 @@ bool Server::setup(const char *ip, const unsigned short port,
     }
     if (!kafkaProducerNamecoinSolvedShare_->checkAlive()) {
       LOG(ERROR) << "kafka kafkaProducerNamecoinSolvedShare_ is NOT alive";
+      return false;
+    }
+  }
+
+  // kafkaProducerRskSolvedShare_
+  {
+    map<string, string> options;
+    // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
+    options["queue.buffering.max.ms"] = "1";
+    if (!kafkaProducerRskSolvedShare_->setup(&options)) {
+      LOG(ERROR) << "kafka kafkaProducerRskSolvedShare_ setup failure";
+      return false;
+    }
+    if (!kafkaProducerRskSolvedShare_->checkAlive()) {
+      LOG(ERROR) << "kafka kafkaProducerRskSolvedShare_ is NOT alive";
       return false;
     }
   }
@@ -1165,6 +1213,50 @@ int Server::checkShare(const Share &share,
     << ", diff: " << TargetToDiff(blkHash)
     << ", networkDiff: " << TargetToDiff(sjob->networkTarget_)
     << ", by: " << workFullName;
+  }
+
+  //
+  // found new RSK block
+  //
+  if (!sjob->blockHashForMergedMining_.empty() &&
+      (isSubmitInvalidBlock_ == true || bnBlockHash <= UintToArith256(sjob->rskNetworkTarget_))) {
+    //
+    // build data needed to submit block to RSK
+    //
+    RskSolvedShareData shareData;
+    shareData.jobId_    = share.jobId_;
+    shareData.workerId_ = share.workerHashId_;
+    shareData.userId_   = share.userId_;
+    // height = matching bitcoin block height
+    shareData.height_   = sjob->height_;
+    snprintf(shareData.feesForMiner_, sizeof(shareData.feesForMiner_), "%s", sjob->feesForMiner_.c_str());
+    snprintf(shareData.rpcAddress_, sizeof(shareData.rpcAddress_), "%s", sjob->rskdRpcAddress_.c_str());
+    snprintf(shareData.rpcUserPwd_, sizeof(shareData.rpcUserPwd_), "%s", sjob->rskdRpcUserPwd_.c_str());
+    memcpy(shareData.header80_, (const uint8_t *)&header, sizeof(CBlockHeader));
+    snprintf(shareData.workerFullName_, sizeof(shareData.workerFullName_), "%s", workFullName.c_str());
+    
+    //
+    // send to kafka topic
+    //
+    string buf;
+    buf.resize(sizeof(RskSolvedShareData) + coinbaseBin.size());
+    uint8_t *p = (uint8_t *)buf.data();
+
+    // RskSolvedShareData
+    memcpy(p, (const uint8_t *)&shareData, sizeof(RskSolvedShareData));
+    p += sizeof(RskSolvedShareData);
+
+    // coinbase TX
+    memcpy(p, coinbaseBin.data(), coinbaseBin.size());
+
+    kafkaProducerRskSolvedShare_->produce(buf.data(), buf.size());
+
+    //
+    // log the finding
+    //
+    LOG(INFO) << ">>>> found a new RSK block: " << blkHash.ToString()
+    << ", jobId: " << share.jobId_ << ", userId: " << share.userId_
+    << ", by: " << workFullName << " <<<<";
   }
 
   //

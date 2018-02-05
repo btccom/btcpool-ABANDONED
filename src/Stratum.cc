@@ -29,7 +29,6 @@
 #include <uint256.h>
 #include <util.h>
 
-#include "utilities_js.hpp"
 #include "Utils.h"
 
 #include <glog/logging.h>
@@ -199,7 +198,7 @@ int64 findExtraNonceStart(const vector<char> &coinbaseOriTpl,
 
 //////////////////////////////////  StratumJob  ////////////////////////////////
 StratumJob::StratumJob(): jobId_(0), height_(0), nVersion_(0), nBits_(0U),
-nTime_(0U), minTime_(0U), coinbaseValue_(0), nmcAuxBits_(0u) {
+nTime_(0U), minTime_(0U), coinbaseValue_(0), nmcAuxBits_(0u), isRskCleanJob_(false) {
 }
 
 string StratumJob::serializeToJson() const {
@@ -221,6 +220,11 @@ string StratumJob::serializeToJson() const {
                          // namecoin, optional
                          ",\"nmcBlockHash\":\"%s\",\"nmcBits\":%u,\"nmcHeight\":%d"
                          ",\"nmcRpcAddr\":\"%s\",\"nmcRpcUserpass\":\"%s\""
+                         // rsk 
+                         ",\"rskBlockHashForMergedMining\":\"%s\",\"rskNetworkTarget\":\"0x%s\""
+                         ",\"rskFeesForMiner\":\"%s\""
+                         ",\"rskdRpcAddress\":\"%s\",\"rskdRpcUserPwd\":\"%s\""
+                         ",\"isRskCleanJob\":%s"
                          "}",
                          jobId_, gbtHash_.c_str(),
                          prevHash_.ToString().c_str(), prevHashBeStr_.c_str(),
@@ -234,7 +238,14 @@ string StratumJob::serializeToJson() const {
                          nmcAuxBlockHash_.ToString().c_str(),
                          nmcAuxBits_, nmcHeight_,
                          nmcRpcAddr_.size()     ? nmcRpcAddr_.c_str()     : "",
-                         nmcRpcUserpass_.size() ? nmcRpcUserpass_.c_str() : "");
+                         nmcRpcUserpass_.size() ? nmcRpcUserpass_.c_str() : "",
+                         // rsk
+                         blockHashForMergedMining_.size() ? blockHashForMergedMining_.c_str() : "",
+                         rskNetworkTarget_.GetHex().c_str(),
+                         feesForMiner_.size()             ? feesForMiner_.c_str()             : "",
+                         rskdRpcAddress_.size()           ? rskdRpcAddress_.c_str()           : "",
+                         rskdRpcUserPwd_.c_str()          ? rskdRpcUserPwd_.c_str()           : "",
+                         isRskCleanJob_ ? "true" : "false");
 }
 
 bool StratumJob::unserializeFromJson(const char *s, size_t len) {
@@ -295,6 +306,23 @@ bool StratumJob::unserializeFromJson(const char *s, size_t len) {
     BitsToTarget(nmcAuxBits_, nmcNetworkTarget_);
   }
 
+  //
+  // rsk, optional
+  //
+  if (j["rskBlockHashForMergedMining"].type()   == Utilities::JS::type::Str &&
+      j["rskNetworkTarget"].type()              == Utilities::JS::type::Str &&
+      j["rskFeesForMiner"].type()               == Utilities::JS::type::Str &&
+      j["rskdRpcAddress"].type()                == Utilities::JS::type::Str &&
+      j["rskdRpcUserPwd"].type()                == Utilities::JS::type::Str &&
+      j["isRskCleanJob"].type()                 == Utilities::JS::type::Bool) {
+    blockHashForMergedMining_ = j["rskBlockHashForMergedMining"].str();
+    rskNetworkTarget_         = uint256S(j["rskNetworkTarget"].str());
+    feesForMiner_             = j["rskFeesForMiner"].str();
+    rskdRpcAddress_           = j["rskdRpcAddress"].str();
+    rskdRpcUserPwd_           = j["rskdRpcUserPwd"].str();
+    isRskCleanJob_            = j["isRskCleanJob"].boolean();
+  }
+
   const string merkleBranchStr = j["merkleBranch"].str();
   const size_t merkleBranchCount = merkleBranchStr.length() / 64;
   merkleBranch_.resize(merkleBranchCount);
@@ -310,7 +338,8 @@ bool StratumJob::unserializeFromJson(const char *s, size_t len) {
 bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
                              const CTxDestination &poolPayoutAddr,
                              const uint32_t blockVersion,
-                             const string &nmcAuxBlockJson) {
+                             const string &nmcAuxBlockJson,
+                             const RskWork &latestRskBlockJson) {
   uint256 gbtHash = Hash(gbt, gbt + strlen(gbt));
   JsonNode r;
   if (!JsonNode::parse(gbt, gbt + strlen(gbt), r)) {
@@ -373,7 +402,6 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     makeMerkleBranch(vtxhashs, merkleBranch_);
   }
 
-
   //
   // namecoin merged mining
   //
@@ -414,6 +442,20 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
       nmcRpcUserpass_    = jNmcAux["rpc_userpass"].str();
       BitsToTarget(nmcAuxBits_, nmcNetworkTarget_);
     } while (0);
+  }
+  
+  //
+  // rsk merged mining
+  //
+  if (latestRskBlockJson.isInitialized()) {
+
+    // set rsk info
+    blockHashForMergedMining_ = latestRskBlockJson.getBlockHash();
+    rskNetworkTarget_ = uint256S(latestRskBlockJson.getTarget());
+    feesForMiner_ = latestRskBlockJson.getFees();
+    rskdRpcAddress_ = latestRskBlockJson.getRpcAddress();
+    rskdRpcUserPwd_ = latestRskBlockJson.getRpcUserPwd();
+    isRskCleanJob_ = latestRskBlockJson.getIsCleanJob();
   }
 
   // make coinbase1 & coinbase2
@@ -508,6 +550,25 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
       cbOut[1].nValue = 0;
       cbOut[1].scriptPubKey = CScript((unsigned char*)binBuf.data(),
                                       (unsigned char*)binBuf.data() + binBuf.size());
+    }
+
+    //
+    // output[2]: RSK merge mining
+    //
+    if (latestRskBlockJson.isInitialized()) {
+      DLOG(INFO) << "RSK blockhash: " << blockHashForMergedMining_;
+      string rskBlockTag = "\x52\x53\x4B\x42\x4C\x4F\x43\x4B\x3A";
+      vector<char> rskTag(rskBlockTag.begin(), rskBlockTag.end());
+      vector<char> binBuf;
+
+      Hex2Bin(blockHashForMergedMining_.c_str(), binBuf);
+
+      rskTag.insert(std::end(rskTag), std::begin(binBuf), std::end(binBuf));
+
+      cbOut.push_back(CTxOut());
+      cbOut[2].nValue = 0;
+      cbOut[2].scriptPubKey = CScript((unsigned char*)rskTag.data(),
+                                      (unsigned char*)rskTag.data() + rskTag.size());
     }
 
     CMutableTransaction cbtx;

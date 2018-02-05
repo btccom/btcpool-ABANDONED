@@ -165,16 +165,16 @@ CurlWriteChunkCallback(void *contents, size_t size, size_t nmemb, void *userp)
 }
 
 bool httpGET(const char *url, string &response, long timeoutMs) {
-  return httpPOST(url, nullptr, nullptr, response, timeoutMs);
+  return httpPOST(url, nullptr, nullptr, response, timeoutMs, nullptr);
 }
 
 bool httpGET(const char *url, const char *userpwd,
              string &response, long timeoutMs) {
-  return httpPOST(url, userpwd, nullptr, response, timeoutMs);
+  return httpPOST(url, userpwd, nullptr, response, timeoutMs, nullptr);
 }
 
-bool httpPOST(const char *url, const char *userpwd,
-              const char *postData, string &response, long timeoutMs) {
+bool httpPOST(const char *url, const char *userpwd, const char *postData,
+              string &response, long timeoutMs, const char *mineType) {
   struct curl_slist *headers = NULL;
   CURLcode status;
   long code;
@@ -187,8 +187,11 @@ bool httpPOST(const char *url, const char *userpwd,
   chunk.memory = (char *)malloc(1);  /* will be grown as needed by the realloc above */
   chunk.size   = 0;          /* no data at this point */
 
-  headers = curl_slist_append(headers, "content-type: text/plain;");
-  curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+  if (mineType != nullptr) {
+    string mineHeader = string("Content-Type: ") + string(mineType);
+    headers = curl_slist_append(headers, mineHeader.c_str());
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+  }
 
   curl_easy_setopt(curl, CURLOPT_URL, url);
 
@@ -240,7 +243,7 @@ error:
 
 bool bitcoindRpcCall(const char *url, const char *userpwd, const char *reqData,
                      string &response) {
-  return httpPOST(url, userpwd, reqData, response, 5000/* timeout ms */);
+  return httpPOST(url, userpwd, reqData, response, 5000/* timeout ms */, "application/json");
 }
 
 

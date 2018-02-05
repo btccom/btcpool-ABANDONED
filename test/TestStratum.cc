@@ -34,6 +34,8 @@
 #include <uint256.h>
 #include <util.h>
 
+#include "rsk/RskWork.h"
+
 #include <stdint.h>
 
 TEST(Stratum, jobId2Time) {
@@ -195,8 +197,9 @@ TEST(Stratum, StratumJob) {
     blockVersion = 0;
     SelectParams(CBaseChainParams::TESTNET);
     ASSERT_EQ(IsValidDestinationString("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U"), true);
+    
     CTxDestination poolPayoutAddrTestnet = DecodeDestination("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U");
-    res = sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion, "");
+    res = sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion, "", RskWork());
     ASSERT_EQ(res, true);
 
     const string jsonStr = sjob.serializeToJson();
@@ -329,8 +332,9 @@ TEST(Stratum, StratumJobWithWitnessCommitment) {
     blockVersion = 0;
     SelectParams(CBaseChainParams::TESTNET);
     ASSERT_EQ(IsValidDestinationString("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U"), true);
+
     CTxDestination poolPayoutAddrTestnet = DecodeDestination("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U");
-    res = sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion, "");
+    res = sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion, "", RskWork());
     ASSERT_EQ(res, true);
 
     const string jsonStr = sjob.serializeToJson();
@@ -458,7 +462,7 @@ TEST(Stratum, StratumJobWithSegwitPayoutAddr) {
     SelectParams(CBaseChainParams::TESTNET);
     ASSERT_EQ(IsValidDestinationString("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7"), true);
     CTxDestination poolPayoutAddrTestnet = DecodeDestination("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7");
-    res = sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion, "");
+    res = sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion, "", RskWork());
     ASSERT_EQ(res, true);
 
     const string jsonStr = sjob.serializeToJson();
