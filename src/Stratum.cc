@@ -531,41 +531,52 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
       return false;
     }
 
+    // coinbase outputs
+    vector<CTxOut> cbOut;
+
     //
     // output[0]: pool payment address
     //
-    vector<CTxOut> cbOut;
-    cbOut.push_back(CTxOut());
-    cbOut[0].scriptPubKey = GetScriptForDestination(poolPayoutAddr);
-  #ifdef CHAIN_TYPE_BCH
-    cbOut[0].nValue = Amount(coinbaseValue_);
-  #else
-    cbOut[0].nValue = coinbaseValue_;
-  #endif
+    {
+      CTxOut paymentTxOut;
+      paymentTxOut.scriptPubKey = GetScriptForDestination(poolPayoutAddr);
+
+    #ifdef CHAIN_TYPE_BCH
+      paymentTxOut.nValue = Amount(coinbaseValue_);
+    #else
+      paymentTxOut.nValue = coinbaseValue_;
+    #endif
+
+      cbOut.push_back(paymentTxOut);
+    }
 
     //
-    // output[1]: witness commitment
+    // output[1] (optional): witness commitment
     //
     if (!witnessCommitment_.empty()) {
       DLOG(INFO) << "witness commitment: " << witnessCommitment_.c_str();
       vector<char> binBuf;
       Hex2Bin(witnessCommitment_.c_str(), binBuf);
-      cbOut.push_back(CTxOut());
-      cbOut[1].scriptPubKey = CScript((unsigned char*)binBuf.data(),
+
+      CTxOut witnessTxOut;
+      witnessTxOut.scriptPubKey = CScript((unsigned char*)binBuf.data(),
                                       (unsigned char*)binBuf.data() + binBuf.size());
     #ifdef CHAIN_TYPE_BCH
-      cbOut[1].nValue = Amount(0);
+      witnessTxOut.nValue = Amount(0);
     #else
-      cbOut[1].nValue = 0;
+      witnessTxOut.nValue = 0;
     #endif
+
+      cbOut.push_back(witnessTxOut);
     }
 
     //
     // output[2]: RSK merge mining
+    // Tips: it may be output[1] if segwit not enabled in a chain (like BitcoinCash).
     //
     if (latestRskBlockJson.isInitialized()) {
       DLOG(INFO) << "RSK blockhash: " << blockHashForMergedMining_;
-      string rskBlockTag = "\x52\x53\x4B\x42\x4C\x4F\x43\x4B\x3A";
+      string rskBlockTag = "\x52\x53\x4B\x42\x4C\x4F\x43\x4B\x3A"; // "RSKBLOCK:"
       vector<char> rskTag(rskBlockTag.begin(), rskBlockTag.end());
       vector<char> binBuf;
 
@@ -573,14 +584,16 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
 
       rskTag.insert(std::end(rskTag), std::begin(binBuf), std::end(binBuf));
 
-      cbOut.push_back(CTxOut());
-      cbOut[2].scriptPubKey = CScript((unsigned char*)rskTag.data(),
+      CTxOut rskTxOut;
+      rskTxOut.scriptPubKey = CScript((unsigned char*)rskTag.data(),
                                       (unsigned char*)rskTag.data() + rskTag.size());
     #ifdef CHAIN_TYPE_BCH
-      cbOut[2].nValue = Amount(0);
+      rskTxOut.nValue = Amount(0);
     #else
-      cbOut[2].nValue = 0;
+      rskTxOut.nValue = 0;
     #endif
+
+      cbOut.push_back(rskTxOut);
     }
 
     CMutableTransaction cbtx;
