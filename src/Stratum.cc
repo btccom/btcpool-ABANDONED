@@ -536,8 +536,12 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     //
     vector<CTxOut> cbOut;
     cbOut.push_back(CTxOut());
-    cbOut[0].nValue = coinbaseValue_;
     cbOut[0].scriptPubKey = GetScriptForDestination(poolPayoutAddr);
+  #ifdef CHAIN_TYPE_BCH
+    cbOut[0].nValue = Amount(coinbaseValue_);
+  #else
+    cbOut[0].nValue = coinbaseValue_;
+  #endif
 
     //
     // output[1]: witness commitment
@@ -547,9 +551,13 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
       vector<char> binBuf;
       Hex2Bin(witnessCommitment_.c_str(), binBuf);
       cbOut.push_back(CTxOut());
-      cbOut[1].nValue = 0;
       cbOut[1].scriptPubKey = CScript((unsigned char*)binBuf.data(),
                                       (unsigned char*)binBuf.data() + binBuf.size());
+    #ifdef CHAIN_TYPE_BCH
+      cbOut[1].nValue = Amount(0);
+    #else
+      cbOut[1].nValue = 0;
+    #endif
     }
 
     //
@@ -566,9 +574,13 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
       rskTag.insert(std::end(rskTag), std::begin(binBuf), std::end(binBuf));
 
       cbOut.push_back(CTxOut());
-      cbOut[2].nValue = 0;
       cbOut[2].scriptPubKey = CScript((unsigned char*)rskTag.data(),
                                       (unsigned char*)rskTag.data() + rskTag.size());
+    #ifdef CHAIN_TYPE_BCH
+      cbOut[2].nValue = Amount(0);
+    #else
+      cbOut[2].nValue = 0;
+    #endif
     }
 
     CMutableTransaction cbtx;

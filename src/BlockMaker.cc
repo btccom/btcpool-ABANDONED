@@ -576,9 +576,15 @@ void BlockMaker::consumeSovledShare(rd_kafka_message_t *rkmessage) {
   const string blockHex = EncodeHexBlock(newblk);
   submitBlockNonBlocking(blockHex);  // using thread
 
+#ifdef CHAIN_TYPE_BCH
+  CAmount coinbaseValue = newblk.vtx[0]->GetValueOut().GetSatoshis();
+#else
+  CAmount coinbaseValue = newblk.vtx[0]->GetValueOut();
+#endif
+
   // save to DB, using thread
   saveBlockToDBNonBlocking(foundBlock, blkHeader,
-                           newblk.vtx[0]->GetValueOut(),  // coinbase value
+                           coinbaseValue,  // coinbase value
                            blockHex.length()/2);
 }
 
