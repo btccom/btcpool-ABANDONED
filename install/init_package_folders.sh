@@ -39,7 +39,7 @@ if [ ! -d "run_gwmaker" ]; then
   mkdir "run_gwmaker" && cd "run_gwmaker"
   mkdir "log_gwmaker"
   ln -s ../gwmaker .
-  cp $sourceDir/src/gwmaker/gwmaker.cfg ./gwmaker.default.cfg
+  cp $sourceDir/gwmaker/gwmaker.cfg ./gwmaker.default.cfg
   cd ..
 fi
 
