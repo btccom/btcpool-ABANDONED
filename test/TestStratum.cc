@@ -133,21 +133,39 @@ TEST(Stratum, StratumWorker) {
 }
 
 TEST(JobMaker, BitcoinAddress) {
+  // main net
   SelectParams(CBaseChainParams::MAIN);
   ASSERT_EQ(IsValidDestinationString("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"), true);
   ASSERT_EQ(IsValidDestinationString("1A1zP1eP5QGefi2DMPPfTL5SLmv7DivfNa"), false);
+
+#ifdef CHAIN_TYPE_BTC
   ASSERT_EQ(IsValidDestinationString("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"), true);
   ASSERT_EQ(IsValidDestinationString("bc1qw508c6qejxtdg4y5r3zarvary4c5xw7kv8f3t4"), false);
   ASSERT_EQ(IsValidDestinationString("bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3"), true);
   ASSERT_EQ(IsValidDestinationString("bc1qrp33g0q5c5txsp8arysrx4k6zdkfs4nde4xj0gdcccefvpysxf3qccfmv3"), false);
+#endif
 
+#ifdef CHAIN_TYPE_BCH
+  ASSERT_EQ(IsValidDestinationString("bitcoincash:qp3wjpa3tjlj042z2wv7hahsldgwhwy0rq9sywjpyy"), true);
+  ASSERT_EQ(IsValidDestinationString("bitcoincash:qp3wjpa3tjlj142z2wv7hahsldgwhwy0rq9sywjpyy"), false);
+#endif
+
+  // test net
   SelectParams(CBaseChainParams::TESTNET);
   ASSERT_EQ(IsValidDestinationString("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U"), true);
   ASSERT_EQ(IsValidDestinationString("myxopLJB19oFtNBdrADD5Z34Aw6P8o9P8U"), false);
+
+#ifdef CHAIN_TYPE_BTC
   ASSERT_EQ(IsValidDestinationString("tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx"), true);
   ASSERT_EQ(IsValidDestinationString("tb1qw508d6qejxtdg6y5r3zarvary0c5xw7kxpjzsx"), false);
   ASSERT_EQ(IsValidDestinationString("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7"), true);
   ASSERT_EQ(IsValidDestinationString("tb1qrp33g0q5c5txsp9arysrx4k6zdkgs4nce4xj0gdcccefvpysxf3q0sl5k7"), false);
+#endif
+
+#ifdef CHAIN_TYPE_BCH
+  ASSERT_EQ(IsValidDestinationString("bchtest:qr99vqygcra4umcz374pzzz7vslrgw50ts58trd220"), true);
+  ASSERT_EQ(IsValidDestinationString("bchtest:qr99vqygcra5umcz374pzzz7vslrgw50ts58trd220"), false);
+#endif
 }
 
 TEST(Stratum, StratumJob) {
@@ -240,7 +258,7 @@ TEST(Stratum, StratumJob) {
   }
 }
 
-
+#ifdef CHAIN_TYPE_BTC
 TEST(Stratum, StratumJobWithWitnessCommitment) {
   StratumJob sjob;
   string poolCoinbaseInfo = "/BTC.COM/";
@@ -368,8 +386,9 @@ TEST(Stratum, StratumJobWithWitnessCommitment) {
     ASSERT_GE(time(nullptr), jobId2Time(sjob2.jobId_));
   }
 }
+#endif
 
-
+#ifdef CHAIN_TYPE_BTC
 TEST(Stratum, StratumJobWithSegwitPayoutAddr) {
   StratumJob sjob;
   string poolCoinbaseInfo = "/BTC.COM/";
@@ -496,3 +515,4 @@ TEST(Stratum, StratumJobWithSegwitPayoutAddr) {
     ASSERT_GE(time(nullptr), jobId2Time(sjob2.jobId_));
   }
 }
+#endif
