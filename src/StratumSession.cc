@@ -35,23 +35,33 @@
 void DiffController::setMinDiff(uint64 minDiff) {
   if (minDiff < kMinDiff_) {
     minDiff = kMinDiff_;
+  } else if (minDiff > kMaxDiff_) {
+    minDiff = kMaxDiff_;
   }
+  
   minDiff_ = minDiff;
+}
+
+void DiffController::setCurDiff(uint64 curDiff) {
+  if (curDiff < kMinDiff_) {
+    curDiff = kMinDiff_;
+  } else if (curDiff > kMaxDiff_) {
+    curDiff = kMaxDiff_;
+  }
+  
+  curDiff_ = curDiff;
 }
 
 void DiffController::resetCurDiff(uint64 curDiff) {
   if (curDiff < kMinDiff_) {
     curDiff = kMinDiff_;
   }
-  if (curDiff < minDiff_) {
-    curDiff = minDiff_;
-  }
+
+  setCurDiff(curDiff);
 
   // set to zero
   sharesNum_.mapMultiply(0);
   shares_.mapMultiply(0);
-
-  curDiff_ = curDiff;
 }
 
 void DiffController::addAcceptedShare(const uint64 share) {
@@ -169,7 +179,7 @@ uint64 DiffController::_calcCurDiff() {
   if (!isFullWindow(now) && now >= startTime_ + 60 &&
       sharesCount <= (int32_t)((now - startTime_)/60.0) &&
       curDiff_ >= minDiff_*2) {
-    curDiff_ /= 2;
+    setCurDiff(curDiff_ / 2);
     sharesNum_.mapMultiply(2.0);
     return curDiff_;
   }
@@ -177,7 +187,7 @@ uint64 DiffController::_calcCurDiff() {
   // too fast
   if (sharesCount > expectedCount * kRateHigh) {
     while (sharesNum_.sum(k) > expectedCount) {
-      curDiff_ *= 2;
+      setCurDiff(curDiff_ * 2);
       sharesNum_.mapDivide(2.0);
     }
     return curDiff_;
@@ -187,7 +197,7 @@ uint64 DiffController::_calcCurDiff() {
   if (isFullWindow(now) && curDiff_ >= minDiff_*2) {
     while (sharesNum_.sum(k) < expectedCount * kRateLow &&
            curDiff_ >= minDiff_*2) {
-      curDiff_ /= 2;
+      setCurDiff(curDiff_ / 2);
       sharesNum_.mapMultiply(2.0);
     }
     assert(curDiff_ >= minDiff_);

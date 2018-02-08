@@ -67,7 +67,8 @@ class AgentSessions;
 //////////////////////////////// DiffController ////////////////////////////////
 class DiffController {
 public:
-  static const uint64 kMinDiff_       = 64;    // min diff
+  static const uint64 kMinDiff_ = 64;                     // min diff
+  static const uint64 kMaxDiff_ = 9223372036854775808ull; // max diff: 2^63
   static const time_t kDiffWindow_    = 900;   // time window, seconds, 60*N
   static const time_t kRecordSeconds_ = 10;    // every N seconds as a record
 #ifdef NDEBUG
@@ -88,6 +89,7 @@ private:
   StatsWindow<double> sharesNum_;  // share count
   StatsWindow<uint64> shares_;     // share
 
+  void setCurDiff(uint64 curDiff); // set current diff with bounds checking
   uint64 _calcCurDiff();
   int adjustHashRateLevel(const double hashRateT);
   double minerCoefficient(const time_t now, const int64_t idx);
