@@ -51,7 +51,7 @@ class StratumClient {
   string workerFullName_;
   bool isMining_;
   string   latestJobId_;
-  uint32_t latestDiff_;
+  uint64_t latestDiff_;
 
   bool tryReadLine(string &line);
   void handleLine(const string &line);
