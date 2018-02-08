@@ -186,15 +186,8 @@ uint64 DiffController::_calcCurDiff() {
 
   // too fast
   if (sharesCount > expectedCount * kRateHigh) {
-    // curDiff_ * 2 will be zero if curDiff_ >= 2^63,
-    // so give up the diff adjustment and log it.
-    if (curDiff_ >= kMaxDiff_) {
-      LOG(INFO) << "DiffController: current diff (" << curDiff_ << ") too high, reset the controller";
-      resetCurDiff(kMaxDiff_);
-      return kMaxDiff_;
-    }
-
-    while (sharesNum_.sum(k) > expectedCount) {
+    while (sharesNum_.sum(k) > expectedCount && 
+           curDiff_ < kMaxDiff_) {
       setCurDiff(curDiff_ * 2);
       sharesNum_.mapDivide(2.0);
     }
