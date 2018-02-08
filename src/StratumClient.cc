@@ -113,7 +113,7 @@ void StratumClient::handleLine(const string &line) {
       DLOG(INFO) << "latestJobId_: " << latestJobId_;
     }
     else if (jmethod.str() == "mining.set_difficulty") {
-      latestDiff_ = jparamsArr[0].uint32();
+      latestDiff_ = jparamsArr[0].uint64();
       DLOG(INFO) << "latestDiff_: " << latestDiff_;
     }
     else

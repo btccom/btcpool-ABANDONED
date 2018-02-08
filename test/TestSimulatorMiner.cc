@@ -58,8 +58,8 @@ TEST(SIMULATOR, miner) {
   string ssHost = cfg.lookup("simulator.ss_ip");
   string userName = cfg.lookup("simulator.username");
 
-  uint32_t extraNonce1 = 0u, latestDiff = 0, nTime = time(nullptr), nNonce = time(nullptr);
-  uint64_t extraNonce2 = 0ull;
+  uint32_t extraNonce1 = 0u, nTime = time(nullptr), nNonce = time(nullptr);
+  uint64_t extraNonce2 = 0ull, latestDiff = 0;
   string latestJobId;
   JsonNode jnode, jresult, jerror, jparams, jmethod;
 
@@ -122,7 +122,7 @@ TEST(SIMULATOR, miner) {
 
     ASSERT_EQ(jmethod.str(), "mining.set_difficulty");
     auto jparamsArr = jparams.array();
-    latestDiff = jparamsArr[0].uint32();
+    latestDiff = jparamsArr[0].uint64();
     LOG(INFO) << "latestDiff: " << latestDiff;
   }
 
