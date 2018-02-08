@@ -67,8 +67,16 @@ class AgentSessions;
 //////////////////////////////// DiffController ////////////////////////////////
 class DiffController {
 public:
-  static const uint64 kMinDiff_ = 64;                     // min diff
-  static const uint64 kMaxDiff_ = 9223372036854775808ull; // max diff: 2^63
+  //
+  // max diff: 2^62
+  //
+  // Cannot large than 2^62.
+  // If kMaxDiff_ be 2^63, `kMaxDiff_*2` will be zero and
+  // DiffController::_calcCurDiff() will infinite loop.
+  static const uint64 kMaxDiff_ = 4611686018427387904ull;
+  // min diff
+  static const uint64 kMinDiff_ = 64;
+
   static const time_t kDiffWindow_    = 900;   // time window, seconds, 60*N
   static const time_t kRecordSeconds_ = 10;    // every N seconds as a record
 #ifdef NDEBUG
