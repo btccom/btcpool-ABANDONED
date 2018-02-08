@@ -71,7 +71,8 @@ public:
   // max diff: 2^62
   //
   // Cannot large than 2^62.
-  // If kMaxDiff_ be 2^63, `kMaxDiff_*2` will be zero and
+  // If `kMaxDiff_` be 2^63, user can set `minDiff_` equals 2^63,
+  // then `minDiff_*2` will be zero when next difficulty decrease and
   // DiffController::_calcCurDiff() will infinite loop.
   static const uint64 kMaxDiff_ = 4611686018427387904ull;
   // min diff
