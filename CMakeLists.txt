@@ -21,9 +21,9 @@ message("-- Build Type: ${CMAKE_BUILD_TYPE} (-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TY
 IF(CMAKE_BUILD_TYPE MATCHES Debug)
   set(CMAKE_CXX_FLAGS "-g -O0 -Wall")
 ELSEIF(CMAKE_BUILD_TYPE MATCHES Release)
-  set(CMAKE_CXX_FLAGS "-O2 -Wall")
+  set(CMAKE_CXX_FLAGS "-g -O2 -Wall")
 ELSE()
-  set(CMAKE_CXX_FLAGS "-Wall")
+  set(CMAKE_CXX_FLAGS "-g -Wall")
 ENDIF()
 
 # compiler options
@@ -275,6 +275,14 @@ if(NOT MYSQL_INCLUDE)
   message(FATAL_ERROR "MySQL header not found!")
 endif()
 
+###################################### Building Tools ######################################
+
+# Find binutils
+message("-- CMAKE_OBJCOPY: ${CMAKE_OBJCOPY}")
+if(NOT CMAKE_OBJCOPY)
+  message("-- CMAKE_OBJCOPY not found, debug info will not separated from targets")
+  mark_as_advanced(CMAKE_OBJCOPY)
+endif()
 
 ###################################### Targets ######################################
 
@@ -345,55 +353,88 @@ message("------------------------------- Install & Package ---------------------
 # `make install` support
 ###
 
+# targets
+set(INSTALL_TARGETS
+        blkmaker
+        gbtmaker
+        gwmaker
+        jobmaker
+        nmcauxmaker
+        poolwatcher
+        sharelogger
+        simulator
+        slparser
+        sserver
+        statshttpd)
+
+# testcase
+set(INSTALL_TEST_TARGETS
+        unittest)
+
+# tmp dir for install & packet
 set(PACKAGE_TMP_DIR ${CMAKE_BINARY_DIR}/package_tmp)
 
 # init folders & copy configure files
-install(CODE "execute_process(WORKING_DIRECTORY ${CMAKE_BINARY_DIR} COMMAND bash ${CMAKE_SOURCE_DIR}/install/init_package_folders.sh)")
+install(CODE "execute_process(WORKING_DIRECTORY ${CMAKE_BINARY_DIR} COMMAND bash ${CMAKE_SOURCE_DIR}/install/init_package_folders.sh)"
+        COMPONENT main)
+
+# separate debug info from targets
+if(CMAKE_OBJCOPY)
+  foreach(tgt ${INSTALL_TARGETS} ${INSTALL_TEST_TARGETS})
+    add_custom_command(TARGET ${tgt} POST_BUILD
+      COMMAND ${CMAKE_OBJCOPY} --only-keep-debug $<TARGET_FILE:${tgt}> $<TARGET_FILE:${tgt}>.dbg
+      COMMAND ${CMAKE_OBJCOPY} --strip-debug $<TARGET_FILE:${tgt}>
+      COMMAND ${CMAKE_OBJCOPY} --add-gnu-debuglink=$<TARGET_FILE:${tgt}>.dbg $<TARGET_FILE:${tgt}>)
+  endforeach()
+endif()
 
 # install targets , dirs & files
-install(TARGETS
-            blkmaker
-            gbtmaker
-            gwmaker
-            jobmaker
-            nmcauxmaker
-            poolwatcher
-            sharelogger
-            simulator
-            slparser
-            sserver
-            statshttpd
-            unittest
-        DESTINATION
-            ${POOL__INSTALL_PREFIX}/build)
+foreach(tgt ${INSTALL_TARGETS})
+  # binary
+  install(PROGRAMS     ${CMAKE_BINARY_DIR}/${tgt}
+          COMPONENT   main
+          DESTINATION ${POOL__INSTALL_PREFIX}/build)
+  # running dir
+  install(DIRECTORY   ${PACKAGE_TMP_DIR}/run_${tgt}
+          COMPONENT   main
+          DESTINATION ${POOL__INSTALL_PREFIX}/build)
+endforeach()
 
+# test targets
+foreach(tgt ${INSTALL_TEST_TARGETS})
+  # binary
+  install(PROGRAMS     ${CMAKE_BINARY_DIR}/${tgt}
+          COMPONENT   main
+          DESTINATION ${POOL__INSTALL_PREFIX}/build)
+endforeach()
+
+# documents
 install(FILES
             LICENSE
             README.md
+        COMPONENT
+            main
         DESTINATION
             ${POOL__INSTALL_PREFIX})
 
+# document dirss
 install(DIRECTORY
             docs
             install
             docker
+        COMPONENT
+            main
         DESTINATION
             ${POOL__INSTALL_PREFIX})
 
-install(DIRECTORY
-            ${PACKAGE_TMP_DIR}/run_blkmaker
-            ${PACKAGE_TMP_DIR}/run_gbtmaker
-            ${PACKAGE_TMP_DIR}/run_gwmaker
-            ${PACKAGE_TMP_DIR}/run_jobmaker
-            ${PACKAGE_TMP_DIR}/run_nmcauxmaker
-            ${PACKAGE_TMP_DIR}/run_poolwatcher
-            ${PACKAGE_TMP_DIR}/run_sharelogger
-            ${PACKAGE_TMP_DIR}/run_simulator
-            ${PACKAGE_TMP_DIR}/run_slparser
-            ${PACKAGE_TMP_DIR}/run_sserver
-            ${PACKAGE_TMP_DIR}/run_statshttpd
-        DESTINATION
-            ${POOL__INSTALL_PREFIX}/build)
+# install debug info
+if(CMAKE_OBJCOPY)
+  foreach(tgt ${INSTALL_TARGETS} ${INSTALL_TEST_TARGETS})
+    install(FILES       ${CMAKE_BINARY_DIR}/${tgt}.dbg
+            COMPONENT   debug
+            DESTINATION ${POOL__INSTALL_PREFIX}/build)
+  endforeach()
+endif()
 
 # generate deb package by CPack
 if(POOL__GENERATE_DEB_PACKAGE)
@@ -403,7 +444,13 @@ if(POOL__GENERATE_DEB_PACKAGE)
 
   message("-- Package Name: ${CPACK_PACKAGE_NAME}")
 
-  # the dependencies
+  # components
+  set(CPACK_DEB_COMPONENT_INSTALL ON)
+  set(CPACK_DEB_USE_DISPLAY_NAME_IN_FILENAME ON)
+  set(CPACK_DEBIAN_MAIN_PACKAGE_NAME ${CPACK_PACKAGE_NAME})
+  set(CPACK_DEBIAN_DEBUG_PACKAGE_NAME ${CPACK_PACKAGE_NAME}-dbg)
+
+  # dependencies
   set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
   set(CPACK_DEBIAN_PACKAGE_DEPENDS "librdkafka1 (>= 0.9.1-1)")
 
