@@ -354,6 +354,7 @@ install(CODE "execute_process(WORKING_DIRECTORY ${CMAKE_BINARY_DIR} COMMAND bash
 install(TARGETS
             blkmaker
             gbtmaker
+            gwmaker
             jobmaker
             nmcauxmaker
             poolwatcher
@@ -382,6 +383,7 @@ install(DIRECTORY
 install(DIRECTORY
             ${PACKAGE_TMP_DIR}/run_blkmaker
             ${PACKAGE_TMP_DIR}/run_gbtmaker
+            ${PACKAGE_TMP_DIR}/run_gwmaker
             ${PACKAGE_TMP_DIR}/run_jobmaker
             ${PACKAGE_TMP_DIR}/run_nmcauxmaker
             ${PACKAGE_TMP_DIR}/run_poolwatcher
