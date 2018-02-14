@@ -233,7 +233,7 @@ protected:
 class StratumJobEth : public StratumJobEx {
 protected:
   virtual void makeMiningNotifyStr();
-}
+};
 
 ///////////////////////////////////// Server ///////////////////////////////////
 class Server {

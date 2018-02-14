@@ -1353,7 +1353,7 @@ void StratumJobEth::makeMiningNotifyStr() {
                                    ",\"%08x\",\"%08x\",\"%08x\",%s"
                                    "]}\n",
                                    sjob_->coinbase2_.c_str(),
-                                   merkleBranchStr.c_str(),
+                                   0,
                                    sjob_->nVersion_, sjob_->nBits_, sjob_->nTime_,
                                    isClean_ ? "true" : "false");
   // always set clean to true, reset of them is the same with miningNotify2_
@@ -1362,5 +1362,6 @@ void StratumJobEth::makeMiningNotifyStr() {
                                    ",\"%08x\",\"%08x\",\"%08x\",true"
                                    "]}\n",
                                    sjob_->coinbase2_.c_str(),
-                                   merkleBranchStr.c_str(),
+                                   0,
+                                  sjob_->nVersion_, sjob_->nBits_, sjob_->nTime_);
 }
