@@ -195,9 +195,6 @@ public:
 class StratumJobEx {
   // 0: MINING, 1: STALE
   atomic<int32_t> state_;
-
-  void makeMiningNotifyStr();
-
   void generateCoinbaseTx(std::vector<char> *coinbaseBin,
                           const uint32_t extraNonce1,
                           const string &extraNonce2Hex,
@@ -228,8 +225,15 @@ public:
                            const uint32_t nBits, const int32_t nVersion,
                            const uint32_t nTime, const uint32_t nonce,
                            string *userCoinbaseInfo = nullptr);
+
+protected:
+  virtual void makeMiningNotifyStr();
 };
 
+class StratumJobEth : public StratumJobEx {
+protected:
+  virtual void makeMiningNotifyStr();
+}
 
 ///////////////////////////////////// Server ///////////////////////////////////
 class Server {

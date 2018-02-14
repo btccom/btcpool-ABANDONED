@@ -1336,3 +1336,31 @@ void Server::sendSolvedShare2Kafka(const FoundBlock *foundBlock,
 void Server::sendCommonEvents2Kafka(const string &message) {
   kafkaProducerCommonEvents_->produce(message.data(), message.size());
 }
+
+////////////////////////////////// StratumJobEth ///////////////////////////////
+void StratumJobEth::makeMiningNotifyStr() {
+  miningNotify1_ = "{\"id\":null,\"method\":\"mining.notify\",\"params\":[\"";
+
+  miningNotify2_ = Strings::Format("\",\"%s\",\"",
+                                   sjob_->prevHashBeStr_.c_str());
+
+  // coinbase1_ may be modified when USER_DEFINED_COINBASE enabled,
+  // so put it into a single variable.
+  coinbase1_ = sjob_->coinbase1_.c_str();
+
+  miningNotify3_ = Strings::Format("\",\"%s\""
+                                   ",[%s]"
+                                   ",\"%08x\",\"%08x\",\"%08x\",%s"
+                                   "]}\n",
+                                   sjob_->coinbase2_.c_str(),
+                                   merkleBranchStr.c_str(),
+                                   sjob_->nVersion_, sjob_->nBits_, sjob_->nTime_,
+                                   isClean_ ? "true" : "false");
+  // always set clean to true, reset of them is the same with miningNotify2_
+  miningNotify3Clean_ = Strings::Format("\",\"%s\""
+                                   ",[%s]"
+                                   ",\"%08x\",\"%08x\",\"%08x\",true"
+                                   "]}\n",
+                                   sjob_->coinbase2_.c_str(),
+                                   merkleBranchStr.c_str(),
+}
