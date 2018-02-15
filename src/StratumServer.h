@@ -57,6 +57,12 @@ class StratumJobEx;
 // DO NOT CHANGE
 #define MAX_SESSION_INDEX_SERVER   0x00FFFFFEu   // 16777214
 
+enum StratumServerType
+{
+  BTC = 1,
+  ETH
+};
+
 // thread-safe
 class SessionIDManager {
   //
@@ -105,6 +111,7 @@ class JobRepository {
   uint256 latestPrevBlockHash_;
 
   thread threadConsume_;
+  StratumServerType serverType_; 
   void runThreadConsume();
 
   void consumeStratumJob(rd_kafka_message_t *rkmessage);
@@ -112,6 +119,7 @@ class JobRepository {
   void tryCleanExpiredJobs();
   void checkAndSendMiningNotify();
 
+  StratumJobEx* createStratumJob(StratumServerType type, StratumJob *sjob, bool isClean);
 public:
   JobRepository(const char *kafkaBrokers, const string &fileLastNotifyTime,
                 Server *server);
@@ -248,6 +256,9 @@ struct MiningNotify {
 };
 
 MiningNotify miningNotify_;
+
+public:
+  StratumJobEth(StratumJob *sjob, bool isClean) : StratumJobEx(sjob, isClean) {}
 
 protected:
   virtual void makeMiningNotifyStr();

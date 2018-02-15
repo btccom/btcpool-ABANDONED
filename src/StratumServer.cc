@@ -101,7 +101,8 @@ kafkaConsumer_(kafkaBrokers, KAFKA_TOPIC_STRATUM_JOB, 0/*patition*/),
 server_(server), fileLastNotifyTime_(fileLastNotifyTime),
 kMaxJobsLifeTime_(300),
 kMiningNotifyInterval_(30),  // TODO: make as config arg
-lastJobSendTime_(0)
+lastJobSendTime_(0),
+serverType_(ETH) // TODO: make as config arg
 {
   assert(kMiningNotifyInterval_ < kMaxJobsLifeTime_);
 }
@@ -251,7 +252,7 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   // don't have a sense and such shares will be rejected. When this flag is set,
   // miner should also drop all previous jobs.
   // 
-  shared_ptr<StratumJobEx> exJob = std::make_shared<StratumJobEx>(sjob, isClean);
+  shared_ptr<StratumJobEx> exJob(createStratumJob(serverType_, sjob, isClean));
   {
     ScopeLock sl(lock_);
 
@@ -286,6 +287,23 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
       sendMiningNotify(exJob);
     }
   }
+}
+
+StratumJobEx* JobRepository::createStratumJob(StratumServerType type, StratumJob *sjob, bool isClean){
+  StratumJobEx* job = NULL;
+
+  switch (type) {
+    case BTC: {
+      job = new StratumJobEx(sjob, isClean);
+      break;
+    }
+    case ETH: {
+      job = new StratumJobEth(sjob, isClean);
+      break;
+    }
+  }
+
+  return job;
 }
 
 void JobRepository::markAllJobsAsStale() {
