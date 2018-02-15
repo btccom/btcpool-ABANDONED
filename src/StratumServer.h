@@ -187,7 +187,6 @@ public:
                  const string &workerName, const string &minerAgent);
 };
 
-
 ////////////////////////////////// StratumJobEx ////////////////////////////////
 //
 // StratumJobEx is use to wrap StratumJob
@@ -231,6 +230,25 @@ protected:
 };
 
 class StratumJobEth : public StratumJobEx {
+// First parameter of params array is job ID (must be HEX number of any
+// size). Second parameter is seedhash. Seedhash is sent with every job to
+// support possible multipools, which may switch between coins quickly.
+// Third parameter is headerhash. Last parameter is boolean cleanjobs.
+// If set to true, then miner needs to clear queue of jobs and immediatelly
+// start working on new provided job, because all old jobs shares will
+// result with stale share error.
+// Miner uses seedhash to identify DAG, then tries to find share below
+// target (which is created out of provided difficulty) with headerhash,
+// extranonce and own minernonce.
+struct MiningNotify {
+  string jobId;
+  string seedhash;
+  string headerhash;
+  bool cleanjobs;
+};
+
+MiningNotify miningNotify_;
+
 protected:
   virtual void makeMiningNotifyStr();
 };
