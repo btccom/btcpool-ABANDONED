@@ -85,6 +85,8 @@ const char * StratumError::toString(int err) {
       return "Time too old";
     case TIME_TOO_NEW:
       return "Time too new";
+    case ILLEGAL_VERMASK:
+      return "Invalid version mask";
 
     case UNKNOWN: default:
       return "Unknown";

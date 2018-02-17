@@ -32,31 +32,36 @@
 
 TEST(StratumSession, LocalShare) {
   StratumSession::LocalShare ls1(0xFFFFFFFFFFFFFFFFULL,
-                                 0xFFFFFFFFU, 0xFFFFFFFFU);
+                                 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU);
 
   {
     StratumSession::LocalShare ls2(0xFFFFFFFFFFFFFFFEULL,
-                                   0xFFFFFFFFU, 0xFFFFFFFFU);
+                                   0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU);
     ASSERT_EQ(ls2 < ls1, true);
   }
   {
     StratumSession::LocalShare ls2(0xFFFFFFFFFFFFFFFFULL,
-                                   0xFFFFFFFEU, 0xFFFFFFFFU);
+                                   0xFFFFFFFEU, 0xFFFFFFFFU, 0xFFFFFFFFU);
     ASSERT_EQ(ls2 < ls1, true);
   }
   {
     StratumSession::LocalShare ls2(0xFFFFFFFFFFFFFFFFULL,
-                                   0xFFFFFFFFU, 0xFFFFFFFEU);
+                                   0xFFFFFFFFU, 0xFFFFFFFEU, 0xFFFFFFFFU);
     ASSERT_EQ(ls2 < ls1, true);
   }
   {
     StratumSession::LocalShare ls2(0xFFFFFFFFFFFFFFFFULL,
-                                   0xFFFFFFFFU, 0xFFFFFFFFU);
+                                   0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFEU);
+    ASSERT_EQ(ls2 < ls1, true);
+  }
+  {
+    StratumSession::LocalShare ls2(0xFFFFFFFFFFFFFFFFULL,
+                                   0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU);
     ASSERT_EQ(ls2 < ls1, false);
     ASSERT_EQ(ls2 < ls2, false);
   }
   {
-    StratumSession::LocalShare ls2(0x0ULL, 0x0U, 0x0U);
+    StratumSession::LocalShare ls2(0x0ULL, 0x0U, 0x0U, 0x0u);
     ls2 = ls1;
     ASSERT_EQ(ls2 < ls1, false);
     ASSERT_EQ(ls2 < ls2, false);
@@ -69,20 +74,20 @@ TEST(StratumSession, LocalJob) {
 
   {
     StratumSession::LocalShare ls1(0xFFFFFFFFFFFFFFFFULL,
-                                   0xFFFFFFFFU, 0xFFFFFFFFU);
+                                   0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU);
     ASSERT_EQ(lj.addLocalShare(ls1), true);
   }
   {
     StratumSession::LocalShare ls1(0xFFFFFFFFFFFFFFFFULL,
-                                   0xFFFFFFFFU, 0xFFFFFFFFU);
+                                   0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU);
     ASSERT_EQ(lj.addLocalShare(ls1), false);
   }
   {
-    StratumSession::LocalShare ls2(0x0ULL, 0x0U, 0x0U);
+    StratumSession::LocalShare ls2(0x0ULL, 0x0U, 0x0U, 0x0u);
     ASSERT_EQ(lj.addLocalShare(ls2), true);
   }
   {
-    StratumSession::LocalShare ls2(0x0ULL, 0x0U, 0x0U);
+    StratumSession::LocalShare ls2(0x0ULL, 0x0U, 0x0U, 0x0u);
     ASSERT_EQ(lj.addLocalShare(ls2), false);
   }
 }

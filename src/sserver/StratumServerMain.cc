@@ -127,6 +127,7 @@ int main(int argc, char **argv) {
     int32_t            port = 3333;
     uint32_t       serverId = 0;
     int32_t shareAvgSeconds = 10;  // default share interval time 10 seconds
+    uint32_t    versionMask = 0u;  // block version mask
 
     cfg.lookupValue("sserver.port", port);
     cfg.lookupValue("sserver.id", serverId);
@@ -137,7 +138,9 @@ int main(int argc, char **argv) {
     if (cfg.exists("sserver.share_avg_seconds")) {
     	cfg.lookupValue("sserver.share_avg_seconds", shareAvgSeconds);
     }
-
+    if (cfg.exists("sserver.version_mask")) {
+      cfg.lookupValue("sserver.version_mask", versionMask);
+    }
 
     bool isEnableSimulator = false;
     cfg.lookupValue("sserver.enable_simulator", isEnableSimulator);
@@ -153,7 +156,7 @@ int main(int argc, char **argv) {
                                        (unsigned short)port,
                                        cfg.lookup("kafka.brokers").c_str(),
                                        cfg.lookup("users.list_id_api_url"),
-                                       serverId,
+                                       serverId, versionMask,
                                        fileLastMiningNotifyTime,
                                        isEnableSimulator,
                                        isSubmitInvalidBlock,
