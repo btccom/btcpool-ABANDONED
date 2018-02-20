@@ -1357,6 +1357,12 @@ void Server::sendCommonEvents2Kafka(const string &message) {
 
 ////////////////////////////////// StratumJobEth ///////////////////////////////
 void StratumJobEth::makeMiningNotifyStr() {
+//  def get_seedhash(block):
+//      s = '\x00' * 32
+//      for i in range(block.number // EPOCH_LENGTH):
+//          s = serialize_hash(sha3_256(s))
+//      return s
+
   miningNotify_.seedhash = sjob_->prevHashBeStr_.c_str();
   miningNotify_.headerhash = sjob_->prevHashBeStr_.c_str();
   miningNotify_.cleanjobs = false;
