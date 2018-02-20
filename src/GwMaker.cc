@@ -84,8 +84,12 @@ void GwMaker::kafkaProduceMsg(const void *payload, size_t len) {
   kafkaProducer_.produce(payload, len);
 }
 
+string GwMaker::constructRequest() {
+  return "{\"jsonrpc\": \"2.0\", \"method\": \"mnr_getWork\", \"params\": [], \"id\": 1}";
+}
+
 bool GwMaker::rskdRpcGw(string &response) {
-  string request = "{\"jsonrpc\": \"2.0\", \"method\": \"mnr_getWork\", \"params\": [], \"id\": 1}";
+  string request = constructRequest();
 
   bool res = bitcoindRpcCall(rskdRpcAddr_.c_str(), rskdRpcUserpass_.c_str(), request.c_str(), response);
 
@@ -167,7 +171,11 @@ void GwMaker::run() {
 }
 
 GwMakerEth::GwMakerEth(const string &rskdRpcAddr, const string &rskdRpcUserpass,
-           const string &kafkaBrokers, uint32_t kRpcCallInterval) : 
-           GwMaker(rskdRpcAddr, rskdRpcUserpass, kafkaBrokers, kRpcCallInterval) {
+                       const string &kafkaBrokers, uint32_t kRpcCallInterval) : GwMaker(rskdRpcAddr, rskdRpcUserpass, kafkaBrokers, kRpcCallInterval)
+{
+}
 
-           }
+string GwMakerEth::constructRequest()
+{
+  return "{\"jsonrpc\": \"2.0\", \"method\": \"eth_getWork\", \"params\": [], \"id\": 1}";
+}

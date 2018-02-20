@@ -53,11 +53,11 @@ class GwMaker {
   void submitRawGwMsg();
 
   void kafkaProduceMsg(const void *payload, size_t len);
-
+  virtual string constructRequest();
 public:
   GwMaker(const string &rskdRpcAddr, const string &rskdRpcUserpass,
            const string &kafkaBrokers, uint32_t kRpcCallInterval);
-  ~GwMaker();
+  virtual ~GwMaker();
 
   bool init();
   void stop();
@@ -65,6 +65,7 @@ public:
 };
 
 class GwMakerEth : public GwMaker {
+  virtual string constructRequest();
 public:
   GwMakerEth(const string &rskdRpcAddr, const string &rskdRpcUserpass,
            const string &kafkaBrokers, uint32_t kRpcCallInterval);

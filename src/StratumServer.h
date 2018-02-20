@@ -218,7 +218,7 @@ public:
 
 public:
   StratumJobEx(StratumJob *sjob, bool isClean);
-  ~StratumJobEx();
+  virtual ~StratumJobEx();
 
   void markStale();
   bool isStale();
