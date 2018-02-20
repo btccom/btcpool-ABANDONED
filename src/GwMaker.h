@@ -64,4 +64,10 @@ public:
   void run();
 };
 
+class GwMakerEth : public GwMaker {
+public:
+  GwMakerEth(const string &rskdRpcAddr, const string &rskdRpcUserpass,
+           const string &kafkaBrokers, uint32_t kRpcCallInterval);
+};
+
 #endif

@@ -165,3 +165,9 @@ void GwMaker::run() {
     submitRawGwMsg();
   }
 }
+
+GwMakerEth::GwMakerEth(const string &rskdRpcAddr, const string &rskdRpcUserpass,
+           const string &kafkaBrokers, uint32_t kRpcCallInterval) : 
+           GwMaker(rskdRpcAddr, rskdRpcUserpass, kafkaBrokers, kRpcCallInterval) {
+
+           }

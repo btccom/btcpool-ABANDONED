@@ -54,6 +54,26 @@ void usage() {
   fprintf(stderr, "Usage:\n\tgwmaker -c \"gwmaker.cfg\" -l \"log_dir\"\n");
 }
 
+GwMaker* createGwMaker (Config &cfg) {
+  GwMaker* gGwMaker = NULL;
+  uint32_t pollPeriod = 5;
+  cfg.lookupValue("gwmaker.poll_period", pollPeriod);
+  string type = cfg.lookup("rskd.type");
+  if ("BTC" == type) {
+    gGwMaker = new GwMaker(cfg.lookup("rskd.rpc_addr"),
+                           cfg.lookup("rskd.rpc_userpwd"),
+                           cfg.lookup("kafka.brokers"),
+                           pollPeriod);
+  } else if ("ETH" == type) {
+    gGwMaker = new GwMakerEth(cfg.lookup("rskd.rpc_addr"),
+                           cfg.lookup("rskd.rpc_userpwd"),
+                           cfg.lookup("kafka.brokers"),
+                           pollPeriod);
+  }
+
+  return gGwMaker;
+}
+
 int main(int argc, char **argv) {
   char *optLogDir = NULL;
   char *optConf   = NULL;
@@ -112,12 +132,7 @@ int main(int argc, char **argv) {
   signal(SIGTERM, handler);
   signal(SIGINT,  handler);
 
-  uint32_t pollPeriod = 5;
-  cfg.lookupValue("gwmaker.poll_period", pollPeriod);
-  gGwMaker = new GwMaker(cfg.lookup("rskd.rpc_addr"),
-                           cfg.lookup("rskd.rpc_userpwd"),
-                           cfg.lookup("kafka.brokers"),
-                           pollPeriod);
+  gGwMaker = createGwMaker(cfg);
 
   try {
     if (!gGwMaker->init()) {
