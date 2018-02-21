@@ -146,13 +146,16 @@ string GwMaker::makeRawGwMsg() {
     return "";
   }
 
-  LOG(ERROR) << "getwork return: " << gw;
+  LOG(INFO) << "getwork return: " << gw;
 
   JsonNode r;
   if (!JsonNode::parse(gw.c_str(), gw.c_str() + gw.length(), r)) {
     LOG(ERROR) << "decode gw failure: " << gw;
     return "";
   }
+
+  //LOG(INFO) << "result type: " << (int)r["result"].type();
+  //LOG(INFO) << "parse result: " << r["result"].str();
 
   // check fields
   if (!checkFields(r)) {
@@ -216,9 +219,9 @@ bool GwMakerEth::checkFields(JsonNode &r) {
 //     }
 // }
 
-  if (r["result"].type()                                != Utilities::JS::type::Obj ||
-      r["result"]["result"].type()                      != Utilities::JS::type::Array ||
-      r["result"]["result"].array().size() != 3) {
+  if (r.type()                                != Utilities::JS::type::Obj ||
+      r["result"].type()                      != Utilities::JS::type::Array ||
+      r["result"].array().size() != 3) {
     LOG(ERROR) << "getwork error: " << r.str();
     return false;
   }
@@ -229,10 +232,9 @@ bool GwMakerEth::checkFields(JsonNode &r) {
 string GwMakerEth::constructRawMsg(string &gw, JsonNode &r) {
   const uint256 gwHash = Hash(gw.begin(), gw.end());
 
-  LOG(INFO) << ", getwork result: "    << r["result"]["result"].str()
-  << ", gwhash: " << gwHash.ToString();
+  LOG(INFO) << "gwhash: " << gwHash.ToString();
 
-  auto result = r["result"]["result"].array();
+  auto result = r["result"].array();
   return Strings::Format("{\"created_at_ts\":%u,"
                          "\"rskdRpcAddress\":\"%s\","
                          "\"rskdRpcUserPwd\":\"%s\","
