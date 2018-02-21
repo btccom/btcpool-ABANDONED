@@ -671,3 +671,15 @@ uint32_t JobMaker::gbtKeyGetHeight(uint64_t gbtKey) {
 bool JobMaker::gbtKeyIsEmptyBlock(uint64_t gbtKey) {
   return !((bool)(gbtKey & 1ULL));
 }
+
+////////////////////////////////JobMakerEth//////////////////////////////////
+JobMakerEth::JobMakerEth(const string &kafkaBrokers, uint32_t stratumJobInterval,
+                         const string &payoutAddr, const string &fileLastJobTime,
+                         uint32_t rskNotifyPolicy, uint32_t blockVersion,
+                         const string &poolCoinbaseInfo) : 
+                         JobMaker(kafkaBrokers, stratumJobInterval,
+                         payoutAddr, 0, 0, fileLastJobTime,
+                         rskNotifyPolicy, blockVersion,
+                         poolCoinbaseInfo)
+{
+}

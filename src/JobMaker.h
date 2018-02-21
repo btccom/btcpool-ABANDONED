@@ -102,11 +102,19 @@ public:
            uint32_t emptyGbtLifeTime, const string &fileLastJobTime,
            uint32_t rskNotifyPolicy, uint32_t blockVersion,
 					const string &poolCoinbaseInfo);
-  ~JobMaker();
+  virtual ~JobMaker();
 
   bool init();
   void stop();
   void run();
 };
 
+class JobMakerEth : public JobMaker
+{
+public:
+  JobMakerEth(const string &kafkaBrokers, uint32_t stratumJobInterval,
+              const string &payoutAddr, const string &fileLastJobTime,
+              uint32_t rskNotifyPolicy, uint32_t blockVersion,
+              const string &poolCoinbaseInfo);
+};
 #endif

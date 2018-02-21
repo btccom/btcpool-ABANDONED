@@ -63,6 +63,44 @@ void usage() {
   fprintf(stderr, "Usage:\n\tjobmaker -c \"jobmaker.cfg\" -l \"log_dir\"\n");
 }
 
+JobMaker *createJobMaker(const Config &cfg)
+{
+  JobMaker *gJobMaker = NULL;
+
+  string fileLastJobTime;
+  string poolCoinbaseInfo;
+  // with default values
+  uint32_t stratumJobInterval = 20; // seconds
+  uint32_t gbtLifeTime = 90;
+  uint32_t emptyGbtLifeTime = 15;
+  uint32_t rskNotifyPolicy = 0u;
+  uint32_t blockVersion = 0u;
+
+  cfg.lookupValue("jobmaker.stratum_job_interval", stratumJobInterval);
+  cfg.lookupValue("jobmaker.gbt_life_time", gbtLifeTime);
+  cfg.lookupValue("jobmaker.empty_gbt_life_time", emptyGbtLifeTime);
+  cfg.lookupValue("jobmaker.file_last_job_time", fileLastJobTime);
+  cfg.lookupValue("jobmaker.block_version", blockVersion);
+  cfg.lookupValue("pool.coinbase_info", poolCoinbaseInfo);
+  cfg.lookupValue("jobmaker.rsk_notify_policy", rskNotifyPolicy);
+  string type = cfg.lookup("jobmaker.type");
+
+  if ("BTC" == type)
+  {
+    gJobMaker = new JobMaker(cfg.lookup("kafka.brokers"), stratumJobInterval,
+                             cfg.lookup("pool.payout_address"), gbtLifeTime,
+                             emptyGbtLifeTime, fileLastJobTime,
+                             rskNotifyPolicy, blockVersion, poolCoinbaseInfo);
+  }
+  else if ("ETH" == type)
+  {
+    gJobMaker = new JobMakerEth(cfg.lookup("kafka.brokers"), stratumJobInterval,
+                                cfg.lookup("pool.payout_address"), fileLastJobTime,
+                                rskNotifyPolicy, blockVersion, poolCoinbaseInfo);
+  }
+  return gJobMaker;
+}
+
 int main(int argc, char **argv) {
   char *optLogDir = NULL;
   char *optConf   = NULL;
@@ -142,28 +180,7 @@ int main(int argc, char **argv) {
       SelectParams(CBaseChainParams::MAIN);
     }
 
-    string fileLastJobTime;
-	string poolCoinbaseInfo;
-
-    // with default values
-    uint32_t stratumJobInterval = 20;  // seconds
-    uint32_t gbtLifeTime        = 90;
-    uint32_t emptyGbtLifeTime   = 15;
-	uint32_t rskNotifyPolicy    = 0u;
-    uint32_t blockVersion       = 0u;
-
-    cfg.lookupValue("jobmaker.stratum_job_interval", stratumJobInterval);
-    cfg.lookupValue("jobmaker.gbt_life_time",        gbtLifeTime);
-    cfg.lookupValue("jobmaker.empty_gbt_life_time",  emptyGbtLifeTime);
-    cfg.lookupValue("jobmaker.file_last_job_time",   fileLastJobTime);
-    cfg.lookupValue("jobmaker.block_version",        blockVersion);
-	cfg.lookupValue("pool.coinbase_info",            poolCoinbaseInfo);
-	cfg.lookupValue("jobmaker.rsk_notify_policy", rskNotifyPolicy);
-
-    gJobMaker = new JobMaker(cfg.lookup("kafka.brokers"), stratumJobInterval,
-                             cfg.lookup("pool.payout_address"), gbtLifeTime,
-                             emptyGbtLifeTime, fileLastJobTime, 
-							 rskNotifyPolicy, blockVersion, poolCoinbaseInfo);
+    gJobMaker = createJobMaker(cfg);
 
     if (!gJobMaker->init()) {
       LOG(FATAL) << "init failure";
