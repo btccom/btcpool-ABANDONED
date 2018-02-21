@@ -36,12 +36,16 @@
 
 #include "Common.h"
 #include "Kafka.h"
+#include "utilities_js.hpp"
 
 class GwMaker {
   atomic<bool> running_;
 
+protected:
   string rskdRpcAddr_;
   string rskdRpcUserpass_;
+
+private:
   uint32_t kRpcCallInterval_;
 
   string kafkaBrokers_;
@@ -54,6 +58,8 @@ class GwMaker {
 
   void kafkaProduceMsg(const void *payload, size_t len);
   virtual string constructRequest();
+  virtual bool checkFields(JsonNode &r);
+  virtual string constructRawMsg(string &gw, JsonNode &r);
 public:
   GwMaker(const string &rskdRpcAddr, const string &rskdRpcUserpass,
            const string &kafkaBrokers, uint32_t kRpcCallInterval);
@@ -66,6 +72,8 @@ public:
 
 class GwMakerEth : public GwMaker {
   virtual string constructRequest();
+  virtual bool checkFields(JsonNode &r);
+  virtual string constructRawMsg(string &gw, JsonNode &r);
 public:
   GwMakerEth(const string &rskdRpcAddr, const string &rskdRpcUserpass,
            const string &kafkaBrokers, uint32_t kRpcCallInterval);

@@ -39,7 +39,6 @@
 #include <utilstrencodings.h>
 
 #include "Utils.h"
-#include "utilities_js.hpp"
 
 GwMaker::GwMaker(const string &rskdRpcAddr, const string &rskdRpcUserpass,
                    const string &kafkaBrokers, uint32_t kRpcCallInterval)
@@ -100,28 +99,20 @@ bool GwMaker::rskdRpcGw(string &response) {
   return true;
 }
 
-string GwMaker::makeRawGwMsg() {
-  string gw;
-  if (!rskdRpcGw(gw)) {
-    return "";
-  }
-
-  JsonNode r;
-  if (!JsonNode::parse(gw.c_str(), gw.c_str() + gw.length(), r)) {
-    LOG(ERROR) << "decode gw failure: " << gw;
-    return "";
-  }
-
-  // check fields
+bool GwMaker::checkFields(JsonNode &r) {
   if (r["result"].type()                                != Utilities::JS::type::Obj ||
       r["result"]["parentBlockHash"].type()             != Utilities::JS::type::Str ||
       r["result"]["blockHashForMergedMining"].type()    != Utilities::JS::type::Str ||
       r["result"]["target"].type()                      != Utilities::JS::type::Str ||
       r["result"]["feesPaidToMiner"].type()             != Utilities::JS::type::Str ||
       r["result"]["notify"].type()                      != Utilities::JS::type::Bool) {
-    LOG(ERROR) << "gw check fields failure";
-    return "";
+    return false;
   }
+
+  return true;
+}
+
+string GwMaker::constructRawMsg(string &gw, JsonNode &r) {
   const uint256 gwHash = Hash(gw.begin(), gw.end());
 
   LOG(INFO) << ", parent block hash: "    << r["result"]["parentBlockHash"].str()
@@ -147,6 +138,27 @@ string GwMaker::makeRawGwMsg() {
                          r["result"]["blockHashForMergedMining"].str().c_str(),
                          r["result"]["feesPaidToMiner"].str().c_str(),
                          r["result"]["notify"].boolean() ? "true" : "false");
+}
+
+string GwMaker::makeRawGwMsg() {
+  string gw;
+  if (!rskdRpcGw(gw)) {
+    return "";
+  }
+
+  JsonNode r;
+  if (!JsonNode::parse(gw.c_str(), gw.c_str() + gw.length(), r)) {
+    LOG(ERROR) << "decode gw failure: " << gw;
+    return "";
+  }
+
+  // check fields
+  if (!checkFields(r)) {
+    LOG(ERROR) << "gw check fields failure";
+    return "";
+  }
+
+  return constructRawMsg(gw, r);
 }
 
 void GwMaker::submitRawGwMsg() {
@@ -178,4 +190,57 @@ GwMakerEth::GwMakerEth(const string &rskdRpcAddr, const string &rskdRpcUserpass,
 string GwMakerEth::constructRequest()
 {
   return "{\"jsonrpc\": \"2.0\", \"method\": \"eth_getWork\", \"params\": [], \"id\": 1}";
+}
+
+bool GwMakerEth::checkFields(JsonNode &r) {
+// Success  
+// {
+//     "jsonrpc": "2.0",
+//     "id": 73,
+//     "result": [
+//         "0xe4a01e87c4cf70dd9cba9e3167328f659aed36e79c34b1b0a3f3cb77cc62575f",
+//         "0x0000000000000000000000000000000000000000000000000000000000000000",
+//         "0x0000000040080100200400801002004008010020040080100200400801002004"
+//     ]
+// }
+
+// error
+// {
+//     "jsonrpc": "2.0",
+//     "id": 73,
+//     "error": {
+//         "code": -32000,
+//         "message": "mining not ready: No work available yet, don't panic."
+//     }
+// }
+
+  if (r["result"].type()                                != Utilities::JS::type::Obj ||
+      r["result"]["result"].type()                      != Utilities::JS::type::Array ||
+      r["result"]["result"].array().size() != 3) {
+    LOG(ERROR) << ", getwork error: " << r.str();
+    return false;
+  }
+
+  return true;
+}
+
+string GwMakerEth::constructRawMsg(string &gw, JsonNode &r) {
+  const uint256 gwHash = Hash(gw.begin(), gw.end());
+
+  LOG(INFO) << ", getwork result: "    << r["result"]["result"].str()
+  << ", gwhash: " << gwHash.ToString();
+
+  auto result = r["result"]["result"].array();
+  return Strings::Format("{\"created_at_ts\":%u,"
+                         "\"rskdRpcAddress\":\"%s\","
+                         "\"rskdRpcUserPwd\":\"%s\","
+                         "\"hHash\":\"%s\","
+                         "\"sHash\":\"%s\","
+                         "\"bCond\":\"%s\"\"}",
+                         (uint32_t)time(nullptr), 
+                         rskdRpcAddr_.c_str(), 
+                         rskdRpcUserpass_.c_str(),
+                         result[0].str().c_str(), 
+                         result[1].str().c_str(),
+                         result[2].str().c_str());
 }
