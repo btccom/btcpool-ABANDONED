@@ -146,7 +146,7 @@ string GwMaker::makeRawGwMsg() {
     return "";
   }
 
-  LOG(INFO) << "getwork return: " << gw;
+  LOG(INFO) << "getwork: " << gw;
 
   JsonNode r;
   if (!JsonNode::parse(gw.c_str(), gw.c_str() + gw.length(), r)) {
@@ -175,7 +175,7 @@ void GwMaker::submitRawGwMsg() {
   }
 
   // submit to Kafka
-  LOG(INFO) << "submit to Kafka, msg len: " << rawGwMsg.length();
+  LOG(INFO) << "submit to Kafka, msg len: " << rawGwMsg.length();// << " "<< rawGwMsg;
   kafkaProduceMsg(rawGwMsg.c_str(), rawGwMsg.length());
 }
 
@@ -240,7 +240,7 @@ string GwMakerEth::constructRawMsg(string &gw, JsonNode &r) {
                          "\"rskdRpcUserPwd\":\"%s\","
                          "\"hHash\":\"%s\","
                          "\"sHash\":\"%s\","
-                         "\"bCond\":\"%s\"\"}",
+                         "\"bCond\":\"%s\"}",
                          (uint32_t)time(nullptr), 
                          rskdRpcAddr_.c_str(), 
                          rskdRpcUserpass_.c_str(),
