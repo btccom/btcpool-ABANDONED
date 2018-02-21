@@ -146,6 +146,8 @@ string GwMaker::makeRawGwMsg() {
     return "";
   }
 
+  LOG(ERROR) << "getwork return: " << gw;
+
   JsonNode r;
   if (!JsonNode::parse(gw.c_str(), gw.c_str() + gw.length(), r)) {
     LOG(ERROR) << "decode gw failure: " << gw;
@@ -217,7 +219,7 @@ bool GwMakerEth::checkFields(JsonNode &r) {
   if (r["result"].type()                                != Utilities::JS::type::Obj ||
       r["result"]["result"].type()                      != Utilities::JS::type::Array ||
       r["result"]["result"].array().size() != 3) {
-    LOG(ERROR) << ", getwork error: " << r.str();
+    LOG(ERROR) << "getwork error: " << r.str();
     return false;
   }
 
