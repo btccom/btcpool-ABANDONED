@@ -713,55 +713,55 @@ bool JobMakerEth::triggerRskUpdate() {
   //   currentRskWork.getSeedHash() != previousRskWork.getSeedHash() ||
   //   currentRskWork.getBoundaryCondition() != previousRskWork.getBoundaryCondition()
   // );
-  
+
   // Check if header changes so the new workpackage is really new
   return currentRskWork.getBlockHash() != previousRskWork.getBlockHash();
 }
 
 void JobMakerEth::checkAndSendStratumJob(bool isRskUpdate) {
-  static uint64_t lastSendBestKey = 0;
+  // static uint64_t lastSendBestKey = 0;
 
-  ScopeLock sl(lock_);
+  // ScopeLock sl(lock_);
 
-  // clean expired gbt first
-  clearTimeoutGw();
+  // // clean expired gbt first
+  // clearTimeoutGw();
 
-  bool isFindNewHeight = false;
-  bool needUpdateEmptyBlockJob = false;
+  // bool isFindNewHeight = false;
+  // bool needUpdateEmptyBlockJob = false;
 
-  // rawgbtMap_ is sorted gbt by (timestamp + height + emptyFlag),
-  // so the last item is the newest/best item.
-  // @see makeGbtKey()
-  const uint64_t bestKey = rawgbtMap_.rbegin()->first;
+  // // rawgbtMap_ is sorted gbt by (timestamp + height + emptyFlag),
+  // // so the last item is the newest/best item.
+  // // @see makeGbtKey()
+  // const uint64_t bestKey = rawgbtMap_.rbegin()->first;
 
-  const uint32_t bestHeight = gbtKeyGetHeight(bestKey);
-  const bool currentGbtIsEmpty = gbtKeyIsEmptyBlock(bestKey);
+  // const uint32_t bestHeight = gbtKeyGetHeight(bestKey);
+  // const bool currentGbtIsEmpty = gbtKeyIsEmptyBlock(bestKey);
   
-  // if last job is an empty block job, we need to 
-  // send a new non-empty job as quick as possible.
-  if (bestHeight == currBestHeight_ && isLastJobEmptyBlock_ && !currentGbtIsEmpty) {
-    needUpdateEmptyBlockJob = true;
-    LOG(INFO) << "--------update last empty block job--------";
-  }
+  // // if last job is an empty block job, we need to 
+  // // send a new non-empty job as quick as possible.
+  // if (bestHeight == currBestHeight_ && isLastJobEmptyBlock_ && !currentGbtIsEmpty) {
+  //   needUpdateEmptyBlockJob = true;
+  //   LOG(INFO) << "--------update last empty block job--------";
+  // }
 
-  if (!needUpdateEmptyBlockJob && !isRskUpdate && bestKey == lastSendBestKey) {
-    LOG(WARNING) << "bestKey is the same as last one: " << lastSendBestKey;
-    return;
-  }
+  // if (!needUpdateEmptyBlockJob && !isRskUpdate && bestKey == lastSendBestKey) {
+  //   LOG(WARNING) << "bestKey is the same as last one: " << lastSendBestKey;
+  //   return;
+  // }
 
-  // The height cannot reduce in normal.
-  // However, if there is indeed a height reduce,
-  // isReachTimeout() will allow the new job sending.
-  if (bestHeight > currBestHeight_) {
-    LOG(INFO) << ">>>> found new best height: " << bestHeight
-              << ", curr: " << currBestHeight_ << " <<<<";
-    isFindNewHeight = true;
-  }
+  // // The height cannot reduce in normal.
+  // // However, if there is indeed a height reduce,
+  // // isReachTimeout() will allow the new job sending.
+  // if (bestHeight > currBestHeight_) {
+  //   LOG(INFO) << ">>>> found new best height: " << bestHeight
+  //             << ", curr: " << currBestHeight_ << " <<<<";
+  //   isFindNewHeight = true;
+  // }
 
-  if (isFindNewHeight || needUpdateEmptyBlockJob || isRskUpdate || isReachTimeout()) {
-    lastSendBestKey     = bestKey;
-    currBestHeight_     = bestHeight;
+  // if (isFindNewHeight || needUpdateEmptyBlockJob || isRskUpdate || isReachTimeout()) {
+  //   lastSendBestKey     = bestKey;
+  //   currBestHeight_     = bestHeight;
 
-    sendStratumJob(rawgbtMap_.rbegin()->second.c_str());
-  }
+  //   sendStratumJob(rawgbtMap_.rbegin()->second.c_str());
+  // }
 }

@@ -198,16 +198,18 @@ string GwMakerEth::constructRequest()
 }
 
 bool GwMakerEth::checkFields(JsonNode &r) {
-// Success  
-// {
-//     "jsonrpc": "2.0",
-//     "id": 73,
-//     "result": [
-//         "0xe4a01e87c4cf70dd9cba9e3167328f659aed36e79c34b1b0a3f3cb77cc62575f",
-//         "0x0000000000000000000000000000000000000000000000000000000000000000",
-//         "0x0000000040080100200400801002004008010020040080100200400801002004"
-//     ]
-// }
+// Ethereum's GetWork gives us 3 values:
+ 
+// { ... "result":[
+// "0x645cf20198c2f3861e947d4f67e3ab63b7b2e24dcc9095bd9123e7b33371f6cc",
+// "0xabad8f99f3918bf903c6a909d9bbc0fdfa5a2f4b9cb1196175ec825c6610126c",
+// "0x0000000394427b08175efa9a9eb59b9123e2969bf19bf272b20787ed022fbe6c"
+// ]}
+ 
+// First value is headerhash, second value is seedhash and third value is
+// target. Seedhash is used to identify DAG file, headerhash and 64 bit
+// nonce value chosen by our miner give us hash, which, if below provided
+// target, yield block/share.
 
 // error
 // {
@@ -234,17 +236,18 @@ string GwMakerEth::constructRawMsg(string &gw, JsonNode &r) {
 
   LOG(INFO) << "gwhash: " << gwHash.ToString();
 
+  
   auto result = r["result"].array();
   return Strings::Format("{\"created_at_ts\":%u,"
                          "\"rskdRpcAddress\":\"%s\","
                          "\"rskdRpcUserPwd\":\"%s\","
+                         "\"target\":\"%s\","
                          "\"hHash\":\"%s\","
-                         "\"sHash\":\"%s\","
-                         "\"bCond\":\"%s\"}",
+                         "\"sHash\":\"%s\"}",
                          (uint32_t)time(nullptr), 
                          rskdRpcAddr_.c_str(), 
                          rskdRpcUserpass_.c_str(),
+                         result[2].str().c_str(),
                          result[0].str().c_str(), 
-                         result[1].str().c_str(),
-                         result[2].str().c_str());
+                         result[1].str().c_str());
 }
