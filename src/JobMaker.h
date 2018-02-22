@@ -37,6 +37,7 @@
 #include <deque>
 
 class JobMaker {
+protected:
   atomic<bool> running_;
   mutex lock_;
 
@@ -74,8 +75,6 @@ class JobMaker {
   uint32_t blockVersion_;
 
   thread threadConsumeNmcAuxBlock_;
-
-protected:
   thread threadConsumeRskRawGw_;
 
 private:
@@ -89,7 +88,7 @@ private:
   void sendStratumJob(const char *gbt);
 
   void clearTimeoutGw();
-  bool triggerRskUpdate();
+  virtual bool triggerRskUpdate();
   void checkAndSendStratumJob(bool isRskUpdate);
   void runThreadConsumeNmcAuxBlock();
 
@@ -118,7 +117,7 @@ public:
 class JobMakerEth : public JobMaker
 {
   virtual RskWork* createWork();
-
+  virtual bool triggerRskUpdate();
 public:
   JobMakerEth(const string &kafkaBrokers, uint32_t stratumJobInterval,
               const string &payoutAddr, const string &fileLastJobTime,

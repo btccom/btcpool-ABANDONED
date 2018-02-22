@@ -160,5 +160,11 @@ bool RskWorkEth::validate(JsonNode &work)
 
 void RskWorkEth::initialize(JsonNode &work)
 {
+  created_at = work["created_at_ts"].uint32();
+  rpcAddress_ = work["rskdRpcAddress"].str(); 
+  rpcUserPwd_ = work["rskdRpcUserPwd"].str();
+  blockHash_ = work["hHash"].str();
+  seedHash_ = work["sHash"].str();
+  boundaryCondition_ = work["bCond"].str();
   initialized_ = true;
 }

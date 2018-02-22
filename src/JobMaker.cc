@@ -696,3 +696,24 @@ void JobMakerEth::run() {
 RskWork* JobMakerEth::createWork() {
   return new RskWorkEth(); 
 }
+
+bool JobMakerEth::triggerRskUpdate() {
+  RskWorkEth currentRskWork;
+  RskWorkEth previousRskWork;
+  {
+    ScopeLock sl(rskWorkAccessLock_);
+    if (!previousRskWork_ || !currentRskWork_) {
+      return false;
+    }
+    currentRskWork = *(dynamic_cast<RskWorkEth*>(currentRskWork_));
+    previousRskWork = *(dynamic_cast<RskWorkEth*>(previousRskWork_));
+  }
+
+  //bool notify_flag_update = rskNotifyPolicy_ == 1 && currentRskWork.getNotifyFlag();
+  bool different_block_hashUpdate = (currentRskWork.getBlockHash() != previousRskWork.getBlockHash() ||
+    currentRskWork.getSeedHash() != previousRskWork.getSeedHash() ||
+    currentRskWork.getBoundaryCondition() != previousRskWork.getBoundaryCondition()
+  );
+
+  return different_block_hashUpdate;
+}
