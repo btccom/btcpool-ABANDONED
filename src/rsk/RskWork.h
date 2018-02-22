@@ -47,10 +47,13 @@ class RskWork {
   string rpcAddress_;
   string rpcUserPwd_;
   bool notifyFlag_;
+
+protected:
   bool initialized_;
 
 public:
   RskWork();
+  virtual ~RskWork() {};
 
   bool initFromGw(const string &rawGetWork);
   bool isInitialized() const;
@@ -63,6 +66,15 @@ public:
   bool getNotifyFlag() const;
   static void setIsCleanJob(bool cleanJob);
   bool getIsCleanJob() const;
+
+private:
+  virtual bool validate(JsonNode &work);
+  virtual void initialize(JsonNode &work); 
+};
+
+class RskWorkEth : public RskWork {
+  virtual bool validate(JsonNode &work);
+  virtual void initialize(JsonNode &work); 
 };
 
 #endif

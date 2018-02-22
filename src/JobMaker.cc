@@ -324,7 +324,7 @@ void JobMaker::consumeRawGwMsg(rd_kafka_message_t *rkmessage) {
     ScopeLock sl(rskWorkAccessLock_);
     
     string rawGetWork = string((const char *)rkmessage->payload, rkmessage->len);
-    RskWork *rskWork = new RskWork();
+    RskWork *rskWork = createWork();
     if(rskWork->initFromGw(rawGetWork)) {
 
       if (previousRskWork_) {
@@ -344,6 +344,10 @@ void JobMaker::consumeRawGwMsg(rd_kafka_message_t *rkmessage) {
   if(triggerRskUpdate()) { 
     checkAndSendStratumJob(true);
   }
+}
+
+RskWork* JobMaker::createWork() {
+  return new RskWork(); 
 }
 
 bool JobMaker::triggerRskUpdate() {
@@ -411,8 +415,8 @@ void JobMaker::run() {
   // start Nmc Aux Block consumer thread
   threadConsumeNmcAuxBlock_ = thread(&JobMaker::runThreadConsumeNmcAuxBlock, this);
 
-  // start Rsk RawGw consumer thread
-  threadConsumeRskRawGw_ = thread(&JobMaker::runThreadConsumeRawGw, this);
+    // start Rsk RawGw consumer thread
+    threadConsumeRskRawGw_ = thread(&JobMaker::runThreadConsumeRawGw, this);
 
   const int32_t timeoutMs = 1000;
 
@@ -682,4 +686,13 @@ JobMakerEth::JobMakerEth(const string &kafkaBrokers, uint32_t stratumJobInterval
                          rskNotifyPolicy, blockVersion,
                          poolCoinbaseInfo)
 {
+}
+
+void JobMakerEth::run() {
+    // start Rsk RawGw consumer thread
+    threadConsumeRskRawGw_ = thread(&JobMaker::runThreadConsumeRawGw, this);
+}
+
+RskWork* JobMakerEth::createWork() {
+  return new RskWorkEth(); 
 }

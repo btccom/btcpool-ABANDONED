@@ -67,7 +67,7 @@ public:
 
   bool init();
   void stop();
-  void run();
+  virtual void run();
 };
 
 class GwMakerEth : public GwMaker {
@@ -77,6 +77,7 @@ class GwMakerEth : public GwMaker {
 public:
   GwMakerEth(const string &rskdRpcAddr, const string &rskdRpcUserpass,
            const string &kafkaBrokers, uint32_t kRpcCallInterval);
+  virtual void run();
 };
 
 #endif

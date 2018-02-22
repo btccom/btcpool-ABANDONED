@@ -74,8 +74,11 @@ class JobMaker {
   uint32_t blockVersion_;
 
   thread threadConsumeNmcAuxBlock_;
+
+protected:
   thread threadConsumeRskRawGw_;
 
+private:
   void consumeNmcAuxBlockMsg(rd_kafka_message_t *rkmessage);
   void consumeRawGwMsg(rd_kafka_message_t *rkmessage);
   void consumeRawGbtMsg(rd_kafka_message_t *rkmessage, bool needToSend);
@@ -89,13 +92,16 @@ class JobMaker {
   bool triggerRskUpdate();
   void checkAndSendStratumJob(bool isRskUpdate);
   void runThreadConsumeNmcAuxBlock();
+
+public:
   void runThreadConsumeRawGw();
 
+private:
   inline uint64_t makeGbtKey(uint32_t gbtTime, bool isEmptyBlock, uint32_t height);
   inline uint32_t gbtKeyGetTime(uint64_t gbtKey);
   inline uint32_t gbtKeyGetHeight(uint64_t gbtKey);
   inline bool gbtKeyIsEmptyBlock(uint64_t gbtKey);
-
+  virtual RskWork* createWork();
 public:
   JobMaker(const string &kafkaBrokers, uint32_t stratumJobInterval,
            const string &payoutAddr, uint32_t gbtLifeTime,
@@ -106,15 +112,18 @@ public:
 
   bool init();
   void stop();
-  void run();
+  virtual void run();
 };
 
 class JobMakerEth : public JobMaker
 {
+  virtual RskWork* createWork();
+
 public:
   JobMakerEth(const string &kafkaBrokers, uint32_t stratumJobInterval,
               const string &payoutAddr, const string &fileLastJobTime,
               uint32_t rskNotifyPolicy, uint32_t blockVersion,
               const string &poolCoinbaseInfo);
+  virtual void run();            
 };
 #endif
