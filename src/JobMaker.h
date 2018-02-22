@@ -89,7 +89,7 @@ private:
 
   void clearTimeoutGw();
   virtual bool triggerRskUpdate();
-  void checkAndSendStratumJob(bool isRskUpdate);
+  virtual void checkAndSendStratumJob(bool isRskUpdate);
   void runThreadConsumeNmcAuxBlock();
 
 public:
@@ -118,6 +118,7 @@ class JobMakerEth : public JobMaker
 {
   virtual RskWork* createWork();
   virtual bool triggerRskUpdate();
+  virtual void checkAndSendStratumJob(bool isRskUpdate)
 public:
   JobMakerEth(const string &kafkaBrokers, uint32_t stratumJobInterval,
               const string &payoutAddr, const string &fileLastJobTime,
