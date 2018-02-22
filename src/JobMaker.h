@@ -119,6 +119,7 @@ class JobMakerEth : public JobMaker
   virtual RskWork* createWork();
   virtual bool triggerRskUpdate();
   virtual void checkAndSendStratumJob(bool isRskUpdate);
+  void sendGwStratumJob();
 public:
   JobMakerEth(const string &kafkaBrokers, uint32_t stratumJobInterval,
               const string &payoutAddr, const string &fileLastJobTime,
