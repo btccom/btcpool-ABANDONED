@@ -77,7 +77,7 @@ protected:
   thread threadConsumeNmcAuxBlock_;
   thread threadConsumeRskRawGw_;
 
-private:
+protected:
   void consumeNmcAuxBlockMsg(rd_kafka_message_t *rkmessage);
   void consumeRawGwMsg(rd_kafka_message_t *rkmessage);
   void consumeRawGbtMsg(rd_kafka_message_t *rkmessage, bool needToSend);

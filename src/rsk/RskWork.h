@@ -75,11 +75,9 @@ class RskWorkEth : public RskWork {
   virtual void initialize(JsonNode &work); 
   //string currBlkHeaderPOWHash_;
   string seedHash_;
-  string boundaryCondition_;
 
 public:
   string getSeedHash() const {return seedHash_;}
-  string getBoundaryCondition() const {return boundaryCondition_;}   
 };
 
 #endif

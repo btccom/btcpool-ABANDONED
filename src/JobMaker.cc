@@ -721,10 +721,10 @@ bool JobMakerEth::triggerRskUpdate() {
 void JobMakerEth::checkAndSendStratumJob(bool isRskUpdate) {
   // static uint64_t lastSendBestKey = 0;
 
-  // ScopeLock sl(lock_);
+  ScopeLock sl(lock_);
 
-  // // clean expired gbt first
-  // clearTimeoutGw();
+  // clean expired gbt first
+  clearTimeoutGw();
 
   // bool isFindNewHeight = false;
   // bool needUpdateEmptyBlockJob = false;
