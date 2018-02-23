@@ -283,6 +283,7 @@ public:
 
 public:
   StratumJob();
+  virtual ~StratumJob() {};
 
   string serializeToJson() const;
   bool unserializeFromJson(const char *s, size_t len);
@@ -295,4 +296,9 @@ public:
   bool isEmptyBlock();
 };
 
+class StratumJobEth : public StratumJob {
+  StratumJobEth();
+  bool initFromGw(const CTxDestination &poolPayoutAddr,
+                   const RskWork &latestRskBlockJson);
+};
 #endif

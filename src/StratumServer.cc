@@ -298,7 +298,7 @@ StratumJobEx* JobRepository::createStratumJob(StratumServerType type, StratumJob
       break;
     }
     case ETH: {
-      job = new StratumJobEth(sjob, isClean);
+      job = new StratumJobExEth(sjob, isClean);
       break;
     }
   }
@@ -1355,8 +1355,8 @@ void Server::sendCommonEvents2Kafka(const string &message) {
   kafkaProducerCommonEvents_->produce(message.data(), message.size());
 }
 
-////////////////////////////////// StratumJobEth ///////////////////////////////
-void StratumJobEth::makeMiningNotifyStr() {
+////////////////////////////////// StratumJobExEth ///////////////////////////////
+void StratumJobExEth::makeMiningNotifyStr() {
 //  def get_seedhash(block):
 //      s = '\x00' * 32
 //      for i in range(block.number // EPOCH_LENGTH):

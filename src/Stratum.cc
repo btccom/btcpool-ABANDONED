@@ -628,3 +628,11 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
 bool StratumJob::isEmptyBlock() {
   return merkleBranch_.size() == 0 ? true : false;
 }
+
+///////////////////////////////StratumJobEth///////////////////////////
+bool StratumJobEth::initFromGw(const CTxDestination &poolPayoutAddr,
+                               const RskWork &latestRskBlockJson)
+{
+  
+  return true;
+}

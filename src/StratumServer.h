@@ -237,7 +237,7 @@ protected:
   virtual void makeMiningNotifyStr();
 };
 
-class StratumJobEth : public StratumJobEx {
+class StratumJobExEth : public StratumJobEx {
 // First parameter of params array is job ID (must be HEX number of any
 // size). Second parameter is seedhash. Seedhash is sent with every job to
 // support possible multipools, which may switch between coins quickly.
@@ -258,7 +258,7 @@ struct MiningNotify {
 MiningNotify miningNotify_;
 
 public:
-  StratumJobEth(StratumJob *sjob, bool isClean) : StratumJobEx(sjob, isClean) {}
+  StratumJobExEth(StratumJob *sjob, bool isClean) : StratumJobEx(sjob, isClean) {}
 
 protected:
   virtual void makeMiningNotifyStr();
