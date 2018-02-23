@@ -631,7 +631,7 @@ bool StratumJob::isEmptyBlock() {
 
 ///////////////////////////////StratumJobEth///////////////////////////
 bool StratumJobEth::initFromGw(const CTxDestination &poolPayoutAddr,
-                               const RskWork &latestRskBlockJson)
+                               const RskWorkEth &latestRskBlockJson)
 {
   // jobId: timestamp + random number
   time_t now = time(nullptr);
@@ -641,5 +641,15 @@ bool StratumJobEth::initFromGw(const CTxDestination &poolPayoutAddr,
                                           rand());
   assert(jobIdStr.length() == 16);
   jobId_ = strtoull(jobIdStr.c_str(), nullptr, 16/* hex */);
+
+  if (latestRskBlockJson.isInitialized()) {
+    blockHashForMergedMining_ = latestRskBlockJson.getBlockHash();
+    rskNetworkTarget_ = uint256S(latestRskBlockJson.getTarget());
+    feesForMiner_ = latestRskBlockJson.getFees();
+    rskdRpcAddress_ = latestRskBlockJson.getRpcAddress();
+    rskdRpcUserPwd_ = latestRskBlockJson.getRpcUserPwd();
+    isRskCleanJob_ = latestRskBlockJson.getIsCleanJob();
+    seedHash_ = latestRskBlockJson.getSeedHash();
+  }
   return true;
 }

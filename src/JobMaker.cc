@@ -719,11 +719,11 @@ void JobMakerEth::checkAndSendStratumJob(bool isRskUpdate) {
 }
 
 void JobMakerEth::sendGwStratumJob() {
-  RskWork currentRskBlockJson;
+  RskWorkEth currentRskBlockJson;
   {
     ScopeLock sl(rskWorkAccessLock_);
     if (currentRskWork_)
-      currentRskBlockJson = *currentRskWork_;
+      currentRskBlockJson = *(dynamic_cast<RskWorkEth*>(currentRskWork_));
   }
 
   StratumJobEth sjob;

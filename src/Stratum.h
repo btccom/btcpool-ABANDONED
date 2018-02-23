@@ -300,6 +300,8 @@ class StratumJobEth : public StratumJob {
 public:
   StratumJobEth() {};
   bool initFromGw(const CTxDestination &poolPayoutAddr,
-                   const RskWork &latestRskBlockJson);
+                   const RskWorkEth &latestRskBlockJson);
+  
+  string seedHash_;
 };
 #endif
