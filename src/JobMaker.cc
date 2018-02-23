@@ -728,8 +728,12 @@ void JobMakerEth::sendGwStratumJob() {
 
   StratumJobEth sjob;
   if (!sjob.initFromGw(poolPayoutAddr_, currentRskBlockJson)) {
-    LOG(ERROR) << "init stratum job message from gbt str fail";
+    LOG(ERROR) << "init stratum job message from gw str fail";
     return;
   }
 
+  const string msg = sjob.serializeToJson();
+  // sent to kafka
+  LOG(INFO) << "produce eth job: " << msg;
+  kafkaProducer_.produce(msg.data(), msg.size());
 }

@@ -653,3 +653,23 @@ bool StratumJobEth::initFromGw(const CTxDestination &poolPayoutAddr,
   }
   return true;
 }
+
+string StratumJobEth::serializeToJson() const {
+  return Strings::Format("{\"jobId\":%" PRIu64""
+                         // rsk 
+                         ",\"sHash\":\"%s\""
+                         ",\"rskBlockHashForMergedMining\":\"%s\",\"rskNetworkTarget\":\"0x%s\""
+                         ",\"rskFeesForMiner\":\"%s\""
+                         ",\"rskdRpcAddress\":\"%s\",\"rskdRpcUserPwd\":\"%s\""
+                         ",\"isRskCleanJob\":%s"
+                         "}",
+                         jobId_,
+                         // rsk
+                         seedHash_.c_str(),
+                         blockHashForMergedMining_.size() ? blockHashForMergedMining_.c_str() : "",
+                         rskNetworkTarget_.GetHex().c_str(),
+                         feesForMiner_.size()             ? feesForMiner_.c_str()             : "",
+                         rskdRpcAddress_.size()           ? rskdRpcAddress_.c_str()           : "",
+                         rskdRpcUserPwd_.c_str()          ? rskdRpcUserPwd_.c_str()           : "",
+                         isRskCleanJob_ ? "true" : "false");
+}
