@@ -639,6 +639,7 @@ bool StratumJobEth::initFromGw(const CTxDestination &poolPayoutAddr,
   const string jobIdStr = Strings::Format("%08x%08x", 
                                           (uint32_t)now,
                                           rand());
+  DLOG(INFO) << "job id string: " << jobIdStr;                                        
   assert(jobIdStr.length() == 16);
   jobId_ = strtoull(jobIdStr.c_str(), nullptr, 16/* hex */);
 
