@@ -765,7 +765,7 @@ void JobMakerEth::sendGwStratumJob() {
 
   const string msg = sjob.serializeToJson();
   // sent to kafka
-  LOG(INFO) << "produce eth job: " << msg;
+  DLOG(INFO) << "produce eth job: " << msg;
   kafkaProducer_.produce(msg.data(), msg.size());
 }
 

@@ -79,7 +79,7 @@ bool RskWork::initFromGw(const string &rawGetWork) {
   if (!JsonNode::parse(rawGetWork.c_str(),
                        rawGetWork.c_str() + rawGetWork.length(),
                        work)) {
-    LOG(INFO) << "decode rsk getwork json fail: >" << rawGetWork << "<";
+    LOG(ERROR) << "decode rsk getwork json fail: >" << rawGetWork << "<";
     return false;
   }
 
@@ -135,8 +135,6 @@ bool RskWork::getIsCleanJob() const {
 
 bool RskWorkEth::validate(JsonNode &work)
 {
-  LOG(INFO) << "RskWorkEth::validate";
-
   // check fields are valid
   if (work["created_at_ts"].type() != Utilities::JS::type::Int ||
       work["rskdRpcAddress"].type() != Utilities::JS::type::Str ||
@@ -145,17 +143,16 @@ bool RskWorkEth::validate(JsonNode &work)
       work["sHash"].type() != Utilities::JS::type::Str ||
       work["target"].type() != Utilities::JS::type::Str)
   {
-    LOG(INFO) << "getwork fields failure";
+    LOG(ERROR) << "getwork fields failure";
     return false;
   }
 
   // check timestamp
   if (work["created_at_ts"].uint32() + 60u < time(nullptr))
   {
-    LOG(INFO) << "too old getwork: " << date("%F %T", work["created_at_ts"].uint32());
+    LOG(ERROR) << "too old getwork: " << date("%F %T", work["created_at_ts"].uint32());
     return false;
   }
-  LOG(INFO) << "RskWorkEth:: pass";
   return true;
 }
 
@@ -168,6 +165,6 @@ void RskWorkEth::initialize(JsonNode &work)
   blockHash_ = work["hHash"].str();
   seedHash_ = work["sHash"].str();
   target_ = work["target"].str();
-  LOG(INFO) << "eth work init seedHash; " << seedHash_ << " headerHash: " << blockHash_;
+  //LOG(INFO) << "eth work init seedHash; " << seedHash_ << " headerHash: " << blockHash_;
   initialized_ = true;
 }
