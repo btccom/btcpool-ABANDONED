@@ -74,16 +74,16 @@ void RskWork::initialize(JsonNode &work) {
 
 bool RskWork::initFromGw(const string &rawGetWork) {
   JsonNode work;
-  LOG(INFO) << "initFromGw: " << rawGetWork;
+  //LOG(INFO) << "initFromGw: " << rawGetWork;
   // check is valid json
   if (!JsonNode::parse(rawGetWork.c_str(),
                        rawGetWork.c_str() + rawGetWork.length(),
                        work)) {
-    LOG(ERROR) << "decode rsk getwork json fail: >" << rawGetWork << "<";
+    LOG(INFO) << "decode rsk getwork json fail: >" << rawGetWork << "<";
     return false;
   }
 
-  if (validate(work)) 
+  if (!validate(work)) 
     return false;
 
 
@@ -135,6 +135,8 @@ bool RskWork::getIsCleanJob() const {
 
 bool RskWorkEth::validate(JsonNode &work)
 {
+  LOG(INFO) << "RskWorkEth::validate";
+
   // check fields are valid
   if (work["created_at_ts"].type() != Utilities::JS::type::Int ||
       work["rskdRpcAddress"].type() != Utilities::JS::type::Str ||
@@ -153,12 +155,13 @@ bool RskWorkEth::validate(JsonNode &work)
     LOG(INFO) << "too old getwork: " << date("%F %T", work["created_at_ts"].uint32());
     return false;
   }
-
+  LOG(INFO) << "RskWorkEth:: pass";
   return true;
 }
 
 void RskWorkEth::initialize(JsonNode &work)
 {
+  //LOG(INFO) << "RskWorkEth:: initialize";
   created_at = work["created_at_ts"].uint32();
   rpcAddress_ = work["rskdRpcAddress"].str(); 
   rpcUserPwd_ = work["rskdRpcUserPwd"].str();
