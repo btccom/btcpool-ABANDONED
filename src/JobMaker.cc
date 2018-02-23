@@ -82,8 +82,6 @@ void JobMaker::stop() {
 }
 
 bool JobMaker::init() {
-  const int32_t consumeLatestN = 20;
-
   // check pool payout address
   if (!IsValidDestinationString(poolPayoutAddrStr_)) {
     LOG(ERROR) << "invalid pool payout address";
@@ -107,7 +105,18 @@ bool JobMaker::init() {
     }
   }
 
-  //
+  if (!initConsumer())
+    return false;
+
+  checkAndSendStratumJob(false);
+
+  return true;
+}
+
+bool JobMaker::initConsumer() {
+    const int32_t consumeLatestN = 20;
+
+    //
   // consumer RawGbt, offset: latest N messages
   //
   {
@@ -198,7 +207,6 @@ bool JobMaker::init() {
     rd_kafka_message_destroy(rkmessage);
   }
   LOG(INFO) << "consume latest rawgbt messages done";
-  checkAndSendStratumJob(false);
 
   return true;
 }
@@ -683,6 +691,30 @@ JobMakerEth::JobMakerEth(const string &kafkaBrokers, uint32_t stratumJobInterval
 {
 }
 
+bool JobMakerEth::initConsumer()
+{
+  //
+  // consumer gw messages
+  //
+  {
+    map<string, string> consumerOptions;
+    consumerOptions["fetch.wait.max.ms"] = "5";
+    if (!kafkaRawGwConsumer_.setup(RD_KAFKA_OFFSET_TAIL(1), &consumerOptions))
+    {
+      LOG(ERROR) << "kafka consumer rawgw block setup failure";
+      return false;
+    }
+    if (!kafkaRawGwConsumer_.checkAlive())
+    {
+      LOG(ERROR) << "kafka consumer rawgw block is NOT alive";
+      return false;
+    }
+  }
+  sleep(1);
+
+  return true;
+}
+
 void JobMakerEth::run() {
     // start Rsk RawGw consumer thread
     threadConsumeRskRawGw_ = thread(&JobMaker::runThreadConsumeRawGw, this);
@@ -737,3 +769,4 @@ void JobMakerEth::sendGwStratumJob() {
   LOG(INFO) << "produce eth job: " << msg;
   kafkaProducer_.produce(msg.data(), msg.size());
 }
+

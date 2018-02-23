@@ -110,6 +110,7 @@ public:
   virtual ~JobMaker();
 
   bool init();
+  virtual bool initConsumer();
   void stop();
   virtual void run();
 };
@@ -125,6 +126,7 @@ public:
               const string &payoutAddr, const string &fileLastJobTime,
               uint32_t rskNotifyPolicy, uint32_t blockVersion,
               const string &poolCoinbaseInfo);
+  virtual bool initConsumer();
   virtual void run();            
 };
 #endif
