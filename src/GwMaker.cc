@@ -197,34 +197,48 @@ string GwMakerEth::constructRequest()
   return "{\"jsonrpc\": \"2.0\", \"method\": \"eth_getWork\", \"params\": [], \"id\": 1}";
 }
 
-bool GwMakerEth::checkFields(JsonNode &r) {
-// Ethereum's GetWork gives us 3 values:
- 
-// { ... "result":[
-// "0x645cf20198c2f3861e947d4f67e3ab63b7b2e24dcc9095bd9123e7b33371f6cc",
-// "0xabad8f99f3918bf903c6a909d9bbc0fdfa5a2f4b9cb1196175ec825c6610126c",
-// "0x0000000394427b08175efa9a9eb59b9123e2969bf19bf272b20787ed022fbe6c"
-// ]}
- 
-// First value is headerhash, second value is seedhash and third value is
-// target. Seedhash is used to identify DAG file, headerhash and 64 bit
-// nonce value chosen by our miner give us hash, which, if below provided
-// target, yield block/share.
+bool GwMakerEth::checkFields(JsonNode &r)
+{
+  // Ethereum's GetWork gives us 3 values:
 
-// error
-// {
-//     "jsonrpc": "2.0",
-//     "id": 73,
-//     "error": {
-//         "code": -32000,
-//         "message": "mining not ready: No work available yet, don't panic."
-//     }
-// }
+  // { ... "result":[
+  // "0x645cf20198c2f3861e947d4f67e3ab63b7b2e24dcc9095bd9123e7b33371f6cc",
+  // "0xabad8f99f3918bf903c6a909d9bbc0fdfa5a2f4b9cb1196175ec825c6610126c",
+  // "0x0000000394427b08175efa9a9eb59b9123e2969bf19bf272b20787ed022fbe6c"
+  // ]}
 
-  if (r.type()                                != Utilities::JS::type::Obj ||
-      r["result"].type()                      != Utilities::JS::type::Array ||
-      r["result"].array().size() != 3) {
-    LOG(ERROR) << "getwork error: " << r.str();
+  // First value is headerhash, second value is seedhash and third value is
+  // target. Seedhash is used to identify DAG file, headerhash and 64 bit
+  // nonce value chosen by our miner give us hash, which, if below provided
+  // target, yield block/share.
+
+  // error
+  // {
+  //     "jsonrpc": "2.0",
+  //     "id": 73,
+  //     "error": {
+  //         "code": -32000,
+  //         "message": "mining not ready: No work available yet, don't panic."
+  //     }
+  // }
+  if (r.type() != Utilities::JS::type::Obj)
+  {
+    LOG(ERROR) << "getwork return not jason";
+    return false;
+  }
+
+  JsonNode result = r["result"];
+  if (result["error"].type() == Utilities::JS::type::Obj &&
+      result["error"]["message"].type() == Utilities::JS::type::Str)
+  {
+    LOG(ERROR) << result["error"]["message"].str();
+  }
+
+  if (r.type() != Utilities::JS::type::Obj ||
+      r["result"].type() != Utilities::JS::type::Array ||
+      r["result"].array().size() != 3)
+  {
+    LOG(ERROR) << "getwork retrun unexpected";
     return false;
   }
 

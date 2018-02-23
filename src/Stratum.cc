@@ -651,7 +651,7 @@ bool StratumJobEth::initFromGw(const CTxDestination &poolPayoutAddr,
     isRskCleanJob_ = latestRskBlockJson.getIsCleanJob();
     seedHash_ = latestRskBlockJson.getSeedHash();
   }
-  return true;
+  return seedHash_.size() && blockHashForMergedMining_.size();
 }
 
 string StratumJobEth::serializeToJson() const {
