@@ -633,7 +633,13 @@ bool StratumJob::isEmptyBlock() {
 bool StratumJobEth::initFromGw(const CTxDestination &poolPayoutAddr,
                                const RskWork &latestRskBlockJson)
 {
-  srand (time(NULL));
-  jobId_ = rand(); 
+  // jobId: timestamp + random number
+  time_t now = time(nullptr);
+  srand (now);
+  const string jobIdStr = Strings::Format("%08x%08x", 
+                                          (uint32_t)now,
+                                          rand());
+  assert(jobIdStr.length() == 16);
+  jobId_ = strtoull(jobIdStr.c_str(), nullptr, 16/* hex */);
   return true;
 }
