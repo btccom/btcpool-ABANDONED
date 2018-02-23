@@ -710,7 +710,6 @@ bool JobMakerEth::triggerRskUpdate() {
 
 void JobMakerEth::checkAndSendStratumJob(bool isRskUpdate) {
   // static uint64_t lastSendBestKey = 0;
-
   ScopeLock sl(lock_);
 
   // clean expired gbt first
@@ -726,4 +725,11 @@ void JobMakerEth::sendGwStratumJob() {
     if (currentRskWork_)
       currentRskBlockJson = *currentRskWork_;
   }
+
+  StratumJobEth sjob;
+  if (!sjob.initFromGw(poolPayoutAddr_, currentRskBlockJson)) {
+    LOG(ERROR) << "init stratum job message from gbt str fail";
+    return;
+  }
+
 }

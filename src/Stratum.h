@@ -297,7 +297,8 @@ public:
 };
 
 class StratumJobEth : public StratumJob {
-  StratumJobEth();
+public:
+  StratumJobEth() {};
   bool initFromGw(const CTxDestination &poolPayoutAddr,
                    const RskWork &latestRskBlockJson);
 };
