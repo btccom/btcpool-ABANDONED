@@ -73,9 +73,8 @@ void RskWork::initialize(JsonNode &work) {
 }
 
 bool RskWork::initFromGw(const string &rawGetWork) {
-
   JsonNode work;
-
+  LOG(INFO) << "initFromGw: " << rawGetWork;
   // check is valid json
   if (!JsonNode::parse(rawGetWork.c_str(),
                        rawGetWork.c_str() + rawGetWork.length(),
@@ -144,14 +143,14 @@ bool RskWorkEth::validate(JsonNode &work)
       work["sHash"].type() != Utilities::JS::type::Str ||
       work["target"].type() != Utilities::JS::type::Str)
   {
-    LOG(ERROR) << "getwork fields failure";
+    LOG(INFO) << "getwork fields failure";
     return false;
   }
 
   // check timestamp
   if (work["created_at_ts"].uint32() + 60u < time(nullptr))
   {
-    LOG(ERROR) << "too old getwork: " << date("%F %T", work["created_at_ts"].uint32());
+    LOG(INFO) << "too old getwork: " << date("%F %T", work["created_at_ts"].uint32());
     return false;
   }
 
@@ -166,5 +165,6 @@ void RskWorkEth::initialize(JsonNode &work)
   blockHash_ = work["hHash"].str();
   seedHash_ = work["sHash"].str();
   target_ = work["target"].str();
+  LOG(INFO) << "eth work init seedHash; " << seedHash_ << " headerHash: " << blockHash_;
   initialized_ = true;
 }

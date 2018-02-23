@@ -108,8 +108,6 @@ bool JobMaker::init() {
   if (!initConsumer())
     return false;
 
-  checkAndSendStratumJob(false);
-
   return true;
 }
 
@@ -208,6 +206,7 @@ bool JobMaker::initConsumer() {
   }
   LOG(INFO) << "consume latest rawgbt messages done";
 
+  checkAndSendStratumJob(false);
   return true;
 }
 
@@ -322,7 +321,7 @@ void JobMaker::consumeRawGwMsg(rd_kafka_message_t *rkmessage) {
   }
 
   // set json string
-  LOG(INFO) << "received rawgw message, len: " << rkmessage->len;
+  LOG(INFO) << "received rawgw message len: " << rkmessage->len;
   {
     ScopeLock sl(rskWorkAccessLock_);
     
@@ -399,12 +398,13 @@ void JobMaker::clearTimeoutGw() {
 
 void JobMaker::runThreadConsumeRawGw() {
   const int32_t timeoutMs = 1000;
-
+  LOG(INFO) << "runThreadConsumeRawGw " << running_;
   while (running_) {
     rd_kafka_message_t *rkmessage;
     rkmessage = kafkaRawGwConsumer_.consumer(timeoutMs);
-    if (rkmessage == nullptr) /* timeout */
+    if (rkmessage == nullptr) /* timeout */ {
       continue;
+    }
 
     consumeRawGwMsg(rkmessage);
 
@@ -716,8 +716,7 @@ bool JobMakerEth::initConsumer()
 }
 
 void JobMakerEth::run() {
-    // start Rsk RawGw consumer thread
-    threadConsumeRskRawGw_ = thread(&JobMaker::runThreadConsumeRawGw, this);
+    runThreadConsumeRawGw();
 }
 
 RskWork* JobMakerEth::createWork() {

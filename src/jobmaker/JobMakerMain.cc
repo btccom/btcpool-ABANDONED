@@ -87,6 +87,18 @@ JobMaker *createJobMaker(const Config &cfg)
 
   if ("BTC" == type)
   {
+    bool isTestnet3 = true;
+    cfg.lookupValue("testnet", isTestnet3);
+    if (isTestnet3)
+    {
+      SelectParams(CBaseChainParams::TESTNET);
+      LOG(WARNING) << "using bitcoin testnet3";
+    }
+    else
+    {
+      SelectParams(CBaseChainParams::MAIN);
+    }
+
     gJobMaker = new JobMaker(cfg.lookup("kafka.brokers"), stratumJobInterval,
                              cfg.lookup("pool.payout_address"), gbtLifeTime,
                              emptyGbtLifeTime, fileLastJobTime,
@@ -171,15 +183,6 @@ int main(int argc, char **argv) {
 
   try {
     // check if we are using testnet3
-    bool isTestnet3 = true;
-    cfg.lookupValue("testnet", isTestnet3);
-    if (isTestnet3) {
-      SelectParams(CBaseChainParams::TESTNET);
-      LOG(WARNING) << "using bitcoin testnet3";
-    } else {
-      SelectParams(CBaseChainParams::MAIN);
-    }
-
     gJobMaker = createJobMaker(cfg);
 
     if (!gJobMaker->init()) {

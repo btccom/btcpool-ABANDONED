@@ -175,7 +175,7 @@ void GwMaker::submitRawGwMsg() {
   }
 
   // submit to Kafka
-  LOG(INFO) << "submit to Kafka, msg len: " << rawGwMsg.length();// << " "<< rawGwMsg;
+  LOG(INFO) << "submit to Kafka msg len: " << rawGwMsg.length();
   kafkaProduceMsg(rawGwMsg.c_str(), rawGwMsg.length());
 }
 
