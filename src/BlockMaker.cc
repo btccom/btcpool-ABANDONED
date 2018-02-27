@@ -633,6 +633,7 @@ void BlockMaker::_saveBlockToDBThread(const FoundBlock &foundBlock,
 
 bool BlockMaker::checkBitcoinds() {
   const string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getnetworkinfo\",\"params\":[]}";
+  const string requestFallback = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getinfo\",\"params\":[]}";
 
   if (bitcoindRpcUri_.size() == 0)
     return false;
@@ -650,6 +651,24 @@ bool BlockMaker::checkBitcoinds() {
       LOG(ERROR) << "json parse failure: " << response;
       return false;
     }
+
+    // check if the method not found
+    if (r["error"].type() == Utilities::JS::type::Obj) {
+      LOG(INFO) << "bitcoind doesn't support getnetworkinfo, try getinfo";
+
+      res = bitcoindRpcCall(itr.first.c_str(), itr.second.c_str(),
+                            requestFallback.c_str(), response);
+      if (res == false) {
+        return false;
+      }
+      LOG(INFO) << "response: " << response;
+      if (!JsonNode::parse(response.c_str(), response.c_str() + response.length(), r)) {
+        LOG(ERROR) << "json parse failure: " << response;
+        return false;
+      }
+    }
+
+    // check fields & connections
     JsonNode result = r["result"];
     if (result.type() == Utilities::JS::type::Null ||
         result["connections"].int32() == 0) {

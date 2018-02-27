@@ -94,7 +94,27 @@ bool GbtMaker::init() {
       return false;
     }
 
-    // check fields
+    // check if the method not found
+    if (r["error"].type() == Utilities::JS::type::Obj) {
+      LOG(INFO) << "bitcoind doesn't support getnetworkinfo, try getinfo";
+
+      request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getinfo\",\"params\":[]}";
+      bool res = bitcoindRpcCall(bitcoindRpcAddr_.c_str(), bitcoindRpcUserpass_.c_str(),
+                                 request.c_str(), response);
+      if (!res) {
+        LOG(ERROR) << "bitcoind rpc call failure";
+        return false;
+      }
+      LOG(INFO) << "bitcoind getinfo: " << response;
+
+      if (!JsonNode::parse(response.c_str(),
+                           response.c_str() + response.length(), r)) {
+        LOG(ERROR) << "decode getinfo failure";
+        return false;
+      }
+    }
+
+    // check fields & connections
     if (r["result"].type() != Utilities::JS::type::Obj ||
         r["result"]["connections"].type() != Utilities::JS::type::Int) {
       LOG(ERROR) << "getnetworkinfo missing some fields";
@@ -543,7 +563,27 @@ bool NMCAuxBlockMaker::init() {
       return false;
     }
 
-    // check fields
+    // check if the method not found
+    if (r["error"].type() == Utilities::JS::type::Obj) {
+      LOG(INFO) << "namecoind doesn't support getnetworkinfo, try getinfo";
+
+      request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getinfo\",\"params\":[]}";
+      res = bitcoindRpcCall(rpcAddr_.c_str(), rpcUserpass_.c_str(),
+                            request.c_str(), response);
+      if (!res) {
+        LOG(ERROR) << "namecoind rpc call failure";
+        return false;
+      }
+      LOG(INFO) << "namecoind getinfo: " << response;
+
+      if (!JsonNode::parse(response.c_str(),
+                           response.c_str() + response.length(), r)) {
+        LOG(ERROR) << "decode getinfo failure";
+        return false;
+      }
+    }
+
+    // check fields & connections
     if (r["result"].type() != Utilities::JS::type::Obj ||
         r["result"]["connections"].type() != Utilities::JS::type::Int) {
       LOG(ERROR) << "getnetworkinfo missing some fields";
