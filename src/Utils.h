@@ -93,4 +93,6 @@ inline double share2HashrateP(uint64_t share, uint32_t timeDiff) {
 
 bool fileExists(const char* file);
 
+bool checkBitcoinRPC(const string &rpcAddr, const string &rpcUserpass);
+
 #endif

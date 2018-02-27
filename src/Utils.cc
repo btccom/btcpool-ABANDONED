@@ -22,6 +22,7 @@
  THE SOFTWARE.
 */
 #include "Utils.h"
+#include "utilities_js.hpp"
 
 #include <util.h>
 #include <streams.h>
@@ -346,4 +347,58 @@ string score2Str(double s) {
 bool fileExists(const char* file) {
   struct stat buf;
   return (stat(file, &buf) == 0);
+}
+
+bool checkBitcoinRPC(const string &rpcAddr, const string &rpcUserpass) {
+  string response;
+  string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getnetworkinfo\",\"params\":[]}";
+  bool res = bitcoindRpcCall(rpcAddr.c_str(), rpcUserpass.c_str(),
+                             request.c_str(), response);
+  if (!res) {
+    LOG(ERROR) << "rpc call failure";
+    return false;
+  }
+
+  LOG(INFO) << "getnetworkinfo: " << response;
+
+  JsonNode r;
+  if (!JsonNode::parse(response.c_str(),
+                       response.c_str() + response.length(), r)) {
+    LOG(ERROR) << "decode getnetworkinfo failure";
+    return false;
+  }
+
+  // check if the method not found
+  if (r["result"].type() != Utilities::JS::type::Obj) {
+    LOG(INFO) << "node doesn't support getnetworkinfo, try getinfo";
+
+    request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getinfo\",\"params\":[]}";
+    res = bitcoindRpcCall(rpcAddr.c_str(), rpcUserpass.c_str(),
+                          request.c_str(), response);
+    if (!res) {
+      LOG(ERROR) << "rpc call failure";
+      return false;
+    }
+
+    LOG(INFO) << "getinfo: " << response;
+
+    if (!JsonNode::parse(response.c_str(),
+                         response.c_str() + response.length(), r)) {
+      LOG(ERROR) << "decode getinfo failure";
+      return false;
+    }
+  }
+
+  // check fields & connections
+  if (r["result"].type() != Utilities::JS::type::Obj ||
+      r["result"]["connections"].type() != Utilities::JS::type::Int) {
+    LOG(ERROR) << "getnetworkinfo missing some fields";
+    return false;
+  }
+  if (r["result"]["connections"].int32() <= 0) {
+    LOG(ERROR) << "node connections is zero";
+    return false;
+  }
+
+  return true;
 }

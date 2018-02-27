@@ -76,54 +76,8 @@ bool GbtMaker::init() {
   }
 
   // check bitcoind network
-  {
-    string response;
-    string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getnetworkinfo\",\"params\":[]}";
-    bool res = bitcoindRpcCall(bitcoindRpcAddr_.c_str(), bitcoindRpcUserpass_.c_str(),
-                               request.c_str(), response);
-    if (!res) {
-      LOG(ERROR) << "bitcoind rpc call failure";
-      return false;
-    }
-    LOG(INFO) << "bitcoind getnetworkinfo: " << response;
-
-    JsonNode r;
-    if (!JsonNode::parse(response.c_str(),
-                         response.c_str() + response.length(), r)) {
-      LOG(ERROR) << "decode gbt failure";
-      return false;
-    }
-
-    // check if the method not found
-    if (r["error"].type() == Utilities::JS::type::Obj) {
-      LOG(INFO) << "bitcoind doesn't support getnetworkinfo, try getinfo";
-
-      request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getinfo\",\"params\":[]}";
-      bool res = bitcoindRpcCall(bitcoindRpcAddr_.c_str(), bitcoindRpcUserpass_.c_str(),
-                                 request.c_str(), response);
-      if (!res) {
-        LOG(ERROR) << "bitcoind rpc call failure";
-        return false;
-      }
-      LOG(INFO) << "bitcoind getinfo: " << response;
-
-      if (!JsonNode::parse(response.c_str(),
-                           response.c_str() + response.length(), r)) {
-        LOG(ERROR) << "decode getinfo failure";
-        return false;
-      }
-    }
-
-    // check fields & connections
-    if (r["result"].type() != Utilities::JS::type::Obj ||
-        r["result"]["connections"].type() != Utilities::JS::type::Int) {
-      LOG(ERROR) << "getnetworkinfo missing some fields";
-      return false;
-    }
-    if (r["result"]["connections"].int32() <= 0) {
-      LOG(ERROR) << "bitcoind connections is zero";
-      return false;
-    }
+  if (!checkBitcoinRPC(bitcoindRpcAddr_.c_str(), bitcoindRpcUserpass_.c_str())) {
+    return false;
   }
 
   if (isCheckZmq_ && !checkBitcoindZMQ())
@@ -545,54 +499,8 @@ bool NMCAuxBlockMaker::init() {
   }
 
   // check namecoind
-  {
-    string response;
-    string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getnetworkinfo\",\"params\":[]}";
-    bool res = bitcoindRpcCall(rpcAddr_.c_str(), rpcUserpass_.c_str(),
-                               request.c_str(), response);
-    if (!res) {
-      LOG(ERROR) << "namecoind rpc call failure";
-      return false;
-    }
-    LOG(INFO) << "namecoind getnetworkinfo: " << response;
-
-    JsonNode r;
-    if (!JsonNode::parse(response.c_str(),
-                         response.c_str() + response.length(), r)) {
-      LOG(ERROR) << "decode getnetworkinfo failure";
-      return false;
-    }
-
-    // check if the method not found
-    if (r["error"].type() == Utilities::JS::type::Obj) {
-      LOG(INFO) << "namecoind doesn't support getnetworkinfo, try getinfo";
-
-      request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getinfo\",\"params\":[]}";
-      res = bitcoindRpcCall(rpcAddr_.c_str(), rpcUserpass_.c_str(),
-                            request.c_str(), response);
-      if (!res) {
-        LOG(ERROR) << "namecoind rpc call failure";
-        return false;
-      }
-      LOG(INFO) << "namecoind getinfo: " << response;
-
-      if (!JsonNode::parse(response.c_str(),
-                           response.c_str() + response.length(), r)) {
-        LOG(ERROR) << "decode getinfo failure";
-        return false;
-      }
-    }
-
-    // check fields & connections
-    if (r["result"].type() != Utilities::JS::type::Obj ||
-        r["result"]["connections"].type() != Utilities::JS::type::Int) {
-      LOG(ERROR) << "getnetworkinfo missing some fields";
-      return false;
-    }
-    if (r["result"]["connections"].int32() <= 0) {
-      LOG(ERROR) << "namecoind connections is zero";
-      return false;
-    }
+  if (!checkBitcoinRPC(rpcAddr_.c_str(), rpcUserpass_.c_str())) {
+    return false;
   }
 
   // check aux mining rpc commands: createauxblock & submitauxblock
