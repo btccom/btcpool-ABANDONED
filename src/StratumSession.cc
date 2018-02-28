@@ -1096,9 +1096,7 @@ void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool
   if (state_ < AUTHENTICATED || exJobPtr == nullptr) {
     return;
   }
-  StratumJob *sjob = exJobPtr->sjob_;
-  string notifyStr;
-  sendData(notifyStr);  // send notify string
+  sendData(exJobPtr->miningNotify1_);  // send notify string
 }
 
 ///////////////////////////////// AgentSessions ////////////////////////////////

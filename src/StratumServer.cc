@@ -185,7 +185,7 @@ void JobRepository::runThreadConsume() {
   LOG(INFO) << "stop job repository consume thread";
 }
 
-void JobRepository::broadcaseStratumJob(StratumJob *sjob) {
+void JobRepository::broadcastStratumJob(StratumJob *sjob) {
   bool isClean = false;
   if (latestPrevBlockHash_ != sjob->prevHash_) {
     isClean = true;
@@ -290,7 +290,7 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
     return;
   }
 
-  broadcaseStratumJob(sjob);
+  broadcastStratumJob(sjob);
 }
 
 StratumJobEx* JobRepository::createStratumJob(StratumServerType type, StratumJob *sjob, bool isClean){
@@ -375,7 +375,7 @@ JobRepository(kafkaBrokers, fileLastNotifyTime, server)
   serverType_ = ETH;
 }
 
-void JobRepositoryEth::broadcaseStratumJob(StratumJob *sjob) {
+void JobRepositoryEth::broadcastStratumJob(StratumJob *sjob) {
   bool isClean = false;
   // 
   // The `clean_jobs` field should be `true` ONLY IF a new block found in Bitcoin blockchains.
@@ -1432,14 +1432,28 @@ void Server::sendCommonEvents2Kafka(const string &message) {
 }
 
 ////////////////////////////////// StratumJobExEth ///////////////////////////////
-void StratumJobExEth::makeMiningNotifyStr() {
-//  def get_seedhash(block):
-//      s = '\x00' * 32
-//      for i in range(block.number // EPOCH_LENGTH):
-//          s = serialize_hash(sha3_256(s))
-//      return s
+void StratumJobExEth::makeMiningNotifyStr()
+{
+  StratumJobEth *ethJob = dynamic_cast<StratumJobEth *>(sjob_);
+  if (nullptr == ethJob)
+    return;
 
-  miningNotify_.seedhash = sjob_->prevHashBeStr_.c_str();
-  miningNotify_.headerhash = sjob_->prevHashBeStr_.c_str();
-  miningNotify_.cleanjobs = false;
+  // First parameter of params array is job ID (must be HEX number of any
+  // size). Second parameter is seedhash. Seedhash is sent with every job to
+  // support possible multipools, which may switch between coins quickly.
+  // Third parameter is headerhash. Last parameter is boolean cleanjobs.
+  // If set to true, tbbhen miner needs to clear queue of jobs and immediatelly
+  // start working on new provided job, because all old jobs shares will
+  // result with stale share error.
+  // Miner uses seedhash to identify DAG, then tries to find share below
+  // target (which is created out of provided difficulty) with headerhash,
+  // extranonce and own minernonce.
+
+  miningNotify1_ = Strings::Format("{\"id\":8,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
+                                   "\"params\":[\"%" PRIx64 "\",\"%s\",\"%s\",\"%s\",\"false\"]}",
+                                   ethJob->jobId_,
+                                   ethJob->blockHashForMergedMining_.c_str(),
+                                   ethJob->seedHash_.c_str(),
+                                   ethJob->rskNetworkTarget_.GetHex().c_str());
+  DLOG(INFO) << "mining.notify string: " << miningNotify1_;
 }
