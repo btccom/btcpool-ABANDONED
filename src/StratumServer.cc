@@ -406,14 +406,7 @@ void JobRepositoryEth::broadcastStratumJob(StratumJob *sjob) {
   // miner should also drop all previous jobs.
   // 
   shared_ptr<StratumJobEx> exJob(createStratumJobEx(serverType_, sjob, isClean));
-  {
-    ScopeLock sl(lock_);
-
-    // insert new job
-    exJobs_[sjob->jobId_] = exJob;
-  }
-
-    sendMiningNotify(exJob);
+  sendMiningNotify(exJob);
 }
 
 //////////////////////////////////// UserInfo /////////////////////////////////
@@ -1469,8 +1462,8 @@ void StratumJobExEth::makeMiningNotifyStr()
   string seed = ethJob->seedHash_.substr(2, 64);
   //string json = "{\"id\": 6, \"jsonrpc\":\"2.0\", \"method\": \"eth_submitHashrate\", \"params\": [\"" + rate + "\",\"0x" + this->m_submit_hashrate_id + "\"]}\n";
   miningNotify1_ = Strings::Format("{\"id\":8,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
-                                   "\"params\":[\"%s\",\"%s\",\"%s\",\"%s\", false]}\n",
-                                   header.c_str(),
+                                   "\"params\":[\"%" PRIx64"\",\"%s\",\"%s\",\"%s\", false]}\n",
+                                   ethJob->jobId_,
                                    header.c_str(),
                                    seed.c_str(),
                                    ethJob->rskNetworkTarget_.GetHex().c_str());
