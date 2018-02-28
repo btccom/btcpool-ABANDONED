@@ -675,31 +675,36 @@ string StratumJobEth::serializeToJson() const {
                          isRskCleanJob_ ? "true" : "false");
 }
 
-bool StratumJobEth::unserializeFromJson(const char *s, size_t len) {
+bool StratumJobEth::unserializeFromJson(const char *s, size_t len)
+{
   JsonNode j;
-  if (!JsonNode::parse(s, s + len, j)) {
+  if (!JsonNode::parse(s, s + len, j))
+  {
     return false;
   }
-  if (j["jobId"].type()        != Utilities::JS::type::Int ||
-  j["sHash"].type()        != Utilities::JS::type::Str) {
-    LOG(ERROR) << "parse eth stratum job failure: jobid type " << (int)j["jobId"].type() << ", sHash type " << (int)j["sHash"].type() << " " << s;
+  if (j["jobId"].type() != Utilities::JS::type::Int ||
+      j["sHash"].type() != Utilities::JS::type::Str)
+  {
+    LOG(ERROR) << "parse eth stratum job failure: " << s;
     return false;
   }
 
-  jobId_         = j["jobId"].uint64();
+  jobId_ = j["jobId"].uint64();
+  seedHash_ = j["sHash"].str();
 
-  if (j["rskBlockHashForMergedMining"].type()   == Utilities::JS::type::Str &&
-      j["rskNetworkTarget"].type()              == Utilities::JS::type::Str &&
-      j["rskFeesForMiner"].type()               == Utilities::JS::type::Str &&
-      j["rskdRpcAddress"].type()                == Utilities::JS::type::Str &&
-      j["rskdRpcUserPwd"].type()                == Utilities::JS::type::Str &&
-      j["isRskCleanJob"].type()                 == Utilities::JS::type::Bool) {
+  if (j["rskBlockHashForMergedMining"].type() == Utilities::JS::type::Str &&
+      j["rskNetworkTarget"].type() == Utilities::JS::type::Str &&
+      j["rskFeesForMiner"].type() == Utilities::JS::type::Str &&
+      j["rskdRpcAddress"].type() == Utilities::JS::type::Str &&
+      j["rskdRpcUserPwd"].type() == Utilities::JS::type::Str &&
+      j["isRskCleanJob"].type() == Utilities::JS::type::Bool)
+  {
     blockHashForMergedMining_ = j["rskBlockHashForMergedMining"].str();
-    rskNetworkTarget_         = uint256S(j["rskNetworkTarget"].str());
-    feesForMiner_             = j["rskFeesForMiner"].str();
-    rskdRpcAddress_           = j["rskdRpcAddress"].str();
-    rskdRpcUserPwd_           = j["rskdRpcUserPwd"].str();
-    isRskCleanJob_            = j["isRskCleanJob"].boolean();
+    rskNetworkTarget_ = uint256S(j["rskNetworkTarget"].str());
+    feesForMiner_ = j["rskFeesForMiner"].str();
+    rskdRpcAddress_ = j["rskdRpcAddress"].str();
+    rskdRpcUserPwd_ = j["rskdRpcUserPwd"].str();
+    isRskCleanJob_ = j["isRskCleanJob"].boolean();
   }
 
   return true;

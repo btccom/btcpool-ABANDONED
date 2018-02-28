@@ -106,7 +106,7 @@ protected:
 
   string fileLastNotifyTime_;
 
-  const time_t kMaxJobsLifeTime_;
+  time_t kMaxJobsLifeTime_;
   const time_t kMiningNotifyInterval_;
 
   time_t lastJobSendTime_;
@@ -244,16 +244,12 @@ public:
                            const uint32_t nBits, const int32_t nVersion,
                            const uint32_t nTime, const uint32_t nonce,
                            string *userCoinbaseInfo = nullptr);
-
-protected:
   virtual void makeMiningNotifyStr();
 };
 
 class StratumJobExEth : public StratumJobEx {
 public:
   StratumJobExEth(StratumJob *sjob, bool isClean) : StratumJobEx(sjob, isClean) {}
-
-protected:
   virtual void makeMiningNotifyStr();
 };
 

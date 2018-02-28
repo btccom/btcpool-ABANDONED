@@ -280,7 +280,7 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
     }
     return;
   }
-  
+
   StratumJob *sjob = createStratumJob();
   bool res = sjob->unserializeFromJson((const char *)rkmessage->payload,
                                        rkmessage->len);
@@ -319,6 +319,9 @@ StratumJobEx* JobRepository::createStratumJobEx(StratumServerType type, StratumJ
       break;
     }
   }
+
+  if (job)
+    job->makeMiningNotifyStr();
 
   return job;
 }
@@ -386,6 +389,7 @@ JobRepositoryEth::JobRepositoryEth(const char *kafkaBrokers,
 JobRepository(kafkaBrokers, fileLastNotifyTime, server)
 {
   serverType_ = ETH;
+  kMaxJobsLifeTime_ = 15;
 }
 
 void JobRepositoryEth::broadcastStratumJob(StratumJob *sjob) {
@@ -698,7 +702,7 @@ StratumJobEx::StratumJobEx(StratumJob *sjob, bool isClean):
 state_(0), isClean_(isClean), sjob_(sjob)
 {
   assert(sjob != nullptr);
-  makeMiningNotifyStr();
+  //makeMiningNotifyStr();
 }
 
 StratumJobEx::~StratumJobEx() {
@@ -1461,12 +1465,16 @@ void StratumJobExEth::makeMiningNotifyStr()
   // Miner uses seedhash to identify DAG, then tries to find share below
   // target (which is created out of provided difficulty) with headerhash,
   // extranonce and own minernonce.
-
+  string header = ethJob->blockHashForMergedMining_.substr(2, 64);
+  string seed = ethJob->seedHash_.substr(2, 64);
+  //string json = "{\"id\": 6, \"jsonrpc\":\"2.0\", \"method\": \"eth_submitHashrate\", \"params\": [\"" + rate + "\",\"0x" + this->m_submit_hashrate_id + "\"]}\n";
   miningNotify1_ = Strings::Format("{\"id\":8,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
-                                   "\"params\":[\"%" PRIx64 "\",\"%s\",\"%s\",\"%s\", false]}",
-                                   ethJob->jobId_,
-                                   ethJob->blockHashForMergedMining_.c_str(),
-                                   ethJob->seedHash_.c_str(),
+                                   "\"params\":[\"%s\",\"%s\",\"%s\",\"%s\", false]}\n",
+                                   header.c_str(),
+                                   header.c_str(),
+                                   seed.c_str(),
                                    ethJob->rskNetworkTarget_.GetHex().c_str());
+
+
   DLOG(INFO) << "mining.notify string: " << miningNotify1_;
 }
