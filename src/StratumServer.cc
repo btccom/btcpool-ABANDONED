@@ -207,7 +207,7 @@ void JobRepository::broadcastStratumJob(StratumJob *sjob) {
   // don't have a sense and such shares will be rejected. When this flag is set,
   // miner should also drop all previous jobs.
   // 
-  shared_ptr<StratumJobEx> exJob(createStratumJob(serverType_, sjob, isClean));
+  shared_ptr<StratumJobEx> exJob(createStratumJobEx(serverType_, sjob, isClean));
   {
     ScopeLock sl(lock_);
 
@@ -244,6 +244,19 @@ void JobRepository::broadcastStratumJob(StratumJob *sjob) {
   }
 }
 
+StratumJob* JobRepository::createStratumJob() {
+  StratumJob* sjob = nullptr;
+  switch(serverType_) {
+    case BTC:
+      sjob = new StratumJob();
+      break;
+    case ETH:
+      sjob = new StratumJobEth();
+      break;
+  }
+  return sjob;
+}
+
 void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   // check error
   if (rkmessage->err) {
@@ -267,8 +280,8 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
     }
     return;
   }
-
-  StratumJob *sjob = new StratumJob();
+  
+  StratumJob *sjob = createStratumJob();
   bool res = sjob->unserializeFromJson((const char *)rkmessage->payload,
                                        rkmessage->len);
   if (res == false) {
@@ -293,7 +306,7 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   broadcastStratumJob(sjob);
 }
 
-StratumJobEx* JobRepository::createStratumJob(StratumServerType type, StratumJob *sjob, bool isClean){
+StratumJobEx* JobRepository::createStratumJobEx(StratumServerType type, StratumJob *sjob, bool isClean){
   StratumJobEx* job = NULL;
 
   switch (type) {
@@ -388,7 +401,7 @@ void JobRepositoryEth::broadcastStratumJob(StratumJob *sjob) {
   // don't have a sense and such shares will be rejected. When this flag is set,
   // miner should also drop all previous jobs.
   // 
-  shared_ptr<StratumJobEx> exJob(createStratumJob(serverType_, sjob, isClean));
+  shared_ptr<StratumJobEx> exJob(createStratumJobEx(serverType_, sjob, isClean));
   {
     ScopeLock sl(lock_);
 
@@ -1450,7 +1463,7 @@ void StratumJobExEth::makeMiningNotifyStr()
   // extranonce and own minernonce.
 
   miningNotify1_ = Strings::Format("{\"id\":8,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
-                                   "\"params\":[\"%" PRIx64 "\",\"%s\",\"%s\",\"%s\",\"false\"]}",
+                                   "\"params\":[\"%" PRIx64 "\",\"%s\",\"%s\",\"%s\", false]}",
                                    ethJob->jobId_,
                                    ethJob->blockHashForMergedMining_.c_str(),
                                    ethJob->seedHash_.c_str(),

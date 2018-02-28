@@ -129,7 +129,8 @@ public:
   void stop();
   bool setupThreadConsume();
   void markAllJobsAsStale();
-  StratumJobEx *createStratumJob(StratumServerType type, StratumJob *sjob, bool isClean);
+  StratumJobEx *createStratumJobEx(StratumServerType type, StratumJob *sjob, bool isClean);
+  StratumJob *createStratumJob();
   virtual void broadcastStratumJob(StratumJob *sjob);
   void sendMiningNotify(shared_ptr<StratumJobEx> exJob);
   shared_ptr<StratumJobEx> getStratumJobEx(const uint64_t jobId);

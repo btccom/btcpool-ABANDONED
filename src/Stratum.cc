@@ -682,15 +682,12 @@ bool StratumJobEth::unserializeFromJson(const char *s, size_t len) {
   }
   if (j["jobId"].type()        != Utilities::JS::type::Int ||
   j["sHash"].type()        != Utilities::JS::type::Str) {
-    LOG(ERROR) << "parse stratum job failure: " << s;
+    LOG(ERROR) << "parse eth stratum job failure: jobid type " << (int)j["jobId"].type() << ", sHash type " << (int)j["sHash"].type() << " " << s;
     return false;
   }
 
   jobId_         = j["jobId"].uint64();
 
-  //
-  // rsk, optional
-  //
   if (j["rskBlockHashForMergedMining"].type()   == Utilities::JS::type::Str &&
       j["rskNetworkTarget"].type()              == Utilities::JS::type::Str &&
       j["rskFeesForMiner"].type()               == Utilities::JS::type::Str &&
