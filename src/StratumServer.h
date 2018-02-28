@@ -120,10 +120,11 @@ class JobRepository {
   void checkAndSendMiningNotify();
 
   StratumJobEx* createStratumJob(StratumServerType type, StratumJob *sjob, bool isClean);
+  virtual void broadcaseStratumJob(StratumJob *sjob);
 public:
   JobRepository(const char *kafkaBrokers, const string &fileLastNotifyTime,
                 Server *server);
-  ~JobRepository();
+  virtual ~JobRepository();
 
   void stop();
   bool setupThreadConsume();

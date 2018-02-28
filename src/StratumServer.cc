@@ -185,52 +185,7 @@ void JobRepository::runThreadConsume() {
   LOG(INFO) << "stop job repository consume thread";
 }
 
-void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
-  // check error
-  if (rkmessage->err) {
-    if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
-      // Reached the end of the topic+partition queue on the broker.
-      // Not really an error.
-      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
-      //      << "[" << rkmessage->partition << "] "
-      //      << " message queue at offset " << rkmessage->offset;
-      // acturlly
-      return;
-    }
-
-    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
-    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
-    << ": " << rd_kafka_message_errstr(rkmessage);
-
-    if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
-        rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
-      LOG(FATAL) << "consume fatal";
-    }
-    return;
-  }
-
-  StratumJob *sjob = new StratumJob();
-  bool res = sjob->unserializeFromJson((const char *)rkmessage->payload,
-                                       rkmessage->len);
-  if (res == false) {
-    LOG(ERROR) << "unserialize stratum job fail";
-    delete sjob;
-    return;
-  }
-  // make sure the job is not expired.
-  if (jobId2Time(sjob->jobId_) + 60 < time(nullptr)) {
-    LOG(ERROR) << "too large delay from kafka to receive topic 'StratumJob'";
-    delete sjob;
-    return;
-  }
-  // here you could use Map.find() without lock, it's sure
-  // that everyone is using this Map readonly now
-  if (exJobs_.find(sjob->jobId_) != exJobs_.end()) {
-    LOG(ERROR) << "jobId already existed";
-    delete sjob;
-    return;
-  }
-
+void JobRepository::broadcaseStratumJob(StratumJob *sjob) {
   bool isClean = false;
   if (latestPrevBlockHash_ != sjob->prevHash_) {
     isClean = true;
@@ -287,6 +242,55 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
       sendMiningNotify(exJob);
     }
   }
+}
+
+void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
+  // check error
+  if (rkmessage->err) {
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
+      // Reached the end of the topic+partition queue on the broker.
+      // Not really an error.
+      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
+      //      << "[" << rkmessage->partition << "] "
+      //      << " message queue at offset " << rkmessage->offset;
+      // acturlly
+      return;
+    }
+
+    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
+    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
+    << ": " << rd_kafka_message_errstr(rkmessage);
+
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
+        rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
+      LOG(FATAL) << "consume fatal";
+    }
+    return;
+  }
+
+  StratumJob *sjob = new StratumJob();
+  bool res = sjob->unserializeFromJson((const char *)rkmessage->payload,
+                                       rkmessage->len);
+  if (res == false) {
+    LOG(ERROR) << "unserialize stratum job fail";
+    delete sjob;
+    return;
+  }
+  // make sure the job is not expired.
+  if (jobId2Time(sjob->jobId_) + 60 < time(nullptr)) {
+    LOG(ERROR) << "too large delay from kafka to receive topic 'StratumJob'";
+    delete sjob;
+    return;
+  }
+  // here you could use Map.find() without lock, it's sure
+  // that everyone is using this Map readonly now
+  if (exJobs_.find(sjob->jobId_) != exJobs_.end()) {
+    LOG(ERROR) << "jobId already existed";
+    delete sjob;
+    return;
+  }
+
+  broadcaseStratumJob(sjob);
 }
 
 StratumJobEx* JobRepository::createStratumJob(StratumServerType type, StratumJob *sjob, bool isClean){
