@@ -94,13 +94,14 @@ public:
 
 
 ////////////////////////////////// JobRepository ///////////////////////////////
-class JobRepository {
+class JobRepository
+{
   atomic<bool> running_;
   mutex lock_;
-  std::map<uint64_t/* jobId */, shared_ptr<StratumJobEx> > exJobs_;
+  std::map<uint64_t /* jobId */, shared_ptr<StratumJobEx>> exJobs_;
 
-  KafkaConsumer kafkaConsumer_;  // consume topic: 'StratumJob'
-  Server *server_;               // call server to send new job
+  KafkaConsumer kafkaConsumer_; // consume topic: 'StratumJob'
+  Server *server_;              // call server to send new job
 
   string fileLastNotifyTime_;
 
@@ -111,16 +112,20 @@ class JobRepository {
   uint256 latestPrevBlockHash_;
 
   thread threadConsume_;
-  StratumServerType serverType_; 
-  void runThreadConsume();
 
+protected:
+  StratumServerType serverType_;
+
+private:
+  void runThreadConsume();
   void consumeStratumJob(rd_kafka_message_t *rkmessage);
   void sendMiningNotify(shared_ptr<StratumJobEx> exJob);
   void tryCleanExpiredJobs();
   void checkAndSendMiningNotify();
 
-  StratumJobEx* createStratumJob(StratumServerType type, StratumJob *sjob, bool isClean);
+  StratumJobEx *createStratumJob(StratumServerType type, StratumJob *sjob, bool isClean);
   virtual void broadcaseStratumJob(StratumJob *sjob);
+
 public:
   JobRepository(const char *kafkaBrokers, const string &fileLastNotifyTime,
                 Server *server);
@@ -134,6 +139,12 @@ public:
   shared_ptr<StratumJobEx> getLatestStratumJobEx();
 };
 
+class JobRepositoryEth : public JobRepository
+{
+public:
+  JobRepositoryEth(const char *kafkaBrokers, const string &fileLastNotifyTime,
+                   Server *server);
+};
 
 ///////////////////////////////////// UserInfo /////////////////////////////////
 // 1. update userName->userId by interval
@@ -310,6 +321,11 @@ public:
   const int32_t kShareAvgSeconds_;
   JobRepository *jobRepository_;
   UserInfo *userInfo_;
+
+  JobRepository* createJobRepository(StratumServerType type, 
+                                    const char *kafkaBrokers,
+                                     const string &fileLastNotifyTime,
+                                     Server *server);
 
 public:
   Server(const int32_t shareAvgSeconds);

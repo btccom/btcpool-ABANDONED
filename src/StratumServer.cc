@@ -102,7 +102,7 @@ server_(server), fileLastNotifyTime_(fileLastNotifyTime),
 kMaxJobsLifeTime_(300),
 kMiningNotifyInterval_(30),  // TODO: make as config arg
 lastJobSendTime_(0),
-serverType_(ETH) // TODO: make as config arg
+serverType_(BTC) // TODO: make as config arg
 {
   assert(kMiningNotifyInterval_ < kMaxJobsLifeTime_);
 }
@@ -366,6 +366,14 @@ void JobRepository::tryCleanExpiredJobs() {
   }
 }
 
+////////////////////////////////// JobRepositoryEth ///////////////////////////////
+JobRepositoryEth::JobRepositoryEth(const char *kafkaBrokers,
+                             const string &fileLastNotifyTime,
+                             Server *server):
+JobRepository(kafkaBrokers, fileLastNotifyTime, server)
+{
+  serverType_ = ETH;
+}
 
 //////////////////////////////////// UserInfo /////////////////////////////////
 UserInfo::UserInfo(const string &apiUrl, Server *server):
@@ -873,6 +881,27 @@ Server::~Server() {
 #endif
 }
 
+JobRepository *Server::createJobRepository(StratumServerType type,
+                                           const char *kafkaBrokers,
+                                           const string &fileLastNotifyTime,
+                                           Server *server)
+{
+  JobRepository* jobRepo = nullptr;
+  switch (type) {
+    case BTC:
+      {
+        jobRepo = new JobRepository(kafkaBrokers, fileLastNotifyTime, this); 
+        break;
+      }
+    case ETH:
+      {
+        jobRepo = new JobRepositoryEth(kafkaBrokers, fileLastNotifyTime, this); 
+        break;
+      }
+  }
+  return jobRepo;
+}
+
 bool Server::setup(const char *ip, const unsigned short port,
                    const char *kafkaBrokers,
                    const string &userAPIUrl,
@@ -912,7 +941,7 @@ bool Server::setup(const char *ip, const unsigned short port,
                                                  RD_KAFKA_PARTITION_UA);
 
   // job repository
-  jobRepository_ = new JobRepository(kafkaBrokers, fileLastNotifyTime, this);
+  jobRepository_ = createJobRepository(ETH, kafkaBrokers, fileLastNotifyTime, this);
   if (!jobRepository_->setupThreadConsume()) {
     return false;
   }
