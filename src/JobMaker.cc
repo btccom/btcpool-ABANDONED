@@ -553,7 +553,9 @@ void JobMaker::sendStratumJob(const char *gbt) {
   RskWork currentRskBlockJson;
   {
     ScopeLock sl(rskWorkAccessLock_);
-    currentRskBlockJson = *(currentRskWork_ ? currentRskWork_ : new RskWork());
+    if (currentRskWork_ != nullptr) {
+      currentRskBlockJson = *currentRskWork_;
+    }
   }
 
   StratumJob sjob;
