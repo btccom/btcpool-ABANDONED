@@ -375,6 +375,30 @@ JobRepository(kafkaBrokers, fileLastNotifyTime, server)
   serverType_ = ETH;
 }
 
+void JobRepositoryEth::broadcaseStratumJob(StratumJob *sjob) {
+  bool isClean = false;
+  // 
+  // The `clean_jobs` field should be `true` ONLY IF a new block found in Bitcoin blockchains.
+  // Most miner implements will never submit their previous shares if the field is `true`.
+  // There will be a huge loss of hashrates and earnings if the field is often `true`.
+  // 
+  // There is the definition from <https://slushpool.com/help/manual/stratum-protocol>:
+  // 
+  // clean_jobs - When true, server indicates that submitting shares from previous jobs
+  // don't have a sense and such shares will be rejected. When this flag is set,
+  // miner should also drop all previous jobs.
+  // 
+  shared_ptr<StratumJobEx> exJob(createStratumJob(serverType_, sjob, isClean));
+  {
+    ScopeLock sl(lock_);
+
+    // insert new job
+    exJobs_[sjob->jobId_] = exJob;
+  }
+
+    sendMiningNotify(exJob);
+}
+
 //////////////////////////////////// UserInfo /////////////////////////////////
 UserInfo::UserInfo(const string &apiUrl, Server *server):
 running_(true), apiUrl_(apiUrl), lastMaxUserId_(0),

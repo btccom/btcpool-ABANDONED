@@ -96,6 +96,7 @@ public:
 ////////////////////////////////// JobRepository ///////////////////////////////
 class JobRepository
 {
+protected:
   atomic<bool> running_;
   mutex lock_;
   std::map<uint64_t /* jobId */, shared_ptr<StratumJobEx>> exJobs_;
@@ -112,19 +113,13 @@ class JobRepository
   uint256 latestPrevBlockHash_;
 
   thread threadConsume_;
-
-protected:
   StratumServerType serverType_;
 
 private:
   void runThreadConsume();
   void consumeStratumJob(rd_kafka_message_t *rkmessage);
-  void sendMiningNotify(shared_ptr<StratumJobEx> exJob);
   void tryCleanExpiredJobs();
   void checkAndSendMiningNotify();
-
-  StratumJobEx *createStratumJob(StratumServerType type, StratumJob *sjob, bool isClean);
-  virtual void broadcaseStratumJob(StratumJob *sjob);
 
 public:
   JobRepository(const char *kafkaBrokers, const string &fileLastNotifyTime,
@@ -134,7 +129,9 @@ public:
   void stop();
   bool setupThreadConsume();
   void markAllJobsAsStale();
-
+  StratumJobEx *createStratumJob(StratumServerType type, StratumJob *sjob, bool isClean);
+  virtual void broadcaseStratumJob(StratumJob *sjob);
+  void sendMiningNotify(shared_ptr<StratumJobEx> exJob);
   shared_ptr<StratumJobEx> getStratumJobEx(const uint64_t jobId);
   shared_ptr<StratumJobEx> getLatestStratumJobEx();
 };
@@ -144,6 +141,8 @@ class JobRepositoryEth : public JobRepository
 public:
   JobRepositoryEth(const char *kafkaBrokers, const string &fileLastNotifyTime,
                    Server *server);
+
+  virtual void broadcaseStratumJob(StratumJob *sjob);
 };
 
 ///////////////////////////////////// UserInfo /////////////////////////////////
