@@ -321,11 +321,6 @@ public:
   JobRepository *jobRepository_;
   UserInfo *userInfo_;
 
-  JobRepository* createJobRepository(StratumServerType type, 
-                                    const char *kafkaBrokers,
-                                     const string &fileLastNotifyTime,
-                                     Server *server);
-
 public:
   Server(const int32_t shareAvgSeconds);
   ~Server();
@@ -362,6 +357,16 @@ public:
   void sendSolvedShare2Kafka(const FoundBlock *foundBlock,
                              const std::vector<char> &coinbaseBin);
   void sendCommonEvents2Kafka(const string &message);
+
+  JobRepository* createJobRepository(StratumServerType type, 
+                                    const char *kafkaBrokers,
+                                     const string &fileLastNotifyTime,
+                                     Server *server);
+
+  static StratumSession* createSession(StratumServerType type, evutil_socket_t fd, struct bufferevent *bev,
+                               Server *server, struct sockaddr *saddr,
+                               const int32_t shareAvgSeconds,
+                               const uint32_t sessionID);
 };
 
 

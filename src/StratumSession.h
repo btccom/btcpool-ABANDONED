@@ -199,7 +199,7 @@ public:
   };
 
   //----------------------
-private:
+protected:
   int32_t shareAvgSeconds_;
   DiffController diffController_;
   State state_;
@@ -268,13 +268,13 @@ public:
   StratumSession(evutil_socket_t fd, struct bufferevent *bev,
                  Server *server, struct sockaddr *saddr,
                  const int32_t shareAvgSeconds, const uint32_t extraNonce1);
-  ~StratumSession();
+  virtual ~StratumSession();
 
   void markAsDead();
   bool isDead();
 
   void sendSetDifficulty(const uint64_t difficulty);
-  void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false);
+  virtual void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false);
   void sendData(const char *data, size_t len);
   inline void sendData(const string &str) {
     sendData(str.data(), str.size());
@@ -292,6 +292,15 @@ public:
   uint32_t getSessionId() const;
 };
 
+class StratumSessionEth : public StratumSession
+{
+public:
+  StratumSessionEth(evutil_socket_t fd, struct bufferevent *bev,
+                    Server *server, struct sockaddr *saddr,
+                    const int32_t shareAvgSeconds, const uint32_t extraNonce1);
+
+  virtual void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false);                  
+};
 
 ///////////////////////////////// AgentSessions ////////////////////////////////
 class AgentSessions {

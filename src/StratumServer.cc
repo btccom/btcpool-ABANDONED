@@ -910,20 +910,39 @@ JobRepository *Server::createJobRepository(StratumServerType type,
                                            const string &fileLastNotifyTime,
                                            Server *server)
 {
-  JobRepository* jobRepo = nullptr;
-  switch (type) {
-    case BTC:
-      {
-        jobRepo = new JobRepository(kafkaBrokers, fileLastNotifyTime, this); 
-        break;
-      }
-    case ETH:
-      {
-        jobRepo = new JobRepositoryEth(kafkaBrokers, fileLastNotifyTime, this); 
-        break;
-      }
+  JobRepository *jobRepo = nullptr;
+  switch (type)
+  {
+  case BTC:
+    jobRepo = new JobRepository(kafkaBrokers, fileLastNotifyTime, this);
+    break;
+  case ETH:
+    jobRepo = new JobRepositoryEth(kafkaBrokers, fileLastNotifyTime, this);
+    break;
   }
   return jobRepo;
+}
+
+StratumSession *Server::createSession(StratumServerType type, evutil_socket_t fd, struct bufferevent *bev,
+                                      Server *server, struct sockaddr *saddr,
+                                      const int32_t shareAvgSeconds,
+                                      const uint32_t sessionID)
+{
+  StratumSession *conn = nullptr;
+  switch (type)
+  {
+  case BTC:
+    conn = new StratumSession(fd, bev, server, saddr,
+                              server->kShareAvgSeconds_,
+                              sessionID);
+    break;
+  case ETH:
+    conn = new StratumSessionEth(fd, bev, server, saddr,
+                                 server->kShareAvgSeconds_,
+                                 sessionID);
+    break;
+  }
+  return conn;
 }
 
 bool Server::setup(const char *ip, const unsigned short port,
@@ -1181,9 +1200,9 @@ void Server::listenerCallback(struct evconnlistener* listener,
   }
 
   // create stratum session
-  StratumSession* conn = new StratumSession(fd, bev, server, saddr,
-                                            server->kShareAvgSeconds_,
-                                            sessionID);
+  StratumSession *conn = createSession(ETH, fd, bev, server, saddr,
+                                       server->kShareAvgSeconds_,
+                                       sessionID);
   // set callback functions
   bufferevent_setcb(bev,
                     Server::readCallback, nullptr,

@@ -1083,6 +1083,23 @@ uint32_t StratumSession::getSessionId() const {
   return extraNonce1_;
 }
 
+///////////////////////////////// StratumSessionEth ////////////////////////////////
+StratumSessionEth::StratumSessionEth(evutil_socket_t fd, struct bufferevent *bev,
+                                     Server *server, struct sockaddr *saddr,
+                                     const int32_t shareAvgSeconds, const uint32_t extraNonce1) : StratumSession(fd, bev,
+                                                                                                                 server, saddr,
+                                                                                                                 shareAvgSeconds, extraNonce1)
+{
+}
+
+void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
+  if (state_ < AUTHENTICATED || exJobPtr == nullptr) {
+    return;
+  }
+  StratumJob *sjob = exJobPtr->sjob_;
+  string notifyStr;
+  sendData(notifyStr);  // send notify string
+}
 
 ///////////////////////////////// AgentSessions ////////////////////////////////
 AgentSessions::AgentSessions(const int32_t shareAvgSeconds,
