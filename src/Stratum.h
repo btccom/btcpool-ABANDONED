@@ -286,7 +286,7 @@ public:
   virtual ~StratumJob() {};
 
   virtual string serializeToJson() const;
-  bool unserializeFromJson(const char *s, size_t len);
+  virtual bool unserializeFromJson(const char *s, size_t len);
 
   bool initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
                    const CTxDestination &poolPayoutAddr,
@@ -300,6 +300,7 @@ class StratumJobEth : public StratumJob {
 public:
   StratumJobEth() {};
   virtual string serializeToJson() const;
+  virtual bool unserializeFromJson(const char *s, size_t len);
   bool initFromGw(const CTxDestination &poolPayoutAddr,
                    const RskWorkEth &latestRskBlockJson);
   
