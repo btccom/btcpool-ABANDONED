@@ -454,7 +454,7 @@ void JobMaker::addRawgbt(const char *str, size_t len) {
   const uint32_t gbtTime = r["created_at_ts"].uint32();
   const int64_t timeDiff = (int64_t)time(nullptr) - (int64_t)gbtTime;
   if (labs(timeDiff) >= 60) {
-    LOG(WARNING) << "rawgbt diff time is more than 60, ingore it";
+    LOG(WARNING) << "rawgbt diff time is more than 60, ignore it";
     return;  // time diff too large, there must be some problems, so ignore it
   }
   if (labs(timeDiff) >= 3) {

@@ -248,7 +248,7 @@ void StatsServer::_processShare(WorkerKey &key1, WorkerKey &key2, const Share &s
 void StatsServer::flushWorkersToDB() {
   LOG(INFO) << "flush mining workers to DB...";
   if (isInserting_) {
-    LOG(WARNING) << "last flush is not finish yet, ingore";
+    LOG(WARNING) << "last flush is not finish yet, ignore";
     return;
   }
 

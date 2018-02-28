@@ -191,7 +191,7 @@ void BlockMaker::addRawgbt(const char *str, size_t len) {
 
   const uint256 gbtHash = uint256S(r["gbthash"].str());
   if (rawGbtMap_.find(gbtHash) != rawGbtMap_.end()) {
-    LOG(ERROR) << "already exist raw gbt, ingore: " << gbtHash.ToString();
+    LOG(ERROR) << "already exist raw gbt, ignore: " << gbtHash.ToString();
     return;
   }
 
