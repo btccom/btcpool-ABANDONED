@@ -21,8 +21,8 @@ service docker status
 ```
 cd /work
 
-git clone git@github.com:btccom/bccpool.git
-cd bccpool/docker/bitcoin-abc/v0.16.1
+git clone git@github.com:btccom/btcpool.git
+cd btcpool/docker/bitcoin-abc/v0.16.1
 
 # If your server is in China, please check "Dockerfile" and uncomment some lines.
 # If you want to enable testnet, please uncomment several lines behind `# service for testnet`
