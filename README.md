@@ -3,7 +3,7 @@ BTCPool for BTC, BCH, UBTC & SBTC
 
 BTCPool is backend system of [https://pool.btc.com](https://pool.btc.com).
 
-This is a version of BTCPool that supports more SHA256 blockchains. Check the single-blockchain version at [legacy](https://github.com/btccom/btcpool/tree/legacy) branch.
+> This is a version of BTCPool that supports more SHA256 blockchains. Check the **single-blockchain** version at [legacy](https://github.com/btccom/btcpool/tree/legacy) branch.
 
 The pool backend support 4 blockchains at current:
 * [Bitcoin](https://bitcoin.org/)
