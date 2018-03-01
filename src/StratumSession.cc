@@ -1099,6 +1099,18 @@ void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool
   sendData(exJobPtr->miningNotify1_);  // send notify string
 }
 
+void StratumSessionEth::handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams) {
+  if (state_ != CONNECTED) {
+    responseError(idStr, StratumError::UNKNOWN);
+    return;
+  }
+
+  state_ = SUBSCRIBED;
+
+  const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":true}\n", idStr.c_str());
+  sendData(s);
+}
+
 ///////////////////////////////// AgentSessions ////////////////////////////////
 AgentSessions::AgentSessions(const int32_t shareAvgSeconds,
                              StratumSession *stratumSession)

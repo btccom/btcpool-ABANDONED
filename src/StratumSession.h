@@ -243,7 +243,7 @@ protected:
   void handleLine(const string &line);
   void handleRequest(const string &idStr, const string &method, const JsonNode &jparams);
 
-  void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams);
+  virtual void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams);
   void handleRequest_Authorize        (const string &idStr, const JsonNode &jparams);
   void handleRequest_Submit           (const string &idStr, const JsonNode &jparams);
   void handleRequest_SuggestTarget    (const string &idStr, const JsonNode &jparams);
@@ -299,7 +299,8 @@ public:
                     Server *server, struct sockaddr *saddr,
                     const int32_t shareAvgSeconds, const uint32_t extraNonce1);
 
-  virtual void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false);                  
+  virtual void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false);  
+  virtual void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams);                
 };
 
 ///////////////////////////////// AgentSessions ////////////////////////////////
