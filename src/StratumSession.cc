@@ -1111,6 +1111,54 @@ void StratumSessionEth::handleRequest_Subscribe        (const string &idStr, con
   sendData(s);
 }
 
+void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode &jparams)
+{
+  if (state_ != AUTHENTICATED)
+  {
+    responseError(idStr, StratumError::UNAUTHORIZED);
+
+    // there must be something wrong, send reconnect command
+    const string s = "{\"id\":null,\"method\":\"client.reconnect\",\"params\":[]}\n";
+    sendData(s);
+
+    return;
+  }
+
+  // {"id": 4, "method": "mining.submit",
+  // "params": ["0x7b9d694c26a210b9f0d35bb9bfdd70a413351111.fatrat1117",
+  // "ae778d304393d441bf8e1c47237261675caa3827997f671d8e5ec3bd5d862503",
+  // "0x4cc7c01bfbe51c67",
+  // "0xae778d304393d441bf8e1c47237261675caa3827997f671d8e5ec3bd5d862503",
+  // "0x52fdd9e9a796903c6b88af4192717e77d9a9c6fa6a1366540b65e6bcfa9069aa"]}
+
+  auto params = (const_cast<JsonNode&>(jparams)).array();
+  if (5 == params.size())
+  {
+    string request = Strings::Format("{\"jsonrpc\": \"2.0\", \"method\": \"eth_submitWork\", \"params\": [\"%s\",\"%s\",\"%s\"], \"id\": 5}\"\n",
+                                     params[2].str().c_str(),
+                                     params[3].str().c_str(),
+                                     params[4].str().c_str());
+    string response;
+    bool res = bitcoindRpcCall("http://127.0.0.1:8545", "user:pass", request.c_str(), response);
+    if (res)
+    {
+      JsonNode r;
+      if (JsonNode::parse(response.c_str(), response.c_str() + response.length(), r))
+      {
+      }
+      else
+      {
+        LOG(ERROR) << "parse response fail " << response;
+      }
+    }
+    else
+    {
+      //rpc fail
+      LOG(ERROR) << "rpc call fail";
+    }
+  }
+}
+
 ///////////////////////////////// AgentSessions ////////////////////////////////
 AgentSessions::AgentSessions(const int32_t shareAvgSeconds,
                              StratumSession *stratumSession)
