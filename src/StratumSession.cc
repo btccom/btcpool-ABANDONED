@@ -1138,6 +1138,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
                                      params[2].str().c_str(),
                                      params[3].str().c_str(),
                                      params[4].str().c_str());
+    LOG(INFO) << "submitting solution: " << request;
     string response;
     bool res = bitcoindRpcCall("http://127.0.0.1:8545", "user:pass", request.c_str(), response);
     if (res)
