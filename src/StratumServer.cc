@@ -28,9 +28,12 @@
 #include "MySQLConnection.h"
 #include "Utils.h"
 
-#include "bitcoin/arith_uint256.h"
-#include "bitcoin/utilstrencodings.h"
-#include "bitcoin/hash.h"
+#include <arith_uint256.h>
+#include <utilstrencodings.h>
+#include <hash.h>
+#include <inttypes.h>
+
+#include "rsk/RskSolvedShareData.h"
 
 #include "utilities_js.hpp"
 
@@ -231,10 +234,23 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   if (latestPrevBlockHash_ != sjob->prevHash_) {
     isClean = true;
     latestPrevBlockHash_ = sjob->prevHash_;
-    LOG(INFO) << "received new height statum job, height: " << sjob->height_
+    LOG(INFO) << "received new height stratum job, height: " << sjob->height_
     << ", prevhash: " << sjob->prevHash_.ToString();
   }
 
+  bool isRskClean = sjob->isRskCleanJob_;
+
+  // 
+  // The `clean_jobs` field should be `true` ONLY IF a new block found in Bitcoin blockchains.
+  // Most miner implements will never submit their previous shares if the field is `true`.
+  // There will be a huge loss of hashrates and earnings if the field is often `true`.
+  // 
+  // There is the definition from <https://slushpool.com/help/manual/stratum-protocol>:
+  // 
+  // clean_jobs - When true, server indicates that submitting shares from previous jobs
+  // don't have a sense and such shares will be rejected. When this flag is set,
+  // miner should also drop all previous jobs.
+  // 
   shared_ptr<StratumJobEx> exJob = std::make_shared<StratumJobEx>(sjob, isClean);
   {
     ScopeLock sl(lock_);
@@ -251,7 +267,7 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   }
 
   // if job has clean flag, call server to send job
-  if (isClean) {
+  if (isClean || isRskClean) {
     sendMiningNotify(exJob);
     return;
   }
@@ -367,6 +383,92 @@ int32_t UserInfo::getUserId(const string userName) {
   return 0;  // not found
 }
 
+#ifdef USER_DEFINED_COINBASE
+////////////////////// User defined coinbase enabled //////////////////////
+
+// getCoinbaseInfo
+string UserInfo::getCoinbaseInfo(int32_t userId) {
+  pthread_rwlock_rdlock(&rwlock_);
+  auto itr = idCoinbaseInfos_.find(userId);
+  pthread_rwlock_unlock(&rwlock_);
+
+  if (itr != idCoinbaseInfos_.end()) {
+    return itr->second;
+  }
+  return "";  // not found
+}
+
+int32_t UserInfo::incrementalUpdateUsers() {
+  //
+  // WARNING: The API is incremental update, we use `?last_id=` to make sure
+  //          always get the new data. Make sure you have use `last_id` in API.
+  //
+  const string url = Strings::Format("%s?last_id=%d&last_time=%" PRId64, apiUrl_.c_str(), lastMaxUserId_, lastTime_);
+  string resp;
+  if (!httpGET(url.c_str(), resp, 10000/* timeout ms */)) {
+    LOG(ERROR) << "http get request user list fail, url: " << url;
+    return -1;
+  }
+
+  JsonNode r;
+  if (!JsonNode::parse(resp.c_str(), resp.c_str() + resp.length(), r)) {
+    LOG(ERROR) << "decode json fail, json: " << resp;
+    return -1;
+  }
+  if (r["data"].type() == Utilities::JS::type::Undefined) {
+    LOG(ERROR) << "invalid data, should key->value, type: " << (int)r["data"].type();
+    return -1;
+  }
+  JsonNode data = r["data"];
+
+  auto vUser = data["users"].children();
+  if (vUser->size() == 0) {
+    return 0;
+  }
+  lastTime_ = data["time"].int64();
+
+  pthread_rwlock_wrlock(&rwlock_);
+  for (JsonNode &itr : *vUser) {
+
+    const string  userName(itr.key_start(), itr.key_end() - itr.key_start());
+
+    if (itr.type() != Utilities::JS::type::Obj) {
+      LOG(ERROR) << "invalid data, should key  - value" << std::endl;
+      return -1;
+    }
+
+    int32 userId = itr["puid"].int32();
+    string coinbaseInfo = itr["coinbase"].str();
+
+    // resize coinbaseInfo to USER_DEFINED_COINBASE_SIZE bytes
+    if (coinbaseInfo.size() > USER_DEFINED_COINBASE_SIZE) {
+      coinbaseInfo.resize(USER_DEFINED_COINBASE_SIZE);
+    } else {
+      // padding '\x20' at both beginning and ending of coinbaseInfo
+      int beginPaddingLen = (USER_DEFINED_COINBASE_SIZE - coinbaseInfo.size()) / 2;
+      coinbaseInfo.insert(0, beginPaddingLen, '\x20');
+      coinbaseInfo.resize(USER_DEFINED_COINBASE_SIZE, '\x20');
+    }
+
+    if (userId > lastMaxUserId_) {
+      lastMaxUserId_ = userId;
+    }
+    nameIds_[userName] = userId;
+
+    // get user's coinbase info
+    LOG(INFO) << "user id: " << userId << ", coinbase info: " << coinbaseInfo;
+    idCoinbaseInfos_[userId] = coinbaseInfo;
+
+  }
+  pthread_rwlock_unlock(&rwlock_);
+
+  return vUser->size();
+}
+
+/////////////////// End of user defined coinbase enabled ///////////////////
+#else
+////////////////////// User defined coinbase disabled //////////////////////
+
 int32_t UserInfo::incrementalUpdateUsers() {
   //
   // WARNING: The API is incremental update, we use `?last_id=` to make sure
@@ -406,6 +508,9 @@ int32_t UserInfo::incrementalUpdateUsers() {
 
   return vUser->size();
 }
+
+/////////////////// End of user defined coinbase disabled ///////////////////
+#endif
 
 void UserInfo::runThreadUpdate() {
   const time_t updateInterval = 10;  // seconds
@@ -557,25 +662,30 @@ void StratumJobEx::makeMiningNotifyStr() {
   // we don't put jobId here, session will fill with the shortJobId
   miningNotify1_ = "{\"id\":null,\"method\":\"mining.notify\",\"params\":[\"";
 
-  miningNotify2_ = Strings::Format("\",\"%s\",\"%s\",\"%s\""
+  miningNotify2_ = Strings::Format("\",\"%s\",\"",
+                                   sjob_->prevHashBeStr_.c_str());
+
+  // coinbase1_ may be modified when USER_DEFINED_COINBASE enabled,
+  // so put it into a single variable.
+  coinbase1_ = sjob_->coinbase1_.c_str();
+
+  miningNotify3_ = Strings::Format("\",\"%s\""
                                    ",[%s]"
                                    ",\"%08x\",\"%08x\",\"%08x\",%s"
                                    "]}\n",
-                                   sjob_->prevHashBeStr_.c_str(),
-                                   sjob_->coinbase1_.c_str(), sjob_->coinbase2_.c_str(),
+                                   sjob_->coinbase2_.c_str(),
                                    merkleBranchStr.c_str(),
                                    sjob_->nVersion_, sjob_->nBits_, sjob_->nTime_,
                                    isClean_ ? "true" : "false");
-
   // always set clean to true, reset of them is the same with miningNotify2_
-  miningNotify2Clean_ = Strings::Format("\",\"%s\",\"%s\",\"%s\""
+  miningNotify3Clean_ = Strings::Format("\",\"%s\""
                                    ",[%s]"
                                    ",\"%08x\",\"%08x\",\"%08x\",true"
                                    "]}\n",
-                                   sjob_->prevHashBeStr_.c_str(),
-                                   sjob_->coinbase1_.c_str(), sjob_->coinbase2_.c_str(),
+                                   sjob_->coinbase2_.c_str(),
                                    merkleBranchStr.c_str(),
                                    sjob_->nVersion_, sjob_->nBits_, sjob_->nTime_);
+
 }
 
 void StratumJobEx::markStale() {
@@ -590,10 +700,22 @@ bool StratumJobEx::isStale() {
 
 void StratumJobEx::generateCoinbaseTx(std::vector<char> *coinbaseBin,
                                       const uint32_t extraNonce1,
-                                      const string &extraNonce2Hex) {
+                                      const string &extraNonce2Hex,
+                                      string *userCoinbaseInfo) {
   string coinbaseHex;
   const string extraNonceStr = Strings::Format("%08x%s", extraNonce1, extraNonce2Hex.c_str());
-  coinbaseHex.append(sjob_->coinbase1_);
+  string coinbase1 = sjob_->coinbase1_;
+
+#ifdef USER_DEFINED_COINBASE
+  if (userCoinbaseInfo != nullptr) {
+    string userCoinbaseHex;
+    Bin2Hex((uint8*)(*userCoinbaseInfo).c_str(), (*userCoinbaseInfo).size(), userCoinbaseHex);
+    // replace the last `userCoinbaseHex.size()` bytes to `userCoinbaseHex`
+    coinbase1.replace(coinbase1.size()-userCoinbaseHex.size(), userCoinbaseHex.size(), userCoinbaseHex);
+  }
+#endif
+
+  coinbaseHex.append(coinbase1);
   coinbaseHex.append(extraNonceStr);
   coinbaseHex.append(sjob_->coinbase2_);
   Hex2Bin((const char *)coinbaseHex.c_str(), *coinbaseBin);
@@ -606,8 +728,9 @@ void StratumJobEx::generateBlockHeader(CBlockHeader *header,
                                        const vector<uint256> &merkleBranch,
                                        const uint256 &hashPrevBlock,
                                        const uint32_t nBits, const int32_t nVersion,
-                                       const uint32_t nTime, const uint32_t nonce) {
-  generateCoinbaseTx(coinbaseBin, extraNonce1, extraNonce2Hex);
+                                       const uint32_t nTime, const uint32_t nonce,
+                                       string *userCoinbaseInfo) {
+  generateCoinbaseTx(coinbaseBin, extraNonce1, extraNonce2Hex, userCoinbaseInfo);
 
   header->hashPrevBlock = hashPrevBlock;
   header->nVersion      = nVersion;
@@ -631,12 +754,14 @@ StratumServer::StratumServer(const char *ip, const unsigned short port,
                              const char *kafkaBrokers, const string &userAPIUrl,
                              const uint8_t serverId, const string &fileLastNotifyTime,
                              bool isEnableSimulator, bool isSubmitInvalidBlock,
+                             bool isDevModeEnable, float minerDifficulty,
                              const int32_t shareAvgSeconds)
 :running_(true), server_(shareAvgSeconds),
 ip_(ip), port_(port), serverId_(serverId),
 fileLastNotifyTime_(fileLastNotifyTime),
 kafkaBrokers_(kafkaBrokers), userAPIUrl_(userAPIUrl),
-isEnableSimulator_(isEnableSimulator), isSubmitInvalidBlock_(isSubmitInvalidBlock)
+isEnableSimulator_(isEnableSimulator), isSubmitInvalidBlock_(isSubmitInvalidBlock),
+isDevModeEnable_(isDevModeEnable), minerDifficulty_(minerDifficulty)
 {
 }
 
@@ -646,7 +771,8 @@ StratumServer::~StratumServer() {
 bool StratumServer::init() {
   if (!server_.setup(ip_.c_str(), port_, kafkaBrokers_.c_str(),
                      userAPIUrl_, serverId_, fileLastNotifyTime_,
-                     isEnableSimulator_, isSubmitInvalidBlock_)) {
+                     isEnableSimulator_, isSubmitInvalidBlock_,
+                     isDevModeEnable_, minerDifficulty_)) {
     LOG(ERROR) << "fail to setup server";
     return false;
   }
@@ -673,12 +799,14 @@ kafkaProducerShareLog_(nullptr),
 kafkaProducerSolvedShare_(nullptr),
 kafkaProducerNamecoinSolvedShare_(nullptr),
 kafkaProducerCommonEvents_(nullptr),
+kafkaProducerRskSolvedShare_(nullptr),
 isEnableSimulator_(false), isSubmitInvalidBlock_(false),
 
 #ifndef WORK_WITH_STRATUM_SWITCHER
 sessionIDManager_(nullptr),
 #endif
 
+isDevModeEnable_(false), minerDifficulty_(1.0),
 kShareAvgSeconds_(shareAvgSeconds),
 jobRepository_(nullptr), userInfo_(nullptr)
 {
@@ -703,6 +831,9 @@ Server::~Server() {
   if (kafkaProducerNamecoinSolvedShare_ != nullptr) {
     delete kafkaProducerNamecoinSolvedShare_;
   }
+  if (kafkaProducerRskSolvedShare_ != nullptr) {
+    delete kafkaProducerRskSolvedShare_;
+  }
   if (kafkaProducerCommonEvents_ != nullptr) {
     delete kafkaProducerCommonEvents_;
   }
@@ -724,7 +855,8 @@ bool Server::setup(const char *ip, const unsigned short port,
                    const char *kafkaBrokers,
                    const string &userAPIUrl,
                    const uint8_t serverId, const string &fileLastNotifyTime,
-                   bool isEnableSimulator, bool isSubmitInvalidBlock) {
+                   bool isEnableSimulator, bool isSubmitInvalidBlock,
+                   bool isDevModeEnable, float minerDifficulty) {
   if (isEnableSimulator) {
     isEnableSimulator_ = true;
     LOG(WARNING) << "Simulator is enabled, all share will be accepted";
@@ -735,11 +867,20 @@ bool Server::setup(const char *ip, const unsigned short port,
     LOG(WARNING) << "submit invalid block is enabled, all block will be submited";
   }
 
+  if (isDevModeEnable) {
+    isDevModeEnable_ = true;
+    minerDifficulty_ = minerDifficulty;
+    LOG(INFO) << "development mode is enabled with difficulty: " << minerDifficulty;
+  }
+
   kafkaProducerSolvedShare_ = new KafkaProducer(kafkaBrokers,
                                                 KAFKA_TOPIC_SOLVED_SHARE,
                                                 RD_KAFKA_PARTITION_UA);
   kafkaProducerNamecoinSolvedShare_ = new KafkaProducer(kafkaBrokers,
                                                         KAFKA_TOPIC_NMC_SOLVED_SHARE,
+                                                        RD_KAFKA_PARTITION_UA);
+  kafkaProducerRskSolvedShare_ = new KafkaProducer(kafkaBrokers,
+                                                        KAFKA_TOPIC_RSK_SOLVED_SHARE,
                                                         RD_KAFKA_PARTITION_UA);
   kafkaProducerShareLog_ = new KafkaProducer(kafkaBrokers,
                                              KAFKA_TOPIC_SHARE_LOG,
@@ -811,6 +952,21 @@ bool Server::setup(const char *ip, const unsigned short port,
     }
     if (!kafkaProducerNamecoinSolvedShare_->checkAlive()) {
       LOG(ERROR) << "kafka kafkaProducerNamecoinSolvedShare_ is NOT alive";
+      return false;
+    }
+  }
+
+  // kafkaProducerRskSolvedShare_
+  {
+    map<string, string> options;
+    // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
+    options["queue.buffering.max.ms"] = "1";
+    if (!kafkaProducerRskSolvedShare_->setup(&options)) {
+      LOG(ERROR) << "kafka kafkaProducerRskSolvedShare_ setup failure";
+      return false;
+    }
+    if (!kafkaProducerRskSolvedShare_->checkAlive()) {
+      LOG(ERROR) << "kafka kafkaProducerRskSolvedShare_ is NOT alive";
       return false;
     }
   }
@@ -898,6 +1054,7 @@ void Server::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {
       delete conn;
       itr = connections_.erase(itr);
     } else {
+
       conn->sendMiningNotify(exJobPtr);
       ++itr;
     }
@@ -994,7 +1151,8 @@ void Server::eventCallback(struct bufferevent* bev, short events,
 int Server::checkShare(const Share &share,
                        const uint32 extraNonce1, const string &extraNonce2Hex,
                        const uint32_t nTime, const uint32_t nonce,
-                       const uint256 &jobTarget, const string &workFullName) {
+                       const uint256 &jobTarget, const string &workFullName,
+                       string *userCoinbaseInfo) {
   shared_ptr<StratumJobEx> exJobPtr = jobRepository_->getStratumJobEx(share.jobId_);
   if (exJobPtr == nullptr) {
     return StratumError::JOB_NOT_FOUND;
@@ -1016,7 +1174,8 @@ int Server::checkShare(const Share &share,
   exJobPtr->generateBlockHeader(&header, &coinbaseBin,
                                 extraNonce1, extraNonce2Hex,
                                 sjob->merkleBranch_, sjob->prevHash_,
-                                sjob->nBits_, sjob->nVersion_, nTime, nonce);
+                                sjob->nBits_, sjob->nVersion_, nTime, nonce,
+                                userCoinbaseInfo);
   uint256 blkHash = header.GetHash();
 
   arith_uint256 bnBlockHash     = UintToArith256(blkHash);
@@ -1054,6 +1213,50 @@ int Server::checkShare(const Share &share,
     << ", diff: " << TargetToDiff(blkHash)
     << ", networkDiff: " << TargetToDiff(sjob->networkTarget_)
     << ", by: " << workFullName;
+  }
+
+  //
+  // found new RSK block
+  //
+  if (!sjob->blockHashForMergedMining_.empty() &&
+      (isSubmitInvalidBlock_ == true || bnBlockHash <= UintToArith256(sjob->rskNetworkTarget_))) {
+    //
+    // build data needed to submit block to RSK
+    //
+    RskSolvedShareData shareData;
+    shareData.jobId_    = share.jobId_;
+    shareData.workerId_ = share.workerHashId_;
+    shareData.userId_   = share.userId_;
+    // height = matching bitcoin block height
+    shareData.height_   = sjob->height_;
+    snprintf(shareData.feesForMiner_, sizeof(shareData.feesForMiner_), "%s", sjob->feesForMiner_.c_str());
+    snprintf(shareData.rpcAddress_, sizeof(shareData.rpcAddress_), "%s", sjob->rskdRpcAddress_.c_str());
+    snprintf(shareData.rpcUserPwd_, sizeof(shareData.rpcUserPwd_), "%s", sjob->rskdRpcUserPwd_.c_str());
+    memcpy(shareData.header80_, (const uint8_t *)&header, sizeof(CBlockHeader));
+    snprintf(shareData.workerFullName_, sizeof(shareData.workerFullName_), "%s", workFullName.c_str());
+    
+    //
+    // send to kafka topic
+    //
+    string buf;
+    buf.resize(sizeof(RskSolvedShareData) + coinbaseBin.size());
+    uint8_t *p = (uint8_t *)buf.data();
+
+    // RskSolvedShareData
+    memcpy(p, (const uint8_t *)&shareData, sizeof(RskSolvedShareData));
+    p += sizeof(RskSolvedShareData);
+
+    // coinbase TX
+    memcpy(p, coinbaseBin.data(), coinbaseBin.size());
+
+    kafkaProducerRskSolvedShare_->produce(buf.data(), buf.size());
+
+    //
+    // log the finding
+    //
+    LOG(INFO) << ">>>> found a new RSK block: " << blkHash.ToString()
+    << ", jobId: " << share.jobId_ << ", userId: " << share.userId_
+    << ", by: " << workFullName << " <<<<";
   }
 
   //

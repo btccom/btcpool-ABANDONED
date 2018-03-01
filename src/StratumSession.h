@@ -35,7 +35,7 @@
 
 #include <glog/logging.h>
 
-#include "bitcoin/uint256.h"
+#include <uint256.h>
 #include "utilities_js.hpp"
 #include "Stratum.h"
 #include "Statistics.h"
@@ -180,6 +180,9 @@ public:
     uint64_t jobDifficulty_;     // difficulty of this job
     uint32_t blkBits_;
     uint8_t  shortJobId_;
+#ifdef USER_DEFINED_COINBASE
+    string   userCoinbaseInfo_;
+#endif
     std::set<LocalShare> submitShares_;
     std::vector<uint8_t> agentSessionsDiff2Exp_;
 

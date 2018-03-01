@@ -25,8 +25,8 @@
 
 #include <glog/logging.h>
 
-#include "bitcoin/util.h"
-#include "bitcoin/utilstrencodings.h"
+#include <util.h>
+#include <utilstrencodings.h>
 
 #include "Utils.h"
 #include "utilities_js.hpp"
@@ -75,36 +75,9 @@ bool GbtMaker::init() {
     return false;
   }
 
-  // check bitcoind
-  {
-    string response;
-    string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getinfo\",\"params\":[]}";
-    bool res = bitcoindRpcCall(bitcoindRpcAddr_.c_str(), bitcoindRpcUserpass_.c_str(),
-                               request.c_str(), response);
-    if (!res) {
-      LOG(ERROR) << "bitcoind rpc call failure";
-      return false;
-    }
-    LOG(INFO) << "bitcoind getinfo: " << response;
-
-    JsonNode r;
-    if (!JsonNode::parse(response.c_str(),
-                         response.c_str() + response.length(), r)) {
-      LOG(ERROR) << "decode gbt failure";
-      return false;
-    }
-
-    // check fields
-    if (r["result"].type() != Utilities::JS::type::Obj ||
-        r["result"]["connections"].type() != Utilities::JS::type::Int ||
-        r["result"]["blocks"].type()      != Utilities::JS::type::Int) {
-      LOG(ERROR) << "getinfo missing some fields";
-      return false;
-    }
-    if (r["result"]["connections"].int32() <= 0) {
-      LOG(ERROR) << "bitcoind connections is zero";
-      return false;
-    }
+  // check bitcoind network
+  if (!checkBitcoinRPC(bitcoindRpcAddr_.c_str(), bitcoindRpcUserpass_.c_str())) {
+    return false;
   }
 
   if (isCheckZmq_ && !checkBitcoindZMQ())
@@ -408,15 +381,29 @@ string NMCAuxBlockMaker::makeAuxBlockMsg() {
     return "";
   }
 
+  // the MergedMiningProxy will indicate (optional) merkle_size and merkle_nonce
+  // https://github.com/btccom/stratumSwitcher/tree/master/mergedMiningProxy
+  int32_t merkleSize  = 1;
+  int32_t merkleNonce = 0;
+
+  if (r["result"]["merkle_size"].type() == Utilities::JS::type::Int) {
+    merkleSize = r["result"]["merkle_size"].int32();
+  }
+  if (r["result"]["merkle_nonce"].type() == Utilities::JS::type::Int) {
+    merkleNonce = r["result"]["merkle_nonce"].int32();
+  }
+
   // message for kafka
   string msg = Strings::Format("{\"created_at_ts\":%u,"
                                " \"hash\":\"%s\", \"height\":%d,"
+                               " \"merkle_size\":%d, \"merkle_nonce\":%d,"
                                " \"chainid\":%d,  \"bits\":\"%s\","
                                " \"rpc_addr\":\"%s\", \"rpc_userpass\":\"%s\""
                                "}",
                                (uint32_t)time(nullptr),
                                r["result"]["hash"].str().c_str(),
                                r["result"]["height"].int32(),
+                               merkleSize, merkleNonce,
                                r["result"]["chainid"].int32(),
                                r["result"]["bits"].str().c_str(),
                                rpcAddr_.c_str(), rpcUserpass_.c_str());
@@ -512,35 +499,8 @@ bool NMCAuxBlockMaker::init() {
   }
 
   // check namecoind
-  {
-    string response;
-    string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getinfo\",\"params\":[]}";
-    bool res = bitcoindRpcCall(rpcAddr_.c_str(), rpcUserpass_.c_str(),
-                               request.c_str(), response);
-    if (!res) {
-      LOG(ERROR) << "namecoind rpc call failure";
-      return false;
-    }
-    LOG(INFO) << "namecoind getinfo: " << response;
-
-    JsonNode r;
-    if (!JsonNode::parse(response.c_str(),
-                         response.c_str() + response.length(), r)) {
-      LOG(ERROR) << "decode getinfo failure";
-      return false;
-    }
-
-    // check fields
-    if (r["result"].type() != Utilities::JS::type::Obj ||
-        r["result"]["connections"].type() != Utilities::JS::type::Int ||
-        r["result"]["blocks"].type()      != Utilities::JS::type::Int) {
-      LOG(ERROR) << "getinfo missing some fields";
-      return false;
-    }
-    if (r["result"]["connections"].int32() <= 0) {
-      LOG(ERROR) << "namecoind connections is zero";
-      return false;
-    }
+  if (!checkBitcoinRPC(rpcAddr_.c_str(), rpcUserpass_.c_str())) {
+    return false;
   }
 
   // check aux mining rpc commands: createauxblock & submitauxblock

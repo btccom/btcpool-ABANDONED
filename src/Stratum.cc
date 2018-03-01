@@ -23,13 +23,12 @@
  */
 #include "Stratum.h"
 
-#include "bitcoin/core_io.h"
-#include "bitcoin/hash.h"
-#include "bitcoin/script/script.h"
-#include "bitcoin/uint256.h"
-#include "bitcoin/util.h"
+#include <core_io.h>
+#include <hash.h>
+#include <script/script.h>
+#include <uint256.h>
+#include <util.h>
 
-#include "utilities_js.hpp"
 #include "Utils.h"
 
 #include <glog/logging.h>
@@ -199,7 +198,7 @@ int64 findExtraNonceStart(const vector<char> &coinbaseOriTpl,
 
 //////////////////////////////////  StratumJob  ////////////////////////////////
 StratumJob::StratumJob(): jobId_(0), height_(0), nVersion_(0), nBits_(0U),
-nTime_(0U), minTime_(0U), coinbaseValue_(0), nmcAuxBits_(0u) {
+nTime_(0U), minTime_(0U), coinbaseValue_(0), nmcAuxBits_(0u), isRskCleanJob_(false) {
 }
 
 string StratumJob::serializeToJson() const {
@@ -221,6 +220,11 @@ string StratumJob::serializeToJson() const {
                          // namecoin, optional
                          ",\"nmcBlockHash\":\"%s\",\"nmcBits\":%u,\"nmcHeight\":%d"
                          ",\"nmcRpcAddr\":\"%s\",\"nmcRpcUserpass\":\"%s\""
+                         // rsk 
+                         ",\"rskBlockHashForMergedMining\":\"%s\",\"rskNetworkTarget\":\"0x%s\""
+                         ",\"rskFeesForMiner\":\"%s\""
+                         ",\"rskdRpcAddress\":\"%s\",\"rskdRpcUserPwd\":\"%s\""
+                         ",\"isRskCleanJob\":%s"
                          "}",
                          jobId_, gbtHash_.c_str(),
                          prevHash_.ToString().c_str(), prevHashBeStr_.c_str(),
@@ -234,7 +238,14 @@ string StratumJob::serializeToJson() const {
                          nmcAuxBlockHash_.ToString().c_str(),
                          nmcAuxBits_, nmcHeight_,
                          nmcRpcAddr_.size()     ? nmcRpcAddr_.c_str()     : "",
-                         nmcRpcUserpass_.size() ? nmcRpcUserpass_.c_str() : "");
+                         nmcRpcUserpass_.size() ? nmcRpcUserpass_.c_str() : "",
+                         // rsk
+                         blockHashForMergedMining_.size() ? blockHashForMergedMining_.c_str() : "",
+                         rskNetworkTarget_.GetHex().c_str(),
+                         feesForMiner_.size()             ? feesForMiner_.c_str()             : "",
+                         rskdRpcAddress_.size()           ? rskdRpcAddress_.c_str()           : "",
+                         rskdRpcUserPwd_.c_str()          ? rskdRpcUserPwd_.c_str()           : "",
+                         isRskCleanJob_ ? "true" : "false");
 }
 
 bool StratumJob::unserializeFromJson(const char *s, size_t len) {
@@ -295,6 +306,23 @@ bool StratumJob::unserializeFromJson(const char *s, size_t len) {
     BitsToTarget(nmcAuxBits_, nmcNetworkTarget_);
   }
 
+  //
+  // rsk, optional
+  //
+  if (j["rskBlockHashForMergedMining"].type()   == Utilities::JS::type::Str &&
+      j["rskNetworkTarget"].type()              == Utilities::JS::type::Str &&
+      j["rskFeesForMiner"].type()               == Utilities::JS::type::Str &&
+      j["rskdRpcAddress"].type()                == Utilities::JS::type::Str &&
+      j["rskdRpcUserPwd"].type()                == Utilities::JS::type::Str &&
+      j["isRskCleanJob"].type()                 == Utilities::JS::type::Bool) {
+    blockHashForMergedMining_ = j["rskBlockHashForMergedMining"].str();
+    rskNetworkTarget_         = uint256S(j["rskNetworkTarget"].str());
+    feesForMiner_             = j["rskFeesForMiner"].str();
+    rskdRpcAddress_           = j["rskdRpcAddress"].str();
+    rskdRpcUserPwd_           = j["rskdRpcUserPwd"].str();
+    isRskCleanJob_            = j["isRskCleanJob"].boolean();
+  }
+
   const string merkleBranchStr = j["merkleBranch"].str();
   const size_t merkleBranchCount = merkleBranchStr.length() / 64;
   merkleBranch_.resize(merkleBranchCount);
@@ -308,9 +336,10 @@ bool StratumJob::unserializeFromJson(const char *s, size_t len) {
 }
 
 bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
-                             const CBitcoinAddress &poolPayoutAddr,
+                             const CTxDestination &poolPayoutAddr,
                              const uint32_t blockVersion,
-                             const string &nmcAuxBlockJson) {
+                             const string &nmcAuxBlockJson,
+                             const RskWork &latestRskBlockJson) {
   uint256 gbtHash = Hash(gbt, gbt + strlen(gbt));
   JsonNode r;
   if (!JsonNode::parse(gbt, gbt + strlen(gbt), r)) {
@@ -364,15 +393,14 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     // read txs hash/data
     vector<uint256> vtxhashs;  // txs without coinbase
     for (JsonNode & node : jgbt["transactions"].array()) {
-      CTransaction tx;
+      CMutableTransaction tx;
       DecodeHexTx(tx, node["data"].str());
-      vtxhashs.push_back(tx.GetHash());
+      vtxhashs.push_back(MakeTransactionRef(std::move(tx))->GetHash());
     }
     // make merkleSteps and merkle branch
     vector<uint256> merkleSteps;
     makeMerkleBranch(vtxhashs, merkleBranch_);
   }
-
 
   //
   // namecoin merged mining
@@ -389,6 +417,8 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
       // check fields created_at_ts
       if (jNmcAux["created_at_ts"].type() != Utilities::JS::type::Int ||
           jNmcAux["hash"].type()          != Utilities::JS::type::Str ||
+          jNmcAux["merkle_size"].type()   != Utilities::JS::type::Int ||
+          jNmcAux["merkle_nonce"].type()  != Utilities::JS::type::Int ||
           jNmcAux["height"].type()        != Utilities::JS::type::Int ||
           jNmcAux["bits"].type()          != Utilities::JS::type::Str ||
           jNmcAux["rpc_addr"].type()      != Utilities::JS::type::Str ||
@@ -403,13 +433,29 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
       }
 
       // set nmc aux info
-      nmcAuxBlockHash_ = uint256S(jNmcAux["hash"].str());
-      nmcAuxBits_      = jNmcAux["bits"].uint32_hex();
-      nmcHeight_       = jNmcAux["height"].int32();
-      nmcRpcAddr_      = jNmcAux["rpc_addr"].str();
-      nmcRpcUserpass_  = jNmcAux["rpc_userpass"].str();
+      nmcAuxBlockHash_   = uint256S(jNmcAux["hash"].str());
+      nmcAuxMerkleSize_  = jNmcAux["merkle_size"].int32();
+      nmcAuxMerkleNonce_ = jNmcAux["merkle_nonce"].int32();
+      nmcAuxBits_        = jNmcAux["bits"].uint32_hex();
+      nmcHeight_         = jNmcAux["height"].int32();
+      nmcRpcAddr_        = jNmcAux["rpc_addr"].str();
+      nmcRpcUserpass_    = jNmcAux["rpc_userpass"].str();
       BitsToTarget(nmcAuxBits_, nmcNetworkTarget_);
     } while (0);
+  }
+  
+  //
+  // rsk merged mining
+  //
+  if (latestRskBlockJson.isInitialized()) {
+
+    // set rsk info
+    blockHashForMergedMining_ = latestRskBlockJson.getBlockHash();
+    rskNetworkTarget_ = uint256S(latestRskBlockJson.getTarget());
+    feesForMiner_ = latestRskBlockJson.getFees();
+    rskdRpcAddress_ = latestRskBlockJson.getRpcAddress();
+    rskdRpcUserPwd_ = latestRskBlockJson.getRpcUserPwd();
+    isRskCleanJob_ = latestRskBlockJson.getIsCleanJob();
   }
 
   // make coinbase1 & coinbase2
@@ -441,13 +487,16 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     // https://en.bitcoin.it/wiki/Merged_mining_specification
     //
     if (nmcAuxBits_ != 0u) {
+      string merkleSize, merkleNonce;
+      Bin2Hex((uint8_t *)&nmcAuxMerkleSize_,  4, merkleSize);
+      Bin2Hex((uint8_t *)&nmcAuxMerkleNonce_, 4, merkleNonce);
       string mergedMiningCoinbase = Strings::Format("%s%s%s%s",
                                                     // magic: 0xfa, 0xbe, 0x6d('m'), 0x6d('m')
                                                     "fabe6d6d",
                                                     // block_hash: Hash of the AuxPOW block header
                                                     nmcAuxBlockHash_.ToString().c_str(),
-                                                    "01000000",  // merkle_size : 1
-                                                    "00000000"   // merkle_nonce: 0
+                                                    merkleSize.c_str(), // merkle_size : 1
+                                                    merkleNonce.c_str() // merkle_nonce: 0
                                                     );
       vector<char> mergedMiningBin;
       Hex2Bin(mergedMiningCoinbase.c_str(), mergedMiningBin);
@@ -456,6 +505,19 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
                             mergedMiningBin.begin(), mergedMiningBin.end());
     }
 
+  #ifdef USER_DEFINED_COINBASE
+    // reserved for user defined coinbase info
+    string userCoinbaseInfoPadding;
+    userCoinbaseInfoPadding.resize(USER_DEFINED_COINBASE_SIZE, '\x20');
+    cbIn.scriptSig.insert(cbIn.scriptSig.end(), userCoinbaseInfoPadding.begin(), userCoinbaseInfoPadding.end());
+  #endif
+
+    //  placeHolder: extra nonce1 (4bytes) + extra nonce2 (8bytes)
+    const vector<char> placeHolder(4 + 8, 0xEE);
+    // pub extra nonce place holder
+    cbIn.scriptSig.insert(cbIn.scriptSig.end(), placeHolder.begin(), placeHolder.end());
+
+    // 100: coinbase script sig max len, range: (2, 100).
     //
     // bitcoind/src/main.cpp: CheckTransaction()
     //   if (tx.IsCoinBase())
@@ -464,40 +526,74 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     //       return state.DoS(100, false, REJECT_INVALID, "bad-cb-length");
     //   }
     //
-    // 100: coinbase script sig max len, range: (2, 100).
-    //  12: extra nonce1 (4bytes) + extra nonce2 (8bytes)
-    //
-    const vector<char> placeHolder(4 + 8, 0xEE);
-    const size_t maxScriptSigLen = 100 - placeHolder.size();
-    if (cbIn.scriptSig.size() > maxScriptSigLen) {
-      cbIn.scriptSig.resize(maxScriptSigLen);
-    }
-    // pub extra nonce place holder
-    cbIn.scriptSig.insert(cbIn.scriptSig.end(), placeHolder.begin(), placeHolder.end());
     if (cbIn.scriptSig.size() >= 100) {
-      LOG(ERROR) << "coinbase input script size over than 100, shold < 100";
+      LOG(FATAL) << "coinbase input script size over than 100, shold < 100";
       return false;
     }
+
+    // coinbase outputs
+    vector<CTxOut> cbOut;
 
     //
     // output[0]: pool payment address
     //
-    vector<CTxOut> cbOut;
-    cbOut.push_back(CTxOut());
-    cbOut[0].nValue = coinbaseValue_;
-    cbOut[0].scriptPubKey = GetScriptForDestination(poolPayoutAddr.Get());
+    {
+      CTxOut paymentTxOut;
+      paymentTxOut.scriptPubKey = GetScriptForDestination(poolPayoutAddr);
+
+    #ifdef CHAIN_TYPE_BCH
+      paymentTxOut.nValue = Amount(coinbaseValue_);
+    #else
+      paymentTxOut.nValue = coinbaseValue_;
+    #endif
+
+      cbOut.push_back(paymentTxOut);
+    }
 
     //
-    // output[1]: witness commitment
+    // output[1] (optional): witness commitment
     //
     if (!witnessCommitment_.empty()) {
       DLOG(INFO) << "witness commitment: " << witnessCommitment_.c_str();
       vector<char> binBuf;
       Hex2Bin(witnessCommitment_.c_str(), binBuf);
-      cbOut.push_back(CTxOut());
-      cbOut[1].nValue = 0;
-      cbOut[1].scriptPubKey = CScript((unsigned char*)binBuf.data(),
+
+      CTxOut witnessTxOut;
+      witnessTxOut.scriptPubKey = CScript((unsigned char*)binBuf.data(),
                                       (unsigned char*)binBuf.data() + binBuf.size());
+    #ifdef CHAIN_TYPE_BCH
+      witnessTxOut.nValue = Amount(0);
+    #else
+      witnessTxOut.nValue = 0;
+    #endif
+
+      cbOut.push_back(witnessTxOut);
+    }
+
+    //
+    // output[2]: RSK merge mining
+    // Tips: it may be output[1] if segwit not enabled in a chain (like BitcoinCash).
+    //
+    if (latestRskBlockJson.isInitialized()) {
+      DLOG(INFO) << "RSK blockhash: " << blockHashForMergedMining_;
+      string rskBlockTag = "\x52\x53\x4B\x42\x4C\x4F\x43\x4B\x3A"; // "RSKBLOCK:"
+      vector<char> rskTag(rskBlockTag.begin(), rskBlockTag.end());
+      vector<char> binBuf;
+
+      Hex2Bin(blockHashForMergedMining_.c_str(), binBuf);
+
+      rskTag.insert(std::end(rskTag), std::begin(binBuf), std::end(binBuf));
+
+      CTxOut rskTxOut;
+      rskTxOut.scriptPubKey = CScript((unsigned char*)rskTag.data(),
+                                      (unsigned char*)rskTag.data() + rskTag.size());
+    #ifdef CHAIN_TYPE_BCH
+      rskTxOut.nValue = Amount(0);
+    #else
+      rskTxOut.nValue = 0;
+    #endif
+
+      cbOut.push_back(rskTxOut);
     }
 
     CMutableTransaction cbtx;
@@ -507,7 +603,7 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     vector<char> coinbaseTpl;
     {
       CSerializeData sdata;
-      CDataStream ssTx(SER_NETWORK, BITCOIN_PROTOCOL_VERSION);
+      CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
       ssTx << cbtx;  // put coinbase CTransaction to CDataStream
       ssTx.GetAndClear(sdata);  // dump coinbase bin to coinbaseTpl
       coinbaseTpl.insert(coinbaseTpl.end(), sdata.begin(), sdata.end());
@@ -515,7 +611,7 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
 
     // check coinbase tx size
     if (coinbaseTpl.size() >= COINBASE_TX_MAX_SIZE) {
-      LOG(ERROR) << "conbase tx size " << coinbaseTpl.size()
+      LOG(FATAL) << "coinbase tx size " << coinbaseTpl.size()
       << " is over than max " << COINBASE_TX_MAX_SIZE;
       return false;
     }

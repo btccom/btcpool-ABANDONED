@@ -25,6 +25,7 @@
 #define STRATUM_H_
 
 #include "Common.h"
+#include "utilities_js.hpp"
 #include "Utils.h"
 
 #include <arpa/inet.h>
@@ -37,18 +38,19 @@
 
 #include <glog/logging.h>
 
-#include "bitcoin/uint256.h"
-#include "bitcoin/base58.h"
+#include <uint256.h>
+#include <base58.h>
+
+#include "rsk/RskWork.h"
 
 // TODO: update when next Halving
 #define BLOCK_REWARD 1250000000ll
 
 //
 // max coinbase tx size, bytes
-// WARNING: currently there is only 1 input and 1 or 2 output(if segwit has actived
-//          there will be 2 outputs), so 250 bytes is enough
-//
-#define COINBASE_TX_MAX_SIZE   250
+// Tips: currently there is only 1 input and 1, 2 or 3 output (reward, segwit and RSK outputs),
+//       so 500 bytes may enough.
+#define COINBASE_TX_MAX_SIZE   500
 
 // default worker name
 #define DEFAULT_WORKER_NAME    "__default__"
@@ -262,10 +264,20 @@ public:
   // namecoin merged mining
   uint32_t nmcAuxBits_;
   uint256  nmcAuxBlockHash_;
+  int32_t  nmcAuxMerkleSize_;
+  int32_t  nmcAuxMerkleNonce_;
   uint256  nmcNetworkTarget_;
   int32_t  nmcHeight_;
   string   nmcRpcAddr_;
   string   nmcRpcUserpass_;
+
+  // rsk merged mining
+  string   blockHashForMergedMining_;
+  string   rskdRpcAddress_;
+  string   rskdRpcUserPwd_;
+  string   feesForMiner_;
+  uint256  rskNetworkTarget_;
+  bool     isRskCleanJob_;
 
 
 public:
@@ -275,9 +287,10 @@ public:
   bool unserializeFromJson(const char *s, size_t len);
 
   bool initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
-                   const CBitcoinAddress &poolPayoutAddr,
+                   const CTxDestination &poolPayoutAddr,
                    const uint32_t blockVersion,
-                   const string &nmcAuxBlockJson);
+                   const string &nmcAuxBlockJson,
+                   const RskWork &latestRskBlockJson);
   bool isEmptyBlock();
 };
 

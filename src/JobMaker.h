@@ -28,8 +28,10 @@
 #include "Kafka.h"
 #include "Stratum.h"
 
-#include "bitcoin/uint256.h"
-#include "bitcoin/base58.h"
+#include <uint256.h>
+#include <base58.h>
+
+#include "rsk/RskWork.h"
 
 #include <map>
 #include <deque>
@@ -46,13 +48,21 @@ class JobMaker {
   mutex auxJsonlock_;
   string latestNmcAuxBlockJson_;
 
+  // merged mining for RSK
+  KafkaConsumer kafkaRawGwConsumer_;  
+  mutex rskWorkAccessLock_;
+  RskWork *previousRskWork_;
+  RskWork *currentRskWork_;
+  uint32_t rskNotifyPolicy_;
+
   uint32_t currBestHeight_;
   uint32_t lastJobSendTime_;
   bool isLastJobEmptyBlock_;
   uint32_t stratumJobInterval_;
 
   string poolCoinbaseInfo_;
-  CBitcoinAddress poolPayoutAddr_;
+  string poolPayoutAddrStr_;
+  CTxDestination poolPayoutAddr_;
 
   uint32_t kGbtLifeTime_;
   uint32_t kEmptyGbtLifeTime_;
@@ -64,8 +74,10 @@ class JobMaker {
   uint32_t blockVersion_;
 
   thread threadConsumeNmcAuxBlock_;
+  thread threadConsumeRskRawGw_;
 
   void consumeNmcAuxBlockMsg(rd_kafka_message_t *rkmessage);
+  void consumeRawGwMsg(rd_kafka_message_t *rkmessage);
   void consumeRawGbtMsg(rd_kafka_message_t *rkmessage, bool needToSend);
   void addRawgbt(const char *str, size_t len);
 
@@ -73,8 +85,11 @@ class JobMaker {
   bool isReachTimeout();
   void sendStratumJob(const char *gbt);
 
-  void checkAndSendStratumJob();
+  void clearTimeoutGw();
+  bool triggerRskUpdate();
+  void checkAndSendStratumJob(bool isRskUpdate);
   void runThreadConsumeNmcAuxBlock();
+  void runThreadConsumeRawGw();
 
   inline uint64_t makeGbtKey(uint32_t gbtTime, bool isEmptyBlock, uint32_t height);
   inline uint32_t gbtKeyGetTime(uint64_t gbtKey);
@@ -85,7 +100,8 @@ public:
   JobMaker(const string &kafkaBrokers, uint32_t stratumJobInterval,
            const string &payoutAddr, uint32_t gbtLifeTime,
            uint32_t emptyGbtLifeTime, const string &fileLastJobTime,
-           uint32_t blockVersion, const string &poolCoinbaseInfo);
+           uint32_t rskNotifyPolicy, uint32_t blockVersion,
+					const string &poolCoinbaseInfo);
   ~JobMaker();
 
   bool init();

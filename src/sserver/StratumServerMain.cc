@@ -35,7 +35,7 @@
 #include <libconfig.h++>
 #include <event2/thread.h>
 
-#include "zmq.hpp"
+#include <zmq.hpp>
 
 #include "Utils.h"
 #include "StratumServer.h"
@@ -143,6 +143,12 @@ int main(int argc, char **argv) {
     cfg.lookupValue("sserver.enable_simulator", isEnableSimulator);
     bool isSubmitInvalidBlock = false;
     cfg.lookupValue("sserver.enable_submit_invalid_block", isSubmitInvalidBlock);
+
+    bool isDevModeEnabled = false;
+    cfg.lookupValue("sserver.enable_dev_mode", isDevModeEnabled);
+    float minerDifficulty;
+    cfg.lookupValue("sserver.miner_difficulty", minerDifficulty);
+    
     string fileLastMiningNotifyTime;
     cfg.lookupValue("sserver.file_last_notify_time", fileLastMiningNotifyTime);
 
@@ -157,6 +163,8 @@ int main(int argc, char **argv) {
                                        fileLastMiningNotifyTime,
                                        isEnableSimulator,
                                        isSubmitInvalidBlock,
+                                       isDevModeEnabled,
+                                       minerDifficulty,
                                        shareAvgSeconds);
 
     if (!gStratumServer->init()) {

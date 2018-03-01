@@ -1,5 +1,9 @@
 .vs/
 .vscode/
+.idea/
+cmake-build-debug/
+/build
 /build*/
 /patches/
 /data/
+/src/bitcoin/

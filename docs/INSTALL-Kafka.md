@@ -2,7 +2,7 @@ Install Kafka
 ==============
 
 * OS: `Ubuntu 14.04 LTS, 64 Bits`, `Ubuntu 16.04 LTS, 64 Bits`
-* Kafka: `v0.10.0.0`
+* Kafka: `v0.11.0.2`
 * see more: https://kafka.apache.org/documentation.html#quickstart
 
 **install depends**
@@ -41,8 +41,8 @@ broker.id=1
 offsets.topic.replication.factor=3
 
 # increate message size limit
-message.max.bytes=20000000
-replica.fetch.max.bytes=30000000
+message.max.bytes=60000000
+replica.fetch.max.bytes=80000000
 
 log.dirs=/work/kafka-logs
 listeners=PLAINTEXT://10.0.0.4:9092
@@ -73,6 +73,7 @@ edit conf file `vim /etc/supervisor/conf.d/kafka.conf`:
 
 ```
 [program:kafka]
+environment=KAFKA_HEAP_OPTS="-Xmx2G -Xms1G"
 directory=/work/kafka
 command=/work/kafka/bin/kafka-server-start.sh /work/kafka/config/server.properties
 autostart=true

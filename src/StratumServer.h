@@ -150,6 +150,12 @@ class UserInfo {
   // username -> userId
   std::unordered_map<string, int32_t> nameIds_;
   int32_t lastMaxUserId_;
+  
+#ifdef USER_DEFINED_COINBASE
+  // userId -> userCoinbaseInfo
+  std::unordered_map<int32_t, string> idCoinbaseInfos_;
+  int64_t lastTime_;
+#endif
 
   // workerName
   mutex workerNameLock_;
@@ -172,6 +178,11 @@ public:
   bool setupThreads();
 
   int32_t getUserId(const string userName);
+
+#ifdef USER_DEFINED_COINBASE
+  string  getCoinbaseInfo(int32_t userId);
+#endif
+
   void addWorker(const int32_t userId, const int64_t workerId,
                  const string &workerName, const string &minerAgent);
 };
@@ -186,16 +197,20 @@ class StratumJobEx {
   atomic<int32_t> state_;
 
   void makeMiningNotifyStr();
+
   void generateCoinbaseTx(std::vector<char> *coinbaseBin,
                           const uint32_t extraNonce1,
-                          const string &extraNonce2Hex);
+                          const string &extraNonce2Hex,
+                          string *userCoinbaseInfo = nullptr);
 
 public:
   bool isClean_;
   StratumJob *sjob_;
   string miningNotify1_;
   string miningNotify2_;
-  string miningNotify2Clean_;  // clean flag always true
+  string coinbase1_;
+  string miningNotify3_;
+  string miningNotify3Clean_;
 
 public:
   StratumJobEx(StratumJob *sjob, bool isClean);
@@ -204,14 +219,15 @@ public:
   void markStale();
   bool isStale();
 
-  void generateBlockHeader(CBlockHeader *header,
+  void generateBlockHeader(CBlockHeader  *header,
                            std::vector<char> *coinbaseBin,
                            const uint32_t extraNonce1,
                            const string &extraNonce2Hex,
                            const vector<uint256> &merkleBranch,
                            const uint256 &hashPrevBlock,
                            const uint32_t nBits, const int32_t nVersion,
-                           const uint32_t nTime, const uint32_t nonce);
+                           const uint32_t nTime, const uint32_t nonce,
+                           string *userCoinbaseInfo = nullptr);
 };
 
 
@@ -230,6 +246,7 @@ class Server {
   KafkaProducer *kafkaProducerSolvedShare_;
   KafkaProducer *kafkaProducerNamecoinSolvedShare_;
   KafkaProducer *kafkaProducerCommonEvents_;
+  KafkaProducer *kafkaProducerRskSolvedShare_;
 
   //
   // WARNING: if enable simulator, all share will be accepted. only for test.
@@ -247,6 +264,15 @@ public:
   SessionIDManager *sessionIDManager_;
 #endif
 
+  //
+  // WARNING: if enable, difficulty sent to miners is always minerDifficulty_. 
+  //          for development
+  //
+  bool isDevModeEnable_;
+  //
+  // WARNING: difficulty to send to miners. for development
+  //
+  float minerDifficulty_;
   const int32_t kShareAvgSeconds_;
   JobRepository *jobRepository_;
   UserInfo *userInfo_;
@@ -259,7 +285,9 @@ public:
              const string &userAPIUrl,
              const uint8_t serverId, const string &fileLastNotifyTime,
              bool isEnableSimulator,
-             bool isSubmitInvalidBlock);
+             bool isSubmitInvalidBlock,
+             bool isDevModeEnable,
+             float minerDifficulty);
   void run();
   void stop();
 
@@ -278,7 +306,9 @@ public:
   int checkShare(const Share &share,
                  const uint32 extraNonce1, const string &extraNonce2Hex,
                  const uint32_t nTime, const uint32_t nonce,
-                 const uint256 &jobTarget, const string &workFullName);
+                 const uint256 &jobTarget, const string &workFullName,
+                 string *userCoinbaseInfo = nullptr);
+
   void sendShare2Kafka      (const uint8_t *data, size_t len);
   void sendSolvedShare2Kafka(const FoundBlock *foundBlock,
                              const std::vector<char> &coinbaseBin);
@@ -300,12 +330,17 @@ class StratumServer {
   string kafkaBrokers_;
   string userAPIUrl_;
 
-
   // if enable simulator, all share will be accepted
   bool isEnableSimulator_;
 
   // if enable it, will make block and submit
   bool isSubmitInvalidBlock_;
+  
+  // if enable, difficulty sent to miners is always minerDifficulty_
+  bool isDevModeEnable_;
+
+  // difficulty to send to miners. for development
+  float minerDifficulty_;
 
 public:
   StratumServer(const char *ip, const unsigned short port,
@@ -314,6 +349,8 @@ public:
                 const uint8_t serverId, const string &fileLastNotifyTime,
                 bool isEnableSimulator,
                 bool isSubmitInvalidBlock,
+                bool isDevModeEnable,
+                float minerDifficulty,
                 const int32_t shareAvgSeconds);
   ~StratumServer();
 

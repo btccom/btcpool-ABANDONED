@@ -32,10 +32,14 @@
 #include <deque>
 #include <vector>
 #include <unordered_map>
+#include <boost/date_time/posix_time/posix_time.hpp>
 
-#include "bitcoin/uint256.h"
-#include "bitcoin/base58.h"
+#include <uint256.h>
+#include <base58.h>
 
+#include "rsk/RskWork.h"
+
+namespace bpt = boost::posix_time;
 
 ////////////////////////////////// BlockMaker //////////////////////////////////
 class BlockMaker {
@@ -46,17 +50,21 @@ class BlockMaker {
   // key: gbthash
   std::deque<uint256> rawGbtQ_;
   // key: gbthash, value: block template json
-  std::map<uint256, shared_ptr<vector<CTransaction> > > rawGbtMap_;
+  std::map<uint256, shared_ptr<vector<CTransactionRef> > > rawGbtMap_;
 
   mutex jobIdMapLock_;
   size_t kMaxStratumJobNum_;
   // key: jobId, value: gbthash
   std::map<uint64_t, uint256> jobId2GbtHash_;
 
+  bpt::ptime lastSubmittedBlockTime;
+  uint32_t submittedRskBlocks;
+
   KafkaConsumer kafkaConsumerRawGbt_;
   KafkaConsumer kafkaConsumerStratumJob_;
   KafkaConsumer kafkaConsumerSovledShare_;
   KafkaConsumer kafkaConsumerNamecoinSovledShare_;
+  KafkaConsumer kafkaConsumerRskSolvedShare_;
 
   // submit new block to bitcoind
   // pair: <RpcAddress, RpcUserpass>
@@ -65,21 +73,24 @@ class BlockMaker {
   MysqlConnectInfo poolDB_;      // save blocks to table.found_blocks
 
   void insertRawGbt(const uint256 &gbtHash,
-                    shared_ptr<vector<CTransaction>> vtxs);
+                    shared_ptr<vector<CTransactionRef>> vtxs);
 
   thread threadConsumeRawGbt_;
   thread threadConsumeStratumJob_;
   thread threadConsumeNamecoinSovledShare_;
+  thread threadConsumeRskSolvedShare_;
 
   void runThreadConsumeRawGbt();
   void runThreadConsumeSovledShare();
   void runThreadConsumeStratumJob();
   void runThreadConsumeNamecoinSovledShare();
+  void runThreadConsumeRskSolvedShare();
 
   void consumeRawGbt     (rd_kafka_message_t *rkmessage);
   void consumeStratumJob (rd_kafka_message_t *rkmessage);
   void consumeSovledShare(rd_kafka_message_t *rkmessage);
   void consumeNamecoinSovledShare(rd_kafka_message_t *rkmessage);
+  void consumeRskSolvedShare(rd_kafka_message_t *rkmessage);
 
   void addRawgbt(const char *str, size_t len);
 
@@ -105,6 +116,15 @@ class BlockMaker {
                                   const string &bitcoinBlockHash,
                                   const string &rpcAddress,
                                   const string &rpcUserpass);
+
+  void submitRskBlockNonBlocking(const string &rpcAddress,
+                                const string &rpcUserPwd,
+                                const string &blockHex);
+
+  void _submitRskBlockThread(const string &rpcAddress,
+                            const string &rpcUserPwd,
+                            const string &blockHex);
+  bool submitToRskNode();
 
 public:
   BlockMaker(const char *kafkaBrokers, const MysqlConnectInfo &poolDB);

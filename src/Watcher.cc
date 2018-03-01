@@ -32,8 +32,9 @@
 #include <event2/listener.h>
 #include <glog/logging.h>
 
-#include "bitcoin/chainparams.h"
-#include "bitcoin/utilstrencodings.h"
+#include <chainparams.h>
+#include <utilstrencodings.h>
+#include "BitcoinUtils.h"
 
 static
 bool tryReadLine(string &line, struct bufferevent *bufev) {
@@ -309,6 +310,7 @@ bool ClientContainer::addPools(const string &poolName, const string &poolHost,
 bool ClientContainer::makeEmptyGBT(int32_t blockHeight, uint32_t nBits,
                                    const string &blockPrevHash,
                                    uint32_t blockTime, uint32_t blockVersion) {
+
   // generate empty GBT
   string gbt;
   gbt += Strings::Format("{\"result\":{");

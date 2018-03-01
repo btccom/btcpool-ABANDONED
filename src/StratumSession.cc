@@ -601,7 +601,7 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
   // set read timeout to 10 mins, it's enought for most miners even usb miner.
   // if it's a pool watcher, set timeout to a week
   setReadTimeout(isLongTimeout_ ? 86400*7 : 60*10);
-
+  
   // send latest stratum job
   sendMiningNotify(server_->jobRepository_->getLatestStratumJobEx(), true/* is first job */);
 
@@ -782,10 +782,18 @@ void StratumSession::handleRequest_Submit(const string &idStr,
     goto finish;
   }
 
+#ifdef  USER_DEFINED_COINBASE
+  // check block header
+  submitResult = server_->checkShare(share, extraNonce1_, extraNonce2Hex,
+                                     nTime, nonce, jobTarget,
+                                     worker_.fullName_,
+                                     &localJob->userCoinbaseInfo_);
+#else
   // check block header
   submitResult = server_->checkShare(share, extraNonce1_, extraNonce2Hex,
                                      nTime, nonce, jobTarget,
                                      worker_.fullName_);
+#endif
 
   if (submitResult == StratumError::NO_ERROR) {
     // accepted share
@@ -844,9 +852,17 @@ StratumSession::LocalJob *StratumSession::findLocalJob(uint8_t shortJobId) {
 }
 
 void StratumSession::sendSetDifficulty(const uint64_t difficulty) {
-  string s = Strings::Format("{\"id\":null,\"method\":\"mining.set_difficulty\""
-                             ",\"params\":[%" PRIu64"]}\n",
-                             difficulty);
+  string s;
+  if (!server_->isDevModeEnable_) {
+    s = Strings::Format("{\"id\":null,\"method\":\"mining.set_difficulty\""
+                         ",\"params\":[%" PRIu64"]}\n",
+                         difficulty);
+  } else {
+    s = Strings::Format("{\"id\":null,\"method\":\"mining.set_difficulty\""
+                         ",\"params\":[%.3f]}\n",
+                         server_->minerDifficulty_);
+  }
+
   sendData(s);
 }
 
@@ -858,8 +874,7 @@ uint8_t StratumSession::allocShortJobId() {
   return shortJobIdIdx_++;
 }
 
-void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr,
-                                      bool isFirstJob) {
+void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
   if (state_ < AUTHENTICATED || exJobPtr == nullptr) {
     return;
   }
@@ -871,6 +886,12 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr,
   ljob.jobId_         = sjob->jobId_;
   ljob.shortJobId_    = allocShortJobId();
   ljob.jobDifficulty_ = diffController_.calcCurDiff();
+
+#ifdef USER_DEFINED_COINBASE
+  // add the User's coinbaseInfo to the coinbase1's tail
+  string userCoinbaseInfo = server_->userInfo_->getCoinbaseInfo(worker_.userId_);
+  ljob.userCoinbaseInfo_ = userCoinbaseInfo;
+#endif
 
   if (agentSessions_ != nullptr)
   {
@@ -909,10 +930,25 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr,
   }
 
   // notify2
+  notifyStr.append(exJobPtr->miningNotify2_);
+
+  string coinbase1 = exJobPtr->coinbase1_;
+
+#ifdef USER_DEFINED_COINBASE
+  string userCoinbaseHex;
+  Bin2Hex((const uint8_t *)ljob.userCoinbaseInfo_.c_str(), ljob.userCoinbaseInfo_.size(), userCoinbaseHex);
+  // replace the last `userCoinbaseHex.size()` bytes to `userCoinbaseHex`
+  coinbase1.replace(coinbase1.size()-userCoinbaseHex.size(), userCoinbaseHex.size(), userCoinbaseHex);
+#endif
+
+  // coinbase1
+  notifyStr.append(coinbase1);
+
+  // notify3
   if (isFirstJob)
-  	notifyStr.append(exJobPtr->miningNotify2Clean_);
+  	notifyStr.append(exJobPtr->miningNotify3Clean_);
   else
-    notifyStr.append(exJobPtr->miningNotify2_);
+    notifyStr.append(exJobPtr->miningNotify3_);
 
   sendData(notifyStr);  // send notify string
 

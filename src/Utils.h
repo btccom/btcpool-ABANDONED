@@ -28,12 +28,12 @@
 #include <sstream>
 #include <vector>
 
-#include "bitcoin/base58.h"
-#include "bitcoin/util.h"
-#include "bitcoin/utilstrencodings.h"
-#include "bitcoin/streams.h"
+#include <base58.h>
+#include <util.h>
+#include <utilstrencodings.h>
+#include <streams.h>
 
-#include "zmq.hpp"
+#include <zmq.hpp>
 
 #include "Common.h"
 
@@ -54,8 +54,8 @@ bool s_sendmore (zmq::socket_t & socket, const std::string & string);
 bool httpGET (const char *url, string &response, long timeoutMs);
 bool httpGET (const char *url, const char *userpwd,
               string &response, long timeoutMs);
-bool httpPOST(const char *url, const char *userpwd,
-              const char *postData, string &response, long timeoutMs);
+bool httpPOST(const char *url, const char *userpwd, const char *postData,
+              string &response, long timeoutMs, const char *contentType);
 bool bitcoindRpcCall(const char *url, const char *userpwd, const char *reqData,
                      string &response);
 
@@ -92,5 +92,7 @@ inline double share2HashrateP(uint64_t share, uint32_t timeDiff) {
 }
 
 bool fileExists(const char* file);
+
+bool checkBitcoinRPC(const string &rpcAddr, const string &rpcUserpass);
 
 #endif

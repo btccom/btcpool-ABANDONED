@@ -76,14 +76,14 @@ StatsWindow<T>::StatsWindow(const int windowSize)
 
 template <typename T>
 void StatsWindow<T>::mapMultiply(const T val) {
-  for (size_t i = 0; i < windowSize_; i++) {
+  for (int32_t i = 0; i < windowSize_; i++) {
     elements_[i] *= val;
   }
 }
 
 template <typename T>
 void StatsWindow<T>::mapDivide(const T val) {
-  for (size_t i = 0; i < windowSize_; i++) {
+  for (int32_t i = 0; i < windowSize_; i++) {
     elements_[i] /= val;
   }
 }
