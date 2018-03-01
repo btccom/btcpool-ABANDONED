@@ -52,7 +52,7 @@ kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, RD_KAFKA_PARTITIO
 kafkaRawGbtConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT,       0/* partition */),
 kafkaNmcAuxConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_NMC_AUXBLOCK, 0/* partition */),
 kafkaRawGwConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGW, 0/* partition */),
-rskNotifyPolicy_(rskNotifyPolicy),
+previousRskWork_(nullptr), currentRskWork_(nullptr), rskNotifyPolicy_(rskNotifyPolicy),
 currBestHeight_(0), lastJobSendTime_(0),
 isLastJobEmptyBlock_(false),
 stratumJobInterval_(stratumJobInterval),
@@ -329,9 +329,9 @@ void JobMaker::consumeRawGwMsg(rd_kafka_message_t *rkmessage) {
     RskWork *rskWork = createWork();
     if(rskWork->initFromGw(rawGetWork)) {
 
-      if (previousRskWork_) {
+      if (previousRskWork_ != nullptr) {
         delete previousRskWork_;
-        previousRskWork_ = NULL;
+        previousRskWork_ = nullptr;
       }
 
       previousRskWork_ = currentRskWork_;
@@ -357,7 +357,7 @@ bool JobMaker::triggerRskUpdate() {
   RskWork previousRskWork;
   {
     ScopeLock sl(rskWorkAccessLock_);
-    if (!previousRskWork_ || !currentRskWork_) {
+    if (previousRskWork_ == nullptr || currentRskWork_ == nullptr) {
       return false;
     }
     currentRskWork = *currentRskWork_;
@@ -377,7 +377,7 @@ void JobMaker::clearTimeoutGw() {
   RskWork previousRskWork;
   {
     ScopeLock sl(rskWorkAccessLock_);
-    if (!previousRskWork_ || !currentRskWork_) {
+    if (previousRskWork_ == nullptr || currentRskWork_ == nullptr) {
       return;
     }
 
@@ -385,13 +385,13 @@ void JobMaker::clearTimeoutGw() {
     currentRskWork = *currentRskWork_;
     if(currentRskWork.getCreatedAt() + 120u < ts_now) {
       delete currentRskWork_;
-      currentRskWork_ = NULL;
+      currentRskWork_ = nullptr;
     }
 
     previousRskWork = *previousRskWork_;
     if(previousRskWork.getCreatedAt() + 120u < ts_now) {
       delete previousRskWork_;
-      previousRskWork_ = NULL;
+      previousRskWork_ = nullptr;
     }
   }
 }
