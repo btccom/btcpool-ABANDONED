@@ -1145,6 +1145,13 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
       JsonNode r;
       if (JsonNode::parse(response.c_str(), response.c_str() + response.length(), r))
       {
+        if (r["result"].type() == Utilities::JS::type::Bool) {
+          const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":%s}\n", idStr.c_str(), r["result"].boolean() ? "true" : "false");
+          sendData(s);
+        }
+        else {
+          LOG(ERROR) << "result type not bool";
+        }
       }
       else
       {
