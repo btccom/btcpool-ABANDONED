@@ -30,7 +30,6 @@
 
 #include "StratumServer.h"
 
-
 //////////////////////////////// DiffController ////////////////////////////////
 void DiffController::setMinDiff(uint64 minDiff) {
   if (minDiff < kMinDiff_) {
@@ -1113,6 +1112,8 @@ void StratumSessionEth::handleRequest_Subscribe        (const string &idStr, con
 
 void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode &jparams)
 {
+  static unordered_map<string, bool> submittedJob_;
+  
   if (state_ != AUTHENTICATED)
   {
     responseError(idStr, StratumError::UNAUTHORIZED);
@@ -1134,7 +1135,16 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   auto params = (const_cast<JsonNode&>(jparams)).array();
   if (5 == params.size())
   {
-    string request = Strings::Format("{\"jsonrpc\": \"2.0\", \"method\": \"eth_submitWork\", \"params\": [\"%s\",\"%s\",\"%s\"], \"id\": 5}\"\n",
+    {
+      string jobId = params[1].str();
+      if (submittedJob_.find(jobId) != submittedJob_.end()) {
+        LOG(INFO) << "ignore duplicated submission jobId: " << jobId;
+        return;
+      }
+      submittedJob_[jobId] = true;
+    }
+
+    string request = Strings::Format("{\"jsonrpc\": \"2.0\", \"method\": \"eth_submitWork\", \"params\": [\"%s\",\"%s\",\"%s\"], \"id\": 5}\n",
                                      params[2].str().c_str(),
                                      params[3].str().c_str(),
                                      params[4].str().c_str());
@@ -1143,6 +1153,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
     bool res = bitcoindRpcCall("http://127.0.0.1:8545", "user:pass", request.c_str(), response);
     if (res)
     {
+      LOG(INFO) << "response: " << response;
       JsonNode r;
       if (JsonNode::parse(response.c_str(), response.c_str() + response.length(), r))
       {
