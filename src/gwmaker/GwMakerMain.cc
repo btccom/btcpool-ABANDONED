@@ -56,7 +56,7 @@ void usage() {
 
 GwMaker* createGwMaker (Config &cfg) {
   GwMaker* gGwMaker = NULL;
-  uint32_t pollPeriod = 5;
+  uint32_t pollPeriod = 100;
   cfg.lookupValue("gwmaker.poll_period", pollPeriod);
   string type = cfg.lookup("rskd.type");
   if ("BTC" == type) {

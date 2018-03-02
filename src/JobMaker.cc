@@ -410,6 +410,7 @@ void JobMaker::runThreadConsumeRawGw() {
 
     /* Return message to rdkafka */
     rd_kafka_message_destroy(rkmessage);
+    usleep(50000);
   }
 }
 //// End of methods added to merge mine for RSK
@@ -728,7 +729,7 @@ bool JobMakerEth::triggerRskUpdate() {
   RskWork previousRskWork;
   {
     ScopeLock sl(rskWorkAccessLock_);
-    if (!previousRskWork_ || !currentRskWork_) {
+    if (previousRskWork_ == nullptr || currentRskWork_ == nullptr) {
       return false;
     }
     currentRskWork = *currentRskWork_;
@@ -753,7 +754,7 @@ void JobMakerEth::sendGwStratumJob() {
   RskWorkEth currentRskBlockJson;
   {
     ScopeLock sl(rskWorkAccessLock_);
-    if (currentRskWork_)
+    if (currentRskWork_ != nullptr)
       currentRskBlockJson = *(dynamic_cast<RskWorkEth*>(currentRskWork_));
   }
 

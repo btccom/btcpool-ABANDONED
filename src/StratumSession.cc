@@ -1112,7 +1112,7 @@ void StratumSessionEth::handleRequest_Subscribe        (const string &idStr, con
 
 void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode &jparams)
 {
-  static unordered_map<string, bool> submittedJob_;
+  static std::unordered_map<string, bool> submittedJob_;
   
   if (state_ != AUTHENTICATED)
   {
