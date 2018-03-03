@@ -244,6 +244,8 @@ bev_(bev), fd_(fd), server_(server)
   setup();
 
   LOG(INFO) << "client connect, ip: " << clientIp_;
+
+  versionMask_ = server_->getVersionMask();
 }
 
 StratumSession::~StratumSession() {
@@ -381,6 +383,9 @@ void StratumSession::handleRequest(const string &idStr, const string &method,
   else if (method == "mining.multi_version") {
     handleRequest_MultiVersion(idStr, jparams);
   }
+  else if (method == "mining.configure") {
+    handleRequest_MiningConfigure(idStr, jparams);
+  }
   else if (method == "mining.suggest_target") {
     handleRequest_SuggestTarget(idStr, jparams);
   }
@@ -400,6 +405,44 @@ void StratumSession::handleRequest_MultiVersion(const string &idStr,
 //                                   idStr.c_str());
 //  sendData(s);
 }
+
+void StratumSession::handleRequest_MiningConfigure(const string &idStr,
+                                                   const JsonNode &jparams) {
+  if (jparams.children()->size() < 1) {
+    responseError(idStr, StratumError::ILLEGAL_PARARMS);
+    return;
+  }
+
+  //
+  // {"id": 1, "method": "mining.configure",
+  //  "params": [
+  //              ["version-rolling"],
+  //              {"version-rolling.bit-count": 2, "version-rolling.mask": "ffffffff" }
+  //            ]
+  // }
+  //
+  auto params0 = jparams.children()->at(0);
+  if (params0.type()                  == Utilities::JS::type::Array &&
+      params0.children()->size()      >= 1 &&
+      params0.children()->at(0).str() == "version-rolling") {
+    string s;
+    //
+    // send true: "version-rolling\":true
+    //
+    s = Strings::Format("{\"id\":%s,\"result\":{\"version-rolling\":true,"
+                        "\"version-rolling.mask\":\"%08x\"},\"error\":null}\n",
+                        idStr.c_str(), versionMask_);
+    sendData(s);
+
+    //
+    // mining.set_version_mask
+    //
+    s = Strings::Format("{\"id\":null,\"method\":\"mining.set_version_mask\",\"params\":[\"%08x\"]}\n",
+                        versionMask_);
+    sendData(s);
+  }
+}
+
 
 static
 bool _isNiceHashAgent(const string &clientAgent) {
@@ -694,8 +737,13 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   uint32_t nTime             = jparams.children()->at(3).uint32_hex();
   const uint32_t nonce       = jparams.children()->at(4).uint32_hex();
 
+  uint32_t versionMask = 0u;
+  if (jparams.children()->size() >= 6) {
+    versionMask = jparams.children()->at(5).uint32_hex();
+  }
+
   handleRequest_Submit(idStr, shortJobId, extraNonce2, nonce, nTime,
-                       false /* not agent session */, nullptr);
+                       false /* not agent session */, nullptr, versionMask);
 }
 
 void StratumSession::handleRequest_Submit(const string &idStr,
@@ -704,12 +752,19 @@ void StratumSession::handleRequest_Submit(const string &idStr,
                                           const uint32_t nonce,
                                           uint32_t nTime,
                                           bool isAgentSession,
-                                          DiffController *sessionDiffController) {
+                                          DiffController *sessionDiffController,
+                                          const uint32_t versionMask) {
   //
   // if share is from agent session, we don't need to send reply json
   //
   if (isAgentSession == true && agentSessions_ == nullptr) {
     LOG(ERROR) << "can't find agentSession";
+    return;
+  }
+
+  // check version mask
+  if (versionMask != 0 && ((~versionMask_) & versionMask) != 0) {
+    responseError(idStr, StratumError::ILLEGAL_VERMASK);
     return;
   }
 
@@ -769,7 +824,7 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   bool isSendShareToKafka = true;
 
   int submitResult;
-  LocalShare localShare(extraNonce2, nonce, nTime);
+  LocalShare localShare(extraNonce2, nonce, nTime, versionMask);
 
   // can't find local share
   if (!localJob->addLocalShare(localShare)) {
@@ -785,13 +840,13 @@ void StratumSession::handleRequest_Submit(const string &idStr,
 #ifdef  USER_DEFINED_COINBASE
   // check block header
   submitResult = server_->checkShare(share, extraNonce1_, extraNonce2Hex,
-                                     nTime, nonce, jobTarget,
+                                     nTime, nonce, versionMask, jobTarget,
                                      worker_.fullName_,
                                      &localJob->userCoinbaseInfo_);
 #else
   // check block header
   submitResult = server_->checkShare(share, extraNonce1_, extraNonce2Hex,
-                                     nTime, nonce, jobTarget,
+                                     nTime, nonce, versionMask, jobTarget,
                                      worker_.fullName_);
 #endif
 
@@ -1202,7 +1257,8 @@ void AgentSessions::handleExMessage_SubmitShare(const string *exMessage,
     stratumSession_->handleRequest_Submit("null", shortJobId,
                                           fullExtraNonce2, nonce, time,
                                           true /* submit by agent's miner */,
-                                          diffControllers_[sessionId]);
+                                          diffControllers_[sessionId],
+                                          0u /* version mask */);
 }
 
 void AgentSessions::handleExMessage_UnRegisterWorker(const string *exMessage) {

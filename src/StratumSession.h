@@ -150,25 +150,26 @@ public:
 
   // shares submitted by this session, for duplicate share check
   struct LocalShare {
-    uint64_t exNonce2_;  // extra nonce2 fixed 8 bytes
-    uint32_t nonce_;     // nonce in block header
-    uint32_t time_;      // nTime in block header
+    uint64_t exNonce2_;     // extra nonce2 fixed 8 bytes
+    uint32_t nonce_;        // nonce in block header
+    uint32_t time_;         // nTime in block header
+    uint32_t versionMask_;  // block version mask
 
-    LocalShare(uint64_t exNonce2, uint32_t nonce, uint32_t time):
-    exNonce2_(exNonce2), nonce_(nonce), time_(time) {}
+    LocalShare(uint64_t exNonce2, uint32_t nonce, uint32_t time, uint32_t versionMask):
+    exNonce2_(exNonce2), nonce_(nonce), time_(time), versionMask_(versionMask) {}
 
     LocalShare & operator=(const LocalShare &other) {
-      exNonce2_ = other.exNonce2_;
-      nonce_    = other.nonce_;
-      time_     = other.time_;
+      exNonce2_    = other.exNonce2_;
+      nonce_       = other.nonce_;
+      time_        = other.time_;
+      versionMask_ = other.versionMask_;
       return *this;
     }
 
     bool operator<(const LocalShare &r) const {
-      if (exNonce2_ < r.exNonce2_ ||
-          (exNonce2_ == r.exNonce2_ && nonce_ < r.nonce_) ||
-          (exNonce2_ == r.exNonce2_ && nonce_ == r.nonce_ && time_ < r.time_)) {
-        return true;
+      int n = memcmp((const uint8_t *)&exNonce2_, (const uint8_t *)&(r.exNonce2_), sizeof(struct LocalShare));
+      if (n < 0) {
+          return true;
       }
       return false;
     }
@@ -249,6 +250,7 @@ private:
   void handleRequest_SuggestTarget    (const string &idStr, const JsonNode &jparams);
   void handleRequest_SuggestDifficulty(const string &idStr, const JsonNode &jparams);
   void handleRequest_MultiVersion     (const string &idStr, const JsonNode &jparams);
+  void handleRequest_MiningConfigure  (const string &idStr, const JsonNode &jparams);
   void _handleRequest_SetDifficulty(uint64_t suggestDiff);
   void _handleRequest_AuthorizePassword(const string &password);
 
@@ -263,6 +265,7 @@ public:
   struct bufferevent* bev_;
   evutil_socket_t fd_;
   Server *server_;
+  uint32_t versionMask_;
 
 public:
   StratumSession(evutil_socket_t fd, struct bufferevent *bev,
@@ -288,7 +291,8 @@ public:
                             const uint8_t shortJobId, const uint64_t extraNonce2,
                             const uint32_t nonce, uint32_t nTime,
                             bool isAgentSession,
-                            DiffController *sessionDiffController);
+                            DiffController *sessionDiffController,
+                            const uint32_t versionMask);
   uint32_t getSessionId() const;
 };
 

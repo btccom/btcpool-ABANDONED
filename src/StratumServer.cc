@@ -729,11 +729,12 @@ void StratumJobEx::generateBlockHeader(CBlockHeader *header,
                                        const uint256 &hashPrevBlock,
                                        const uint32_t nBits, const int32_t nVersion,
                                        const uint32_t nTime, const uint32_t nonce,
+                                       const uint32_t versionMask,
                                        string *userCoinbaseInfo) {
   generateCoinbaseTx(coinbaseBin, extraNonce1, extraNonce2Hex, userCoinbaseInfo);
 
   header->hashPrevBlock = hashPrevBlock;
-  header->nVersion      = nVersion;
+  header->nVersion      = (nVersion ^ versionMask);
   header->nBits         = nBits;
   header->nTime         = nTime;
   header->nNonce        = nonce;
@@ -752,11 +753,13 @@ void StratumJobEx::generateBlockHeader(CBlockHeader *header,
 ////////////////////////////////// StratumServer ///////////////////////////////
 StratumServer::StratumServer(const char *ip, const unsigned short port,
                              const char *kafkaBrokers, const string &userAPIUrl,
-                             const uint8_t serverId, const string &fileLastNotifyTime,
+                             const uint8_t serverId,
+                             const uint32_t versionMask,
+                             const string &fileLastNotifyTime,
                              bool isEnableSimulator, bool isSubmitInvalidBlock,
                              bool isDevModeEnable, float minerDifficulty,
                              const int32_t shareAvgSeconds)
-:running_(true), server_(shareAvgSeconds),
+:running_(true), server_(shareAvgSeconds, versionMask),
 ip_(ip), port_(port), serverId_(serverId),
 fileLastNotifyTime_(fileLastNotifyTime),
 kafkaBrokers_(kafkaBrokers), userAPIUrl_(userAPIUrl),
@@ -793,12 +796,12 @@ void StratumServer::run() {
 }
 
 ///////////////////////////////////// Server ///////////////////////////////////
-Server::Server(const int32_t shareAvgSeconds):
+Server::Server(const int32_t shareAvgSeconds, const uint32_t versionMask):
 base_(nullptr), signal_event_(nullptr), listener_(nullptr),
 kafkaProducerShareLog_(nullptr),
 kafkaProducerSolvedShare_(nullptr),
 kafkaProducerNamecoinSolvedShare_(nullptr),
-kafkaProducerCommonEvents_(nullptr),
+kafkaProducerCommonEvents_(nullptr), versionMask_(versionMask),
 kafkaProducerRskSolvedShare_(nullptr),
 isEnableSimulator_(false), isSubmitInvalidBlock_(false),
 
@@ -1015,6 +1018,10 @@ bool Server::setup(const char *ip, const unsigned short port,
   return true;
 }
 
+uint32_t Server::getVersionMask() const {
+  return versionMask_;
+}
+
 void Server::run() {
   if(base_ != NULL) {
     //    event_base_loop(base_, EVLOOP_NONBLOCK);
@@ -1151,6 +1158,7 @@ void Server::eventCallback(struct bufferevent* bev, short events,
 int Server::checkShare(const Share &share,
                        const uint32 extraNonce1, const string &extraNonce2Hex,
                        const uint32_t nTime, const uint32_t nonce,
+                       const uint32_t versionMask,
                        const uint256 &jobTarget, const string &workFullName,
                        string *userCoinbaseInfo) {
   shared_ptr<StratumJobEx> exJobPtr = jobRepository_->getStratumJobEx(share.jobId_);
@@ -1175,7 +1183,7 @@ int Server::checkShare(const Share &share,
                                 extraNonce1, extraNonce2Hex,
                                 sjob->merkleBranch_, sjob->prevHash_,
                                 sjob->nBits_, sjob->nVersion_, nTime, nonce,
-                                userCoinbaseInfo);
+                                versionMask, userCoinbaseInfo);
   uint256 blkHash = header.GetHash();
 
   arith_uint256 bnBlockHash     = UintToArith256(blkHash);
