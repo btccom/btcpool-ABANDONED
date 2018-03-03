@@ -47,6 +47,8 @@ void StratumMinerBitcoin::handleRequest(const string &idStr,
     handleRequest_Submit(idStr, jparams);
   } else if (method == "mining.suggest_target") {
     handleRequest_SuggestTarget(idStr, jparams);
+  } else if (method == "mining.configure") {
+    handleRequest_MiningConfigure(idStr, jparams);
   }
 }
 
@@ -80,6 +82,7 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr, const JsonNo
   //  params[2] = ExtraNonce 2
   //  params[3] = nTime
   //  params[4] = nonce
+  //  params[5] = version mask (optional)
   if (jparams.children()->size() < 5) {
     session.responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
     return;
@@ -95,7 +98,12 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr, const JsonNo
   uint32_t nTime = jparams.children()->at(3).uint32_hex();
   const uint32_t nonce = jparams.children()->at(4).uint32_hex();
 
-  handleRequest_Submit(idStr, shortJobId, extraNonce2, nonce, nTime);
+  uint32_t versionMask = 0u;
+  if (jparams.children()->size() >= 6) {
+    versionMask = jparams.children()->at(5).uint32_hex();
+  }
+
+  handleRequest_Submit(idStr, shortJobId, extraNonce2, nonce, nTime, versionMask);
 }
 
 void StratumMinerBitcoin::handleRequest_SuggestTarget(const string &idStr,
@@ -110,6 +118,46 @@ void StratumMinerBitcoin::handleRequest_SuggestTarget(const string &idStr,
     return;
   }
   resetCurDiff(TargetToDiff(jparams.children()->at(0).str()));
+}
+
+void StratumMinerBitcoin::handleRequest_MiningConfigure(const string &idStr,
+                                                        const JsonNode &jparams) {
+  auto &session = getSession();
+  auto &server = session.getServer();
+
+  if (jparams.children()->size() < 1) {
+    session.responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
+    return;
+  }
+
+  //
+  // {"id": 1, "method": "mining.configure",
+  //  "params": [
+  //              ["version-rolling"],
+  //              {"version-rolling.bit-count": 2, "version-rolling.mask": "ffffffff" }
+  //            ]
+  // }
+  //
+  auto params0 = jparams.children()->at(0);
+  if (params0.type()                  == Utilities::JS::type::Array &&
+      params0.children()->size()      >= 1 &&
+      params0.children()->at(0).str() == "version-rolling") {
+    string s;
+    //
+    // send true: "version-rolling\":true
+    //
+    s = Strings::Format("{\"id\":%s,\"result\":{\"version-rolling\":true,"
+                        "\"version-rolling.mask\":\"%08x\"},\"error\":null}\n",
+                        idStr.c_str(), server.getVersionMask());
+    session.sendData(s);
+
+    //
+    // mining.set_version_mask
+    //
+    s = Strings::Format("{\"id\":null,\"method\":\"mining.set_version_mask\",\"params\":[\"%08x\"]}\n",
+                        server.getVersionMask());
+    session.sendData(s);
+  }
 }
 
 void StratumMinerBitcoin::handleExMessage_SubmitShare(const std::string &exMessage, bool isWithTime) {
@@ -140,18 +188,25 @@ void StratumMinerBitcoin::handleExMessage_SubmitShare(const std::string &exMessa
                                    fullExtraNonce2, nonce, time);
   DLOG(INFO) << logLine;
 
-  handleRequest_Submit("null", shortJobId, fullExtraNonce2, nonce, timestamp);
+  handleRequest_Submit("null", shortJobId, fullExtraNonce2, nonce, timestamp, 0u /* version mask */);
 }
 
 void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
                                                uint8_t shortJobId,
                                                uint64_t extraNonce2,
                                                uint32_t nonce,
-                                               uint32_t nTime) {
+                                               uint32_t nTime,
+                                               uint32_t versionMask) {
   auto &session = getSession();
   auto &server = session.getServer();
   auto &worker = session.getWorker();
   auto jobRepo = server.GetJobRepository();
+
+  // check version mask
+  if (versionMask != 0 && ((~server.getVersionMask()) & versionMask) != 0) {
+    session.responseError(idStr, StratumStatus::ILLEGAL_VERMASK);
+    return;
+  }
 
   const string extraNonce2Hex = Strings::Format("%016llx", extraNonce2);
   assert(extraNonce2Hex.length() / 2 == kExtraNonce2Size_);
@@ -210,7 +265,7 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
   // shares in a short time, we just drop them.
   bool isSendShareToKafka = true;
 
-  LocalShare localShare(extraNonce2, nonce, nTime);
+  LocalShare localShare(extraNonce2, nonce, nTime, versionMask);
 
   // can't find local share
   if (!localJob->addLocalShare(localShare)) {
@@ -219,13 +274,13 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
 #ifdef  USER_DEFINED_COINBASE
     // check block header
     share.status_ = server->checkShare(share, extraNonce1_, extraNonce2Hex,
-                                       nTime, nonce, jobTarget,
+                                       nTime, nonce, versionMask, jobTarget,
                                        worker_.fullName_,
                                        &localJob->userCoinbaseInfo_);
 #else
     // check block header
     share.status_ = server.checkShare(share, share.sessionId_, extraNonce2Hex,
-                                      nTime, nonce, jobTarget,
+                                      nTime, nonce, versionMask, jobTarget,
                                       worker.fullName_);
 #endif
   }

@@ -46,11 +46,13 @@ private:
   void handleRequest_Submit(const std::string &idStr, const JsonNode &jparams);
   void handleRequest_SuggestTarget(const std::string &idStr, const JsonNode &jparams);
   void handleExMessage_SubmitShare(const std::string &exMessage, bool isWithTime);
+  void handleRequest_MiningConfigure  (const string &idStr, const JsonNode &jparams);
   void handleRequest_Submit(const std::string &idStr,
                             uint8_t shortJobId,
                             uint64_t extraNonce2,
                             uint32_t nonce,
-                            uint32_t nTime);
+                            uint32_t nTime,
+                            uint32_t versionMask);
 };
 
 #endif // #ifndef STRATUM_MINER_BITCOIN_H_

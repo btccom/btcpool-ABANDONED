@@ -40,9 +40,13 @@ private:
   KafkaProducer *kafkaProducerNamecoinSolvedShare_;
   KafkaProducer *kafkaProducerRskSolvedShare_;
 
+  uint32_t versionMask_;
+
 public:
   ServerBitcoin(const int32_t shareAvgSeconds, const libconfig::Config &config);
   virtual ~ServerBitcoin();
+
+  uint32_t getVersionMask() const;
 
   bool setupInternal(StratumServer* sserver) override;
 
@@ -53,6 +57,7 @@ public:
   int checkShare(const ShareBitcoin &share,
                  const uint32 extraNonce1, const string &extraNonce2Hex,
                  const uint32_t nTime, const uint32_t nonce,
+                 const uint32_t versionMask,
                  const uint256 &jobTarget, const string &workFullName,
                  string *userCoinbaseInfo = nullptr);
 private:
@@ -101,6 +106,7 @@ public:
                            const uint256 &hashPrevBlock,
                            const uint32_t nBits, const int32_t nVersion,
                            const uint32_t nTime, const uint32_t nonce,
+                           const uint32_t versionMask,
                            string *userCoinbaseInfo = nullptr);
   void init();
 
