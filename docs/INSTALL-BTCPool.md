@@ -251,86 +251,86 @@ Login to one of kafka machines, than create topics for `btcpool`:
 ```bash
 cd /work/kafka
 ```
-> `10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181` at below is ZooKeeper cluster.
+> `10.0.0.1:2181` at below is one node's IP of your ZooKeeper cluster.
 
 Topics for Bitcoin or BitcoinCash
 > For compatibility with old deployments,  kafka topics of Bitcoin and BitcoinCash have the same names.
 > So these two blockchains **CANNOT** share the same kafka cluster.
 ```bash
 # for Bitcoin or BitcoinCash mining
-./bin/kafka-topics.sh --create --topic RawGbt         --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
-./bin/kafka-topics.sh --create --topic StratumJob     --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1 
-./bin/kafka-topics.sh --create --topic SolvedShare    --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 3 --partitions 1 
-./bin/kafka-topics.sh --create --topic ShareLog       --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
-./bin/kafka-topics.sh --create --topic CommonEvents   --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic RawGbt         --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic StratumJob     --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1 
+./bin/kafka-topics.sh --create --topic SolvedShare    --zookeeper 10.0.0.1:2181 --replication-factor 3 --partitions 1 
+./bin/kafka-topics.sh --create --topic ShareLog       --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic CommonEvents   --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
 # for Namecoin merge-mining
-./bin/kafka-topics.sh --create --topic NMCAuxBlock    --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
-./bin/kafka-topics.sh --create --topic NMCSolvedShare --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic NMCAuxBlock    --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic NMCSolvedShare --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
 # for RSK merge-mining
-./bin/kafka-topics.sh --create --topic RawGw          --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 1 --partitions 1
-./bin/kafka-topics.sh --create --topic RskSolvedShare --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic RawGw          --zookeeper 10.0.0.1:2181 --replication-factor 1 --partitions 1
+./bin/kafka-topics.sh --create --topic RskSolvedShare --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
 
 # do not keep 'RawGbt' message more than 6 hours
-./bin/kafka-topics.sh --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --alter --topic RawGbt       --config retention.ms=21600000
+./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name RawGbt       --config retention.ms=21600000
 # 'CommonEvents': 12 hours
-./bin/kafka-topics.sh --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --alter --topic CommonEvents --config retention.ms=43200000
+./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name CommonEvents --config retention.ms=43200000
 # 'RawGw': 6 hours
-./bin/kafka-configs.sh --zookeeper 10.0.2.15:2181 --alter --topic RawGw --config retention.ms=21600000
+./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name RawGw --config retention.ms=21600000
 ```
 
 Topics for UnitedBitcoin
 > UnitedBitcoin **CAN** share the same kafka cluster with other blockchains.
 ```bash
 # for UnitedBitcoin mining
-./bin/kafka-topics.sh --create --topic UBTC_RawGbt         --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
-./bin/kafka-topics.sh --create --topic UBTC_StratumJob     --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1 
-./bin/kafka-topics.sh --create --topic UBTC_SolvedShare    --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 3 --partitions 1 
-./bin/kafka-topics.sh --create --topic UBTC_ShareLog       --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
-./bin/kafka-topics.sh --create --topic UBTC_CommonEvents   --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic UBTC_RawGbt         --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic UBTC_StratumJob     --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1 
+./bin/kafka-topics.sh --create --topic UBTC_SolvedShare    --zookeeper 10.0.0.1:2181 --replication-factor 3 --partitions 1 
+./bin/kafka-topics.sh --create --topic UBTC_ShareLog       --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic UBTC_CommonEvents   --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
 # for Namecoin merge-mining
-./bin/kafka-topics.sh --create --topic UBTC_NMCAuxBlock    --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
-./bin/kafka-topics.sh --create --topic UBTC_NMCSolvedShare --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic UBTC_NMCAuxBlock    --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic UBTC_NMCSolvedShare --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
 # for RSK merge-mining
-./bin/kafka-topics.sh --create --topic UBTC_RawGw          --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 1 --partitions 1
-./bin/kafka-topics.sh --create --topic UBTC_RskSolvedShare --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic UBTC_RawGw          --zookeeper 10.0.0.1:2181 --replication-factor 1 --partitions 1
+./bin/kafka-topics.sh --create --topic UBTC_RskSolvedShare --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
 
 # do not keep 'RawGbt' message more than 6 hours
-./bin/kafka-topics.sh --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --alter --topic UBTC_RawGbt       --config retention.ms=21600000
+./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name UBTC_RawGbt       --config retention.ms=21600000
 # 'CommonEvents': 12 hours
-./bin/kafka-topics.sh --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --alter --topic UBTC_CommonEvents --config retention.ms=43200000
+./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name UBTC_CommonEvents --config retention.ms=43200000
 # 'RawGw': 6 hours
-./bin/kafka-configs.sh --zookeeper 10.0.2.15:2181 --alter --topic UBTC_RawGw --config retention.ms=21600000
+./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name UBTC_RawGw --config retention.ms=21600000
 ```
 
 Topics for SuperBitcoin
 > SuperBitcoin **CAN** share the same kafka cluster with other blockchains.
 ```bash
 # for SuperBitcoin mining
-./bin/kafka-topics.sh --create --topic SBTC_RawGbt         --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
-./bin/kafka-topics.sh --create --topic SBTC_StratumJob     --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1 
-./bin/kafka-topics.sh --create --topic SBTC_SolvedShare    --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 3 --partitions 1 
-./bin/kafka-topics.sh --create --topic SBTC_ShareLog       --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
-./bin/kafka-topics.sh --create --topic SBTC_CommonEvents   --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic SBTC_RawGbt         --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic SBTC_StratumJob     --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1 
+./bin/kafka-topics.sh --create --topic SBTC_SolvedShare    --zookeeper 10.0.0.1:2181 --replication-factor 3 --partitions 1 
+./bin/kafka-topics.sh --create --topic SBTC_ShareLog       --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic SBTC_CommonEvents   --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
 # for Namecoin merge-mining
-./bin/kafka-topics.sh --create --topic SBTC_NMCAuxBlock    --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
-./bin/kafka-topics.sh --create --topic SBTC_NMCSolvedShare --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic SBTC_NMCAuxBlock    --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic SBTC_NMCSolvedShare --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
 # for RSK merge-mining
-./bin/kafka-topics.sh --create --topic SBTC_RawGw          --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 1 --partitions 1
-./bin/kafka-topics.sh --create --topic SBTC_RskSolvedShare --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --replication-factor 2 --partitions 1
+./bin/kafka-topics.sh --create --topic SBTC_RawGw          --zookeeper 10.0.0.1:2181 --replication-factor 1 --partitions 1
+./bin/kafka-topics.sh --create --topic SBTC_RskSolvedShare --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
 
 # do not keep 'RawGbt' message more than 6 hours
-./bin/kafka-topics.sh --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --alter --topic SBTC_RawGbt       --config retention.ms=21600000
+./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name SBTC_RawGbt       --config retention.ms=21600000
 # 'CommonEvents': 12 hours
-./bin/kafka-topics.sh --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181 --alter --topic SBTC_CommonEvents --config retention.ms=43200000
+./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name SBTC_CommonEvents --config retention.ms=43200000
 # 'RawGw': 6 hours
-./bin/kafka-configs.sh --zookeeper 10.0.2.15:2181 --alter --topic SBTC_RawGw --config retention.ms=21600000
+./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name SBTC_RawGw --config retention.ms=21600000
 ```
 
 Check kafka topics status:
 
 ```
 # show topics
-$ ./bin/kafka-topics.sh --describe --zookeeper 10.0.0.1:2181,10.0.0.2:2181,10.0.0.3:2181
+$ ./bin/kafka-topics.sh --describe --zookeeper 10.0.0.1:2181
 
 # if create these topics success, the output likes:
 Topic:RawGbt   	PartitionCount:1       	ReplicationFactor:2    	Configs:
