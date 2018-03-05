@@ -54,6 +54,7 @@ struct RedisResult {
   int type();
 
   string str();
+  long long integer();
 };
 
 /////////////////////////////// RedisConnection ///////////////////////////////
@@ -71,7 +72,14 @@ public:
   void close();
   bool ping();
 
+  // execute redis command synchronized
   RedisResult execute(const string &command);
+  RedisResult execute(initializer_list<const string> args);
+
+  // execute redis command & get reply with pipeline
+  void prepare(const string &command);
+  void prepare(initializer_list<const string> args);
+  RedisResult execute();
 };
 
 #endif

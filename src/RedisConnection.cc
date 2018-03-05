@@ -48,7 +48,6 @@ void RedisResult::reset(redisReply *reply) {
   if (reply_ != nullptr) {
     freeReplyObject(reply_);
   }
-
   reply_ = reply;
 }
 
@@ -61,15 +60,15 @@ int RedisResult::type() {
 }
 
 string RedisResult::str() {
-  string resultStr;
-
-  if (reply_->str != nullptr) {
-    resultStr = reply_->str;
+  if (reply_->str == nullptr) {
+    return "";
   }
-
-  return resultStr;
+  return string(reply_->str, reply_->len);
 }
 
+long long RedisResult::integer() {
+  return reply_->integer;
+}
 
 /////////////////////////////// RedisConnection ///////////////////////////////
 
@@ -102,7 +101,7 @@ void RedisConnection::close() {
 }
 
 bool RedisConnection::ping() {
-  RedisResult result = execute("PING");
+  RedisResult result = execute({"PING"});
 
   if (result.empty()) {
     LOG(ERROR) << "ping redis failed: result is empty.";
@@ -125,4 +124,52 @@ bool RedisConnection::ping() {
 
 RedisResult RedisConnection::execute(const string &command) {
   return RedisResult((redisReply*)redisCommand(conn_, command.c_str()));
+}
+
+RedisResult RedisConnection::execute(initializer_list<const string> args) {
+  auto argc = args.size();
+  auto argv = new const char *[argc];
+  auto argvlen = new size_t[argc];
+
+  auto arg = args.begin();
+  size_t i = 0;
+
+  while (arg != args.end()){
+    argv[i] = arg->c_str();
+    argvlen[i] = arg->size();
+    
+    arg++;
+    i++;
+  }
+
+  return RedisResult((redisReply*)redisCommandArgv(conn_, argc, argv, argvlen));
+}
+
+void RedisConnection::prepare(const string &command) {
+  redisAppendCommand(conn_, command.c_str());
+}
+
+void RedisConnection::prepare(initializer_list<const string> args) {
+  auto argc = args.size();
+  auto argv = new const char *[argc];
+  auto argvlen = new size_t[argc];
+
+  auto arg = args.begin();
+  size_t i = 0;
+
+  while (arg != args.end()){
+    argv[i] = arg->c_str();
+    argvlen[i] = arg->size();
+    
+    arg++;
+    i++;
+  }
+
+  redisAppendCommandArgv(conn_, argc, argv, argvlen);
+}
+
+RedisResult RedisConnection::execute() {
+  void *reply;
+  redisGetReply(conn_, &reply);
+  return RedisResult((redisReply*)reply);
 }
