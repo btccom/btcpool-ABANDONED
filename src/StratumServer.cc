@@ -1462,6 +1462,11 @@ void StratumJobExEth::makeMiningNotifyStr()
   // Miner uses seedhash to identify DAG, then tries to find share below
   // target (which is created out of provided difficulty) with headerhash,
   // extranonce and own minernonce.
+
+  //the boundary condition ("target"), 2^256 / difficulty.
+  //How to calculate difficulty: 2 strings division?
+  //no set difficulty api, manuplate target and distribute to miner?
+
   string header = ethJob->blockHashForMergedMining_.substr(2, 64);
   string seed = ethJob->seedHash_.substr(2, 64);
   //string json = "{\"id\": 6, \"jsonrpc\":\"2.0\", \"method\": \"eth_submitHashrate\", \"params\": [\"" + rate + "\",\"0x" + this->m_submit_hashrate_id + "\"]}\n";

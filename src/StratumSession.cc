@@ -1112,7 +1112,7 @@ void StratumSessionEth::handleRequest_Subscribe        (const string &idStr, con
 
 void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode &jparams)
 {
-  static std::unordered_map<string, bool> submittedJob_;
+  //static std::unordered_map<string, bool> submittedJob_;
   
   if (state_ != AUTHENTICATED)
   {
@@ -1135,14 +1135,14 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   auto params = (const_cast<JsonNode&>(jparams)).array();
   if (5 == params.size())
   {
-    {
-      string jobId = params[1].str();
-      if (submittedJob_.find(jobId) != submittedJob_.end()) {
-        LOG(INFO) << "ignore duplicated submission jobId: " << jobId;
-        return;
-      }
-      submittedJob_[jobId] = true;
-    }
+    // {
+    //   string jobId = params[1].str();
+    //   if (submittedJob_.find(jobId) != submittedJob_.end()) {
+    //     LOG(INFO) << "ignore duplicated submission jobId: " << jobId;
+    //     return;
+    //   }
+    //   submittedJob_[jobId] = true;
+    // }
 
     string request = Strings::Format("{\"jsonrpc\": \"2.0\", \"method\": \"eth_submitWork\", \"params\": [\"%s\",\"%s\",\"%s\"], \"id\": 5}\n",
                                      params[2].str().c_str(),
