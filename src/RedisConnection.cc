@@ -72,12 +72,12 @@ long long RedisResult::integer() {
 
 /////////////////////////////// RedisConnection ///////////////////////////////
 
-RedisConnection::RedisConnection(const string &host, int32_t port) :
-  host_(host), port_(port), conn_(nullptr) {
+RedisConnection::RedisConnection(const RedisConnectInfo &connInfo) :
+  connInfo_(connInfo), conn_(nullptr) {
 }
 
 bool RedisConnection::open() {
-  conn_ = redisConnect(host_.c_str(), port_);
+  conn_ = redisConnect(connInfo_.host_.c_str(), connInfo_.port_);
 
   if (conn_ == nullptr) {
     LOG(ERROR) << "Connect to redis failed: conn_ is nullptr";
@@ -100,7 +100,7 @@ void RedisConnection::close() {
   }
 }
 
-bool RedisConnection::ping() {
+bool RedisConnection::_ping() {
   RedisResult result = execute({"PING"});
 
   if (result.empty()) {
@@ -117,6 +117,28 @@ bool RedisConnection::ping() {
   if (result.str() != "PONG") {
     LOG(ERROR) << "ping redis failed: result is " << result.str() << ", expected \"PONG\".";
     return false;
+  }
+
+  return true;
+}
+
+bool RedisConnection::ping() {
+  if (conn_ == nullptr) {
+    if (!open()) {
+      return false;
+    }
+  }
+
+  if (!_ping()) {
+    LOG(INFO) << "RedisConnection: ping failed, try reconnect";
+    // try reconnect
+    close();
+    if (!open()) {
+      return false;
+    }
+    if (!_ping()) {
+      return false;
+    }
   }
 
   return true;

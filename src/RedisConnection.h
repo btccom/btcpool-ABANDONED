@@ -57,16 +57,39 @@ struct RedisResult {
   long long integer();
 };
 
+/////////////////////////////// RedisConnectInfo ///////////////////////////////
+class RedisConnectInfo {
+public:
+  string  host_;
+  int32_t port_;
+
+  RedisConnectInfo(const string &host, int32_t port) :
+    host_(host), port_(port)
+  {
+  }
+
+  RedisConnectInfo(const RedisConnectInfo &r) {
+    host_     = r.host_;
+    port_     = r.port_;
+  }
+
+  RedisConnectInfo& operator=(const RedisConnectInfo &r) {
+    host_     = r.host_;
+    port_     = r.port_;
+    return *this;
+  }
+};
+
 /////////////////////////////// RedisConnection ///////////////////////////////
 class RedisConnection {
 protected:
-  string host_;
-  int32_t port_;
-
+  RedisConnectInfo connInfo_;
   redisContext *conn_;
 
+  bool _ping();
+
 public:
-  RedisConnection(const string &host, int32_t port);
+  RedisConnection(const RedisConnectInfo &connInfo);
 
   bool open();
   void close();
