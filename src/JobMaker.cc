@@ -729,9 +729,13 @@ bool JobMakerEth::triggerRskUpdate() {
   RskWork previousRskWork;
   {
     ScopeLock sl(rskWorkAccessLock_);
-    if (previousRskWork_ == nullptr || currentRskWork_ == nullptr) {
-      return false;
+    if (previousRskWork_ == nullptr) {
+      if (currentRskWork_ == nullptr)
+        return false;
+      else //first job
+        return true;
     }
+
     currentRskWork = *currentRskWork_;
     previousRskWork = *previousRskWork_;
   }

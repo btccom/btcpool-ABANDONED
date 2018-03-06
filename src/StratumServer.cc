@@ -393,6 +393,7 @@ JobRepository(kafkaBrokers, fileLastNotifyTime, server)
 }
 
 void JobRepositoryEth::broadcastStratumJob(StratumJob *sjob) {
+  LOG(INFO) << "broadcastStratumJob " << sjob->jobId_;
   bool isClean = true;
 
   shared_ptr<StratumJobEx> exJob(createStratumJobEx(serverType_, sjob, isClean));
@@ -1447,7 +1448,7 @@ void Server::sendCommonEvents2Kafka(const string &message) {
 
 ////////////////////////////////// StratumJobExEth ///////////////////////////////
 StratumJobExEth::StratumJobExEth(StratumJob *sjob, bool isClean) : StratumJobEx(sjob, isClean),
-shareDifficulty_(4000000000) 
+shareDifficulty_(1) 
 {
 }
 
