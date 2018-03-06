@@ -53,6 +53,15 @@ string getStatsFilePath(const string &dataDir, time_t ts) {
                          date("%F", ts).c_str());
 }
 
+static
+string getRedisKeyMiningWorker(const int32_t userId, const int64_t workerId) {
+    string key("mining_workers/pu/");
+    key += std::to_string(userId);
+    key += "/wk/";
+    key += std::to_string(workerId);
+    return key;
+}
+
 ////////////////////////////////  WorkerShares  ////////////////////////////////
 WorkerShares::WorkerShares(const int64_t workerId, const int32_t userId):
 workerId_(workerId), userId_(userId), acceptCount_(0),
@@ -322,10 +331,7 @@ void StatsServer::_flushWorkersToRedisThread() {
     char ipStr[INET_ADDRSTRLEN] = {0};
     inet_ntop(AF_INET, &(status.lastShareIP_), ipStr, INET_ADDRSTRLEN);
     
-    string key = string("mining_workers/pu/");
-    key += std::to_string(userId);
-    key += "/wk/";
-    key += std::to_string(workerId);
+    string key = getRedisKeyMiningWorker(userId, workerId);
 
     redis_->prepare({"HMSET", key,
                       "accept_1m", std::to_string(status.accept1m_),
@@ -809,7 +815,47 @@ void StatsServer::consumeCommonEvents(rd_kafka_message_t *rkmessage) {
 
 bool StatsServer::updateWorkerStatusToRedis(const int32_t userId, const int64_t workerId,
                                      const char *workerName, const char *minerAgent) {
-  return false;
+  string key = getRedisKeyMiningWorker(userId, workerId);
+  // the default `group_id`
+  const int32_t groupId = userId * -1;
+
+  {
+    redisCommonEvents_->prepare({"HGET", key, "group_id"});
+    RedisResult r = redisCommonEvents_->execute();
+
+    // `group_id != 0` means the miner was grouped by others
+    // we will not change the `group_id`
+    if (r.type() == REDIS_REPLY_STRING && r.str() != "0") {
+      redisCommonEvents_->prepare({"HMSET", key,
+                      "worker_name", workerName,
+                      "miner_agent", minerAgent
+                    });
+    } else {
+      redisCommonEvents_->prepare({"HMSET", key,
+                      "group_id", std::to_string(groupId),
+                      "worker_name", workerName,
+                      "miner_agent", minerAgent
+                    });
+    }
+  }
+
+  {
+    // get the result of last prepare
+    RedisResult r = redisCommonEvents_->execute();
+
+    if (r.type() != REDIS_REPLY_STATUS || r.str() != "OK") {
+      LOG(INFO) << "update redis failed, item key: " << key << ", "
+                                     << "reply type: " << r.type() << ", "
+                                     << "reply str: " << r.str();
+      // try ping & reconnect redis, so last update may success
+      if (!redisCommonEvents_->ping()) {
+        LOG(ERROR) << "updateWorkerStatusToRedis: can't connect to pool redis";
+      }
+      return false;
+    }
+  }
+
+  return true;
 }
 
 bool StatsServer::updateWorkerStatusToDB(const int32_t userId, const int64_t workerId,
