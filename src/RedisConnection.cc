@@ -56,10 +56,16 @@ bool RedisResult::empty() {
 }
 
 int RedisResult::type() {
+  if (empty()) {
+    return REDIS_REPLY_NIL;
+  }
   return reply_->type;
 }
 
 string RedisResult::str() {
+  if (empty()) {
+    return "";
+  }
   if (reply_->str == nullptr) {
     return "";
   }
@@ -67,6 +73,9 @@ string RedisResult::str() {
 }
 
 long long RedisResult::integer() {
+  if (empty()) {
+    return 0;
+  }
   return reply_->integer;
 }
 
