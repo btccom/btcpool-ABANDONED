@@ -38,6 +38,7 @@
 
 #include "Utils.h"
 #include "Statistics.h"
+#include "RedisConnection.h"
 
 using namespace std;
 using namespace libconfig;
@@ -113,14 +114,26 @@ int main(int argc, char **argv) {
   signal(SIGINT,  handler);
 
   try {
+    bool useMysql = true;
+    cfg.lookupValue("statshttpd.use_mysql", useMysql);
+    bool useRedis = false;
+    cfg.lookupValue("statshttpd.use_redis", useRedis);
+
     MysqlConnectInfo *poolDBInfo = nullptr;
-    {
+    if (useMysql) {
       int32_t poolDBPort = 3306;
       cfg.lookupValue("pooldb.port", poolDBPort);
       poolDBInfo = new MysqlConnectInfo(cfg.lookup("pooldb.host"), poolDBPort,
                                         cfg.lookup("pooldb.username"),
                                         cfg.lookup("pooldb.password"),
                                         cfg.lookup("pooldb.dbname"));
+    }
+
+    RedisConnectInfo *redisInfo = nullptr;
+    if (useRedis) {
+      int32_t redisPort = 6379;
+      cfg.lookupValue("redis.port", redisPort);
+      redisInfo = new RedisConnectInfo(cfg.lookup("redis.host"), redisPort);
     }
     
     string fileLastFlushTime;
@@ -132,7 +145,7 @@ int main(int argc, char **argv) {
     cfg.lookupValue("statshttpd.file_last_flush_time",   fileLastFlushTime);
     gStatsServer = new StatsServer(cfg.lookup("kafka.brokers").c_str(),
                                    cfg.lookup("statshttpd.ip").c_str(),
-                                   (unsigned short)port, *poolDBInfo,
+                                   (unsigned short)port, poolDBInfo, redisInfo,
                                    (time_t)flushInterval, fileLastFlushTime);
     if (gStatsServer->init()) {
     	gStatsServer->run();

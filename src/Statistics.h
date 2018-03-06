@@ -27,6 +27,7 @@
 #include "Common.h"
 #include "Kafka.h"
 #include "MySQLConnection.h"
+#include "RedisConnection.h"
 #include "Stratum.h"
 
 #include <event2/event.h>
@@ -269,10 +270,15 @@ class StatsServer {
   KafkaConsumer kafkaConsumerCommonEvents_;  // consume topic: 'CommonEvents'
   thread threadConsumeCommonEvents_;
 
-  MySQLConnection  poolDB_;             // flush workers to table.mining_workers
-  MySQLConnection  poolDBCommonEvents_; // insert or update workers from table.mining_workers
+  MySQLConnection *poolDB_;             // flush workers to table `mining_workers`
+  MySQLConnection *poolDBCommonEvents_; // insert or update workers from table `mining_workers`
+
+  RedisConnection *redis_;
+  RedisConnection *redisCommonEvents_;
+
   time_t kFlushDBInterval_;
   atomic<bool> isInserting_;     // flag mark if we are flushing db
+  atomic<bool> isUpdateRedis_;     // flag mark if we are flushing redis
 
   time_t lastShareTime_; // the generating time of the last consumed share
   static atomic<bool> isInitializing_; // if true, the database will not be flushed and the HTTP API will return an error
@@ -289,7 +295,7 @@ class StatsServer {
 
   void runThreadConsumeCommonEvents();
   void consumeCommonEvents(rd_kafka_message_t *rkmessage);
-  bool updateWorkerStatus(const int32_t userId, const int64_t workerId,
+  bool updateWorkerStatusToDB(const int32_t userId, const int64_t workerId,
                           const char *workerName, const char *minerAgent);
 
   void _processShare(WorkerKey &key1, WorkerKey &key2, const Share &share);
@@ -309,8 +315,9 @@ public:
   atomic<uint64_t> responseBytes_;
 
 public:
-  StatsServer(const char *kafkaBrokers, const string &httpdHost,
-              unsigned short httpdPort, const MysqlConnectInfo &poolDBInfo,
+  StatsServer(const char *kafkaBrokers,
+              const string &httpdHost, unsigned short httpdPort,
+              const MysqlConnectInfo *poolDBInfo, const RedisConnectInfo *redisInfo,
               const time_t kFlushDBInterval, const string &fileLastFlushTime);
   ~StatsServer();
 

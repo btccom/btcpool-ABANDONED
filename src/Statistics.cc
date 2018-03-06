@@ -127,21 +127,32 @@ bool WorkerShares::isExpired() {
 ////////////////////////////////  StatsServer  ////////////////////////////////
 atomic<bool> StatsServer::isInitializing_(true);
 
-StatsServer::StatsServer(const char *kafkaBrokers, const string &httpdHost,
-                         unsigned short httpdPort, const MysqlConnectInfo &poolDBInfo,
+StatsServer::StatsServer(const char *kafkaBrokers,
+                         const string &httpdHost, unsigned short httpdPort,
+                         const MysqlConnectInfo *poolDBInfo, const RedisConnectInfo *redisInfo,
                          const time_t kFlushDBInterval, const string &fileLastFlushTime):
 running_(true), totalWorkerCount_(0), totalUserCount_(0), uptime_(time(nullptr)),
 poolWorker_(0u/* worker id */, 0/* user id */),
 kafkaConsumer_(kafkaBrokers, KAFKA_TOPIC_SHARE_LOG, 0/* patition */),
 kafkaConsumerCommonEvents_(kafkaBrokers, KAFKA_TOPIC_COMMON_EVENTS, 0/* patition */),
-poolDB_(poolDBInfo), poolDBCommonEvents_(poolDBInfo),
-kFlushDBInterval_(kFlushDBInterval), isInserting_(false),
+poolDB_(nullptr), poolDBCommonEvents_(nullptr), redis_(nullptr),
+kFlushDBInterval_(kFlushDBInterval), isInserting_(false), isUpdateRedis_(false),
 fileLastFlushTime_(fileLastFlushTime),
 base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort),
 requestCount_(0), responseBytes_(0)
 {
   isInitializing_ = true;
-  
+
+  if (poolDBInfo != nullptr) {
+    poolDB_ = new MySQLConnection(*poolDBInfo);
+    poolDBCommonEvents_ = new MySQLConnection(*poolDBInfo);
+  }
+
+  if (redisInfo != nullptr) {
+    redis_ = new RedisConnection(*redisInfo);
+    redisCommonEvents_ = new RedisConnection(*redisInfo);
+  }
+
   pthread_rwlock_init(&rwlock_, nullptr);
 }
 
@@ -154,27 +165,61 @@ StatsServer::~StatsServer() {
   if (threadConsumeCommonEvents_.joinable())
     threadConsumeCommonEvents_.join();
 
+  if (poolDB_ != nullptr) {
+    poolDB_->close();
+    delete poolDB_;
+    poolDB_ = nullptr;
+  }
+
+  if (poolDBCommonEvents_ != nullptr) {
+    poolDBCommonEvents_->close();
+    delete poolDBCommonEvents_;
+    poolDBCommonEvents_ = nullptr;
+  }
+
+  if (redis_ != nullptr) {
+    redis_->close();
+    delete redis_;
+    redis_ = nullptr;
+  }
+
+  if (redisCommonEvents_ != nullptr) {
+    redisCommonEvents_->close();
+    delete redisCommonEvents_;
+    redisCommonEvents_ = nullptr;
+  }
+
   pthread_rwlock_destroy(&rwlock_);
 }
 
 bool StatsServer::init() {
-  if (!poolDB_.ping()) {
-    LOG(INFO) << "db ping failure";
-    return false;
-  }
-
-  if (!poolDBCommonEvents_.ping()) {
-    LOG(INFO) << "common events db ping failure";
-    return false;
-  }
+  if (poolDB_ != nullptr) {
+    if (!poolDB_->ping()) {
+      LOG(INFO) << "db ping failure";
+      return false;
+    }
 
   // check db conf (only poolDB_ needs)
-  {
-  	string value = poolDB_.getVariable("max_allowed_packet");
+  	string value = poolDB_->getVariable("max_allowed_packet");
     if (atoi(value.c_str()) < 16 * 1024 *1024) {
       LOG(INFO) << "db conf 'max_allowed_packet' is less than 16*1024*1024";
       return false;
     }
+  }
+
+  if (poolDBCommonEvents_ != nullptr && !poolDBCommonEvents_->ping()) {
+    LOG(INFO) << "common events db ping failure";
+    return false;
+  }
+
+  if (redis_ != nullptr && !redis_->ping()) {
+    LOG(INFO) << "redis ping failure";
+    return false;
+  }
+
+  if (redisCommonEvents_ != nullptr && !redisCommonEvents_->ping()) {
+    LOG(INFO) << "common events redis ping failure";
+    return false;
   }
 
   return true;
@@ -283,7 +328,7 @@ void StatsServer::_flushWorkersToDBThread() {
   vector<string> values;
   size_t counter = 0;
 
-  if (!poolDB_.ping()) {
+  if (!poolDB_->ping()) {
     LOG(ERROR) << "can't connect to pool DB";
     goto finish;
   }
@@ -323,22 +368,22 @@ void StatsServer::_flushWorkersToDBThread() {
     goto finish;
   }
 
-  if (!poolDB_.execute("DROP TABLE IF EXISTS `mining_workers_tmp`;")) {
+  if (!poolDB_->execute("DROP TABLE IF EXISTS `mining_workers_tmp`;")) {
     LOG(ERROR) << "DROP TABLE `mining_workers_tmp` failure";
     goto finish;
   }
-  if (!poolDB_.execute("CREATE TABLE `mining_workers_tmp` like `mining_workers`;")) {
+  if (!poolDB_->execute("CREATE TABLE `mining_workers_tmp` like `mining_workers`;")) {
     LOG(ERROR) << "TRUNCATE TABLE `mining_workers_tmp` failure";
     goto finish;
   }
 
-  if (!multiInsert(poolDB_, "mining_workers_tmp", fields, values)) {
+  if (!multiInsert(*poolDB_, "mining_workers_tmp", fields, values)) {
     LOG(ERROR) << "mul-insert table.mining_workers_tmp failure";
     goto finish;
   }
 
   // merge items
-  if (!poolDB_.update(mergeSQL)) {
+  if (!poolDB_->update(mergeSQL)) {
     LOG(ERROR) << "merge mining_workers failure";
     goto finish;
   }
@@ -567,7 +612,12 @@ void StatsServer::runThreadConsume() {
         // will use thread to flush data to DB.
         // it's very fast because we use insert statement with multiple values
         // and merge table when flush data to DB.
-        flushWorkersToDB();
+        if (poolDB_ != nullptr) {
+          flushWorkersToDB();
+        }
+        if (redis_ != nullptr) {
+          // TODO: flushWorkersToRedis();
+        }
         lastFlushDBTime = time(nullptr);
       }
 
@@ -676,12 +726,17 @@ void StatsServer::consumeCommonEvents(rd_kafka_message_t *rkmessage) {
     string workerName = filterWorkerName(r["content"]["worker_name"].str());
     string minerAgent = filterWorkerName(r["content"]["miner_agent"].str());
 
-    updateWorkerStatus(userId, workerId, workerName.c_str(), minerAgent.c_str());
+    if (poolDBCommonEvents_ != nullptr) {
+      updateWorkerStatusToDB(userId, workerId, workerName.c_str(), minerAgent.c_str());
+    }
+    if (redisCommonEvents_ != nullptr) {
+      // TODO: updateWorkerStatusToRedis(userId, workerId, workerName.c_str(), minerAgent.c_str());
+    }
   }
 
 }
 
-bool StatsServer::updateWorkerStatus(const int32_t userId, const int64_t workerId,
+bool StatsServer::updateWorkerStatusToDB(const int32_t userId, const int64_t workerId,
                                      const char *workerName, const char *minerAgent) {
   string sql;
   char **row = nullptr;
@@ -692,7 +747,7 @@ bool StatsServer::updateWorkerStatus(const int32_t userId, const int64_t workerI
   sql = Strings::Format("SELECT `group_id`,`worker_name` FROM `mining_workers` "
                         " WHERE `puid`=%d AND `worker_id`= %" PRId64"",
                         userId, workerId);
-  poolDBCommonEvents_.query(sql, res);
+  poolDBCommonEvents_->query(sql, res);
 
   if (res.numRows() != 0 && (row = res.nextRow()) != nullptr) {
     const int32_t groupId = atoi(row[0]);
@@ -707,7 +762,7 @@ bool StatsServer::updateWorkerStatus(const int32_t userId, const int64_t workerI
                           workerName, minerAgent,
                           nowStr.c_str(),
                           userId, workerId);
-    if (poolDBCommonEvents_.execute(sql) == false) {
+    if (poolDBCommonEvents_->execute(sql) == false) {
       LOG(ERROR) << "update worker status failure";
       return false;
     }
@@ -728,7 +783,7 @@ bool StatsServer::updateWorkerStatus(const int32_t userId, const int64_t workerI
                           nowStr.c_str(), nowStr.c_str(),
                           workerName, minerAgent,
                           nowStr.c_str());
-    if (poolDBCommonEvents_.execute(sql) == false) {
+    if (poolDBCommonEvents_->execute(sql) == false) {
       LOG(ERROR) << "insert worker name failure";
       return false;
     }
