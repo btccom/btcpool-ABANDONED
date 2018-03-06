@@ -1095,7 +1095,27 @@ void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool
   if (state_ < AUTHENTICATED || exJobPtr == nullptr) {
     return;
   }
+
+  StratumJob *sjob = exJobPtr->sjob_;
+  localJobs_.push_back(LocalJob());
+  LocalJob &ljob = *(localJobs_.rbegin());
+  ljob.blkBits_       = sjob->nBits_;
+  ljob.jobId_         = sjob->jobId_;
+  ljob.shortJobId_    = allocShortJobId();
+  ljob.jobDifficulty_ = diffController_.calcCurDiff();
+
+  // set difficulty
+  if (currDiff_ != ljob.jobDifficulty_) {
+    exJobPtr->makeMiningNotifyStr();
+    currDiff_ = ljob.jobDifficulty_;
+  }
+
   sendData(exJobPtr->miningNotify1_);  // send notify string
+
+  // clear localJobs_
+  while (localJobs_.size() >= kMaxNumLocalJobs_) {
+    localJobs_.pop_front();
+  }
 }
 
 void StratumSessionEth::handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams) {

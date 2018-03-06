@@ -250,8 +250,9 @@ public:
 
 class StratumJobExEth : public StratumJobEx {
 public:
-  StratumJobExEth(StratumJob *sjob, bool isClean) : StratumJobEx(sjob, isClean) {}
+  StratumJobExEth(StratumJob *sjob, bool isClean);
   virtual void makeMiningNotifyStr();
+  uint64 shareDifficulty_;
 };
 
 ///////////////////////////////////// Server ///////////////////////////////////

@@ -1446,6 +1446,11 @@ void Server::sendCommonEvents2Kafka(const string &message) {
 }
 
 ////////////////////////////////// StratumJobExEth ///////////////////////////////
+StratumJobExEth::StratumJobExEth(StratumJob *sjob, bool isClean) : StratumJobEx(sjob, isClean),
+shareDifficulty_(4000000000) 
+{
+}
+
 void StratumJobExEth::makeMiningNotifyStr()
 {
   StratumJobEth *ethJob = dynamic_cast<StratumJobEth *>(sjob_);
@@ -1469,14 +1474,19 @@ void StratumJobExEth::makeMiningNotifyStr()
 
   string header = ethJob->blockHashForMergedMining_.substr(2, 64);
   string seed = ethJob->seedHash_.substr(2, 64);
-  //string json = "{\"id\": 6, \"jsonrpc\":\"2.0\", \"method\": \"eth_submitHashrate\", \"params\": [\"" + rate + "\",\"0x" + this->m_submit_hashrate_id + "\"]}\n";
+  //uint256 target = ethJob->rskNetworkTarget_;
+  //uint64 difficulty = TargetToDiff(ethJob->rskNetworkTarget_);
+  //arith_uint256 t = UintToArith256(target);
+  //arith_uint256 shareTarget = t / difficulty;
+  uint256 shareTarget;
+  DiffToTarget(shareDifficulty_, shareTarget);
+  string strShareTarget = shareTarget.GetHex();
+  LOG(INFO) << "new stratum job mining.notify: share difficulty=" << shareDifficulty_ << ", share target=" << strShareTarget;
+  
   miningNotify1_ = Strings::Format("{\"id\":8,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
                                    "\"params\":[\"%s\",\"%s\",\"%s\",\"%s\", false]}\n",
                                    header.c_str(),
                                    header.c_str(),
                                    seed.c_str(),
-                                   ethJob->rskNetworkTarget_.GetHex().c_str());
-
-
-  DLOG(INFO) << "new stratum job mining.notify: " << miningNotify1_;
+                                   strShareTarget.c_str());
 }
