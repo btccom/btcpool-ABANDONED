@@ -296,7 +296,9 @@ class StatsServer {
   void runThreadConsumeCommonEvents();
   void consumeCommonEvents(rd_kafka_message_t *rkmessage);
   bool updateWorkerStatusToDB(const int32_t userId, const int64_t workerId,
-                          const char *workerName, const char *minerAgent);
+                              const char *workerName, const char *minerAgent);
+  bool updateWorkerStatusToRedis(const int32_t userId, const int64_t workerId,
+                                 const char *workerName, const char *minerAgent);
 
   void _processShare(WorkerKey &key1, WorkerKey &key2, const Share &share);
   void processShare(const Share &share);
@@ -306,6 +308,8 @@ class StatsServer {
 
   void _flushWorkersToDBThread();
   void flushWorkersToDB();
+  void _flushWorkersToRedisThread();
+  void flushWorkersToRedis();
   void removeExpiredWorkers();
   bool setupThreadConsume();
   void runHttpd();

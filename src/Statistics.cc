@@ -290,10 +290,81 @@ void StatsServer::_processShare(WorkerKey &key1, WorkerKey &key2, const Share &s
   }
 }
 
+void StatsServer::flushWorkersToRedis() {
+  LOG(INFO) << "flush mining workers to redis...";
+  if (isUpdateRedis_) {
+    LOG(WARNING) << "last redis flush is not finish yet, ignore";
+    return;
+  }
+
+  isUpdateRedis_ = true;
+  boost::thread t(boost::bind(&StatsServer::_flushWorkersToRedisThread, this));
+}
+
+void StatsServer::_flushWorkersToRedisThread() {
+  size_t counter = 0;
+
+  if (!redis_->ping()) {
+    LOG(ERROR) << "can't connect to pool redis";
+    goto finish;
+  }
+
+  // get all workes status
+  pthread_rwlock_rdlock(&rwlock_);  // read lock
+  for (auto itr = workerSet_.begin(); itr != workerSet_.end(); itr++) {
+    counter++;
+
+    const int32_t userId   = itr->first.userId_;
+    const int64_t workerId = itr->first.workerId_;
+    shared_ptr<WorkerShares> workerShare = itr->second;
+    const WorkerStatus status = workerShare->getWorkerStatus();
+
+    char ipStr[INET_ADDRSTRLEN] = {0};
+    inet_ntop(AF_INET, &(status.lastShareIP_), ipStr, INET_ADDRSTRLEN);
+    
+    string key = string("mining_workers/pu/");
+    key += std::to_string(userId);
+    key += "/wk/";
+    key += std::to_string(workerId);
+
+    redis_->prepare({"HMSET", key,
+                      "accept_1m", std::to_string(status.accept1m_),
+                      "accept_5m", std::to_string(status.accept5m_),
+                      "accept_15m", std::to_string(status.accept15m_),
+                      "reject_15m", std::to_string(status.reject15m_),
+                      "accept_1h", std::to_string(status.accept1h_),
+                      "reject_1h", std::to_string(status.reject1h_),
+                      "accept_count", std::to_string(status.acceptCount_),
+                      "last_share_ip", ipStr,
+                      "last_share_time", std::to_string(status.lastShareTime_),
+                      "updated_at", std::to_string(time(nullptr)),
+                  });
+  }
+  pthread_rwlock_unlock(&rwlock_);
+
+  if (counter == 0) {
+    LOG(INFO) << "no active workers";
+    goto finish;
+  }
+
+  for (size_t i=0; i<counter; i++) {
+    RedisResult r = redis_->execute();
+    if (r.type() != REDIS_REPLY_STATUS || r.str() != "OK") {
+      LOG(INFO) << "update redis failed, item index: " << i << ", "
+                                     << "reply type: " << r.type() << ", "
+                                     << "reply str: " << r.str();
+    }
+  }
+  LOG(INFO) << "flush mining workers to redis... done, items: " << counter;
+
+  finish:
+    isUpdateRedis_ = false;
+}
+
 void StatsServer::flushWorkersToDB() {
   LOG(INFO) << "flush mining workers to DB...";
   if (isInserting_) {
-    LOG(WARNING) << "last flush is not finish yet, ignore";
+    LOG(WARNING) << "last DB flush is not finish yet, ignore";
     return;
   }
 
@@ -616,7 +687,7 @@ void StatsServer::runThreadConsume() {
           flushWorkersToDB();
         }
         if (redis_ != nullptr) {
-          // TODO: flushWorkersToRedis();
+          flushWorkersToRedis();
         }
         lastFlushDBTime = time(nullptr);
       }
@@ -730,10 +801,15 @@ void StatsServer::consumeCommonEvents(rd_kafka_message_t *rkmessage) {
       updateWorkerStatusToDB(userId, workerId, workerName.c_str(), minerAgent.c_str());
     }
     if (redisCommonEvents_ != nullptr) {
-      // TODO: updateWorkerStatusToRedis(userId, workerId, workerName.c_str(), minerAgent.c_str());
+      updateWorkerStatusToRedis(userId, workerId, workerName.c_str(), minerAgent.c_str());
     }
   }
 
+}
+
+bool StatsServer::updateWorkerStatusToRedis(const int32_t userId, const int64_t workerId,
+                                     const char *workerName, const char *minerAgent) {
+  return false;
 }
 
 bool StatsServer::updateWorkerStatusToDB(const int32_t userId, const int64_t workerId,
