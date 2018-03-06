@@ -343,7 +343,7 @@ void StatsServer::_flushWorkersToRedisThread() {
                       "accept_count", std::to_string(status.acceptCount_),
                       "last_share_ip", ipStr,
                       "last_share_time", std::to_string(status.lastShareTime_),
-                      "updated_at", std::to_string(time(nullptr)),
+                      "updated_at", std::to_string(time(nullptr))
                   });
   }
   pthread_rwlock_unlock(&rwlock_);
@@ -828,13 +828,15 @@ bool StatsServer::updateWorkerStatusToRedis(const int32_t userId, const int64_t 
     if (r.type() == REDIS_REPLY_STRING && r.str() != "0") {
       redisCommonEvents_->prepare({"HMSET", key,
                       "worker_name", workerName,
-                      "miner_agent", minerAgent
+                      "miner_agent", minerAgent,
+                      "updated_at", std::to_string(time(nullptr))
                     });
     } else {
       redisCommonEvents_->prepare({"HMSET", key,
                       "group_id", std::to_string(groupId),
                       "worker_name", workerName,
-                      "miner_agent", minerAgent
+                      "miner_agent", minerAgent,
+                      "updated_at", std::to_string(time(nullptr))
                     });
     }
   }
