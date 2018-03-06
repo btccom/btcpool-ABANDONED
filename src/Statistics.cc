@@ -847,10 +847,12 @@ bool StatsServer::updateWorkerStatusToRedis(const int32_t userId, const int64_t 
       LOG(INFO) << "update redis failed, item key: " << key << ", "
                                      << "reply type: " << r.type() << ", "
                                      << "reply str: " << r.str();
+
       // try ping & reconnect redis, so last update may success
       if (!redisCommonEvents_->ping()) {
         LOG(ERROR) << "updateWorkerStatusToRedis: can't connect to pool redis";
       }
+
       return false;
     }
   }
@@ -866,7 +868,7 @@ bool StatsServer::updateWorkerStatusToDB(const int32_t userId, const int64_t wor
   const string nowStr = date("%F %T");
 
   // find the miner
-  sql = Strings::Format("SELECT `group_id`,`worker_name` FROM `mining_workers` "
+  sql = Strings::Format("SELECT `group_id` FROM `mining_workers` "
                         " WHERE `puid`=%d AND `worker_id`= %" PRId64"",
                         userId, workerId);
   poolDBCommonEvents_->query(sql, res);
@@ -884,10 +886,6 @@ bool StatsServer::updateWorkerStatusToDB(const int32_t userId, const int64_t wor
                           workerName, minerAgent,
                           nowStr.c_str(),
                           userId, workerId);
-    if (poolDBCommonEvents_->execute(sql) == false) {
-      LOG(ERROR) << "update worker status failure";
-      return false;
-    }
   }
   else {
     // we have to use 'ON DUPLICATE KEY UPDATE', because 'statshttpd' may insert
@@ -905,10 +903,17 @@ bool StatsServer::updateWorkerStatusToDB(const int32_t userId, const int64_t wor
                           nowStr.c_str(), nowStr.c_str(),
                           workerName, minerAgent,
                           nowStr.c_str());
-    if (poolDBCommonEvents_->execute(sql) == false) {
-      LOG(ERROR) << "insert worker name failure";
-      return false;
+  }
+
+  if (poolDBCommonEvents_->execute(sql) == false) {
+    LOG(ERROR) << "insert worker name failure";
+
+    // try ping & reconnect mysql, so last update may success
+    if (!poolDBCommonEvents_->ping()) {
+      LOG(ERROR) << "updateWorkerStatusToDB: can't connect to pool DB";
     }
+
+    return false;
   }
 
   return true;
