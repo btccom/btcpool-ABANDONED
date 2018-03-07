@@ -100,6 +100,7 @@ public:
   uint32_t timestamp_;
   uint32_t blkBits_;
   int32_t  result_;
+  string strJobId_;
 
   Share():jobId_(0), workerHashId_(0), ip_(0), userId_(0), share_(0),
   timestamp_(0), blkBits_(0), result_(0) {}
@@ -113,6 +114,7 @@ public:
     timestamp_    = r.timestamp_;
     blkBits_      = r.blkBits_;
     result_       = r.result_;
+    strJobId_     = r.strJobId_;
   }
 
   Share& operator=(const Share &r) {
@@ -124,6 +126,7 @@ public:
     timestamp_    = r.timestamp_;
     blkBits_      = r.blkBits_;
     result_       = r.result_;
+    strJobId_     = r.strJobId_;
     return *this;
   }
 

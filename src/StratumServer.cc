@@ -697,8 +697,7 @@ int32_t UserInfo::insertWorkerName() {
 
 ////////////////////////////////// StratumJobEx ////////////////////////////////
 StratumJobEx::StratumJobEx(StratumJob *sjob, bool isClean):
-state_(0), isClean_(isClean), sjob_(sjob),
-shareDifficulty_(40000000000) 
+state_(0), isClean_(isClean), sjob_(sjob)
 {
   assert(sjob != nullptr);
   //makeMiningNotifyStr();
@@ -1470,9 +1469,9 @@ StratumJobExEth::StratumJobExEth(StratumJob *sjob, bool isClean) : StratumJobEx(
 
 void StratumJobExEth::makeMiningNotifyStr()
 {
-  StratumJobEth *ethJob = dynamic_cast<StratumJobEth *>(sjob_);
-  if (nullptr == ethJob)
-    return;
+  // StratumJobEth *ethJob = dynamic_cast<StratumJobEth *>(sjob_);
+  // if (nullptr == ethJob)
+  //   return;
 
   // First parameter of params array is job ID (must be HEX number of any
   // size). Second parameter is seedhash. Seedhash is sent with every job to
@@ -1489,15 +1488,14 @@ void StratumJobExEth::makeMiningNotifyStr()
   //How to calculate difficulty: 2 strings division?
   //no set difficulty api, manuplate target and distribute to miner?
 
-  string header = ethJob->blockHashForMergedMining_.substr(2, 64);
-  string seed = ethJob->seedHash_.substr(2, 64);
-  string strShareTarget = std::move(Eth_DifficultyToTarget(shareDifficulty_));
-  LOG(INFO) << "new stratum job mining.notify: share difficulty=" << shareDifficulty_ << ", share target=" << strShareTarget;
-  
-  miningNotify1_ = Strings::Format("{\"id\":8,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
-                                   "\"params\":[\"%s\",\"%s\",\"%s\",\"%s\", false]}\n",
-                                   header.c_str(),
-                                   header.c_str(),
-                                   seed.c_str(),
-                                   strShareTarget.c_str());
+  //string header = ethJob->blockHashForMergedMining_.substr(2, 64);
+  //string seed = ethJob->seedHash_.substr(2, 64);
+  //string strShareTarget = std::move(Eth_DifficultyToTarget(shareDifficulty_));
+  //LOG(INFO) << "new stratum job mining.notify: share difficulty=" << shareDifficulty_ << ", share target=" << strShareTarget;
+  // miningNotify1_ = Strings::Format("{\"id\":8,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
+  //                                  "\"params\":[\"%s\",\"%s\",\"%s\",\"%s\", false]}\n",
+  //                                  header.c_str(),
+  //                                  header.c_str(),
+  //                                  seed.c_str(),
+  //                                  strShareTarget.c_str());
 }

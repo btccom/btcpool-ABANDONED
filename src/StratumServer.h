@@ -228,7 +228,6 @@ public:
   string coinbase1_;
   string miningNotify3_;
   string miningNotify3Clean_;
-  uint64 shareDifficulty_;
 
 public:
   StratumJobEx(StratumJob *sjob, bool isClean);

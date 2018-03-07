@@ -904,6 +904,15 @@ finish:
   return;
 }
 
+StratumSession::LocalJob* StratumSession::findLocalJob(const string& strJobId) {
+  for (auto rit = localJobs_.rbegin(); rit != localJobs_.rend(); ++rit) {
+    if (rit->strJobId_ == strJobId) {
+      return &(*rit);
+    }
+  }
+  return nullptr;
+}
+
 StratumSession::LocalJob *StratumSession::findLocalJob(uint8_t shortJobId) {
   for (auto rit = localJobs_.rbegin(); rit != localJobs_.rend(); ++rit) {
     if (rit->shortJobId_ == shortJobId) {
@@ -1165,6 +1174,10 @@ void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool
     return;
   }
 
+  StratumJobEth *ethJob = dynamic_cast<StratumJobEth*>(exJobPtr.get());
+  if (nullptr == ethJob)
+    return;
+
   StratumJob *sjob = exJobPtr->sjob_;
   localJobs_.push_back(LocalJob());
   LocalJob &ljob = *(localJobs_.rbegin());
@@ -1172,15 +1185,22 @@ void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool
   ljob.jobId_         = sjob->jobId_;
   ljob.shortJobId_    = allocShortJobId();
   ljob.jobDifficulty_ = diffController_->calcCurDiff();
-
   // set difficulty
-  if (currDiff_ != ljob.jobDifficulty_) {
-    exJobPtr->shareDifficulty_ = ljob.jobDifficulty_;
-    exJobPtr->makeMiningNotifyStr();
-    currDiff_ = ljob.jobDifficulty_;
-  }
+  // if (currDiff_ != ljob.jobDifficulty_) {
+  //   currDiff_ = ljob.jobDifficulty_;
+  // }
+  string header = ethJob->blockHashForMergedMining_.substr(2, 64);
+  string seed = ethJob->seedHash_.substr(2, 64);
+  string strShareTarget = std::move(Eth_DifficultyToTarget(ljob.jobDifficulty_));
+  LOG(INFO) << "new stratum job mining.notify: share difficulty=" << ljob.jobDifficulty_ << ", share target=" << strShareTarget;
+  const string strNotify = Strings::Format("{\"id\":8,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
+                                   "\"params\":[\"%s\",\"%s\",\"%s\",\"%s\", false]}\n",
+                                   header.c_str(),
+                                   header.c_str(),
+                                   seed.c_str(),
+                                   strShareTarget.c_str());
 
-  sendData(exJobPtr->miningNotify1_);  // send notify string
+  sendData(strNotify);  // send notify string
 
   // clear localJobs_
   clearLocalJobs();
@@ -1222,18 +1242,23 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   // "0x4cc7c01bfbe51c67",
   // "0xae778d304393d441bf8e1c47237261675caa3827997f671d8e5ec3bd5d862503",
   // "0x52fdd9e9a796903c6b88af4192717e77d9a9c6fa6a1366540b65e6bcfa9069aa"]}
-
   auto params = (const_cast<JsonNode&>(jparams)).array();
   if (5 == params.size())
   {
-    string jobId = params[1].str();
+    const string jobId = params[1].str();
+    LocalJob *localJob = findLocalJob(jobId);
+    if (localJob == nullptr)
+    {
+      responseError(idStr, StratumError::JOB_NOT_FOUND);
+      return;
+    }
+
     Share share;
-    share.jobId_ = 0;
+    share.strJobId_ = jobId;
     share.workerHashId_ = worker_.workerHashId_;
     share.ip_ = clientIpInt_;
     share.userId_ = worker_.userId_;
-    //share.share_ = curDiff_;
-    share.blkBits_ = 0;
+    share.share_ = localJob->jobDifficulty_;
     share.timestamp_ = (uint32_t)time(nullptr);
     share.result_ = Share::Result::REJECT;
 
