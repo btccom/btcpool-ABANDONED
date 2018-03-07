@@ -130,6 +130,7 @@ uint64 TargetToDiff(const string &str);
 
 void BitsToTarget(uint32 bits, uint256 & target);
 void DiffToTarget(uint64 diff, uint256 & target, bool useTable=true);
+string Eth_DifficultyToTarget(uint64 diff);
 
 inline void BitsToDifficulty(uint32 bits, double *difficulty) {
   int nShift = (bits >> 24) & 0xff;

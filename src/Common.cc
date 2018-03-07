@@ -156,3 +156,13 @@ void DiffToTarget(uint64 diff, uint256 &target, bool useTable) {
   // if we use the above table, it's big enough, we don't need to calc anymore
   BitsToTarget(_DiffToBits(diff), target);
 }
+
+static arith_uint256 maxInt256("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+
+string Eth_DifficultyToTarget(uint64 diff)  {
+  if (0 == diff)
+    return "";
+
+  arith_uint256 target = maxInt256 / diff;
+  return target.GetHex();
+}
