@@ -1015,7 +1015,13 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool is
   sendData(notifyStr);  // send notify string
 
   // clear localJobs_
-  while (localJobs_.size() >= kMaxNumLocalJobs_) {
+  clearLocalJobs();
+}
+
+void StratumSession::clearLocalJobs()
+{
+  while (localJobs_.size() >= kMaxNumLocalJobs_)
+  {
     localJobs_.pop_front();
   }
 }
@@ -1177,9 +1183,7 @@ void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool
   sendData(exJobPtr->miningNotify1_);  // send notify string
 
   // clear localJobs_
-  while (localJobs_.size() >= kMaxNumLocalJobs_) {
-    localJobs_.pop_front();
-  }
+  clearLocalJobs();
 }
 
 void StratumSessionEth::handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams) {
@@ -1201,8 +1205,6 @@ bool StratumSessionEth::initialize() {
 
 void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode &jparams)
 {
-  //static std::unordered_map<string, bool> submittedJob_;
-  
   if (state_ != AUTHENTICATED)
   {
     responseError(idStr, StratumError::UNAUTHORIZED);
@@ -1224,46 +1226,49 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   auto params = (const_cast<JsonNode&>(jparams)).array();
   if (5 == params.size())
   {
-    // {
-    //   string jobId = params[1].str();
-    //   if (submittedJob_.find(jobId) != submittedJob_.end()) {
-    //     LOG(INFO) << "ignore duplicated submission jobId: " << jobId;
-    //     return;
-    //   }
-    //   submittedJob_[jobId] = true;
-    // }
+    string jobId = params[1].str();
+    Share share;
+    share.jobId_ = 0;
+    share.workerHashId_ = worker_.workerHashId_;
+    share.ip_ = clientIpInt_;
+    share.userId_ = worker_.userId_;
+    //share.share_ = curDiff_;
+    share.blkBits_ = 0;
+    share.timestamp_ = (uint32_t)time(nullptr);
+    share.result_ = Share::Result::REJECT;
 
-    string request = Strings::Format("{\"jsonrpc\": \"2.0\", \"method\": \"eth_submitWork\", \"params\": [\"%s\",\"%s\",\"%s\"], \"id\": 5}\n",
-                                     params[2].str().c_str(),
-                                     params[3].str().c_str(),
-                                     params[4].str().c_str());
-    LOG(INFO) << "submitting solution: " << request;
-    string response;
-    bool res = bitcoindRpcCall("http://127.0.0.1:8545", "user:pass", request.c_str(), response);
-    if (res)
-    {
-      LOG(INFO) << "response: " << response;
-      JsonNode r;
-      if (JsonNode::parse(response.c_str(), response.c_str() + response.length(), r))
-      {
-        if (r["result"].type() == Utilities::JS::type::Bool) {
-          const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":%s}\n", idStr.c_str(), r["result"].boolean() ? "true" : "false");
-          sendData(s);
-        }
-        else {
-          LOG(ERROR) << "result type not bool";
-        }
-      }
-      else
-      {
-        LOG(ERROR) << "parse response fail " << response;
-      }
-    }
-    else
-    {
-      //rpc fail
-      LOG(ERROR) << "rpc call fail";
-    }
+    //server_->jobRepository_
+    // string request = Strings::Format("{\"jsonrpc\": \"2.0\", \"method\": \"eth_submitWork\", \"params\": [\"%s\",\"%s\",\"%s\"], \"id\": 5}\n",
+    //                                  params[2].str().c_str(),
+    //                                  params[3].str().c_str(),
+    //                                  params[4].str().c_str());
+    // LOG(INFO) << "submitting solution: " << request;
+    // string response;
+    // bool res = bitcoindRpcCall("http://127.0.0.1:8545", "user:pass", request.c_str(), response);
+    // if (res)
+    // {
+    //   LOG(INFO) << "response: " << response;
+    //   JsonNode r;
+    //   if (JsonNode::parse(response.c_str(), response.c_str() + response.length(), r))
+    //   {
+    //     if (r["result"].type() == Utilities::JS::type::Bool) {
+    //       const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":%s}\n", idStr.c_str(), r["result"].boolean() ? "true" : "false");
+    //       sendData(s);
+    //     }
+    //     else {
+    //       LOG(ERROR) << "result type not bool";
+    //     }
+    //   }
+    //   else
+    //   {
+    //     LOG(ERROR) << "parse response fail " << response;
+    //   }
+    // }
+    // else
+    // {
+    //   //rpc fail
+    //   LOG(ERROR) << "rpc call fail";
+    // }
   }
 }
 

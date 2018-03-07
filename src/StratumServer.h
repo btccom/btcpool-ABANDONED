@@ -229,7 +229,7 @@ public:
   string miningNotify3_;
   string miningNotify3Clean_;
   uint64 shareDifficulty_;
-  
+
 public:
   StratumJobEx(StratumJob *sjob, bool isClean);
   virtual ~StratumJobEx();
@@ -303,7 +303,7 @@ public:
 
 public:
   Server(const int32_t shareAvgSeconds);
-  ~Server();
+  virtual ~Server();
 
   bool setup(const char *ip, const unsigned short port, const char *kafkaBrokers,
              const string &userAPIUrl,
@@ -349,12 +349,16 @@ public:
                                const uint32_t sessionID);
 };
 
+class ServerEth : public Server {
+  public:
+  ServerEth(const int32_t shareAvgSeconds) : Server(shareAvgSeconds) {}
+};
 
 ////////////////////////////////// StratumServer ///////////////////////////////
 class StratumServer {
   atomic<bool> running_;
 
-  Server server_;
+  shared_ptr<Server> server_;
   string ip_;
   unsigned short port_;
   uint8_t serverId_;  // global unique, range: [1, 255]
@@ -387,7 +391,7 @@ public:
                 float minerDifficulty,
                 const int32_t shareAvgSeconds);
   ~StratumServer();
-
+  bool createServer(string type, const int32_t shareAvgSeconds);
   bool init();
   void stop();
   void run();

@@ -167,6 +167,11 @@ int main(int argc, char **argv) {
                                        minerDifficulty,
                                        shareAvgSeconds);
 
+    if (!gStratumServer->createServer(cfg.lookup("sserver.type"), shareAvgSeconds)) {
+       LOG(FATAL) << "createServer failure";
+       return 1;
+    }
+
     if (!gStratumServer->init()) {
       LOG(FATAL) << "init failure";
     } else {

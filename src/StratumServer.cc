@@ -826,7 +826,7 @@ StratumServer::StratumServer(const char *ip, const unsigned short port,
                              bool isEnableSimulator, bool isSubmitInvalidBlock,
                              bool isDevModeEnable, float minerDifficulty,
                              const int32_t shareAvgSeconds)
-:running_(true), server_(shareAvgSeconds),
+:running_(true),
 ip_(ip), port_(port), serverId_(serverId),
 fileLastNotifyTime_(fileLastNotifyTime),
 kafkaBrokers_(kafkaBrokers), userAPIUrl_(userAPIUrl),
@@ -838,8 +838,18 @@ isDevModeEnable_(isDevModeEnable), minerDifficulty_(minerDifficulty)
 StratumServer::~StratumServer() {
 }
 
+bool StratumServer::createServer(string type, const int32_t shareAvgSeconds) {
+  if ("BTC" == type)
+    server_ == make_shared<Server> (shareAvgSeconds);
+  else if ("ETH" == type)
+    server_ == make_shared<ServerEth> (shareAvgSeconds);
+  else 
+    return false;
+  return true;
+}
+
 bool StratumServer::init() {
-  if (!server_.setup(ip_.c_str(), port_, kafkaBrokers_.c_str(),
+  if (!server_->setup(ip_.c_str(), port_, kafkaBrokers_.c_str(),
                      userAPIUrl_, serverId_, fileLastNotifyTime_,
                      isEnableSimulator_, isSubmitInvalidBlock_,
                      isDevModeEnable_, minerDifficulty_)) {
@@ -854,12 +864,12 @@ void StratumServer::stop() {
     return;
   }
   running_ = false;
-  server_.stop();
+  server_->stop();
   LOG(INFO) << "stop stratum server";
 }
 
 void StratumServer::run() {
-  server_.run();
+  server_->run();
 }
 
 ///////////////////////////////////// Server ///////////////////////////////////
@@ -939,7 +949,7 @@ JobRepository *Server::createJobRepository(StratumServerType type,
   return jobRepo;
 }
 
-StratumSession *Server::createSession(StratumServerType type, evutil_socket_t fd, struct bufferevent *bev,
+StratumSession* Server::createSession(StratumServerType type, evutil_socket_t fd, struct bufferevent *bev,
                                       Server *server, struct sockaddr *saddr,
                                       const int32_t shareAvgSeconds,
                                       const uint32_t sessionID)

@@ -257,7 +257,7 @@ protected:
   void _handleRequest_AuthorizePassword(const string &password);
 
   LocalJob *findLocalJob(uint8_t shortJobId);
-
+  void clearLocalJobs();
   void handleExMessage_RegisterWorker     (const string *exMessage);
   void handleExMessage_UnRegisterWorker   (const string *exMessage);
   void handleExMessage_SubmitShare        (const string *exMessage);
