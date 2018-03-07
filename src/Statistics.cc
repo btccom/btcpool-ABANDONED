@@ -53,15 +53,6 @@ string getStatsFilePath(const string &dataDir, time_t ts) {
                          date("%F", ts).c_str());
 }
 
-static
-string getRedisKeyMiningWorker(const int32_t userId, const int64_t workerId) {
-    string key("mining_workers/pu/");
-    key += std::to_string(userId);
-    key += "/wk/";
-    key += std::to_string(workerId);
-    return key;
-}
-
 ////////////////////////////////  WorkerShares  ////////////////////////////////
 WorkerShares::WorkerShares(const int64_t workerId, const int32_t userId):
 workerId_(workerId), userId_(userId), acceptCount_(0),
@@ -139,12 +130,13 @@ atomic<bool> StatsServer::isInitializing_(true);
 StatsServer::StatsServer(const char *kafkaBrokers,
                          const string &httpdHost, unsigned short httpdPort,
                          const MysqlConnectInfo *poolDBInfo, const RedisConnectInfo *redisInfo,
+                         const string &redisKeyPrefix,
                          const time_t kFlushDBInterval, const string &fileLastFlushTime):
 running_(true), totalWorkerCount_(0), totalUserCount_(0), uptime_(time(nullptr)),
 poolWorker_(0u/* worker id */, 0/* user id */),
 kafkaConsumer_(kafkaBrokers, KAFKA_TOPIC_SHARE_LOG, 0/* patition */),
 kafkaConsumerCommonEvents_(kafkaBrokers, KAFKA_TOPIC_COMMON_EVENTS, 0/* patition */),
-poolDB_(nullptr), poolDBCommonEvents_(nullptr), redis_(nullptr),
+poolDB_(nullptr), poolDBCommonEvents_(nullptr), redis_(nullptr), redisKeyPrefix_(redisKeyPrefix),
 kFlushDBInterval_(kFlushDBInterval), isInserting_(false), isUpdateRedis_(false),
 fileLastFlushTime_(fileLastFlushTime),
 base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort),
@@ -199,6 +191,15 @@ StatsServer::~StatsServer() {
   }
 
   pthread_rwlock_destroy(&rwlock_);
+}
+
+string StatsServer::getRedisKeyMiningWorker(const int32_t userId, const int64_t workerId) {
+    string key = redisKeyPrefix_;
+    key += "mining_workers/pu/";
+    key += std::to_string(userId);
+    key += "/wk/";
+    key += std::to_string(workerId);
+    return key;
 }
 
 bool StatsServer::init() {

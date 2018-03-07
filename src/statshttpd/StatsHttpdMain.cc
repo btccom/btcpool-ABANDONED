@@ -130,10 +130,13 @@ int main(int argc, char **argv) {
     }
 
     RedisConnectInfo *redisInfo = nullptr;
+    string redisKeyPrefix;
     if (useRedis) {
       int32_t redisPort = 6379;
       cfg.lookupValue("redis.port", redisPort);
       redisInfo = new RedisConnectInfo(cfg.lookup("redis.host"), redisPort);
+
+      cfg.lookupValue("redis.key_prefix", redisKeyPrefix);
     }
     
     string fileLastFlushTime;
@@ -145,7 +148,8 @@ int main(int argc, char **argv) {
     cfg.lookupValue("statshttpd.file_last_flush_time",   fileLastFlushTime);
     gStatsServer = new StatsServer(cfg.lookup("kafka.brokers").c_str(),
                                    cfg.lookup("statshttpd.ip").c_str(),
-                                   (unsigned short)port, poolDBInfo, redisInfo,
+                                   (unsigned short)port, poolDBInfo,
+                                   redisInfo, redisKeyPrefix,
                                    (time_t)flushInterval, fileLastFlushTime);
     if (gStatsServer->init()) {
     	gStatsServer->run();

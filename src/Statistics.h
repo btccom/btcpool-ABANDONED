@@ -275,6 +275,7 @@ class StatsServer {
 
   RedisConnection *redis_;
   RedisConnection *redisCommonEvents_;
+  string redisKeyPrefix_;
 
   time_t kFlushDBInterval_;
   atomic<bool> isInserting_;     // flag mark if we are flushing db
@@ -314,6 +315,8 @@ class StatsServer {
   bool setupThreadConsume();
   void runHttpd();
 
+  string getRedisKeyMiningWorker(const int32_t userId, const int64_t workerId);
+
 public:
   atomic<uint64_t> requestCount_;
   atomic<uint64_t> responseBytes_;
@@ -322,6 +325,7 @@ public:
   StatsServer(const char *kafkaBrokers,
               const string &httpdHost, unsigned short httpdPort,
               const MysqlConnectInfo *poolDBInfo, const RedisConnectInfo *redisInfo,
+              const string &redisKeyPrefix,
               const time_t kFlushDBInterval, const string &fileLastFlushTime);
   ~StatsServer();
 
