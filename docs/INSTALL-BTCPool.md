@@ -12,13 +12,7 @@ If you want to run BTCPool on a 32-bit operating system, you must fix the proble
 
 ## Build
 
-[Need fix] If you are the first time build btcpool, you could run `bash install/install_btcpool.sh` instead of exec these shell commands one by one.
-
-```
-cd /work
-wget https://raw.githubusercontent.com/btccom/btcpool/master/install/install_btcpool.sh
-bash ./install_btcpool.sh
-```
+You can download & install the pre-built deb packages at the [release page](https://github.com/btccom/btcpool/releases), or build it by yourself.
 
 ### Install dependency
 
