@@ -697,7 +697,8 @@ int32_t UserInfo::insertWorkerName() {
 
 ////////////////////////////////// StratumJobEx ////////////////////////////////
 StratumJobEx::StratumJobEx(StratumJob *sjob, bool isClean):
-state_(0), isClean_(isClean), sjob_(sjob)
+state_(0), isClean_(isClean), sjob_(sjob),
+shareDifficulty_(40000000000) 
 {
   assert(sjob != nullptr);
   //makeMiningNotifyStr();
@@ -957,6 +958,12 @@ StratumSession *Server::createSession(StratumServerType type, evutil_socket_t fd
                                  sessionID);
     break;
   }
+
+  if (!conn->initialize()) {
+    delete conn;
+    conn = nullptr;
+  }
+
   return conn;
 }
 
@@ -1447,8 +1454,7 @@ void Server::sendCommonEvents2Kafka(const string &message) {
 }
 
 ////////////////////////////////// StratumJobExEth ///////////////////////////////
-StratumJobExEth::StratumJobExEth(StratumJob *sjob, bool isClean) : StratumJobEx(sjob, isClean),
-shareDifficulty_(4000000000) 
+StratumJobExEth::StratumJobExEth(StratumJob *sjob, bool isClean) : StratumJobEx(sjob, isClean)
 {
 }
 

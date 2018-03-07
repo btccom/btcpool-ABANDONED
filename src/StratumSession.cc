@@ -207,14 +207,72 @@ uint64 DiffController::_calcCurDiff() {
   return curDiff_;
 }
 
+//////////////////////////////// DiffControllerEth ////////////////////////////////
+DiffControllerEth::DiffControllerEth(const int32_t shareAvgSeconds) : DiffController(shareAvgSeconds) {
+  minDiff_ = 1;
+  curDiff_ = 40000000000;
+}
 
+uint64 DiffControllerEth::_calcCurDiff() {
+  // const time_t now = time(nullptr);
+  // const int64 k = now / kRecordSeconds_;
+  // const double sharesCount = (double)sharesNum_.sum(k);
+  // if (startTime_ == 0) {  // first time, we set the start time
+  //   startTime_ = time(nullptr);
+  // }
+
+  // const double kRateHigh = 1.40;
+  // const double kRateLow  = 0.40;
+  // double expectedCount = round(kDiffWindow_ / (double)shareAvgSeconds_);
+
+  // if (isFullWindow(now)) { /* have a full window now */
+  //   // big miner have big expected share count to make it looks more smooth.
+  //   expectedCount *= minerCoefficient(now, k);
+  // }
+  // if (expectedCount > kDiffWindow_) {
+  //   expectedCount = kDiffWindow_;  // one second per share is enough
+  // }
+
+  // // this is for very low hashrate miner, eg. USB miners
+  // // should received at least one share every 60 seconds
+  // if (!isFullWindow(now) && now >= startTime_ + 60 &&
+  //     sharesCount <= (int32_t)((now - startTime_)/60.0) &&
+  //     curDiff_ >= minDiff_*2) {
+  //   setCurDiff(curDiff_ / 2);
+  //   sharesNum_.mapMultiply(2.0);
+  //   return curDiff_;
+  // }
+
+  // // too fast
+  // if (sharesCount > expectedCount * kRateHigh) {
+  //   while (sharesNum_.sum(k) > expectedCount && 
+  //          curDiff_ < kMaxDiff_) {
+  //     setCurDiff(curDiff_ * 2);
+  //     sharesNum_.mapDivide(2.0);
+  //   }
+  //   return curDiff_;
+  // }
+
+  // // too slow
+  // if (isFullWindow(now) && curDiff_ >= minDiff_*2) {
+  //   while (sharesNum_.sum(k) < expectedCount * kRateLow &&
+  //          curDiff_ >= minDiff_*2) {
+  //     setCurDiff(curDiff_ / 2);
+  //     sharesNum_.mapMultiply(2.0);
+  //   }
+  //   assert(curDiff_ >= minDiff_);
+  //   return curDiff_;
+  // }
+  
+  return curDiff_;
+}
 
 //////////////////////////////// StratumSession ////////////////////////////////
 StratumSession::StratumSession(evutil_socket_t fd, struct bufferevent *bev,
                                Server *server, struct sockaddr *saddr,
                                const int32_t shareAvgSeconds,
                                const uint32_t extraNonce1) :
-shareAvgSeconds_(shareAvgSeconds), diffController_(shareAvgSeconds_),
+shareAvgSeconds_(shareAvgSeconds),
 shortJobIdIdx_(0), agentSessions_(nullptr), isDead_(false),
 invalidSharesCounter_(INVALID_SHARE_SLIDING_WINDOWS_SIZE),
 bev_(bev), fd_(fd), server_(server)
@@ -258,6 +316,11 @@ StratumSession::~StratumSession() {
 //  close(fd_);  // we don't need to close because we set 'BEV_OPT_CLOSE_ON_FREE'
   evbuffer_free(inBuf_);
   bufferevent_free(bev_);
+}
+
+bool StratumSession::initialize() {
+  diffController_ = std::make_shared<DiffController>(shareAvgSeconds_);
+  return true;
 }
 
 void StratumSession::markAsDead() {
@@ -542,12 +605,12 @@ void StratumSession::_handleRequest_AuthorizePassword(const string &password) {
 
   // set min diff first
   if (md >= DiffController::kMinDiff_) {
-    diffController_.setMinDiff(md);
+    diffController_->setMinDiff(md);
   }
 
   // than set current diff
   if (d >= DiffController::kMinDiff_) {
-    diffController_.resetCurDiff(d);
+    diffController_->resetCurDiff(d);
   }
 }
 
@@ -634,7 +697,7 @@ void StratumSession::handleExMessage_AuthorizeAgentWorker(const int64_t workerId
 }
 
 void StratumSession::_handleRequest_SetDifficulty(uint64_t suggestDiff) {
-  diffController_.resetCurDiff(formatDifficulty(suggestDiff));
+  diffController_->resetCurDiff(formatDifficulty(suggestDiff));
 }
 
 void StratumSession::handleRequest_SuggestTarget(const string &idStr,
@@ -804,7 +867,7 @@ void StratumSession::handleRequest_Submit(const string &idStr,
     }
 
     if (isAgentSession == false) {
-    	diffController_.addAcceptedShare(share.share_);
+    	diffController_->addAcceptedShare(share.share_);
       responseTrue(idStr);
     }
   } else {
@@ -884,7 +947,7 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool is
   ljob.blkBits_       = sjob->nBits_;
   ljob.jobId_         = sjob->jobId_;
   ljob.shortJobId_    = allocShortJobId();
-  ljob.jobDifficulty_ = diffController_.calcCurDiff();
+  ljob.jobDifficulty_ = diffController_->calcCurDiff();
 
 #ifdef USER_DEFINED_COINBASE
   // add the User's coinbaseInfo to the coinbase1's tail
@@ -1102,10 +1165,11 @@ void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool
   ljob.blkBits_       = sjob->nBits_;
   ljob.jobId_         = sjob->jobId_;
   ljob.shortJobId_    = allocShortJobId();
-  ljob.jobDifficulty_ = diffController_.calcCurDiff();
+  ljob.jobDifficulty_ = diffController_->calcCurDiff();
 
   // set difficulty
   if (currDiff_ != ljob.jobDifficulty_) {
+    exJobPtr->shareDifficulty_ = ljob.jobDifficulty_;
     exJobPtr->makeMiningNotifyStr();
     currDiff_ = ljob.jobDifficulty_;
   }
@@ -1128,6 +1192,11 @@ void StratumSessionEth::handleRequest_Subscribe        (const string &idStr, con
 
   const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":true}\n", idStr.c_str());
   sendData(s);
+}
+
+bool StratumSessionEth::initialize() {
+  diffController_ = std::make_shared<DiffControllerEth>(shareAvgSeconds_);
+  return true;
 }
 
 void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode &jparams)

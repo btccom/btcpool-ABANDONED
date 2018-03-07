@@ -88,7 +88,7 @@ public:
   static const uint64 kDefaultDiff_   = 128;  // default diff, 2^N
 #endif	/* NDEBUG */
 
-private:
+protected:
   time_t startTime_;  // first job send time
   uint64  minDiff_;
   uint64  curDiff_;
@@ -99,7 +99,7 @@ private:
   StatsWindow<uint64> shares_;     // share
 
   void setCurDiff(uint64 curDiff); // set current diff with bounds checking
-  uint64 _calcCurDiff();
+  virtual uint64 _calcCurDiff();
   int adjustHashRateLevel(const double hashRateT);
   double minerCoefficient(const time_t now, const int64_t idx);
 
@@ -121,7 +121,7 @@ public:
     }
   }
 
-  ~DiffController() {}
+  virtual ~DiffController() {}
 
   // recalc miner's diff before send an new stratum job
   uint64 calcCurDiff();
@@ -136,7 +136,11 @@ public:
   void resetCurDiff(uint64 curDiff);
 };
 
-
+class DiffControllerEth : public DiffController {
+  virtual uint64 _calcCurDiff();
+  public:
+    DiffControllerEth(const int32_t shareAvgSeconds);
+};
 
 //////////////////////////////// StratumSession ////////////////////////////////
 class StratumSession {
@@ -201,7 +205,7 @@ public:
   //----------------------
 protected:
   int32_t shareAvgSeconds_;
-  DiffController diffController_;
+  shared_ptr<DiffController> diffController_;
   State state_;
   StratumWorker worker_;
   string   clientAgent_;  // eg. bfgminer/4.4.0-32-gac4e9b3
@@ -269,7 +273,7 @@ public:
                  Server *server, struct sockaddr *saddr,
                  const int32_t shareAvgSeconds, const uint32_t extraNonce1);
   virtual ~StratumSession();
-
+  virtual bool initialize();
   void markAsDead();
   bool isDead();
 
@@ -298,7 +302,7 @@ public:
   StratumSessionEth(evutil_socket_t fd, struct bufferevent *bev,
                     Server *server, struct sockaddr *saddr,
                     const int32_t shareAvgSeconds, const uint32_t extraNonce1);
-
+  virtual bool initialize();
   virtual void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false);  
   virtual void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams);      
   virtual void handleRequest_Submit           (const string &idStr, const JsonNode &jparams);          
