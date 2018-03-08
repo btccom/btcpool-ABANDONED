@@ -330,6 +330,7 @@ void StatsServer::_flushWorkersToRedisThread() {
 
   
   pthread_rwlock_rdlock(&rwlock_);  // read lock
+
   // flush all workes status
   for (auto itr = workerSet_.begin(); itr != workerSet_.end(); itr++) {
     workerCounter++;
@@ -344,6 +345,7 @@ void StatsServer::_flushWorkersToRedisThread() {
     
     string key = getRedisKeyMiningWorker(userId, workerId);
 
+    // update info
     redis_->prepare({"HMSET", key,
                       "accept_1m", std::to_string(status.accept1m_),
                       "accept_5m", std::to_string(status.accept5m_),
@@ -356,7 +358,10 @@ void StatsServer::_flushWorkersToRedisThread() {
                       "last_share_time", std::to_string(status.lastShareTime_),
                       "updated_at", std::to_string(time(nullptr))
                   });
+    // publish notification
+    redis_->prepare({"PUBLISH", key, "1"});
   }
+
   // flush all users status
   for (auto itr = userSet_.begin(); itr != userSet_.end(); itr++) {
     userCounter++;
@@ -371,6 +376,7 @@ void StatsServer::_flushWorkersToRedisThread() {
     
     string key = getRedisKeyMiningWorker(userId);
 
+    // update info
     redis_->prepare({"HMSET", key,
                       "worker_count", std::to_string(workerCount),
                       "accept_1m", std::to_string(status.accept1m_),
@@ -384,8 +390,11 @@ void StatsServer::_flushWorkersToRedisThread() {
                       "last_share_time", std::to_string(status.lastShareTime_),
                       "updated_at", std::to_string(time(nullptr))
                   });
+    // publish notification
+    redis_->prepare({"PUBLISH", key, std::to_string(workerCount)});
   }
-  pthread_rwlock_unlock(&rwlock_);
+
+  pthread_rwlock_unlock(&rwlock_); // unlock
 
   size_t redisPipelineCounter = workerCounter + userCounter;
   if (redisPipelineCounter == 0) {
@@ -395,11 +404,23 @@ void StatsServer::_flushWorkersToRedisThread() {
   }
 
   for (size_t i=0; i<redisPipelineCounter; i++) {
-    RedisResult r = redis_->execute();
-    if (r.type() != REDIS_REPLY_STATUS || r.str() != "OK") {
-      LOG(INFO) << "update redis failed, item index: " << i << ", "
-                                     << "reply type: " << r.type() << ", "
-                                     << "reply str: " << r.str();
+    // update info
+    {
+      RedisResult r = redis_->execute();
+      if (r.type() != REDIS_REPLY_STATUS || r.str() != "OK") {
+        LOG(INFO) << "redis HMSET failed, item index: " << i << ", "
+                               << "reply type: " << r.type() << ", "
+                               << "reply str: " << r.str();
+      }
+    }
+    // publish notification
+    {
+      RedisResult r = redis_->execute();
+      if (r.type() != REDIS_REPLY_INTEGER) {
+        LOG(INFO) << "redis PUBLISH failed, item index: " << i << ", "
+                                 << "reply type: " << r.type() << ", "
+                                 << "reply str: " << r.str();
+      }
     }
   }
   LOG(INFO) << "flush mining workers to redis... done, workers: " << workerCounter << ", users: " << userCounter;
@@ -911,24 +932,46 @@ bool StatsServer::updateWorkerStatusToRedis(const int32_t userId, const int64_t 
                                      const char *workerName, const char *minerAgent) {
   string key = getRedisKeyMiningWorker(userId, workerId);
 
-  redisCommonEvents_->prepare({"HMSET", key,
-                    "worker_name", workerName,
-                    "miner_agent", minerAgent,
-                    "updated_at", std::to_string(time(nullptr))
-                  });
-  RedisResult r = redisCommonEvents_->execute();
+  // update info
+  {
+    redisCommonEvents_->prepare({"HMSET", key,
+                      "worker_name", workerName,
+                      "miner_agent", minerAgent,
+                      "updated_at", std::to_string(time(nullptr))
+                    });
+    RedisResult r = redisCommonEvents_->execute();
 
-  if (r.type() != REDIS_REPLY_STATUS || r.str() != "OK") {
-    LOG(INFO) << "update redis failed, item key: " << key << ", "
-                                   << "reply type: " << r.type() << ", "
-                                   << "reply str: " << r.str();
+    if (r.type() != REDIS_REPLY_STATUS || r.str() != "OK") {
+      LOG(INFO) << "redis HMSET failed, item key: " << key << ", "
+                                    << "reply type: " << r.type() << ", "
+                                    << "reply str: " << r.str();
 
-    // try ping & reconnect redis, so last update may success
-    if (!redisCommonEvents_->ping()) {
-      LOG(ERROR) << "updateWorkerStatusToRedis: can't connect to pool redis";
+      // try ping & reconnect redis, so last update may success
+      if (!redisCommonEvents_->ping()) {
+        LOG(ERROR) << "updateWorkerStatusToRedis: can't connect to pool redis";
+      }
+
+      return false;
     }
+  }
 
-    return false;
+  // publish notification
+  {
+    redisCommonEvents_->prepare({"PUBLISH", key, "0"});
+    RedisResult r = redisCommonEvents_->execute();
+
+    if (r.type() != REDIS_REPLY_INTEGER) {
+      LOG(INFO) << "redis PUBLISH failed, item key: " << key << ", "
+                                << "reply type: " << r.type() << ", "
+                                << "reply str: " << r.str();
+
+      // try ping & reconnect redis, so last update may success
+      if (!redisCommonEvents_->ping()) {
+        LOG(ERROR) << "updateWorkerStatusToRedis: can't connect to pool redis";
+      }
+
+      return false;
+    }
   }
 
   return true;
