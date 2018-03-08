@@ -364,6 +364,7 @@ void StatsServer::_flushWorkersToRedisThread() {
     const int32_t userId   = itr->first;
     shared_ptr<WorkerShares> workerShare = itr->second;
     const WorkerStatus status = workerShare->getWorkerStatus();
+    const int32_t workerCount = userWorkerCount_[userId];
 
     char ipStr[INET_ADDRSTRLEN] = {0};
     inet_ntop(AF_INET, &(status.lastShareIP_), ipStr, INET_ADDRSTRLEN);
@@ -371,6 +372,7 @@ void StatsServer::_flushWorkersToRedisThread() {
     string key = getRedisKeyMiningWorker(userId);
 
     redis_->prepare({"HMSET", key,
+                      "worker_count", std::to_string(workerCount),
                       "accept_1m", std::to_string(status.accept1m_),
                       "accept_5m", std::to_string(status.accept5m_),
                       "accept_15m", std::to_string(status.accept15m_),
