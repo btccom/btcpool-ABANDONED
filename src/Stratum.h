@@ -305,8 +305,10 @@ public:
   virtual string serializeToJson() const;
   virtual bool unserializeFromJson(const char *s, size_t len);
   bool initFromGw(const CTxDestination &poolPayoutAddr,
-                   const RskWorkEth &latestRskBlockJson);
+                   const RskWorkEth &latestRskBlockJson,
+                   const string& blockJson);
   
   string seedHash_;
+  string blockJson_;
 };
 #endif

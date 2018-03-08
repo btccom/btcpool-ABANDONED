@@ -631,7 +631,8 @@ bool StratumJob::isEmptyBlock() {
 
 ///////////////////////////////StratumJobEth///////////////////////////
 bool StratumJobEth::initFromGw(const CTxDestination &poolPayoutAddr,
-                               const RskWorkEth &latestRskBlockJson)
+                               const RskWorkEth &latestRskBlockJson,
+                               const string& blockJson)
 {
   // jobId: timestamp + random number
   time_t now = time(nullptr);
@@ -651,6 +652,7 @@ bool StratumJobEth::initFromGw(const CTxDestination &poolPayoutAddr,
     rskdRpcUserPwd_ = latestRskBlockJson.getRpcUserPwd();
     isRskCleanJob_ = latestRskBlockJson.getIsCleanJob();
     seedHash_ = latestRskBlockJson.getSeedHash();
+    blockJson_ = blockJson;
   }
   return seedHash_.size() && blockHashForMergedMining_.size();
 }

@@ -762,8 +762,17 @@ void JobMakerEth::sendGwStratumJob() {
       currentRskBlockJson = *(dynamic_cast<RskWorkEth*>(currentRskWork_));
   }
 
+  if (0 == currentRskBlockJson.getRpcAddress().length())
+    return;
+
+  const string request = "{\"jsonrpc\":\"2.0\",\"method\":\"eth_getBlockByNumber\",\"params\":[\"pending\", false],\"id\":2}";
+  string response;
+  bool res = bitcoindRpcCall(currentRskBlockJson.getRpcAddress().c_str(), currentRskBlockJson.getRpcUserPwd().c_str(), request.c_str(), response);
+  if (!res)
+    LOG(ERROR) << "get pending block failed";
+
   StratumJobEth sjob;
-  if (!sjob.initFromGw(poolPayoutAddr_, currentRskBlockJson)) {
+  if (!sjob.initFromGw(poolPayoutAddr_, currentRskBlockJson, response)) {
     LOG(ERROR) << "init stratum job message from gw str fail";
     return;
   }
