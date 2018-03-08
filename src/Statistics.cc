@@ -908,47 +908,25 @@ void StatsServer::consumeCommonEvents(rd_kafka_message_t *rkmessage) {
 bool StatsServer::updateWorkerStatusToRedis(const int32_t userId, const int64_t workerId,
                                      const char *workerName, const char *minerAgent) {
   string key = getRedisKeyMiningWorker(userId, workerId);
-  // the default `group_id`
-  const int32_t groupId = userId * -1;
 
-  {
-    redisCommonEvents_->prepare({"HGET", key, "group_id"});
-    RedisResult r = redisCommonEvents_->execute();
+  redisCommonEvents_->prepare({"HMSET", key,
+                    "worker_name", workerName,
+                    "miner_agent", minerAgent,
+                    "updated_at", std::to_string(time(nullptr))
+                  });
+  RedisResult r = redisCommonEvents_->execute();
 
-    // `group_id != 0` means the miner was grouped by others
-    // we will not change the `group_id`
-    if (r.type() == REDIS_REPLY_STRING && r.str() != "0") {
-      redisCommonEvents_->prepare({"HMSET", key,
-                      "worker_name", workerName,
-                      "miner_agent", minerAgent,
-                      "updated_at", std::to_string(time(nullptr))
-                    });
-    } else {
-      redisCommonEvents_->prepare({"HMSET", key,
-                      "group_id", std::to_string(groupId),
-                      "worker_name", workerName,
-                      "miner_agent", minerAgent,
-                      "updated_at", std::to_string(time(nullptr))
-                    });
+  if (r.type() != REDIS_REPLY_STATUS || r.str() != "OK") {
+    LOG(INFO) << "update redis failed, item key: " << key << ", "
+                                   << "reply type: " << r.type() << ", "
+                                   << "reply str: " << r.str();
+
+    // try ping & reconnect redis, so last update may success
+    if (!redisCommonEvents_->ping()) {
+      LOG(ERROR) << "updateWorkerStatusToRedis: can't connect to pool redis";
     }
-  }
 
-  {
-    // get the result of last prepare
-    RedisResult r = redisCommonEvents_->execute();
-
-    if (r.type() != REDIS_REPLY_STATUS || r.str() != "OK") {
-      LOG(INFO) << "update redis failed, item key: " << key << ", "
-                                     << "reply type: " << r.type() << ", "
-                                     << "reply str: " << r.str();
-
-      // try ping & reconnect redis, so last update may success
-      if (!redisCommonEvents_->ping()) {
-        LOG(ERROR) << "updateWorkerStatusToRedis: can't connect to pool redis";
-      }
-
-      return false;
-    }
+    return false;
   }
 
   return true;
