@@ -130,13 +130,14 @@ atomic<bool> StatsServer::isInitializing_(true);
 StatsServer::StatsServer(const char *kafkaBrokers,
                          const string &httpdHost, unsigned short httpdPort,
                          const MysqlConnectInfo *poolDBInfo, const RedisConnectInfo *redisInfo,
-                         const string &redisKeyPrefix,
+                         const string &redisKeyPrefix, const int redisKeyExpire,
                          const time_t kFlushDBInterval, const string &fileLastFlushTime):
 running_(true), totalWorkerCount_(0), totalUserCount_(0), uptime_(time(nullptr)),
 poolWorker_(0u/* worker id */, 0/* user id */),
 kafkaConsumer_(kafkaBrokers, KAFKA_TOPIC_SHARE_LOG, 0/* patition */),
 kafkaConsumerCommonEvents_(kafkaBrokers, KAFKA_TOPIC_COMMON_EVENTS, 0/* patition */),
-poolDB_(nullptr), poolDBCommonEvents_(nullptr), redis_(nullptr), redisKeyPrefix_(redisKeyPrefix),
+poolDB_(nullptr), poolDBCommonEvents_(nullptr), redis_(nullptr),
+redisKeyPrefix_(redisKeyPrefix), redisKeyExpire_(redisKeyExpire),
 kFlushDBInterval_(kFlushDBInterval), isInserting_(false), isUpdateRedis_(false),
 fileLastFlushTime_(fileLastFlushTime),
 base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort),
@@ -358,6 +359,8 @@ void StatsServer::_flushWorkersToRedisThread() {
                       "last_share_time", std::to_string(status.lastShareTime_),
                       "updated_at", std::to_string(time(nullptr))
                   });
+    // set key expire
+    redis_->prepare({"EXPIRE", key, std::to_string(redisKeyExpire_)});
     // publish notification
     redis_->prepare({"PUBLISH", key, "1"});
   }
@@ -390,6 +393,8 @@ void StatsServer::_flushWorkersToRedisThread() {
                       "last_share_time", std::to_string(status.lastShareTime_),
                       "updated_at", std::to_string(time(nullptr))
                   });
+    // set key expire
+    redis_->prepare({"EXPIRE", key, std::to_string(redisKeyExpire_)});
     // publish notification
     redis_->prepare({"PUBLISH", key, std::to_string(workerCount)});
   }
@@ -411,6 +416,16 @@ void StatsServer::_flushWorkersToRedisThread() {
         LOG(INFO) << "redis HMSET failed, item index: " << i << ", "
                                << "reply type: " << r.type() << ", "
                                << "reply str: " << r.str();
+      }
+    }
+    // set key expire
+    {
+      RedisResult r = redis_->execute();
+      if (r.type() != REDIS_REPLY_INTEGER || r.integer() != 1) {
+        LOG(INFO) << "redis EXPIRE failed, item index: " << i << ", "
+                                 << "reply type: " << r.type() << ", "
+                                 << "reply integer: " << r.integer() << ","
+                                 << "reply str: " << r.str();
       }
     }
     // publish notification
@@ -945,6 +960,26 @@ bool StatsServer::updateWorkerStatusToRedis(const int32_t userId, const int64_t 
       LOG(INFO) << "redis HMSET failed, item key: " << key << ", "
                                     << "reply type: " << r.type() << ", "
                                     << "reply str: " << r.str();
+
+      // try ping & reconnect redis, so last update may success
+      if (!redisCommonEvents_->ping()) {
+        LOG(ERROR) << "updateWorkerStatusToRedis: can't connect to pool redis";
+      }
+
+      return false;
+    }
+  }
+
+  // set key expire
+  {
+    redisCommonEvents_->prepare({"EXPIRE", key, std::to_string(redisKeyExpire_)});
+    RedisResult r = redisCommonEvents_->execute();
+
+    if (r.type() != REDIS_REPLY_INTEGER || r.integer() != 1) {
+      LOG(INFO) << "redis EXPIRE failed, item key: " << key << ", "
+                              << "reply type: " << r.type() << ", "
+                              << "reply integer: " << r.integer() << ","
+                              << "reply str: " << r.str();
 
       // try ping & reconnect redis, so last update may success
       if (!redisCommonEvents_->ping()) {
