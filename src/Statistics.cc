@@ -139,7 +139,7 @@ kafkaConsumerCommonEvents_(kafkaBrokers, KAFKA_TOPIC_COMMON_EVENTS, 0/* patition
 poolDB_(nullptr), poolDBCommonEvents_(nullptr), redis_(nullptr),
 redisKeyPrefix_(redisKeyPrefix), redisKeyExpire_(redisKeyExpire),
 kFlushDBInterval_(kFlushDBInterval), isInserting_(false), isUpdateRedis_(false),
-fileLastFlushTime_(fileLastFlushTime),
+lastShareTime_(0), fileLastFlushTime_(fileLastFlushTime),
 base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort),
 requestCount_(0), responseBytes_(0)
 {
@@ -794,7 +794,7 @@ void StatsServer::runThreadConsume() {
 
       if (lastFlushDBTime + kFlushDBInterval_ < time(nullptr)) {
         // the initialization ends after consuming a share that generated in the last minute.
-        if (lastShareTime_ + 60 < time(nullptr)) {
+        if (lastShareTime_ != 0 && lastShareTime_ + 60 < time(nullptr)) {
           LOG(INFO) << "consuming history shares: " << date("%F %T", lastShareTime_);
           lastFlushDBTime = time(nullptr);
         } else {
