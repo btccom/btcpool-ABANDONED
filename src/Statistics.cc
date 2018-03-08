@@ -202,6 +202,14 @@ string StatsServer::getRedisKeyMiningWorker(const int32_t userId, const int64_t 
     return key;
 }
 
+string StatsServer::getRedisKeyMiningWorker(const int32_t userId) {
+    string key = redisKeyPrefix_;
+    key += "mining_workers/pu/";
+    key += std::to_string(userId);
+    key += "/all";
+    return key;
+}
+
 bool StatsServer::init() {
   if (poolDB_ != nullptr) {
     if (!poolDB_->ping()) {
@@ -256,44 +264,43 @@ void StatsServer::processShare(const Share &share) {
   }
   poolWorker_.processShare(share);
 
-  WorkerKey key1(share.userId_, share.workerHashId_);
-  WorkerKey key2(share.userId_, 0/* 0 means all workers of this user */);
-  _processShare(key1, key2, share);
+  WorkerKey key(share.userId_, share.workerHashId_);
+  _processShare(key, share);
 }
 
-void StatsServer::_processShare(WorkerKey &key1, WorkerKey &key2, const Share &share) {
-  assert(key2.workerId_ == 0);  // key2 is user's total stats
+void StatsServer::_processShare(WorkerKey &key, const Share &share) {
+  const  int32_t userId = key.userId_;
 
   pthread_rwlock_rdlock(&rwlock_);
-  auto itr1 = workerSet_.find(key1);
-  auto itr2 = workerSet_.find(key2);
+  auto workerItr = workerSet_.find(key);
+  auto userItr = userSet_.find(userId);
   pthread_rwlock_unlock(&rwlock_);
 
-  shared_ptr<WorkerShares> workerShare1 = nullptr, workerShare2 = nullptr;
+  shared_ptr<WorkerShares> workerShare = nullptr, userShare = nullptr;
 
-  if (itr1 != workerSet_.end()) {
-    itr1->second->processShare(share);
+  if (workerItr != workerSet_.end()) {
+    workerItr->second->processShare(share);
   } else {
-    workerShare1 = make_shared<WorkerShares>(share.workerHashId_, share.userId_);
-    workerShare1->processShare(share);
+    workerShare = make_shared<WorkerShares>(share.workerHashId_, share.userId_);
+    workerShare->processShare(share);
   }
 
-  if (itr2 != workerSet_.end()) {
-    itr2->second->processShare(share);
+  if (userItr != userSet_.end()) {
+    userItr->second->processShare(share);
   } else {
-    workerShare2 = make_shared<WorkerShares>(share.workerHashId_, share.userId_);
-    workerShare2->processShare(share);
+    userShare = make_shared<WorkerShares>(share.workerHashId_, share.userId_);
+    userShare->processShare(share);
   }
 
-  if (workerShare1 != nullptr || workerShare2 != nullptr) {
+  if (workerShare != nullptr || userShare != nullptr) {
     pthread_rwlock_wrlock(&rwlock_);    // write lock
-    if (workerShare1 != nullptr) {
-      workerSet_[key1] = workerShare1;
+    if (workerShare != nullptr) {
+      workerSet_[key] = workerShare;
       totalWorkerCount_++;
-      userWorkerCount_[key1.userId_]++;
+      userWorkerCount_[key.userId_]++;
     }
-    if (workerShare2 != nullptr) {
-      workerSet_[key2] = workerShare2;
+    if (userShare != nullptr) {
+      userSet_[userId] = userShare;
       totalUserCount_++;
     }
     pthread_rwlock_unlock(&rwlock_);
@@ -312,17 +319,20 @@ void StatsServer::flushWorkersToRedis() {
 }
 
 void StatsServer::_flushWorkersToRedisThread() {
-  size_t counter = 0;
+  size_t workerCounter = 0;
+  size_t userCounter = 0;
 
   if (!redis_->ping()) {
     LOG(ERROR) << "can't connect to pool redis";
-    goto finish;
+    isUpdateRedis_ = false;
+    return;
   }
 
-  // get all workes status
+  
   pthread_rwlock_rdlock(&rwlock_);  // read lock
+  // flush all workes status
   for (auto itr = workerSet_.begin(); itr != workerSet_.end(); itr++) {
-    counter++;
+    workerCounter++;
 
     const int32_t userId   = itr->first.userId_;
     const int64_t workerId = itr->first.workerId_;
@@ -347,14 +357,42 @@ void StatsServer::_flushWorkersToRedisThread() {
                       "updated_at", std::to_string(time(nullptr))
                   });
   }
+  // flush all users status
+  for (auto itr = userSet_.begin(); itr != userSet_.end(); itr++) {
+    userCounter++;
+
+    const int32_t userId   = itr->first;
+    shared_ptr<WorkerShares> workerShare = itr->second;
+    const WorkerStatus status = workerShare->getWorkerStatus();
+
+    char ipStr[INET_ADDRSTRLEN] = {0};
+    inet_ntop(AF_INET, &(status.lastShareIP_), ipStr, INET_ADDRSTRLEN);
+    
+    string key = getRedisKeyMiningWorker(userId);
+
+    redis_->prepare({"HMSET", key,
+                      "accept_1m", std::to_string(status.accept1m_),
+                      "accept_5m", std::to_string(status.accept5m_),
+                      "accept_15m", std::to_string(status.accept15m_),
+                      "reject_15m", std::to_string(status.reject15m_),
+                      "accept_1h", std::to_string(status.accept1h_),
+                      "reject_1h", std::to_string(status.reject1h_),
+                      "accept_count", std::to_string(status.acceptCount_),
+                      "last_share_ip", ipStr,
+                      "last_share_time", std::to_string(status.lastShareTime_),
+                      "updated_at", std::to_string(time(nullptr))
+                  });
+  }
   pthread_rwlock_unlock(&rwlock_);
 
-  if (counter == 0) {
-    LOG(INFO) << "no active workers";
-    goto finish;
+  size_t redisPipelineCounter = workerCounter + userCounter;
+  if (redisPipelineCounter == 0) {
+    LOG(INFO) << "no active workers or users";
+    isUpdateRedis_ = false;
+    return;
   }
 
-  for (size_t i=0; i<counter; i++) {
+  for (size_t i=0; i<redisPipelineCounter; i++) {
     RedisResult r = redis_->execute();
     if (r.type() != REDIS_REPLY_STATUS || r.str() != "OK") {
       LOG(INFO) << "update redis failed, item index: " << i << ", "
@@ -362,10 +400,10 @@ void StatsServer::_flushWorkersToRedisThread() {
                                      << "reply str: " << r.str();
     }
   }
-  LOG(INFO) << "flush mining workers to redis... done, items: " << counter;
+  LOG(INFO) << "flush mining workers to redis... done, workers: " << workerCounter << ", users: " << userCounter;
 
-  finish:
-    isUpdateRedis_ = false;
+  isUpdateRedis_ = false;
+  return;
 }
 
 void StatsServer::flushWorkersToDB() {
@@ -404,20 +442,48 @@ void StatsServer::_flushWorkersToDBThread() {
   " `last_share_time`, `created_at`, `updated_at`";
   // values for multi-insert sql
   vector<string> values;
-  size_t counter = 0;
+  size_t workerCounter = 0;
+  size_t userCounter = 0;
 
   if (!poolDB_->ping()) {
     LOG(ERROR) << "can't connect to pool DB";
     goto finish;
   }
 
-  // get all workes status
   pthread_rwlock_rdlock(&rwlock_);  // read lock
+  // get all workes status
   for (auto itr = workerSet_.begin(); itr != workerSet_.end(); itr++) {
-    counter++;
+    workerCounter++;
 
     const int32_t userId   = itr->first.userId_;
     const int64_t workerId = itr->first.workerId_;
+    shared_ptr<WorkerShares> workerShare = itr->second;
+    const WorkerStatus status = workerShare->getWorkerStatus();
+
+    char ipStr[INET_ADDRSTRLEN] = {0};
+    inet_ntop(AF_INET, &(status.lastShareIP_), ipStr, INET_ADDRSTRLEN);
+    const string nowStr = date("%F %T", time(nullptr));
+
+    values.push_back(Strings::Format("%" PRId64",%d,%d,%" PRIu64",%" PRIu64","
+                                     "%" PRIu64",%" PRIu64","  // accept_15m, reject_15m
+                                     "%" PRIu64",%" PRIu64","  // accept_1h,  reject_1h
+                                     "%d,\"%s\","
+                                     "\"%s\",\"%s\",\"%s\"",
+                                     workerId, userId,
+                                     -1 * userId,  /* default group id */
+                                     status.accept1m_, status.accept5m_,
+                                     status.accept15m_, status.reject15m_,
+                                     status.accept1h_, status.reject1h_,
+                                     status.acceptCount_, ipStr,
+                                     date("%F %T", status.lastShareTime_).c_str(),
+                                     nowStr.c_str(), nowStr.c_str()));
+  }
+  // get all users status
+  for (auto itr = userSet_.begin(); itr != userSet_.end(); itr++) {
+    userCounter++;
+
+    const int32_t userId   = itr->first;
+    const int64_t workerId = 0;
     shared_ptr<WorkerShares> workerShare = itr->second;
     const WorkerStatus status = workerShare->getWorkerStatus();
 
@@ -465,7 +531,7 @@ void StatsServer::_flushWorkersToDBThread() {
     LOG(ERROR) << "merge mining_workers failure";
     goto finish;
   }
-  LOG(INFO) << "flush mining workers to DB... done, items: " << counter;
+  LOG(INFO) << "flush mining workers to DB... done, workers: " << workerCounter << ", users: " << userCounter;
   
   // save flush timestamp to file, for monitor system
   if (!fileLastFlushTime_.empty())
@@ -476,26 +542,40 @@ finish:
 }
 
 void StatsServer::removeExpiredWorkers() {
-  size_t expiredCnt = 0;
+  size_t expiredWorkerCount = 0;
+  size_t expiredUserCount = 0;
 
   pthread_rwlock_wrlock(&rwlock_);  // write lock
 
   // delete all expired workers
   for (auto itr = workerSet_.begin(); itr != workerSet_.end(); ) {
     const int32_t userId   = itr->first.userId_;
-    const int64_t workerId = itr->first.workerId_;
     shared_ptr<WorkerShares> workerShare = itr->second;
 
     if (workerShare->isExpired()) {
-      if (workerId == 0) {
-        totalUserCount_--;
-      } else {
-        totalWorkerCount_--;
-        userWorkerCount_[userId]--;
-      }
-      expiredCnt++;
-
       itr = workerSet_.erase(itr);
+
+      expiredWorkerCount++;
+      totalWorkerCount_--;
+      userWorkerCount_[userId]--;
+      
+      if (userWorkerCount_[userId] <= 0) {
+        userWorkerCount_.erase(userId);
+      }
+    } else {
+      itr++;
+    }
+  }
+
+  // delete all expired users
+  for (auto itr = userSet_.begin(); itr != userSet_.end(); ) {
+    shared_ptr<WorkerShares> workerShare = itr->second;
+
+    if (workerShare->isExpired()) {
+      itr = userSet_.erase(itr);
+
+      expiredUserCount++;
+      totalUserCount_--;
     } else {
       itr++;
     }
@@ -503,7 +583,7 @@ void StatsServer::removeExpiredWorkers() {
 
   pthread_rwlock_unlock(&rwlock_);
 
-  LOG(INFO) << "removed expired workers: " << expiredCnt;
+  LOG(INFO) << "removed expired workers: " << expiredWorkerCount << ", users: " << expiredUserCount;
 }
 
 void StatsServer::getWorkerStatusBatch(const vector<WorkerKey> &keys,
@@ -516,11 +596,22 @@ void StatsServer::getWorkerStatusBatch(const vector<WorkerKey> &keys,
   // find all shared pointer
   pthread_rwlock_rdlock(&rwlock_);
   for (size_t i = 0; i < keys.size(); i++) {
-    auto itr = workerSet_.find(keys[i]);
-    if (itr == workerSet_.end()) {
-      ptrs[i] = nullptr;
+    if (keys[i].workerId_ == 0) {
+      // find user
+      auto itr = userSet_.find(keys[i].userId_);
+      if (itr == userSet_.end()) {
+        ptrs[i] = nullptr;
+      } else {
+        ptrs[i] = itr->second;
+      }
     } else {
-      ptrs[i] = itr->second;
+      // find worker
+      auto itr = workerSet_.find(keys[i]);
+      if (itr == workerSet_.end()) {
+        ptrs[i] = nullptr;
+      } else {
+        ptrs[i] = itr->second;
+      }
     }
   }
   pthread_rwlock_unlock(&rwlock_);

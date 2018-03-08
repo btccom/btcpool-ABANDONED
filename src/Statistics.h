@@ -261,6 +261,7 @@ class StatsServer {
 
   pthread_rwlock_t rwlock_;  // for workerSet_
   std::unordered_map<WorkerKey/* userId + workerId */, shared_ptr<WorkerShares> > workerSet_;
+  std::unordered_map<int32_t/* userId*/, shared_ptr<WorkerShares> > userSet_;
   std::unordered_map<int32_t /* userId */, int32_t> userWorkerCount_;
   WorkerShares poolWorker_;  // worker status for the pool
 
@@ -301,7 +302,7 @@ class StatsServer {
   bool updateWorkerStatusToRedis(const int32_t userId, const int64_t workerId,
                                  const char *workerName, const char *minerAgent);
 
-  void _processShare(WorkerKey &key1, WorkerKey &key2, const Share &share);
+  void _processShare(WorkerKey &key, const Share &share);
   void processShare(const Share &share);
   void getWorkerStatusBatch(const vector<WorkerKey> &keys,
                             vector<WorkerStatus> &workerStatus);
@@ -316,6 +317,7 @@ class StatsServer {
   void runHttpd();
 
   string getRedisKeyMiningWorker(const int32_t userId, const int64_t workerId);
+  string getRedisKeyMiningWorker(const int32_t userId);
 
 public:
   atomic<uint64_t> requestCount_;
