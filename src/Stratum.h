@@ -301,7 +301,7 @@ public:
 
 class StratumJobEth : public StratumJob {
 public:
-  StratumJobEth() {};
+  StratumJobEth();
   virtual string serializeToJson() const;
   virtual bool unserializeFromJson(const char *s, size_t len);
   bool initFromGw(const CTxDestination &poolPayoutAddr,
@@ -309,6 +309,6 @@ public:
                    const string& blockJson);
   
   string seedHash_;
-  string blockJson_;
+  uint64_t blockNumber_;
 };
 #endif

@@ -630,10 +630,30 @@ bool StratumJob::isEmptyBlock() {
 }
 
 ///////////////////////////////StratumJobEth///////////////////////////
+StratumJobEth::StratumJobEth() : blockNumber_(0)
+{
+
+}
+
 bool StratumJobEth::initFromGw(const CTxDestination &poolPayoutAddr,
                                const RskWorkEth &latestRskBlockJson,
                                const string& blockJson)
 {
+  JsonNode j;
+  if (!JsonNode::parse(blockJson.c_str(), blockJson.c_str() + blockJson.length(), j))
+  {
+    LOG(ERROR) << "deserialize block informaiton failed";
+    return false;
+  }
+
+  JsonNode result = j["result"];
+  if (j.type() != Utilities::JS::type::Obj ||
+      j["number"].type() != Utilities::JS::type::Str)
+  {
+    LOG(ERROR) << "block informaiton format not expected: " << blockJson;
+    return false;
+  }
+
   // jobId: timestamp + random number
   time_t now = time(nullptr);
   srand (now);
@@ -652,13 +672,15 @@ bool StratumJobEth::initFromGw(const CTxDestination &poolPayoutAddr,
     rskdRpcUserPwd_ = latestRskBlockJson.getRpcUserPwd();
     isRskCleanJob_ = latestRskBlockJson.getIsCleanJob();
     seedHash_ = latestRskBlockJson.getSeedHash();
-    blockJson_ = blockJson;
+    size_t pos;
+    blockNumber_ = stoull(j["number"].str(), &pos, 16);
   }
   return seedHash_.size() && blockHashForMergedMining_.size();
 }
 
 string StratumJobEth::serializeToJson() const {
   return Strings::Format("{\"jobId\":%" PRIu64""
+                          ",\"num\":%" PRIu64""
                          // rsk 
                          ",\"sHash\":\"%s\""
                          ",\"rskBlockHashForMergedMining\":\"%s\",\"rskNetworkTarget\":\"0x%s\""
@@ -667,6 +689,7 @@ string StratumJobEth::serializeToJson() const {
                          ",\"isRskCleanJob\":%s"
                          "}",
                          jobId_,
+                         blockNumber_,
                          // rsk
                          seedHash_.c_str(),
                          blockHashForMergedMining_.size() ? blockHashForMergedMining_.c_str() : "",
@@ -685,6 +708,7 @@ bool StratumJobEth::unserializeFromJson(const char *s, size_t len)
     return false;
   }
   if (j["jobId"].type() != Utilities::JS::type::Int ||
+      j["num"].type() != Utilities::JS::type::Int ||
       j["sHash"].type() != Utilities::JS::type::Str)
   {
     LOG(ERROR) << "parse eth stratum job failure: " << s;
@@ -692,6 +716,7 @@ bool StratumJobEth::unserializeFromJson(const char *s, size_t len)
   }
 
   jobId_ = j["jobId"].uint64();
+  blockNumber_ = j["num"].uint64();
   seedHash_ = j["sHash"].str();
 
   if (j["rskBlockHashForMergedMining"].type() == Utilities::JS::type::Str &&
