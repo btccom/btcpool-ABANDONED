@@ -291,7 +291,7 @@ include_directories(src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config 
                     ${LIBEVENT_INCLUDE_DIR} ${MYSQL_INCLUDE})
 set(THIRD_LIBRARIES ${BITCOIN_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY}
                     ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${ZOOKEEPER_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBEVENT_LIB}
-                    ${LIBEVENT_PTHREADS_LIB} ${secp256k1_LIBRARIES} ${PTHREAD_LIBRARIES} ${MYSQL_LIB} ${GMP_LIBRARIES})
+                    ${LIBEVENT_PTHREADS_LIB} ${secp256k1_LIBRARIES} ${PTHREAD_LIBRARIES} ${MYSQL_LIB} ${GMP_LIBRARIES} /usr/local/lib/libethash.a)
 
 file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc)
 add_library(btcpool STATIC ${LIB_SOURCES})
@@ -318,7 +318,7 @@ target_link_libraries(jobmaker btcpool ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE SSERVER_SOURCES src/sserver/*.cc)
 add_executable(sserver ${SSERVER_SOURCES})
-target_link_libraries(sserver btcpool /usr/local/lib/libethash.a ${THIRD_LIBRARIES})
+target_link_libraries(sserver btcpool ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE STATSHTTPD_SOURCES src/statshttpd/*.cc)
 add_executable(statshttpd ${STATSHTTPD_SOURCES})

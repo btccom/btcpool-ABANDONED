@@ -32,7 +32,6 @@
 #include <utilstrencodings.h>
 #include <hash.h>
 #include <inttypes.h>
-#include "libethash/ethash.h"
 #include "rsk/RskSolvedShareData.h"
 
 #include "utilities_js.hpp"
@@ -386,7 +385,8 @@ void JobRepository::tryCleanExpiredJobs() {
 JobRepositoryEth::JobRepositoryEth(const char *kafkaBrokers,
                              const string &fileLastNotifyTime,
                              Server *server):
-JobRepository(kafkaBrokers, fileLastNotifyTime, server)
+JobRepository(kafkaBrokers, fileLastNotifyTime, server),
+light_(nullptr)
 {
   serverType_ = ETH;
   kMaxJobsLifeTime_ = 20;
@@ -412,6 +412,23 @@ void JobRepositoryEth::broadcastStratumJob(StratumJob *sjob) {
   }
 
   sendMiningNotify(exJob);
+}
+
+JobRepositoryEth::~JobRepositoryEth() {
+  deleteLight();
+}
+
+void JobRepositoryEth::newLight(uint64_t blkNum) {
+  deleteLight();
+  light_ = ethash_light_new(blkNum);
+}
+
+void JobRepositoryEth::deleteLight()
+{
+  if (light_ != nullptr) {
+    ethash_light_delete(light_);
+    light_ = nullptr;
+  }
 }
 
 //////////////////////////////////// UserInfo /////////////////////////////////

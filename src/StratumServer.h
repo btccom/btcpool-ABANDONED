@@ -40,7 +40,7 @@
 #include <event2/listener.h>
 #include <event2/util.h>
 #include <event2/event.h>
-
+#include "libethash/ethash.h"
 #include <glog/logging.h>
 
 #include "Kafka.h"
@@ -143,8 +143,13 @@ class JobRepositoryEth : public JobRepository
 public:
   JobRepositoryEth(const char *kafkaBrokers, const string &fileLastNotifyTime,
                    Server *server);
-
+  virtual ~JobRepositoryEth();
   virtual void broadcastStratumJob(StratumJob *sjob);
+
+private:
+  ethash_light_t light_;
+  void newLight(uint64_t blkNum);
+  void deleteLight();
 };
 
 ///////////////////////////////////// UserInfo /////////////////////////////////
