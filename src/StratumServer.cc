@@ -395,7 +395,7 @@ light_(nullptr)
 void JobRepositoryEth::broadcastStratumJob(StratumJob *sjob) {
   LOG(INFO) << "broadcastStratumJob " << sjob->jobId_;
   bool isClean = true;
-
+  
   shared_ptr<StratumJobEx> exJob(createStratumJobEx(serverType_, sjob, isClean));
   {
     ScopeLock sl(lock_);
@@ -411,20 +411,36 @@ void JobRepositoryEth::broadcastStratumJob(StratumJob *sjob) {
     exJobs_[sjob->jobId_] = exJob;
   }
 
+  //send job first
   sendMiningNotify(exJob);
+  //then, create light for verification
+  newLight(dynamic_cast<StratumJobEth*>(sjob));
 }
 
 JobRepositoryEth::~JobRepositoryEth() {
   deleteLight();
 }
 
+void JobRepositoryEth::newLight(StratumJobEth* job) {
+  if (nullptr == job)
+    return;
+
+  newLight(job->blockNumber_);
+}
+
 void JobRepositoryEth::newLight(uint64_t blkNum) {
-  deleteLight();
+  ScopeLock sl(lock_);
+  deleteLightNoLock();
   light_ = ethash_light_new(blkNum);
 }
 
 void JobRepositoryEth::deleteLight()
 {
+  ScopeLock sl(lock_);
+  deleteLightNoLock();
+}
+
+void JobRepositoryEth::deleteLightNoLock() {
   if (light_ != nullptr) {
     ethash_light_delete(light_);
     light_ = nullptr;

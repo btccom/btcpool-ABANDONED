@@ -148,8 +148,10 @@ public:
 
 private:
   ethash_light_t light_;
+  void newLight(StratumJobEth* job);
   void newLight(uint64_t blkNum);
   void deleteLight();
+  void deleteLightNoLock();
 };
 
 ///////////////////////////////////// UserInfo /////////////////////////////////
