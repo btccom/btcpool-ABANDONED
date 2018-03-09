@@ -145,13 +145,15 @@ public:
                    Server *server);
   virtual ~JobRepositoryEth();
   virtual void broadcastStratumJob(StratumJob *sjob);
+  bool compute(ethash_h256_t const header, uint64_t nonce, ethash_return_value_t& r);
 
 private:
-  ethash_light_t light_;
   void newLight(StratumJobEth* job);
   void newLight(uint64_t blkNum);
   void deleteLight();
   void deleteLightNoLock();
+
+  ethash_light_t light_;
 };
 
 ///////////////////////////////////// UserInfo /////////////////////////////////
@@ -355,9 +357,14 @@ public:
                                const uint32_t sessionID);
 };
 
-class ServerEth : public Server {
-  public:
+class ServerEth : public Server
+{
+public:
   ServerEth(const int32_t shareAvgSeconds) : Server(shareAvgSeconds) {}
+  int checkShare(const Share &share,
+                 const uint64_t nonce,
+                 const uint256 header,
+                 const uint256 mixHash);
 };
 
 ////////////////////////////////// StratumServer ///////////////////////////////

@@ -1262,6 +1262,14 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
     share.timestamp_ = (uint32_t)time(nullptr);
     share.result_ = Share::Result::REJECT;
 
+    ServerEth *s = dynamic_cast<ServerEth*> (server_);
+    const string sNonce = params[2].str();
+    const string sHeader = params[3].str();
+    const string sMixHash = params[4].str();
+    LOG(INFO) << "mining.submit nonce: " << sNonce << ", header: " << sHeader << ", mixHash" << sMixHash;
+    size_t pos;
+    uint64_t nonce = stoull(sNonce, &pos, 16);  
+    s->checkShare(share, nonce, uint256S(sHeader), uint256S(sMixHash));
     //server_->jobRepository_
     // string request = Strings::Format("{\"jsonrpc\": \"2.0\", \"method\": \"eth_submitWork\", \"params\": [\"%s\",\"%s\",\"%s\"], \"id\": 5}\n",
     //                                  params[2].str().c_str(),

@@ -447,6 +447,15 @@ void JobRepositoryEth::deleteLightNoLock() {
   }
 }
 
+bool JobRepositoryEth::compute(ethash_h256_t const header, uint64_t nonce, ethash_return_value_t& r) {
+  ScopeLock sl(lock_);
+  if (light_ != nullptr) {
+    r = ethash_light_compute(light_, header, nonce);
+    return r.success;
+  }
+  return false;
+}
+
 //////////////////////////////////// UserInfo /////////////////////////////////
 UserInfo::UserInfo(const string &apiUrl, Server *server):
 running_(true), apiUrl_(apiUrl), lastMaxUserId_(0),
@@ -1495,6 +1504,27 @@ void Server::sendCommonEvents2Kafka(const string &message) {
   kafkaProducerCommonEvents_->produce(message.data(), message.size());
 }
 
+////////////////////////////////// ServierEth ///////////////////////////////
+int ServerEth::checkShare(const Share &share,
+                           const uint64_t nonce,
+                           const uint256 header,
+                           const uint256 mixHash)
+{
+  JobRepositoryEth *jobRepo = dynamic_cast<JobRepositoryEth*>(jobRepository_);
+  if (nullptr == jobRepo)
+    return StratumError::ILLEGAL_PARARMS;
+  LOG(INFO) << "checking share nonce: " << nonce << ", header: " << header.GetHex() << ", mixHash: " << mixHash.GetHex(); 
+  ethash_return_value_t r;
+  bool ret = jobRepo->compute(*((ethash_h256_t*)header.GetHex().c_str()), nonce, r);
+  if (!ret || !r.success) {
+     LOG(ERROR) << "light cache creation error";
+     return StratumError::INTERNAL_ERROR;
+  }
+
+  LOG(INFO) << "checking share result: " << (uint8_t*)&r.result << ", mixHash: " << (uint8_t*)&r.mix_hash;
+
+  return StratumError::DUPLICATE_SHARE;
+}
 ////////////////////////////////// StratumJobExEth ///////////////////////////////
 StratumJobExEth::StratumJobExEth(StratumJob *sjob, bool isClean) : StratumJobEx(sjob, isClean)
 {

@@ -135,28 +135,28 @@ public:
 // transactions: Array - Array of transaction objects, or 32 Bytes transaction hashes depending on the last given parameter.
 // uncles: Array - Array of uncle hashes.
 
-class BlockHeaderEth
-{
-  public:
-    uint64_t number_;
-    uint64_t difficulty_;
-    uint64_t totalDifficulty_;
-    uint32_t gasLimit_;
-    uint32_t gasUsed_;
-    uint32_t timestamp_;
-    uint32_t size_;
-    string extraData_;
-    string hash_;
-    string logsBloom_;
-    string miner_;
-    string mixHash_;
-    string nonce_;
-    string parentHash_;
-    string receiptsRoot_;
-    string sha3Uncles_;
-    string stateRoot_;
-    string transactionsRoot_;
-};
+// class BlockHeaderEth
+// {
+//   public:
+//     uint64_t number_;
+//     uint64_t difficulty_;
+//     uint64_t totalDifficulty_;
+//     uint32_t gasLimit_;
+//     uint32_t gasUsed_;
+//     uint32_t timestamp_;
+//     uint32_t size_;
+//     string extraData_;
+//     string hash_;
+//     string logsBloom_;
+//     string miner_;
+//     string mixHash_;
+//     string nonce_;
+//     string parentHash_;
+//     string receiptsRoot_;
+//     string sha3Uncles_;
+//     string stateRoot_;
+//     string transactionsRoot_;
+// };
 
 class JobMakerEth : public JobMaker
 {
