@@ -318,7 +318,7 @@ target_link_libraries(jobmaker btcpool ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE SSERVER_SOURCES src/sserver/*.cc)
 add_executable(sserver ${SSERVER_SOURCES})
-target_link_libraries(sserver btcpool ethash ${THIRD_LIBRARIES})
+target_link_libraries(sserver btcpool /usr/local/lib/libethash.a ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE STATSHTTPD_SOURCES src/statshttpd/*.cc)
 add_executable(statshttpd ${STATSHTTPD_SOURCES})
