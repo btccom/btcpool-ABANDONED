@@ -32,7 +32,7 @@
 #include <utilstrencodings.h>
 #include <hash.h>
 #include <inttypes.h>
-
+#include "libethash/ethash.h"
 #include "rsk/RskSolvedShareData.h"
 
 #include "utilities_js.hpp"

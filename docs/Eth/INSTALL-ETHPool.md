@@ -238,6 +238,14 @@ cmake -DJOBS=4 -DCHAIN_TYPE=SBTC -DCHAIN_SRC_ROOT=/work/SuperBitcoin-0.16.2 -DPO
 make -j4
 ```
 
+**build libethash**
+
+```bash
+cd /work/btcpool/build
+mkdir /libethash
+cmake ../src/libethash
+make install
+```
 
 ---
 
