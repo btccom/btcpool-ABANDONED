@@ -401,8 +401,7 @@ public:
                 bool isEnableSimulator,
                 bool isSubmitInvalidBlock,
                 bool isDevModeEnable,
-                float minerDifficulty,
-                const int32_t shareAvgSeconds);
+                float minerDifficulty);
   ~StratumServer();
   bool createServer(string type, const int32_t shareAvgSeconds);
   bool init();

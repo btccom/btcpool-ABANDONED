@@ -647,8 +647,8 @@ bool StratumJobEth::initFromGw(const CTxDestination &poolPayoutAddr,
   }
 
   JsonNode result = j["result"];
-  if (j.type() != Utilities::JS::type::Obj ||
-      j["number"].type() != Utilities::JS::type::Str)
+  if (result.type() != Utilities::JS::type::Obj ||
+      result["number"].type() != Utilities::JS::type::Str)
   {
     LOG(ERROR) << "block informaiton format not expected: " << blockJson;
     return false;
@@ -673,7 +673,7 @@ bool StratumJobEth::initFromGw(const CTxDestination &poolPayoutAddr,
     isRskCleanJob_ = latestRskBlockJson.getIsCleanJob();
     seedHash_ = latestRskBlockJson.getSeedHash();
     size_t pos;
-    blockNumber_ = stoull(j["number"].str(), &pos, 16);
+    blockNumber_ = stoull(result["number"].str(), &pos, 16);
   }
   return seedHash_.size() && blockHashForMergedMining_.size();
 }

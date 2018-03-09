@@ -865,8 +865,7 @@ StratumServer::StratumServer(const char *ip, const unsigned short port,
                              const char *kafkaBrokers, const string &userAPIUrl,
                              const uint8_t serverId, const string &fileLastNotifyTime,
                              bool isEnableSimulator, bool isSubmitInvalidBlock,
-                             bool isDevModeEnable, float minerDifficulty,
-                             const int32_t shareAvgSeconds)
+                             bool isDevModeEnable, float minerDifficulty)
 :running_(true),
 ip_(ip), port_(port), serverId_(serverId),
 fileLastNotifyTime_(fileLastNotifyTime),
@@ -880,13 +879,14 @@ StratumServer::~StratumServer() {
 }
 
 bool StratumServer::createServer(string type, const int32_t shareAvgSeconds) {
+  LOG(INFO) << "createServer type: " << type << ", shareAvgSeconds: " << shareAvgSeconds;
   if ("BTC" == type)
-    server_ == make_shared<Server> (shareAvgSeconds);
+    server_ = make_shared<Server> (shareAvgSeconds);
   else if ("ETH" == type)
-    server_ == make_shared<ServerEth> (shareAvgSeconds);
+    server_ = make_shared<ServerEth> (shareAvgSeconds);
   else 
     return false;
-  return true;
+  return server_ != nullptr;
 }
 
 bool StratumServer::init() {
