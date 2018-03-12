@@ -460,10 +460,11 @@ bool JobRepositoryEth::compute(ethash_h256_t const header, uint64_t nonce, ethas
     r = ethash_light_compute(light_, header, nonce);
     LOG(INFO) << "ethash_light_compute: " << r.success << ", result: ";
     for (int i = 0; i < 32; ++i)
-      LOG(INFO) << setfill('0') << setw(4) << hex << r.result.b[i];
-    
+      LOG(INFO) << hex << (int)r.result.b[i];
+      
+    LOG(INFO) << "mixed hash: ";
     for (int i = 0; i < 32; ++i)
-      LOG(INFO) << setfill('0') << setw(4) << hex << r.mix_hash.b[i];
+      LOG(INFO) << hex << (int)r.mix_hash.b[i];
 
     return r.success;
   }
@@ -1535,7 +1536,7 @@ int ServerEth::checkShare(const Share &share,
   ethash_h256_t ethashHeader = {0};
   Hex256ToEthash256(strHeader, ethashHeader);
   for (int i = 0; i < 32; ++i) 
-    LOG(INFO) << "ethash_h256_t byte " << i << ": " << ethashHeader.b[i];
+    LOG(INFO) << "ethash_h256_t byte " << i << ": " << hex << (int)ethashHeader.b[i];
     
   bool ret = jobRepo->compute(ethashHeader, nonce, r);
   if (!ret || !r.success) {
