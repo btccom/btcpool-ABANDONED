@@ -139,7 +139,7 @@ public:
 class DiffControllerEth : public DiffController {
   virtual uint64 _calcCurDiff();
   public:
-    DiffControllerEth(const int32_t shareAvgSeconds);
+    DiffControllerEth(const int32_t shareAvgSeconds, const uint64_t defaultDifficulty);
 };
 
 //////////////////////////////// StratumSession ////////////////////////////////

@@ -208,9 +208,11 @@ uint64 DiffController::_calcCurDiff() {
 }
 
 //////////////////////////////// DiffControllerEth ////////////////////////////////
-DiffControllerEth::DiffControllerEth(const int32_t shareAvgSeconds) : DiffController(shareAvgSeconds) {
+DiffControllerEth::DiffControllerEth(const int32_t shareAvgSeconds, const uint64_t defaultDifficulty) : 
+DiffController(shareAvgSeconds)
+{
   minDiff_ = 1;
-  curDiff_ = 40000000000;
+  curDiff_ = defaultDifficulty; 
 }
 
 uint64 DiffControllerEth::_calcCurDiff() {
@@ -1174,9 +1176,10 @@ void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool
     return;
   }
 
-  StratumJobEth *ethJob = dynamic_cast<StratumJobEth*>(exJobPtr.get());
-  if (nullptr == ethJob)
+  StratumJobEth *ethJob = dynamic_cast<StratumJobEth*>(exJobPtr->sjob_);
+  if (nullptr == ethJob) {
     return;
+  }
 
   StratumJob *sjob = exJobPtr->sjob_;
   localJobs_.push_back(LocalJob());
@@ -1185,11 +1188,8 @@ void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool
   ljob.jobId_         = sjob->jobId_;
   ljob.shortJobId_    = allocShortJobId();
   ljob.jobDifficulty_ = diffController_->calcCurDiff();
-  // set difficulty
-  // if (currDiff_ != ljob.jobDifficulty_) {
-  //   currDiff_ = ljob.jobDifficulty_;
-  // }
   string header = ethJob->blockHashForMergedMining_.substr(2, 64);
+  ljob.strJobId_ = header;
   string seed = ethJob->seedHash_.substr(2, 64);
   string strShareTarget = std::move(Eth_DifficultyToTarget(ljob.jobDifficulty_));
   LOG(INFO) << "new stratum job mining.notify: share difficulty=" << ljob.jobDifficulty_ << ", share target=" << strShareTarget;
@@ -1219,7 +1219,7 @@ void StratumSessionEth::handleRequest_Subscribe        (const string &idStr, con
 }
 
 bool StratumSessionEth::initialize() {
-  diffController_ = std::make_shared<DiffControllerEth>(shareAvgSeconds_);
+  diffController_ = std::make_shared<DiffControllerEth>(shareAvgSeconds_, server_->minerDifficulty_);
   return true;
 }
 

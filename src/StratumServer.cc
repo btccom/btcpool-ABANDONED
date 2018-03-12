@@ -432,6 +432,8 @@ void JobRepositoryEth::newLight(uint64_t blkNum) {
   ScopeLock sl(lock_);
   deleteLightNoLock();
   light_ = ethash_light_new(blkNum);
+  if (NULL == light_)
+    LOG(FATAL) << "create light for blk num: " << blkNum << " failed";
 }
 
 void JobRepositoryEth::deleteLight()
