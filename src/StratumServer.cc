@@ -432,11 +432,16 @@ void JobRepositoryEth::newLight(StratumJobEth* job) {
 }
 
 void JobRepositoryEth::newLight(uint64_t blkNum) {
+  const time_t now = time(nullptr);
   ScopeLock sl(lock_);
   deleteLightNoLock();
   light_ = ethash_light_new(blkNum);
   if (NULL == light_)
     LOG(FATAL) << "create light for blk num: " << blkNum << " failed";
+  else {
+    const time_t elapse =  time(nullptr) - now;
+    LOG(INFO) << "create light for blk num: " << blkNum << " takes " << elapse;
+  }
 }
 
 void JobRepositoryEth::deleteLight()
@@ -461,7 +466,7 @@ bool JobRepositoryEth::compute(ethash_h256_t const header, uint64_t nonce, ethas
     LOG(INFO) << "ethash_light_compute: " << r.success << ", result: ";
     for (int i = 0; i < 32; ++i)
       LOG(INFO) << hex << (int)r.result.b[i];
-      
+
     LOG(INFO) << "mixed hash: ";
     for (int i = 0; i < 32; ++i)
       LOG(INFO) << hex << (int)r.mix_hash.b[i];
@@ -1529,12 +1534,12 @@ int ServerEth::checkShare(const Share &share,
   if (nullptr == jobRepo)
     return StratumError::ILLEGAL_PARARMS;
 
-  string strHeader = header.GetHex();
-  LOG(INFO) << "checking share nonce: " << hex << nonce << ", header: " << strHeader << ", mixHash: " << mixHash.GetHex(); 
-  
+  LOG(INFO) << "checking share nonce: " << hex << nonce << ", header: " << header.GetHex() << ", mixHash: " << mixHash.GetHex(); 
+
   ethash_return_value_t r;
   ethash_h256_t ethashHeader = {0};
-  Hex256ToEthash256(strHeader, ethashHeader);
+  Uint256ToEthash256(header, ethashHeader);
+  
   for (int i = 0; i < 32; ++i) 
     LOG(INFO) << "ethash_h256_t byte " << i << ": " << hex << (int)ethashHeader.b[i];
     

@@ -179,3 +179,9 @@ void Hex256ToEthash256(const string &strHex, ethash_h256_t &ethashHeader)
     ethashHeader.b[i] = (uint8_t)val;
   }
 }
+
+void Uint256ToEthash256(uint256 hash, ethash_h256_t &ethashHeader) {
+  //uint256 store hash byte in reversed order
+  for (int i = 0; i < 32; ++i) 
+    ethashHeader.b[i] = *(hash.begin() + 31 -i);
+}
