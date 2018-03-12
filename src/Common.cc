@@ -166,3 +166,16 @@ string Eth_DifficultyToTarget(uint64 diff)  {
   arith_uint256 target = maxInt256 / diff;
   return target.GetHex();
 }
+
+void Hex256ToEthash256(const string &strHex, ethash_h256_t &ethashHeader)
+{
+  if (strHex.size() != 64)
+    return;
+
+  for (size_t i = 0; i < 32; ++i)
+  {
+    size_t size;
+    int val = stoi(strHex.substr(i * 2, 2), &size, 16);
+    ethashHeader.b[i] = (uint8_t)val;
+  }
+}

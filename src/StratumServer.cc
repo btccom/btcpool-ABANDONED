@@ -21,6 +21,8 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
+#include  <iostream>
+#include  <iomanip>
 #include "StratumServer.h"
 
 #include "Common.h"
@@ -36,6 +38,7 @@
 
 #include "utilities_js.hpp"
 
+using namespace std;
 
 #ifndef WORK_WITH_STRATUM_SWITCHER
 
@@ -449,10 +452,19 @@ void JobRepositoryEth::deleteLightNoLock() {
   }
 }
 
-bool JobRepositoryEth::compute(ethash_h256_t const header, uint64_t nonce, ethash_return_value_t& r) {
+bool JobRepositoryEth::compute(ethash_h256_t const header, uint64_t nonce, ethash_return_value_t &r)
+{
   ScopeLock sl(lock_);
-  if (light_ != nullptr) {
+  if (light_ != nullptr)
+  {
     r = ethash_light_compute(light_, header, nonce);
+    LOG(INFO) << "ethash_light_compute: " << r.success << ", result: ";
+    for (int i = 0; i < 32; ++i)
+      LOG(INFO) << setfill('0') << setw(4) << hex << r.result.b[i];
+    
+    for (int i = 0; i < 32; ++i)
+      LOG(INFO) << setfill('0') << setw(4) << hex << r.mix_hash.b[i];
+
     return r.success;
   }
   return false;
@@ -1515,15 +1527,21 @@ int ServerEth::checkShare(const Share &share,
   JobRepositoryEth *jobRepo = dynamic_cast<JobRepositoryEth*>(jobRepository_);
   if (nullptr == jobRepo)
     return StratumError::ILLEGAL_PARARMS;
-  LOG(INFO) << "checking share nonce: " << nonce << ", header: " << header.GetHex() << ", mixHash: " << mixHash.GetHex(); 
+
+  string strHeader = header.GetHex();
+  LOG(INFO) << "checking share nonce: " << hex << nonce << ", header: " << strHeader << ", mixHash: " << mixHash.GetHex(); 
+  
   ethash_return_value_t r;
-  bool ret = jobRepo->compute(*((ethash_h256_t*)header.GetHex().c_str()), nonce, r);
+  ethash_h256_t ethashHeader = {0};
+  Hex256ToEthash256(strHeader, ethashHeader);
+  for (int i = 0; i < 32; ++i) 
+    LOG(INFO) << "ethash_h256_t byte " << i << ": " << ethashHeader.b[i];
+    
+  bool ret = jobRepo->compute(ethashHeader, nonce, r);
   if (!ret || !r.success) {
      LOG(ERROR) << "light cache creation error";
      return StratumError::INTERNAL_ERROR;
   }
-
-  LOG(INFO) << "checking share result: " << (uint8_t*)&r.result << ", mixHash: " << (uint8_t*)&r.mix_hash;
 
   return StratumError::DUPLICATE_SHARE;
 }
