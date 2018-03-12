@@ -463,13 +463,13 @@ bool JobRepositoryEth::compute(ethash_h256_t const header, uint64_t nonce, ethas
   if (light_ != nullptr)
   {
     r = ethash_light_compute(light_, header, nonce);
-    LOG(INFO) << "ethash_light_compute: " << r.success << ", result: ";
-    for (int i = 0; i < 32; ++i)
-      LOG(INFO) << hex << (int)r.result.b[i];
+    // LOG(INFO) << "ethash_light_compute: " << r.success << ", result: ";
+    // for (int i = 0; i < 32; ++i)
+    //   LOG(INFO) << hex << (int)r.result.b[i];
 
-    LOG(INFO) << "mixed hash: ";
-    for (int i = 0; i < 32; ++i)
-      LOG(INFO) << hex << (int)r.mix_hash.b[i];
+    // LOG(INFO) << "mixed hash: ";
+    // for (int i = 0; i < 32; ++i)
+    //   LOG(INFO) << hex << (int)r.mix_hash.b[i];
 
     return r.success;
   }
@@ -1539,7 +1539,7 @@ int ServerEth::checkShare(const Share &share,
   ethash_return_value_t r;
   ethash_h256_t ethashHeader = {0};
   Uint256ToEthash256(header, ethashHeader);
-  
+
   for (int i = 0; i < 32; ++i) 
     LOG(INFO) << "ethash_h256_t byte " << i << ": " << hex << (int)ethashHeader.b[i];
     
@@ -1548,6 +1548,14 @@ int ServerEth::checkShare(const Share &share,
      LOG(ERROR) << "light cache creation error";
      return StratumError::INTERNAL_ERROR;
   }
+
+  uint256 mix = Ethash256ToUint256(r.mix_hash);
+  if (mix != mixHash) {
+     LOG(ERROR) << "mix hash does not match: " << mix.GetHex();
+     return StratumError::INTERNAL_ERROR;
+  }
+
+  uint256 shareTarget = Ethash256ToUint256(r.result);
 
   return StratumError::DUPLICATE_SHARE;
 }
