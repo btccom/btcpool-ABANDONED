@@ -1534,6 +1534,16 @@ int ServerEth::checkShare(const Share &share,
   if (nullptr == jobRepo)
     return StratumError::ILLEGAL_PARARMS;
 
+  shared_ptr<StratumJobEx> exJobPtr = jobRepository_->getStratumJobEx(share.jobId_);
+  if (nullptr == exJobPtr) {
+    return StratumError::JOB_NOT_FOUND;
+  }
+
+  if (exJobPtr->isStale()) {
+    return StratumError::JOB_NOT_FOUND;
+  }
+
+  StratumJob *sjob = exJobPtr->sjob_;
   LOG(INFO) << "checking share nonce: " << hex << nonce << ", header: " << header.GetHex() << ", mixHash: " << mixHash.GetHex(); 
 
   ethash_return_value_t r;
@@ -1556,8 +1566,10 @@ int ServerEth::checkShare(const Share &share,
   }
 
   uint256 shareTarget = Ethash256ToUint256(r.result);
+  if (sjob->rskNetworkTarget_ < shareTarget)
+    return StratumError::LOW_DIFFICULTY;
 
-  return StratumError::DUPLICATE_SHARE;
+  return StratumError::NO_ERROR;
 }
 ////////////////////////////////// StratumJobExEth ///////////////////////////////
 StratumJobExEth::StratumJobExEth(StratumJob *sjob, bool isClean) : StratumJobEx(sjob, isClean)

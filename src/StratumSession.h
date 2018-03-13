@@ -79,7 +79,7 @@ public:
   static const uint64 kMinDiff_ = 64;
 
   static const time_t kDiffWindow_    = 900;   // time window, seconds, 60*N
-  static const time_t kRecordSeconds_ = 10;    // every N seconds as a record
+  static const time_t kRecordSeconds_ = 20;    // every N seconds as a record
 #ifdef NDEBUG
   // If not debugging, set default to 16384
   static const uint64 kDefaultDiff_   = 16384;  // default diff, 2^N
@@ -243,6 +243,7 @@ protected:
 
   void responseError(const string &idStr, int code);
   void responseTrue(const string &idStr);
+  void rpc2ResponseBoolean(const string &idStr, bool result);
 
   bool tryReadLine(string &line);
   void handleLine(const string &line);

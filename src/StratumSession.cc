@@ -431,6 +431,11 @@ void StratumSession::responseTrue(const string &idStr) {
   sendData(s);
 }
 
+void StratumSession::rpc2ResponseBoolean(const string &idStr, bool result) {
+   const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":%s}\n", idStr.c_str(), result ? "true" : "false");
+  sendData(s);
+}
+
 void StratumSession::handleRequest(const string &idStr, const string &method,
                                    const JsonNode &jparams) {
   if (method == "mining.submit") {  // most of requests are 'mining.submit'
@@ -1247,6 +1252,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   auto params = (const_cast<JsonNode&>(jparams)).array();
   if (5 == params.size())
   {
+    // can't find local share
     const string jobId = params[1].str();
     LocalJob *localJob = findLocalJob(jobId);
     if (localJob == nullptr)
@@ -1256,6 +1262,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
     }
 
     Share share;
+    share.jobId_ = localJob->jobId_;
     share.strJobId_ = jobId;
     share.workerHashId_ = worker_.workerHashId_;
     share.ip_ = clientIpInt_;
@@ -1269,8 +1276,33 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
     const string sHeader = params[3].str();
     const string sMixHash = params[4].str();
     size_t pos;
-    uint64_t nonce = stoull(sNonce, &pos, 16);  
-    s->checkShare(share, nonce, uint256S(sHeader), uint256S(sMixHash));
+    uint64_t nonce = stoull(sNonce, &pos, 16);
+
+    LocalShare localShare(0, nonce, 0);
+    // can't find local share
+    if (!localJob->addLocalShare(localShare))
+    {
+      responseError(idStr, StratumError::DUPLICATE_SHARE);
+      // add invalid share to counter
+      invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
+      return;
+    }
+
+    int submitResult = s->checkShare(share, nonce, uint256S(sHeader), uint256S(sMixHash));
+
+    if (StratumError::NO_ERROR == submitResult)
+    {
+      // accepted share
+      share.result_ = Share::Result::ACCEPT;
+      diffController_->addAcceptedShare(share.share_);
+      rpc2ResponseBoolean(idStr, true);
+    }
+    else
+    {
+      // add invalid share to counter
+      invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
+      rpc2ResponseBoolean(idStr, false);
+    }
     //server_->jobRepository_
     // string request = Strings::Format("{\"jsonrpc\": \"2.0\", \"method\": \"eth_submitWork\", \"params\": [\"%s\",\"%s\",\"%s\"], \"id\": 5}\n",
     //                                  params[2].str().c_str(),
