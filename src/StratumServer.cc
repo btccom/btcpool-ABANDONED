@@ -1550,8 +1550,8 @@ int ServerEth::checkShare(const Share &share,
   ethash_h256_t ethashHeader = {0};
   Uint256ToEthash256(header, ethashHeader);
 
-  for (int i = 0; i < 32; ++i) 
-    LOG(INFO) << "ethash_h256_t byte " << i << ": " << hex << (int)ethashHeader.b[i];
+  // for (int i = 0; i < 32; ++i) 
+  //   LOG(INFO) << "ethash_h256_t byte " << i << ": " << hex << (int)ethashHeader.b[i];
     
   bool ret = jobRepo->compute(ethashHeader, nonce, r);
   if (!ret || !r.success) {
@@ -1566,6 +1566,7 @@ int ServerEth::checkShare(const Share &share,
   }
 
   uint256 shareTarget = Ethash256ToUint256(r.result);
+  LOG(INFO) << "comapre share target: " << shareTarget.GetHex() << ", network target: " << sjob->rskNetworkTarget_.GetHex();
   if (sjob->rskNetworkTarget_ < shareTarget)
     return StratumError::LOW_DIFFICULTY;
 
