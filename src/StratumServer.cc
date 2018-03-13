@@ -1566,8 +1566,9 @@ int ServerEth::checkShare(const Share &share,
   }
 
   uint256 shareTarget = Ethash256ToUint256(r.result);
-  LOG(INFO) << "comapre share target: " << shareTarget.GetHex() << ", network target: " << sjob->rskNetworkTarget_.GetHex();
-  if (sjob->rskNetworkTarget_ < shareTarget)
+  DLOG(INFO) << "comapre share target: " << shareTarget.GetHex() << ", network target: " << sjob->rskNetworkTarget_.GetHex();
+  //can not compare directly because unit256 uses memcmp
+  if (UintToArith256(sjob->rskNetworkTarget_) < UintToArith256(shareTarget)) 
     return StratumError::LOW_DIFFICULTY;
 
   return StratumError::NO_ERROR;

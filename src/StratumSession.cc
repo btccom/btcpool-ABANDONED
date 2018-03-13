@@ -1249,7 +1249,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   // "0x4cc7c01bfbe51c67",
   // "0xae778d304393d441bf8e1c47237261675caa3827997f671d8e5ec3bd5d862503",
   // "0x52fdd9e9a796903c6b88af4192717e77d9a9c6fa6a1366540b65e6bcfa9069aa"]}
-  auto params = (const_cast<JsonNode&>(jparams)).array();
+  auto params = (const_cast<JsonNode &>(jparams)).array();
   if (5 == params.size())
   {
     // can't find local share
@@ -1271,7 +1271,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
     share.timestamp_ = (uint32_t)time(nullptr);
     share.result_ = Share::Result::REJECT;
 
-    ServerEth *s = dynamic_cast<ServerEth*> (server_);
+    ServerEth *s = dynamic_cast<ServerEth *>(server_);
     const string sNonce = params[2].str();
     const string sHeader = params[3].str();
     const string sMixHash = params[4].str();
@@ -1290,6 +1290,9 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
 
     int submitResult = s->checkShare(share, nonce, uint256S(sHeader), uint256S(sMixHash));
 
+    // we send share to kafka by default, but if there are lots of invalid
+    // shares in a short time, we just drop them.
+
     if (StratumError::NO_ERROR == submitResult)
     {
       LOG(INFO) << "solution found";
@@ -1298,11 +1301,39 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
       diffController_->addAcceptedShare(share.share_);
       rpc2ResponseBoolean(idStr, true);
     }
+    else if (StratumError::LOW_DIFFICULTY == submitResult)
+    {
+      share.result_ = Share::Result::ACCEPT;
+      rpc2ResponseBoolean(idStr, true);
+    }
     else
     {
       // add invalid share to counter
       invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
       rpc2ResponseBoolean(idStr, false);
+    }
+
+    bool isSendShareToKafka = true;
+    //finish:
+    DLOG(INFO) << share.toString();
+    // check if thers is invalid share spamming
+    if (share.result_ != Share::Result::ACCEPT)
+    {
+      int64_t invalidSharesNum = invalidSharesCounter_.sum(time(nullptr), INVALID_SHARE_SLIDING_WINDOWS_SIZE);
+      // too much invalid shares, don't send them to kafka
+      if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT)
+      {
+        isSendShareToKafka = false;
+        LOG(WARNING) << "invalid share spamming, diff: "
+                     << share.share_ << ", uid: " << worker_.userId_
+                     << ", uname: \"" << worker_.userName_ << "\", agent: \""
+                     << clientAgent_ << "\", ip: " << clientIp_;
+      }
+    }
+
+    if (isSendShareToKafka)
+    {
+      server_->sendShare2Kafka((const uint8_t *)&share, sizeof(Share));
     }
     //server_->jobRepository_
     // string request = Strings::Format("{\"jsonrpc\": \"2.0\", \"method\": \"eth_submitWork\", \"params\": [\"%s\",\"%s\",\"%s\"], \"id\": 5}\n",
