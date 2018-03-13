@@ -481,33 +481,7 @@ void BlockMaker::_submitNamecoinBlockThread(const string &auxBlockHash,
   }
 }
 
-void BlockMaker::consumeSovledShare(rd_kafka_message_t *rkmessage) {
-  // check error
-  if (rkmessage->err) {
-    if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
-      // Reached the end of the topic+partition queue on the broker.
-      // Not really an error.
-      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
-      //      << "[" << rkmessage->partition << "] "
-      //      << " message queue at offset " << rkmessage->offset;
-      // acturlly
-      return;
-    }
-
-    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
-    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
-    << ": " << rd_kafka_message_errstr(rkmessage);
-
-    if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
-        rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
-      LOG(FATAL) << "consume fatal";
-      stop();
-    }
-    return;
-  }
-
-  LOG(INFO) << "received SolvedShare message, len: " << rkmessage->len;
-
+void BlockMaker::processSolvedShare(rd_kafka_message_t *rkmessage) {
   //
   // solved share message:  FoundBlock + coinbase_Tx
   //
@@ -586,6 +560,36 @@ void BlockMaker::consumeSovledShare(rd_kafka_message_t *rkmessage) {
   saveBlockToDBNonBlocking(foundBlock, blkHeader,
                            coinbaseValue,  // coinbase value
                            blockHex.length()/2);
+}
+
+void BlockMaker::consumeSovledShare(rd_kafka_message_t *rkmessage) {
+  // check error
+  if (rkmessage->err) {
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
+      // Reached the end of the topic+partition queue on the broker.
+      // Not really an error.
+      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
+      //      << "[" << rkmessage->partition << "] "
+      //      << " message queue at offset " << rkmessage->offset;
+      // acturlly
+      return;
+    }
+
+    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
+    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
+    << ": " << rd_kafka_message_errstr(rkmessage);
+
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
+        rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
+      LOG(FATAL) << "consume fatal";
+      stop();
+    }
+    return;
+  }
+
+  LOG(INFO) << "received SolvedShare message, len: " << rkmessage->len;
+
+  processSolvedShare(rkmessage);
 }
 
 void BlockMaker::saveBlockToDBNonBlocking(const FoundBlock &foundBlock,
@@ -1000,29 +1004,30 @@ BlockMakerEth::BlockMakerEth(const char *kafkaBrokers, const MysqlConnectInfo &p
 {
 }
 
-void BlockMakerEth::consumeSovledShare(rd_kafka_message_t *rkmessage) {
-    if (rkmessage->err) {
-    if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
-      // Reached the end of the topic+partition queue on the broker.
-      // Not really an error.
-      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
-      //      << "[" << rkmessage->partition << "] "
-      //      << " message queue at offset " << rkmessage->offset;
-      // acturlly
-      return;
-    }
-
-    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
-    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
-    << ": " << rd_kafka_message_errstr(rkmessage);
-
-    if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
-        rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
-      LOG(FATAL) << "consume fatal";
-      stop();
-    }
+void BlockMakerEth::processSolvedShare(rd_kafka_message_t *rkmessage)
+{
+  const char *message = (const char*)rkmessage->payload;
+  JsonNode r;
+  if (!JsonNode::parse(message, message + rkmessage->len, r))
+  {
+    LOG(ERROR) << "decode common event failure";
     return;
   }
 
-  LOG(INFO) << "received SolvedShare message, len: " << rkmessage->len;
+  if (r.type() != Utilities::JS::type::Obj ||
+      r["nonce"].type() != Utilities::JS::type::Str ||
+      r["header"].type() != Utilities::JS::type::Str ||
+      r["mix"].type() != Utilities::JS::type::Str)
+  {
+    LOG(ERROR) << "eth solved share format wrong";
+  }
+
+  string request = Strings::Format("{\"jsonrpc\": \"2.0\", \"method\": \"eth_submitWork\", \"params\": [\"%s\",\"%s\",\"%s\"], \"id\": 5}\n",
+                                   r["nonce"].str().c_str(),
+                                   r["header"].str().c_str(),
+                                   r["mix"].str().c_str());
+
+  string response;
+  bitcoindRpcCall("http://127.0.0.1:8545", "user:pass", request.c_str(), response);
+  LOG(INFO) << "submission result: " << response;
 }

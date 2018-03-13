@@ -87,7 +87,8 @@ class BlockMaker {
 
   void consumeRawGbt     (rd_kafka_message_t *rkmessage);
   void consumeStratumJob (rd_kafka_message_t *rkmessage);
-  virtual void consumeSovledShare(rd_kafka_message_t *rkmessage);
+  void consumeSovledShare(rd_kafka_message_t *rkmessage);
+  virtual void processSolvedShare(rd_kafka_message_t *rkmessage);
   void consumeNamecoinSovledShare(rd_kafka_message_t *rkmessage);
   void consumeRskSolvedShare(rd_kafka_message_t *rkmessage);
 
@@ -136,9 +137,11 @@ public:
   void run();
 };
 
-class BlockMakerEth: public BlockMaker {
+class BlockMakerEth : public BlockMaker
+{
+public:
   BlockMakerEth(const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
-  virtual void consumeSovledShare(rd_kafka_message_t *rkmessage);
+  virtual void processSolvedShare(rd_kafka_message_t *rkmessage);
 };
 
 #endif
