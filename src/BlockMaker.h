@@ -87,7 +87,7 @@ class BlockMaker {
 
   void consumeRawGbt     (rd_kafka_message_t *rkmessage);
   void consumeStratumJob (rd_kafka_message_t *rkmessage);
-  void consumeSovledShare(rd_kafka_message_t *rkmessage);
+  virtual void consumeSovledShare(rd_kafka_message_t *rkmessage);
   void consumeNamecoinSovledShare(rd_kafka_message_t *rkmessage);
   void consumeRskSolvedShare(rd_kafka_message_t *rkmessage);
 
@@ -127,13 +127,18 @@ class BlockMaker {
 
 public:
   BlockMaker(const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
-  ~BlockMaker();
+  virtual ~BlockMaker();
 
   void addBitcoind(const string &rpcAddress, const string &rpcUserpass);
 
   bool init();
   void stop();
   void run();
+};
+
+class BlockMakerEth: public BlockMaker {
+  BlockMakerEth(const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
+  virtual void consumeSovledShare(rd_kafka_message_t *rkmessage);
 };
 
 #endif

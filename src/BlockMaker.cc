@@ -986,11 +986,43 @@ void BlockMaker::runThreadConsumeRskSolvedShare() {
 
 void BlockMaker::run() {
   // setup threads
-  threadConsumeRawGbt_      = thread(&BlockMaker::runThreadConsumeRawGbt,     this);
-  threadConsumeStratumJob_  = thread(&BlockMaker::runThreadConsumeStratumJob, this);
-  threadConsumeNamecoinSovledShare_ = thread(&BlockMaker::runThreadConsumeNamecoinSovledShare, this);
-  threadConsumeRskSolvedShare_ = thread(&BlockMaker::runThreadConsumeRskSolvedShare, this);
+  // threadConsumeRawGbt_      = thread(&BlockMaker::runThreadConsumeRawGbt,     this);
+  // threadConsumeStratumJob_  = thread(&BlockMaker::runThreadConsumeStratumJob, this);
+  // threadConsumeNamecoinSovledShare_ = thread(&BlockMaker::runThreadConsumeNamecoinSovledShare, this);
+  // threadConsumeRskSolvedShare_ = thread(&BlockMaker::runThreadConsumeRskSolvedShare, this);
   sleep(3);
 
   runThreadConsumeSovledShare();
+}
+
+////////////////////////////////////////////////BlockMakerEth////////////////////////////////////////////////////////////////
+BlockMakerEth::BlockMakerEth(const char *kafkaBrokers, const MysqlConnectInfo &poolDB) : BlockMaker(kafkaBrokers, poolDB)
+{
+}
+
+void BlockMakerEth::consumeSovledShare(rd_kafka_message_t *rkmessage) {
+    if (rkmessage->err) {
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
+      // Reached the end of the topic+partition queue on the broker.
+      // Not really an error.
+      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
+      //      << "[" << rkmessage->partition << "] "
+      //      << " message queue at offset " << rkmessage->offset;
+      // acturlly
+      return;
+    }
+
+    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
+    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
+    << ": " << rd_kafka_message_errstr(rkmessage);
+
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
+        rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
+      LOG(FATAL) << "consume fatal";
+      stop();
+    }
+    return;
+  }
+
+  LOG(INFO) << "received SolvedShare message, len: " << rkmessage->len;
 }
