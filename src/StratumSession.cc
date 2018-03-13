@@ -1296,6 +1296,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
     if (StratumError::NO_ERROR == submitResult)
     {
       LOG(INFO) << "solution found";
+      s->sendSolvedShare2Kafka(sNonce, sHeader, sMixHash);
       // accepted share
       share.result_ = Share::Result::ACCEPT;
       diffController_->addAcceptedShare(share.share_);

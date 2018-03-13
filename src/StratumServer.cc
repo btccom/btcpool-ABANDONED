@@ -1573,6 +1573,13 @@ int ServerEth::checkShare(const Share &share,
 
   return StratumError::NO_ERROR;
 }
+
+void ServerEth::sendSolvedShare2Kafka(const string &strNonce, const string &strHeader, const string &strMix)
+{
+  string msg = Strings::Format("{\"nonce\":\"%s\",\"header\":\"%s\",\"mix\":\"%s\"}", strNonce.c_str(), strHeader.c_str(), strMix.c_str());
+  kafkaProducerSolvedShare_->produce(msg.c_str(), msg.length());
+}
+
 ////////////////////////////////// StratumJobExEth ///////////////////////////////
 StratumJobExEth::StratumJobExEth(StratumJob *sjob, bool isClean) : StratumJobEx(sjob, isClean)
 {

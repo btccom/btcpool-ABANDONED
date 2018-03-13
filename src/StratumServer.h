@@ -272,6 +272,7 @@ class Server {
   std::map<evutil_socket_t, StratumSession *> connections_;
   mutex connsLock_;
 
+protected:
   // kafka producers
   KafkaProducer *kafkaProducerShareLog_;
   KafkaProducer *kafkaProducerSolvedShare_;
@@ -364,6 +365,7 @@ public:
                  const uint64_t nonce,
                  const uint256 header,
                  const uint256 mixHash);
+  void sendSolvedShare2Kafka(const string& strNonce, const string& strHeader, const string& strMix);
 };
 
 ////////////////////////////////// StratumServer ///////////////////////////////
