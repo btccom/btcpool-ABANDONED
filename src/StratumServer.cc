@@ -1562,6 +1562,10 @@ int ServerEth::checkShare(const Share &share,
                            const uint256 header,
                            const uint256 mixHash)
 {
+  //accept every share in simulator mode
+  if (isEnableSimulator_)
+     return StratumError::NO_ERROR;
+
   JobRepositoryEth *jobRepo = dynamic_cast<JobRepositoryEth*>(jobRepository_);
   if (nullptr == jobRepo)
     return StratumError::ILLEGAL_PARARMS;

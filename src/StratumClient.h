@@ -42,6 +42,7 @@
 
 ///////////////////////////////// StratumClient ////////////////////////////////
 class StratumClient {
+ protected: 
   struct bufferevent *bev_;
   struct evbuffer *inBuf_;
 
@@ -68,7 +69,7 @@ public:
 
 public:
   StratumClient(struct event_base *base, const string &workerFullName);
-  ~StratumClient();
+  virtual ~StratumClient();
 
   bool connect(struct sockaddr_in &sin);
 
@@ -79,9 +80,15 @@ public:
 
   void readBuf(struct evbuffer *buf);
   void submitShare();
+  virtual string constructShare();
 };
 
-
+class StratumClientEth : public StratumClient 
+{
+public:
+  StratumClientEth(struct event_base *base, const string &workerFullName);
+  virtual string constructShare();
+};
 
 ////////////////////////////// StratumClientWrapper ////////////////////////////
 class StratumClientWrapper {
