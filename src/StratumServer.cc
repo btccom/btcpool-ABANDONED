@@ -435,16 +435,17 @@ void JobRepositoryEth::newLight(StratumJobEth* job) {
 
 void JobRepositoryEth::newLight(uint64_t blkNum)
 {
-  uint64_t const epochs = blkNum / 2;
+  uint64_t const epochs = blkNum / ETHASH_EPOCH_LENGTH;
   //same seed do nothing
   if (epochs == epochs_)
     return;
   epochs_ = epochs;
-  
-  LOG(INFO) << "generating light";
-  const time_t now = time(nullptr);
+
+  LOG(INFO) << "creating light for blk num... " << blkNum;
+  time_t now = time(nullptr);
+  time_t elapse;
   {
-    ScopeLock sl(lock_);
+    ScopeLock sl(lightLock_);
     //deleteLightNoLock();
     if (nullptr == nextLight_)
       light_ = ethash_light_new(blkNum);
@@ -457,17 +458,22 @@ void JobRepositoryEth::newLight(uint64_t blkNum)
       LOG(FATAL) << "create light for blk num: " << blkNum << " failed";
     else
     {
-      const time_t elapse = time(nullptr) - now;
+      elapse = time(nullptr) - now;
       LOG(INFO) << "create light for blk num: " << blkNum << " takes " << elapse << " seconds";
     }
   }
 
-  nextLight_ = ethash_light_new(blkNum + 2);
+  now = time(nullptr);
+  uint64_t nextBlkNum = blkNum + ETHASH_EPOCH_LENGTH;
+  LOG(INFO) << "creating light for blk num... " << nextBlkNum;
+  nextLight_ = ethash_light_new(nextBlkNum);
+  elapse = time(nullptr) - now;
+  LOG(INFO) << "create light for blk num: " << nextBlkNum << " takes " << elapse << " seconds";
 }
 
 void JobRepositoryEth::deleteLight()
 {
-  ScopeLock sl(lock_);
+  ScopeLock sl(lightLock_);
   deleteLightNoLock();
 }
 
@@ -485,7 +491,7 @@ void JobRepositoryEth::deleteLightNoLock() {
 
 bool JobRepositoryEth::compute(ethash_h256_t const header, uint64_t nonce, ethash_return_value_t &r)
 {
-  ScopeLock sl(lock_);
+  ScopeLock sl(lightLock_);
   if (light_ != nullptr)
   {
     r = ethash_light_compute(light_, header, nonce);
