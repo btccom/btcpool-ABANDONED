@@ -1006,7 +1006,7 @@ BlockMakerEth::BlockMakerEth(const char *kafkaBrokers, const MysqlConnectInfo &p
 
 void BlockMakerEth::processSolvedShare(rd_kafka_message_t *rkmessage)
 {
-  const char *message = (const char*)rkmessage->payload;
+  const char *message = (const char *)rkmessage->payload;
   JsonNode r;
   if (!JsonNode::parse(message, message + rkmessage->len, r))
   {
@@ -1028,6 +1028,28 @@ void BlockMakerEth::processSolvedShare(rd_kafka_message_t *rkmessage)
                                    r["mix"].str().c_str());
 
   string response;
-  bitcoindRpcCall("http://127.0.0.1:8545", "user:pass", request.c_str(), response);
-  LOG(INFO) << "submission result: " << response;
+
+  for (const auto &itr : bitcoindRpcUri_)
+  {
+    string response;
+    bitcoindRpcCall(itr.first.c_str(), itr.second.c_str(), request.c_str(), response);
+    LOG(INFO) << "submission result: " << response;
+  }
+}
+
+bool BlockMakerEth::init() {
+  //
+  // Sloved Share
+  //
+  // we need to consume the latest 2 messages, just in case
+  if (kafkaConsumerSovledShare_.setup(RD_KAFKA_OFFSET_TAIL(2)) == false) {
+    LOG(INFO) << "setup kafkaConsumerSovledShare_ fail";
+    return false;
+  }
+  if (!kafkaConsumerSovledShare_.checkAlive()) {
+    LOG(ERROR) << "kafka brokers is not alive: kafkaConsumerSovledShare_";
+    return false;
+  }
+
+  return true;
 }

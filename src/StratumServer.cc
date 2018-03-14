@@ -392,7 +392,7 @@ JobRepository(kafkaBrokers, fileLastNotifyTime, server),
 light_(nullptr)
 {
   serverType_ = ETH;
-  kMaxJobsLifeTime_ = 20;
+  kMaxJobsLifeTime_ = 60;
 }
 
 void JobRepositoryEth::broadcastStratumJob(StratumJob *sjob) {

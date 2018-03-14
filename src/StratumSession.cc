@@ -1178,7 +1178,6 @@ StratumSessionEth::StratumSessionEth(evutil_socket_t fd, struct bufferevent *bev
 
 void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
   LOG(INFO) << "StratumSessionEth::sendMiningNotify";
-
   if (state_ < AUTHENTICATED || exJobPtr == nullptr) {
     return;
   }
