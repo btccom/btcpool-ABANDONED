@@ -153,6 +153,8 @@ private:
   void deleteLightNoLock();
 
   ethash_light_t light_;
+  ethash_light_t nextLight_;
+  uint64_t epochs_;
 };
 
 ///////////////////////////////////// UserInfo /////////////////////////////////

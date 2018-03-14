@@ -389,7 +389,9 @@ JobRepositoryEth::JobRepositoryEth(const char *kafkaBrokers,
                              const string &fileLastNotifyTime,
                              Server *server):
 JobRepository(kafkaBrokers, fileLastNotifyTime, server),
-light_(nullptr)
+light_(nullptr), 
+nextLight_(nullptr),
+epochs_(0xffffffffffffffff)
 {
   serverType_ = ETH;
   kMaxJobsLifeTime_ = 60;
@@ -431,17 +433,36 @@ void JobRepositoryEth::newLight(StratumJobEth* job) {
   newLight(job->blockNumber_);
 }
 
-void JobRepositoryEth::newLight(uint64_t blkNum) {
+void JobRepositoryEth::newLight(uint64_t blkNum)
+{
+  uint64_t const epochs = blkNum / 2;
+  //same seed do nothing
+  if (epochs == epochs_)
+    return;
+  epochs_ = epochs;
+  
+  LOG(INFO) << "generating light";
   const time_t now = time(nullptr);
-  ScopeLock sl(lock_);
-  deleteLightNoLock();
-  light_ = ethash_light_new(blkNum);
-  if (NULL == light_)
-    LOG(FATAL) << "create light for blk num: " << blkNum << " failed";
-  else {
-    const time_t elapse =  time(nullptr) - now;
-    LOG(INFO) << "create light for blk num: " << blkNum << " takes " << elapse;
+  {
+    ScopeLock sl(lock_);
+    //deleteLightNoLock();
+    if (nullptr == nextLight_)
+      light_ = ethash_light_new(blkNum);
+    else {
+      //get pre-generated light if exists
+      ethash_light_delete(light_);
+      light_ =  nextLight_;
+    }
+    if (nullptr == light_)
+      LOG(FATAL) << "create light for blk num: " << blkNum << " failed";
+    else
+    {
+      const time_t elapse = time(nullptr) - now;
+      LOG(INFO) << "create light for blk num: " << blkNum << " takes " << elapse << " seconds";
+    }
   }
+
+  nextLight_ = ethash_light_new(blkNum + 2);
 }
 
 void JobRepositoryEth::deleteLight()
@@ -454,6 +475,11 @@ void JobRepositoryEth::deleteLightNoLock() {
   if (light_ != nullptr) {
     ethash_light_delete(light_);
     light_ = nullptr;
+  }
+
+  if (nextLight_ != nullptr) {
+    ethash_light_delete(nextLight_);
+    nextLight_ = nullptr;
   }
 }
 
