@@ -1326,8 +1326,8 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
         isSendShareToKafka = false;
         LOG(WARNING) << "invalid share spamming, diff: "
                      << share.share_ << ", uid: " << worker_.userId_
-                     << ", uname: \"" << worker_.userName_ << "\", agent: \""
-                     << clientAgent_ << "\", ip: " << clientIp_;
+                     << ", uname: \"" << worker_.userName_ << "\", ip: " << clientIp_ 
+                     << "checkshare result: " << submitResult;
       }
     }
 
