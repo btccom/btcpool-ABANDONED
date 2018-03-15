@@ -98,7 +98,7 @@ class StratumClientWrapper {
   uint32_t numConnections_;
   string userName_;   // miner usename
   string minerNamePrefix_;
-
+  string type_;
   std::set<StratumClient *> connections_;
 
   thread threadSubmitShares_;
@@ -107,7 +107,8 @@ class StratumClientWrapper {
 public:
   StratumClientWrapper(const char *host, const uint32_t port,
                        const uint32_t numConnections,
-                       const string &userName, const string &minerNamePrefix);
+                       const string &userName, const string &minerNamePrefix,
+                       const string &type);
   ~StratumClientWrapper();
 
   static void readCallback (struct bufferevent* bev, void *connection);
@@ -117,6 +118,8 @@ public:
   void run();
 
   void submitShares();
+
+  StratumClient* createClient(struct event_base *base, const string &workerFullName);
 };
 
 

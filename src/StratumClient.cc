@@ -237,9 +237,10 @@ StratumClientWrapper::StratumClientWrapper(const char *host,
                                            const uint32_t port,
                                            const uint32_t numConnections,
                                            const string &userName,
-                                           const string &minerNamePrefix)
-: running_(true), base_(event_base_new()), numConnections_(numConnections),
-userName_(userName), minerNamePrefix_(minerNamePrefix)
+                                           const string &minerNamePrefix,
+                                           const string &type)
+    : running_(true), base_(event_base_new()), numConnections_(numConnections),
+      userName_(userName), minerNamePrefix_(minerNamePrefix), type_(type)
 {
   memset(&sin_, 0, sizeof(sin_));
   sin_.sin_family = AF_INET;
@@ -303,7 +304,7 @@ void StratumClientWrapper::run() {
                                                   userName_.c_str(),
                                                   minerNamePrefix_.c_str(),
                                                   i);
-    StratumClient *client = new StratumClientEth(base_, workerFullName);
+    StratumClient *client = createClient(base_, workerFullName);
 
     if (!client->connect(sin_)) {
       LOG(ERROR) << "client connnect failure: " << workerFullName;
@@ -340,7 +341,16 @@ void StratumClientWrapper::submitShares() {
   }
 }
 
+StratumClient* StratumClientWrapper::createClient(struct event_base *base, const string &workerFullName)
+{
+  StratumClient *client = nullptr;
+  if ("BTC" == type_)
+    client = new StratumClient(base_, workerFullName);
+  else if ("ETH" == type_)
+    client = new StratumClientEth(base_, workerFullName);
 
+  return client;
+}
 
 //////////////////////////////// TCPClientWrapper //////////////////////////////
 TCPClientWrapper::TCPClientWrapper() {
