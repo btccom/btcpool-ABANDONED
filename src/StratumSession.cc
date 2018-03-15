@@ -1253,8 +1253,9 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   {
     // can't find local share
     const string jobId = params[1].str();
-    LocalJob *localJob = findLocalJob(jobId);
-    if (localJob == nullptr)
+    LocalJob tmpJob;
+    LocalJob *localJob = server_->isEnableSimulator_ ? &tmpJob : findLocalJob(jobId);
+    if (!server_->isEnableSimulator_ && localJob == nullptr)
     {
       responseError(idStr, StratumError::JOB_NOT_FOUND);
       return;
@@ -1279,7 +1280,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
 
     LocalShare localShare(0, nonce, 0);
     // can't find local share
-    if (!localJob->addLocalShare(localShare))
+    if (!server_->isEnableSimulator_ && !localJob->addLocalShare(localShare))
     {
       responseError(idStr, StratumError::DUPLICATE_SHARE);
       // add invalid share to counter
@@ -1335,38 +1336,6 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
     {
       server_->sendShare2Kafka((const uint8_t *)&share, sizeof(Share));
     }
-    //server_->jobRepository_
-    // string request = Strings::Format("{\"jsonrpc\": \"2.0\", \"method\": \"eth_submitWork\", \"params\": [\"%s\",\"%s\",\"%s\"], \"id\": 5}\n",
-    //                                  params[2].str().c_str(),
-    //                                  params[3].str().c_str(),
-    //                                  params[4].str().c_str());
-    // LOG(INFO) << "submitting solution: " << request;
-    // string response;
-    // bool res = bitcoindRpcCall("http://127.0.0.1:8545", "user:pass", request.c_str(), response);
-    // if (res)
-    // {
-    //   LOG(INFO) << "response: " << response;
-    //   JsonNode r;
-    //   if (JsonNode::parse(response.c_str(), response.c_str() + response.length(), r))
-    //   {
-    //     if (r["result"].type() == Utilities::JS::type::Bool) {
-    //       const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":%s}\n", idStr.c_str(), r["result"].boolean() ? "true" : "false");
-    //       sendData(s);
-    //     }
-    //     else {
-    //       LOG(ERROR) << "result type not bool";
-    //     }
-    //   }
-    //   else
-    //   {
-    //     LOG(ERROR) << "parse response fail " << response;
-    //   }
-    // }
-    // else
-    // {
-    //   //rpc fail
-    //   LOG(ERROR) << "rpc call fail";
-    // }
   }
 }
 

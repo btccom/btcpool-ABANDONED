@@ -35,7 +35,7 @@
 #include <event2/bufferevent.h>
 
 #include <glog/logging.h>
-
+#include <arith_uint256.h>
 #include <uint256.h>
 #include "utilities_js.hpp"
 
@@ -88,6 +88,7 @@ class StratumClientEth : public StratumClient
 public:
   StratumClientEth(struct event_base *base, const string &workerFullName);
   virtual string constructShare();
+  arith_uint256 header_;
 
 protected:
   virtual void handleLine(const string &line);  

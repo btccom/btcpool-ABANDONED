@@ -205,9 +205,9 @@ void StratumClient::sendData(const char *data, size_t len) {
 
 ////////////////////////////// StratumClientEth ////////////////////////////
 StratumClientEth::StratumClientEth(struct event_base *base, const string &workerFullName) : 
-StratumClient(base, workerFullName)
+StratumClient(base, workerFullName),
+header_(rand())
 {
-
 }
 
 string StratumClientEth::constructShare()
@@ -217,18 +217,17 @@ string StratumClientEth::constructShare()
   // "ae778d304393d441bf8e1c47237261675caa3827997f671d8e5ec3bd5d862503",
   // "0x4cc7c01bfbe51c67","0xae778d304393d441bf8e1c47237261675caa3827997f671d8e5ec3bd5d862503",
   // "0x52fdd9e9a796903c6b88af4192717e77d9a9c6fa6a1366540b65e6bcfa9069aa"]}
-  extraNonce2_++;
-  string extraNonce2Str;
-  // little-endian
-  Bin2Hex((uint8_t *)&extraNonce2_, extraNonce2Size_, extraNonce2Str);
-
-  string s = Strings::Format("{\"id\": 4, \"method\": \"mining.submit\", "
-                      "\"params\": [\"%s\",\"%s\",\"0x%s\",\"0x%s\",\"0x%s\"]}\n",
+  string s = std::move(Strings::Format("{\"id\": 4, \"method\": \"mining.submit\", "
+                      "\"params\": [\"%s\",\"%s\",\"0x%08x%08x\",\"0x%s\",\"0x%s\"]}\n",
                       "ccc",
-                      "6dac01331c10936885cea19a8945f65e756962653d28ace7ce360a635178fd3d",
-                      extraNonce2Str.c_str(),
-                      "6dac01331c10936885cea19a8945f65e756962653d28ace7ce360a635178fd3d",
-                      "0fc7830ad2f4a6f7022f1172d89dd995cc365ad5be7d3735fc84431bece75d92");
+                      header_.GetHex().c_str(),
+                      extraNonce2_ >> 32,
+                      extraNonce2_,
+                      header_.GetHex().c_str(),
+                      header_.GetHex().c_str()));
+
+  extraNonce2_++;
+  header_++;
   return s;
 }
 

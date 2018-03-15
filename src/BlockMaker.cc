@@ -1035,6 +1035,35 @@ void BlockMakerEth::processSolvedShare(rd_kafka_message_t *rkmessage)
     bitcoindRpcCall(itr.first.c_str(), itr.second.c_str(), request.c_str(), response);
     LOG(INFO) << "submission result: " << response;
   }
+
+    //server_->jobRepository_
+    // LOG(INFO) << "submitting solution: " << request;
+    // string response;
+    // bool res = bitcoindRpcCall("http://127.0.0.1:8545", "user:pass", request.c_str(), response);
+    // if (res)
+    // {
+    //   LOG(INFO) << "response: " << response;
+    //   JsonNode r;
+    //   if (JsonNode::parse(response.c_str(), response.c_str() + response.length(), r))
+    //   {
+    //     if (r["result"].type() == Utilities::JS::type::Bool) {
+    //       const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":%s}\n", idStr.c_str(), r["result"].boolean() ? "true" : "false");
+    //       sendData(s);
+    //     }
+    //     else {
+    //       LOG(ERROR) << "result type not bool";
+    //     }
+    //   }
+    //   else
+    //   {
+    //     LOG(ERROR) << "parse response fail " << response;
+    //   }
+    // }
+    // else
+    // {
+    //   //rpc fail
+    //   LOG(ERROR) << "rpc call fail";
+    // }
 }
 
 bool BlockMakerEth::init() {

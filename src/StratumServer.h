@@ -275,7 +275,7 @@ class Server {
   std::map<evutil_socket_t, StratumSession *> connections_;
   mutex connsLock_;
 
-protected:
+public:
   // kafka producers
   KafkaProducer *kafkaProducerShareLog_;
   KafkaProducer *kafkaProducerSolvedShare_;
@@ -294,7 +294,6 @@ protected:
   //
   bool isSubmitInvalidBlock_;
 
-public:
 #ifndef WORK_WITH_STRATUM_SWITCHER
   SessionIDManager *sessionIDManager_;
 #endif
@@ -373,6 +372,8 @@ public:
 
 ////////////////////////////////// StratumServer ///////////////////////////////
 class StratumServer {
+
+public:
   atomic<bool> running_;
 
   shared_ptr<Server> server_;
@@ -397,7 +398,6 @@ class StratumServer {
   // difficulty to send to miners. for development
   float minerDifficulty_;
 
-public:
   StratumServer(const char *ip, const unsigned short port,
                 const char *kafkaBrokers,
                 const string &userAPIUrl,
