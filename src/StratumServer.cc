@@ -1558,60 +1558,67 @@ void Server::sendCommonEvents2Kafka(const string &message) {
 
 ////////////////////////////////// ServierEth ///////////////////////////////
 int ServerEth::checkShare(const Share &share,
-                           const uint64_t nonce,
-                           const uint256 header,
-                           const uint256 mixHash)
+                          const uint64_t nonce,
+                          const uint256 header,
+                          const uint256 mixHash)
 {
   //accept every share in simulator mode
   if (isEnableSimulator_)
-     return StratumError::NO_ERROR;
+  {
+    usleep(20000);
+    return StratumError::NO_ERROR;
+  }
 
-  JobRepositoryEth *jobRepo = dynamic_cast<JobRepositoryEth*>(jobRepository_);
+  JobRepositoryEth *jobRepo = dynamic_cast<JobRepositoryEth *>(jobRepository_);
   if (nullptr == jobRepo)
     return StratumError::ILLEGAL_PARARMS;
 
   shared_ptr<StratumJobEx> exJobPtr = jobRepository_->getStratumJobEx(share.jobId_);
-  if (nullptr == exJobPtr) {
+  if (nullptr == exJobPtr)
+  {
     return StratumError::JOB_NOT_FOUND;
   }
 
-  if (exJobPtr->isStale()) {
+  if (exJobPtr->isStale())
+  {
     return StratumError::JOB_NOT_FOUND;
   }
 
   StratumJob *sjob = exJobPtr->sjob_;
-  //LOG(INFO) << "checking share nonce: " << hex << nonce << ", header: " << header.GetHex() << ", mixHash: " << mixHash.GetHex(); 
+  //LOG(INFO) << "checking share nonce: " << hex << nonce << ", header: " << header.GetHex() << ", mixHash: " << mixHash.GetHex();
   ethash_return_value_t r;
   ethash_h256_t ethashHeader = {0};
   Uint256ToEthash256(header, ethashHeader);
 
-  // for (int i = 0; i < 32; ++i) 
+  // for (int i = 0; i < 32; ++i)
   //   LOG(INFO) << "ethash_h256_t byte " << i << ": " << hex << (int)ethashHeader.b[i];
   timeval start, end;
-  long mtime, seconds, useconds;  
+  long mtime, seconds, useconds;
   gettimeofday(&start, NULL);
   bool ret = jobRepo->compute(ethashHeader, nonce, r);
   gettimeofday(&end, NULL);
-  seconds  = end.tv_sec  - start.tv_sec;
+  seconds = end.tv_sec - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+  mtime = ((seconds)*1000 + useconds / 1000.0) + 0.5;
   LOG(INFO) << "light compute takes " << mtime << " ms";
 
-  if (!ret || !r.success) {
-     LOG(ERROR) << "light cache creation error";
-     return StratumError::INTERNAL_ERROR;
+  if (!ret || !r.success)
+  {
+    LOG(ERROR) << "light cache creation error";
+    return StratumError::INTERNAL_ERROR;
   }
 
   uint256 mix = Ethash256ToUint256(r.mix_hash);
-  if (mix != mixHash) {
-     LOG(ERROR) << "mix hash does not match: " << mix.GetHex();
-     return StratumError::INTERNAL_ERROR;
+  if (mix != mixHash)
+  {
+    LOG(ERROR) << "mix hash does not match: " << mix.GetHex();
+    return StratumError::INTERNAL_ERROR;
   }
 
   uint256 shareTarget = Ethash256ToUint256(r.result);
   //DLOG(INFO) << "comapre share target: " << shareTarget.GetHex() << ", network target: " << sjob->rskNetworkTarget_.GetHex();
   //can not compare directly because unit256 uses memcmp
-  if (UintToArith256(sjob->rskNetworkTarget_) < UintToArith256(shareTarget)) 
+  if (UintToArith256(sjob->rskNetworkTarget_) < UintToArith256(shareTarget))
     return StratumError::LOW_DIFFICULTY;
 
   return StratumError::NO_ERROR;

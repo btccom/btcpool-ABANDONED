@@ -1220,7 +1220,7 @@ void StratumSessionEth::handleRequest_Subscribe        (const string &idStr, con
 
   state_ = SUBSCRIBED;
 
-  const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":true}\n", idStr.c_str());
+  const string s = std::move(Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":true}\n", idStr.c_str()));
   sendData(s);
 }
 
