@@ -55,7 +55,7 @@ class StratumClient {
   uint64_t latestDiff_;
 
   bool tryReadLine(string &line);
-  void handleLine(const string &line);
+  virtual void handleLine(const string &line);
 
 public:
   // mining state
@@ -88,6 +88,9 @@ class StratumClientEth : public StratumClient
 public:
   StratumClientEth(struct event_base *base, const string &workerFullName);
   virtual string constructShare();
+
+protected:
+  virtual void handleLine(const string &line);  
 };
 
 ////////////////////////////// StratumClientWrapper ////////////////////////////

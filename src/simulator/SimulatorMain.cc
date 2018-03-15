@@ -127,7 +127,7 @@ int main(int argc, char **argv) {
                                         (unsigned short)port, numConns,
                                         cfg.lookup("simulator.username"),
                                         cfg.lookup("simulator.minername_prefix"),
-                                        cfg.lookup("type"));
+                                        cfg.lookup("simulator.type"));
     gWrapper->run();
 
     delete gWrapper;
