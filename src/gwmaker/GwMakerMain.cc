@@ -157,19 +157,49 @@ int main(int argc, char **argv) {
   signal(SIGTERM, handler);
   signal(SIGINT,  handler);
 
-  gGwMaker = createGwMaker(cfg);
+  initDefinitions(cfg);
+  vector<shared_ptr<GwMaker>> gwMakers;
 
-  try {
-    if (!gGwMaker->init()) {
-      LOG(FATAL) << "gwmaker init failure";
-    } else {
-      gGwMaker->run();
+  for (auto gwDef : gwDefiniitons_)
+  {
+    if (gwDef.enable)
+    {
+      shared_ptr<GwMaker> gwMaker = std::make_shared<GwMaker>(
+          gwDef.url,
+          gwDef.userpwd,
+          gwDef.broker,
+          gwDef.pullingInterval);
+
+      try
+      {
+        if (gwMaker->init())
+          gwMakers.push_back(gwMaker);
+        else
+          LOG(FATAL) << "gwmaker init failure " << gwDef.topic;
+      }
+
+      catch (std::exception &e)
+      {
+        LOG(FATAL) << "exception: " << e.what();
+      }
     }
-    delete gGwMaker;
-  } catch (std::exception & e) {
-    LOG(FATAL) << "exception: " << e.what();
-    return 1;
   }
+
+
+  //TODO: run logic
+  //gGwMaker = createGwMaker(cfg);
+
+  // try {
+  //   if (!gGwMaker->init()) {
+  //     LOG(FATAL) << "gwmaker init failure";
+  //   } else {
+  //     gGwMaker->run();
+  //   }
+  //   delete gGwMaker;
+  // } catch (std::exception & e) {
+  //   LOG(FATAL) << "exception: " << e.what();
+  //   return 1;
+  // }
 
   google::ShutdownGoogleLogging();
   return 0;

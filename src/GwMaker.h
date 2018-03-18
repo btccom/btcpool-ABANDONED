@@ -46,7 +46,7 @@ struct GwDefinition {
   const string      reqData; 
   const string      agent;
   const string      topic;
-  const string      kafkaBroker;
+  const string      broker;
   const uint32      pullingInterval;
   GwHandler         handler;
   bool              enable;
