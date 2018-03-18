@@ -38,6 +38,22 @@
 #include "Kafka.h"
 #include "utilities_js.hpp"
 
+using GwHandler = string (*) (const string&);
+
+struct GwDefinition {
+  const string      url;
+  const string      userpwd; 
+  const string      reqData; 
+  const string      agent;
+  const string      topic;
+  const string      kafkaBroker;
+  const uint32      pullingInterval;
+  GwHandler         handler;
+  bool              enable;
+};
+
+vector<GwDefinition> gwDefiniitons_;
+
 class GwMaker {
   atomic<bool> running_;
 

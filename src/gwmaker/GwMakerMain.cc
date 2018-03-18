@@ -74,6 +74,18 @@ GwMaker* createGwMaker (Config &cfg) {
   return gGwMaker;
 }
 
+void createGwMaker (Config &cfg) {
+  gwDefiniitons_.push_back({"http://127.0.0.1:9980/miner/header", 
+  "xxx", 
+  "", 
+  "Sia-Agent", 
+  "siaraw", 
+  "127.0.0.1:9092",
+  500,
+  nullptr, 
+  true});
+}
+
 int main(int argc, char **argv) {
   char *optLogDir = NULL;
   char *optConf   = NULL;

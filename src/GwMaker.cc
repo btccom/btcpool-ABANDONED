@@ -37,7 +37,6 @@
 
 #include <util.h>
 #include <utilstrencodings.h>
-
 #include "Utils.h"
 
 GwMaker::GwMaker(const string &rskdRpcAddr, const string &rskdRpcUserpass,
