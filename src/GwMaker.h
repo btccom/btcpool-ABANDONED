@@ -52,7 +52,7 @@ struct GwDefinition {
   bool              enable;
 };
 
-vector<GwDefinition> gwDefiniitons_;
+static vector<GwDefinition> gwDefiniitons_;
 
 class GwMaker {
   atomic<bool> running_;

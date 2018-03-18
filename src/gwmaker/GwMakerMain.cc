@@ -74,16 +74,29 @@ GwMaker* createGwMaker (Config &cfg) {
   return gGwMaker;
 }
 
-void createGwMaker (Config &cfg) {
-  gwDefiniitons_.push_back({"http://127.0.0.1:9980/miner/header", 
-  "xxx", 
-  "", 
-  "Sia-Agent", 
-  "siaraw", 
-  "127.0.0.1:9092",
-  500,
-  nullptr, 
-  true});
+void initDefinitions(Config &cfg)
+{
+  gwDefiniitons_.push_back(
+      {"http://127.0.0.1:9980/miner/header",
+       "xxx",
+       "",
+       "Sia-Agent",
+       "siaraw",
+       "127.0.0.1:9092",
+       500,
+       nullptr,
+       true});
+
+  gwDefiniitons_.push_back(
+      {"http://127.0.0.1:8545",
+       "user:pass",
+       "{\"jsonrpc\": \"2.0\", \"method\": \"eth_getWork\", \"params\": [], \"id\": 1}",
+       "curl",
+       "KAFKA_TOPIC_RAWGW",
+       "127.0.0.1:9092",
+       500,
+       nullptr,
+       true});
 }
 
 int main(int argc, char **argv) {
