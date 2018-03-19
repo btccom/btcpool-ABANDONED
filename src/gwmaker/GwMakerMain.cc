@@ -105,12 +105,12 @@ void initDefinitions(Config &cfg)
     string data = move(definitions[i].lookup("data"));
     string agent = move(definitions[i].lookup("agent"));
     string topic = move(definitions[i].lookup("topic"));
-    string broker = move(definitions[i].lookup("addr"));
+    string broker = move(definitions[i].lookup("broker"));
     string handlerType = move(definitions[i].lookup("handler"));
     uint32_t interval = 500;
-    cfg.lookupValue("interval", interval);
-    bool enalbed = false;
-    cfg.lookupValue("enalbed", enalbed);
+    definitions[i].lookupValue("interval", interval);
+    bool enabled = false;
+    definitions[i].lookupValue("enabled", enabled);
     shared_ptr<GwHandler> handler(createHandler(handlerType));
     if (handler != nullptr)
     {
@@ -123,7 +123,7 @@ void initDefinitions(Config &cfg)
            broker,
            interval,
            handler,
-           enalbed});
+           enabled});
     }
     else
       LOG(ERROR) << "created handler failed for type " << handlerType;
