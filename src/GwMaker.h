@@ -49,7 +49,7 @@ struct GwDefinition {
   const string      broker;
   const uint32      pullingInterval;
   GwHandler         handler;
-  bool              enable;
+  bool              enabled;
 };
 
 static vector<GwDefinition> gwDefiniitons_;

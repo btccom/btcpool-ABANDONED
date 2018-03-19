@@ -42,12 +42,17 @@
 using namespace std;
 using namespace libconfig;
 
-GwMaker *gGwMaker = nullptr;
+//GwMaker *gGwMaker = nullptr;
+vector<shared_ptr<GwMaker>> gGwMakers;
 
 void handler(int sig) {
-  if (gGwMaker) {
-    gGwMaker->stop();
+  for (auto gwMaker: gGwMakers) {
+    if (gwMaker)
+      gwMaker->stop();
   }
+  // if (gGwMaker) {
+  //   gGwMaker->stop();
+  // }
 }
 
 void usage() {
@@ -85,7 +90,7 @@ void initDefinitions(Config &cfg)
        "127.0.0.1:9092",
        500,
        nullptr,
-       true});
+       false});
 
   gwDefiniitons_.push_back(
       {"http://127.0.0.1:8545",
@@ -97,6 +102,11 @@ void initDefinitions(Config &cfg)
        500,
        nullptr,
        true});
+}
+
+void workerThread(shared_ptr<GwMaker> gwMaker) {
+  if (gwMaker)
+    gwMaker->run();
 }
 
 int main(int argc, char **argv) {
@@ -158,11 +168,10 @@ int main(int argc, char **argv) {
   signal(SIGINT,  handler);
 
   initDefinitions(cfg);
-  vector<shared_ptr<GwMaker>> gwMakers;
-
+  vector<shared_ptr<thread>> workers;
   for (auto gwDef : gwDefiniitons_)
   {
-    if (gwDef.enable)
+    if (gwDef.enabled)
     {
       shared_ptr<GwMaker> gwMaker = std::make_shared<GwMaker>(
           gwDef.url,
@@ -172,12 +181,13 @@ int main(int argc, char **argv) {
 
       try
       {
-        if (gwMaker->init())
-          gwMakers.push_back(gwMaker);
+        if (gwMaker->init()) {
+          gGwMakers.push_back(gwMaker);
+          workers.push_back(std::make_shared<thread>(workerThread, gwMaker));
+        }
         else
           LOG(FATAL) << "gwmaker init failure " << gwDef.topic;
       }
-
       catch (std::exception &e)
       {
         LOG(FATAL) << "exception: " << e.what();
@@ -185,6 +195,10 @@ int main(int argc, char **argv) {
     }
   }
 
+  for (auto pWorker : workers) {
+    if (pWorker->joinable())
+      pWorker->join();
+  }
 
   //TODO: run logic
   //gGwMaker = createGwMaker(cfg);
