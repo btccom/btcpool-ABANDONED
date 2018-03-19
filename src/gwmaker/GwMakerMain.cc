@@ -79,29 +79,77 @@ void usage() {
 //   return gGwMaker;
 // }
 
+GwHandler* createHandler(const string& type) {
+  GwHandler* handler = nullptr;
+  if ("ETH" == type)
+    return new GwHandlerEth();
+  else if ("SIA" == type)
+    return new GwHandlerSia();
+
+  return handler;
+}
+
 void initDefinitions(Config &cfg)
 {
-  gGwDefiniitons.push_back(
-      {"http://127.0.0.1:9980/miner/header",
-       "xxx",
-       "",
-       "Sia-Agent",
-       "siaraw",
-       "127.0.0.1:9092",
-       500,
-       make_shared<GwHandlerSia>(),
-       false});
+  const Setting &root = cfg.getRoot();
+  const Setting &definitions = root["definitions"];
 
-  gGwDefiniitons.push_back(
-      {"http://127.0.0.1:8545",
-       "user:pass",
-       "{\"jsonrpc\": \"2.0\", \"method\": \"eth_getWork\", \"params\": [], \"id\": 1}",
-       "curl",
-       KAFKA_TOPIC_RAWGW,
-       "127.0.0.1:9092",
-       500,
-       make_shared<GwHandlerEth>(),
-       true});
+  for (int i = 0; i < definitions.getLength(); i++)
+  {
+    // string rpcAddr, rpcUserpwd;
+    // bitcoinds[i].lookupValue("rpc_addr", rpcAddr);
+    // bitcoinds[i].lookupValue("rpc_userpwd", rpcUserpwd);
+    // gBlockMaker->addBitcoind(rpcAddr, rpcUserpwd);
+    string addr = move(definitions[i].lookup("addr"));
+    string userpwd = move(definitions[i].lookup("userpwd"));
+    string data = move(definitions[i].lookup("data"));
+    string agent = move(definitions[i].lookup("agent"));
+    string topic = move(definitions[i].lookup("topic"));
+    string broker = move(definitions[i].lookup("addr"));
+    string handlerType = move(definitions[i].lookup("handler"));
+    uint32_t interval = 500;
+    cfg.lookupValue("interval", interval);
+    bool enalbed = false;
+    cfg.lookupValue("enalbed", enalbed);
+    shared_ptr<GwHandler> handler(createHandler(handlerType));
+    if (handler != nullptr)
+    {
+      gGwDefiniitons.push_back(
+          {addr,
+           userpwd,
+           data,
+           agent,
+           topic,
+           broker,
+           interval,
+           handler,
+           enalbed});
+    }
+    else
+      LOG(ERROR) << "created handler failed for type " << handlerType;
+  }
+
+  // gGwDefiniitons.push_back(
+  //     {"http://127.0.0.1:9980/miner/header",
+  //      "xxx",
+  //      "",
+  //      "Sia-Agent",
+  //      "siaraw",
+  //      "127.0.0.1:9092",
+  //      500,
+  //      make_shared<GwHandlerSia>(),
+  //      false});
+
+  // gGwDefiniitons.push_back(
+  //     {"http://127.0.0.1:8545",
+  //      "user:pass",
+  //      "{\"jsonrpc\": \"2.0\", \"method\": \"eth_getWork\", \"params\": [], \"id\": 1}",
+  //      "curl",
+  //      KAFKA_TOPIC_RAWGW,
+  //      "127.0.0.1:9092",
+  //      500,
+  //      make_shared<GwHandlerEth>(),
+  //      true});
 }
 
 void workerThread(shared_ptr<GwMaker> gwMaker) {

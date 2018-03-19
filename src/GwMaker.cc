@@ -95,9 +95,9 @@ void GwMaker::kafkaProduceMsg(const void *payload, size_t len) {
 bool GwMaker::rskdRpcGw(string &response)
 {
   //string request = constructRequest();
-  bool res = rpcCall(gwDef_.url.c_str(),
+  bool res = rpcCall(gwDef_.addr.c_str(),
                      gwDef_.userpwd.c_str(),
-                     gwDef_.reqData.empty() ? nullptr : gwDef_.reqData.c_str(),
+                     gwDef_.data.empty() ? nullptr : gwDef_.data.c_str(),
                      response,
                      gwDef_.agent.c_str());
 
@@ -177,7 +177,7 @@ void GwMaker::submitRawGwMsg() {
 void GwMaker::run() {
 
   while (running_) {
-    usleep(gwDef_.pullingInterval * 1000);
+    usleep(gwDef_.interval * 1000);
     submitRawGwMsg();
   }
 }
@@ -273,7 +273,7 @@ string GwHandlerEth::constructRawMsg(const GwDefinition& def, JsonNode &r) {
                          "\"hHash\":\"%s\","
                          "\"sHash\":\"%s\"}",
                          (uint32_t)time(nullptr), 
-                         def.url.c_str(), 
+                         def.addr.c_str(), 
                          def.userpwd.c_str(),
                          result[2].str().c_str(),
                          result[0].str().c_str(), 

@@ -63,13 +63,13 @@ class GwHandlerSia : public GwHandler
 
 struct GwDefinition
 {
-  const string url;
+  const string addr;
   const string userpwd;
-  const string reqData;
+  const string data;
   const string agent;
   const string topic;
   const string broker;
-  const uint32 pullingInterval;
+  const uint32 interval;
   shared_ptr<GwHandler> handler;
   bool enabled;
 };
