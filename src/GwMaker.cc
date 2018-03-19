@@ -296,7 +296,13 @@ string GwHandlerSia::processRawMsg(const GwDefinition& def, const string& msg)
     targetStr += Strings::Format("%02x", val);
   }
 
-  LOG(INFO) << "Sia work target length: " << targetStr.length() << ", value : 0x" << targetStr;
+  string blkIdStr;
+  for (int i = 32; i < 64; ++i) {
+    uint8 val = (uint8) msg[i];
+    blkIdStr += Strings::Format("%02x", val);
+  }
+
+  LOG(INFO) << "Sia work target 0x" << targetStr << ", blkId 0x" << blkIdStr;
   
   //  = msg.substr(0, 32);
   // string parentIdStr = msg.substr(32, 32);
