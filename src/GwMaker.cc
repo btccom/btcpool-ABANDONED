@@ -34,7 +34,6 @@
 #include "GwMaker.h"
 
 #include <glog/logging.h>
-
 #include <util.h>
 #include <utilstrencodings.h>
 #include "Utils.h"
@@ -156,7 +155,7 @@ string GwMaker::makeRawGwMsg() {
     return "";
   }
 
-  LOG(INFO) << "getwork: " << gw;
+  LOG(INFO) << "getwork len: " << gw.length() << ", buf" << gw;
 
   return gwDef_.handler ? gwDef_.handler->processRawMsg(gwDef_, gw) : "";
 }
@@ -284,5 +283,24 @@ string GwHandlerEth::constructRawMsg(const GwDefinition& def, JsonNode &r) {
 ///////////////////////////////GwHandlerSia////////////////////////////////////
 string GwHandlerSia::processRawMsg(const GwDefinition& def, const string& msg) 
 {
+//   Field	Byte range within response	Byte range within header
+// target	[0-32)	
+// header	[32-112)	
+// parent block ID	[32-64)	[0-32)
+// nonce	[64-72)	[32-40)
+// timestamp	[72-80)	[40-48)
+// merkle root	[80-112)	[48-80)
+  string targetStr;
+  for (int i = 0; i < 32; ++i) {
+    uint8 val = (uint8) msg[i];
+    targetStr += Strings::Format("%02x", val);
+  }
+
+  LOG(INFO) << "Sia work target length: " << targetStr.length() << ", value : 0x" << targetStr;
+  
+  //  = msg.substr(0, 32);
+  // string parentIdStr = msg.substr(32, 32);
+  // string parentIdStr = msg.substr(32, 32);
+  
   return "";
 }
