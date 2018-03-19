@@ -193,7 +193,7 @@ void GwMaker::submitRawGwMsg() {
 void GwMaker::run() {
 
   while (running_) {
-    usleep(kRpcCallInterval_ * 1000);
+    usleep(gwDef_.pullingInterval * 1000);
     submitRawGwMsg();
   }
 }
