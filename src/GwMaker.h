@@ -39,21 +39,26 @@
 #include "utilities_js.hpp"
 
 //using GwHandler = string (*) (const string&, void* );
+struct GwDefinition;
+
 class GwHandler {
   public:
-    virtual string processRawMsg(const string& msg) = 0;  
+    virtual string processRawMsg(const GwDefinition& def, const string& msg) = 0;  
 };
 
-class GwHandlerEth : public GwHandler 
+class GwHandlerEth : public GwHandler
 {
-  public:
-    virtual string processRawMsg(const string& msg);
+  bool checkFields(JsonNode &r);
+  string constructRawMsg(const GwDefinition& def, JsonNode &r);
+
+public:
+  virtual string processRawMsg(const GwDefinition& def, const string &msg);
 };
 
 class GwHandlerSia : public GwHandler 
 {
   public:
-    virtual string processRawMsg(const string& msg);
+    virtual string processRawMsg(const GwDefinition& def, const string& msg);
 };
 
 struct GwDefinition

@@ -158,23 +158,7 @@ string GwMaker::makeRawGwMsg() {
 
   LOG(INFO) << "getwork: " << gw;
 
-  return gwDef_.handler ? gwDef_.handler->processRawMsg(gw) : "";
-  // JsonNode r;
-  // if (!JsonNode::parse(gw.c_str(), gw.c_str() + gw.length(), r)) {
-  //   LOG(ERROR) << "decode gw failure: " << gw;
-  //   return "";
-  // }
-
-  // //LOG(INFO) << "result type: " << (int)r["result"].type();
-  // //LOG(INFO) << "parse result: " << r["result"].str();
-
-  // // check fields
-  // if (!checkFields(r)) {
-  //   LOG(ERROR) << "gw check fields failure";
-  //   return "";
-  // }
-
-  // return constructRawMsg(gw, r);
+  return gwDef_.handler ? gwDef_.handler->processRawMsg(gwDef_, gw) : "";
 }
 
 void GwMaker::submitRawGwMsg() {
@@ -199,16 +183,26 @@ void GwMaker::run() {
 }
 
 ///////////////////////////////GwHandlerEth////////////////////////////////////
-string GwHandlerEth::processRawMsg(const string& msg) 
+string GwHandlerEth::processRawMsg(const GwDefinition& def, const string& msg) 
 {
-  return "";
+  JsonNode r;
+  if (!JsonNode::parse(msg.c_str(), msg.c_str() + msg.length(), r)) {
+    LOG(ERROR) << "decode gw failure: " << msg;
+    return "";
+  }
+
+  //LOG(INFO) << "result type: " << (int)r["result"].type();
+  //LOG(INFO) << "parse result: " << r["result"].str();
+
+  // check fields
+  if (!checkFields(r)) {
+    LOG(ERROR) << "gw check fields failure";
+    return "";
+  }
+
+  return constructRawMsg(def, r);
 }
 
-///////////////////////////////GwHandlerSia////////////////////////////////////
-string GwHandlerSia::processRawMsg(const string& msg) 
-{
-  return "";
-}
 // GwMakerEth::GwMakerEth(const string &rskdRpcAddr, const string &rskdRpcUserpass,
 //                        const string &kafkaBrokers, uint32_t kRpcCallInterval) : GwMaker(rskdRpcAddr, rskdRpcUserpass, kafkaBrokers, kRpcCallInterval)
 // {
@@ -219,71 +213,76 @@ string GwHandlerSia::processRawMsg(const string& msg)
 //   return "{\"jsonrpc\": \"2.0\", \"method\": \"eth_getWork\", \"params\": [], \"id\": 1}";
 // }
 
-// bool GwMakerEth::checkFields(JsonNode &r)
-// {
-//   // Ethereum's GetWork gives us 3 values:
+bool GwHandlerEth::checkFields(JsonNode &r)
+{
+  // Ethereum's GetWork gives us 3 values:
 
-//   // { ... "result":[
-//   // "0x645cf20198c2f3861e947d4f67e3ab63b7b2e24dcc9095bd9123e7b33371f6cc",
-//   // "0xabad8f99f3918bf903c6a909d9bbc0fdfa5a2f4b9cb1196175ec825c6610126c",
-//   // "0x0000000394427b08175efa9a9eb59b9123e2969bf19bf272b20787ed022fbe6c"
-//   // ]}
+  // { ... "result":[
+  // "0x645cf20198c2f3861e947d4f67e3ab63b7b2e24dcc9095bd9123e7b33371f6cc",
+  // "0xabad8f99f3918bf903c6a909d9bbc0fdfa5a2f4b9cb1196175ec825c6610126c",
+  // "0x0000000394427b08175efa9a9eb59b9123e2969bf19bf272b20787ed022fbe6c"
+  // ]}
 
-//   // First value is headerhash, second value is seedhash and third value is
-//   // target. Seedhash is used to identify DAG file, headerhash and 64 bit
-//   // nonce value chosen by our miner give us hash, which, if below provided
-//   // target, yield block/share.
+  // First value is headerhash, second value is seedhash and third value is
+  // target. Seedhash is used to identify DAG file, headerhash and 64 bit
+  // nonce value chosen by our miner give us hash, which, if below provided
+  // target, yield block/share.
 
-//   // error
-//   // {
-//   //     "jsonrpc": "2.0",
-//   //     "id": 73,
-//   //     "error": {
-//   //         "code": -32000,
-//   //         "message": "mining not ready: No work available yet, don't panic."
-//   //     }
-//   // }
-//   if (r.type() != Utilities::JS::type::Obj)
-//   {
-//     LOG(ERROR) << "getwork return not jason";
-//     return false;
-//   }
+  // error
+  // {
+  //     "jsonrpc": "2.0",
+  //     "id": 73,
+  //     "error": {
+  //         "code": -32000,
+  //         "message": "mining not ready: No work available yet, don't panic."
+  //     }
+  // }
+  if (r.type() != Utilities::JS::type::Obj)
+  {
+    LOG(ERROR) << "getwork return not jason";
+    return false;
+  }
 
-//   JsonNode result = r["result"];
-//   if (result["error"].type() == Utilities::JS::type::Obj &&
-//       result["error"]["message"].type() == Utilities::JS::type::Str)
-//   {
-//     LOG(ERROR) << result["error"]["message"].str();
-//   }
+  JsonNode result = r["result"];
+  if (result["error"].type() == Utilities::JS::type::Obj &&
+      result["error"]["message"].type() == Utilities::JS::type::Str)
+  {
+    LOG(ERROR) << result["error"]["message"].str();
+    return false;
+  }
 
-//   if (r.type() != Utilities::JS::type::Obj ||
-//       r["result"].type() != Utilities::JS::type::Array ||
-//       r["result"].array().size() != 3)
-//   {
-//     LOG(ERROR) << "getwork retrun unexpected";
-//     return false;
-//   }
+  if (r.type() != Utilities::JS::type::Obj ||
+      r["result"].type() != Utilities::JS::type::Array ||
+      r["result"].array().size() != 3)
+  {
+    LOG(ERROR) << "getwork retrun unexpected";
+    return false;
+  }
 
-//   return true;
-// }
+  return true;
+}
 
-// string GwMakerEth::constructRawMsg(string &gw, JsonNode &r) {
-//   const uint256 gwHash = Hash(gw.begin(), gw.end());
+string GwHandlerEth::constructRawMsg(const GwDefinition& def, JsonNode &r) {
+  // const uint256 gwHash = Hash(gw.begin(), gw.end());
+  // LOG(INFO) << "gwhash: " << gwHash.ToString();
+  auto result = r["result"].array();
+  return Strings::Format("{\"created_at_ts\":%u,"
+                         "\"rskdRpcAddress\":\"%s\","
+                         "\"rskdRpcUserPwd\":\"%s\","
+                         "\"target\":\"%s\","
+                         "\"hHash\":\"%s\","
+                         "\"sHash\":\"%s\"}",
+                         (uint32_t)time(nullptr), 
+                         def.url.c_str(), 
+                         def.userpwd.c_str(),
+                         result[2].str().c_str(),
+                         result[0].str().c_str(), 
+                         result[1].str().c_str());
+}
 
-//   LOG(INFO) << "gwhash: " << gwHash.ToString();
 
-  
-//   auto result = r["result"].array();
-//   return Strings::Format("{\"created_at_ts\":%u,"
-//                          "\"rskdRpcAddress\":\"%s\","
-//                          "\"rskdRpcUserPwd\":\"%s\","
-//                          "\"target\":\"%s\","
-//                          "\"hHash\":\"%s\","
-//                          "\"sHash\":\"%s\"}",
-//                          (uint32_t)time(nullptr), 
-//                          rskdRpcAddr_.c_str(), 
-//                          rskdRpcUserpass_.c_str(),
-//                          result[2].str().c_str(),
-//                          result[0].str().c_str(), 
-//                          result[1].str().c_str());
-// }
+///////////////////////////////GwHandlerSia////////////////////////////////////
+string GwHandlerSia::processRawMsg(const GwDefinition& def, const string& msg) 
+{
+  return "";
+}
