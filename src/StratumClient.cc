@@ -192,7 +192,7 @@ void StratumClient::submitShare()
   if (state_ != AUTHENTICATED)
     return;
 
-  sendData(std::move(constructShare()));
+  sendData(constructShare());
 }
 
 void StratumClient::sendData(const char *data, size_t len) {

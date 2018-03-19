@@ -59,29 +59,29 @@ void usage() {
   fprintf(stderr, "Usage:\n\tgwmaker -c \"gwmaker.cfg\" -l \"log_dir\"\n");
 }
 
-GwMaker* createGwMaker (Config &cfg) {
-  GwMaker* gGwMaker = NULL;
-  uint32_t pollPeriod = 100;
-  cfg.lookupValue("gwmaker.poll_period", pollPeriod);
-  string type = cfg.lookup("rskd.type");
-  if ("BTC" == type) {
-    gGwMaker = new GwMaker(cfg.lookup("rskd.rpc_addr"),
-                           cfg.lookup("rskd.rpc_userpwd"),
-                           cfg.lookup("kafka.brokers"),
-                           pollPeriod);
-  } else if ("ETH" == type) {
-    gGwMaker = new GwMakerEth(cfg.lookup("rskd.rpc_addr"),
-                           cfg.lookup("rskd.rpc_userpwd"),
-                           cfg.lookup("kafka.brokers"),
-                           pollPeriod);
-  }
+// GwMaker* createGwMaker (Config &cfg) {
+//   GwMaker* gGwMaker = NULL;
+//   uint32_t pollPeriod = 100;
+//   cfg.lookupValue("gwmaker.poll_period", pollPeriod);
+//   string type = cfg.lookup("rskd.type");
+//   if ("BTC" == type) {
+//     gGwMaker = new GwMaker(cfg.lookup("rskd.rpc_addr"),
+//                            cfg.lookup("rskd.rpc_userpwd"),
+//                            cfg.lookup("kafka.brokers"),
+//                            pollPeriod);
+//   } else if ("ETH" == type) {
+//     gGwMaker = new GwMakerEth(cfg.lookup("rskd.rpc_addr"),
+//                            cfg.lookup("rskd.rpc_userpwd"),
+//                            cfg.lookup("kafka.brokers"),
+//                            pollPeriod);
+//   }
 
-  return gGwMaker;
-}
+//   return gGwMaker;
+// }
 
 void initDefinitions(Config &cfg)
 {
-  gwDefiniitons_.push_back(
+  gGwDefiniitons.push_back(
       {"http://127.0.0.1:9980/miner/header",
        "xxx",
        "",
@@ -89,18 +89,18 @@ void initDefinitions(Config &cfg)
        "siaraw",
        "127.0.0.1:9092",
        500,
-       nullptr,
+       make_shared<GwHandlerSia>(),
        false});
 
-  gwDefiniitons_.push_back(
+  gGwDefiniitons.push_back(
       {"http://127.0.0.1:8545",
        "user:pass",
        "{\"jsonrpc\": \"2.0\", \"method\": \"eth_getWork\", \"params\": [], \"id\": 1}",
        "curl",
-       "KAFKA_TOPIC_RAWGW",
+       KAFKA_TOPIC_RAWGW,
        "127.0.0.1:9092",
        500,
-       nullptr,
+       make_shared<GwHandlerEth>(),
        true});
 }
 
@@ -169,16 +169,11 @@ int main(int argc, char **argv) {
 
   initDefinitions(cfg);
   vector<shared_ptr<thread>> workers;
-  for (auto gwDef : gwDefiniitons_)
+  for (auto gwDef : gGwDefiniitons)
   {
     if (gwDef.enabled)
     {
-      shared_ptr<GwMaker> gwMaker = std::make_shared<GwMaker>(
-          gwDef.url,
-          gwDef.userpwd,
-          gwDef.broker,
-          gwDef.pullingInterval);
-
+      shared_ptr<GwMaker> gwMaker = std::make_shared<GwMaker>(gwDef);
       try
       {
         if (gwMaker->init()) {
