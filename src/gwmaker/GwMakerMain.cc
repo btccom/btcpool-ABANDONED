@@ -260,10 +260,7 @@ int main(int argc, char **argv) {
   //   LOG(FATAL) << "exception: " << e.what();
   //   return 1;
   // }
-  LOG(INFO) << "shtting down google";
-
-  google::ShutdownGoogleLogging();
-
   LOG(INFO) << "gwmaker exit";
+  google::ShutdownGoogleLogging();
   return 0;
 }
