@@ -80,7 +80,7 @@ void GwMaker::stop() {
     return;
   }
   running_ = false;
-  LOG(INFO) << "stop GwMaker";
+  LOG(INFO) << "stop GwMaker " << gwDef_.topic;
 }
 
 void GwMaker::kafkaProduceMsg(const void *payload, size_t len) {
@@ -167,7 +167,7 @@ void GwMaker::submitRawGwMsg() {
   }
 
   // submit to Kafka
-  LOG(INFO) << "submit to Kafka msg len: " << rawGwMsg.length() << ", " << rawGwMsg;
+  LOG(INFO) << "submit to Kafka msg len: " << rawGwMsg.length();
   kafkaProduceMsg(rawGwMsg.c_str(), rawGwMsg.length());
 }
 
@@ -177,6 +177,8 @@ void GwMaker::run() {
     usleep(gwDef_.interval * 1000);
     submitRawGwMsg();
   }
+
+  LOG(INFO) << "GwMaker " << gwDef_.topic << " stopped";
 }
 
 ///////////////////////////////GwHandlerEth////////////////////////////////////

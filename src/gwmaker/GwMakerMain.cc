@@ -239,8 +239,11 @@ int main(int argc, char **argv) {
   }
 
   for (auto pWorker : workers) {
-    if (pWorker->joinable())
+    if (pWorker->joinable()) {
+      LOG(INFO) << "wait for worker " << pWorker->get_id();
       pWorker->join();
+      LOG(INFO) << "worker exit";
+    }
   }
 
   //TODO: run logic
@@ -257,7 +260,10 @@ int main(int argc, char **argv) {
   //   LOG(FATAL) << "exception: " << e.what();
   //   return 1;
   // }
+  LOG(INFO) << "shtting down google";
 
   google::ShutdownGoogleLogging();
+
+  LOG(INFO) << "gwmaker exit";
   return 0;
 }
