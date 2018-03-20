@@ -154,9 +154,7 @@ string GwMaker::makeRawGwMsg() {
   if (!rskdRpcGw(gw)) {
     return "";
   }
-
-  LOG(INFO) << "getwork len: " << gw.length() << ", buf" << gw;
-
+  LOG(INFO) << "getwork len: " << gw.length();
   return gwDef_.handler ? gwDef_.handler->processRawMsg(gwDef_, gw) : "";
 }
 
@@ -169,7 +167,7 @@ void GwMaker::submitRawGwMsg() {
   }
 
   // submit to Kafka
-  LOG(INFO) << "submit to Kafka msg len: " << rawGwMsg.length();
+  LOG(INFO) << "submit to Kafka msg len: " << rawGwMsg.length() << ", " << rawGwMsg;
   kafkaProduceMsg(rawGwMsg.c_str(), rawGwMsg.length());
 }
 
@@ -299,32 +297,39 @@ string GwHandlerSia::processRawMsg(const GwDefinition &def, const string &msg)
     targetStr += Strings::Format("%02x", val);
   }
 
-  string blkIdStr;
-  for (int i = 32; i < 64; ++i)
-  {
-    uint8 val = (uint8)msg[i];
-    blkIdStr += Strings::Format("%02x", val);
-  }
+  // string blkIdStr;
+  // for (int i = 32; i < 64; ++i)
+  // {
+  //   uint8 val = (uint8)msg[i];
+  //   blkIdStr += Strings::Format("%02x", val);
+  // }
 
-  string nonceStr;
-  for (int i = 64; i < 72; ++i)
-  {
-    uint8 val = (uint8)msg[i];
-    nonceStr += Strings::Format("%02x", val);
-  }
+  // string nonceStr;
+  // for (int i = 64; i < 72; ++i)
+  // {
+  //   uint8 val = (uint8)msg[i];
+  //   nonceStr += Strings::Format("%02x", val);
+  // }
 
-  string timestampStr;
-  for (int i = 72; i < 80; ++i)
-  {
-    uint8 val = (uint8)msg[i];
-    timestampStr += Strings::Format("%02x", val);
-  }
+  // string timestampStr;
+  // for (int i = 72; i < 80; ++i)
+  // {
+  //   uint8 val = (uint8)msg[i];
+  //   timestampStr += Strings::Format("%02x", val);
+  // }
 
-  string merkleRootStr;
-  for (int i = 80; i < 112; ++i)
+  // string merkleRootStr;
+  // for (int i = 80; i < 112; ++i)
+  // {
+  //   uint8 val = (uint8)msg[i];
+  //   merkleRootStr += Strings::Format("%02x", val);
+  // }
+
+  string headerStr;
+  for (int i = 32; i < 112; ++i)
   {
     uint8 val = (uint8)msg[i];
-    merkleRootStr += Strings::Format("%02x", val);
+    headerStr += Strings::Format("%02x", val);
   }
 
   //LOG(INFO) << "Sia work target 0x" << targetStr << ", blkId 0x" << blkIdStr << ;
@@ -332,16 +337,10 @@ string GwHandlerSia::processRawMsg(const GwDefinition &def, const string &msg)
                          "\"rskdRpcAddress\":\"%s\","
                          "\"rskdRpcUserPwd\":\"%s\","
                          "\"target\":\"%s\","
-                         "\"parentBlockHash\":\"%s\","
-                         "\"nonce\":\"%s\","
-                         "\"timestamp\":\"%s\","
-                         "\"merkleRoot\":\"%s\"}",
+                         "\"hHash\":\"%s\"}",
                          (uint32_t)time(nullptr),
                          def.addr.c_str(),
                          def.userpwd.c_str(),
                          targetStr.c_str(),
-                         blkIdStr.c_str(),
-                         nonceStr.c_str(),
-                         timestampStr.c_str(),
-                         merkleRootStr.c_str());
+                         headerStr.c_str());
 }
