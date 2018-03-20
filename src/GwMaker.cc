@@ -122,31 +122,32 @@ bool GwMaker::checkFields(JsonNode &r) {
 }
 
 string GwMaker::constructRawMsg(string &gw, JsonNode &r) {
-  const uint256 gwHash = Hash(gw.begin(), gw.end());
+  return "";
+  // const uint256 gwHash = Hash(gw.begin(), gw.end());
 
-  LOG(INFO) << ", parent block hash: "    << r["result"]["parentBlockHash"].str()
-  << ", block hash for merge mining: " << r["result"]["blockHashForMergedMining"].str()
-  << ", target: "               << r["result"]["target"].str()
-  << ", fees paid to miner: "   << r["result"]["feesPaidToMiner"].str()
-  << ", notify: " << r["result"]["notify"].boolean()
-  << ", gwhash: " << gwHash.ToString();
+  // LOG(INFO) << ", parent block hash: "    << r["result"]["parentBlockHash"].str()
+  // << ", block hash for merge mining: " << r["result"]["blockHashForMergedMining"].str()
+  // << ", target: "               << r["result"]["target"].str()
+  // << ", fees paid to miner: "   << r["result"]["feesPaidToMiner"].str()
+  // << ", notify: " << r["result"]["notify"].boolean()
+  // << ", gwhash: " << gwHash.ToString();
 
-  return Strings::Format("{\"created_at_ts\":%u,"
-                         "\"rskdRpcAddress\":\"%s\","
-                         "\"rskdRpcUserPwd\":\"%s\","
-                         "\"target\":\"%s\","
-                         "\"parentBlockHash\":\"%s\","
-                         "\"blockHashForMergedMining\":\"%s\","
-                         "\"feesPaidToMiner\":\"%s\","
-                         "\"notify\":\"%s\"}",
-                         (uint32_t)time(nullptr), 
-                         rskdRpcAddr_.c_str(), 
-                         rskdRpcUserpass_.c_str(),
-                         r["result"]["target"].str().c_str(), 
-                         r["result"]["parentBlockHash"].str().c_str(),
-                         r["result"]["blockHashForMergedMining"].str().c_str(),
-                         r["result"]["feesPaidToMiner"].str().c_str(),
-                         r["result"]["notify"].boolean() ? "true" : "false");
+  // return Strings::Format("{\"created_at_ts\":%u,"
+  //                        "\"rskdRpcAddress\":\"%s\","
+  //                        "\"rskdRpcUserPwd\":\"%s\","
+  //                        "\"target\":\"%s\","
+  //                        "\"parentBlockHash\":\"%s\","
+  //                        "\"blockHashForMergedMining\":\"%s\","
+  //                        "\"feesPaidToMiner\":\"%s\","
+  //                        "\"notify\":\"%s\"}",
+  //                        (uint32_t)time(nullptr), 
+  //                        rskdRpcAddr_.c_str(), 
+  //                        rskdRpcUserpass_.c_str(),
+  //                        r["result"]["target"].str().c_str(), 
+  //                        r["result"]["parentBlockHash"].str().c_str(),
+  //                        r["result"]["blockHashForMergedMining"].str().c_str(),
+  //                        r["result"]["feesPaidToMiner"].str().c_str(),
+  //                        r["result"]["notify"].boolean() ? "true" : "false");
 }
 
 string GwMaker::makeRawGwMsg() {

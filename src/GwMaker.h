@@ -80,9 +80,9 @@ class GwMaker {
   GwDefinition gwDef_;
   atomic<bool> running_;
 
-protected:
-  string rskdRpcAddr_;
-  string rskdRpcUserpass_;
+// protected:
+//   string rskdRpcAddr_;
+//   string rskdRpcUserpass_;
 
 private:
   uint32_t kRpcCallInterval_;
