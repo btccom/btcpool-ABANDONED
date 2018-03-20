@@ -281,32 +281,67 @@ string GwHandlerEth::constructRawMsg(const GwDefinition& def, JsonNode &r) {
 
 
 ///////////////////////////////GwHandlerSia////////////////////////////////////
-string GwHandlerSia::processRawMsg(const GwDefinition& def, const string& msg) 
+string GwHandlerSia::processRawMsg(const GwDefinition &def, const string &msg)
 {
-//   Field	Byte range within response	Byte range within header
-// target	[0-32)	
-// header	[32-112)	
-// parent block ID	[32-64)	[0-32)
-// nonce	[64-72)	[32-40)
-// timestamp	[72-80)	[40-48)
-// merkle root	[80-112)	[48-80)
+  if (msg.length() != 112)
+    return "";
+
+  // target	[0-32)
+  // header	[32-112)
+  // parent block ID	[32-64)	[0-32)
+  // nonce	[64-72)	[32-40)
+  // timestamp	[72-80)	[40-48)
+  // merkle root	[80-112)	[48-80)
   string targetStr;
-  for (int i = 0; i < 32; ++i) {
-    uint8 val = (uint8) msg[i];
+  for (int i = 0; i < 32; ++i)
+  {
+    uint8 val = (uint8)msg[i];
     targetStr += Strings::Format("%02x", val);
   }
 
   string blkIdStr;
-  for (int i = 32; i < 64; ++i) {
-    uint8 val = (uint8) msg[i];
+  for (int i = 32; i < 64; ++i)
+  {
+    uint8 val = (uint8)msg[i];
     blkIdStr += Strings::Format("%02x", val);
   }
 
-  LOG(INFO) << "Sia work target 0x" << targetStr << ", blkId 0x" << blkIdStr;
-  
-  //  = msg.substr(0, 32);
-  // string parentIdStr = msg.substr(32, 32);
-  // string parentIdStr = msg.substr(32, 32);
-  
-  return "";
+  string nonceStr;
+  for (int i = 64; i < 72; ++i)
+  {
+    uint8 val = (uint8)msg[i];
+    nonceStr += Strings::Format("%02x", val);
+  }
+
+  string timestampStr;
+  for (int i = 72; i < 80; ++i)
+  {
+    uint8 val = (uint8)msg[i];
+    timestampStr += Strings::Format("%02x", val);
+  }
+
+  string merkleRootStr;
+  for (int i = 80; i < 112; ++i)
+  {
+    uint8 val = (uint8)msg[i];
+    merkleRootStr += Strings::Format("%02x", val);
+  }
+
+  //LOG(INFO) << "Sia work target 0x" << targetStr << ", blkId 0x" << blkIdStr << ;
+  return Strings::Format("{\"created_at_ts\":%u,"
+                         "\"rskdRpcAddress\":\"%s\","
+                         "\"rskdRpcUserPwd\":\"%s\","
+                         "\"target\":\"%s\","
+                         "\"parentBlockHash\":\"%s\","
+                         "\"nonce\":\"%s\","
+                         "\"timestamp\":\"%s\","
+                         "\"merkleRoot\":\"%s\"}",
+                         (uint32_t)time(nullptr),
+                         def.addr.c_str(),
+                         def.userpwd.c_str(),
+                         targetStr.c_str(),
+                         blkIdStr.c_str(),
+                         nonceStr.c_str(),
+                         timestampStr.c_str(),
+                         merkleRootStr.c_str());
 }
