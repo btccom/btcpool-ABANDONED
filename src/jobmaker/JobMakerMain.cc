@@ -47,11 +47,16 @@ using namespace libconfig;
 
 JobMaker *gJobMaker = nullptr;
 Zookeeper *gZookeeper = nullptr;
+static vector<shared_ptr<JobMaker>> jobMakers;
 
 void handler(int sig) {
-  if (gJobMaker) {
-    gJobMaker->stop();
+  for (auto jobMaker: jobMakers) {
+    if (jobMaker)
+      jobMaker->stop();
   }
+  // if (gJobMaker) {
+  //   gJobMaker->stop();
+  // }
 
   if (gZookeeper) {
     delete gZookeeper;
@@ -221,7 +226,6 @@ int main(int argc, char **argv) {
     }
 
     initDefinitions(cfg);
-    vector<shared_ptr<JobMaker>> jobMakers;
     vector<shared_ptr<thread>> workers;
     string brokers = std::move(cfg.lookup("kafka.brokers"));
     for (auto def : gJobMakerDefinitions)
