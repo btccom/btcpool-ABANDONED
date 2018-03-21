@@ -36,16 +36,30 @@
 #include <map>
 #include <deque>
 
+struct JobMakerDefinition
+{
+  const string payoutAddr;
+  const string fileLastJobTime;
+  const string consumerTopic;
+  const string producerTopic;
+  const uint32 stratumJobInterval;
+  //shared_ptr<GwHandler> handler;
+  bool enabled;
+};
+
+static vector<JobMakerDefinition> gJobMakerDefinitions; 
+
 class JobMaker {
 protected:
+  JobMakerDefinition def_;
   atomic<bool> running_;
   mutex lock_;
 
   string kafkaBrokers_;
   KafkaProducer kafkaProducer_;
-  KafkaConsumer kafkaRawGbtConsumer_;
+  //KafkaConsumer kafkaRawGbtConsumer_;
 
-  KafkaConsumer kafkaNmcAuxConsumer_;  // merged mining for namecoin
+  //KafkaConsumer kafkaNmcAuxConsumer_;  // merged mining for namecoin
   mutex auxJsonlock_;
   string latestNmcAuxBlockJson_;
 
@@ -76,7 +90,7 @@ protected:
 
   thread threadConsumeNmcAuxBlock_;
   thread threadConsumeRskRawGw_;
-
+  
 protected:
   void consumeNmcAuxBlockMsg(rd_kafka_message_t *rkmessage);
   void consumeRawGwMsg(rd_kafka_message_t *rkmessage);
@@ -102,11 +116,13 @@ private:
   inline bool gbtKeyIsEmptyBlock(uint64_t gbtKey);
   virtual RskWork* createWork();
 public:
-  JobMaker(const string &kafkaBrokers, uint32_t stratumJobInterval,
-           const string &payoutAddr, uint32_t gbtLifeTime,
-           uint32_t emptyGbtLifeTime, const string &fileLastJobTime,
-           uint32_t rskNotifyPolicy, uint32_t blockVersion,
-					const string &poolCoinbaseInfo);
+  // JobMaker(const string &kafkaBrokers, uint32_t stratumJobInterval,
+  //          const string &payoutAddr, uint32_t gbtLifeTime,
+  //          uint32_t emptyGbtLifeTime, const string &fileLastJobTime,
+  //          uint32_t rskNotifyPolicy, uint32_t blockVersion,
+	// 				const string &poolCoinbaseInfo);
+
+  JobMaker(const JobMakerDefinition def, const string& brokers);
   virtual ~JobMaker();
 
   bool init();
@@ -158,18 +174,18 @@ public:
 //     string transactionsRoot_;
 // };
 
-class JobMakerEth : public JobMaker
-{
-  virtual RskWork* createWork();
-  virtual bool triggerRskUpdate();
-  virtual void checkAndSendStratumJob(bool isRskUpdate);
-  void sendGwStratumJob();
-public:
-  JobMakerEth(const string &kafkaBrokers, uint32_t stratumJobInterval,
-              const string &payoutAddr, const string &fileLastJobTime,
-              uint32_t rskNotifyPolicy, uint32_t blockVersion,
-              const string &poolCoinbaseInfo);
-  virtual bool initConsumer();
-  virtual void run();            
-};
+// class JobMakerEth : public JobMaker
+// {
+//   virtual RskWork* createWork();
+//   virtual bool triggerRskUpdate();
+//   virtual void checkAndSendStratumJob(bool isRskUpdate);
+//   void sendGwStratumJob();
+// public:
+//   JobMakerEth(const string &kafkaBrokers, uint32_t stratumJobInterval,
+//               const string &payoutAddr, const string &fileLastJobTime,
+//               uint32_t rskNotifyPolicy, uint32_t blockVersion,
+//               const string &poolCoinbaseInfo);
+//   virtual bool initConsumer();
+//   virtual void run();            
+// };
 #endif

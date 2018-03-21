@@ -63,43 +63,72 @@ void usage() {
   fprintf(stderr, "Usage:\n\tjobmaker -c \"jobmaker.cfg\" -l \"log_dir\"\n");
 }
 
-JobMaker *createJobMaker(const Config &cfg)
-{
-  JobMaker *gJobMaker = NULL;
-
-  string fileLastJobTime;
-  string poolCoinbaseInfo;
-  // with default values
-  uint32_t stratumJobInterval = 20; // seconds
-  uint32_t gbtLifeTime = 90;
-  uint32_t emptyGbtLifeTime = 15;
-  uint32_t rskNotifyPolicy = 0u;
-  uint32_t blockVersion = 0u;
-
-  cfg.lookupValue("jobmaker.stratum_job_interval", stratumJobInterval);
-  cfg.lookupValue("jobmaker.gbt_life_time", gbtLifeTime);
-  cfg.lookupValue("jobmaker.empty_gbt_life_time", emptyGbtLifeTime);
-  cfg.lookupValue("jobmaker.file_last_job_time", fileLastJobTime);
-  cfg.lookupValue("jobmaker.block_version", blockVersion);
-  cfg.lookupValue("pool.coinbase_info", poolCoinbaseInfo);
-  cfg.lookupValue("jobmaker.rsk_notify_policy", rskNotifyPolicy);
-  string type = cfg.lookup("jobmaker.type");
-
-  if ("BTC" == type)
+void initDefinitions(const Config &cfg) {
+  const Setting &root = cfg.getRoot();
+  const Setting &definitions = root["definitions"];
+  
+  for (int i = 0; i < definitions.getLength(); i++)
   {
-    gJobMaker = new JobMaker(cfg.lookup("kafka.brokers"), stratumJobInterval,
-                             cfg.lookup("pool.payout_address"), gbtLifeTime,
-                             emptyGbtLifeTime, fileLastJobTime,
-                             rskNotifyPolicy, blockVersion, poolCoinbaseInfo);
+    const string consumerTopic = move(definitions[i].lookup("consumer_topic"));
+    const string fileLastJobTime = move(definitions[i].lookup("file_last_job_time"));
+    const string payoutAddr = move(definitions[i].lookup("payout_address"));
+    const string producerTopic = move(definitions[i].lookup("producer_topic"));
+    uint32 stratumJobInterval = 500;
+    definitions[i].lookupValue("stratum_job_interval", stratumJobInterval);
+    bool enabled = false;
+    definitions[i].lookupValue("enabled", enabled);
+    //if (handler != nullptr)
+    //{
+      gJobMakerDefinitions.push_back(
+          {payoutAddr,
+           fileLastJobTime,
+           consumerTopic,
+           producerTopic,
+           stratumJobInterval,
+           enabled});
+    //}
+    //else
+    // LOG(ERROR) << "created handler failed for type " << handlerType;
   }
-  else if ("ETH" == type)
-  {
-    gJobMaker = new JobMakerEth(cfg.lookup("kafka.brokers"), stratumJobInterval,
-                                cfg.lookup("pool.payout_address"), fileLastJobTime,
-                                rskNotifyPolicy, blockVersion, poolCoinbaseInfo);
-  }
-  return gJobMaker;
 }
+
+// JobMaker *createJobMaker(const Config &cfg)
+// {
+//   JobMaker *gJobMaker = NULL;
+
+//   string fileLastJobTime;
+//   string poolCoinbaseInfo;
+//   // with default values
+//   uint32_t stratumJobInterval = 20; // seconds
+//   uint32_t gbtLifeTime = 90;
+//   uint32_t emptyGbtLifeTime = 15;
+//   uint32_t rskNotifyPolicy = 0u;
+//   uint32_t blockVersion = 0u;
+
+//   cfg.lookupValue("jobmaker.stratum_job_interval", stratumJobInterval);
+//   cfg.lookupValue("jobmaker.gbt_life_time", gbtLifeTime);
+//   cfg.lookupValue("jobmaker.empty_gbt_life_time", emptyGbtLifeTime);
+//   cfg.lookupValue("jobmaker.file_last_job_time", fileLastJobTime);
+//   cfg.lookupValue("jobmaker.block_version", blockVersion);
+//   cfg.lookupValue("pool.coinbase_info", poolCoinbaseInfo);
+//   cfg.lookupValue("jobmaker.rsk_notify_policy", rskNotifyPolicy);
+//   string type = cfg.lookup("jobmaker.type");
+
+//   if ("BTC" == type)
+//   {
+//     gJobMaker = new JobMaker(cfg.lookup("kafka.brokers"), stratumJobInterval,
+//                              cfg.lookup("pool.payout_address"), gbtLifeTime,
+//                              emptyGbtLifeTime, fileLastJobTime,
+//                              rskNotifyPolicy, blockVersion, poolCoinbaseInfo);
+//   }
+//   else if ("ETH" == type)
+//   {
+//     gJobMaker = new JobMakerEth(cfg.lookup("kafka.brokers"), stratumJobInterval,
+//                                 cfg.lookup("pool.payout_address"), fileLastJobTime,
+//                                 rskNotifyPolicy, blockVersion, poolCoinbaseInfo);
+//   }
+//   return gJobMaker;
+// }
 
 int main(int argc, char **argv) {
   char *optLogDir = NULL;
@@ -182,15 +211,47 @@ int main(int argc, char **argv) {
     {
       SelectParams(CBaseChainParams::MAIN);
     }
-  
-    gJobMaker = createJobMaker(cfg);
 
-    if (!gJobMaker->init()) {
-      LOG(FATAL) << "init failure";
-    } else {
-      gJobMaker->run();
-    }
-    delete gJobMaker;
+    initDefinitions(cfg);
+
+    vector<shared_ptr<thread>> workers;
+  string brokers = std::move(cfg.lookup("kafka.brokers"));
+  // for (auto gwDef : gGwDefiniitons)
+  // {
+  //   if (gwDef.enabled)
+  //   {
+  //     shared_ptr<GwMaker> gwMaker = std::make_shared<GwMaker>(gwDef, brokers);
+  //     try
+  //     {
+  //       if (gwMaker->init()) {
+  //         gGwMakers.push_back(gwMaker);
+  //         workers.push_back(std::make_shared<thread>(workerThread, gwMaker));
+  //       }
+  //       else
+  //         LOG(FATAL) << "gwmaker init failure " << gwDef.topic;
+  //     }
+  //     catch (std::exception &e)
+  //     {
+  //       LOG(FATAL) << "exception: " << e.what();
+  //     }
+  //   }
+  // }
+
+  // for (auto pWorker : workers) {
+  //   if (pWorker->joinable()) {
+  //     LOG(INFO) << "wait for worker " << pWorker->get_id();
+  //     pWorker->join();
+  //     LOG(INFO) << "worker exit";
+  //   }
+  // }
+    // gJobMaker = createJobMaker(cfg);
+
+    // if (!gJobMaker->init()) {
+    //   LOG(FATAL) << "init failure";
+    // } else {
+    //   gJobMaker->run();
+    // }
+    // delete gJobMaker;
   }
   catch (std::exception & e) {
     LOG(FATAL) << "exception: " << e.what();

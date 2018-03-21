@@ -41,36 +41,44 @@
 
 
 ///////////////////////////////////  JobMaker  /////////////////////////////////
-JobMaker::JobMaker(const string &kafkaBrokers,  uint32_t stratumJobInterval,
-                   const string &payoutAddr, uint32_t gbtLifeTime,
-                   uint32_t emptyGbtLifeTime, const string &fileLastJobTime,
-                   uint32_t rskNotifyPolicy,
-                   uint32_t blockVersion, const string &poolCoinbaseInfo):
-running_(true),
-kafkaBrokers_(kafkaBrokers),
-kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, RD_KAFKA_PARTITION_UA/* partition */),
-kafkaRawGbtConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT,       0/* partition */),
-kafkaNmcAuxConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_NMC_AUXBLOCK, 0/* partition */),
-kafkaRawGwConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGW, 0/* partition */),
-previousRskWork_(nullptr), currentRskWork_(nullptr), rskNotifyPolicy_(rskNotifyPolicy),
-currBestHeight_(0), lastJobSendTime_(0),
-isLastJobEmptyBlock_(false),
-stratumJobInterval_(stratumJobInterval),
-poolCoinbaseInfo_(poolCoinbaseInfo), poolPayoutAddrStr_(payoutAddr),
-kGbtLifeTime_(gbtLifeTime), kEmptyGbtLifeTime_(emptyGbtLifeTime),
-fileLastJobTime_(fileLastJobTime),
-blockVersion_(blockVersion)
-{
-	LOG(INFO) << "Block Version: " << std::hex << blockVersion_;
-	LOG(INFO) << "Coinbase Info: " << poolCoinbaseInfo_;
-  LOG(INFO) << "Payout Address: " << poolPayoutAddrStr_;
+// JobMaker::JobMaker(const string &kafkaBrokers,  uint32_t stratumJobInterval,
+//                    const string &payoutAddr, uint32_t gbtLifeTime,
+//                    uint32_t emptyGbtLifeTime, const string &fileLastJobTime,
+//                    uint32_t rskNotifyPolicy,
+//                    uint32_t blockVersion, const string &poolCoinbaseInfo):
+// running_(true),
+// kafkaBrokers_(kafkaBrokers),
+// kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, RD_KAFKA_PARTITION_UA/* partition */),
+// kafkaRawGbtConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT,       0/* partition */),
+// kafkaNmcAuxConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_NMC_AUXBLOCK, 0/* partition */),
+// kafkaRawGwConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGW, 0/* partition */),
+// previousRskWork_(nullptr), currentRskWork_(nullptr), rskNotifyPolicy_(rskNotifyPolicy),
+// currBestHeight_(0), lastJobSendTime_(0),
+// isLastJobEmptyBlock_(false),
+// stratumJobInterval_(stratumJobInterval),
+// poolCoinbaseInfo_(poolCoinbaseInfo), poolPayoutAddrStr_(payoutAddr),
+// kGbtLifeTime_(gbtLifeTime), kEmptyGbtLifeTime_(emptyGbtLifeTime),
+// fileLastJobTime_(fileLastJobTime),
+// blockVersion_(blockVersion)
+// {
+// 	LOG(INFO) << "Block Version: " << std::hex << blockVersion_;
+// 	LOG(INFO) << "Coinbase Info: " << poolCoinbaseInfo_;
+//   LOG(INFO) << "Payout Address: " << poolPayoutAddrStr_;
 
-  RskWork::setIsCleanJob(rskNotifyPolicy != 0);
+//   RskWork::setIsCleanJob(rskNotifyPolicy != 0);
+// }
+
+JobMaker::JobMaker(const JobMakerDefinition def,
+                   const string &brokers) : def_(def),
+                                            running_(true),
+                                            kafkaProducer_(brokers.c_str(), def.producerTopic.c_str(), RD_KAFKA_PARTITION_UA),
+                                            kafkaRawGwConsumer_(brokers.c_str(), def.consumerTopic.c_str(), 0)
+{
 }
 
 JobMaker::~JobMaker() {
-  if (threadConsumeNmcAuxBlock_.joinable())
-    threadConsumeNmcAuxBlock_.join();
+  // if (threadConsumeNmcAuxBlock_.joinable())
+  //   threadConsumeNmcAuxBlock_.join();
 }
 
 void JobMaker::stop() {
@@ -112,54 +120,54 @@ bool JobMaker::init() {
 }
 
 bool JobMaker::initConsumer() {
-    const int32_t consumeLatestN = 20;
+  //  const int32_t consumeLatestN = 20;
 
     //
   // consumer RawGbt, offset: latest N messages
   //
-  {
-    map<string, string> consumerOptions;
-    consumerOptions["fetch.wait.max.ms"] = "5";
-    if (!kafkaRawGbtConsumer_.setup(RD_KAFKA_OFFSET_TAIL(consumeLatestN), &consumerOptions)) {
-      LOG(ERROR) << "kafka consumer rawgbt setup failure";
-      return false;
-    }
-    if (!kafkaRawGbtConsumer_.checkAlive()) {
-      LOG(ERROR) << "kafka consumer rawgbt is NOT alive";
-      return false;
-    }
-  }
-  // sleep 3 seconds, wait for the latest N messages transfer from broker to client
-  sleep(3);
+  // {
+  //   map<string, string> consumerOptions;
+  //   consumerOptions["fetch.wait.max.ms"] = "5";
+  //   if (!kafkaRawGbtConsumer_.setup(RD_KAFKA_OFFSET_TAIL(consumeLatestN), &consumerOptions)) {
+  //     LOG(ERROR) << "kafka consumer rawgbt setup failure";
+  //     return false;
+  //   }
+  //   if (!kafkaRawGbtConsumer_.checkAlive()) {
+  //     LOG(ERROR) << "kafka consumer rawgbt is NOT alive";
+  //     return false;
+  //   }
+  // }
+  // // sleep 3 seconds, wait for the latest N messages transfer from broker to client
+  // sleep(3);
 
   //
   // consumer, namecoin aux block
   //
-  {
-    map<string, string> consumerOptions;
-    consumerOptions["fetch.wait.max.ms"] = "5";
-    if (!kafkaNmcAuxConsumer_.setup(RD_KAFKA_OFFSET_TAIL(1), &consumerOptions)) {
-      LOG(ERROR) << "kafka consumer nmc aux block setup failure";
-      return false;
-    }
-    if (!kafkaNmcAuxConsumer_.checkAlive()) {
-      LOG(ERROR) << "kafka consumer nmc aux block is NOT alive";
-      return false;
-    }
-  }
-  sleep(1);
+  // {
+  //   map<string, string> consumerOptions;
+  //   consumerOptions["fetch.wait.max.ms"] = "5";
+  //   if (!kafkaNmcAuxConsumer_.setup(RD_KAFKA_OFFSET_TAIL(1), &consumerOptions)) {
+  //     LOG(ERROR) << "kafka consumer nmc aux block setup failure";
+  //     return false;
+  //   }
+  //   if (!kafkaNmcAuxConsumer_.checkAlive()) {
+  //     LOG(ERROR) << "kafka consumer nmc aux block is NOT alive";
+  //     return false;
+  //   }
+  // }
+  // sleep(1);
 
-  //
-  // consumer latest NmcAuxBlock
-  //
-  {
-    rd_kafka_message_t *rkmessage;
-    rkmessage = kafkaNmcAuxConsumer_.consumer(1000/* timeout ms */);
-    if (rkmessage != nullptr) {
-      consumeNmcAuxBlockMsg(rkmessage);
-      rd_kafka_message_destroy(rkmessage);
-    }
-  }
+  // //
+  // // consumer latest NmcAuxBlock
+  // //
+  // {
+  //   rd_kafka_message_t *rkmessage;
+  //   rkmessage = kafkaNmcAuxConsumer_.consumer(1000/* timeout ms */);
+  //   if (rkmessage != nullptr) {
+  //     consumeNmcAuxBlockMsg(rkmessage);
+  //     rd_kafka_message_destroy(rkmessage);
+  //   }
+  // }
 
   //
   // consumer RSK messages
@@ -194,17 +202,17 @@ bool JobMaker::initConsumer() {
   // consumer latest RawGbt N messages
   //
   // read latest gbtmsg from kafka
-  LOG(INFO) << "consume latest rawgbt message from kafka...";
-  for (int32_t i = 0; i < consumeLatestN; i++) {
-    rd_kafka_message_t *rkmessage;
-    rkmessage = kafkaRawGbtConsumer_.consumer(5000/* timeout ms */);
-    if (rkmessage == nullptr) {
-      break;
-    }
-    consumeRawGbtMsg(rkmessage, false);
-    rd_kafka_message_destroy(rkmessage);
-  }
-  LOG(INFO) << "consume latest rawgbt messages done";
+  // LOG(INFO) << "consume latest rawgbt message from kafka...";
+  // for (int32_t i = 0; i < consumeLatestN; i++) {
+  //   rd_kafka_message_t *rkmessage;
+  //   rkmessage = kafkaRawGbtConsumer_.consumer(5000/* timeout ms */);
+  //   if (rkmessage == nullptr) {
+  //     break;
+  //   }
+  //   consumeRawGbtMsg(rkmessage, false);
+  //   rd_kafka_message_destroy(rkmessage);
+  // }
+  // LOG(INFO) << "consume latest rawgbt messages done";
 
   checkAndSendStratumJob(false);
   return true;
@@ -278,19 +286,19 @@ void JobMaker::consumeRawGbtMsg(rd_kafka_message_t *rkmessage, bool needToSend) 
 }
 
 void JobMaker::runThreadConsumeNmcAuxBlock() {
-  const int32_t timeoutMs = 1000;
+  // const int32_t timeoutMs = 1000;
 
-  while (running_) {
-    rd_kafka_message_t *rkmessage;
-    rkmessage = kafkaNmcAuxConsumer_.consumer(timeoutMs);
-    if (rkmessage == nullptr) /* timeout */
-      continue;
+  // while (running_) {
+  //   rd_kafka_message_t *rkmessage;
+  //   rkmessage = kafkaNmcAuxConsumer_.consumer(timeoutMs);
+  //   if (rkmessage == nullptr) /* timeout */
+  //     continue;
 
-    consumeNmcAuxBlockMsg(rkmessage);
+  //   consumeNmcAuxBlockMsg(rkmessage);
 
-    /* Return message to rdkafka */
-    rd_kafka_message_destroy(rkmessage);
-  }
+  //   /* Return message to rdkafka */
+  //   rd_kafka_message_destroy(rkmessage);
+  // }
 }
 
 /**
@@ -416,26 +424,27 @@ void JobMaker::runThreadConsumeRawGw() {
 //// End of methods added to merge mine for RSK
 
 void JobMaker::run() {
+  runThreadConsumeRawGw();
   // start Nmc Aux Block consumer thread
-  threadConsumeNmcAuxBlock_ = thread(&JobMaker::runThreadConsumeNmcAuxBlock, this);
+  // threadConsumeNmcAuxBlock_ = thread(&JobMaker::runThreadConsumeNmcAuxBlock, this);
 
-    // start Rsk RawGw consumer thread
-    threadConsumeRskRawGw_ = thread(&JobMaker::runThreadConsumeRawGw, this);
+  //   // start Rsk RawGw consumer thread
+  //   threadConsumeRskRawGw_ = thread(&JobMaker::runThreadConsumeRawGw, this);
 
-  const int32_t timeoutMs = 1000;
+  // const int32_t timeoutMs = 1000;
 
-  while (running_) {
-    rd_kafka_message_t *rkmessage;
-    rkmessage = kafkaRawGbtConsumer_.consumer(timeoutMs);
-    if (rkmessage == nullptr) /* timeout */
-      continue;
+  // while (running_) {
+  //   rd_kafka_message_t *rkmessage;
+  //   rkmessage = kafkaRawGbtConsumer_.consumer(timeoutMs);
+  //   if (rkmessage == nullptr) /* timeout */
+  //     continue;
 
-    consumeRawGbtMsg(rkmessage, true);
+  //   consumeRawGbtMsg(rkmessage, true);
 
-    /* Return message to rdkafka */
-    rd_kafka_message_destroy(rkmessage);
+  //   /* Return message to rdkafka */
+  //   rd_kafka_message_destroy(rkmessage);
 
-  } /* /while */
+  // } /* /while */
 }
 
 void JobMaker::addRawgbt(const char *str, size_t len) {
@@ -681,105 +690,105 @@ bool JobMaker::gbtKeyIsEmptyBlock(uint64_t gbtKey) {
 }
 
 ////////////////////////////////JobMakerEth//////////////////////////////////
-JobMakerEth::JobMakerEth(const string &kafkaBrokers, uint32_t stratumJobInterval,
-                         const string &payoutAddr, const string &fileLastJobTime,
-                         uint32_t rskNotifyPolicy, uint32_t blockVersion,
-                         const string &poolCoinbaseInfo) : 
-                         JobMaker(kafkaBrokers, stratumJobInterval,
-                         payoutAddr, 0, 0, fileLastJobTime,
-                         rskNotifyPolicy, blockVersion,
-                         poolCoinbaseInfo)
-{
-}
+// JobMakerEth::JobMakerEth(const string &kafkaBrokers, uint32_t stratumJobInterval,
+//                          const string &payoutAddr, const string &fileLastJobTime,
+//                          uint32_t rskNotifyPolicy, uint32_t blockVersion,
+//                          const string &poolCoinbaseInfo) : 
+//                          JobMaker(kafkaBrokers, stratumJobInterval,
+//                          payoutAddr, 0, 0, fileLastJobTime,
+//                          rskNotifyPolicy, blockVersion,
+//                          poolCoinbaseInfo)
+// {
+// }
 
-bool JobMakerEth::initConsumer()
-{
-  //
-  // consumer gw messages
-  //
-  {
-    map<string, string> consumerOptions;
-    consumerOptions["fetch.wait.max.ms"] = "5";
-    if (!kafkaRawGwConsumer_.setup(RD_KAFKA_OFFSET_TAIL(1), &consumerOptions))
-    {
-      LOG(ERROR) << "kafka consumer rawgw block setup failure";
-      return false;
-    }
-    if (!kafkaRawGwConsumer_.checkAlive())
-    {
-      LOG(ERROR) << "kafka consumer rawgw block is NOT alive";
-      return false;
-    }
-  }
-  sleep(1);
+// bool JobMakerEth::initConsumer()
+// {
+//   //
+//   // consumer gw messages
+//   //
+//   {
+//     map<string, string> consumerOptions;
+//     consumerOptions["fetch.wait.max.ms"] = "5";
+//     if (!kafkaRawGwConsumer_.setup(RD_KAFKA_OFFSET_TAIL(1), &consumerOptions))
+//     {
+//       LOG(ERROR) << "kafka consumer rawgw block setup failure";
+//       return false;
+//     }
+//     if (!kafkaRawGwConsumer_.checkAlive())
+//     {
+//       LOG(ERROR) << "kafka consumer rawgw block is NOT alive";
+//       return false;
+//     }
+//   }
+//   sleep(1);
 
-  return true;
-}
+//   return true;
+// }
 
-void JobMakerEth::run() {
-    runThreadConsumeRawGw();
-}
+// void JobMakerEth::run() {
+//     runThreadConsumeRawGw();
+// }
 
-RskWork* JobMakerEth::createWork() {
-  return new RskWorkEth(); 
-}
+// RskWork* JobMakerEth::createWork() {
+//   return new RskWorkEth(); 
+// }
 
-bool JobMakerEth::triggerRskUpdate() {
-  RskWork currentRskWork;
-  RskWork previousRskWork;
-  {
-    ScopeLock sl(rskWorkAccessLock_);
-    if (previousRskWork_ == nullptr) {
-      if (currentRskWork_ == nullptr)
-        return false;
-      else //first job
-        return true;
-    }
+// bool JobMakerEth::triggerRskUpdate() {
+//   RskWork currentRskWork;
+//   RskWork previousRskWork;
+//   {
+//     ScopeLock sl(rskWorkAccessLock_);
+//     if (previousRskWork_ == nullptr) {
+//       if (currentRskWork_ == nullptr)
+//         return false;
+//       else //first job
+//         return true;
+//     }
 
-    currentRskWork = *currentRskWork_;
-    previousRskWork = *previousRskWork_;
-  }
+//     currentRskWork = *currentRskWork_;
+//     previousRskWork = *previousRskWork_;
+//   }
 
-  // Check if header changes so the new workpackage is really new
-  return currentRskWork.getBlockHash() != previousRskWork.getBlockHash();
-}
+//   // Check if header changes so the new workpackage is really new
+//   return currentRskWork.getBlockHash() != previousRskWork.getBlockHash();
+// }
 
-void JobMakerEth::checkAndSendStratumJob(bool isRskUpdate) {
-  // static uint64_t lastSendBestKey = 0;
-  ScopeLock sl(lock_);
+// void JobMakerEth::checkAndSendStratumJob(bool isRskUpdate) {
+//   // static uint64_t lastSendBestKey = 0;
+//   ScopeLock sl(lock_);
 
-  // clean expired gbt first
-  clearTimeoutGw();
+//   // clean expired gbt first
+//   clearTimeoutGw();
 
-  sendGwStratumJob();
-}
+//   sendGwStratumJob();
+// }
 
-void JobMakerEth::sendGwStratumJob() {
-  RskWorkEth currentRskBlockJson;
-  {
-    ScopeLock sl(rskWorkAccessLock_);
-    if (currentRskWork_ != nullptr)
-      currentRskBlockJson = *(dynamic_cast<RskWorkEth*>(currentRskWork_));
-  }
+// void JobMakerEth::sendGwStratumJob() {
+//   RskWorkEth currentRskBlockJson;
+//   {
+//     ScopeLock sl(rskWorkAccessLock_);
+//     if (currentRskWork_ != nullptr)
+//       currentRskBlockJson = *(dynamic_cast<RskWorkEth*>(currentRskWork_));
+//   }
 
-  if (0 == currentRskBlockJson.getRpcAddress().length())
-    return;
+//   if (0 == currentRskBlockJson.getRpcAddress().length())
+//     return;
 
-  const string request = "{\"jsonrpc\":\"2.0\",\"method\":\"eth_getBlockByNumber\",\"params\":[\"pending\", false],\"id\":2}";
-  string response;
-  bool res = bitcoindRpcCall(currentRskBlockJson.getRpcAddress().c_str(), currentRskBlockJson.getRpcUserPwd().c_str(), request.c_str(), response);
-  if (!res)
-    LOG(ERROR) << "get pending block failed";
+//   const string request = "{\"jsonrpc\":\"2.0\",\"method\":\"eth_getBlockByNumber\",\"params\":[\"pending\", false],\"id\":2}";
+//   string response;
+//   bool res = bitcoindRpcCall(currentRskBlockJson.getRpcAddress().c_str(), currentRskBlockJson.getRpcUserPwd().c_str(), request.c_str(), response);
+//   if (!res)
+//     LOG(ERROR) << "get pending block failed";
 
-  StratumJobEth sjob;
-  if (!sjob.initFromGw(poolPayoutAddr_, currentRskBlockJson, response)) {
-    LOG(ERROR) << "init stratum job message from gw str fail";
-    return;
-  }
+//   StratumJobEth sjob;
+//   if (!sjob.initFromGw(poolPayoutAddr_, currentRskBlockJson, response)) {
+//     LOG(ERROR) << "init stratum job message from gw str fail";
+//     return;
+//   }
 
-  const string msg = sjob.serializeToJson();
-  // sent to kafka
-  DLOG(INFO) << "produce eth job: " << msg;
-  kafkaProducer_.produce(msg.data(), msg.size());
-}
+//   const string msg = sjob.serializeToJson();
+//   // sent to kafka
+//   DLOG(INFO) << "produce eth job: " << msg;
+//   kafkaProducer_.produce(msg.data(), msg.size());
+// }
 

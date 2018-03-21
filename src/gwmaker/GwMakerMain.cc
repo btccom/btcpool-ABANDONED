@@ -89,7 +89,7 @@ GwHandler* createHandler(const string& type) {
   return handler;
 }
 
-void initDefinitions(Config &cfg)
+void initDefinitions(const Config &cfg)
 {
   const Setting &root = cfg.getRoot();
   const Setting &definitions = root["definitions"];
