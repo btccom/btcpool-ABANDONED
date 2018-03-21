@@ -68,7 +68,6 @@ struct GwDefinition
   const string data;
   const string agent;
   const string topic;
-  const string broker;
   const uint32 interval;
   shared_ptr<GwHandler> handler;
   bool enabled;
@@ -102,7 +101,7 @@ private:
 public:
   // GwMaker(const string &rskdRpcAddr, const string &rskdRpcUserpass,
   //          const string &kafkaBrokers, uint32_t kRpcCallInterval);
-  GwMaker(const GwDefinition gwDef);
+  GwMaker(const GwDefinition gwDef, const string &kafkaBrokers);
   virtual ~GwMaker();
 
   bool init();

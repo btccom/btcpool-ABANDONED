@@ -47,9 +47,10 @@
 // {
 // }
 
-GwMaker::GwMaker(const GwDefinition gwDef) : gwDef_(gwDef),
-                                             running_(true),
-                                             kafkaProducer_(gwDef.broker.c_str(), gwDef.topic.c_str(), 0 /* partition */)
+GwMaker::GwMaker(const GwDefinition gwDef,
+                 const string &kafkaBrokers) : gwDef_(gwDef),
+                                               running_(true),
+                                               kafkaProducer_(kafkaBrokers.c_str(), gwDef.topic.c_str(), 0 /* partition */)
 {
 }
 

@@ -105,7 +105,6 @@ void initDefinitions(Config &cfg)
     string data = move(definitions[i].lookup("data"));
     string agent = move(definitions[i].lookup("agent"));
     string topic = move(definitions[i].lookup("topic"));
-    string broker = move(definitions[i].lookup("broker"));
     string handlerType = move(definitions[i].lookup("handler"));
     uint32_t interval = 500;
     definitions[i].lookupValue("interval", interval);
@@ -120,7 +119,6 @@ void initDefinitions(Config &cfg)
            data,
            agent,
            topic,
-           broker,
            interval,
            handler,
            enabled});
@@ -217,11 +215,12 @@ int main(int argc, char **argv) {
 
   initDefinitions(cfg);
   vector<shared_ptr<thread>> workers;
+  string brokers = std::move(cfg.lookup("kafka.brokers"));
   for (auto gwDef : gGwDefiniitons)
   {
     if (gwDef.enabled)
     {
-      shared_ptr<GwMaker> gwMaker = std::make_shared<GwMaker>(gwDef);
+      shared_ptr<GwMaker> gwMaker = std::make_shared<GwMaker>(gwDef, brokers);
       try
       {
         if (gwMaker->init()) {
