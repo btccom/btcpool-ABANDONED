@@ -39,7 +39,6 @@
 #include "Utils.h"
 #include "BitcoinUtils.h"
 
-
 ///////////////////////////////////  JobMaker  /////////////////////////////////
 // JobMaker::JobMaker(const string &kafkaBrokers,  uint32_t stratumJobInterval,
 //                    const string &payoutAddr, uint32_t gbtLifeTime,
@@ -91,12 +90,12 @@ void JobMaker::stop() {
 
 bool JobMaker::init() {
   // check pool payout address
-  if (!IsValidDestinationString(poolPayoutAddrStr_)) {
-    LOG(ERROR) << "invalid pool payout address";
-    return false;
-  }
+  // if (!IsValidDestinationString(poolPayoutAddrStr_)) {
+  //   LOG(ERROR) << "invalid pool payout address";
+  //   return false;
+  // }
 
-  poolPayoutAddr_ = DecodeDestination(poolPayoutAddrStr_);
+  // poolPayoutAddr_ = DecodeDestination(poolPayoutAddrStr_);
 
   /* setup kafka */
   {
@@ -189,15 +188,14 @@ bool JobMaker::initConsumer() {
   //
   // consumer latest RSK get work
   //
-  {
-    rd_kafka_message_t *rkmessage;
-    rkmessage = kafkaRawGwConsumer_.consumer(1000/* timeout ms */);
-    if (rkmessage != nullptr) {
-      consumeRawGwMsg(rkmessage);
-      rd_kafka_message_destroy(rkmessage);
-    }
-  }
-
+  // {
+  //   rd_kafka_message_t *rkmessage;
+  //   rkmessage = kafkaRawGwConsumer_.consumer(1000/* timeout ms */);
+  //   if (rkmessage != nullptr) {
+  //     consumeRawGwMsg(rkmessage);
+  //     rd_kafka_message_destroy(rkmessage);
+  //   }
+  // }
   //
   // consumer latest RawGbt N messages
   //
@@ -213,8 +211,7 @@ bool JobMaker::initConsumer() {
   //   rd_kafka_message_destroy(rkmessage);
   // }
   // LOG(INFO) << "consume latest rawgbt messages done";
-
-  checkAndSendStratumJob(false);
+  //checkAndSendStratumJob(false);
   return true;
 }
 
@@ -406,7 +403,7 @@ void JobMaker::clearTimeoutGw() {
 
 void JobMaker::runThreadConsumeRawGw() {
   const int32_t timeoutMs = 1000;
-  LOG(INFO) << "runThreadConsumeRawGw " << running_;
+  //LOG(INFO) << "runThreadConsumeRawGw " << running_;
   while (running_) {
     rd_kafka_message_t *rkmessage;
     rkmessage = kafkaRawGwConsumer_.consumer(timeoutMs);
@@ -418,7 +415,7 @@ void JobMaker::runThreadConsumeRawGw() {
 
     /* Return message to rdkafka */
     rd_kafka_message_destroy(rkmessage);
-    usleep(50000);
+    usleep(def_.consumerInterval * 1000);
   }
 }
 //// End of methods added to merge mine for RSK

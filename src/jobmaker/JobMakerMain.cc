@@ -73,6 +73,8 @@ void initDefinitions(const Config &cfg) {
     const string fileLastJobTime = move(definitions[i].lookup("file_last_job_time"));
     const string payoutAddr = move(definitions[i].lookup("payout_address"));
     const string producerTopic = move(definitions[i].lookup("producer_topic"));
+    uint32 consumerInterval = 500;
+    definitions[i].lookupValue("consumer_interval", consumerInterval);
     uint32 stratumJobInterval = 500;
     definitions[i].lookupValue("stratum_job_interval", stratumJobInterval);
     bool enabled = false;
@@ -84,6 +86,7 @@ void initDefinitions(const Config &cfg) {
            fileLastJobTime,
            consumerTopic,
            producerTopic,
+           consumerInterval,
            stratumJobInterval,
            enabled});
     //}
@@ -129,6 +132,11 @@ void initDefinitions(const Config &cfg) {
 //   }
 //   return gJobMaker;
 // }
+
+static void workerThread(shared_ptr<JobMaker> jobMaker) {
+  if (jobMaker)
+    jobMaker->run();
+}
 
 int main(int argc, char **argv) {
   char *optLogDir = NULL;
@@ -213,39 +221,41 @@ int main(int argc, char **argv) {
     }
 
     initDefinitions(cfg);
-
+    vector<shared_ptr<JobMaker>> jobMakers;
     vector<shared_ptr<thread>> workers;
-  string brokers = std::move(cfg.lookup("kafka.brokers"));
-  // for (auto gwDef : gGwDefiniitons)
-  // {
-  //   if (gwDef.enabled)
-  //   {
-  //     shared_ptr<GwMaker> gwMaker = std::make_shared<GwMaker>(gwDef, brokers);
-  //     try
-  //     {
-  //       if (gwMaker->init()) {
-  //         gGwMakers.push_back(gwMaker);
-  //         workers.push_back(std::make_shared<thread>(workerThread, gwMaker));
-  //       }
-  //       else
-  //         LOG(FATAL) << "gwmaker init failure " << gwDef.topic;
-  //     }
-  //     catch (std::exception &e)
-  //     {
-  //       LOG(FATAL) << "exception: " << e.what();
-  //     }
-  //   }
-  // }
+    string brokers = std::move(cfg.lookup("kafka.brokers"));
+    for (auto def : gJobMakerDefinitions)
+    {
+      if (def.enabled)
+      {
+        shared_ptr<JobMaker> jobMaker = std::make_shared<JobMaker>(def, brokers);
+        try
+        {
+          if (jobMaker->init())
+          {
+            jobMakers.push_back(jobMaker);
+            workers.push_back(std::make_shared<thread>(workerThread, jobMaker));
+          }
+          else
+            LOG(FATAL) << "jobmaker init failure " << def.consumerTopic;
+        }
+        catch (std::exception &e)
+        {
+          LOG(FATAL) << "exception: " << e.what();
+        }
+      }
+    }
 
-  // for (auto pWorker : workers) {
-  //   if (pWorker->joinable()) {
-  //     LOG(INFO) << "wait for worker " << pWorker->get_id();
-  //     pWorker->join();
-  //     LOG(INFO) << "worker exit";
-  //   }
-  // }
+    for (auto worker : workers)
+    {
+      if (worker->joinable())
+      {
+        LOG(INFO) << "wait for worker " << worker->get_id();
+        worker->join();
+        LOG(INFO) << "worker exit";
+      }
+    }
     // gJobMaker = createJobMaker(cfg);
-
     // if (!gJobMaker->init()) {
     //   LOG(FATAL) << "init failure";
     // } else {

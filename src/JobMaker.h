@@ -42,6 +42,7 @@ struct JobMakerDefinition
   const string fileLastJobTime;
   const string consumerTopic;
   const string producerTopic;
+  const uint32 consumerInterval;
   const uint32 stratumJobInterval;
   //shared_ptr<GwHandler> handler;
   bool enabled;

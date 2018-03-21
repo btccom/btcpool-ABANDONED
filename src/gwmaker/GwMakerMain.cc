@@ -43,7 +43,7 @@ using namespace std;
 using namespace libconfig;
 
 //GwMaker *gGwMaker = nullptr;
-vector<shared_ptr<GwMaker>> gGwMakers;
+static vector<shared_ptr<GwMaker>> gGwMakers;
 
 void handler(int sig) {
   for (auto gwMaker: gGwMakers) {
@@ -150,7 +150,7 @@ void initDefinitions(const Config &cfg)
   //      true});
 }
 
-void workerThread(shared_ptr<GwMaker> gwMaker) {
+static void workerThread(shared_ptr<GwMaker> gwMaker) {
   if (gwMaker)
     gwMaker->run();
 }
