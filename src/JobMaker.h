@@ -38,20 +38,28 @@
 
 struct JobMakerDefinition;
 
-class JobMakerHandler {
-  public:
-    virtual bool processMsg(const JobMakerDefinition& def, const string& msg) = 0;
-    virtual ~JobMakerHandler() {}  
+class JobMakerHandler
+{
+public:
+  //return true if need to produce stratum job
+  virtual bool processMsg(const JobMakerDefinition &def, const string &msg) = 0;
+  virtual ~JobMakerHandler() {}
 };
 
-class JobMakerHandlerEth : public JobMakerHandler {
-  public:
-    virtual bool processMsg(const JobMakerDefinition& def, const string& msg);  
+class JobMakerHandlerEth : public JobMakerHandler
+{
+public:
+  virtual bool processMsg(const JobMakerDefinition &def, const string &msg);
+
+private:
+  shared_ptr<RskWork> previousRskWork_;
+  shared_ptr<RskWork> currentRskWork_;
 };
 
-class JobMakerHandlerSia : public JobMakerHandler {
-  public:
-    virtual bool processMsg(const JobMakerDefinition& def, const string& msg);  
+class JobMakerHandlerSia : public JobMakerHandler
+{
+public:
+  virtual bool processMsg(const JobMakerDefinition &def, const string &msg);
 };
 
 struct JobMakerDefinition

@@ -331,8 +331,8 @@ void JobMaker::consumeRawGwMsg(rd_kafka_message_t *rkmessage) {
     ScopeLock sl(rskWorkAccessLock_);
     
     string msg((const char *)rkmessage->payload, rkmessage->len);
-    if (def_.handler)
-      def_.handler->processMsg(def_, msg);
+    if (def_.handler && def_.handler->processMsg(def_, msg)) 
+      checkAndSendStratumJob(true);
     // RskWork *rskWork = createWork();
     // if(rskWork->initFromGw(rawGetWork)) {
 
@@ -350,9 +350,9 @@ void JobMaker::consumeRawGwMsg(rd_kafka_message_t *rkmessage) {
     // }
   }
 
-  if(triggerRskUpdate()) { 
-    checkAndSendStratumJob(true);
-  }
+  // if(triggerRskUpdate()) { 
+  //   checkAndSendStratumJob(true);
+  // }
 }
 
 RskWork* JobMaker::createWork() {
@@ -791,8 +791,27 @@ bool JobMaker::gbtKeyIsEmptyBlock(uint64_t gbtKey) {
 //   kafkaProducer_.produce(msg.data(), msg.size());
 // }
 
-bool JobMakerHandlerEth::processMsg(const JobMakerDefinition& def, const string& msg) {
-  return true;
+bool JobMakerHandlerEth::processMsg(const JobMakerDefinition &def, const string &msg)
+{
+  shared_ptr<RskWork> rskWork = make_shared<RskWorkEth>();
+  if (rskWork->initFromGw(msg))
+  {
+    previousRskWork_ = currentRskWork_;
+    currentRskWork_ = rskWork;
+    DLOG(INFO) << "currentRskBlockJson: " << msg;
+  }
+  else
+    return false;
+
+  if (nullptr == previousRskWork_ && nullptr == currentRskWork_)
+    return false;
+
+  //first job 
+  if (nullptr == previousRskWork_ && currentRskWork_ != nullptr)
+    return true;
+
+  // Check if header changes so the new workpackage is really new
+  return currentRskWork_->getBlockHash() != previousRskWork_->getBlockHash(); 
 }
 
 bool JobMakerHandlerSia::processMsg(const JobMakerDefinition& def, const string& msg) {
