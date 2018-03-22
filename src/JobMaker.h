@@ -40,7 +40,8 @@ struct JobMakerDefinition;
 
 class JobMakerHandler {
   public:
-    virtual bool processMsg(const JobMakerDefinition& def, const string& msg) = 0;  
+    virtual bool processMsg(const JobMakerDefinition& def, const string& msg) = 0;
+    virtual ~JobMakerHandler() {}  
 };
 
 class JobMakerHandlerEth : public JobMakerHandler {

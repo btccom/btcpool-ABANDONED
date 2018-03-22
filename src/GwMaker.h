@@ -43,6 +43,7 @@ struct GwDefinition;
 class GwHandler {
   public:
     virtual string processRawMsg(const GwDefinition& def, const string& msg) = 0;  
+    virtual ~GwHandler() {}
 };
 
 class GwHandlerEth : public GwHandler
