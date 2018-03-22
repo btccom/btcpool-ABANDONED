@@ -150,7 +150,7 @@ void initDefinitions(const Config &cfg)
   //      true});
 }
 
-static void workerThread(shared_ptr<GwMaker> gwMaker) {
+void workerThread(shared_ptr<GwMaker> gwMaker) {
   if (gwMaker)
     gwMaker->run();
 }

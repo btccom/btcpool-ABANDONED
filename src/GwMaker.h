@@ -38,7 +38,6 @@
 #include "Kafka.h"
 #include "utilities_js.hpp"
 
-//using GwHandler = string (*) (const string&, void* );
 struct GwDefinition;
 
 class GwHandler {

@@ -36,6 +36,23 @@
 #include <map>
 #include <deque>
 
+struct JobMakerDefinition;
+
+class JobMakerHandler {
+  public:
+    virtual bool processMsg(const JobMakerDefinition& def, const string& msg) = 0;  
+};
+
+class JobMakerHandlerEth : public JobMakerHandler {
+  public:
+    virtual bool processMsg(const JobMakerDefinition& def, const string& msg);  
+};
+
+class JobMakerHandlerSia : public JobMakerHandler {
+  public:
+    virtual bool processMsg(const JobMakerDefinition& def, const string& msg);  
+};
+
 struct JobMakerDefinition
 {
   const string payoutAddr;
@@ -44,7 +61,7 @@ struct JobMakerDefinition
   const string producerTopic;
   const uint32 consumerInterval;
   const uint32 stratumJobInterval;
-  //shared_ptr<GwHandler> handler;
+  shared_ptr<JobMakerHandler> handler;
   bool enabled;
 };
 

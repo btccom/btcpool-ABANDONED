@@ -330,22 +330,24 @@ void JobMaker::consumeRawGwMsg(rd_kafka_message_t *rkmessage) {
   {
     ScopeLock sl(rskWorkAccessLock_);
     
-    string rawGetWork = string((const char *)rkmessage->payload, rkmessage->len);
-    RskWork *rskWork = createWork();
-    if(rskWork->initFromGw(rawGetWork)) {
+    string msg((const char *)rkmessage->payload, rkmessage->len);
+    if (def_.handler)
+      def_.handler->processMsg(def_, msg);
+    // RskWork *rskWork = createWork();
+    // if(rskWork->initFromGw(rawGetWork)) {
 
-      if (previousRskWork_ != nullptr) {
-        delete previousRskWork_;
-        previousRskWork_ = nullptr;
-      }
+    //   if (previousRskWork_ != nullptr) {
+    //     delete previousRskWork_;
+    //     previousRskWork_ = nullptr;
+    //   }
 
-      previousRskWork_ = currentRskWork_;
-      currentRskWork_ = rskWork;
+    //   previousRskWork_ = currentRskWork_;
+    //   currentRskWork_ = rskWork;
 
-      DLOG(INFO) << "currentRskBlockJson: " << rawGetWork;
-    } else {
-      delete rskWork;
-    }
+    //   DLOG(INFO) << "currentRskBlockJson: " << rawGetWork;
+    // } else {
+    //   delete rskWork;
+    // }
   }
 
   if(triggerRskUpdate()) { 
@@ -789,3 +791,10 @@ bool JobMaker::gbtKeyIsEmptyBlock(uint64_t gbtKey) {
 //   kafkaProducer_.produce(msg.data(), msg.size());
 // }
 
+bool JobMakerHandlerEth::processMsg(const JobMakerDefinition& def, const string& msg) {
+  return true;
+}
+
+bool JobMakerHandlerSia::processMsg(const JobMakerDefinition& def, const string& msg) {
+  return true;
+}

@@ -68,24 +68,37 @@ void usage() {
   fprintf(stderr, "Usage:\n\tjobmaker -c \"jobmaker.cfg\" -l \"log_dir\"\n");
 }
 
-void initDefinitions(const Config &cfg) {
+JobMakerHandler* createHandler(const string& type) {
+  JobMakerHandler* handler = nullptr;
+  if ("ETH" == type)
+    return new JobMakerHandlerEth();
+  else if ("SIA" == type)
+    return new JobMakerHandlerSia();
+
+  return handler;
+}
+
+void initDefinitions(const Config &cfg)
+{
   const Setting &root = cfg.getRoot();
   const Setting &definitions = root["definitions"];
-  
+
   for (int i = 0; i < definitions.getLength(); i++)
   {
     const string consumerTopic = move(definitions[i].lookup("consumer_topic"));
     const string fileLastJobTime = move(definitions[i].lookup("file_last_job_time"));
     const string payoutAddr = move(definitions[i].lookup("payout_address"));
     const string producerTopic = move(definitions[i].lookup("producer_topic"));
+    string handlerType = move(definitions[i].lookup("handler"));
     uint32 consumerInterval = 500;
     definitions[i].lookupValue("consumer_interval", consumerInterval);
     uint32 stratumJobInterval = 500;
     definitions[i].lookupValue("stratum_job_interval", stratumJobInterval);
     bool enabled = false;
     definitions[i].lookupValue("enabled", enabled);
-    //if (handler != nullptr)
-    //{
+    shared_ptr<JobMakerHandler> handler(createHandler(handlerType));
+    if (handler != nullptr)
+    {
       gJobMakerDefinitions.push_back(
           {payoutAddr,
            fileLastJobTime,
@@ -93,10 +106,11 @@ void initDefinitions(const Config &cfg) {
            producerTopic,
            consumerInterval,
            stratumJobInterval,
+           handler,
            enabled});
-    //}
-    //else
-    // LOG(ERROR) << "created handler failed for type " << handlerType;
+    }
+    else
+      LOG(ERROR) << "created handler failed for type " << handlerType;
   }
 }
 
@@ -138,7 +152,7 @@ void initDefinitions(const Config &cfg) {
 //   return gJobMaker;
 // }
 
-static void workerThread(shared_ptr<JobMaker> jobMaker) {
+void workerThread(shared_ptr<JobMaker> jobMaker) {
   if (jobMaker)
     jobMaker->run();
 }
