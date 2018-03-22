@@ -36,24 +36,40 @@
 #include <map>
 #include <deque>
 
-struct JobMakerDefinition;
+class JobMakerHandler;
+struct JobMakerDefinition
+{
+  string payoutAddr;
+  string fileLastJobTime;
+  string consumerTopic;
+  string producerTopic;
+  uint32 consumerInterval;
+  uint32 stratumJobInterval;
+  uint32 maxJobDelay;
+  shared_ptr<JobMakerHandler> handler;
+  bool enabled;
+};
 
 class JobMakerHandler
 {
 public:
   //return true if need to produce stratum job
-  virtual bool processMsg(const JobMakerDefinition &def, const string &msg) = 0;
+  virtual void init(const JobMakerDefinition &def) {def_ = def;}
+  virtual bool processMsg(const string &msg) = 0;
   virtual string buildStratumJobMsg() = 0;
   virtual ~JobMakerHandler() {}
+
+protected:
+  JobMakerDefinition def_;
 };
 
 class JobMakerHandlerEth : public JobMakerHandler
 {
 public:
-  virtual bool processMsg(const JobMakerDefinition &def, const string &msg);
+  virtual bool processMsg(const string &msg);
   virtual string buildStratumJobMsg();
 private:
-  void clearTimeoutMsg(const JobMakerDefinition &def);
+  void clearTimeoutMsg();
   shared_ptr<RskWork> previousRskWork_;
   shared_ptr<RskWork> currentRskWork_;
 };
@@ -61,21 +77,8 @@ private:
 class JobMakerHandlerSia : public JobMakerHandler
 {
 public:
-  virtual bool processMsg(const JobMakerDefinition &def, const string &msg);
+  virtual bool processMsg(const string &msg);
   virtual string buildStratumJobMsg() {return "";}
-};
-
-struct JobMakerDefinition
-{
-  const string payoutAddr;
-  const string fileLastJobTime;
-  const string consumerTopic;
-  const string producerTopic;
-  const uint32 consumerInterval;
-  const uint32 stratumJobInterval;
-  const uint32 maxJobDelay;
-  shared_ptr<JobMakerHandler> handler;
-  bool enabled;
 };
 
 static vector<JobMakerDefinition> gJobMakerDefinitions; 

@@ -89,6 +89,10 @@ void JobMaker::stop() {
 }
 
 bool JobMaker::init() {
+    if (nullptr == def_.handler)
+      return false;
+    
+    def_.handler->init(def_);
   // check pool payout address
   // if (!IsValidDestinationString(poolPayoutAddrStr_)) {
   //   LOG(ERROR) << "invalid pool payout address";
@@ -335,10 +339,12 @@ void JobMaker::consumeRawGwMsg(rd_kafka_message_t *rkmessage)
   //ScopeLock sl(rskWorkAccessLock_);
 
   string msg((const char *)rkmessage->payload, rkmessage->len);
-  if (def_.handler && def_.handler->processMsg(def_, msg)) {
+  if (def_.handler && def_.handler->processMsg(msg)) {
     const string producerMsg = move(def_.handler->buildStratumJobMsg());
-    if (producerMsg.size() > 0)
+    if (producerMsg.size() > 0) {
+      LOG(INFO) << "new job: " << producerMsg;
       kafkaProducer_.produce(producerMsg.data(), producerMsg.size());
+    }
   }
   // RskWork *rskWork = createWork();
   // if(rskWork->initFromGw(rawGetWork)) {
@@ -804,7 +810,7 @@ bool JobMaker::gbtKeyIsEmptyBlock(uint64_t gbtKey) {
 // }
 
 ////////////////////////////////JobMakerHandlerEth//////////////////////////////////
-bool JobMakerHandlerEth::processMsg(const JobMakerDefinition &def, const string &msg)
+bool JobMakerHandlerEth::processMsg(const string &msg)
 {
   shared_ptr<RskWork> rskWork = make_shared<RskWorkEth>();
   if (rskWork->initFromGw(msg))
@@ -816,7 +822,7 @@ bool JobMakerHandlerEth::processMsg(const JobMakerDefinition &def, const string 
   else
     return false;
 
-  clearTimeoutMsg(def);
+  clearTimeoutMsg();
 
   if (nullptr == previousRskWork_ && nullptr == currentRskWork_)
     return false;
@@ -829,12 +835,12 @@ bool JobMakerHandlerEth::processMsg(const JobMakerDefinition &def, const string 
   return currentRskWork_->getBlockHash() != previousRskWork_->getBlockHash(); 
 }
 
-void JobMakerHandlerEth::clearTimeoutMsg(const JobMakerDefinition &def) {
+void JobMakerHandlerEth::clearTimeoutMsg() {
   const uint32_t now = time(nullptr);
-  if(currentRskWork_ != nullptr && currentRskWork_->getCreatedAt() + def.maxJobDelay < now) 
+  if(currentRskWork_ != nullptr && currentRskWork_->getCreatedAt() + def_.maxJobDelay < now) 
       currentRskWork_ = nullptr;
 
-  if(previousRskWork_ != nullptr && previousRskWork_->getCreatedAt() + def.maxJobDelay < now) 
+  if(previousRskWork_ != nullptr && previousRskWork_->getCreatedAt() + def_.maxJobDelay < now) 
       previousRskWork_ = nullptr;
 }
 
@@ -866,6 +872,7 @@ string JobMakerHandlerEth::buildStratumJobMsg()
 }
 
 ////////////////////////////////JobMakerHandlerSia//////////////////////////////////
-bool JobMakerHandlerSia::processMsg(const JobMakerDefinition& def, const string& msg) {
+bool JobMakerHandlerSia::processMsg(const string& msg) {
+  LOG(INFO) << "processing sia work: " << msg;
   return true;
 }
