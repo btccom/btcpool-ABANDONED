@@ -635,8 +635,7 @@ StratumJobEth::StratumJobEth() : blockNumber_(0)
 
 }
 
-bool StratumJobEth::initFromGw(const CTxDestination &poolPayoutAddr,
-                               const RskWorkEth &latestRskBlockJson,
+bool StratumJobEth::initFromGw(const RskWorkEth &latestRskBlockJson,
                                const string& blockJson)
 {
   JsonNode j;

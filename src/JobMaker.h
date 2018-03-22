@@ -43,6 +43,7 @@ class JobMakerHandler
 public:
   //return true if need to produce stratum job
   virtual bool processMsg(const JobMakerDefinition &def, const string &msg) = 0;
+  virtual string buildStratumJobMsg() = 0;
   virtual ~JobMakerHandler() {}
 };
 
@@ -50,8 +51,9 @@ class JobMakerHandlerEth : public JobMakerHandler
 {
 public:
   virtual bool processMsg(const JobMakerDefinition &def, const string &msg);
-
+  virtual string buildStratumJobMsg();
 private:
+  void clearTimeoutMsg(const JobMakerDefinition &def);
   shared_ptr<RskWork> previousRskWork_;
   shared_ptr<RskWork> currentRskWork_;
 };
@@ -60,6 +62,7 @@ class JobMakerHandlerSia : public JobMakerHandler
 {
 public:
   virtual bool processMsg(const JobMakerDefinition &def, const string &msg);
+  virtual string buildStratumJobMsg() {return "";}
 };
 
 struct JobMakerDefinition
@@ -70,6 +73,7 @@ struct JobMakerDefinition
   const string producerTopic;
   const uint32 consumerInterval;
   const uint32 stratumJobInterval;
+  const uint32 maxJobDelay;
   shared_ptr<JobMakerHandler> handler;
   bool enabled;
 };

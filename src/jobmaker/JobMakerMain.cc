@@ -94,6 +94,8 @@ void initDefinitions(const Config &cfg)
     definitions[i].lookupValue("consumer_interval", consumerInterval);
     uint32 stratumJobInterval = 500;
     definitions[i].lookupValue("stratum_job_interval", stratumJobInterval);
+    uint32 maxJobDelay = 500;
+    definitions[i].lookupValue("max_job_delay", maxJobDelay);
     bool enabled = false;
     definitions[i].lookupValue("enabled", enabled);
     shared_ptr<JobMakerHandler> handler(createHandler(handlerType));
@@ -106,6 +108,7 @@ void initDefinitions(const Config &cfg)
            producerTopic,
            consumerInterval,
            stratumJobInterval,
+           maxJobDelay,
            handler,
            enabled});
     }

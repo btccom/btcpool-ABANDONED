@@ -305,20 +305,24 @@ void JobMaker::runThreadConsumeNmcAuxBlock() {
   @author Martin Medina
   @copyright RSK Labs Ltd.
 */
-void JobMaker::consumeRawGwMsg(rd_kafka_message_t *rkmessage) {
+void JobMaker::consumeRawGwMsg(rd_kafka_message_t *rkmessage)
+{
   // check error
-  if (rkmessage->err) {
-    if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
+  if (rkmessage->err)
+  {
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF)
+    {
       // Reached the end of the topic+partition queue on the broker.
       return;
     }
 
     LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
-    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
-    << ": " << rd_kafka_message_errstr(rkmessage);
+               << "[" << rkmessage->partition << "] offset " << rkmessage->offset
+               << ": " << rd_kafka_message_errstr(rkmessage);
 
     if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
-        rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
+        rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC)
+    {
       LOG(FATAL) << "consume fatal";
       stop();
     }
@@ -327,30 +331,33 @@ void JobMaker::consumeRawGwMsg(rd_kafka_message_t *rkmessage) {
 
   // set json string
   LOG(INFO) << "received rawgw message len: " << rkmessage->len;
-  {
-    ScopeLock sl(rskWorkAccessLock_);
-    
-    string msg((const char *)rkmessage->payload, rkmessage->len);
-    if (def_.handler && def_.handler->processMsg(def_, msg)) 
-      checkAndSendStratumJob(true);
-    // RskWork *rskWork = createWork();
-    // if(rskWork->initFromGw(rawGetWork)) {
+  //{
+  //ScopeLock sl(rskWorkAccessLock_);
 
-    //   if (previousRskWork_ != nullptr) {
-    //     delete previousRskWork_;
-    //     previousRskWork_ = nullptr;
-    //   }
-
-    //   previousRskWork_ = currentRskWork_;
-    //   currentRskWork_ = rskWork;
-
-    //   DLOG(INFO) << "currentRskBlockJson: " << rawGetWork;
-    // } else {
-    //   delete rskWork;
-    // }
+  string msg((const char *)rkmessage->payload, rkmessage->len);
+  if (def_.handler && def_.handler->processMsg(def_, msg)) {
+    const string producerMsg = move(def_.handler->buildStratumJobMsg());
+    if (producerMsg.size() > 0)
+      kafkaProducer_.produce(producerMsg.data(), producerMsg.size());
   }
+  // RskWork *rskWork = createWork();
+  // if(rskWork->initFromGw(rawGetWork)) {
 
-  // if(triggerRskUpdate()) { 
+  //   if (previousRskWork_ != nullptr) {
+  //     delete previousRskWork_;
+  //     previousRskWork_ = nullptr;
+  //   }
+
+  //   previousRskWork_ = currentRskWork_;
+  //   currentRskWork_ = rskWork;
+
+  //   DLOG(INFO) << "currentRskBlockJson: " << rawGetWork;
+  // } else {
+  //   delete rskWork;
+  // }
+  //}
+
+  // if(triggerRskUpdate()) {
   //   checkAndSendStratumJob(true);
   // }
 }
@@ -379,24 +386,29 @@ bool JobMaker::triggerRskUpdate() {
   return notify_flag_update || different_block_hashUpdate;
 }
 
-void JobMaker::clearTimeoutGw() {
+void JobMaker::clearTimeoutGw()
+{
   RskWork currentRskWork;
   RskWork previousRskWork;
   {
     ScopeLock sl(rskWorkAccessLock_);
-    if (previousRskWork_ == nullptr || currentRskWork_ == nullptr) {
+    if (previousRskWork_ == nullptr || currentRskWork_ == nullptr)
+    {
       return;
     }
 
     const uint32_t ts_now = time(nullptr);
     currentRskWork = *currentRskWork_;
-    if(currentRskWork.getCreatedAt() + 120u < ts_now) {
+
+    if (currentRskWork.getCreatedAt() + 120u < ts_now)
+    {
       delete currentRskWork_;
       currentRskWork_ = nullptr;
     }
 
     previousRskWork = *previousRskWork_;
-    if(previousRskWork.getCreatedAt() + 120u < ts_now) {
+    if (previousRskWork.getCreatedAt() + 120u < ts_now)
+    {
       delete previousRskWork_;
       previousRskWork_ = nullptr;
     }
@@ -791,6 +803,7 @@ bool JobMaker::gbtKeyIsEmptyBlock(uint64_t gbtKey) {
 //   kafkaProducer_.produce(msg.data(), msg.size());
 // }
 
+////////////////////////////////JobMakerHandlerEth//////////////////////////////////
 bool JobMakerHandlerEth::processMsg(const JobMakerDefinition &def, const string &msg)
 {
   shared_ptr<RskWork> rskWork = make_shared<RskWorkEth>();
@@ -803,6 +816,8 @@ bool JobMakerHandlerEth::processMsg(const JobMakerDefinition &def, const string 
   else
     return false;
 
+  clearTimeoutMsg(def);
+
   if (nullptr == previousRskWork_ && nullptr == currentRskWork_)
     return false;
 
@@ -814,6 +829,43 @@ bool JobMakerHandlerEth::processMsg(const JobMakerDefinition &def, const string 
   return currentRskWork_->getBlockHash() != previousRskWork_->getBlockHash(); 
 }
 
+void JobMakerHandlerEth::clearTimeoutMsg(const JobMakerDefinition &def) {
+  const uint32_t now = time(nullptr);
+  if(currentRskWork_ != nullptr && currentRskWork_->getCreatedAt() + def.maxJobDelay < now) 
+      currentRskWork_ = nullptr;
+
+  if(previousRskWork_ != nullptr && previousRskWork_->getCreatedAt() + def.maxJobDelay < now) 
+      previousRskWork_ = nullptr;
+}
+
+string JobMakerHandlerEth::buildStratumJobMsg()
+{
+  if (nullptr == currentRskWork_)
+    return "";
+
+  if (0 == currentRskWork_->getRpcAddress().length())
+    return "";
+
+  RskWorkEth *currentRskBlockJson = dynamic_cast<RskWorkEth*>(currentRskWork_.get());
+  if (nullptr == currentRskBlockJson)
+    return "";
+
+  const string request = "{\"jsonrpc\":\"2.0\",\"method\":\"eth_getBlockByNumber\",\"params\":[\"pending\", false],\"id\":2}";
+  string response;
+  bool res = bitcoindRpcCall(currentRskBlockJson->getRpcAddress().c_str(), currentRskBlockJson->getRpcUserPwd().c_str(), request.c_str(), response);
+  if (!res)
+    LOG(ERROR) << "get pending block failed";
+
+  StratumJobEth sjob;
+  if (!sjob.initFromGw(*currentRskBlockJson, response)) {
+    LOG(ERROR) << "init stratum job message from gw str fail";
+    return "";
+  }
+
+  return sjob.serializeToJson();
+}
+
+////////////////////////////////JobMakerHandlerSia//////////////////////////////////
 bool JobMakerHandlerSia::processMsg(const JobMakerDefinition& def, const string& msg) {
   return true;
 }
