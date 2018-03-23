@@ -872,6 +872,10 @@ string JobMakerHandlerEth::buildStratumJobMsg()
 }
 
 ////////////////////////////////JobMakerHandlerSia//////////////////////////////////
+JobMakerHandlerSia::JobMakerHandlerSia() : time_(0)
+{
+}
+
 bool JobMakerHandlerSia::processMsg(const string& msg) {
   JsonNode j;
   if (!JsonNode::parse(msg.c_str(), msg.c_str() + msg.length(), j))
@@ -880,15 +884,8 @@ bool JobMakerHandlerSia::processMsg(const string& msg) {
     return false;
   }
 
-  if (j.type() != Utilities::JS::type::Obj ||
-    j["created_at_ts"].type() != != Utilities::JS::type::Int ||
-    j["rskdRpcAddress"].type() != != Utilities::JS::type::Str ||
-    j["rskdRpcUserPwd"].type() != != Utilities::JS::type::Str ||
-    j["target"].type() != != Utilities::JS::type::Str ||
-    j["hHash"].type() != != Utilities::JS::type::Str) {
-      LOG(ERROR) << "work format not expected " << msg;
+  if (!validate(j))
     return false;
-    }
 
   string header = move(j["hHash"].str());
   if (header == header_) 
@@ -896,10 +893,40 @@ bool JobMakerHandlerSia::processMsg(const string& msg) {
   
   header_ = move(header);
   target_ = move(j["target"].str());
+  time_ =  j["created_at_ts"].uint32();
+
+  return true;
+}
+
+bool JobMakerHandlerSia::validate(const JsonNode &work)
+{
+  // check fields are valid
+  if (work.type() != Utilities::JS::type::Obj ||
+    work["created_at_ts"].type() != Utilities::JS::type::Int ||
+    work["rskdRpcAddress"].type() != Utilities::JS::type::Str ||
+    work["rskdRpcUserPwd"].type() != Utilities::JS::type::Str ||
+    work["target"].type() != Utilities::JS::type::Str ||
+    work["hHash"].type() != Utilities::JS::type::Str) {
+      LOG(ERROR) << "work format not expected " << msg;
+    return false;
+    }
+
+  // check timestamp
+  if (work["created_at_ts"].uint32() + def_.maxJobDelay < time(nullptr))
+  {
+    LOG(ERROR) << "too old sia work: " << date("%F %T", work["created_at_ts"].uint32());
+    return false;
+  }
 
   return true;
 }
 
 string JobMakerHandlerSia::buildStratumJobMsg() {
-  return "";
+  return Strings::Format("{\"created_at_ts\":%u"
+                         ",\"target\":\"%s\""
+                         ",\"hHash\":\"%s\""
+                         "}",
+                         time_,
+                         target_.c_str(),
+                         header_.c_str());
 }

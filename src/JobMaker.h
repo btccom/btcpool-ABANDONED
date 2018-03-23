@@ -76,13 +76,14 @@ private:
 
 class JobMakerHandlerSia : public JobMakerHandler
 {
-public:
-  virtual bool processMsg(const string &msg);
-  virtual string buildStratumJobMsg();
-
-private: 
   string target_;
   string header_;
+  unit32 time_;
+  validate(const JsonNode &work);
+public:
+  JobMakerHandlerSia();
+  virtual bool processMsg(const string &msg);
+  virtual string buildStratumJobMsg();
 };
 
 static vector<JobMakerDefinition> gJobMakerDefinitions; 
