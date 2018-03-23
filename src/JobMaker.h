@@ -78,7 +78,11 @@ class JobMakerHandlerSia : public JobMakerHandler
 {
 public:
   virtual bool processMsg(const string &msg);
-  virtual string buildStratumJobMsg() {return "";}
+  virtual string buildStratumJobMsg();
+
+private: 
+  string target_;
+  string header_;
 };
 
 static vector<JobMakerDefinition> gJobMakerDefinitions; 

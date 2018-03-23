@@ -873,6 +873,33 @@ string JobMakerHandlerEth::buildStratumJobMsg()
 
 ////////////////////////////////JobMakerHandlerSia//////////////////////////////////
 bool JobMakerHandlerSia::processMsg(const string& msg) {
-  LOG(INFO) << "processing sia work: " << msg;
+  JsonNode j;
+  if (!JsonNode::parse(msg.c_str(), msg.c_str() + msg.length(), j))
+  {
+    LOG(ERROR) << "deserialize sia work failed " << msg;
+    return false;
+  }
+
+  if (j.type() != Utilities::JS::type::Obj ||
+    j["created_at_ts"].type() != != Utilities::JS::type::Int ||
+    j["rskdRpcAddress"].type() != != Utilities::JS::type::Str ||
+    j["rskdRpcUserPwd"].type() != != Utilities::JS::type::Str ||
+    j["target"].type() != != Utilities::JS::type::Str ||
+    j["hHash"].type() != != Utilities::JS::type::Str) {
+      LOG(ERROR) << "work format not expected " << msg;
+    return false;
+    }
+
+  string header = move(j["hHash"].str());
+  if (header == header_) 
+    return false;
+  
+  header_ = move(header);
+  target_ = move(j["target"].str());
+
   return true;
+}
+
+string JobMakerHandlerSia::buildStratumJobMsg() {
+  return "";
 }
