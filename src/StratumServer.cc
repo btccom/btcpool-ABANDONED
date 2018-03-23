@@ -508,6 +508,12 @@ bool JobRepositoryEth::compute(ethash_h256_t const header, uint64_t nonce, ethas
   return false;
 }
 
+//////////////////////////////////// JobRepositorySia /////////////////////////////////
+JobRepositorySia::JobRepositorySia(const char *kafkaBrokers, const string &fileLastNotifyTime,
+                                   Server *server) : JobRepository(kafkaBrokers, fileLastNotifyTime, server)
+{
+}
+
 //////////////////////////////////// UserInfo /////////////////////////////////
 UserInfo::UserInfo(const string &apiUrl, Server *server):
 running_(true), apiUrl_(apiUrl), lastMaxUserId_(0),
@@ -1026,22 +1032,29 @@ Server::~Server() {
 #endif
 }
 
-JobRepository *Server::createJobRepository(StratumServerType type,
-                                           const char *kafkaBrokers,
+// JobRepository *Server::createJobRepository(StratumServerType type,
+//                                            const char *kafkaBrokers,
+//                                            const string &fileLastNotifyTime,
+//                                            Server *server)
+// {
+//   JobRepository *jobRepo = nullptr;
+//   switch (type)
+//   {
+//   case BTC:
+//     jobRepo = new JobRepository(kafkaBrokers, fileLastNotifyTime, this);
+//     break;
+//   case ETH:
+//     jobRepo = new JobRepositoryEth(kafkaBrokers, fileLastNotifyTime, this);
+//     break;
+//   }
+//   return jobRepo;
+// }
+
+JobRepository *Server::createJobRepository(const char *kafkaBrokers,
                                            const string &fileLastNotifyTime,
                                            Server *server)
 {
-  JobRepository *jobRepo = nullptr;
-  switch (type)
-  {
-  case BTC:
-    jobRepo = new JobRepository(kafkaBrokers, fileLastNotifyTime, this);
-    break;
-  case ETH:
-    jobRepo = new JobRepositoryEth(kafkaBrokers, fileLastNotifyTime, this);
-    break;
-  }
-  return jobRepo;
+  return new JobRepository(kafkaBrokers, fileLastNotifyTime, this);
 }
 
 StratumSession *Server::createSession(evutil_socket_t fd, struct bufferevent *bev,
@@ -1121,7 +1134,7 @@ bool Server::setup(const char *ip, const unsigned short port,
                                                  RD_KAFKA_PARTITION_UA);
 
   // job repository
-  jobRepository_ = createJobRepository(ETH, kafkaBrokers, fileLastNotifyTime, this);
+  jobRepository_ = createJobRepository(kafkaBrokers, fileLastNotifyTime, this);
   if (!jobRepository_->setupThreadConsume()) {
     return false;
   }
@@ -1657,6 +1670,13 @@ StratumSession *ServerEth::createSession(evutil_socket_t fd, struct bufferevent 
                         sessionID);
 }
 
+JobRepository *ServerEth::createJobRepository(const char *kafkaBrokers,
+                                           const string &fileLastNotifyTime,
+                                           Server *server)
+{
+  return new JobRepositoryEth(kafkaBrokers, fileLastNotifyTime, this);
+}
+
 ////////////////////////////////// ServierSia ///////////////////////////////
 StratumSession *ServerSia::createSession(evutil_socket_t fd, struct bufferevent *bev,
                                          Server *server, struct sockaddr *saddr,
@@ -1667,6 +1687,14 @@ StratumSession *ServerSia::createSession(evutil_socket_t fd, struct bufferevent 
                         server->kShareAvgSeconds_,
                         sessionID);
 }
+
+JobRepository *ServerSia::createJobRepository(const char *kafkaBrokers,
+                                           const string &fileLastNotifyTime,
+                                           Server *server)
+{
+  return new JobRepositorySia(kafkaBrokers, fileLastNotifyTime, this);
+}
+
 ////////////////////////////////// StratumJobExEth ///////////////////////////////
 StratumJobExEth::StratumJobExEth(StratumJob *sjob, bool isClean) : StratumJobEx(sjob, isClean)
 {

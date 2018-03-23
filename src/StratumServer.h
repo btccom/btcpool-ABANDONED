@@ -158,6 +158,13 @@ private:
   mutex lightLock_;
 };
 
+class JobRepositorySia : public JobRepository
+{
+public:
+  JobRepositorySia(const char *kafkaBrokers, const string &fileLastNotifyTime,
+                   Server *server);
+};
+
 ///////////////////////////////////// UserInfo /////////////////////////////////
 // 1. update userName->userId by interval
 // 2. insert worker name to db
@@ -348,8 +355,7 @@ public:
                              const std::vector<char> &coinbaseBin);
   void sendCommonEvents2Kafka(const string &message);
 
-  JobRepository* createJobRepository(StratumServerType type, 
-                                    const char *kafkaBrokers,
+  virtual JobRepository* createJobRepository(const char *kafkaBrokers,
                                      const string &fileLastNotifyTime,
                                      Server *server);
 
@@ -368,6 +374,11 @@ public:
                  const uint256 header,
                  const uint256 mixHash);
   void sendSolvedShare2Kafka(const string& strNonce, const string& strHeader, const string& strMix);
+
+  virtual JobRepository* createJobRepository(const char *kafkaBrokers,
+                                     const string &fileLastNotifyTime,
+                                     Server *server);
+
   virtual StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
                                Server *server, struct sockaddr *saddr,
                                const int32_t shareAvgSeconds,
@@ -378,6 +389,11 @@ class ServerSia : public Server
 {
 public:
   ServerSia(const int32_t shareAvgSeconds) : Server(shareAvgSeconds) {}
+
+  virtual JobRepository* createJobRepository(const char *kafkaBrokers,
+                                     const string &fileLastNotifyTime,
+                                     Server *server);
+
   virtual StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
                                Server *server, struct sockaddr *saddr,
                                const int32_t shareAvgSeconds,
