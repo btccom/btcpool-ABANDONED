@@ -95,11 +95,9 @@ void SessionIDManager::freeSessionId(uint32_t sessionId) {
 
 
 ////////////////////////////////// JobRepository ///////////////////////////////
-JobRepository::JobRepository(const char *kafkaBrokers,
-                             const string &fileLastNotifyTime,
-                             Server *server):
+JobRepository::JobRepository(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server):
 running_(true),
-kafkaConsumer_(kafkaBrokers, KAFKA_TOPIC_STRATUM_JOB, 0/*patition*/),
+kafkaConsumer_(kafkaBrokers, consumerTopic, 0/*patition*/),
 server_(server), fileLastNotifyTime_(fileLastNotifyTime),
 kMaxJobsLifeTime_(300),
 kMiningNotifyInterval_(30),  // TODO: make as config arg
@@ -385,10 +383,8 @@ void JobRepository::tryCleanExpiredJobs() {
 }
 
 ////////////////////////////////// JobRepositoryEth ///////////////////////////////
-JobRepositoryEth::JobRepositoryEth(const char *kafkaBrokers,
-                             const string &fileLastNotifyTime,
-                             Server *server):
-JobRepository(kafkaBrokers, fileLastNotifyTime, server),
+JobRepositoryEth::JobRepositoryEth(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server):
+JobRepository(kafkaBrokers, consumerTopic, fileLastNotifyTime, server),
 light_(nullptr), 
 nextLight_(nullptr),
 epochs_(0xffffffffffffffff)
@@ -509,8 +505,8 @@ bool JobRepositoryEth::compute(ethash_h256_t const header, uint64_t nonce, ethas
 }
 
 //////////////////////////////////// JobRepositorySia /////////////////////////////////
-JobRepositorySia::JobRepositorySia(const char *kafkaBrokers, const string &fileLastNotifyTime,
-                                   Server *server) : JobRepository(kafkaBrokers, fileLastNotifyTime, server)
+JobRepositorySia::JobRepositorySia(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server) : 
+JobRepository(kafkaBrokers, consumerTopic, fileLastNotifyTime, server)
 {
 }
 
@@ -923,13 +919,15 @@ StratumServer::StratumServer(const char *ip, const unsigned short port,
                              const char *kafkaBrokers, const string &userAPIUrl,
                              const uint8_t serverId, const string &fileLastNotifyTime,
                              bool isEnableSimulator, bool isSubmitInvalidBlock,
-                             bool isDevModeEnable, float minerDifficulty)
+                             bool isDevModeEnable, float minerDifficulty,
+                             const string &consumerTopic)
 :running_(true),
 ip_(ip), port_(port), serverId_(serverId),
 fileLastNotifyTime_(fileLastNotifyTime),
 kafkaBrokers_(kafkaBrokers), userAPIUrl_(userAPIUrl),
 isEnableSimulator_(isEnableSimulator), isSubmitInvalidBlock_(isSubmitInvalidBlock),
-isDevModeEnable_(isDevModeEnable), minerDifficulty_(minerDifficulty)
+isDevModeEnable_(isDevModeEnable), minerDifficulty_(minerDifficulty),
+consumerTopic_(consumerTopic)
 {
 }
 
@@ -953,7 +951,7 @@ bool StratumServer::init() {
   if (!server_->setup(ip_.c_str(), port_, kafkaBrokers_.c_str(),
                      userAPIUrl_, serverId_, fileLastNotifyTime_,
                      isEnableSimulator_, isSubmitInvalidBlock_,
-                     isDevModeEnable_, minerDifficulty_)) {
+                     isDevModeEnable_, minerDifficulty_, consumerTopic_)) {
     LOG(ERROR) << "fail to setup server";
     return false;
   }
@@ -1051,10 +1049,11 @@ Server::~Server() {
 // }
 
 JobRepository *Server::createJobRepository(const char *kafkaBrokers,
+                                           const char *consumerTopic,
                                            const string &fileLastNotifyTime,
                                            Server *server)
 {
-  return new JobRepository(kafkaBrokers, fileLastNotifyTime, this);
+  return new JobRepository(kafkaBrokers, consumerTopic, fileLastNotifyTime, this);
 }
 
 StratumSession *Server::createSession(evutil_socket_t fd, struct bufferevent *bev,
@@ -1100,7 +1099,7 @@ bool Server::setup(const char *ip, const unsigned short port,
                    const string &userAPIUrl,
                    const uint8_t serverId, const string &fileLastNotifyTime,
                    bool isEnableSimulator, bool isSubmitInvalidBlock,
-                   bool isDevModeEnable, float minerDifficulty) {
+                   bool isDevModeEnable, float minerDifficulty, const string &consumerTopic) {
   if (isEnableSimulator) {
     isEnableSimulator_ = true;
     LOG(WARNING) << "Simulator is enabled, all share will be accepted";
@@ -1134,7 +1133,7 @@ bool Server::setup(const char *ip, const unsigned short port,
                                                  RD_KAFKA_PARTITION_UA);
 
   // job repository
-  jobRepository_ = createJobRepository(kafkaBrokers, fileLastNotifyTime, this);
+  jobRepository_ = createJobRepository(kafkaBrokers, consumerTopic.c_str(), fileLastNotifyTime, this);
   if (!jobRepository_->setupThreadConsume()) {
     return false;
   }
@@ -1671,10 +1670,11 @@ StratumSession *ServerEth::createSession(evutil_socket_t fd, struct bufferevent 
 }
 
 JobRepository *ServerEth::createJobRepository(const char *kafkaBrokers,
+                                            const char *consumerTopic,
                                            const string &fileLastNotifyTime,
                                            Server *server)
 {
-  return new JobRepositoryEth(kafkaBrokers, fileLastNotifyTime, this);
+  return new JobRepositoryEth(kafkaBrokers, consumerTopic, fileLastNotifyTime, this);
 }
 
 ////////////////////////////////// ServierSia ///////////////////////////////
@@ -1689,10 +1689,11 @@ StratumSession *ServerSia::createSession(evutil_socket_t fd, struct bufferevent 
 }
 
 JobRepository *ServerSia::createJobRepository(const char *kafkaBrokers,
+                                            const char *consumerTopic,
                                            const string &fileLastNotifyTime,
                                            Server *server)
 {
-  return new JobRepositorySia(kafkaBrokers, fileLastNotifyTime, this);
+  return new JobRepositorySia(kafkaBrokers, consumerTopic, fileLastNotifyTime, this);
 }
 
 ////////////////////////////////// StratumJobExEth ///////////////////////////////

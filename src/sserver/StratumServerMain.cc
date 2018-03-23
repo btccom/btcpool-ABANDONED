@@ -164,7 +164,8 @@ int main(int argc, char **argv) {
                                        isEnableSimulator,
                                        isSubmitInvalidBlock,
                                        isDevModeEnabled,
-                                       minerDifficulty);
+                                       minerDifficulty,
+                                       cfg.lookup("consumer_topic"));
     if (!gStratumServer->createServer(cfg.lookup("sserver.type"), shareAvgSeconds)) {
        LOG(FATAL) << "createServer failure";
        return 1;

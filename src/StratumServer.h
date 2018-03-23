@@ -122,8 +122,7 @@ private:
   void checkAndSendMiningNotify();
 
 public:
-  JobRepository(const char *kafkaBrokers, const string &fileLastNotifyTime,
-                Server *server);
+  JobRepository(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server);
   virtual ~JobRepository();
 
   void stop();
@@ -140,8 +139,7 @@ public:
 class JobRepositoryEth : public JobRepository
 {
 public:
-  JobRepositoryEth(const char *kafkaBrokers, const string &fileLastNotifyTime,
-                   Server *server);
+  JobRepositoryEth(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server);
   virtual ~JobRepositoryEth();
   virtual void broadcastStratumJob(StratumJob *sjob);
   bool compute(ethash_h256_t const header, uint64_t nonce, ethash_return_value_t& r);
@@ -161,8 +159,7 @@ private:
 class JobRepositorySia : public JobRepository
 {
 public:
-  JobRepositorySia(const char *kafkaBrokers, const string &fileLastNotifyTime,
-                   Server *server);
+  JobRepositorySia(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server);
 };
 
 ///////////////////////////////////// UserInfo /////////////////////////////////
@@ -328,7 +325,8 @@ public:
              bool isEnableSimulator,
              bool isSubmitInvalidBlock,
              bool isDevModeEnable,
-             float minerDifficulty);
+             float minerDifficulty,
+             const string &consumerTopic);
   void run();
   void stop();
 
@@ -356,6 +354,7 @@ public:
   void sendCommonEvents2Kafka(const string &message);
 
   virtual JobRepository* createJobRepository(const char *kafkaBrokers,
+                                    const char *consumerTopic,
                                      const string &fileLastNotifyTime,
                                      Server *server);
 
@@ -376,6 +375,7 @@ public:
   void sendSolvedShare2Kafka(const string& strNonce, const string& strHeader, const string& strMix);
 
   virtual JobRepository* createJobRepository(const char *kafkaBrokers,
+                                    const char *consumerTopic,
                                      const string &fileLastNotifyTime,
                                      Server *server);
 
@@ -391,6 +391,7 @@ public:
   ServerSia(const int32_t shareAvgSeconds) : Server(shareAvgSeconds) {}
 
   virtual JobRepository* createJobRepository(const char *kafkaBrokers,
+                                     const char *consumerTopic,     
                                      const string &fileLastNotifyTime,
                                      Server *server);
 
@@ -427,6 +428,8 @@ public:
 
   // difficulty to send to miners. for development
   float minerDifficulty_;
+  
+  string consumerTopic_;
 
   StratumServer(const char *ip, const unsigned short port,
                 const char *kafkaBrokers,
@@ -435,7 +438,8 @@ public:
                 bool isEnableSimulator,
                 bool isSubmitInvalidBlock,
                 bool isDevModeEnable,
-                float minerDifficulty);
+                float minerDifficulty,
+                const string &consumerTopic);
   ~StratumServer();
   bool createServer(string type, const int32_t shareAvgSeconds);
   bool init();
