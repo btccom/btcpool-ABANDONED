@@ -353,7 +353,7 @@ public:
                                      const string &fileLastNotifyTime,
                                      Server *server);
 
-  static StratumSession* createSession(StratumServerType type, evutil_socket_t fd, struct bufferevent *bev,
+  virtual StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
                                Server *server, struct sockaddr *saddr,
                                const int32_t shareAvgSeconds,
                                const uint32_t sessionID);
@@ -368,6 +368,20 @@ public:
                  const uint256 header,
                  const uint256 mixHash);
   void sendSolvedShare2Kafka(const string& strNonce, const string& strHeader, const string& strMix);
+  virtual StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
+                               Server *server, struct sockaddr *saddr,
+                               const int32_t shareAvgSeconds,
+                               const uint32_t sessionID);
+};
+
+class ServerSia : public Server
+{
+public:
+  ServerSia(const int32_t shareAvgSeconds) : Server(shareAvgSeconds) {}
+  virtual StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
+                               Server *server, struct sockaddr *saddr,
+                               const int32_t shareAvgSeconds,
+                               const uint32_t sessionID);
 };
 
 ////////////////////////////////// StratumServer ///////////////////////////////

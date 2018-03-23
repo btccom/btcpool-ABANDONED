@@ -1339,6 +1339,31 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   }
 }
 
+///////////////////////////////// StratumSessionSia ////////////////////////////////
+StratumSessionSia::StratumSessionSia(evutil_socket_t fd,
+                                     struct bufferevent *bev,
+                                     Server *server,
+                                     struct sockaddr *saddr,
+                                     const int32_t shareAvgSeconds,
+                                     const uint32_t extraNonce1) : StratumSession(fd,
+                                                                                  bev,
+                                                                                  server,
+                                                                                  saddr,
+                                                                                  shareAvgSeconds,
+                                                                                  extraNonce1)
+{
+}
+
+void StratumSessionSia::handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams) {
+  if (state_ != CONNECTED) {
+    responseError(idStr, StratumError::UNKNOWN);
+    return;
+  }
+
+  state_ = SUBSCRIBED;
+  //No need to respond claymore
+}
+
 ///////////////////////////////// AgentSessions ////////////////////////////////
 AgentSessions::AgentSessions(const int32_t shareAvgSeconds,
                              StratumSession *stratumSession)

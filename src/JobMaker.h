@@ -78,8 +78,8 @@ class JobMakerHandlerSia : public JobMakerHandler
 {
   string target_;
   string header_;
-  unit32 time_;
-  validate(const JsonNode &work);
+  uint32 time_;
+  bool validate(JsonNode &work);
 public:
   JobMakerHandlerSia();
   virtual bool processMsg(const string &msg);

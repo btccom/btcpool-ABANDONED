@@ -936,6 +936,8 @@ bool StratumServer::createServer(string type, const int32_t shareAvgSeconds) {
     server_ = make_shared<Server> (shareAvgSeconds);
   else if ("ETH" == type)
     server_ = make_shared<ServerEth> (shareAvgSeconds);
+  else if ("SIA" == type)
+    server_ = make_shared<ServerSia> (shareAvgSeconds);
   else 
     return false;
   return server_ != nullptr;
@@ -1042,33 +1044,43 @@ JobRepository *Server::createJobRepository(StratumServerType type,
   return jobRepo;
 }
 
-StratumSession* Server::createSession(StratumServerType type, evutil_socket_t fd, struct bufferevent *bev,
+StratumSession *Server::createSession(evutil_socket_t fd, struct bufferevent *bev,
                                       Server *server, struct sockaddr *saddr,
                                       const int32_t shareAvgSeconds,
                                       const uint32_t sessionID)
 {
-  StratumSession *conn = nullptr;
-  switch (type)
-  {
-  case BTC:
-    conn = new StratumSession(fd, bev, server, saddr,
-                              server->kShareAvgSeconds_,
-                              sessionID);
-    break;
-  case ETH:
-    conn = new StratumSessionEth(fd, bev, server, saddr,
-                                 server->kShareAvgSeconds_,
-                                 sessionID);
-    break;
-  }
-
-  if (!conn->initialize()) {
-    delete conn;
-    conn = nullptr;
-  }
-
-  return conn;
+  return new StratumSession(fd, bev, server, saddr,
+                     server->kShareAvgSeconds_,
+                     sessionID);
 }
+
+// StratumSession* Server::createSession(StratumServerType type, evutil_socket_t fd, struct bufferevent *bev,
+//                                       Server *server, struct sockaddr *saddr,
+//                                       const int32_t shareAvgSeconds,
+//                                       const uint32_t sessionID)
+// {
+//   StratumSession *conn = nullptr;
+//   switch (type)
+//   {
+//   case BTC:
+//     conn = new StratumSession(fd, bev, server, saddr,
+//                               server->kShareAvgSeconds_,
+//                               sessionID);
+//     break;
+//   case ETH:
+//     conn = new StratumSessionEth(fd, bev, server, saddr,
+//                                  server->kShareAvgSeconds_,
+//                                  sessionID);
+//     break;
+//   }
+
+//   if (!conn->initialize()) {
+//     delete conn;
+//     conn = nullptr;
+//   }
+
+//   return conn;
+// }
 
 bool Server::setup(const char *ip, const unsigned short port,
                    const char *kafkaBrokers,
@@ -1325,9 +1337,14 @@ void Server::listenerCallback(struct evconnlistener* listener,
   }
 
   // create stratum session
-  StratumSession *conn = createSession(ETH, fd, bev, server, saddr,
+  StratumSession *conn = server->createSession(fd, bev, server, saddr,
                                        server->kShareAvgSeconds_,
                                        sessionID);
+  if (!conn->initialize())
+  {
+    delete conn;
+    return;
+  }
   // set callback functions
   bufferevent_setcb(bev,
                     Server::readCallback, nullptr,
@@ -1630,6 +1647,26 @@ void ServerEth::sendSolvedShare2Kafka(const string &strNonce, const string &strH
   kafkaProducerSolvedShare_->produce(msg.c_str(), msg.length());
 }
 
+StratumSession *ServerEth::createSession(evutil_socket_t fd, struct bufferevent *bev,
+                                         Server *server, struct sockaddr *saddr,
+                                         const int32_t shareAvgSeconds,
+                                         const uint32_t sessionID)
+{
+  return new StratumSessionEth(fd, bev, server, saddr,
+                        server->kShareAvgSeconds_,
+                        sessionID);
+}
+
+////////////////////////////////// ServierSia ///////////////////////////////
+StratumSession *ServerSia::createSession(evutil_socket_t fd, struct bufferevent *bev,
+                                         Server *server, struct sockaddr *saddr,
+                                         const int32_t shareAvgSeconds,
+                                         const uint32_t sessionID)
+{
+  return new StratumSessionSia(fd, bev, server, saddr,
+                        server->kShareAvgSeconds_,
+                        sessionID);
+}
 ////////////////////////////////// StratumJobExEth ///////////////////////////////
 StratumJobExEth::StratumJobExEth(StratumJob *sjob, bool isClean) : StratumJobEx(sjob, isClean)
 {

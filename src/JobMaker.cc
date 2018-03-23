@@ -342,7 +342,7 @@ void JobMaker::consumeRawGwMsg(rd_kafka_message_t *rkmessage)
   if (def_.handler && def_.handler->processMsg(msg)) {
     const string producerMsg = move(def_.handler->buildStratumJobMsg());
     if (producerMsg.size() > 0) {
-      LOG(INFO) << "new job: " << producerMsg;
+      LOG(INFO) << "new " << def_.producerTopic << " job: " << producerMsg;
       kafkaProducer_.produce(producerMsg.data(), producerMsg.size());
     }
   }
@@ -898,7 +898,7 @@ bool JobMakerHandlerSia::processMsg(const string& msg) {
   return true;
 }
 
-bool JobMakerHandlerSia::validate(const JsonNode &work)
+bool JobMakerHandlerSia::validate(JsonNode &work)
 {
   // check fields are valid
   if (work.type() != Utilities::JS::type::Obj ||
@@ -907,7 +907,7 @@ bool JobMakerHandlerSia::validate(const JsonNode &work)
     work["rskdRpcUserPwd"].type() != Utilities::JS::type::Str ||
     work["target"].type() != Utilities::JS::type::Str ||
     work["hHash"].type() != Utilities::JS::type::Str) {
-      LOG(ERROR) << "work format not expected " << msg;
+      LOG(ERROR) << "work format not expected";
     return false;
     }
 
@@ -921,7 +921,12 @@ bool JobMakerHandlerSia::validate(const JsonNode &work)
   return true;
 }
 
-string JobMakerHandlerSia::buildStratumJobMsg() {
+string JobMakerHandlerSia::buildStratumJobMsg()
+{
+  if (0 == header_.size() ||
+      0 == target_.size())
+    return "";
+
   return Strings::Format("{\"created_at_ts\":%u"
                          ",\"target\":\"%s\""
                          ",\"hHash\":\"%s\""

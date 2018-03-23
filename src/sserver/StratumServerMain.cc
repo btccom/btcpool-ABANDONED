@@ -115,14 +115,14 @@ int main(int argc, char **argv) {
 
   try {
     // check if we are using testnet3
-    bool isTestnet3 = true;
-    cfg.lookupValue("testnet", isTestnet3);
-    if (isTestnet3) {
-      SelectParams(CBaseChainParams::TESTNET);
-      LOG(WARNING) << "using bitcoin testnet3";
-    } else {
-      SelectParams(CBaseChainParams::MAIN);
-    }
+    // bool isTestnet3 = true;
+    // cfg.lookupValue("testnet", isTestnet3);
+    // if (isTestnet3) {
+    //   SelectParams(CBaseChainParams::TESTNET);
+    //   LOG(WARNING) << "using bitcoin testnet3";
+    // } else {
+    //   SelectParams(CBaseChainParams::MAIN);
+    // }
 
     int32_t            port = 3333;
     uint32_t       serverId = 0;
