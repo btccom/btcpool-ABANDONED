@@ -136,7 +136,7 @@ int main(int argc, char **argv) {
     if (useRedis) {
       int32_t redisPort = 6379;
       cfg.lookupValue("redis.port", redisPort);
-      redisInfo = new RedisConnectInfo(cfg.lookup("redis.host"), redisPort);
+      redisInfo = new RedisConnectInfo(cfg.lookup("redis.host"), redisPort, cfg.lookup("redis.password"));
 
       cfg.lookupValue("redis.key_prefix", redisKeyPrefix);
       cfg.lookupValue("redis.key_expire", redisKeyExpire);

@@ -62,20 +62,23 @@ class RedisConnectInfo {
 public:
   string  host_;
   int32_t port_;
+  string passwd_;
 
-  RedisConnectInfo(const string &host, int32_t port) :
-    host_(host), port_(port)
+  RedisConnectInfo(const string &host, int32_t port, const string &passwd) :
+    host_(host), port_(port), passwd_(passwd)
   {
   }
 
   RedisConnectInfo(const RedisConnectInfo &r) {
     host_     = r.host_;
     port_     = r.port_;
+    passwd_   = r.passwd_;
   }
 
   RedisConnectInfo& operator=(const RedisConnectInfo &r) {
     host_     = r.host_;
     port_     = r.port_;
+    passwd_   = r.passwd_;
     return *this;
   }
 };

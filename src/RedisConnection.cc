@@ -99,6 +99,27 @@ bool RedisConnection::open() {
     return false;
   }
 
+  LOG(INFO) << "redis: connect success.";
+  // auth with password
+  if (!connInfo_.passwd_.empty()) {
+    RedisResult result = execute({"AUTH", connInfo_.passwd_});
+
+    if (result.empty()) {
+      LOG(ERROR) << "redis auth failed: result is empty.";
+      close();
+      return false;
+    }
+
+    if (result.type() != REDIS_REPLY_STATUS || result.str() != "OK") {
+      LOG(ERROR) << "redis auth failed: result is " << result.type() << " (" << result.str() << "), "
+                 << "expected: " << REDIS_REPLY_STATUS << " (OK).";
+      close();
+      return false;
+    }
+
+    LOG(INFO) << "redis: auth success.";
+  }
+
   return true;
 }
 
@@ -117,14 +138,9 @@ bool RedisConnection::_ping() {
     return false;
   }
 
-  if (result.type() != REDIS_REPLY_STATUS) {
-    LOG(ERROR) << "ping redis failed: result type is " << result.type() << ", "
-               << "expected: " << REDIS_REPLY_STATUS << " (REDIS_REPLY_STATUS).";
-    return false;
-  }
-
-  if (result.str() != "PONG") {
-    LOG(ERROR) << "ping redis failed: result is " << result.str() << ", expected \"PONG\".";
+  if (result.type() != REDIS_REPLY_STATUS || result.str() != "PONG") {
+    LOG(ERROR) << "ping redis failed: result is " << result.type() << " (" << result.str() << "), "
+               << "expected: " << REDIS_REPLY_STATUS << " (PONG).";
     return false;
   }
 
