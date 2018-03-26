@@ -27,6 +27,7 @@
 #include "Common.h"
 #include "Kafka.h"
 #include "MySQLConnection.h"
+#include "RedisConnection.h"
 #include "Stratum.h"
 
 #include <event2/event.h>
@@ -260,6 +261,7 @@ class StatsServer {
 
   pthread_rwlock_t rwlock_;  // for workerSet_
   std::unordered_map<WorkerKey/* userId + workerId */, shared_ptr<WorkerShares> > workerSet_;
+  std::unordered_map<int32_t/* userId*/, shared_ptr<WorkerShares> > userSet_;
   std::unordered_map<int32_t /* userId */, int32_t> userWorkerCount_;
   WorkerShares poolWorker_;  // worker status for the pool
 
@@ -269,14 +271,22 @@ class StatsServer {
   KafkaConsumer kafkaConsumerCommonEvents_;  // consume topic: 'CommonEvents'
   thread threadConsumeCommonEvents_;
 
-  MySQLConnection  poolDB_;             // flush workers to table.mining_workers
-  MySQLConnection  poolDBCommonEvents_; // insert or update workers from table.mining_workers
+  MySQLConnection *poolDB_;             // flush workers to table `mining_workers`
+  MySQLConnection *poolDBCommonEvents_; // insert or update workers from table `mining_workers`
+
+  RedisConnection *redis_;
+  RedisConnection *redisCommonEvents_;
+  string redisKeyPrefix_;
+  int redisKeyExpire_;
+
   time_t kFlushDBInterval_;
   atomic<bool> isInserting_;     // flag mark if we are flushing db
+  atomic<bool> isUpdateRedis_;     // flag mark if we are flushing redis
 
-  time_t lastShareTime_; // the generating time of the last consumed share
-  static atomic<bool> isInitializing_; // if true, the database will not be flushed and the HTTP API will return an error
+  atomic<time_t> lastShareTime_; // the generating time of the last consumed share
+  atomic<bool> isInitializing_;  // if true, the database will not be flushed and the HTTP API will return an error
   
+  atomic<time_t> lastFlushTime_; // the last db flush time
   string fileLastFlushTime_;     // write last db flush time to the file
 
   // httpd
@@ -289,10 +299,12 @@ class StatsServer {
 
   void runThreadConsumeCommonEvents();
   void consumeCommonEvents(rd_kafka_message_t *rkmessage);
-  bool updateWorkerStatus(const int32_t userId, const int64_t workerId,
-                          const char *workerName, const char *minerAgent);
+  bool updateWorkerStatusToDB(const int32_t userId, const int64_t workerId,
+                              const char *workerName, const char *minerAgent);
+  bool updateWorkerStatusToRedis(const int32_t userId, const int64_t workerId,
+                                 const char *workerName, const char *minerAgent);
 
-  void _processShare(WorkerKey &key1, WorkerKey &key2, const Share &share);
+  void _processShare(WorkerKey &key, const Share &share);
   void processShare(const Share &share);
   void getWorkerStatusBatch(const vector<WorkerKey> &keys,
                             vector<WorkerStatus> &workerStatus);
@@ -300,17 +312,24 @@ class StatsServer {
 
   void _flushWorkersToDBThread();
   void flushWorkersToDB();
+  void _flushWorkersToRedisThread();
+  void flushWorkersToRedis();
   void removeExpiredWorkers();
   bool setupThreadConsume();
   void runHttpd();
+
+  string getRedisKeyMiningWorker(const int32_t userId, const int64_t workerId);
+  string getRedisKeyMiningWorker(const int32_t userId);
 
 public:
   atomic<uint64_t> requestCount_;
   atomic<uint64_t> responseBytes_;
 
 public:
-  StatsServer(const char *kafkaBrokers, const string &httpdHost,
-              unsigned short httpdPort, const MysqlConnectInfo &poolDBInfo,
+  StatsServer(const char *kafkaBrokers,
+              const string &httpdHost, unsigned short httpdPort,
+              const MysqlConnectInfo *poolDBInfo, const RedisConnectInfo *redisInfo,
+              const string &redisKeyPrefix, const int redisKeyExpire,
               const time_t kFlushDBInterval, const string &fileLastFlushTime);
   ~StatsServer();
 
@@ -323,6 +342,7 @@ public:
 
   static void httpdServerStatus   (struct evhttp_request *req, void *arg);
   static void httpdGetWorkerStatus(struct evhttp_request *req, void *arg);
+  static void httpdGetFlushDBTime (struct evhttp_request *req, void *arg);
 
   void getWorkerStatus(struct evbuffer *evb, const char *pUserId,
                        const char *pWorkerId, const char *pIsMerge);

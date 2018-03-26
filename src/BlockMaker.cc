@@ -191,7 +191,7 @@ void BlockMaker::addRawgbt(const char *str, size_t len) {
 
   const uint256 gbtHash = uint256S(r["gbthash"].str());
   if (rawGbtMap_.find(gbtHash) != rawGbtMap_.end()) {
-    LOG(ERROR) << "already exist raw gbt, ingore: " << gbtHash.ToString();
+    LOG(ERROR) << "already exist raw gbt, ignore: " << gbtHash.ToString();
     return;
   }
 
@@ -636,28 +636,12 @@ void BlockMaker::_saveBlockToDBThread(const FoundBlock &foundBlock,
 }
 
 bool BlockMaker::checkBitcoinds() {
-  const string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getnetworkinfo\",\"params\":[]}";
-
-  if (bitcoindRpcUri_.size() == 0)
+  if (bitcoindRpcUri_.size() == 0) {
     return false;
+  }
 
   for (const auto &itr : bitcoindRpcUri_) {
-    string response;
-    bool res = bitcoindRpcCall(itr.first.c_str(), itr.second.c_str(),
-                               request.c_str(), response);
-    if (res == false) {
-      return false;
-    }
-    LOG(INFO) << "response: " << response;
-    JsonNode r;
-    if (!JsonNode::parse(response.c_str(), response.c_str() + response.length(), r)) {
-      LOG(ERROR) << "json parse failure: " << response;
-      return false;
-    }
-    JsonNode result = r["result"];
-    if (result.type() == Utilities::JS::type::Null ||
-        result["connections"].int32() == 0) {
-      LOG(ERROR) << "bitcoind is NOT works fine, getnetworkinfo: " << response;
+    if (!checkBitcoinRPC(itr.first.c_str(), itr.second.c_str())) {
       return false;
     }
   }
