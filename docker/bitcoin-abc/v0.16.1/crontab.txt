@@ -1,0 +1,4 @@
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+* * * * * root bash /root/scripts/opsgenie-monitor-bitcoind.sh > /dev/null 2>&1

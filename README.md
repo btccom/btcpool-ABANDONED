@@ -3,18 +3,20 @@ BTCPool for BTC, BCH, UBTC & SBTC
 
 BTCPool is backend system of [https://pool.btc.com](https://pool.btc.com).
 
+> This is a version of BTCPool that supports more SHA256 blockchains. Check the **single-blockchain** version at [legacy](https://github.com/btccom/btcpool/tree/legacy) branch.
+
 The pool backend support 4 blockchains at current:
 * [Bitcoin](https://bitcoin.org/)
 * [BitcoinCash](https://bitcoincash.org/)
 * [UnitedBitcoin](https://ub.com/)
 * [SuperBitcoin](http://supersmartbitcoin.com/)
 
-Note: This is still a testbed and work in progress, all things could be changed.
+Note: The project is still a testbed and work in progress, all things could be changed.
 
 See Also:
-* [Stratum Switcher](https://github.com/btccom/stratumSwitcher)
+* [BTCPool's modules that writed by golang](https://github.com/btccom/btcpool-go-modules)
 
-## Architecture
+## Architecture (need update)
 
 ![Architecture](docs/btcpool.png)
 
