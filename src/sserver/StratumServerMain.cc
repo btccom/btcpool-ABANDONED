@@ -152,6 +152,9 @@ int main(int argc, char **argv) {
     string fileLastMiningNotifyTime;
     cfg.lookupValue("sserver.file_last_notify_time", fileLastMiningNotifyTime);
 
+    uint32 maxJobDelay = 60;
+    cfg.lookupValue("sserver.max_job_delay", maxJobDelay);
+
     evthread_use_pthreads();
 
     // new StratumServer
@@ -165,7 +168,8 @@ int main(int argc, char **argv) {
                                        isSubmitInvalidBlock,
                                        isDevModeEnabled,
                                        minerDifficulty,
-                                       cfg.lookup("consumer_topic"));
+                                       cfg.lookup("consumer_topic"), 
+                                       maxJobDelay);
     if (!gStratumServer->createServer(cfg.lookup("sserver.type"), shareAvgSeconds)) {
        LOG(FATAL) << "createServer failure";
        return 1;

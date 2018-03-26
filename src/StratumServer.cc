@@ -907,14 +907,16 @@ StratumServer::StratumServer(const char *ip, const unsigned short port,
                              const uint8_t serverId, const string &fileLastNotifyTime,
                              bool isEnableSimulator, bool isSubmitInvalidBlock,
                              bool isDevModeEnable, float minerDifficulty,
-                             const string &consumerTopic)
+                             const string &consumerTopic,
+                             uint32 maxJobDelay)
 :running_(true),
 ip_(ip), port_(port), serverId_(serverId),
 fileLastNotifyTime_(fileLastNotifyTime),
 kafkaBrokers_(kafkaBrokers), userAPIUrl_(userAPIUrl),
 isEnableSimulator_(isEnableSimulator), isSubmitInvalidBlock_(isSubmitInvalidBlock),
 isDevModeEnable_(isDevModeEnable), minerDifficulty_(minerDifficulty),
-consumerTopic_(consumerTopic)
+consumerTopic_(consumerTopic),
+maxJobDelay_(maxJobDelay)
 {
 }
 
@@ -938,7 +940,8 @@ bool StratumServer::init() {
   if (!server_->setup(ip_.c_str(), port_, kafkaBrokers_.c_str(),
                      userAPIUrl_, serverId_, fileLastNotifyTime_,
                      isEnableSimulator_, isSubmitInvalidBlock_,
-                     isDevModeEnable_, minerDifficulty_, consumerTopic_)) {
+                     isDevModeEnable_, minerDifficulty_, consumerTopic_,
+                     maxJobDelay_)) {
     LOG(ERROR) << "fail to setup server";
     return false;
   }
@@ -1086,7 +1089,8 @@ bool Server::setup(const char *ip, const unsigned short port,
                    const string &userAPIUrl,
                    const uint8_t serverId, const string &fileLastNotifyTime,
                    bool isEnableSimulator, bool isSubmitInvalidBlock,
-                   bool isDevModeEnable, float minerDifficulty, const string &consumerTopic) {
+                   bool isDevModeEnable, float minerDifficulty, const string &consumerTopic,
+                   uint32 maxJobDelay) {
   if (isEnableSimulator) {
     isEnableSimulator_ = true;
     LOG(WARNING) << "Simulator is enabled, all share will be accepted";
@@ -1121,6 +1125,7 @@ bool Server::setup(const char *ip, const unsigned short port,
 
   // job repository
   jobRepository_ = createJobRepository(kafkaBrokers, consumerTopic.c_str(), fileLastNotifyTime, this);
+  jobRepository_->setMaxJobDelay(maxJobDelay);
   if (!jobRepository_->setupThreadConsume()) {
     return false;
   }

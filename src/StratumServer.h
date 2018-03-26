@@ -129,11 +129,13 @@ public:
   bool setupThreadConsume();
   void markAllJobsAsStale();
   StratumJobEx *createStratumJobEx(StratumServerType type, StratumJob *sjob, bool isClean);
-  virtual StratumJob* createStratumJob() {return new StratumJob();}
-  virtual void broadcastStratumJob(StratumJob *sjob);
+  void setMaxJobDelay (const time_t maxJobDelay) {kMaxJobsLifeTime_ = maxJobDelay;}
   void sendMiningNotify(shared_ptr<StratumJobEx> exJob);
   shared_ptr<StratumJobEx> getStratumJobEx(const uint64_t jobId);
   shared_ptr<StratumJobEx> getLatestStratumJobEx();
+
+  virtual StratumJob* createStratumJob() {return new StratumJob();}
+  virtual void broadcastStratumJob(StratumJob *sjob);
 };
 
 class JobRepositoryEth : public JobRepository
@@ -328,7 +330,8 @@ public:
              bool isSubmitInvalidBlock,
              bool isDevModeEnable,
              float minerDifficulty,
-             const string &consumerTopic);
+             const string &consumerTopic,
+             uint32 maxJobDelay);
   void run();
   void stop();
 
@@ -432,6 +435,7 @@ public:
   float minerDifficulty_;
   
   string consumerTopic_;
+  uint32 maxJobDelay_;
 
   StratumServer(const char *ip, const unsigned short port,
                 const char *kafkaBrokers,
@@ -441,7 +445,8 @@ public:
                 bool isSubmitInvalidBlock,
                 bool isDevModeEnable,
                 float minerDifficulty,
-                const string &consumerTopic);
+                const string &consumerTopic,
+                uint32 maxJobDelay);
   ~StratumServer();
   bool createServer(string type, const int32_t shareAvgSeconds);
   bool init();
