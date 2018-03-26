@@ -28,6 +28,11 @@ std::string EncodeHexBlock(const CBlock &block) {
   ssBlock << block;
   return HexStr(ssBlock.begin(), ssBlock.end());
 }
+std::string EncodeHexBlockHeader(const CBlockHeader &blkHeader) {
+  CDataStream ssBlkHeader(SER_NETWORK, PROTOCOL_VERSION);
+  ssBlkHeader << blkHeader;
+  return HexStr(ssBlkHeader.begin(), ssBlkHeader.end());
+}
 
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
 {
