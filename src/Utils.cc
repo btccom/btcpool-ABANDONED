@@ -188,10 +188,6 @@ bool httpPOST(const char *url, const char *userpwd, const char *postData,
   chunk.memory = (char *)malloc(1);  /* will be grown as needed by the realloc above */
   chunk.size   = 0;          /* no data at this point */
 
-  // RSK doesn't support 'Expect: 100-Continue' in 'HTTP/1.1'.
-  // So switch to 'HTTP/1.0'.
-  curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_0);
-
   if (mineType != nullptr) {
     string mineHeader = string("Content-Type: ") + string(mineType);
     headers = curl_slist_append(headers, mineHeader.c_str());
