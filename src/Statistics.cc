@@ -125,8 +125,6 @@ bool WorkerShares::isExpired() {
 
 
 ////////////////////////////////  StatsServer  ////////////////////////////////
-atomic<bool> StatsServer::isInitializing_(true);
-
 StatsServer::StatsServer(const char *kafkaBrokers,
                          const string &httpdHost, unsigned short httpdPort,
                          const MysqlConnectInfo *poolDBInfo, const RedisConnectInfo *redisInfo,
@@ -139,7 +137,8 @@ kafkaConsumerCommonEvents_(kafkaBrokers, KAFKA_TOPIC_COMMON_EVENTS, 0/* patition
 poolDB_(nullptr), poolDBCommonEvents_(nullptr), redis_(nullptr),
 redisKeyPrefix_(redisKeyPrefix), redisKeyExpire_(redisKeyExpire),
 kFlushDBInterval_(kFlushDBInterval), isInserting_(false), isUpdateRedis_(false),
-lastShareTime_(0), fileLastFlushTime_(fileLastFlushTime),
+lastShareTime_(0), isInitializing_(true),
+lastFlushTime_(0), fileLastFlushTime_(fileLastFlushTime),
 base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort),
 requestCount_(0), responseBytes_(0)
 {
@@ -570,10 +569,11 @@ void StatsServer::_flushWorkersToDBThread() {
     goto finish;
   }
   LOG(INFO) << "flush mining workers to DB... done, workers: " << workerCounter << ", users: " << userCounter;
-  
+
+  lastFlushTime_ = time(nullptr);
   // save flush timestamp to file, for monitor system
   if (!fileLastFlushTime_.empty())
-  	writeTime2File(fileLastFlushTime_.c_str(), (uint32_t)time(nullptr));
+  	writeTime2File(fileLastFlushTime_.c_str(), lastFlushTime_);
 
 finish:
   isInserting_ = false;
@@ -1092,8 +1092,8 @@ void StatsServer::httpdServerStatus(struct evhttp_request *req, void *arg) {
 
   struct evbuffer *evb = evbuffer_new();
 
-  // service is initializing, return
-  if (isInitializing_) {
+  // service is initializing, return a error
+  if (server->isInitializing_) {
     evbuffer_add_printf(evb, "{\"err_no\":2,\"err_msg\":\"service is initializing...\"}");
     evhttp_send_reply(req, HTTP_OK, "OK", evb);
     evbuffer_free(evb);
@@ -1159,7 +1159,7 @@ void StatsServer::httpdGetWorkerStatus(struct evhttp_request *req, void *arg) {
   struct evbuffer *evb = evbuffer_new();
 
   // service is initializing, return
-  if (isInitializing_) {
+  if (server->isInitializing_) {
     evbuffer_add_printf(evb, "{\"err_no\":2,\"err_msg\":\"service is initializing...\"}");
     evhttp_send_reply(req, HTTP_OK, "OK", evb);
     evbuffer_free(evb);
@@ -1262,6 +1262,30 @@ void StatsServer::getWorkerStatus(struct evbuffer *evb, const char *pUserId,
   }
 }
 
+void StatsServer::httpdGetFlushDBTime(struct evhttp_request *req, void *arg) {
+  evhttp_add_header(evhttp_request_get_output_headers(req),
+                    "Content-Type", "text/json");
+  StatsServer *server = (StatsServer *)arg;
+  server->requestCount_++;
+
+  struct evbuffer *evb = evbuffer_new();
+
+  // service is initializing, return
+  if (server->isInitializing_) {
+    evbuffer_add_printf(evb, "{\"err_no\":2,\"err_msg\":\"service is initializing...\"}");
+    evhttp_send_reply(req, HTTP_OK, "OK", evb);
+    evbuffer_free(evb);
+
+    return;
+  }
+  
+  evbuffer_add_printf(evb, "{\"err_no\":0,\"err_msg\":\"\",\"data\":{\"flush_db_time\":%" PRId64 "}}", (int64_t)server->lastFlushTime_);
+
+  server->responseBytes_ += evbuffer_get_length(evb);
+  evhttp_send_reply(req, HTTP_OK, "OK", evb);
+  evbuffer_free(evb);
+}
+
 void StatsServer::runHttpd() {
   struct evhttp_bound_socket *handle;
   struct evhttp *httpd;
@@ -1275,6 +1299,7 @@ void StatsServer::runHttpd() {
   evhttp_set_cb(httpd, "/",               StatsServer::httpdServerStatus, this);
   evhttp_set_cb(httpd, "/worker_status",  StatsServer::httpdGetWorkerStatus, this);
   evhttp_set_cb(httpd, "/worker_status/", StatsServer::httpdGetWorkerStatus, this);
+  evhttp_set_cb(httpd, "/flush_db_time",  StatsServer::httpdGetFlushDBTime, this);
 
   handle = evhttp_bind_socket_with_handle(httpd, httpdHost_.c_str(), httpdPort_);
   if (!handle) {

@@ -33,7 +33,7 @@
 #include <utilstrencodings.h>
 #include <streams.h>
 
-#include <zmq.hpp>
+#include "zmq.hpp"
 
 #include "Common.h"
 
