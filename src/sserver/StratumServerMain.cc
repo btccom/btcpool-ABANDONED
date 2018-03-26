@@ -168,7 +168,7 @@ int main(int argc, char **argv) {
                                        isSubmitInvalidBlock,
                                        isDevModeEnabled,
                                        minerDifficulty,
-                                       cfg.lookup("consumer_topic"), 
+                                       cfg.lookup("sserver.consumer_topic"), 
                                        maxJobDelay);
     if (!gStratumServer->createServer(cfg.lookup("sserver.type"), shareAvgSeconds)) {
        LOG(FATAL) << "createServer failure";

@@ -111,6 +111,11 @@ JobRepository::~JobRepository() {
     threadConsume_.join();
 }
 
+void JobRepository::setMaxJobDelay (const time_t maxJobDelay) {
+  LOG(INFO) << "set max job dealy to " << maxJobDelay << "s";
+  kMaxJobsLifeTime_ = maxJobDelay;
+}
+
 shared_ptr<StratumJobEx> JobRepository::getStratumJobEx(const uint64_t jobId) {
   ScopeLock sl(lock_);
   auto itr = exJobs_.find(jobId);
