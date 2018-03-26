@@ -100,12 +100,12 @@ void initDefinitions(const Config &cfg)
     // bitcoinds[i].lookupValue("rpc_addr", rpcAddr);
     // bitcoinds[i].lookupValue("rpc_userpwd", rpcUserpwd);
     // gBlockMaker->addBitcoind(rpcAddr, rpcUserpwd);
-    string addr = move(definitions[i].lookup("addr"));
-    string userpwd = move(definitions[i].lookup("userpwd"));
-    string data = move(definitions[i].lookup("data"));
-    string agent = move(definitions[i].lookup("agent"));
-    string topic = move(definitions[i].lookup("topic"));
-    string handlerType = move(definitions[i].lookup("handler"));
+    string addr = definitions[i].lookup("addr");
+    string userpwd = definitions[i].lookup("userpwd");
+    string data = definitions[i].lookup("data");
+    string agent = definitions[i].lookup("agent");
+    string topic = definitions[i].lookup("topic");
+    string handlerType = definitions[i].lookup("handler");
     uint32_t interval = 500;
     definitions[i].lookupValue("interval", interval);
     bool enabled = false;
@@ -215,7 +215,7 @@ int main(int argc, char **argv) {
 
   initDefinitions(cfg);
   vector<shared_ptr<thread>> workers;
-  string brokers = std::move(cfg.lookup("kafka.brokers"));
+  string brokers = cfg.lookup("kafka.brokers");
   for (auto gwDef : gGwDefiniitons)
   {
     if (gwDef.enabled)

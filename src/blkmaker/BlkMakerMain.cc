@@ -53,8 +53,8 @@ void usage() {
 }
 
 BlockMaker* createBlockMaker(Config& cfg, MysqlConnectInfo* poolDBInfo) {
-  string type = std::move(cfg.lookup("blockmaker.type"));
-  string broker = std::move(cfg.lookup("kafka.brokers"));
+  string type = cfg.lookup("blockmaker.type");
+  string broker = cfg.lookup("kafka.brokers");
 
   BlockMaker *maker = nullptr;
   if ("BTC" == type) 

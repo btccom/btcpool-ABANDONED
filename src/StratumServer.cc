@@ -101,8 +101,7 @@ kafkaConsumer_(kafkaBrokers, consumerTopic, 0/*patition*/),
 server_(server), fileLastNotifyTime_(fileLastNotifyTime),
 kMaxJobsLifeTime_(300),
 kMiningNotifyInterval_(30),  // TODO: make as config arg
-lastJobSendTime_(0),
-serverType_(BTC) // TODO: make as config arg
+lastJobSendTime_(0)
 {
   assert(kMiningNotifyInterval_ < kMaxJobsLifeTime_);
 }
@@ -207,7 +206,7 @@ void JobRepository::broadcastStratumJob(StratumJob *sjob) {
   // don't have a sense and such shares will be rejected. When this flag is set,
   // miner should also drop all previous jobs.
   // 
-  shared_ptr<StratumJobEx> exJob(createStratumJobEx(serverType_, sjob, isClean));
+  shared_ptr<StratumJobEx> exJob(createStratumJobEx(sjob, isClean));
   {
     ScopeLock sl(lock_);
 
@@ -293,23 +292,10 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   broadcastStratumJob(sjob);
 }
 
-StratumJobEx* JobRepository::createStratumJobEx(StratumServerType type, StratumJob *sjob, bool isClean){
-  StratumJobEx* job = NULL;
-
-  switch (type) {
-    case BTC: {
-      job = new StratumJobEx(sjob, isClean);
-      break;
-    }
-    case ETH: {
-      job = new StratumJobExEth(sjob, isClean);
-      break;
-    }
-  }
-
+StratumJobEx* JobRepository::createStratumJobEx(StratumJob *sjob, bool isClean){
+  StratumJobEx *job = new StratumJobEx(sjob, isClean);
   if (job)
-    job->makeMiningNotifyStr();
-
+    job->init();
   return job;
 }
 
@@ -376,15 +362,17 @@ light_(nullptr),
 nextLight_(nullptr),
 epochs_(0xffffffffffffffff)
 {
-  serverType_ = ETH;
-  kMaxJobsLifeTime_ = 60;
+}
+
+StratumJobEx* JobRepositoryEth::createStratumJobEx(StratumJob *sjob, bool isClean){
+  return new StratumJobExEth(sjob, isClean);
 }
 
 void JobRepositoryEth::broadcastStratumJob(StratumJob *sjob) {
   LOG(INFO) << "broadcastStratumJob " << sjob->jobId_;
   bool isClean = true;
   
-  shared_ptr<StratumJobEx> exJob(createStratumJobEx(serverType_, sjob, isClean));
+  shared_ptr<StratumJobEx> exJob(createStratumJobEx(sjob, isClean));
   {
     ScopeLock sl(lock_);
 
@@ -495,6 +483,27 @@ bool JobRepositoryEth::compute(ethash_h256_t const header, uint64_t nonce, ethas
 JobRepositorySia::JobRepositorySia(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server) : 
 JobRepository(kafkaBrokers, consumerTopic, fileLastNotifyTime, server)
 {
+}
+
+StratumJobEx* JobRepositorySia::createStratumJobEx(StratumJob *sjob, bool isClean){
+  return new StratumJobExSia(sjob, isClean);
+}
+
+void JobRepositorySia::broadcastStratumJob(StratumJob *sjob) {
+  LOG(INFO) << "broadcast sia stratum job " << sjob->jobId_;
+  shared_ptr<StratumJobEx> exJob(createStratumJobEx(sjob, true));
+  {
+    ScopeLock sl(lock_);
+
+    // mark all jobs as stale, should do this before insert new job
+    for (auto it : exJobs_)
+      it.second->markStale();
+
+    // insert new job
+    exJobs_[sjob->jobId_] = exJob;
+  }
+
+  sendMiningNotify(exJob);
 }
 
 //////////////////////////////////// UserInfo /////////////////////////////////
@@ -783,7 +792,7 @@ StratumJobEx::StratumJobEx(StratumJob *sjob, bool isClean):
 state_(0), isClean_(isClean), sjob_(sjob)
 {
   assert(sjob != nullptr);
-  //makeMiningNotifyStr();
+  init();
 }
 
 StratumJobEx::~StratumJobEx() {
@@ -793,7 +802,7 @@ StratumJobEx::~StratumJobEx() {
   }
 }
 
-void StratumJobEx::makeMiningNotifyStr() {
+void StratumJobEx::init() {
   string merkleBranchStr;
   {
     // '"'+ 64 + '"' + ',' = 67 bytes
@@ -1693,7 +1702,7 @@ StratumJobExEth::StratumJobExEth(StratumJob *sjob, bool isClean) : StratumJobEx(
 {
 }
 
-void StratumJobExEth::makeMiningNotifyStr()
+void StratumJobExEth::init()
 {
   // StratumJobEth *ethJob = dynamic_cast<StratumJobEth *>(sjob_);
   // if (nullptr == ethJob)
@@ -1716,7 +1725,6 @@ void StratumJobExEth::makeMiningNotifyStr()
 
   //string header = ethJob->blockHashForMergedMining_.substr(2, 64);
   //string seed = ethJob->seedHash_.substr(2, 64);
-  //string strShareTarget = std::move(Eth_DifficultyToTarget(shareDifficulty_));
   //LOG(INFO) << "new stratum job mining.notify: share difficulty=" << shareDifficulty_ << ", share target=" << strShareTarget;
   // miningNotify1_ = Strings::Format("{\"id\":8,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
   //                                  "\"params\":[\"%s\",\"%s\",\"%s\",\"%s\", false]}\n",

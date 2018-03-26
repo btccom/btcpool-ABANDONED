@@ -1177,8 +1177,8 @@ StratumSessionEth::StratumSessionEth(evutil_socket_t fd, struct bufferevent *bev
 }
 
 void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
-  LOG(INFO) << "StratumSessionEth::sendMiningNotify";
   if (state_ < AUTHENTICATED || exJobPtr == nullptr) {
+    LOG(ERROR) << "eth sendMiningNotify failed, state: " << state_;
     return;
   }
 
@@ -1187,17 +1187,16 @@ void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool
     return;
   }
 
-  StratumJob *sjob = exJobPtr->sjob_;
   localJobs_.push_back(LocalJob());
   LocalJob &ljob = *(localJobs_.rbegin());
-  ljob.blkBits_       = sjob->nBits_;
-  ljob.jobId_         = sjob->jobId_;
+  ljob.blkBits_       = ethJob->nBits_;
+  ljob.jobId_         = ethJob->jobId_;
   ljob.shortJobId_    = allocShortJobId();
   ljob.jobDifficulty_ = diffController_->calcCurDiff();
   string header = ethJob->blockHashForMergedMining_.substr(2, 64);
   ljob.strJobId_ = header;
   string seed = ethJob->seedHash_.substr(2, 64);
-  string strShareTarget = std::move(Eth_DifficultyToTarget(ljob.jobDifficulty_));
+  string strShareTarget = Eth_DifficultyToTarget(ljob.jobDifficulty_);
   LOG(INFO) << "new stratum job mining.notify: share difficulty=" << ljob.jobDifficulty_ << ", share target=" << strShareTarget;
   const string strNotify = Strings::Format("{\"id\":8,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
                                    "\"params\":[\"%s\",\"%s\",\"%s\",\"%s\", false]}\n",
@@ -1220,7 +1219,7 @@ void StratumSessionEth::handleRequest_Subscribe        (const string &idStr, con
 
   state_ = SUBSCRIBED;
 
-  const string s = std::move(Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":true}\n", idStr.c_str()));
+  const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":true}\n", idStr.c_str());
   sendData(s);
 }
 
@@ -1350,7 +1349,8 @@ StratumSessionSia::StratumSessionSia(evutil_socket_t fd,
                                                                                   server,
                                                                                   saddr,
                                                                                   shareAvgSeconds,
-                                                                                  extraNonce1)
+                                                                                  extraNonce1),
+                                                                                  shortJobId_(0)
 {
 }
 
@@ -1362,6 +1362,46 @@ void StratumSessionSia::handleRequest_Subscribe        (const string &idStr, con
 
   state_ = SUBSCRIBED;
   //No need to respond claymore
+}
+
+void StratumSessionSia::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob)
+{
+  if (state_ < AUTHENTICATED || nullptr == exJobPtr)
+  {
+    LOG(ERROR) << "sia sendMiningNotify failed, state: " << state_;
+    return;
+  }
+
+  // {"id":6,"jsonrpc":"2.0","params":["49",
+  // "0x0000000000000000c12d6c07fa3e7e182d563d67a961d418d8fa0141478310a500000000000000001d3eaa5a00000000240cc42aa2940c21c8f0ad76b5780d7869629ff66a579043bbdc2b150b8689a0",
+  // "0x0000000007547ff5d321871ff4fb4f118b8d13a30a1ff7b317f3c5b20629578a"],
+  // "method":"mining.notify"}
+
+  StratumJobSia *siaJob = dynamic_cast<StratumJobSia *>(exJobPtr->sjob_);
+  if (nullptr == siaJob)
+  {
+    return;
+  }
+
+  localJobs_.push_back(LocalJob());
+  LocalJob &ljob = *(localJobs_.rbegin());
+  ljob.jobId_ = siaJob->jobId_;
+  ljob.shortJobId_ = shortJobId_++;
+  ljob.jobDifficulty_ = diffController_->calcCurDiff();
+  uint256 shareTarget;
+  DiffToTarget(ljob.jobDifficulty_, shareTarget);
+  string strShareTarget = shareTarget.GetHex();
+  LOG(INFO) << "new sia stratum job mining.notify: share difficulty=" << ljob.jobDifficulty_ << ", share target=" << strShareTarget;
+  const string strNotify = Strings::Format("{\"id\":6,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
+                                           "\"params\":[\"%u\",\"0x%s\",\"0x%s\"]}\n",
+                                           ljob.shortJobId_,
+                                           siaJob->blockHashForMergedMining_.c_str(),
+                                           strShareTarget.c_str());
+
+  sendData(strNotify); // send notify string
+
+  // clear localJobs_
+  clearLocalJobs();
 }
 
 ///////////////////////////////// AgentSessions ////////////////////////////////

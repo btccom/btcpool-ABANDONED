@@ -340,7 +340,7 @@ void JobMaker::consumeRawGwMsg(rd_kafka_message_t *rkmessage)
 
   string msg((const char *)rkmessage->payload, rkmessage->len);
   if (def_.handler && def_.handler->processMsg(msg)) {
-    const string producerMsg = move(def_.handler->buildStratumJobMsg());
+    const string producerMsg = def_.handler->buildStratumJobMsg();
     if (producerMsg.size() > 0) {
       LOG(INFO) << "new " << def_.producerTopic << " job: " << producerMsg;
       kafkaProducer_.produce(producerMsg.data(), producerMsg.size());
@@ -887,12 +887,12 @@ bool JobMakerHandlerSia::processMsg(const string& msg) {
   if (!validate(j))
     return false;
 
-  string header = move(j["hHash"].str());
+  string header = j["hHash"].str();
   if (header == header_) 
     return false;
   
   header_ = move(header);
-  target_ = move(j["target"].str());
+  target_ = j["target"].str();
   time_ =  j["created_at_ts"].uint32();
 
   return true;

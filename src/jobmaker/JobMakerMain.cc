@@ -85,11 +85,11 @@ void initDefinitions(const Config &cfg)
 
   for (int i = 0; i < definitions.getLength(); i++)
   {
-    const string consumerTopic = move(definitions[i].lookup("consumer_topic"));
-    const string fileLastJobTime = move(definitions[i].lookup("file_last_job_time"));
-    const string payoutAddr = move(definitions[i].lookup("payout_address"));
-    const string producerTopic = move(definitions[i].lookup("producer_topic"));
-    string handlerType = move(definitions[i].lookup("handler"));
+    const string consumerTopic = definitions[i].lookup("consumer_topic");
+    const string fileLastJobTime = definitions[i].lookup("file_last_job_time");
+    const string payoutAddr = definitions[i].lookup("payout_address");
+    const string producerTopic = definitions[i].lookup("producer_topic");
+    string handlerType = definitions[i].lookup("handler");
     uint32 consumerInterval = 500;
     definitions[i].lookupValue("consumer_interval", consumerInterval);
     uint32 stratumJobInterval = 500;
@@ -244,7 +244,7 @@ int main(int argc, char **argv) {
 
     initDefinitions(cfg);
     vector<shared_ptr<thread>> workers;
-    string brokers = std::move(cfg.lookup("kafka.brokers"));
+    string brokers = cfg.lookup("kafka.brokers");
     for (auto def : gJobMakerDefinitions)
     {
       if (def.enabled)

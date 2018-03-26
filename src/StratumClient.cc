@@ -217,14 +217,14 @@ string StratumClientEth::constructShare()
   // "ae778d304393d441bf8e1c47237261675caa3827997f671d8e5ec3bd5d862503",
   // "0x4cc7c01bfbe51c67","0xae778d304393d441bf8e1c47237261675caa3827997f671d8e5ec3bd5d862503",
   // "0x52fdd9e9a796903c6b88af4192717e77d9a9c6fa6a1366540b65e6bcfa9069aa"]}
-  string s = std::move(Strings::Format("{\"id\": 4, \"method\": \"mining.submit\", "
+  string s = Strings::Format("{\"id\": 4, \"method\": \"mining.submit\", "
                       "\"params\": [\"%s\",\"%s\",\"0x%08x%08x\",\"0x%s\",\"0x%s\"]}\n",
                       "ccc",
                       header_.GetHex().c_str(),
                       extraNonce2_ >> 32,
                       extraNonce2_,
                       header_.GetHex().c_str(),
-                      header_.GetHex().c_str()));
+                      header_.GetHex().c_str());
 
   extraNonce2_++;
   header_++;

@@ -113,7 +113,6 @@ protected:
   uint256 latestPrevBlockHash_;
 
   thread threadConsume_;
-  StratumServerType serverType_;
 
 private:
   void runThreadConsume();
@@ -128,13 +127,14 @@ public:
   void stop();
   bool setupThreadConsume();
   void markAllJobsAsStale();
-  StratumJobEx *createStratumJobEx(StratumServerType type, StratumJob *sjob, bool isClean);
+  
   void setMaxJobDelay (const time_t maxJobDelay) {kMaxJobsLifeTime_ = maxJobDelay;}
   void sendMiningNotify(shared_ptr<StratumJobEx> exJob);
   shared_ptr<StratumJobEx> getStratumJobEx(const uint64_t jobId);
   shared_ptr<StratumJobEx> getLatestStratumJobEx();
 
   virtual StratumJob* createStratumJob() {return new StratumJob();}
+  virtual StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean);
   virtual void broadcastStratumJob(StratumJob *sjob);
 };
 
@@ -143,9 +143,12 @@ class JobRepositoryEth : public JobRepository
 public:
   JobRepositoryEth(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server);
   virtual ~JobRepositoryEth();
-  virtual StratumJob *createStratumJob() {return new StratumJobEth();}
-  virtual void broadcastStratumJob(StratumJob *sjob);
+
   bool compute(ethash_h256_t const header, uint64_t nonce, ethash_return_value_t& r);
+
+  virtual StratumJob *createStratumJob() {return new StratumJobEth();}
+  virtual StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean);
+  virtual void broadcastStratumJob(StratumJob *sjob);
 
 private:
   void newLight(StratumJobEth* job);
@@ -164,6 +167,8 @@ class JobRepositorySia : public JobRepository
 public:
   JobRepositorySia(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server);
   virtual StratumJob *createStratumJob() {return new StratumJobSia();}
+  virtual StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean);
+  virtual void broadcastStratumJob(StratumJob *sjob);
 };
 
 ///////////////////////////////////// UserInfo /////////////////////////////////
@@ -264,13 +269,19 @@ public:
                            const uint32_t nBits, const int32_t nVersion,
                            const uint32_t nTime, const uint32_t nonce,
                            string *userCoinbaseInfo = nullptr);
-  virtual void makeMiningNotifyStr();
+  virtual void init();
 };
 
 class StratumJobExEth : public StratumJobEx {
 public:
   StratumJobExEth(StratumJob *sjob, bool isClean);
-  virtual void makeMiningNotifyStr();
+  virtual void init();
+};
+
+class StratumJobExSia : public StratumJobEx {
+public:
+  StratumJobExSia(StratumJob *sjob, bool isClean) : StratumJobEx(sjob, isClean) {}
+  virtual void init() {}
 };
 
 ///////////////////////////////////// Server ///////////////////////////////////
