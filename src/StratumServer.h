@@ -129,7 +129,7 @@ public:
   bool setupThreadConsume();
   void markAllJobsAsStale();
   StratumJobEx *createStratumJobEx(StratumServerType type, StratumJob *sjob, bool isClean);
-  StratumJob *createStratumJob();
+  virtual StratumJob* createStratumJob() {return new StratumJob();}
   virtual void broadcastStratumJob(StratumJob *sjob);
   void sendMiningNotify(shared_ptr<StratumJobEx> exJob);
   shared_ptr<StratumJobEx> getStratumJobEx(const uint64_t jobId);
@@ -141,6 +141,7 @@ class JobRepositoryEth : public JobRepository
 public:
   JobRepositoryEth(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server);
   virtual ~JobRepositoryEth();
+  virtual StratumJob *createStratumJob() {return new StratumJobEth();}
   virtual void broadcastStratumJob(StratumJob *sjob);
   bool compute(ethash_h256_t const header, uint64_t nonce, ethash_return_value_t& r);
 
@@ -160,6 +161,7 @@ class JobRepositorySia : public JobRepository
 {
 public:
   JobRepositorySia(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server);
+  virtual StratumJob *createStratumJob() {return new StratumJobSia();}
 };
 
 ///////////////////////////////////// UserInfo /////////////////////////////////

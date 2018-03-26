@@ -290,6 +290,7 @@ public:
 
   virtual string serializeToJson() const;
   virtual bool unserializeFromJson(const char *s, size_t len);
+  virtual uint32 jobTime() const { return jobId2Time(jobId_); }
 
   bool initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
                    const CTxDestination &poolPayoutAddr,
@@ -309,5 +310,13 @@ public:
   
   string seedHash_;
   uint64_t blockNumber_;
+};
+
+
+class StratumJobSia: public StratumJob {
+public:
+  //virtual string serializeToJson() const;
+  virtual bool unserializeFromJson(const char *s, size_t len);
+  virtual uint32 jobTime() const { return nTime_; }
 };
 #endif

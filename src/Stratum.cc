@@ -735,3 +735,26 @@ bool StratumJobEth::unserializeFromJson(const char *s, size_t len)
 
   return true;
 }
+
+///////////////////////////////StratumJobSia///////////////////////////
+//virtual string serializeToJson() const;
+bool StratumJobSia::unserializeFromJson(const char *s, size_t len) {
+    JsonNode j;
+  if (!JsonNode::parse(s, s + len, j))
+  {
+    return false;
+  }
+  if (j["time"].type() != Utilities::JS::type::Int ||
+      j["target"].type() != Utilities::JS::type::Str ||
+      j["hHash"].type() != Utilities::JS::type::Str)
+  {
+    LOG(ERROR) << "parse sia stratum job failure: " << s;
+    return false;
+  }
+
+  nTime_ = j["time"].uint32();
+  networkTarget_ = uint256S(j["target"].str());
+  blockHashForMergedMining_ = j["hHash"].str();
+
+  return true; 
+}

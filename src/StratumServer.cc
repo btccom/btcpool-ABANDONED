@@ -244,19 +244,6 @@ void JobRepository::broadcastStratumJob(StratumJob *sjob) {
   }
 }
 
-StratumJob* JobRepository::createStratumJob() {
-  StratumJob* sjob = nullptr;
-  switch(serverType_) {
-    case BTC:
-      sjob = new StratumJob();
-      break;
-    case ETH:
-      sjob = new StratumJobEth();
-      break;
-  }
-  return sjob;
-}
-
 void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   // check error
   if (rkmessage->err) {
@@ -290,7 +277,7 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
     return;
   }
   // make sure the job is not expired.
-  if (jobId2Time(sjob->jobId_) + 60 < time(nullptr)) {
+  if (sjob->jobTime() + kMaxJobsLifeTime_ < time(nullptr)) {
     LOG(ERROR) << "too large delay from kafka to receive topic 'StratumJob'";
     delete sjob;
     return;
