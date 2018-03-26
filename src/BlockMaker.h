@@ -31,7 +31,6 @@
 
 #include <deque>
 #include <vector>
-#include <unordered_map>
 #include <boost/date_time/posix_time/posix_time.hpp>
 
 #include <uint256.h>
@@ -42,15 +41,17 @@
 namespace bpt = boost::posix_time;
 
 ////////////////////////////////// BlockMaker //////////////////////////////////
-class BlockMaker {
+class BlockMaker
+{
+protected:
   atomic<bool> running_;
 
   mutex rawGbtLock_;
-  size_t kMaxRawGbtNum_;  // how many rawgbt should we keep
+  size_t kMaxRawGbtNum_; // how many rawgbt should we keep
   // key: gbthash
   std::deque<uint256> rawGbtQ_;
   // key: gbthash, value: block template json
-  std::map<uint256, shared_ptr<vector<CTransactionRef> > > rawGbtMap_;
+  std::map<uint256, shared_ptr<vector<CTransactionRef>>> rawGbtMap_;
 
   mutex jobIdMapLock_;
   size_t kMaxStratumJobNum_;
@@ -70,7 +71,7 @@ class BlockMaker {
   // pair: <RpcAddress, RpcUserpass>
   std::vector<std::pair<string, string>> bitcoindRpcUri_;
 
-  MysqlConnectInfo poolDB_;      // save blocks to table.found_blocks
+  MysqlConnectInfo poolDB_; // save blocks to table.found_blocks
 
   void insertRawGbt(const uint256 &gbtHash,
                     shared_ptr<vector<CTransactionRef>> vtxs);
@@ -86,9 +87,10 @@ class BlockMaker {
   void runThreadConsumeNamecoinSovledShare();
   void runThreadConsumeRskSolvedShare();
 
-  void consumeRawGbt     (rd_kafka_message_t *rkmessage);
-  void consumeStratumJob (rd_kafka_message_t *rkmessage);
+  void consumeRawGbt(rd_kafka_message_t *rkmessage);
+  void consumeStratumJob(rd_kafka_message_t *rkmessage);
   void consumeSovledShare(rd_kafka_message_t *rkmessage);
+  virtual void processSolvedShare(rd_kafka_message_t *rkmessage);
   void consumeNamecoinSovledShare(rd_kafka_message_t *rkmessage);
   void consumeRskSolvedShare(rd_kafka_message_t *rkmessage);
 
@@ -118,23 +120,31 @@ class BlockMaker {
                                   const string &rpcUserpass);
 
   void submitRskBlockNonBlocking(const string &rpcAddress,
-                                const string &rpcUserPwd,
-                                const string &blockHex);
+                                 const string &rpcUserPwd,
+                                 const string &blockHex);
 
   void _submitRskBlockThread(const string &rpcAddress,
-                            const string &rpcUserPwd,
-                            const string &blockHex);
+                             const string &rpcUserPwd,
+                             const string &blockHex);
   bool submitToRskNode();
 
 public:
   BlockMaker(const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
-  ~BlockMaker();
+  virtual ~BlockMaker();
 
   void addBitcoind(const string &rpcAddress, const string &rpcUserpass);
 
-  bool init();
+  virtual bool init();
   void stop();
   void run();
+};
+
+class BlockMakerEth : public BlockMaker
+{
+public:
+  BlockMakerEth(const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
+  virtual void processSolvedShare(rd_kafka_message_t *rkmessage);
+  virtual bool init();
 };
 
 #endif

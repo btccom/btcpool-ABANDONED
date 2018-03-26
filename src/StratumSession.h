@@ -28,7 +28,7 @@
 
 #include <netinet/in.h>
 #include <deque>
-
+#include <unordered_map>
 #include <event2/event.h>
 #include <event2/buffer.h>
 #include <event2/bufferevent.h>
@@ -79,7 +79,7 @@ public:
   static const uint64 kMinDiff_ = 64;
 
   static const time_t kDiffWindow_    = 900;   // time window, seconds, 60*N
-  static const time_t kRecordSeconds_ = 10;    // every N seconds as a record
+  static const time_t kRecordSeconds_ = 20;    // every N seconds as a record
 #ifdef NDEBUG
   // If not debugging, set default to 16384
   static const uint64 kDefaultDiff_   = 16384;  // default diff, 2^N
@@ -88,7 +88,7 @@ public:
   static const uint64 kDefaultDiff_   = 128;  // default diff, 2^N
 #endif	/* NDEBUG */
 
-private:
+protected:
   time_t startTime_;  // first job send time
   uint64  minDiff_;
   uint64  curDiff_;
@@ -99,7 +99,7 @@ private:
   StatsWindow<uint64> shares_;     // share
 
   void setCurDiff(uint64 curDiff); // set current diff with bounds checking
-  uint64 _calcCurDiff();
+  virtual uint64 _calcCurDiff();
   int adjustHashRateLevel(const double hashRateT);
   double minerCoefficient(const time_t now, const int64_t idx);
 
@@ -121,7 +121,7 @@ public:
     }
   }
 
-  ~DiffController() {}
+  virtual ~DiffController() {}
 
   // recalc miner's diff before send an new stratum job
   uint64 calcCurDiff();
@@ -136,7 +136,11 @@ public:
   void resetCurDiff(uint64 curDiff);
 };
 
-
+class DiffControllerEth : public DiffController {
+  virtual uint64 _calcCurDiff();
+  public:
+    DiffControllerEth(const int32_t shareAvgSeconds, const uint64_t defaultDifficulty);
+};
 
 //////////////////////////////// StratumSession ////////////////////////////////
 class StratumSession {
@@ -180,6 +184,7 @@ public:
     uint64_t jobDifficulty_;     // difficulty of this job
     uint32_t blkBits_;
     uint8_t  shortJobId_;
+    string strJobId_;
 #ifdef USER_DEFINED_COINBASE
     string   userCoinbaseInfo_;
 #endif
@@ -199,9 +204,9 @@ public:
   };
 
   //----------------------
-private:
+protected:
   int32_t shareAvgSeconds_;
-  DiffController diffController_;
+  shared_ptr<DiffController> diffController_;
   State state_;
   StratumWorker worker_;
   string   clientAgent_;  // eg. bfgminer/4.4.0-32-gac4e9b3
@@ -238,14 +243,15 @@ private:
 
   void responseError(const string &idStr, int code);
   void responseTrue(const string &idStr);
+  void rpc2ResponseBoolean(const string &idStr, bool result);
 
   bool tryReadLine(string &line);
   void handleLine(const string &line);
   void handleRequest(const string &idStr, const string &method, const JsonNode &jparams);
 
-  void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams);
+  virtual void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams);
   void handleRequest_Authorize        (const string &idStr, const JsonNode &jparams);
-  void handleRequest_Submit           (const string &idStr, const JsonNode &jparams);
+  virtual void handleRequest_Submit           (const string &idStr, const JsonNode &jparams);
   void handleRequest_SuggestTarget    (const string &idStr, const JsonNode &jparams);
   void handleRequest_SuggestDifficulty(const string &idStr, const JsonNode &jparams);
   void handleRequest_MultiVersion     (const string &idStr, const JsonNode &jparams);
@@ -253,7 +259,8 @@ private:
   void _handleRequest_AuthorizePassword(const string &password);
 
   LocalJob *findLocalJob(uint8_t shortJobId);
-
+  LocalJob *findLocalJob(const string& strJobId);
+  void clearLocalJobs();
   void handleExMessage_RegisterWorker     (const string *exMessage);
   void handleExMessage_UnRegisterWorker   (const string *exMessage);
   void handleExMessage_SubmitShare        (const string *exMessage);
@@ -268,13 +275,13 @@ public:
   StratumSession(evutil_socket_t fd, struct bufferevent *bev,
                  Server *server, struct sockaddr *saddr,
                  const int32_t shareAvgSeconds, const uint32_t extraNonce1);
-  ~StratumSession();
-
+  virtual ~StratumSession();
+  virtual bool initialize();
   void markAsDead();
   bool isDead();
 
   void sendSetDifficulty(const uint64_t difficulty);
-  void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false);
+  virtual void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false);
   void sendData(const char *data, size_t len);
   inline void sendData(const string &str) {
     sendData(str.data(), str.size());
@@ -292,6 +299,29 @@ public:
   uint32_t getSessionId() const;
 };
 
+class StratumSessionEth : public StratumSession
+{
+public:
+  StratumSessionEth(evutil_socket_t fd, struct bufferevent *bev,
+                    Server *server, struct sockaddr *saddr,
+                    const int32_t shareAvgSeconds, const uint32_t extraNonce1);
+  virtual bool initialize();
+  virtual void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false);  
+  virtual void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams);      
+  virtual void handleRequest_Submit           (const string &idStr, const JsonNode &jparams);          
+};
+
+class StratumSessionSia : public StratumSession
+{
+public:
+  StratumSessionSia(evutil_socket_t fd, struct bufferevent *bev,
+                    Server *server, struct sockaddr *saddr,
+                    const int32_t shareAvgSeconds, const uint32_t extraNonce1);
+  //virtual bool initialize();
+  //virtual void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false);  
+  virtual void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams);     
+  //virtual void handleRequest_Submit           (const string &idStr, const JsonNode &jparams);          
+};
 
 ///////////////////////////////// AgentSessions ////////////////////////////////
 class AgentSessions {

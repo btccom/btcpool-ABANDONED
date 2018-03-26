@@ -52,6 +52,19 @@ void usage() {
   fprintf(stderr, "Usage:\n\tblkmaker -c \"blkmaker.cfg\" -l \"log_dir\"\n");
 }
 
+BlockMaker* createBlockMaker(Config& cfg, MysqlConnectInfo* poolDBInfo) {
+  string type = std::move(cfg.lookup("blockmaker.type"));
+  string broker = std::move(cfg.lookup("kafka.brokers"));
+
+  BlockMaker *maker = nullptr;
+  if ("BTC" == type) 
+    maker = new BlockMaker(broker.c_str(), *poolDBInfo);
+  else
+    maker = new BlockMakerEth(broker.c_str(), *poolDBInfo);
+
+  return maker;
+}
+
 int main(int argc, char **argv) {
   char *optLogDir = NULL;
   char *optConf   = NULL;
@@ -120,7 +133,7 @@ int main(int argc, char **argv) {
                                       cfg.lookup("pooldb.dbname"));
   }
 
-  gBlockMaker = new BlockMaker(cfg.lookup("kafka.brokers").c_str(), *poolDBInfo);
+  gBlockMaker = createBlockMaker(cfg, poolDBInfo);
 
   // add bitcoinds
   {

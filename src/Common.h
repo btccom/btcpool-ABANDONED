@@ -48,7 +48,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <functional>
-
+#include "libethash/ethash.h"
 #include <uint256.h>
 
 using std::string;
@@ -130,6 +130,10 @@ uint64 TargetToDiff(const string &str);
 
 void BitsToTarget(uint32 bits, uint256 & target);
 void DiffToTarget(uint64 diff, uint256 & target, bool useTable=true);
+string Eth_DifficultyToTarget(uint64 diff);
+void Hex256ToEthash256(const string &strHex, ethash_h256_t &ethashHeader);
+void Uint256ToEthash256(const uint256 hash, ethash_h256_t &ethashHeader);
+uint256 Ethash256ToUint256(const ethash_h256_t &ethashHeader);
 
 inline void BitsToDifficulty(uint32 bits, double *difficulty) {
   int nShift = (bits >> 24) & 0xff;

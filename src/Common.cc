@@ -156,3 +156,39 @@ void DiffToTarget(uint64 diff, uint256 &target, bool useTable) {
   // if we use the above table, it's big enough, we don't need to calc anymore
   BitsToTarget(_DiffToBits(diff), target);
 }
+
+static arith_uint256 maxInt256("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+
+string Eth_DifficultyToTarget(uint64 diff)  {
+  if (0 == diff)
+    return "";
+
+  arith_uint256 target = maxInt256 / diff;
+  return target.GetHex();
+}
+
+void Hex256ToEthash256(const string &strHex, ethash_h256_t &ethashHeader)
+{
+  if (strHex.size() != 64)
+    return;
+
+  for (size_t i = 0; i < 32; ++i)
+  {
+    size_t size;
+    int val = stoi(strHex.substr(i * 2, 2), &size, 16);
+    ethashHeader.b[i] = (uint8_t)val;
+  }
+}
+
+void Uint256ToEthash256(const uint256 hash, ethash_h256_t &ethashHeader) {
+  //uint256 store hash byte in reversed order
+  for (int i = 0; i < 32; ++i) 
+    ethashHeader.b[i] = *(hash.begin() + 31 -i);
+}
+
+uint256 Ethash256ToUint256(const ethash_h256_t &ethashHeader) {
+  vector<unsigned char> v;
+  for (int i = 31; i >= 0; --i) 
+    v.push_back(ethashHeader.b[i]);
+  return uint256(v);
+}

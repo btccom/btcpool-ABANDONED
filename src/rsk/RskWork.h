@@ -39,7 +39,7 @@
 
 class RskWork {
   static bool isCleanJob_;
-
+protected:
   u_int32_t created_at;
   string blockHash_;
   string target_;
@@ -51,6 +51,7 @@ class RskWork {
 
 public:
   RskWork();
+  virtual ~RskWork() {};
 
   bool initFromGw(const string &rawGetWork);
   bool isInitialized() const;
@@ -63,6 +64,20 @@ public:
   bool getNotifyFlag() const;
   static void setIsCleanJob(bool cleanJob);
   bool getIsCleanJob() const;
+  
+private:
+  virtual bool validate(JsonNode &work);
+  virtual void initialize(JsonNode &work); 
+};
+
+class RskWorkEth : public RskWork {
+  virtual bool validate(JsonNode &work);
+  virtual void initialize(JsonNode &work); 
+  //string currBlkHeaderPOWHash_;
+  string seedHash_;
+
+public:
+  string getSeedHash() const {return seedHash_;}
 };
 
 #endif

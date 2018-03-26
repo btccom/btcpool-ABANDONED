@@ -169,25 +169,30 @@ void StratumClient::handleLine(const string &line) {
   }
 }
 
-void StratumClient::submitShare() {
-  if (state_ != AUTHENTICATED)
-    return;
-
+string StratumClient::constructShare()
+{
   extraNonce2_++;
   string extraNonce2Str;
   // little-endian
   Bin2Hex((uint8_t *)&extraNonce2_, extraNonce2Size_, extraNonce2Str);
 
   // simulate miner
-  string s;
-  s = Strings::Format("{\"params\": [\"%s\",\"%s\",\"%s\",\"%08x\",\"%08x\"]"
+  string s = Strings::Format("{\"params\": [\"%s\",\"%s\",\"%s\",\"%08x\",\"%08x\"]"
                       ",\"id\":4,\"method\": \"mining.submit\"}\n",
                       workerFullName_.c_str(),
                       latestJobId_.c_str(),
                       extraNonce2Str.c_str(),
                       (uint32_t)time(nullptr) /* ntime */,
                       (uint32_t)time(nullptr) /* nonce */);
-  sendData(s);
+  return s;
+}
+
+void StratumClient::submitShare()
+{
+  if (state_ != AUTHENTICATED)
+    return;
+
+  sendData(constructShare());
 }
 
 void StratumClient::sendData(const char *data, size_t len) {
@@ -198,16 +203,102 @@ void StratumClient::sendData(const char *data, size_t len) {
   DLOG(INFO) << "send(" << len << "): " << data;
 }
 
+////////////////////////////// StratumClientEth ////////////////////////////
+StratumClientEth::StratumClientEth(struct event_base *base, const string &workerFullName) : 
+StratumClient(base, workerFullName),
+header_(rand())
+{
+}
 
+string StratumClientEth::constructShare()
+{
+  // {"id": 4, "method": "mining.submit",
+  // "params": ["0x7b9d694c26a210b9f0d35bb9bfdd70a413351111.fatrat1117",
+  // "ae778d304393d441bf8e1c47237261675caa3827997f671d8e5ec3bd5d862503",
+  // "0x4cc7c01bfbe51c67","0xae778d304393d441bf8e1c47237261675caa3827997f671d8e5ec3bd5d862503",
+  // "0x52fdd9e9a796903c6b88af4192717e77d9a9c6fa6a1366540b65e6bcfa9069aa"]}
+  string s = std::move(Strings::Format("{\"id\": 4, \"method\": \"mining.submit\", "
+                      "\"params\": [\"%s\",\"%s\",\"0x%08x%08x\",\"0x%s\",\"0x%s\"]}\n",
+                      "ccc",
+                      header_.GetHex().c_str(),
+                      extraNonce2_ >> 32,
+                      extraNonce2_,
+                      header_.GetHex().c_str(),
+                      header_.GetHex().c_str()));
+
+  extraNonce2_++;
+  header_++;
+  return s;
+}
+
+void StratumClientEth::handleLine(const string &line) {
+  DLOG(INFO) << "recv(" << line.size() << "): " << line;
+
+  JsonNode jnode;
+  if (!JsonNode::parse(line.data(), line.data() + line.size(), jnode)) {
+    LOG(ERROR) << "decode line fail, not a json string";
+    return;
+  }
+  JsonNode jresult  = jnode["result"];
+  JsonNode jerror   = jnode["error"];
+  JsonNode jmethod  = jnode["method"];
+
+  if (jmethod.type() == Utilities::JS::type::Str) {
+    JsonNode jparams  = jnode["params"];
+    auto jparamsArr = jparams.array();
+
+    if (jmethod.str() == "mining.notify") {
+      latestJobId_ = jparamsArr[0].str();
+      DLOG(INFO) << "latestJobId_: " << latestJobId_;
+    }
+    else if (jmethod.str() == "mining.set_difficulty") {
+      latestDiff_ = jparamsArr[0].uint64();
+      DLOG(INFO) << "latestDiff_: " << latestDiff_;
+    }
+    else
+    {
+      LOG(ERROR) << "unknown method: " << line;
+    }
+    return;
+  }
+
+  if (state_ == AUTHENTICATED) {
+    //
+    // {"error": null, "id": 2, "result": true}
+    //
+    if (jerror.type()  != Utilities::JS::type::Null ||
+        jresult.type() != Utilities::JS::type::Bool ||
+        jresult.boolean() != true) {
+//      LOG(ERROR) << "json result is null, err: " << jerror.str() << ", line: " << line;
+    }
+    return;
+  }
+
+  if (state_ == CONNECTED) {
+    // mining.authorize
+    state_ = SUBSCRIBED;
+    string s = Strings::Format("{\"id\": 1, \"method\": \"mining.authorize\","
+                               "\"params\": [\"\%s\", \"\"]}\n",
+                               workerFullName_.c_str());
+    sendData(s);
+    return;
+  }
+
+  if (state_ == SUBSCRIBED && jresult.boolean() == true) {
+    state_ = AUTHENTICATED;
+    return;
+  }
+}
 
 ////////////////////////////// StratumClientWrapper ////////////////////////////
 StratumClientWrapper::StratumClientWrapper(const char *host,
                                            const uint32_t port,
                                            const uint32_t numConnections,
                                            const string &userName,
-                                           const string &minerNamePrefix)
-: running_(true), base_(event_base_new()), numConnections_(numConnections),
-userName_(userName), minerNamePrefix_(minerNamePrefix)
+                                           const string &minerNamePrefix,
+                                           const string &type)
+    : running_(true), base_(event_base_new()), numConnections_(numConnections),
+      userName_(userName), minerNamePrefix_(minerNamePrefix), type_(type)
 {
   memset(&sin_, 0, sizeof(sin_));
   sin_.sin_family = AF_INET;
@@ -271,7 +362,7 @@ void StratumClientWrapper::run() {
                                                   userName_.c_str(),
                                                   minerNamePrefix_.c_str(),
                                                   i);
-    StratumClient *client = new StratumClient(base_, workerFullName);
+    StratumClient *client = createClient(base_, workerFullName);
 
     if (!client->connect(sin_)) {
       LOG(ERROR) << "client connnect failure: " << workerFullName;
@@ -308,7 +399,16 @@ void StratumClientWrapper::submitShares() {
   }
 }
 
+StratumClient* StratumClientWrapper::createClient(struct event_base *base, const string &workerFullName)
+{
+  StratumClient *client = nullptr;
+  if ("BTC" == type_)
+    client = new StratumClient(base_, workerFullName);
+  else if ("ETH" == type_)
+    client = new StratumClientEth(base_, workerFullName);
 
+  return client;
+}
 
 //////////////////////////////// TCPClientWrapper //////////////////////////////
 TCPClientWrapper::TCPClientWrapper() {
