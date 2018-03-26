@@ -7,3 +7,13 @@ cmake-build-debug/
 /patches/
 /data/
 /src/bitcoin/
+src/CMakeCache.txt
+*.cmake
+*.bin
+*.out
+src/CMakeFiles/3.5.1/CompilerIdC/CMakeCCompilerId.c
+src/CMakeFiles/3.5.1/CompilerIdCXX/CMakeCXXCompilerId.cpp
+src/CMakeFiles/cmake.check_cache
+src/CMakeFiles/CMakeOutput.log
+src/CMakeFiles/feature_tests.c
+src/CMakeFiles/feature_tests.cxx

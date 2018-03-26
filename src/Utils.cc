@@ -175,7 +175,13 @@ bool httpGET(const char *url, const char *userpwd,
 }
 
 bool httpPOST(const char *url, const char *userpwd, const char *postData,
-              string &response, long timeoutMs, const char *mineType) {
+              string &response, long timeoutMs, const char *mineType)
+{
+  return httpPOST(url, userpwd, postData, response, timeoutMs, mineType, "curl");
+}
+
+bool httpPOST(const char *url, const char *userpwd, const char *postData,
+              string &response, long timeoutMs, const char *mineType, const char *agent) {
   struct curl_slist *headers = NULL;
   CURLcode status;
   long code;
@@ -209,7 +215,7 @@ bool httpPOST(const char *url, const char *userpwd, const char *postData,
     curl_easy_setopt(curl, CURLOPT_USERPWD, userpwd);
 
   curl_easy_setopt(curl, CURLOPT_USE_SSL, CURLUSESSL_TRY);
-  curl_easy_setopt(curl, CURLOPT_USERAGENT, "curl");
+  curl_easy_setopt(curl, CURLOPT_USERAGENT, agent);
 
   curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, timeoutMs);
 
@@ -251,6 +257,10 @@ bool bitcoindRpcCall(const char *url, const char *userpwd, const char *reqData,
   return httpPOST(url, userpwd, reqData, response, 5000/* timeout ms */, "application/json");
 }
 
+bool rpcCall(const char *url, const char *userpwd, const char *reqData, string &response, const char *agent) 
+{
+  return httpPOST(url, userpwd, reqData, response, 5000, "application/json", agent);
+}
 
 //
 // %y	Year, last two digits (00-99)	01

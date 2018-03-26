@@ -1,0 +1,1 @@
+siad.exe --modules cgmhrtw -d %appdata%\Sia-UI\sia

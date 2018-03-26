@@ -36,15 +36,69 @@
 #include <map>
 #include <deque>
 
+class JobMakerHandler;
+struct JobMakerDefinition
+{
+  string payoutAddr;
+  string fileLastJobTime;
+  string consumerTopic;
+  string producerTopic;
+  uint32 consumerInterval;
+  uint32 stratumJobInterval;
+  uint32 maxJobDelay;
+  shared_ptr<JobMakerHandler> handler;
+  bool enabled;
+};
+
+class JobMakerHandler
+{
+public:
+  //return true if need to produce stratum job
+  virtual void init(const JobMakerDefinition &def) {def_ = def;}
+  virtual bool processMsg(const string &msg) = 0;
+  virtual string buildStratumJobMsg() = 0;
+  virtual ~JobMakerHandler() {}
+
+protected:
+  JobMakerDefinition def_;
+};
+
+class JobMakerHandlerEth : public JobMakerHandler
+{
+public:
+  virtual bool processMsg(const string &msg);
+  virtual string buildStratumJobMsg();
+private:
+  void clearTimeoutMsg();
+  shared_ptr<RskWork> previousRskWork_;
+  shared_ptr<RskWork> currentRskWork_;
+};
+
+class JobMakerHandlerSia : public JobMakerHandler
+{
+  string target_;
+  string header_;
+  uint32 time_;
+  bool validate(JsonNode &work);
+public:
+  JobMakerHandlerSia();
+  virtual bool processMsg(const string &msg);
+  virtual string buildStratumJobMsg();
+};
+
+static vector<JobMakerDefinition> gJobMakerDefinitions; 
+
 class JobMaker {
+protected:
+  JobMakerDefinition def_;
   atomic<bool> running_;
   mutex lock_;
 
   string kafkaBrokers_;
   KafkaProducer kafkaProducer_;
-  KafkaConsumer kafkaRawGbtConsumer_;
+  //KafkaConsumer kafkaRawGbtConsumer_;
 
-  KafkaConsumer kafkaNmcAuxConsumer_;  // merged mining for namecoin
+  //KafkaConsumer kafkaNmcAuxConsumer_;  // merged mining for namecoin
   mutex auxJsonlock_;
   string latestNmcAuxBlockJson_;
 
@@ -75,7 +129,8 @@ class JobMaker {
 
   thread threadConsumeNmcAuxBlock_;
   thread threadConsumeRskRawGw_;
-
+  
+protected:
   void consumeNmcAuxBlockMsg(rd_kafka_message_t *rkmessage);
   void consumeRawGwMsg(rd_kafka_message_t *rkmessage);
   void consumeRawGbtMsg(rd_kafka_message_t *rkmessage, bool needToSend);
@@ -86,27 +141,90 @@ class JobMaker {
   void sendStratumJob(const char *gbt);
 
   void clearTimeoutGw();
-  bool triggerRskUpdate();
-  void checkAndSendStratumJob(bool isRskUpdate);
+  virtual bool triggerRskUpdate();
+  virtual void checkAndSendStratumJob(bool isRskUpdate);
   void runThreadConsumeNmcAuxBlock();
+
+public:
   void runThreadConsumeRawGw();
 
+private:
   inline uint64_t makeGbtKey(uint32_t gbtTime, bool isEmptyBlock, uint32_t height);
   inline uint32_t gbtKeyGetTime(uint64_t gbtKey);
   inline uint32_t gbtKeyGetHeight(uint64_t gbtKey);
   inline bool gbtKeyIsEmptyBlock(uint64_t gbtKey);
-
+  virtual RskWork* createWork();
 public:
-  JobMaker(const string &kafkaBrokers, uint32_t stratumJobInterval,
-           const string &payoutAddr, uint32_t gbtLifeTime,
-           uint32_t emptyGbtLifeTime, const string &fileLastJobTime,
-           uint32_t rskNotifyPolicy, uint32_t blockVersion,
-					const string &poolCoinbaseInfo);
-  ~JobMaker();
+  // JobMaker(const string &kafkaBrokers, uint32_t stratumJobInterval,
+  //          const string &payoutAddr, uint32_t gbtLifeTime,
+  //          uint32_t emptyGbtLifeTime, const string &fileLastJobTime,
+  //          uint32_t rskNotifyPolicy, uint32_t blockVersion,
+	// 				const string &poolCoinbaseInfo);
+
+  JobMaker(const JobMakerDefinition def, const string& brokers);
+  virtual ~JobMaker();
 
   bool init();
+  virtual bool initConsumer();
   void stop();
-  void run();
+  virtual void run();
 };
 
+// number: QUANTITY - the block number. null when its pending block.
+// hash: DATA, 32 Bytes - hash of the block. null when its pending block.
+// parentHash: DATA, 32 Bytes - hash of the parent block.
+// nonce: DATA, 8 Bytes - hash of the generated proof-of-work. null when its pending block.
+// sha3Uncles: DATA, 32 Bytes - SHA3 of the uncles data in the block.
+// logsBloom: DATA, 256 Bytes - the bloom filter for the logs of the block. null when its pending block.
+// transactionsRoot: DATA, 32 Bytes - the root of the transaction trie of the block.
+// stateRoot: DATA, 32 Bytes - the root of the final state trie of the block.
+// receiptsRoot: DATA, 32 Bytes - the root of the receipts trie of the block.
+// miner: DATA, 20 Bytes - the address of the beneficiary to whom the mining rewards were given.
+// difficulty: QUANTITY - integer of the difficulty for this block.
+// totalDifficulty: QUANTITY - integer of the total difficulty of the chain until this block.
+// extraData: DATA - the "extra data" field of this block.
+// size: QUANTITY - integer the size of this block in bytes.
+// gasLimit: QUANTITY - the maximum gas allowed in this block.
+// gasUsed: QUANTITY - the total used gas by all transactions in this block.
+// timestamp: QUANTITY - the unix timestamp for when the block was collated.
+// transactions: Array - Array of transaction objects, or 32 Bytes transaction hashes depending on the last given parameter.
+// uncles: Array - Array of uncle hashes.
+
+// class BlockHeaderEth
+// {
+//   public:
+//     uint64_t number_;
+//     uint64_t difficulty_;
+//     uint64_t totalDifficulty_;
+//     uint32_t gasLimit_;
+//     uint32_t gasUsed_;
+//     uint32_t timestamp_;
+//     uint32_t size_;
+//     string extraData_;
+//     string hash_;
+//     string logsBloom_;
+//     string miner_;
+//     string mixHash_;
+//     string nonce_;
+//     string parentHash_;
+//     string receiptsRoot_;
+//     string sha3Uncles_;
+//     string stateRoot_;
+//     string transactionsRoot_;
+// };
+
+// class JobMakerEth : public JobMaker
+// {
+//   virtual RskWork* createWork();
+//   virtual bool triggerRskUpdate();
+//   virtual void checkAndSendStratumJob(bool isRskUpdate);
+//   void sendGwStratumJob();
+// public:
+//   JobMakerEth(const string &kafkaBrokers, uint32_t stratumJobInterval,
+//               const string &payoutAddr, const string &fileLastJobTime,
+//               uint32_t rskNotifyPolicy, uint32_t blockVersion,
+//               const string &poolCoinbaseInfo);
+//   virtual bool initConsumer();
+//   virtual void run();            
+// };
 #endif

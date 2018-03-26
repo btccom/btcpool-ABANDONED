@@ -35,13 +35,14 @@
 #include <event2/bufferevent.h>
 
 #include <glog/logging.h>
-
+#include <arith_uint256.h>
 #include <uint256.h>
 #include "utilities_js.hpp"
 
 
 ///////////////////////////////// StratumClient ////////////////////////////////
 class StratumClient {
+ protected: 
   struct bufferevent *bev_;
   struct evbuffer *inBuf_;
 
@@ -54,7 +55,7 @@ class StratumClient {
   uint64_t latestDiff_;
 
   bool tryReadLine(string &line);
-  void handleLine(const string &line);
+  virtual void handleLine(const string &line);
 
 public:
   // mining state
@@ -68,7 +69,7 @@ public:
 
 public:
   StratumClient(struct event_base *base, const string &workerFullName);
-  ~StratumClient();
+  virtual ~StratumClient();
 
   bool connect(struct sockaddr_in &sin);
 
@@ -79,9 +80,19 @@ public:
 
   void readBuf(struct evbuffer *buf);
   void submitShare();
+  virtual string constructShare();
 };
 
+class StratumClientEth : public StratumClient 
+{
+public:
+  StratumClientEth(struct event_base *base, const string &workerFullName);
+  virtual string constructShare();
+  arith_uint256 header_;
 
+protected:
+  virtual void handleLine(const string &line);  
+};
 
 ////////////////////////////// StratumClientWrapper ////////////////////////////
 class StratumClientWrapper {
@@ -91,7 +102,7 @@ class StratumClientWrapper {
   uint32_t numConnections_;
   string userName_;   // miner usename
   string minerNamePrefix_;
-
+  string type_;
   std::set<StratumClient *> connections_;
 
   thread threadSubmitShares_;
@@ -100,7 +111,8 @@ class StratumClientWrapper {
 public:
   StratumClientWrapper(const char *host, const uint32_t port,
                        const uint32_t numConnections,
-                       const string &userName, const string &minerNamePrefix);
+                       const string &userName, const string &minerNamePrefix,
+                       const string &type);
   ~StratumClientWrapper();
 
   static void readCallback (struct bufferevent* bev, void *connection);
@@ -110,6 +122,8 @@ public:
   void run();
 
   void submitShares();
+
+  StratumClient* createClient(struct event_base *base, const string &workerFullName);
 };
 
 

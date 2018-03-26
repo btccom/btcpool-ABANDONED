@@ -628,3 +628,110 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
 bool StratumJob::isEmptyBlock() {
   return merkleBranch_.size() == 0 ? true : false;
 }
+
+///////////////////////////////StratumJobEth///////////////////////////
+StratumJobEth::StratumJobEth() : blockNumber_(0)
+{
+
+}
+
+bool StratumJobEth::initFromGw(const RskWorkEth &latestRskBlockJson,
+                               const string& blockJson)
+{
+  JsonNode j;
+  if (!JsonNode::parse(blockJson.c_str(), blockJson.c_str() + blockJson.length(), j))
+  {
+    LOG(ERROR) << "deserialize block informaiton failed";
+    return false;
+  }
+
+  JsonNode result = j["result"];
+  if (result.type() != Utilities::JS::type::Obj ||
+      result["number"].type() != Utilities::JS::type::Str)
+  {
+    LOG(ERROR) << "block informaiton format not expected: " << blockJson;
+    return false;
+  }
+
+  // jobId: timestamp + random number
+  time_t now = time(nullptr);
+  srand (now);
+  const string jobIdStr = Strings::Format("%08x%08x", 
+                                          (uint32_t)now,
+                                          rand());
+  DLOG(INFO) << "job id string: " << jobIdStr;                                        
+  assert(jobIdStr.length() == 16);
+  jobId_ = strtoull(jobIdStr.c_str(), nullptr, 16/* hex */);
+
+  if (latestRskBlockJson.isInitialized()) {
+    blockHashForMergedMining_ = latestRskBlockJson.getBlockHash();
+    rskNetworkTarget_ = uint256S(latestRskBlockJson.getTarget());
+    feesForMiner_ = latestRskBlockJson.getFees();
+    rskdRpcAddress_ = latestRskBlockJson.getRpcAddress();
+    rskdRpcUserPwd_ = latestRskBlockJson.getRpcUserPwd();
+    isRskCleanJob_ = latestRskBlockJson.getIsCleanJob();
+    seedHash_ = latestRskBlockJson.getSeedHash();
+    size_t pos;
+    blockNumber_ = stoull(result["number"].str(), &pos, 16);
+  }
+  return seedHash_.size() && blockHashForMergedMining_.size();
+}
+
+string StratumJobEth::serializeToJson() const {
+  return Strings::Format("{\"jobId\":%" PRIu64""
+                          ",\"num\":%" PRIu64""
+                         // rsk 
+                         ",\"sHash\":\"%s\""
+                         ",\"rskBlockHashForMergedMining\":\"%s\",\"rskNetworkTarget\":\"0x%s\""
+                         ",\"rskFeesForMiner\":\"%s\""
+                         ",\"rskdRpcAddress\":\"%s\",\"rskdRpcUserPwd\":\"%s\""
+                         ",\"isRskCleanJob\":%s"
+                         "}",
+                         jobId_,
+                         blockNumber_,
+                         // rsk
+                         seedHash_.c_str(),
+                         blockHashForMergedMining_.size() ? blockHashForMergedMining_.c_str() : "",
+                         rskNetworkTarget_.GetHex().c_str(),
+                         feesForMiner_.size()             ? feesForMiner_.c_str()             : "",
+                         rskdRpcAddress_.size()           ? rskdRpcAddress_.c_str()           : "",
+                         rskdRpcUserPwd_.c_str()          ? rskdRpcUserPwd_.c_str()           : "",
+                         isRskCleanJob_ ? "true" : "false");
+}
+
+bool StratumJobEth::unserializeFromJson(const char *s, size_t len)
+{
+  JsonNode j;
+  if (!JsonNode::parse(s, s + len, j))
+  {
+    return false;
+  }
+  if (j["jobId"].type() != Utilities::JS::type::Int ||
+      j["num"].type() != Utilities::JS::type::Int ||
+      j["sHash"].type() != Utilities::JS::type::Str)
+  {
+    LOG(ERROR) << "parse eth stratum job failure: " << s;
+    return false;
+  }
+
+  jobId_ = j["jobId"].uint64();
+  blockNumber_ = j["num"].uint64();
+  seedHash_ = j["sHash"].str();
+
+  if (j["rskBlockHashForMergedMining"].type() == Utilities::JS::type::Str &&
+      j["rskNetworkTarget"].type() == Utilities::JS::type::Str &&
+      j["rskFeesForMiner"].type() == Utilities::JS::type::Str &&
+      j["rskdRpcAddress"].type() == Utilities::JS::type::Str &&
+      j["rskdRpcUserPwd"].type() == Utilities::JS::type::Str &&
+      j["isRskCleanJob"].type() == Utilities::JS::type::Bool)
+  {
+    blockHashForMergedMining_ = j["rskBlockHashForMergedMining"].str();
+    rskNetworkTarget_ = uint256S(j["rskNetworkTarget"].str());
+    feesForMiner_ = j["rskFeesForMiner"].str();
+    rskdRpcAddress_ = j["rskdRpcAddress"].str();
+    rskdRpcUserPwd_ = j["rskdRpcUserPwd"].str();
+    isRskCleanJob_ = j["isRskCleanJob"].boolean();
+  }
+
+  return true;
+}

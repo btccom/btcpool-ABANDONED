@@ -30,7 +30,6 @@
 
 #include "StratumServer.h"
 
-
 //////////////////////////////// DiffController ////////////////////////////////
 void DiffController::setMinDiff(uint64 minDiff) {
   if (minDiff < kMinDiff_) {
@@ -208,14 +207,74 @@ uint64 DiffController::_calcCurDiff() {
   return curDiff_;
 }
 
+//////////////////////////////// DiffControllerEth ////////////////////////////////
+DiffControllerEth::DiffControllerEth(const int32_t shareAvgSeconds, const uint64_t defaultDifficulty) : 
+DiffController(shareAvgSeconds)
+{
+  minDiff_ = 1;
+  curDiff_ = defaultDifficulty; 
+}
 
+uint64 DiffControllerEth::_calcCurDiff() {
+  // const time_t now = time(nullptr);
+  // const int64 k = now / kRecordSeconds_;
+  // const double sharesCount = (double)sharesNum_.sum(k);
+  // if (startTime_ == 0) {  // first time, we set the start time
+  //   startTime_ = time(nullptr);
+  // }
+
+  // const double kRateHigh = 1.40;
+  // const double kRateLow  = 0.40;
+  // double expectedCount = round(kDiffWindow_ / (double)shareAvgSeconds_);
+
+  // if (isFullWindow(now)) { /* have a full window now */
+  //   // big miner have big expected share count to make it looks more smooth.
+  //   expectedCount *= minerCoefficient(now, k);
+  // }
+  // if (expectedCount > kDiffWindow_) {
+  //   expectedCount = kDiffWindow_;  // one second per share is enough
+  // }
+
+  // // this is for very low hashrate miner, eg. USB miners
+  // // should received at least one share every 60 seconds
+  // if (!isFullWindow(now) && now >= startTime_ + 60 &&
+  //     sharesCount <= (int32_t)((now - startTime_)/60.0) &&
+  //     curDiff_ >= minDiff_*2) {
+  //   setCurDiff(curDiff_ / 2);
+  //   sharesNum_.mapMultiply(2.0);
+  //   return curDiff_;
+  // }
+
+  // // too fast
+  // if (sharesCount > expectedCount * kRateHigh) {
+  //   while (sharesNum_.sum(k) > expectedCount && 
+  //          curDiff_ < kMaxDiff_) {
+  //     setCurDiff(curDiff_ * 2);
+  //     sharesNum_.mapDivide(2.0);
+  //   }
+  //   return curDiff_;
+  // }
+
+  // // too slow
+  // if (isFullWindow(now) && curDiff_ >= minDiff_*2) {
+  //   while (sharesNum_.sum(k) < expectedCount * kRateLow &&
+  //          curDiff_ >= minDiff_*2) {
+  //     setCurDiff(curDiff_ / 2);
+  //     sharesNum_.mapMultiply(2.0);
+  //   }
+  //   assert(curDiff_ >= minDiff_);
+  //   return curDiff_;
+  // }
+  
+  return curDiff_;
+}
 
 //////////////////////////////// StratumSession ////////////////////////////////
 StratumSession::StratumSession(evutil_socket_t fd, struct bufferevent *bev,
                                Server *server, struct sockaddr *saddr,
                                const int32_t shareAvgSeconds,
                                const uint32_t extraNonce1) :
-shareAvgSeconds_(shareAvgSeconds), diffController_(shareAvgSeconds_),
+shareAvgSeconds_(shareAvgSeconds),
 shortJobIdIdx_(0), agentSessions_(nullptr), isDead_(false),
 invalidSharesCounter_(INVALID_SHARE_SLIDING_WINDOWS_SIZE),
 bev_(bev), fd_(fd), server_(server)
@@ -259,6 +318,11 @@ StratumSession::~StratumSession() {
 //  close(fd_);  // we don't need to close because we set 'BEV_OPT_CLOSE_ON_FREE'
   evbuffer_free(inBuf_);
   bufferevent_free(bev_);
+}
+
+bool StratumSession::initialize() {
+  diffController_ = std::make_shared<DiffController>(shareAvgSeconds_);
+  return true;
 }
 
 void StratumSession::markAsDead() {
@@ -364,6 +428,11 @@ void StratumSession::responseError(const string &idStr, int errCode) {
 
 void StratumSession::responseTrue(const string &idStr) {
   const string s = "{\"id\":" + idStr + ",\"result\":true,\"error\":null}\n";
+  sendData(s);
+}
+
+void StratumSession::rpc2ResponseBoolean(const string &idStr, bool result) {
+   const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":%s}\n", idStr.c_str(), result ? "true" : "false");
   sendData(s);
 }
 
@@ -543,12 +612,12 @@ void StratumSession::_handleRequest_AuthorizePassword(const string &password) {
 
   // set min diff first
   if (md >= DiffController::kMinDiff_) {
-    diffController_.setMinDiff(md);
+    diffController_->setMinDiff(md);
   }
 
   // than set current diff
   if (d >= DiffController::kMinDiff_) {
-    diffController_.resetCurDiff(d);
+    diffController_->resetCurDiff(d);
   }
 }
 
@@ -635,7 +704,7 @@ void StratumSession::handleExMessage_AuthorizeAgentWorker(const int64_t workerId
 }
 
 void StratumSession::_handleRequest_SetDifficulty(uint64_t suggestDiff) {
-  diffController_.resetCurDiff(formatDifficulty(suggestDiff));
+  diffController_->resetCurDiff(formatDifficulty(suggestDiff));
 }
 
 void StratumSession::handleRequest_SuggestTarget(const string &idStr,
@@ -805,7 +874,7 @@ void StratumSession::handleRequest_Submit(const string &idStr,
     }
 
     if (isAgentSession == false) {
-    	diffController_.addAcceptedShare(share.share_);
+    	diffController_->addAcceptedShare(share.share_);
       responseTrue(idStr);
     }
   } else {
@@ -840,6 +909,15 @@ finish:
   	server_->sendShare2Kafka((const uint8_t *)&share, sizeof(Share));
   }
   return;
+}
+
+StratumSession::LocalJob* StratumSession::findLocalJob(const string& strJobId) {
+  for (auto rit = localJobs_.rbegin(); rit != localJobs_.rend(); ++rit) {
+    if (rit->strJobId_ == strJobId) {
+      return &(*rit);
+    }
+  }
+  return nullptr;
 }
 
 StratumSession::LocalJob *StratumSession::findLocalJob(uint8_t shortJobId) {
@@ -885,7 +963,7 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool is
   ljob.blkBits_       = sjob->nBits_;
   ljob.jobId_         = sjob->jobId_;
   ljob.shortJobId_    = allocShortJobId();
-  ljob.jobDifficulty_ = diffController_.calcCurDiff();
+  ljob.jobDifficulty_ = diffController_->calcCurDiff();
 
 #ifdef USER_DEFINED_COINBASE
   // add the User's coinbaseInfo to the coinbase1's tail
@@ -953,7 +1031,13 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool is
   sendData(notifyStr);  // send notify string
 
   // clear localJobs_
-  while (localJobs_.size() >= kMaxNumLocalJobs_) {
+  clearLocalJobs();
+}
+
+void StratumSession::clearLocalJobs()
+{
+  while (localJobs_.size() >= kMaxNumLocalJobs_)
+  {
     localJobs_.pop_front();
   }
 }
@@ -1083,6 +1167,202 @@ uint32_t StratumSession::getSessionId() const {
   return extraNonce1_;
 }
 
+///////////////////////////////// StratumSessionEth ////////////////////////////////
+StratumSessionEth::StratumSessionEth(evutil_socket_t fd, struct bufferevent *bev,
+                                     Server *server, struct sockaddr *saddr,
+                                     const int32_t shareAvgSeconds, const uint32_t extraNonce1) : StratumSession(fd, bev,
+                                                                                                                 server, saddr,
+                                                                                                                 shareAvgSeconds, extraNonce1)
+{
+}
+
+void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
+  LOG(INFO) << "StratumSessionEth::sendMiningNotify";
+  if (state_ < AUTHENTICATED || exJobPtr == nullptr) {
+    return;
+  }
+
+  StratumJobEth *ethJob = dynamic_cast<StratumJobEth*>(exJobPtr->sjob_);
+  if (nullptr == ethJob) {
+    return;
+  }
+
+  StratumJob *sjob = exJobPtr->sjob_;
+  localJobs_.push_back(LocalJob());
+  LocalJob &ljob = *(localJobs_.rbegin());
+  ljob.blkBits_       = sjob->nBits_;
+  ljob.jobId_         = sjob->jobId_;
+  ljob.shortJobId_    = allocShortJobId();
+  ljob.jobDifficulty_ = diffController_->calcCurDiff();
+  string header = ethJob->blockHashForMergedMining_.substr(2, 64);
+  ljob.strJobId_ = header;
+  string seed = ethJob->seedHash_.substr(2, 64);
+  string strShareTarget = std::move(Eth_DifficultyToTarget(ljob.jobDifficulty_));
+  LOG(INFO) << "new stratum job mining.notify: share difficulty=" << ljob.jobDifficulty_ << ", share target=" << strShareTarget;
+  const string strNotify = Strings::Format("{\"id\":8,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
+                                   "\"params\":[\"%s\",\"%s\",\"%s\",\"%s\", false]}\n",
+                                   header.c_str(),
+                                   header.c_str(),
+                                   seed.c_str(),
+                                   strShareTarget.c_str());
+
+  sendData(strNotify);  // send notify string
+
+  // clear localJobs_
+  clearLocalJobs();
+}
+
+void StratumSessionEth::handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams) {
+  if (state_ != CONNECTED) {
+    responseError(idStr, StratumError::UNKNOWN);
+    return;
+  }
+
+  state_ = SUBSCRIBED;
+
+  const string s = std::move(Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":true}\n", idStr.c_str()));
+  sendData(s);
+}
+
+bool StratumSessionEth::initialize() {
+  diffController_ = std::make_shared<DiffControllerEth>(shareAvgSeconds_, server_->minerDifficulty_);
+  return true;
+}
+
+void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode &jparams)
+{
+  if (state_ != AUTHENTICATED)
+  {
+    responseError(idStr, StratumError::UNAUTHORIZED);
+
+    // there must be something wrong, send reconnect command
+    const string s = "{\"id\":null,\"method\":\"client.reconnect\",\"params\":[]}\n";
+    sendData(s);
+
+    return;
+  }
+
+  // {"id": 4, "method": "mining.submit",
+  // "params": ["0x7b9d694c26a210b9f0d35bb9bfdd70a413351111.fatrat1117",
+  // "ae778d304393d441bf8e1c47237261675caa3827997f671d8e5ec3bd5d862503",
+  // "0x4cc7c01bfbe51c67",
+  // "0xae778d304393d441bf8e1c47237261675caa3827997f671d8e5ec3bd5d862503",
+  // "0x52fdd9e9a796903c6b88af4192717e77d9a9c6fa6a1366540b65e6bcfa9069aa"]}
+  auto params = (const_cast<JsonNode &>(jparams)).array();
+  if (5 == params.size())
+  {
+    // can't find local share
+    const string jobId = params[1].str();
+    LocalJob tmpJob;
+    LocalJob *localJob = server_->isEnableSimulator_ ? &tmpJob : findLocalJob(jobId);
+    if (!server_->isEnableSimulator_ && localJob == nullptr)
+    {
+      responseError(idStr, StratumError::JOB_NOT_FOUND);
+      return;
+    }
+
+    Share share;
+    share.jobId_ = localJob->jobId_;
+    share.strJobId_ = jobId;
+    share.workerHashId_ = worker_.workerHashId_;
+    share.ip_ = clientIpInt_;
+    share.userId_ = worker_.userId_;
+    share.share_ = localJob->jobDifficulty_;
+    share.timestamp_ = (uint32_t)time(nullptr);
+    share.result_ = Share::Result::REJECT;
+
+    ServerEth *s = dynamic_cast<ServerEth *>(server_);
+    const string sNonce = params[2].str();
+    const string sHeader = params[3].str();
+    const string sMixHash = params[4].str();
+    size_t pos;
+    uint64_t nonce = stoull(sNonce, &pos, 16);
+
+    LocalShare localShare(0, nonce, 0);
+    // can't find local share
+    if (!server_->isEnableSimulator_ && !localJob->addLocalShare(localShare))
+    {
+      responseError(idStr, StratumError::DUPLICATE_SHARE);
+      // add invalid share to counter
+      invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
+      return;
+    }
+
+    int submitResult = s->checkShare(share, nonce, uint256S(sHeader), uint256S(sMixHash));
+
+    // we send share to kafka by default, but if there are lots of invalid
+    // shares in a short time, we just drop them.
+
+    if (StratumError::NO_ERROR == submitResult)
+    {
+      LOG(INFO) << "solution found";
+      s->sendSolvedShare2Kafka(sNonce, sHeader, sMixHash);
+      // accepted share
+      share.result_ = Share::Result::ACCEPT;
+      diffController_->addAcceptedShare(share.share_);
+      rpc2ResponseBoolean(idStr, true);
+    }
+    else if (StratumError::LOW_DIFFICULTY == submitResult)
+    {
+      share.result_ = Share::Result::ACCEPT;
+      rpc2ResponseBoolean(idStr, true);
+    }
+    else
+    {
+      // add invalid share to counter
+      invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
+      rpc2ResponseBoolean(idStr, false);
+    }
+
+    bool isSendShareToKafka = true;
+    //finish:
+    DLOG(INFO) << share.toString();
+    // check if thers is invalid share spamming
+    if (share.result_ != Share::Result::ACCEPT)
+    {
+      int64_t invalidSharesNum = invalidSharesCounter_.sum(time(nullptr), INVALID_SHARE_SLIDING_WINDOWS_SIZE);
+      // too much invalid shares, don't send them to kafka
+      if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT)
+      {
+        isSendShareToKafka = false;
+        LOG(WARNING) << "invalid share spamming, diff: "
+                     << share.share_ << ", uid: " << worker_.userId_
+                     << ", uname: \"" << worker_.userName_ << "\", ip: " << clientIp_ 
+                     << "checkshare result: " << submitResult;
+      }
+    }
+
+    if (isSendShareToKafka)
+    {
+      server_->sendShare2Kafka((const uint8_t *)&share, sizeof(Share));
+    }
+  }
+}
+
+///////////////////////////////// StratumSessionSia ////////////////////////////////
+StratumSessionSia::StratumSessionSia(evutil_socket_t fd,
+                                     struct bufferevent *bev,
+                                     Server *server,
+                                     struct sockaddr *saddr,
+                                     const int32_t shareAvgSeconds,
+                                     const uint32_t extraNonce1) : StratumSession(fd,
+                                                                                  bev,
+                                                                                  server,
+                                                                                  saddr,
+                                                                                  shareAvgSeconds,
+                                                                                  extraNonce1)
+{
+}
+
+void StratumSessionSia::handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams) {
+  if (state_ != CONNECTED) {
+    responseError(idStr, StratumError::UNKNOWN);
+    return;
+  }
+
+  state_ = SUBSCRIBED;
+  //No need to respond claymore
+}
 
 ///////////////////////////////// AgentSessions ////////////////////////////////
 AgentSessions::AgentSessions(const int32_t shareAvgSeconds,

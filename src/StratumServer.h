@@ -27,6 +27,7 @@
 #include "Common.h"
 
 #include <map>
+#include <unordered_map>
 #include <vector>
 #include <memory>
 #include <bitset>
@@ -39,7 +40,6 @@
 #include <event2/listener.h>
 #include <event2/util.h>
 #include <event2/event.h>
-
 #include <glog/logging.h>
 
 #include "Kafka.h"
@@ -56,6 +56,12 @@ class StratumJobEx;
 //////////////////////////////// SessionIDManager //////////////////////////////
 // DO NOT CHANGE
 #define MAX_SESSION_INDEX_SERVER   0x00FFFFFEu   // 16777214
+
+enum StratumServerType
+{
+  BTC = 1,
+  ETH
+};
 
 // thread-safe
 class SessionIDManager {
@@ -88,43 +94,73 @@ public:
 
 
 ////////////////////////////////// JobRepository ///////////////////////////////
-class JobRepository {
+class JobRepository
+{
+protected:
   atomic<bool> running_;
   mutex lock_;
-  std::map<uint64_t/* jobId */, shared_ptr<StratumJobEx> > exJobs_;
+  std::map<uint64_t /* jobId */, shared_ptr<StratumJobEx>> exJobs_;
 
-  KafkaConsumer kafkaConsumer_;  // consume topic: 'StratumJob'
-  Server *server_;               // call server to send new job
+  KafkaConsumer kafkaConsumer_; // consume topic: 'StratumJob'
+  Server *server_;              // call server to send new job
 
   string fileLastNotifyTime_;
 
-  const time_t kMaxJobsLifeTime_;
+  time_t kMaxJobsLifeTime_;
   const time_t kMiningNotifyInterval_;
 
   time_t lastJobSendTime_;
   uint256 latestPrevBlockHash_;
 
   thread threadConsume_;
-  void runThreadConsume();
+  StratumServerType serverType_;
 
+private:
+  void runThreadConsume();
   void consumeStratumJob(rd_kafka_message_t *rkmessage);
-  void sendMiningNotify(shared_ptr<StratumJobEx> exJob);
   void tryCleanExpiredJobs();
   void checkAndSendMiningNotify();
 
 public:
-  JobRepository(const char *kafkaBrokers, const string &fileLastNotifyTime,
-                Server *server);
-  ~JobRepository();
+  JobRepository(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server);
+  virtual ~JobRepository();
 
   void stop();
   bool setupThreadConsume();
   void markAllJobsAsStale();
-
+  StratumJobEx *createStratumJobEx(StratumServerType type, StratumJob *sjob, bool isClean);
+  StratumJob *createStratumJob();
+  virtual void broadcastStratumJob(StratumJob *sjob);
+  void sendMiningNotify(shared_ptr<StratumJobEx> exJob);
   shared_ptr<StratumJobEx> getStratumJobEx(const uint64_t jobId);
   shared_ptr<StratumJobEx> getLatestStratumJobEx();
 };
 
+class JobRepositoryEth : public JobRepository
+{
+public:
+  JobRepositoryEth(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server);
+  virtual ~JobRepositoryEth();
+  virtual void broadcastStratumJob(StratumJob *sjob);
+  bool compute(ethash_h256_t const header, uint64_t nonce, ethash_return_value_t& r);
+
+private:
+  void newLight(StratumJobEth* job);
+  void newLight(uint64_t blkNum);
+  void deleteLight();
+  void deleteLightNoLock();
+
+  ethash_light_t light_;
+  ethash_light_t nextLight_;
+  uint64_t epochs_;
+  mutex lightLock_;
+};
+
+class JobRepositorySia : public JobRepository
+{
+public:
+  JobRepositorySia(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server);
+};
 
 ///////////////////////////////////// UserInfo /////////////////////////////////
 // 1. update userName->userId by interval
@@ -187,7 +223,6 @@ public:
                  const string &workerName, const string &minerAgent);
 };
 
-
 ////////////////////////////////// StratumJobEx ////////////////////////////////
 //
 // StratumJobEx is use to wrap StratumJob
@@ -195,9 +230,6 @@ public:
 class StratumJobEx {
   // 0: MINING, 1: STALE
   atomic<int32_t> state_;
-
-  void makeMiningNotifyStr();
-
   void generateCoinbaseTx(std::vector<char> *coinbaseBin,
                           const uint32_t extraNonce1,
                           const string &extraNonce2Hex,
@@ -214,7 +246,7 @@ public:
 
 public:
   StratumJobEx(StratumJob *sjob, bool isClean);
-  ~StratumJobEx();
+  virtual ~StratumJobEx();
 
   void markStale();
   bool isStale();
@@ -228,8 +260,14 @@ public:
                            const uint32_t nBits, const int32_t nVersion,
                            const uint32_t nTime, const uint32_t nonce,
                            string *userCoinbaseInfo = nullptr);
+  virtual void makeMiningNotifyStr();
 };
 
+class StratumJobExEth : public StratumJobEx {
+public:
+  StratumJobExEth(StratumJob *sjob, bool isClean);
+  virtual void makeMiningNotifyStr();
+};
 
 ///////////////////////////////////// Server ///////////////////////////////////
 class Server {
@@ -241,6 +279,7 @@ class Server {
   std::map<evutil_socket_t, StratumSession *> connections_;
   mutex connsLock_;
 
+public:
   // kafka producers
   KafkaProducer *kafkaProducerShareLog_;
   KafkaProducer *kafkaProducerSolvedShare_;
@@ -259,7 +298,6 @@ class Server {
   //
   bool isSubmitInvalidBlock_;
 
-public:
 #ifndef WORK_WITH_STRATUM_SWITCHER
   SessionIDManager *sessionIDManager_;
 #endif
@@ -279,7 +317,7 @@ public:
 
 public:
   Server(const int32_t shareAvgSeconds);
-  ~Server();
+  virtual ~Server();
 
   bool setup(const char *ip, const unsigned short port, const char *kafkaBrokers,
              const string &userAPIUrl,
@@ -287,7 +325,8 @@ public:
              bool isEnableSimulator,
              bool isSubmitInvalidBlock,
              bool isDevModeEnable,
-             float minerDifficulty);
+             float minerDifficulty,
+             const string &consumerTopic);
   void run();
   void stop();
 
@@ -313,14 +352,62 @@ public:
   void sendSolvedShare2Kafka(const FoundBlock *foundBlock,
                              const std::vector<char> &coinbaseBin);
   void sendCommonEvents2Kafka(const string &message);
+
+  virtual JobRepository* createJobRepository(const char *kafkaBrokers,
+                                    const char *consumerTopic,
+                                     const string &fileLastNotifyTime,
+                                     Server *server);
+
+  virtual StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
+                               Server *server, struct sockaddr *saddr,
+                               const int32_t shareAvgSeconds,
+                               const uint32_t sessionID);
 };
 
+class ServerEth : public Server
+{
+public:
+  ServerEth(const int32_t shareAvgSeconds) : Server(shareAvgSeconds) {}
+  int checkShare(const Share &share,
+                 const uint64_t nonce,
+                 const uint256 header,
+                 const uint256 mixHash);
+  void sendSolvedShare2Kafka(const string& strNonce, const string& strHeader, const string& strMix);
+
+  virtual JobRepository* createJobRepository(const char *kafkaBrokers,
+                                    const char *consumerTopic,
+                                     const string &fileLastNotifyTime,
+                                     Server *server);
+
+  virtual StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
+                               Server *server, struct sockaddr *saddr,
+                               const int32_t shareAvgSeconds,
+                               const uint32_t sessionID);
+};
+
+class ServerSia : public Server
+{
+public:
+  ServerSia(const int32_t shareAvgSeconds) : Server(shareAvgSeconds) {}
+
+  virtual JobRepository* createJobRepository(const char *kafkaBrokers,
+                                     const char *consumerTopic,     
+                                     const string &fileLastNotifyTime,
+                                     Server *server);
+
+  virtual StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
+                               Server *server, struct sockaddr *saddr,
+                               const int32_t shareAvgSeconds,
+                               const uint32_t sessionID);
+};
 
 ////////////////////////////////// StratumServer ///////////////////////////////
 class StratumServer {
+
+public:
   atomic<bool> running_;
 
-  Server server_;
+  shared_ptr<Server> server_;
   string ip_;
   unsigned short port_;
   uint8_t serverId_;  // global unique, range: [1, 255]
@@ -341,8 +428,9 @@ class StratumServer {
 
   // difficulty to send to miners. for development
   float minerDifficulty_;
+  
+  string consumerTopic_;
 
-public:
   StratumServer(const char *ip, const unsigned short port,
                 const char *kafkaBrokers,
                 const string &userAPIUrl,
@@ -351,9 +439,9 @@ public:
                 bool isSubmitInvalidBlock,
                 bool isDevModeEnable,
                 float minerDifficulty,
-                const int32_t shareAvgSeconds);
+                const string &consumerTopic);
   ~StratumServer();
-
+  bool createServer(string type, const int32_t shareAvgSeconds);
   bool init();
   void stop();
   void run();

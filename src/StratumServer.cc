@@ -21,6 +21,8 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
+#include  <iostream>
+#include  <iomanip>
 #include "StratumServer.h"
 
 #include "Common.h"
@@ -32,11 +34,11 @@
 #include <utilstrencodings.h>
 #include <hash.h>
 #include <inttypes.h>
-
 #include "rsk/RskSolvedShareData.h"
 
 #include "utilities_js.hpp"
 
+using namespace std;
 
 #ifndef WORK_WITH_STRATUM_SWITCHER
 
@@ -93,15 +95,14 @@ void SessionIDManager::freeSessionId(uint32_t sessionId) {
 
 
 ////////////////////////////////// JobRepository ///////////////////////////////
-JobRepository::JobRepository(const char *kafkaBrokers,
-                             const string &fileLastNotifyTime,
-                             Server *server):
+JobRepository::JobRepository(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server):
 running_(true),
-kafkaConsumer_(kafkaBrokers, KAFKA_TOPIC_STRATUM_JOB, 0/*patition*/),
+kafkaConsumer_(kafkaBrokers, consumerTopic, 0/*patition*/),
 server_(server), fileLastNotifyTime_(fileLastNotifyTime),
 kMaxJobsLifeTime_(300),
 kMiningNotifyInterval_(30),  // TODO: make as config arg
-lastJobSendTime_(0)
+lastJobSendTime_(0),
+serverType_(BTC) // TODO: make as config arg
 {
   assert(kMiningNotifyInterval_ < kMaxJobsLifeTime_);
 }
@@ -184,52 +185,7 @@ void JobRepository::runThreadConsume() {
   LOG(INFO) << "stop job repository consume thread";
 }
 
-void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
-  // check error
-  if (rkmessage->err) {
-    if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
-      // Reached the end of the topic+partition queue on the broker.
-      // Not really an error.
-      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
-      //      << "[" << rkmessage->partition << "] "
-      //      << " message queue at offset " << rkmessage->offset;
-      // acturlly
-      return;
-    }
-
-    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
-    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
-    << ": " << rd_kafka_message_errstr(rkmessage);
-
-    if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
-        rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
-      LOG(FATAL) << "consume fatal";
-    }
-    return;
-  }
-
-  StratumJob *sjob = new StratumJob();
-  bool res = sjob->unserializeFromJson((const char *)rkmessage->payload,
-                                       rkmessage->len);
-  if (res == false) {
-    LOG(ERROR) << "unserialize stratum job fail";
-    delete sjob;
-    return;
-  }
-  // make sure the job is not expired.
-  if (jobId2Time(sjob->jobId_) + 60 < time(nullptr)) {
-    LOG(ERROR) << "too large delay from kafka to receive topic 'StratumJob'";
-    delete sjob;
-    return;
-  }
-  // here you could use Map.find() without lock, it's sure
-  // that everyone is using this Map readonly now
-  if (exJobs_.find(sjob->jobId_) != exJobs_.end()) {
-    LOG(ERROR) << "jobId already existed";
-    delete sjob;
-    return;
-  }
-
+void JobRepository::broadcastStratumJob(StratumJob *sjob) {
   bool isClean = false;
   if (latestPrevBlockHash_ != sjob->prevHash_) {
     isClean = true;
@@ -251,7 +207,7 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   // don't have a sense and such shares will be rejected. When this flag is set,
   // miner should also drop all previous jobs.
   // 
-  shared_ptr<StratumJobEx> exJob = std::make_shared<StratumJobEx>(sjob, isClean);
+  shared_ptr<StratumJobEx> exJob(createStratumJobEx(serverType_, sjob, isClean));
   {
     ScopeLock sl(lock_);
 
@@ -286,6 +242,88 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
       sendMiningNotify(exJob);
     }
   }
+}
+
+StratumJob* JobRepository::createStratumJob() {
+  StratumJob* sjob = nullptr;
+  switch(serverType_) {
+    case BTC:
+      sjob = new StratumJob();
+      break;
+    case ETH:
+      sjob = new StratumJobEth();
+      break;
+  }
+  return sjob;
+}
+
+void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
+  // check error
+  if (rkmessage->err) {
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
+      // Reached the end of the topic+partition queue on the broker.
+      // Not really an error.
+      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
+      //      << "[" << rkmessage->partition << "] "
+      //      << " message queue at offset " << rkmessage->offset;
+      // acturlly
+      return;
+    }
+
+    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
+    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
+    << ": " << rd_kafka_message_errstr(rkmessage);
+
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
+        rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
+      LOG(FATAL) << "consume fatal";
+    }
+    return;
+  }
+
+  StratumJob *sjob = createStratumJob();
+  bool res = sjob->unserializeFromJson((const char *)rkmessage->payload,
+                                       rkmessage->len);
+  if (res == false) {
+    LOG(ERROR) << "unserialize stratum job fail";
+    delete sjob;
+    return;
+  }
+  // make sure the job is not expired.
+  if (jobId2Time(sjob->jobId_) + 60 < time(nullptr)) {
+    LOG(ERROR) << "too large delay from kafka to receive topic 'StratumJob'";
+    delete sjob;
+    return;
+  }
+  // here you could use Map.find() without lock, it's sure
+  // that everyone is using this Map readonly now
+  if (exJobs_.find(sjob->jobId_) != exJobs_.end()) {
+    LOG(ERROR) << "jobId already existed";
+    delete sjob;
+    return;
+  }
+
+  broadcastStratumJob(sjob);
+}
+
+StratumJobEx* JobRepository::createStratumJobEx(StratumServerType type, StratumJob *sjob, bool isClean){
+  StratumJobEx* job = NULL;
+
+  switch (type) {
+    case BTC: {
+      job = new StratumJobEx(sjob, isClean);
+      break;
+    }
+    case ETH: {
+      job = new StratumJobExEth(sjob, isClean);
+      break;
+    }
+  }
+
+  if (job)
+    job->makeMiningNotifyStr();
+
+  return job;
 }
 
 void JobRepository::markAllJobsAsStale() {
@@ -344,6 +382,133 @@ void JobRepository::tryCleanExpiredJobs() {
   }
 }
 
+////////////////////////////////// JobRepositoryEth ///////////////////////////////
+JobRepositoryEth::JobRepositoryEth(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server):
+JobRepository(kafkaBrokers, consumerTopic, fileLastNotifyTime, server),
+light_(nullptr), 
+nextLight_(nullptr),
+epochs_(0xffffffffffffffff)
+{
+  serverType_ = ETH;
+  kMaxJobsLifeTime_ = 60;
+}
+
+void JobRepositoryEth::broadcastStratumJob(StratumJob *sjob) {
+  LOG(INFO) << "broadcastStratumJob " << sjob->jobId_;
+  bool isClean = true;
+  
+  shared_ptr<StratumJobEx> exJob(createStratumJobEx(serverType_, sjob, isClean));
+  {
+    ScopeLock sl(lock_);
+
+    if (isClean) {
+      // mark all jobs as stale, should do this before insert new job
+      for (auto it : exJobs_) {
+        it.second->markStale();
+      }
+    }
+
+    // insert new job
+    exJobs_[sjob->jobId_] = exJob;
+  }
+
+  //send job first
+  sendMiningNotify(exJob);
+  //then, create light for verification
+  newLight(dynamic_cast<StratumJobEth*>(sjob));
+}
+
+JobRepositoryEth::~JobRepositoryEth() {
+  deleteLight();
+}
+
+void JobRepositoryEth::newLight(StratumJobEth* job) {
+  if (nullptr == job)
+    return;
+
+  newLight(job->blockNumber_);
+}
+
+void JobRepositoryEth::newLight(uint64_t blkNum)
+{
+  uint64_t const epochs = blkNum / ETHASH_EPOCH_LENGTH;
+  //same seed do nothing
+  if (epochs == epochs_)
+    return;
+  epochs_ = epochs;
+
+  LOG(INFO) << "creating light for blk num... " << blkNum;
+  time_t now = time(nullptr);
+  time_t elapse;
+  {
+    ScopeLock sl(lightLock_);
+    //deleteLightNoLock();
+    if (nullptr == nextLight_)
+      light_ = ethash_light_new(blkNum);
+    else {
+      //get pre-generated light if exists
+      ethash_light_delete(light_);
+      light_ =  nextLight_;
+    }
+    if (nullptr == light_)
+      LOG(FATAL) << "create light for blk num: " << blkNum << " failed";
+    else
+    {
+      elapse = time(nullptr) - now;
+      LOG(INFO) << "create light for blk num: " << blkNum << " takes " << elapse << " seconds";
+    }
+  }
+
+  now = time(nullptr);
+  uint64_t nextBlkNum = blkNum + ETHASH_EPOCH_LENGTH;
+  LOG(INFO) << "creating light for blk num... " << nextBlkNum;
+  nextLight_ = ethash_light_new(nextBlkNum);
+  elapse = time(nullptr) - now;
+  LOG(INFO) << "create light for blk num: " << nextBlkNum << " takes " << elapse << " seconds";
+}
+
+void JobRepositoryEth::deleteLight()
+{
+  ScopeLock sl(lightLock_);
+  deleteLightNoLock();
+}
+
+void JobRepositoryEth::deleteLightNoLock() {
+  if (light_ != nullptr) {
+    ethash_light_delete(light_);
+    light_ = nullptr;
+  }
+
+  if (nextLight_ != nullptr) {
+    ethash_light_delete(nextLight_);
+    nextLight_ = nullptr;
+  }
+}
+
+bool JobRepositoryEth::compute(ethash_h256_t const header, uint64_t nonce, ethash_return_value_t &r)
+{
+  ScopeLock sl(lightLock_);
+  if (light_ != nullptr)
+  {
+    r = ethash_light_compute(light_, header, nonce);
+    // LOG(INFO) << "ethash_light_compute: " << r.success << ", result: ";
+    // for (int i = 0; i < 32; ++i)
+    //   LOG(INFO) << hex << (int)r.result.b[i];
+
+    // LOG(INFO) << "mixed hash: ";
+    // for (int i = 0; i < 32; ++i)
+    //   LOG(INFO) << hex << (int)r.mix_hash.b[i];
+
+    return r.success;
+  }
+  return false;
+}
+
+//////////////////////////////////// JobRepositorySia /////////////////////////////////
+JobRepositorySia::JobRepositorySia(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server) : 
+JobRepository(kafkaBrokers, consumerTopic, fileLastNotifyTime, server)
+{
+}
 
 //////////////////////////////////// UserInfo /////////////////////////////////
 UserInfo::UserInfo(const string &apiUrl, Server *server):
@@ -631,7 +796,7 @@ StratumJobEx::StratumJobEx(StratumJob *sjob, bool isClean):
 state_(0), isClean_(isClean), sjob_(sjob)
 {
   assert(sjob != nullptr);
-  makeMiningNotifyStr();
+  //makeMiningNotifyStr();
 }
 
 StratumJobEx::~StratumJobEx() {
@@ -755,24 +920,38 @@ StratumServer::StratumServer(const char *ip, const unsigned short port,
                              const uint8_t serverId, const string &fileLastNotifyTime,
                              bool isEnableSimulator, bool isSubmitInvalidBlock,
                              bool isDevModeEnable, float minerDifficulty,
-                             const int32_t shareAvgSeconds)
-:running_(true), server_(shareAvgSeconds),
+                             const string &consumerTopic)
+:running_(true),
 ip_(ip), port_(port), serverId_(serverId),
 fileLastNotifyTime_(fileLastNotifyTime),
 kafkaBrokers_(kafkaBrokers), userAPIUrl_(userAPIUrl),
 isEnableSimulator_(isEnableSimulator), isSubmitInvalidBlock_(isSubmitInvalidBlock),
-isDevModeEnable_(isDevModeEnable), minerDifficulty_(minerDifficulty)
+isDevModeEnable_(isDevModeEnable), minerDifficulty_(minerDifficulty),
+consumerTopic_(consumerTopic)
 {
 }
 
 StratumServer::~StratumServer() {
 }
 
+bool StratumServer::createServer(string type, const int32_t shareAvgSeconds) {
+  LOG(INFO) << "createServer type: " << type << ", shareAvgSeconds: " << shareAvgSeconds;
+  if ("BTC" == type)
+    server_ = make_shared<Server> (shareAvgSeconds);
+  else if ("ETH" == type)
+    server_ = make_shared<ServerEth> (shareAvgSeconds);
+  else if ("SIA" == type)
+    server_ = make_shared<ServerSia> (shareAvgSeconds);
+  else 
+    return false;
+  return server_ != nullptr;
+}
+
 bool StratumServer::init() {
-  if (!server_.setup(ip_.c_str(), port_, kafkaBrokers_.c_str(),
+  if (!server_->setup(ip_.c_str(), port_, kafkaBrokers_.c_str(),
                      userAPIUrl_, serverId_, fileLastNotifyTime_,
                      isEnableSimulator_, isSubmitInvalidBlock_,
-                     isDevModeEnable_, minerDifficulty_)) {
+                     isDevModeEnable_, minerDifficulty_, consumerTopic_)) {
     LOG(ERROR) << "fail to setup server";
     return false;
   }
@@ -784,12 +963,12 @@ void StratumServer::stop() {
     return;
   }
   running_ = false;
-  server_.stop();
+  server_->stop();
   LOG(INFO) << "stop stratum server";
 }
 
 void StratumServer::run() {
-  server_.run();
+  server_->run();
 }
 
 ///////////////////////////////////// Server ///////////////////////////////////
@@ -851,12 +1030,76 @@ Server::~Server() {
 #endif
 }
 
+// JobRepository *Server::createJobRepository(StratumServerType type,
+//                                            const char *kafkaBrokers,
+//                                            const string &fileLastNotifyTime,
+//                                            Server *server)
+// {
+//   JobRepository *jobRepo = nullptr;
+//   switch (type)
+//   {
+//   case BTC:
+//     jobRepo = new JobRepository(kafkaBrokers, fileLastNotifyTime, this);
+//     break;
+//   case ETH:
+//     jobRepo = new JobRepositoryEth(kafkaBrokers, fileLastNotifyTime, this);
+//     break;
+//   }
+//   return jobRepo;
+// }
+
+JobRepository *Server::createJobRepository(const char *kafkaBrokers,
+                                           const char *consumerTopic,
+                                           const string &fileLastNotifyTime,
+                                           Server *server)
+{
+  return new JobRepository(kafkaBrokers, consumerTopic, fileLastNotifyTime, this);
+}
+
+StratumSession *Server::createSession(evutil_socket_t fd, struct bufferevent *bev,
+                                      Server *server, struct sockaddr *saddr,
+                                      const int32_t shareAvgSeconds,
+                                      const uint32_t sessionID)
+{
+  return new StratumSession(fd, bev, server, saddr,
+                     server->kShareAvgSeconds_,
+                     sessionID);
+}
+
+// StratumSession* Server::createSession(StratumServerType type, evutil_socket_t fd, struct bufferevent *bev,
+//                                       Server *server, struct sockaddr *saddr,
+//                                       const int32_t shareAvgSeconds,
+//                                       const uint32_t sessionID)
+// {
+//   StratumSession *conn = nullptr;
+//   switch (type)
+//   {
+//   case BTC:
+//     conn = new StratumSession(fd, bev, server, saddr,
+//                               server->kShareAvgSeconds_,
+//                               sessionID);
+//     break;
+//   case ETH:
+//     conn = new StratumSessionEth(fd, bev, server, saddr,
+//                                  server->kShareAvgSeconds_,
+//                                  sessionID);
+//     break;
+//   }
+
+//   if (!conn->initialize()) {
+//     delete conn;
+//     conn = nullptr;
+//   }
+
+//   return conn;
+// }
+
 bool Server::setup(const char *ip, const unsigned short port,
                    const char *kafkaBrokers,
                    const string &userAPIUrl,
                    const uint8_t serverId, const string &fileLastNotifyTime,
                    bool isEnableSimulator, bool isSubmitInvalidBlock,
-                   bool isDevModeEnable, float minerDifficulty) {
+                   bool isDevModeEnable, float minerDifficulty, const string &consumerTopic) {
   if (isEnableSimulator) {
     isEnableSimulator_ = true;
     LOG(WARNING) << "Simulator is enabled, all share will be accepted";
@@ -890,7 +1133,7 @@ bool Server::setup(const char *ip, const unsigned short port,
                                                  RD_KAFKA_PARTITION_UA);
 
   // job repository
-  jobRepository_ = new JobRepository(kafkaBrokers, fileLastNotifyTime, this);
+  jobRepository_ = createJobRepository(kafkaBrokers, consumerTopic.c_str(), fileLastNotifyTime, this);
   if (!jobRepository_->setupThreadConsume()) {
     return false;
   }
@@ -1106,9 +1349,14 @@ void Server::listenerCallback(struct evconnlistener* listener,
   }
 
   // create stratum session
-  StratumSession* conn = new StratumSession(fd, bev, server, saddr,
-                                            server->kShareAvgSeconds_,
-                                            sessionID);
+  StratumSession *conn = server->createSession(fd, bev, server, saddr,
+                                       server->kShareAvgSeconds_,
+                                       sessionID);
+  if (!conn->initialize())
+  {
+    delete conn;
+    return;
+  }
   // set callback functions
   bufferevent_setcb(bev,
                     Server::readCallback, nullptr,
@@ -1335,4 +1583,153 @@ void Server::sendSolvedShare2Kafka(const FoundBlock *foundBlock,
 
 void Server::sendCommonEvents2Kafka(const string &message) {
   kafkaProducerCommonEvents_->produce(message.data(), message.size());
+}
+
+////////////////////////////////// ServierEth ///////////////////////////////
+int ServerEth::checkShare(const Share &share,
+                          const uint64_t nonce,
+                          const uint256 header,
+                          const uint256 mixHash)
+{
+  //accept every share in simulator mode
+  if (isEnableSimulator_)
+  {
+    usleep(20000);
+    return StratumError::NO_ERROR;
+  }
+
+  JobRepositoryEth *jobRepo = dynamic_cast<JobRepositoryEth *>(jobRepository_);
+  if (nullptr == jobRepo)
+    return StratumError::ILLEGAL_PARARMS;
+
+  shared_ptr<StratumJobEx> exJobPtr = jobRepository_->getStratumJobEx(share.jobId_);
+  if (nullptr == exJobPtr)
+  {
+    return StratumError::JOB_NOT_FOUND;
+  }
+
+  if (exJobPtr->isStale())
+  {
+    return StratumError::JOB_NOT_FOUND;
+  }
+
+  StratumJob *sjob = exJobPtr->sjob_;
+  //LOG(INFO) << "checking share nonce: " << hex << nonce << ", header: " << header.GetHex() << ", mixHash: " << mixHash.GetHex();
+  ethash_return_value_t r;
+  ethash_h256_t ethashHeader = {0};
+  Uint256ToEthash256(header, ethashHeader);
+
+  // for (int i = 0; i < 32; ++i)
+  //   LOG(INFO) << "ethash_h256_t byte " << i << ": " << hex << (int)ethashHeader.b[i];
+  timeval start, end;
+  long mtime, seconds, useconds;
+  gettimeofday(&start, NULL);
+  bool ret = jobRepo->compute(ethashHeader, nonce, r);
+  gettimeofday(&end, NULL);
+  seconds = end.tv_sec - start.tv_sec;
+  useconds = end.tv_usec - start.tv_usec;
+  mtime = ((seconds)*1000 + useconds / 1000.0) + 0.5;
+  LOG(INFO) << "light compute takes " << mtime << " ms";
+
+  if (!ret || !r.success)
+  {
+    LOG(ERROR) << "light cache creation error";
+    return StratumError::INTERNAL_ERROR;
+  }
+
+  uint256 mix = Ethash256ToUint256(r.mix_hash);
+  if (mix != mixHash)
+  {
+    LOG(ERROR) << "mix hash does not match: " << mix.GetHex();
+    return StratumError::INTERNAL_ERROR;
+  }
+
+  uint256 shareTarget = Ethash256ToUint256(r.result);
+  //DLOG(INFO) << "comapre share target: " << shareTarget.GetHex() << ", network target: " << sjob->rskNetworkTarget_.GetHex();
+  //can not compare directly because unit256 uses memcmp
+  if (UintToArith256(sjob->rskNetworkTarget_) < UintToArith256(shareTarget))
+    return StratumError::LOW_DIFFICULTY;
+
+  return StratumError::NO_ERROR;
+}
+
+void ServerEth::sendSolvedShare2Kafka(const string &strNonce, const string &strHeader, const string &strMix)
+{
+  string msg = Strings::Format("{\"nonce\":\"%s\",\"header\":\"%s\",\"mix\":\"%s\"}", strNonce.c_str(), strHeader.c_str(), strMix.c_str());
+  kafkaProducerSolvedShare_->produce(msg.c_str(), msg.length());
+}
+
+StratumSession *ServerEth::createSession(evutil_socket_t fd, struct bufferevent *bev,
+                                         Server *server, struct sockaddr *saddr,
+                                         const int32_t shareAvgSeconds,
+                                         const uint32_t sessionID)
+{
+  return new StratumSessionEth(fd, bev, server, saddr,
+                        server->kShareAvgSeconds_,
+                        sessionID);
+}
+
+JobRepository *ServerEth::createJobRepository(const char *kafkaBrokers,
+                                            const char *consumerTopic,
+                                           const string &fileLastNotifyTime,
+                                           Server *server)
+{
+  return new JobRepositoryEth(kafkaBrokers, consumerTopic, fileLastNotifyTime, this);
+}
+
+////////////////////////////////// ServierSia ///////////////////////////////
+StratumSession *ServerSia::createSession(evutil_socket_t fd, struct bufferevent *bev,
+                                         Server *server, struct sockaddr *saddr,
+                                         const int32_t shareAvgSeconds,
+                                         const uint32_t sessionID)
+{
+  return new StratumSessionSia(fd, bev, server, saddr,
+                        server->kShareAvgSeconds_,
+                        sessionID);
+}
+
+JobRepository *ServerSia::createJobRepository(const char *kafkaBrokers,
+                                            const char *consumerTopic,
+                                           const string &fileLastNotifyTime,
+                                           Server *server)
+{
+  return new JobRepositorySia(kafkaBrokers, consumerTopic, fileLastNotifyTime, this);
+}
+
+////////////////////////////////// StratumJobExEth ///////////////////////////////
+StratumJobExEth::StratumJobExEth(StratumJob *sjob, bool isClean) : StratumJobEx(sjob, isClean)
+{
+}
+
+void StratumJobExEth::makeMiningNotifyStr()
+{
+  // StratumJobEth *ethJob = dynamic_cast<StratumJobEth *>(sjob_);
+  // if (nullptr == ethJob)
+  //   return;
+
+  // First parameter of params array is job ID (must be HEX number of any
+  // size). Second parameter is seedhash. Seedhash is sent with every job to
+  // support possible multipools, which may switch between coins quickly.
+  // Third parameter is headerhash. Last parameter is boolean cleanjobs.
+  // If set to true, tbbhen miner needs to clear queue of jobs and immediatelly
+  // start working on new provided job, because all old jobs shares will
+  // result with stale share error.
+  // Miner uses seedhash to identify DAG, then tries to find share below
+  // target (which is created out of provided difficulty) with headerhash,
+  // extranonce and own minernonce.
+
+  //the boundary condition ("target"), 2^256 / difficulty.
+  //How to calculate difficulty: 2 strings division?
+  //no set difficulty api, manuplate target and distribute to miner?
+
+  //string header = ethJob->blockHashForMergedMining_.substr(2, 64);
+  //string seed = ethJob->seedHash_.substr(2, 64);
+  //string strShareTarget = std::move(Eth_DifficultyToTarget(shareDifficulty_));
+  //LOG(INFO) << "new stratum job mining.notify: share difficulty=" << shareDifficulty_ << ", share target=" << strShareTarget;
+  // miningNotify1_ = Strings::Format("{\"id\":8,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
+  //                                  "\"params\":[\"%s\",\"%s\",\"%s\",\"%s\", false]}\n",
+  //                                  header.c_str(),
+  //                                  header.c_str(),
+  //                                  seed.c_str(),
+  //                                  strShareTarget.c_str());
 }

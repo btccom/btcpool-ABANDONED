@@ -115,14 +115,14 @@ int main(int argc, char **argv) {
 
   try {
     // check if we are using testnet3
-    bool isTestnet3 = true;
-    cfg.lookupValue("testnet", isTestnet3);
-    if (isTestnet3) {
-      SelectParams(CBaseChainParams::TESTNET);
-      LOG(WARNING) << "using bitcoin testnet3";
-    } else {
-      SelectParams(CBaseChainParams::MAIN);
-    }
+    // bool isTestnet3 = true;
+    // cfg.lookupValue("testnet", isTestnet3);
+    // if (isTestnet3) {
+    //   SelectParams(CBaseChainParams::TESTNET);
+    //   LOG(WARNING) << "using bitcoin testnet3";
+    // } else {
+    //   SelectParams(CBaseChainParams::MAIN);
+    // }
 
     int32_t            port = 3333;
     uint32_t       serverId = 0;
@@ -165,7 +165,11 @@ int main(int argc, char **argv) {
                                        isSubmitInvalidBlock,
                                        isDevModeEnabled,
                                        minerDifficulty,
-                                       shareAvgSeconds);
+                                       cfg.lookup("consumer_topic"));
+    if (!gStratumServer->createServer(cfg.lookup("sserver.type"), shareAvgSeconds)) {
+       LOG(FATAL) << "createServer failure";
+       return 1;
+    }
 
     if (!gStratumServer->init()) {
       LOG(FATAL) << "init failure";
