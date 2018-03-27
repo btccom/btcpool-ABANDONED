@@ -622,17 +622,17 @@ TEST(Stratum, StratumJobWithRskWork) {
     ASSERT_EQ(sjob.coinbase2_,
               "ffffffff"  // sequence
               "02"        // 2 outputs. Rsk tag is stored in an additional CTxOut besides the cb's standard output
+              
               // c7cea21200000000 -> 0000000012a2cec7 -> 312659655
               "c7cea21200000000"
-              
               // 0x19 -> 25 bytes of first output script
               "1976a914ca560088c0fb5e6f028faa11085e643e343a8f5c88ac"
-              // lock_time
-              "00000000"
-
-              "00000000"
+              
+              // rsk tx out value
+              "0000000000000000"
               // 0x29 = 41 bytes of second output script containing the rsk merged mining tag
               "2952534b424c4f434b3ae6b0a8e84e0ce68471ca28db4f51b71139b0ab78ae1c3e0ae8364604e9f8a15d"
+              
               // lock_time
               "00000000");
     ASSERT_EQ(sjob.merkleBranch_.size(), 1U);
