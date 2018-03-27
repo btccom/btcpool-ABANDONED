@@ -120,7 +120,6 @@ protected:
 
   uint32_t kGbtLifeTime_;
   uint32_t kEmptyGbtLifeTime_;
-  string fileLastJobTime_;
 
   std::map<uint64_t/* @see makeGbtKey() */, string> rawgbtMap_;  // sorted gbt by timestamp
 
