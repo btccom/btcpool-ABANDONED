@@ -136,11 +136,11 @@ public:
   void resetCurDiff(uint64 curDiff);
 };
 
-class DiffControllerEth : public DiffController {
-  virtual uint64 _calcCurDiff();
-  public:
-    DiffControllerEth(const int32_t shareAvgSeconds, const uint64_t defaultDifficulty);
-};
+// class DiffControllerEth : public DiffController {
+//   virtual uint64 _calcCurDiff();
+//   public:
+//     DiffControllerEth(const int32_t shareAvgSeconds, const uint64_t defaultDifficulty);
+// };
 
 //////////////////////////////// StratumSession ////////////////////////////////
 class StratumSession {
@@ -305,13 +305,13 @@ public:
   StratumSessionEth(evutil_socket_t fd, struct bufferevent *bev,
                     Server *server, struct sockaddr *saddr,
                     const int32_t shareAvgSeconds, const uint32_t extraNonce1);
-  virtual bool initialize();
+  //virtual bool initialize();
   virtual void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false);  
   virtual void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams);      
   virtual void handleRequest_Submit           (const string &idStr, const JsonNode &jparams);          
 };
 
-class StratumSessionSia : public StratumSession
+class StratumSessionSia : public StratumSessionEth
 {
 public:
   StratumSessionSia(evutil_socket_t fd, struct bufferevent *bev,
@@ -319,7 +319,8 @@ public:
                     const int32_t shareAvgSeconds, const uint32_t extraNonce1);
   //virtual bool initialize();
   virtual void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false);  
-  virtual void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams);     
+  virtual void handleRequest_Submit (const string &idStr, const JsonNode &jparams);  
+  //virtual void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams);     
   //virtual void handleRequest_Submit           (const string &idStr, const JsonNode &jparams);      
 
 private:
