@@ -901,12 +901,11 @@ void BlockMaker::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
   }
   assert(vtxs.get() != nullptr);
 
-  //
-  // build new block
-  //
-  CBlock newblk(blkHeader);
 
-  // put coinbase tx
+  vector<uint256> vtxhashes;
+  vtxhashes.resize(1 + vtxs->size()); // coinbase + gbt txs
+
+  // put coinbase tx hash
   {
     CSerializeData sdata;
     sdata.insert(sdata.end(), coinbaseTxBin.begin(), coinbaseTxBin.end());
@@ -915,14 +914,13 @@ void BlockMaker::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
     CDataStream c(sdata, SER_NETWORK, PROTOCOL_VERSION);
     c >> tx;
 
-    newblk.vtx.push_back(MakeTransactionRef(std::move(tx)));
+    vtxhashes[0] = tx.GetHash();
   }
 
-  // put other txs
-  if (vtxs->size()) {
-    newblk.vtx.insert(newblk.vtx.end(), vtxs->begin(), vtxs->end());
+  // put other tx hashes
+  for (size_t i = 0; i < vtxs->size(); i++) {
+    vtxhashes[i + 1] = (*vtxs)[i]->GetHash(); // vtxs is a shared_ptr<vector<CTransactionRef>>
   }
-
 
   string blockHashHex = blkHeader.GetHash().ToString();
   string blockHeaderHex = EncodeHexBlockHeader(blkHeader);
@@ -935,9 +933,9 @@ void BlockMaker::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
 
   // build coinbase's merkle tree branch
   string hashHex;
-  vector<uint256> cbMerkleBranch = BlockMerkleBranch(newblk, 0);
+  vector<uint256> cbMerkleBranch = ComputeMerkleBranch(vtxhashes, 0);
 
-  Bin2Hex((uint8_t*)(newblk.vtx[0]->GetHash().begin()), sizeof(uint256), hashHex); // coinbase hash
+  Bin2Hex((uint8_t*)(vtxhashes[0].begin()), sizeof(uint256), hashHex); // coinbase hash
   merkleHashesHex.append(hashHex);
   for (size_t i = 0; i < cbMerkleBranch.size(); i++) {
       merkleHashesHex.append("\x20"); // space character
@@ -947,7 +945,7 @@ void BlockMaker::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
 
   // block tx count
   std::stringstream sstream;
-  sstream << std::hex << newblk.vtx.size();
+  sstream << std::hex << vtxhashes.size();
   totalTxCountHex = sstream.str();
 
   submitRskBlockPartialMerkleNonBlocking(shareData.rpcAddress_, shareData.rpcUserPwd_, blockHashHex, blockHeaderHex, 
