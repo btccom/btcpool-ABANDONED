@@ -853,10 +853,11 @@ void BlockMaker::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
     return;
   }
 
-  if (!submitToRskNode())
-    return;
-
   LOG(INFO) << "received RskSolvedShareData message, len: " << rkmessage->len;
+
+  if (!submitToRskNode()) {
+    return;
+  }
 
   //
   // solved share message:  RskSolvedShareData + coinbase_Tx
@@ -879,6 +880,8 @@ void BlockMaker::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
     memcpy((uint8_t *)&blkHeader, shareData.header80_, sizeof(CBlockHeader));
   }
 
+  LOG(INFO) << "submit RSK block: " << blkHeader.GetHash().ToString();
+  
   // get gbtHash and rawgbt (vtxs)
   uint256 gbtHash;
   shared_ptr<vector<CTransactionRef>> vtxs;
@@ -920,30 +923,32 @@ void BlockMaker::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
     newblk.vtx.insert(newblk.vtx.end(), vtxs->begin(), vtxs->end());
   }
 
-  std::stringstream sstream;
-  sstream << std::hex << newblk.vtx.size();
-  string totalTxCountHex(sstream.str());
 
   string blockHashHex = blkHeader.GetHash().ToString();
   string blockHeaderHex = EncodeHexBlockHeader(blkHeader);
-  
-  // build coinbase's merkle tree branch
+  string coinbaseHex;
   string merkleHashesHex;
+  string totalTxCountHex;
+
+  // coinbase bin -> hex
+  Bin2Hex(coinbaseTxBin, coinbaseHex);
+
+  // build coinbase's merkle tree branch
   string hashHex;
   vector<uint256> cbMerkleBranch = BlockMerkleBranch(newblk, 0);
 
   Bin2Hex((uint8_t*)(newblk.vtx[0]->GetHash().begin()), sizeof(uint256), hashHex); // coinbase hash
   merkleHashesHex.append(hashHex);
-  
   for (size_t i = 0; i < cbMerkleBranch.size(); i++) {
       merkleHashesHex.append("\x20"); // space character
       Bin2Hex((uint8_t*)cbMerkleBranch[i].begin(), sizeof(uint256), hashHex);
       merkleHashesHex.append(hashHex);
   }
 
-  // coinbase bin -> hex
-  string coinbaseHex;
-  Bin2Hex(coinbaseTxBin, coinbaseHex);
+  // block tx count
+  std::stringstream sstream;
+  sstream << std::hex << newblk.vtx.size();
+  totalTxCountHex = sstream.str();
 
   submitRskBlockPartialMerkleNonBlocking(shareData.rpcAddress_, shareData.rpcUserPwd_, blockHashHex, blockHeaderHex, 
                                         coinbaseHex, merkleHashesHex, totalTxCountHex);  // using thread
