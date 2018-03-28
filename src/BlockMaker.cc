@@ -924,14 +924,13 @@ void BlockMaker::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
 
   string blockHashHex = blkHeader.GetHash().ToString();
   string blockHeaderHex = EncodeHexBlockHeader(blkHeader);
-  string coinbaseHex;
-  string merkleHashesHex;
-  string totalTxCountHex;
 
   // coinbase bin -> hex
+  string coinbaseHex;  
   Bin2Hex(coinbaseTxBin, coinbaseHex);
 
   // build coinbase's merkle tree branch
+  string merkleHashesHex;
   string hashHex;
   vector<uint256> cbMerkleBranch = ComputeMerkleBranch(vtxhashes, 0);
 
@@ -946,7 +945,7 @@ void BlockMaker::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
   // block tx count
   std::stringstream sstream;
   sstream << std::hex << vtxhashes.size();
-  totalTxCountHex = sstream.str();
+  string totalTxCountHex(sstream.str());
 
   submitRskBlockPartialMerkleNonBlocking(shareData.rpcAddress_, shareData.rpcUserPwd_, blockHashHex, blockHeaderHex, 
                                         coinbaseHex, merkleHashesHex, totalTxCountHex);  // using thread
