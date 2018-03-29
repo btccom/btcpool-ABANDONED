@@ -216,56 +216,6 @@ uint64 DiffController::_calcCurDiff() {
 // }
 
 // uint64 DiffControllerEth::_calcCurDiff() {
-//   // const time_t now = time(nullptr);
-//   // const int64 k = now / kRecordSeconds_;
-//   // const double sharesCount = (double)sharesNum_.sum(k);
-//   // if (startTime_ == 0) {  // first time, we set the start time
-//   //   startTime_ = time(nullptr);
-//   // }
-
-//   // const double kRateHigh = 1.40;
-//   // const double kRateLow  = 0.40;
-//   // double expectedCount = round(kDiffWindow_ / (double)shareAvgSeconds_);
-
-//   // if (isFullWindow(now)) { /* have a full window now */
-//   //   // big miner have big expected share count to make it looks more smooth.
-//   //   expectedCount *= minerCoefficient(now, k);
-//   // }
-//   // if (expectedCount > kDiffWindow_) {
-//   //   expectedCount = kDiffWindow_;  // one second per share is enough
-//   // }
-
-//   // // this is for very low hashrate miner, eg. USB miners
-//   // // should received at least one share every 60 seconds
-//   // if (!isFullWindow(now) && now >= startTime_ + 60 &&
-//   //     sharesCount <= (int32_t)((now - startTime_)/60.0) &&
-//   //     curDiff_ >= minDiff_*2) {
-//   //   setCurDiff(curDiff_ / 2);
-//   //   sharesNum_.mapMultiply(2.0);
-//   //   return curDiff_;
-//   // }
-
-//   // // too fast
-//   // if (sharesCount > expectedCount * kRateHigh) {
-//   //   while (sharesNum_.sum(k) > expectedCount && 
-//   //          curDiff_ < kMaxDiff_) {
-//   //     setCurDiff(curDiff_ * 2);
-//   //     sharesNum_.mapDivide(2.0);
-//   //   }
-//   //   return curDiff_;
-//   // }
-
-//   // // too slow
-//   // if (isFullWindow(now) && curDiff_ >= minDiff_*2) {
-//   //   while (sharesNum_.sum(k) < expectedCount * kRateLow &&
-//   //          curDiff_ >= minDiff_*2) {
-//   //     setCurDiff(curDiff_ / 2);
-//   //     sharesNum_.mapMultiply(2.0);
-//   //   }
-//   //   assert(curDiff_ >= minDiff_);
-//   //   return curDiff_;
-//   // }
-  
 //   return curDiff_;
 // }
 
@@ -321,7 +271,7 @@ StratumSession::~StratumSession() {
 }
 
 bool StratumSession::initialize() {
-  diffController_ = std::make_shared<DiffController>(shareAvgSeconds_);
+  diffController_ = make_shared<DiffController>(server_->defaultDifficultyController_.get());
   return true;
 }
 
@@ -611,12 +561,12 @@ void StratumSession::_handleRequest_AuthorizePassword(const string &password) {
   md = formatDifficulty(md);
 
   // set min diff first
-  if (md >= DiffController::kMinDiff_) {
+  if (md >= server_->defaultDifficultyController_->kMinDiff_) {
     diffController_->setMinDiff(md);
   }
 
   // than set current diff
-  if (d >= DiffController::kMinDiff_) {
+  if (d >= server_->defaultDifficultyController_->kMinDiff_) {
     diffController_->resetCurDiff(d);
   }
 }
@@ -1477,7 +1427,7 @@ void AgentSessions::handleExMessage_RegisterWorker(const string *exMessage) {
 
   // acquires new pointer
   assert(diffControllers_[sessionId] == nullptr);
-  diffControllers_[sessionId] = new DiffController(shareAvgSeconds_);
+  diffControllers_[sessionId] = new DiffController(stratumSession_->server_->defaultDifficultyController_.get());
 
   // set curr diff to default Diff
   curDiff2ExpVec_[sessionId] = kDefaultDiff2Exp_;

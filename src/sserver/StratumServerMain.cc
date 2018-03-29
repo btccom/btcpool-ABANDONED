@@ -45,47 +45,55 @@ using namespace libconfig;
 
 StratumServer *gStratumServer = nullptr;
 
-void handler(int sig) {
-  if (gStratumServer) {
+void handler(int sig)
+{
+  if (gStratumServer)
+  {
     gStratumServer->stop();
   }
 }
 
-void usage() {
+void usage()
+{
   fprintf(stderr, "Usage:\n\tsserver -c \"sserver.cfg\" -l \"log_dir\"\n");
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
   char *optLogDir = NULL;
-  char *optConf   = NULL;
+  char *optConf = NULL;
   int c;
 
-  if (argc <= 1) {
+  if (argc <= 1)
+  {
     usage();
     return 1;
   }
-  while ((c = getopt(argc, argv, "c:l:h")) != -1) {
-    switch (c) {
-      case 'c':
-        optConf = optarg;
-        break;
-      case 'l':
-        optLogDir = optarg;
-        break;
-      case 'h': default:
-        usage();
-        exit(0);
+  while ((c = getopt(argc, argv, "c:l:h")) != -1)
+  {
+    switch (c)
+    {
+    case 'c':
+      optConf = optarg;
+      break;
+    case 'l':
+      optLogDir = optarg;
+      break;
+    case 'h':
+    default:
+      usage();
+      exit(0);
     }
   }
 
   // Initialize Google's logging library.
   google::InitGoogleLogging(argv[0]);
-  FLAGS_log_dir         = string(optLogDir);
+  FLAGS_log_dir = string(optLogDir);
   // Log messages at a level >= this flag are automatically sent to
   // stderr in addition to log files.
-  FLAGS_stderrthreshold = 3;    // 3: FATAL
-  FLAGS_max_log_size    = 100;  // max log file size 100 MB
-  FLAGS_logbuflevel     = -1;   // don't buffer logs
+  FLAGS_stderrthreshold = 3; // 3: FATAL
+  FLAGS_max_log_size = 100;  // max log file size 100 MB
+  FLAGS_logbuflevel = -1;    // don't buffer logs
   FLAGS_stop_logging_if_full_disk = true;
 
   // Read the file. If there is an error, report it and exit.
@@ -93,27 +101,33 @@ int main(int argc, char **argv) {
   try
   {
     cfg.readFile(optConf);
-  } catch(const FileIOException &fioex) {
+  }
+  catch (const FileIOException &fioex)
+  {
     std::cerr << "I/O error while reading file." << std::endl;
-    return(EXIT_FAILURE);
-  } catch(const ParseException &pex) {
+    return (EXIT_FAILURE);
+  }
+  catch (const ParseException &pex)
+  {
     std::cerr << "Parse error at " << pex.getFile() << ":" << pex.getLine()
-    << " - " << pex.getError() << std::endl;
-    return(EXIT_FAILURE);
+              << " - " << pex.getError() << std::endl;
+    return (EXIT_FAILURE);
   }
 
   // lock cfg file:
   //    you can't run more than one process with the same config file
   boost::interprocess::file_lock pidFileLock(optConf);
-  if (pidFileLock.try_lock() == false) {
+  if (pidFileLock.try_lock() == false)
+  {
     LOG(FATAL) << "lock cfg file fail";
-    return(EXIT_FAILURE);
+    return (EXIT_FAILURE);
   }
 
   signal(SIGTERM, handler);
-  signal(SIGINT,  handler);
+  signal(SIGINT, handler);
 
-  try {
+  try
+  {
     // check if we are using testnet3
     // bool isTestnet3 = true;
     // cfg.lookupValue("testnet", isTestnet3);
@@ -124,20 +138,21 @@ int main(int argc, char **argv) {
     //   SelectParams(CBaseChainParams::MAIN);
     // }
 
-    int32_t            port = 3333;
-    uint32_t       serverId = 0;
-    int32_t shareAvgSeconds = 10;  // default share interval time 10 seconds
+    int32_t port = 3333;
+    uint32_t serverId = 0;
+    int32_t shareAvgSeconds = 10; // default share interval time 10 seconds
 
     cfg.lookupValue("sserver.port", port);
     cfg.lookupValue("sserver.id", serverId);
-    if (serverId > 0xFFu || serverId == 0) {
+    if (serverId > 0xFFu || serverId == 0)
+    {
       LOG(FATAL) << "invalid server id, range: [1, 255]";
-      return(EXIT_FAILURE);
+      return (EXIT_FAILURE);
     }
-    if (cfg.exists("sserver.share_avg_seconds")) {
-    	cfg.lookupValue("sserver.share_avg_seconds", shareAvgSeconds);
+    if (cfg.exists("sserver.share_avg_seconds"))
+    {
+      cfg.lookupValue("sserver.share_avg_seconds", shareAvgSeconds);
     }
-
 
     bool isEnableSimulator = false;
     cfg.lookupValue("sserver.enable_simulator", isEnableSimulator);
@@ -148,13 +163,32 @@ int main(int argc, char **argv) {
     cfg.lookupValue("sserver.enable_dev_mode", isDevModeEnabled);
     float minerDifficulty;
     cfg.lookupValue("sserver.miner_difficulty", minerDifficulty);
-    
+
     string fileLastMiningNotifyTime;
     cfg.lookupValue("sserver.file_last_notify_time", fileLastMiningNotifyTime);
 
     uint32 maxJobDelay = 60;
     cfg.lookupValue("sserver.max_job_delay", maxJobDelay);
 
+    unsigned long long defaultDifficulty = 0;
+    cfg.lookupValue("sserver.default_difficulty", defaultDifficulty);
+    unsigned long long maxDifficulty = 0;
+    cfg.lookupValue("sserver.max_difficulty", maxDifficulty);
+    unsigned long long minDifficulty = 0;
+    cfg.lookupValue("sserver.min_difficulty", minDifficulty);
+    uint32 avgBlockTIme = 0;
+    cfg.lookupValue("sserver.avg_block_time", avgBlockTIme);
+
+    if (0 == defaultDifficulty ||
+        0 == maxDifficulty ||
+        0 == minDifficulty ||
+        0 == avgBlockTIme)
+    {
+      LOG(FATAL) << "difficulty settings are not expected";
+      return 1;
+    }
+
+    shared_ptr<DiffController> dc = make_shared<DiffController>(defaultDifficulty, maxDifficulty, minDifficulty, shareAvgSeconds, avgBlockTIme);
     evthread_use_pthreads();
 
     // new StratumServer
@@ -168,21 +202,27 @@ int main(int argc, char **argv) {
                                        isSubmitInvalidBlock,
                                        isDevModeEnabled,
                                        minerDifficulty,
-                                       cfg.lookup("sserver.consumer_topic"), 
-                                       maxJobDelay);
-    if (!gStratumServer->createServer(cfg.lookup("sserver.type"), shareAvgSeconds)) {
-       LOG(FATAL) << "createServer failure";
-       return 1;
+                                       cfg.lookup("sserver.consumer_topic"),
+                                       maxJobDelay,
+                                       dc);
+    if (!gStratumServer->createServer(cfg.lookup("sserver.type"), shareAvgSeconds))
+    {
+      LOG(FATAL) << "createServer failure";
+      return 1;
     }
 
-    if (!gStratumServer->init()) {
+    if (!gStratumServer->init())
+    {
       LOG(FATAL) << "init failure";
-    } else {
+    }
+    else
+    {
       gStratumServer->run();
     }
     delete gStratumServer;
   }
-  catch (std::exception & e) {
+  catch (std::exception &e)
+  {
     LOG(FATAL) << "exception: " << e.what();
     return 1;
   }

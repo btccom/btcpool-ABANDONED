@@ -65,45 +65,49 @@ class StratumSession;
 class AgentSessions;
 
 //////////////////////////////// DiffController ////////////////////////////////
-class DiffController {
+class DiffController
+{
 public:
   //
   // max diff: 2^62
   //
   // Cannot large than 2^62.
-  // If `kMaxDiff_` be 2^63, user can set `minDiff_` equals 2^63,
-  // then `minDiff_*2` will be zero when next difficulty decrease and
+  // If `kMaxDiff_` be 2^63, user can set `kMinDiff_` equals 2^63,
+  // then `kMinDiff_*2` will be zero when next difficulty decrease and
   // DiffController::_calcCurDiff() will infinite loop.
-  static const uint64 kMaxDiff_ = 4611686018427387904ull;
+  //static const uint64 kMaxDiff_ = 4611686018427387904ull;
   // min diff
-  static const uint64 kMinDiff_ = 64;
+  //static const uint64 kMinDiff_ = 64;
 
-  static const time_t kDiffWindow_    = 900;   // time window, seconds, 60*N
-  static const time_t kRecordSeconds_ = 20;    // every N seconds as a record
+  //static const time_t kDiffWindow_    = 900;   // time window, seconds, 60*N
+  //static const time_t kRecordSeconds_ = 20;    // every N seconds as a record
 #ifdef NDEBUG
   // If not debugging, set default to 16384
-  static const uint64 kDefaultDiff_   = 16384;  // default diff, 2^N
+  static const uint64 kDefaultDiff_ = 16384; // default diff, 2^N
 #else
   // debugging enabled
-  static const uint64 kDefaultDiff_   = 128;  // default diff, 2^N
-#endif	/* NDEBUG */
+  static const uint64 kDefaultDiff_ = 128; // default diff, 2^N
+#endif /* NDEBUG */
 
-protected:
-  time_t startTime_;  // first job send time
-  uint64  minDiff_;
-  uint64  curDiff_;
-  int32_t shareAvgSeconds_;
+  time_t startTime_; // first job send time
+  const uint64 kMinDiff_;
+  uint64 minDiff_;
+  const uint64 kMaxDiff_;
+  uint64 curDiff_;
   int32_t curHashRateLevel_;
-
-  StatsWindow<double> sharesNum_;  // share count
-  StatsWindow<uint64> shares_;     // share
+  const time_t kRecordSeconds_;
+  int32_t shareAvgSeconds_;
+  time_t kDiffWindow_;
+  StatsWindow<double> sharesNum_; // share count
+  StatsWindow<uint64> shares_;    // share
 
   void setCurDiff(uint64 curDiff); // set current diff with bounds checking
   virtual uint64 _calcCurDiff();
   int adjustHashRateLevel(const double hashRateT);
   double minerCoefficient(const time_t now, const int64_t idx);
 
-  inline bool isFullWindow(const time_t now) {
+  inline bool isFullWindow(const time_t now)
+  {
     return now >= startTime_ + kDiffWindow_;
   }
 
@@ -113,12 +117,35 @@ public:
   minDiff_(kMinDiff_), curDiff_(kDefaultDiff_), curHashRateLevel_(0),
   sharesNum_(kDiffWindow_/kRecordSeconds_), /* every N seconds as a record */
   shares_   (kDiffWindow_/kRecordSeconds_)
+                                              kRecordSeconds_(shareAvgSeconds),
+                                              kDiffWindow_(avgBlockTIme),
+                                              sharesNum_(kDiffWindow_ / kRecordSeconds_), /* every N seconds as a record */
+                                              shares_(kDiffWindow_ / kRecordSeconds_)
   {
-    if (shareAvgSeconds >= 1 && shareAvgSeconds <= 60) {
+    assert(curDiff_ <= kMaxDiff_);
+    assert(kMinDiff_ <= curDiff_);
+
+    if (shareAvgSeconds >= 1 && shareAvgSeconds <= 60)
+    {
       shareAvgSeconds_ = shareAvgSeconds;
-    } else {
+    }
+    else
+    {
       shareAvgSeconds_ = 8;
     }
+  }
+
+  DiffController(DiffController* other): startTime_(0),
+                                              kMinDiff_(other->kMinDiff_),
+                                              minDiff_(other->minDiff_),
+                                              kMaxDiff_(other->kMaxDiff_),
+                                              curDiff_(other->curDiff_),
+                                              curHashRateLevel_(other->curHashRateLevel_),
+                                              kRecordSeconds_(other->kRecordSeconds_),
+                                              shareAvgSeconds_(other->shareAvgSeconds_),
+                                              kDiffWindow_(other->kDiffWindow_),
+                                              sharesNum_(other->kDiffWindow_ / other->kRecordSeconds_), /* every N seconds as a record */
+                                              shares_(other->kDiffWindow_  / other->kRecordSeconds_) {
   }
 
   virtual ~DiffController() {}

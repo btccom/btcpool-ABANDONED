@@ -922,15 +922,17 @@ StratumServer::StratumServer(const char *ip, const unsigned short port,
                              bool isEnableSimulator, bool isSubmitInvalidBlock,
                              bool isDevModeEnable, float minerDifficulty,
                              const string &consumerTopic,
-                             uint32 maxJobDelay)
-:running_(true),
-ip_(ip), port_(port), serverId_(serverId),
-fileLastNotifyTime_(fileLastNotifyTime),
-kafkaBrokers_(kafkaBrokers), userAPIUrl_(userAPIUrl),
-isEnableSimulator_(isEnableSimulator), isSubmitInvalidBlock_(isSubmitInvalidBlock),
-isDevModeEnable_(isDevModeEnable), minerDifficulty_(minerDifficulty),
-consumerTopic_(consumerTopic),
-maxJobDelay_(maxJobDelay)
+                             uint32 maxJobDelay,
+                             shared_ptr<DiffController> defaultDifficultyController)
+    : running_(true),
+      ip_(ip), port_(port), serverId_(serverId),
+      fileLastNotifyTime_(fileLastNotifyTime),
+      kafkaBrokers_(kafkaBrokers), userAPIUrl_(userAPIUrl),
+      isEnableSimulator_(isEnableSimulator), isSubmitInvalidBlock_(isSubmitInvalidBlock),
+      isDevModeEnable_(isDevModeEnable), minerDifficulty_(minerDifficulty),
+      consumerTopic_(consumerTopic),
+      maxJobDelay_(maxJobDelay),
+      defaultDifficultyController_(defaultDifficultyController)
 {
 }
 
@@ -950,12 +952,15 @@ bool StratumServer::createServer(string type, const int32_t shareAvgSeconds) {
   return server_ != nullptr;
 }
 
-bool StratumServer::init() {
+bool StratumServer::init()
+{
   if (!server_->setup(ip_.c_str(), port_, kafkaBrokers_.c_str(),
-                     userAPIUrl_, serverId_, fileLastNotifyTime_,
-                     isEnableSimulator_, isSubmitInvalidBlock_,
-                     isDevModeEnable_, minerDifficulty_, consumerTopic_,
-                     maxJobDelay_)) {
+                      userAPIUrl_, serverId_, fileLastNotifyTime_,
+                      isEnableSimulator_, isSubmitInvalidBlock_,
+                      isDevModeEnable_, minerDifficulty_, consumerTopic_,
+                      maxJobDelay_,
+                      defaultDifficultyController_))
+  {
     LOG(ERROR) << "fail to setup server";
     return false;
   }
@@ -1104,7 +1109,8 @@ bool Server::setup(const char *ip, const unsigned short port,
                    const uint8_t serverId, const string &fileLastNotifyTime,
                    bool isEnableSimulator, bool isSubmitInvalidBlock,
                    bool isDevModeEnable, float minerDifficulty, const string &consumerTopic,
-                   uint32 maxJobDelay) {
+                   uint32 maxJobDelay,
+                   shared_ptr<DiffController> defaultDifficultyController) {
   if (isEnableSimulator) {
     isEnableSimulator_ = true;
     LOG(WARNING) << "Simulator is enabled, all share will be accepted";
@@ -1120,6 +1126,8 @@ bool Server::setup(const char *ip, const unsigned short port,
     minerDifficulty_ = minerDifficulty;
     LOG(INFO) << "development mode is enabled with difficulty: " << minerDifficulty;
   }
+
+  defaultDifficultyController_ = defaultDifficultyController;
 
   kafkaProducerSolvedShare_ = new KafkaProducer(kafkaBrokers,
                                                 KAFKA_TOPIC_SOLVED_SHARE,

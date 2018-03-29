@@ -579,7 +579,8 @@ TEST(StratumSession, SetDiff) {
     }
 
     // set min diff first
-    if (md >= DiffController::kMinDiff_) {
+    //if (md >= DiffController::kMinDiff_) {
+      if (md >= 64) {
       // diff must be 2^N
       double i = 1;
       while ((uint64_t)exp2(i) < md) {
@@ -591,7 +592,8 @@ TEST(StratumSession, SetDiff) {
     }
 
     // than set current diff
-    if (d >= DiffController::kMinDiff_) {
+    //if (d >= DiffController::kMinDiff_) {
+      if (d >= 64) {
       // diff must be 2^N
       double i = 1;
       while ((uint64_t)exp2(i) < d) {

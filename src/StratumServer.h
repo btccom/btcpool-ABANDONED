@@ -330,6 +330,8 @@ public:
   JobRepository *jobRepository_;
   UserInfo *userInfo_;
 
+  shared_ptr<DiffController> defaultDifficultyController_;
+
 public:
   Server(const int32_t shareAvgSeconds);
   virtual ~Server();
@@ -342,7 +344,8 @@ public:
              bool isDevModeEnable,
              float minerDifficulty,
              const string &consumerTopic,
-             uint32 maxJobDelay);
+             uint32 maxJobDelay,
+             shared_ptr<DiffController> defaultDifficultyController);
   void run();
   void stop();
 
@@ -447,6 +450,7 @@ public:
   
   string consumerTopic_;
   uint32 maxJobDelay_;
+  shared_ptr<DiffController> defaultDifficultyController_;
 
   StratumServer(const char *ip, const unsigned short port,
                 const char *kafkaBrokers,
@@ -457,7 +461,8 @@ public:
                 bool isDevModeEnable,
                 float minerDifficulty,
                 const string &consumerTopic,
-                uint32 maxJobDelay);
+                uint32 maxJobDelay,
+                shared_ptr<DiffController> defaultDifficultyController);
   ~StratumServer();
   bool createServer(string type, const int32_t shareAvgSeconds);
   bool init();
