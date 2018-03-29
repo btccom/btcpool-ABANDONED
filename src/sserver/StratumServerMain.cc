@@ -170,11 +170,14 @@ int main(int argc, char **argv)
     uint32 maxJobDelay = 60;
     cfg.lookupValue("sserver.max_job_delay", maxJobDelay);
 
-    unsigned long long defaultDifficulty = 0;
-    cfg.lookupValue("sserver.default_difficulty", defaultDifficulty);
-    unsigned long long maxDifficulty = 0;
-    cfg.lookupValue("sserver.max_difficulty", maxDifficulty);
-    unsigned long long minDifficulty = 0;
+    string defDiffStr = cfg.lookup("sserver.default_difficulty");
+    size_t pos;
+    uint64 defaultDifficulty = stoull(defDiffStr, &pos, 16);
+
+    string maxDiffStr = cfg.lookup("sserver.max_difficulty");
+    uint64 maxDifficulty = stoull(maxDiffStr, &pos, 16);
+
+    uint32 minDifficulty = 0;
     cfg.lookupValue("sserver.min_difficulty", minDifficulty);
     uint32 avgBlockTIme = 0;
     cfg.lookupValue("sserver.avg_block_time", avgBlockTIme);
