@@ -112,11 +112,16 @@ public:
   }
 
 public:
-  DiffController(const int32_t shareAvgSeconds) :
-  startTime_(0),
-  minDiff_(kMinDiff_), curDiff_(kDefaultDiff_), curHashRateLevel_(0),
-  sharesNum_(kDiffWindow_/kRecordSeconds_), /* every N seconds as a record */
-  shares_   (kDiffWindow_/kRecordSeconds_)
+  DiffController(const uint64 defaultDifficulty,
+                 const uint64 maxDifficulty,
+                 const uint64 minDifficulty,
+                 const uint32 shareAvgSeconds,
+                 const uint32 avgBlockTIme) : startTime_(0),
+                                              kMinDiff_(minDifficulty),
+                                              minDiff_(minDifficulty),
+                                              kMaxDiff_(maxDifficulty),
+                                              curDiff_(defaultDifficulty),
+                                              curHashRateLevel_(0),
                                               kRecordSeconds_(shareAvgSeconds),
                                               kDiffWindow_(avgBlockTIme),
                                               sharesNum_(kDiffWindow_ / kRecordSeconds_), /* every N seconds as a record */
