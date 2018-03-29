@@ -184,7 +184,7 @@ int main(int argc, char **argv)
         0 == minDifficulty ||
         0 == avgBlockTIme)
     {
-      LOG(FATAL) << "difficulty settings are not expected";
+      LOG(FATAL) << "difficulty settings are not expected: def=" << defaultDifficulty << ", min=" << minDifficulty << ", max=" << maxDifficulty << ", avg=" << avgBlockTIme;
       return 1;
     }
 
