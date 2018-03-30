@@ -34,13 +34,12 @@
 #include <glog/logging.h>
 #include <libconfig.h++>
 
-#include "Utils.h"
-#include "BlockMaker.h"
+#include "DynamicLoader.h"
 
 using namespace std;
 using namespace libconfig;
 
-BlockMaker *gBlockMaker = nullptr;
+BlockMakerWrapper *gBlockMaker = nullptr;
 
 void handler(int sig) {
   if (gBlockMaker) {
@@ -120,7 +119,8 @@ int main(int argc, char **argv) {
                                       cfg.lookup("pooldb.dbname"));
   }
 
-  gBlockMaker = new BlockMaker(cfg.lookup("kafka.brokers").c_str(), *poolDBInfo);
+  DynamicLoader dLoader(cfg.lookup("chain_type"));
+  gBlockMaker = dLoader.newBlockMaker(cfg.lookup("kafka.brokers").c_str(), *poolDBInfo);
 
   // add bitcoinds
   {

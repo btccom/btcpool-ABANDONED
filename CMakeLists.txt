@@ -56,6 +56,7 @@ if (CHAIN_TYPE STREQUAL "BTC")
   set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.btc")
 
   add_definitions(-DCHAIN_TYPE_BTC)
+  add_definitions(-DCHAIN_TYPE_STRING="BTC")
   add_definitions(-DKAFKA_TOPIC_PREFIX="") # for compatibility with old deployments, let it empty.
   add_definitions(-DZOOKEEPER_NODE_POSTFIX="") # for compatibility with old deployments, let it empty.
 
@@ -66,6 +67,7 @@ elseif(CHAIN_TYPE STREQUAL "BCH")
   set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.bcc") # for compatibility with old deployments, use bcc instead of bch.
 
   add_definitions(-DCHAIN_TYPE_BCH)
+  add_definitions(-DCHAIN_TYPE_STRING="BCH")
   add_definitions(-DKAFKA_TOPIC_PREFIX="") # for compatibility with old deployments, let it empty.
   add_definitions(-DZOOKEEPER_NODE_POSTFIX="") # for compatibility with old deployments, let it empty.
 
@@ -76,6 +78,7 @@ elseif(CHAIN_TYPE STREQUAL "UBTC")
   set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.ubtc")
 
   add_definitions(-DCHAIN_TYPE_UBTC)
+  add_definitions(-DCHAIN_TYPE_STRING="UBTC")
   add_definitions(-DKAFKA_TOPIC_PREFIX="UBTC_")
   add_definitions(-DZOOKEEPER_NODE_POSTFIX="_ubtc")
 
@@ -86,6 +89,7 @@ elseif(CHAIN_TYPE STREQUAL "SBTC")
   set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.sbtc")
 
   add_definitions(-DCHAIN_TYPE_SBTC)
+  add_definitions(-DCHAIN_TYPE_STRING="SBTC")
   add_definitions(-DKAFKA_TOPIC_PREFIX="SBTC_")
   add_definitions(-DZOOKEEPER_NODE_POSTFIX="_sbtc")
 

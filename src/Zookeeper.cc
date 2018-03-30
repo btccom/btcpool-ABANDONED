@@ -30,7 +30,7 @@
 #include "Zookeeper.h"
 
 ZookeeperException::ZookeeperException(const string &what_arg) : std::runtime_error(what_arg) {
-  // no more action than its parent
+  // no more contents than its parent
 }
 
 int Zookeeper::nodeNameCompare(const void *pname1, const void *pname2) {
