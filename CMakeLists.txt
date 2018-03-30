@@ -29,9 +29,10 @@ ENDIF()
 # compiler options
 set(CMAKE_CXX_COMPILER "g++")
 set(CMAKE_C_COMPILER "gcc")
-set(CMAKE_CXX_COMPILER_ARG1 "-std=c++0x")
+# enable c++11
+set(CMAKE_CXX_STANDARD 11)
 
-# The number of concurrent jobs when compiling a third-party library
+# The number of concurrent jobs when compiling third-party libraries
 if(JOBS)
   message("-- Concurrent Jobs: ${JOBS} (-DJOBS=${JOBS})")
   set(MAKE_JOBS "-j${JOBS}") 
@@ -396,7 +397,7 @@ endif()
 # install targets , dirs & files
 foreach(tgt ${INSTALL_TARGETS})
   # binary
-  install(PROGRAMS     ${CMAKE_BINARY_DIR}/${tgt}
+  install(PROGRAMS    ${CMAKE_BINARY_DIR}/${tgt}
           COMPONENT   main
           DESTINATION ${POOL__INSTALL_PREFIX}/build)
   # running dir
@@ -408,7 +409,7 @@ endforeach()
 # test targets
 foreach(tgt ${INSTALL_TEST_TARGETS})
   # binary
-  install(PROGRAMS     ${CMAKE_BINARY_DIR}/${tgt}
+  install(PROGRAMS    ${CMAKE_BINARY_DIR}/${tgt}
           COMPONENT   main
           DESTINATION ${POOL__INSTALL_PREFIX}/build)
 endforeach()
