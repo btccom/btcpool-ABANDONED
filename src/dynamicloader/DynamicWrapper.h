@@ -26,6 +26,12 @@
 
 #include "MysqlConnection.h"
 
+#ifdef DYNAMIC_LOAD_LIBBTCPOOL_BITCOIN
+  #define EXPORT  virtual  // dynamic binding
+#else
+  #define EXPORT /*empty*/ // static binding
+#endif
+
 class BlockMakerWrapper {
 protected:
   // The original object that wrapped.
@@ -35,13 +41,13 @@ protected:
 
 public:
   BlockMakerWrapper(const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
-  ~BlockMakerWrapper();
+  EXPORT ~BlockMakerWrapper();
 
-  void addBitcoind(const string &rpcAddress, const string &rpcUserpass);
+  EXPORT void addBitcoind(const string &rpcAddress, const string &rpcUserpass);
 
-  bool init();
-  void stop();
-  void run();
+  EXPORT bool init();
+  EXPORT void stop();
+  EXPORT void run();
 };
 
 // skip name managing of C++, use C-style symbols in the shared library.

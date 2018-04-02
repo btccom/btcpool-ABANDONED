@@ -34,7 +34,7 @@
 #include <glog/logging.h>
 #include <libconfig.h++>
 
-#include "DynamicLoader.h"
+#include "dynamicloader/DynamicLoader.h"
 
 using namespace std;
 using namespace libconfig;
@@ -119,7 +119,7 @@ int main(int argc, char **argv) {
                                       cfg.lookup("pooldb.dbname"));
   }
 
-  DynamicLoader dLoader(cfg.lookup("chain_type"));
+  DynamicLoader dLoader(argv[0], cfg.lookup("chain_type"));
   gBlockMaker = dLoader.newBlockMaker(cfg.lookup("kafka.brokers").c_str(), *poolDBInfo);
 
   // add bitcoinds

@@ -39,8 +39,10 @@ protected:
     void *library; // the value returned by dlopen()
 
 public:
-    DynamicLoader(const string &chainType);
+    DynamicLoader(const string &binPath, const string &chainType);
     BlockMakerWrapper *newBlockMaker(const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
 };
+
+typedef BlockMakerWrapper* (*PNewBlockMakerWrapper)(const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
 
 #endif

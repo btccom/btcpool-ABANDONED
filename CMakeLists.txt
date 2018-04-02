@@ -44,6 +44,18 @@ else()
 endif()
 
 #
+# dynamic load bitcoin support of btcpool
+#
+if(DYNAMIC_LOAD_BITCOIN)
+  message("-- Dynamic load bitcoin support of btcpool (-DDYNAMIC_LOAD_BITCOIN=ON)")
+  add_definitions(-DDYNAMIC_LOAD_LIBBTCPOOL_BITCOIN)
+  add_definitions(-DLIBBTCPOOL_BITCOIN_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}btcpool-bitcoin-")
+  add_definitions(-DLIBBTCPOOL_BITCOIN_POSTFIX="${CMAKE_SHARED_LIBRARY_SUFFIX}")
+else()
+  message("-- Static linking bitcoin support of btcpool (-DYNAMIC_LOAD_BITCOIN=OFF)")
+endif()
+
+#
 # Chain Type
 #
 if(NOT CHAIN_TYPE)
@@ -309,8 +321,14 @@ set(THIRD_LIBRARIES ${BITCOIN_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL
                     ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${ZOOKEEPER_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBEVENT_LIB}
                     ${LIBEVENT_PTHREADS_LIB} ${secp256k1_LIBRARIES} ${PTHREAD_LIBRARIES} ${MYSQL_LIB} ${GMP_LIBRARIES} ${Hiredis_LIBRARIES})
 
-file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc)
+file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc src/dynamicloader/DynamicWrapper.cc)
 add_library(btcpool STATIC ${LIB_SOURCES})
+
+# build shared library for btcpool's bitcoin support
+if(DYNAMIC_LOAD_BITCOIN)
+  add_library(btcpool-bitcoin-${CHAIN_TYPE} SHARED ${LIB_SOURCES})
+  target_link_libraries(btcpool-bitcoin-${CHAIN_TYPE} ${THIRD_LIBRARIES})
+endif()
 
 file(GLOB_RECURSE TEST_SOURCES test/*.cc)
 add_executable(unittest ${TEST_SOURCES})
@@ -348,9 +366,13 @@ file(GLOB_RECURSE SLPARSER_SOURCES src/slparser/*.cc)
 add_executable(slparser ${SLPARSER_SOURCES})
 target_link_libraries(slparser btcpool ${THIRD_LIBRARIES})
 
-file(GLOB_RECURSE BLKMAKER_SOURCES src/blkmaker/*.cc)
+file(GLOB_RECURSE BLKMAKER_SOURCES src/blkmaker/*.cc src/dynamicloader/DynamicLoader.cc)
 add_executable(blkmaker ${BLKMAKER_SOURCES})
-target_link_libraries(blkmaker btcpool ${THIRD_LIBRARIES})
+if(NOT DYNAMIC_LOAD_BITCOIN)
+  target_link_libraries(blkmaker btcpool ${THIRD_LIBRARIES})
+else()
+  target_link_libraries(blkmaker ${THIRD_LIBRARIES})
+endif()
 
 file(GLOB_RECURSE SIMULATOR_SOURCES src/simulator/*.cc)
 add_executable(simulator ${SIMULATOR_SOURCES})
