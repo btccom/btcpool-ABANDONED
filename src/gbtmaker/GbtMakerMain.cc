@@ -36,13 +36,12 @@
 
 #include "zmq.hpp"
 
-#include "Utils.h"
-#include "GbtMaker.h"
+#include "dynamicloader/DynamicLoader.h"
 
 using namespace std;
 using namespace libconfig;
 
-GbtMaker *gGbtMaker = nullptr;
+GbtMakerWrapper *gGbtMaker = nullptr;
 
 void handler(int sig) {
   if (gGbtMaker) {
@@ -116,11 +115,13 @@ int main(int argc, char **argv) {
   cfg.lookupValue("gbtmaker.is_check_zmq", isCheckZmq);
   int32_t rpcCallInterval = 5;
   cfg.lookupValue("gbtmaker.rpcinterval", rpcCallInterval);
-  gGbtMaker = new GbtMaker(cfg.lookup("bitcoind.zmq_addr"),
-                           cfg.lookup("bitcoind.rpc_addr"),
-                           cfg.lookup("bitcoind.rpc_userpwd"),
-                           cfg.lookup("kafka.brokers"),
-                           rpcCallInterval, isCheckZmq);
+
+  DynamicLoader dLoader(argv[0], cfg.lookup("chain_type"));
+  gGbtMaker = dLoader.newGbtMaker(cfg.lookup("bitcoind.zmq_addr"),
+                                  cfg.lookup("bitcoind.rpc_addr"),
+                                  cfg.lookup("bitcoind.rpc_userpwd"),
+                                  cfg.lookup("kafka.brokers"),
+                                  rpcCallInterval, isCheckZmq);
 
   try {
     if (!gGbtMaker->init()) {

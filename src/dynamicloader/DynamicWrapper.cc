@@ -24,37 +24,57 @@
 #include "DynamicWrapper.h"
 
 #include "BlockMaker.h"
+#include "GbtMaker.h"
 
-//////////////////////////// BlockMakerWrapper ////////////////////////////
-#define that ((BlockMaker*)thatObj)
 
-BlockMakerWrapper::BlockMakerWrapper(const char *kafkaBrokers, const MysqlConnectInfo &poolDB) {
-    thatObj = new BlockMaker(kafkaBrokers, poolDB);
-}
+//--------------- Wrapper Generator ---------------
 
-BlockMakerWrapper::~BlockMakerWrapper() {
-    delete that;
-}
+// constructor
+#define DYWRAP_CONSTRUCTOR_IMPL(className) \
+  className##Wrapper::className##Wrapper(DYCLASS_##className##_##className##_FPARAMS) { \
+    wrappedObj = new className(DYCLASS_##className##_##className##_APARAMS); \
+  }
 
-void BlockMakerWrapper::addBitcoind(const string &rpcAddress, const string &rpcUserpass) {
-    that->addBitcoind(rpcAddress, rpcUserpass);
-}
+// destructor
+#define DYWRAP_DESTRUCTOR_IMPL(className) \
+  className##Wrapper::~className##Wrapper() { \
+    delete ((className*)wrappedObj); \
+  }
 
-bool BlockMakerWrapper::init() {
-    return that->init();
-}
+// method
+#define DYWRAP_METHOD_IMPL(className, methodName) \
+  DYCLASS_##className##_##methodName##_RETURN className##Wrapper::methodName(DYCLASS_##className##_##methodName##_FPARAMS) {\
+    return ((className*)wrappedObj)->methodName(DYCLASS_##className##_##methodName##_APARAMS);\
+  }
 
-void BlockMakerWrapper::stop() {
-    that->stop();
-}
+// function NewXXXWrapper(...)
+#define DYWRAP_NEW_WRAPPER_FUNC_IMPL(className) \
+  className##Wrapper* New##className##Wrapper(DYCLASS_##className##_##className##_FPARAMS) {\
+    return new className##Wrapper(DYCLASS_##className##_##className##_APARAMS);\
+  }
 
-void BlockMakerWrapper::run() {
-    that->run();
-}
+//--------------- End of Wrapper Generator ---------------
 
-BlockMakerWrapper *NewBlockMakerWrapper(const char *kafkaBrokers, const MysqlConnectInfo &poolDB) {
-    return new BlockMakerWrapper(kafkaBrokers, poolDB);
-}
 
-#undef that
+//------------- BlockMaker -------------
+DYWRAP_CONSTRUCTOR_IMPL(BlockMaker)
+DYWRAP_DESTRUCTOR_IMPL(BlockMaker)
+
+DYWRAP_METHOD_IMPL(BlockMaker, addBitcoind)
+DYWRAP_METHOD_IMPL(BlockMaker, init)
+DYWRAP_METHOD_IMPL(BlockMaker, stop)
+DYWRAP_METHOD_IMPL(BlockMaker, run)
+
+DYWRAP_NEW_WRAPPER_FUNC_IMPL(BlockMaker)
+
+
+//------------- GbtMaker -------------
+DYWRAP_CONSTRUCTOR_IMPL(GbtMaker)
+DYWRAP_DESTRUCTOR_IMPL(GbtMaker)
+
+DYWRAP_METHOD_IMPL(GbtMaker, init)
+DYWRAP_METHOD_IMPL(GbtMaker, stop)
+DYWRAP_METHOD_IMPL(GbtMaker, run)
+
+DYWRAP_NEW_WRAPPER_FUNC_IMPL(GbtMaker)
 

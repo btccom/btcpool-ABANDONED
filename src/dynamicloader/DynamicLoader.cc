@@ -31,6 +31,31 @@
 #include <sstream>
 #include <boost/filesystem/path.hpp>
 
+
+//--------------- Wrapper Generator ---------------
+
+#ifdef DYNAMIC_LOAD_LIBBTCPOOL_BITCOIN
+  #define DYLOAD_NEW_WRAPPER_IMPL(className) \
+    className##Wrapper* DynamicLoader::new##className(DYCLASS_##className##_##className##_FPARAMS) { \
+      PNew##className##Wrapper pNew##className##Wrapper = (PNew##className##Wrapper)dlsym(library, "New"#className"Wrapper"); \
+      const char *dlerrmsg = dlerror(); \
+      if (dlerrmsg != nullptr) { \
+        std::stringstream errmsg; \
+        errmsg << "DynamicLoader: dlsym(New##className##Wrapper) failed: " << dlerrmsg; \
+        throw DynamicLoaderException(std::string(errmsg.str())); \
+      } \
+      return pNew##className##Wrapper(DYCLASS_##className##_##className##_APARAMS); \
+    }
+#else
+  #define DYLOAD_NEW_WRAPPER_IMPL(className) \
+    className##Wrapper* DynamicLoader::new##className(DYCLASS_##className##_##className##_FPARAMS) {\
+      return New##className##Wrapper(DYCLASS_##className##_##className##_APARAMS);\
+    }
+#endif
+
+//--------------- End of Wrapper Generator ---------------
+
+
 DynamicLoaderException::DynamicLoaderException(const string &what_arg) : std::runtime_error(what_arg) {
   // no more contents than its parent
 }
@@ -66,22 +91,6 @@ DynamicLoader::DynamicLoader(const string &binPath, const string &chainType) {
   #endif
 }
 
-BlockMakerWrapper *DynamicLoader::newBlockMaker(const char *kafkaBrokers, const MysqlConnectInfo &poolDB) {
-  #ifdef DYNAMIC_LOAD_LIBBTCPOOL_BITCOIN
-  {
-    PNewBlockMakerWrapper pNewBlockMakerWrapper = (PNewBlockMakerWrapper)dlsym(library, "NewBlockMakerWrapper");
-    const char *dlerrmsg = dlerror();
-    if (dlerrmsg != nullptr) {
-      std::stringstream errmsg;
-      errmsg << "DynamicLoader: dlsym(NewBlockMakerWrapper) failed: " << dlerrmsg;
-      throw DynamicLoaderException(std::string(errmsg.str()));
-    }
-
-    return pNewBlockMakerWrapper(kafkaBrokers, poolDB);
-  }
-  #else
-  {
-    return NewBlockMakerWrapper(kafkaBrokers, poolDB);
-  }
-  #endif
-}
+// implements of newXXX(...)
+DYLOAD_NEW_WRAPPER_IMPL(BlockMaker)
+DYLOAD_NEW_WRAPPER_IMPL(GbtMaker)

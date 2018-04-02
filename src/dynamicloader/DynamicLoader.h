@@ -27,7 +27,20 @@
 #include <string>
 #include <unordered_map>
 
+#include "ClassDefinition.h"
 #include "DynamicWrapper.h"
+
+
+//--------------- Wrapper Generator ---------------
+
+#define DYLOAD_NEW_WRAPPER_DEF(className) \
+  className##Wrapper* new##className(DYCLASS_##className##_##className##_FPARAMS);
+
+#define DYLOAD_NEW_WRAPPER_POINTER(className) \
+  typedef className##Wrapper* (*PNew##className##Wrapper)(DYCLASS_##className##_##className##_FPARAMS);
+
+//--------------- End of Wrapper Generator ---------------
+
 
 class DynamicLoaderException : public std::runtime_error {
 public:
@@ -36,13 +49,18 @@ public:
 
 class DynamicLoader {
 protected:
-    void *library; // the value returned by dlopen()
+  void *library; // the value returned by dlopen()
 
 public:
-    DynamicLoader(const string &binPath, const string &chainType);
-    BlockMakerWrapper *newBlockMaker(const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
+  DynamicLoader(const string &binPath, const string &chainType);
+
+  // definitions of newXXX(...)
+  DYLOAD_NEW_WRAPPER_DEF(BlockMaker)
+  DYLOAD_NEW_WRAPPER_DEF(GbtMaker)
 };
 
-typedef BlockMakerWrapper* (*PNewBlockMakerWrapper)(const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
+// function pointer of newXXXWrapper(...)
+DYLOAD_NEW_WRAPPER_POINTER(BlockMaker)
+DYLOAD_NEW_WRAPPER_POINTER(GbtMaker)
 
 #endif
