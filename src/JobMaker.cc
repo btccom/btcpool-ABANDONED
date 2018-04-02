@@ -927,15 +927,13 @@ string JobMakerHandlerSia::buildStratumJobMsg()
       0 == target_.size())
     return "";
 
-  time_t now = time(nullptr);
-  srand (now);
-  const string jobIdStr = Strings::Format("%08x%08x", (uint32_t)now, rand());                                      
+  const string jobIdStr = Strings::Format("%08x%08x", (uint32_t)time(nullptr), std::hash<string>{}(header_));
   assert(jobIdStr.length() == 16);
   size_t pos;
   uint64 jobId = stoull(jobIdStr, &pos, 16);
 
   return Strings::Format("{\"created_at_ts\":%u"
-                          ",\"jobId\":%" PRIu64""
+                         ",\"jobId\":%" PRIu64 ""
                          ",\"target\":\"%s\""
                          ",\"hHash\":\"%s\""
                          "}",

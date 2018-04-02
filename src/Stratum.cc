@@ -636,7 +636,7 @@ StratumJobEth::StratumJobEth() : blockNumber_(0)
 }
 
 bool StratumJobEth::initFromGw(const RskWorkEth &latestRskBlockJson,
-                               const string& blockJson)
+                               const string &blockJson)
 {
   JsonNode j;
   if (!JsonNode::parse(blockJson.c_str(), blockJson.c_str() + blockJson.length(), j))
@@ -653,17 +653,8 @@ bool StratumJobEth::initFromGw(const RskWorkEth &latestRskBlockJson,
     return false;
   }
 
-  // jobId: timestamp + random number
-  time_t now = time(nullptr);
-  srand (now);
-  const string jobIdStr = Strings::Format("%08x%08x", 
-                                          (uint32_t)now,
-                                          rand());
-  DLOG(INFO) << "job id string: " << jobIdStr;                                        
-  assert(jobIdStr.length() == 16);
-  jobId_ = strtoull(jobIdStr.c_str(), nullptr, 16/* hex */);
-
-  if (latestRskBlockJson.isInitialized()) {
+  if (latestRskBlockJson.isInitialized())
+  {
     blockHashForMergedMining_ = latestRskBlockJson.getBlockHash();
     rskNetworkTarget_ = uint256S(latestRskBlockJson.getTarget());
     feesForMiner_ = latestRskBlockJson.getFees();
@@ -673,6 +664,14 @@ bool StratumJobEth::initFromGw(const RskWorkEth &latestRskBlockJson,
     seedHash_ = latestRskBlockJson.getSeedHash();
     size_t pos;
     blockNumber_ = stoull(result["number"].str(), &pos, 16);
+
+    // jobId: timestamp + hash of header
+    const string jobIdStr = Strings::Format("%08x%08x",
+                                            (uint32_t)time(nullptr),
+                                            std::hash<string>{}(blockHashForMergedMining_));
+    DLOG(INFO) << "job id string: " << jobIdStr;
+    assert(jobIdStr.length() == 16);
+    jobId_ = strtoull(jobIdStr.c_str(), nullptr, 16 /* hex */);
   }
   return seedHash_.size() && blockHashForMergedMining_.size();
 }
