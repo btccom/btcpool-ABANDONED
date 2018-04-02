@@ -863,8 +863,11 @@ finish:
 
 StratumSession::LocalJob* StratumSession::findLocalJob(const string& strJobId) {
   for (auto rit = localJobs_.rbegin(); rit != localJobs_.rend(); ++rit) {
+    size_t h = std::hash<string>{}(strJobId);
+    DLOG(INFO) << std::hex << rit->jobId_;
+    DLOG(INFO) << std::hex << h;
     //jobId = timestamp + std::hash(strJobId)
-    if ((rit->jobId_ & 0xffffffff) == std::hash<string>{}(strJobId)) {
+    if ((rit->jobId_ & 0xffffffff) == h) {
       return &(*rit);
     }
   }
@@ -1147,7 +1150,7 @@ void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool
   string header = ethJob->blockHashForMergedMining_.substr(2, 64);
   string seed = ethJob->seedHash_.substr(2, 64);
   string strShareTarget = Eth_DifficultyToTarget(ljob.jobDifficulty_);
-  LOG(INFO) << "new stratum job mining.notify: share difficulty=" << ljob.jobDifficulty_ << ", share target=" << strShareTarget;
+  LOG(INFO) << "new stratum job mining.notify: share difficulty=" << std::hex << ljob.jobDifficulty_ << ", share target=" << strShareTarget;
   const string strNotify = Strings::Format("{\"id\":8,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
                                    "\"params\":[\"%s\",\"%s\",\"%s\",\"%s\", false]}\n",
                                    header.c_str(),

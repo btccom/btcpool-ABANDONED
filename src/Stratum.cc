@@ -664,14 +664,17 @@ bool StratumJobEth::initFromGw(const RskWorkEth &latestRskBlockJson,
     seedHash_ = latestRskBlockJson.getSeedHash();
     size_t pos;
     blockNumber_ = stoull(result["number"].str(), &pos, 16);
-
+    string header = blockHashForMergedMining_.substr(2, 64);
+    size_t h = std::hash<string>{}(header);
+    DLOG(INFO) << header;
+    DLOG(INFO) << std::hex << h;
     // jobId: timestamp + hash of header
     const string jobIdStr = Strings::Format("%08x%08x",
                                             (uint32_t)time(nullptr),
-                                            std::hash<string>{}(blockHashForMergedMining_));
+                                            h);
     DLOG(INFO) << "job id string: " << jobIdStr;
     assert(jobIdStr.length() == 16);
-    jobId_ = strtoull(jobIdStr.c_str(), nullptr, 16 /* hex */);
+    jobId_ = stoull(jobIdStr, &pos, 16 /* hex */);
   }
   return seedHash_.size() && blockHashForMergedMining_.size();
 }

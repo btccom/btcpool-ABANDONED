@@ -177,8 +177,9 @@ int main(int argc, char **argv)
     string maxDiffStr = cfg.lookup("sserver.max_difficulty");
     uint64 maxDifficulty = stoull(maxDiffStr, &pos, 16);
 
-    uint32 minDifficulty = 0;
-    cfg.lookupValue("sserver.min_difficulty", minDifficulty);
+    string minDiffStr = cfg.lookup("sserver.min_difficulty");
+    uint64 minDifficulty = stoull(minDiffStr, &pos, 16);
+
     uint32 avgBlockTIme = 0;
     cfg.lookupValue("sserver.avg_block_time", avgBlockTIme);
 
