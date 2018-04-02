@@ -216,7 +216,6 @@ public:
     uint64_t jobDifficulty_;     // difficulty of this job
     uint32_t blkBits_;
     uint8_t  shortJobId_;
-    string strJobId_;
 #ifdef USER_DEFINED_COINBASE
     string   userCoinbaseInfo_;
 #endif
