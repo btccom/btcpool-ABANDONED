@@ -1,0 +1,1 @@
+geth --datadir "c:\\ethpool2" init CustomGenesis.json
