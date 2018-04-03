@@ -134,6 +134,7 @@ string Eth_DifficultyToTarget(uint64 diff);
 void Hex256ToEthash256(const string &strHex, ethash_h256_t &ethashHeader);
 void Uint256ToEthash256(const uint256 hash, ethash_h256_t &ethashHeader);
 uint256 Ethash256ToUint256(const ethash_h256_t &ethashHeader);
+uint32 djb2(const char *str);
 
 inline void BitsToDifficulty(uint32 bits, double *difficulty) {
   int nShift = (bits >> 24) & 0xff;

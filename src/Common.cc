@@ -192,3 +192,14 @@ uint256 Ethash256ToUint256(const ethash_h256_t &ethashHeader) {
     v.push_back(ethashHeader.b[i]);
   return uint256(v);
 }
+
+uint32 djb2(const char *s)
+{
+  uint32 hash = 5381;
+  int c;
+  uint8* str = (uint8*) s;
+  while ((c = *str++))
+    hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+
+  return hash;
+}
