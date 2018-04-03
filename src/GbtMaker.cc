@@ -25,8 +25,10 @@
 
 #include <glog/logging.h>
 
+#include <base58.h>
 #include <util.h>
 #include <utilstrencodings.h>
+#include <streams.h>
 
 #include "Utils.h"
 #include "utilities_js.hpp"

@@ -32,7 +32,7 @@
 #include <boost/filesystem/path.hpp>
 
 
-//--------------- Wrapper Generator ---------------
+//====================== Wrapper Generator ======================
 
 #ifdef DYNAMIC_LOAD_LIBBTCPOOL_BITCOIN
   #define DYLOAD_NEW_WRAPPER_IMPL(className) \
@@ -53,7 +53,7 @@
     }
 #endif
 
-//--------------- End of Wrapper Generator ---------------
+//====================== End of Wrapper Generator ======================
 
 
 DynamicLoaderException::DynamicLoaderException(const string &what_arg) : std::runtime_error(what_arg) {
@@ -91,6 +91,19 @@ DynamicLoader::DynamicLoader(const string &binPath, const string &chainType) {
   #endif
 }
 
+//====================== Generated codes ======================
+
 // implements of newXXX(...)
 DYLOAD_NEW_WRAPPER_IMPL(BlockMaker)
 DYLOAD_NEW_WRAPPER_IMPL(GbtMaker)
+DYLOAD_NEW_WRAPPER_IMPL(GwMaker)
+DYLOAD_NEW_WRAPPER_IMPL(NMCAuxBlockMaker)
+DYLOAD_NEW_WRAPPER_IMPL(JobMaker)
+DYLOAD_NEW_WRAPPER_IMPL(ClientContainer)
+DYLOAD_NEW_WRAPPER_IMPL(ShareLogWriter)
+DYLOAD_NEW_WRAPPER_IMPL(StratumClientWrapper)
+DYLOAD_NEW_WRAPPER_IMPL(ShareLogDumper)
+DYLOAD_NEW_WRAPPER_IMPL(ShareLogParser)
+DYLOAD_NEW_WRAPPER_IMPL(ShareLogParserServer)
+DYLOAD_NEW_WRAPPER_IMPL(StatsServer)
+DYLOAD_NEW_WRAPPER_IMPL(StratumServer)

@@ -36,13 +36,12 @@
 
 #include "zmq.hpp"
 
-#include "Utils.h"
-#include "GwMaker.h"
+#include "dynamicloader/DynamicLoader.h"
 
 using namespace std;
 using namespace libconfig;
 
-GwMaker *gGwMaker = nullptr;
+GwMakerWrapper *gGwMaker = nullptr;
 
 void handler(int sig) {
   if (gGwMaker) {
@@ -114,10 +113,11 @@ int main(int argc, char **argv) {
 
   uint32_t pollPeriod = 5;
   cfg.lookupValue("gwmaker.poll_period", pollPeriod);
-  gGwMaker = new GwMaker(cfg.lookup("rskd.rpc_addr"),
-                           cfg.lookup("rskd.rpc_userpwd"),
-                           cfg.lookup("kafka.brokers"),
-                           pollPeriod);
+  DynamicLoader dLoader(argv[0], cfg.lookup("chain_type"));
+  gGwMaker = dLoader.newGwMaker(cfg.lookup("rskd.rpc_addr"),
+                                cfg.lookup("rskd.rpc_userpwd"),
+                                cfg.lookup("kafka.brokers"),
+                                pollPeriod);
 
   try {
     if (!gGwMaker->init()) {

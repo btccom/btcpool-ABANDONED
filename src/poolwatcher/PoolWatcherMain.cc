@@ -35,14 +35,13 @@
 #include <libconfig.h++>
 #include <event2/thread.h>
 
-#include "Utils.h"
-#include "Watcher.h"
+#include "dynamicloader/DynamicLoader.h"
 
 using namespace std;
 using namespace libconfig;
 
 // container for pool watch clients
-ClientContainer *gClientContainer = nullptr;
+ClientContainerWrapper *gClientContainer = nullptr;
 
 void handler(int sig) {
   if (gClientContainer) {
@@ -115,14 +114,9 @@ int main(int argc, char **argv) {
   // check if we are using testnet3
   bool isTestnet3 = true;
   cfg.lookupValue("testnet", isTestnet3);
-  if (isTestnet3) {
-    SelectParams(CBaseChainParams::TESTNET);
-    LOG(WARNING) << "using bitcoin testnet3";
-  } else {
-    SelectParams(CBaseChainParams::MAIN);
-  }
 
-  gClientContainer = new ClientContainer(cfg.lookup("kafka.brokers"));
+  DynamicLoader dLoader(argv[0], cfg.lookup("chain_type"));
+  gClientContainer = dLoader.newClientContainer(isTestnet3, cfg.lookup("kafka.brokers"));
 
   // add pools
   {

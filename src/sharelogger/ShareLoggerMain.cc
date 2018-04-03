@@ -36,13 +36,12 @@
 
 #include "zmq.hpp"
 
-#include "Utils.h"
-#include "Statistics.h"
+#include "dynamicloader/DynamicLoader.h"
 
 using namespace std;
 using namespace libconfig;
 
-ShareLogWriter *gShareLogWriter = nullptr;
+ShareLogWriterWrapper *gShareLogWriter = nullptr;
 
 void handler(int sig) {
   if (gShareLogWriter) {
@@ -113,9 +112,10 @@ int main(int argc, char **argv) {
   signal(SIGINT,  handler);
 
   try {
-    gShareLogWriter = new ShareLogWriter(cfg.lookup("kafka.brokers").c_str(),
-                                         cfg.lookup("sharelog_writer.data_dir").c_str(),
-                                         cfg.lookup("sharelog_writer.kafka_group_id").c_str());
+    DynamicLoader dLoader(argv[0], cfg.lookup("chain_type"));
+    gShareLogWriter = dLoader.newShareLogWriter(cfg.lookup("kafka.brokers").c_str(),
+                                                cfg.lookup("sharelog_writer.data_dir").c_str(),
+                                                cfg.lookup("sharelog_writer.kafka_group_id").c_str());
     gShareLogWriter->run();
     delete gShareLogWriter;
   }

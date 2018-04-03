@@ -36,14 +36,12 @@
 
 #include "zmq.hpp"
 
-#include "Utils.h"
-#include "Statistics.h"
-#include "RedisConnection.h"
+#include "dynamicloader/DynamicLoader.h"
 
 using namespace std;
 using namespace libconfig;
 
-StatsServer *gStatsServer = nullptr;
+StatsServerWrapper *gStatsServer = nullptr;
 
 void handler(int sig) {
   if (gStatsServer) {
@@ -149,11 +147,12 @@ int main(int argc, char **argv) {
     cfg.lookupValue("statshttpd.port", port);
     cfg.lookupValue("statshttpd.flush_db_interval", flushInterval);
     cfg.lookupValue("statshttpd.file_last_flush_time",   fileLastFlushTime);
-    gStatsServer = new StatsServer(cfg.lookup("kafka.brokers").c_str(),
-                                   cfg.lookup("statshttpd.ip").c_str(),
-                                   (unsigned short)port, poolDBInfo,
-                                   redisInfo, redisKeyPrefix, redisKeyExpire,
-                                   (time_t)flushInterval, fileLastFlushTime);
+    DynamicLoader dLoader(argv[0], cfg.lookup("chain_type"));
+    gStatsServer = dLoader.newStatsServer(cfg.lookup("kafka.brokers").c_str(),
+                                          cfg.lookup("statshttpd.ip").c_str(),
+                                          (unsigned short)port, poolDBInfo,
+                                          redisInfo, redisKeyPrefix, redisKeyExpire,
+                                          (time_t)flushInterval, fileLastFlushTime);
     if (gStatsServer->init()) {
     	gStatsServer->run();
     }

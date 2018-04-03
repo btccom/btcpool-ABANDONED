@@ -37,13 +37,13 @@
 
 #include "zmq.hpp"
 
-#include "Utils.h"
-#include "StratumClient.h"
+#include "dynamicloader/DynamicLoader.h"
 
 using namespace std;
 using namespace libconfig;
 
-StratumClientWrapper *gWrapper = nullptr;
+// a dynamic-loading wrapper of class `StratumClientWrapper`
+StratumClientWrapperWrapper *gWrapper = nullptr;
 
 void handler(int sig) {
   if (gWrapper) {
@@ -123,10 +123,11 @@ int main(int argc, char **argv) {
     evthread_use_pthreads();
 
     // new StratumClientWrapper
-    gWrapper = new StratumClientWrapper(cfg.lookup("simulator.ss_ip").c_str(),
-                                        (unsigned short)port, numConns,
-                                        cfg.lookup("simulator.username"),
-                                        cfg.lookup("simulator.minername_prefix"));
+    DynamicLoader dLoader(argv[0], cfg.lookup("chain_type"));
+    gWrapper = dLoader.newStratumClientWrapper(cfg.lookup("simulator.ss_ip").c_str(),
+                                               (unsigned short)port, numConns,
+                                               cfg.lookup("simulator.username"),
+                                               cfg.lookup("simulator.minername_prefix"));
     gWrapper->run();
 
     delete gWrapper;

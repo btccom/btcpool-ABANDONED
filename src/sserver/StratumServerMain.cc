@@ -37,13 +37,12 @@
 
 #include "zmq.hpp"
 
-#include "Utils.h"
-#include "StratumServer.h"
+#include "dynamicloader/DynamicLoader.h"
 
 using namespace std;
 using namespace libconfig;
 
-StratumServer *gStratumServer = nullptr;
+StratumServerWrapper *gStratumServer = nullptr;
 
 void handler(int sig) {
   if (gStratumServer) {
@@ -117,12 +116,6 @@ int main(int argc, char **argv) {
     // check if we are using testnet3
     bool isTestnet3 = true;
     cfg.lookupValue("testnet", isTestnet3);
-    if (isTestnet3) {
-      SelectParams(CBaseChainParams::TESTNET);
-      LOG(WARNING) << "using bitcoin testnet3";
-    } else {
-      SelectParams(CBaseChainParams::MAIN);
-    }
 
     int32_t            port = 3333;
     uint32_t       serverId = 0;
@@ -155,17 +148,19 @@ int main(int argc, char **argv) {
     evthread_use_pthreads();
 
     // new StratumServer
-    gStratumServer = new StratumServer(cfg.lookup("sserver.ip").c_str(),
-                                       (unsigned short)port,
-                                       cfg.lookup("kafka.brokers").c_str(),
-                                       cfg.lookup("users.list_id_api_url"),
-                                       serverId,
-                                       fileLastMiningNotifyTime,
-                                       isEnableSimulator,
-                                       isSubmitInvalidBlock,
-                                       isDevModeEnabled,
-                                       minerDifficulty,
-                                       shareAvgSeconds);
+    DynamicLoader dLoader(argv[0], cfg.lookup("chain_type"));
+    gStratumServer = dLoader.newStratumServer(isTestnet3,
+                                              cfg.lookup("sserver.ip").c_str(),
+                                              (unsigned short)port,
+                                              cfg.lookup("kafka.brokers").c_str(),
+                                              cfg.lookup("users.list_id_api_url"),
+                                              serverId,
+                                              fileLastMiningNotifyTime,
+                                              isEnableSimulator,
+                                              isSubmitInvalidBlock,
+                                              isDevModeEnabled,
+                                              minerDifficulty,
+                                              shareAvgSeconds);
 
     if (!gStratumServer->init()) {
       LOG(FATAL) << "init failure";

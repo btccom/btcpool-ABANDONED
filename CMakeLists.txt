@@ -52,7 +52,7 @@ if(DYNAMIC_LOAD_BITCOIN)
   add_definitions(-DLIBBTCPOOL_BITCOIN_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}btcpool-bitcoin-")
   add_definitions(-DLIBBTCPOOL_BITCOIN_POSTFIX="${CMAKE_SHARED_LIBRARY_SUFFIX}")
 else()
-  message("-- Static linking bitcoin support of btcpool (-DYNAMIC_LOAD_BITCOIN=OFF)")
+  message("-- Static linking bitcoin support of btcpool (-DDYNAMIC_LOAD_BITCOIN=OFF)")
 endif()
 
 #
@@ -321,70 +321,87 @@ set(THIRD_LIBRARIES ${BITCOIN_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL
                     ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${ZOOKEEPER_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBEVENT_LIB}
                     ${LIBEVENT_PTHREADS_LIB} ${secp256k1_LIBRARIES} ${PTHREAD_LIBRARIES} ${MYSQL_LIB} ${GMP_LIBRARIES} ${Hiredis_LIBRARIES})
 
-file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc src/dynamicloader/DynamicWrapper.cc)
-add_library(btcpool STATIC ${LIB_SOURCES})
-
-# build shared library for btcpool's bitcoin support
+# dynamic loader
+set(BTCPOOL_LIBRARY btcpool-bitcoin-${CHAIN_TYPE})
+set(DYWRAPPER_SOURCES src/dynamicloader/DynamicWrapper.cc)
+set(DYLOADER_SOURCES src/dynamicloader/DynamicLoader.cc)
 if(DYNAMIC_LOAD_BITCOIN)
-  add_library(btcpool-bitcoin-${CHAIN_TYPE} SHARED ${LIB_SOURCES})
-  target_link_libraries(btcpool-bitcoin-${CHAIN_TYPE} ${THIRD_LIBRARIES})
+  set(TARGET_LIBRARIES ${THIRD_LIBRARIES})
+else()
+  set(TARGET_LIBRARIES ${BTCPOOL_LIBRARY} ${THIRD_LIBRARIES})
 endif()
 
+
+# build shared or static library for btcpool's bitcoin support
+file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc ${DYWRAPPER_SOURCES})
+
+if(DYNAMIC_LOAD_BITCOIN)
+  add_library(${BTCPOOL_LIBRARY} SHARED ${LIB_SOURCES})
+  target_link_libraries(${BTCPOOL_LIBRARY} ${THIRD_LIBRARIES})
+else()
+  add_library(${BTCPOOL_LIBRARY} STATIC ${LIB_SOURCES})
+endif()
+
+
+# unittest
 file(GLOB_RECURSE TEST_SOURCES test/*.cc)
 add_executable(unittest ${TEST_SOURCES})
-target_link_libraries(unittest btcpool ${THIRD_LIBRARIES})
+target_link_libraries(unittest ${BTCPOOL_LIBRARY} ${THIRD_LIBRARIES})
 
-file(GLOB_RECURSE GBTMAKER_SOURCES src/gbtmaker/*.cc src/dynamicloader/DynamicLoader.cc)
+# gbtmaker
+file(GLOB_RECURSE GBTMAKER_SOURCES src/gbtmaker/*.cc ${DYLOADER_SOURCES})
 add_executable(gbtmaker ${GBTMAKER_SOURCES})
-if(NOT DYNAMIC_LOAD_BITCOIN)
-  target_link_libraries(gbtmaker btcpool ${THIRD_LIBRARIES})
-else()
-  target_link_libraries(gbtmaker ${THIRD_LIBRARIES})
-endif()
+target_link_libraries(gbtmaker ${TARGET_LIBRARIES})
 
-set(GWMAKER_SOURCES src/gwmaker/GwMakerMain.cc)
+# gwmaker
+set(GWMAKER_SOURCES src/gwmaker/GwMakerMain.cc ${DYLOADER_SOURCES})
 add_executable(gwmaker ${GWMAKER_SOURCES})
-target_link_libraries(gwmaker btcpool ${THIRD_LIBRARIES})
+target_link_libraries(gwmaker ${TARGET_LIBRARIES})
 
-file(GLOB_RECURSE NMC_AUXBLOCK_MAKER_SOURCES src/nmcauxmaker/*.cc)
+# nmcauxmaker
+file(GLOB_RECURSE NMC_AUXBLOCK_MAKER_SOURCES src/nmcauxmaker/*.cc ${DYLOADER_SOURCES})
 add_executable(nmcauxmaker ${NMC_AUXBLOCK_MAKER_SOURCES})
-target_link_libraries(nmcauxmaker btcpool ${THIRD_LIBRARIES})
+target_link_libraries(nmcauxmaker ${TARGET_LIBRARIES})
 
-file(GLOB_RECURSE JOBMAKER_SOURCES src/jobmaker/*.cc)
+# jobmaker
+file(GLOB_RECURSE JOBMAKER_SOURCES src/jobmaker/*.cc src/Zookeeper.cc ${DYLOADER_SOURCES})
 add_executable(jobmaker ${JOBMAKER_SOURCES})
-target_link_libraries(jobmaker btcpool ${THIRD_LIBRARIES})
+target_link_libraries(jobmaker ${TARGET_LIBRARIES})
 
-file(GLOB_RECURSE SSERVER_SOURCES src/sserver/*.cc)
+# sserver
+file(GLOB_RECURSE SSERVER_SOURCES src/sserver/*.cc ${DYLOADER_SOURCES})
 add_executable(sserver ${SSERVER_SOURCES})
-target_link_libraries(sserver btcpool ${THIRD_LIBRARIES})
+target_link_libraries(sserver ${TARGET_LIBRARIES})
 
-file(GLOB_RECURSE STATSHTTPD_SOURCES src/statshttpd/*.cc)
+# statshttpd
+file(GLOB_RECURSE STATSHTTPD_SOURCES src/statshttpd/*.cc ${DYLOADER_SOURCES})
 add_executable(statshttpd ${STATSHTTPD_SOURCES})
-target_link_libraries(statshttpd btcpool ${THIRD_LIBRARIES})
+target_link_libraries(statshttpd ${TARGET_LIBRARIES})
 
-file(GLOB_RECURSE SHARELOGGER_SOURCES src/sharelogger/*.cc)
+# sharelogger
+file(GLOB_RECURSE SHARELOGGER_SOURCES src/sharelogger/*.cc ${DYLOADER_SOURCES})
 add_executable(sharelogger ${SHARELOGGER_SOURCES})
-target_link_libraries(sharelogger btcpool ${THIRD_LIBRARIES})
+target_link_libraries(sharelogger ${TARGET_LIBRARIES})
 
-file(GLOB_RECURSE SLPARSER_SOURCES src/slparser/*.cc)
+# slparser
+file(GLOB_RECURSE SLPARSER_SOURCES src/slparser/*.cc src/Utils.cc ${DYLOADER_SOURCES})
 add_executable(slparser ${SLPARSER_SOURCES})
-target_link_libraries(slparser btcpool ${THIRD_LIBRARIES})
+target_link_libraries(slparser ${TARGET_LIBRARIES})
 
-file(GLOB_RECURSE BLKMAKER_SOURCES src/blkmaker/*.cc src/dynamicloader/DynamicLoader.cc)
+# blkmaker
+file(GLOB_RECURSE BLKMAKER_SOURCES src/blkmaker/*.cc  ${DYLOADER_SOURCES})
 add_executable(blkmaker ${BLKMAKER_SOURCES})
-if(NOT DYNAMIC_LOAD_BITCOIN)
-  target_link_libraries(blkmaker btcpool ${THIRD_LIBRARIES})
-else()
-  target_link_libraries(blkmaker ${THIRD_LIBRARIES})
-endif()
+target_link_libraries(blkmaker ${TARGET_LIBRARIES})
 
-file(GLOB_RECURSE SIMULATOR_SOURCES src/simulator/*.cc)
+# simulator
+file(GLOB_RECURSE SIMULATOR_SOURCES src/simulator/*.cc ${DYLOADER_SOURCES})
 add_executable(simulator ${SIMULATOR_SOURCES})
-target_link_libraries(simulator btcpool ${THIRD_LIBRARIES})
+target_link_libraries(simulator ${TARGET_LIBRARIES})
 
-file(GLOB_RECURSE POOLWATCHER_SOURCES src/poolwatcher/*.cc)
+# poolwatcher
+file(GLOB_RECURSE POOLWATCHER_SOURCES src/poolwatcher/*.cc ${DYLOADER_SOURCES})
 add_executable(poolwatcher ${POOLWATCHER_SOURCES})
-target_link_libraries(poolwatcher btcpool ${THIRD_LIBRARIES})
+target_link_libraries(poolwatcher ${TARGET_LIBRARIES})
 
 
 ###################################### Install & Package ######################################

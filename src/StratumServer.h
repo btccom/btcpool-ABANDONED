@@ -343,7 +343,8 @@ class StratumServer {
   float minerDifficulty_;
 
 public:
-  StratumServer(const char *ip, const unsigned short port,
+  StratumServer(bool isTestnet,
+                const char *ip, const unsigned short port,
                 const char *kafkaBrokers,
                 const string &userAPIUrl,
                 const uint8_t serverId, const string &fileLastNotifyTime,

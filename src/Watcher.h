@@ -71,7 +71,7 @@ class ClientContainer {
   void consumeStratumJob(rd_kafka_message_t *rkmessage);
 
 public:
-  ClientContainer(const string &kafkaBrokers);
+  ClientContainer(bool isTestnet, const string &kafkaBrokers);
   ~ClientContainer();
 
   bool addPools(const string &poolName, const string &poolHost,

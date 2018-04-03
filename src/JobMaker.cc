@@ -41,7 +41,8 @@
 
 
 ///////////////////////////////////  JobMaker  /////////////////////////////////
-JobMaker::JobMaker(const string &kafkaBrokers,  uint32_t stratumJobInterval,
+JobMaker::JobMaker(bool isTestnet,
+                   const string &kafkaBrokers,  uint32_t stratumJobInterval,
                    const string &payoutAddr, uint32_t gbtLifeTime,
                    uint32_t emptyGbtLifeTime, const string &fileLastJobTime,
                    uint32_t rskNotifyPolicy,
@@ -61,6 +62,13 @@ kGbtLifeTime_(gbtLifeTime), kEmptyGbtLifeTime_(emptyGbtLifeTime),
 fileLastJobTime_(fileLastJobTime),
 blockVersion_(blockVersion)
 {
+  if (isTestnet) {
+    SelectParams(CBaseChainParams::TESTNET);
+    LOG(WARNING) << "using bitcoin testnet3";
+  } else {
+    SelectParams(CBaseChainParams::MAIN);
+  }
+
 	LOG(INFO) << "Block Version: " << std::hex << blockVersion_;
 	LOG(INFO) << "Coinbase Info: " << poolCoinbaseInfo_;
   LOG(INFO) << "Payout Address: " << poolPayoutAddrStr_;

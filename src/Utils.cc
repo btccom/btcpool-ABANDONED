@@ -24,9 +24,6 @@
 #include "Utils.h"
 #include "utilities_js.hpp"
 
-#include <util.h>
-#include <streams.h>
-
 #include <stdarg.h>
 #include <sys/stat.h>
 
@@ -49,7 +46,7 @@ bool Hex2Bin(const char *in, size_t size, vector<char> &out) {
   out.clear();
   out.reserve(size/2);
 
-  uint8 h, l;
+  uint8_t h, l;
   // skip space, 0x
   const char *psz = in;
   while (isspace(*psz))
@@ -71,7 +68,7 @@ bool Hex2Bin(const char *in, vector<char> &out) {
   out.clear();
   out.reserve(strlen(in)/2);
 
-  uint8 h, l;
+  uint8_t h, l;
   // skip space, 0x
   const char *psz = in;
   while (isspace(*psz))
@@ -90,9 +87,9 @@ bool Hex2Bin(const char *in, vector<char> &out) {
   return true;
 }
 
-void Bin2Hex(const uint8 *in, size_t len, string &str) {
+void Bin2Hex(const uint8_t *in, size_t len, string &str) {
   str.clear();
-  const uint8 *p = in;
+  const uint8_t *p = in;
   while (len--) {
     str.push_back(_hexchars[p[0] >> 4]);
     str.push_back(_hexchars[p[0] & 0xf]);
@@ -101,7 +98,7 @@ void Bin2Hex(const uint8 *in, size_t len, string &str) {
 }
 
 void Bin2Hex(const vector<char> &in, string &str) {
-  Bin2Hex((uint8 *)in.data(), in.size(), str);
+  Bin2Hex((uint8_t *)in.data(), in.size(), str);
 }
 
 void Bin2HexR(const vector<char> &in, string &str) {

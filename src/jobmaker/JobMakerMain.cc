@@ -34,18 +34,17 @@
 #include <glog/logging.h>
 #include <libconfig.h++>
 
+#include "Zookeeper.h"
 #include "zmq.hpp"
 
-#include "Utils.h"
-#include "JobMaker.h"
-#include "Zookeeper.h"
+#include "dynamicloader/DynamicLoader.h"
 
 using namespace std;
 using namespace libconfig;
 
 #define JOBMAKER_LOCK_NODE_PATH    "/locks/jobmaker" ZOOKEEPER_NODE_POSTFIX
 
-JobMaker *gJobMaker = nullptr;
+JobMakerWrapper *gJobMaker = nullptr;
 Zookeeper *gZookeeper = nullptr;
 
 void handler(int sig) {
@@ -135,21 +134,15 @@ int main(int argc, char **argv) {
     // check if we are using testnet3
     bool isTestnet3 = true;
     cfg.lookupValue("testnet", isTestnet3);
-    if (isTestnet3) {
-      SelectParams(CBaseChainParams::TESTNET);
-      LOG(WARNING) << "using bitcoin testnet3";
-    } else {
-      SelectParams(CBaseChainParams::MAIN);
-    }
 
     string fileLastJobTime;
-	string poolCoinbaseInfo;
+    string poolCoinbaseInfo;
 
     // with default values
     uint32_t stratumJobInterval = 20;  // seconds
     uint32_t gbtLifeTime        = 90;
     uint32_t emptyGbtLifeTime   = 15;
-	uint32_t rskNotifyPolicy    = 0u;
+    uint32_t rskNotifyPolicy    = 0u;
     uint32_t blockVersion       = 0u;
 
     cfg.lookupValue("jobmaker.stratum_job_interval", stratumJobInterval);
@@ -157,13 +150,15 @@ int main(int argc, char **argv) {
     cfg.lookupValue("jobmaker.empty_gbt_life_time",  emptyGbtLifeTime);
     cfg.lookupValue("jobmaker.file_last_job_time",   fileLastJobTime);
     cfg.lookupValue("jobmaker.block_version",        blockVersion);
-	cfg.lookupValue("pool.coinbase_info",            poolCoinbaseInfo);
-	cfg.lookupValue("jobmaker.rsk_notify_policy", rskNotifyPolicy);
+    cfg.lookupValue("pool.coinbase_info",            poolCoinbaseInfo);
+    cfg.lookupValue("jobmaker.rsk_notify_policy",    rskNotifyPolicy);
 
-    gJobMaker = new JobMaker(cfg.lookup("kafka.brokers"), stratumJobInterval,
-                             cfg.lookup("pool.payout_address"), gbtLifeTime,
-                             emptyGbtLifeTime, fileLastJobTime, 
-							 rskNotifyPolicy, blockVersion, poolCoinbaseInfo);
+    DynamicLoader dLoader(argv[0], cfg.lookup("chain_type"));
+    gJobMaker = dLoader.newJobMaker(isTestnet3,
+                                    cfg.lookup("kafka.brokers"), stratumJobInterval,
+                                    cfg.lookup("pool.payout_address"), gbtLifeTime,
+                                    emptyGbtLifeTime, fileLastJobTime,
+                                    rskNotifyPolicy, blockVersion, poolCoinbaseInfo);
 
     if (!gJobMaker->init()) {
       LOG(FATAL) << "init failure";

@@ -750,7 +750,8 @@ void StratumJobEx::generateBlockHeader(CBlockHeader *header,
 }
 
 ////////////////////////////////// StratumServer ///////////////////////////////
-StratumServer::StratumServer(const char *ip, const unsigned short port,
+StratumServer::StratumServer(bool isTestnet,
+                             const char *ip, const unsigned short port,
                              const char *kafkaBrokers, const string &userAPIUrl,
                              const uint8_t serverId, const string &fileLastNotifyTime,
                              bool isEnableSimulator, bool isSubmitInvalidBlock,
@@ -763,6 +764,12 @@ kafkaBrokers_(kafkaBrokers), userAPIUrl_(userAPIUrl),
 isEnableSimulator_(isEnableSimulator), isSubmitInvalidBlock_(isSubmitInvalidBlock),
 isDevModeEnable_(isDevModeEnable), minerDifficulty_(minerDifficulty)
 {
+  if (isTestnet) {
+    SelectParams(CBaseChainParams::TESTNET);
+    LOG(WARNING) << "using bitcoin testnet3";
+  } else {
+    SelectParams(CBaseChainParams::MAIN);
+  }
 }
 
 StratumServer::~StratumServer() {

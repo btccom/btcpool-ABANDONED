@@ -36,13 +36,12 @@
 
 #include "zmq.hpp"
 
-#include "Utils.h"
-#include "GbtMaker.h"
+#include "dynamicloader/DynamicLoader.h"
 
 using namespace std;
 using namespace libconfig;
 
-NMCAuxBlockMaker *gNMCAuxBlockMaker = nullptr;
+NMCAuxBlockMakerWrapper *gNMCAuxBlockMaker = nullptr;
 
 void handler(int sig) {
   if (gNMCAuxBlockMaker) {
@@ -121,12 +120,13 @@ int main(int argc, char **argv) {
   string coinbaseAddress;
   cfg.lookupValue("nmcauxmaker.payout_address", coinbaseAddress);
 
-  gNMCAuxBlockMaker = new NMCAuxBlockMaker(cfg.lookup("namecoind.zmq_addr"),
-                                           cfg.lookup("namecoind.rpc_addr"),
-                                           cfg.lookup("namecoind.rpc_userpwd"),
-                                           cfg.lookup("kafka.brokers"),
-                                           rpcCallInterval, fileLastRpcCallTime,
-                                           isCheckZmq, coinbaseAddress);
+  DynamicLoader dLoader(argv[0], cfg.lookup("chain_type"));
+  gNMCAuxBlockMaker = dLoader.newNMCAuxBlockMaker(cfg.lookup("namecoind.zmq_addr"),
+                                                  cfg.lookup("namecoind.rpc_addr"),
+                                                  cfg.lookup("namecoind.rpc_userpwd"),
+                                                  cfg.lookup("kafka.brokers"),
+                                                  rpcCallInterval, fileLastRpcCallTime,
+                                                  isCheckZmq, coinbaseAddress);
 
   try {
     if (!gNMCAuxBlockMaker->init()) {

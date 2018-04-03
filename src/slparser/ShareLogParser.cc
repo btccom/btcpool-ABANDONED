@@ -34,15 +34,15 @@
 #include <glog/logging.h>
 #include <libconfig.h++>
 
+#include "Utils.h"
 #include "zmq.hpp"
 
-#include "Utils.h"
-#include "Statistics.h"
+#include "dynamicloader/DynamicLoader.h"
 
 using namespace std;
 using namespace libconfig;
 
-ShareLogParserServer *gShareLogParserServer = nullptr;
+ShareLogParserServerWrapper *gShareLogParserServer = nullptr;
 
 void handler(int sig) {
   if (gShareLogParserServer) {
@@ -111,6 +111,9 @@ int main(int argc, char **argv) {
     return(EXIT_FAILURE);
   }
 
+  // dynamic loader
+  DynamicLoader dLoader(argv[0], cfg.lookup("chain_type"));
+
   // DB info
   MysqlConnectInfo *poolDBInfo = nullptr;
   {
@@ -134,8 +137,9 @@ int main(int argc, char **argv) {
     if (optPUID > 0)
      uids.insert(optPUID);
 
-    ShareLogDumper sldumper(cfg.lookup("sharelog.data_dir"), ts, uids);
-    sldumper.dump2stdout();
+    ShareLogDumperWrapper *sldumper = dLoader.newShareLogDumper(cfg.lookup("sharelog.data_dir"), ts, uids);
+    sldumper->dump2stdout();
+    delete sldumper;
 
     google::ShutdownGoogleLogging();
     return 0;
@@ -150,22 +154,24 @@ int main(int argc, char **argv) {
                                          optDate/100 % 100, optDate % 100);
     const time_t ts = str2time(tsStr.c_str(), "%F %T");
 
-    ShareLogParser slparser(cfg.lookup("sharelog.data_dir"),
-                            ts, *poolDBInfo);
+    ShareLogParserWrapper *slparser = dLoader.newShareLogParser(cfg.lookup("sharelog.data_dir"),
+                                                         ts, *poolDBInfo);
     do {
-      if (slparser.init() == false) {
+      if (slparser->init() == false) {
         LOG(ERROR) << "init failure";
         break;
       }
-      if (!slparser.processUnchangedShareLog()) {
+      if (!slparser->processUnchangedShareLog()) {
         LOG(ERROR) << "processUnchangedShareLog fail";
         break;
       }
-      if (!slparser.flushToDB()) {
+      if (!slparser->flushToDB()) {
         LOG(ERROR) << "processUnchangedShareLog fail";
         break;
       }
     } while (0);
+
+    delete slparser;
 
     google::ShutdownGoogleLogging();
     return 0;
@@ -190,10 +196,10 @@ int main(int argc, char **argv) {
     cfg.lookupValue("slparserhttpd.port", port);
     uint32_t kFlushDBInterval = 20;
     cfg.lookupValue("slparserhttpd.flush_db_interval", kFlushDBInterval);
-    gShareLogParserServer = new ShareLogParserServer(cfg.lookup("sharelog.data_dir"),
-                                                     cfg.lookup("slparserhttpd.ip"),
-                                                     port, *poolDBInfo,
-                                                     kFlushDBInterval);
+    gShareLogParserServer = dLoader.newShareLogParserServer(cfg.lookup("sharelog.data_dir"),
+                                                            cfg.lookup("slparserhttpd.ip"),
+                                                            port, *poolDBInfo,
+                                                            kFlushDBInterval);
     gShareLogParserServer->run();
     delete gShareLogParserServer;
   }

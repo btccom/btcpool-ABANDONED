@@ -124,12 +124,19 @@ string convertPrevHash(const string &prevHash) {
 
 
 ///////////////////////////////// ClientContainer //////////////////////////////
-ClientContainer::ClientContainer(const string &kafkaBrokers)
+ClientContainer::ClientContainer(bool isTestnet, const string &kafkaBrokers)
 :running_(true), kafkaBrokers_(kafkaBrokers),
 kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT, 0/* partition */),
 kafkaStratumJobConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, 0/*patition*/),
 poolStratumJob_(nullptr)
 {
+  if (isTestnet) {
+    SelectParams(CBaseChainParams::TESTNET);
+    LOG(WARNING) << "using bitcoin testnet3";
+  } else {
+    SelectParams(CBaseChainParams::MAIN);
+  }
+
   base_ = event_base_new();
   assert(base_ != nullptr);
 }

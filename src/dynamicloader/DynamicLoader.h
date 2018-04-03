@@ -31,7 +31,7 @@
 #include "DynamicWrapper.h"
 
 
-//--------------- Wrapper Generator ---------------
+//====================== Wrapper Generator ======================
 
 #define DYLOAD_NEW_WRAPPER_DEF(className) \
   className##Wrapper* new##className(DYCLASS_##className##_##className##_FPARAMS);
@@ -39,7 +39,7 @@
 #define DYLOAD_NEW_WRAPPER_POINTER(className) \
   typedef className##Wrapper* (*PNew##className##Wrapper)(DYCLASS_##className##_##className##_FPARAMS);
 
-//--------------- End of Wrapper Generator ---------------
+//====================== End of Wrapper Generator ======================
 
 
 class DynamicLoaderException : public std::runtime_error {
@@ -54,13 +54,41 @@ protected:
 public:
   DynamicLoader(const string &binPath, const string &chainType);
 
+  //====================== Generated codes ======================
+
   // definitions of newXXX(...)
   DYLOAD_NEW_WRAPPER_DEF(BlockMaker)
   DYLOAD_NEW_WRAPPER_DEF(GbtMaker)
+  DYLOAD_NEW_WRAPPER_DEF(GwMaker)
+  DYLOAD_NEW_WRAPPER_DEF(NMCAuxBlockMaker)
+  DYLOAD_NEW_WRAPPER_DEF(JobMaker)
+  DYLOAD_NEW_WRAPPER_DEF(ClientContainer)
+  DYLOAD_NEW_WRAPPER_DEF(ShareLogWriter)
+  DYLOAD_NEW_WRAPPER_DEF(StratumClientWrapper)
+  DYLOAD_NEW_WRAPPER_DEF(ShareLogDumper)
+  DYLOAD_NEW_WRAPPER_DEF(ShareLogParser)
+  DYLOAD_NEW_WRAPPER_DEF(ShareLogParserServer)
+  DYLOAD_NEW_WRAPPER_DEF(StatsServer)
+  DYLOAD_NEW_WRAPPER_DEF(StratumServer)
 };
+
+
+//====================== Generated codes ======================
 
 // function pointer of newXXXWrapper(...)
 DYLOAD_NEW_WRAPPER_POINTER(BlockMaker)
 DYLOAD_NEW_WRAPPER_POINTER(GbtMaker)
+DYLOAD_NEW_WRAPPER_POINTER(GwMaker)
+DYLOAD_NEW_WRAPPER_POINTER(NMCAuxBlockMaker)
+DYLOAD_NEW_WRAPPER_POINTER(JobMaker)
+DYLOAD_NEW_WRAPPER_POINTER(ClientContainer)
+DYLOAD_NEW_WRAPPER_POINTER(ShareLogWriter)
+DYLOAD_NEW_WRAPPER_POINTER(StratumClientWrapper)
+DYLOAD_NEW_WRAPPER_POINTER(ShareLogDumper)
+DYLOAD_NEW_WRAPPER_POINTER(ShareLogParser)
+DYLOAD_NEW_WRAPPER_POINTER(ShareLogParserServer)
+DYLOAD_NEW_WRAPPER_POINTER(StatsServer)
+DYLOAD_NEW_WRAPPER_POINTER(StratumServer)
+
 
 #endif
