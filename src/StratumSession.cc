@@ -1369,6 +1369,15 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
       LOG(ERROR) << "illegal header" << params[2].str();
       return;
     }
+
+      uint8 bHeader[80] = {0};
+  for (int i = 0; i < 80; ++i) {
+    bHeader[i] = (uint8)strtol(header.substr(i*2, 2).c_str(), 0, 16);
+  }
+
+  for (int i = 0; i < 80; ++i) {
+    LOG(INFO) << std::hex << bHeader[i];
+  }
   }
 }
 

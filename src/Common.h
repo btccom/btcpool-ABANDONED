@@ -32,7 +32,7 @@
 #include <string.h>
 #include <assert.h>
 #include <time.h>
-
+#include "blake2/blake2.h"
 #include <stdexcept>
 #include <string>
 #include <vector>
