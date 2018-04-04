@@ -1717,32 +1717,4 @@ StratumJobExEth::StratumJobExEth(StratumJob *sjob, bool isClean) : StratumJobEx(
 
 void StratumJobExEth::init()
 {
-  // StratumJobEth *ethJob = dynamic_cast<StratumJobEth *>(sjob_);
-  // if (nullptr == ethJob)
-  //   return;
-
-  // First parameter of params array is job ID (must be HEX number of any
-  // size). Second parameter is seedhash. Seedhash is sent with every job to
-  // support possible multipools, which may switch between coins quickly.
-  // Third parameter is headerhash. Last parameter is boolean cleanjobs.
-  // If set to true, tbbhen miner needs to clear queue of jobs and immediatelly
-  // start working on new provided job, because all old jobs shares will
-  // result with stale share error.
-  // Miner uses seedhash to identify DAG, then tries to find share below
-  // target (which is created out of provided difficulty) with headerhash,
-  // extranonce and own minernonce.
-
-  //the boundary condition ("target"), 2^256 / difficulty.
-  //How to calculate difficulty: 2 strings division?
-  //no set difficulty api, manuplate target and distribute to miner?
-
-  //string header = ethJob->blockHashForMergedMining_.substr(2, 64);
-  //string seed = ethJob->seedHash_.substr(2, 64);
-  //LOG(INFO) << "new stratum job mining.notify: share difficulty=" << shareDifficulty_ << ", share target=" << strShareTarget;
-  // miningNotify1_ = Strings::Format("{\"id\":8,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
-  //                                  "\"params\":[\"%s\",\"%s\",\"%s\",\"%s\", false]}\n",
-  //                                  header.c_str(),
-  //                                  header.c_str(),
-  //                                  seed.c_str(),
-  //                                  strShareTarget.c_str());
 }

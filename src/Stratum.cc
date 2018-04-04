@@ -666,8 +666,7 @@ bool StratumJobEth::initFromGw(const RskWorkEth &latestRskBlockJson,
     blockNumber_ = stoull(result["number"].str(), &pos, 16);
     string header = blockHashForMergedMining_.substr(2, 64);
     uint32 h = djb2(header.c_str());
-    DLOG(INFO) << header;
-    DLOG(INFO) << std::hex << h;
+    DLOG(INFO) << "djb2=" << std::hex << h << " for header " << header;
     // jobId: timestamp + hash of header
     const string jobIdStr = Strings::Format("%08x%08x",
                                             (uint32_t)time(nullptr),

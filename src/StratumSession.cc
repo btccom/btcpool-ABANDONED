@@ -864,8 +864,8 @@ finish:
 StratumSession::LocalJob* StratumSession::findLocalJob(const string& strJobId) {
   for (auto rit = localJobs_.rbegin(); rit != localJobs_.rend(); ++rit) {
     uint32 h = djb2(strJobId.c_str());
-    DLOG(INFO) << std::hex << rit->jobId_;
-    DLOG(INFO) << std::hex << h;
+    //DLOG(INFO) << std::hex << rit->jobId_;
+    //DLOG(INFO) << std::hex << h;
     //jobId = timestamp + std::hash(strJobId)
     if ((rit->jobId_ & 0xffffffff) == h) {
       return &(*rit);
