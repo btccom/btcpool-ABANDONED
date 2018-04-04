@@ -405,7 +405,12 @@ void StratumSession::handleRequest(const string &idStr, const string &method,
   }
   else if (method == "mining.suggest_difficulty") {
     handleRequest_SuggestDifficulty(idStr, jparams);
-  } else {
+  } 
+  else if (method == "mining.extranonce.subscribe") {
+    //Claymore will send this for sia but no need response
+    //Do nothing for now
+  } 
+  else {
     // unrecognised method, just ignore it
     LOG(WARNING) << "unrecognised method: \"" << method << "\""
     << ", client: " << clientIp_ << "/" << clientAgent_;
@@ -1353,6 +1358,17 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
     const string s = "{\"id\":null,\"method\":\"client.reconnect\",\"params\":[]}\n";
     sendData(s);
     return;
+  }
+  
+  auto params = (const_cast<JsonNode &>(jparams)).array();
+  if (3 == params.size()) {
+    string header = params[2].str();
+    if (162 == header.length())
+      header = header.substr(2, 160);
+    if (header.length() != 160) {
+      LOG(ERROR) << "illegal header" << params[2].str();
+      return;
+    }
   }
 }
 
