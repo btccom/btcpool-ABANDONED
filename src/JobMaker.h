@@ -32,13 +32,21 @@
 #include <base58.h>
 
 #include "rsk/RskWork.h"
+#include "Zookeeper.h"
 
 #include <map>
 #include <deque>
 
+// the node path using by JobMaker::zkLocker_
+#define JOBMAKER_LOCK_NODE_PATH    "/locks/jobmaker" ZOOKEEPER_NODE_POSTFIX
+
 class JobMaker {
   atomic<bool> running_;
   mutex lock_;
+  
+  // coordinate two or more jobmaker (automatic disaster
+  // preparedness and recovery) with the zookeeper locker.
+  Zookeeper zkLocker_;
 
   string kafkaBrokers_;
   KafkaProducer kafkaProducer_;
@@ -97,7 +105,7 @@ class JobMaker {
   inline bool gbtKeyIsEmptyBlock(uint64_t gbtKey);
 
 public:
-  JobMaker(bool isTestnet,
+  JobMaker(bool isTestnet, const string &zookeeperBrokers,
            const string &kafkaBrokers, uint32_t stratumJobInterval,
            const string &payoutAddr, uint32_t gbtLifeTime,
            uint32_t emptyGbtLifeTime, const string &fileLastJobTime,

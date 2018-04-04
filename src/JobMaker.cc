@@ -41,13 +41,14 @@
 
 
 ///////////////////////////////////  JobMaker  /////////////////////////////////
-JobMaker::JobMaker(bool isTestnet,
+JobMaker::JobMaker(bool isTestnet, const string &zookeeperBrokers,
                    const string &kafkaBrokers,  uint32_t stratumJobInterval,
                    const string &payoutAddr, uint32_t gbtLifeTime,
                    uint32_t emptyGbtLifeTime, const string &fileLastJobTime,
                    uint32_t rskNotifyPolicy,
                    uint32_t blockVersion, const string &poolCoinbaseInfo):
 running_(true),
+zkLocker_(zookeeperBrokers.c_str()),
 kafkaBrokers_(kafkaBrokers),
 kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, RD_KAFKA_PARTITION_UA/* partition */),
 kafkaRawGbtConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT,       0/* partition */),
@@ -99,6 +100,15 @@ bool JobMaker::init() {
   }
 
   poolPayoutAddr_ = DecodeDestination(poolPayoutAddrStr_);
+
+  try {
+    // get lock from zookeeper
+    zkLocker_.getLock(JOBMAKER_LOCK_NODE_PATH);
+
+  } catch(const ZookeeperException &zooex) {
+    LOG(ERROR) << zooex.what();
+    return false;
+  }
 
   /* setup kafka */
   {

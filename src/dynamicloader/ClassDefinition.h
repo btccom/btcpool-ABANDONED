@@ -181,14 +181,14 @@ using std::string;
 //-------------- JobMaker --------------
 
 #define DYCLASS_JobMaker_JobMaker_FPARAMS \
-  bool isTestnet, \
+  bool isTestnet, const string &zookeeperBrokers,\
   const string &kafkaBrokers, uint32_t stratumJobInterval, \
   const string &payoutAddr, uint32_t gbtLifeTime, \
   uint32_t emptyGbtLifeTime, const string &fileLastJobTime, \
   uint32_t rskNotifyPolicy, uint32_t blockVersion, \
 	const string &poolCoinbaseInfo
 #define DYCLASS_JobMaker_JobMaker_APARAMS \
-  isTestnet, \
+  isTestnet, zookeeperBrokers,\
   kafkaBrokers, stratumJobInterval, payoutAddr, gbtLifeTime, \
   emptyGbtLifeTime, fileLastJobTime, rskNotifyPolicy, blockVersion, \
   poolCoinbaseInfo

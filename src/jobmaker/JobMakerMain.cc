@@ -34,7 +34,6 @@
 #include <glog/logging.h>
 #include <libconfig.h++>
 
-#include "Zookeeper.h"
 #include "zmq.hpp"
 
 #include "dynamicloader/DynamicLoader.h"
@@ -42,19 +41,11 @@
 using namespace std;
 using namespace libconfig;
 
-#define JOBMAKER_LOCK_NODE_PATH    "/locks/jobmaker" ZOOKEEPER_NODE_POSTFIX
-
 JobMakerWrapper *gJobMaker = nullptr;
-Zookeeper *gZookeeper = nullptr;
 
 void handler(int sig) {
   if (gJobMaker) {
     gJobMaker->stop();
-  }
-
-  if (gZookeeper) {
-    delete gZookeeper;
-    gZookeeper = nullptr;
   }
 }
 
@@ -117,16 +108,6 @@ int main(int argc, char **argv) {
     return(EXIT_FAILURE);
   }
 
-  try {
-    // get lock from zookeeper
-    gZookeeper = new Zookeeper(cfg.lookup("zookeeper.brokers"));
-    gZookeeper->getLock(JOBMAKER_LOCK_NODE_PATH);
-
-  } catch(const ZookeeperException &zooex) {
-    LOG(FATAL) << zooex.what();
-    return(EXIT_FAILURE);
-  }
-
   signal(SIGTERM, handler);
   signal(SIGINT,  handler);
 
@@ -154,7 +135,7 @@ int main(int argc, char **argv) {
     cfg.lookupValue("jobmaker.rsk_notify_policy",    rskNotifyPolicy);
 
     DynamicLoader dLoader(argv[0], cfg.lookup("chain_type"));
-    gJobMaker = dLoader.newJobMaker(isTestnet3,
+    gJobMaker = dLoader.newJobMaker(isTestnet3, cfg.lookup("zookeeper.brokers"),
                                     cfg.lookup("kafka.brokers"), stratumJobInterval,
                                     cfg.lookup("pool.payout_address"), gbtLifeTime,
                                     emptyGbtLifeTime, fileLastJobTime,
