@@ -24,7 +24,13 @@
 #ifndef MYSQL_CONNECTION_H_
 #define MYSQL_CONNECTION_H_
 
-#include "Common.h"
+#include <string>
+#include <vector>
+#include <set>
+
+using std::string;
+using std::vector;
+using std::set;
 
 extern "C" struct st_mysql;
 typedef struct st_mysql MYSQL;
@@ -41,8 +47,8 @@ struct MySQLResult {
   MySQLResult(MYSQL_RES * result);
   void reset(MYSQL_RES * result);
   ~MySQLResult();
-  uint64 numRows();
-  uint32 fields();
+  uint64_t numRows();
+  uint32_t fields();
   char ** nextRow();
 };
 
@@ -117,8 +123,8 @@ public:
   int64_t update(const string & sql) {
     return update(sql.c_str());
   }
-  uint64 affectedRows();
-  uint64 getInsertId();
+  uint64_t affectedRows();
+  uint64_t getInsertId();
 
   string getVariable(const char *name);
 };

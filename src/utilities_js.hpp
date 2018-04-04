@@ -15,7 +15,6 @@
 #include <cstring>
 #include <array>
 #include <stdexcept>
-#include "Common.h"
 
 namespace Utilities {
 namespace JS {
