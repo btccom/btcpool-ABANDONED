@@ -1217,7 +1217,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
       responseError(idStr, StratumError::JOB_NOT_FOUND);
       return;
     }
-
+    
     Share share;
     share.jobId_ = localJob->jobId_;
     share.workerHashId_ = worker_.workerHashId_;
@@ -1234,7 +1234,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
     size_t pos;
     uint64_t nonce = stoull(sNonce, &pos, 16);
 
-    LocalShare localShare(0, nonce, 0);
+    LocalShare localShare(0, nonce, share.timestamp_);
     // can't find local share
     if (!server_->isEnableSimulator_ && !localJob->addLocalShare(localShare))
     {
@@ -1351,34 +1351,51 @@ void StratumSessionSia::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool
   clearLocalJobs();
 }
 
-void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode &jparams) {
-  if (state_ != AUTHENTICATED) {
+void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode &jparams)
+{
+  if (state_ != AUTHENTICATED)
+  {
     responseError(idStr, StratumError::UNAUTHORIZED);
     // there must be something wrong, send reconnect command
     const string s = "{\"id\":null,\"method\":\"client.reconnect\",\"params\":[]}\n";
     sendData(s);
     return;
   }
-  
+
   auto params = (const_cast<JsonNode &>(jparams)).array();
-  if (3 == params.size()) {
-    string header = params[2].str();
-    if (162 == header.length())
-      header = header.substr(2, 160);
-    if (header.length() != 160) {
-      LOG(ERROR) << "illegal header" << params[2].str();
-      return;
-    }
-
-      uint8 bHeader[80] = {0};
-  for (int i = 0; i < 80; ++i) {
-    bHeader[i] = (uint8)strtol(header.substr(i*2, 2).c_str(), 0, 16);
+  if (params.size() != 3)
+  {
+    LOG(ERROR) << "illegal header size: " << params.size();
+    return;
   }
 
-  for (int i = 0; i < 80; ++i) {
-    LOG(INFO) << std::hex << bHeader[i];
+  string header = params[2].str();
+  if (162 == header.length())
+    header = header.substr(2, 160);
+  if (header.length() != 160)
+  {
+    LOG(ERROR) << "illegal header" << params[2].str();
+    return;
   }
-  }
+
+  uint8 bHeader[80] = {0};
+
+  for (int i = 0; i < 80; ++i)
+    bHeader[i] = strtol(header.substr(i * 2, 2).c_str(), 0, 16);
+
+  string str;
+  for (int i = 0; i < 80; ++i)
+    str += Strings::Format("%02x", bHeader[i]);
+  DLOG(INFO) << str;
+
+  uint8 out[32] = {0};
+  int ret = blake2b(out, 32, bHeader, 80, nullptr, 0);
+  DLOG(INFO) << "blake2b return=" << ret;
+
+  str = "";
+  for (int i = 0; i < 32; ++i)
+    str += Strings::Format("%02x", out[i]);
+  DLOG(INFO) << str;
 }
 
 ///////////////////////////////// AgentSessions ////////////////////////////////

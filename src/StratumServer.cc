@@ -374,7 +374,7 @@ StratumJobEx* JobRepositoryEth::createStratumJobEx(StratumJob *sjob, bool isClea
 }
 
 void JobRepositoryEth::broadcastStratumJob(StratumJob *sjob) {
-  LOG(INFO) << "broadcastStratumJob " << sjob->jobId_;
+  LOG(INFO) << "broadcast eth stratum job " << std::hex << sjob->jobId_;
   bool isClean = true;
   
   shared_ptr<StratumJobEx> exJob(createStratumJobEx(sjob, isClean));
@@ -495,7 +495,7 @@ StratumJobEx* JobRepositorySia::createStratumJobEx(StratumJob *sjob, bool isClea
 }
 
 void JobRepositorySia::broadcastStratumJob(StratumJob *sjob) {
-  LOG(INFO) << "broadcast sia stratum job " << sjob->jobId_;
+  LOG(INFO) << "broadcast sia stratum job " << std::hex << sjob->jobId_;
   shared_ptr<StratumJobEx> exJob(createStratumJobEx(sjob, true));
   {
     ScopeLock sl(lock_);
