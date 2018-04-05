@@ -24,7 +24,7 @@
 #include "StratumSession.h"
 #include "Utils.h"
 #include "utilities_js.hpp"
-
+#include <arith_uint256.h>
 #include <arpa/inet.h>
 #include <boost/algorithm/string.hpp>
 
@@ -1370,6 +1370,7 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
   }
 
   string header = params[2].str();
+  //string header = "00000000000000021f3e8ede65495c4311ef59e5b7a4338542e573819f5979e982719d0366014155e935aa5a00000000201929782a8fe3209b152520c51d2a82dc364e4a3eb6fb8131439835e278ff8b";
   if (162 == header.length())
     header = header.substr(2, 160);
   if (header.length() != 160)
@@ -1384,18 +1385,41 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
     bHeader[i] = strtol(header.substr(i * 2, 2).c_str(), 0, 16);
 
   string str;
-  for (int i = 0; i < 80; ++i)
-    str += Strings::Format("%02x", bHeader[i]);
-  DLOG(INFO) << str;
+  // for (int i = 0; i < 80; ++i)
+  //   str += Strings::Format("%02x", bHeader[i]);
+  // DLOG(INFO) << str;
 
   uint8 out[32] = {0};
   int ret = blake2b(out, 32, bHeader, 80, nullptr, 0);
   DLOG(INFO) << "blake2b return=" << ret;
-
-  str = "";
+  //str = "";
   for (int i = 0; i < 32; ++i)
     str += Strings::Format("%02x", out[i]);
   DLOG(INFO) << str;
+
+  uint8 shortJobId = (uint8)atoi(params[1].str());
+  LocalJob *localJob = findLocalJob(shortJobId);
+  if (nullptr == localJob) {
+    LOG(ERROR) << "sia local job not found " << (int)shortJobId;
+    return;
+  }
+
+  shared_ptr<StratumJobEx> exjob;
+  exjob = server_->jobRepository_->getStratumJobEx(localJob->jobId_);
+  if (nullptr == exjob || nullptr == exjob->sjob_) {
+    LOG(ERROR) << "sia local job not found " << std::hex << localJob->jobId_;
+    return;
+  }
+
+  arith_uint256 shareTarget(str);
+  arith_uint256 networkTarget = UintToArith256(exjob->sjob_->networkTarget_);
+  //uint256 jobTarget;
+  //DiffToTarget(localJob->jobDifficulty_, jobTarget);
+  if (shareTarget < networkTarget) {
+    //valid share
+    //submit share
+    LOG(INFO) << "sia solution found";
+  }
 }
 
 ///////////////////////////////// AgentSessions ////////////////////////////////
