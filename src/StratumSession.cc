@@ -1234,7 +1234,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
     size_t pos;
     uint64_t nonce = stoull(sNonce, &pos, 16);
 
-    LocalShare localShare(0, nonce, share.timestamp_);
+    LocalShare localShare(nonce, 0, 0);
     // can't find local share
     if (!server_->isEnableSimulator_ && !localJob->addLocalShare(localShare))
     {
@@ -1365,6 +1365,7 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
   auto params = (const_cast<JsonNode &>(jparams)).array();
   if (params.size() != 3)
   {
+    responseError(idStr, StratumError::ILLEGAL_PARARMS);
     LOG(ERROR) << "illegal header size: " << params.size();
     return;
   }
@@ -1375,6 +1376,7 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
     header = header.substr(2, 160);
   if (header.length() != 160)
   {
+    responseError(idStr, StratumError::ILLEGAL_PARARMS);
     LOG(ERROR) << "illegal header" << params[2].str();
     return;
   }
@@ -1400,6 +1402,7 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
   uint8 shortJobId = (uint8)atoi(params[1].str());
   LocalJob *localJob = findLocalJob(shortJobId);
   if (nullptr == localJob) {
+    responseError(idStr, StratumError::JOB_NOT_FOUND);
     LOG(ERROR) << "sia local job not found " << (int)shortJobId;
     return;
   }
@@ -1407,19 +1410,45 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
   shared_ptr<StratumJobEx> exjob;
   exjob = server_->jobRepository_->getStratumJobEx(localJob->jobId_);
   if (nullptr == exjob || nullptr == exjob->sjob_) {
+    responseError(idStr, StratumError::JOB_NOT_FOUND);
     LOG(ERROR) << "sia local job not found " << std::hex << localJob->jobId_;
     return;
   }
 
+  uint64 nonce = *((uint64*) (bHeader + 32));
+  LocalShare localShare(nonce, 0, 0);
+  if (!server_->isEnableSimulator_ && !localJob->addLocalShare(localShare))
+  {
+    responseError(idStr, StratumError::DUPLICATE_SHARE);
+    LOG(ERROR) << "duplicated share nonce " << std::hex << nonce;
+    // add invalid share to counter
+    invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
+    return;
+  }
+
+  Share share;
+  share.jobId_ = localJob->jobId_;
+  share.workerHashId_ = worker_.workerHashId_;
+  share.ip_ = clientIpInt_;
+  share.userId_ = worker_.userId_;
+  share.share_ = localJob->jobDifficulty_;
+  share.timestamp_ = (uint32_t)time(nullptr);
+  share.result_ = Share::Result::ACCEPT;
+
   arith_uint256 shareTarget(str);
   arith_uint256 networkTarget = UintToArith256(exjob->sjob_->networkTarget_);
+  
   //uint256 jobTarget;
   //DiffToTarget(localJob->jobDifficulty_, jobTarget);
   if (shareTarget < networkTarget) {
     //valid share
     //submit share
+    diffController_->addAcceptedShare(share.share_);
     LOG(INFO) << "sia solution found";
   }
+
+  rpc2ResponseBoolean(idStr, true);
+  server_->sendShare2Kafka((const uint8_t *)&share, sizeof(Share));
 }
 
 ///////////////////////////////// AgentSessions ////////////////////////////////
