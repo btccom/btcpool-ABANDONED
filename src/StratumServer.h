@@ -49,7 +49,7 @@
 
 class Server;
 class StratumJobEx;
-
+class StratumServer;
 
 #ifndef WORK_WITH_STRATUM_SWITCHER
 
@@ -336,16 +336,7 @@ public:
   Server(const int32_t shareAvgSeconds);
   virtual ~Server();
 
-  bool setup(const char *ip, const unsigned short port, const char *kafkaBrokers,
-             const string &userAPIUrl,
-             const uint8_t serverId, const string &fileLastNotifyTime,
-             bool isEnableSimulator,
-             bool isSubmitInvalidBlock,
-             bool isDevModeEnable,
-             float minerDifficulty,
-             const string &consumerTopic,
-             uint32 maxJobDelay,
-             shared_ptr<DiffController> defaultDifficultyController);
+  bool setup(StratumServer* sserver);
   void run();
   void stop();
 
@@ -418,6 +409,8 @@ public:
                                Server *server, struct sockaddr *saddr,
                                const int32_t shareAvgSeconds,
                                const uint32_t sessionID);
+  
+  void sendSolvedShare2Kafka(uint8* buf, int len);
 };
 
 ////////////////////////////////// StratumServer ///////////////////////////////
@@ -451,6 +444,8 @@ public:
   string consumerTopic_;
   uint32 maxJobDelay_;
   shared_ptr<DiffController> defaultDifficultyController_;
+  string solvedShareTopic_;
+  string shareTopic_;
 
   StratumServer(const char *ip, const unsigned short port,
                 const char *kafkaBrokers,
@@ -462,7 +457,9 @@ public:
                 float minerDifficulty,
                 const string &consumerTopic,
                 uint32 maxJobDelay,
-                shared_ptr<DiffController> defaultDifficultyController);
+                shared_ptr<DiffController> defaultDifficultyController,
+                const string& solvedShareTopic,
+                const string& shareTopic);
   ~StratumServer();
   bool createServer(string type, const int32_t shareAvgSeconds);
   bool init();

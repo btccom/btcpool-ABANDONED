@@ -208,7 +208,9 @@ int main(int argc, char **argv)
                                        minerDifficulty,
                                        cfg.lookup("sserver.consumer_topic"),
                                        maxJobDelay,
-                                       dc);
+                                       dc,
+                                       cfg.lookup("sserver.solved_share_topic"),
+                                       cfg.lookup("sserver.share_topic"));
     if (!gStratumServer->createServer(cfg.lookup("sserver.type"), shareAvgSeconds))
     {
       LOG(FATAL) << "createServer failure";
