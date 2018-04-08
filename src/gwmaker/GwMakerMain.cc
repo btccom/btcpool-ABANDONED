@@ -42,6 +42,7 @@
 using namespace std;
 using namespace libconfig;
 
+static vector<GwDefinition> gGwDefiniitons;
 static vector<shared_ptr<GwMaker>> gGwMakers;
 
 void handler(int sig) {
