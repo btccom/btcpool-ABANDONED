@@ -46,6 +46,15 @@ class GwHandler {
     virtual ~GwHandler() {}
 };
 
+class GwHandlerRsk : public GwHandler 
+{
+  bool checkFields(JsonNode &r);
+  string constructRawMsg(const GwDefinition& def, const uint256 &gwHash, JsonNode &r);
+
+  public:
+    virtual string processRawMsg(const GwDefinition& def, const string& msg);
+};
+
 class GwHandlerEth : public GwHandler
 {
   bool checkFields(JsonNode &r);
@@ -79,28 +88,20 @@ class GwMaker {
   GwDefinition gwDef_;
   atomic<bool> running_;
 
-// protected:
-//   string rskdRpcAddr_;
-//   string rskdRpcUserpass_;
-
 private:
   uint32_t kRpcCallInterval_;
 
   string kafkaBrokers_;
   KafkaProducer kafkaProducer_;
 
-  bool rskdRpcGw(string &resp);
+  bool callRpcGw(string &resp);
   string makeRawGwMsg();
 
   void submitRawGwMsg();
 
   void kafkaProduceMsg(const void *payload, size_t len);
-  //virtual string constructRequest();
-  virtual bool checkFields(JsonNode &r);
-  virtual string constructRawMsg(string &gw, JsonNode &r);
+
 public:
-  // GwMaker(const string &rskdRpcAddr, const string &rskdRpcUserpass,
-  //          const string &kafkaBrokers, uint32_t kRpcCallInterval);
   GwMaker(const GwDefinition gwDef, const string &kafkaBrokers);
   virtual ~GwMaker();
 
@@ -108,14 +109,5 @@ public:
   void stop();
   void run();
 };
-
-// class GwMakerEth : public GwMaker {
-//   virtual string constructRequest();
-//   virtual bool checkFields(JsonNode &r);
-//   virtual string constructRawMsg(string &gw, JsonNode &r);
-// public:
-//   GwMakerEth(const string &rskdRpcAddr, const string &rskdRpcUserpass,
-//            const string &kafkaBrokers, uint32_t kRpcCallInterval);
-// };
 
 #endif

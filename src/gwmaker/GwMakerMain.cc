@@ -42,7 +42,6 @@
 using namespace std;
 using namespace libconfig;
 
-//GwMaker *gGwMaker = nullptr;
 static vector<shared_ptr<GwMaker>> gGwMakers;
 
 void handler(int sig) {
@@ -50,41 +49,21 @@ void handler(int sig) {
     if (gwMaker)
       gwMaker->stop();
   }
-  // if (gGwMaker) {
-  //   gGwMaker->stop();
-  // }
 }
 
 void usage() {
   fprintf(stderr, "Usage:\n\tgwmaker -c \"gwmaker.cfg\" -l \"log_dir\"\n");
 }
 
-// GwMaker* createGwMaker (Config &cfg) {
-//   GwMaker* gGwMaker = NULL;
-//   uint32_t pollPeriod = 100;
-//   cfg.lookupValue("gwmaker.poll_period", pollPeriod);
-//   string type = cfg.lookup("rskd.type");
-//   if ("BTC" == type) {
-//     gGwMaker = new GwMaker(cfg.lookup("rskd.rpc_addr"),
-//                            cfg.lookup("rskd.rpc_userpwd"),
-//                            cfg.lookup("kafka.brokers"),
-//                            pollPeriod);
-//   } else if ("ETH" == type) {
-//     gGwMaker = new GwMakerEth(cfg.lookup("rskd.rpc_addr"),
-//                            cfg.lookup("rskd.rpc_userpwd"),
-//                            cfg.lookup("kafka.brokers"),
-//                            pollPeriod);
-//   }
-
-//   return gGwMaker;
-// }
-
 GwHandler* createHandler(const string& type) {
   GwHandler* handler = nullptr;
-  if ("ETH" == type)
+
+  if (type == "ETH")
     return new GwHandlerEth();
-  else if ("SIA" == type)
+  else if (type == "SIA")
     return new GwHandlerSia();
+  else if (type == "RSK")
+    return new GwHandlerRsk();
 
   return handler;
 }
@@ -96,10 +75,6 @@ void initDefinitions(const Config &cfg)
 
   for (int i = 0; i < definitions.getLength(); i++)
   {
-    // string rpcAddr, rpcUserpwd;
-    // bitcoinds[i].lookupValue("rpc_addr", rpcAddr);
-    // bitcoinds[i].lookupValue("rpc_userpwd", rpcUserpwd);
-    // gBlockMaker->addBitcoind(rpcAddr, rpcUserpwd);
     string addr = definitions[i].lookup("addr");
     string userpwd = definitions[i].lookup("userpwd");
     string data = definitions[i].lookup("data");
@@ -126,28 +101,6 @@ void initDefinitions(const Config &cfg)
     else
       LOG(ERROR) << "created handler failed for type " << handlerType;
   }
-
-  // gGwDefiniitons.push_back(
-  //     {"http://127.0.0.1:9980/miner/header",
-  //      "xxx",
-  //      "",
-  //      "Sia-Agent",
-  //      "siaraw",
-  //      "127.0.0.1:9092",
-  //      500,
-  //      make_shared<GwHandlerSia>(),
-  //      false});
-
-  // gGwDefiniitons.push_back(
-  //     {"http://127.0.0.1:8545",
-  //      "user:pass",
-  //      "{\"jsonrpc\": \"2.0\", \"method\": \"eth_getWork\", \"params\": [], \"id\": 1}",
-  //      "curl",
-  //      KAFKA_TOPIC_RAWGW,
-  //      "127.0.0.1:9092",
-  //      500,
-  //      make_shared<GwHandlerEth>(),
-  //      true});
 }
 
 void workerThread(shared_ptr<GwMaker> gwMaker) {
@@ -213,52 +166,41 @@ int main(int argc, char **argv) {
   signal(SIGTERM, handler);
   signal(SIGINT,  handler);
 
-  initDefinitions(cfg);
-  vector<shared_ptr<thread>> workers;
-  string brokers = cfg.lookup("kafka.brokers");
-  for (auto gwDef : gGwDefiniitons)
+  try
   {
-    if (gwDef.enabled)
+    initDefinitions(cfg);
+    vector<shared_ptr<thread>> workers;
+    string brokers = cfg.lookup("kafka.brokers");
+
+    // init gwMaker
+    for (auto gwDef : gGwDefiniitons)
     {
-      shared_ptr<GwMaker> gwMaker = std::make_shared<GwMaker>(gwDef, brokers);
-      try
+      if (gwDef.enabled)
       {
-        if (gwMaker->init()) {
-          gGwMakers.push_back(gwMaker);
-          workers.push_back(std::make_shared<thread>(workerThread, gwMaker));
-        }
-        else
-          LOG(FATAL) << "gwmaker init failure " << gwDef.topic;
+        shared_ptr<GwMaker> gwMaker = std::make_shared<GwMaker>(gwDef, brokers);
+          if (gwMaker->init()) {
+            gGwMakers.push_back(gwMaker);
+            workers.push_back(std::make_shared<thread>(workerThread, gwMaker));
+          }
+          else
+            LOG(FATAL) << "gwmaker init failure " << gwDef.topic;
       }
-      catch (std::exception &e)
-      {
-        LOG(FATAL) << "exception: " << e.what();
+    }
+
+    // run gwMaker
+    for (auto pWorker : workers) {
+      if (pWorker->joinable()) {
+        LOG(INFO) << "wait for worker " << pWorker->get_id();
+        pWorker->join();
+        LOG(INFO) << "worker exit";
       }
     }
   }
-
-  for (auto pWorker : workers) {
-    if (pWorker->joinable()) {
-      LOG(INFO) << "wait for worker " << pWorker->get_id();
-      pWorker->join();
-      LOG(INFO) << "worker exit";
-    }
+  catch (std::exception &e)
+  {
+    LOG(FATAL) << "exception: " << e.what();
   }
 
-  //TODO: run logic
-  //gGwMaker = createGwMaker(cfg);
-
-  // try {
-  //   if (!gGwMaker->init()) {
-  //     LOG(FATAL) << "gwmaker init failure";
-  //   } else {
-  //     gGwMaker->run();
-  //   }
-  //   delete gGwMaker;
-  // } catch (std::exception & e) {
-  //   LOG(FATAL) << "exception: " << e.what();
-  //   return 1;
-  // }
   LOG(INFO) << "gwmaker exit";
   google::ShutdownGoogleLogging();
   return 0;

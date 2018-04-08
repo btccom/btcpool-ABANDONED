@@ -38,15 +38,8 @@
 #include <utilstrencodings.h>
 #include "Utils.h"
 
-// GwMaker::GwMaker(const string &rskdRpcAddr, const string &rskdRpcUserpass,
-//                    const string &kafkaBrokers, uint32_t kRpcCallInterval)
-// : running_(true), rskdRpcAddr_(rskdRpcAddr),
-// rskdRpcUserpass_(rskdRpcUserpass), kRpcCallInterval_(kRpcCallInterval),
-// kafkaBrokers_(kafkaBrokers),
-// kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGW, 0/* partition */)
-// {
-// }
 
+///////////////////////////////GwMaker////////////////////////////////////
 GwMaker::GwMaker(const GwDefinition gwDef,
                  const string &kafkaBrokers) : gwDef_(gwDef),
                                                running_(true),
@@ -88,11 +81,7 @@ void GwMaker::kafkaProduceMsg(const void *payload, size_t len) {
   kafkaProducer_.produce(payload, len);
 }
 
-// string GwMaker::constructRequest() {
-//   //return "{\"jsonrpc\": \"2.0\", \"method\": \"mnr_getWork\", \"params\": [], \"id\": 1}";
-// }
-
-bool GwMaker::rskdRpcGw(string &response)
+bool GwMaker::callRpcGw(string &response)
 {
   //string request = constructRequest();
   bool res = rpcCall(gwDef_.addr.c_str(),
@@ -103,57 +92,15 @@ bool GwMaker::rskdRpcGw(string &response)
 
   if (!res)
   {
-    LOG(ERROR) << "rskd RPC failure";
+    LOG(ERROR) << "call RPC failure";
     return false;
   }
   return true;
-}
-
-bool GwMaker::checkFields(JsonNode &r) {
-  if (r["result"].type()                                != Utilities::JS::type::Obj ||
-      r["result"]["parentBlockHash"].type()             != Utilities::JS::type::Str ||
-      r["result"]["blockHashForMergedMining"].type()    != Utilities::JS::type::Str ||
-      r["result"]["target"].type()                      != Utilities::JS::type::Str ||
-      r["result"]["feesPaidToMiner"].type()             != Utilities::JS::type::Str ||
-      r["result"]["notify"].type()                      != Utilities::JS::type::Bool) {
-    return false;
-  }
-
-  return true;
-}
-
-string GwMaker::constructRawMsg(string &gw, JsonNode &r) {
-  return "";
-  // const uint256 gwHash = Hash(gw.begin(), gw.end());
-
-  // LOG(INFO) << ", parent block hash: "    << r["result"]["parentBlockHash"].str()
-  // << ", block hash for merge mining: " << r["result"]["blockHashForMergedMining"].str()
-  // << ", target: "               << r["result"]["target"].str()
-  // << ", fees paid to miner: "   << r["result"]["feesPaidToMiner"].str()
-  // << ", notify: " << r["result"]["notify"].boolean()
-  // << ", gwhash: " << gwHash.ToString();
-
-  // return Strings::Format("{\"created_at_ts\":%u,"
-  //                        "\"rskdRpcAddress\":\"%s\","
-  //                        "\"rskdRpcUserPwd\":\"%s\","
-  //                        "\"target\":\"%s\","
-  //                        "\"parentBlockHash\":\"%s\","
-  //                        "\"blockHashForMergedMining\":\"%s\","
-  //                        "\"feesPaidToMiner\":\"%s\","
-  //                        "\"notify\":\"%s\"}",
-  //                        (uint32_t)time(nullptr), 
-  //                        rskdRpcAddr_.c_str(), 
-  //                        rskdRpcUserpass_.c_str(),
-  //                        r["result"]["target"].str().c_str(), 
-  //                        r["result"]["parentBlockHash"].str().c_str(),
-  //                        r["result"]["blockHashForMergedMining"].str().c_str(),
-  //                        r["result"]["feesPaidToMiner"].str().c_str(),
-  //                        r["result"]["notify"].boolean() ? "true" : "false");
 }
 
 string GwMaker::makeRawGwMsg() {
   string gw;
-  if (!rskdRpcGw(gw)) {
+  if (!callRpcGw(gw)) {
     return "";
   }
   LOG(INFO) << "getwork len: " << gw.length();
@@ -183,6 +130,69 @@ void GwMaker::run() {
   LOG(INFO) << "GwMaker " << gwDef_.topic << " stopped";
 }
 
+
+///////////////////////////////GwHandlerRsk////////////////////////////////////
+string GwHandlerRsk::processRawMsg(const GwDefinition& def, const string& msg) 
+{
+  JsonNode r;
+  if (!JsonNode::parse(msg.c_str(), msg.c_str() + msg.length(), r)) {
+    LOG(ERROR) << "decode gw failure: " << msg;
+    return "";
+  }
+
+  // check fields
+  if (!checkFields(r)) {
+    LOG(ERROR) << "gw check fields failure";
+    return "";
+  }
+
+  const uint256 gwHash = Hash(msg.begin(), msg.end());
+
+  return constructRawMsg(def, gwHash, r);
+}
+
+bool GwHandlerRsk::checkFields(JsonNode &r) {
+  if (r["result"].type()                                != Utilities::JS::type::Obj ||
+      r["result"]["parentBlockHash"].type()             != Utilities::JS::type::Str ||
+      r["result"]["blockHashForMergedMining"].type()    != Utilities::JS::type::Str ||
+      r["result"]["target"].type()                      != Utilities::JS::type::Str ||
+      r["result"]["feesPaidToMiner"].type()             != Utilities::JS::type::Str ||
+      r["result"]["notify"].type()                      != Utilities::JS::type::Bool)
+  {
+    return false;
+  }
+
+  return true;
+}
+
+string GwHandlerRsk::constructRawMsg(const GwDefinition& def, const uint256 &gwHash, JsonNode &r) {
+
+  LOG(INFO) << ", parent block hash: "    << r["result"]["parentBlockHash"].str()
+  << ", block hash for merge mining: " << r["result"]["blockHashForMergedMining"].str()
+  << ", target: "               << r["result"]["target"].str()
+  << ", fees paid to miner: "   << r["result"]["feesPaidToMiner"].str()
+  << ", notify: " << r["result"]["notify"].boolean()
+  << ", gwhash: " << gwHash.ToString();
+
+  return Strings::Format("{\"created_at_ts\":%u,"
+                        "\"rskdRpcAddress\":\"%s\","
+                        "\"rskdRpcUserPwd\":\"%s\","
+                        "\"target\":\"%s\","
+                        "\"parentBlockHash\":\"%s\","
+                        "\"blockHashForMergedMining\":\"%s\","
+                        "\"feesPaidToMiner\":\"%s\","
+                        "\"notify\":\"%s\"}",
+                        (uint32_t)time(nullptr), 
+                        def.addr.c_str(),
+                        def.userpwd.c_str(),
+                        r["result"]["target"].str().c_str(), 
+                        r["result"]["parentBlockHash"].str().c_str(),
+                        r["result"]["blockHashForMergedMining"].str().c_str(),
+                        r["result"]["feesPaidToMiner"].str().c_str(),
+                        r["result"]["notify"].boolean() ? "true" : "false");
+}
+
+
 ///////////////////////////////GwHandlerEth////////////////////////////////////
 string GwHandlerEth::processRawMsg(const GwDefinition& def, const string& msg) 
 {
@@ -203,16 +213,6 @@ string GwHandlerEth::processRawMsg(const GwDefinition& def, const string& msg)
 
   return constructRawMsg(def, r);
 }
-
-// GwMakerEth::GwMakerEth(const string &rskdRpcAddr, const string &rskdRpcUserpass,
-//                        const string &kafkaBrokers, uint32_t kRpcCallInterval) : GwMaker(rskdRpcAddr, rskdRpcUserpass, kafkaBrokers, kRpcCallInterval)
-// {
-// }
-
-// string GwMakerEth::constructRequest()
-// {
-//   return "{\"jsonrpc\": \"2.0\", \"method\": \"eth_getWork\", \"params\": [], \"id\": 1}";
-// }
 
 bool GwHandlerEth::checkFields(JsonNode &r)
 {
