@@ -29,6 +29,8 @@
   @author Martin Medina
   @copyright RSK Labs Ltd.
   @version 1.0 30/03/17 
+
+  maintained by HaoLi (fatrat1117) and YihaoPeng since Feb 20, 2018
 */
 
 #include "GwMaker.h"
@@ -40,10 +42,12 @@
 
 
 ///////////////////////////////GwMaker////////////////////////////////////
-GwMaker::GwMaker(const GwDefinition gwDef,
-                 const string &kafkaBrokers) : gwDef_(gwDef),
+GwMaker::GwMaker(shared_ptr<GwHandler> handle,
+                 const string &kafkaBrokers) : handle_(handle),
                                                running_(true),
-                                               kafkaProducer_(kafkaBrokers.c_str(), gwDef.topic.c_str(), 0 /* partition */)
+                                               kafkaProducer_(kafkaBrokers.c_str(),
+                                                              handle->def().rawGwTopic_.c_str(),
+                                                              0 /* partition */)
 {
 }
 
@@ -74,37 +78,15 @@ void GwMaker::stop() {
     return;
   }
   running_ = false;
-  LOG(INFO) << "stop GwMaker " << gwDef_.topic;
+  LOG(INFO) << "stop GwMaker " << handle_->def().chainType_ << ", topic: " << handle_->def().rawGwTopic_;
 }
 
 void GwMaker::kafkaProduceMsg(const void *payload, size_t len) {
   kafkaProducer_.produce(payload, len);
 }
 
-bool GwMaker::callRpcGw(string &response)
-{
-  //string request = constructRequest();
-  bool res = rpcCall(gwDef_.addr.c_str(),
-                     gwDef_.userpwd.c_str(),
-                     gwDef_.data.empty() ? nullptr : gwDef_.data.c_str(),
-                     response,
-                     gwDef_.agent.c_str());
-
-  if (!res)
-  {
-    LOG(ERROR) << "call RPC failure";
-    return false;
-  }
-  return true;
-}
-
 string GwMaker::makeRawGwMsg() {
-  string gw;
-  if (!callRpcGw(gw)) {
-    return "";
-  }
-  LOG(INFO) << "getwork len: " << gw.length();
-  return gwDef_.handler ? gwDef_.handler->processRawMsg(gwDef_, gw) : "";
+  return handle_->makeRawGwMsg();
 }
 
 void GwMaker::submitRawGwMsg() {
@@ -123,16 +105,49 @@ void GwMaker::submitRawGwMsg() {
 void GwMaker::run() {
 
   while (running_) {
-    usleep(gwDef_.interval * 1000);
+    usleep(handle_->def().rpcInterval_ * 1000);
     submitRawGwMsg();
   }
 
-  LOG(INFO) << "GwMaker " << gwDef_.topic << " stopped";
+  LOG(INFO) << "GwMaker " << handle_->def().chainType_ << ", topic: " << handle_->def().rawGwTopic_ << " stopped";
+}
+
+
+///////////////////////////////GwHandler////////////////////////////////////
+GwHandler::~GwHandler() {
+}
+
+string GwHandler::makeRawGwMsg() {
+  string gw;
+  if (!callRpcGw(gw)) {
+    return "";
+  }
+  LOG(INFO) << "getwork len: " << gw.length();
+  return processRawGw(gw);
+}
+
+bool GwHandler::callRpcGw(string &response)
+{
+  string request = getRequestData();
+  string userAgent = getUserAgent();
+
+  bool res = rpcCall(def_.rpcAddr_.c_str(),
+                     def_.rpcUserPwd_.c_str(),
+                     request.empty() ? nullptr : request.c_str(),
+                     response,
+                     userAgent.c_str());
+
+  if (!res)
+  {
+    LOG(ERROR) << "call RPC failure";
+    return false;
+  }
+  return true;
 }
 
 
 ///////////////////////////////GwHandlerRsk////////////////////////////////////
-string GwHandlerRsk::processRawMsg(const GwDefinition& def, const string& msg) 
+string GwHandlerRsk::processRawGw(const string& msg) 
 {
   JsonNode r;
   if (!JsonNode::parse(msg.c_str(), msg.c_str() + msg.length(), r)) {
@@ -148,7 +163,7 @@ string GwHandlerRsk::processRawMsg(const GwDefinition& def, const string& msg)
 
   const uint256 gwHash = Hash(msg.begin(), msg.end());
 
-  return constructRawMsg(def, gwHash, r);
+  return constructRawMsg(gwHash, r);
 }
 
 bool GwHandlerRsk::checkFields(JsonNode &r) {
@@ -165,7 +180,7 @@ bool GwHandlerRsk::checkFields(JsonNode &r) {
   return true;
 }
 
-string GwHandlerRsk::constructRawMsg(const GwDefinition& def, const uint256 &gwHash, JsonNode &r) {
+string GwHandlerRsk::constructRawMsg(const uint256 &gwHash, JsonNode &r) {
 
   LOG(INFO) << ", parent block hash: "    << r["result"]["parentBlockHash"].str()
   << ", block hash for merge mining: " << r["result"]["blockHashForMergedMining"].str()
@@ -183,8 +198,8 @@ string GwHandlerRsk::constructRawMsg(const GwDefinition& def, const uint256 &gwH
                         "\"feesPaidToMiner\":\"%s\","
                         "\"notify\":\"%s\"}",
                         (uint32_t)time(nullptr), 
-                        def.addr.c_str(),
-                        def.userpwd.c_str(),
+                        def_.rpcAddr_.c_str(),
+                        def_.rpcUserPwd_.c_str(),
                         r["result"]["target"].str().c_str(), 
                         r["result"]["parentBlockHash"].str().c_str(),
                         r["result"]["blockHashForMergedMining"].str().c_str(),
@@ -194,7 +209,7 @@ string GwHandlerRsk::constructRawMsg(const GwDefinition& def, const uint256 &gwH
 
 
 ///////////////////////////////GwHandlerEth////////////////////////////////////
-string GwHandlerEth::processRawMsg(const GwDefinition& def, const string& msg) 
+string GwHandlerEth::processRawGw(const string& msg) 
 {
   JsonNode r;
   if (!JsonNode::parse(msg.c_str(), msg.c_str() + msg.length(), r)) {
@@ -211,7 +226,7 @@ string GwHandlerEth::processRawMsg(const GwDefinition& def, const string& msg)
     return "";
   }
 
-  return constructRawMsg(def, r);
+  return constructRawMsg(r);
 }
 
 bool GwHandlerEth::checkFields(JsonNode &r)
@@ -263,7 +278,7 @@ bool GwHandlerEth::checkFields(JsonNode &r)
   return true;
 }
 
-string GwHandlerEth::constructRawMsg(const GwDefinition& def, JsonNode &r) {
+string GwHandlerEth::constructRawMsg(JsonNode &r) {
   // const uint256 gwHash = Hash(gw.begin(), gw.end());
   // LOG(INFO) << "gwhash: " << gwHash.ToString();
   auto result = r["result"].array();
@@ -274,8 +289,8 @@ string GwHandlerEth::constructRawMsg(const GwDefinition& def, JsonNode &r) {
                          "\"hHash\":\"%s\","
                          "\"sHash\":\"%s\"}",
                          (uint32_t)time(nullptr), 
-                         def.addr.c_str(), 
-                         def.userpwd.c_str(),
+                         def_.rpcAddr_.c_str(), 
+                         def_.rpcUserPwd_.c_str(),
                          result[2].str().c_str(),
                          result[0].str().c_str(), 
                          result[1].str().c_str());
@@ -283,7 +298,7 @@ string GwHandlerEth::constructRawMsg(const GwDefinition& def, JsonNode &r) {
 
 
 ///////////////////////////////GwHandlerSia////////////////////////////////////
-string GwHandlerSia::processRawMsg(const GwDefinition &def, const string &msg)
+string GwHandlerSia::processRawGw(const string &msg)
 {
   if (msg.length() != 112)
     return "";
@@ -343,8 +358,8 @@ string GwHandlerSia::processRawMsg(const GwDefinition &def, const string &msg)
                          "\"target\":\"%s\","
                          "\"hHash\":\"%s\"}",
                          (uint32_t)time(nullptr),
-                         def.addr.c_str(),
-                         def.userpwd.c_str(),
+                         def_.rpcAddr_.c_str(),
+                         def_.rpcUserPwd_.c_str(),
                          targetStr.c_str(),
                          headerStr.c_str());
 }
