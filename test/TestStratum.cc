@@ -517,7 +517,7 @@ TEST(Stratum, StratumJobWithSegwitPayoutAddr) {
 }
 #endif
 
-//#ifdef CHAIN_TYPE_BTC
+#ifdef CHAIN_TYPE_BTC
 TEST(Stratum, StratumJobWithRskWork) {
   StratumJob sjob;
   RskWork rskWork;
@@ -645,4 +645,4 @@ TEST(Stratum, StratumJobWithRskWork) {
     ASSERT_GE(time(nullptr), jobId2Time(sjob.jobId_));
   }
 }
-//#endif
+#endif
