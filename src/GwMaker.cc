@@ -161,9 +161,7 @@ string GwHandlerRsk::processRawGw(const string& msg)
     return "";
   }
 
-  const uint256 gwHash = Hash(msg.begin(), msg.end());
-
-  return constructRawMsg(gwHash, r);
+  return constructRawMsg(r);
 }
 
 bool GwHandlerRsk::checkFields(JsonNode &r) {
@@ -180,14 +178,14 @@ bool GwHandlerRsk::checkFields(JsonNode &r) {
   return true;
 }
 
-string GwHandlerRsk::constructRawMsg(const uint256 &gwHash, JsonNode &r) {
+string GwHandlerRsk::constructRawMsg(JsonNode &r) {
 
-  LOG(INFO) << ", parent block hash: "    << r["result"]["parentBlockHash"].str()
+  LOG(INFO) << "chain: " << def_.chainType_ << ", topic: " << def_.rawGwTopic_
+  << ", parent block hash: "    << r["result"]["parentBlockHash"].str()
   << ", block hash for merge mining: " << r["result"]["blockHashForMergedMining"].str()
   << ", target: "               << r["result"]["target"].str()
   << ", fees paid to miner: "   << r["result"]["feesPaidToMiner"].str()
-  << ", notify: " << r["result"]["notify"].boolean()
-  << ", gwhash: " << gwHash.ToString();
+  << ", notify: " << r["result"]["notify"].boolean();
 
   return Strings::Format("{\"created_at_ts\":%u,"
                         "\"rskdRpcAddress\":\"%s\","
@@ -216,9 +214,6 @@ string GwHandlerEth::processRawGw(const string& msg)
     LOG(ERROR) << "decode gw failure: " << msg;
     return "";
   }
-
-  //LOG(INFO) << "result type: " << (int)r["result"].type();
-  //LOG(INFO) << "parse result: " << r["result"].str();
 
   // check fields
   if (!checkFields(r)) {
@@ -279,9 +274,13 @@ bool GwHandlerEth::checkFields(JsonNode &r)
 }
 
 string GwHandlerEth::constructRawMsg(JsonNode &r) {
-  // const uint256 gwHash = Hash(gw.begin(), gw.end());
-  // LOG(INFO) << "gwhash: " << gwHash.ToString();
   auto result = r["result"].array();
+  
+  LOG(INFO) << "chain: " << def_.chainType_ << ", topic: " << def_.rawGwTopic_
+            << ", target: " << result[2].str()
+            << ", hHash: " << result[0].str()
+            << ", sHash: " << result[1].str();
+
   return Strings::Format("{\"created_at_ts\":%u,"
                          "\"rskdRpcAddress\":\"%s\","
                          "\"rskdRpcUserPwd\":\"%s\","
@@ -350,6 +349,10 @@ string GwHandlerSia::processRawGw(const string &msg)
     uint8 val = (uint8)msg[i];
     headerStr += Strings::Format("%02x", val);
   }
+
+  LOG(INFO) << "chain: " << def_.chainType_ << ", topic: " << def_.rawGwTopic_
+            << ", target: " << targetStr
+            << ", hHash: " << headerStr;
 
   //LOG(INFO) << "Sia work target 0x" << targetStr << ", blkId 0x" << blkIdStr << ;
   return Strings::Format("{\"created_at_ts\":%u,"

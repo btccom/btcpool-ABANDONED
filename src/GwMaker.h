@@ -92,7 +92,7 @@ class GwHandler {
 class GwHandlerRsk : public GwHandler 
 {
   bool checkFields(JsonNode &r);
-  string constructRawMsg(const uint256 &gwHash, JsonNode &r);
+  string constructRawMsg(JsonNode &r);
   string processRawGw(const string &gw);
 
   string getRequestData() { return "{\"jsonrpc\": \"2.0\", \"method\": \"mnr_getWork\", \"params\": [], \"id\": 1}"; }
