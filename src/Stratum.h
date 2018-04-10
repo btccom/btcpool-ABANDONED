@@ -44,7 +44,11 @@
 #include "rsk/RskWork.h"
 
 // TODO: update when next Halving
-#define BLOCK_REWARD 1250000000ll
+#ifdef CHAIN_TYPE_UBTC
+  #define BLOCK_REWARD 100000000ll  // now block reward of UBTC is 1
+#else
+  #define BLOCK_REWARD 1250000000ll // it's also 12.5 for other chains now
+#endif
 
 //
 // max coinbase tx size, bytes
