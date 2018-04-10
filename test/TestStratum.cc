@@ -516,3 +516,133 @@ TEST(Stratum, StratumJobWithSegwitPayoutAddr) {
   }
 }
 #endif
+
+#ifdef CHAIN_TYPE_BTC
+TEST(Stratum, StratumJobWithRskWork) {
+  StratumJob sjob;
+  RskWork rskWork;
+  string poolCoinbaseInfo = "/BTC.COM/";
+  uint32_t blockVersion = 0;
+
+  {
+    string gbt;
+    gbt += "{\"result\":{";
+    gbt += "  \"capabilities\": [";
+    gbt += "    \"proposal\"";
+    gbt += "  ],";
+    gbt += "  \"version\": 536870912,";
+    gbt += "  \"previousblockhash\": \"000000004f2ea239532b2e77bb46c03b86643caac3fe92959a31fd2d03979c34\",";
+    gbt += "  \"transactions\": [";
+    gbt += "    {";
+    gbt += "      \"data\": \"01000000010291939c5ae8191c2e7d4ce8eba7d6616a66482e3200037cb8b8c2d0af45b445000000006a47304402204df709d9e149804e358de4b082e41d8bb21b3c9d347241b728b1362aafcb153602200d06d9b6f2eca899f43dcd62ec2efb2d9ce2e10adf02738bb908420d7db93ede012103cae98ab925e20dd6ae1f76e767e9e99bc47b3844095c68600af9c775104fb36cffffffff0290f1770b000000001976a91400dc5fd62f6ee48eb8ecda749eaec6824a780fdd88aca08601000000000017a914eb65573e5dd52d3d950396ccbe1a47daf8f400338700000000\",";
+    gbt += "      \"hash\": \"bd36bd4fff574b573152e7d4f64adf2bb1c9ab0080a12f8544c351f65aca79ff\",";
+    gbt += "      \"depends\": [";
+    gbt += "      ],";
+    gbt += "      \"fee\": 10000,";
+    gbt += "      \"sigops\": 1";
+    gbt += "    }";
+    gbt += "  ],";
+    gbt += "  \"coinbaseaux\": {";
+    gbt += "    \"flags\": \"\"";
+    gbt += "  },";
+    gbt += "  \"coinbasevalue\": 312659655,";
+    gbt += "  \"longpollid\": \"000000004f2ea239532b2e77bb46c03b86643caac3fe92959a31fd2d03979c341911\",";
+    gbt += "  \"target\": \"000000000000018ae20000000000000000000000000000000000000000000000\",";
+    gbt += "  \"mintime\": 1469001544,";
+    gbt += "  \"mutable\": [";
+    gbt += "    \"time\",";
+    gbt += "    \"transactions\",";
+    gbt += "    \"prevblock\"";
+    gbt += "  ],";
+    gbt += "  \"noncerange\": \"00000000ffffffff\",";
+    gbt += "  \"sigoplimit\": 20000,";
+    gbt += "  \"sizelimit\": 1000000,";
+    gbt += "  \"curtime\": 1469006933,";
+    gbt += "  \"bits\": \"1a018ae2\",";
+    gbt += "  \"height\": 898487";
+    gbt += "}}";
+
+    uint32_t creationTime = (uint32_t)time(nullptr);
+    string rawgw;
+    rawgw  = Strings::Format("{\"created_at_ts\": %u,"
+                            "\"rskdRpcAddress\":\"http://10.0.2.2:4444\","
+                            "\"rskdRpcUserPwd\":\"user:pass\","
+                            "\"target\":\"0x5555555555555555555555555555555555555555555555555555555555555555\","
+                            "\"parentBlockHash\":\"0x13532f616f89e3ac2e0a9ef7363be28e7f2ca39764684995fb30c0d96e664ae4\","
+                            "\"blockHashForMergedMining\":\"0xe6b0a8e84e0ce68471ca28db4f51b71139b0ab78ae1c3e0ae8364604e9f8a15d\","
+                            "\"feesPaidToMiner\":\"0\","
+                            "\"notify\":\"true\"}", creationTime);
+
+    blockVersion = 0;
+    SelectParams(CBaseChainParams::TESTNET);
+    
+    bool resInitRskWork = rskWork.initFromGw(rawgw);
+    
+    ASSERT_TRUE(resInitRskWork);
+
+    ASSERT_EQ(rskWork.isInitialized(), true);
+    ASSERT_EQ(rskWork.getCreatedAt(), creationTime);
+    ASSERT_EQ(rskWork.getBlockHash(), "0xe6b0a8e84e0ce68471ca28db4f51b71139b0ab78ae1c3e0ae8364604e9f8a15d");
+    ASSERT_EQ(rskWork.getTarget(), "0x5555555555555555555555555555555555555555555555555555555555555555");
+    ASSERT_EQ(rskWork.getFees(), "0");
+    ASSERT_EQ(rskWork.getRpcAddress(), "http://10.0.2.2:4444");
+    ASSERT_EQ(rskWork.getRpcUserPwd(), "user:pass");
+    ASSERT_EQ(rskWork.getNotifyFlag(), true);
+
+    CTxDestination poolPayoutAddrTestnet = DecodeDestination("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U");
+    sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion, "", rskWork);
+
+    // check rsk required data copied properly to the stratum job
+    ASSERT_EQ(sjob.blockHashForMergedMining_, "0xe6b0a8e84e0ce68471ca28db4f51b71139b0ab78ae1c3e0ae8364604e9f8a15d");
+    ASSERT_EQ(sjob.rskNetworkTarget_, uint256S("0x5555555555555555555555555555555555555555555555555555555555555555"));
+    ASSERT_EQ(sjob.feesForMiner_, "0");
+    ASSERT_EQ(sjob.rskdRpcAddress_, "http://10.0.2.2:4444");
+    ASSERT_EQ(sjob.rskdRpcUserPwd_, "user:pass");
+    ASSERT_EQ(sjob.isRskCleanJob_, false);
+
+    // check rsk merged mining tag present in the coinbase
+    // Hex("RSKBLOCK:") = 0x52534b424c4f434b3a
+    string rskTagHex = "52534b424c4f434b3ae6b0a8e84e0ce68471ca28db4f51b71139b0ab78ae1c3e0ae8364604e9f8a15d";
+    size_t rskTagPos = sjob.coinbase2_.find(rskTagHex);
+    ASSERT_NE(rskTagPos, string::npos);
+
+    ASSERT_EQ(sjob.prevHash_, uint256S("000000004f2ea239532b2e77bb46c03b86643caac3fe92959a31fd2d03979c34"));
+    ASSERT_EQ(sjob.prevHashBeStr_, "03979c349a31fd2dc3fe929586643caabb46c03b532b2e774f2ea23900000000");
+    ASSERT_EQ(sjob.height_, 898487);
+    // 46 bytes, 5 bytes (timestamp), 9 bytes (poolCoinbaseInfo)
+    // 02000000010000000000000000000000000000000000000000000000000000000000000000ffffffff1e03b7b50d 0402363d58 2f4254432e434f4d2f
+    ASSERT_EQ(sjob.coinbase1_.substr(0, 92),
+              "02000000010000000000000000000000000000000000000000000000000000000000000000ffffffff1e03b7b50d");
+    ASSERT_EQ(sjob.coinbase1_.substr(102, 18), "2f4254432e434f4d2f");
+    // 0402363d58 -> 0x583d3602 = 1480406530 = 2016-11-29 16:02:10
+    uint32_t ts = (uint32_t)strtoull(sjob.coinbase1_.substr(94, 8).c_str(), nullptr, 16);
+    ts = HToBe(ts);
+    ASSERT_EQ(ts == time(nullptr) || ts + 1 == time(nullptr), true);
+
+    ASSERT_EQ(sjob.coinbase2_,
+              "ffffffff"  // sequence
+              "02"        // 2 outputs. Rsk tag is stored in an additional CTxOut besides the cb's standard output
+              
+              // c7cea21200000000 -> 0000000012a2cec7 -> 312659655
+              "c7cea21200000000"
+              // 0x19 -> 25 bytes of first output script
+              "1976a914ca560088c0fb5e6f028faa11085e643e343a8f5c88ac"
+              
+              // rsk tx out value
+              "0000000000000000"
+              // 0x29 = 41 bytes of second output script containing the rsk merged mining tag
+              "2952534b424c4f434b3ae6b0a8e84e0ce68471ca28db4f51b71139b0ab78ae1c3e0ae8364604e9f8a15d"
+              
+              // lock_time
+              "00000000");
+    ASSERT_EQ(sjob.merkleBranch_.size(), 1U);
+    ASSERT_EQ(sjob.merkleBranch_[0], uint256S("bd36bd4fff574b573152e7d4f64adf2bb1c9ab0080a12f8544c351f65aca79ff"));
+    ASSERT_EQ(sjob.nVersion_, 536870912);
+    ASSERT_EQ(sjob.nBits_,    436308706U);
+    ASSERT_EQ(sjob.nTime_,    1469006933U);
+    ASSERT_EQ(sjob.minTime_,  1469001544U);
+    ASSERT_EQ(sjob.coinbaseValue_, 312659655);
+    ASSERT_GE(time(nullptr), jobId2Time(sjob.jobId_));
+  }
+}
+#endif
