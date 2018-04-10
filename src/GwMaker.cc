@@ -181,21 +181,23 @@ bool GwHandlerRsk::checkFields(JsonNode &r) {
 string GwHandlerRsk::constructRawMsg(JsonNode &r) {
 
   LOG(INFO) << "chain: " << def_.chainType_ << ", topic: " << def_.rawGwTopic_
-  << ", parent block hash: "    << r["result"]["parentBlockHash"].str()
+  << ", parent block hash: "           << r["result"]["parentBlockHash"].str()
   << ", block hash for merge mining: " << r["result"]["blockHashForMergedMining"].str()
-  << ", target: "               << r["result"]["target"].str()
-  << ", fees paid to miner: "   << r["result"]["feesPaidToMiner"].str()
-  << ", notify: " << r["result"]["notify"].boolean();
+  << ", target: "                      << r["result"]["target"].str()
+  << ", fees paid to miner: "          << r["result"]["feesPaidToMiner"].str()
+  << ", notify: "                      << r["result"]["notify"].boolean();
 
   return Strings::Format("{\"created_at_ts\":%u,"
-                        "\"rskdRpcAddress\":\"%s\","
-                        "\"rskdRpcUserPwd\":\"%s\","
+                        "\"chainType\":\"%s\","
+                        "\"rpcAddress\":\"%s\","
+                        "\"rpcUserPwd\":\"%s\","
                         "\"target\":\"%s\","
                         "\"parentBlockHash\":\"%s\","
                         "\"blockHashForMergedMining\":\"%s\","
                         "\"feesPaidToMiner\":\"%s\","
                         "\"notify\":\"%s\"}",
-                        (uint32_t)time(nullptr), 
+                        (uint32_t)time(nullptr),
+                        def_.chainType_.c_str(),
                         def_.rpcAddr_.c_str(),
                         def_.rpcUserPwd_.c_str(),
                         r["result"]["target"].str().c_str(), 
@@ -276,18 +278,21 @@ bool GwHandlerEth::checkFields(JsonNode &r)
 string GwHandlerEth::constructRawMsg(JsonNode &r) {
   auto result = r["result"].array();
   
-  LOG(INFO) << "chain: " << def_.chainType_ << ", topic: " << def_.rawGwTopic_
+  LOG(INFO) << "chain: "    << def_.chainType_
+            << ", topic: "  << def_.rawGwTopic_
             << ", target: " << result[2].str()
-            << ", hHash: " << result[0].str()
-            << ", sHash: " << result[1].str();
+            << ", hHash: "  << result[0].str()
+            << ", sHash: "  << result[1].str();
 
   return Strings::Format("{\"created_at_ts\":%u,"
-                         "\"rskdRpcAddress\":\"%s\","
-                         "\"rskdRpcUserPwd\":\"%s\","
+                         "\"chainType\":\"%s\","
+                         "\"rpcAddress\":\"%s\","
+                         "\"rpcUserPwd\":\"%s\","
                          "\"target\":\"%s\","
                          "\"hHash\":\"%s\","
                          "\"sHash\":\"%s\"}",
-                         (uint32_t)time(nullptr), 
+                         (uint32_t)time(nullptr),
+                         def_.chainType_.c_str(),
                          def_.rpcAddr_.c_str(), 
                          def_.rpcUserPwd_.c_str(),
                          result[2].str().c_str(),
@@ -350,17 +355,20 @@ string GwHandlerSia::processRawGw(const string &msg)
     headerStr += Strings::Format("%02x", val);
   }
 
-  LOG(INFO) << "chain: " << def_.chainType_ << ", topic: " << def_.rawGwTopic_
+  LOG(INFO) << "chain: "    << def_.chainType_
+            << ", topic: "  << def_.rawGwTopic_
             << ", target: " << targetStr
-            << ", hHash: " << headerStr;
+            << ", hHash: "  << headerStr;
 
   //LOG(INFO) << "Sia work target 0x" << targetStr << ", blkId 0x" << blkIdStr << ;
   return Strings::Format("{\"created_at_ts\":%u,"
-                         "\"rskdRpcAddress\":\"%s\","
-                         "\"rskdRpcUserPwd\":\"%s\","
+                         "\"chainType\":\"%s\","
+                         "\"rpcAddress\":\"%s\","
+                         "\"rpcUserPwd\":\"%s\","
                          "\"target\":\"%s\","
                          "\"hHash\":\"%s\"}",
                          (uint32_t)time(nullptr),
+                         def_.chainType_.c_str(),
                          def_.rpcAddr_.c_str(),
                          def_.rpcUserPwd_.c_str(),
                          targetStr.c_str(),
