@@ -43,7 +43,6 @@ struct JobMakerDefinition
   string fileLastJobTime;
   string consumerTopic;
   string producerTopic;
-  uint32 consumerInterval;
   uint32 stratumJobInterval;
   uint32 maxJobDelay;
   shared_ptr<JobMakerHandler> handler;

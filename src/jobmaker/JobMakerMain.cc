@@ -90,8 +90,6 @@ void initDefinitions(const Config &cfg)
     const string payoutAddr = definitions[i].lookup("payout_address");
     const string producerTopic = definitions[i].lookup("producer_topic");
     string handlerType = definitions[i].lookup("handler");
-    uint32 consumerInterval = 500;
-    definitions[i].lookupValue("consumer_interval", consumerInterval);
     uint32 stratumJobInterval = 500;
     definitions[i].lookupValue("stratum_job_interval", stratumJobInterval);
     uint32 maxJobDelay = 500;
@@ -106,7 +104,6 @@ void initDefinitions(const Config &cfg)
            fileLastJobTime,
            consumerTopic,
            producerTopic,
-           consumerInterval,
            stratumJobInterval,
            maxJobDelay,
            handler,

@@ -423,7 +423,7 @@ void JobMaker::clearTimeoutGw()
 
 void JobMaker::runThreadConsumeRawGw() {
   const int32_t timeoutMs = 1000;
-  //LOG(INFO) << "runThreadConsumeRawGw " << running_;
+
   while (running_) {
     rd_kafka_message_t *rkmessage;
     rkmessage = kafkaRawGwConsumer_.consumer(timeoutMs);
@@ -435,7 +435,17 @@ void JobMaker::runThreadConsumeRawGw() {
 
     /* Return message to rdkafka */
     rd_kafka_message_destroy(rkmessage);
-    usleep(def_.consumerInterval * 1000);
+
+    // Don't add any sleep() here.
+    // Kafka will not skip any message during your sleep(), you will received
+    // all messages from your beginning offset to the latest in any case.
+    // So sleep() will cause unexpected delay before consumer a new message.
+    // If the producer's speed is faster than the sleep() here, the consumption
+    // will be delayed permanently and the latest message will never be received.
+
+    // At the same time, there is not a busy waiting.
+    // KafkaConsumer::consumer(timeoutMs) will return after `timeoutMs` millisecond
+    // if no new messages. You can increase `timeoutMs` if you want.
   }
 }
 //// End of methods added to merge mine for RSK
