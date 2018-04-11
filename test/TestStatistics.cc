@@ -231,12 +231,19 @@ TEST(ShareStatsDay, ShareStatsDay) {
       ASSERT_EQ(ss.shareAccept_, shareValue);
       ASSERT_EQ(ss.shareReject_, shareValue);
 
-      ASSERT_EQ(ss.earn_, 24697859);  // satoshi
+      #ifndef CHAIN_TYPE_UBTC
+        ASSERT_EQ(ss.earn_, 24697859);  // satoshi
+      #else
+        ASSERT_EQ(ss.earn_, 1975828);  // satoshi, only for UBTC
+      #endif
     }
     stats.getShareStatsDay(&ss);
     ASSERT_EQ(ss.shareAccept_, shareValue * 24);
     ASSERT_EQ(ss.shareReject_, shareValue * 24);
-    ASSERT_EQ(ss.earn_, 592748626);  // satoshi
+    #ifndef CHAIN_TYPE_UBTC
+      ASSERT_EQ(ss.earn_, 592748626);  // satoshi
+    #else
+      ASSERT_EQ(ss.earn_, 47419890);  // satoshi, only for UBTC
+    #endif
   }
 }
-
