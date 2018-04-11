@@ -32,7 +32,6 @@
 #include <string.h>
 #include <assert.h>
 #include <time.h>
-#include "blake2/blake2.h"
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -48,8 +47,10 @@
 #include <mutex>
 #include <condition_variable>
 #include <functional>
-#include "libethash/ethash.h"
+
 #include <uint256.h>
+#include "libethash/ethash.h"
+#include "libblake2/blake2.h"
 
 using std::string;
 using std::vector;

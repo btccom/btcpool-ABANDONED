@@ -45,7 +45,6 @@ using namespace libconfig;
 
 #define JOBMAKER_LOCK_NODE_PATH    "/locks/jobmaker" ZOOKEEPER_NODE_POSTFIX
 
-JobMaker *gJobMaker = nullptr;
 Zookeeper *gZookeeper = nullptr;
 static vector<shared_ptr<JobMaker>> jobMakers;
 
@@ -54,9 +53,6 @@ void handler(int sig) {
     if (jobMaker)
       jobMaker->stop();
   }
-  // if (gJobMaker) {
-  //   gJobMaker->stop();
-  // }
 
   if (gZookeeper) {
     delete gZookeeper;
@@ -90,8 +86,6 @@ void initDefinitions(const Config &cfg)
     const string payoutAddr = definitions[i].lookup("payout_address");
     const string producerTopic = definitions[i].lookup("producer_topic");
     string handlerType = definitions[i].lookup("handler");
-    uint32 consumerInterval = 500;
-    definitions[i].lookupValue("consumer_interval", consumerInterval);
     uint32 stratumJobInterval = 500;
     definitions[i].lookupValue("stratum_job_interval", stratumJobInterval);
     uint32 maxJobDelay = 500;
@@ -106,7 +100,6 @@ void initDefinitions(const Config &cfg)
            fileLastJobTime,
            consumerTopic,
            producerTopic,
-           consumerInterval,
            stratumJobInterval,
            maxJobDelay,
            handler,
@@ -116,44 +109,6 @@ void initDefinitions(const Config &cfg)
       LOG(ERROR) << "created handler failed for type " << handlerType;
   }
 }
-
-// JobMaker *createJobMaker(const Config &cfg)
-// {
-//   JobMaker *gJobMaker = NULL;
-
-//   string fileLastJobTime;
-//   string poolCoinbaseInfo;
-//   // with default values
-//   uint32_t stratumJobInterval = 20; // seconds
-//   uint32_t gbtLifeTime = 90;
-//   uint32_t emptyGbtLifeTime = 15;
-//   uint32_t rskNotifyPolicy = 0u;
-//   uint32_t blockVersion = 0u;
-
-//   cfg.lookupValue("jobmaker.stratum_job_interval", stratumJobInterval);
-//   cfg.lookupValue("jobmaker.gbt_life_time", gbtLifeTime);
-//   cfg.lookupValue("jobmaker.empty_gbt_life_time", emptyGbtLifeTime);
-//   cfg.lookupValue("jobmaker.file_last_job_time", fileLastJobTime);
-//   cfg.lookupValue("jobmaker.block_version", blockVersion);
-//   cfg.lookupValue("pool.coinbase_info", poolCoinbaseInfo);
-//   cfg.lookupValue("jobmaker.rsk_notify_policy", rskNotifyPolicy);
-//   string type = cfg.lookup("jobmaker.type");
-
-//   if ("BTC" == type)
-//   {
-//     gJobMaker = new JobMaker(cfg.lookup("kafka.brokers"), stratumJobInterval,
-//                              cfg.lookup("pool.payout_address"), gbtLifeTime,
-//                              emptyGbtLifeTime, fileLastJobTime,
-//                              rskNotifyPolicy, blockVersion, poolCoinbaseInfo);
-//   }
-//   else if ("ETH" == type)
-//   {
-//     gJobMaker = new JobMakerEth(cfg.lookup("kafka.brokers"), stratumJobInterval,
-//                                 cfg.lookup("pool.payout_address"), fileLastJobTime,
-//                                 rskNotifyPolicy, blockVersion, poolCoinbaseInfo);
-//   }
-//   return gJobMaker;
-// }
 
 void workerThread(shared_ptr<JobMaker> jobMaker) {
   if (jobMaker)
@@ -229,19 +184,6 @@ int main(int argc, char **argv) {
   signal(SIGINT,  handler);
 
   try {
-    // check if we are using testnet3
-    // bool isTestnet3 = true;
-    // cfg.lookupValue("testnet", isTestnet3);
-    // if (isTestnet3)
-    // {
-    //   SelectParams(CBaseChainParams::TESTNET);
-    //   LOG(WARNING) << "using bitcoin testnet3";
-    // }
-    // else
-    // {
-    //   SelectParams(CBaseChainParams::MAIN);
-    // }
-
     initDefinitions(cfg);
     vector<shared_ptr<thread>> workers;
     string brokers = cfg.lookup("kafka.brokers");
@@ -276,13 +218,6 @@ int main(int argc, char **argv) {
         LOG(INFO) << "worker exit";
       }
     }
-    // gJobMaker = createJobMaker(cfg);
-    // if (!gJobMaker->init()) {
-    //   LOG(FATAL) << "init failure";
-    // } else {
-    //   gJobMaker->run();
-    // }
-    // delete gJobMaker;
   }
   catch (std::exception & e) {
     LOG(FATAL) << "exception: " << e.what();
