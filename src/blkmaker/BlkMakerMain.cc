@@ -66,6 +66,29 @@ void usage() {
 //   return maker;
 // }
 
+BlockMaker* createBlockMaker(const BlockMakerDefinition& def, const string& broker, MysqlConnectInfo* poolDBInfo) {
+  BlockMaker *maker = nullptr;
+  if ("BTC" == def.chainType_) 
+    maker = new BlockMaker(def, broker.c_str(), *poolDBInfo);
+  else if ("ETH" == def.chainType_) 
+    maker = new BlockMakerEth(def, broker.c_str(), *poolDBInfo);
+  else if ("SIA" == def.chainType_)
+    maker = new BlockMakerEth(def, broker.c_str(), *poolDBInfo);
+
+  if (maker) {
+    for (auto node : def.nodes) 
+      maker->addBitcoind(node.rpcAddr_, node.rpcUserPwd_);
+    // for (int i = 0; i < maker.node.getLength(); i++) {
+    //   string rpcAddr, rpcUserpwd;
+    //   bitcoinds[i].lookupValue("rpc_addr",    rpcAddr);
+    //   bitcoinds[i].lookupValue("rpc_userpwd", rpcUserpwd);
+    //   gBlockMaker->addBitcoind(rpcAddr, rpcUserpwd);
+    // }
+  }
+
+  return maker;
+}
+
 void readConfigToString(const Setting &setting, const string &key, string &value) {
   if (!setting.lookupValue(key, value)) {
     LOG(FATAL) << "config section missing key=" << key;
@@ -94,23 +117,23 @@ BlockMakerDefinition createDefinition(const Setting &setting)
   return def;
 }
 
-shared_ptr<BlockMakerHandler> createBlockMakerHandler(const BlockMakerDefinition &def)
-{
-  shared_ptr<BlockMakerHandler> handler;
+// shared_ptr<BlockMakerHandler> createBlockMakerHandler(const BlockMakerDefinition &def)
+// {
+//   shared_ptr<BlockMakerHandler> handler;
 
-  if (def.chainType_ == "ETH")
-    handler = make_shared<BlockMakerHandler>();
-  else if (def.chainType_ == "SIA")
-    handler = make_shared<BlockMakerHandler>();
-  else if (def.chainType_ == "RSK")
-    handler = make_shared<BlockMakerHandler>();
-  else
-    LOG(FATAL) << "unknown chain type: " << def.chainType_;
+//   if (def.chainType_ == "ETH")
+//     handler = make_shared<BlockMakerHandler>();
+//   else if (def.chainType_ == "SIA")
+//     handler = make_shared<BlockMakerHandler>();
+//   else if (def.chainType_ == "RSK")
+//     handler = make_shared<BlockMakerHandler>();
+//   else
+//     LOG(FATAL) << "unknown chain type: " << def.chainType_;
 
-  handler->init(def);
+//   handler->init(def);
 
-  return handler;
-}
+//   return handler;
+// }
 
 void createBlockMakers(const Config &cfg, MysqlConnectInfo* poolDBInfo)
 {
@@ -127,9 +150,10 @@ void createBlockMakers(const Config &cfg, MysqlConnectInfo* poolDBInfo)
       continue;
     }
     LOG(INFO) << "chain: " << def.chainType_ << ", topic: " << def.solvedShareTopic_ << ", enabled.";
-    auto handler = createBlockMakerHandler(def);
-    makers.push_back(std::make_shared<BlockMaker>(broker.c_str(), *poolDBInfo));
-    //makers.push_back(std::make_shared<BlockMaker>(handler, broker, *poolDBInfo));
+    //auto handler = createBlockMakerHandler(def);
+    //makers.push_back(std::make_shared<BlockMaker>(broker.c_str(), *poolDBInfo));
+    shared_ptr<BlockMaker> maker(createBlockMaker(def, broker, poolDBInfo));
+    makers.push_back(maker);
   }
 }
 

@@ -34,7 +34,8 @@
 
 
 ////////////////////////////////// BlockMaker //////////////////////////////////
-BlockMaker::BlockMaker(const char *kafkaBrokers, const MysqlConnectInfo &poolDB):
+BlockMaker::BlockMaker(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB):
+def_(def),
 running_(true),
 kMaxRawGbtNum_(100),    /* if 5 seconds a rawgbt, will hold 100*5/60 = 8 mins rawgbt */
 kMaxStratumJobNum_(120), /* if 30 seconds a stratum job, will hold 60 mins stratum job */
@@ -42,7 +43,7 @@ lastSubmittedBlockTime(),
 submittedRskBlocks(0),
 kafkaConsumerRawGbt_     (kafkaBrokers, KAFKA_TOPIC_RAWGBT,       0/* patition */),
 kafkaConsumerStratumJob_ (kafkaBrokers, KAFKA_TOPIC_STRATUM_JOB,  0/* patition */),
-kafkaConsumerSovledShare_(kafkaBrokers, KAFKA_TOPIC_SOLVED_SHARE, 0/* patition */),
+kafkaConsumerSovledShare_(kafkaBrokers, def.solvedShareTopic_.c_str(), 0/* patition */),
 kafkaConsumerNamecoinSovledShare_(kafkaBrokers, KAFKA_TOPIC_NMC_SOLVED_SHARE, 0/* patition */),
 kafkaConsumerRskSolvedShare_(kafkaBrokers, KAFKA_TOPIC_RSK_SOLVED_SHARE, 0/* patition */),
 poolDB_(poolDB)
@@ -588,7 +589,6 @@ void BlockMaker::consumeSovledShare(rd_kafka_message_t *rkmessage) {
   }
 
   LOG(INFO) << "received SolvedShare message, len: " << rkmessage->len;
-
   processSolvedShare(rkmessage);
 }
 
@@ -1000,7 +1000,8 @@ void BlockMaker::run() {
 }
 
 ////////////////////////////////////////////////BlockMakerEth////////////////////////////////////////////////////////////////
-BlockMakerEth::BlockMakerEth(const char *kafkaBrokers, const MysqlConnectInfo &poolDB) : BlockMaker(kafkaBrokers, poolDB)
+BlockMakerEth::BlockMakerEth(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB) : 
+BlockMaker(def, kafkaBrokers, poolDB)
 {
 }
 
@@ -1035,35 +1036,6 @@ void BlockMakerEth::processSolvedShare(rd_kafka_message_t *rkmessage)
     bitcoindRpcCall(itr.first.c_str(), itr.second.c_str(), request.c_str(), response);
     LOG(INFO) << "submission result: " << response;
   }
-
-    //server_->jobRepository_
-    // LOG(INFO) << "submitting solution: " << request;
-    // string response;
-    // bool res = bitcoindRpcCall("http://127.0.0.1:8545", "user:pass", request.c_str(), response);
-    // if (res)
-    // {
-    //   LOG(INFO) << "response: " << response;
-    //   JsonNode r;
-    //   if (JsonNode::parse(response.c_str(), response.c_str() + response.length(), r))
-    //   {
-    //     if (r["result"].type() == Utilities::JS::type::Bool) {
-    //       const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":%s}\n", idStr.c_str(), r["result"].boolean() ? "true" : "false");
-    //       sendData(s);
-    //     }
-    //     else {
-    //       LOG(ERROR) << "result type not bool";
-    //     }
-    //   }
-    //   else
-    //   {
-    //     LOG(ERROR) << "parse response fail " << response;
-    //   }
-    // }
-    // else
-    // {
-    //   //rpc fail
-    //   LOG(ERROR) << "rpc call fail";
-    // }
 }
 
 bool BlockMakerEth::init() {

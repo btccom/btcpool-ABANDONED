@@ -54,46 +54,58 @@ struct BlockMakerDefinition
   string solvedShareTopic_;
 };
 
-class BlockMakerHandler {
-  public:
-    virtual ~BlockMakerHandler() {}// = 0; // mark it's an abstract class
-    virtual void init(const BlockMakerDefinition &def) { def_ = def; }
+// class BlockMakerHandler {
+//   public:
+//     virtual ~BlockMakerHandler() = 0; // mark it's an abstract class
+//     virtual void init(const BlockMakerDefinition &def) { def_ = def; }
     
-    // read-only definition
-    virtual const BlockMakerDefinition& def() { return def_; }
+//     // read-only definition
+//     virtual const BlockMakerDefinition& def() { return def_; }
+//     virtual void processSolvedShare(rd_kafka_message_t *rkmessage) = 0;
+//     // Interface with the GwMaker.
+//     // There is a default implementation that use virtual functions below.
+//     // If the implementation does not meet the requirements, you can overload it
+//     // and ignore all the following virtual functions.
+//   //   virtual string makeRawGwMsg();
 
-    // Interface with the GwMaker.
-    // There is a default implementation that use virtual functions below.
-    // If the implementation does not meet the requirements, you can overload it
-    // and ignore all the following virtual functions.
-  //   virtual string makeRawGwMsg();
+//   // protected:
 
-  // protected:
+//   //   // These virtual functions make it easier to implement the makeRawGwMsg() interface.
+//   //   // In most cases, you just need to override getRequestData() and processRawGw().
+//   //   // If you have overloaded makeRawGwMsg() above, you can ignore all the following functions.
 
-  //   // These virtual functions make it easier to implement the makeRawGwMsg() interface.
-  //   // In most cases, you just need to override getRequestData() and processRawGw().
-  //   // If you have overloaded makeRawGwMsg() above, you can ignore all the following functions.
+//   //   // Receive rpc response and generate RawGw message for the pool.
+//   //   virtual string processRawGw(const string &gw) { return ""; }
 
-  //   // Receive rpc response and generate RawGw message for the pool.
-  //   virtual string processRawGw(const string &gw) { return ""; }
+//   //   // Call RPC `getwork` and get the response.
+//   //   virtual bool callRpcGw(string &resp);
 
-  //   // Call RPC `getwork` and get the response.
-  //   virtual bool callRpcGw(string &resp);
+//   //   // Body of HTTP POST used by callRpcGw().
+//   //   // return "" if use HTTP GET.
+//   //   virtual string getRequestData() { return ""; }
+//   //   // HTTP header `User-Agent` used by callRpcGw().
+//   //   virtual string getUserAgent() { return "curl"; }
 
-  //   // Body of HTTP POST used by callRpcGw().
-  //   // return "" if use HTTP GET.
-  //   virtual string getRequestData() { return ""; }
-  //   // HTTP header `User-Agent` used by callRpcGw().
-  //   virtual string getUserAgent() { return "curl"; }
+//     // blockchain and RPC-server definitions
+//     BlockMakerDefinition def_;
+// };
 
-    // blockchain and RPC-server definitions
-    BlockMakerDefinition def_;
-};
+// class BlockMakerHandlerEth : public BlockMakerHandler{
+//   virtual void processSolvedShare(rd_kafka_message_t *rkmessage);
+// };
+
+// class BlockMakerHandlerSia : public BlockMakerHandler{
+//   virtual void processSolvedShare(rd_kafka_message_t *rkmessage) {
+    
+//   }
+// };
+
 
 ////////////////////////////////// BlockMaker //////////////////////////////////
 class BlockMaker
 {
 protected:
+  BlockMakerDefinition def_;
   atomic<bool> running_;
 
   mutex rawGbtLock_;
@@ -140,7 +152,7 @@ protected:
   void consumeRawGbt(rd_kafka_message_t *rkmessage);
   void consumeStratumJob(rd_kafka_message_t *rkmessage);
   void consumeSovledShare(rd_kafka_message_t *rkmessage);
-  virtual void processSolvedShare(rd_kafka_message_t *rkmessage);
+  void processSolvedShare(rd_kafka_message_t *rkmessage);
   void consumeNamecoinSovledShare(rd_kafka_message_t *rkmessage);
   void consumeRskSolvedShare(rd_kafka_message_t *rkmessage);
 
@@ -179,7 +191,7 @@ protected:
   bool submitToRskNode();
 
 public:
-  BlockMaker(const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
+  BlockMaker(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
   virtual ~BlockMaker();
 
   void addBitcoind(const string &rpcAddress, const string &rpcUserpass);
@@ -192,7 +204,7 @@ public:
 class BlockMakerEth : public BlockMaker
 {
 public:
-  BlockMakerEth(const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
+  BlockMakerEth(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
   virtual void processSolvedShare(rd_kafka_message_t *rkmessage);
   virtual bool init();
 };
