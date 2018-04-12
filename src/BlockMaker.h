@@ -40,6 +40,20 @@
 
 namespace bpt = boost::posix_time;
 
+struct NodeDefinition
+{
+  string rpcAddr_;
+  string rpcUserPwd_;
+};
+
+struct BlockMakerDefinition
+{
+  string chainType_;
+  bool enabled_;
+  vector<NodeDefinition> nodes; 
+  string solvedShareTopic_;
+};
+
 ////////////////////////////////// BlockMaker //////////////////////////////////
 class BlockMaker
 {

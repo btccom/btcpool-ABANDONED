@@ -75,7 +75,7 @@ shared_ptr<GwHandler> createGwHandler(const GwDefinition &def) {
 
 void readConfigToString(const Setting &setting, const string &key, string &value) {
   if (!setting.lookupValue(key, value)) {
-    LOG(FATAL) << "config section `gw_workers` missing `" << key << "`!";
+    LOG(FATAL) << "config section missing key=" << key;
   }
 }
 

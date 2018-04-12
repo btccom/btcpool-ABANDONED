@@ -65,6 +65,55 @@ BlockMaker* createBlockMaker(Config& cfg, MysqlConnectInfo* poolDBInfo) {
   return maker;
 }
 
+void readConfigToString(const Setting &setting, const string &key, string &value) {
+  if (!setting.lookupValue(key, value)) {
+    LOG(FATAL) << "config section missing key=" << key;
+  }
+}
+
+BlockMakerDefinition createDefinition(const Setting &setting)
+{
+  BlockMakerDefinition def;
+
+  readConfigToString(setting, "chain_type",  def.chainType_);
+  // readConfigToString(setting, "rpc_addr",    def.rpcAddr_);
+  // readConfigToString(setting, "rpc_userpwd", def.rpcUserPwd_);
+  readConfigToString(setting, "solved_share_topic", def.solvedShareTopic_);
+  def.enabled_ = false;
+  setting.lookupValue("enabled", def.enabled_);
+
+  const Setting &nodes = setting["nodes"];
+  for (int i = 0; i < nodes.getLength(); ++i)
+  {
+    const Setting &nodeSetting = nodes[i];
+    NodeDefinition nodeDef;
+    readConfigToString(nodeSetting, "rpc_addr",  nodeDef.rpcAddr_);
+    readConfigToString(nodeSetting, "rpc_userpwd",  nodeDef.rpcUserPwd_);
+    def.nodes.push_back(nodeDef);
+  }
+
+  return def;
+}
+
+void createGwMakers(const Config &cfg, const string &brokers)
+{
+  const Setting &root = cfg.getRoot();
+  const Setting &makerDefs = root["blk_makers"];
+
+  for (int i = 0; i < makerDefs.getLength(); ++i)
+  {
+     BlockMakerDefinition def = createDefinition(makerDefs[i]);
+    // if (!def.enabled_) {
+    //   LOG(INFO) << "chain: " << def.chainType_ << ", topic: " << def.rawGwTopic_ << ", disabled.";
+    //   continue;
+    // }
+    // LOG(INFO) << "chain: " << def.chainType_ << ", topic: " << def.rawGwTopic_ << ", enabled.";
+    // auto handle = createGwHandler(def);
+    // makers.push_back(std::make_shared<GwMaker>(handle, brokers));
+  }
+}
+
+
 int main(int argc, char **argv) {
   char *optLogDir = NULL;
   char *optConf   = NULL;
