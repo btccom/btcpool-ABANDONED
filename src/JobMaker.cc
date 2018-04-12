@@ -309,8 +309,8 @@ bool JobMakerHandlerSia::validate(JsonNode &work)
   // check fields are valid
   if (work.type() != Utilities::JS::type::Obj ||
     work["created_at_ts"].type() != Utilities::JS::type::Int ||
-    work["rskdRpcAddress"].type() != Utilities::JS::type::Str ||
-    work["rskdRpcUserPwd"].type() != Utilities::JS::type::Str ||
+    work["rpcAddress"].type() != Utilities::JS::type::Str ||
+    work["rpcUserPwd"].type() != Utilities::JS::type::Str ||
     work["target"].type() != Utilities::JS::type::Str ||
     work["hHash"].type() != Utilities::JS::type::Str) {
       LOG(ERROR) << "work format not expected";
