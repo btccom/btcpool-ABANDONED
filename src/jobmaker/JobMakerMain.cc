@@ -64,8 +64,8 @@ void usage() {
   fprintf(stderr, "Usage:\n\tjobmaker -c \"jobmaker.cfg\" -l \"log_dir\"\n");
 }
 
-shared_ptr<JobMakerHandler> createJobMakerHandler(const JobMakerDefinition &def) {
-  shared_ptr<JobMakerHandler> handler;
+shared_ptr<JobMakerHandler> createJobMakerHandler(const GwJobMakerDefinition &def) {
+  shared_ptr<GwJobMakerHandler> handler;
 
   if      (def.chainType_ == "ETH")
     handler = make_shared<JobMakerHandlerEth>();
@@ -79,17 +79,19 @@ shared_ptr<JobMakerHandler> createJobMakerHandler(const JobMakerDefinition &def)
   return handler;
 }
 
-JobMakerDefinition createJobMakerDefinition(const Setting &setting)
+GwJobMakerDefinition createJobMakerDefinition(const Setting &setting)
 {
-  JobMakerDefinition def;
+  GwJobMakerDefinition def;
 
-  readFromSetting(setting, "handler",              def.chainType_);
-  readFromSetting(setting, "payout_address",       def.payoutAddr);
-  readFromSetting(setting, "file_last_job_time",   def.fileLastJobTime);
-  readFromSetting(setting, "consumer_topic",       def.consumerTopic);
-  readFromSetting(setting, "producer_topic",       def.producerTopic);
-  readFromSetting(setting, "stratum_job_interval", def.stratumJobInterval);
-  readFromSetting(setting, "max_job_delay",        def.maxJobDelay);
+  readFromSetting(setting, "chain_type",          def.chainType_);
+  readFromSetting(setting, "rawgw_topic",         def.rawGwTopic_);
+  readFromSetting(setting, "job_topic",           def.jobTopic_);
+
+  readFromSetting(setting, "job_interval",        def.jobInterval_);
+  readFromSetting(setting, "max_job_delay",       def.maxJobDelay_);
+
+  readFromSetting(setting, "zookeeper_lock_path", def.zookeeperLockPath_);
+  readFromSetting(setting, "file_last_job_time",  def.fileLastJobTime_, true);
 
   def.enabled_ = false;
   readFromSetting(setting, "enabled", def.enabled_, true);
@@ -104,14 +106,14 @@ void createJobMakers(const Config &cfg, const string &brokers, vector<shared_ptr
 
   for (int i = 0; i < workerDefs.getLength(); i++)
   {
-    JobMakerDefinition def = createJobMakerDefinition(workerDefs[i]);
+    GwJobMakerDefinition def = createJobMakerDefinition(workerDefs[i]);
 
     if (!def.enabled_) {
-      LOG(INFO) << "chain: " << def.chainType_ << ", topic: " << def.producerTopic << ", disabled.";
+      LOG(INFO) << "chain: " << def.chainType_ << ", topic: " << def.jobTopic_ << ", disabled.";
       continue;
     }
     
-    LOG(INFO) << "chain: " << def.chainType_ << ", topic: " << def.producerTopic << ", enabled.";
+    LOG(INFO) << "chain: " << def.chainType_ << ", topic: " << def.jobTopic_ << ", enabled.";
 
     auto handle = createJobMakerHandler(def);
     makers.push_back(std::make_shared<JobMaker>(handle, brokers));
@@ -199,10 +201,10 @@ int main(int argc, char **argv) {
     createJobMakers(cfg, brokers, gJobMakers);
 
     // init JobMaker
-    for (auto JobMaker : gJobMakers)
+    for (auto jobmaker : gJobMakers)
     {
-      if (JobMaker->init()) {
-        workers.push_back(std::make_shared<thread>(workerThread, JobMaker));
+      if (jobmaker->init()) {
+        workers.push_back(std::make_shared<thread>(workerThread, jobmaker));
       }
       else {
         LOG(FATAL) << "jobmaker init failure.";

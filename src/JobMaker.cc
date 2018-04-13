@@ -43,8 +43,8 @@
 JobMaker::JobMaker(shared_ptr<JobMakerHandler> handler,
                    const string &brokers) : handler_(handler),
                                             running_(true),
-                                            kafkaProducer_(brokers.c_str(), handler->def().producerTopic.c_str(), RD_KAFKA_PARTITION_UA),
-                                            kafkaRawGwConsumer_(brokers.c_str(), handler->def().consumerTopic.c_str(), 0)
+                                            kafkaBrokers_(brokers),
+                                            kafkaProducer_(brokers.c_str(), handler->def().jobTopic_.c_str(), RD_KAFKA_PARTITION_UA)
 {
 }
 
@@ -61,7 +61,7 @@ void JobMaker::stop() {
 
 bool JobMaker::init() {
 
-  /* setup kafka */
+  /* setup kafka producer */
   {
     map<string, string> options;
     // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
@@ -76,41 +76,15 @@ bool JobMaker::init() {
     }
   }
 
-  if (!initConsumer())
+  /* setup kafka consumer */
+  if (!handler_->initConsumerHandlers(kafkaBrokers_, kafkaConsumerHandlers_)) {
     return false;
-
-  return true;
-}
-
-bool JobMaker::initConsumer() {
-  //
-  // consumer RSK messages
-  //
-  {
-    map<string, string> consumerOptions;
-    consumerOptions["fetch.wait.max.ms"] = "5";
-    if (!kafkaRawGwConsumer_.setup(RD_KAFKA_OFFSET_TAIL(1), &consumerOptions)) {
-      LOG(ERROR) << "kafka consumer rawgw block setup failure";
-      return false;
-    }
-    if (!kafkaRawGwConsumer_.checkAlive()) {
-      LOG(ERROR) << "kafka consumer rawgw block is NOT alive";
-      return false;
-    }
   }
-  sleep(1);
 
   return true;
 }
 
-/**
-  Beginning of methods needed to consume a raw get work message and extract its info.
-  Info will then be used to create add RSK merge mining data into stratum jobs.
-
-  @author Martin Medina
-  @copyright RSK Labs Ltd.
-*/
-void JobMaker::consumeRawGwMsg(rd_kafka_message_t *rkmessage)
+void JobMaker::consumeKafkaMsg(rd_kafka_message_t *rkmessage, JobMakerConsumerHandler &consumerHandler)
 {
   // check error
   if (rkmessage->err)
@@ -135,30 +109,44 @@ void JobMaker::consumeRawGwMsg(rd_kafka_message_t *rkmessage)
   }
 
   // set json string
-  LOG(INFO) << "received rawgw message len: " << rkmessage->len;
+  LOG(INFO) << "received " << consumerHandler.kafkaTopic_ << " message len: " << rkmessage->len;
 
   string msg((const char *)rkmessage->payload, rkmessage->len);
-  if (handler_->processMsg(msg)) {
-    const string producerMsg = handler_->buildStratumJobMsg();
-    if (producerMsg.size() > 0) {
-      LOG(INFO) << "new " << handler_->def().producerTopic << " job: " << producerMsg;
-      kafkaProducer_.produce(producerMsg.data(), producerMsg.size());
-    }
+
+  if (consumerHandler.messageProcessor_(msg)) {
+    produceStratumJob();
   }
 
 }
 
-void JobMaker::runThreadConsumeRawGw() {
+void JobMaker::produceStratumJob() {
+  const string jobMsg = handler_->makeStratumJobMsg();
+
+  if (jobMsg.size() > 0) {
+    LOG(INFO) << "new " << handler_->def().jobTopic_ << " job: " << jobMsg;
+    kafkaProducer_.produce(jobMsg.data(), jobMsg.size());
+  }
+
+  lastJobTime_ = time(nullptr);
+  
+  // save send timestamp to file, for monitor system
+  if (!handler_->def().fileLastJobTime_.empty()) {
+    // TODO: fix Y2K38 issue
+  	writeTime2File(handler_->def().fileLastJobTime_.c_str(), (uint32_t)lastJobTime_);
+  }
+}
+
+void JobMaker::runThreadKafkaConsume(JobMakerConsumerHandler &consumerHandler) {
   const int32_t timeoutMs = 1000;
 
   while (running_) {
     rd_kafka_message_t *rkmessage;
-    rkmessage = kafkaRawGwConsumer_.consumer(timeoutMs);
+    rkmessage = consumerHandler.kafkaConsumer_->consumer(timeoutMs);
     if (rkmessage == nullptr) /* timeout */ {
       continue;
     }
 
-    consumeRawGwMsg(rkmessage);
+    consumeKafkaMsg(rkmessage, consumerHandler);
 
     /* Return message to rdkafka */
     rd_kafka_message_destroy(rkmessage);
@@ -175,10 +163,60 @@ void JobMaker::runThreadConsumeRawGw() {
     // if no new messages. You can increase `timeoutMs` if you want.
   }
 }
-//// End of methods added to merge mine for RSK
 
 void JobMaker::run() {
-  runThreadConsumeRawGw();
+  // running consumer threads
+  for (JobMakerConsumerHandler &consumerhandler : kafkaConsumerHandlers_)
+  {
+    kafkaConsumerWorkers_.push_back(std::make_shared<thread>(std::bind(&JobMaker::runThreadKafkaConsume, this, consumerhandler)));
+  }
+
+  while (running_) {
+    sleep(1);
+
+    if (time(nullptr) - lastJobTime_ > handler_->def().jobInterval_) {
+      produceStratumJob();
+    }
+  }
+
+  // wait consumer threads exit
+  for (auto pWorker : kafkaConsumerWorkers_) {
+    if (pWorker->joinable()) {
+      LOG(INFO) << "wait for worker " << pWorker->get_id();
+      pWorker->join();
+      LOG(INFO) << "worker exit";
+    }
+  }
+}
+
+
+////////////////////////////////GwJobMakerHandler//////////////////////////////////
+bool GwJobMakerHandler::initConsumerHandlers(const string &kafkaBrokers, vector<JobMakerConsumerHandler> &handlers)
+{
+  JobMakerConsumerHandler handler = {
+    /* kafkaTopic_ = */       def_.rawGwTopic_,
+    /* kafkaConsumer_ = */    std::make_shared<KafkaConsumer>(kafkaBrokers.c_str(), def_.rawGwTopic_.c_str(), 0/* partition */),
+    /* messageProcessor_ = */ std::bind(&GwJobMakerHandler::processMsg, this, std::placeholders::_1)
+  };
+
+  // init kafka consumer
+  {
+    map<string, string> consumerOptions;
+    consumerOptions["fetch.wait.max.ms"] = "5";
+    if (!handler.kafkaConsumer_->setup(RD_KAFKA_OFFSET_TAIL(1), &consumerOptions)) {
+      LOG(ERROR) << "kafka consumer " << def_.rawGwTopic_ << " setup failure";
+      return false;
+    }
+    if (!handler.kafkaConsumer_->checkAlive()) {
+      LOG(FATAL) << "kafka consumer " << def_.rawGwTopic_ << " is NOT alive";
+      return false;
+    }
+  }
+  // sleep 1 seconds, wait for the latest message transfer from broker to client
+  sleep(1);
+
+  handlers.push_back(handler);
+  return true;
 }
 
 
@@ -210,14 +248,14 @@ bool JobMakerHandlerEth::processMsg(const string &msg)
 
 void JobMakerHandlerEth::clearTimeoutMsg() {
   const uint32_t now = time(nullptr);
-  if(currentRskWork_ != nullptr && currentRskWork_->getCreatedAt() + def_.maxJobDelay < now) 
+  if(currentRskWork_ != nullptr && currentRskWork_->getCreatedAt() + def_.maxJobDelay_ < now) 
       currentRskWork_ = nullptr;
 
-  if(previousRskWork_ != nullptr && previousRskWork_->getCreatedAt() + def_.maxJobDelay < now) 
+  if(previousRskWork_ != nullptr && previousRskWork_->getCreatedAt() + def_.maxJobDelay_ < now) 
       previousRskWork_ = nullptr;
 }
 
-string JobMakerHandlerEth::buildStratumJobMsg()
+string JobMakerHandlerEth::makeStratumJobMsg()
 {
   if (nullptr == currentRskWork_)
     return "";
@@ -285,7 +323,7 @@ bool JobMakerHandlerSia::validate(JsonNode &work)
     }
 
   // check timestamp
-  if (work["created_at_ts"].uint32() + def_.maxJobDelay < time(nullptr))
+  if (work["created_at_ts"].uint32() + def_.maxJobDelay_ < time(nullptr))
   {
     LOG(ERROR) << "too old sia work: " << date("%F %T", work["created_at_ts"].uint32());
     return false;
@@ -294,7 +332,7 @@ bool JobMakerHandlerSia::validate(JsonNode &work)
   return true;
 }
 
-string JobMakerHandlerSia::buildStratumJobMsg()
+string JobMakerHandlerSia::makeStratumJobMsg()
 {
   if (0 == header_.size() ||
       0 == target_.size())

@@ -182,7 +182,7 @@ int main(int argc, char **argv) {
     // create GwMaker
     createGwMakers(cfg, brokers, gGwMakers);
 
-    // init GwMaker
+    // init & run GwMaker
     for (auto gwMaker : gGwMakers)
     {
       if (gwMaker->init()) {
@@ -193,7 +193,7 @@ int main(int argc, char **argv) {
       }
     }
 
-    // run GwMaker
+    // wait GwMaker threads exit
     for (auto pWorker : workers) {
       if (pWorker->joinable()) {
         LOG(INFO) << "wait for worker " << pWorker->get_id();
