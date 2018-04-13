@@ -41,7 +41,7 @@
 #include "utilities_js.hpp"
 
 
-struct GwDefinition
+struct GwMakerDefinition
 {
   string chainType_;
   bool enabled_;
@@ -53,13 +53,13 @@ struct GwDefinition
   string rawGwTopic_;
 };
 
-class GwHandler {
+class GwMakerHandler {
   public:
-    virtual ~GwHandler() = 0; // mark it's an abstract class
-    virtual void init(const GwDefinition &def) { def_ = def; }
+    virtual ~GwMakerHandler() = 0; // mark it's an abstract class
+    virtual void init(const GwMakerDefinition &def) { def_ = def; }
     
     // read-only definition
-    virtual const GwDefinition& def() { return def_; }
+    virtual const GwMakerDefinition& def() { return def_; }
 
     // Interface with the GwMaker.
     // There is a default implementation that use virtual functions below.
@@ -86,10 +86,10 @@ class GwHandler {
     virtual string getUserAgent() { return "curl"; }
 
     // blockchain and RPC-server definitions
-    GwDefinition def_;
+    GwMakerDefinition def_;
 };
 
-class GwHandlerRsk : public GwHandler 
+class GwMakerHandlerRsk : public GwMakerHandler 
 {
   bool checkFields(JsonNode &r);
   string constructRawMsg(JsonNode &r);
@@ -98,7 +98,7 @@ class GwHandlerRsk : public GwHandler
   string getRequestData() { return "{\"jsonrpc\": \"2.0\", \"method\": \"mnr_getWork\", \"params\": [], \"id\": 1}"; }
 };
 
-class GwHandlerEth : public GwHandler
+class GwMakerHandlerEth : public GwMakerHandler
 {
   bool checkFields(JsonNode &r);
   string constructRawMsg(JsonNode &r);
@@ -107,7 +107,7 @@ class GwHandlerEth : public GwHandler
   string getRequestData() { return "{\"jsonrpc\": \"2.0\", \"method\": \"eth_getWork\", \"params\": [], \"id\": 1}"; }
 };
 
-class GwHandlerSia : public GwHandler 
+class GwMakerHandlerSia : public GwMakerHandler 
 {
   string processRawGw(const string &gw);
 
@@ -117,7 +117,7 @@ class GwHandlerSia : public GwHandler
 
 
 class GwMaker {
-  shared_ptr<GwHandler> handle_;
+  shared_ptr<GwMakerHandler> handle_;
   atomic<bool> running_;
 
 private:
@@ -131,7 +131,7 @@ private:
   void kafkaProduceMsg(const void *payload, size_t len);
 
 public:
-  GwMaker(shared_ptr<GwHandler> handle, const string &kafkaBrokers);
+  GwMaker(shared_ptr<GwMakerHandler> handle, const string &kafkaBrokers);
   virtual ~GwMaker();
 
   bool init();

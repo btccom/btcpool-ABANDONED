@@ -56,15 +56,15 @@ void usage() {
   fprintf(stderr, "Usage:\n\tgwmaker -c \"gwmaker.cfg\" -l \"log_dir\"\n");
 }
 
-shared_ptr<GwHandler> createGwHandler(const GwDefinition &def) {
-  shared_ptr<GwHandler> handler;
+shared_ptr<GwMakerHandler> createGwMakerHandler(const GwMakerDefinition &def) {
+  shared_ptr<GwMakerHandler> handler;
 
   if      (def.chainType_ == "ETH")
-    handler = make_shared<GwHandlerEth>();
+    handler = make_shared<GwMakerHandlerEth>();
   else if (def.chainType_ == "SIA")
-    handler = make_shared<GwHandlerSia>();
+    handler = make_shared<GwMakerHandlerSia>();
   else if (def.chainType_ == "RSK")
-    handler = make_shared<GwHandlerRsk>();
+    handler = make_shared<GwMakerHandlerRsk>();
   else
     LOG(FATAL) << "unknown chain type: " << def.chainType_;
 
@@ -79,9 +79,9 @@ void readConfigToString(const Setting &setting, const string &key, string &value
   }
 }
 
-GwDefinition createGwDefinition(const Setting &setting)
+GwMakerDefinition createGwMakerDefinition(const Setting &setting)
 {
-  GwDefinition def;
+  GwMakerDefinition def;
 
   readConfigToString(setting, "chain_type",  def.chainType_);
   readConfigToString(setting, "rpc_addr",    def.rpcAddr_);
@@ -107,7 +107,7 @@ void createGwMakers(const Config &cfg, const string &brokers, vector<shared_ptr<
 
   for (int i = 0; i < workerDefs.getLength(); i++)
   {
-    GwDefinition def = createGwDefinition(workerDefs[i]);
+    GwMakerDefinition def = createGwMakerDefinition(workerDefs[i]);
 
     if (!def.enabled_) {
       LOG(INFO) << "chain: " << def.chainType_ << ", topic: " << def.rawGwTopic_ << ", disabled.";
@@ -116,7 +116,7 @@ void createGwMakers(const Config &cfg, const string &brokers, vector<shared_ptr<
     
     LOG(INFO) << "chain: " << def.chainType_ << ", topic: " << def.rawGwTopic_ << ", enabled.";
 
-    auto handle = createGwHandler(def);
+    auto handle = createGwMakerHandler(def);
     makers.push_back(std::make_shared<GwMaker>(handle, brokers));
   }
 }
