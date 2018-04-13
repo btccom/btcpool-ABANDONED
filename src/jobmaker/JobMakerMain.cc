@@ -46,10 +46,10 @@ using namespace libconfig;
 #define JOBMAKER_LOCK_NODE_PATH    "/locks/jobmaker" ZOOKEEPER_NODE_POSTFIX
 
 Zookeeper *gZookeeper = nullptr;
-static vector<shared_ptr<JobMaker>> jobMakers;
+static vector<shared_ptr<JobMaker>> gJobMakers;
 
 void handler(int sig) {
-  for (auto jobMaker: jobMakers) {
+  for (auto jobMaker: gJobMakers) {
     if (jobMaker)
       jobMaker->stop();
   }
@@ -64,49 +64,57 @@ void usage() {
   fprintf(stderr, "Usage:\n\tjobmaker -c \"jobmaker.cfg\" -l \"log_dir\"\n");
 }
 
-JobMakerHandler* createHandler(const string& type) {
-  JobMakerHandler* handler = nullptr;
-  if ("ETH" == type)
-    return new JobMakerHandlerEth();
-  else if ("SIA" == type)
-    return new JobMakerHandlerSia();
+shared_ptr<JobMakerHandler> createJobMakerHandler(const JobMakerDefinition &def) {
+  shared_ptr<JobMakerHandler> handler;
+
+  if      (def.chainType_ == "ETH")
+    handler = make_shared<JobMakerHandlerEth>();
+  else if (def.chainType_ == "SIA")
+    handler = make_shared<JobMakerHandlerSia>();
+  else
+    LOG(FATAL) << "unknown chain type: " << def.chainType_;
+
+  handler->init(def);
 
   return handler;
 }
 
-void initDefinitions(const Config &cfg)
+JobMakerDefinition createJobMakerDefinition(const Setting &setting)
+{
+  JobMakerDefinition def;
+
+  readFromSetting(setting, "handler",              def.chainType_);
+  readFromSetting(setting, "payout_address",       def.payoutAddr);
+  readFromSetting(setting, "file_last_job_time",   def.fileLastJobTime);
+  readFromSetting(setting, "consumer_topic",       def.consumerTopic);
+  readFromSetting(setting, "producer_topic",       def.producerTopic);
+  readFromSetting(setting, "stratum_job_interval", def.stratumJobInterval);
+  readFromSetting(setting, "max_job_delay",        def.maxJobDelay);
+
+  def.enabled_ = false;
+  readFromSetting(setting, "enabled", def.enabled_, true);
+
+  return def;
+}
+
+void createJobMakers(const Config &cfg, const string &brokers, vector<shared_ptr<JobMaker>> &makers)
 {
   const Setting &root = cfg.getRoot();
-  const Setting &definitions = root["definitions"];
+  const Setting &workerDefs = root["definitions"];
 
-  for (int i = 0; i < definitions.getLength(); i++)
+  for (int i = 0; i < workerDefs.getLength(); i++)
   {
-    const string consumerTopic = definitions[i].lookup("consumer_topic");
-    const string fileLastJobTime = definitions[i].lookup("file_last_job_time");
-    const string payoutAddr = definitions[i].lookup("payout_address");
-    const string producerTopic = definitions[i].lookup("producer_topic");
-    string handlerType = definitions[i].lookup("handler");
-    uint32 stratumJobInterval = 500;
-    definitions[i].lookupValue("stratum_job_interval", stratumJobInterval);
-    uint32 maxJobDelay = 500;
-    definitions[i].lookupValue("max_job_delay", maxJobDelay);
-    bool enabled = false;
-    definitions[i].lookupValue("enabled", enabled);
-    shared_ptr<JobMakerHandler> handler(createHandler(handlerType));
-    if (handler != nullptr)
-    {
-      gJobMakerDefinitions.push_back(
-          {payoutAddr,
-           fileLastJobTime,
-           consumerTopic,
-           producerTopic,
-           stratumJobInterval,
-           maxJobDelay,
-           handler,
-           enabled});
+    JobMakerDefinition def = createJobMakerDefinition(workerDefs[i]);
+
+    if (!def.enabled_) {
+      LOG(INFO) << "chain: " << def.chainType_ << ", topic: " << def.producerTopic << ", disabled.";
+      continue;
     }
-    else
-      LOG(ERROR) << "created handler failed for type " << handlerType;
+    
+    LOG(INFO) << "chain: " << def.chainType_ << ", topic: " << def.producerTopic << ", enabled.";
+
+    auto handle = createJobMakerHandler(def);
+    makers.push_back(std::make_shared<JobMaker>(handle, brokers));
   }
 }
 
@@ -184,40 +192,32 @@ int main(int argc, char **argv) {
   signal(SIGINT,  handler);
 
   try {
-    initDefinitions(cfg);
     vector<shared_ptr<thread>> workers;
     string brokers = cfg.lookup("kafka.brokers");
-    for (auto def : gJobMakerDefinitions)
+    
+    // create JobMaker
+    createJobMakers(cfg, brokers, gJobMakers);
+
+    // init JobMaker
+    for (auto JobMaker : gJobMakers)
     {
-      if (def.enabled)
-      {
-        shared_ptr<JobMaker> jobMaker = std::make_shared<JobMaker>(def, brokers);
-        try
-        {
-          if (jobMaker->init())
-          {
-            jobMakers.push_back(jobMaker);
-            workers.push_back(std::make_shared<thread>(workerThread, jobMaker));
-          }
-          else
-            LOG(FATAL) << "jobmaker init failure " << def.consumerTopic;
-        }
-        catch (std::exception &e)
-        {
-          LOG(FATAL) << "exception: " << e.what();
-        }
+      if (JobMaker->init()) {
+        workers.push_back(std::make_shared<thread>(workerThread, JobMaker));
+      }
+      else {
+        LOG(FATAL) << "jobmaker init failure.";
       }
     }
 
-    for (auto worker : workers)
-    {
-      if (worker->joinable())
-      {
-        LOG(INFO) << "wait for worker " << worker->get_id();
-        worker->join();
+    // run JobMaker
+    for (auto pWorker : workers) {
+      if (pWorker->joinable()) {
+        LOG(INFO) << "wait for worker " << pWorker->get_id();
+        pWorker->join();
         LOG(INFO) << "worker exit";
       }
     }
+
   }
   catch (std::exception & e) {
     LOG(FATAL) << "exception: " << e.what();

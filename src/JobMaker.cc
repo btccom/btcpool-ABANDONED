@@ -40,11 +40,11 @@
 #include "BitcoinUtils.h"
 
 ///////////////////////////////////  JobMaker  /////////////////////////////////
-JobMaker::JobMaker(const JobMakerDefinition def,
-                   const string &brokers) : def_(def),
+JobMaker::JobMaker(shared_ptr<JobMakerHandler> handler,
+                   const string &brokers) : handler_(handler),
                                             running_(true),
-                                            kafkaProducer_(brokers.c_str(), def.producerTopic.c_str(), RD_KAFKA_PARTITION_UA),
-                                            kafkaRawGwConsumer_(brokers.c_str(), def.consumerTopic.c_str(), 0)
+                                            kafkaProducer_(brokers.c_str(), handler->def().producerTopic.c_str(), RD_KAFKA_PARTITION_UA),
+                                            kafkaRawGwConsumer_(brokers.c_str(), handler->def().consumerTopic.c_str(), 0)
 {
 }
 
@@ -60,10 +60,6 @@ void JobMaker::stop() {
 }
 
 bool JobMaker::init() {
-    if (nullptr == def_.handler)
-      return false;
-    
-    def_.handler->init(def_);
 
   /* setup kafka */
   {
@@ -142,10 +138,10 @@ void JobMaker::consumeRawGwMsg(rd_kafka_message_t *rkmessage)
   LOG(INFO) << "received rawgw message len: " << rkmessage->len;
 
   string msg((const char *)rkmessage->payload, rkmessage->len);
-  if (def_.handler && def_.handler->processMsg(msg)) {
-    const string producerMsg = def_.handler->buildStratumJobMsg();
+  if (handler_->processMsg(msg)) {
+    const string producerMsg = handler_->buildStratumJobMsg();
     if (producerMsg.size() > 0) {
-      LOG(INFO) << "new " << def_.producerTopic << " job: " << producerMsg;
+      LOG(INFO) << "new " << handler_->def().producerTopic << " job: " << producerMsg;
       kafkaProducer_.produce(producerMsg.data(), producerMsg.size());
     }
   }
