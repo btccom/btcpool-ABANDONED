@@ -1069,12 +1069,12 @@ void BlockMakerSia::processSolvedShare(rd_kafka_message_t *rkmessage)
     return;
   }
 
-  char buf[81] = {0};
+  char buf[80] = {0};
   memcpy(buf, rkmessage->payload, 80);
   for (const auto &itr : bitcoindRpcUri_)
   {
     string response;
-    rpcCall(itr.first.c_str(), itr.second.c_str(), buf, response, "Sia-Agent");
+    rpcCall(itr.first.c_str(), itr.second.c_str(), buf, 80, response, "Sia-Agent");
     LOG(INFO) << "submission result: " << response;
   }
 }
