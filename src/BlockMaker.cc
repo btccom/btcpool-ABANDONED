@@ -1069,7 +1069,6 @@ void BlockMakerSia::processSolvedShare(rd_kafka_message_t *rkmessage)
     return;
   }
 
-  const char *message = (const char *)rkmessage->payload;
   char buf[81] = {0};
   memcpy(buf, rkmessage->payload, 80);
   for (const auto &itr : bitcoindRpcUri_)

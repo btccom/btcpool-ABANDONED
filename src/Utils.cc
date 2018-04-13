@@ -223,13 +223,14 @@ bool httpPOST(const char *url, const char *userpwd, const char *postData,
     goto error;
   }
 
+  if (chunk.size > 0)
+    response.assign(chunk.memory, chunk.size);
+
   curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &code);
   if (code != 200) {
     LOG(ERROR) << "server responded with code: " << code;
     goto error;
   }
-
-  response.assign(chunk.memory, chunk.size);
 
   curl_easy_cleanup(curl);
   curl_slist_free_all(headers);

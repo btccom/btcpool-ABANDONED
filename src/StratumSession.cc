@@ -1443,6 +1443,8 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
   if (shareTarget < networkTarget) {
     //valid share
     //submit share
+    ServerSia *s = dynamic_cast<ServerSia*> (server_);
+    s->sendSolvedShare2Kafka(bHeader, 80);
     diffController_->addAcceptedShare(share.share_);
     LOG(INFO) << "sia solution found";
   }

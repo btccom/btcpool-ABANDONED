@@ -73,17 +73,11 @@ BlockMaker* createBlockMaker(const BlockMakerDefinition& def, const string& brok
   else if ("ETH" == def.chainType_) 
     maker = new BlockMakerEth(def, broker.c_str(), *poolDBInfo);
   else if ("SIA" == def.chainType_)
-    maker = new BlockMakerEth(def, broker.c_str(), *poolDBInfo);
+    maker = new BlockMakerSia(def, broker.c_str(), *poolDBInfo);
 
   if (maker) {
     for (auto node : def.nodes) 
       maker->addBitcoind(node.rpcAddr_, node.rpcUserPwd_);
-    // for (int i = 0; i < maker.node.getLength(); i++) {
-    //   string rpcAddr, rpcUserpwd;
-    //   bitcoinds[i].lookupValue("rpc_addr",    rpcAddr);
-    //   bitcoinds[i].lookupValue("rpc_userpwd", rpcUserpwd);
-    //   gBlockMaker->addBitcoind(rpcAddr, rpcUserpwd);
-    // }
   }
 
   return maker;
