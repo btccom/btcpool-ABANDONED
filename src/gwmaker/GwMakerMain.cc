@@ -73,29 +73,18 @@ shared_ptr<GwMakerHandler> createGwMakerHandler(const GwMakerDefinition &def) {
   return handler;
 }
 
-void readConfigToString(const Setting &setting, const string &key, string &value) {
-  if (!setting.lookupValue(key, value)) {
-    LOG(FATAL) << "config section missing key=" << key;
-  }
-}
-
 GwMakerDefinition createGwMakerDefinition(const Setting &setting)
 {
   GwMakerDefinition def;
 
-  readConfigToString(setting, "chain_type",  def.chainType_);
-  readConfigToString(setting, "rpc_addr",    def.rpcAddr_);
-  readConfigToString(setting, "rpc_userpwd", def.rpcUserPwd_);
-  readConfigToString(setting, "rawgw_topic", def.rawGwTopic_);
-
-  def.rpcInterval_ = 0;
-  setting.lookupValue("rpc_interval", def.rpcInterval_);
-  if (def.rpcInterval_ == 0) {
-    LOG(FATAL) << "config section `gw_workers` missing `rpc_interval`!";
-  }
+  readFromSetting(setting, "chain_type",  def.chainType_);
+  readFromSetting(setting, "rpc_addr",    def.rpcAddr_);
+  readFromSetting(setting, "rpc_userpwd", def.rpcUserPwd_);
+  readFromSetting(setting, "rawgw_topic", def.rawGwTopic_);
+  readFromSetting(setting, "rpc_interval", def.rpcInterval_);
 
   def.enabled_ = false;
-  setting.lookupValue("enabled", def.enabled_);
+  readFromSetting(setting, "enabled", def.enabled_, true);
 
   return def;
 }
