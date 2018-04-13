@@ -117,7 +117,7 @@ class GwMakerHandlerSia : public GwMakerHandler
 
 
 class GwMaker {
-  shared_ptr<GwMakerHandler> handle_;
+  shared_ptr<GwMakerHandler> handler_;
   atomic<bool> running_;
 
 private:
@@ -139,8 +139,8 @@ public:
   void run();
 
   // for logs
-  string getChainType() { return handle_->def().chainType_; }
-  string getRawGwTopic() { return handle_->def().rawGwTopic_; }
+  string getChainType() { return handler_->def().chainType_; }
+  string getRawGwTopic() { return handler_->def().rawGwTopic_; }
 };
 
 #endif

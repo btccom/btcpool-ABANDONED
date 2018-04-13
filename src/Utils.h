@@ -33,9 +33,13 @@
 #include <utilstrencodings.h>
 #include <streams.h>
 
+#include <libconfig.h++>
+#include <glog/logging.h>
 #include <zmq.hpp>
 
 #include "Common.h"
+
+using libconfig::Setting;
 
 bool Hex2Bin(const char *in, size_t size, vector<char> &out);
 bool Hex2Bin(const char *in, vector<char> &out);
@@ -95,5 +99,16 @@ inline double share2HashrateP(uint64_t share, uint32_t timeDiff) {
 }
 
 bool fileExists(const char* file);
+
+template<typename T>
+void readFromSetting(const Setting &setting,
+                     const string &key,
+                     T &value,
+                     bool optional = false)
+{
+  if (!setting.lookupValue(key, value) && !optional) {
+    LOG(FATAL) << "config section missing key: " << key;
+  }
+}
 
 #endif

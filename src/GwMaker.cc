@@ -42,11 +42,11 @@
 
 
 ///////////////////////////////GwMaker////////////////////////////////////
-GwMaker::GwMaker(shared_ptr<GwMakerHandler> handle,
-                 const string &kafkaBrokers) : handle_(handle),
+GwMaker::GwMaker(shared_ptr<GwMakerHandler> handler,
+                 const string &kafkaBrokers) : handler_(handler),
                                                running_(true),
                                                kafkaProducer_(kafkaBrokers.c_str(),
-                                                              handle->def().rawGwTopic_.c_str(),
+                                                              handler->def().rawGwTopic_.c_str(),
                                                               0 /* partition */)
 {
 }
@@ -78,7 +78,7 @@ void GwMaker::stop() {
     return;
   }
   running_ = false;
-  LOG(INFO) << "stop GwMaker " << handle_->def().chainType_ << ", topic: " << handle_->def().rawGwTopic_;
+  LOG(INFO) << "stop GwMaker " << handler_->def().chainType_ << ", topic: " << handler_->def().rawGwTopic_;
 }
 
 void GwMaker::kafkaProduceMsg(const void *payload, size_t len) {
@@ -86,7 +86,7 @@ void GwMaker::kafkaProduceMsg(const void *payload, size_t len) {
 }
 
 string GwMaker::makeRawGwMsg() {
-  return handle_->makeRawGwMsg();
+  return handler_->makeRawGwMsg();
 }
 
 void GwMaker::submitRawGwMsg() {
@@ -105,11 +105,11 @@ void GwMaker::submitRawGwMsg() {
 void GwMaker::run() {
 
   while (running_) {
-    usleep(handle_->def().rpcInterval_ * 1000);
+    usleep(handler_->def().rpcInterval_ * 1000);
     submitRawGwMsg();
   }
 
-  LOG(INFO) << "GwMaker " << handle_->def().chainType_ << ", topic: " << handle_->def().rawGwTopic_ << " stopped";
+  LOG(INFO) << "GwMaker " << handler_->def().chainType_ << ", topic: " << handler_->def().rawGwTopic_ << " stopped";
 }
 
 

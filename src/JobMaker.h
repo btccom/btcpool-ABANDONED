@@ -39,24 +39,27 @@
 class JobMakerHandler;
 struct JobMakerDefinition
 {
+  string chainType_;
   string payoutAddr;
   string fileLastJobTime;
   string consumerTopic;
   string producerTopic;
   uint32 stratumJobInterval;
   uint32 maxJobDelay;
-  shared_ptr<JobMakerHandler> handler;
-  bool enabled;
+  bool enabled_;
 };
 
 class JobMakerHandler
 {
 public:
   //return true if need to produce stratum job
-  virtual void init(const JobMakerDefinition &def) {def_ = def;}
+  virtual void init(const JobMakerDefinition &def) { def_ = def; }
   virtual bool processMsg(const string &msg) = 0;
   virtual string buildStratumJobMsg() = 0;
   virtual ~JobMakerHandler() {}
+
+  // read-only definition
+  virtual const JobMakerDefinition& def() { return def_; }
 
 protected:
   JobMakerDefinition def_;
@@ -85,11 +88,10 @@ public:
   virtual string buildStratumJobMsg();
 };
 
-static vector<JobMakerDefinition> gJobMakerDefinitions; 
 
 class JobMaker {
 protected:
-  JobMakerDefinition def_;
+  shared_ptr<JobMakerHandler> handler_;
   atomic<bool> running_;
 
   string kafkaBrokers_;
@@ -105,7 +107,7 @@ public:
   void runThreadConsumeRawGw();
 
 public:
-  JobMaker(const JobMakerDefinition def, const string& brokers);
+  JobMaker(shared_ptr<JobMakerHandler> handle, const string& brokers);
   virtual ~JobMaker();
 
   bool init();
