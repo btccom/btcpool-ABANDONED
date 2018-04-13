@@ -64,7 +64,7 @@ bool httpPOST(const char *url, const char *userpwd, const char *postData,
               string &response, long timeoutMs, const char *contentType, const char *agent);
 bool bitcoindRpcCall(const char *url, const char *userpwd, const char *reqData,
                      string &response);
-bool rpcCall(const char *url, const char *userpwd, const char *reqData, string &response, const char *agent);
+
 bool rpcCall(const char *url, const char *userpwd, const char *reqData, int len, string &response, const char *agent);  
 
 string date(const char *format, const time_t timestamp);

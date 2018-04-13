@@ -134,6 +134,7 @@ bool GwMakerHandler::callRpcGw(string &response)
   bool res = rpcCall(def_.rpcAddr_.c_str(),
                      def_.rpcUserPwd_.c_str(),
                      request.empty() ? nullptr : request.c_str(),
+                     request.length(),
                      response,
                      userAgent.c_str());
 
