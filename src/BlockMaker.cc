@@ -1054,3 +1054,28 @@ bool BlockMakerEth::init() {
 
   return true;
 }
+
+//////////////////////////////////////BlockMakerSia//////////////////////////////////////////////////
+BlockMakerSia::BlockMakerSia(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB) :
+BlockMakerEth(def, kafkaBrokers, poolDB)
+{
+  
+}
+
+void BlockMakerSia::processSolvedShare(rd_kafka_message_t *rkmessage)
+{
+  if (rkmessage->len != 80) {
+    LOG(ERROR) << "incorrect header len: " << rkmessage->len;
+    return;
+  }
+
+  const char *message = (const char *)rkmessage->payload;
+  char buf[81] = {0};
+  memcpy(buf, rkmessage->payload, 80);
+  for (const auto &itr : bitcoindRpcUri_)
+  {
+    string response;
+    rpcCall(itr.first.c_str(), itr.second.c_str(), buf, response, "Sia-Agent");
+    LOG(INFO) << "submission result: " << response;
+  }
+}
