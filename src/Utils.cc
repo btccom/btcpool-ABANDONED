@@ -245,7 +245,7 @@ error:
 bool httpPOST(const char *url, const char *userpwd, const char *postData,
               string &response, long timeoutMs, const char *mineType, const char *agent)
 {
-  return httpPOSTImpl(url, userpwd, postData, strlen(postData), response, timeoutMs, mineType, agent);
+  return httpPOSTImpl(url, userpwd, postData, postData != nullptr ? strlen(postData) : 0, response, timeoutMs, mineType, agent);
 }
 
 bool httpPOST(const char *url, const char *userpwd, const char *postData,

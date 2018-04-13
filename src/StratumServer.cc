@@ -112,7 +112,7 @@ JobRepository::~JobRepository() {
 }
 
 void JobRepository::setMaxJobDelay (const time_t maxJobDelay) {
-  LOG(INFO) << "set max job dealy to " << maxJobDelay << "s";
+  LOG(INFO) << "set max job delay to " << maxJobDelay << "s";
   kMaxJobsLifeTime_ = maxJobDelay;
 }
 
