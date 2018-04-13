@@ -96,16 +96,10 @@ protected:
   KafkaProducer kafkaProducer_;
 
   // merged mining for RSK
-  KafkaConsumer kafkaRawGwConsumer_;  
-  mutex rskWorkAccessLock_;
-  RskWork *previousRskWork_;
-  RskWork *currentRskWork_;
-
+  KafkaConsumer kafkaRawGwConsumer_;
   
 protected:
   void consumeRawGwMsg(rd_kafka_message_t *rkmessage);
-
-  void clearTimeoutGw();
 
 public:
   void runThreadConsumeRawGw();

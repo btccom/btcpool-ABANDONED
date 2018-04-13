@@ -152,35 +152,6 @@ void JobMaker::consumeRawGwMsg(rd_kafka_message_t *rkmessage)
 
 }
 
-void JobMaker::clearTimeoutGw()
-{
-  RskWork currentRskWork;
-  RskWork previousRskWork;
-  {
-    ScopeLock sl(rskWorkAccessLock_);
-    if (previousRskWork_ == nullptr || currentRskWork_ == nullptr)
-    {
-      return;
-    }
-
-    const uint32_t ts_now = time(nullptr);
-    currentRskWork = *currentRskWork_;
-
-    if (currentRskWork.getCreatedAt() + 120u < ts_now)
-    {
-      delete currentRskWork_;
-      currentRskWork_ = nullptr;
-    }
-
-    previousRskWork = *previousRskWork_;
-    if (previousRskWork.getCreatedAt() + 120u < ts_now)
-    {
-      delete previousRskWork_;
-      previousRskWork_ = nullptr;
-    }
-  }
-}
-
 void JobMaker::runThreadConsumeRawGw() {
   const int32_t timeoutMs = 1000;
 

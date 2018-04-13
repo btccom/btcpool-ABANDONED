@@ -42,7 +42,7 @@
 
 
 ///////////////////////////////GwMaker////////////////////////////////////
-GwMaker::GwMaker(shared_ptr<GwHandler> handle,
+GwMaker::GwMaker(shared_ptr<GwMakerHandler> handle,
                  const string &kafkaBrokers) : handle_(handle),
                                                running_(true),
                                                kafkaProducer_(kafkaBrokers.c_str(),
@@ -113,11 +113,11 @@ void GwMaker::run() {
 }
 
 
-///////////////////////////////GwHandler////////////////////////////////////
-GwHandler::~GwHandler() {
+///////////////////////////////GwMakerHandler////////////////////////////////////
+GwMakerHandler::~GwMakerHandler() {
 }
 
-string GwHandler::makeRawGwMsg() {
+string GwMakerHandler::makeRawGwMsg() {
   string gw;
   if (!callRpcGw(gw)) {
     return "";
@@ -126,7 +126,7 @@ string GwHandler::makeRawGwMsg() {
   return processRawGw(gw);
 }
 
-bool GwHandler::callRpcGw(string &response)
+bool GwMakerHandler::callRpcGw(string &response)
 {
   string request = getRequestData();
   string userAgent = getUserAgent();
@@ -146,8 +146,8 @@ bool GwHandler::callRpcGw(string &response)
 }
 
 
-///////////////////////////////GwHandlerRsk////////////////////////////////////
-string GwHandlerRsk::processRawGw(const string& msg) 
+///////////////////////////////GwMakerHandlerRsk////////////////////////////////////
+string GwMakerHandlerRsk::processRawGw(const string& msg) 
 {
   JsonNode r;
   if (!JsonNode::parse(msg.c_str(), msg.c_str() + msg.length(), r)) {
@@ -164,7 +164,7 @@ string GwHandlerRsk::processRawGw(const string& msg)
   return constructRawMsg(r);
 }
 
-bool GwHandlerRsk::checkFields(JsonNode &r) {
+bool GwMakerHandlerRsk::checkFields(JsonNode &r) {
   if (r["result"].type()                                != Utilities::JS::type::Obj ||
       r["result"]["parentBlockHash"].type()             != Utilities::JS::type::Str ||
       r["result"]["blockHashForMergedMining"].type()    != Utilities::JS::type::Str ||
@@ -178,7 +178,7 @@ bool GwHandlerRsk::checkFields(JsonNode &r) {
   return true;
 }
 
-string GwHandlerRsk::constructRawMsg(JsonNode &r) {
+string GwMakerHandlerRsk::constructRawMsg(JsonNode &r) {
 
   LOG(INFO) << "chain: " << def_.chainType_ << ", topic: " << def_.rawGwTopic_
   << ", parent block hash: "           << r["result"]["parentBlockHash"].str()
@@ -208,8 +208,8 @@ string GwHandlerRsk::constructRawMsg(JsonNode &r) {
 }
 
 
-///////////////////////////////GwHandlerEth////////////////////////////////////
-string GwHandlerEth::processRawGw(const string& msg) 
+///////////////////////////////GwMakerHandlerEth////////////////////////////////////
+string GwMakerHandlerEth::processRawGw(const string& msg) 
 {
   JsonNode r;
   if (!JsonNode::parse(msg.c_str(), msg.c_str() + msg.length(), r)) {
@@ -226,7 +226,7 @@ string GwHandlerEth::processRawGw(const string& msg)
   return constructRawMsg(r);
 }
 
-bool GwHandlerEth::checkFields(JsonNode &r)
+bool GwMakerHandlerEth::checkFields(JsonNode &r)
 {
   // Ethereum's GetWork gives us 3 values:
 
@@ -275,7 +275,7 @@ bool GwHandlerEth::checkFields(JsonNode &r)
   return true;
 }
 
-string GwHandlerEth::constructRawMsg(JsonNode &r) {
+string GwMakerHandlerEth::constructRawMsg(JsonNode &r) {
   auto result = r["result"].array();
   
   LOG(INFO) << "chain: "    << def_.chainType_
@@ -301,8 +301,8 @@ string GwHandlerEth::constructRawMsg(JsonNode &r) {
 }
 
 
-///////////////////////////////GwHandlerSia////////////////////////////////////
-string GwHandlerSia::processRawGw(const string &msg)
+///////////////////////////////GwMakerHandlerSia////////////////////////////////////
+string GwMakerHandlerSia::processRawGw(const string &msg)
 {
   if (msg.length() != 112)
     return "";
