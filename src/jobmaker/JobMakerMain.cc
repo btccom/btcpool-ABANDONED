@@ -43,20 +43,12 @@
 using namespace std;
 using namespace libconfig;
 
-#define JOBMAKER_LOCK_NODE_PATH    "/locks/jobmaker" ZOOKEEPER_NODE_POSTFIX
-
-Zookeeper *gZookeeper = nullptr;
 static vector<shared_ptr<JobMaker>> gJobMakers;
 
 void handler(int sig) {
   for (auto jobMaker: gJobMakers) {
     if (jobMaker)
       jobMaker->stop();
-  }
-
-  if (gZookeeper) {
-    delete gZookeeper;
-    gZookeeper = nullptr;
   }
 }
 
@@ -99,10 +91,10 @@ GwJobMakerDefinition createJobMakerDefinition(const Setting &setting)
   return def;
 }
 
-void createJobMakers(const Config &cfg, const string &brokers, vector<shared_ptr<JobMaker>> &makers)
+void createJobMakers(const Config &cfg, const string &kafkaBrokers, const string &zkBrokers, vector<shared_ptr<JobMaker>> &makers)
 {
   const Setting &root = cfg.getRoot();
-  const Setting &workerDefs = root["definitions"];
+  const Setting &workerDefs = root["job_workers"];
 
   for (int i = 0; i < workerDefs.getLength(); i++)
   {
@@ -116,7 +108,7 @@ void createJobMakers(const Config &cfg, const string &brokers, vector<shared_ptr
     LOG(INFO) << "chain: " << def.chainType_ << ", topic: " << def.jobTopic_ << ", enabled.";
 
     auto handle = createJobMakerHandler(def);
-    makers.push_back(std::make_shared<JobMaker>(handle, brokers));
+    makers.push_back(std::make_shared<JobMaker>(handle, kafkaBrokers, zkBrokers));
   }
 }
 
@@ -180,25 +172,19 @@ int main(int argc, char **argv) {
     return(EXIT_FAILURE);
   }
 
-  try {
-    // get lock from zookeeper
-    gZookeeper = new Zookeeper(cfg.lookup("zookeeper.brokers"));
-    gZookeeper->getLock(JOBMAKER_LOCK_NODE_PATH);
-
-  } catch(const ZookeeperException &zooex) {
-    LOG(FATAL) << zooex.what();
-    return(EXIT_FAILURE);
-  }
-
   signal(SIGTERM, handler);
   signal(SIGINT,  handler);
 
   try {
     vector<shared_ptr<thread>> workers;
-    string brokers = cfg.lookup("kafka.brokers");
-    
+
+    string kafkaBrokers;
+    string zkBrokers;
+    readFromSetting(cfg, "kafka.brokers", kafkaBrokers);
+    readFromSetting(cfg, "zookeeper.brokers", zkBrokers);
+
     // create JobMaker
-    createJobMakers(cfg, brokers, gJobMakers);
+    createJobMakers(cfg, kafkaBrokers, zkBrokers, gJobMakers);
 
     // init JobMaker
     for (auto jobmaker : gJobMakers)

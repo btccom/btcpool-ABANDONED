@@ -41,10 +41,12 @@
 
 ///////////////////////////////////  JobMaker  /////////////////////////////////
 JobMaker::JobMaker(shared_ptr<JobMakerHandler> handler,
-                   const string &brokers) : handler_(handler),
+                   const string &kafkaBrokers,
+                   const string& zookeeperBrokers) : handler_(handler),
                                             running_(true),
-                                            kafkaBrokers_(brokers),
-                                            kafkaProducer_(brokers.c_str(), handler->def().jobTopic_.c_str(), RD_KAFKA_PARTITION_UA)
+                                            zkLocker_(zookeeperBrokers.c_str()),
+                                            kafkaBrokers_(kafkaBrokers),
+                                            kafkaProducer_(kafkaBrokers.c_str(), handler->def().jobTopic_.c_str(), RD_KAFKA_PARTITION_UA)
 {
 }
 
@@ -60,6 +62,11 @@ void JobMaker::stop() {
 }
 
 bool JobMaker::init() {
+  /* check configs */
+  if (handler_->def().zookeeperLockPath_.empty()) {
+    LOG(ERROR) << "zookeeper lock path is empty!";
+    return false;
+  }
 
   /* setup kafka producer */
   {
@@ -165,6 +172,13 @@ void JobMaker::runThreadKafkaConsume(JobMakerConsumerHandler &consumerHandler) {
 }
 
 void JobMaker::run() {
+  // get lock from zookeeper
+  try {
+    zkLocker_.getLock(handler_->def().zookeeperLockPath_.c_str());
+  } catch(const ZookeeperException &zooex) {
+    LOG(FATAL) << zooex.what();
+  }
+
   // running consumer threads
   for (JobMakerConsumerHandler &consumerhandler : kafkaConsumerHandlers_)
   {

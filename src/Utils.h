@@ -101,10 +101,10 @@ inline double share2HashrateP(uint64_t share, uint32_t timeDiff) {
 
 bool fileExists(const char* file);
 
-template<typename T>
-void readFromSetting(const Setting &setting,
+template<typename S, typename V>
+void readFromSetting(const S &setting,
                      const string &key,
-                     T &value,
+                     V &value,
                      bool optional = false)
 {
   if (!setting.lookupValue(key, value) && !optional) {

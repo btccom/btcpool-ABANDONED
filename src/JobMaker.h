@@ -32,6 +32,7 @@
 #include <base58.h>
 
 #include "rsk/RskWork.h"
+#include "Zookeeper.h"
 
 #include <map>
 #include <deque>
@@ -158,6 +159,10 @@ protected:
   shared_ptr<JobMakerHandler> handler_;
   atomic<bool> running_;
 
+  // coordinate two or more jobmaker (automatic disaster
+  // preparedness and recovery) with the zookeeper locker.
+  Zookeeper zkLocker_;
+
   string kafkaBrokers_;
   KafkaProducer kafkaProducer_;
   
@@ -174,7 +179,7 @@ public:
   void runThreadKafkaConsume(JobMakerConsumerHandler &consumerHandler);
 
 public:
-  JobMaker(shared_ptr<JobMakerHandler> handle, const string& brokers);
+  JobMaker(shared_ptr<JobMakerHandler> handle, const string& kafkaBrokers, const string& zookeeperBrokers);
   virtual ~JobMaker();
 
   bool init();

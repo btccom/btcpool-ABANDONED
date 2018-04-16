@@ -130,7 +130,7 @@ bool Zookeeper::doGetLock(const char *lockParentPath, const char *lockNodePath) 
   
   qsort(nodes.data, nodes.count, sizeof(nodes.data), Zookeeper::nodeNameCompare);
 
-  LOG(INFO) << "Zookeeper: fight for lock with " << nodes.count << " clients";
+  LOG(INFO) << "Zookeeper: fight for lock " << lockParentPath << " with " << nodes.count << " clients";
 
   for (i=0; i<nodes.count; i++) {
     if (strcmp(myNodeName, nodes.data[i]) == 0) {
