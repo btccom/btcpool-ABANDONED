@@ -112,9 +112,12 @@ void createJobMakers(const Config &cfg, const string &kafkaBrokers, const string
   }
 }
 
-void workerThread(shared_ptr<JobMaker> jobMaker) {
-  if (jobMaker)
-    jobMaker->run();
+void workerThread(shared_ptr<JobMaker> jobmaker) {
+  if (!jobmaker->init()) {
+    LOG(FATAL) << "jobmaker init failure.";
+  }
+
+  jobmaker->run();
 }
 
 int main(int argc, char **argv) {
@@ -189,20 +192,15 @@ int main(int argc, char **argv) {
     // init JobMaker
     for (auto jobmaker : gJobMakers)
     {
-      if (jobmaker->init()) {
-        workers.push_back(std::make_shared<thread>(workerThread, jobmaker));
-      }
-      else {
-        LOG(FATAL) << "jobmaker init failure.";
-      }
+      workers.push_back(std::make_shared<thread>(workerThread, jobmaker));
     }
 
     // run JobMaker
     for (auto pWorker : workers) {
       if (pWorker->joinable()) {
-        LOG(INFO) << "wait for worker " << pWorker->get_id();
+        LOG(INFO) << "wait for worker " << pWorker->get_id() << " exiting";
         pWorker->join();
-        LOG(INFO) << "worker exit";
+        LOG(INFO) << "worker exited";
       }
     }
 

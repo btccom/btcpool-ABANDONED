@@ -62,9 +62,16 @@ void JobMaker::stop() {
 }
 
 bool JobMaker::init() {
-  /* check configs */
-  if (handler_->def().zookeeperLockPath_.empty()) {
-    LOG(ERROR) << "zookeeper lock path is empty!";
+
+  /* get lock from zookeeper */
+  try {
+    if (handler_->def().zookeeperLockPath_.empty()) {
+      LOG(ERROR) << "zookeeper lock path is empty!";
+      return false;
+    }
+    zkLocker_.getLock(handler_->def().zookeeperLockPath_.c_str());
+  } catch(const ZookeeperException &zooex) {
+    LOG(ERROR) << zooex.what();
     return false;
   }
 
@@ -83,7 +90,7 @@ bool JobMaker::init() {
     }
   }
 
-  /* setup kafka consumer */
+  /* setup kafka consumers */
   if (!handler_->initConsumerHandlers(kafkaBrokers_, kafkaConsumerHandlers_)) {
     return false;
   }
@@ -172,12 +179,6 @@ void JobMaker::runThreadKafkaConsume(JobMakerConsumerHandler &consumerHandler) {
 }
 
 void JobMaker::run() {
-  // get lock from zookeeper
-  try {
-    zkLocker_.getLock(handler_->def().zookeeperLockPath_.c_str());
-  } catch(const ZookeeperException &zooex) {
-    LOG(FATAL) << zooex.what();
-  }
 
   // running consumer threads
   for (JobMakerConsumerHandler &consumerhandler : kafkaConsumerHandlers_)
@@ -185,6 +186,8 @@ void JobMaker::run() {
     kafkaConsumerWorkers_.push_back(std::make_shared<thread>(std::bind(&JobMaker::runThreadKafkaConsume, this, consumerhandler)));
   }
 
+  // produce stratum job regularly
+  // the stratum job producing will also be triggered by consumer threads
   while (running_) {
     sleep(1);
 
