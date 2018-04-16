@@ -154,6 +154,67 @@ public:
 };
 
 
+class JobMakerHandlerBitcoin : public JobMakerHandler
+{
+  GbtJobMakerDefinition def_;
+
+  // mining bitcoin blocks
+  shared_ptr<KafkaConsumer> kafkaRawGbtConsumer_;
+  CTxDestination poolPayoutAddr_;
+  uint32_t currBestHeight_;
+  uint32_t lastJobSendTime_;
+  bool isLastJobEmptyBlock_;
+  mutex lock_; // lock when update rawgbtMap_
+  std::map<uint64_t/* @see makeGbtKey() */, string> rawgbtMap_;  // sorted gbt by timestamp
+  deque<uint256> lastestGbtHash_;
+
+  // merged mining for AuxPow blocks (example: Namecoin, ElastOS)
+  shared_ptr<KafkaConsumer> kafkaAuxPowConsumer_;
+  mutex auxJsonLock_;
+  string latestAuxPowJson_;
+
+  // merged mining for RSK
+  shared_ptr<KafkaConsumer> kafkaRskGwConsumer_;
+  mutex rskWorkAccessLock_;
+  RskWork *previousRskWork_;
+  RskWork *currentRskWork_;
+  bool isRskUpdate_; // a flag to mark RSK has an update
+
+  bool addRawGbt(const string &msg);
+  void clearTimeoutGbt();
+  bool isReachTimeout();
+
+  void clearTimeoutRskGw();
+  bool triggerRskUpdate();
+
+  // return false if there is no best rawGbt or
+  // doesn't need to send a stratum job at current.
+  bool findBestRawGbt(bool isRskUpdate, string &bestRawGbt);
+  string makeStratumJob(const string &gbt);
+
+  inline uint64_t makeGbtKey(uint32_t gbtTime, bool isEmptyBlock, uint32_t height);
+  inline uint32_t gbtKeyGetTime     (uint64_t gbtKey);
+  inline uint32_t gbtKeyGetHeight   (uint64_t gbtKey);
+  inline bool     gbtKeyIsEmptyBlock(uint64_t gbtKey);
+
+public:
+  JobMakerHandlerBitcoin();
+  virtual ~JobMakerHandlerBitcoin() {}
+
+  virtual bool init(const GbtJobMakerDefinition &def);
+  virtual bool initConsumerHandlers(const string &kafkaBrokers, vector<JobMakerConsumerHandler> &handlers);
+  
+  bool processRawGbtMsg(const string &msg);
+  bool processAuxPowMsg(const string &msg);
+  bool processRskGwMsg(const string &msg);
+
+  virtual string makeStratumJobMsg();
+
+  // read-only definition
+  virtual const JobMakerDefinition& def() { return def_; }
+};
+
+
 class JobMaker {
 protected:
   shared_ptr<JobMakerHandler> handler_;
