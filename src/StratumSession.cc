@@ -1382,8 +1382,14 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
   }
 
   uint8 bHeader[80] = {0};
-
-  for (int i = 0; i < 80; ++i)
+  for (int i = 0; i < 40; ++i)
+    bHeader[i] = strtol(header.substr(i * 2, 2).c_str(), 0, 16);
+  uint64 nonce = strtoull(header.substr(64, 16).c_str(), nullptr, 16);
+  uint64 timestamp = strtoull(header.substr(80, 16).c_str(), nullptr, 16);
+  DLOG(INFO) << "nonce=" << std::hex << nonce << ", timestamp=" << std::hex << timestamp; 
+  //memcpy(bHeader + 32, &nonce, 8);
+  memcpy(bHeader + 40, &timestamp, 8);
+  for (int i = 48; i < 80; ++i)
     bHeader[i] = strtol(header.substr(i * 2, 2).c_str(), 0, 16);
 
   string str;
@@ -1415,7 +1421,7 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
     return;
   }
 
-  uint64 nonce = *((uint64*) (bHeader + 32));
+  //uint64 nonce = *((uint64*) (bHeader + 32));
   LocalShare localShare(nonce, 0, 0);
   if (!server_->isEnableSimulator_ && !localJob->addLocalShare(localShare))
   {
@@ -1440,14 +1446,14 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
   
   //uint256 jobTarget;
   //DiffToTarget(localJob->jobDifficulty_, jobTarget);
-  if (shareTarget < networkTarget) {
+  //if (shareTarget < networkTarget) {
     //valid share
     //submit share
     ServerSia *s = dynamic_cast<ServerSia*> (server_);
     s->sendSolvedShare2Kafka(bHeader, 80);
     diffController_->addAcceptedShare(share.share_);
     LOG(INFO) << "sia solution found";
-  }
+  //}
 
   rpc2ResponseBoolean(idStr, true);
   server_->sendShare2Kafka((const uint8_t *)&share, sizeof(Share));
