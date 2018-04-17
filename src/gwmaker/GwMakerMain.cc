@@ -193,7 +193,7 @@ int main(int argc, char **argv) {
       }
     }
 
-    // wait GwMaker threads exit
+    // wait threads exiting
     for (auto pWorker : workers) {
       if (pWorker->joinable()) {
         LOG(INFO) << "wait for worker " << pWorker->get_id();

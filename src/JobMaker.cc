@@ -199,9 +199,9 @@ void JobMaker::run() {
   // wait consumer threads exit
   for (auto pWorker : kafkaConsumerWorkers_) {
     if (pWorker->joinable()) {
-      LOG(INFO) << "wait for worker " << pWorker->get_id();
+      LOG(INFO) << "wait for worker " << pWorker->get_id() << "exiting";
       pWorker->join();
-      LOG(INFO) << "worker exit";
+      LOG(INFO) << "worker exited";
     }
   }
 }
@@ -494,7 +494,7 @@ bool JobMakerHandlerBitcoin::initConsumerHandlers(const string &kafkaBrokers, ve
   {
     rd_kafka_message_t *rkmessage;
     rkmessage = kafkaAuxPowConsumer_->consumer(1000/* timeout ms */);
-    if (rkmessage != nullptr) {
+    if (rkmessage != nullptr && !rkmessage->err) {
       string msg((const char *)rkmessage->payload, rkmessage->len);
       processAuxPowMsg(msg);
       rd_kafka_message_destroy(rkmessage);
@@ -507,7 +507,7 @@ bool JobMakerHandlerBitcoin::initConsumerHandlers(const string &kafkaBrokers, ve
   {
     rd_kafka_message_t *rkmessage;
     rkmessage = kafkaRskGwConsumer_->consumer(1000/* timeout ms */);
-    if (rkmessage != nullptr) {
+    if (rkmessage != nullptr && !rkmessage->err) {
       string msg((const char *)rkmessage->payload, rkmessage->len);
       processRskGwMsg(msg);
       rd_kafka_message_destroy(rkmessage);
@@ -521,7 +521,7 @@ bool JobMakerHandlerBitcoin::initConsumerHandlers(const string &kafkaBrokers, ve
   for (int32_t i = 0; i < consumeLatestN; i++) {
     rd_kafka_message_t *rkmessage;
     rkmessage = kafkaRawGbtConsumer_->consumer(5000/* timeout ms */);
-    if (rkmessage == nullptr) {
+    if (rkmessage == nullptr || rkmessage->err) {
       break;
     }
     string msg((const char *)rkmessage->payload, rkmessage->len);
