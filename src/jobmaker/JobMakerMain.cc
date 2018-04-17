@@ -56,7 +56,11 @@ void usage() {
   fprintf(stderr, "Usage:\n\tjobmaker -c \"jobmaker.cfg\" -l \"log_dir\"\n");
 }
 
-shared_ptr<JobMakerHandler> createJobMakerHandler(const GwJobMakerDefinition &def) {
+bool isGwChain(const string &chainType) {
+  return (chainType == "ETH" || chainType == "SIA");
+}
+
+shared_ptr<JobMakerHandler> createGwJobMakerHandler(const GwJobMakerDefinition &def) {
   shared_ptr<GwJobMakerHandler> handler;
 
   if      (def.chainType_ == "ETH")
@@ -71,7 +75,33 @@ shared_ptr<JobMakerHandler> createJobMakerHandler(const GwJobMakerDefinition &de
   return handler;
 }
 
-GwJobMakerDefinition createJobMakerDefinition(const Setting &setting)
+shared_ptr<JobMakerHandler> createGbtJobMakerHandler(const GbtJobMakerDefinition &def) {
+  shared_ptr<JobMakerHandlerBitcoin> handler;
+
+  #ifdef CHAIN_TYPE_BTC
+    const char *chain = "BTC";
+  #endif
+  #ifdef CHAIN_TYPE_BCH
+    const char *chain = "BCH";
+  #endif
+  #ifdef CHAIN_TYPE_UBTC
+    const char *chain = "UBTC";
+  #endif
+  #ifdef CHAIN_TYPE_SBTC
+    const char *chain = "SBTC";
+  #endif
+
+  if (def.chainType_ == chain)
+    handler = make_shared<JobMakerHandlerBitcoin>();
+  else
+    LOG(FATAL) << "unknown chain type: " << def.chainType_;
+
+  handler->init(def);
+
+  return handler;
+}
+
+GwJobMakerDefinition createGwJobMakerDefinition(const Setting &setting)
 {
   GwJobMakerDefinition def;
 
@@ -91,6 +121,37 @@ GwJobMakerDefinition createJobMakerDefinition(const Setting &setting)
   return def;
 }
 
+GbtJobMakerDefinition createGbtJobMakerDefinition(const Setting &setting)
+{
+  GbtJobMakerDefinition def;
+
+  readFromSetting(setting, "chain_type",          def.chainType_);
+  readFromSetting(setting, "testnet",             def.testnet_);
+
+  readFromSetting(setting, "payout_address",      def.payoutAddr_);
+  readFromSetting(setting, "coinbase_info",       def.coinbaseInfo_);
+  readFromSetting(setting, "block_version",       def.blockVersion_);
+
+  readFromSetting(setting, "rawgbt_topic",        def.rawGbtTopic_);
+  readFromSetting(setting, "auxpow_topic",        def.auxPowTopic_);
+  readFromSetting(setting, "rsk_rawgw_topic",     def.rskRawGwTopic_);
+  readFromSetting(setting, "job_topic",           def.jobTopic_);
+
+  readFromSetting(setting, "job_interval",        def.jobInterval_);
+  readFromSetting(setting, "max_job_delay",       def.maxJobDelay_);
+  readFromSetting(setting, "gbt_life_time",       def.gbtLifeTime_);
+  readFromSetting(setting, "empty_gbt_life_time", def.emptyGbtLifeTime_);
+  readFromSetting(setting, "rsk_notify_policy",   def.rskNotifyPolicy_);
+
+  readFromSetting(setting, "zookeeper_lock_path", def.zookeeperLockPath_);
+  readFromSetting(setting, "file_last_job_time",  def.fileLastJobTime_, true);
+
+  def.enabled_ = false;
+  readFromSetting(setting, "enabled", def.enabled_, true);
+
+  return def;
+}
+
 void createJobMakers(const Config &cfg, const string &kafkaBrokers, const string &zkBrokers, vector<shared_ptr<JobMaker>> &makers)
 {
   const Setting &root = cfg.getRoot();
@@ -98,23 +159,46 @@ void createJobMakers(const Config &cfg, const string &kafkaBrokers, const string
 
   for (int i = 0; i < workerDefs.getLength(); i++)
   {
-    GwJobMakerDefinition def = createJobMakerDefinition(workerDefs[i]);
-
-    if (!def.enabled_) {
-      LOG(INFO) << "chain: " << def.chainType_ << ", topic: " << def.jobTopic_ << ", disabled.";
-      continue;
-    }
+    string chainType;
+    readFromSetting(workerDefs[i], "chain_type", chainType);
     
-    LOG(INFO) << "chain: " << def.chainType_ << ", topic: " << def.jobTopic_ << ", enabled.";
+    if (isGwChain(chainType))
+    {
+      GwJobMakerDefinition def = createGwJobMakerDefinition(workerDefs[i]);
 
-    auto handle = createJobMakerHandler(def);
-    makers.push_back(std::make_shared<JobMaker>(handle, kafkaBrokers, zkBrokers));
+      if (!def.enabled_) {
+        LOG(INFO) << "chain: " << def.chainType_ << ", topic: " << def.jobTopic_ << ", disabled.";
+        continue;
+      }
+      
+      LOG(INFO) << "chain: " << def.chainType_ << ", topic: " << def.jobTopic_ << ", enabled.";
+
+      auto handle = createGwJobMakerHandler(def);
+      makers.push_back(std::make_shared<JobMaker>(handle, kafkaBrokers, zkBrokers));
+    }
+    else
+    {
+      GbtJobMakerDefinition def = createGbtJobMakerDefinition(workerDefs[i]);
+
+      if (!def.enabled_) {
+        LOG(INFO) << "chain: " << def.chainType_ << ", topic: " << def.jobTopic_ << ", disabled.";
+        continue;
+      }
+      
+      LOG(INFO) << "chain: " << def.chainType_ << ", topic: " << def.jobTopic_ << ", enabled.";
+
+      auto handle = createGbtJobMakerHandler(def);
+      makers.push_back(std::make_shared<JobMaker>(handle, kafkaBrokers, zkBrokers));
+    }
   }
 }
 
-void workerThread(shared_ptr<JobMaker> jobMaker) {
-  if (jobMaker)
-    jobMaker->run();
+void workerThread(shared_ptr<JobMaker> jobmaker) {
+  if (!jobmaker->init()) {
+    LOG(FATAL) << "jobmaker init failure.";
+  }
+
+  jobmaker->run();
 }
 
 int main(int argc, char **argv) {
@@ -186,23 +270,18 @@ int main(int argc, char **argv) {
     // create JobMaker
     createJobMakers(cfg, kafkaBrokers, zkBrokers, gJobMakers);
 
-    // init JobMaker
+    // init & run JobMaker
     for (auto jobmaker : gJobMakers)
     {
-      if (jobmaker->init()) {
-        workers.push_back(std::make_shared<thread>(workerThread, jobmaker));
-      }
-      else {
-        LOG(FATAL) << "jobmaker init failure.";
-      }
+      workers.push_back(std::make_shared<thread>(workerThread, jobmaker));
     }
 
-    // run JobMaker
+    // wait threads exiting
     for (auto pWorker : workers) {
       if (pWorker->joinable()) {
-        LOG(INFO) << "wait for worker " << pWorker->get_id();
+        LOG(INFO) << "wait for worker " << pWorker->get_id() << " exiting";
         pWorker->join();
-        LOG(INFO) << "worker exit";
+        LOG(INFO) << "worker exited";
       }
     }
 
