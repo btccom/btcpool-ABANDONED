@@ -1382,20 +1382,19 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
   }
 
   uint8 bHeader[80] = {0};
-  for (int i = 0; i < 40; ++i)
+  for (int i = 0; i < 80; ++i)
     bHeader[i] = strtol(header.substr(i * 2, 2).c_str(), 0, 16);
-  uint64 nonce = strtoull(header.substr(64, 16).c_str(), nullptr, 16);
-  uint64 timestamp = strtoull(header.substr(80, 16).c_str(), nullptr, 16);
-  DLOG(INFO) << "nonce=" << std::hex << nonce << ", timestamp=" << std::hex << timestamp; 
-  //memcpy(bHeader + 32, &nonce, 8);
-  memcpy(bHeader + 40, &timestamp, 8);
-  for (int i = 48; i < 80; ++i)
-    bHeader[i] = strtol(header.substr(i * 2, 2).c_str(), 0, 16);
-
+  // uint64 nonce = strtoull(header.substr(64, 16).c_str(), nullptr, 16);
+  // uint64 timestamp = strtoull(header.substr(80, 16).c_str(), nullptr, 16);
+  // DLOG(INFO) << "nonce=" << std::hex << nonce << ", timestamp=" << std::hex << timestamp; 
+  // //memcpy(bHeader + 32, &nonce, 8);
+  // memcpy(bHeader + 40, &timestamp, 8);
+  // for (int i = 48; i < 80; ++i)
+  //   bHeader[i] = strtol(header.substr(i * 2, 2).c_str(), 0, 16);
   string str;
-  // for (int i = 0; i < 80; ++i)
-  //   str += Strings::Format("%02x", bHeader[i]);
-  // DLOG(INFO) << str;
+  for (int i = 0; i < 80; ++i)
+    str += Strings::Format("%02x", bHeader[i]);
+  DLOG(INFO) << str;
 
   uint8 out[32] = {0};
   int ret = blake2b(out, 32, bHeader, 80, nullptr, 0);
@@ -1421,7 +1420,7 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
     return;
   }
 
-  //uint64 nonce = *((uint64*) (bHeader + 32));
+  uint64 nonce = *((uint64*) (bHeader + 32));
   LocalShare localShare(nonce, 0, 0);
   if (!server_->isEnableSimulator_ && !localJob->addLocalShare(localShare))
   {

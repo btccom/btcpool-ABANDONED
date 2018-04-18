@@ -321,53 +321,28 @@ string GwMakerHandlerSia::processRawGw(const string &msg)
     targetStr += Strings::Format("%02x", val);
   }
 
-  // string blkIdStr;
-  // for (int i = 32; i < 64; ++i)
-  // {
-  //   uint8 val = (uint8)msg[i];
-  //   blkIdStr += Strings::Format("%02x", val);
-  // }
-
-  // string nonceStr;
-  // for (int i = 64; i < 72; ++i)
-  // {
-  //   uint8 val = (uint8)msg[i];
-  //   nonceStr += Strings::Format("%02x", val);
-  // }
-
-  // string timestampStr;
-  // for (int i = 72; i < 80; ++i)
-  // {
-  //   uint8 val = (uint8)msg[i];
-  //   timestampStr += Strings::Format("%02x", val);
-  // }
-
-  // string merkleRootStr;
-  // for (int i = 80; i < 112; ++i)
-  // {
-  //   uint8 val = (uint8)msg[i];
-  //   merkleRootStr += Strings::Format("%02x", val);
-  // }
+  //Claymore purposely reverses the timestamp
+  //"00000000000000021f3e8ede65495c4311ef59e5b7a4338542e573819f5979e90000000000000000cd33aa5a00000000486573a66f31f5911959fce210ef557c715f716d0f022e1ba9f396294fc39d42"
 
   string headerStr;
-  for (int i = 32; i < 72; ++i)
+  for (int i = 32; i < 112; ++i)
   {
     uint8 val = (uint8)msg[i];
     headerStr += Strings::Format("%02x", val);
   }
 
   //time stamp
-  uint64 timestamp = *((uint64*)&msg[72]);
-  string timestampStr = Strings::Format("%08x%08x", timestamp >> 32, timestamp & 0xFFFFFFFF);
-  DLOG(INFO) << "timestamp string=" <<  timestampStr;
+  // uint64 timestamp = *((uint64*)&msg[72]);
+  // string timestampStr = Strings::Format("%08x%08x", timestamp >> 32, timestamp & 0xFFFFFFFF);
+  // DLOG(INFO) << "timestamp string=" <<  timestampStr;
 
-  headerStr += timestampStr;
+  // headerStr += timestampStr;
 
-  for (int i = 80; i < 112; ++i)
-  {
-    uint8 val = (uint8)msg[i];
-    headerStr += Strings::Format("%02x", val);
-  }
+  // for (int i = 80; i < 112; ++i)
+  // {
+  //   uint8 val = (uint8)msg[i];
+  //   headerStr += Strings::Format("%02x", val);
+  // }
 
   LOG(INFO) << "chain: "    << def_.chainType_
             << ", topic: "  << def_.rawGwTopic_
