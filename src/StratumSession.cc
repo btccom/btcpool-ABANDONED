@@ -1444,16 +1444,14 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
   arith_uint256 shareTarget(str);
   arith_uint256 networkTarget = UintToArith256(exjob->sjob_->networkTarget_);
   
-  //uint256 jobTarget;
-  //DiffToTarget(localJob->jobDifficulty_, jobTarget);
-  //if (shareTarget < networkTarget) {
+  if (shareTarget < networkTarget) {
     //valid share
     //submit share
     ServerSia *s = dynamic_cast<ServerSia*> (server_);
     s->sendSolvedShare2Kafka(bHeader, 80);
     diffController_->addAcceptedShare(share.share_);
     LOG(INFO) << "sia solution found";
-  //}
+  }
 
   rpc2ResponseBoolean(idStr, true);
   server_->sendShare2Kafka((const uint8_t *)&share, sizeof(Share));
