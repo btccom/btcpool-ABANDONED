@@ -221,7 +221,9 @@ bool httpPOSTImpl(const char *url, const char *userpwd, const char *postData, in
     response.assign(chunk.memory, chunk.size);
 
   curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &code);
-  if (code != 200) {
+  //status code 200 - 208 indicates ok
+  //sia returns 204 as success
+  if (code < 200 || code > 208) {
     LOG(ERROR) << "server responded with code: " << code;
     goto error;
   }
