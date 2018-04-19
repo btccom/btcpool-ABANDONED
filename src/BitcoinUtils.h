@@ -48,7 +48,6 @@
   #define AMOUNT_TYPE CAmount
   #define COIN_TO_SATOSHIS COIN
   #define AMOUNT_SATOSHIS(amt) amt
-  #define 
 #endif
 
 std::string EncodeHexBlock(const CBlock &block);

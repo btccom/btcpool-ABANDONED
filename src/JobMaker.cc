@@ -35,6 +35,10 @@
 #include <util.h>
 #include <utilstrencodings.h>
 
+#ifndef CHAIN_TYPE_BCH
+#include <key_io.h> //  IsValidDestinationString for bch is not in this file.
+#endif
+
 #include "utilities_js.hpp"
 #include "Utils.h"
 #include "BitcoinUtils.h"

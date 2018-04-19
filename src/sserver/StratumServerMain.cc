@@ -40,6 +40,8 @@
 #include "Utils.h"
 #include "StratumServer.h"
 
+#include <chainparams.h>
+
 using namespace std;
 using namespace libconfig;
 

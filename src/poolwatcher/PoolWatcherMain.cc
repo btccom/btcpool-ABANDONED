@@ -38,6 +38,8 @@
 #include "Utils.h"
 #include "Watcher.h"
 
+#include <chainparams.h>
+
 using namespace std;
 using namespace libconfig;
 

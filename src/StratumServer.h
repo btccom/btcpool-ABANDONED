@@ -42,6 +42,8 @@
 
 #include <glog/logging.h>
 
+#include <primitives/block.h>
+
 #include "Kafka.h"
 #include "MySQLConnection.h"
 #include "Stratum.h"

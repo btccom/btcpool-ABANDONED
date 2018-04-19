@@ -33,6 +33,9 @@
 #include <script/script.h>
 #include <uint256.h>
 #include <util.h>
+#ifndef CHAIN_TYPE_BCH
+#include <key_io.h> //  IsValidDestinationString for bch is not in this file.
+#endif
 
 #include "rsk/RskWork.h"
 

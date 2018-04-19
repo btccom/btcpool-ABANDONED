@@ -40,6 +40,8 @@
 #include "JobMaker.h"
 #include "Zookeeper.h"
 
+#include <chainparams.h>
+
 using namespace std;
 using namespace libconfig;
 
