@@ -35,7 +35,7 @@
 #include <util.h>
 #include <utilstrencodings.h>
 
-#ifndef CHAIN_TYPE_BCH
+#ifdef INCLUDE_BTC_KEY_IO_H //  
 #include <key_io.h> //  IsValidDestinationString for bch is not in this file.
 #endif
 

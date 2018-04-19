@@ -52,6 +52,10 @@ if (CHAIN_TYPE STREQUAL "BTC")
   set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-bitcoin")
   set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.btc")
 
+  if (HAVE_KEY_IO_H)
+    add_definitions(-DINCLUDE_BTC_KEY_IO_H)
+  endif()
+
   add_definitions(-DCHAIN_TYPE_BTC)
   add_definitions(-DKAFKA_TOPIC_PREFIX="") # for compatibility with old deployments, let it empty.
   add_definitions(-DZOOKEEPER_NODE_POSTFIX="") # for compatibility with old deployments, let it empty.
