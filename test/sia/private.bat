@@ -1,1 +1,1 @@
-sia-antfarm --sia-directory "/work/data" -config /work/go/src/github.com/NebulousLabs/Sia-Ant-Farm/nebulous-configs/testing-stub.json
+sia-antfarm -config /work/go/src/github.com/NebulousLabs/Sia-Ant-Farm/nebulous-configs/testing-miner.json
