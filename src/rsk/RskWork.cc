@@ -74,7 +74,7 @@ void RskWork::initialize(JsonNode &work) {
 
 bool RskWork::initFromGw(const string &rawGetWork) {
   JsonNode work;
-  //LOG(INFO) << "initFromGw: " << rawGetWork;
+  DLOG(INFO) << "initFromGw: " << rawGetWork;
   // check is valid json
   if (!JsonNode::parse(rawGetWork.c_str(),
                        rawGetWork.c_str() + rawGetWork.length(),
@@ -137,8 +137,8 @@ bool RskWorkEth::validate(JsonNode &work)
 {
   // check fields are valid
   if (work["created_at_ts"].type() != Utilities::JS::type::Int ||
-      work["rskdRpcAddress"].type() != Utilities::JS::type::Str ||
-      work["rskdRpcUserPwd"].type() != Utilities::JS::type::Str ||
+      work["rpcAddress"].type() != Utilities::JS::type::Str ||
+      work["rpcUserPwd"].type() != Utilities::JS::type::Str ||
       work["hHash"].type() != Utilities::JS::type::Str ||
       work["sHash"].type() != Utilities::JS::type::Str ||
       work["target"].type() != Utilities::JS::type::Str)
