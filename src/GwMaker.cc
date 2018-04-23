@@ -122,7 +122,7 @@ string GwMakerHandler::makeRawGwMsg() {
   if (!callRpcGw(gw)) {
     return "";
   }
-  LOG(INFO) << "getwork len: " << gw.length();
+  LOG(INFO) << "getwork len=" << gw.length() << ", msg: " << gw;
   return processRawGw(gw);
 }
 
