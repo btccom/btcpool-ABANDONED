@@ -42,14 +42,15 @@
 #include <unistd.h>
 
 static
-string getStatsFilePath(const string &dataDir, time_t ts) {
+string getStatsFilePath(const string &dataDir, time_t ts, const char *type = "BTC") {
   bool needSlash = false;
   if (dataDir.length() > 0 && *dataDir.rbegin() != '/') {
     needSlash = true;
   }
   // filename: sharelog-2016-07-12.bin
-  return Strings::Format("%s%ssharelog-%s.bin",
+  return Strings::Format("%s%ssharelog%s-%s.bin",
                          dataDir.c_str(), needSlash ? "/" : "",
+                         type,
                          date("%F", ts).c_str());
 }
 
@@ -963,9 +964,10 @@ void StatsServer::run() {
 //////////////////////////////  ShareLogWriter  ///////////////////////////////
 ShareLogWriter::ShareLogWriter(const char *kafkaBrokers,
                                const string &dataDir,
-                               const string &kafkaGroupID)
+                               const string &kafkaGroupID,
+                               const char *shareLogTopic)
 :running_(true), dataDir_(dataDir),
-hlConsumer_(kafkaBrokers, KAFKA_TOPIC_SHARE_LOG, 0/* patition */, kafkaGroupID)
+hlConsumer_(kafkaBrokers, shareLogTopic, 0/* patition */, kafkaGroupID)
 {
 }
 
@@ -990,7 +992,7 @@ FILE* ShareLogWriter::getFileHandler(uint32_t ts) {
     return fileHandlers_[ts];
   }
 
-  const string filePath = getStatsFilePath(dataDir_, ts);
+  const string filePath = getStatsFilePath(dataDir_, ts, "ETH");
   LOG(INFO) << "fopen: " << filePath;
 
   FILE *f = fopen(filePath.c_str(), "ab");  // append mode, bin file

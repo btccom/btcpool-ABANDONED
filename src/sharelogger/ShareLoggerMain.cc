@@ -115,7 +115,8 @@ int main(int argc, char **argv) {
   try {
     gShareLogWriter = new ShareLogWriter(cfg.lookup("kafka.brokers").c_str(),
                                          cfg.lookup("sharelog_writer.data_dir").c_str(),
-                                         cfg.lookup("sharelog_writer.kafka_group_id").c_str());
+                                         cfg.lookup("sharelog_writer.kafka_group_id").c_str(),
+                                         "EthShareLog");
     gShareLogWriter->run();
     delete gShareLogWriter;
   }
