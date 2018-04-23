@@ -74,7 +74,7 @@ void RskWork::initialize(JsonNode &work) {
 
 bool RskWork::initFromGw(const string &rawGetWork) {
   JsonNode work;
-  DLOG(INFO) << "initFromGw: " << rawGetWork;
+  //DLOG(INFO) << "initFromGw: " << rawGetWork;
   // check is valid json
   if (!JsonNode::parse(rawGetWork.c_str(),
                        rawGetWork.c_str() + rawGetWork.length(),
@@ -91,7 +91,7 @@ bool RskWork::initFromGw(const string &rawGetWork) {
   return true;
 }
 
-bool RskWork::isInitialized() const {
+bool RskWork::isInitialized() const { 
   return initialized_; 
 }
 
@@ -160,11 +160,11 @@ void RskWorkEth::initialize(JsonNode &work)
 {
   //LOG(INFO) << "RskWorkEth:: initialize";
   created_at = work["created_at_ts"].uint32();
-  rpcAddress_ = work["rskdRpcAddress"].str(); 
-  rpcUserPwd_ = work["rskdRpcUserPwd"].str();
+  rpcAddress_ = work["rpcAddress"].str(); 
+  rpcUserPwd_ = work["rpcUserPwd"].str();
   blockHash_ = work["hHash"].str();
   seedHash_ = work["sHash"].str();
   target_ = work["target"].str();
-  //LOG(INFO) << "eth work init seedHash; " << seedHash_ << " headerHash: " << blockHash_;
+  DLOG(INFO) << "address " << rpcAddress_;
   initialized_ = true;
 }

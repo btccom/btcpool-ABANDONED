@@ -128,6 +128,7 @@ void JobMaker::consumeKafkaMsg(rd_kafka_message_t *rkmessage, JobMakerConsumerHa
   string msg((const char *)rkmessage->payload, rkmessage->len);
 
   if (consumerHandler.messageProcessor_(msg)) {
+    LOG(INFO) << "handleMsg returns true, new stratum job";
     produceStratumJob();
   }
 
@@ -245,13 +246,17 @@ bool JobMakerHandlerEth::processMsg(const string &msg)
     currentRskWork_ = rskWork;
     DLOG(INFO) << "currentRskBlockJson: " << msg;
   }
-  else
+  else {
+    LOG(ERROR) << "eth initFromGw failed " << msg;
     return false;
+  }
 
   clearTimeoutMsg();
 
-  if (nullptr == previousRskWork_ && nullptr == currentRskWork_)
+  if (nullptr == previousRskWork_ && nullptr == currentRskWork_) {
+    LOG(ERROR) << "no current work" << msg;
     return false;
+  }
 
   //first job 
   if (nullptr == previousRskWork_ && currentRskWork_ != nullptr)
