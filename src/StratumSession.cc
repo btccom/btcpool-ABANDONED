@@ -1135,40 +1135,93 @@ StratumSessionEth::StratumSessionEth(evutil_socket_t fd, struct bufferevent *bev
                                      Server *server, struct sockaddr *saddr,
                                      const int32_t shareAvgSeconds, const uint32_t extraNonce1) : StratumSession(fd, bev,
                                                                                                                  server, saddr,
-                                                                                                                 shareAvgSeconds, extraNonce1)
+                                                                                                                 shareAvgSeconds, extraNonce1),
+                                                                                                  extraNonce16b_(1)
 {
   ethProtocol_ = STRATUM;
 }
 
-void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
-  if (state_ < AUTHENTICATED || exJobPtr == nullptr) {
+void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob)
+{
+  if (state_ < AUTHENTICATED || exJobPtr == nullptr)
+  {
     LOG(ERROR) << "eth sendMiningNotify failed, state: " << state_;
     return;
   }
 
-  StratumJobEth *ethJob = dynamic_cast<StratumJobEth*>(exJobPtr->sjob_);
-  if (nullptr == ethJob) {
+  StratumJobEth *ethJob = dynamic_cast<StratumJobEth *>(exJobPtr->sjob_);
+  if (nullptr == ethJob)
+  {
     return;
   }
 
   localJobs_.push_back(LocalJob());
   LocalJob &ljob = *(localJobs_.rbegin());
-  ljob.blkBits_       = ethJob->nBits_;
-  ljob.jobId_         = ethJob->jobId_;
-  ljob.shortJobId_    = allocShortJobId();
+  ljob.blkBits_ = ethJob->nBits_;
+  ljob.jobId_ = ethJob->jobId_;
+  ljob.shortJobId_ = allocShortJobId();
   ljob.jobDifficulty_ = diffController_->calcCurDiff();
-  string header = ethJob->blockHashForMergedMining_.substr(2, 64);
-  string seed = ethJob->seedHash_.substr(2, 64);
+  string header = ethJob->blockHashForMergedMining_;
+  string seed = ethJob->seedHash_;
+  if (STRATUM == ethProtocol_)
+  {
+    if (66 == header.length())
+      header = header.substr(2, 64);
+    if (66 == seed.length())
+      seed = seed.substr(2, 64);
+  }
+  //string header = ethJob->blockHashForMergedMining_.substr(2, 64);
+  //string seed = ethJob->seedHash_.substr(2, 64);
   string strShareTarget = Eth_DifficultyToTarget(ljob.jobDifficulty_);
-  LOG(INFO) << "new stratum job mining.notify: share difficulty=" << std::hex << ljob.jobDifficulty_ << ", share target=" << strShareTarget;
-  const string strNotify = Strings::Format("{\"id\":8,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
-                                   "\"params\":[\"%s\",\"%s\",\"%s\",\"%s\", false]}\n",
-                                   header.c_str(),
-                                   header.c_str(),
-                                   seed.c_str(),
-                                   strShareTarget.c_str());
 
-  sendData(strNotify);  // send notify string
+  LOG(INFO) << "new stratum job mining.notify: share difficulty=" << std::hex << ljob.jobDifficulty_ << ", share target=" << strShareTarget << ", protocol=" << ethProtocol_;
+  string strNotify;
+
+  switch (ethProtocol_)
+  {
+  case STRATUM:
+  {
+    //Etherminer mining.notify
+    //{"id":6,"jsonrpc":"2.0","method":"mining.notify","params":
+    //["dd159c7ec5b056ad9e95e7c997829f667bc8e34c6d43fcb9e0c440ed94a85d80",
+    //"dd159c7ec5b056ad9e95e7c997829f667bc8e34c6d43fcb9e0c440ed94a85d80",
+    //"a8784097a4d03c2d2ac6a3a2beebd0606aa30a8536a700446b40800841c0162c",
+    //"0000000112e0be826d694b2e62d01511f12a6061fbaec8bc02357593e70e52ba",false]}
+    strNotify = Strings::Format("{\"id\":8,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
+                                "\"params\":[\"%s\",\"%s\",\"%s\",\"%s\", false]}\n",
+                                header.c_str(),
+                                header.c_str(),
+                                seed.c_str(),
+                                strShareTarget.c_str());
+  }
+  break;
+  case ETHPROXY:
+  {
+    //Clymore eth_getWork
+    //{"id":3,"jsonrpc":"2.0","result":
+    //["0x599fffbc07777d4b6455c0e7ca479c9edbceef6c3fec956fecaaf4f2c727a492",
+    //"0x1261dfe17d0bf58cb2861ae84734488b1463d282b7ee88ccfa18b7a92a7b77f7",
+    //"0x0112e0be826d694b2e62d01511f12a6061fbaec8bc02357593e70e52ba","0x4ec6f5"]}
+    int extraNonce = (server_->serverId_ << 16) + extraNonce16b_;
+    strNotify = Strings::Format("{\"id\":%d,\"jsonrpc\":\"2.0\","
+                                "\"result\":[\"%s\",\"%s\",\"0x%s\", 0x06x]}\n",
+                                isFirstJob ? 3 : 0,
+                                header.c_str(),
+                                seed.c_str(),
+                                strShareTarget.c_str(),
+                                extraNonce);
+    if (!isFirstJob)
+      ++extraNonce16b_;
+  }
+  break;
+  default:
+    break;
+  }
+
+  if (!strNotify.empty())
+    sendData(strNotify); // send notify string
+  else
+    LOG(ERROR) << "Eth notify string is empty";
 
   // clear localJobs_
   clearLocalJobs();
@@ -1191,10 +1244,13 @@ void StratumSessionEth::handleRequest_Subscribe(const string &idStr, const JsonN
 void StratumSessionEth::handleRequest_SubmitLogin(const string &idStr, const JsonNode &jparams)
 {
   ethProtocol_ = ETHPROXY;
+  state_ = SUBSCRIBED;
+  handleRequest_Authorize(idStr, jparams);
 }
 
 void StratumSessionEth::handleRequest_GetWork(const string &idStr, const JsonNode &jparams)
 {
+  
 }
 
 void StratumSessionEth::handleRequest_SubmitHashrate(const string &idStr, const JsonNode &jparams)

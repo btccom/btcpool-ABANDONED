@@ -352,6 +352,7 @@ public:
 
 private: 
   StratumProtocol ethProtocol_;
+  uint16 extraNonce16b_;
 };
 
 class StratumSessionSia : public StratumSessionEth

@@ -995,7 +995,8 @@ sessionIDManager_(nullptr),
 
 isDevModeEnable_(false), minerDifficulty_(1.0),
 kShareAvgSeconds_(shareAvgSeconds),
-jobRepository_(nullptr), userInfo_(nullptr)
+jobRepository_(nullptr), userInfo_(nullptr),
+serverId_(0)
 {
 }
 
@@ -1149,9 +1150,9 @@ bool Server::setup(StratumServer* sserver) {
   if (!userInfo_->setupThreads()) {
     return false;
   }
-
+  serverId_ = sserver->serverId_;
 #ifndef WORK_WITH_STRATUM_SWITCHER
-  sessionIDManager_ = new SessionIDManager(sserver->serverId_);
+  sessionIDManager_ = new SessionIDManager(serverId_);
 #endif
 
   // kafkaProducerShareLog_

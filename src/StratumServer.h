@@ -329,9 +329,9 @@ public:
   const int32_t kShareAvgSeconds_;
   JobRepository *jobRepository_;
   UserInfo *userInfo_;
-
   shared_ptr<DiffController> defaultDifficultyController_;
-
+  uint8 serverId_;
+  
 public:
   Server(const int32_t shareAvgSeconds);
   virtual ~Server();
