@@ -296,6 +296,8 @@ protected:
   void handleExMessage_UnRegisterWorker   (const string *exMessage);
   void handleExMessage_SubmitShare        (const string *exMessage);
   void handleExMessage_SubmitShareWithTime(const string *exMessage);
+  //return true if request is handled
+  virtual bool handleRequest_Specific(const string &idStr, const string &method, const JsonNode &jparams) {return false;}
 
 public:
   struct bufferevent* bev_;
@@ -333,13 +335,23 @@ public:
 class StratumSessionEth : public StratumSession
 {
 public:
+  typedef enum { STRATUM = 0, ETHPROXY, ETHEREUMSTRATUM } StratumProtocol;
+
   StratumSessionEth(evutil_socket_t fd, struct bufferevent *bev,
                     Server *server, struct sockaddr *saddr,
                     const int32_t shareAvgSeconds, const uint32_t extraNonce1);
   //virtual bool initialize();
-  virtual void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false);  
-  virtual void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams);      
-  virtual void handleRequest_Submit           (const string &idStr, const JsonNode &jparams);          
+  void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false) override;  
+  void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams) override;      
+  void handleRequest_Submit           (const string &idStr, const JsonNode &jparams) override;     
+  bool handleRequest_Specific(const string &idStr, const string &method, const JsonNode &jparams) override;    
+  void handleRequest_SubmitLogin(const string &idStr, const JsonNode &jparams);   
+  void handleRequest_GetWork(const string &idStr, const JsonNode &jparams); 
+  void handleRequest_SubmitHashrate(const string &idStr, const JsonNode &jparams); 
+  void handleRequest_SubmitWork(const string &idStr, const JsonNode &jparams); 
+
+private: 
+  StratumProtocol protocol_;
 };
 
 class StratumSessionSia : public StratumSessionEth
