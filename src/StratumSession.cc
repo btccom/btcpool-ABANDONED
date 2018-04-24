@@ -1137,7 +1137,7 @@ StratumSessionEth::StratumSessionEth(evutil_socket_t fd, struct bufferevent *bev
                                                                                                                  server, saddr,
                                                                                                                  shareAvgSeconds, extraNonce1)
 {
-  protocol_ = STRATUM;
+  ethProtocol_ = STRATUM;
 }
 
 void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
@@ -1190,6 +1190,7 @@ void StratumSessionEth::handleRequest_Subscribe(const string &idStr, const JsonN
 
 void StratumSessionEth::handleRequest_SubmitLogin(const string &idStr, const JsonNode &jparams)
 {
+  ethProtocol_ = ETHPROXY;
 }
 
 void StratumSessionEth::handleRequest_GetWork(const string &idStr, const JsonNode &jparams)
@@ -1208,8 +1209,22 @@ bool StratumSessionEth::handleRequest_Specific(const string &idStr, const string
 {
   if ("eth_submitLogin" == idStr)
   {
+    handleRequest_SubmitLogin(idStr, jparams);
     return true;
   }
+  else if ("eth_getWork" == idStr) {
+    handleRequest_GetWork(idStr, jparams);
+    return true;
+  }
+  else if ("eth_submitHashrate" == idStr) {
+    handleRequest_SubmitHashrate(idStr, jparams);
+    return true;
+  }
+  else if ("eth_submitWork" == idStr) {
+    handleRequest_SubmitWork(idStr, jparams);
+    return true;
+  }
+
   return false;
 }
 

@@ -351,7 +351,7 @@ public:
   void handleRequest_SubmitWork(const string &idStr, const JsonNode &jparams); 
 
 private: 
-  StratumProtocol protocol_;
+  StratumProtocol ethProtocol_;
 };
 
 class StratumSessionSia : public StratumSessionEth
