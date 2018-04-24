@@ -358,7 +358,9 @@ void StatsServer::_flushWorkersToRedisThread() {
                       "updated_at", std::to_string(time(nullptr))
                   });
     // set key expire
-    redis_->prepare({"EXPIRE", key, std::to_string(redisKeyExpire_)});
+    if (redisKeyExpire_ > 0) {
+      redis_->prepare({"EXPIRE", key, std::to_string(redisKeyExpire_)});
+    }
     // publish notification
     redis_->prepare({"PUBLISH", key, "1"});
   }
@@ -392,7 +394,9 @@ void StatsServer::_flushWorkersToRedisThread() {
                       "updated_at", std::to_string(time(nullptr))
                   });
     // set key expire
-    redis_->prepare({"EXPIRE", key, std::to_string(redisKeyExpire_)});
+    if (redisKeyExpire_ > 0) {
+      redis_->prepare({"EXPIRE", key, std::to_string(redisKeyExpire_)});
+    }
     // publish notification
     redis_->prepare({"PUBLISH", key, std::to_string(workerCount)});
   }
@@ -417,7 +421,7 @@ void StatsServer::_flushWorkersToRedisThread() {
       }
     }
     // set key expire
-    {
+    if (redisKeyExpire_ > 0) {
       RedisResult r = redis_->execute();
       if (r.type() != REDIS_REPLY_INTEGER || r.integer() != 1) {
         LOG(INFO) << "redis EXPIRE failed, item index: " << i << ", "
@@ -968,7 +972,7 @@ bool StatsServer::updateWorkerStatusToRedis(const int32_t userId, const int64_t 
   }
 
   // set key expire
-  {
+  if (redisKeyExpire_ > 0) {
     redisCommonEvents_->prepare({"EXPIRE", key, std::to_string(redisKeyExpire_)});
     RedisResult r = redisCommonEvents_->execute();
 
