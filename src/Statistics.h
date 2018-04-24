@@ -278,6 +278,8 @@ class StatsServer {
   RedisConnection *redisCommonEvents_;
   string redisKeyPrefix_;
   int redisKeyExpire_;
+  bool isRedisPublishUsers_;   // if true, publish a message to redis subscriber when a user's data updated
+  bool isRedisPublishWorkers_; // if true, publish a message to redis subscriber when a worker's data updated
 
   time_t kFlushDBInterval_;
   atomic<bool> isInserting_;     // flag mark if we are flushing db
@@ -329,7 +331,7 @@ public:
   StatsServer(const char *kafkaBrokers,
               const string &httpdHost, unsigned short httpdPort,
               const MysqlConnectInfo *poolDBInfo, const RedisConnectInfo *redisInfo,
-              const string &redisKeyPrefix, const int redisKeyExpire,
+              const string &redisKeyPrefix, const int redisKeyExpire, const int redisPublishPolicy,
               const time_t kFlushDBInterval, const string &fileLastFlushTime);
   ~StatsServer();
 

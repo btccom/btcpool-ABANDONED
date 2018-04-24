@@ -128,7 +128,7 @@ bool WorkerShares::isExpired() {
 StatsServer::StatsServer(const char *kafkaBrokers,
                          const string &httpdHost, unsigned short httpdPort,
                          const MysqlConnectInfo *poolDBInfo, const RedisConnectInfo *redisInfo,
-                         const string &redisKeyPrefix, const int redisKeyExpire,
+                         const string &redisKeyPrefix, const int redisKeyExpire, const int redisPublishPolicy,
                          const time_t kFlushDBInterval, const string &fileLastFlushTime):
 running_(true), totalWorkerCount_(0), totalUserCount_(0), uptime_(time(nullptr)),
 poolWorker_(0u/* worker id */, 0/* user id */),
@@ -142,6 +142,8 @@ lastFlushTime_(0), fileLastFlushTime_(fileLastFlushTime),
 base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort),
 requestCount_(0), responseBytes_(0)
 {
+  isRedisPublishUsers_ = redisPublishPolicy & 1;
+  isRedisPublishWorkers_ = redisPublishPolicy & 2;
 
   if (poolDBInfo != nullptr) {
     poolDB_ = new MySQLConnection(*poolDBInfo);
@@ -362,7 +364,9 @@ void StatsServer::_flushWorkersToRedisThread() {
       redis_->prepare({"EXPIRE", key, std::to_string(redisKeyExpire_)});
     }
     // publish notification
-    redis_->prepare({"PUBLISH", key, "1"});
+    if (isRedisPublishWorkers_) {
+      redis_->prepare({"PUBLISH", key, "1"});
+    }
   }
 
   // flush all users status
@@ -398,7 +402,9 @@ void StatsServer::_flushWorkersToRedisThread() {
       redis_->prepare({"EXPIRE", key, std::to_string(redisKeyExpire_)});
     }
     // publish notification
-    redis_->prepare({"PUBLISH", key, std::to_string(workerCount)});
+    if (isRedisPublishUsers_) {
+      redis_->prepare({"PUBLISH", key, std::to_string(workerCount)});
+    }
   }
 
   pthread_rwlock_unlock(&rwlock_); // unlock
@@ -431,7 +437,7 @@ void StatsServer::_flushWorkersToRedisThread() {
       }
     }
     // publish notification
-    {
+    if ((i<workerCounter && isRedisPublishWorkers_) || isRedisPublishUsers_) {
       RedisResult r = redis_->execute();
       if (r.type() != REDIS_REPLY_INTEGER) {
         LOG(INFO) << "redis PUBLISH failed, item index: " << i << ", "
