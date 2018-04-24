@@ -437,7 +437,7 @@ void StatsServer::_flushWorkersToRedisThread() {
       }
     }
     // publish notification
-    if ((i<workerCounter && isRedisPublishWorkers_) || isRedisPublishUsers_) {
+    if ((i < workerCounter) ? isRedisPublishWorkers_ : isRedisPublishUsers_) {
       RedisResult r = redis_->execute();
       if (r.type() != REDIS_REPLY_INTEGER) {
         LOG(INFO) << "redis PUBLISH failed, item index: " << i << ", "
@@ -998,7 +998,7 @@ bool StatsServer::updateWorkerStatusToRedis(const int32_t userId, const int64_t 
   }
 
   // publish notification
-  {
+  if (isRedisPublishWorkers_) {
     redisCommonEvents_->prepare({"PUBLISH", key, "0"});
     RedisResult r = redisCommonEvents_->execute();
 
