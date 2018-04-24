@@ -134,7 +134,7 @@ running_(true), totalWorkerCount_(0), totalUserCount_(0), uptime_(time(nullptr))
 poolWorker_(0u/* worker id */, 0/* user id */),
 kafkaConsumer_(kafkaBrokers, KAFKA_TOPIC_SHARE_LOG, 0/* patition */),
 kafkaConsumerCommonEvents_(kafkaBrokers, KAFKA_TOPIC_COMMON_EVENTS, 0/* patition */),
-poolDB_(nullptr), poolDBCommonEvents_(nullptr), redis_(nullptr),
+poolDB_(nullptr), poolDBCommonEvents_(nullptr), redis_(nullptr), redisCommonEvents_(nullptr),
 redisKeyPrefix_(redisKeyPrefix), redisKeyExpire_(redisKeyExpire),
 kFlushDBInterval_(kFlushDBInterval), isInserting_(false), isUpdateRedis_(false),
 lastShareTime_(0), isInitializing_(true),
