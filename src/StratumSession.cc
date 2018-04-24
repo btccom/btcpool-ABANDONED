@@ -1250,15 +1250,17 @@ void StratumSessionEth::handleRequest_SubmitLogin(const string &idStr, const Jso
 
 void StratumSessionEth::handleRequest_GetWork(const string &idStr, const JsonNode &jparams)
 {
-  
+  sendMiningNotify(server_->jobRepository_->getLatestStratumJobEx(), true);
 }
 
 void StratumSessionEth::handleRequest_SubmitHashrate(const string &idStr, const JsonNode &jparams)
 {
+  responseTrue(idStr);
 }
 
 void StratumSessionEth::handleRequest_SubmitWork(const string &idStr, const JsonNode &jparams)
 {
+  handleRequest_Submit(idStr, jparams);
 }
 
 bool StratumSessionEth::handleRequest_Specific(const string &idStr, const string &method, const JsonNode &jparams)
@@ -1297,99 +1299,133 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
     return;
   }
 
+  //etherminer
   // {"id": 4, "method": "mining.submit",
   // "params": ["0x7b9d694c26a210b9f0d35bb9bfdd70a413351111.fatrat1117",
   // "ae778d304393d441bf8e1c47237261675caa3827997f671d8e5ec3bd5d862503",
   // "0x4cc7c01bfbe51c67",
   // "0xae778d304393d441bf8e1c47237261675caa3827997f671d8e5ec3bd5d862503",
   // "0x52fdd9e9a796903c6b88af4192717e77d9a9c6fa6a1366540b65e6bcfa9069aa"]}
+
+  //Claymore
+  //{"id":4,"method":"eth_submitWork",
+  //"params":["0x17a0eae8082fb64c","0x94a789fba387d454312db3287f8440f841de762522da8ba620b7fcf34a80330c",
+  //"0x2cc7dad9f2f92519891a2d5f67378e646571b89e5994fe9290d6d669e480fdff"]}
   auto params = (const_cast<JsonNode &>(jparams)).array();
-  if (5 == params.size())
+  if (STRATUM == ethProtocol_ && params.size() != 5)
   {
-    // can't find local share
-    const string jobId = params[1].str();
-    LocalJob tmpJob;
-    LocalJob *localJob = server_->isEnableSimulator_ ? &tmpJob : findLocalJob(jobId);
-    if (!server_->isEnableSimulator_ && localJob == nullptr)
-    {
-      responseError(idStr, StratumError::JOB_NOT_FOUND);
-      return;
-    }
-    
-    Share share;
-    share.jobId_ = localJob->jobId_;
-    share.workerHashId_ = worker_.workerHashId_;
-    share.ip_ = clientIpInt_;
-    share.userId_ = worker_.userId_;
-    share.share_ = localJob->jobDifficulty_;
-    share.timestamp_ = (uint32_t)time(nullptr);
-    share.result_ = Share::Result::REJECT;
+    LOG(ERROR) << "mining.submit parameter size is not 5";
+    return;
+  }
 
-    ServerEth *s = dynamic_cast<ServerEth *>(server_);
-    const string sNonce = params[2].str();
-    const string sHeader = params[3].str();
-    const string sMixHash = params[4].str();
-    size_t pos;
-    uint64_t nonce = stoull(sNonce, &pos, 16);
+  if (ETHPROXY == ethProtocol_ && params.size() != 4)
+  {
+    LOG(ERROR) << "eth_submitWork parameter size is not 4";
+    return;
+  }
 
-    LocalShare localShare(nonce, 0, 0);
-    // can't find local share
-    if (!server_->isEnableSimulator_ && !localJob->addLocalShare(localShare))
+  // can't find local share
+  string jobId, sNonce, sHeader, sMixHash;
+  switch (ethProtocol_)
+  {
+  case STRATUM:
+  {
+    jobId = params[1].str();
+    sNonce = params[2].str();
+    sHeader = params[3].str();
+    sMixHash = params[4].str();
+  }
+  break;
     {
-      responseError(idStr, StratumError::DUPLICATE_SHARE);
-      // add invalid share to counter
-      invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
-      return;
+      sNonce = params[1].str();
+      jobId = sHeader = params[2].str();
+      sMixHash = params[3].str();
     }
+  case ETHPROXY:
+    break;
+  default:
+    break;
+  }
 
-    int submitResult = s->checkShare(share, nonce, uint256S(sHeader), uint256S(sMixHash));
+  LocalJob tmpJob;
+  LocalJob *localJob = server_->isEnableSimulator_ ? &tmpJob : findLocalJob(jobId);
+  if (!server_->isEnableSimulator_ && localJob == nullptr)
+  {
+    responseError(idStr, StratumError::JOB_NOT_FOUND);
+    return;
+  }
 
-    // we send share to kafka by default, but if there are lots of invalid
-    // shares in a short time, we just drop them.
+  Share share;
+  share.jobId_ = localJob->jobId_;
+  share.workerHashId_ = worker_.workerHashId_;
+  share.ip_ = clientIpInt_;
+  share.userId_ = worker_.userId_;
+  share.share_ = localJob->jobDifficulty_;
+  share.timestamp_ = (uint32_t)time(nullptr);
+  share.result_ = Share::Result::REJECT;
 
-    if (StratumError::NO_ERROR == submitResult)
-    {
-      LOG(INFO) << "solution found";
-      s->sendSolvedShare2Kafka(sNonce, sHeader, sMixHash);
-      // accepted share
-      share.result_ = Share::Result::ACCEPT;
-      diffController_->addAcceptedShare(share.share_);
-      rpc2ResponseBoolean(idStr, true);
-    }
-    else if (StratumError::LOW_DIFFICULTY == submitResult)
-    {
-      share.result_ = Share::Result::ACCEPT;
-      rpc2ResponseBoolean(idStr, true);
-    }
-    else
-    {
-      // add invalid share to counter
-      invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
-      rpc2ResponseBoolean(idStr, false);
-    }
+  ServerEth *s = dynamic_cast<ServerEth *>(server_);
 
-    bool isSendShareToKafka = true;
-    //finish:
-    DLOG(INFO) << share.toString();
-    // check if thers is invalid share spamming
-    if (share.result_ != Share::Result::ACCEPT)
-    {
-      int64_t invalidSharesNum = invalidSharesCounter_.sum(time(nullptr), INVALID_SHARE_SLIDING_WINDOWS_SIZE);
-      // too much invalid shares, don't send them to kafka
-      if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT)
-      {
-        isSendShareToKafka = false;
-        LOG(WARNING) << "invalid share spamming, diff: "
-                     << share.share_ << ", uid: " << worker_.userId_
-                     << ", uname: \"" << worker_.userName_ << "\", ip: " << clientIp_ 
-                     << "checkshare result: " << submitResult;
-      }
-    }
+  size_t pos;
+  uint64_t nonce = stoull(sNonce, &pos, 16);
 
-    if (isSendShareToKafka)
+  LocalShare localShare(nonce, 0, 0);
+  // can't find local share
+  if (!server_->isEnableSimulator_ && !localJob->addLocalShare(localShare))
+  {
+    responseError(idStr, StratumError::DUPLICATE_SHARE);
+    // add invalid share to counter
+    invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
+    return;
+  }
+
+  int submitResult = s->checkShare(share, nonce, uint256S(sHeader), uint256S(sMixHash));
+
+  // we send share to kafka by default, but if there are lots of invalid
+  // shares in a short time, we just drop them.
+
+  if (StratumError::NO_ERROR == submitResult)
+  {
+    LOG(INFO) << "solution found";
+    s->sendSolvedShare2Kafka(sNonce, sHeader, sMixHash);
+    // accepted share
+    share.result_ = Share::Result::ACCEPT;
+    diffController_->addAcceptedShare(share.share_);
+    rpc2ResponseBoolean(idStr, true);
+  }
+  else if (StratumError::LOW_DIFFICULTY == submitResult)
+  {
+    share.result_ = Share::Result::ACCEPT;
+    rpc2ResponseBoolean(idStr, true);
+  }
+  else
+  {
+    // add invalid share to counter
+    invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
+    rpc2ResponseBoolean(idStr, false);
+  }
+
+  bool isSendShareToKafka = true;
+  //finish:
+  DLOG(INFO) << share.toString();
+  // check if thers is invalid share spamming
+  if (share.result_ != Share::Result::ACCEPT)
+  {
+    int64_t invalidSharesNum = invalidSharesCounter_.sum(time(nullptr), INVALID_SHARE_SLIDING_WINDOWS_SIZE);
+    // too much invalid shares, don't send them to kafka
+    if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT)
     {
-      server_->sendShare2Kafka((const uint8_t *)&share, sizeof(Share));
+      isSendShareToKafka = false;
+      LOG(WARNING) << "invalid share spamming, diff: "
+                   << share.share_ << ", uid: " << worker_.userId_
+                   << ", uname: \"" << worker_.userName_ << "\", ip: " << clientIp_
+                   << "checkshare result: " << submitResult;
     }
+  }
+
+  if (isSendShareToKafka)
+  {
+    server_->sendShare2Kafka((const uint8_t *)&share, sizeof(Share));
   }
 }
 
