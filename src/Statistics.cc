@@ -142,7 +142,6 @@ lastFlushTime_(0), fileLastFlushTime_(fileLastFlushTime),
 base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort),
 requestCount_(0), responseBytes_(0)
 {
-  isInitializing_ = true;
 
   if (poolDBInfo != nullptr) {
     poolDB_ = new MySQLConnection(*poolDBInfo);
@@ -788,10 +787,26 @@ void StatsServer::runThreadConsume() {
   const int32_t kTimeoutMs = 1000;  // consumer timeout
 
   while (running_) {
+    {
+      //
+      // consume message
+      //
+      rd_kafka_message_t *rkmessage;
+      rkmessage = kafkaConsumer_.consumer(kTimeoutMs);
+
+      // timeout, most of time it's not nullptr and set an error:
+      //          rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF
+      if (rkmessage == nullptr) {
+        continue;
+      }
+      // consume share log
+      consumeShareLog(rkmessage);
+      rd_kafka_message_destroy(rkmessage);  /* Return message to rdkafka */
+    }
+
     // don't flush database while consuming history shares.
     // otherwise, users' hashrate will be updated to 0 when statshttpd restarted.
     if (isInitializing_) {
-
       if (lastFlushDBTime + kFlushDBInterval_ < time(nullptr)) {
         // the initialization ends after consuming a share that generated in the last minute.
         if (lastShareTime_ != 0 && lastShareTime_ + 60 < time(nullptr)) {
@@ -801,9 +816,7 @@ void StatsServer::runThreadConsume() {
           isInitializing_ = false;
         }
       }
-
     } else {
-      
       //
       // try to remove expired workers
       //
@@ -827,23 +840,7 @@ void StatsServer::runThreadConsume() {
         }
         lastFlushDBTime = time(nullptr);
       }
-
     }
-
-    //
-    // consume message
-    //
-    rd_kafka_message_t *rkmessage;
-    rkmessage = kafkaConsumer_.consumer(kTimeoutMs);
-
-    // timeout, most of time it's not nullptr and set an error:
-    //          rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF
-    if (rkmessage == nullptr) {
-      continue;
-    }
-    // consume share log
-    consumeShareLog(rkmessage);
-    rd_kafka_message_destroy(rkmessage);  /* Return message to rdkafka */
 
   }
   LOG(INFO) << "stop sharelog consume thread";
