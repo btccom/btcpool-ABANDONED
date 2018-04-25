@@ -37,6 +37,10 @@ RedisResult::RedisResult(redisReply *reply) :
   reply_(reply) {
 }
 
+RedisResult::RedisResult(RedisResult &&other) {
+  reset(other.reply_);
+}
+
 RedisResult::~RedisResult() {
   if (reply_ != nullptr) {
     freeReplyObject(reply_);

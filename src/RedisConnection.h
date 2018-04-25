@@ -41,11 +41,15 @@ using namespace std;
 */
 
 /////////////////////////////// RedisResult ///////////////////////////////
-struct RedisResult {
+class RedisResult {
   redisReply *reply_;
 
+public:
   RedisResult();
   RedisResult(redisReply *reply);
+  RedisResult(RedisResult &&other);                        // move constructor
+  RedisResult(const RedisResult &other) = delete;          // copy constructor
+  RedisResult& operator=(const RedisResult& str) = delete; // assign operation
   ~RedisResult();
 
   void reset(redisReply *reply);
