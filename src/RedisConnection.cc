@@ -193,7 +193,12 @@ RedisResult RedisConnection::execute(initializer_list<const string> args) {
     i++;
   }
 
-  return RedisResult((redisReply*)redisCommandArgv(conn_, argc, argv, argvlen));
+  auto result = RedisResult((redisReply*)redisCommandArgv(conn_, argc, argv, argvlen));
+
+  delete []argv;
+  delete []argvlen;
+  
+  return result;
 }
 
 void RedisConnection::prepare(const string &command) {
@@ -217,6 +222,9 @@ void RedisConnection::prepare(initializer_list<const string> args) {
   }
 
   redisAppendCommandArgv(conn_, argc, argv, argvlen);
+  
+  delete []argv;
+  delete []argvlen;
 }
 
 RedisResult RedisConnection::execute() {
