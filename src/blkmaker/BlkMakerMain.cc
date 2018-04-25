@@ -152,7 +152,7 @@ void createBlockMakers(const Config &cfg, MysqlConnectInfo* poolDBInfo)
 }
 
 void workerThread(shared_ptr<BlockMaker> maker) {
-  if (maker)
+  if (maker != nullptr)
     maker->run();
 }
 
