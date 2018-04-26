@@ -372,7 +372,7 @@ void StratumSession::responseError(const string &idStr, int errCode) {
   int len = snprintf(buf, sizeof(buf),
                      "{\"id\":%s,\"result\":null,\"error\":[%d,\"%s\",null]}\n",
                      idStr.empty() ? "null" : idStr.c_str(),
-                     errCode, StratumError::toString(errCode));
+                     errCode, StratumError::toString(errCode));                  
   sendData(buf, len);
 }
 
@@ -606,7 +606,8 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
     }
   }
 
-  const string fullName = jparams.children()->at(0).str();
+  string fullName = jparams.children()->at(0).str();
+  fullName = getFullName(fullName);
   const string userName = worker_.getUserName(fullName);
 
   const int32_t userId = server_->userInfo_->getUserId(userName);
@@ -1239,6 +1240,19 @@ void StratumSessionEth::handleRequest_Subscribe(const string &idStr, const JsonN
 
   const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":true}\n", idStr.c_str());
   sendData(s);
+}
+
+string StratumSessionEth::getFullName(const string& fullNameStr) {
+  if (ethProtocol_ != ETHPROXY)
+    return fullNameStr;
+  
+  size_t pos = fullNameStr.find('.');
+  if (string::npos == pos) {
+    LOG(ERROR) << "invalid username=" << fullNameStr;
+    return "";
+  }
+
+  return fullNameStr.substr(pos + 1, string::npos);
 }
 
 void StratumSessionEth::handleRequest_SubmitLogin(const string &idStr, const JsonNode &jparams)

@@ -298,7 +298,7 @@ protected:
   void handleExMessage_SubmitShareWithTime(const string *exMessage);
   //return true if request is handled
   virtual bool handleRequest_Specific(const string &idStr, const string &method, const JsonNode &jparams) {return false;}
-
+  virtual string getFullName(const string& fullNameStr) { return fullNameStr; }
 public:
   struct bufferevent* bev_;
   evutil_socket_t fd_;
@@ -350,6 +350,7 @@ public:
   void handleRequest_SubmitHashrate(const string &idStr, const JsonNode &jparams); 
   void handleRequest_SubmitWork(const string &idStr, const JsonNode &jparams); 
 
+  string getFullName(const string& fullNameStr) override;
 private: 
   StratumProtocol ethProtocol_;
   uint16 extraNonce16b_;
