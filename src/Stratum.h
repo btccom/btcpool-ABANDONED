@@ -42,6 +42,7 @@
 #include <base58.h>
 
 #include "rsk/RskWork.h"
+#include "script/standard.h"
 
 // TODO: update when next Halving
 #ifdef CHAIN_TYPE_UBTC

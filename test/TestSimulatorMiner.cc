@@ -39,7 +39,7 @@ using namespace libconfig;
 TEST(SIMULATOR, miner) {
   // config file name: simulator.cfg
   const char *conf = "simulator.cfg";
-  Config cfg;
+  libconfig::Config cfg;
   try
   {
     cfg.readFile(conf);

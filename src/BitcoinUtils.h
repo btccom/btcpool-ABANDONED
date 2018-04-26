@@ -36,11 +36,23 @@
 #ifdef CHAIN_TYPE_BCH
   // header that defined DecodeDestination & IsValidDestinationString
   #include <dstencode.h>
+  #define AMOUNT_TYPE Amount
+  #define COIN_TO_SATOSHIS COIN.GetSatoshis()
+  #define AMOUNT_SATOSHIS(amt) amt.GetSatoshis()
+  inline CTxDestination DecodeDestination(const std::string& str)
+  {
+    return DecodeDestination(str, Params());
+  }
+
+#else
+  #define AMOUNT_TYPE CAmount
+  #define COIN_TO_SATOSHIS COIN
+  #define AMOUNT_SATOSHIS(amt) amt
 #endif
 
 std::string EncodeHexBlock(const CBlock &block);
 
-CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams);
+AMOUNT_TYPE GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams);
 
 #ifdef CHAIN_TYPE_SBTC
 CTxDestination DecodeDestination(const std::string& str);
