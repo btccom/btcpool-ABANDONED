@@ -105,7 +105,7 @@ cd /work
 wget -O bitcoin-0.16.0rc1.tar.gz https://github.com/bitcoin/bitcoin/archive/v0.16.0rc1.tar.gz
 tar zxf bitcoin-0.16.0rc1.tar.gz
 
-git clone https://github.com/bitcoin/bitcoin.git
+git clone https://github.com/btccom/btcpool.git
 cd btcpool
 mkdir build
 cd build
