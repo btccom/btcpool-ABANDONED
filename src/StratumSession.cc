@@ -1265,20 +1265,20 @@ void StratumSessionEth::handleRequest_SubmitWork(const string &idStr, const Json
 
 bool StratumSessionEth::handleRequest_Specific(const string &idStr, const string &method, const JsonNode &jparams)
 {
-  if ("eth_submitLogin" == idStr)
+  if ("eth_submitLogin" == method)
   {
     handleRequest_SubmitLogin(idStr, jparams);
     return true;
   }
-  else if ("eth_getWork" == idStr) {
+  else if ("eth_getWork" == method) {
     handleRequest_GetWork(idStr, jparams);
     return true;
   }
-  else if ("eth_submitHashrate" == idStr) {
+  else if ("eth_submitHashrate" == method) {
     handleRequest_SubmitHashrate(idStr, jparams);
     return true;
   }
-  else if ("eth_submitWork" == idStr) {
+  else if ("eth_submitWork" == method) {
     handleRequest_SubmitWork(idStr, jparams);
     return true;
   }
