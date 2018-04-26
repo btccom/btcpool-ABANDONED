@@ -34,6 +34,10 @@
 #include <uint256.h>
 #include <util.h>
 
+#ifdef INCLUDE_BTC_KEY_IO_H
+#include <key_io.h> //  IsValidDestinationString for bch is not in this file.
+#endif
+
 #include "rsk/RskWork.h"
 
 #include <stdint.h>

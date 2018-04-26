@@ -30,6 +30,7 @@
 
 #include "Utils.h"
 #include "utilities_js.hpp"
+#include "hash.h"
 
 //
 // bitcoind zmq pub msg type: "hashblock", "hashtx", "rawblock", "rawtx"

@@ -40,6 +40,8 @@
 #include "JobMaker.h"
 #include "Zookeeper.h"
 
+#include <chainparams.h>
+
 using namespace std;
 using namespace libconfig;
 
@@ -157,7 +159,7 @@ GbtJobMakerDefinition createGbtJobMakerDefinition(const Setting &setting)
   return def;
 }
 
-void createJobMakers(const Config &cfg, const string &kafkaBrokers, const string &zkBrokers, vector<shared_ptr<JobMaker>> &makers)
+void createJobMakers(const libconfig::Config &cfg, const string &kafkaBrokers, const string &zkBrokers, vector<shared_ptr<JobMaker>> &makers)
 {
   const Setting &root = cfg.getRoot();
   const Setting &workerDefs = root["job_workers"];
@@ -240,7 +242,7 @@ int main(int argc, char **argv) {
   FLAGS_stop_logging_if_full_disk = true;
 
   // Read the file. If there is an error, report it and exit.
-  Config cfg;
+  libconfig::Config cfg;
   try
   {
     cfg.readFile(optConf);

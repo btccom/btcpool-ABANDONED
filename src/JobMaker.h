@@ -30,6 +30,7 @@
 
 #include <uint256.h>
 #include <base58.h>
+#include <pubkey.h>
 
 #include "rsk/RskWork.h"
 #include "Zookeeper.h"

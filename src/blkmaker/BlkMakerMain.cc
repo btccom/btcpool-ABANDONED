@@ -131,7 +131,7 @@ BlockMakerDefinition createDefinition(const Setting &setting)
 //   return handler;
 // }
 
-void createBlockMakers(const Config &cfg, MysqlConnectInfo* poolDBInfo)
+void createBlockMakers(const libconfig::Config &cfg, MysqlConnectInfo* poolDBInfo)
 {
   string broker = cfg.lookup("kafka.brokers");
   const Setting &root = cfg.getRoot();
@@ -192,7 +192,7 @@ int main(int argc, char **argv) {
   FLAGS_stop_logging_if_full_disk = true;
 
   // Read the file. If there is an error, report it and exit.
-  Config cfg;
+  libconfig::Config cfg;
   try
   {
     cfg.readFile(optConf);

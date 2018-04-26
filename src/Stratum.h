@@ -41,6 +41,7 @@
 #include <uint256.h>
 #include <base58.h>
 #include "rsk/RskWork.h"
+#include "script/standard.h"
 
 
 //

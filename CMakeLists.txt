@@ -54,6 +54,10 @@ if (CHAIN_TYPE STREQUAL "BTC")
   set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-bitcoin")
   set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.btc")
 
+  if (HAVE_KEY_IO_H)
+    add_definitions(-DINCLUDE_BTC_KEY_IO_H)
+  endif()
+
   add_definitions(-DCHAIN_TYPE_BTC)
   add_definitions(-DKAFKA_TOPIC_PREFIX="") # for compatibility with old deployments, let it empty.
   add_definitions(-DZOOKEEPER_NODE_POSTFIX="") # for compatibility with old deployments, let it empty.
@@ -265,9 +269,9 @@ if(NOT KAFKA_FOUND)
   message(FATAL_ERROR "librdkafka not found!")
 endif()
 
-find_package(CUDA 9.2 REQUIRED)
+find_package(CUDA 9.1 REQUIRED)
 if(NOT KAFKA_FOUND)
-  message(FATAL_ERROR "cuda 9.2 not found!")
+  message(FATAL_ERROR "cuda 9.1 not found!")
 endif()
 
 message("") # add an empty line
@@ -304,7 +308,7 @@ include_directories(src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config 
 set(THIRD_LIBRARIES ${BITCOIN_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY}
                     ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${ZOOKEEPER_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBEVENT_LIB}
                     ${LIBEVENT_PTHREADS_LIB} ${secp256k1_LIBRARIES} ${PTHREAD_LIBRARIES} ${MYSQL_LIB} ${GMP_LIBRARIES} 
-                    ethash blake2 /work/btcpool/src/bytom/bh_shared.a /work/btcpool/src/bytom/cutil/src/GpuTs.a
+                    ethash blake2 ${PROJECT_SOURCE_DIR}/src/bytom/bh_shared.a ${PROJECT_SOURCE_DIR}/src/bytom/cutil/src/GpuTs.a
                     ${CUDA_LIBRARIES}
                     /usr/local/cuda/lib64/libcublas.so)
 

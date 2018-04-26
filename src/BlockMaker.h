@@ -37,6 +37,7 @@
 #include <base58.h>
 
 #include "rsk/RskWork.h"
+#include "primitives/block.h"
 
 namespace bpt = boost::posix_time;
 
