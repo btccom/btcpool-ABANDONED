@@ -93,26 +93,30 @@ class GwMakerHandlerRsk : public GwMakerHandler
 {
   bool checkFields(JsonNode &r);
   string constructRawMsg(JsonNode &r);
-  string processRawGw(const string &gw);
-
-  string getRequestData() { return "{\"jsonrpc\": \"2.0\", \"method\": \"mnr_getWork\", \"params\": [], \"id\": 1}"; }
+  string processRawGw(const string &gw) override;
+  string getRequestData() override { return "{\"jsonrpc\": \"2.0\", \"method\": \"mnr_getWork\", \"params\": [], \"id\": 1}"; }
 };
 
 class GwMakerHandlerEth : public GwMakerHandler
 {
   bool checkFields(JsonNode &r);
-  string constructRawMsg(JsonNode &r);
-  string processRawGw(const string &gw);
+  virtual string constructRawMsg(JsonNode &r);
+  string processRawGw(const string &gw) override;
+  string getRequestData() override { return "{\"jsonrpc\": \"2.0\", \"method\": \"eth_getWork\", \"params\": [], \"id\": 1}"; }
+};
 
-  string getRequestData() { return "{\"jsonrpc\": \"2.0\", \"method\": \"eth_getWork\", \"params\": [], \"id\": 1}"; }
+class GwMakerHandlerBytom : public GwMakerHandlerEth
+{
+  bool checkFields(JsonNode &r);
+  string constructRawMsg(JsonNode &r) override;
+  string getRequestData() override { return "{}"; }
 };
 
 class GwMakerHandlerSia : public GwMakerHandler 
 {
-  string processRawGw(const string &gw);
-
-  string getRequestData() { return ""; }
-  string getUserAgent() { return "Sia-Agent"; }
+  string processRawGw(const string &gw) override;
+  string getRequestData() override { return ""; }
+  string getUserAgent() override { return "Sia-Agent"; }
 };
 
 
