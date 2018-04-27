@@ -356,6 +356,16 @@ private:
   uint16 extraNonce16b_;
 };
 
+class StratumSessionBytom : public StratumSession
+{
+public:
+  StratumSessionBytom(evutil_socket_t fd, struct bufferevent *bev,
+                    Server *server, struct sockaddr *saddr,
+                    const int32_t shareAvgSeconds, const uint32_t extraNonce1);
+  void handleRequest_GetWork(const string &idStr, const JsonNode &jparams); 
+  bool handleRequest_Specific(const string &idStr, const string &method, const JsonNode &jparams) override;    
+};
+
 class StratumSessionSia : public StratumSessionEth
 {
 public:

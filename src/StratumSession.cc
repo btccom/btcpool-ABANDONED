@@ -1606,6 +1606,42 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
   server_->sendShare2Kafka((const uint8_t *)&share, sizeof(Share));
 }
 
+/////////////////////////////StratumSessionBytom////////////////////////////
+StratumSessionBytom::StratumSessionBytom(evutil_socket_t fd, struct bufferevent *bev,
+                                         Server *server, struct sockaddr *saddr,
+                                         const int32_t shareAvgSeconds, const uint32_t extraNonce1) : StratumSession(fd,
+                                                                                                                     bev,
+                                                                                                                     server,
+                                                                                                                     saddr,
+                                                                                                                     shareAvgSeconds,
+                                                                                                                     extraNonce1)
+{
+}
+
+void StratumSessionBytom::handleRequest_GetWork(const string &idStr, const JsonNode &jparams) {
+  
+}
+
+bool StratumSessionBytom::handleRequest_Specific(const string &idStr, const string &method, const JsonNode &jparams)
+{
+  if ("login" == method)
+  {
+    handleRequest_Authorize(idStr, jparams);
+    return true;
+  }
+  else if ("getwork" == method)
+  {
+    handleRequest_GetWork(idStr, jparams);
+    return true;
+  }
+  else if ("submit" == method)
+  {
+    handleRequest_Submit(idStr, jparams);
+    return true;
+  }
+  return false;
+}
+
 ///////////////////////////////// AgentSessions ////////////////////////////////
 AgentSessions::AgentSessions(const int32_t shareAvgSeconds,
                              StratumSession *stratumSession)
