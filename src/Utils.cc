@@ -21,6 +21,9 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
 */
+#include <glog/logging.h> // keep it on the top or 
+                          // BTCPool cannot build with SBTC.
+
 #include "Utils.h"
 #include "utilities_js.hpp"
 
@@ -31,7 +34,7 @@
 #include <sys/stat.h>
 
 #include <curl/curl.h>
-#include <glog/logging.h>
+
 
 static const char _hexchars[] = "0123456789abcdef";
 

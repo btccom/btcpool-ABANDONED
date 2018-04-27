@@ -15,11 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <glog/logging.h> // keep it on the top or 
+                          // BTCPool cannot build with SBTC.
+#include <mysql/mysql.h>
+
+// mysql and bitcoin defined the same const
+// so undef it before include bitcoin's header
+#undef PROTOCOL_VERSION
+
 #include "MySQLConnection.h"
 #include "Utils.h"
 
-#include <mysql/mysql.h>
-#include <glog/logging.h>
 
 MySQLResult::MySQLResult() :
     result(nullptr) {

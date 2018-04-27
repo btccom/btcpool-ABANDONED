@@ -30,6 +30,8 @@ ENDIF()
 set(CMAKE_CXX_COMPILER "g++")
 set(CMAKE_C_COMPILER "gcc")
 set(CMAKE_CXX_COMPILER_ARG1 "-std=c++0x")
+# stop building after the first error
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmax-errors=1")
 
 # The number of concurrent jobs when compiling a third-party library
 if(JOBS)
@@ -111,7 +113,7 @@ if(NOT CHAIN_SRC_ROOT)
 endif()
 message("-- Root Dir of ${CHAIN_NAME}: ${CHAIN_SRC_ROOT} (-DCHAIN_SRC_ROOT=${CHAIN_SRC_ROOT})")
 if (NOT EXISTS "${CHAIN_SRC_ROOT}/src/version.h")
-  message(FATAL_ERROR "The source code of ${CHAIN_NAME} not exists!")
+  message(FATAL_ERROR "version.h of ${CHAIN_NAME} not exists! (${CHAIN_SRC_ROOT}/src/version.h)")
 endif()
 
 

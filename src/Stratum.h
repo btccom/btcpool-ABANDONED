@@ -24,6 +24,9 @@
 #ifndef STRATUM_H_
 #define STRATUM_H_
 
+#include <glog/logging.h> // keep it on the top or 
+                          // BTCPool cannot build with SBTC.
+
 #include "Common.h"
 #include "utilities_js.hpp"
 #include "Utils.h"
@@ -35,8 +38,6 @@
 #include <event2/event.h>
 #include <event2/buffer.h>
 #include <event2/bufferevent.h>
-
-#include <glog/logging.h>
 
 #include <uint256.h>
 #include <base58.h>

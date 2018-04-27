@@ -21,6 +21,8 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
+#include <glog/logging.h> // keep it on the top or 
+                          // BTCPool cannot build with SBTC.
 #include "Watcher.h"
 
 #include <arpa/inet.h>
@@ -30,7 +32,6 @@
 #include <event2/buffer.h>
 #include <event2/bufferevent.h>
 #include <event2/listener.h>
-#include <glog/logging.h>
 
 #include <chainparams.h>
 #include <utilstrencodings.h>
