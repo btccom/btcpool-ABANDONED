@@ -307,7 +307,8 @@ JobMakerHandlerSia::JobMakerHandlerSia() : time_(0)
 {
 }
 
-bool JobMakerHandlerSia::processMsg(const string& msg) {
+bool JobMakerHandlerSia::processMsg(const string &msg)
+{
   JsonNode j;
   if (!JsonNode::parse(msg.c_str(), msg.c_str() + msg.length(), j))
   {
@@ -319,33 +320,38 @@ bool JobMakerHandlerSia::processMsg(const string& msg) {
     return false;
 
   string header = j["hHash"].str();
-  if (header == header_) 
+  if (header == header_)
     return false;
-  
-  header_ = move(header);
-  target_ = j["target"].str();
-  time_ =  j["created_at_ts"].uint32();
 
+  header_ = move(header);
+  time_ = j["created_at_ts"].uint32();
+
+  return processMsg(j);
+}
+
+bool JobMakerHandlerSia::processMsg(JsonNode &j)
+{
+  target_ = j["target"].str();
   return true;
 }
 
-bool JobMakerHandlerSia::validate(JsonNode &work)
+bool JobMakerHandlerSia::validate(JsonNode &j)
 {
   // check fields are valid
-  if (work.type() != Utilities::JS::type::Obj ||
-    work["created_at_ts"].type() != Utilities::JS::type::Int ||
-    work["rpcAddress"].type() != Utilities::JS::type::Str ||
-    work["rpcUserPwd"].type() != Utilities::JS::type::Str ||
-    work["target"].type() != Utilities::JS::type::Str ||
-    work["hHash"].type() != Utilities::JS::type::Str) {
+  if (j.type() != Utilities::JS::type::Obj ||
+    j["created_at_ts"].type() != Utilities::JS::type::Int ||
+    j["rpcAddress"].type() != Utilities::JS::type::Str ||
+    j["rpcUserPwd"].type() != Utilities::JS::type::Str ||
+    j["target"].type() != Utilities::JS::type::Str ||
+    j["hHash"].type() != Utilities::JS::type::Str) {
       LOG(ERROR) << "work format not expected";
     return false;
     }
 
   // check timestamp
-  if (work["created_at_ts"].uint32() + def_.maxJobDelay_ < time(nullptr))
+  if (j["created_at_ts"].uint32() + def_.maxJobDelay_ < time(nullptr))
   {
-    LOG(ERROR) << "too old sia work: " << date("%F %T", work["created_at_ts"].uint32());
+    LOG(ERROR) << "too old sia work: " << date("%F %T", j["created_at_ts"].uint32());
     return false;
   }
 
@@ -371,6 +377,57 @@ string JobMakerHandlerSia::makeStratumJobMsg()
                          time_,
                          jobId,
                          target_.c_str(),
+                         header_.c_str());
+}
+
+///////////////////////////////////JobMakerHandlerBytom//////////////////////////////////
+bool JobMakerHandlerBytom::processMsg(JsonNode &j)
+{
+  seed_ = j["sHash"].str();
+  return true;
+}
+
+bool JobMakerHandlerBytom::validate(JsonNode &j)
+{
+  // check fields are valid
+  if (j.type() != Utilities::JS::type::Obj ||
+    j["created_at_ts"].type() != Utilities::JS::type::Int ||
+    j["rpcAddress"].type() != Utilities::JS::type::Str ||
+    j["rpcUserPwd"].type() != Utilities::JS::type::Str ||
+    j["hHash"].type() != Utilities::JS::type::Str) {
+      LOG(ERROR) << "work format not expected";
+    return false;
+    }
+
+  // check timestamp
+  if (j["created_at_ts"].uint32() + def_.maxJobDelay_ < time(nullptr))
+  {
+    LOG(ERROR) << "too old bytom work: " << date("%F %T", j["created_at_ts"].uint32());
+    return false;
+  }
+
+  return true;
+}
+
+string JobMakerHandlerBytom::makeStratumJobMsg()
+{
+  if (0 == header_.size() ||
+      0 == seed_.size())
+    return "";
+
+  const string jobIdStr = Strings::Format("%08x%08x", (uint32_t)time(nullptr), djb2(header_.c_str()));
+  assert(jobIdStr.length() == 16);
+  size_t pos;
+  uint64 jobId = stoull(jobIdStr, &pos, 16);
+
+  return Strings::Format("{\"created_at_ts\":%u"
+                         ",\"jobId\":%" PRIu64 ""
+                         ",\"sHash\":\"%s\""
+                         ",\"hHash\":\"%s\""
+                         "}",
+                         time_,
+                         jobId,
+                         seed_.c_str(),
                          header_.c_str());
 }
 

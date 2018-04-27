@@ -133,8 +133,8 @@ protected:
 class JobMakerHandlerEth : public GwJobMakerHandler
 {
 public:
-  virtual bool processMsg(const string &msg);
-  virtual string makeStratumJobMsg();
+  bool processMsg(const string &msg) override;
+  string makeStratumJobMsg() override;
 private:
   void clearTimeoutMsg();
   shared_ptr<RskWork> previousRskWork_;
@@ -143,16 +143,30 @@ private:
 
 class JobMakerHandlerSia : public GwJobMakerHandler
 {
+public:
+  JobMakerHandlerSia();
+  bool processMsg(const string &msg) override;
+  string makeStratumJobMsg() override;
+  virtual bool processMsg(JsonNode &j);
+
+protected:
   string target_;
   string header_;
   uint32 time_;
-  bool validate(JsonNode &work);
-public:
-  JobMakerHandlerSia();
-  virtual bool processMsg(const string &msg);
-  virtual string makeStratumJobMsg();
+  virtual bool validate(JsonNode &j);
+
 };
 
+class JobMakerHandlerBytom : public JobMakerHandlerSia
+{
+public:
+  bool processMsg(JsonNode &j) override;
+  string makeStratumJobMsg() override;
+
+protected:
+  string seed_;
+  bool validate(JsonNode &j) override;
+};
 
 class JobMakerHandlerBitcoin : public JobMakerHandler
 {

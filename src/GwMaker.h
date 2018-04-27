@@ -99,7 +99,7 @@ class GwMakerHandlerRsk : public GwMakerHandler
 
 class GwMakerHandlerEth : public GwMakerHandler
 {
-  bool checkFields(JsonNode &r);
+  virtual bool checkFields(JsonNode &r);
   virtual string constructRawMsg(JsonNode &r);
   string processRawGw(const string &gw) override;
   string getRequestData() override { return "{\"jsonrpc\": \"2.0\", \"method\": \"eth_getWork\", \"params\": [], \"id\": 1}"; }
@@ -107,7 +107,7 @@ class GwMakerHandlerEth : public GwMakerHandler
 
 class GwMakerHandlerBytom : public GwMakerHandlerEth
 {
-  bool checkFields(JsonNode &r);
+  bool checkFields(JsonNode &r) override;
   string constructRawMsg(JsonNode &r) override;
   string getRequestData() override { return "{}"; }
 };

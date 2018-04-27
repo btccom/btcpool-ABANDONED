@@ -67,6 +67,8 @@ shared_ptr<JobMakerHandler> createGwJobMakerHandler(const GwJobMakerDefinition &
     handler = make_shared<JobMakerHandlerEth>();
   else if (def.chainType_ == "SIA")
     handler = make_shared<JobMakerHandlerSia>();
+  else if (def.chainType_ == "BYTOM")
+    handler = make_shared<JobMakerHandlerBytom>();
   else
     LOG(FATAL) << "unknown chain type: " << def.chainType_;
 
