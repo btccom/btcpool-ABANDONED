@@ -56,8 +56,11 @@ void usage() {
   fprintf(stderr, "Usage:\n\tjobmaker -c \"jobmaker.cfg\" -l \"log_dir\"\n");
 }
 
-bool isGwChain(const string &chainType) {
-  return (chainType == "ETH" || chainType == "SIA");
+bool isGwChain(const string &chainType)
+{
+  return ("ETH" == chainType ||
+          "SIA" == chainType ||
+          "BYTOM" == chainType);
 }
 
 shared_ptr<JobMakerHandler> createGwJobMakerHandler(const GwJobMakerDefinition &def) {
