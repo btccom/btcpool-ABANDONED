@@ -37,6 +37,7 @@
 #include "zmq.hpp"
 
 #include "Utils.h"
+#include "BitcoinUtils.h"
 #include "JobMaker.h"
 #include "Zookeeper.h"
 

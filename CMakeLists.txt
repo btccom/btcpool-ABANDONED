@@ -23,10 +23,10 @@ IF(CMAKE_BUILD_TYPE MATCHES Debug)
   set(CMAKE_C_FLAGS   "-g -O0 -Wall -Wno-unknown-pragmas")
 ELSEIF(CMAKE_BUILD_TYPE MATCHES Release)
   set(CMAKE_CXX_FLAGS "-g -O2 -Wall -Wno-unknown-pragmas")
-  set(CMAKE_C_FLAGS   "-g -O0 -Wall -Wno-unknown-pragmas")
+  set(CMAKE_C_FLAGS   "-g -O2 -Wall -Wno-unknown-pragmas")
 ELSE()
   set(CMAKE_CXX_FLAGS "-g -Wall -Wno-unknown-pragmas")
-  set(CMAKE_C_FLAGS   "-g -O0 -Wall -Wno-unknown-pragmas")
+  set(CMAKE_C_FLAGS   "-g -Wall -Wno-unknown-pragmas")
 ENDIF()
 
 # stop building after the first error
@@ -198,25 +198,30 @@ if(CHAIN_TYPE STREQUAL "SBTC")
   set(TESTS OFF)
 
   execute_process(WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}" COMMAND ln -sf "${CHAIN_SRC_ROOT}" sbtc)
+  execute_process(WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}" COMMAND bash ./install/patch_sbtc_for_btcpool.sh sbtc)
   add_subdirectory(sbtc)
 
+  file(GLOB LIB_SBTC_SOURCES src/sbtc/*.cc)
+  add_library(btcpool_sbtc STATIC ${LIB_SBTC_SOURCES})
+
   set(BITCOIN_LIBRARIES
+    sbtccore
+    utils
     base
-    chaincontrol
-    compat
     config
+    chaincontrol
+    sbtccore
     contract
-    contract-api
-    eventmanager
-    framework
+    wallet
     mempool
     miner
     p2p
-    rpc
-    sbtccore
-    univalue
-    utils
-    wallet
+    framework
+    btcpool_sbtc
+    leveldb
+    memenv
+    boost_chrono
+    log4cpp
     )
 
   set(secp256k1_DIR "${Secp256k1_INCLUDE_DIR}")
