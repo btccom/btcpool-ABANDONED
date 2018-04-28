@@ -204,8 +204,8 @@ make -j4
 
 ```bash
 # Building SuperBitcoin-0.17.1 need GCC 7.2 and CMake 3.9.
-# You may consider upgrading to Ubuntu 17.10 or Ubuntu 18.04 if there are some unresolved linking errors.
-# If the linking error is about `gmp`, `apt remove libgmp-dev` and rebuild secp256k1, then `apt install libgmp-dev` back.
+# You may consider upgrading to Ubuntu 17.10 or Ubuntu 18.04 if you met some unresolved linking errors.
+# If the linking error is about `gmp`, run `apt remove libgmp-dev` and rebuild secp256k1, then `apt install libgmp-dev` and rebuild BTCPool.
 
 apt install -y liblog4cpp5-dev libminiupnpc-dev libleveldb-dev libsnappy-dev libssl-dev libevent-dev libdb++-dev
 
