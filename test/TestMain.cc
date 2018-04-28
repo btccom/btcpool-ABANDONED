@@ -21,12 +21,12 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
 */
+#include <glog/logging.h>
+
 #include <signal.h>
 #include <execinfo.h>
 #include <string>
 #include "gtest/gtest.h"
-
-#include <glog/logging.h>
 
 using std::string;
 

@@ -21,6 +21,8 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
+#include <glog/logging.h>
+#include <libconfig.h++>
 
 #include "gtest/gtest.h"
 #include "Common.h"
@@ -30,9 +32,6 @@
 #include "StratumClient.h"
 
 #include "utilities_js.hpp"
-
-#include <glog/logging.h>
-#include <libconfig.h++>
 
 using namespace libconfig;
 

@@ -118,12 +118,23 @@ cd $SRC_ROOT/src/transaction
 ln -sf ../sbtccore/transaction/*.h .
 
 
+# merge libraries
+cd $SRC_ROOT/src
+mkdir libbitcoin_common >/dev/null
+cd libbitcoin_common
+ar x ../../build/src/base/libbase.a
+ar x ../../build/src/chaincontrol/libchaincontrol.a
+ar x ../../build/src/compat/libcompat.a
+ar x ../../build/src/config/libconfig.a
+ar x ../../build/src/framework/libframework.a
+ar rc libbitcoin_common.a *.o
+
 # link libraries
 cd $SRC_ROOT/src
-ln -sf ../build/src/framework/libframework.a ./libbitcoin_common.a
-ln -sf ../build/src/sbtccore/libsbtccore.a   ./libbitcoin_consensus.a
-ln -sf ../build/src/utils/libutils.a         ./libbitcoin_util.a
-ln -sf ../../build/src/compat/libcompat.a    ./crypto/libbitcoin_crypto.a
+ln -sf ./libbitcoin_common/libbitcoin_common.a ./libbitcoin_common.a
+ln -sf ../build/src/sbtccore/libsbtccore.a     ./libbitcoin_consensus.a
+ln -sf ../build/src/utils/libutils.a           ./libbitcoin_util.a
+ln -sf ../../build/src/contract/libcontract.a  ./crypto/libbitcoin_crypto.a
 
 
 # link sub-projects

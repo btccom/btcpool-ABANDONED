@@ -21,6 +21,7 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
+#include "StratumSession.h"
 
 #include "gtest/gtest.h"
 #include "Common.h"
@@ -28,7 +29,6 @@
 
 #include <boost/algorithm/string.hpp>
 
-#include "StratumSession.h"
 
 TEST(StratumSession, LocalShare) {
   StratumSession::LocalShare ls1(0xFFFFFFFFFFFFFFFFULL,
