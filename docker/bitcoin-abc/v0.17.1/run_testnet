@@ -1,0 +1,13 @@
+#! /bin/bash
+#
+# run shell for bitcoind: testnet
+#
+# @copyright btc.com
+# @author zhibiao.pan@bitmain.com
+#
+export LC_ALL=C
+SROOT=$(cd $(dirname "$0"); pwd)
+cd $SROOT
+
+OPT_ZMQ="-zmqpubrawblock=tcp://0.0.0.0:18331 -zmqpubrawtx=tcp://0.0.0.0:18331 -zmqpubhashtx=tcp://0.0.0.0:18331 -zmqpubhashblock=tcp://0.0.0.0:18331"
+bitcoind -testnet -conf="/root/.bitcoin/bitcoin.conf" -datadir="/root/.bitcoin" $OPT_ZMQ
