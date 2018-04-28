@@ -217,6 +217,11 @@ cd build
 cmake -DJOBS=4 -DCHAIN_TYPE=SBTC -DCHAIN_SRC_ROOT=/work/SuperBitcoin-0.17.1 ..
 make -j4
 
+# Notice: SuperBitcoin's source code will be patched after
+# running `cmake` of BTCPool, and some building target will be disabled.
+# So you cannot build SuperBitcoin node or wallet with this source code.
+# The behavior doesn't exist when building with other coins.
+
 # Release build at macOS:
 cmake -DCHAIN_TYPE=SBTC -DCHAIN_SRC_ROOT=/work/SuperBitcoin-0.17.1 -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl ..
 make
