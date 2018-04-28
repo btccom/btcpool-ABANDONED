@@ -22,6 +22,7 @@
  THE SOFTWARE.
  */
 #include "BitcoinUtils.h"
+#include "base/base.hpp"
 
 std::string EncodeHexBlock(const CBlock &block) {
   CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
@@ -53,6 +54,11 @@ CTxDestination DecodeDestination(const std::string& str) {
 bool IsValidDestinationString(const std::string& str) {
   CBitcoinAddress addr(str);
   return addr.IsValid();
+}
+
+void SelectParams(const std::string& chain)
+{
+  appbase::IBaseApp::pChainParams = CreateChainParams(chain);
 }
 
 #endif // CHAIN_TYPE_SBTC

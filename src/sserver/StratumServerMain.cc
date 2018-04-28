@@ -38,6 +38,7 @@
 #include "zmq.hpp"
 
 #include "Utils.h"
+#include "BitcoinUtils.h"
 #include "StratumServer.h"
 
 #include <chainparams.h>

@@ -55,8 +55,11 @@ std::string EncodeHexBlock(const CBlock &block);
 AMOUNT_TYPE GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams);
 
 #ifdef CHAIN_TYPE_SBTC
-CTxDestination DecodeDestination(const std::string& str);
-bool IsValidDestinationString(const std::string& str);
+  #define CBaseChainParams CChainParams
+
+  CTxDestination DecodeDestination(const std::string& str);
+  bool IsValidDestinationString(const std::string& str);
+  void SelectParams(const std::string& network);
 #endif // CHAIN_TYPE_SBTC
 
 #endif // BITCOIN_UTILS_H_

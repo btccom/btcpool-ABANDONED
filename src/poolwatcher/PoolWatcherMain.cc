@@ -36,6 +36,7 @@
 #include <event2/thread.h>
 
 #include "Utils.h"
+#include "BitcoinUtils.h"
 #include "Watcher.h"
 
 #include <chainparams.h>
