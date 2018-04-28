@@ -19,19 +19,19 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 message("-- Build Type: ${CMAKE_BUILD_TYPE} (-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE})")
 IF(CMAKE_BUILD_TYPE MATCHES Debug)
-  set(CMAKE_CXX_FLAGS "-g -O0 -Wall")
+  set(CMAKE_CXX_FLAGS "-g -O0 -Wall -Wno-unknown-pragmas")
+  set(CMAKE_C_FLAGS   "-g -O0 -Wall -Wno-unknown-pragmas")
 ELSEIF(CMAKE_BUILD_TYPE MATCHES Release)
-  set(CMAKE_CXX_FLAGS "-g -O2 -Wall")
+  set(CMAKE_CXX_FLAGS "-g -O2 -Wall -Wno-unknown-pragmas")
+  set(CMAKE_C_FLAGS   "-g -O0 -Wall -Wno-unknown-pragmas")
 ELSE()
-  set(CMAKE_CXX_FLAGS "-g -Wall")
+  set(CMAKE_CXX_FLAGS "-g -Wall -Wno-unknown-pragmas")
+  set(CMAKE_C_FLAGS   "-g -O0 -Wall -Wno-unknown-pragmas")
 ENDIF()
 
-# compiler options
-set(CMAKE_CXX_COMPILER "g++")
-set(CMAKE_C_COMPILER "gcc")
-set(CMAKE_CXX_COMPILER_ARG1 "-std=c++0x")
 # stop building after the first error
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmax-errors=1")
+set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -fmax-errors=1")
 
 # The number of concurrent jobs when compiling a third-party library
 if(JOBS)
@@ -104,6 +104,13 @@ message("-- Chain Type: ${CHAIN_NAME} (-DCHAIN_TYPE=${CHAIN_TYPE})")
 # add a macro that needed by chain's source code
 add_definitions(-DHAVE_CONFIG_H)
 
+# set C++ standard
+if(CHAIN_TYPE STREQUAL "SBTC")
+  set(CMAKE_CXX_STANDARD 14)
+else()
+  set(CMAKE_CXX_STANDARD 11)
+endif()
+
 
 #
 # Root Dir of Chain's Source Code
@@ -112,8 +119,15 @@ if(NOT CHAIN_SRC_ROOT)
   message(FATAL_ERROR "Root dir of chain's source code not defined! (-DCHAIN_SRC_ROOT=<path>)")
 endif()
 message("-- Root Dir of ${CHAIN_NAME}: ${CHAIN_SRC_ROOT} (-DCHAIN_SRC_ROOT=${CHAIN_SRC_ROOT})")
-if (NOT EXISTS "${CHAIN_SRC_ROOT}/src/version.h")
-  message(FATAL_ERROR "version.h of ${CHAIN_NAME} not exists! (${CHAIN_SRC_ROOT}/src/version.h)")
+
+if(CHAIN_TYPE STREQUAL "SBTC")
+  set(BITCOIN_VERSION_H "${CHAIN_SRC_ROOT}/src/framework/version.h")
+else()
+  set(BITCOIN_VERSION_H "${CHAIN_SRC_ROOT}/src/version.h")
+endif()
+
+if (NOT EXISTS "${BITCOIN_VERSION_H}")
+  message(FATAL_ERROR "version.h of ${CHAIN_NAME} not exists! (${BITCOIN_VERSION_H})")
 endif()
 
 
@@ -178,41 +192,74 @@ message("------------------------------- Libs -------------------------------")
 #
 # chain's libs
 #
-set(BITCOIN_LIBRARIES
-  "${CHAIN_SRC_ROOT}/src/libbitcoin_common.a"
-  "${CHAIN_SRC_ROOT}/src/libbitcoin_consensus.a"
-  "${CHAIN_SRC_ROOT}/src/libbitcoin_util.a"
-  "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto.a")
+if(CHAIN_TYPE STREQUAL "SBTC")
+  set(ENABLE_WALLET OFF)
+  set(ENABLE_ZMQ_FLAG OFF)
+  set(TESTS OFF)
 
-list(GET BITCOIN_LIBRARIES 0 BITCOIN_LIBRARIE)
-if (NOT EXISTS ${BITCOIN_LIBRARIE})
-  message(STATUS "building ${CHAIN_NAME}...")
-  execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./autogen.sh)
-  execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./configure --with-gui=no --disable-wallet --disable-tests --disable-bench)
-  execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND make ${MAKE_JOBS})
-endif()
+  execute_process(WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}" COMMAND ln -sf "${CHAIN_SRC_ROOT}" sbtc)
+  add_subdirectory(sbtc)
 
-foreach(BITCOIN_LIBRARIE ${BITCOIN_LIBRARIES})
+  set(BITCOIN_LIBRARIES
+    base
+    chaincontrol
+    compat
+    config
+    contract
+    contract-api
+    eventmanager
+    framework
+    mempool
+    miner
+    p2p
+    rpc
+    sbtccore
+    univalue
+    utils
+    wallet
+    )
+
+  set(secp256k1_DIR "${Secp256k1_INCLUDE_DIR}")
+  set(secp256k1_LIBRARIES "${Secp256k1_LIBRARY}")
+
+else()
+  set(BITCOIN_LIBRARIES
+    "${CHAIN_SRC_ROOT}/src/libbitcoin_common.a"
+    "${CHAIN_SRC_ROOT}/src/libbitcoin_consensus.a"
+    "${CHAIN_SRC_ROOT}/src/libbitcoin_util.a"
+    "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto.a")
+
+  list(GET BITCOIN_LIBRARIES 0 BITCOIN_LIBRARIE)
   if (NOT EXISTS ${BITCOIN_LIBRARIE})
-    message(FATAL_ERROR "${BITCOIN_LIBRARIE} not exists!")
+    message(STATUS "building ${CHAIN_NAME}...")
+    execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./autogen.sh)
+    execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./configure --with-gui=no --disable-wallet --disable-tests --disable-bench)
+    execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND make ${MAKE_JOBS})
   endif()
-endforeach()
 
+  foreach(BITCOIN_LIBRARIE ${BITCOIN_LIBRARIES})
+    if (NOT EXISTS ${BITCOIN_LIBRARIE})
+      message(FATAL_ERROR "${BITCOIN_LIBRARIE} not exists!")
+    endif()
+  endforeach()
 
-#
-# libsecp256k1
-#
-set(secp256k1_DIR "${CHAIN_SRC_ROOT}/src/secp256k1")
-set(secp256k1_LIBRARIES "${secp256k1_DIR}/.libs/libsecp256k1.a")
-if (NOT EXISTS ${secp256k1_LIBRARIES})
-  message(STATUS "build secp256k1...")
-  execute_process(WORKING_DIRECTORY "${secp256k1_DIR}" COMMAND ./autogen.sh)
-  execute_process(WORKING_DIRECTORY "${secp256k1_DIR}" COMMAND ./configure --enable-module-recovery)
-  execute_process(WORKING_DIRECTORY "${secp256k1_DIR}" COMMAND make ${MAKE_JOBS})
+  #
+  # libsecp256k1
+  #
+  set(secp256k1_DIR "${CHAIN_SRC_ROOT}/src/secp256k1")
+  set(secp256k1_LIBRARIES "${secp256k1_DIR}/.libs/libsecp256k1.a")
+  if (NOT EXISTS ${secp256k1_LIBRARIES})
+    message(STATUS "build secp256k1...")
+    execute_process(WORKING_DIRECTORY "${secp256k1_DIR}" COMMAND ./autogen.sh)
+    execute_process(WORKING_DIRECTORY "${secp256k1_DIR}" COMMAND ./configure --enable-module-recovery)
+    execute_process(WORKING_DIRECTORY "${secp256k1_DIR}" COMMAND make ${MAKE_JOBS})
+  endif()
+  if (NOT EXISTS ${secp256k1_LIBRARIES})
+    message(FATAL_ERROR "build secp256k1 failed!")
+  endif()
+
 endif()
-if (NOT EXISTS ${secp256k1_LIBRARIES})
-  message(FATAL_ERROR "build secp256k1 failed!")
-endif()
+
 
 find_package(OpenSSL)
 if(NOT OPENSSL_FOUND)
@@ -295,6 +342,36 @@ endif()
 include_directories(src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config ${CHAIN_SRC_ROOT}/src/secp256k1/include
                     ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS}
                     ${LIBEVENT_INCLUDE_DIR} ${MYSQL_INCLUDE})
+
+if(CHAIN_TYPE STREQUAL "SBTC")
+  INCLUDE_DIRECTORIES(sbtc/src)
+  INCLUDE_DIRECTORIES(sbtc/src/base)
+  INCLUDE_DIRECTORIES(sbtc/src/chaincontrol)
+  INCLUDE_DIRECTORIES(sbtc/src/config)
+  INCLUDE_DIRECTORIES(sbtc/src/contract)
+  INCLUDE_DIRECTORIES(sbtc/src/contract-api)
+  INCLUDE_DIRECTORIES(sbtc/src/interface)
+  INCLUDE_DIRECTORIES(sbtc/src/framework)
+  INCLUDE_DIRECTORIES(sbtc/src/mempool)
+  INCLUDE_DIRECTORIES(sbtc/src/miner)
+  INCLUDE_DIRECTORIES(sbtc/src/p2p)
+  INCLUDE_DIRECTORIES(sbtc/src/rpc)
+  INCLUDE_DIRECTORIES(sbtc/src/sbtc-cli)
+  INCLUDE_DIRECTORIES(sbtc/src/sbtc-tx)
+  INCLUDE_DIRECTORIES(sbtc/src/sbtcd)
+  INCLUDE_DIRECTORIES(sbtc/src/sbtccore)
+  INCLUDE_DIRECTORIES(sbtc/src/sbtccore/block)
+  INCLUDE_DIRECTORIES(sbtc/src/sbtccore/transaction)
+  INCLUDE_DIRECTORIES(sbtc/src/sbtccore/transaction/script)
+  INCLUDE_DIRECTORIES(sbtc/src/test)
+  INCLUDE_DIRECTORIES(sbtc/src/univalue/include)
+  INCLUDE_DIRECTORIES(sbtc/src/utils)
+  INCLUDE_DIRECTORIES(sbtc/src/utils/crypto)
+  INCLUDE_DIRECTORIES(sbtc/src/utils/net)
+  INCLUDE_DIRECTORIES(sbtc/src/wallet)
+  INCLUDE_DIRECTORIES(sbtc/src/zmq)
+endif()
+
 set(THIRD_LIBRARIES ${BITCOIN_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY}
                     ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${ZOOKEEPER_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBEVENT_LIB}
                     ${LIBEVENT_PTHREADS_LIB} ${secp256k1_LIBRARIES} ${PTHREAD_LIBRARIES} ${MYSQL_LIB} ${GMP_LIBRARIES})
