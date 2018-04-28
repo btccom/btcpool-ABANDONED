@@ -22,7 +22,10 @@
  THE SOFTWARE.
  */
 #include "BitcoinUtils.h"
-#include "base/base.hpp"
+
+#ifdef CHAIN_TYPE_SBTC
+  #include "base/base.hpp"
+#endif
 
 std::string EncodeHexBlock(const CBlock &block) {
   CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
