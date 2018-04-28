@@ -21,7 +21,8 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-#include <glog/logging.h>
+#include <glog/logging.h> // keep it on the top or 
+                          // BTCPool cannot build with SBTC.
 
 #include "gtest/gtest.h"
 #include "Common.h"
