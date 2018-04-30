@@ -370,7 +370,7 @@ epochs_(0xffffffffffffffff)
 }
 
 StratumJobEx* JobRepositoryEth::createStratumJobEx(StratumJob *sjob, bool isClean){
-  return new StratumJobExEth(sjob, isClean);
+  return new StratumJobExNoInit(sjob, isClean);
 }
 
 void JobRepositoryEth::broadcastStratumJob(StratumJob *sjob) {
@@ -491,7 +491,7 @@ JobRepository(kafkaBrokers, consumerTopic, fileLastNotifyTime, server)
 }
 
 StratumJobEx* JobRepositorySia::createStratumJobEx(StratumJob *sjob, bool isClean){
-  return new StratumJobExSia(sjob, isClean);
+  return new StratumJobExNoInit(sjob, isClean);
 }
 
 void JobRepositorySia::broadcastStratumJob(StratumJob *sjob) {
@@ -510,6 +510,12 @@ void JobRepositorySia::broadcastStratumJob(StratumJob *sjob) {
 
   sendMiningNotify(exJob);
 }
+
+///////////////////////////////////JobRepositoryBytom///////////////////////////////////
+StratumJobEx* JobRepositoryBytom::createStratumJobEx(StratumJob *sjob, bool isClean){
+  return new StratumJobExNoInit(sjob, isClean);
+}
+
 
 //////////////////////////////////// UserInfo /////////////////////////////////
 UserInfo::UserInfo(const string &apiUrl, Server *server):
@@ -1708,11 +1714,21 @@ void ServerSia::sendSolvedShare2Kafka(uint8* buf, int len) {
    kafkaProducerSolvedShare_->produce(buf, len);
 }
 
-////////////////////////////////// StratumJobExEth ///////////////////////////////
-StratumJobExEth::StratumJobExEth(StratumJob *sjob, bool isClean) : StratumJobEx(sjob, isClean)
+///////////////////////////////ServerBytom///////////////////////////////
+JobRepository *ServerBytom::createJobRepository(const char *kafkaBrokers,
+                                                const char *consumerTopic,
+                                                const string &fileLastNotifyTime,
+                                                Server *server)
 {
+  return new JobRepositoryBytom(kafkaBrokers, consumerTopic, fileLastNotifyTime, this);
 }
 
-void StratumJobExEth::init()
+StratumSession *ServerBytom::createSession(evutil_socket_t fd, struct bufferevent *bev,
+                                           Server *server, struct sockaddr *saddr,
+                                           const int32_t shareAvgSeconds,
+                                           const uint32_t sessionID)
 {
+  return new StratumSessionBytom(fd, bev, server, saddr,
+                                 server->kShareAvgSeconds_,
+                                 sessionID);
 }

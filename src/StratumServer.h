@@ -171,6 +171,15 @@ public:
   virtual void broadcastStratumJob(StratumJob *sjob);
 };
 
+class JobRepositoryBytom : public JobRepository
+{
+public:
+  JobRepositoryBytom(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server):
+  JobRepository(kafkaBrokers, consumerTopic, fileLastNotifyTime, server) {}
+  StratumJob *createStratumJob() override {return new StratumJobBytom();}
+  StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
+  //void broadcastStratumJob(StratumJob *sjob) override;
+};
 ///////////////////////////////////// UserInfo /////////////////////////////////
 // 1. update userName->userId by interval
 // 2. insert worker name to db
@@ -272,16 +281,10 @@ public:
   virtual void init();
 };
 
-class StratumJobExEth : public StratumJobEx {
+class StratumJobExNoInit : public StratumJobEx {
 public:
-  StratumJobExEth(StratumJob *sjob, bool isClean);
-  virtual void init();
-};
-
-class StratumJobExSia : public StratumJobEx {
-public:
-  StratumJobExSia(StratumJob *sjob, bool isClean) : StratumJobEx(sjob, isClean) {}
-  virtual void init() {}
+  StratumJobExNoInit(StratumJob *sjob, bool isClean) : StratumJobEx(sjob, isClean) {}
+  void init() override {}
 };
 
 ///////////////////////////////////// Server ///////////////////////////////////
@@ -413,6 +416,21 @@ public:
   void sendSolvedShare2Kafka(uint8* buf, int len);
 };
 
+class ServerBytom : public Server
+{
+public:
+  ServerBytom(const int32_t shareAvgSeconds) : Server(shareAvgSeconds) {}
+
+  JobRepository* createJobRepository(const char *kafkaBrokers,
+                                     const char *consumerTopic,     
+                                     const string &fileLastNotifyTime,
+                                     Server *server) override;
+
+  StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
+                               Server *server, struct sockaddr *saddr,
+                               const int32_t shareAvgSeconds,
+                               const uint32_t sessionID) override;
+};
 ////////////////////////////////// StratumServer ///////////////////////////////
 class StratumServer {
 

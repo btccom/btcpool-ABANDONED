@@ -313,7 +313,10 @@ public:
 class StratumJobSia: public StratumJob {
 public:
   //virtual string serializeToJson() const;
-  virtual bool unserializeFromJson(const char *s, size_t len);
-  virtual uint32 jobTime() const { return nTime_; }
+  bool unserializeFromJson(const char *s, size_t len) override;
+  uint32 jobTime() const override { return nTime_; }
+};
+
+class StratumJobBytom: public StratumJob {
 };
 #endif
