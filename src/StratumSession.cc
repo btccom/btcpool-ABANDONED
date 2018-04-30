@@ -387,30 +387,55 @@ void StratumSession::rpc2ResponseBoolean(const string &idStr, bool result) {
 }
 
 void StratumSession::handleRequest(const string &idStr, const string &method,
-                                   const JsonNode &jparams) {
-  if (method == "mining.submit") {  // most of requests are 'mining.submit'
+                                   const JsonNode &jparams)
+{
+  if (method == "mining.submit" ||
+      "eth_submitWork" == method ||
+      "submit" == method)
+  { // most of requests are 'mining.submit'
+    // "eth_submitWork": claymore eth
+    // "submit": bytom
     handleRequest_Submit(idStr, jparams);
   }
-  else if (method == "mining.subscribe") {
+  else if (method == "mining.subscribe")
+  {
     handleRequest_Subscribe(idStr, jparams);
   }
-  else if (method == "mining.authorize") {
+  else if (method == "mining.authorize" ||
+           "eth_submitLogin" == method ||
+           "login" == method)
+  {
+    // "eth_submitLogin": claymore eth
+    // "login": bytom
     handleRequest_Authorize(idStr, jparams);
   }
-  else if (method == "mining.multi_version") {
+  else if (method == "mining.multi_version")
+  {
     handleRequest_MultiVersion(idStr, jparams);
   }
-  else if (method == "mining.suggest_target") {
+  else if (method == "mining.suggest_target")
+  {
     handleRequest_SuggestTarget(idStr, jparams);
   }
-  else if (method == "mining.suggest_difficulty") {
+  else if (method == "mining.suggest_difficulty")
+  {
     handleRequest_SuggestDifficulty(idStr, jparams);
-  } 
-  else if (method == "mining.extranonce.subscribe") {
+  }
+  else if (method == "mining.extranonce.subscribe")
+  {
     //Claymore will send this for sia but no need response
     //Do nothing for now
   }
-  else 
+  else if ("eth_getWork" == method ||
+           "getwork" == method)
+  {
+    handleRequest_GetWork(idStr, jparams);
+  }
+  else if ("eth_submitHashrate" == method)
+  {
+    handleRequest_SubmitHashrate(idStr, jparams);
+  }
+  else
   {
     if (!handleRequest_Specific(idStr, method, jparams))
     {
@@ -1257,11 +1282,11 @@ string StratumSessionEth::getFullName(const string& fullNameStr) {
   return fullNameStr.substr(pos + 1, string::npos);
 }
 
-void StratumSessionEth::handleRequest_SubmitLogin(const string &idStr, const JsonNode &jparams)
+void StratumSessionEth::handleRequest_Authorize(const string &idStr, const JsonNode &jparams)
 {
   ethProtocol_ = ETHPROXY;
   state_ = SUBSCRIBED;
-  handleRequest_Authorize(idStr, jparams);
+  StratumSession::handleRequest_Authorize(idStr, jparams);
 }
 
 void StratumSessionEth::handleRequest_GetWork(const string &idStr, const JsonNode &jparams)
@@ -1272,34 +1297,6 @@ void StratumSessionEth::handleRequest_GetWork(const string &idStr, const JsonNod
 void StratumSessionEth::handleRequest_SubmitHashrate(const string &idStr, const JsonNode &jparams)
 {
   responseTrue(idStr);
-}
-
-void StratumSessionEth::handleRequest_SubmitWork(const string &idStr, const JsonNode &jparams)
-{
-  handleRequest_Submit(idStr, jparams);
-}
-
-bool StratumSessionEth::handleRequest_Specific(const string &idStr, const string &method, const JsonNode &jparams)
-{
-  if ("eth_submitLogin" == method)
-  {
-    handleRequest_SubmitLogin(idStr, jparams);
-    return true;
-  }
-  else if ("eth_getWork" == method) {
-    handleRequest_GetWork(idStr, jparams);
-    return true;
-  }
-  else if ("eth_submitHashrate" == method) {
-    handleRequest_SubmitHashrate(idStr, jparams);
-    return true;
-  }
-  else if ("eth_submitWork" == method) {
-    handleRequest_SubmitWork(idStr, jparams);
-    return true;
-  }
-
-  return false;
 }
 
 void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode &jparams)
@@ -1451,7 +1448,7 @@ StratumSessionSia::StratumSessionSia(evutil_socket_t fd,
                                      Server *server,
                                      struct sockaddr *saddr,
                                      const int32_t shareAvgSeconds,
-                                     const uint32_t extraNonce1) : StratumSessionEth(fd,
+                                     const uint32_t extraNonce1) : StratumSession(fd,
                                                                                   bev,
                                                                                   server,
                                                                                   saddr,
@@ -1459,6 +1456,20 @@ StratumSessionSia::StratumSessionSia(evutil_socket_t fd,
                                                                                   extraNonce1),
                                                                                   shortJobId_(0)
 {
+}
+
+void StratumSessionSia::handleRequest_Subscribe(const string &idStr, const JsonNode &jparams)
+{
+  if (state_ != CONNECTED)
+  {
+    responseError(idStr, StratumError::UNKNOWN);
+    return;
+  }
+
+  state_ = SUBSCRIBED;
+
+  const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":true}\n", idStr.c_str());
+  sendData(s);
 }
 
 void StratumSessionSia::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob)
@@ -1622,26 +1633,11 @@ void StratumSessionBytom::handleRequest_GetWork(const string &idStr, const JsonN
   
 }
 
-bool StratumSessionBytom::handleRequest_Specific(const string &idStr, const string &method, const JsonNode &jparams)
-{
-  if ("login" == method)
-  {
-    handleRequest_Authorize(idStr, jparams);
-    return true;
-  }
-  else if ("getwork" == method)
-  {
-    handleRequest_GetWork(idStr, jparams);
-    return true;
-  }
-  else if ("submit" == method)
-  {
-    handleRequest_Submit(idStr, jparams);
-    return true;
-  }
-  return false;
+void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNode &jparams) {
+  
 }
 
+void handleRequest_GetWork(const string &idStr, const JsonNode &jparams); 
 ///////////////////////////////// AgentSessions ////////////////////////////////
 AgentSessions::AgentSessions(const int32_t shareAvgSeconds,
                              StratumSession *stratumSession)

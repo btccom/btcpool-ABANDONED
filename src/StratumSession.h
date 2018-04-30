@@ -281,8 +281,13 @@ protected:
   void handleRequest(const string &idStr, const string &method, const JsonNode &jparams);
 
   virtual void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams);
-  void handleRequest_Authorize        (const string &idStr, const JsonNode &jparams);
+  virtual void handleRequest_Authorize        (const string &idStr, const JsonNode &jparams);
   virtual void handleRequest_Submit           (const string &idStr, const JsonNode &jparams);
+  virtual void handleRequest_GetWork(const string &idStr, const JsonNode &jparams) {}; 
+  virtual void handleRequest_SubmitHashrate(const string &idStr, const JsonNode &jparams) {}; 
+   //return true if request is handled
+  virtual bool handleRequest_Specific(const string &idStr, const string &method, const JsonNode &jparams) {return false;}
+
   void handleRequest_SuggestTarget    (const string &idStr, const JsonNode &jparams);
   void handleRequest_SuggestDifficulty(const string &idStr, const JsonNode &jparams);
   void handleRequest_MultiVersion     (const string &idStr, const JsonNode &jparams);
@@ -296,8 +301,7 @@ protected:
   void handleExMessage_UnRegisterWorker   (const string *exMessage);
   void handleExMessage_SubmitShare        (const string *exMessage);
   void handleExMessage_SubmitShareWithTime(const string *exMessage);
-  //return true if request is handled
-  virtual bool handleRequest_Specific(const string &idStr, const string &method, const JsonNode &jparams) {return false;}
+
   virtual string getFullName(const string& fullNameStr) { return fullNameStr; }
 public:
   struct bufferevent* bev_;
@@ -343,12 +347,10 @@ public:
   //virtual bool initialize();
   void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false) override;  
   void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams) override;      
-  void handleRequest_Submit           (const string &idStr, const JsonNode &jparams) override;     
-  bool handleRequest_Specific(const string &idStr, const string &method, const JsonNode &jparams) override;    
-  void handleRequest_SubmitLogin(const string &idStr, const JsonNode &jparams);   
-  void handleRequest_GetWork(const string &idStr, const JsonNode &jparams); 
-  void handleRequest_SubmitHashrate(const string &idStr, const JsonNode &jparams); 
-  void handleRequest_SubmitWork(const string &idStr, const JsonNode &jparams); 
+  void handleRequest_Submit           (const string &idStr, const JsonNode &jparams) override;         
+  void handleRequest_Authorize(const string &idStr, const JsonNode &jparams) override;   
+  void handleRequest_GetWork(const string &idStr, const JsonNode &jparams) override; 
+  void handleRequest_SubmitHashrate(const string &idStr, const JsonNode &jparams) override; 
 
   string getFullName(const string& fullNameStr) override;
 private: 
@@ -362,21 +364,20 @@ public:
   StratumSessionBytom(evutil_socket_t fd, struct bufferevent *bev,
                     Server *server, struct sockaddr *saddr,
                     const int32_t shareAvgSeconds, const uint32_t extraNonce1);
-  void handleRequest_GetWork(const string &idStr, const JsonNode &jparams); 
-  bool handleRequest_Specific(const string &idStr, const string &method, const JsonNode &jparams) override;    
+  void handleRequest_GetWork(const string &idStr, const JsonNode &jparams) override; 
+  void handleRequest_Submit   (const string &idStr, const JsonNode &jparams) override;   
 };
 
-class StratumSessionSia : public StratumSessionEth
+class StratumSessionSia : public StratumSession
 {
 public:
   StratumSessionSia(evutil_socket_t fd, struct bufferevent *bev,
                     Server *server, struct sockaddr *saddr,
                     const int32_t shareAvgSeconds, const uint32_t extraNonce1);
   //virtual bool initialize();
-  virtual void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false);  
-  virtual void handleRequest_Submit (const string &idStr, const JsonNode &jparams);  
-  //virtual void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams);     
-  //virtual void handleRequest_Submit           (const string &idStr, const JsonNode &jparams);      
+  void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false) override;  
+  void handleRequest_Submit (const string &idStr, const JsonNode &jparams) override;  
+  void handleRequest_Subscribe   (const string &idStr, const JsonNode &jparams) override;        
 
 private:
   uint32 shortJobId_;    //Claymore jobId starts from 0
