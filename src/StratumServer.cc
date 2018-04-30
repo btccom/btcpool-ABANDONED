@@ -957,6 +957,8 @@ bool StratumServer::createServer(string type, const int32_t shareAvgSeconds) {
     server_ = make_shared<ServerEth> (shareAvgSeconds);
   else if ("SIA" == type)
     server_ = make_shared<ServerSia> (shareAvgSeconds);
+  else if ("BYTOM" == type) 
+    server_ = make_shared<ServerBytom> (shareAvgSeconds);
   else 
     return false;
   return server_ != nullptr;

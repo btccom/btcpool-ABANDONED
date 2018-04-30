@@ -301,7 +301,7 @@ class StratumJobEth : public StratumJob {
 public:
   StratumJobEth();
   virtual string serializeToJson() const;
-  virtual bool unserializeFromJson(const char *s, size_t len);
+  bool unserializeFromJson(const char *s, size_t len) override;
   bool initFromGw(const RskWorkEth &latestRskBlockJson,
                    const string& blockJson);
   
@@ -312,11 +312,11 @@ public:
 
 class StratumJobSia: public StratumJob {
 public:
-  //virtual string serializeToJson() const;
   bool unserializeFromJson(const char *s, size_t len) override;
   uint32 jobTime() const override { return nTime_; }
 };
 
 class StratumJobBytom: public StratumJob {
+  bool unserializeFromJson(const char *s, size_t len) override; 
 };
 #endif

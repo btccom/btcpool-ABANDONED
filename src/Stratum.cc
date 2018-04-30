@@ -761,3 +761,23 @@ bool StratumJobSia::unserializeFromJson(const char *s, size_t len)
 
   return true;
 }
+
+///////////////////////////////StratumJobSia///////////////////////////
+bool StratumJobBytom::unserializeFromJson(const char *s, size_t len)
+{
+  JsonNode j;
+  if (!JsonNode::parse(s, s + len, j))
+  {
+    return false;
+  }
+  if (j["created_at_ts"].type() != Utilities::JS::type::Int ||
+      j["jobId"].type() != Utilities::JS::type::Int ||
+      j["sHash"].type() != Utilities::JS::type::Str ||
+      j["hHash"].type() != Utilities::JS::type::Str)
+  {
+    LOG(ERROR) << "parse bytom stratum job failure: " << s;
+    return false;
+  }
+
+  return true;
+}

@@ -213,7 +213,7 @@ int main(int argc, char **argv)
                                        cfg.lookup("sserver.share_topic"));
     if (!gStratumServer->createServer(cfg.lookup("sserver.type"), shareAvgSeconds))
     {
-      LOG(FATAL) << "createServer failure";
+      LOG(FATAL) << "createServer failed";
       return 1;
     }
 
