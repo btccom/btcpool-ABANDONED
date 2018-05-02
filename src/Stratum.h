@@ -40,7 +40,7 @@
 
 #include <uint256.h>
 #include <base58.h>
-
+#include "bytom/bc.pb.h"
 #include "rsk/RskWork.h"
 
 // TODO: update when next Halving
@@ -318,5 +318,6 @@ public:
 
 class StratumJobBytom: public StratumJob {
   bool unserializeFromJson(const char *s, size_t len) override; 
+  bc::BlockHeader blockHeader_;
 };
 #endif
