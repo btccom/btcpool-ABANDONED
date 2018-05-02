@@ -530,7 +530,7 @@ void BlockMaker::consumeSovledShare(rd_kafka_message_t *rkmessage) {
            (const uint8_t *)rkmessage->payload + sizeof(FoundBlock),
            coinbaseTxBin.size());
     // copy header
-    memcpy((uint8_t *)&blkHeader, foundBlock.header80_, sizeof(CBlockHeader));
+    memcpy((uint8_t *)&blkHeader, foundBlock.header80_, sizeof(foundBlock.header80_));
   }
 
   // get gbtHash and rawgbt (vtxs)
@@ -865,7 +865,7 @@ void BlockMaker::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
     // coinbase tx
     memcpy((uint8_t *)coinbaseTxBin.data(), (const uint8_t *)rkmessage->payload + sizeof(RskSolvedShareData), coinbaseTxBin.size());
     // copy header
-    memcpy((uint8_t *)&blkHeader, shareData.header80_, sizeof(CBlockHeader));
+    memcpy((uint8_t *)&blkHeader, shareData.header80_, sizeof(shareData.header80_));
   }
 
   // get gbtHash and rawgbt (vtxs)

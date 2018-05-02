@@ -1193,7 +1193,7 @@ int Server::checkShare(const Share &share,
     foundBlock.workerId_ = share.workerHashId_;
     foundBlock.userId_   = share.userId_;
     foundBlock.height_   = sjob->height_;
-    memcpy(foundBlock.header80_, (const uint8_t *)&header, sizeof(CBlockHeader));
+    memcpy(foundBlock.header80_, (const uint8_t *)&header, sizeof(foundBlock.header80_));
     snprintf(foundBlock.workerFullName_, sizeof(foundBlock.workerFullName_),
              "%s", workFullName.c_str());
     // send
@@ -1232,7 +1232,7 @@ int Server::checkShare(const Share &share,
     snprintf(shareData.feesForMiner_, sizeof(shareData.feesForMiner_), "%s", sjob->feesForMiner_.c_str());
     snprintf(shareData.rpcAddress_, sizeof(shareData.rpcAddress_), "%s", sjob->rskdRpcAddress_.c_str());
     snprintf(shareData.rpcUserPwd_, sizeof(shareData.rpcUserPwd_), "%s", sjob->rskdRpcUserPwd_.c_str());
-    memcpy(shareData.header80_, (const uint8_t *)&header, sizeof(CBlockHeader));
+    memcpy(shareData.header80_, (const uint8_t *)&header, sizeof(shareData.header80_));
     snprintf(shareData.workerFullName_, sizeof(shareData.workerFullName_), "%s", workFullName.c_str());
     
     //
