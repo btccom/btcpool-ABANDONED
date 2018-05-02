@@ -319,5 +319,6 @@ public:
 class StratumJobBytom: public StratumJob {
   bool unserializeFromJson(const char *s, size_t len) override; 
   bc::BlockHeader blockHeader_;
+  string seed_;
 };
 #endif
