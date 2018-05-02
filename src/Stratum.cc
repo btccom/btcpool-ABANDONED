@@ -809,6 +809,7 @@ bool StratumJobBytom::unserializeFromJson(const char *s, size_t len)
     return false;
   }
 
+  DLOG(INFO) << "bytom block height=" << blockHeader_.height(); 
   seed_ = j["sHash"].str();
   return true;
 }
