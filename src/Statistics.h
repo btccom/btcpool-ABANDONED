@@ -39,6 +39,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <memory>
+#include <vector>
 
 #define STATS_SLIDING_WINDOW_SECONDS 3600
 
@@ -262,7 +263,7 @@ class StatsServer {
   pthread_rwlock_t rwlock_;  // for workerSet_
   std::unordered_map<WorkerKey/* userId + workerId */, shared_ptr<WorkerShares> > workerSet_;
   std::unordered_map<int32_t/* userId*/, shared_ptr<WorkerShares> > userSet_;
-  std::unordered_map<int32_t /* userId */, int32_t> userWorkerCount_;
+  std::unordered_map<int32_t/* userId */, int32_t/* workerNum */> userWorkerCount_;
   WorkerShares poolWorker_;  // worker status for the pool
 
   KafkaConsumer kafkaConsumer_;  // consume topic: 'ShareLog'
@@ -271,11 +272,12 @@ class StatsServer {
   KafkaConsumer kafkaConsumerCommonEvents_;  // consume topic: 'CommonEvents'
   thread threadConsumeCommonEvents_;
 
-  MySQLConnection *poolDB_;             // flush workers to table `mining_workers`
+  MySQLConnection *poolDB_;             // flush workers' hashrate to table `mining_workers`
   MySQLConnection *poolDBCommonEvents_; // insert or update workers from table `mining_workers`
 
-  RedisConnection *redis_;
-  RedisConnection *redisCommonEvents_;
+  RedisConnection *redisCommonEvents_; // writing workers' meta infomations
+  std::vector<RedisConnection *> redisGroup_; // writing workers' hashrate infomations
+  uint32_t redisConcurrency_; // how many threads are writing to Redis at the same time
   string redisKeyPrefix_;
   int redisKeyExpire_;
   bool isRedisPublishUsers_;   // if true, publish a message to redis subscriber when a user's data updated
@@ -312,10 +314,22 @@ class StatsServer {
                             vector<WorkerStatus> &workerStatus);
   WorkerStatus mergeWorkerStatus(const vector<WorkerStatus> &workerStatus);
 
-  void _flushWorkersToDBThread();
-  void flushWorkersToDB();
-  void _flushWorkersToRedisThread();
-  void flushWorkersToRedis();
+  void flushWorkersAndUsersToDB();
+  void _flushWorkersAndUsersToDBThread();
+  
+  void flushWorkersAndUsersToRedis();
+  void _flushWorkersAndUsersToRedisThread();
+  void _flushWorkersAndUsersToRedisThread(uint32_t threadStep);
+  bool checkRedis(uint32_t threadStep);
+  // Assigning tasks by specifying start and end ranges is not suitable for unordered_map.
+  // So we use a step jumping to assign tasks to multiple threads.
+  // It means, when `redisConcurrency_ = 3`:
+  // `threadStep 0` writing the 1st, 4th, 7th, ... workers.
+  // `threadStep 2` writing the 2nd, 5th, 8th, ... workers.
+  // `threadStep 2` writing the 3rd, 6th, 9th, ... workers.
+  void flushWorkersToRedis(uint32_t threadStep);
+  void flushUsersToRedis(uint32_t threadStep);
+
   void removeExpiredWorkers();
   bool setupThreadConsume();
   void runHttpd();
@@ -331,7 +345,8 @@ public:
   StatsServer(const char *kafkaBrokers,
               const string &httpdHost, unsigned short httpdPort,
               const MysqlConnectInfo *poolDBInfo, const RedisConnectInfo *redisInfo,
-              const string &redisKeyPrefix, const int redisKeyExpire, const int redisPublishPolicy,
+              const uint32_t redisConcurrency, const string &redisKeyPrefix,
+              const int redisKeyExpire, const int redisPublishPolicy,
               const time_t kFlushDBInterval, const string &fileLastFlushTime);
   ~StatsServer();
 

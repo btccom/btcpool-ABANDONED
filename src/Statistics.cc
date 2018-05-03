@@ -128,15 +128,18 @@ bool WorkerShares::isExpired() {
 StatsServer::StatsServer(const char *kafkaBrokers,
                          const string &httpdHost, unsigned short httpdPort,
                          const MysqlConnectInfo *poolDBInfo, const RedisConnectInfo *redisInfo,
-                         const string &redisKeyPrefix, const int redisKeyExpire, const int redisPublishPolicy,
+                         const uint32_t redisConcurrency, const string &redisKeyPrefix,
+                         const int redisKeyExpire, const int redisPublishPolicy,
                          const time_t kFlushDBInterval, const string &fileLastFlushTime):
 running_(true), totalWorkerCount_(0), totalUserCount_(0), uptime_(time(nullptr)),
 poolWorker_(0u/* worker id */, 0/* user id */),
 kafkaConsumer_(kafkaBrokers, KAFKA_TOPIC_SHARE_LOG, 0/* patition */),
 kafkaConsumerCommonEvents_(kafkaBrokers, KAFKA_TOPIC_COMMON_EVENTS, 0/* patition */),
-poolDB_(nullptr), poolDBCommonEvents_(nullptr), redis_(nullptr), redisCommonEvents_(nullptr),
+poolDB_(nullptr), poolDBCommonEvents_(nullptr),
+redisCommonEvents_(nullptr), redisConcurrency_(redisConcurrency),
 redisKeyPrefix_(redisKeyPrefix), redisKeyExpire_(redisKeyExpire),
-kFlushDBInterval_(kFlushDBInterval), isInserting_(false), isUpdateRedis_(false),
+kFlushDBInterval_(kFlushDBInterval),
+isInserting_(false), isUpdateRedis_(false),
 lastShareTime_(0), isInitializing_(true),
 lastFlushTime_(0), fileLastFlushTime_(fileLastFlushTime),
 base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort),
@@ -151,8 +154,12 @@ requestCount_(0), responseBytes_(0)
   }
 
   if (redisInfo != nullptr) {
-    redis_ = new RedisConnection(*redisInfo);
     redisCommonEvents_ = new RedisConnection(*redisInfo);
+    
+    for (uint32_t i=0; i<redisConcurrency; i++) {
+      RedisConnection *redis = new RedisConnection(*redisInfo);
+      redisGroup_.push_back(redis);
+    }
   }
 
   pthread_rwlock_init(&rwlock_, nullptr);
@@ -179,16 +186,19 @@ StatsServer::~StatsServer() {
     poolDBCommonEvents_ = nullptr;
   }
 
-  if (redis_ != nullptr) {
-    redis_->close();
-    delete redis_;
-    redis_ = nullptr;
-  }
-
   if (redisCommonEvents_ != nullptr) {
     redisCommonEvents_->close();
     delete redisCommonEvents_;
     redisCommonEvents_ = nullptr;
+  }
+
+  while (!redisGroup_.empty()) {
+    RedisConnection *redis = redisGroup_.back();
+    if (redis != nullptr) {
+      redis->close();
+      delete redis;
+    }
+    redisGroup_.pop_back();
   }
 
   pthread_rwlock_destroy(&rwlock_);
@@ -231,14 +241,16 @@ bool StatsServer::init() {
     return false;
   }
 
-  if (redis_ != nullptr && !redis_->ping()) {
-    LOG(INFO) << "redis ping failure";
-    return false;
-  }
-
   if (redisCommonEvents_ != nullptr && !redisCommonEvents_->ping()) {
     LOG(INFO) << "common events redis ping failure";
     return false;
+  }
+
+  for (size_t i=0; i<redisGroup_.size(); i++) {
+    if (redisGroup_[i] != nullptr && !redisGroup_[i]->ping()) {
+      LOG(INFO) << "redis " << i << " in redisGroup ping failure";
+      return false;
+    }
   }
 
   return true;
@@ -308,32 +320,80 @@ void StatsServer::_processShare(WorkerKey &key, const Share &share) {
   }
 }
 
-void StatsServer::flushWorkersToRedis() {
-  LOG(INFO) << "flush mining workers to redis...";
+void StatsServer::flushWorkersAndUsersToRedis() {
+  LOG(INFO) << "flush mining workers and users to redis...";
   if (isUpdateRedis_) {
     LOG(WARNING) << "last redis flush is not finish yet, ignore";
     return;
   }
 
   isUpdateRedis_ = true;
-  boost::thread t(boost::bind(&StatsServer::_flushWorkersToRedisThread, this));
+  boost::thread t(boost::bind(&StatsServer::_flushWorkersAndUsersToRedisThread, this));
 }
 
-void StatsServer::_flushWorkersToRedisThread() {
-  size_t workerCounter = 0;
-  size_t userCounter = 0;
+void StatsServer::_flushWorkersAndUsersToRedisThread() {
+  pthread_rwlock_rdlock(&rwlock_);
+  LOG(INFO) << "flush to redis: " << workerSet_.size() << " workers, " << userSet_.size() << " users";
+  pthread_rwlock_unlock(&rwlock_);
 
-  if (!redis_->ping()) {
-    LOG(ERROR) << "can't connect to pool redis";
-    isUpdateRedis_ = false;
-    return;
+  std::vector<boost::thread> threadPool;
+
+  assert(redisGroup_.size() == redisConcurrency_);
+  for (uint32_t i=0; i<redisConcurrency_; i++) {
+    threadPool.push_back(
+      boost::thread(boost::bind(&StatsServer::_flushWorkersAndUsersToRedisThread, this, i))
+    );
   }
 
-  
+  for (auto &t : threadPool) {
+    if (t.joinable()) {
+      t.join();
+    }
+  }
+
+  isUpdateRedis_ = false;
+}
+
+void StatsServer::_flushWorkersAndUsersToRedisThread(uint32_t threadStep) {
+  if (!checkRedis(threadStep)) {
+    return;
+  }
+  flushWorkersToRedis(threadStep);
+  flushUsersToRedis(threadStep);
+}
+
+bool StatsServer::checkRedis(uint32_t threadStep) {
+  if (threadStep > redisGroup_.size() - 1) {
+    LOG(ERROR) << "checkRedis(" << threadStep << "): "
+               << "threadStep out of range, should less than " << threadStep << "!";
+    return false;
+  }
+
+  RedisConnection *redis = redisGroup_[threadStep];
+
+  if (!redis->ping()) {
+    LOG(ERROR) << "can't connect to pool redis " << threadStep;
+    return false;
+  }
+
+  return true;
+}
+
+void StatsServer::flushWorkersToRedis(uint32_t threadStep) {
+  RedisConnection *redis = redisGroup_[threadStep];
+  size_t workerCounter = 0;
+
   pthread_rwlock_rdlock(&rwlock_);  // read lock
 
+  auto itr = workerSet_.begin();
+
+  // move to the beginning position
+  for (uint32_t i=0; i<threadStep && itr != workerSet_.end(); i++) {
+    itr ++;
+  }
+
   // flush all workes status
-  for (auto itr = workerSet_.begin(); itr != workerSet_.end(); itr++) {
+  while (itr != workerSet_.end()) {
     workerCounter++;
 
     const int32_t userId   = itr->first.userId_;
@@ -347,7 +407,7 @@ void StatsServer::_flushWorkersToRedisThread() {
     string key = getRedisKeyMiningWorker(userId, workerId);
 
     // update info
-    redis_->prepare({"HMSET", key,
+    redis->prepare({"HMSET", key,
                       "accept_1m", std::to_string(status.accept1m_),
                       "accept_5m", std::to_string(status.accept5m_),
                       "accept_15m", std::to_string(status.accept15m_),
@@ -361,16 +421,79 @@ void StatsServer::_flushWorkersToRedisThread() {
                   });
     // set key expire
     if (redisKeyExpire_ > 0) {
-      redis_->prepare({"EXPIRE", key, std::to_string(redisKeyExpire_)});
+      redis->prepare({"EXPIRE", key, std::to_string(redisKeyExpire_)});
     }
     // publish notification
     if (isRedisPublishWorkers_) {
-      redis_->prepare({"PUBLISH", key, "1"});
+      redis->prepare({"PUBLISH", key, "1"});
+    }
+
+    // move to the next position
+    for (uint32_t i=0; i<redisConcurrency_ && itr != workerSet_.end(); i++) {
+      itr++;
     }
   }
 
+  pthread_rwlock_unlock(&rwlock_); // unlock
+
+  if (workerCounter == 0) {
+    LOG(INFO) << "redis (thread " << threadStep << "): no active workers";
+    return;
+  }
+
+  for (size_t i=0; i<workerCounter; i++) {
+    // update info
+    {
+      RedisResult r = redis->execute();
+      if (r.type() != REDIS_REPLY_STATUS || r.str() != "OK") {
+        LOG(INFO) << "redis (thread " << threadStep << ") HMSET failed, "
+                               << "item index: " << i << ", "
+                               << "reply type: " << r.type() << ", "
+                               << "reply str: " << r.str();
+      }
+    }
+    // set key expire
+    if (redisKeyExpire_ > 0) {
+      RedisResult r = redis->execute();
+      if (r.type() != REDIS_REPLY_INTEGER || r.integer() != 1) {
+        LOG(INFO) << "redis (thread " << threadStep << ") EXPIRE failed, "
+                                 << "item index: " << i << ", "
+                                 << "reply type: " << r.type() << ", "
+                                 << "reply integer: " << r.integer() << ","
+                                 << "reply str: " << r.str();
+      }
+    }
+    // publish notification
+    if (isRedisPublishWorkers_) {
+      RedisResult r = redis->execute();
+      if (r.type() != REDIS_REPLY_INTEGER) {
+        LOG(INFO) << "redis (thread " << threadStep << ") PUBLISH failed, "
+                                 << "item index: " << i << ", "
+                                 << "reply type: " << r.type() << ", "
+                                 << "reply str: " << r.str();
+      }
+    }
+  }
+
+  LOG(INFO) << "flush mining workers to redis (thread " << threadStep << ") done, workers: " << workerCounter;
+  return;
+}
+
+void StatsServer::flushUsersToRedis(uint32_t threadStep) {
+  RedisConnection *redis = redisGroup_[threadStep];
+  size_t userCounter = 0;
+
+  pthread_rwlock_rdlock(&rwlock_);  // read lock
+
+  auto itr = userSet_.begin();
+
+  // move to the beginning position
+  for (size_t i=0; i<threadStep && itr != userSet_.end(); i++) {
+    itr++;
+  }
+
   // flush all users status
-  for (auto itr = userSet_.begin(); itr != userSet_.end(); itr++) {
+  while (itr != userSet_.end()) {
     userCounter++;
 
     const int32_t userId   = itr->first;
@@ -384,7 +507,7 @@ void StatsServer::_flushWorkersToRedisThread() {
     string key = getRedisKeyMiningWorker(userId);
 
     // update info
-    redis_->prepare({"HMSET", key,
+    redis->prepare({"HMSET", key,
                       "worker_count", std::to_string(workerCount),
                       "accept_1m", std::to_string(status.accept1m_),
                       "accept_5m", std::to_string(status.accept5m_),
@@ -399,60 +522,65 @@ void StatsServer::_flushWorkersToRedisThread() {
                   });
     // set key expire
     if (redisKeyExpire_ > 0) {
-      redis_->prepare({"EXPIRE", key, std::to_string(redisKeyExpire_)});
+      redis->prepare({"EXPIRE", key, std::to_string(redisKeyExpire_)});
     }
     // publish notification
     if (isRedisPublishUsers_) {
-      redis_->prepare({"PUBLISH", key, std::to_string(workerCount)});
+      redis->prepare({"PUBLISH", key, std::to_string(workerCount)});
+    }
+
+    // move to the beginning position
+    for (size_t i=0; i<threadStep && itr != userSet_.end(); i++) {
+      itr++;
     }
   }
 
   pthread_rwlock_unlock(&rwlock_); // unlock
 
-  size_t redisPipelineCounter = workerCounter + userCounter;
-  if (redisPipelineCounter == 0) {
-    LOG(INFO) << "no active workers or users";
-    isUpdateRedis_ = false;
+  if (userCounter == 0) {
+    LOG(INFO) << "redis (thread " << threadStep << "): no active users";
     return;
   }
 
-  for (size_t i=0; i<redisPipelineCounter; i++) {
+  for (size_t i=0; i<userCounter; i++) {
     // update info
     {
-      RedisResult r = redis_->execute();
+      RedisResult r = redis->execute();
       if (r.type() != REDIS_REPLY_STATUS || r.str() != "OK") {
-        LOG(INFO) << "redis HMSET failed, item index: " << i << ", "
+        LOG(INFO) << "redis (thread " << threadStep << ") HMSET failed, "
+                               << "item index: " << i << ", "
                                << "reply type: " << r.type() << ", "
                                << "reply str: " << r.str();
       }
     }
     // set key expire
     if (redisKeyExpire_ > 0) {
-      RedisResult r = redis_->execute();
+      RedisResult r = redis->execute();
       if (r.type() != REDIS_REPLY_INTEGER || r.integer() != 1) {
-        LOG(INFO) << "redis EXPIRE failed, item index: " << i << ", "
+        LOG(INFO) << "redis (thread " << threadStep << ") EXPIRE failed, "
+                                 << "item index: " << i << ", "
                                  << "reply type: " << r.type() << ", "
                                  << "reply integer: " << r.integer() << ","
                                  << "reply str: " << r.str();
       }
     }
     // publish notification
-    if ((i < workerCounter) ? isRedisPublishWorkers_ : isRedisPublishUsers_) {
-      RedisResult r = redis_->execute();
+    if (isRedisPublishUsers_) {
+      RedisResult r = redis->execute();
       if (r.type() != REDIS_REPLY_INTEGER) {
-        LOG(INFO) << "redis PUBLISH failed, item index: " << i << ", "
+        LOG(INFO) << "redis (thread " << threadStep << ") PUBLISH failed, "
+                                 << "item index: " << i << ", "
                                  << "reply type: " << r.type() << ", "
                                  << "reply str: " << r.str();
       }
     }
   }
-  LOG(INFO) << "flush mining workers to redis... done, workers: " << workerCounter << ", users: " << userCounter;
 
-  isUpdateRedis_ = false;
+  LOG(INFO) << "flush mining users to redis (thread " << threadStep << ") done, users: " << userCounter;
   return;
 }
 
-void StatsServer::flushWorkersToDB() {
+void StatsServer::flushWorkersAndUsersToDB() {
   LOG(INFO) << "flush mining workers to DB...";
   if (isInserting_) {
     LOG(WARNING) << "last DB flush is not finish yet, ignore";
@@ -460,10 +588,10 @@ void StatsServer::flushWorkersToDB() {
   }
 
   isInserting_ = true;
-  boost::thread t(boost::bind(&StatsServer::_flushWorkersToDBThread, this));
+  boost::thread t(boost::bind(&StatsServer::_flushWorkersAndUsersToDBThread, this));
 }
 
-void StatsServer::_flushWorkersToDBThread() {
+void StatsServer::_flushWorkersAndUsersToDBThread() {
   //
   // merge two table items
   // table.`mining_workers` unique index: `puid` + `worker_id`
@@ -843,10 +971,10 @@ void StatsServer::runThreadConsume() {
         // it's very fast because we use insert statement with multiple values
         // and merge table when flush data to DB.
         if (poolDB_ != nullptr) {
-          flushWorkersToDB();
+          flushWorkersAndUsersToDB();
         }
-        if (redis_ != nullptr) {
-          flushWorkersToRedis();
+        if (redisGroup_.size() > 0) {
+          flushWorkersAndUsersToRedis();
         }
         lastFlushDBTime = time(nullptr);
       }

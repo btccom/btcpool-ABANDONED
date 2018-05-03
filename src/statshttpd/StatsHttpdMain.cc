@@ -133,6 +133,7 @@ int main(int argc, char **argv) {
     string redisKeyPrefix;
     int redisKeyExpire = 0;
     int redisPublishPolicy = 1;
+    uint32_t redisConcurrency = 1;
 
     if (useRedis) {
       int32_t redisPort = 6379;
@@ -142,6 +143,7 @@ int main(int argc, char **argv) {
       cfg.lookupValue("redis.key_prefix", redisKeyPrefix);
       cfg.lookupValue("redis.key_expire", redisKeyExpire);
       cfg.lookupValue("redis.publish_policy", redisPublishPolicy);
+      cfg.lookupValue("redis.concurrency", redisConcurrency);
     }
     
     string fileLastFlushTime;
@@ -154,7 +156,7 @@ int main(int argc, char **argv) {
     gStatsServer = new StatsServer(cfg.lookup("kafka.brokers").c_str(),
                                    cfg.lookup("statshttpd.ip").c_str(),
                                    (unsigned short)port, poolDBInfo,
-                                   redisInfo, redisKeyPrefix,
+                                   redisInfo, redisConcurrency, redisKeyPrefix,
                                    redisKeyExpire, redisPublishPolicy,
                                    (time_t)flushInterval, fileLastFlushTime);
     if (gStatsServer->init()) {
