@@ -430,12 +430,14 @@ void StatsServer::flushWorkersToRedis(uint32_t threadStep) {
     if (redisKeyExpire_ > 0) {
       redis->prepare({"EXPIRE", key, std::to_string(redisKeyExpire_)});
     }
+    // create index
+    {
+      flushIndexToRedis(redis, userId, status);
+    }
     // publish notification
     if (redisPublishPolicy_ & REDIS_PUBLISH_WORKER_UPDATE) {
       redis->prepare({"PUBLISH", key, "1"});
     }
-
-    flushIndexToRedis(redis, userId, status);
 
     // move to the next position
     for (uint32_t i=0; i<redisConcurrency_ && itr != workerSet_.end(); i++) {
@@ -472,7 +474,11 @@ void StatsServer::flushWorkersToRedis(uint32_t threadStep) {
                                  << "reply str: " << r.str();
       }
     }
-    // publish notification
+    // indexes
+    {
+      readflushIndexResultFromRedis(redis, threadStep, i);
+    }
+    // notification
     if (redisPublishPolicy_ & REDIS_PUBLISH_WORKER_UPDATE) {
       RedisResult r = redis->execute();
       if (r.type() != REDIS_REPLY_INTEGER) {
@@ -482,8 +488,6 @@ void StatsServer::flushWorkersToRedis(uint32_t threadStep) {
                                  << "reply str: " << r.str();
       }
     }
-
-    readflushIndexResultFromRedis(redis, threadStep, i);
   }
 
   LOG(INFO) << "flush workers to redis (thread " << threadStep << ") done, workers: " << workerCounter;
@@ -1227,6 +1231,14 @@ bool StatsServer::updateWorkerStatusToRedis(const int32_t userId, const int64_t 
     }
   }
 
+  // update index
+  if (redisIndexPolicy_ & REDIS_INDEX_WORKER_NAME) {
+    updateWorkerStatusIndexToRedis(userId, "worker_name", workerName, std::to_string(workerId));
+  }
+  if (redisIndexPolicy_ & REDIS_INDEX_MINER_AGENT) {
+    updateWorkerStatusIndexToRedis(userId, "miner_agent", minerAgent, std::to_string(workerId));
+  }
+
   // publish notification
   if (redisPublishPolicy_ & REDIS_PUBLISH_WORKER_UPDATE) {
     redisCommonEvents_->prepare({"PUBLISH", key, "0"});
@@ -1247,6 +1259,19 @@ bool StatsServer::updateWorkerStatusToRedis(const int32_t userId, const int64_t 
   }
 
   return true;
+}
+
+void StatsServer::updateWorkerStatusIndexToRedis(const int32_t userId, const string &key,
+                                                 const string &score, const string &value) {
+
+  redisCommonEvents_->prepare({"ZADD", getRedisKeyIndex(userId, key), score, value});
+  RedisResult r = redisCommonEvents_->execute();
+
+  if (r.type() != REDIS_REPLY_INTEGER) {
+    LOG(INFO) << "redis ZADD failed, item key: " << key << ", "
+              << "reply type: " << r.type() << ", "
+              << "reply str: " << r.str();
+  }
 }
 
 bool StatsServer::updateWorkerStatusToDB(const int32_t userId, const int64_t workerId,

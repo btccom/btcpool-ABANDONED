@@ -269,7 +269,9 @@ class StatsServer {
     REDIS_INDEX_REJECT_1H       = 32,
     REDIS_INDEX_ACCEPT_COUNT    = 64,
     REDIS_INDEX_LAST_SHARE_IP   = 128,
-    REDIS_INDEX_LAST_SHARE_TIME = 256
+    REDIS_INDEX_LAST_SHARE_TIME = 256,
+    REDIS_INDEX_WORKER_NAME     = 512,
+    REDIS_INDEX_MINER_AGENT     = 1024
   };
 
   atomic<bool> running_;
@@ -324,6 +326,8 @@ class StatsServer {
                               const char *workerName, const char *minerAgent);
   bool updateWorkerStatusToRedis(const int32_t userId, const int64_t workerId,
                                  const char *workerName, const char *minerAgent);
+  void updateWorkerStatusIndexToRedis(const int32_t userId, const string &key,
+                                      const string &score, const string &value);
 
   void _processShare(WorkerKey &key, const Share &share);
   void processShare(const Share &share);
