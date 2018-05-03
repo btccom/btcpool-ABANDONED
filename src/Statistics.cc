@@ -433,7 +433,7 @@ void StatsServer::flushWorkersToRedis(uint32_t threadStep) {
     }
     // create index
     {
-      flushIndexToRedis(redis, userId, status);
+      flushIndexToRedis(redis, userId, workerId, status);
     }
     // publish notification
     if (redisPublishPolicy_ & REDIS_PUBLISH_WORKER_UPDATE) {
@@ -495,42 +495,42 @@ void StatsServer::flushWorkersToRedis(uint32_t threadStep) {
   return;
 }
 
-void StatsServer::flushIndexToRedis(RedisConnection *redis, const int32_t userId, const WorkerStatus &status) {
+void StatsServer::flushIndexToRedis(RedisConnection *redis, const int32_t userId, const int64_t workerId, const WorkerStatus &status) {
   // accept_1m
   if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_1M) {
-    redis->prepare({"ZADD", getRedisKeyIndex(userId, "accept_1m"), std::to_string(status.accept1m_)});
+    redis->prepare({"ZADD", getRedisKeyIndex(userId, "accept_1m"), std::to_string(status.accept1m_), std::to_string(workerId)});
   }
   // accept_5m
   if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_5M) {
-    redis->prepare({"ZADD", getRedisKeyIndex(userId, "accept_5m"), std::to_string(status.accept5m_)});
+    redis->prepare({"ZADD", getRedisKeyIndex(userId, "accept_5m"), std::to_string(status.accept5m_), std::to_string(workerId)});
   }
   // accept_15m
   if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_15M) {
-    redis->prepare({"ZADD", getRedisKeyIndex(userId, "accept_15m"), std::to_string(status.accept15m_)});
+    redis->prepare({"ZADD", getRedisKeyIndex(userId, "accept_15m"), std::to_string(status.accept15m_), std::to_string(workerId)});
   }
   // reject_15m
   if (redisIndexPolicy_ & REDIS_INDEX_REJECT_15M) {
-    redis->prepare({"ZADD", getRedisKeyIndex(userId, "reject_15m"), std::to_string(status.reject15m_)});
+    redis->prepare({"ZADD", getRedisKeyIndex(userId, "reject_15m"), std::to_string(status.reject15m_), std::to_string(workerId)});
   }
   // accept_1h
   if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_1H) {
-    redis->prepare({"ZADD", getRedisKeyIndex(userId, "accept_1h"), std::to_string(status.accept1h_)});
+    redis->prepare({"ZADD", getRedisKeyIndex(userId, "accept_1h"), std::to_string(status.accept1h_), std::to_string(workerId)});
   }
   // reject_1h
   if (redisIndexPolicy_ & REDIS_INDEX_REJECT_1H) {
-    redis->prepare({"ZADD", getRedisKeyIndex(userId, "reject_1h"), std::to_string(status.reject1h_)});
+    redis->prepare({"ZADD", getRedisKeyIndex(userId, "reject_1h"), std::to_string(status.reject1h_), std::to_string(workerId)});
   }
   // accept_count
   if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_COUNT) {
-    redis->prepare({"ZADD", getRedisKeyIndex(userId, "accept_count"), std::to_string(status.acceptCount_)});
+    redis->prepare({"ZADD", getRedisKeyIndex(userId, "accept_count"), std::to_string(status.acceptCount_), std::to_string(workerId)});
   }
   // last_share_ip
   if (redisIndexPolicy_ & REDIS_INDEX_LAST_SHARE_IP) {
-    redis->prepare({"ZADD", getRedisKeyIndex(userId, "last_share_ip"), std::to_string(status.lastShareIP_)});
+    redis->prepare({"ZADD", getRedisKeyIndex(userId, "last_share_ip"), std::to_string(status.lastShareIP_), std::to_string(workerId)});
   }
   // last_share_time
   if (redisIndexPolicy_ & REDIS_INDEX_LAST_SHARE_TIME) {
-    redis->prepare({"ZADD", getRedisKeyIndex(userId, "last_share_time"), std::to_string(status.lastShareTime_)});
+    redis->prepare({"ZADD", getRedisKeyIndex(userId, "last_share_time"), std::to_string(status.lastShareTime_), std::to_string(workerId)});
   }
 }
 

@@ -350,7 +350,7 @@ class StatsServer {
   // `threadStep 2` writing the 3rd, 6th, 9th, ... workers.
   void flushWorkersToRedis(uint32_t threadStep);
   void flushUsersToRedis(uint32_t threadStep);
-  void flushIndexToRedis(RedisConnection *redis, const int32_t userId, const WorkerStatus &status);
+  void flushIndexToRedis(RedisConnection *redis, const int32_t userId, const int64_t workerId, const WorkerStatus &status);
   void readZaddResultFromRedis(RedisConnection *redis, const uint32_t threadStep, const size_t pos);
   void readflushIndexResultFromRedis(RedisConnection *redis, const uint32_t threadStep, const size_t pos);
 
