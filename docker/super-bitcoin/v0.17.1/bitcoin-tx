@@ -1,0 +1,2 @@
+#!/bin/sh
+exec sbtc-tx -conf="/root/.bitcoin/bitcoin.conf" -datadir="/root/.bitcoin" -rpcport=8332 $*
