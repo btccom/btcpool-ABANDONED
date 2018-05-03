@@ -321,7 +321,7 @@ void StatsServer::_processShare(WorkerKey &key, const Share &share) {
 }
 
 void StatsServer::flushWorkersAndUsersToRedis() {
-  LOG(INFO) << "flush mining workers and users to redis...";
+  LOG(INFO) << "flush to redis...";
   if (isUpdateRedis_) {
     LOG(WARNING) << "last redis flush is not finish yet, ignore";
     return;
@@ -332,10 +332,6 @@ void StatsServer::flushWorkersAndUsersToRedis() {
 }
 
 void StatsServer::_flushWorkersAndUsersToRedisThread() {
-  pthread_rwlock_rdlock(&rwlock_);
-  LOG(INFO) << "flush to redis: " << workerSet_.size() << " workers, " << userSet_.size() << " users";
-  pthread_rwlock_unlock(&rwlock_);
-
   std::vector<boost::thread> threadPool;
 
   assert(redisGroup_.size() == redisConcurrency_);
@@ -350,6 +346,10 @@ void StatsServer::_flushWorkersAndUsersToRedisThread() {
       t.join();
     }
   }
+
+  pthread_rwlock_rdlock(&rwlock_);
+  LOG(INFO) << "flush to redis... done, " << workerSet_.size() << " workers, " << userSet_.size() << " users";
+  pthread_rwlock_unlock(&rwlock_);
 
   isUpdateRedis_ = false;
 }
@@ -475,7 +475,7 @@ void StatsServer::flushWorkersToRedis(uint32_t threadStep) {
     }
   }
 
-  LOG(INFO) << "flush mining workers to redis (thread " << threadStep << ") done, workers: " << workerCounter;
+  LOG(INFO) << "flush workers to redis (thread " << threadStep << ") done, workers: " << workerCounter;
   return;
 }
 
@@ -576,12 +576,12 @@ void StatsServer::flushUsersToRedis(uint32_t threadStep) {
     }
   }
 
-  LOG(INFO) << "flush mining users to redis (thread " << threadStep << ") done, users: " << userCounter;
+  LOG(INFO) << "flush users to redis (thread " << threadStep << ") done, users: " << userCounter;
   return;
 }
 
 void StatsServer::flushWorkersAndUsersToDB() {
-  LOG(INFO) << "flush mining workers to DB...";
+  LOG(INFO) << "flush to DB...";
   if (isInserting_) {
     LOG(WARNING) << "last DB flush is not finish yet, ignore";
     return;
@@ -705,7 +705,7 @@ void StatsServer::_flushWorkersAndUsersToDBThread() {
     LOG(ERROR) << "merge mining_workers failure";
     goto finish;
   }
-  LOG(INFO) << "flush mining workers to DB... done, workers: " << workerCounter << ", users: " << userCounter;
+  LOG(INFO) << "flush to DB... done, workers: " << workerCounter << ", users: " << userCounter;
 
   lastFlushTime_ = time(nullptr);
   // save flush timestamp to file, for monitor system
