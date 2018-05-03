@@ -1,9 +1,9 @@
-Docker for SuperSmartBitcoin v0.17.1
+Docker for SuperBitcoin v0.17.1
 ============================
 
 * OS: `Ubuntu 14.04 LTS`, `Ubuntu 16.04 LTS`
 * Docker Image OS: `Ubuntu 16.04 LTS`
-* SuperSmartBitcoin: `v0.17.1`
+* SuperBitcoin: `v0.17.1`
 
 ## Install Docker
 
@@ -66,4 +66,3 @@ docker exec -it super-bitcoin /bin/bash
 $ bitcoin-cli getblockchaininfo
 $ bitcoin-tx --help
 ```
-
