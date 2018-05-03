@@ -803,13 +803,39 @@ bool StratumJobBytom::unserializeFromJson(const char *s, size_t len)
   // 0x10, 0x55, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, //Nonce 4216080
 
   string hHash = j["hHash"].str();
-  if (!blockHeader_.ParseFromString(hHash))
+  // blockHeader_.set_version(1);
+  // blockHeader_.set_nonce(4216080);
+  // string out;
+  // if (!blockHeader_.SerializeToString(&out)) {
+  //   LOG(ERROR) << "SerializeToString failed: " << out;
+  // }
+
+  // DLOG(INFO) << out.length();
+  // DLOG(INFO) << out;
+
+  // if (!blockHeader_.ParseFromString(out))
+  // {
+  //   LOG(ERROR) << "block header ParseFromString failed: " << out;
+  //   return false;
+  // }
+
+  vector<char> binOut;
+  Hex2Bin(hHash.c_str(), hHash.length(), binOut);
+  // string testStr;
+  // Bin2Hex(binOut, testStr);
+  // assert(testStr == hHash);
+  // DLOG(INFO) << testStr;
+
+  string str;
+  str.assign(binOut.data(), binOut.size());
+  assert(str.length() == binOut.size());
+  if (!blockHeader_.ParseFromString(str))
   {
-    LOG(ERROR) << "block header ParseFromString failed: " << hHash;
+    LOG(ERROR) << "block header ParseFromString failed: " << str.length() << ", buf " << hHash;
     return false;
   }
 
-  DLOG(INFO) << "bytom block height=" << blockHeader_.height(); 
+  DLOG(INFO) << "bytom block height=" << blockHeader_.height();
   seed_ = j["sHash"].str();
   return true;
 }
