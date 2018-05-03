@@ -30,6 +30,7 @@
 
 #include <algorithm>
 #include <string>
+#include <compat/endian.h> // bitcoin header, provide be64toh()
 
 #include <boost/algorithm/string.hpp>
 #include <boost/thread.hpp>
@@ -525,10 +526,7 @@ void StatsServer::flushIndexToRedis(RedisConnection *redis, const int32_t userId
   }
   // last_share_ip
   if (redisIndexPolicy_ & REDIS_INDEX_LAST_SHARE_IP) {
-    char ipStr[INET_ADDRSTRLEN] = {0};
-    inet_ntop(AF_INET, &(status.lastShareIP_), ipStr, INET_ADDRSTRLEN);
-
-    redis->prepare({"ZADD", getRedisKeyIndex(userId, "last_share_ip"), ipStr});
+    redis->prepare({"ZADD", getRedisKeyIndex(userId, "last_share_ip"), std::to_string(status.lastShareIP_)});
   }
   // last_share_time
   if (redisIndexPolicy_ & REDIS_INDEX_LAST_SHARE_TIME) {
@@ -1263,8 +1261,23 @@ bool StatsServer::updateWorkerStatusToRedis(const int32_t userId, const int64_t 
 
 void StatsServer::updateWorkerStatusIndexToRedis(const int32_t userId, const string &key,
                                                  const string &score, const string &value) {
+  
+  // convert string to number
+  union {
+    uint64_t num;
+    char ch[8];
+  } scoreNumber;
 
-  redisCommonEvents_->prepare({"ZADD", getRedisKeyIndex(userId, key), score, value});
+  scoreNumber.num = 0;
+
+  if (!score.empty()) {
+    const size_t begin = max((size_t)(8 - score.size()), (size_t)0);
+    const size_t len   = min((size_t) score.size(),      (size_t)8);
+    memcpy(scoreNumber.ch + begin, score.c_str(), len);
+    scoreNumber.num = be64toh(scoreNumber.num); // big endian to host endian
+  }
+
+  redisCommonEvents_->prepare({"ZADD", getRedisKeyIndex(userId, key), std::to_string(scoreNumber.num), value});
   RedisResult r = redisCommonEvents_->execute();
 
   if (r.type() != REDIS_REPLY_INTEGER) {
