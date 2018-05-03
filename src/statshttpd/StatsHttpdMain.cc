@@ -132,7 +132,8 @@ int main(int argc, char **argv) {
     RedisConnectInfo *redisInfo = nullptr;
     string redisKeyPrefix;
     int redisKeyExpire = 0;
-    int redisPublishPolicy = 1;
+    int redisPublishPolicy = 0;
+    int redisIndexPolicy = 0;
     uint32_t redisConcurrency = 1;
 
     if (useRedis) {
@@ -143,6 +144,7 @@ int main(int argc, char **argv) {
       cfg.lookupValue("redis.key_prefix", redisKeyPrefix);
       cfg.lookupValue("redis.key_expire", redisKeyExpire);
       cfg.lookupValue("redis.publish_policy", redisPublishPolicy);
+      cfg.lookupValue("redis.index_policy", redisIndexPolicy);
       cfg.lookupValue("redis.concurrency", redisConcurrency);
     }
     
@@ -157,7 +159,7 @@ int main(int argc, char **argv) {
                                    cfg.lookup("statshttpd.ip").c_str(),
                                    (unsigned short)port, poolDBInfo,
                                    redisInfo, redisConcurrency, redisKeyPrefix,
-                                   redisKeyExpire, redisPublishPolicy,
+                                   redisKeyExpire, redisPublishPolicy, redisIndexPolicy,
                                    (time_t)flushInterval, fileLastFlushTime);
     if (gStatsServer->init()) {
     	gStatsServer->run();

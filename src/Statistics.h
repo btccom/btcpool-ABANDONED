@@ -255,6 +255,23 @@ class StatsServer {
     WorkerStatus poolStatus_;
   };
 
+  enum RedisPublishPolicy {
+    REDIS_PUBLISH_USER_UPDATE   = 1,
+    REDIS_PUBLISH_WORKER_UPDATE = 2
+  };
+
+  enum RedisIndexPolicy {
+    REDIS_INDEX_ACCEPT_1M       = 1,
+    REDIS_INDEX_ACCEPT_5M       = 2,
+    REDIS_INDEX_ACCEPT_15M      = 4,
+    REDIS_INDEX_REJECT_15M      = 8,
+    REDIS_INDEX_ACCEPT_1H       = 16,
+    REDIS_INDEX_REJECT_1H       = 32,
+    REDIS_INDEX_ACCEPT_COUNT    = 64,
+    REDIS_INDEX_LAST_SHARE_IP   = 128,
+    REDIS_INDEX_LAST_SHARE_TIME = 256
+  };
+
   atomic<bool> running_;
   atomic<int64_t> totalWorkerCount_;
   atomic<int64_t> totalUserCount_;
@@ -280,8 +297,8 @@ class StatsServer {
   uint32_t redisConcurrency_; // how many threads are writing to Redis at the same time
   string redisKeyPrefix_;
   int redisKeyExpire_;
-  bool isRedisPublishUsers_;   // if true, publish a message to redis subscriber when a user's data updated
-  bool isRedisPublishWorkers_; // if true, publish a message to redis subscriber when a worker's data updated
+  uint32_t redisPublishPolicy_; // @see statshttpd.cfg
+  uint32_t redisIndexPolicy_;   // @see statshttpd.cfg
 
   time_t kFlushDBInterval_;
   atomic<bool> isInserting_;     // flag mark if we are flushing db
@@ -329,6 +346,9 @@ class StatsServer {
   // `threadStep 2` writing the 3rd, 6th, 9th, ... workers.
   void flushWorkersToRedis(uint32_t threadStep);
   void flushUsersToRedis(uint32_t threadStep);
+  void flushIndexToRedis(RedisConnection *redis, const int32_t userId, const WorkerStatus &status);
+  void readZaddResultFromRedis(RedisConnection *redis, const uint32_t threadStep, const size_t pos);
+  void readflushIndexResultFromRedis(RedisConnection *redis, const uint32_t threadStep, const size_t pos);
 
   void removeExpiredWorkers();
   bool setupThreadConsume();
@@ -336,6 +356,7 @@ class StatsServer {
 
   string getRedisKeyMiningWorker(const int32_t userId, const int64_t workerId);
   string getRedisKeyMiningWorker(const int32_t userId);
+  string getRedisKeyIndex(const int32_t userId, const string &indexName);
 
 public:
   atomic<uint64_t> requestCount_;
@@ -345,8 +366,8 @@ public:
   StatsServer(const char *kafkaBrokers,
               const string &httpdHost, unsigned short httpdPort,
               const MysqlConnectInfo *poolDBInfo, const RedisConnectInfo *redisInfo,
-              const uint32_t redisConcurrency, const string &redisKeyPrefix,
-              const int redisKeyExpire, const int redisPublishPolicy,
+              const uint32_t redisConcurrency, const string &redisKeyPrefix, const int redisKeyExpire,
+              const int redisPublishPolicy, const int redisIndexPolicy,
               const time_t kFlushDBInterval, const string &fileLastFlushTime);
   ~StatsServer();
 
