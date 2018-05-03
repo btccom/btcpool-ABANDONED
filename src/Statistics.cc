@@ -530,7 +530,7 @@ void StatsServer::flushUsersToRedis(uint32_t threadStep) {
     }
 
     // move to the beginning position
-    for (size_t i=0; i<threadStep && itr != userSet_.end(); i++) {
+    for (uint32_t i=0; i<redisConcurrency_ && itr != userSet_.end(); i++) {
       itr++;
     }
   }
@@ -682,7 +682,7 @@ void StatsServer::_flushWorkersAndUsersToDBThread() {
   pthread_rwlock_unlock(&rwlock_);
 
   if (values.size() == 0) {
-    LOG(INFO) << "no active workers";
+    LOG(INFO) << "flush to DB: no active workers";
     goto finish;
   }
 
