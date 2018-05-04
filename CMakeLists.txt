@@ -296,7 +296,7 @@ include_directories(src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config 
                     ${LIBEVENT_INCLUDE_DIR} ${MYSQL_INCLUDE})
 set(THIRD_LIBRARIES ${BITCOIN_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY}
                     ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${ZOOKEEPER_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBEVENT_LIB}
-                    ${LIBEVENT_PTHREADS_LIB} ${secp256k1_LIBRARIES} ${PTHREAD_LIBRARIES} ${MYSQL_LIB} ${GMP_LIBRARIES} ethash blake2 -lprotobuf)
+                    ${LIBEVENT_PTHREADS_LIB} ${secp256k1_LIBRARIES} ${PTHREAD_LIBRARIES} ${MYSQL_LIB} ${GMP_LIBRARIES} ethash blake2 protobuf /work/btcpool/src/bytom/bh_shared.a)
 
 file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc src/bytom/*.cc)
 add_library(btcpool STATIC ${LIB_SOURCES})

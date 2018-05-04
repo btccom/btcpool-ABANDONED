@@ -30,7 +30,7 @@
 #include <util.h>
 
 #include "Utils.h"
-
+#include "bytom/bh_shared.h"
 #include <glog/logging.h>
 
 
@@ -818,24 +818,27 @@ bool StratumJobBytom::unserializeFromJson(const char *s, size_t len)
   //   LOG(ERROR) << "block header ParseFromString failed: " << out;
   //   return false;
   // }
+  GoSlice text = {(void*)hHash.data(), hHash.length(), hHash.length()};
+  GoUint64 height = DecodeHeaderString(text);
 
-  vector<char> binOut;
-  Hex2Bin(hHash.c_str(), hHash.length(), binOut);
-  // string testStr;
-  // Bin2Hex(binOut, testStr);
-  // assert(testStr == hHash);
-  // DLOG(INFO) << testStr;
+  DLOG(INFO) << "bytom block height=" << height;
+  // vector<char> binOut;
+  // Hex2Bin(hHash.c_str(), hHash.length(), binOut);
+  // // string testStr;
+  // // Bin2Hex(binOut, testStr);
+  // // assert(testStr == hHash);
+  // // DLOG(INFO) << testStr;
 
-  string str;
-  str.assign(binOut.data(), binOut.size());
-  assert(str.length() == binOut.size());
-  if (!blockHeader_.ParseFromString(str))
-  {
-    LOG(ERROR) << "block header ParseFromString failed: " << str.length() << ", buf " << hHash;
-    return false;
-  }
+  // string str;
+  // str.assign(binOut.data(), binOut.size());
+  // assert(str.length() == binOut.size());
+  // if (!blockHeader_.ParseFromString(str))
+  // {
+  //   LOG(ERROR) << "block header ParseFromString failed: " << str.length() << ", buf " << hHash;
+  //   return false;
+  // }
 
-  DLOG(INFO) << "bytom block height=" << blockHeader_.height();
+  // DLOG(INFO) << "bytom block height=" << blockHeader_.height();
   seed_ = j["sHash"].str();
   return true;
 }

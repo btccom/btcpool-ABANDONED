@@ -6,10 +6,10 @@ import (
 )
 
 //export DecodeHeaderString
-func DecodeHeaderString(text []byte) uint64 {
+func DecodeHeaderString(text []byte) (uint64, uint64, string, uint64, string, string, uint64) {
 	bh := &types.BlockHeader{}
 	bh.UnmarshalText(text)
-	return bh.Height
+	return bh.Version, bh.Height, bh.PreviousBlockHash.String(), bh.Timestamp, bh.TransactionsMerkleRoot.String(), bh.TransactionStatusHash.String(), bh.Bits
 }
 
 func main() {
