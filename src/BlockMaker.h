@@ -118,13 +118,20 @@ class BlockMaker {
                                   const string &rpcAddress,
                                   const string &rpcUserpass);
 
-  void submitRskBlockNonBlocking(const string &rpcAddress,
-                                const string &rpcUserPwd,
-                                const string &blockHex);
-
-  void _submitRskBlockThread(const string &rpcAddress,
-                            const string &rpcUserPwd,
-                            const string &blockHex);
+  void submitRskBlockPartialMerkleNonBlocking(const string &rpcAddress,
+                                              const string &rpcUserPwd,
+                                              const string &blockHashHex, 
+                                              const string &blockHeaderHex, 
+                                              const string &coinbaseHex, 
+                                              const string &merkleHashesHex, 
+                                              const string &totalTxCount);
+  void _submitRskBlockPartialMerkleThread(const string &rpcAddress,
+                                          const string &rpcUserPwd,
+                                          const string &blockHashHex, 
+                                          const string &blockHeaderHex, 
+                                          const string &coinbaseHex, 
+                                          const string &merkleHashesHex, 
+                                          const string &totalTxCount);
   bool submitToRskNode();
 
 public:

@@ -51,6 +51,7 @@
 #endif
 
 std::string EncodeHexBlock(const CBlock &block);
+std::string EncodeHexBlockHeader(const CBlockHeader &blkHeader);
 
 AMOUNT_TYPE GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams);
 
