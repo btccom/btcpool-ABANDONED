@@ -819,9 +819,11 @@ bool StratumJobBytom::unserializeFromJson(const char *s, size_t len)
   //   return false;
   // }
   GoSlice text = {(void*)hHash.data(), hHash.length(), hHash.length()};
-  GoUint64 height = DecodeHeaderString(text);
-
-  DLOG(INFO) << "bytom block height=" << height;
+  DLOG(INFO) << "DecodeHeaderString";
+  DecodeHeaderString_return bh = DecodeHeaderString(text);
+  DLOG(INFO) << "DecodeHeaderString return version=" << bh.r0;
+  //string merkleRoot(bh.r4.p, bh.r4.n);
+  DLOG(INFO) << "bytom block height=" << bh.r1 << ", timestamp=" << bh.r2;// << ", merkle root=" << merkleRoot;
   // vector<char> binOut;
   // Hex2Bin(hHash.c_str(), hHash.length(), binOut);
   // // string testStr;

@@ -65,7 +65,15 @@ extern "C" {
 #endif
 
 
-extern GoUint64 DecodeHeaderString(GoSlice p0);
+/* Return type for DecodeHeaderString */
+struct DecodeHeaderString_return {
+	GoUint64 r0;
+	GoUint64 r1;
+	GoUint64 r2;
+	GoUint64 r3;
+};
+
+extern struct DecodeHeaderString_return DecodeHeaderString(GoSlice p0);
 
 #ifdef __cplusplus
 }
