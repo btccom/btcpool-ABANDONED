@@ -314,11 +314,13 @@ public:
                  const int32_t shareAvgSeconds, const uint32_t extraNonce1);
   virtual ~StratumSession();
   virtual bool initialize();
+  virtual void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false);
+  virtual bool validate(const JsonNode &jmethod, const JsonNode &jparams);
+
   void markAsDead();
   bool isDead();
 
   void sendSetDifficulty(const uint64_t difficulty);
-  virtual void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false);
   void sendData(const char *data, size_t len);
   inline void sendData(const string &str) {
     sendData(str.data(), str.size());
@@ -366,6 +368,7 @@ public:
                     const int32_t shareAvgSeconds, const uint32_t extraNonce1);
   void handleRequest_GetWork(const string &idStr, const JsonNode &jparams) override; 
   void handleRequest_Submit   (const string &idStr, const JsonNode &jparams) override;   
+  bool validate(const JsonNode &jmethod, const JsonNode &jparams) override;
 };
 
 class StratumSessionSia : public StratumSession

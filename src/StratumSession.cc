@@ -334,6 +334,18 @@ bool StratumSession::tryReadLine(string &line) {
   return true;
 }
 
+bool StratumSession::validate(const JsonNode &jmethod, const JsonNode &jparams)
+{
+  if (jmethod.type() == Utilities::JS::type::Str &&
+      jmethod.size() != 0 &&
+      jparams.type() == Utilities::JS::type::Array)
+  {
+    return true;
+  }
+
+  return false;
+}
+
 void StratumSession::handleLine(const string &line) {
   DLOG(INFO) << "recv(" << line.size() << "): " << line;
 
@@ -353,9 +365,7 @@ void StratumSession::handleLine(const string &line) {
     idStr = "\"" + jnode["id"].str() + "\"";
   }
 
-  if (jmethod.type() == Utilities::JS::type::Str &&
-      jmethod.size() != 0 &&
-      jparams.type() == Utilities::JS::type::Array) {
+  if (validate(jmethod, jparams)) {
     handleRequest(idStr, jmethod.str(), jparams);
     return;
   }
@@ -1637,7 +1647,18 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   
 }
 
-void handleRequest_GetWork(const string &idStr, const JsonNode &jparams); 
+bool StratumSessionBytom::validate(const JsonNode &jmethod, const JsonNode &jparams)
+{
+  if (jmethod.type() == Utilities::JS::type::Str &&
+      jmethod.size() != 0 &&
+      jparams.type() == Utilities::JS::type::Obj)
+  {
+    return true;
+  }
+
+  return false;
+}
+
 ///////////////////////////////// AgentSessions ////////////////////////////////
 AgentSessions::AgentSessions(const int32_t shareAvgSeconds,
                              StratumSession *stratumSession)
