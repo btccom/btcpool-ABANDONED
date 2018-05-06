@@ -804,7 +804,7 @@ bool StratumJobBytom::unserializeFromJson(const char *s, size_t len)
 
   string hHash = j["hHash"].str();
 
-  GoSlice text = {(void *)hHash.data(), hHash.length(), hHash.length()};
+  GoSlice text = {(void *)hHash.data(), (int)hHash.length(), (int)hHash.length()};
   //DLOG(INFO) << "DecodeHeaderString";
   DecodeHeaderString_return bh = DecodeHeaderString(text);
   //DLOG(INFO) << "DecodeHeaderString return version=" << bh.r0;
@@ -839,4 +839,34 @@ bool StratumJobBytom::unserializeFromJson(const char *s, size_t len)
   // DLOG(INFO) << "bytom block height=" << blockHeader_.height();
   seed_ = j["sHash"].str();
   return true;
+}
+
+string BlockHeaderBytom::serializeToJson() const
+{
+  return Strings::Format("{\"Version\":%" PRIu64""
+                          ",\"Height\":%" PRIu64""
+                         ",\"PreviousBlockHash\":\"%s\""
+                         ",\"Timestamp\":%" PRIu64""
+                         ",\"TransactionsMerkleRoot\":\"%s\""
+                         ",\"TransactionStatusHash\":\"%s\""
+                         ",\"Bits\":%" PRIu64""
+                         "}",
+                         version,
+                         height,
+                         previousBlockHash.c_str(),
+                         timestamp,
+                         transactionsMerkleRoot.c_str(),
+                         transactionStatusHash.c_str(),
+                         bits);
+  //  "1"//Version
+  //  "1" //Height
+  //  "e733c4b1c4ea57bc87346d9fce8c492248f1f414b9eac17faf9e9b8e0a107fa1", //PreviousBlockHash
+  //  "5aa39c6e", //Timestamp
+  //  "15bd7762b3ee8057ecb83b792e2168c6b6bddaf10163d110f7e63db387e6aacf", //TransactionsMerkleRoot
+  //  "53c0ab896cb7a3778cc1d35a271264d991792b7c44f5c334116bb0786dbc5635", //TransactionStatusHash
+  //  "8000000000000000", //Nonce
+  //  "20000000007fffff", //Bits
+  //  "e733c4b1c4ea57bc87346d9fce8c492248f1f414b9eac17faf9e9b8e0a107fa1",//Seed
+  //  "bdba0400",//Target
+  // }
 }

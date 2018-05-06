@@ -342,7 +342,7 @@ struct BlockHeaderBytom
   uint64 bits;              // Difficulty target for the block.
   string transactionsMerkleRoot;
   string transactionStatusHash;
-  string serializeToJson() const {return "";}
+  string serializeToJson() const;
 };
 
 class StratumJobBytom : public StratumJob
