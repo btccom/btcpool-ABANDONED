@@ -837,19 +837,21 @@ bool StratumJobBytom::unserializeFromJson(const char *s, size_t len)
   // }
 
   // DLOG(INFO) << "bytom block height=" << blockHeader_.height();
+  jobId_ = j["jobId"].uint64();
+  nTime_ = j["created_at_ts"].uint32();
   seed_ = j["sHash"].str();
   return true;
 }
 
 string BlockHeaderBytom::serializeToJson() const
 {
-  return Strings::Format("{\"Version\":%" PRIu64""
-                          ",\"Height\":%" PRIu64""
+  return Strings::Format("{\"Version\":%" PRIu64 ""
+                         ",\"Height\":%" PRIu64 ""
                          ",\"PreviousBlockHash\":\"%s\""
-                         ",\"Timestamp\":%" PRIu64""
+                         ",\"Timestamp\":%" PRIu64 ""
                          ",\"TransactionsMerkleRoot\":\"%s\""
                          ",\"TransactionStatusHash\":\"%s\""
-                         ",\"Bits\":%" PRIu64""
+                         ",\"Bits\":%" PRIu64 ""
                          "}",
                          version,
                          height,

@@ -281,8 +281,9 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
     return;
   }
   // make sure the job is not expired.
-  if (sjob->jobTime() + kMaxJobsLifeTime_ < time(nullptr)) {
-    LOG(ERROR) << "too large delay from kafka to receive topic 'StratumJob'";
+  time_t now = time(nullptr);
+  if (sjob->jobTime() + kMaxJobsLifeTime_ < now) {
+    LOG(ERROR) << "too large delay from kafka to receive topic 'StratumJob' job time=" << sjob->jobTime() << ", max delay=" << kMaxJobsLifeTime_ << ", now=" << now;
     delete sjob;
     return;
   }
