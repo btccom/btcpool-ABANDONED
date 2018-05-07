@@ -30,6 +30,6 @@
 // So I can only provide such a function to pass the check of linker.
 appbase::IBaseApp *GetApp()
 {
-  LOG(INFO) << "GetApp() should NOT be called!";
+  LOG(FATAL) << "GetApp() should NOT be called!";
   return nullptr;
 }
