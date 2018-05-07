@@ -531,6 +531,18 @@ void BlockMaker::consumeSovledShare(rd_kafka_message_t *rkmessage) {
            coinbaseTxBin.size());
     // copy header
     memcpy((uint8_t *)&blkHeader, foundBlock.header80_, sizeof(foundBlock.header80_));
+
+
+  #ifdef CHAIN_TYPE_SBTC
+    // new header elements with SBTC contract hard fork
+    if (foundBlock.height_ > Params().SBTCContractForkHeight) {
+      blkHeader.nHeight = foundBlock.height_;
+      
+      // TODO: calculate the correct hashStateRoot and hashUTXORoot
+      blkHeader.hashStateRoot = DEFAULT_HASH_STATE_ROOT;
+      blkHeader.hashUTXORoot = DEFAULT_HASH_UTXO_ROOT;
+    }
+  #endif 
   }
 
   // get gbtHash and rawgbt (vtxs)
