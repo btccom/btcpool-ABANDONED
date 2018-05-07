@@ -1683,7 +1683,7 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
   ljob.shortJobId_ = shortJobId_++;
   ljob.jobDifficulty_ = diffController_->calcCurDiff();
 
-  uint32 target = 0xbdba0400;
+  uint32 target = 0x8;
   uint64 nonce = (((uint64)server_->serverId_) << 40);
   string notifyStr;
   if (isFirstJob)
@@ -1710,12 +1710,12 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
     // },
     // "error": null
     // }
-    uint8 versionBuf[8] = {0};
-    memcpy(versionBuf, &sJob->blockHeader_.version, sizeof(sJob->blockHeader_.version));
-    string versionStr;
-    Bin2Hex(versionBuf, 8, versionStr);
-    //char nonceBuf[9] = {0};
-    //memcpy(nonceBuf, &nonce, sizeof(nonce));
+    string versionStr, heightStr, timestampStr, nonceStr, bitsStr;
+    Bin2Hex((uint8*)&sJob->blockHeader_.version, 8, versionStr);
+    Bin2Hex((uint8*)&sJob->blockHeader_.height, 8, heightStr);
+    Bin2Hex((uint8*)&sJob->blockHeader_.timestamp, 8, timestampStr);
+    Bin2Hex((uint8*)&nonce, 8, nonceStr);
+    Bin2Hex((uint8*)&sJob->blockHeader_.bits, 8, bitsStr);
 
     notifyStr = Strings::Format(
         "{\"id\": 1, \"jsonrpc\": \"2.0\", \"result\": {\"id\": \"%s\", \"job\": {\"version\": \"%s\","
@@ -1731,25 +1731,15 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
         "\"target\": \"%08x\"}, \"status\": \"OK\"}, \"error\": null}",
         worker_.fullName_.c_str(),
         versionStr.c_str(),
-        versionStr.c_str(),
+        heightStr.c_str(),
         sJob->blockHeader_.previousBlockHash.c_str(),
-        versionStr.c_str(),
+        timestampStr.c_str(),
         sJob->blockHeader_.transactionsMerkleRoot.c_str(),
         sJob->blockHeader_.transactionStatusHash.c_str(),
-        versionStr.c_str(),
-        versionStr.c_str(),
+        nonceStr.c_str(),
+        bitsStr.c_str(),
         shortJobId_,
         sJob->seed_.c_str(),
-        // ljob.shortJobId_,
-        // ,
-        // sJob->blockHeader_.height,
-        // ,
-        // sJob->blockHeader_.timestamp,
-
-        // nonce >> 32,
-        // nonce,
-        // sJob->blockHeader_.bits >> 32,
-        // sJob->blockHeader_.bits,
         target);
   }
   else
