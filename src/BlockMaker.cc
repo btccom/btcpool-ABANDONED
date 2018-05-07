@@ -535,7 +535,7 @@ void BlockMaker::consumeSovledShare(rd_kafka_message_t *rkmessage) {
 
   #ifdef CHAIN_TYPE_SBTC
     // new header elements with SBTC contract hard fork
-    if (foundBlock.height_ > Params().SBTCContractForkHeight) {
+    if (foundBlock.height_ > Params().GetConsensus().SBTCContractForkHeight) {
       blkHeader.nHeight = foundBlock.height_;
       
       // TODO: calculate the correct hashStateRoot and hashUTXORoot
