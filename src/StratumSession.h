@@ -280,14 +280,6 @@ protected:
   void handleLine(const string &line);
   void handleRequest(const string &idStr, const string &method, const JsonNode &jparams);
 
-  virtual void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams);
-  virtual void handleRequest_Authorize        (const string &idStr, const JsonNode &jparams);
-  virtual void handleRequest_Submit           (const string &idStr, const JsonNode &jparams);
-  virtual void handleRequest_GetWork(const string &idStr, const JsonNode &jparams) {}; 
-  virtual void handleRequest_SubmitHashrate(const string &idStr, const JsonNode &jparams) {}; 
-   //return true if request is handled
-  virtual bool handleRequest_Specific(const string &idStr, const string &method, const JsonNode &jparams) {return false;}
-
   void handleRequest_SuggestTarget    (const string &idStr, const JsonNode &jparams);
   void handleRequest_SuggestDifficulty(const string &idStr, const JsonNode &jparams);
   void handleRequest_MultiVersion     (const string &idStr, const JsonNode &jparams);
@@ -302,6 +294,15 @@ protected:
   void handleExMessage_SubmitShare        (const string *exMessage);
   void handleExMessage_SubmitShareWithTime(const string *exMessage);
 
+  void checkUserAndPwd(const string &idStr, const string &fullName, const string &password);
+
+  virtual void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams);
+  virtual void handleRequest_Authorize        (const string &idStr, const JsonNode &jparams);
+  virtual void handleRequest_Submit           (const string &idStr, const JsonNode &jparams);
+  virtual void handleRequest_GetWork(const string &idStr, const JsonNode &jparams) {}; 
+  virtual void handleRequest_SubmitHashrate(const string &idStr, const JsonNode &jparams) {}; 
+   //return true if request is handled
+  virtual bool handleRequest_Specific(const string &idStr, const string &method, const JsonNode &jparams) {return false;}
   virtual string getFullName(const string& fullNameStr) { return fullNameStr; }
 public:
   struct bufferevent* bev_;
@@ -369,6 +370,7 @@ public:
   void handleRequest_GetWork(const string &idStr, const JsonNode &jparams) override; 
   void handleRequest_Submit   (const string &idStr, const JsonNode &jparams) override;   
   bool validate(const JsonNode &jmethod, const JsonNode &jparams) override;
+  void handleRequest_Authorize(const string &idStr, const JsonNode &jparams) override;
 };
 
 class StratumSessionSia : public StratumSession

@@ -615,38 +615,19 @@ void StratumSession::_handleRequest_AuthorizePassword(const string &password) {
   }
 }
 
-void StratumSession::handleRequest_Authorize(const string &idStr,
-                                             const JsonNode &jparams) {
-  if (state_ != SUBSCRIBED) {
-    responseError(idStr, StratumError::NOT_SUBSCRIBED);
-    return;
+void StratumSession::checkUserAndPwd(const string &idStr, const string &fullName, const string &password)
+{
+  if (!password.empty())
+  {
+    _handleRequest_AuthorizePassword(password);
   }
 
-  //
-  //  params[0] = user[.worker]
-  //  params[1] = password
-  //  eg. {"params": ["slush.miner1", "password"], "id": 2, "method": "mining.authorize"}
-  //  the password may be omitted.
-  //  eg. {"params": ["slush.miner1"], "id": 2, "method": "mining.authorize"}
-  //
-  if (jparams.children()->size() < 1) {
-    responseError(idStr, StratumError::INVALID_USERNAME);
-    return;
-  }
-
-  if (jparams.children()->size() > 1) {
-    const string password = jparams.children()->at(1).str();
-    if (!password.empty()) {
-      _handleRequest_AuthorizePassword(password);
-    }
-  }
-
-  string fullName = jparams.children()->at(0).str();
-  fullName = getFullName(fullName);
   const string userName = worker_.getUserName(fullName);
 
   const int32_t userId = server_->userInfo_->getUserId(userName);
-  if (userId <= 0) {
+  if (userId <= 0)
+  {
+    LOG(ERROR) << "invalid username=" << userName << ", userId=" << userId;
     responseError(idStr, StratumError::INVALID_USERNAME);
     return;
   }
@@ -660,14 +641,14 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
   server_->userInfo_->addWorker(worker_.userId_, worker_.workerHashId_,
                                 worker_.workerName_, clientAgent_);
   DLOG(INFO) << "userId: " << worker_.userId_
-  << ", wokerHashId: " << worker_.workerHashId_ << ", workerName:" << worker_.workerName_;
+             << ", wokerHashId: " << worker_.workerHashId_ << ", workerName:" << worker_.workerName_;
 
   // set read timeout to 10 mins, it's enought for most miners even usb miner.
   // if it's a pool watcher, set timeout to a week
-  setReadTimeout(isLongTimeout_ ? 86400*7 : 60*10);
-  
+  setReadTimeout(isLongTimeout_ ? 86400 * 7 : 60 * 10);
+
   // send latest stratum job
-  sendMiningNotify(server_->jobRepository_->getLatestStratumJobEx(), true/* is first job */);
+  sendMiningNotify(server_->jobRepository_->getLatestStratumJobEx(), true /* is first job */);
 
   // sent events to kafka: miner_connect
   {
@@ -685,6 +666,38 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
                                 clientAgent_.c_str(), clientIp_.c_str());
     server_->sendCommonEvents2Kafka(eventJson);
   }
+}
+
+void StratumSession::handleRequest_Authorize(const string &idStr,
+                                             const JsonNode &jparams)
+{
+  if (state_ != SUBSCRIBED)
+  {
+    responseError(idStr, StratumError::NOT_SUBSCRIBED);
+    return;
+  }
+
+  //
+  //  params[0] = user[.worker]
+  //  params[1] = password
+  //  eg. {"params": ["slush.miner1", "password"], "id": 2, "method": "mining.authorize"}
+  //  the password may be omitted.
+  //  eg. {"params": ["slush.miner1"], "id": 2, "method": "mining.authorize"}
+  //
+  if (jparams.children()->size() < 1)
+  {
+    responseError(idStr, StratumError::INVALID_USERNAME);
+    return;
+  }
+  string password;
+  if (jparams.children()->size() > 1)
+  {
+    password = jparams.children()->at(1).str();
+  }
+
+  string fullName = jparams.children()->at(0).str();
+  fullName = getFullName(fullName);
+  checkUserAndPwd(idStr, fullName, password);
 }
 
 void StratumSession::handleExMessage_AuthorizeAgentWorker(const int64_t workerId,
@@ -1646,6 +1659,16 @@ void StratumSessionBytom::handleRequest_GetWork(const string &idStr, const JsonN
 void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNode &jparams) {
   
 }
+
+void StratumSessionBytom::handleRequest_Authorize(const string &idStr, const JsonNode &jparams)
+{
+  state_ = SUBSCRIBED;
+  auto params = const_cast<JsonNode&> (jparams);
+  string fullName = params["login"].str();
+  string pwd = params["pass"].str();
+  checkUserAndPwd(idStr, fullName, pwd);
+}
+
 
 bool StratumSessionBytom::validate(const JsonNode &jmethod, const JsonNode &jparams)
 {
