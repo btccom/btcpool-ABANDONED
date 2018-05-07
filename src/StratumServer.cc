@@ -1193,7 +1193,7 @@ int Server::checkShare(const Share &share,
     foundBlock.workerId_ = share.workerHashId_;
     foundBlock.userId_   = share.userId_;
     foundBlock.height_   = sjob->height_;
-    memcpy(foundBlock.header80_, (const uint8_t *)&header, sizeof(foundBlock.header80_));
+    memcpy(foundBlock.miningHeader_, (const uint8_t *)&header, sizeof(foundBlock.miningHeader_));
     snprintf(foundBlock.workerFullName_, sizeof(foundBlock.workerFullName_),
              "%s", workFullName.c_str());
     // send
@@ -1232,7 +1232,7 @@ int Server::checkShare(const Share &share,
     snprintf(shareData.feesForMiner_, sizeof(shareData.feesForMiner_), "%s", sjob->feesForMiner_.c_str());
     snprintf(shareData.rpcAddress_, sizeof(shareData.rpcAddress_), "%s", sjob->rskdRpcAddress_.c_str());
     snprintf(shareData.rpcUserPwd_, sizeof(shareData.rpcUserPwd_), "%s", sjob->rskdRpcUserPwd_.c_str());
-    memcpy(shareData.header80_, (const uint8_t *)&header, sizeof(shareData.header80_));
+    memcpy(shareData.miningHeader_, (const uint8_t *)&header, sizeof(shareData.miningHeader_));
     snprintf(shareData.workerFullName_, sizeof(shareData.workerFullName_), "%s", workFullName.c_str());
     
     //
@@ -1268,7 +1268,7 @@ int Server::checkShare(const Share &share,
     // build namecoin solved share message
     //
     string blockHeaderHex;
-    Bin2Hex((const uint8_t *)&header, sizeof(CBlockHeader), blockHeaderHex);
+    Bin2Hex((const uint8_t *)&header, BITCOIN_FULL_HEADER_SIZE, blockHeaderHex);
     DLOG(INFO) << "blockHeaderHex: " << blockHeaderHex;
 
     string coinbaseTxHex;

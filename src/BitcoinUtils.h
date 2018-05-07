@@ -33,6 +33,11 @@
 #include <utilstrencodings.h>
 #include <base58.h>
 
+// SBTC changed its CBlockHeader structure since block 525555 so sizeof(CBlockHeader)!=80.
+// But mining (POW calculation) still uses the first 80 bytes.
+#define BITCOIN_MINING_HEADER_SIZE 80
+#define BITCOIN_FULL_HEADER_SIZE sizeof(CBlockHeader)
+
 #ifdef CHAIN_TYPE_BCH
   // header that defined DecodeDestination & IsValidDestinationString
   #include <dstencode.h>

@@ -287,7 +287,8 @@ string _buildAuxPow(const CBlock *block) {
   {
     CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
     ssBlock << block->GetBlockHeader();
-    auxPow += HexStr(ssBlock.begin(), ssBlock.end());
+    // ssBlock may contain contents that AuxPow does not need (since SBTC changed its CBlockHeader structure)
+    auxPow += HexStr(ssBlock.begin(), ssBlock.end()).substr(0, BITCOIN_MINING_HEADER_SIZE*2);
   }
 
   return auxPow;
@@ -347,7 +348,7 @@ void BlockMaker::consumeNamecoinSovledShare(rd_kafka_message_t *rkmessage) {
   const string coinbaseTxHex  = j["coinbase_tx"].str();
   const string rpcAddr        = j["rpc_addr"].str();
   const string rpcUserpass    = j["rpc_userpass"].str();
-  assert(blockHeaderHex.size() == sizeof(CBlockHeader)*2);
+  assert(blockHeaderHex.size() == BITCOIN_FULL_HEADER_SIZE*2);
 
   CBlockHeader blkHeader;
   vector<char> coinbaseTxBin;
@@ -356,7 +357,7 @@ void BlockMaker::consumeNamecoinSovledShare(rd_kafka_message_t *rkmessage) {
   {
     vector<char> binOut;
     Hex2Bin(blockHeaderHex.c_str(), blockHeaderHex.length(), binOut);
-    assert(binOut.size() == sizeof(CBlockHeader));
+    assert(binOut.size() == BITCOIN_FULL_HEADER_SIZE);
     memcpy((uint8_t *)&blkHeader, binOut.data(), binOut.size());
   }
 
@@ -530,7 +531,7 @@ void BlockMaker::consumeSovledShare(rd_kafka_message_t *rkmessage) {
            (const uint8_t *)rkmessage->payload + sizeof(FoundBlock),
            coinbaseTxBin.size());
     // copy header
-    memcpy((uint8_t *)&blkHeader, foundBlock.header80_, sizeof(foundBlock.header80_));
+    memcpy((uint8_t *)&blkHeader, foundBlock.miningHeader_, sizeof(foundBlock.miningHeader_));
 
 
   #ifdef CHAIN_TYPE_SBTC
@@ -877,7 +878,7 @@ void BlockMaker::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
     // coinbase tx
     memcpy((uint8_t *)coinbaseTxBin.data(), (const uint8_t *)rkmessage->payload + sizeof(RskSolvedShareData), coinbaseTxBin.size());
     // copy header
-    memcpy((uint8_t *)&blkHeader, shareData.header80_, sizeof(shareData.header80_));
+    memcpy((uint8_t *)&blkHeader, shareData.miningHeader_, sizeof(shareData.miningHeader_));
   }
 
   // get gbtHash and rawgbt (vtxs)
