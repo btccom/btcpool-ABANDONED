@@ -45,7 +45,28 @@ Request can include additional 2nd param (email for example):
 Successful response:
 
 ```javascript
-{ "id": 1, "jsonrpc": "2.0", "result": true }
+{
+"id": 1,
+"jsonrpc": "2.0",
+"result": {
+"id": "antminer_1",
+    "job": {
+        "version": "0100000000000000",
+        "height": "552b000000000000",
+        "previous_block_hash": "a381c915148d1374e106533822cb55b92a0676577909964af53204150e473108",
+        "timestamp": "a846d95a00000000",
+        "transactions_merkle_root": "542fb09c8f827e2bbcbf6612f64ccb83d84cc762c243d3366626443b893c2f49",
+        "transaction_status_hash": "6978a65b4ee5b6f4914fe5c05000459a803ecf59132604e5d334d64249c5e50a",
+        "nonce": "00000000a6040000",
+        "bits": "a30baa000000001d",
+        "job_id": "710425",
+        "seed": "2947a722c7af35bca92dc612ed29a8f61cf59734b214a4994dcce2521220e4bc",
+        "target": "c5a70000"
+    },
+    "status": "OK"
+},
+"error": null
+}
 ```
 
 Exceptions:
@@ -68,7 +89,8 @@ Successful response:
 {
   "id": 1,
   "jsonrpc": "2.0",
-  "result": {
+  "method": "job",
+  "params": {
      "1",//JobId
      "1"//Version
      "1" //Height
@@ -97,7 +119,7 @@ Server sends job to peers if new job is available:
 ```javascript
 {
   "jsonrpc": "2.0",
-  "result": {
+  "params": {
        "1",//JobId
        "1"//Version
        "1" //Height
@@ -125,6 +147,7 @@ Request looks like:
   "params": {
     "1", //job_id
     "800000000" //nonce
+    "010000001f020000" //result
   }
 }
 ```

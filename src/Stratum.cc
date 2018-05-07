@@ -814,11 +814,11 @@ bool StratumJobBytom::unserializeFromJson(const char *s, size_t len)
   blockHeader_.height = bh.r1;
   blockHeader_.timestamp = bh.r2;
   blockHeader_.bits = bh.r3;
-  blockHeader_.previousBlockHash = Strings::Format("08x08x08x08x08x08x08x08x",
+  blockHeader_.previousBlockHash = Strings::Format("%08x%08x%08x%08x%08x%08x%08x%08x",
                                                    bh.r4 >> 32, bh.r4 & 0xFFFFFFFF, bh.r5 >> 32, bh.r5 & 0xFFFFFFFF, bh.r6 >> 32, bh.r6 & 0xFFFFFFFF, bh.r7 >> 32, bh.r7 & 0xFFFFFFFF);
-  blockHeader_.transactionsMerkleRoot = Strings::Format("08x08x08x08x08x08x08x08x",
+  blockHeader_.transactionsMerkleRoot = Strings::Format("%08x%08x%08x%08x%08x%08x%08x%08x",
                                                         bh.r8 >> 32, bh.r8 & 0xFFFFFFFF, bh.r9 >> 32, bh.r9 & 0xFFFFFFFF, bh.r10 >> 32, bh.r10 & 0xFFFFFFFF, bh.r11 >> 32, bh.r11 & 0xFFFFFFFF);
-  blockHeader_.transactionStatusHash = Strings::Format("08x08x08x08x08x08x08x08x",
+  blockHeader_.transactionStatusHash = Strings::Format("%08x%08x%08x%08x%08x%08x%08x%08x",
                                                        bh.r12 >> 32, bh.r12 & 0xFFFFFFFF, bh.r13 >> 32, bh.r13 & 0xFFFFFFFF, bh.r14 >> 32, bh.r14 & 0xFFFFFFFF, bh.r15 >> 32, bh.r15 & 0xFFFFFFFF);
   // vector<char> binOut;
   // Hex2Bin(hHash.c_str(), hHash.length(), binOut);

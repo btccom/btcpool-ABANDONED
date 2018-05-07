@@ -633,7 +633,10 @@ void StratumSession::checkUserAndPwd(const string &idStr, const string &fullName
   }
 
   // auth success
-  responseTrue(idStr);
+  // some protocols do not need response. eg. bytom
+  if (needToSendLoginResponse())
+    responseTrue(idStr);
+
   state_ = AUTHENTICATED;
 
   // set id & names, will filter workername in this func
@@ -1648,16 +1651,9 @@ StratumSessionBytom::StratumSessionBytom(evutil_socket_t fd, struct bufferevent 
                                                                                                                      server,
                                                                                                                      saddr,
                                                                                                                      shareAvgSeconds,
-                                                                                                                     extraNonce1)
+                                                                                                                     extraNonce1),
+                                                                                                                     shortJobId_(1)
 {
-}
-
-void StratumSessionBytom::handleRequest_GetWork(const string &idStr, const JsonNode &jparams) {
-  
-}
-
-void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNode &jparams) {
-  
 }
 
 void StratumSessionBytom::handleRequest_Authorize(const string &idStr, const JsonNode &jparams)
@@ -1669,6 +1665,139 @@ void StratumSessionBytom::handleRequest_Authorize(const string &idStr, const Jso
   checkUserAndPwd(idStr, fullName, pwd);
 }
 
+void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob)
+{
+  if (state_ < AUTHENTICATED || nullptr == exJobPtr)
+  {
+    LOG(ERROR) << "bytom sendMiningNotify failed, state: " << state_;
+    return;
+  }
+
+  StratumJobBytom *sJob = dynamic_cast<StratumJobBytom *>(exJobPtr->sjob_);
+  if (nullptr == sJob)
+    return;
+
+  localJobs_.push_back(LocalJob());
+  LocalJob &ljob = *(localJobs_.rbegin());
+  ljob.jobId_ = sJob->jobId_;
+  ljob.shortJobId_ = shortJobId_++;
+  ljob.jobDifficulty_ = diffController_->calcCurDiff();
+
+  uint32 target = 0xbdba0400;
+  uint64 nonce = (((uint64)server_->serverId_) << 40);
+  string notifyStr;
+  if (isFirstJob)
+  {
+    //     {
+    // "id": 1,
+    // "jsonrpc": "2.0",
+    // "result": {
+    // "id": "antminer_1",
+    //     "job": {
+    //         "version": "0100000000000000",
+    //         "height": "552b000000000000",
+    //         "previous_block_hash": "a381c915148d1374e106533822cb55b92a0676577909964af53204150e473108",
+    //         "timestamp": "a846d95a00000000",
+    //         "transactions_merkle_root": "542fb09c8f827e2bbcbf6612f64ccb83d84cc762c243d3366626443b893c2f49",
+    //         "transaction_status_hash": "6978a65b4ee5b6f4914fe5c05000459a803ecf59132604e5d334d64249c5e50a",
+    //         "nonce": "00000000a6040000",
+    //         "bits": "a30baa000000001d",
+    //         "job_id": "710425",
+    //         "seed": "2947a722c7af35bca92dc612ed29a8f61cf59734b214a4994dcce2521220e4bc",
+    //         "target": "c5a70000"
+    //     },
+    //     "status": "OK"
+    // },
+    // "error": null
+    // }
+    uint8 versionBuf[8] = {0};
+    memcpy(versionBuf, &sJob->blockHeader_.version, sizeof(sJob->blockHeader_.version));
+    string versionStr;
+    Bin2Hex(versionBuf, 8, versionStr);
+    //char nonceBuf[9] = {0};
+    //memcpy(nonceBuf, &nonce, sizeof(nonce));
+
+    notifyStr = Strings::Format(
+        "{\"id\": 1, \"jsonrpc\": \"2.0\", \"result\": {\"id\": \"%s\", \"job\": {\"version\": \"%s\","
+        "\"height\": \"%s\","
+        "\"previous_block_hash\": \"%s\","
+        "\"timestamp\": \"%s\","
+        "\"transactions_merkle_root\": \"%s\","
+        "\"transaction_status_hash\": \"%s\","
+        "\"nonce\": \"%s\","
+        "\"bits\": \"%s\","
+        "\"job_id\": \"%d\","
+        "\"seed\": \"%s\","
+        "\"target\": \"%08x\"}, \"status\": \"OK\"}, \"error\": null}",
+        worker_.fullName_.c_str(),
+        versionStr.c_str(),
+        versionStr.c_str(),
+        sJob->blockHeader_.previousBlockHash.c_str(),
+        versionStr.c_str(),
+        sJob->blockHeader_.transactionsMerkleRoot.c_str(),
+        sJob->blockHeader_.transactionStatusHash.c_str(),
+        versionStr.c_str(),
+        versionStr.c_str(),
+        shortJobId_,
+        sJob->seed_.c_str(),
+        // ljob.shortJobId_,
+        // ,
+        // sJob->blockHeader_.height,
+        // ,
+        // sJob->blockHeader_.timestamp,
+
+        // nonce >> 32,
+        // nonce,
+        // sJob->blockHeader_.bits >> 32,
+        // sJob->blockHeader_.bits,
+        target);
+  }
+  else
+  {
+    //   {
+    //   "id": 1,
+    //   "jsonrpc": "2.0",
+    //   "result": {
+    //      "1",//JobId
+    //      "1"//Version
+    //      "1" //Height
+    //      "e733c4b1c4ea57bc87346d9fce8c492248f1f414b9eac17faf9e9b8e0a107fa1", //PreviousBlockHash
+    //      "5aa39c6e", //Timestamp
+    //      "15bd7762b3ee8057ecb83b792e2168c6b6bddaf10163d110f7e63db387e6aacf", //TransactionsMerkleRoot
+    //      "53c0ab896cb7a3778cc1d35a271264d991792b7c44f5c334116bb0786dbc5635", //TransactionStatusHash
+    //      "8000000000000000", //Nonce
+    //      "20000000007fffff", //Bits
+    //      "e733c4b1c4ea57bc87346d9fce8c492248f1f414b9eac17faf9e9b8e0a107fa1",//Seed
+    //      "bdba0400",//Target
+    //     }
+    // }
+    notifyStr = Strings::Format(
+        "{\"id\": 1,\"jsonrpc\": \"2.0\", \"result\": {\"%u\", \"%" PRIu64 "\", \"%" PRIu64 "\", \"%s\", \"%08x\", \"%s\", \"%s\", \"%08x%08x\", \"%08x%08x\", \"%s\", \"%08x\"}}",
+        ljob.shortJobId_,
+        sJob->blockHeader_.version,
+        sJob->blockHeader_.height,
+        sJob->blockHeader_.previousBlockHash.c_str(),
+        sJob->blockHeader_.timestamp,
+        sJob->blockHeader_.transactionsMerkleRoot.c_str(),
+        sJob->blockHeader_.transactionStatusHash.c_str(),
+        nonce >> 32,
+        nonce,
+        sJob->blockHeader_.bits >> 32,
+        sJob->blockHeader_.bits,
+        sJob->seed_,
+        target);
+  }
+  LOG(INFO) << "bytom sendMiningNotify: " << notifyStr;
+  sendData(notifyStr);
+}
+
+void StratumSessionBytom::handleRequest_GetWork(const string &idStr, const JsonNode &jparams) {
+    sendMiningNotify(server_->jobRepository_->getLatestStratumJobEx(), false);
+}
+
+void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNode &jparams) {
+  
+}
 
 bool StratumSessionBytom::validate(const JsonNode &jmethod, const JsonNode &jparams)
 {

@@ -347,7 +347,7 @@ struct BlockHeaderBytom
 
 class StratumJobBytom : public StratumJob
 {
-
+public:
   bool unserializeFromJson(const char *s, size_t len) override;
   BlockHeaderBytom blockHeader_;
   string seed_;
