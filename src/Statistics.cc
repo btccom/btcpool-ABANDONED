@@ -1263,21 +1263,9 @@ void StatsServer::updateWorkerStatusIndexToRedis(const int32_t userId, const str
                                                  const string &score, const string &value) {
   
   // convert string to number
-  union {
-    uint64_t num;
-    char ch[8];
-  } scoreNumber;
+  uint64_t scoreRank = getAlphaNumRank(score);
 
-  scoreNumber.num = 0;
-
-  if (!score.empty()) {
-    const size_t begin = max((size_t)(8 - score.size()), (size_t)0);
-    const size_t len   = min((size_t) score.size(),      (size_t)8);
-    memcpy(scoreNumber.ch + begin, score.c_str(), len);
-    scoreNumber.num = be64toh(scoreNumber.num); // big endian to host endian
-  }
-
-  redisCommonEvents_->prepare({"ZADD", getRedisKeyIndex(userId, key), std::to_string(scoreNumber.num), value});
+  redisCommonEvents_->prepare({"ZADD", getRedisKeyIndex(userId, key), std::to_string(scoreRank), value});
   RedisResult r = redisCommonEvents_->execute();
 
   if (r.type() != REDIS_REPLY_INTEGER) {
