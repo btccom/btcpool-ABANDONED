@@ -460,16 +460,14 @@ void JobMaker::addRawgbt(const char *str, size_t len) {
     }
   }
 
-  LOG(INFO) << "addRawGbt: " << str;
-
   const uint32_t gbtTime = r["created_at_ts"].uint32();
   const int64_t timeDiff = (int64_t)time(nullptr) - (int64_t)gbtTime;
   if (labs(timeDiff) >= 60) {
-    LOG(WARNING) << "rawgbt diff time is more than 60, ignore it. diff " << timeDiff << ". Full message: " << str;
+    LOG(WARNING) << "rawgbt diff time is more than 60, ignore it.";
     return;  // time diff too large, there must be some problems, so ignore it
   }
   if (labs(timeDiff) >= 3) {
-    LOG(WARNING) << "rawgbt diff time is too large: " << timeDiff << " seconds. Full message: " << str;
+    LOG(WARNING) << "rawgbt diff time is too large: " << timeDiff << " seconds";
   }
 
   const string gbt = DecodeBase64(r["block_template_base64"].str());
