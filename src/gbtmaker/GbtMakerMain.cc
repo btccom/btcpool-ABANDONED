@@ -126,7 +126,7 @@ int main(int argc, char **argv) {
     if (!gGbtMaker->init()) {
       LOG(FATAL) << "gbtmaker init failure";
     } else {
-      gGbtMaker->run();
+      gGbtMaker->run(false, true);
     }
     delete gGbtMaker;
   } catch (std::exception & e) {

@@ -49,21 +49,26 @@ JobMaker::JobMaker(const string &kafkaBrokers,  uint32_t stratumJobInterval,
                    const string &payoutAddr, uint32_t gbtLifeTime,
                    uint32_t emptyGbtLifeTime, const string &fileLastJobTime,
                    uint32_t rskNotifyPolicy,
-                   uint32_t blockVersion, const string &poolCoinbaseInfo):
-running_(true),
-kafkaBrokers_(kafkaBrokers),
-kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, RD_KAFKA_PARTITION_UA/* partition */),
-kafkaRawGbtConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT,       0/* partition */),
-kafkaNmcAuxConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_NMC_AUXBLOCK, 0/* partition */),
-kafkaRawGwConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGW, 0/* partition */),
-previousRskWork_(nullptr), currentRskWork_(nullptr), rskNotifyPolicy_(rskNotifyPolicy),
-currBestHeight_(0), lastJobSendTime_(0),
-isLastJobEmptyBlock_(false),
-stratumJobInterval_(stratumJobInterval),
-poolCoinbaseInfo_(poolCoinbaseInfo), poolPayoutAddrStr_(payoutAddr),
-kGbtLifeTime_(gbtLifeTime), kEmptyGbtLifeTime_(emptyGbtLifeTime),
-fileLastJobTime_(fileLastJobTime),
-blockVersion_(blockVersion)
+                   uint32_t blockVersion, const string &poolCoinbaseInfo)
+  : running_(true)
+  , kafkaBrokers_(kafkaBrokers)
+  , kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, RD_KAFKA_PARTITION_UA/* partition */)
+  , kafkaRawGbtConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT,       0/* partition */)
+  , kafkaNmcAuxConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_NMC_AUXBLOCK, 0/* partition */)
+  , kafkaRawGwConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGW, 0/* partition */)
+  , previousRskWork_(nullptr)
+  , currentRskWork_(nullptr)
+  , rskNotifyPolicy_(rskNotifyPolicy)
+  , currBestHeight_(0)
+  , lastJobSendTime_(0)
+  , isLastJobEmptyBlock_(false)
+  , stratumJobInterval_(stratumJobInterval)
+  , poolCoinbaseInfo_(poolCoinbaseInfo)
+  , poolPayoutAddrStr_(payoutAddr)
+  , kGbtLifeTime_(gbtLifeTime)
+  , kEmptyGbtLifeTime_(emptyGbtLifeTime)
+  , fileLastJobTime_(fileLastJobTime)
+  , blockVersion_(blockVersion)
 {
 	LOG(INFO) << "Block Version: " << std::hex << blockVersion_;
 	LOG(INFO) << "Coinbase Info: " << poolCoinbaseInfo_;
@@ -455,14 +460,16 @@ void JobMaker::addRawgbt(const char *str, size_t len) {
     }
   }
 
+  LOG(INFO) << "addRawGbt: " << str;
+
   const uint32_t gbtTime = r["created_at_ts"].uint32();
   const int64_t timeDiff = (int64_t)time(nullptr) - (int64_t)gbtTime;
   if (labs(timeDiff) >= 60) {
-    LOG(WARNING) << "rawgbt diff time is more than 60, ignore it";
+    LOG(WARNING) << "rawgbt diff time is more than 60, ignore it. diff " << timeDiff << ". Full message: " << str;
     return;  // time diff too large, there must be some problems, so ignore it
   }
   if (labs(timeDiff) >= 3) {
-    LOG(WARNING) << "rawgbt diff time is too large: " << timeDiff << " seconds";
+    LOG(WARNING) << "rawgbt diff time is too large: " << timeDiff << " seconds. Full message: " << str;
   }
 
   const string gbt = DecodeBase64(r["block_template_base64"].str());
@@ -476,8 +483,18 @@ void JobMaker::addRawgbt(const char *str, size_t len) {
   assert(nodeGbt["result"]["height"].type() == Utilities::JS::type::Int);
   const uint32_t height = nodeGbt["result"]["height"].uint32();
 
-  assert(nodeGbt["result"]["transactions"].type() == Utilities::JS::type::Array);
-  const bool isEmptyBlock = nodeGbt["result"]["transactions"].array().size() == 0;
+  bool isLightVersion = nodeGbt["result"]["job_id"].type() == Utilities::JS::type::Str;
+  bool isEmptyBlock = false;
+  if(isLightVersion)
+  {
+    assert(nodeGbt["result"]["merkle"].type() == Utilities::JS::type::Array);
+    isEmptyBlock = nodeGbt["result"]["merkle"].array().size() == 0;
+  }
+  else
+  {
+    assert(nodeGbt["result"]["transactions"].type() == Utilities::JS::type::Array);
+    isEmptyBlock = nodeGbt["result"]["transactions"].array().size() == 0;
+  }
 
   {
     ScopeLock sl(lock_);
@@ -548,6 +565,8 @@ void JobMaker::clearTimeoutGbt() {
 }
 
 void JobMaker::sendStratumJob(const char *gbt) {
+  LOG(INFO) << "SendStratumJob: " << gbt;
+
   string latestNmcAuxBlockJson;
   {
     ScopeLock sl(auxJsonlock_);

@@ -50,12 +50,16 @@ GbtMaker::GbtMaker(const string &zmqBitcoindAddr,
                    const string &bitcoindRpcAddr, const string &bitcoindRpcUserpass,
                    const string &kafkaBrokers, uint32_t kRpcCallInterval,
                    bool isCheckZmq)
-: running_(true), zmqContext_(1/*i/o threads*/),
-zmqBitcoindAddr_(zmqBitcoindAddr), bitcoindRpcAddr_(bitcoindRpcAddr),
-bitcoindRpcUserpass_(bitcoindRpcUserpass), lastGbtMakeTime_(0), kRpcCallInterval_(kRpcCallInterval),
-kafkaBrokers_(kafkaBrokers),
-kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT, 0/* partition */),
-isCheckZmq_(isCheckZmq)
+  : running_(true), zmqContext_(1/*i/o threads*/)
+  , zmqBitcoindAddr_(zmqBitcoindAddr)
+  , bitcoindRpcAddr_(bitcoindRpcAddr)
+  , bitcoindRpcUserpass_(bitcoindRpcUserpass)
+  , lastGbtMakeTime_(0)
+  , lastGbtLightMakeTime_(0)
+  , kRpcCallInterval_(kRpcCallInterval)
+  , kafkaBrokers_(kafkaBrokers)
+  , kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT, 0/* partition */)
+  , isCheckZmq_(isCheckZmq)
 {
 }
 
@@ -131,6 +135,49 @@ void GbtMaker::kafkaProduceMsg(const void *payload, size_t len) {
   kafkaProducer_.produce(payload, len);
 }
 
+bool GbtMaker::CheckGBTFields(JsonNode& r)
+{
+  if (r["result"].type()                      != Utilities::JS::type::Obj ||
+      r["result"]["previousblockhash"].type() != Utilities::JS::type::Str ||
+      r["result"]["height"].type()            != Utilities::JS::type::Int ||
+      r["result"]["coinbasevalue"].type()     != Utilities::JS::type::Int ||
+      r["result"]["bits"].type()              != Utilities::JS::type::Str ||
+      r["result"]["mintime"].type()           != Utilities::JS::type::Int ||
+      r["result"]["curtime"].type()           != Utilities::JS::type::Int ||
+      r["result"]["version"].type()           != Utilities::JS::type::Int) {
+    LOG(ERROR) << "gbt check fields failure";
+    return false;
+  }  
+  return true;
+}
+
+void GbtMaker::LogGBTResult(const uint256& gbtHash, JsonNode& r)
+{
+  LOG(INFO) << "gbt height: " << r["result"]["height"].uint32()
+  << ", prev_hash: "          << r["result"]["previousblockhash"].str()
+  << ", coinbase_value: "     << r["result"]["coinbasevalue"].uint64()
+  << ", bits: "    << r["result"]["bits"].str()
+  << ", mintime: " << r["result"]["mintime"].uint32()
+  << ", version: " << r["result"]["version"].uint32()
+  << "|0x" << Strings::Format("%08x", r["result"]["version"].uint32())
+  << ", gbthash: " << gbtHash.ToString();
+}
+
+bool GbtMaker::bitcoindRpcGBTLight(string &response) {
+  string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getblocktemplatelight\",\"params\":[{\"rules\" : [\"segwit\"]}]}";
+  bool res = bitcoindRpcCall(bitcoindRpcAddr_.c_str(), bitcoindRpcUserpass_.c_str(),
+                             request.c_str(), response);
+  if (!res) {
+    LOG(ERROR) << "bitcoind rpc gbtlight failure";
+    return false;
+  }
+  else
+  {
+    LOG(INFO) << "bitcoind response: " << response;
+  }
+  return true;
+}
+
 bool GbtMaker::bitcoindRpcGBT(string &response) {
   string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getblocktemplate\",\"params\":[{\"rules\" : [\"segwit\"]}]}";
   bool res = bitcoindRpcCall(bitcoindRpcAddr_.c_str(), bitcoindRpcUserpass_.c_str(),
@@ -141,6 +188,39 @@ bool GbtMaker::bitcoindRpcGBT(string &response) {
   }
   return true;
 }
+
+string GbtMaker::makeRawGbtLightMsg() {
+  string gbt;
+  if (!bitcoindRpcGBTLight(gbt)) {
+    return "";
+  }
+
+  JsonNode r;
+  if (!JsonNode::parse(gbt.c_str(),
+                      gbt.c_str() + gbt.length(), r)) {
+    LOG(ERROR) << "decode gbt failure: " << gbt;
+    return "";
+  }
+
+  if(!CheckGBTFields(r))
+  {
+    LOG(ERROR) << "gbt light check fields failure";
+    return "";
+  }
+
+  const uint256 gbtHash = Hash(gbt.begin(), gbt.end());
+  LogGBTResult(gbtHash, r);
+
+  string result = Strings::Format("{\"created_at_ts\":%u,"
+                         "\"block_template_base64\":\"%s\","
+                         "\"gbthash\":\"%s\"}",
+                         (uint32_t)time(nullptr), EncodeBase64(gbt).c_str(),
+                         gbtHash.ToString().c_str());
+  LOG(INFO) << "makeRawGbtLightMsg result: " << result.c_str();
+
+  return result;
+}
+
 
 string GbtMaker::makeRawGbtMsg() {
   string gbt;
@@ -155,28 +235,14 @@ string GbtMaker::makeRawGbtMsg() {
     return "";
   }
 
-  // check fields
-  if (r["result"].type()                      != Utilities::JS::type::Obj ||
-      r["result"]["previousblockhash"].type() != Utilities::JS::type::Str ||
-      r["result"]["height"].type()            != Utilities::JS::type::Int ||
-      r["result"]["coinbasevalue"].type()     != Utilities::JS::type::Int ||
-      r["result"]["bits"].type()              != Utilities::JS::type::Str ||
-      r["result"]["mintime"].type()           != Utilities::JS::type::Int ||
-      r["result"]["curtime"].type()           != Utilities::JS::type::Int ||
-      r["result"]["version"].type()           != Utilities::JS::type::Int) {
+  if(!CheckGBTFields(r))
+  {
     LOG(ERROR) << "gbt check fields failure";
     return "";
   }
-  const uint256 gbtHash = Hash(gbt.begin(), gbt.end());
 
-  LOG(INFO) << "gbt height: " << r["result"]["height"].uint32()
-  << ", prev_hash: "          << r["result"]["previousblockhash"].str()
-  << ", coinbase_value: "     << r["result"]["coinbasevalue"].uint64()
-  << ", bits: "    << r["result"]["bits"].str()
-  << ", mintime: " << r["result"]["mintime"].uint32()
-  << ", version: " << r["result"]["version"].uint32()
-  << "|0x" << Strings::Format("%08x", r["result"]["version"].uint32())
-  << ", gbthash: " << gbtHash.ToString();
+  const uint256 gbtHash = Hash(gbt.begin(), gbt.end());
+  LogGBTResult(gbtHash, r);
 
   return Strings::Format("{\"created_at_ts\":%u,"
                          "\"block_template_base64\":\"%s\","
@@ -187,6 +253,28 @@ string GbtMaker::makeRawGbtMsg() {
 //                         "\"gbthash\":\"%s\"}",
 //                         (uint32_t)time(nullptr),
 //                         gbtHash.ToString().c_str());
+}
+
+
+void GbtMaker::submitRawGbtLightMsg(bool checkTime) {
+  ScopeLock sl(lock_);
+
+  if (checkTime &&
+      lastGbtLightMakeTime_ + kRpcCallInterval_ > time(nullptr)) {
+    return;
+  }
+
+  const string rawGbtLightMsg = makeRawGbtLightMsg();
+  if (rawGbtLightMsg.length() == 0) {
+    LOG(ERROR) << "get rawgbt light failure";
+    return;
+  }
+  LOG(INFO) << "rawGbtlight message: " << rawGbtLightMsg.c_str(); 
+  lastGbtLightMakeTime_ = (uint32_t)time(nullptr);
+
+  // submit to Kafka
+  LOG(INFO) << "sumbit to Kafka, msg len: " << rawGbtLightMsg.length();
+  kafkaProduceMsg(rawGbtLightMsg.c_str(), rawGbtLightMsg.length());
 }
 
 void GbtMaker::submitRawGbtMsg(bool checkTime) {
@@ -202,6 +290,7 @@ void GbtMaker::submitRawGbtMsg(bool checkTime) {
     LOG(ERROR) << "get rawgbt failure";
     return;
   }
+  LOG(INFO) << "rawGbt message: " << rawGbtMsg.c_str(); 
   lastGbtMakeTime_ = (uint32_t)time(nullptr);
 
   // submit to Kafka
@@ -258,12 +347,15 @@ void GbtMaker::threadListenBitcoind() {
   LOG(INFO) << "stop thread listen to bitcoind";
 }
 
-void GbtMaker::run() {
+void GbtMaker::run(bool normalVersion, bool lightVersion) {
   thread threadListenBitcoind = thread(&GbtMaker::threadListenBitcoind, this);
 
   while (running_) {
     sleep(1);
-    submitRawGbtMsg(true);
+    if(normalVersion)
+      submitRawGbtMsg(true);
+    if(lightVersion)
+      submitRawGbtLightMsg(true);
   }
 
   if (threadListenBitcoind.joinable())

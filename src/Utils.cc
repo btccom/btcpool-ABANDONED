@@ -395,10 +395,10 @@ bool checkBitcoinRPC(const string &rpcAddr, const string &rpcUserpass) {
     LOG(ERROR) << "getnetworkinfo missing some fields";
     return false;
   }
-  if (r["result"]["connections"].int32() <= 0) {
-    LOG(ERROR) << "node connections is zero";
-    return false;
-  }
+  // if (r["result"]["connections"].int32() <= 0) {
+  //   LOG(ERROR) << "node connections is zero";
+  //   return false;
+  // }
 
   return true;
 }

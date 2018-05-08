@@ -47,11 +47,13 @@ class BlockMaker {
   atomic<bool> running_;
 
   mutex rawGbtLock_;
+  mutex rawGbtlightLock_;
   size_t kMaxRawGbtNum_;  // how many rawgbt should we keep
   // key: gbthash
   std::deque<uint256> rawGbtQ_;
   // key: gbthash, value: block template json
   std::map<uint256, shared_ptr<vector<CTransactionRef> > > rawGbtMap_;
+  std::map<uint256, std::string> rawGbtlightMap_;
 
   mutex jobIdMapLock_;
   size_t kMaxStratumJobNum_;
@@ -63,8 +65,8 @@ class BlockMaker {
 
   KafkaConsumer kafkaConsumerRawGbt_;
   KafkaConsumer kafkaConsumerStratumJob_;
-  KafkaConsumer kafkaConsumerSovledShare_;
-  KafkaConsumer kafkaConsumerNamecoinSovledShare_;
+  KafkaConsumer kafkaConsumerSolvedShare_;
+  KafkaConsumer kafkaConsumerNamecoinSolvedShare_;
   KafkaConsumer kafkaConsumerRskSolvedShare_;
 
   // submit new block to bitcoind
@@ -78,19 +80,19 @@ class BlockMaker {
 
   thread threadConsumeRawGbt_;
   thread threadConsumeStratumJob_;
-  thread threadConsumeNamecoinSovledShare_;
+  thread threadConsumeNamecoinSolvedShare_;
   thread threadConsumeRskSolvedShare_;
 
   void runThreadConsumeRawGbt();
-  void runThreadConsumeSovledShare();
+  void runThreadConsumeSolvedShare();
   void runThreadConsumeStratumJob();
-  void runThreadConsumeNamecoinSovledShare();
+  void runThreadConsumeNamecoinSolvedShare();
   void runThreadConsumeRskSolvedShare();
 
   void consumeRawGbt     (rd_kafka_message_t *rkmessage);
   void consumeStratumJob (rd_kafka_message_t *rkmessage);
-  void consumeSovledShare(rd_kafka_message_t *rkmessage);
-  void consumeNamecoinSovledShare(rd_kafka_message_t *rkmessage);
+  void consumeSolvedShare(rd_kafka_message_t *rkmessage);
+  void consumeNamecoinSolvedShare(rd_kafka_message_t *rkmessage);
   void consumeRskSolvedShare(rd_kafka_message_t *rkmessage);
 
   void addRawgbt(const char *str, size_t len);
@@ -104,6 +106,9 @@ class BlockMaker {
 
   void submitBlockNonBlocking(const string &blockHex);
   void _submitBlockThread(const string &rpcAddress, const string &rpcUserpass,
+                          const string &blockHex);
+  void submitBlockLightNonBlocking(const string &blockHex, const string& job_id);
+  void _submitBlockLightThread(const string &rpcAddress, const string &rpcUserpass, const string& job_id,
                           const string &blockHex);
   bool checkBitcoinds();
 

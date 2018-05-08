@@ -389,7 +389,19 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
     prevHashBeStr_ += HexStr(BEGIN(a), END(a));
   }
 
+  bool isLightVersion = jgbt["job_id"].type() == Utilities::JS::type::Str;
   // merkle branch, merkleBranch_ could be empty
+  if(isLightVersion)
+  {
+    auto& gbtMerkle = jgbt["merkle"].array();
+    for(auto& mHex : gbtMerkle)
+    {
+      uint256 m;
+      m.SetHex(mHex.str().c_str());
+      merkleBranch_.push_back(m);
+    }
+  }
+  else
   {
     // read txs hash/data
     vector<uint256> vtxhashs;  // txs without coinbase
@@ -399,7 +411,6 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
       vtxhashs.push_back(MakeTransactionRef(std::move(tx))->GetHash());
     }
     // make merkleSteps and merkle branch
-    vector<uint256> merkleSteps;
     makeMerkleBranch(vtxhashs, merkleBranch_);
   }
 

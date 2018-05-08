@@ -26,6 +26,7 @@
 
 #include "Common.h"
 #include "Kafka.h"
+#include "utilities_js.hpp"
 
 #include "zmq.hpp"
 
@@ -41,6 +42,7 @@ class GbtMaker {
   string bitcoindRpcAddr_;
   string bitcoindRpcUserpass_;
   atomic<uint32_t> lastGbtMakeTime_;
+  atomic<uint32_t> lastGbtLightMakeTime_;
   uint32_t kRpcCallInterval_;
 
   string kafkaBrokers_;
@@ -48,10 +50,18 @@ class GbtMaker {
   bool isCheckZmq_;
 
   bool checkBitcoindZMQ();
+
   bool bitcoindRpcGBT(string &resp);
   string makeRawGbtMsg();
-
   void submitRawGbtMsg(bool checkTime);
+
+  bool bitcoindRpcGBTLight(string &resp);
+  string makeRawGbtLightMsg();
+  void submitRawGbtLightMsg(bool checkTime);
+
+  bool CheckGBTFields(JsonNode& r);
+  void LogGBTResult(const uint256& gbtHash, JsonNode& r);
+
   void threadListenBitcoind();
 
   void kafkaProduceMsg(const void *payload, size_t len);
@@ -65,7 +75,7 @@ public:
 
   bool init();
   void stop();
-  void run();
+  void run(bool normalVersion, bool lightVersion);
 };
 
 
