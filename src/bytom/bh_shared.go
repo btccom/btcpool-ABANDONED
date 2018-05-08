@@ -3,6 +3,7 @@ package main
 import "C"
 import (
 	"github.com/bytom/protocol/bc/types"
+	"github.com/bytom/testutil"
 )
 
 //export DecodeHeaderString
@@ -20,6 +21,25 @@ func DecodeBlockHeader(text []byte) (uint64, uint64, *C.char, uint64, uint64, *C
 	bh := types.BlockHeader{}
 	bh.UnmarshalText(text)
 	return bh.Version, bh.Height, C.CString(bh.PreviousBlockHash.String()), bh.Timestamp, bh.Bits, C.CString(bh.BlockCommitment.TransactionsMerkleRoot.String()), C.CString(bh.BlockCommitment.TransactionStatusHash.String())
+}
+
+//export EncodeBlockHeader
+func EncodeBlockHeader(v, h uint64, prevBlockHashStr string, timeStamp, nonce, bits uint64, transactionStatusHashStr, transactionsMerkleRootStr string) *C.char {
+	bh := &types.BlockHeader{
+		Version:           v,
+		Height:            h,
+		PreviousBlockHash: testutil.MustDecodeHash(prevBlockHashStr),
+		Timestamp:         timeStamp,
+		Nonce:             nonce,
+		Bits:              bits,
+		BlockCommitment: types.BlockCommitment{
+			TransactionStatusHash:  testutil.MustDecodeHash(transactionStatusHashStr),
+			TransactionsMerkleRoot: testutil.MustDecodeHash(transactionsMerkleRootStr),
+		},
+	}
+
+	buf, _ := bh.MarshalText()
+	return C.CString(string(buf))
 }
 
 func main() {

@@ -1744,7 +1744,7 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
         sJob->blockHeader_.transactionStatusHash.c_str(),
         nonceStr.c_str(),
         bitsStr.c_str(),
-        shortJobId_,
+        ljob.shortJobId_ ,
         sJob->seed_.c_str(),
         target);
   }
