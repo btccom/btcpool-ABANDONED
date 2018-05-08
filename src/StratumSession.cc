@@ -1683,7 +1683,7 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
   ljob.shortJobId_ = shortJobId_++;
   ljob.jobDifficulty_ = diffController_->calcCurDiff();
 
-  uint32 target = 0x8;
+  uint32 target = 0xffffffff;
   uint64 nonce = (((uint64)server_->serverId_) << 40);
   string notifyStr;
   if (isFirstJob)
@@ -1715,7 +1715,13 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
     Bin2Hex((uint8*)&sJob->blockHeader_.height, 8, heightStr);
     Bin2Hex((uint8*)&sJob->blockHeader_.timestamp, 8, timestampStr);
     Bin2Hex((uint8*)&nonce, 8, nonceStr);
-    Bin2Hex((uint8*)&sJob->blockHeader_.bits, 8, bitsStr);
+    if (server_->isDevModeEnable_)
+    {
+      uint64 testBits = sJob->blockHeader_.bits | 0x8f00000000000000;
+      Bin2Hex((uint8 *)&testBits, 8, bitsStr);
+    }
+    else
+      Bin2Hex((uint8 *)&sJob->blockHeader_.bits, 8, bitsStr);
 
     notifyStr = Strings::Format(
         "{\"id\": 1, \"jsonrpc\": \"2.0\", \"result\": {\"id\": \"%s\", \"job\": {\"version\": \"%s\","
@@ -1729,7 +1735,7 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
         "\"job_id\": \"%d\","
         "\"seed\": \"%s\","
         "\"target\": \"%08x\"}, \"status\": \"OK\"}, \"error\": null}",
-        worker_.fullName_.c_str(),
+        server_->isDevModeEnable_ ? "antminer_1" : worker_.fullName_.c_str(),
         versionStr.c_str(),
         heightStr.c_str(),
         sJob->blockHeader_.previousBlockHash.c_str(),
@@ -1786,7 +1792,7 @@ void StratumSessionBytom::handleRequest_GetWork(const string &idStr, const JsonN
 }
 
 void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNode &jparams) {
-  
+  LOG(INFO) << "bytom handle request submit";
 }
 
 bool StratumSessionBytom::validate(const JsonNode &jmethod, const JsonNode &jparams)
