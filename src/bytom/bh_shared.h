@@ -87,6 +87,19 @@ struct DecodeHeaderString_return {
 
 extern struct DecodeHeaderString_return DecodeHeaderString(GoSlice p0);
 
+/* Return type for DecodeBlockHeader */
+struct DecodeBlockHeader_return {
+	GoUint64 r0;
+	GoUint64 r1;
+	char* r2;
+	GoUint64 r3;
+	GoUint64 r4;
+	char* r5;
+	char* r6;
+};
+
+extern struct DecodeBlockHeader_return DecodeBlockHeader(GoSlice p0);
+
 #ifdef __cplusplus
 }
 #endif

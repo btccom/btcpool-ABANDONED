@@ -801,41 +801,33 @@ bool StratumJobBytom::unserializeFromJson(const char *s, size_t len)
   // 0xff, 0xff, 0x7f, 0x00, 0x00, 0x00, 0x00, 0x20, // Bits 2305843009222082559
 
   // 0x10, 0x55, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, //Nonce 4216080
-
   string hHash = j["hHash"].str();
 
   GoSlice text = {(void *)hHash.data(), (int)hHash.length(), (int)hHash.length()};
-  //DLOG(INFO) << "DecodeHeaderString";
-  DecodeHeaderString_return bh = DecodeHeaderString(text);
-  //DLOG(INFO) << "DecodeHeaderString return version=" << bh.r0;
-  //string merkleRoot(bh.r4.p, bh.r4.n);
-  DLOG(INFO) << "bytom block height=" << bh.r1 << ", timestamp=" << bh.r2;
+  DecodeBlockHeader_return bh = DecodeBlockHeader(text);
+  DLOG(INFO) << "bytom block height=" << bh.r1 << ", timestamp=" << bh.r3;
   blockHeader_.version = bh.r0;
   blockHeader_.height = bh.r1;
-  blockHeader_.timestamp = bh.r2;
-  blockHeader_.bits = bh.r3;
-  blockHeader_.previousBlockHash = Strings::Format("%08x%08x%08x%08x%08x%08x%08x%08x",
-                                                   bh.r4 >> 32, bh.r4 & 0xFFFFFFFF, bh.r5 >> 32, bh.r5 & 0xFFFFFFFF, bh.r6 >> 32, bh.r6 & 0xFFFFFFFF, bh.r7 >> 32, bh.r7 & 0xFFFFFFFF);
-  blockHeader_.transactionsMerkleRoot = Strings::Format("%08x%08x%08x%08x%08x%08x%08x%08x",
-                                                        bh.r8 >> 32, bh.r8 & 0xFFFFFFFF, bh.r9 >> 32, bh.r9 & 0xFFFFFFFF, bh.r10 >> 32, bh.r10 & 0xFFFFFFFF, bh.r11 >> 32, bh.r11 & 0xFFFFFFFF);
-  blockHeader_.transactionStatusHash = Strings::Format("%08x%08x%08x%08x%08x%08x%08x%08x",
-                                                       bh.r12 >> 32, bh.r12 & 0xFFFFFFFF, bh.r13 >> 32, bh.r13 & 0xFFFFFFFF, bh.r14 >> 32, bh.r14 & 0xFFFFFFFF, bh.r15 >> 32, bh.r15 & 0xFFFFFFFF);
-  // vector<char> binOut;
-  // Hex2Bin(hHash.c_str(), hHash.length(), binOut);
-  // // string testStr;
-  // // Bin2Hex(binOut, testStr);
-  // // assert(testStr == hHash);
-  // // DLOG(INFO) << testStr;
-
-  // string str;
-  // str.assign(binOut.data(), binOut.size());
-  // assert(str.length() == binOut.size());
-  // if (!blockHeader_.ParseFromString(str))
-  // {
-  //   LOG(ERROR) << "block header ParseFromString failed: " << str.length() << ", buf " << hHash;
-  //   return false;
-  // }
-
+  blockHeader_.previousBlockHash = bh.r2;
+  blockHeader_.timestamp = bh.r3;
+  blockHeader_.bits = bh.r4;
+  blockHeader_.transactionsMerkleRoot = bh.r5;
+  blockHeader_.transactionStatusHash = bh.r6;
+  free(bh.r2);
+  free(bh.r5);
+  free(bh.r6);
+  // DLOG(INFO) << "DecodeBlockHeader";
+  // char* str = DecodeBlockHeader(text);
+  // DLOG(INFO) << "DecodeBlockHeader return " << str;
+  // free(str);
+  //DecodeHeaderString_return bh = DecodeHeaderString(text);
+  //string merkleRoot(bh.r4.p, bh.r4.n);
+  // blockHeader_.previousBlockHash = Strings::Format("%08x%08x%08x%08x%08x%08x%08x%08x",
+  //                                                  bh.r4 >> 32, bh.r4 & 0xFFFFFFFF, bh.r5 >> 32, bh.r5 & 0xFFFFFFFF, bh.r6 >> 32, bh.r6 & 0xFFFFFFFF, bh.r7 >> 32, bh.r7 & 0xFFFFFFFF);
+  // blockHeader_.transactionsMerkleRoot = Strings::Format("%08x%08x%08x%08x%08x%08x%08x%08x",
+  //                                                       bh.r8 >> 32, bh.r8 & 0xFFFFFFFF, bh.r9 >> 32, bh.r9 & 0xFFFFFFFF, bh.r10 >> 32, bh.r10 & 0xFFFFFFFF, bh.r11 >> 32, bh.r11 & 0xFFFFFFFF);
+  // blockHeader_.transactionStatusHash = Strings::Format("%08x%08x%08x%08x%08x%08x%08x%08x",
+  //                                                      bh.r12 >> 32, bh.r12 & 0xFFFFFFFF, bh.r13 >> 32, bh.r13 & 0xFFFFFFFF, bh.r14 >> 32, bh.r14 & 0xFFFFFFFF, bh.r15 >> 32, bh.r15 & 0xFFFFFFFF);
   // DLOG(INFO) << "bytom block height=" << blockHeader_.height();
   jobId_ = j["jobId"].uint64();
   nTime_ = j["created_at_ts"].uint32();
