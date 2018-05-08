@@ -1791,8 +1791,27 @@ void StratumSessionBytom::handleRequest_GetWork(const string &idStr, const JsonN
     sendMiningNotify(server_->jobRepository_->getLatestStratumJobEx(), false);
 }
 
-void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNode &jparams) {
+void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNode &jparams)
+{
   LOG(INFO) << "bytom handle request submit";
+  JsonNode &params = const_cast<JsonNode &>(jparams);
+  uint8_t shortJobId = params["job_id"].uint8();
+  LocalJob *localJob = findLocalJob(shortJobId);
+  if (nullptr == localJob)
+  {
+    responseError(idStr, StratumError::JOB_NOT_FOUND);
+    LOG(ERROR) << "can not find local bytom job id=" << shortJobId;
+    return;
+  }
+
+  shared_ptr<StratumJobEx> exjob;
+  exjob = server_->jobRepository_->getStratumJobEx(localJob->jobId_);
+  if (nullptr == exjob || nullptr == exjob->sjob_)
+  {
+    responseError(idStr, StratumError::JOB_NOT_FOUND);
+    LOG(ERROR) << "bytom local job not found " << std::hex << localJob->jobId_;
+    return;
+  }
 }
 
 bool StratumSessionBytom::validate(const JsonNode &jmethod, const JsonNode &jparams)

@@ -376,7 +376,7 @@ public:
   bool needToSendLoginResponse() const override {return false;}
   
 private:
-  uint32 shortJobId_;    //jobId starts from 1
+  uint8 shortJobId_;    //jobId starts from 1
 };
 
 class StratumSessionSia : public StratumSession
@@ -391,7 +391,7 @@ public:
   void handleRequest_Subscribe   (const string &idStr, const JsonNode &jparams) override;        
 
 private:
-  uint32 shortJobId_;    //Claymore jobId starts from 0
+  uint8 shortJobId_;    //Claymore jobId starts from 0
 };
 
 ///////////////////////////////// AgentSessions ////////////////////////////////
