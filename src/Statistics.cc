@@ -395,6 +395,7 @@ void StatsServer::flushWorkersToRedis(uint32_t threadStep) {
   std::unordered_map<int32_t /*userId*/, WorkerIndexBuffer> indexBufferMap;
 
   pthread_rwlock_rdlock(&rwlock_);  // read lock
+  LOG(INFO) << "redis (thread " << threadStep << "): flush workers, rd locked";
   
   size_t stepSize = workerSet_.size() / redisConcurrency_;
   if (workerSet_.size() % redisConcurrency_ != 0) {
@@ -453,6 +454,7 @@ void StatsServer::flushWorkersToRedis(uint32_t threadStep) {
   }
 
   pthread_rwlock_unlock(&rwlock_); // unlock
+  LOG(INFO) << "redis (thread " << threadStep << "): flush workers, rd unlock";
 
   if (workerCounter == 0) {
     LOG(INFO) << "redis (thread " << threadStep << "): no active workers";
@@ -625,6 +627,7 @@ void StatsServer::flushUsersToRedis(uint32_t threadStep) {
   size_t userCounter = 0;
 
   pthread_rwlock_rdlock(&rwlock_);  // read lock
+  LOG(INFO) << "redis (thread " << threadStep << "): flush users, rd locked";
 
   size_t stepSize = userSet_.size() / redisConcurrency_;
   if (userSet_.size() % redisConcurrency_ != 0) {
@@ -679,6 +682,7 @@ void StatsServer::flushUsersToRedis(uint32_t threadStep) {
   }
 
   pthread_rwlock_unlock(&rwlock_); // unlock
+  LOG(INFO) << "redis (thread " << threadStep << "): flush users, rd unlock";
 
   if (userCounter == 0) {
     LOG(INFO) << "redis (thread " << threadStep << "): no active users";
@@ -768,6 +772,8 @@ void StatsServer::_flushWorkersAndUsersToDBThread() {
   }
 
   pthread_rwlock_rdlock(&rwlock_);  // read lock
+  LOG(INFO) << "flush DB: rd locked";
+
   // get all workes status
   for (auto itr = workerSet_.begin(); itr != workerSet_.end(); itr++) {
     workerCounter++;
@@ -795,6 +801,7 @@ void StatsServer::_flushWorkersAndUsersToDBThread() {
                                      date("%F %T", status.lastShareTime_).c_str(),
                                      nowStr.c_str(), nowStr.c_str()));
   }
+
   // get all users status
   for (auto itr = userSet_.begin(); itr != userSet_.end(); itr++) {
     userCounter++;
@@ -822,7 +829,9 @@ void StatsServer::_flushWorkersAndUsersToDBThread() {
                                      date("%F %T", status.lastShareTime_).c_str(),
                                      nowStr.c_str(), nowStr.c_str()));
   }
+
   pthread_rwlock_unlock(&rwlock_);
+  LOG(INFO) << "flush DB: rd unlock";
 
   if (values.size() == 0) {
     LOG(INFO) << "flush to DB: no active workers";
