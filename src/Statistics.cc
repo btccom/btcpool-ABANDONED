@@ -206,6 +206,15 @@ StatsServer::~StatsServer() {
     redisGroup_.pop_back();
   }
 
+  while (!redisGroupForIndex_.empty()) {
+    RedisConnection *redis = redisGroupForIndex_.back();
+    if (redis != nullptr) {
+      redis->close();
+      delete redis;
+    }
+    redisGroupForIndex_.pop_back();
+  }
+
   pthread_rwlock_destroy(&rwlock_);
 }
 
@@ -263,6 +272,13 @@ bool StatsServer::init() {
   for (size_t i=0; i<redisGroup_.size(); i++) {
     if (redisGroup_[i] != nullptr && !redisGroup_[i]->ping()) {
       LOG(INFO) << "redis " << i << " in redisGroup ping failure";
+      return false;
+    }
+  }
+
+  for (size_t i=0; i<redisGroupForIndex_.size(); i++) {
+    if (redisGroupForIndex_[i] != nullptr && !redisGroupForIndex_[i]->ping()) {
+      LOG(INFO) << "redis " << i << " in redisGroupForIndex ping failure";
       return false;
     }
   }
@@ -383,11 +399,22 @@ bool StatsServer::checkRedis(uint32_t threadStep) {
     return false;
   }
 
-  RedisConnection *redis = redisGroup_[threadStep];
+  {
+    RedisConnection *redis = redisGroup_[threadStep];
 
-  if (!redis->ping()) {
-    LOG(ERROR) << "can't connect to pool redis " << threadStep;
-    return false;
+    if (!redis->ping()) {
+      LOG(ERROR) << "can't connect to pool redis " << threadStep;
+      return false;
+    }
+  }
+
+  if (redisIndexPolicy_ != REDIS_INDEX_NONE) {
+    RedisConnection *redis = redisGroupForIndex_[threadStep];
+
+    if (!redis->ping()) {
+      LOG(ERROR) << "can't connect to pool redis (for index) " << threadStep;
+      return false;
+    }
   }
 
   return true;
