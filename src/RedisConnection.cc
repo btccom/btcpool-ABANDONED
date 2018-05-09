@@ -201,12 +201,58 @@ RedisResult RedisConnection::execute(initializer_list<const string> args) {
   return result;
 }
 
+RedisResult RedisConnection::execute(const vector<string> &args) {
+  auto argc = args.size();
+  auto argv = new const char *[argc];
+  auto argvlen = new size_t[argc];
+
+  auto arg = args.begin();
+  size_t i = 0;
+
+  while (arg != args.end()){
+    argv[i] = arg->c_str();
+    argvlen[i] = arg->size();
+    
+    arg++;
+    i++;
+  }
+
+  auto result = RedisResult((redisReply*)redisCommandArgv(conn_, argc, argv, argvlen));
+
+  delete []argv;
+  delete []argvlen;
+  
+  return result;
+}
+
 void RedisConnection::prepare(const string &command) {
   redisAppendCommand(conn_, command.c_str());
 }
 
 void RedisConnection::prepare(initializer_list<const string> args) {
-  auto argc = args.size();
+  size_t argc = args.size();
+  auto argv = new const char *[argc];
+  auto argvlen = new size_t[argc];
+
+  auto arg = args.begin();
+  size_t i = 0;
+
+  while (arg != args.end()){
+    argv[i] = arg->c_str();
+    argvlen[i] = arg->size();
+    
+    arg++;
+    i++;
+  }
+
+  redisAppendCommandArgv(conn_, argc, argv, argvlen);
+  
+  delete []argv;
+  delete []argvlen;
+}
+
+void RedisConnection::prepare(const vector<string> &args) {
+  size_t argc = args.size();
   auto argv = new const char *[argc];
   auto argvlen = new size_t[argc];
 

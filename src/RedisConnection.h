@@ -25,6 +25,7 @@
 #define REDIS_CONNECTION_H_
 
 #include <string>
+#include <vector>
 #include <hiredis/hiredis.h>
 
 using namespace std;
@@ -105,10 +106,12 @@ public:
   // execute redis command synchronized
   RedisResult execute(const string &command);
   RedisResult execute(initializer_list<const string> args);
+  RedisResult execute(const vector<string> &args);
 
   // execute redis command & get reply with pipeline
   void prepare(const string &command);
   void prepare(initializer_list<const string> args);
+  void prepare(const vector<string> &args);
   RedisResult execute();
 };
 
