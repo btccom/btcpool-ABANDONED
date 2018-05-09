@@ -109,7 +109,7 @@ public:
   void stop();
   void run();
 
-  void submitShares();
+  //void submitShares();
 };
 
 

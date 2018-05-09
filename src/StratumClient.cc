@@ -289,7 +289,7 @@ void StratumClientWrapper::run() {
 }
 
 void StratumClientWrapper::runThreadSubmitShares() {
-  time_t lastSendTime = 0;
+  /*time_t lastSendTime = 0;
 
   while (running_) {
     if (lastSendTime + 10 > time(nullptr)) {
@@ -299,14 +299,24 @@ void StratumClientWrapper::runThreadSubmitShares() {
 
     submitShares();
     lastSendTime = time(nullptr);
+  }*/
+
+  size_t connNum = connections_.size();
+  size_t sleepTime = 10000000 / connNum; // 10s for each connection, uniform distribution
+
+  while (running_) {
+    for (auto &conn : connections_) {
+      conn->submitShare();
+      usleep(connNum);
+    }
   }
 }
 
-void StratumClientWrapper::submitShares() {
+/*void StratumClientWrapper::submitShares() {
   for (auto &conn : connections_) {
     conn->submitShare();
   }
-}
+}*/
 
 
 
