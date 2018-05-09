@@ -1735,3 +1735,8 @@ StratumSession *ServerBytom::createSession(evutil_socket_t fd, struct buffereven
                                  server->kShareAvgSeconds_,
                                  sessionID);
 }
+
+void ServerBytom::sendSolvedShare2Kafka(const char* headerStr) {
+  LOG(INFO) << "bytom sendSolvedShare2Kafka " << headerStr;
+  kafkaProducerSolvedShare_->produce(headerStr, strlen(headerStr));
+}

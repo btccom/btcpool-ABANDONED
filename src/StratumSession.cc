@@ -27,7 +27,7 @@
 #include <arith_uint256.h>
 #include <arpa/inet.h>
 #include <boost/algorithm/string.hpp>
-
+#include "bytom/bh_shared.h"
 #include "StratumServer.h"
 
 //////////////////////////////// DiffController ////////////////////////////////
@@ -936,8 +936,11 @@ StratumSession::LocalJob* StratumSession::findLocalJob(const string& strJobId) {
 }
 
 StratumSession::LocalJob *StratumSession::findLocalJob(uint8_t shortJobId) {
+  DLOG(INFO) << "findLocalJob id=" << shortJobId;
   for (auto rit = localJobs_.rbegin(); rit != localJobs_.rend(); ++rit) {
-    if (rit->shortJobId_ == shortJobId) {
+    DLOG(INFO) << "search id=" << (int)rit->shortJobId_;
+    if ((int)rit->shortJobId_ == (int)shortJobId) {
+      DLOG(INFO) << "local job found";
       return &(*rit);
     }
   }
@@ -1682,6 +1685,8 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
   ljob.jobId_ = sJob->jobId_;
   ljob.shortJobId_ = shortJobId_++;
   ljob.jobDifficulty_ = diffController_->calcCurDiff();
+  LocalJob &ljobTest = *(localJobs_.rbegin());
+  DLOG(INFO) << "last local job id=" << (int)ljobTest.shortJobId_;
 
   uint32 target = 0xffffffff;
   uint64 nonce = (((uint64)server_->serverId_) << 40);
@@ -1734,7 +1739,7 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
         "\"bits\": \"%s\","
         "\"job_id\": \"%d\","
         "\"seed\": \"%s\","
-        "\"target\": \"%08x\"}, \"status\": \"OK\"}, \"error\": null}",
+        "\"target\": \"%08x\"}, \"status\": \"OK\"}, \"error\": null}\n",
         server_->isDevModeEnable_ ? "antminer_1" : worker_.fullName_.c_str(),
         versionStr.c_str(),
         heightStr.c_str(),
@@ -1768,7 +1773,7 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
     //     }
     // }
     notifyStr = Strings::Format(
-        "{\"id\": 1,\"jsonrpc\": \"2.0\", \"result\": {\"%u\", \"%" PRIu64 "\", \"%" PRIu64 "\", \"%s\", \"%08x\", \"%s\", \"%s\", \"%08x%08x\", \"%08x%08x\", \"%s\", \"%08x\"}}",
+        "{\"id\": 1,\"jsonrpc\": \"2.0\", \"result\": {\"%u\", \"%" PRIu64 "\", \"%" PRIu64 "\", \"%s\", \"%08x\", \"%s\", \"%s\", \"%08x%08x\", \"%08x%08x\", \"%s\", \"%08x\"}}\n",
         ljob.shortJobId_,
         sJob->blockHeader_.version,
         sJob->blockHeader_.height,
@@ -1795,9 +1800,10 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
 {
   LOG(INFO) << "bytom handle request submit";
   JsonNode &params = const_cast<JsonNode &>(jparams);
-  uint8_t shortJobId = params["job_id"].uint8();
-  LocalJob *localJob = findLocalJob(shortJobId);
-  if (nullptr == localJob)
+  uint8 shortJobId = params["job_id"].uint8();
+
+  LocalJob *lj = findLocalJob(shortJobId);
+  if (nullptr == lj)
   {
     responseError(idStr, StratumError::JOB_NOT_FOUND);
     LOG(ERROR) << "can not find local bytom job id=" << shortJobId;
@@ -1805,13 +1811,26 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   }
 
   shared_ptr<StratumJobEx> exjob;
-  exjob = server_->jobRepository_->getStratumJobEx(localJob->jobId_);
+  exjob = server_->jobRepository_->getStratumJobEx(lj->jobId_);
   if (nullptr == exjob || nullptr == exjob->sjob_)
   {
     responseError(idStr, StratumError::JOB_NOT_FOUND);
-    LOG(ERROR) << "bytom local job not found " << std::hex << localJob->jobId_;
+    LOG(ERROR) << "bytom local job not found " << std::hex << lj->jobId_;
     return;
   }
+
+  StratumJobBytom *sJob = dynamic_cast<StratumJobBytom *>(exjob->sjob_);
+  if (nullptr == sJob)
+    return;
+
+  uint64 nonce = params["nonce"].uint64();
+  char *bhStr = EncodeBlockHeader(sJob->blockHeader_.version, sJob->blockHeader_.height, (char *)sJob->blockHeader_.previousBlockHash.c_str(), sJob->blockHeader_.timestamp,
+                                  nonce, sJob->blockHeader_.bits, (char *)sJob->blockHeader_.transactionsMerkleRoot.c_str(), (char *)sJob->blockHeader_.transactionStatusHash.c_str());
+  ServerBytom *s = dynamic_cast<ServerBytom*> (server_);
+  if (s != nullptr)
+    s->sendSolvedShare2Kafka(bhStr);
+
+  free(bhStr);
 }
 
 bool StratumSessionBytom::validate(const JsonNode &jmethod, const JsonNode &jparams)

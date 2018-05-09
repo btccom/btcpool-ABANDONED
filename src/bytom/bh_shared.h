@@ -100,7 +100,7 @@ struct DecodeBlockHeader_return {
 
 extern struct DecodeBlockHeader_return DecodeBlockHeader(GoSlice p0);
 
-extern char* EncodeBlockHeader(GoUint64 p0, GoUint64 p1, GoString p2, GoUint64 p3, GoUint64 p4, GoUint64 p5, GoString p6, GoString p7);
+extern char* EncodeBlockHeader(GoUint64 p0, GoUint64 p1, char* p2, GoUint64 p3, GoUint64 p4, GoUint64 p5, char* p6, char* p7);
 
 #ifdef __cplusplus
 }

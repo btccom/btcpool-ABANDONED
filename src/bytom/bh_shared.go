@@ -24,17 +24,17 @@ func DecodeBlockHeader(text []byte) (uint64, uint64, *C.char, uint64, uint64, *C
 }
 
 //export EncodeBlockHeader
-func EncodeBlockHeader(v, h uint64, prevBlockHashStr string, timeStamp, nonce, bits uint64, transactionStatusHashStr, transactionsMerkleRootStr string) *C.char {
+func EncodeBlockHeader(v, h uint64, prevBlockHashStr *C.char, timeStamp, nonce, bits uint64, transactionStatusHashStr, transactionsMerkleRootStr *C.char) *C.char {
 	bh := &types.BlockHeader{
 		Version:           v,
 		Height:            h,
-		PreviousBlockHash: testutil.MustDecodeHash(prevBlockHashStr),
+		PreviousBlockHash: testutil.MustDecodeHash(C.GoString(prevBlockHashStr)),
 		Timestamp:         timeStamp,
 		Nonce:             nonce,
 		Bits:              bits,
 		BlockCommitment: types.BlockCommitment{
-			TransactionStatusHash:  testutil.MustDecodeHash(transactionStatusHashStr),
-			TransactionsMerkleRoot: testutil.MustDecodeHash(transactionsMerkleRootStr),
+			TransactionStatusHash:  testutil.MustDecodeHash(C.GoString(transactionStatusHashStr)),
+			TransactionsMerkleRoot: testutil.MustDecodeHash(C.GoString(transactionsMerkleRootStr)),
 		},
 	}
 

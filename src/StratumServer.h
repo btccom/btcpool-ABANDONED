@@ -430,6 +430,7 @@ public:
                                Server *server, struct sockaddr *saddr,
                                const int32_t shareAvgSeconds,
                                const uint32_t sessionID) override;
+  void sendSolvedShare2Kafka(const char* headerStr);
 };
 ////////////////////////////////// StratumServer ///////////////////////////////
 class StratumServer {
