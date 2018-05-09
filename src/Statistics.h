@@ -277,7 +277,7 @@ class StatsServer {
 
   struct WorkerIndexBuffer {
     size_t size_;
-    
+
     std::vector<string> accept1m_;
     std::vector<string> accept5m_;
     std::vector<string> accept15m_;
@@ -288,9 +288,6 @@ class StatsServer {
     std::vector<string> lastShareIP_;
     std::vector<string> lastShareTime_;
   };
-
-  // items number of each ZADD operation
-  static const size_t kRedisZaddBatchSize = 1000;
 
   atomic<bool> running_;
   atomic<int64_t> totalWorkerCount_;
@@ -314,7 +311,6 @@ class StatsServer {
 
   RedisConnection *redisCommonEvents_; // writing workers' meta infomations
   std::vector<RedisConnection *> redisGroup_; // flush hashrate to this group
-  std::vector<RedisConnection *> redisGroupForIndex_; // flush index to this group
   uint32_t redisConcurrency_; // how many threads are writing to Redis at the same time
   string redisKeyPrefix_;
   int redisKeyExpire_;
@@ -368,10 +364,9 @@ class StatsServer {
   void flushWorkersToRedis(uint32_t threadStep);
   void flushUsersToRedis(uint32_t threadStep);
   void addIndexToBuffer(WorkerIndexBuffer &buffer, const int64_t workerId, const WorkerStatus &status);
+  void flushIndexToRedis(RedisConnection *redis, std::unordered_map<int32_t /*userId*/, WorkerIndexBuffer> &indexBufferMap);
   void flushIndexToRedis(RedisConnection *redis, WorkerIndexBuffer &buffer, const int32_t userId);
   void flushIndexToRedis(RedisConnection *redis, const std::vector<string> &commandVector);
-  void tryFlushIndexToRedis(const uint32_t threadStep, std::unordered_map<int32_t /*userId*/,
-                            WorkerIndexBuffer> &indexBufferMap, bool forceFlush = false);
 
   void removeExpiredWorkers();
   bool setupThreadConsume();

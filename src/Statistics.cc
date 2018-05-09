@@ -158,12 +158,6 @@ requestCount_(0), responseBytes_(0)
     for (uint32_t i=0; i<redisConcurrency; i++) {
       RedisConnection *redis = new RedisConnection(*redisInfo);
       redisGroup_.push_back(redis);
-
-      if (redisIndexPolicy_ != REDIS_INDEX_NONE) {
-        RedisConnection *redisForIndex = new RedisConnection(*redisInfo);
-        redisGroupForIndex_.push_back(redisForIndex);
-      }
-
     }
   }
 
@@ -204,15 +198,6 @@ StatsServer::~StatsServer() {
       delete redis;
     }
     redisGroup_.pop_back();
-  }
-
-  while (!redisGroupForIndex_.empty()) {
-    RedisConnection *redis = redisGroupForIndex_.back();
-    if (redis != nullptr) {
-      redis->close();
-      delete redis;
-    }
-    redisGroupForIndex_.pop_back();
   }
 
   pthread_rwlock_destroy(&rwlock_);
@@ -272,13 +257,6 @@ bool StatsServer::init() {
   for (size_t i=0; i<redisGroup_.size(); i++) {
     if (redisGroup_[i] != nullptr && !redisGroup_[i]->ping()) {
       LOG(INFO) << "redis " << i << " in redisGroup ping failure";
-      return false;
-    }
-  }
-
-  for (size_t i=0; i<redisGroupForIndex_.size(); i++) {
-    if (redisGroupForIndex_[i] != nullptr && !redisGroupForIndex_[i]->ping()) {
-      LOG(INFO) << "redis " << i << " in redisGroupForIndex ping failure";
       return false;
     }
   }
@@ -408,22 +386,12 @@ bool StatsServer::checkRedis(uint32_t threadStep) {
     }
   }
 
-  if (redisIndexPolicy_ != REDIS_INDEX_NONE) {
-    RedisConnection *redis = redisGroupForIndex_[threadStep];
-
-    if (!redis->ping()) {
-      LOG(ERROR) << "can't connect to pool redis (for index) " << threadStep;
-      return false;
-    }
-  }
-
   return true;
 }
 
 void StatsServer::flushWorkersToRedis(uint32_t threadStep) {
   RedisConnection *redis = redisGroup_[threadStep];
   size_t workerCounter = 0;
-  size_t indexCounter = 0;
   std::unordered_map<int32_t /*userId*/, WorkerIndexBuffer> indexBufferMap;
 
   pthread_rwlock_rdlock(&rwlock_);  // read lock
@@ -478,24 +446,10 @@ void StatsServer::flushWorkersToRedis(uint32_t threadStep) {
       redis->prepare({"PUBLISH", key, "1"});
     }
 
-    // add index to buffer and try to flush
+    // add index to buffer
     if (redisIndexPolicy_ != REDIS_INDEX_NONE) {
       addIndexToBuffer(indexBufferMap[userId], workerId, status);
-      indexCounter++;
-
-      // try to flush index
-      // (flush to the other redis connection without pipeline)
-      if (indexCounter >= kRedisZaddBatchSize) {
-        tryFlushIndexToRedis(threadStep, indexBufferMap);
-        indexCounter = 0;
-      }
     }
-  }
-
-  // flush remainder indexes
-  if (redisIndexPolicy_ != REDIS_INDEX_NONE) {
-    tryFlushIndexToRedis(threadStep, indexBufferMap, true);
-    assert(indexBufferMap.size() == 0);
   }
 
   pthread_rwlock_unlock(&rwlock_); // unlock
@@ -537,31 +491,24 @@ void StatsServer::flushWorkersToRedis(uint32_t threadStep) {
                                  << "reply str: " << r.str();
       }
     }
+  }
 
-    // Don't need to read the result of flushing index.
-    // It flushes to the other redis connection without pipeline.
+  // flush indexes
+  if (redisIndexPolicy_ != REDIS_INDEX_NONE) {
+    flushIndexToRedis(redis, indexBufferMap);
   }
 
   LOG(INFO) << "flush workers to redis (thread " << threadStep << ") done, workers: " << workerCounter;
   return;
 }
 
-void StatsServer::tryFlushIndexToRedis(const uint32_t threadStep, std::unordered_map<int32_t /*userId*/,
-                                       WorkerIndexBuffer> &indexBufferMap, bool forceFlush) {
-  RedisConnection *redis = redisGroupForIndex_[threadStep];
+void StatsServer::flushIndexToRedis(RedisConnection *redis,
+                    std::unordered_map<int32_t /*userId*/, WorkerIndexBuffer> &indexBufferMap) {
 
-  auto itr = indexBufferMap.begin();
-  while (itr != indexBufferMap.end()) {
-    auto &userId = itr->first;
-    auto &indexBuffer = itr->second;
-
-    if (indexBuffer.size_ >= kRedisZaddBatchSize || forceFlush) {
-      flushIndexToRedis(redis, indexBuffer, userId);
-      itr = indexBufferMap.erase(itr);
-    } else {
-      itr ++;
-    }
+  for (auto itr = indexBufferMap.begin(); itr != indexBufferMap.end(); itr++) {
+    flushIndexToRedis(redis, itr->second, itr->first);
   }
+
 }
 
 void StatsServer::flushIndexToRedis(RedisConnection *redis, WorkerIndexBuffer &buffer, const int32_t userId) {
