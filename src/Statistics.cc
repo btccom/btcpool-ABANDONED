@@ -392,16 +392,24 @@ void StatsServer::flushWorkersToRedis(uint32_t threadStep) {
   size_t workerCounter = 0;
 
   pthread_rwlock_rdlock(&rwlock_);  // read lock
+  
+
+  size_t stepSize = workerSet_.size() / redisConcurrency_;
+  if (workerSet_.size() % redisConcurrency_ != 0) {
+    // +1 to avoid missing the last few items.
+    // Example: 5 / 2 = 2. Each thread handles 2 items and the fifth was missing.
+    stepSize++;
+  }
+
+  size_t offsetBegin = stepSize * threadStep;
 
   auto itr = workerSet_.begin();
 
   // move to the beginning position
-  for (uint32_t i=0; i<threadStep && itr != workerSet_.end(); i++) {
-    itr ++;
-  }
+  for (size_t i=0; i<offsetBegin && itr!=workerSet_.end(); i++, itr++);
 
-  // flush all workes status
-  while (itr != workerSet_.end()) {
+  // flush all workes status in a stepSize
+  for (size_t i=0; i<stepSize && itr!=workerSet_.end(); i++, itr++) {
     workerCounter++;
 
     const int32_t userId   = itr->first.userId_;
@@ -438,11 +446,6 @@ void StatsServer::flushWorkersToRedis(uint32_t threadStep) {
     // publish notification
     if (redisPublishPolicy_ & REDIS_PUBLISH_WORKER_UPDATE) {
       redis->prepare({"PUBLISH", key, "1"});
-    }
-
-    // move to the next position
-    for (uint32_t i=0; i<redisConcurrency_ && itr != workerSet_.end(); i++) {
-      itr++;
     }
   }
 
@@ -589,15 +592,22 @@ void StatsServer::flushUsersToRedis(uint32_t threadStep) {
 
   pthread_rwlock_rdlock(&rwlock_);  // read lock
 
+  size_t stepSize = userSet_.size() / redisConcurrency_;
+  if (userSet_.size() % redisConcurrency_ != 0) {
+    // +1 to avoid missing the last few items.
+    // Example: 5 / 2 = 2. Each thread handles 2 items and the fifth was missing.
+    stepSize++;
+  }
+
+  size_t offsetBegin = stepSize * threadStep;
+
   auto itr = userSet_.begin();
 
   // move to the beginning position
-  for (size_t i=0; i<threadStep && itr != userSet_.end(); i++) {
-    itr++;
-  }
+  for (size_t i=0; i<offsetBegin && itr!=userSet_.end(); i++, itr++);
 
-  // flush all users status
-  while (itr != userSet_.end()) {
+  // flush all users status in a stepSize
+  for (size_t i=0; i<stepSize && itr!=userSet_.end(); i++, itr++) {
     userCounter++;
 
     const int32_t userId   = itr->first;
@@ -631,11 +641,6 @@ void StatsServer::flushUsersToRedis(uint32_t threadStep) {
     // publish notification
     if (redisPublishPolicy_ & REDIS_PUBLISH_USER_UPDATE) {
       redis->prepare({"PUBLISH", key, std::to_string(workerCount)});
-    }
-
-    // move to the beginning position
-    for (uint32_t i=0; i<redisConcurrency_ && itr != userSet_.end(); i++) {
-      itr++;
     }
   }
 

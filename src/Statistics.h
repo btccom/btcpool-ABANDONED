@@ -343,12 +343,10 @@ class StatsServer {
   void _flushWorkersAndUsersToRedisThread();
   void _flushWorkersAndUsersToRedisThread(uint32_t threadStep);
   bool checkRedis(uint32_t threadStep);
-  // Assigning tasks by specifying start and end ranges is not suitable for unordered_map.
-  // So we use a step jumping to assign tasks to multiple threads.
-  // It means, when `redisConcurrency_ = 3`:
-  // `threadStep 0` writing the 1st, 4th, 7th, ... workers.
-  // `threadStep 2` writing the 2nd, 5th, 8th, ... workers.
-  // `threadStep 2` writing the 3rd, 6th, 9th, ... workers.
+  // Tasks are evenly distributed to each thread.
+  // For example, 6 items are assigned to two threads.
+  // The first thread is responsible for the first 3,
+  // and the second thread is responsible for the next 3.
   void flushWorkersToRedis(uint32_t threadStep);
   void flushUsersToRedis(uint32_t threadStep);
   void flushIndexToRedis(RedisConnection *redis, const int32_t userId, const int64_t workerId, const WorkerStatus &status);
