@@ -158,6 +158,12 @@ requestCount_(0), responseBytes_(0)
     for (uint32_t i=0; i<redisConcurrency; i++) {
       RedisConnection *redis = new RedisConnection(*redisInfo);
       redisGroup_.push_back(redis);
+
+      if (redisIndexPolicy_ != REDIS_INDEX_NONE) {
+        RedisConnection *redisForIndex = new RedisConnection(*redisInfo);
+        redisGroupForIndex_.push_back(redisForIndex);
+      }
+
     }
   }
 
@@ -390,10 +396,11 @@ bool StatsServer::checkRedis(uint32_t threadStep) {
 void StatsServer::flushWorkersToRedis(uint32_t threadStep) {
   RedisConnection *redis = redisGroup_[threadStep];
   size_t workerCounter = 0;
+  size_t indexCounter = 0;
+  std::unordered_map<int32_t /*userId*/, WorkerIndexBuffer> indexBufferMap;
 
   pthread_rwlock_rdlock(&rwlock_);  // read lock
   
-
   size_t stepSize = workerSet_.size() / redisConcurrency_;
   if (workerSet_.size() % redisConcurrency_ != 0) {
     // +1 to avoid missing the last few items.
@@ -439,14 +446,29 @@ void StatsServer::flushWorkersToRedis(uint32_t threadStep) {
     if (redisKeyExpire_ > 0) {
       redis->prepare({"EXPIRE", key, std::to_string(redisKeyExpire_)});
     }
-    // create index
-    if (redisIndexPolicy_ != REDIS_INDEX_NONE) {
-      flushIndexToRedis(redis, userId, workerId, status);
-    }
     // publish notification
     if (redisPublishPolicy_ & REDIS_PUBLISH_WORKER_UPDATE) {
       redis->prepare({"PUBLISH", key, "1"});
     }
+
+    // add index to buffer and try to flush
+    if (redisIndexPolicy_ != REDIS_INDEX_NONE) {
+      addIndexToBuffer(indexBufferMap[userId], workerId, status);
+      indexCounter++;
+
+      // try to flush index
+      // (flush to the other redis connection without pipeline)
+      if (indexCounter >= kRedisZaddBatchSize) {
+        tryFlushIndexToRedis(threadStep, indexBufferMap);
+        indexCounter = 0;
+      }
+    }
+  }
+
+  // flush remainder indexes
+  if (redisIndexPolicy_ != REDIS_INDEX_NONE) {
+    tryFlushIndexToRedis(threadStep, indexBufferMap, true);
+    assert(indexBufferMap.size() == 0);
   }
 
   pthread_rwlock_unlock(&rwlock_); // unlock
@@ -478,10 +500,6 @@ void StatsServer::flushWorkersToRedis(uint32_t threadStep) {
                                  << "reply str: " << r.str();
       }
     }
-    // indexes
-    if (redisIndexPolicy_ != REDIS_INDEX_NONE) {
-      readflushIndexResultFromRedis(redis, threadStep, i);
-    }
     // notification
     if (redisPublishPolicy_ & REDIS_PUBLISH_WORKER_UPDATE) {
       RedisResult r = redis->execute();
@@ -492,97 +510,139 @@ void StatsServer::flushWorkersToRedis(uint32_t threadStep) {
                                  << "reply str: " << r.str();
       }
     }
+
+    // Don't need to read the result of flushing index.
+    // It flushes to the other redis connection without pipeline.
   }
 
   LOG(INFO) << "flush workers to redis (thread " << threadStep << ") done, workers: " << workerCounter;
   return;
 }
 
-void StatsServer::flushIndexToRedis(RedisConnection *redis, const int32_t userId, const int64_t workerId, const WorkerStatus &status) {
-  // accept_1m
-  if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_1M) {
-    redis->prepare({"ZADD", getRedisKeyIndex(userId, "accept_1m"), std::to_string(status.accept1m_), std::to_string(workerId)});
-  }
-  // accept_5m
-  if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_5M) {
-    redis->prepare({"ZADD", getRedisKeyIndex(userId, "accept_5m"), std::to_string(status.accept5m_), std::to_string(workerId)});
-  }
-  // accept_15m
-  if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_15M) {
-    redis->prepare({"ZADD", getRedisKeyIndex(userId, "accept_15m"), std::to_string(status.accept15m_), std::to_string(workerId)});
-  }
-  // reject_15m
-  if (redisIndexPolicy_ & REDIS_INDEX_REJECT_15M) {
-    redis->prepare({"ZADD", getRedisKeyIndex(userId, "reject_15m"), std::to_string(status.reject15m_), std::to_string(workerId)});
-  }
-  // accept_1h
-  if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_1H) {
-    redis->prepare({"ZADD", getRedisKeyIndex(userId, "accept_1h"), std::to_string(status.accept1h_), std::to_string(workerId)});
-  }
-  // reject_1h
-  if (redisIndexPolicy_ & REDIS_INDEX_REJECT_1H) {
-    redis->prepare({"ZADD", getRedisKeyIndex(userId, "reject_1h"), std::to_string(status.reject1h_), std::to_string(workerId)});
-  }
-  // accept_count
-  if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_COUNT) {
-    redis->prepare({"ZADD", getRedisKeyIndex(userId, "accept_count"), std::to_string(status.acceptCount_), std::to_string(workerId)});
-  }
-  // last_share_ip
-  if (redisIndexPolicy_ & REDIS_INDEX_LAST_SHARE_IP) {
-    redis->prepare({"ZADD", getRedisKeyIndex(userId, "last_share_ip"), std::to_string(status.lastShareIP_), std::to_string(workerId)});
-  }
-  // last_share_time
-  if (redisIndexPolicy_ & REDIS_INDEX_LAST_SHARE_TIME) {
-    redis->prepare({"ZADD", getRedisKeyIndex(userId, "last_share_time"), std::to_string(status.lastShareTime_), std::to_string(workerId)});
+void StatsServer::tryFlushIndexToRedis(const uint32_t threadStep, std::unordered_map<int32_t /*userId*/,
+                                       WorkerIndexBuffer> &indexBufferMap, bool forceFlush) {
+  RedisConnection *redis = redisGroupForIndex_[threadStep];
+
+  auto itr = indexBufferMap.begin();
+  while (itr != indexBufferMap.end()) {
+    auto &userId = itr->first;
+    auto &indexBuffer = itr->second;
+
+    if (indexBuffer.size_ >= kRedisZaddBatchSize || forceFlush) {
+      flushIndexToRedis(redis, indexBuffer, userId);
+      itr = indexBufferMap.erase(itr);
+    } else {
+      itr ++;
+    }
   }
 }
 
-void StatsServer::readZaddResultFromRedis(RedisConnection *redis, const uint32_t threadStep, const size_t pos) {
+void StatsServer::flushIndexToRedis(RedisConnection *redis, WorkerIndexBuffer &buffer, const int32_t userId) {
+  // accept_1m
+  if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_1M) {
+    buffer.accept1m_.insert(buffer.accept1m_.begin(), {"ZADD", getRedisKeyIndex(userId, "accept_1m")});
+    flushIndexToRedis(redis, buffer.accept1m_);
+  }
+  // accept_5m
+  if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_5M) {
+    buffer.accept5m_.insert(buffer.accept5m_.begin(), {"ZADD", getRedisKeyIndex(userId, "accept_5m")});
+    flushIndexToRedis(redis, buffer.accept5m_);
+  }
+  // accept_15m
+  if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_15M) {
+    buffer.accept15m_.insert(buffer.accept15m_.begin(), {"ZADD", getRedisKeyIndex(userId, "accept_15m")});
+    flushIndexToRedis(redis, buffer.accept15m_);
+  }
+  // reject_15m
+  if (redisIndexPolicy_ & REDIS_INDEX_REJECT_15M) {
+    buffer.reject15m_.insert(buffer.reject15m_.begin(), {"ZADD", getRedisKeyIndex(userId, "reject_15m")});
+    flushIndexToRedis(redis, buffer.reject15m_);
+  }
+  // accept_1h
+  if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_1H) {
+    buffer.accept1h_.insert(buffer.accept1h_.begin(), {"ZADD", getRedisKeyIndex(userId, "accept_1h")});
+    flushIndexToRedis(redis, buffer.accept1h_);
+  }
+  // reject_1h
+  if (redisIndexPolicy_ & REDIS_INDEX_REJECT_1H) {
+    buffer.reject1h_.insert(buffer.reject1h_.begin(), {"ZADD", getRedisKeyIndex(userId, "reject_1h")});
+    flushIndexToRedis(redis, buffer.reject1h_);
+  }
+  // accept_count
+  if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_COUNT) {
+    buffer.acceptCount_.insert(buffer.acceptCount_.begin(), {"ZADD", getRedisKeyIndex(userId, "accept_count")});
+    flushIndexToRedis(redis, buffer.acceptCount_);
+  }
+  // last_share_ip
+  if (redisIndexPolicy_ & REDIS_INDEX_LAST_SHARE_IP) {
+    buffer.lastShareIP_.insert(buffer.lastShareIP_.begin(), {"ZADD", getRedisKeyIndex(userId, "last_share_ip")});
+    flushIndexToRedis(redis, buffer.lastShareIP_);
+  }
+  // last_share_time
+  if (redisIndexPolicy_ & REDIS_INDEX_LAST_SHARE_TIME) {
+    buffer.lastShareTime_.insert(buffer.lastShareTime_.begin(), {"ZADD", getRedisKeyIndex(userId, "last_share_time")});
+    flushIndexToRedis(redis, buffer.lastShareTime_);
+  }
+}
+
+void StatsServer::addIndexToBuffer(WorkerIndexBuffer &buffer, const int64_t workerId, const WorkerStatus &status) {
+  // accept_1m
+  if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_1M) {
+    buffer.accept1m_.push_back(std::to_string(status.accept1m_));
+    buffer.accept1m_.push_back(std::to_string(workerId));
+  }
+  // accept_5m
+  if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_5M) {
+    buffer.accept5m_.push_back(std::to_string(status.accept5m_));
+    buffer.accept5m_.push_back(std::to_string(workerId));
+  }
+  // accept_15m
+  if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_15M) {
+    buffer.accept15m_.push_back(std::to_string(status.accept15m_));
+    buffer.accept15m_.push_back(std::to_string(workerId));
+  }
+  // reject_15m
+  if (redisIndexPolicy_ & REDIS_INDEX_REJECT_15M) {
+    buffer.reject15m_.push_back(std::to_string(status.reject15m_));
+    buffer.reject15m_.push_back(std::to_string(workerId));
+  }
+  // accept_1h
+  if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_1H) {
+    buffer.accept1h_.push_back(std::to_string(status.accept1h_));
+    buffer.accept1h_.push_back(std::to_string(workerId));
+  }
+  // reject_1h
+  if (redisIndexPolicy_ & REDIS_INDEX_REJECT_1H) {
+    buffer.reject1h_.push_back(std::to_string(status.reject1h_));
+    buffer.reject1h_.push_back(std::to_string(workerId));
+  }
+  // accept_count
+  if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_COUNT) {
+    buffer.acceptCount_.push_back(std::to_string(status.acceptCount_));
+    buffer.acceptCount_.push_back(std::to_string(workerId));
+  }
+  // last_share_ip
+  if (redisIndexPolicy_ & REDIS_INDEX_LAST_SHARE_IP) {
+    buffer.lastShareIP_.push_back(std::to_string(status.lastShareIP_));
+    buffer.lastShareIP_.push_back(std::to_string(workerId));
+  }
+  // last_share_time
+  if (redisIndexPolicy_ & REDIS_INDEX_LAST_SHARE_TIME) {
+    buffer.lastShareTime_.push_back(std::to_string(status.lastShareTime_));
+    buffer.lastShareTime_.push_back(std::to_string(workerId));
+  }
+
+  buffer.size_ ++;
+}
+
+void StatsServer::flushIndexToRedis(RedisConnection *redis, const std::vector<string> &commandVector) {
+  redis->prepare(commandVector);
   RedisResult r = redis->execute();
   if (r.type() != REDIS_REPLY_INTEGER) {
-    LOG(INFO) << "redis (thread " << threadStep << ") ZADD failed, "
-              << "item index: " << pos << ", "
+    LOG(INFO) << "redis ZADD failed, "
+              << "item key: " << commandVector[1] << ", "
               << "reply type: " << r.type() << ", "
               << "reply str: " << r.str();
-  }
-}
-
-void StatsServer::readflushIndexResultFromRedis(RedisConnection *redis, const uint32_t threadStep, const size_t pos) {
-  // accept_1m
-  if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_1M) {
-    readZaddResultFromRedis(redis, threadStep, pos);
-  }
-  // accept_5m
-  if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_5M) {
-    readZaddResultFromRedis(redis, threadStep, pos);
-  }
-  // accept_15m
-  if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_15M) {
-    readZaddResultFromRedis(redis, threadStep, pos);
-  }
-  // reject_15m
-  if (redisIndexPolicy_ & REDIS_INDEX_REJECT_15M) {
-    readZaddResultFromRedis(redis, threadStep, pos);
-  }
-  // accept_1h
-  if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_1H) {
-    readZaddResultFromRedis(redis, threadStep, pos);
-  }
-  // reject_1h
-  if (redisIndexPolicy_ & REDIS_INDEX_REJECT_1H) {
-    readZaddResultFromRedis(redis, threadStep, pos);
-  }
-  // accept_count
-  if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_COUNT) {
-    readZaddResultFromRedis(redis, threadStep, pos);
-  }
-  // last_share_ip
-  if (redisIndexPolicy_ & REDIS_INDEX_LAST_SHARE_IP) {
-    readZaddResultFromRedis(redis, threadStep, pos);
-  }
-  // last_share_time
-  if (redisIndexPolicy_ & REDIS_INDEX_LAST_SHARE_TIME) {
-    readZaddResultFromRedis(redis, threadStep, pos);
   }
 }
 
