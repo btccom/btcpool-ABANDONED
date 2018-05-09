@@ -261,6 +261,7 @@ class StatsServer {
   };
 
   enum RedisIndexPolicy {
+    REDIS_INDEX_NONE            = 0,
     REDIS_INDEX_ACCEPT_1M       = 1,
     REDIS_INDEX_ACCEPT_5M       = 2,
     REDIS_INDEX_ACCEPT_15M      = 4,

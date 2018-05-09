@@ -432,7 +432,7 @@ void StatsServer::flushWorkersToRedis(uint32_t threadStep) {
       redis->prepare({"EXPIRE", key, std::to_string(redisKeyExpire_)});
     }
     // create index
-    {
+    if (redisIndexPolicy_ != REDIS_INDEX_NONE) {
       flushIndexToRedis(redis, userId, workerId, status);
     }
     // publish notification
@@ -476,7 +476,7 @@ void StatsServer::flushWorkersToRedis(uint32_t threadStep) {
       }
     }
     // indexes
-    {
+    if (redisIndexPolicy_ != REDIS_INDEX_NONE) {
       readflushIndexResultFromRedis(redis, threadStep, i);
     }
     // notification
