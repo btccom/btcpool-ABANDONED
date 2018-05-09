@@ -407,8 +407,8 @@ bool checkBitcoinRPC(const string &rpcAddr, const string &rpcUserpass) {
 // a-z, A-Z: 0-25
 // 0-9:      26-35
 // others:   36
-static const unsigned char kAlphaNumRankBase = 37;
-static const unsigned char kAlphaNumRankTable[256] = {
+static const uint8_t kAlphaNumRankBase = 37;
+static const uint8_t kAlphaNumRankTable[256] = {
     36  /* 0 */,      36  /* 1 */,      36  /* 2 */,      36  /* 3 */,
     36  /* 4 */,      36  /* 5 */,      36  /* 6 */,      36  /* 7 */,
     36  /* 8 */,      36  /* 9 */,      36  /* 10 */,     36  /* 11 */,
@@ -481,7 +481,7 @@ uint64_t getAlphaNumRank(const string &str, size_t significand) {
   size_t strSize = (str.size() > significand) ? significand : str.size();
 
   for (; i<strSize; i++) {
-    r = r * kAlphaNumRankBase + kAlphaNumRankTable[str[i]];
+    r = r * kAlphaNumRankBase + kAlphaNumRankTable[(uint8_t)str[i]];
   }
 
   // Make different length strings have the same level of ranks
