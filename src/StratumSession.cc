@@ -936,11 +936,11 @@ StratumSession::LocalJob* StratumSession::findLocalJob(const string& strJobId) {
 }
 
 StratumSession::LocalJob *StratumSession::findLocalJob(uint8_t shortJobId) {
-  DLOG(INFO) << "findLocalJob id=" << shortJobId;
+  //DLOG(INFO) << "findLocalJob id=" << shortJobId;
   for (auto rit = localJobs_.rbegin(); rit != localJobs_.rend(); ++rit) {
-    DLOG(INFO) << "search id=" << (int)rit->shortJobId_;
+    //DLOG(INFO) << "search id=" << (int)rit->shortJobId_;
     if ((int)rit->shortJobId_ == (int)shortJobId) {
-      DLOG(INFO) << "local job found";
+      //DLOG(INFO) << "local job found";
       return &(*rit);
     }
   }
@@ -1800,7 +1800,7 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
 {
   LOG(INFO) << "bytom handle request submit";
   JsonNode &params = const_cast<JsonNode &>(jparams);
-  uint8 shortJobId = params["job_id"].uint8();
+  uint8 shortJobId = (uint8)params["job_id"].uint32();
 
   LocalJob *lj = findLocalJob(shortJobId);
   if (nullptr == lj)
