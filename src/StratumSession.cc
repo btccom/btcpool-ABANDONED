@@ -1690,7 +1690,19 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
 
   uint32 target = 0xffffffff;
   uint64 nonce = (((uint64)server_->serverId_) << 40);
-  string notifyStr;
+  string notifyStr, nonceStr, versionStr, heightStr, timestampStr, bitsStr;
+  Bin2Hex((uint8 *)&nonce, 8, nonceStr);
+  Bin2Hex((uint8 *)&sJob->blockHeader_.version, 8, versionStr);
+  Bin2Hex((uint8 *)&sJob->blockHeader_.height, 8, heightStr);
+  Bin2Hex((uint8 *)&sJob->blockHeader_.timestamp, 8, timestampStr);
+  if (server_->isDevModeEnable_)
+  {
+    uint64 testBits = sJob->blockHeader_.bits | 0x2f00000000000000;
+    Bin2Hex((uint8 *)&testBits, 8, bitsStr);
+  }
+  else
+    Bin2Hex((uint8 *)&sJob->blockHeader_.bits, 8, bitsStr);
+
   if (isFirstJob)
   {
     //     {
@@ -1715,19 +1727,6 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
     // },
     // "error": null
     // }
-    string versionStr, heightStr, timestampStr, nonceStr, bitsStr;
-    Bin2Hex((uint8*)&sJob->blockHeader_.version, 8, versionStr);
-    Bin2Hex((uint8*)&sJob->blockHeader_.height, 8, heightStr);
-    Bin2Hex((uint8*)&sJob->blockHeader_.timestamp, 8, timestampStr);
-    Bin2Hex((uint8*)&nonce, 8, nonceStr);
-    if (server_->isDevModeEnable_)
-    {
-      uint64 testBits = sJob->blockHeader_.bits | 0x2f00000000000000;
-      Bin2Hex((uint8 *)&testBits, 8, bitsStr);
-    }
-    else
-      Bin2Hex((uint8 *)&sJob->blockHeader_.bits, 8, bitsStr);
-
     notifyStr = Strings::Format(
         "{\"id\": 1, \"jsonrpc\": \"2.0\", \"result\": {\"id\": \"%s\", \"job\": {\"version\": \"%s\","
         "\"height\": \"%s\","
@@ -1749,7 +1748,7 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
         sJob->blockHeader_.transactionStatusHash.c_str(),
         nonceStr.c_str(),
         bitsStr.c_str(),
-        ljob.shortJobId_ ,
+        ljob.shortJobId_,
         sJob->seed_.c_str(),
         target);
   }
@@ -1773,7 +1772,7 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
     //     }
     // }
     notifyStr = Strings::Format(
-        "{\"id\": 1,\"jsonrpc\": \"2.0\", \"result\": {\"%u\", \"%" PRIu64 "\", \"%" PRIu64 "\", \"%s\", \"%08x\", \"%s\", \"%s\", \"%08x%08x\", \"%08x%08x\", \"%s\", \"%08x\"}}\n",
+        "{\"id\": 1,\"jsonrpc\": \"2.0\", \"result\": {\"%u\", \"%" PRIu64 "\", \"%" PRIu64 "\", \"%s\", \"%08x\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%08x\"}}\n",
         ljob.shortJobId_,
         sJob->blockHeader_.version,
         sJob->blockHeader_.height,
@@ -1781,11 +1780,9 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
         sJob->blockHeader_.timestamp,
         sJob->blockHeader_.transactionsMerkleRoot.c_str(),
         sJob->blockHeader_.transactionStatusHash.c_str(),
-        nonce >> 32,
-        nonce,
-        sJob->blockHeader_.bits >> 32,
-        sJob->blockHeader_.bits,
-        sJob->seed_,
+        nonceStr.c_str(),
+        bitsStr.c_str(),
+        sJob->seed_.c_str(),
         target);
   }
   LOG(INFO) << "bytom sendMiningNotify: " << notifyStr;
