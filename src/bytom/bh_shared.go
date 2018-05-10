@@ -24,7 +24,7 @@ func DecodeBlockHeader(text []byte) (uint64, uint64, *C.char, uint64, uint64, *C
 }
 
 //export EncodeBlockHeader
-func EncodeBlockHeader(v, h uint64, prevBlockHashStr *C.char, timeStamp, nonce, bits uint64, transactionStatusHashStr, transactionsMerkleRootStr *C.char) *C.char {
+func EncodeBlockHeader(v, h uint64, prevBlockHashStr *C.char, timeStamp, nonce, bits uint64, transactionStatusHashStr, transactionsMerkleRootStr *C.char) (*C.char, *C.char) {
 	bh := &types.BlockHeader{
 		Version:           v,
 		Height:            h,
@@ -39,7 +39,8 @@ func EncodeBlockHeader(v, h uint64, prevBlockHashStr *C.char, timeStamp, nonce, 
 	}
 
 	buf, _ := bh.MarshalText()
-	return C.CString(string(buf))
+	hash := bh.Hash()
+	return C.CString(string(buf)), C.CString(hash.String())
 }
 
 func main() {

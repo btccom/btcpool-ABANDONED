@@ -1821,13 +1821,20 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
     return;
 
   uint64 nonce = params["nonce"].uint64();
-  char *bhStr = EncodeBlockHeader(sJob->blockHeader_.version, sJob->blockHeader_.height, (char *)sJob->blockHeader_.previousBlockHash.c_str(), sJob->blockHeader_.timestamp,
+  EncodeBlockHeader_return encoded = EncodeBlockHeader(sJob->blockHeader_.version, sJob->blockHeader_.height, (char *)sJob->blockHeader_.previousBlockHash.c_str(), sJob->blockHeader_.timestamp,
                                   nonce, sJob->blockHeader_.bits, (char *)sJob->blockHeader_.transactionsMerkleRoot.c_str(), (char *)sJob->blockHeader_.transactionStatusHash.c_str());
+
+  DLOG(INFO) << "verify blockheader hash=" << encoded.r1 << ", seed=" << sJob->seed_;
+  vector<char> vHeader, vSeed;
+  Hex2Bin(encoded.r1, vHeader);
+  Hex2Bin(sJob->seed_.c_str(), sJob->seed_.length(), vSeed);
+  
   ServerBytom *s = dynamic_cast<ServerBytom*> (server_);
   if (s != nullptr)
-    s->sendSolvedShare2Kafka(bhStr);
+    s->sendSolvedShare2Kafka(encoded.r0);
 
-  free(bhStr);
+  free(encoded.r0);
+  free(encoded.r1);
 }
 
 bool StratumSessionBytom::validate(const JsonNode &jmethod, const JsonNode &jparams)
