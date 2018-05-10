@@ -1799,8 +1799,8 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   JsonNode &params = const_cast<JsonNode &>(jparams);
   uint8 shortJobId = (uint8)params["job_id"].uint32();
 
-  LocalJob *lj = findLocalJob(shortJobId);
-  if (nullptr == lj)
+  LocalJob *localJob= findLocalJob(shortJobId);
+  if (nullptr == localJob)
   {
     responseError(idStr, StratumError::JOB_NOT_FOUND);
     LOG(ERROR) << "can not find local bytom job id=" << shortJobId;
@@ -1808,11 +1808,11 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   }
 
   shared_ptr<StratumJobEx> exjob;
-  exjob = server_->jobRepository_->getStratumJobEx(lj->jobId_);
+  exjob = server_->jobRepository_->getStratumJobEx(localJob->jobId_);
   if (nullptr == exjob || nullptr == exjob->sjob_)
   {
     responseError(idStr, StratumError::JOB_NOT_FOUND);
-    LOG(ERROR) << "bytom local job not found " << std::hex << lj->jobId_;
+    LOG(ERROR) << "bytom local job not found " << std::hex << localJob->jobId_;
     return;
   }
 
@@ -1820,6 +1820,7 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   if (nullptr == sJob)
     return;
 
+  //get header submission string and header hash string
   uint64 nonce = params["nonce"].uint64();
   EncodeBlockHeader_return encoded = EncodeBlockHeader(sJob->blockHeader_.version, sJob->blockHeader_.height, (char *)sJob->blockHeader_.previousBlockHash.c_str(), sJob->blockHeader_.timestamp,
                                   nonce, sJob->blockHeader_.bits, (char *)sJob->blockHeader_.transactionsMerkleRoot.c_str(), (char *)sJob->blockHeader_.transactionStatusHash.c_str());
@@ -1828,10 +1829,23 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   vector<char> vHeader, vSeed;
   Hex2Bin(encoded.r1, vHeader);
   Hex2Bin(sJob->seed_.c_str(), sJob->seed_.length(), vSeed);
+
+  //Check share
+  Share share;
+  share.jobId_ = localJob->jobId_;
+  share.workerHashId_ = worker_.workerHashId_;
+  share.ip_ = clientIpInt_;
+  share.userId_ = worker_.userId_;
+  share.share_ = localJob->jobDifficulty_;
+  share.timestamp_ = (uint32_t)time(nullptr);
+  share.result_ = Share::Result::ACCEPT;
   
   ServerBytom *s = dynamic_cast<ServerBytom*> (server_);
   if (s != nullptr)
     s->sendSolvedShare2Kafka(encoded.r0);
+
+  rpc2ResponseBoolean(idStr, true);
+  server_->sendShare2Kafka((const uint8_t *)&share, sizeof(Share));
 
   free(encoded.r0);
   free(encoded.r1);
