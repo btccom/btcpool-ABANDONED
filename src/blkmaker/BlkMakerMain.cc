@@ -74,6 +74,8 @@ BlockMaker* createBlockMaker(const BlockMakerDefinition& def, const string& brok
     maker = new BlockMakerEth(def, broker.c_str(), *poolDBInfo);
   else if ("SIA" == def.chainType_)
     maker = new BlockMakerSia(def, broker.c_str(), *poolDBInfo);
+  else if ("BYTOM" == def.chainType_)
+    maker = new BlockMakerBytom(def, broker.c_str(), *poolDBInfo);
 
   if (maker) {
     for (auto node : def.nodes) 

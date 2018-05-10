@@ -1059,7 +1059,6 @@ bool BlockMakerEth::init() {
 BlockMakerSia::BlockMakerSia(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB) :
 BlockMakerEth(def, kafkaBrokers, poolDB)
 {
-  
 }
 
 void BlockMakerSia::processSolvedShare(rd_kafka_message_t *rkmessage)
@@ -1075,6 +1074,26 @@ void BlockMakerSia::processSolvedShare(rd_kafka_message_t *rkmessage)
   {
     string response;
     rpcCall(itr.first.c_str(), itr.second.c_str(), buf, 80, response, "Sia-Agent");
+    LOG(INFO) << "submission result: " << response;
+  }
+}
+
+//////////////////////////////////////BlockMakerBytom//////////////////////////////////////////////////
+BlockMakerBytom::BlockMakerBytom(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB) :
+BlockMakerEth(def, kafkaBrokers, poolDB)
+{
+}
+
+void BlockMakerBytom::processSolvedShare(rd_kafka_message_t *rkmessage)
+{
+  string bh((char*)rkmessage->payload, rkmessage->len);
+  string request = Strings::Format("{\"block_header\": \"%s\"}\n",
+                                   bh.c_str());
+
+  for (const auto &itr : bitcoindRpcUri_)
+  {
+    string response;
+    rpcCall(itr.first.c_str(), itr.second.c_str(), request.c_str(), request.length(), response, "curl");
     LOG(INFO) << "submission result: " << response;
   }
 }

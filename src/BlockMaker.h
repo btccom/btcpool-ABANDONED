@@ -215,4 +215,12 @@ public:
   BlockMakerSia(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
   void processSolvedShare(rd_kafka_message_t *rkmessage) override;
 };
+
+class BlockMakerBytom : public BlockMakerEth
+{
+public:
+  BlockMakerBytom(const BlockMakerDefinition &def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
+  void processSolvedShare(rd_kafka_message_t *rkmessage) override;
+};
+
 #endif

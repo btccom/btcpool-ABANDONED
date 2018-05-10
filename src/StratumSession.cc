@@ -1722,7 +1722,7 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
     Bin2Hex((uint8*)&nonce, 8, nonceStr);
     if (server_->isDevModeEnable_)
     {
-      uint64 testBits = sJob->blockHeader_.bits | 0x8f00000000000000;
+      uint64 testBits = sJob->blockHeader_.bits | 0x2f00000000000000;
       Bin2Hex((uint8 *)&testBits, 8, bitsStr);
     }
     else
