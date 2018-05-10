@@ -297,10 +297,10 @@ set(THIRD_LIBRARIES ${BITCOIN_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL
                     ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${ZOOKEEPER_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBEVENT_LIB}
                     ${LIBEVENT_PTHREADS_LIB} ${secp256k1_LIBRARIES} ${PTHREAD_LIBRARIES} ${MYSQL_LIB} ${GMP_LIBRARIES})
 
-file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc)
+file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc src/blksaver/*.cpp)
 add_library(btcpool STATIC ${LIB_SOURCES})
 
-file(GLOB_RECURSE TEST_SOURCES test/*.cc)
+file(GLOB_RECURSE TEST_SOURCES test/*.cc test/*.cpp)
 add_executable(unittest ${TEST_SOURCES})
 target_link_libraries(unittest btcpool ${THIRD_LIBRARIES})
 
@@ -348,6 +348,14 @@ file(GLOB_RECURSE POOLWATCHER_SOURCES src/poolwatcher/*.cc)
 add_executable(poolwatcher ${POOLWATCHER_SOURCES})
 target_link_libraries(poolwatcher btcpool ${THIRD_LIBRARIES})
 
+file(GLOB_RECURSE BLKSAVER_SOURCES src/blksaver/*.cpp)
+add_executable(blksaver ${BLKSAVER_SOURCES})
+target_link_libraries(blksaver btcpool ${THIRD_LIBRARIES})
+
+file(GLOB BLK_SAVER_TEST_DATA
+  "test/TestBlkSaver/*"
+)
+file(COPY "test/TestBlkSaver/testdata/" DESTINATION testdata)
 
 ###################################### Install & Package ######################################
 message("") # empty line
@@ -360,6 +368,7 @@ message("------------------------------- Install & Package ---------------------
 # targets
 set(INSTALL_TARGETS
         blkmaker
+        blksaver
         gbtmaker
         gwmaker
         jobmaker

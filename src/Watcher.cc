@@ -218,7 +218,7 @@ void ClientContainer::consumeStratumJob(rd_kafka_message_t *rkmessage) {
     {
       // get a write lock before change this->poolStratumJob_
       // it will unlock by itself in destructor.
-      boost::unique_lock<boost::shared_mutex> writeLock(stratumJobMutex_);
+      std::unique_lock<boost::shared_mutex> writeLock(stratumJobMutex_);
 
       uint256 oldPrevHash;
 

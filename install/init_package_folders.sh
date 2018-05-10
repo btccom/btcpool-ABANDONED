@@ -25,6 +25,15 @@ if [ ! -d "run_blkmaker" ]; then
   cd ..
 fi
 
+# blksaver
+if [ ! -d "run_blksaver" ]; then
+  mkdir "run_blksaver" && cd "run_blksaver"
+  mkdir "log_blksaver"
+  ln -s ../blksaver .
+  cp $sourceDir/blksaver/blksaver.cfg ./blksaver.default.cfg
+  cd ..
+fi
+
 # gbtmaker
 if [ ! -d "run_gbtmaker" ]; then
   mkdir "run_gbtmaker" && cd "run_gbtmaker"
