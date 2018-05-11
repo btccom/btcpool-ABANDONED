@@ -40,7 +40,6 @@
 
 #include <uint256.h>
 #include <base58.h>
-#include "bytom/bc.pb.h"
 #include "rsk/RskWork.h"
 
 // TODO: update when next Halving
