@@ -18,13 +18,14 @@ CMD ["/sbin/my_init"]
 
 RUN apt-get update
 RUN apt-get install -y build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils yasm
-RUN apt-get install -y libboost-all-dev libzmq3-dev curl wget
+RUN apt-get install -y libboost-all-dev libzmq3-dev curl wget unzip
 
 # build bitcoind
 RUN mkdir ~/source
-RUN cd ~/source && wget -O v0.17.1-lightgbt.tar.gz https://github.com/btccom/bitcoin-abc-1/archive/lightgbt.zip
-RUN cd ~/source && mkdir bitcoin-abc-0.17.1-lightgbt && cd bitcoin-abc-0.17.1-lightgbt \
-  && tar zxf ../v0.17.1-lightgbt.tar.gz \
+RUN cd ~/source && wget -O v0.17.1-lightgbt.zip https://github.com/btccom/bitcoin-abc-1/archive/lightgbt.zip
+RUN cd ~/source \
+  && unzip -q ./v0.17.1-lightgbt.zip \
+  && cd bitcoin-abc-1-lightgbt \
   && ./autogen.sh \
   && ./configure --disable-wallet --disable-tests \
   #&& make && make install
