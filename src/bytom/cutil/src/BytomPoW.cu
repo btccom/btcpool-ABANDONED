@@ -28,6 +28,38 @@ __global__ void converInt32ToInt8_gpu(int32_t* a, int8_t* b) {
   b[blockIdx.x * blockDim.x + threadIdx.x] = data_i8;
 }
 
+static const char *_cudaGetErrorEnum(cublasStatus_t error)
+{
+    switch (error)
+    {
+        case CUBLAS_STATUS_SUCCESS:
+            return "CUBLAS_STATUS_SUCCESS";
+
+        case CUBLAS_STATUS_NOT_INITIALIZED:
+            return "CUBLAS_STATUS_NOT_INITIALIZED";
+
+        case CUBLAS_STATUS_ALLOC_FAILED:
+            return "CUBLAS_STATUS_ALLOC_FAILED";
+
+        case CUBLAS_STATUS_INVALID_VALUE:
+            return "CUBLAS_STATUS_INVALID_VALUE";
+
+        case CUBLAS_STATUS_ARCH_MISMATCH:
+            return "CUBLAS_STATUS_ARCH_MISMATCH";
+
+        case CUBLAS_STATUS_MAPPING_ERROR:
+            return "CUBLAS_STATUS_MAPPING_ERROR";
+
+        case CUBLAS_STATUS_EXECUTION_FAILED:
+            return "CUBLAS_STATUS_EXECUTION_FAILED";
+
+        case CUBLAS_STATUS_INTERNAL_ERROR:
+            return "CUBLAS_STATUS_INTERNAL_ERROR";
+    }
+
+    return "<unknown>";
+}
+
 void core_mineBytom_gpu(
 		std::vector<uint8_t> fourSeq[4],
 		BytomMatListGpu* matListGpu_int8,
@@ -94,7 +126,7 @@ void core_mineBytom_gpu(
                               CUDA_R_32I,
                               CUBLAS_GEMM_DFALT);  //HKKUO: B). General Matrix Multiplication (GEMM)
         if (stat != CUBLAS_STATUS_SUCCESS) {
-          std::cerr<<"Fail to Run CuBlas GemmEx, status=" << (int)stat <<std::endl;
+          std::cerr<<"Fail to Run CuBlas GemmEx, status=" << _cudaGetErrorEnum(stat) <<std::endl;
           exit(EXIT_FAILURE);
         }
         converInt32ToInt8_gpu<<<256, 256>>>(devTmp_i32, devTmp_i8);
@@ -118,7 +150,7 @@ void core_mineBytom_gpu(
                             CUDA_R_32I,
                             CUBLAS_GEMM_DFALT);  //HKKUO: B). General Matrix Multiplication (GEMM)
         if (stat != CUBLAS_STATUS_SUCCESS) {
-          std::cerr<<"Fail to Run CuBlas GemmEx, status=" << (int)stat <<std::endl;
+          std::cerr<<"Fail to Run CuBlas GemmEx, status=" << _cudaGetErrorEnum(stat) <<std::endl;
           exit(EXIT_FAILURE);
         }
         converInt32ToInt8_gpu<<<256, 256>>>(devTmp_i32, devTmp_i8);
