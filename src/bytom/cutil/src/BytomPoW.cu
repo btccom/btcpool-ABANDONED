@@ -94,7 +94,7 @@ void core_mineBytom_gpu(
                               CUDA_R_32I,
                               CUBLAS_GEMM_DFALT);  //HKKUO: B). General Matrix Multiplication (GEMM)
         if (stat != CUBLAS_STATUS_SUCCESS) {
-          std::cerr<<"Fail to Run CuBlas GemmEx."<<std::endl;
+          std::cerr<<"Fail to Run CuBlas GemmEx, status=" << (int)stat << <<std::endl;
           exit(EXIT_FAILURE);
         }
         converInt32ToInt8_gpu<<<256, 256>>>(devTmp_i32, devTmp_i8);
@@ -118,7 +118,7 @@ void core_mineBytom_gpu(
                             CUDA_R_32I,
                             CUBLAS_GEMM_DFALT);  //HKKUO: B). General Matrix Multiplication (GEMM)
         if (stat != CUBLAS_STATUS_SUCCESS) {
-          std::cerr<<"Fail to Run CuBlas GemmEx."<<std::endl;
+          std::cerr<<"Fail to Run CuBlas GemmEx, status=" << (int)stat <<std::endl;
           exit(EXIT_FAILURE);
         }
         converInt32ToInt8_gpu<<<256, 256>>>(devTmp_i32, devTmp_i8);
