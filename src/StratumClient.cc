@@ -307,7 +307,7 @@ void StratumClientWrapper::runThreadSubmitShares() {
   while (running_) {
     for (auto &conn : connections_) {
       conn->submitShare();
-      usleep(connNum);
+      usleep(sleepTime);
     }
   }
 }
