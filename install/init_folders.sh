@@ -21,12 +21,12 @@ if [ ! -d "run_blkmaker" ]; then
   cd ..
 fi
 
-# blksaver
-if [ ! -d "run_blksaver" ]; then
-  mkdir "run_blksaver" && cd "run_blksaver"
-  mkdir "log_blksaver"
-  ln -s ../blksaver .
-  cp $sourceDir/blksaver/blksaver.cfg .
+# gbtsync
+if [ ! -d "run_gbtsync" ]; then
+  mkdir "run_gbtsync" && cd "run_gbtsync"
+  mkdir "log_gbtsync"
+  ln -s ../gbtsync .
+  cp $sourceDir/gbtsync/gbtsync.cfg .
   cd ..
 fi
 

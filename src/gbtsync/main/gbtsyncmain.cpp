@@ -1,4 +1,4 @@
-#include "blksaver/blocksaver.h"
+#include "gbtsync/gbtsync.h"
 #include <unistd.h>
 #include <libconfig.h++>
 #include <glog/logging.h>
@@ -15,7 +15,7 @@ void handler(int sig)
 }
 
 void usage() {
-  fprintf(stderr, "Usage:\n\tblocksaver -c \"jobmaker.cfg\" -l \"log_dir\"\n");
+  fprintf(stderr, "Usage:\n\tgbtsync -c \"gbtsync.cfg\" -l \"log_dir\"\n");
 }
 
 DataManager* CreateFileDataManagerFromSettings(const libconfig::Setting& setting)

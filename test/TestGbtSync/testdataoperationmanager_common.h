@@ -2,7 +2,7 @@
 #define _TEST_DATA_OPERATION_MANAGER_COMMON_H_
 
 #include "gtest/gtest.h"
-#include "blksaver/blocksaver.h"
+#include "gbtsync/gbtsync.h"
 
 
 void CheckReadyToLoad(DataOperationManagerBase& manager);

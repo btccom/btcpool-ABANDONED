@@ -1,6 +1,6 @@
 #include "gtest/gtest.h"
 
-#include "blksaver/blocksaver.h"
+#include "gbtsync/gbtsync.h"
 #include <algorithm>
 
 TEST(FileLister, _1File) 

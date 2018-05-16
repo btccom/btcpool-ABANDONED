@@ -1,5 +1,5 @@
-#ifndef BLOCK_SAVER_H_
-#define BLOCK_SAVER_H_
+#ifndef _DATA_MANAGER_H_
+#define _DATA_MANAGER_H_
 
 #include <string>
 #include <unordered_map>
@@ -66,4 +66,4 @@ private:
     bool m_syncDelete;
 };
 
-#endif // BLOCK_SAVER_H_
+#endif // _DATA_MANAGER_H_

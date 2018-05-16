@@ -1,7 +1,7 @@
 #if 0   //  set this code to a valid mysql server connection first before activating it.
 
 #include "gtest/gtest.h"
-#include "blksaver/blocksaver.h"
+#include "gbtsync/gbtsync.h"
 #include "testdataoperationmanager_common.h"
 
 const char* server = "localhost";

@@ -1,5 +1,5 @@
-#ifndef _BLOCKSAVER_H_
-#define _BLOCKSAVER_H_
+#ifndef _GBTSYNC_H_
+#define _GBTSYNC_H_
 
 #include "dataoperation_file.h"
 #include "dataoperation_mysql.h"
