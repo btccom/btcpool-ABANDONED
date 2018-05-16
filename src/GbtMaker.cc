@@ -298,7 +298,7 @@ void GbtMaker::submitRawGbtMsg(bool checkTime) {
   kafkaProduceMsg(rawGbtMsg.c_str(), rawGbtMsg.length());
 }
 
-void GbtMaker::threadListenBitcoind() {
+void GbtMaker::threadListenBitcoind(bool normalVersion, bool lightVersion) {
   zmq::socket_t subscriber(zmqContext_, ZMQ_SUB);
   subscriber.connect(zmqBitcoindAddr_);
   subscriber.setsockopt(ZMQ_SUBSCRIBE,
@@ -339,7 +339,10 @@ void GbtMaker::threadListenBitcoind() {
     // sometimes will decode zmq message fail, no matter what it is, we just
     // call gbt again
     LOG(INFO) << "get zmq message, call rpc getblocktemplate";
-    submitRawGbtMsg(false);
+    if(normalVersion)
+      submitRawGbtMsg(false);
+    if(lightVersion)
+      submitRawGbtLightMsg(false);
 
   } /* /while */
 
@@ -348,7 +351,7 @@ void GbtMaker::threadListenBitcoind() {
 }
 
 void GbtMaker::run(bool normalVersion, bool lightVersion) {
-  thread threadListenBitcoind = thread(&GbtMaker::threadListenBitcoind, this);
+  thread threadListenBitcoind = thread(&GbtMaker::threadListenBitcoind, this, normalVersion, lightVersion);
 
   while (running_) {
     sleep(1);

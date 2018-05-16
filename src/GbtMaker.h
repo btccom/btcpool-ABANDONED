@@ -62,7 +62,7 @@ class GbtMaker {
   bool CheckGBTFields(JsonNode& r);
   void LogGBTResult(const uint256& gbtHash, JsonNode& r);
 
-  void threadListenBitcoind();
+  void threadListenBitcoind(bool normalVersion, bool lightVersion);
 
   void kafkaProduceMsg(const void *payload, size_t len);
 
