@@ -1,7 +1,11 @@
-This application is to sync files across storages.
-Currently it only support add/remove files (no updates)
+Synchronize GBT Files between Multiple Bitcoin-ABC-lightgbt Nodes
+--------------------------
 
-Prefix and postfix is used to make sure the file is valid and writing is done (this is important for non-atomic operation like file system)
+This application is to sync files across storages.
+It is usually used to synchronize `<datadir>/gbt/` directory between multiple [bitcoin-abc-lightgbt](../../docker/bitcoin-abc/v0.17.1-lightgbt/) nodes.
+Currently it only support add/remove files (no updates).
+
+Prefix and postfix is used to make sure the file is valid and writing is done (this is important for non-atomic operation like file system).
 There's no update here, so postfix is very important to make sure the data is writing is complete.
 
 
@@ -11,4 +15,26 @@ To set max_allowed_packet, go to mysql.cnf file (probably it's located in /etc/m
 ```
 max_allowed_packet=32M
 ```
-create mysql table based on create_table.sql
+create mysql table based on [create_table.sql](create_table.sql)
+
+
+Build with BTCPool
+--------------------------
+See [docs/INSTALL-BTCPool.md](../../docs/INSTALL-BTCPool.md)
+
+
+Build Standalone
+--------------------------
+
+```
+git clone https://github.com/btccom/btcpool.git
+cd btcpool
+
+mkdir build.gbtsync
+cd build.gbtsync
+
+cmake ../src/gbtsync
+
+./gbtsynctest
+./gbtsync
+```
