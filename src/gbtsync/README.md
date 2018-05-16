@@ -34,6 +34,7 @@ mkdir build.gbtsync
 cd build.gbtsync
 
 cmake ../src/gbtsync
+make
 
 ./gbtsynctest
 ./gbtsync
