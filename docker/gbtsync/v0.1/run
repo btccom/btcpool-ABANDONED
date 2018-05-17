@@ -1,0 +1,20 @@
+#! /bin/bash
+#
+# run shell for bitcoind
+#
+# @copyright btc.com
+# @author yihao.peng@bitmain.com
+#
+export LC_ALL=C
+SROOT=$(cd $(dirname "$0"); pwd)
+cd $SROOT
+
+DATADIR="/datadir"
+LOGDIR="$DATADIR/log_gbtsync"
+CONF="$DATADIR/gbtsync.cfg"
+
+if ! [ -e $DATADIR ]; then
+    mkdir $DATADIR
+fi
+
+gbtsync -c $CONF -l $LOGDIR
