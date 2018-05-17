@@ -54,6 +54,7 @@ class ClientContainer;
 class ClientContainer {
   atomic<bool> running_;
   vector<PoolWatchClient *> clients_;
+  std::unordered_map<std::string, std::vector<int64_t>> timeReceiveMap_;
 
   // libevent2
   struct event_base *base_;
@@ -69,6 +70,8 @@ class ClientContainer {
 
   void runThreadStratumJobConsume();
   void consumeStratumJob(rd_kafka_message_t *rkmessage);
+
+
 
 public:
   ClientContainer(const string &kafkaBrokers);
@@ -138,4 +141,12 @@ public:
   }
 };
 
+namespace WatcherLogThread
+{
+  extern volatile bool gRunning;
+  void StopMySql();
+  void StartMysql(std::string mysqlHost, int mysqlPort, std::string mysqlUser, std::string mysqlPwd, std::string database);
+
+  void Run();
+} //namespace WatcherLogThread
 #endif

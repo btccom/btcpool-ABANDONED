@@ -36,7 +36,49 @@
 #include <utilstrencodings.h>
 #include <hash.h>
 #include "BitcoinUtils.h"
+#include <mysql/mysql.h>
+#include <thread>
+#include <sstream>
 
+const int gEpochYear = 1900;
+#if defined( __linux__) || defined(__APPLE__)
+#include <sys/time.h>
+namespace WatcherLogThread
+{  
+  using TimeType = struct timeval;
+  TimeType GetTime()
+  {
+    TimeType tv;
+    gettimeofday(&tv, NULL);
+    return tv;
+  }
+  struct tm* CallGmtime(const TimeType& t)
+  {
+    return gmtime(&t.tv_sec);
+  }
+  int GetMicroseconds(const TimeType& t)
+  {
+    return t.tv_usec;
+  } 
+}
+#else 
+namespace WatcherLogThread
+{  
+  using TimeType = time_t
+  TimeType GetTime()
+  {
+    return time(NULL);
+  }
+  struct tm* CallGmtime(const TimeType& t)
+  {
+    return gmtime(&t);
+  }
+  int GetMicroseconds(const TimeType& t)
+  {
+    return 0; //  don't have milliseconds
+  } 
+}
+#endif
 
 static
 bool tryReadLine(string &line, struct bufferevent *bufev) {
@@ -123,6 +165,139 @@ string convertPrevHash(const string &prevHash) {
   return hash;
 }
 
+///////////////////////////////// Receive time Logger thread //////////////////////////////
+namespace WatcherLogThread
+{
+  struct ReceiveTimeLogData
+  {
+    std::string poolname;
+    std::string poolhost;
+    std::string blockhash;
+    int32_t blockheight;
+    TimeType receiveTime;
+  };
+
+  std::vector<ReceiveTimeLogData> gReceiveTimeLogDataList;
+  std::mutex gListMutex;
+
+  MYSQL* gMysqlConn = nullptr;
+  volatile bool gRunning = false;
+
+  void AddReceiveLogData(std::string poolname, std::string poolhost, std::string blockhash, int32_t blockheight, TimeType receiveTime)
+  {
+    ReceiveTimeLogData logData{std::move(poolname), std::move(poolhost), std::move(blockhash), blockheight, receiveTime};
+    ScopeLock l(gListMutex);
+    gReceiveTimeLogDataList.push_back(logData);
+  }
+
+  void StopMySql();
+  void StartMysql(std::string mysqlHost, int mysqlPort, std::string mysqlUser, std::string mysqlPwd, std::string database)
+  {
+    gMysqlConn = mysql_init(NULL);
+    if(!mysql_real_connect(gMysqlConn, mysqlHost.c_str(), mysqlUser.c_str(), mysqlPwd.c_str(), database.c_str(), mysqlPort, NULL, 0))
+    {
+      StopMySql();
+    }
+  }
+  void LogToMysql(const ReceiveTimeLogData& logData)
+  {
+    std::stringstream ss;
+    ss << "insert into poolwatcherreceivelog(poolhost, poolname, blockhash, blockheight, receivetime) VALUES(?, ?, ?, ?, ?)";
+    std::string statementStr(ss.str());
+
+    MYSQL_STMT* statement = mysql_stmt_init(gMysqlConn);
+    if(mysql_stmt_prepare(statement, statementStr.c_str(), statementStr.length()))
+    {
+        return;
+    }
+
+    struct tm* tmTime = CallGmtime(logData.receiveTime);
+    MYSQL_TIME mysqlTime;
+    //  convert to struct tm to MYSQL_TIME
+    //  for struct tm info read: http://www.cplusplus.com/reference/ctime/tm/
+    //  for MYSQL_TIME read mysql_time.h
+    mysqlTime.year = gEpochYear + tmTime->tm_year;
+    mysqlTime.month = 1 + tmTime->tm_mon;
+    mysqlTime.day = tmTime->tm_mday;
+    mysqlTime.hour = tmTime->tm_hour;
+    mysqlTime.minute = tmTime->tm_min;
+    mysqlTime.second = tmTime->tm_sec;
+    mysqlTime.second_part = GetMicroseconds(logData.receiveTime);
+    mysqlTime.time_type = MYSQL_TIMESTAMP_DATETIME;
+
+    MYSQL_BIND bindParam[5];
+    memset(bindParam, 0, sizeof(bindParam));
+
+    bindParam[0].buffer_type = MYSQL_TYPE_STRING;
+    bindParam[0].buffer = (void*)logData.poolname.c_str();
+    bindParam[0].buffer_length = logData.poolname.length();
+
+    bindParam[1].buffer_type = MYSQL_TYPE_STRING;
+    bindParam[1].buffer = (void*)logData.poolhost.c_str();
+    bindParam[1].buffer_length = logData.poolhost.length();
+
+    bindParam[2].buffer_type = MYSQL_TYPE_STRING;
+    bindParam[2].buffer = (void*)logData.blockhash.c_str();
+    bindParam[2].buffer_length = logData.blockhash.length();
+
+    bindParam[3].buffer_type = MYSQL_TYPE_LONG;
+    bindParam[3].buffer = (void*)&logData.blockheight;
+    bindParam[3].buffer_length = 4;
+
+    bindParam[4].buffer_type = MYSQL_TYPE_DATETIME;
+    bindParam[4].buffer = (void*)&mysqlTime;
+    bindParam[4].buffer_length = sizeof(MYSQL_TIME);
+
+    if(mysql_stmt_bind_param(statement, bindParam))
+    {
+        LOG(ERROR) << "bind param err: " << mysql_stmt_error(statement) << "\n";
+        return;
+    }
+
+
+    if(mysql_stmt_execute(statement))
+    {
+      LOG(ERROR) << "execute err: " << mysql_stmt_error(statement) << "\n";
+    }
+
+  }
+  
+  void Run()
+  {
+    gRunning = true;
+    while(gRunning)
+    {
+      if(!gReceiveTimeLogDataList.empty())
+      {
+        std::vector<ReceiveTimeLogData> currentDataList;
+        {
+          ScopeLock l(gListMutex);
+          currentDataList = std::move(gReceiveTimeLogDataList);
+        }
+        if(gMysqlConn)
+        {
+          for(auto& data : currentDataList)
+          {
+            LogToMysql(data);
+          }
+        }
+      }
+      std::this_thread::sleep_for(std::chrono::seconds(5));
+    }
+    StopMySql();
+  }
+
+  void StopMySql()
+  {
+    if(gMysqlConn)
+    {
+      mysql_close(gMysqlConn);
+      gMysqlConn = nullptr;
+    }
+  }
+
+} // namespace WatcherLogThread
+
 
 
 ///////////////////////////////// ClientContainer //////////////////////////////
@@ -204,6 +379,7 @@ void ClientContainer::consumeStratumJob(rd_kafka_message_t *rkmessage) {
       delete sjob;
       return;
     }
+
     // make sure the job is not expired.
     if (jobId2Time(sjob->jobId_) + 60 < time(nullptr)) {
       LOG(ERROR) << "too large delay from kafka to receive topic 'StratumJob'";
@@ -247,6 +423,7 @@ void ClientContainer::stop() {
 
   LOG(INFO) << "stop event loop";
   running_ = false;
+  threadStratumJobConsume_.join();
   event_base_loopexit(base_, NULL);
 }
 
@@ -406,14 +583,16 @@ void ClientContainer::eventCallback(struct bufferevent *bev,
   container->removeAndCreateClient(client);
 }
 
-
 ///////////////////////////////// PoolWatchClient //////////////////////////////
 PoolWatchClient::PoolWatchClient(struct event_base *base, ClientContainer *container,
                                  const string &poolName,
                                  const string &poolHost, const int16_t poolPort,
                                  const string &workerName)
-: container_(container), poolName_(poolName), poolHost_(poolHost),
-poolPort_(poolPort), workerName_(workerName)
+  : container_(container)
+  , poolName_(poolName)
+  , poolHost_(poolHost)
+  , poolPort_(poolPort)
+  , workerName_(workerName)
 {
   bev_ = bufferevent_socket_new(base, -1, BEV_OPT_CLOSE_ON_FREE);
   assert(bev_ != nullptr);
@@ -479,6 +658,7 @@ bool PoolWatchClient::handleMessage() {
 }
 
 void PoolWatchClient::handleStratumMessage(const string &line) {
+  WatcherLogThread::TimeType receiveTime = WatcherLogThread::GetTime();
   DLOG(INFO) << "<" << poolName_ << "> UpPoolWatchClient recv(" << line.size() << "): " << line;
 
   JsonNode jnode;
@@ -499,6 +679,8 @@ void PoolWatchClient::handleStratumMessage(const string &line) {
 
       if (lastPrevBlockHash_.empty()) {
         lastPrevBlockHash_ = prevHash;  // first set prev block hash
+        // const int32_t  blockHeight = getBlockHeightFromCoinbase(jparamsArr[2].str());
+        // WatcherLogThread::AddReceiveLogData(poolName_, poolHost_, prevHash, blockHeight, receiveTime);
       }
 
       // stratum job prev block hash changed
@@ -522,6 +704,7 @@ void PoolWatchClient::handleStratumMessage(const string &line) {
                                << ", block_time: " << blockTime
                                << ", nBits: " << nBits
                                << ", nVersion: " << nVersion;
+        WatcherLogThread::AddReceiveLogData(poolName_, poolHost_, prevHash, blockHeight, receiveTime);
 
         //////////////////////////////////////////////////////////////////////////
         // To ensure the external job is not deviation from the blockchain.

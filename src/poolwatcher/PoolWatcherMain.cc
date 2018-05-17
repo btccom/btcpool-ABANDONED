@@ -45,10 +45,16 @@ using namespace libconfig;
 
 // container for pool watch clients
 ClientContainer *gClientContainer = nullptr;
+std::thread gWatcherLogRunningThread;
 
 void handler(int sig) {
   if (gClientContainer) {
     gClientContainer->stop();
+  }
+  WatcherLogThread::gRunning = false;
+  if(gWatcherLogRunningThread.joinable())
+  {
+    gWatcherLogRunningThread.join();
   }
 }
 
@@ -142,7 +148,27 @@ int main(int argc, char **argv) {
       gClientContainer->addPools(name, host, (int16_t)port, worker);
     }
   }
+  if(cfg.getRoot().exists("receivelog"))
+  {
+    const Setting& receiveLogSettings = cfg.getRoot()["receivelog"];
+    string host;
+    string username;
+    string pwd;
+    string database;
+    int port = 0;
+    receiveLogSettings.lookupValue("mysqlhost", host);
+    receiveLogSettings.lookupValue("mysqluser", username);
+    receiveLogSettings.lookupValue("mysqlpwd", pwd);
+    receiveLogSettings.lookupValue("mysqldb", database);
+    receiveLogSettings.lookupValue("mysqlport", port);
+    if(!host.empty() && !username.empty() && !pwd.empty() && !database.empty())
+    {
+      WatcherLogThread::StartMysql(host, port, username, pwd, database);
+    }
+  }
 
+  gWatcherLogRunningThread = std::thread(&WatcherLogThread::Run);
+  
   try {
     if (gClientContainer->init() == false) {
       LOG(ERROR) << "init failure";
