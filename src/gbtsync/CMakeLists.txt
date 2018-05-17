@@ -87,3 +87,6 @@ add_executable(gbtsynctest ${LIB_SOURCES} ${TEST_SOURCES})
 target_link_libraries(gbtsynctest ${MYSQL_LIB} ${PTHREAD_LIBRARIES} ${GLOG_LIBRARIES})
 
 file(COPY "../../test/TestGbtSync/testdata/" DESTINATION testdata)
+
+install(TARGETS gbtsync
+        DESTINATION bin)
