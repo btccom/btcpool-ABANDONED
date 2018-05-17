@@ -6,5 +6,3 @@ TABLE `poolwatcherreceivelog` (
   `receivetime` datetime(3) NOT NULL,
   PRIMARY KEY (`poolname`,`blockhash`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-
-order by blockheight, receivetime
