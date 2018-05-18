@@ -74,6 +74,8 @@ MysqlDataOperationManager::MysqlDataOperationManager(const std::string& server, 
     {
         mysql_close(m_Connection);
         m_Connection = nullptr;
+
+        LOG(FATAL) << "Connecting MySQL failed: " << mysql_error(m_Connection);
     }
 
 }
