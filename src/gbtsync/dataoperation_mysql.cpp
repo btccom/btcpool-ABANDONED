@@ -72,10 +72,10 @@ MysqlDataOperationManager::MysqlDataOperationManager(const std::string& server, 
     if(!mysql_real_connect(m_Connection, server.c_str(), username.c_str()
         , password.c_str(), dbname.c_str(), port, NULL, 0))
     {
+        LOG(FATAL) << "Connecting MySQL failed: " << mysql_error(m_Connection);
+ 
         mysql_close(m_Connection);
         m_Connection = nullptr;
-
-        LOG(FATAL) << "Connecting MySQL failed: " << mysql_error(m_Connection);
     }
 
 }
