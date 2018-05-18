@@ -17,6 +17,37 @@ service docker start
 service docker status
 ```
 
+## Install MySQL
+
+Each server group that needs to be synchronized shares one MySQL.
+
+### create config file
+```
+mkdir -p /work/db-gbtsync/etc
+mkdir -p /work/db-gbtsync/data
+vim /work/db-gbtsync/etc/my.cnf
+```
+
+### my.cnf example
+```
+[mysqld]
+skip-host-cache
+skip-name-resolve
+max_allowed_packet=64M
+```
+
+### install & run mysql
+```
+docker pull mysql
+docker run -e MYSQL_ROOT_PASSWORD=<your-password> -p 3306:3306 -v /work/db-gbtsync/etc:/etc/mysql/conf.d/ -v /work/db-gbtsync/data:/var/lib/mysql --name db-gbtsync -d mysql
+```
+
+### import tables
+```
+docker exec -it db-gbtsync mysql -uroot -p
+```
+Executing the [create table sql](../../../src/gbtsync/create_table.sql).
+
 ## Build Docker Images
 
 ```
@@ -33,7 +64,7 @@ docker build -t gbtsync:v0.1 .
 
 
 # gbtsync.cfg
-touch /work/bitcoin-abc/gbtsync.cfg
+vim /work/bitcoin-abc/gbtsync.cfg
 ```
 
 ### gbtsync.cfg example
@@ -51,9 +82,9 @@ workers =
     },
     {
         type = "mysql";
-        server = "localhost";
+        server = "192.168.34.56";
         username = "root";
-        password = "password";
+        password = "<your-password>";
         dbschema = "gbtsync";
         tablename = "filedata";
         name = "manager01";
