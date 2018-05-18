@@ -13,8 +13,8 @@ DATADIR="/datadir"
 LOGDIR="$DATADIR/log_gbtsync"
 CONF="$DATADIR/gbtsync.cfg"
 
-if ! [ -e $DATADIR ]; then
-    mkdir $DATADIR
+if ! [ -e $LOGDIR ]; then
+    mkdir $LOGDIR
 fi
 
 gbtsync -c $CONF -l $LOGDIR
