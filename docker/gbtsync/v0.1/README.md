@@ -102,7 +102,7 @@ workers =
 
 ```
 # start docker
-docker run -it -v /work/bitcoin-abc:/datadir --name gbtsync --restart always -d bitcoin-abc:0.17.1-lightgbt
+docker run -it -v /work/bitcoin-abc:/datadir --name gbtsync --restart always -d gbtsync:v0.1
 
 # login
 docker exec -it gbtsync /bin/bash
