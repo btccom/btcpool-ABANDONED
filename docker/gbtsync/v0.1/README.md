@@ -46,7 +46,11 @@ docker run -e MYSQL_ROOT_PASSWORD=<your-password> -p 3306:3306 -v /work/db-gbtsy
 ```
 docker exec -it db-gbtsync mysql -uroot -p
 ```
-Executing the [create table sql](../../../src/gbtsync/create_table.sql).
+```sql
+create database gbtsync;
+use gbtsync;
+```
+Then executing the [create table sql](../../../src/gbtsync/create_table.sql).
 
 ## Build Docker Images
 
