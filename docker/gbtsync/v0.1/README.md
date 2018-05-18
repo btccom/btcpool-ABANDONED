@@ -87,6 +87,7 @@ workers =
     {
         type = "mysql";
         server = "192.168.34.56";
+        port = 3306;
         username = "root";
         password = "<your-password>";
         dbschema = "gbtsync";
