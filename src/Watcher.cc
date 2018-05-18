@@ -202,7 +202,7 @@ namespace WatcherLogThread
   void LogToMysql(const ReceiveTimeLogData& logData)
   {
     std::stringstream ss;
-    ss << "insert into poolwatcherreceivelog(poolhost, poolname, blockhash, blockheight, receivetime) VALUES(?, ?, ?, ?, ?)";
+    ss << "insert into poolwatcherreceivelog(poolname, poolhost, blockhash, blockheight, receivetime) VALUES(?, ?, ?, ?, ?)";
     std::string statementStr(ss.str());
 
     MYSQL_STMT* statement = mysql_stmt_init(gMysqlConn);
