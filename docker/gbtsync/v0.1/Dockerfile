@@ -17,7 +17,8 @@ CMD ["/sbin/my_init"]
 #ADD sources-aliyun.com.list /etc/apt/sources.list
 
 RUN apt-get update
-RUN apt-get install -y build-essential cmake libgoogle-glog-dev libmysqlclient-dev curl wget unzip
+RUN apt-get install -y build-essential cmake libgoogle-glog-dev libmysqlclient-dev \
+    libconfig++-dev libboost1.58-dev curl wget unzip
 
 # build bitcoind
 RUN mkdir ~/source

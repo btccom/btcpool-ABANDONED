@@ -4,7 +4,7 @@ Docker for GBT Synchronizer of Bitcoin-ABC-v0.17.1-lightgbt
 * OS: `Ubuntu 14.04 LTS`, `Ubuntu 16.04 LTS`
 * Docker Image OS: `Ubuntu 16.04 LTS`
 
-See also: [README of gbtsync](../../src/gbtsync/README.md)
+See also: [README of gbtsync](../../../src/gbtsync/README.md)
 
 ## Install Docker
 
