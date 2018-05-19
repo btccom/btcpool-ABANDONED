@@ -2,31 +2,6 @@
 #include <cuda_runtime.h>
 #include "cublas_v2.h"
 
-void initMatVecGpu(BytomMatListGpu* matListGpu_int8, BytomMatList* matList_int8) {
-  for(int i=0; i<matList_int8->matVec.size(); i++) {
-    int8_t* hostPtr_i8 = (int8_t*)(matList_int8->at(i).d);
-    int8_t* devPtr_i8 = (int8_t*)(matListGpu_int8->at(i));
-    cublasStatus_t stat = cublasSetMatrix (256, 256, sizeof(*devPtr_i8), hostPtr_i8, 256, devPtr_i8, 256);
-    if (stat != CUBLAS_STATUS_SUCCESS) {
-      std::cerr<<"Fail to Set CuBlas Matrix."<<std::endl;
-      exit(EXIT_FAILURE);
-    }
-  }
-}
-
-static inline void converInt32ToInt8(int32_t (&a)[256][256], int8_t (&b)[256][256]) {
-  for(int i=0; i<256; i++) {
-    for(int j=0; j<256; j++) {
-      b[i][j]=((a[i][j]&0xFF)+ ((a[i][j]>>8)&0xFF))&0xFF;
-    }
-  }
-}
-
-__global__ void converInt32ToInt8_gpu(int32_t* a, int8_t* b) {
-  int32_t data_i32 = a[blockIdx.x * blockDim.x + threadIdx.x];
-  int8_t data_i8 = ((data_i32&0xFF)+ ((data_i32>>8)&0xFF))&0xFF;
-  b[blockIdx.x * blockDim.x + threadIdx.x] = data_i8;
-}
 
 static const char *_cudaGetErrorEnum(cublasStatus_t error)
 {
@@ -58,6 +33,32 @@ static const char *_cudaGetErrorEnum(cublasStatus_t error)
     }
 
     return "<unknown>";
+}
+
+void initMatVecGpu(BytomMatListGpu* matListGpu_int8, BytomMatList* matList_int8) {
+  for(int i=0; i<matList_int8->matVec.size(); i++) {
+    int8_t* hostPtr_i8 = (int8_t*)(matList_int8->at(i).d);
+    int8_t* devPtr_i8 = (int8_t*)(matListGpu_int8->at(i));
+    cublasStatus_t stat = cublasSetMatrix (256, 256, sizeof(*devPtr_i8), hostPtr_i8, 256, devPtr_i8, 256);
+    if (stat != CUBLAS_STATUS_SUCCESS) {
+      std::cerr<<"Fail to Set CuBlas Matrix. stat=" << _cudaGetErrorEnum(stat) <<std::endl;
+      exit(EXIT_FAILURE);
+    }
+  }
+}
+
+static inline void converInt32ToInt8(int32_t (&a)[256][256], int8_t (&b)[256][256]) {
+  for(int i=0; i<256; i++) {
+    for(int j=0; j<256; j++) {
+      b[i][j]=((a[i][j]&0xFF)+ ((a[i][j]>>8)&0xFF))&0xFF;
+    }
+  }
+}
+
+__global__ void converInt32ToInt8_gpu(int32_t* a, int8_t* b) {
+  int32_t data_i32 = a[blockIdx.x * blockDim.x + threadIdx.x];
+  int8_t data_i8 = ((data_i32&0xFF)+ ((data_i32>>8)&0xFF))&0xFF;
+  b[blockIdx.x * blockDim.x + threadIdx.x] = data_i8;
 }
 
 void core_mineBytom_gpu(
