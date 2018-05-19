@@ -39,3 +39,8 @@ make
 ./gbtsynctest
 ./gbtsync
 ```
+
+
+Build a docker image
+--------------------------
+See [docker/gbtsync/v0.1](../../docker/gbtsync/v0.1)
