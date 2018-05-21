@@ -51,7 +51,7 @@ class DataOperationManagerBase
 {
 public:
     virtual std::unique_ptr<DataHandler> GetDataHandler(std::string id) const = 0;
-    virtual std::vector<std::string> GetDataList(std::regex regex = std::regex(".*"), bool checkNotation = false) const = 0;
+    virtual bool GetDataList(std::vector<std::string>& out, std::regex regex = std::regex(".*"), bool checkNotation = false) = 0;
     virtual std::unique_ptr<DataHandler> StoreData(std::string id, std::vector<char>&& data, bool forceOverwrite = false)= 0;
     virtual bool DeleteData(const std::string& id) = 0;
 };

@@ -119,9 +119,10 @@ void SyncManager::DoSync()
         {
             auto& worker2 = m_Workers[j];
             auto& manager2 = worker2->dataManager;
-            Sync(worker1->diffResult, *manager1.get(), *manager2.get());
-            Sync(worker2->diffResult, *manager2.get(), *manager1.get());
+            Sync(worker1->diffResult, *manager1.get(), *manager2.get(), j + 1 < workerCount);
+            Sync(worker2->diffResult, *manager2.get(), *manager1.get(), false);
         }
+        manager1->ClearLoadedData();
     }
 
     //  cleanup. 
@@ -144,7 +145,7 @@ void SyncManager::DoSync()
     }
 }
 
-void SyncManager::Sync(DataManager::AddAndRemoveDataListPair& diffResult, DataManager& sourceManager, DataManager& destManager)
+void SyncManager::Sync(DataManager::AddAndRemoveDataListPair& diffResult, DataManager& sourceManager, DataManager& destManager, bool giveupData)
 {
     if(!diffResult.first.empty() || !diffResult.second.empty())
         LOG(INFO) << "try sync from " << sourceManager.GetName() << " to " << destManager.GetName() << "\n";
@@ -160,14 +161,23 @@ void SyncManager::Sync(DataManager::AddAndRemoveDataListPair& diffResult, DataMa
                     loader->Load();
                     auto dataSize = loader->GetData().size();
                     auto startTime = chrono::system_clock::now();
-                    if(destManager.AddData(filename, loader->GiveupData()))
+                    std::vector<char> copyData;
+                    if(giveupData)
+                    {
+                        copyData = loader->Data();
+                    }
+                    else
+                    {
+                        copyData = std::move(loader->GiveupData());
+                    }
+                    if(destManager.AddData(filename, std::move(copyData)))
                     {
                         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(chrono::system_clock::now() - startTime);
                         LOG(INFO) << "  - " << filename << " copied. size: " << dataSize << " bytes. time: " << duration.count() << " ms\n";
                     }
                     else
                     {
-                        LOG(INFO) << "  - " << filename << " copy failed\n";
+                        LOG(ERROR) << "  - " << filename << " copy failed\n";
                     }
                 }
             }
@@ -180,9 +190,15 @@ void SyncManager::Sync(DataManager::AddAndRemoveDataListPair& diffResult, DataMa
             if(destManager.GetDataHandlers().count(filename) > 0)
             {
                 auto startTime = chrono::system_clock::now();
-                destManager.RemoveData(filename);
-                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(chrono::system_clock::now() - startTime);
-                LOG(INFO) << "  - " << filename << " removed. time: " << duration.count() << " ms\n";
+                if(destManager.RemoveData(filename))
+                {
+                    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(chrono::system_clock::now() - startTime);
+                    LOG(INFO) << "  - " << filename << " removed. time: " << duration.count() << " ms\n";
+                }
+                else
+                {
+                    LOG(ERROR) << "  - " << filename << " remove failed!\n";
+                }
             }
         }                
     }

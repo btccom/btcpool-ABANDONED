@@ -27,10 +27,14 @@ bool DataManager::AddData(std::string id, std::vector<char>&& data)
     return true;
 }
 
-void DataManager::RemoveData(const std::string& id)
+bool DataManager::RemoveData(const std::string& id)
 {
-    m_DataHandlers.erase(id);
-    m_FileOperationManager->DeleteData(id);
+    if(m_FileOperationManager->DeleteData(id))
+    {
+        m_DataHandlers.erase(id);
+        return true;
+    }
+    return false;
 }
 
 DataManager::AddAndRemoveDataListPair DataManager::DiffDataHandles(bool updateCache)
@@ -40,7 +44,11 @@ DataManager::AddAndRemoveDataListPair DataManager::DiffDataHandles(bool updateCa
     std::vector<std::string>& newFiles = dataListPair.first;
     std::vector<std::string>& removedFiles = dataListPair.second;
 
-    auto fileList = m_FileOperationManager->GetDataList();
+    std::vector<std::string> fileList;
+    if(!m_FileOperationManager->GetDataList(fileList))
+    {
+        return dataListPair;
+    }
     unordered_set<string> fileSet(fileList.begin(), fileList.end());
     for(auto& filePair : m_DataHandlers)
     {
@@ -72,4 +80,12 @@ DataManager::AddAndRemoveDataListPair DataManager::DiffDataHandles(bool updateCa
         }
     }
     return dataListPair;
+}
+
+void DataManager::ClearLoadedData()
+{
+    for(auto& h : m_DataHandlers)
+    {
+        h.second->Unload();
+    }
 }

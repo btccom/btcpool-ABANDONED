@@ -21,6 +21,7 @@ void usage() {
 DataManager* CreateFileDataManagerFromSettings(const libconfig::Setting& setting)
 {
     std::string path;
+    std::string trashPath;
     std::string prefix, postfix;
     if(!setting.lookupValue("path", path))
     {
@@ -32,10 +33,11 @@ DataManager* CreateFileDataManagerFromSettings(const libconfig::Setting& setting
     }
     setting.lookupValue("prefix", prefix);
     setting.lookupValue("postfix", postfix);
+    setting.lookupValue("trashpath", trashPath);
 
     auto fileOperationManager = new FileDataOperationManager(path
             , std::vector<char>(prefix.begin(), prefix.end())
-            , std::vector<char>(postfix.begin(), postfix.end()));
+            , std::vector<char>(postfix.begin(), postfix.end()), trashPath);
     return new DataManager(fileOperationManager);
 }
 

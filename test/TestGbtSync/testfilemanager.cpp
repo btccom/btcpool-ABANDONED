@@ -9,12 +9,12 @@ TEST(DataManager, Pool)
     //  cleanup before start testing
     std::remove("testdata/filemanagertestdata/temp.empty.txt");
 
-    auto fileOperationManager = new FileDataOperationManager("testdata/filemanagertestdata/", {'G', 'B', 'T'}, {'G', 'B', 'T'});
+    auto fileOperationManager = new FileDataOperationManager("testdata/filemanagertestdata/", {'G', 'B', 'T'}, {'G', 'B', 'T'}, "");
     DataManager manager(fileOperationManager);
     {
         auto diffResult = manager.DiffDataHandles();
-        EXPECT_EQ(diffResult.first.size(), 2);
-        EXPECT_EQ(diffResult.second.size(), 0);
+        EXPECT_EQ(diffResult.first.size(), 2u);
+        EXPECT_EQ(diffResult.second.size(), 0u);
     }
     {
         auto iter = manager.GetDataHandlers().find("correct.empty.txt");
@@ -30,10 +30,10 @@ TEST(DataManager, Pool)
         ofile.close();
         {
             auto diffResult = manager.DiffDataHandles();
-            EXPECT_EQ(diffResult.second.size(), 0);
+            EXPECT_EQ(diffResult.second.size(), 0u);
 
             auto& newFiles = diffResult.first;
-            ASSERT_EQ(newFiles.size(), 1);
+            ASSERT_EQ(newFiles.size(), 1u);
             EXPECT_EQ(newFiles[0], "temp.empty.txt");
             auto iter = manager.GetDataHandlers().find("temp.empty.txt");
             EXPECT_TRUE(iter != manager.GetDataHandlers().end());
@@ -41,8 +41,8 @@ TEST(DataManager, Pool)
         {
             std::remove("testdata/filemanagertestdata/temp.empty.txt");
             auto diffResult = manager.DiffDataHandles();
-            EXPECT_EQ(diffResult.second.size(), 1);
-            EXPECT_EQ(diffResult.first.size(), 0);
+            EXPECT_EQ(diffResult.second.size(), 1u);
+            EXPECT_EQ(diffResult.first.size(), 0u);
             auto iter = manager.GetDataHandlers().find("temp.empty.txt");
             EXPECT_TRUE(iter == manager.GetDataHandlers().end());
         }
@@ -51,7 +51,7 @@ TEST(DataManager, Pool)
 
 TEST(DataManager, Data)
 {
-    auto fileOperationManager = new FileDataOperationManager("testdata/filemanagertestdata/", {'G', 'B', 'T'}, {'G', 'B', 'T'});
+    auto fileOperationManager = new FileDataOperationManager("testdata/filemanagertestdata/", {'G', 'B', 'T'}, {'G', 'B', 'T'}, "");
     DataManager manager(fileOperationManager);
     auto newFiles = manager.DiffDataHandles();
     {

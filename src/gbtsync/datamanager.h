@@ -18,7 +18,7 @@ public:
     //  store data persistently and keep info in the cache
     bool AddData(std::string id, std::vector<char>&& data);
     //  remove data from persistent storage and cache
-    void RemoveData(const std::string& id);
+    bool RemoveData(const std::string& id);
     
     //  list files from drive
     //  return new detected filenames
@@ -58,6 +58,8 @@ public:
     {
         return m_syncDelete;
     }
+
+    void ClearLoadedData();
 
 private:
     std::unique_ptr<DataOperationManagerBase> m_FileOperationManager;

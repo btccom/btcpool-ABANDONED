@@ -4,25 +4,18 @@
 
 using namespace std;
 
-DataHandlerLoadOperationMysql::DataHandlerLoadOperationMysql(MYSQL* connection, std::string id, std::string tableName)
+bool IsConnectionAlive(MYSQL* connection)
+{
+    if(!connection)
+        return false;
+    return mysql_query(connection, "DO 1") == 0;
+}
+
+DataHandlerLoadOperationMysql::DataHandlerLoadOperationMysql(MYSQL* const * connection, std::string id, std::string tableName)
     : m_Connection(connection)
     , m_ID(id)
     , m_TableName(tableName)
 {
-    m_Statement = mysql_stmt_init(m_Connection);
-    m_StatementCloser.statement = m_Statement;
-
-    stringstream ss;
-    ss << "SELECT data FROM " << m_TableName << " WHERE id=?";
-    string selectStatement(ss.str());
-    mysql_stmt_prepare(m_Statement, selectStatement.c_str(), selectStatement.length());
-
-    memset(m_BindParam, 0, sizeof(m_BindParam));
-
-    m_BindParam[0].buffer_type = MYSQL_TYPE_STRING;
-    m_BindParam[0].buffer = (void*)m_ID.c_str();
-    m_BindParam[0].buffer_length = m_ID.length();
-    mysql_stmt_bind_param(m_Statement, m_BindParam);
 
 }
 
@@ -33,24 +26,41 @@ DataHandlerLoadOperationMysql::~DataHandlerLoadOperationMysql()
 
 bool DataHandlerLoadOperationMysql::DoLoad(std::vector<char>& outData)
 {    
-    if(mysql_stmt_execute(m_Statement))
+    if(!IsConnectionAlive(*m_Connection))
+        return false;
+    MYSQL_STMT* statement = mysql_stmt_init(*m_Connection);
+    StatementCloser statementCloser(statement);
+
+    stringstream ss;
+    ss << "SELECT data FROM " << m_TableName << " WHERE id=?";
+    string selectStatement(ss.str());
+    mysql_stmt_prepare(statement, selectStatement.c_str(), selectStatement.length());
+
+    memset(m_BindParam, 0, sizeof(m_BindParam));
+
+    m_BindParam[0].buffer_type = MYSQL_TYPE_STRING;
+    m_BindParam[0].buffer = (void*)m_ID.c_str();
+    m_BindParam[0].buffer_length = m_ID.length();
+    mysql_stmt_bind_param(statement, m_BindParam);
+
+    if(mysql_stmt_execute(statement))
         return false;
 
     my_bool updateMaxLenFlag = true;
-    mysql_stmt_attr_set(m_Statement, STMT_ATTR_UPDATE_MAX_LENGTH, &updateMaxLenFlag);
-    mysql_stmt_store_result(m_Statement);
+    mysql_stmt_attr_set(statement, STMT_ATTR_UPDATE_MAX_LENGTH, &updateMaxLenFlag);
+    mysql_stmt_store_result(statement);
 
     unsigned long dataLen = 0;
     MYSQL_BIND bindResult[1];
     memset(bindResult, 0, sizeof(bindResult));
     bindResult[0].buffer_type = MYSQL_TYPE_LONG_BLOB;
     bindResult[0].length = &dataLen;    
-    if(mysql_stmt_bind_result(m_Statement, bindResult))
+    if(mysql_stmt_bind_result(statement, bindResult))
     {
         return false;
     }
 
-    auto fetchRes = mysql_stmt_fetch(m_Statement);
+    auto fetchRes = mysql_stmt_fetch(statement);
     if(fetchRes && fetchRes != MYSQL_DATA_TRUNCATED)
     {
         return false;
@@ -59,50 +69,64 @@ bool DataHandlerLoadOperationMysql::DoLoad(std::vector<char>& outData)
     outData.resize(dataLen);
     bindResult[0].buffer = outData.data();
     bindResult[0].buffer_length = outData.size();
-    auto fetchColRes = mysql_stmt_fetch_column(m_Statement, bindResult, 0, 0);
+    auto fetchColRes = mysql_stmt_fetch_column(statement, bindResult, 0, 0);
     return fetchColRes == 0;
 }
 
-MysqlDataOperationManager::MysqlDataOperationManager(const std::string& server, const std::string& username, const std::string& password, const std::string& dbname, std::string tablename, int port)
-    : m_Connection(nullptr)
-    , m_ownConnection(true)
+MysqlDataOperationManager::MysqlDataOperationManager(std::string server, std::string username, std::string password, std::string dbname, std::string tablename, int port)
+    : m_Server(std::move(server))
+    , m_Username(std::move(username))
+    , m_Password(std::move(password))
+    , m_Database(std::move(dbname))
     , m_TableName(std::move(tablename))
+    , m_Port(port)
+    , m_Connection(nullptr)
+{
+    InitConnection();
+}
+
+MysqlDataOperationManager::~MysqlDataOperationManager()
+{
+    if(m_Connection)
+    {
+        mysql_close(m_Connection);
+        m_Connection = nullptr;
+    }
+}
+
+bool MysqlDataOperationManager::InitConnection()
 {
     m_Connection = mysql_init(NULL);
-    if(!mysql_real_connect(m_Connection, server.c_str(), username.c_str()
-        , password.c_str(), dbname.c_str(), port, NULL, 0))
+    if(!mysql_real_connect(m_Connection, m_Server.c_str(), m_Username.c_str()
+        , m_Password.c_str(), m_Database.c_str(), m_Port, NULL, 0))
     {
         LOG(FATAL) << "Connecting MySQL failed: " << mysql_error(m_Connection);
  
         mysql_close(m_Connection);
         m_Connection = nullptr;
+        return false;
     }
-
+    return true;
 }
 
-MysqlDataOperationManager::MysqlDataOperationManager(MYSQL* mysqlConnection, std::string tablename)
-    : m_Connection(mysqlConnection)
-    , m_ownConnection(false)
-    , m_TableName(std::move(tablename))
- {
-
-}
-
-MysqlDataOperationManager::~MysqlDataOperationManager()
+bool MysqlDataOperationManager::ValidateConnection()
 {
-    if(m_ownConnection && m_Connection)
+    if(!IsConnectionAlive(m_Connection))
     {
-        mysql_close(m_Connection);
-        m_Connection = nullptr;
+        LOG(WARNING) << "Lost mysql connection. Retry connection\n";
+        if(!InitConnection())
+        {
+            LOG(ERROR) << "Retry mysql connection failed\n";
+            return false;
+        }
     }
+    return true;
 }
 
 bool MysqlDataOperationManager::IsExists(const std::string& id) const
 {
     MYSQL_STMT* selectStatement = mysql_stmt_init(m_Connection);
-
-    StatementCloser closer;
-    closer.statement = selectStatement;
+    StatementCloser closer(selectStatement);
 
     stringstream ss;
     ss << "SELECT id FROM " << m_TableName << " WHERE id=?";
@@ -137,30 +161,37 @@ std::unique_ptr<DataHandler> MysqlDataOperationManager::GetDataHandler(std::stri
 {
     std::unique_ptr<DataHandler> result;
 
-    if(IsExists(id))
+    if(IsConnectionAlive(m_Connection) && IsExists(id))
     {
-        auto mysqlOperation = new DataHandlerLoadOperationMysql(m_Connection, id, m_TableName);
+        auto mysqlOperation = new DataHandlerLoadOperationMysql(&m_Connection, id, m_TableName);
         result = std::unique_ptr<DataHandler>(new DataHandler(mysqlOperation));
     }
 
     return result;
 }
 
-std::vector<std::string> MysqlDataOperationManager::GetDataList(std::regex regex, bool checkNotation) const
+bool MysqlDataOperationManager::GetDataList(std::vector<std::string>& out, std::regex regex, bool checkNotation)
 {
+    if(!ValidateConnection())
+        return false;
     std::vector<std::string> result;
 
     MYSQL_STMT* selectStatement = mysql_stmt_init(m_Connection);
+    if(!selectStatement)
+    {
+        LOG(ERROR) << "Init prepare statement error: " << mysql_stmt_error(selectStatement) << "\n";
+        return false;
+    }
 
-    StatementCloser closer;
-    closer.statement = selectStatement;
+    StatementCloser closer(selectStatement);
 
     stringstream ss;
     ss << "SELECT id FROM " << m_TableName;
     std::string statementStr(ss.str());
     if(mysql_stmt_prepare(selectStatement, statementStr.c_str(), statementStr.length()))
     {
-        return result;
+        LOG(ERROR) << "mysql prepare statement err: " << mysql_stmt_error(selectStatement) << ". SQL: " << statementStr.c_str() << "\n";
+        return false;
     }
 
     MYSQL_BIND bindResult[1];
@@ -173,12 +204,14 @@ std::vector<std::string> MysqlDataOperationManager::GetDataList(std::regex regex
     bindResult[0].buffer_length = sizeof(idBuffer);
     if (mysql_stmt_bind_result(selectStatement, bindResult))
     {
-        return result;
+        LOG(ERROR) << "mysql bind statement err: " << mysql_stmt_error(selectStatement) << ". SQL: " << statementStr.c_str() << "\n";
+        return false;
     }
     
     if(mysql_stmt_execute(selectStatement))
     {
-        return result;
+        LOG(ERROR) << "mysql execute err: " << mysql_stmt_error(selectStatement) << ". SQL: " << statementStr.c_str() << "\n";
+        return false;
     }
     mysql_stmt_store_result(selectStatement);
 
@@ -186,29 +219,32 @@ std::vector<std::string> MysqlDataOperationManager::GetDataList(std::regex regex
     {
         result.emplace_back(idBuffer);
     }
-
-    return result;
+    out = result;
+    return true;
 }
 
 std::unique_ptr<DataHandler> MysqlDataOperationManager::StoreData(std::string id, std::vector<char>&& data, bool forceOverwrite)
 {
     std::unique_ptr<DataHandler> result;
+    if(!ValidateConnection())
+        return result;
 
     bool rowExisted = IsExists(id);
     if(rowExisted && !forceOverwrite)
     {
         //  TODO: warning file existed and not force overwrite
+        LOG(WARNING) << "data id " << id.c_str() << " already exist. mysql store data failed\n";
         return result;
     }
     MYSQL_STMT* insertStatement = mysql_stmt_init(m_Connection);
-    StatementCloser closer;
-    closer.statement = insertStatement;
+    StatementCloser closer(insertStatement);
     
     stringstream ss;
     ss << "INSERT INTO " << m_TableName << "(id, data) VALUES (?, ?)";
     std::string insertStatementStr(ss.str());
     if(mysql_stmt_prepare(insertStatement, insertStatementStr.c_str(), insertStatementStr.length()))
     {
+        LOG(ERROR) << "mysql prepare statement err: " << mysql_stmt_error(insertStatement) << ". SQL: " << insertStatementStr.c_str() << "\n";
         return result;
     }
 
@@ -229,6 +265,7 @@ std::unique_ptr<DataHandler> MysqlDataOperationManager::StoreData(std::string id
     
     if (mysql_stmt_bind_param(insertStatement, bindParam))
     {
+        LOG(ERROR) << "mysql bind statement err: " << mysql_stmt_error(insertStatement) << ". SQL: " << insertStatementStr.c_str() << "\n";
         return result;
     }
 
@@ -248,11 +285,11 @@ std::unique_ptr<DataHandler> MysqlDataOperationManager::StoreData(std::string id
 
     if (mysql_stmt_execute(insertStatement))
     {
-        LOG(ERROR) << "execute err: " << mysql_stmt_error(insertStatement) << "\n";
+        LOG(ERROR) << "execute err: " << mysql_stmt_error(insertStatement) << ". SQL: " << insertStatementStr.c_str() << "\n";
         return result;
     }
 
-    auto mysqlOperation = new DataHandlerLoadOperationMysql(m_Connection, id, m_TableName);
+    auto mysqlOperation = new DataHandlerLoadOperationMysql(&m_Connection, id, m_TableName);
     result = std::unique_ptr<DataHandler>(new DataHandler(mysqlOperation, std::move(data)));
 
     return result;
@@ -260,9 +297,11 @@ std::unique_ptr<DataHandler> MysqlDataOperationManager::StoreData(std::string id
 
 bool MysqlDataOperationManager::DeleteData(const std::string& id)
 {
+    if(!ValidateConnection())
+        return false;
+    
     MYSQL_STMT* deleteStatement = mysql_stmt_init(m_Connection);
-    StatementCloser closer;
-    closer.statement = deleteStatement;
+    StatementCloser closer(deleteStatement);
     
     stringstream ss;
     ss << "DELETE FROM " << m_TableName << " WHERE id=?";

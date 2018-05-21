@@ -40,7 +40,7 @@ private:
     void DoInit();
     void DoDiffs();
     void DoSync();
-    void Sync(DataManager::AddAndRemoveDataListPair& diffResult, DataManager& sourceManager, DataManager& destManager);
+    void Sync(DataManager::AddAndRemoveDataListPair& diffResult, DataManager& sourceManager, DataManager& destManager, bool giveupData);
 private:
     std::vector<std::unique_ptr<SyncWorker>> m_Workers;
     bool m_KeepRun;

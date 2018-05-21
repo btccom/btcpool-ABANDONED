@@ -56,45 +56,57 @@ def read_arg():
 def run():
     global host, user, passwd, db, table, retention_time
 
+    signal.signal(signal.SIGINT, signal_handler)
 
+    # try connect for the first time
     try:
-        db = MySQLdb.connect(host=host,    # your host, usually localhost
+        testConnectDb = MySQLdb.connect(host=host,    # your host, usually localhost
                             user=user,         # your username
                             passwd=passwd,  # your password
                             db=db)        # name of the data base
+
+        if testConnectDb.open == False:
+            print("Cannot connect to db. Command line: " + str(sys.argv))
+            usage()
+            exit(-1)
+
+        testConnectDb.close()
     except MySQLdb.Error as e:
         print("Mysql connection error: " + str(e))
         usage()
         exit(-1)
-    
-    if db.open == False:
-        print("Cannot connect to db. Command line: " + str(sys.argv))
-        usage()
-        exit(-1)
 
-    signal.signal(signal.SIGINT, signal_handler)
-
-    cur = db.cursor()
 
     while(running):
-        t1 = datetime.datetime.today() - datetime.timedelta(hours=retention_time)#datetime.datetime(2018, 5, 14)
-        t1str = str(t1.isoformat())
-        # print t1str
+        try:
+            conn = MySQLdb.connect(   host=host,    # your host, usually localhost
+                                    user=user,         # your username
+                                    passwd=passwd,  # your password
+                                    db=db)        # name of the data base
+        
+            if conn.open == False:
+                print("Cannot connect to db. Command line: " + str(sys.argv))
+ 
 
-        statement = "delete FROM %s where datetime < '%s'" % (table, t1str)
-        print "[%s] SQL: %s" % (str(datetime.datetime.today()), statement)
+            cur = conn.cursor()
 
-        cur.execute(statement)
-        db.commit()
-        row_affected = cur.rowcount
-        print "Affected row = " + str(row_affected)
+            statement = "delete FROM %s where datetime < DATE_SUB(NOW(), INTERVAL %d HOUR)" % (table, retention_time)
+            print "[%s] SQL: %s" % (str(datetime.datetime.today()), statement)
+
+            cur.execute(statement)
+            conn.commit()
+            row_affected = cur.rowcount
+            print "Affected row = " + str(row_affected)
+            conn.close()
+
+        except MySQLdb.Error as e:
+            print("Mysql connection error: " + str(e))
+
         # print "wait for 60 seconds before next delete"
         count = 0
         while(count < 60 and running):
             time.sleep(1)
             count += 1
-
-    db.close()
 
 if __name__ == "__main__":
     read_arg()

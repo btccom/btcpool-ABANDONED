@@ -6,8 +6,8 @@
 
 struct StatementCloser
 {
-    StatementCloser()
-        : statement(nullptr)
+    StatementCloser(MYSQL_STMT* s)
+        : statement(s)
     {
     }
 
@@ -35,35 +35,41 @@ public:
 
 private:
     friend class MysqlDataOperationManager;
-    DataHandlerLoadOperationMysql(MYSQL* connection, std::string id, std::string tableName);
+    DataHandlerLoadOperationMysql(MYSQL* const * connection, std::string id, std::string tableName);
 
-    MYSQL* m_Connection;
+    MYSQL* const * m_Connection;
     std::string m_ID;
     std::string m_TableName;
-    MYSQL_STMT* m_Statement;
     MYSQL_BIND m_BindParam[1];
-    StatementCloser m_StatementCloser;
 };
 
 class MysqlDataOperationManager : public DataOperationManagerBase
 {
 public:
 
-    MysqlDataOperationManager(const std::string& server, const std::string& username, const std::string& password
-                    , const std::string& dbname, std::string tablename, int port = 0);
-    MysqlDataOperationManager(MYSQL* mysqlConnection, std::string tablename);
+    MysqlDataOperationManager(std::string server, std::string username, std::string password
+                    ,  std::string dbname, std::string tablename, int port = 0);
     ~MysqlDataOperationManager();
 
     std::unique_ptr<DataHandler> GetDataHandler(std::string id) const override;
-    std::vector<std::string> GetDataList(std::regex regex = std::regex(".*"), bool checkNotation = false) const override;
+    bool GetDataList(std::vector<std::string>& out, std::regex regex = std::regex(".*"), bool checkNotation = false) override;
     std::unique_ptr<DataHandler> StoreData(std::string id, std::vector<char>&& data, bool forceOverwrite = false) override;
     bool DeleteData(const std::string& id) override;
 
     bool IsExists(const std::string& id) const;
 private:
-    MYSQL* m_Connection;
-    bool m_ownConnection;
+    bool InitConnection();
+    bool ValidateConnection();
+
+    std::string m_Server;
+    std::string m_Username;
+    std::string m_Password;
+    std::string m_Database;
     std::string m_TableName;
+    int m_Port;
+
+    MYSQL* m_Connection;
+
 };
 
 #endif // _MYSQL_OPERATIONS_H_

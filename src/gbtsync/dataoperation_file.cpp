@@ -1,6 +1,8 @@
 #include "dataoperation_file.h"
 #include <fstream>
 #include <dirent.h>
+#include <stdio.h>
+#include <glog/logging.h>
 
 using namespace std;
 
@@ -25,14 +27,35 @@ bool DataHandlerLoadOperationFile::DoLoad(std::vector<char>& outData)
 
 
 
-FileDataOperationManager::FileDataOperationManager(std::string path, std::vector<char> filePrefix, std::vector<char> filePosfix)
+FileDataOperationManager::FileDataOperationManager(std::string path, std::vector<char> filePrefix, std::vector<char> filePosfix, std::string trashPath)
     : m_FilePrefix(std::move(filePrefix))
     , m_FilePostfix(std::move(filePosfix))
     , m_DirPath(std::move(path))
+    , m_DirTrashPath(std::move(trashPath))
 {
+    auto createDirIfNotExist = [](const std::string& path)
+    {
+        DIR *dir;
+        if ((dir = opendir(path.c_str())) == NULL)
+        {
+            if(-1 == system((std::string("mkdir -p ") + path).c_str()))
+            {
+                LOG(ERROR) << "Dir " << path.c_str() << " not exist. Error creating directory!\n";
+            }
+            else
+            {
+                LOG(WARNING) << "Dir " << path.c_str() << " not exist. Directory created!\n";            
+            }
+        }
+    };
+    createDirIfNotExist(m_DirPath);
+    if(!m_DirTrashPath.empty())
+    {
+        createDirIfNotExist(m_DirTrashPath);
+    }
 }
 
-std::vector<std::string> FileDataOperationManager::GetDataList(std::regex regex, bool checkNotation) const
+bool FileDataOperationManager::GetDataList(std::vector<std::string>& out, std::regex regex, bool checkNotation)
 {
     vector<string> files;
     DIR *dir;
@@ -68,8 +91,8 @@ std::vector<std::string> FileDataOperationManager::GetDataList(std::regex regex,
             }
         }    
     }
-    return files;
-
+    out = std::move(files);
+    return true;
 }
 
 
@@ -168,5 +191,11 @@ std::unique_ptr<DataHandler> FileDataOperationManager::StoreData(std::string id,
 
 bool FileDataOperationManager::DeleteData(const std::string& id)
 {
-    return std::remove((m_DirPath + id).c_str()) == 0;
+    std::string fullPath = m_DirPath + id;
+    if(m_DirTrashPath.empty())
+    {
+        return std::remove(fullPath.c_str()) == 0;
+    }
+    std::string fullTrashPath = m_DirTrashPath + id;
+    return rename(fullPath.c_str(), fullTrashPath.c_str()) != -1;
 }
