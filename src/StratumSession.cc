@@ -1843,7 +1843,7 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   
   ServerBytom *s = dynamic_cast<ServerBytom*> (server_);
   if (s != nullptr) {
-    uint8_t *pTarget = GpuTs(vHeader.data(), vSeed.data());
+    uint8_t *pTarget = GpuTs((uint8_t*)vHeader.data(), (uint8_t*)vSeed.data());
     string targetStr;
     Bin2Hex(pTarget, 32, targetStr);
     DLOG(INFO) << "compare " << targetStr << " with " << sjob_->networkTarget_;
