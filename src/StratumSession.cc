@@ -29,6 +29,7 @@
 #include <boost/algorithm/string.hpp>
 #include "bytom/bh_shared.h"
 #include "StratumServer.h"
+#include "bytom/cutil/src/GpuTs.h"
 
 //////////////////////////////// DiffController ////////////////////////////////
 void DiffController::setMinDiff(uint64 minDiff) {
@@ -1841,8 +1842,16 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   share.result_ = Share::Result::ACCEPT;
   
   ServerBytom *s = dynamic_cast<ServerBytom*> (server_);
-  if (s != nullptr)
-    s->sendSolvedShare2Kafka(encoded.r0);
+  if (s != nullptr) {
+    uint8_t *pTarget = GpuTs(vHeader.data(), vSeed.data());
+    string targetStr;
+    Bin2Hex(pTarget, 32, targetStr);
+    DLOG(INFO) << "compare " << targetStr << " with " << sjob_->networkTarget_;
+    arith_uint256 shareTarget(targetStr);
+    arith_uint256 networkTarget = UintToArith256(exjob->sjob_->networkTarget_);
+    if (shareTarget < networkTarget) 
+      s->sendSolvedShare2Kafka(encoded.r0);
+  }
 
   rpc2ResponseBoolean(idStr, true);
   server_->sendShare2Kafka((const uint8_t *)&share, sizeof(Share));
