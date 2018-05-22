@@ -1846,9 +1846,9 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
     uint8_t *pTarget = GpuTs((uint8_t*)vHeader.data(), (uint8_t*)vSeed.data());
     string targetStr;
     Bin2Hex(pTarget, 32, targetStr);
-    DLOG(INFO) << "compare " << targetStr << " with " << sjob_->networkTarget_;
+    DLOG(INFO) << "compare " << targetStr << " with " << sJob->networkTarget_;
     arith_uint256 shareTarget(targetStr);
-    arith_uint256 networkTarget = UintToArith256(exjob->sjob_->networkTarget_);
+    arith_uint256 networkTarget = UintToArith256(sJob->networkTarget_);
     if (shareTarget < networkTarget) 
       s->sendSolvedShare2Kafka(encoded.r0);
   }
