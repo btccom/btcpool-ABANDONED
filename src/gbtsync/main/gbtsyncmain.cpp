@@ -89,7 +89,7 @@ DataManager* CreateDataManagerFromSettings(const libconfig::Setting& setting)
     {
         string name;
         setting.lookupValue("name", name);
-        bool syncDelete = true;
+        bool syncDelete = false;
         setting.lookupValue("syncdelete", syncDelete);
         result->SetName(std::move(name));
         result->EnableSyncDelete(syncDelete);

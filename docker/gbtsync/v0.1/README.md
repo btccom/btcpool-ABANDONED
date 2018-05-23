@@ -94,7 +94,7 @@ workers =
         tablename = "filedata";
         name = "manager01";
         time = 1000;
-        # syncdelete = false;   #  to ignore deleted data/file from other workers 
+        syncdelete = false;   # set true to deleting local file automatically when it was removed from MySQL
     }
 )
 ```
