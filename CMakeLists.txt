@@ -264,6 +264,12 @@ find_package(KafkaC)
 if(NOT KAFKA_FOUND)
   message(FATAL_ERROR "librdkafka not found!")
 endif()
+
+find_package(CUDA 9.2 REQUIRED)
+if(NOT KAFKA_FOUND)
+  message(FATAL_ERROR "cuda 9.2 not found!")
+endif()
+
 message("") # add an empty line
 
 execute_process(COMMAND mysql_config --libs_r OUTPUT_VARIABLE MYSQL_LIB OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -298,7 +304,7 @@ set(THIRD_LIBRARIES ${BITCOIN_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL
                     ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${ZOOKEEPER_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBEVENT_LIB}
                     ${LIBEVENT_PTHREADS_LIB} ${secp256k1_LIBRARIES} ${PTHREAD_LIBRARIES} ${MYSQL_LIB} ${GMP_LIBRARIES} 
                     ethash blake2 /work/btcpool/src/bytom/bh_shared.a /work/btcpool/src/bytom/cutil/src/GpuTs.a
-                    -lcudart -lcublas)
+                    ${CUDA_LIBRARIES})
 
 file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc src/bytom/*.cc)
 add_library(btcpool STATIC ${LIB_SOURCES})
