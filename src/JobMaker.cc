@@ -585,7 +585,7 @@ void JobMaker::sendStratumJob(const char *gbt) {
 
   // save send timestamp to file, for monitor system
   if (!fileLastJobTime_.empty())
-  	writeTime2File(fileLastJobTime_.c_str(), (uint32_t)time(nullptr));
+  	writeTime2File(fileLastJobTime_.c_str(), (uint32_t)sjob.nTime_);
 
   LOG(INFO) << "--------producer stratum job, jobId: " << sjob.jobId_
   << ", height: " << sjob.height_ << "--------";
