@@ -300,11 +300,15 @@ add_subdirectory(src/libblake2)
 include_directories(src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config ${CHAIN_SRC_ROOT}/src/secp256k1/include
                     ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS}
                     ${LIBEVENT_INCLUDE_DIR} ${MYSQL_INCLUDE})
+
+link_directories(/opt/OpenBLAS/lib /work/btcpool/src/bytom/ /work/btcpool/src/bytom/cutil/src/)
+
 set(THIRD_LIBRARIES ${BITCOIN_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY}
                     ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${ZOOKEEPER_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBEVENT_LIB}
                     ${LIBEVENT_PTHREADS_LIB} ${secp256k1_LIBRARIES} ${PTHREAD_LIBRARIES} ${MYSQL_LIB} ${GMP_LIBRARIES} 
-                    ethash blake2 /work/btcpool/src/bytom/bh_shared.a /work/btcpool/src/bytom/cutil/src/GpuTs.a
-                    ${CUDA_LIBRARIES})
+                    ethash blake2 bh_shared.a GpuTs.a
+                    ${CUDA_LIBRARIES}
+                    openblas cublas)
 
 file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc src/bytom/*.cc)
 add_library(btcpool STATIC ${LIB_SOURCES})
