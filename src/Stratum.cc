@@ -399,7 +399,6 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
       vtxhashs.push_back(MakeTransactionRef(std::move(tx))->GetHash());
     }
     // make merkleSteps and merkle branch
-    vector<uint256> merkleSteps;
     makeMerkleBranch(vtxhashs, merkleBranch_);
   }
 
