@@ -709,7 +709,7 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   // if share is from agent session, we don't need to send reply json
   //
   if (isAgentSession == true && agentSessions_ == nullptr) {
-    LOG(ERROR) << "can't find agentSession";
+    LOG(ERROR) << "can't find agentSession, worker: " << worker_.fullName_;
     return;
   }
 
@@ -719,8 +719,13 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   LocalJob *localJob = findLocalJob(shortJobId);
   if (localJob == nullptr) {
     // if can't find localJob, could do nothing
-    if (isAgentSession == false)
+    if (isAgentSession == false) {
     	responseError(idStr, StratumError::JOB_NOT_FOUND);
+    }
+    
+    LOG(INFO) << "rejected share: " << StratumError::toString(StratumError::JOB_NOT_FOUND)
+    << ", worker: " << worker_.fullName_ << ", Share(id: " << idStr << ", shortJobId: "
+    << (int)shortJobId << ", nTime: " << nTime << "/" << date("%F %T", nTime) << ")";
     return;
   }
 
@@ -748,13 +753,13 @@ void StratumSession::handleRequest_Submit(const string &idStr,
     // reset to agent session's workerId
     share.workerHashId_ = agentSessions_->getWorkerId(sessionId);
     if (share.workerHashId_ == 0) {
-      LOG(ERROR) << "invalid workerId 0, sessionId: " << sessionId;
+      LOG(ERROR) << "invalid workerId 0, sessionId: " << sessionId << ", worker: " << worker_.fullName_;
       return;
     }
 
     // reset to agent session's diff
     if (localJob->agentSessionsDiff2Exp_.size() < (size_t)sessionId + 1) {
-      LOG(ERROR) << "can't find agent session's diff, sessionId: " << sessionId;
+      LOG(ERROR) << "can't find agent session's diff, sessionId: " << sessionId << ", worker: " << worker_.fullName_;
       return;
     }
     share.share_ = (uint64_t)exp2(localJob->agentSessionsDiff2Exp_[sessionId]);
@@ -774,7 +779,8 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   // can't find local share
   if (!localJob->addLocalShare(localShare)) {
     if (isAgentSession == false)
-      responseError(idStr, StratumError::DUPLICATE_SHARE);
+      submitResult = StratumError::DUPLICATE_SHARE;
+      responseError(idStr, submitResult);
 
     // add invalid share to counter
     invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
@@ -821,18 +827,22 @@ void StratumSession::handleRequest_Submit(const string &idStr,
 finish:
   DLOG(INFO) << share.toString();
 
-  // check if thers is invalid share spamming
   if (share.result_ != Share::Result::ACCEPT) {
+    
+    // log all rejected share to answer "Why the rejection rate of my miner increased?"
+    LOG(INFO) << "rejected share: " << StratumError::toString(submitResult)
+    << ", worker: " << worker_.fullName_ << ", " << share.toString();
+
+    // check if thers is invalid share spamming
     int64_t invalidSharesNum = invalidSharesCounter_.sum(time(nullptr),
                                                          INVALID_SHARE_SLIDING_WINDOWS_SIZE);
     // too much invalid shares, don't send them to kafka
     if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT) {
       isSendShareToKafka = false;
 
-      LOG(WARNING) << "invalid share spamming, diff: "
-      << share.share_ << ", uid: " << worker_.userId_
-      << ", uname: \""  << worker_.userName_ << "\", agent: \""
-      << clientAgent_ << "\", ip: " << clientIp_;
+      LOG(INFO) << "invalid share spamming, diff: "
+      << share.share_ << ", worker: " << worker_.fullName_ << ", agent: "
+      << clientAgent_ << ", ip: " << clientIp_;
     }
   }
 
