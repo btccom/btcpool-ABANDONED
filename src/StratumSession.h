@@ -28,7 +28,7 @@
 
 #include <netinet/in.h>
 #include <deque>
-
+#include <unordered_map>
 #include <event2/event.h>
 #include <event2/buffer.h>
 #include <event2/bufferevent.h>
@@ -65,52 +65,95 @@ class StratumSession;
 class AgentSessions;
 
 //////////////////////////////// DiffController ////////////////////////////////
-class DiffController {
+class DiffController
+{
 public:
-  static const int32_t kMinDiff_       = 64;    // min diff
-  static const int32_t kDiffWindow_    = 900;   // time window, seconds, 60*N
-  static const int32_t kRecordSeconds_ = 10;    // every N seconds as a record
+  //
+  // max diff: 2^62
+  //
+  // Cannot large than 2^62.
+  // If `kMaxDiff_` be 2^63, user can set `kMinDiff_` equals 2^63,
+  // then `kMinDiff_*2` will be zero when next difficulty decrease and
+  // DiffController::_calcCurDiff() will infinite loop.
+  //static const uint64 kMaxDiff_ = 4611686018427387904ull;
+  // min diff
+  //static const uint64 kMinDiff_ = 64;
+
+  //static const time_t kDiffWindow_    = 900;   // time window, seconds, 60*N
+  //static const time_t kRecordSeconds_ = 20;    // every N seconds as a record
 #ifdef NDEBUG
   // If not debugging, set default to 16384
-  static const int32_t kDefaultDiff_   = 16384;  // default diff, 2^N
+  static const uint64 kDefaultDiff_ = 16384; // default diff, 2^N
 #else
   // debugging enabled
-  static const int32_t kDefaultDiff_   = 128;  // default diff, 2^N
-#endif	/* NDEBUG */
+  static const uint64 kDefaultDiff_ = 128; // default diff, 2^N
+#endif /* NDEBUG */
 
-private:
-  time_t startTime_;  // first job send time
-  uint64  minDiff_;
-  uint64  curDiff_;
-  int32_t shareAvgSeconds_;
+  time_t startTime_; // first job send time
+  const uint64 kMinDiff_;
+  uint64 minDiff_;
+  const uint64 kMaxDiff_;
+  uint64 curDiff_;
   int32_t curHashRateLevel_;
+  const time_t kRecordSeconds_;
+  int32_t shareAvgSeconds_;
+  time_t kDiffWindow_;
+  StatsWindow<double> sharesNum_; // share count
+  StatsWindow<uint64> shares_;    // share
 
-  StatsWindow<double> sharesNum_;  // share count
-  StatsWindow<uint64> shares_;     // share
-
-  uint64 _calcCurDiff();
+  void setCurDiff(uint64 curDiff); // set current diff with bounds checking
+  virtual uint64 _calcCurDiff();
   int adjustHashRateLevel(const double hashRateT);
   double minerCoefficient(const time_t now, const int64_t idx);
 
-  inline bool isFullWindow(const time_t now) {
+  inline bool isFullWindow(const time_t now)
+  {
     return now >= startTime_ + kDiffWindow_;
   }
 
 public:
-  DiffController(const int32_t shareAvgSeconds) :
-  startTime_(0),
-  minDiff_(kMinDiff_), curDiff_(kDefaultDiff_), curHashRateLevel_(0),
-  sharesNum_(kDiffWindow_/kRecordSeconds_), /* every N seconds as a record */
-  shares_   (kDiffWindow_/kRecordSeconds_)
+  DiffController(const uint64 defaultDifficulty,
+                 const uint64 maxDifficulty,
+                 const uint64 minDifficulty,
+                 const uint32 shareAvgSeconds,
+                 const uint32 avgBlockTIme) : startTime_(0),
+                                              kMinDiff_(minDifficulty),
+                                              minDiff_(minDifficulty),
+                                              kMaxDiff_(maxDifficulty),
+                                              curDiff_(defaultDifficulty),
+                                              curHashRateLevel_(0),
+                                              kRecordSeconds_(shareAvgSeconds),
+                                              kDiffWindow_(avgBlockTIme),
+                                              sharesNum_(kDiffWindow_ / kRecordSeconds_), /* every N seconds as a record */
+                                              shares_(kDiffWindow_ / kRecordSeconds_)
   {
-    if (shareAvgSeconds >= 1 && shareAvgSeconds <= 60) {
+    assert(curDiff_ <= kMaxDiff_);
+    assert(kMinDiff_ <= curDiff_);
+
+    if (shareAvgSeconds >= 1 && shareAvgSeconds <= 60)
+    {
       shareAvgSeconds_ = shareAvgSeconds;
-    } else {
+    }
+    else
+    {
       shareAvgSeconds_ = 8;
     }
   }
 
-  ~DiffController() {}
+  DiffController(DiffController* other): startTime_(0),
+                                              kMinDiff_(other->kMinDiff_),
+                                              minDiff_(other->minDiff_),
+                                              kMaxDiff_(other->kMaxDiff_),
+                                              curDiff_(other->curDiff_),
+                                              curHashRateLevel_(other->curHashRateLevel_),
+                                              kRecordSeconds_(other->kRecordSeconds_),
+                                              shareAvgSeconds_(other->shareAvgSeconds_),
+                                              kDiffWindow_(other->kDiffWindow_),
+                                              sharesNum_(other->kDiffWindow_ / other->kRecordSeconds_), /* every N seconds as a record */
+                                              shares_(other->kDiffWindow_  / other->kRecordSeconds_) {
+  }
+
+  virtual ~DiffController() {}
 
   // recalc miner's diff before send an new stratum job
   uint64 calcCurDiff();
@@ -125,7 +168,11 @@ public:
   void resetCurDiff(uint64 curDiff);
 };
 
-
+// class DiffControllerEth : public DiffController {
+//   virtual uint64 _calcCurDiff();
+//   public:
+//     DiffControllerEth(const int32_t shareAvgSeconds, const uint64_t defaultDifficulty);
+// };
 
 //////////////////////////////// StratumSession ////////////////////////////////
 class StratumSession {
@@ -188,9 +235,9 @@ public:
   };
 
   //----------------------
-private:
+protected:
   int32_t shareAvgSeconds_;
-  DiffController diffController_;
+  shared_ptr<DiffController> diffController_;
   State state_;
   StratumWorker worker_;
   string   clientAgent_;  // eg. bfgminer/4.4.0-32-gac4e9b3
@@ -227,14 +274,12 @@ private:
 
   void responseError(const string &idStr, int code);
   void responseTrue(const string &idStr);
+  void rpc2ResponseBoolean(const string &idStr, bool result);
 
   bool tryReadLine(string &line);
   void handleLine(const string &line);
   void handleRequest(const string &idStr, const string &method, const JsonNode &jparams);
 
-  void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams);
-  void handleRequest_Authorize        (const string &idStr, const JsonNode &jparams);
-  void handleRequest_Submit           (const string &idStr, const JsonNode &jparams);
   void handleRequest_SuggestTarget    (const string &idStr, const JsonNode &jparams);
   void handleRequest_SuggestDifficulty(const string &idStr, const JsonNode &jparams);
   void handleRequest_MultiVersion     (const string &idStr, const JsonNode &jparams);
@@ -242,12 +287,24 @@ private:
   void _handleRequest_AuthorizePassword(const string &password);
 
   LocalJob *findLocalJob(uint8_t shortJobId);
-
+  LocalJob *findLocalJob(const string& strJobId);
+  void clearLocalJobs();
   void handleExMessage_RegisterWorker     (const string *exMessage);
   void handleExMessage_UnRegisterWorker   (const string *exMessage);
   void handleExMessage_SubmitShare        (const string *exMessage);
   void handleExMessage_SubmitShareWithTime(const string *exMessage);
 
+  void checkUserAndPwd(const string &idStr, const string &fullName, const string &password);
+
+  virtual void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams);
+  virtual void handleRequest_Authorize        (const string &idStr, const JsonNode &jparams);
+  virtual void handleRequest_Submit           (const string &idStr, const JsonNode &jparams);
+  virtual void handleRequest_GetWork(const string &idStr, const JsonNode &jparams) {}; 
+  virtual void handleRequest_SubmitHashrate(const string &idStr, const JsonNode &jparams) {}; 
+   //return true if request is handled
+  virtual bool handleRequest_Specific(const string &idStr, const string &method, const JsonNode &jparams) {return false;}
+  virtual string getFullName(const string& fullNameStr) { return fullNameStr; }
+  virtual bool needToSendLoginResponse() const {return true;}
 public:
   struct bufferevent* bev_;
   evutil_socket_t fd_;
@@ -257,13 +314,15 @@ public:
   StratumSession(evutil_socket_t fd, struct bufferevent *bev,
                  Server *server, struct sockaddr *saddr,
                  const int32_t shareAvgSeconds, const uint32_t extraNonce1);
-  ~StratumSession();
+  virtual ~StratumSession();
+  virtual bool initialize();
+  virtual void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false);
+  virtual bool validate(const JsonNode &jmethod, const JsonNode &jparams);
 
   void markAsDead();
   bool isDead();
 
   void sendSetDifficulty(const uint64_t difficulty);
-  void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false);
   void sendData(const char *data, size_t len);
   inline void sendData(const string &str) {
     sendData(str.data(), str.size());
@@ -281,6 +340,59 @@ public:
   uint32_t getSessionId() const;
 };
 
+class StratumSessionEth : public StratumSession
+{
+public:
+  typedef enum { STRATUM = 0, ETHPROXY, ETHEREUMSTRATUM } StratumProtocol;
+
+  StratumSessionEth(evutil_socket_t fd, struct bufferevent *bev,
+                    Server *server, struct sockaddr *saddr,
+                    const int32_t shareAvgSeconds, const uint32_t extraNonce1);
+  //virtual bool initialize();
+  void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false) override;  
+  void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams) override;      
+  void handleRequest_Submit           (const string &idStr, const JsonNode &jparams) override;         
+  void handleRequest_Authorize(const string &idStr, const JsonNode &jparams) override;   
+  void handleRequest_GetWork(const string &idStr, const JsonNode &jparams) override; 
+  void handleRequest_SubmitHashrate(const string &idStr, const JsonNode &jparams) override; 
+
+  string getFullName(const string& fullNameStr) override;
+private: 
+  StratumProtocol ethProtocol_;
+  uint16 extraNonce16b_;
+};
+
+class StratumSessionBytom : public StratumSession
+{
+public:
+  StratumSessionBytom(evutil_socket_t fd, struct bufferevent *bev,
+                    Server *server, struct sockaddr *saddr,
+                    const int32_t shareAvgSeconds, const uint32_t extraNonce1);
+  void handleRequest_Authorize(const string &idStr, const JsonNode &jparams) override;
+  void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false) override;  
+  void handleRequest_GetWork(const string &idStr, const JsonNode &jparams) override; 
+  void handleRequest_Submit   (const string &idStr, const JsonNode &jparams) override;   
+  bool validate(const JsonNode &jmethod, const JsonNode &jparams) override;
+  bool needToSendLoginResponse() const override {return false;}
+  
+private:
+  uint8 shortJobId_;    //jobId starts from 1
+};
+
+class StratumSessionSia : public StratumSession
+{
+public:
+  StratumSessionSia(evutil_socket_t fd, struct bufferevent *bev,
+                    Server *server, struct sockaddr *saddr,
+                    const int32_t shareAvgSeconds, const uint32_t extraNonce1);
+  //virtual bool initialize();
+  void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false) override;  
+  void handleRequest_Submit (const string &idStr, const JsonNode &jparams) override;  
+  void handleRequest_Subscribe   (const string &idStr, const JsonNode &jparams) override;        
+
+private:
+  uint8 shortJobId_;    //Claymore jobId starts from 0
+};
 
 ///////////////////////////////// AgentSessions ////////////////////////////////
 class AgentSessions {

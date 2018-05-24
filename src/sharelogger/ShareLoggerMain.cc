@@ -42,49 +42,64 @@
 using namespace std;
 using namespace libconfig;
 
-ShareLogWriter *gShareLogWriter = nullptr;
-
-void handler(int sig) {
-  if (gShareLogWriter) {
-    gShareLogWriter->stop();
+//ShareLogWriter *gShareLogWriter = nullptr;
+vector<shared_ptr<ShareLogWriter>> writers;
+void handler(int sig)
+{
+  for (auto writer : writers)
+  {
+    if (writer)
+      writer->stop();
   }
 }
 
-void usage() {
+void usage()
+{
   fprintf(stderr, "Usage:\n\tsharelogger -c \"sharelogger.cfg\" -l \"log_dir\"\n");
 }
 
-int main(int argc, char **argv) {
+void workerThread(shared_ptr<ShareLogWriter> w)
+{
+  if (w != nullptr)
+    w->run();
+}
+
+int main(int argc, char **argv)
+{
   char *optLogDir = NULL;
-  char *optConf   = NULL;
+  char *optConf = NULL;
   int c;
 
-  if (argc <= 1) {
+  if (argc <= 1)
+  {
     usage();
     return 1;
   }
-  while ((c = getopt(argc, argv, "c:l:h")) != -1) {
-    switch (c) {
-      case 'c':
-        optConf = optarg;
-        break;
-      case 'l':
-        optLogDir = optarg;
-        break;
-      case 'h': default:
-        usage();
-        exit(0);
+  while ((c = getopt(argc, argv, "c:l:h")) != -1)
+  {
+    switch (c)
+    {
+    case 'c':
+      optConf = optarg;
+      break;
+    case 'l':
+      optLogDir = optarg;
+      break;
+    case 'h':
+    default:
+      usage();
+      exit(0);
     }
   }
 
   // Initialize Google's logging library.
   google::InitGoogleLogging(argv[0]);
-  FLAGS_log_dir         = string(optLogDir);
+  FLAGS_log_dir = string(optLogDir);
   // Log messages at a level >= this flag are automatically sent to
   // stderr in addition to log files.
-  FLAGS_stderrthreshold = 3;    // 3: FATAL
-  FLAGS_max_log_size    = 100;  // max log file size 100 MB
-  FLAGS_logbuflevel     = -1;   // don't buffer logs
+  FLAGS_stderrthreshold = 3; // 3: FATAL
+  FLAGS_max_log_size = 100;  // max log file size 100 MB
+  FLAGS_logbuflevel = -1;    // don't buffer logs
   FLAGS_stop_logging_if_full_disk = true;
 
   // Read the file. If there is an error, report it and exit.
@@ -92,34 +107,62 @@ int main(int argc, char **argv) {
   try
   {
     cfg.readFile(optConf);
-  } catch(const FileIOException &fioex) {
+  }
+  catch (const FileIOException &fioex)
+  {
     std::cerr << "I/O error while reading file." << std::endl;
-    return(EXIT_FAILURE);
-  } catch(const ParseException &pex) {
+    return (EXIT_FAILURE);
+  }
+  catch (const ParseException &pex)
+  {
     std::cerr << "Parse error at " << pex.getFile() << ":" << pex.getLine()
-    << " - " << pex.getError() << std::endl;
-    return(EXIT_FAILURE);
+              << " - " << pex.getError() << std::endl;
+    return (EXIT_FAILURE);
   }
 
   // lock cfg file:
   //    you can't run more than one process with the same config file
   boost::interprocess::file_lock pidFileLock(optConf);
-  if (pidFileLock.try_lock() == false) {
+  if (pidFileLock.try_lock() == false)
+  {
     LOG(FATAL) << "lock cfg file fail";
-    return(EXIT_FAILURE);
+    return (EXIT_FAILURE);
   }
 
   signal(SIGTERM, handler);
-  signal(SIGINT,  handler);
+  signal(SIGINT, handler);
 
-  try {
-    gShareLogWriter = new ShareLogWriter(cfg.lookup("kafka.brokers").c_str(),
-                                         cfg.lookup("sharelog_writer.data_dir").c_str(),
-                                         cfg.lookup("sharelog_writer.kafka_group_id").c_str());
-    gShareLogWriter->run();
-    delete gShareLogWriter;
+  try
+  {
+    string brokers = cfg.lookup("kafka.brokers");
+    const Setting &root = cfg.getRoot();
+    const Setting &defs = root["sharelog_writers"];
+
+    for (int i = 0; i < defs.getLength(); ++i)
+    {
+      const Setting &def = defs[i];
+      writers.push_back(make_shared<ShareLogWriter>(brokers.c_str(),
+                                                    def.lookup("data_dir").c_str(),
+                                                    def.lookup("kafka_group_id").c_str(),
+                                                    def.lookup("share_topic")));
+      vector<shared_ptr<thread>> workers; 
+      for (auto writer : writers)
+        workers.push_back(std::make_shared<thread>(workerThread, writer));
+
+      // run
+      for (auto pWorker : workers)
+      {
+        if (pWorker->joinable())
+        {
+          LOG(INFO) << "wait for worker " << pWorker->get_id();
+          pWorker->join();
+          LOG(INFO) << "worker exit";
+        }
+      }
+    }
   }
-  catch (std::exception & e) {
+  catch (std::exception &e)
+  {
     LOG(FATAL) << "exception: " << e.what();
     return 1;
   }

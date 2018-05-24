@@ -30,16 +30,22 @@
 #include "BitcoinUtils.h"
 #include "utilities_js.hpp"
 
+#include "rsk/RskSolvedShareData.h"
+
 
 ////////////////////////////////// BlockMaker //////////////////////////////////
-BlockMaker::BlockMaker(const char *kafkaBrokers, const MysqlConnectInfo &poolDB):
+BlockMaker::BlockMaker(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB):
+def_(def),
 running_(true),
 kMaxRawGbtNum_(100),    /* if 5 seconds a rawgbt, will hold 100*5/60 = 8 mins rawgbt */
 kMaxStratumJobNum_(120), /* if 30 seconds a stratum job, will hold 60 mins stratum job */
+lastSubmittedBlockTime(),
+submittedRskBlocks(0),
 kafkaConsumerRawGbt_     (kafkaBrokers, KAFKA_TOPIC_RAWGBT,       0/* patition */),
 kafkaConsumerStratumJob_ (kafkaBrokers, KAFKA_TOPIC_STRATUM_JOB,  0/* patition */),
-kafkaConsumerSovledShare_(kafkaBrokers, KAFKA_TOPIC_SOLVED_SHARE, 0/* patition */),
+kafkaConsumerSovledShare_(kafkaBrokers, def.solvedShareTopic_.c_str(), 0/* patition */),
 kafkaConsumerNamecoinSovledShare_(kafkaBrokers, KAFKA_TOPIC_NMC_SOLVED_SHARE, 0/* patition */),
+kafkaConsumerRskSolvedShare_(kafkaBrokers, KAFKA_TOPIC_RSK_SOLVED_SHARE, 0/* patition */),
 poolDB_(poolDB)
 {
 }
@@ -53,6 +59,9 @@ BlockMaker::~BlockMaker() {
 
   if (threadConsumeNamecoinSovledShare_.joinable())
     threadConsumeNamecoinSovledShare_.join();
+
+  if (threadConsumeRskSolvedShare_.joinable())
+    threadConsumeRskSolvedShare_.join();
 }
 
 void BlockMaker::stop() {
@@ -120,6 +129,19 @@ bool BlockMaker::init() {
   }
   if (!kafkaConsumerNamecoinSovledShare_.checkAlive()) {
     LOG(ERROR) << "kafka brokers is not alive: kafkaConsumerNamecoinSovledShare_";
+    return false;
+  }
+
+  //
+  // RSK Solved Share
+  //
+  // we need to consume the latest 2 messages, just in case
+  if (kafkaConsumerRskSolvedShare_.setup(RD_KAFKA_OFFSET_TAIL(2)) == false) {
+    LOG(INFO) << "setup kafkaConsumerRskSolvedShare_ fail";
+    return false;
+  }
+  if (!kafkaConsumerRskSolvedShare_.checkAlive()) {
+    LOG(ERROR) << "kafka brokers is not alive: kafkaConsumerRskSolvedShare_";
     return false;
   }
 
@@ -460,33 +482,7 @@ void BlockMaker::_submitNamecoinBlockThread(const string &auxBlockHash,
   }
 }
 
-void BlockMaker::consumeSovledShare(rd_kafka_message_t *rkmessage) {
-  // check error
-  if (rkmessage->err) {
-    if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
-      // Reached the end of the topic+partition queue on the broker.
-      // Not really an error.
-      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
-      //      << "[" << rkmessage->partition << "] "
-      //      << " message queue at offset " << rkmessage->offset;
-      // acturlly
-      return;
-    }
-
-    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
-    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
-    << ": " << rd_kafka_message_errstr(rkmessage);
-
-    if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
-        rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
-      LOG(FATAL) << "consume fatal";
-      stop();
-    }
-    return;
-  }
-
-  LOG(INFO) << "received SolvedShare message, len: " << rkmessage->len;
-
+void BlockMaker::processSolvedShare(rd_kafka_message_t *rkmessage) {
   //
   // solved share message:  FoundBlock + coinbase_Tx
   //
@@ -555,10 +551,45 @@ void BlockMaker::consumeSovledShare(rd_kafka_message_t *rkmessage) {
   const string blockHex = EncodeHexBlock(newblk);
   submitBlockNonBlocking(blockHex);  // using thread
 
+#ifdef CHAIN_TYPE_BCH
+  CAmount coinbaseValue = newblk.vtx[0]->GetValueOut().GetSatoshis();
+#else
+  CAmount coinbaseValue = newblk.vtx[0]->GetValueOut();
+#endif
+
   // save to DB, using thread
   saveBlockToDBNonBlocking(foundBlock, blkHeader,
-                           newblk.vtx[0]->GetValueOut(),  // coinbase value
+                           coinbaseValue,  // coinbase value
                            blockHex.length()/2);
+}
+
+void BlockMaker::consumeSovledShare(rd_kafka_message_t *rkmessage) {
+  // check error
+  if (rkmessage->err) {
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
+      // Reached the end of the topic+partition queue on the broker.
+      // Not really an error.
+      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
+      //      << "[" << rkmessage->partition << "] "
+      //      << " message queue at offset " << rkmessage->offset;
+      // acturlly
+      return;
+    }
+
+    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
+    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
+    << ": " << rd_kafka_message_errstr(rkmessage);
+
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
+        rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
+      LOG(FATAL) << "consume fatal";
+      stop();
+    }
+    return;
+  }
+
+  LOG(INFO) << "received SolvedShare message, len: " << rkmessage->len;
+  processSolvedShare(rkmessage);
 }
 
 void BlockMaker::saveBlockToDBNonBlocking(const FoundBlock &foundBlock,
@@ -783,13 +814,286 @@ void BlockMaker::runThreadConsumeNamecoinSovledShare() {
   }
 }
 
+/**
+  Beginning of methods needed to consume a solved share and submit a block to RSK node.
+
+  @author Martin Medina
+  @copyright RSK Labs Ltd.
+*/
+void BlockMaker::submitRskBlockNonBlocking(const string &rpcAddress,
+                                        const string &rpcUserPwd,
+                                        const string &blockHex) {
+  boost::thread t(boost::bind(&BlockMaker::_submitRskBlockThread, this, rpcAddress, rpcUserPwd, blockHex));
+}
+
+void BlockMaker::_submitRskBlockThread(const string &rpcAddress,
+                                    const string &rpcUserPwd,
+                                    const string &blockHex) {
+  string request = "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"method\":\"mnr_submitBitcoinBlock\",\"params\":[\"";
+  request += blockHex + "\"]}";
+
+  LOG(INFO) << "submit block to: " << rpcAddress;
+  // try N times
+  for (size_t i = 0; i < 3; i++) {
+    string response;
+    bool res = bitcoindRpcCall(rpcAddress.c_str(), rpcUserPwd.c_str(), request.c_str(), response);
+
+    // success
+    if (res) {
+      LOG(INFO) << "rpc call success, submit block response: " << response;
+      break;
+    }
+
+    // failure
+    LOG(ERROR) << "rpc call fail: " << response;
+  }
+}
+
+void BlockMaker::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
+  // check error
+  if (rkmessage->err) {
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
+      // Reached the end of the topic+partition queue on the broker.
+      return;
+    }
+
+    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
+    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
+    << ": " << rd_kafka_message_errstr(rkmessage);
+
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
+        rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
+      LOG(FATAL) << "consume fatal";
+      stop();
+    }
+    return;
+  }
+
+  LOG(INFO) << "received RskSolvedShareData message, len: " << rkmessage->len;
+
+  //
+  // solved share message:  RskSolvedShareData + coinbase_Tx
+  //
+  RskSolvedShareData shareData;
+  CBlockHeader blkHeader;
+  vector<char> coinbaseTxBin;
+  {
+    if (rkmessage->len <= sizeof(RskSolvedShareData)) {
+      LOG(ERROR) << "invalid RskSolvedShareData length: " << rkmessage->len;
+      return;
+    }
+    coinbaseTxBin.resize(rkmessage->len - sizeof(RskSolvedShareData));
+
+    // shareData
+    memcpy((uint8_t *)&shareData, (const uint8_t *)rkmessage->payload, sizeof(RskSolvedShareData));
+    // coinbase tx
+    memcpy((uint8_t *)coinbaseTxBin.data(), (const uint8_t *)rkmessage->payload + sizeof(RskSolvedShareData), coinbaseTxBin.size());
+    // copy header
+    memcpy((uint8_t *)&blkHeader, shareData.header80_, sizeof(CBlockHeader));
+  }
+
+  // get gbtHash and rawgbt (vtxs)
+  uint256 gbtHash;
+  shared_ptr<vector<CTransactionRef>> vtxs;
+  {
+    ScopeLock sl(jobIdMapLock_);
+    if (jobId2GbtHash_.find(shareData.jobId_) != jobId2GbtHash_.end()) {
+      gbtHash = jobId2GbtHash_[shareData.jobId_];
+    }
+  }
+  {
+    ScopeLock ls(rawGbtLock_);
+    if (rawGbtMap_.find(gbtHash) == rawGbtMap_.end()) {
+      LOG(ERROR) << "can't find this gbthash in rawGbtMap_: " << gbtHash.ToString();
+      return;
+    }
+    vtxs = rawGbtMap_[gbtHash];
+  }
+  assert(vtxs.get() != nullptr);
+
+  //
+  // build new block
+  //
+  CBlock newblk(blkHeader);
+
+  // put coinbase tx
+  {
+    CSerializeData sdata;
+    sdata.insert(sdata.end(), coinbaseTxBin.begin(), coinbaseTxBin.end());
+
+    CMutableTransaction tx;
+    CDataStream c(sdata, SER_NETWORK, PROTOCOL_VERSION);
+    c >> tx;
+
+    newblk.vtx.push_back(MakeTransactionRef(std::move(tx)));
+  }
+
+  // put other txs
+  if (vtxs->size()) {
+    newblk.vtx.insert(newblk.vtx.end(), vtxs->begin(), vtxs->end());
+  }
+
+  if (submitToRskNode()) {
+    LOG(INFO) << "submit RSK block: " << newblk.GetHash().ToString();
+    const string blockHex = EncodeHexBlock(newblk);
+    submitRskBlockNonBlocking(shareData.rpcAddress_, shareData.rpcUserPwd_, blockHex);  // using thread
+  }
+}
+
+/**
+  Anti flooding mechanism.
+  No more than 2 submissions per second can be made to RSK node.
+
+  @returns true if block can be submitted to RSK node. false otherwise.
+*/
+bool BlockMaker::submitToRskNode() {
+    uint32_t maxSubmissionsPerSecond = 2;
+    int64_t oneSecondWindowInMs = 1000;
+
+    if (lastSubmittedBlockTime.is_not_a_date_time()) {
+        lastSubmittedBlockTime = bpt::microsec_clock::universal_time();
+    }
+
+    bpt::ptime currentTime(bpt::microsec_clock::universal_time());
+    bpt::time_duration elapsed = currentTime - lastSubmittedBlockTime;
+
+    if (elapsed.total_milliseconds() > oneSecondWindowInMs) {
+        lastSubmittedBlockTime = currentTime;
+        submittedRskBlocks = 0;
+        elapsed = currentTime - lastSubmittedBlockTime;
+    }
+
+    if (elapsed.total_milliseconds() < oneSecondWindowInMs && submittedRskBlocks < maxSubmissionsPerSecond) {
+        submittedRskBlocks++;
+        return true;
+    }
+
+    return false;
+}
+
+void BlockMaker::runThreadConsumeRskSolvedShare() {
+  const int32_t timeoutMs = 1000;
+
+  while (running_) {
+    rd_kafka_message_t *rkmessage;
+    rkmessage = kafkaConsumerRskSolvedShare_.consumer(timeoutMs);
+    if (rkmessage == nullptr) /* timeout */
+      continue;
+
+    consumeRskSolvedShare(rkmessage);
+
+    /* Return message to rdkafka */
+    rd_kafka_message_destroy(rkmessage);
+  }
+}
+//// End of methods added to merge mine for RSK
 
 void BlockMaker::run() {
   // setup threads
-  threadConsumeRawGbt_      = thread(&BlockMaker::runThreadConsumeRawGbt,     this);
-  threadConsumeStratumJob_  = thread(&BlockMaker::runThreadConsumeStratumJob, this);
-  threadConsumeNamecoinSovledShare_ = thread(&BlockMaker::runThreadConsumeNamecoinSovledShare, this);
+  // threadConsumeRawGbt_      = thread(&BlockMaker::runThreadConsumeRawGbt,     this);
+  // threadConsumeStratumJob_  = thread(&BlockMaker::runThreadConsumeStratumJob, this);
+  // threadConsumeNamecoinSovledShare_ = thread(&BlockMaker::runThreadConsumeNamecoinSovledShare, this);
+  // threadConsumeRskSolvedShare_ = thread(&BlockMaker::runThreadConsumeRskSolvedShare, this);
   sleep(3);
 
   runThreadConsumeSovledShare();
+}
+
+////////////////////////////////////////////////BlockMakerEth////////////////////////////////////////////////////////////////
+BlockMakerEth::BlockMakerEth(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB) : 
+BlockMaker(def, kafkaBrokers, poolDB)
+{
+}
+
+void BlockMakerEth::processSolvedShare(rd_kafka_message_t *rkmessage)
+{
+  const char *message = (const char *)rkmessage->payload;
+  JsonNode r;
+  if (!JsonNode::parse(message, message + rkmessage->len, r))
+  {
+    LOG(ERROR) << "decode common event failure";
+    return;
+  }
+
+  if (r.type() != Utilities::JS::type::Obj ||
+      r["nonce"].type() != Utilities::JS::type::Str ||
+      r["header"].type() != Utilities::JS::type::Str ||
+      r["mix"].type() != Utilities::JS::type::Str)
+  {
+    LOG(ERROR) << "eth solved share format wrong";
+  }
+
+  string request = Strings::Format("{\"jsonrpc\": \"2.0\", \"method\": \"eth_submitWork\", \"params\": [\"%s\",\"%s\",\"%s\"], \"id\": 5}\n",
+                                   r["nonce"].str().c_str(),
+                                   r["header"].str().c_str(),
+                                   r["mix"].str().c_str());
+
+  string response;
+
+  for (const auto &itr : bitcoindRpcUri_)
+  {
+    string response;
+    bitcoindRpcCall(itr.first.c_str(), itr.second.c_str(), request.c_str(), response);
+    LOG(INFO) << "submission result: " << response;
+  }
+}
+
+bool BlockMakerEth::init() {
+  //
+  // Sloved Share
+  //
+  // we need to consume the latest 2 messages, just in case
+  if (kafkaConsumerSovledShare_.setup(RD_KAFKA_OFFSET_TAIL(2)) == false) {
+    LOG(INFO) << "setup kafkaConsumerSovledShare_ fail";
+    return false;
+  }
+  if (!kafkaConsumerSovledShare_.checkAlive()) {
+    LOG(ERROR) << "kafka brokers is not alive: kafkaConsumerSovledShare_";
+    return false;
+  }
+
+  return true;
+}
+
+//////////////////////////////////////BlockMakerSia//////////////////////////////////////////////////
+BlockMakerSia::BlockMakerSia(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB) :
+BlockMakerEth(def, kafkaBrokers, poolDB)
+{
+}
+
+void BlockMakerSia::processSolvedShare(rd_kafka_message_t *rkmessage)
+{
+  if (rkmessage->len != 80) {
+    LOG(ERROR) << "incorrect header len: " << rkmessage->len;
+    return;
+  }
+
+  char buf[80] = {0};
+  memcpy(buf, rkmessage->payload, 80);
+  for (const auto &itr : bitcoindRpcUri_)
+  {
+    string response;
+    rpcCall(itr.first.c_str(), itr.second.c_str(), buf, 80, response, "Sia-Agent");
+    LOG(INFO) << "submission result: " << response;
+  }
+}
+
+//////////////////////////////////////BlockMakerBytom//////////////////////////////////////////////////
+BlockMakerBytom::BlockMakerBytom(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB) :
+BlockMakerEth(def, kafkaBrokers, poolDB)
+{
+}
+
+void BlockMakerBytom::processSolvedShare(rd_kafka_message_t *rkmessage)
+{
+  string bh((char*)rkmessage->payload, rkmessage->len);
+  string request = Strings::Format("{\"block_header\": \"%s\"}\n",
+                                   bh.c_str());
+
+  for (const auto &itr : bitcoindRpcUri_)
+  {
+    string response;
+    rpcCall(itr.first.c_str(), itr.second.c_str(), request.c_str(), request.length(), response, "curl");
+    LOG(INFO) << "submission result: " << response;
+  }
 }

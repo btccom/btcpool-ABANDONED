@@ -1,9 +1,9 @@
-BTCPool for Bitcoin, BitcoinCash, UnitedBitcoin and SuperBitcoin
+BTCPool for BTC, BCH, UBTC & SBTC
 ==================
 
 BTCPool is backend system of [https://pool.btc.com](https://pool.btc.com).
 
-The pool backend support 4 chains at current:
+The pool backend support 4 blockchains at current:
 * [Bitcoin](https://bitcoin.org/)
 * [BitcoinCash](https://bitcoincash.org/)
 * [UnitedBitcoin](https://ub.com/)

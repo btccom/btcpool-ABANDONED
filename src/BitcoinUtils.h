@@ -33,6 +33,11 @@
 #include <utilstrencodings.h>
 #include <base58.h>
 
+#ifdef CHAIN_TYPE_BCH
+  // header that defined DecodeDestination & IsValidDestinationString
+  #include <dstencode.h>
+#endif
+
 std::string EncodeHexBlock(const CBlock &block);
 
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams);

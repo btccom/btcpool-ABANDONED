@@ -165,16 +165,16 @@ CurlWriteChunkCallback(void *contents, size_t size, size_t nmemb, void *userp)
 }
 
 bool httpGET(const char *url, string &response, long timeoutMs) {
-  return httpPOST(url, nullptr, nullptr, response, timeoutMs);
+  return httpPOST(url, nullptr, nullptr, response, timeoutMs, nullptr);
 }
 
 bool httpGET(const char *url, const char *userpwd,
              string &response, long timeoutMs) {
-  return httpPOST(url, userpwd, nullptr, response, timeoutMs);
+  return httpPOST(url, userpwd, nullptr, response, timeoutMs, nullptr);
 }
 
-bool httpPOST(const char *url, const char *userpwd,
-              const char *postData, string &response, long timeoutMs) {
+bool httpPOSTImpl(const char *url, const char *userpwd, const char *postData, int len,
+              string &response, long timeoutMs, const char *mineType, const char *agent) {
   struct curl_slist *headers = NULL;
   CURLcode status;
   long code;
@@ -187,13 +187,16 @@ bool httpPOST(const char *url, const char *userpwd,
   chunk.memory = (char *)malloc(1);  /* will be grown as needed by the realloc above */
   chunk.size   = 0;          /* no data at this point */
 
-  headers = curl_slist_append(headers, "content-type: text/plain;");
-  curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+  if (mineType != nullptr) {
+    string mineHeader = string("Content-Type: ") + string(mineType);
+    headers = curl_slist_append(headers, mineHeader.c_str());
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+  }
 
   curl_easy_setopt(curl, CURLOPT_URL, url);
 
   if (postData != nullptr) {
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)strlen(postData));
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, len);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS,    postData);
   }
 
@@ -201,7 +204,7 @@ bool httpPOST(const char *url, const char *userpwd,
     curl_easy_setopt(curl, CURLOPT_USERPWD, userpwd);
 
   curl_easy_setopt(curl, CURLOPT_USE_SSL, CURLUSESSL_TRY);
-  curl_easy_setopt(curl, CURLOPT_USERAGENT, "curl");
+  curl_easy_setopt(curl, CURLOPT_USERAGENT, agent);
 
   curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, timeoutMs);
 
@@ -214,13 +217,16 @@ bool httpPOST(const char *url, const char *userpwd,
     goto error;
   }
 
+  if (chunk.size > 0)
+    response.assign(chunk.memory, chunk.size);
+
   curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &code);
-  if (code != 200) {
+  //status code 200 - 208 indicates ok
+  //sia returns 204 as success
+  if (code < 200 || code > 208) {
     LOG(ERROR) << "server responded with code: " << code;
     goto error;
   }
-
-  response.assign(chunk.memory, chunk.size);
 
   curl_easy_cleanup(curl);
   curl_slist_free_all(headers);
@@ -238,11 +244,27 @@ error:
   return false;
 }
 
-bool bitcoindRpcCall(const char *url, const char *userpwd, const char *reqData,
-                     string &response) {
-  return httpPOST(url, userpwd, reqData, response, 5000/* timeout ms */);
+bool httpPOST(const char *url, const char *userpwd, const char *postData,
+              string &response, long timeoutMs, const char *mineType, const char *agent)
+{
+  return httpPOSTImpl(url, userpwd, postData, postData != nullptr ? strlen(postData) : 0, response, timeoutMs, mineType, agent);
 }
 
+bool httpPOST(const char *url, const char *userpwd, const char *postData,
+              string &response, long timeoutMs, const char *mineType)
+{
+  return httpPOST(url, userpwd, postData, response, timeoutMs, mineType, "curl");
+}
+
+bool bitcoindRpcCall(const char *url, const char *userpwd, const char *reqData,
+                     string &response) {
+  return httpPOST(url, userpwd, reqData, response, 5000/* timeout ms */, "application/json");
+}
+
+bool rpcCall(const char *url, const char *userpwd, const char *reqData, int len, string &response, const char *agent) 
+{
+  return httpPOSTImpl(url, userpwd, reqData, len, response, 5000, "application/json", agent);
+}
 
 //
 // %y	Year, last two digits (00-99)	01

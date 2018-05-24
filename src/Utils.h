@@ -33,9 +33,13 @@
 #include <utilstrencodings.h>
 #include <streams.h>
 
+#include <libconfig.h++>
+#include <glog/logging.h>
 #include <zmq.hpp>
 
 #include "Common.h"
+
+using libconfig::Setting;
 
 bool Hex2Bin(const char *in, size_t size, vector<char> &out);
 bool Hex2Bin(const char *in, vector<char> &out);
@@ -54,10 +58,14 @@ bool s_sendmore (zmq::socket_t & socket, const std::string & string);
 bool httpGET (const char *url, string &response, long timeoutMs);
 bool httpGET (const char *url, const char *userpwd,
               string &response, long timeoutMs);
-bool httpPOST(const char *url, const char *userpwd,
-              const char *postData, string &response, long timeoutMs);
+bool httpPOST(const char *url, const char *userpwd, const char *postData,
+              string &response, long timeoutMs, const char *contentType);
+bool httpPOST(const char *url, const char *userpwd, const char *postData,
+              string &response, long timeoutMs, const char *contentType, const char *agent);
 bool bitcoindRpcCall(const char *url, const char *userpwd, const char *reqData,
                      string &response);
+
+bool rpcCall(const char *url, const char *userpwd, const char *reqData, int len, string &response, const char *agent);  
 
 string date(const char *format, const time_t timestamp);
 inline string date(const char *format) {
@@ -92,5 +100,16 @@ inline double share2HashrateP(uint64_t share, uint32_t timeDiff) {
 }
 
 bool fileExists(const char* file);
+
+template<typename S, typename V>
+void readFromSetting(const S &setting,
+                     const string &key,
+                     V &value,
+                     bool optional = false)
+{
+  if (!setting.lookupValue(key, value) && !optional) {
+    LOG(FATAL) << "config section missing key: " << key;
+  }
+}
 
 #endif

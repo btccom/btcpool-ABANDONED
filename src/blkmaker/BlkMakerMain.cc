@@ -40,16 +40,122 @@
 using namespace std;
 using namespace libconfig;
 
-BlockMaker *gBlockMaker = nullptr;
+vector<shared_ptr<BlockMaker>> makers;// *gBlockMaker = nullptr;
 
 void handler(int sig) {
-  if (gBlockMaker) {
-    gBlockMaker->stop();
+  for (auto maker: makers) {
+    if (maker)
+      maker->stop();
   }
 }
 
 void usage() {
   fprintf(stderr, "Usage:\n\tblkmaker -c \"blkmaker.cfg\" -l \"log_dir\"\n");
+}
+
+// BlockMaker* createBlockMaker(Config& cfg, MysqlConnectInfo* poolDBInfo) {
+//   string type = cfg.lookup("blockmaker.type");
+//   string broker = cfg.lookup("kafka.brokers");
+
+//   BlockMaker *maker = nullptr;
+//   if ("BTC" == type) 
+//     maker = new BlockMaker(broker.c_str(), *poolDBInfo);
+//   else
+//     maker = new BlockMakerEth(broker.c_str(), *poolDBInfo);
+
+//   return maker;
+// }
+
+BlockMaker* createBlockMaker(const BlockMakerDefinition& def, const string& broker, MysqlConnectInfo* poolDBInfo) {
+  BlockMaker *maker = nullptr;
+  if ("BTC" == def.chainType_) 
+    maker = new BlockMaker(def, broker.c_str(), *poolDBInfo);
+  else if ("ETH" == def.chainType_) 
+    maker = new BlockMakerEth(def, broker.c_str(), *poolDBInfo);
+  else if ("SIA" == def.chainType_)
+    maker = new BlockMakerSia(def, broker.c_str(), *poolDBInfo);
+  else if ("BYTOM" == def.chainType_)
+    maker = new BlockMakerBytom(def, broker.c_str(), *poolDBInfo);
+
+  if (maker) {
+    for (auto node : def.nodes) 
+      maker->addBitcoind(node.rpcAddr_, node.rpcUserPwd_);
+  }
+
+  return maker;
+}
+
+void readConfigToString(const Setting &setting, const string &key, string &value) {
+  if (!setting.lookupValue(key, value)) {
+    LOG(FATAL) << "config section missing key=" << key;
+  }
+}
+
+BlockMakerDefinition createDefinition(const Setting &setting)
+{
+  BlockMakerDefinition def;
+
+  readConfigToString(setting, "chain_type",  def.chainType_);
+  readConfigToString(setting, "solved_share_topic", def.solvedShareTopic_);
+  def.enabled_ = false;
+  setting.lookupValue("enabled", def.enabled_);
+
+  const Setting &nodes = setting["nodes"];
+  for (int i = 0; i < nodes.getLength(); ++i)
+  {
+    const Setting &nodeSetting = nodes[i];
+    NodeDefinition nodeDef;
+    readConfigToString(nodeSetting, "rpc_addr",  nodeDef.rpcAddr_);
+    readConfigToString(nodeSetting, "rpc_userpwd",  nodeDef.rpcUserPwd_);
+    def.nodes.push_back(nodeDef);
+  }
+
+  return def;
+}
+
+// shared_ptr<BlockMakerHandler> createBlockMakerHandler(const BlockMakerDefinition &def)
+// {
+//   shared_ptr<BlockMakerHandler> handler;
+
+//   if (def.chainType_ == "ETH")
+//     handler = make_shared<BlockMakerHandler>();
+//   else if (def.chainType_ == "SIA")
+//     handler = make_shared<BlockMakerHandler>();
+//   else if (def.chainType_ == "RSK")
+//     handler = make_shared<BlockMakerHandler>();
+//   else
+//     LOG(FATAL) << "unknown chain type: " << def.chainType_;
+
+//   handler->init(def);
+
+//   return handler;
+// }
+
+void createBlockMakers(const Config &cfg, MysqlConnectInfo* poolDBInfo)
+{
+  string broker = cfg.lookup("kafka.brokers");
+  const Setting &root = cfg.getRoot();
+  const Setting &makerDefs = root["blk_makers"];
+
+  for (int i = 0; i < makerDefs.getLength(); ++i)
+  {
+    BlockMakerDefinition def = createDefinition(makerDefs[i]);
+    if (!def.enabled_)
+    {
+      LOG(INFO) << "chain: " << def.chainType_ << ", topic: " << def.solvedShareTopic_ << ", disabled.";
+      continue;
+    }
+    LOG(INFO) << "chain: " << def.chainType_ << ", topic: " << def.solvedShareTopic_ << ", enabled.";
+    //auto handler = createBlockMakerHandler(def);
+    //makers.push_back(std::make_shared<BlockMaker>(broker.c_str(), *poolDBInfo));
+    shared_ptr<BlockMaker> maker(createBlockMaker(def, broker, poolDBInfo));
+    makers.push_back(maker);
+  }
+}
+
+void workerThread(shared_ptr<BlockMaker> maker) {
+  if (maker != nullptr)
+    maker->run();
 }
 
 int main(int argc, char **argv) {
@@ -120,28 +226,48 @@ int main(int argc, char **argv) {
                                       cfg.lookup("pooldb.dbname"));
   }
 
-  gBlockMaker = new BlockMaker(cfg.lookup("kafka.brokers").c_str(), *poolDBInfo);
+  createBlockMakers(cfg, poolDBInfo);
+  ///gBlockMaker = createBlockMaker(cfg, poolDBInfo);
 
   // add bitcoinds
-  {
-    const Setting &root = cfg.getRoot();
-    const Setting &bitcoinds = root["bitcoinds"];
+  // {
+  //   const Setting &root = cfg.getRoot();
+  //   const Setting &bitcoinds = root["bitcoinds"];
 
-    for (int i = 0; i < bitcoinds.getLength(); i++) {
-      string rpcAddr, rpcUserpwd;
-      bitcoinds[i].lookupValue("rpc_addr",    rpcAddr);
-      bitcoinds[i].lookupValue("rpc_userpwd", rpcUserpwd);
-      gBlockMaker->addBitcoind(rpcAddr, rpcUserpwd);
-    }
-  }
+  //   for (int i = 0; i < bitcoinds.getLength(); i++) {
+  //     string rpcAddr, rpcUserpwd;
+  //     bitcoinds[i].lookupValue("rpc_addr",    rpcAddr);
+  //     bitcoinds[i].lookupValue("rpc_userpwd", rpcUserpwd);
+  //     gBlockMaker->addBitcoind(rpcAddr, rpcUserpwd);
+  //   }
+  // }
 
   try {
-    if (!gBlockMaker->init()) {
-      LOG(FATAL) << "blkmaker init failure";
-    } else {
-      gBlockMaker->run();
+    // if (!gBlockMaker->init()) {
+    //   LOG(FATAL) << "blkmaker init failure";
+    // } else {
+    //   gBlockMaker->run();
+    // }
+    // delete gBlockMaker;
+    vector<shared_ptr<thread>> workers;
+    for (auto maker : makers)
+    {
+      if (maker->init()) {
+        workers.push_back(std::make_shared<thread>(workerThread, maker));
+      }
+      else {
+        LOG(FATAL) << "gwmaker init failure, chain: ";
+      }
     }
-    delete gBlockMaker;
+
+    // run GwMaker
+    for (auto pWorker : workers) {
+      if (pWorker->joinable()) {
+        LOG(INFO) << "wait for worker " << pWorker->get_id();
+        pWorker->join();
+        LOG(INFO) << "worker exit";
+      }
+    }
   } catch (std::exception & e) {
     LOG(FATAL) << "exception: " << e.what();
     return 1;

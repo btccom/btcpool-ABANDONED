@@ -353,7 +353,7 @@ class ShareLogWriter {
 
 public:
   ShareLogWriter(const char *kafkaBrokers, const string &dataDir,
-                 const string &kafkaGroupID);
+                 const string &kafkaGroupID, const char *shareLogTopic);
   ~ShareLogWriter();
 
   void stop();

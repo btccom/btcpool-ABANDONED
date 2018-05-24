@@ -24,34 +24,43 @@
 #include "StratumSession.h"
 #include "Utils.h"
 #include "utilities_js.hpp"
-
+#include <arith_uint256.h>
 #include <arpa/inet.h>
 #include <boost/algorithm/string.hpp>
-
+#include "bytom/bh_shared.h"
 #include "StratumServer.h"
-
 
 //////////////////////////////// DiffController ////////////////////////////////
 void DiffController::setMinDiff(uint64 minDiff) {
   if (minDiff < kMinDiff_) {
     minDiff = kMinDiff_;
+  } else if (minDiff > kMaxDiff_) {
+    minDiff = kMaxDiff_;
   }
+  
   minDiff_ = minDiff;
+}
+
+void DiffController::setCurDiff(uint64 curDiff) {
+  if (curDiff < kMinDiff_) {
+    curDiff = kMinDiff_;
+  } else if (curDiff > kMaxDiff_) {
+    curDiff = kMaxDiff_;
+  }
+  
+  curDiff_ = curDiff;
 }
 
 void DiffController::resetCurDiff(uint64 curDiff) {
   if (curDiff < kMinDiff_) {
     curDiff = kMinDiff_;
   }
-  if (curDiff < minDiff_) {
-    curDiff = minDiff_;
-  }
+
+  setCurDiff(curDiff);
 
   // set to zero
   sharesNum_.mapMultiply(0);
   shares_.mapMultiply(0);
-
-  curDiff_ = curDiff;
 }
 
 void DiffController::addAcceptedShare(const uint64 share) {
@@ -169,15 +178,16 @@ uint64 DiffController::_calcCurDiff() {
   if (!isFullWindow(now) && now >= startTime_ + 60 &&
       sharesCount <= (int32_t)((now - startTime_)/60.0) &&
       curDiff_ >= minDiff_*2) {
-    curDiff_ /= 2;
+    setCurDiff(curDiff_ / 2);
     sharesNum_.mapMultiply(2.0);
     return curDiff_;
   }
 
   // too fast
   if (sharesCount > expectedCount * kRateHigh) {
-    while (sharesNum_.sum(k) > expectedCount) {
-      curDiff_ *= 2;
+    while (sharesNum_.sum(k) > expectedCount && 
+           curDiff_ < kMaxDiff_) {
+      setCurDiff(curDiff_ * 2);
       sharesNum_.mapDivide(2.0);
     }
     return curDiff_;
@@ -187,7 +197,7 @@ uint64 DiffController::_calcCurDiff() {
   if (isFullWindow(now) && curDiff_ >= minDiff_*2) {
     while (sharesNum_.sum(k) < expectedCount * kRateLow &&
            curDiff_ >= minDiff_*2) {
-      curDiff_ /= 2;
+      setCurDiff(curDiff_ / 2);
       sharesNum_.mapMultiply(2.0);
     }
     assert(curDiff_ >= minDiff_);
@@ -197,14 +207,24 @@ uint64 DiffController::_calcCurDiff() {
   return curDiff_;
 }
 
+//////////////////////////////// DiffControllerEth ////////////////////////////////
+// DiffControllerEth::DiffControllerEth(const int32_t shareAvgSeconds, const uint64_t defaultDifficulty) : 
+// DiffController(shareAvgSeconds)
+// {
+//   minDiff_ = 1;
+//   curDiff_ = defaultDifficulty; 
+// }
 
+// uint64 DiffControllerEth::_calcCurDiff() {
+//   return curDiff_;
+// }
 
 //////////////////////////////// StratumSession ////////////////////////////////
 StratumSession::StratumSession(evutil_socket_t fd, struct bufferevent *bev,
                                Server *server, struct sockaddr *saddr,
                                const int32_t shareAvgSeconds,
                                const uint32_t extraNonce1) :
-shareAvgSeconds_(shareAvgSeconds), diffController_(shareAvgSeconds_),
+shareAvgSeconds_(shareAvgSeconds),
 shortJobIdIdx_(0), agentSessions_(nullptr), isDead_(false),
 invalidSharesCounter_(INVALID_SHARE_SLIDING_WINDOWS_SIZE),
 bev_(bev), fd_(fd), server_(server)
@@ -248,6 +268,11 @@ StratumSession::~StratumSession() {
 //  close(fd_);  // we don't need to close because we set 'BEV_OPT_CLOSE_ON_FREE'
   evbuffer_free(inBuf_);
   bufferevent_free(bev_);
+}
+
+bool StratumSession::initialize() {
+  diffController_ = make_shared<DiffController>(server_->defaultDifficultyController_.get());
+  return true;
 }
 
 void StratumSession::markAsDead() {
@@ -309,6 +334,18 @@ bool StratumSession::tryReadLine(string &line) {
   return true;
 }
 
+bool StratumSession::validate(const JsonNode &jmethod, const JsonNode &jparams)
+{
+  if (jmethod.type() == Utilities::JS::type::Str &&
+      jmethod.size() != 0 &&
+      jparams.type() == Utilities::JS::type::Array)
+  {
+    return true;
+  }
+
+  return false;
+}
+
 void StratumSession::handleLine(const string &line) {
   DLOG(INFO) << "recv(" << line.size() << "): " << line;
 
@@ -328,9 +365,7 @@ void StratumSession::handleLine(const string &line) {
     idStr = "\"" + jnode["id"].str() + "\"";
   }
 
-  if (jmethod.type() == Utilities::JS::type::Str &&
-      jmethod.size() != 0 &&
-      jparams.type() == Utilities::JS::type::Array) {
+  if (validate(jmethod, jparams)) {
     handleRequest(idStr, jmethod.str(), jparams);
     return;
   }
@@ -347,7 +382,7 @@ void StratumSession::responseError(const string &idStr, int errCode) {
   int len = snprintf(buf, sizeof(buf),
                      "{\"id\":%s,\"result\":null,\"error\":[%d,\"%s\",null]}\n",
                      idStr.empty() ? "null" : idStr.c_str(),
-                     errCode, StratumError::toString(errCode));
+                     errCode, StratumError::toString(errCode));                  
   sendData(buf, len);
 }
 
@@ -356,29 +391,68 @@ void StratumSession::responseTrue(const string &idStr) {
   sendData(s);
 }
 
+void StratumSession::rpc2ResponseBoolean(const string &idStr, bool result) {
+   const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":%s}\n", idStr.c_str(), result ? "true" : "false");
+  sendData(s);
+}
+
 void StratumSession::handleRequest(const string &idStr, const string &method,
-                                   const JsonNode &jparams) {
-  if (method == "mining.submit") {  // most of requests are 'mining.submit'
+                                   const JsonNode &jparams)
+{
+  if (method == "mining.submit" ||
+      "eth_submitWork" == method ||
+      "submit" == method)
+  { // most of requests are 'mining.submit'
+    // "eth_submitWork": claymore eth
+    // "submit": bytom
     handleRequest_Submit(idStr, jparams);
   }
-  else if (method == "mining.subscribe") {
+  else if (method == "mining.subscribe")
+  {
     handleRequest_Subscribe(idStr, jparams);
   }
-  else if (method == "mining.authorize") {
+  else if (method == "mining.authorize" ||
+           "eth_submitLogin" == method ||
+           "login" == method)
+  {
+    // "eth_submitLogin": claymore eth
+    // "login": bytom
     handleRequest_Authorize(idStr, jparams);
   }
-  else if (method == "mining.multi_version") {
+  else if (method == "mining.multi_version")
+  {
     handleRequest_MultiVersion(idStr, jparams);
   }
-  else if (method == "mining.suggest_target") {
+  else if (method == "mining.suggest_target")
+  {
     handleRequest_SuggestTarget(idStr, jparams);
   }
-  else if (method == "mining.suggest_difficulty") {
+  else if (method == "mining.suggest_difficulty")
+  {
     handleRequest_SuggestDifficulty(idStr, jparams);
-  } else {
-    // unrecognised method, just ignore it
-    LOG(WARNING) << "unrecognised method: \"" << method << "\""
-    << ", client: " << clientIp_ << "/" << clientAgent_;
+  }
+  else if (method == "mining.extranonce.subscribe")
+  {
+    //Claymore will send this for sia but no need response
+    //Do nothing for now
+  }
+  else if ("eth_getWork" == method ||
+           "getwork" == method)
+  {
+    handleRequest_GetWork(idStr, jparams);
+  }
+  else if ("eth_submitHashrate" == method)
+  {
+    handleRequest_SubmitHashrate(idStr, jparams);
+  }
+  else
+  {
+    if (!handleRequest_Specific(idStr, method, jparams))
+    {
+      // unrecognised method, just ignore it
+      LOG(WARNING) << "unrecognised method: \"" << method << "\""
+                   << ", client: " << clientIp_ << "/" << clientAgent_;
+    }
   }
 }
 
@@ -531,53 +605,38 @@ void StratumSession::_handleRequest_AuthorizePassword(const string &password) {
   md = formatDifficulty(md);
 
   // set min diff first
-  if (md >= DiffController::kMinDiff_) {
-    diffController_.setMinDiff(md);
+  if (md >= server_->defaultDifficultyController_->kMinDiff_) {
+    diffController_->setMinDiff(md);
   }
 
   // than set current diff
-  if (d >= DiffController::kMinDiff_) {
-    diffController_.resetCurDiff(d);
+  if (d >= server_->defaultDifficultyController_->kMinDiff_) {
+    diffController_->resetCurDiff(d);
   }
 }
 
-void StratumSession::handleRequest_Authorize(const string &idStr,
-                                             const JsonNode &jparams) {
-  if (state_ != SUBSCRIBED) {
-    responseError(idStr, StratumError::NOT_SUBSCRIBED);
-    return;
+void StratumSession::checkUserAndPwd(const string &idStr, const string &fullName, const string &password)
+{
+  if (!password.empty())
+  {
+    _handleRequest_AuthorizePassword(password);
   }
 
-  //
-  //  params[0] = user[.worker]
-  //  params[1] = password
-  //  eg. {"params": ["slush.miner1", "password"], "id": 2, "method": "mining.authorize"}
-  //  the password may be omitted.
-  //  eg. {"params": ["slush.miner1"], "id": 2, "method": "mining.authorize"}
-  //
-  if (jparams.children()->size() < 1) {
-    responseError(idStr, StratumError::INVALID_USERNAME);
-    return;
-  }
-
-  if (jparams.children()->size() > 1) {
-    const string password = jparams.children()->at(1).str();
-    if (!password.empty()) {
-      _handleRequest_AuthorizePassword(password);
-    }
-  }
-
-  const string fullName = jparams.children()->at(0).str();
   const string userName = worker_.getUserName(fullName);
 
   const int32_t userId = server_->userInfo_->getUserId(userName);
-  if (userId <= 0) {
+  if (userId <= 0)
+  {
+    LOG(ERROR) << "invalid username=" << userName << ", userId=" << userId;
     responseError(idStr, StratumError::INVALID_USERNAME);
     return;
   }
 
   // auth success
-  responseTrue(idStr);
+  // some protocols do not need response. eg. bytom
+  if (needToSendLoginResponse())
+    responseTrue(idStr);
+
   state_ = AUTHENTICATED;
 
   // set id & names, will filter workername in this func
@@ -585,14 +644,14 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
   server_->userInfo_->addWorker(worker_.userId_, worker_.workerHashId_,
                                 worker_.workerName_, clientAgent_);
   DLOG(INFO) << "userId: " << worker_.userId_
-  << ", wokerHashId: " << worker_.workerHashId_ << ", workerName:" << worker_.workerName_;
+             << ", wokerHashId: " << worker_.workerHashId_ << ", workerName:" << worker_.workerName_;
 
   // set read timeout to 10 mins, it's enought for most miners even usb miner.
   // if it's a pool watcher, set timeout to a week
-  setReadTimeout(isLongTimeout_ ? 86400*7 : 60*10);
-  
+  setReadTimeout(isLongTimeout_ ? 86400 * 7 : 60 * 10);
+
   // send latest stratum job
-  sendMiningNotify(server_->jobRepository_->getLatestStratumJobEx(), true/* is first job */);
+  sendMiningNotify(server_->jobRepository_->getLatestStratumJobEx(), true /* is first job */);
 
   // sent events to kafka: miner_connect
   {
@@ -612,6 +671,38 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
   }
 }
 
+void StratumSession::handleRequest_Authorize(const string &idStr,
+                                             const JsonNode &jparams)
+{
+  if (state_ != SUBSCRIBED)
+  {
+    responseError(idStr, StratumError::NOT_SUBSCRIBED);
+    return;
+  }
+
+  //
+  //  params[0] = user[.worker]
+  //  params[1] = password
+  //  eg. {"params": ["slush.miner1", "password"], "id": 2, "method": "mining.authorize"}
+  //  the password may be omitted.
+  //  eg. {"params": ["slush.miner1"], "id": 2, "method": "mining.authorize"}
+  //
+  if (jparams.children()->size() < 1)
+  {
+    responseError(idStr, StratumError::INVALID_USERNAME);
+    return;
+  }
+  string password;
+  if (jparams.children()->size() > 1)
+  {
+    password = jparams.children()->at(1).str();
+  }
+
+  string fullName = jparams.children()->at(0).str();
+  fullName = getFullName(fullName);
+  checkUserAndPwd(idStr, fullName, password);
+}
+
 void StratumSession::handleExMessage_AuthorizeAgentWorker(const int64_t workerId,
                                                           const string &clientAgent,
                                                           const string &workerName) {
@@ -624,7 +715,7 @@ void StratumSession::handleExMessage_AuthorizeAgentWorker(const int64_t workerId
 }
 
 void StratumSession::_handleRequest_SetDifficulty(uint64_t suggestDiff) {
-  diffController_.resetCurDiff(formatDifficulty(suggestDiff));
+  diffController_->resetCurDiff(formatDifficulty(suggestDiff));
 }
 
 void StratumSession::handleRequest_SuggestTarget(const string &idStr,
@@ -796,7 +887,7 @@ void StratumSession::handleRequest_Submit(const string &idStr,
     }
 
     if (isAgentSession == false) {
-    	diffController_.addAcceptedShare(share.share_);
+    	diffController_->addAcceptedShare(share.share_);
       responseTrue(idStr);
     }
   } else {
@@ -833,9 +924,25 @@ finish:
   return;
 }
 
-StratumSession::LocalJob *StratumSession::findLocalJob(uint8_t shortJobId) {
+StratumSession::LocalJob* StratumSession::findLocalJob(const string& strJobId) {
   for (auto rit = localJobs_.rbegin(); rit != localJobs_.rend(); ++rit) {
-    if (rit->shortJobId_ == shortJobId) {
+    uint32 h = djb2(strJobId.c_str());
+    //DLOG(INFO) << std::hex << rit->jobId_;
+    //DLOG(INFO) << std::hex << h;
+    //jobId = timestamp + std::hash(strJobId)
+    if ((rit->jobId_ & 0xffffffff) == h) {
+      return &(*rit);
+    }
+  }
+  return nullptr;
+}
+
+StratumSession::LocalJob *StratumSession::findLocalJob(uint8_t shortJobId) {
+  //DLOG(INFO) << "findLocalJob id=" << shortJobId;
+  for (auto rit = localJobs_.rbegin(); rit != localJobs_.rend(); ++rit) {
+    //DLOG(INFO) << "search id=" << (int)rit->shortJobId_;
+    if ((int)rit->shortJobId_ == (int)shortJobId) {
+      //DLOG(INFO) << "local job found";
       return &(*rit);
     }
   }
@@ -843,9 +950,17 @@ StratumSession::LocalJob *StratumSession::findLocalJob(uint8_t shortJobId) {
 }
 
 void StratumSession::sendSetDifficulty(const uint64_t difficulty) {
-  string s = Strings::Format("{\"id\":null,\"method\":\"mining.set_difficulty\""
-                             ",\"params\":[%" PRIu64"]}\n",
-                             difficulty);
+  string s;
+  if (!server_->isDevModeEnable_) {
+    s = Strings::Format("{\"id\":null,\"method\":\"mining.set_difficulty\""
+                         ",\"params\":[%" PRIu64"]}\n",
+                         difficulty);
+  } else {
+    s = Strings::Format("{\"id\":null,\"method\":\"mining.set_difficulty\""
+                         ",\"params\":[%.3f]}\n",
+                         server_->minerDifficulty_);
+  }
+
   sendData(s);
 }
 
@@ -868,7 +983,7 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool is
   ljob.blkBits_       = sjob->nBits_;
   ljob.jobId_         = sjob->jobId_;
   ljob.shortJobId_    = allocShortJobId();
-  ljob.jobDifficulty_ = diffController_.calcCurDiff();
+  ljob.jobDifficulty_ = diffController_->calcCurDiff();
 
 #ifdef USER_DEFINED_COINBASE
   // add the User's coinbaseInfo to the coinbase1's tail
@@ -936,7 +1051,13 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool is
   sendData(notifyStr);  // send notify string
 
   // clear localJobs_
-  while (localJobs_.size() >= kMaxNumLocalJobs_) {
+  clearLocalJobs();
+}
+
+void StratumSession::clearLocalJobs()
+{
+  while (localJobs_.size() >= kMaxNumLocalJobs_)
+  {
     localJobs_.pop_front();
   }
 }
@@ -1066,6 +1187,683 @@ uint32_t StratumSession::getSessionId() const {
   return extraNonce1_;
 }
 
+///////////////////////////////// StratumSessionEth ////////////////////////////////
+StratumSessionEth::StratumSessionEth(evutil_socket_t fd, struct bufferevent *bev,
+                                     Server *server, struct sockaddr *saddr,
+                                     const int32_t shareAvgSeconds, const uint32_t extraNonce1) : StratumSession(fd, bev,
+                                                                                                                 server, saddr,
+                                                                                                                 shareAvgSeconds, extraNonce1),
+                                                                                                  extraNonce16b_(1)
+{
+  ethProtocol_ = STRATUM;
+}
+
+void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob)
+{
+  if (state_ < AUTHENTICATED || exJobPtr == nullptr)
+  {
+    LOG(ERROR) << "eth sendMiningNotify failed, state: " << state_;
+    return;
+  }
+
+  StratumJobEth *ethJob = dynamic_cast<StratumJobEth *>(exJobPtr->sjob_);
+  if (nullptr == ethJob)
+  {
+    return;
+  }
+
+  localJobs_.push_back(LocalJob());
+  LocalJob &ljob = *(localJobs_.rbegin());
+  ljob.blkBits_ = ethJob->nBits_;
+  ljob.jobId_ = ethJob->jobId_;
+  ljob.shortJobId_ = allocShortJobId();
+  ljob.jobDifficulty_ = diffController_->calcCurDiff();
+  string header = ethJob->blockHashForMergedMining_;
+  string seed = ethJob->seedHash_;
+  if (STRATUM == ethProtocol_)
+  {
+    if (66 == header.length())
+      header = header.substr(2, 64);
+    if (66 == seed.length())
+      seed = seed.substr(2, 64);
+  }
+  //string header = ethJob->blockHashForMergedMining_.substr(2, 64);
+  //string seed = ethJob->seedHash_.substr(2, 64);
+  string strShareTarget = Eth_DifficultyToTarget(ljob.jobDifficulty_);
+
+  LOG(INFO) << "new eth stratum job mining.notify: share difficulty=" << std::hex << ljob.jobDifficulty_ << ", share target=" << strShareTarget << ", protocol=" << ethProtocol_;
+  string strNotify;
+
+  switch (ethProtocol_)
+  {
+  case STRATUM:
+  {
+    //Etherminer mining.notify
+    //{"id":6,"jsonrpc":"2.0","method":"mining.notify","params":
+    //["dd159c7ec5b056ad9e95e7c997829f667bc8e34c6d43fcb9e0c440ed94a85d80",
+    //"dd159c7ec5b056ad9e95e7c997829f667bc8e34c6d43fcb9e0c440ed94a85d80",
+    //"a8784097a4d03c2d2ac6a3a2beebd0606aa30a8536a700446b40800841c0162c",
+    //"0000000112e0be826d694b2e62d01511f12a6061fbaec8bc02357593e70e52ba",false]}
+    strNotify = Strings::Format("{\"id\":8,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
+                                "\"params\":[\"%s\",\"%s\",\"%s\",\"%s\", false]}\n",
+                                header.c_str(),
+                                header.c_str(),
+                                seed.c_str(),
+                                strShareTarget.c_str());
+  }
+  break;
+  case ETHPROXY:
+  {
+    //Clymore eth_getWork
+    //{"id":3,"jsonrpc":"2.0","result":
+    //["0x599fffbc07777d4b6455c0e7ca479c9edbceef6c3fec956fecaaf4f2c727a492",
+    //"0x1261dfe17d0bf58cb2861ae84734488b1463d282b7ee88ccfa18b7a92a7b77f7",
+    //"0x0112e0be826d694b2e62d01511f12a6061fbaec8bc02357593e70e52ba","0x4ec6f5"]}
+    int extraNonce = (server_->serverId_ << 16) + extraNonce16b_;
+    strNotify = Strings::Format("{\"id\":%d,\"jsonrpc\":\"2.0\","
+                                "\"result\":[\"%s\",\"%s\",\"0x%s\",\"0x%06x\"]}\n",
+                                isFirstJob ? 3 : 0,
+                                header.c_str(),
+                                seed.c_str(),
+                                //Claymore use 58 bytes target
+                                strShareTarget.substr(6, 58).c_str(),
+                                extraNonce);
+    DLOG(INFO) << strNotify;
+    if (!isFirstJob)
+      ++extraNonce16b_;
+  }
+  break;
+  default:
+    break;
+  }
+
+  if (!strNotify.empty())
+    sendData(strNotify); // send notify string
+  else
+    LOG(ERROR) << "Eth notify string is empty";
+
+  // clear localJobs_
+  clearLocalJobs();
+}
+
+void StratumSessionEth::handleRequest_Subscribe(const string &idStr, const JsonNode &jparams)
+{
+  if (state_ != CONNECTED)
+  {
+    responseError(idStr, StratumError::UNKNOWN);
+    return;
+  }
+
+  state_ = SUBSCRIBED;
+
+  const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":true}\n", idStr.c_str());
+  sendData(s);
+}
+
+string StratumSessionEth::getFullName(const string& fullNameStr) {
+  if (ethProtocol_ != ETHPROXY)
+    return fullNameStr;
+  
+  size_t pos = fullNameStr.find('.');
+  if (string::npos == pos) {
+    LOG(ERROR) << "invalid username=" << fullNameStr;
+    return "";
+  }
+
+  return fullNameStr.substr(pos + 1, string::npos);
+}
+
+void StratumSessionEth::handleRequest_Authorize(const string &idStr, const JsonNode &jparams)
+{
+  ethProtocol_ = ETHPROXY;
+  state_ = SUBSCRIBED;
+  StratumSession::handleRequest_Authorize(idStr, jparams);
+}
+
+void StratumSessionEth::handleRequest_GetWork(const string &idStr, const JsonNode &jparams)
+{
+  sendMiningNotify(server_->jobRepository_->getLatestStratumJobEx(), true);
+}
+
+void StratumSessionEth::handleRequest_SubmitHashrate(const string &idStr, const JsonNode &jparams)
+{
+  responseTrue(idStr);
+}
+
+void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode &jparams)
+{
+  if (state_ != AUTHENTICATED)
+  {
+    responseError(idStr, StratumError::UNAUTHORIZED);
+
+    // there must be something wrong, send reconnect command
+    const string s = "{\"id\":null,\"method\":\"client.reconnect\",\"params\":[]}\n";
+    sendData(s);
+
+    return;
+  }
+
+  //etherminer
+  // {"id": 4, "method": "mining.submit",
+  // "params": ["0x7b9d694c26a210b9f0d35bb9bfdd70a413351111.fatrat1117",
+  // "ae778d304393d441bf8e1c47237261675caa3827997f671d8e5ec3bd5d862503",
+  // "0x4cc7c01bfbe51c67",
+  // "0xae778d304393d441bf8e1c47237261675caa3827997f671d8e5ec3bd5d862503",
+  // "0x52fdd9e9a796903c6b88af4192717e77d9a9c6fa6a1366540b65e6bcfa9069aa"]}
+
+  //Claymore
+  //{"id":4,"method":"eth_submitWork",
+  //"params":["0x17a0eae8082fb64c","0x94a789fba387d454312db3287f8440f841de762522da8ba620b7fcf34a80330c",
+  //"0x2cc7dad9f2f92519891a2d5f67378e646571b89e5994fe9290d6d669e480fdff"]}
+  auto params = (const_cast<JsonNode &>(jparams)).array();
+  if (STRATUM == ethProtocol_ && params.size() != 5)
+  {
+    LOG(ERROR) << "mining.submit parameter size is not 5";
+    return;
+  }
+
+  if (ETHPROXY == ethProtocol_ && params.size() != 4)
+  {
+    LOG(ERROR) << "eth_submitWork parameter size is not 4";
+    return;
+  }
+
+  // can't find local share
+  string jobId, sNonce, sHeader, sMixHash;
+  switch (ethProtocol_)
+  {
+  case STRATUM:
+  {
+    jobId = params[1].str();
+    sNonce = params[2].str();
+    sHeader = params[3].str();
+    sMixHash = params[4].str();
+  }
+  break;
+    {
+      sNonce = params[1].str();
+      jobId = sHeader = params[2].str();
+      sMixHash = params[3].str();
+    }
+  case ETHPROXY:
+    break;
+  default:
+    break;
+  }
+
+  LocalJob tmpJob;
+  LocalJob *localJob = server_->isEnableSimulator_ ? &tmpJob : findLocalJob(jobId);
+  if (!server_->isEnableSimulator_ && localJob == nullptr)
+  {
+    responseError(idStr, StratumError::JOB_NOT_FOUND);
+    return;
+  }
+
+  Share share;
+  share.jobId_ = localJob->jobId_;
+  share.workerHashId_ = worker_.workerHashId_;
+  share.ip_ = clientIpInt_;
+  share.userId_ = worker_.userId_;
+  share.share_ = localJob->jobDifficulty_;
+  share.timestamp_ = (uint32_t)time(nullptr);
+  share.result_ = Share::Result::REJECT;
+
+  ServerEth *s = dynamic_cast<ServerEth *>(server_);
+
+  size_t pos;
+  uint64_t nonce = stoull(sNonce, &pos, 16);
+
+  LocalShare localShare(nonce, 0, 0);
+  // can't find local share
+  if (!server_->isEnableSimulator_ && !localJob->addLocalShare(localShare))
+  {
+    responseError(idStr, StratumError::DUPLICATE_SHARE);
+    // add invalid share to counter
+    invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
+    return;
+  }
+
+  int submitResult = s->checkShare(share, nonce, uint256S(sHeader), uint256S(sMixHash));
+
+  // we send share to kafka by default, but if there are lots of invalid
+  // shares in a short time, we just drop them.
+
+  if (StratumError::NO_ERROR == submitResult)
+  {
+    LOG(INFO) << "solution found";
+    s->sendSolvedShare2Kafka(sNonce, sHeader, sMixHash);
+    // accepted share
+    share.result_ = Share::Result::ACCEPT;
+    diffController_->addAcceptedShare(share.share_);
+    rpc2ResponseBoolean(idStr, true);
+  }
+  else if (StratumError::LOW_DIFFICULTY == submitResult)
+  {
+    share.result_ = Share::Result::ACCEPT;
+    rpc2ResponseBoolean(idStr, true);
+  }
+  else
+  {
+    // add invalid share to counter
+    invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
+    rpc2ResponseBoolean(idStr, false);
+  }
+
+  bool isSendShareToKafka = true;
+  //finish:
+  DLOG(INFO) << share.toString();
+  // check if thers is invalid share spamming
+  if (share.result_ != Share::Result::ACCEPT)
+  {
+    int64_t invalidSharesNum = invalidSharesCounter_.sum(time(nullptr), INVALID_SHARE_SLIDING_WINDOWS_SIZE);
+    // too much invalid shares, don't send them to kafka
+    if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT)
+    {
+      isSendShareToKafka = false;
+      LOG(WARNING) << "invalid share spamming, diff: "
+                   << share.share_ << ", uid: " << worker_.userId_
+                   << ", uname: \"" << worker_.userName_ << "\", ip: " << clientIp_
+                   << "checkshare result: " << submitResult;
+    }
+  }
+
+  if (isSendShareToKafka)
+  {
+    server_->sendShare2Kafka((const uint8_t *)&share, sizeof(Share));
+  }
+}
+
+///////////////////////////////// StratumSessionSia ////////////////////////////////
+StratumSessionSia::StratumSessionSia(evutil_socket_t fd,
+                                     struct bufferevent *bev,
+                                     Server *server,
+                                     struct sockaddr *saddr,
+                                     const int32_t shareAvgSeconds,
+                                     const uint32_t extraNonce1) : StratumSession(fd,
+                                                                                  bev,
+                                                                                  server,
+                                                                                  saddr,
+                                                                                  shareAvgSeconds,
+                                                                                  extraNonce1),
+                                                                                  shortJobId_(0)
+{
+}
+
+void StratumSessionSia::handleRequest_Subscribe(const string &idStr, const JsonNode &jparams)
+{
+  if (state_ != CONNECTED)
+  {
+    responseError(idStr, StratumError::UNKNOWN);
+    return;
+  }
+
+  state_ = SUBSCRIBED;
+
+  const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":true}\n", idStr.c_str());
+  sendData(s);
+}
+
+void StratumSessionSia::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob)
+{
+  if (state_ < AUTHENTICATED || nullptr == exJobPtr)
+  {
+    LOG(ERROR) << "sia sendMiningNotify failed, state: " << state_;
+    return;
+  }
+
+  // {"id":6,"jsonrpc":"2.0","params":["49",
+  // "0x0000000000000000c12d6c07fa3e7e182d563d67a961d418d8fa0141478310a500000000000000001d3eaa5a00000000240cc42aa2940c21c8f0ad76b5780d7869629ff66a579043bbdc2b150b8689a0",
+  // "0x0000000007547ff5d321871ff4fb4f118b8d13a30a1ff7b317f3c5b20629578a"],
+  // "method":"mining.notify"}
+
+  StratumJobSia *siaJob = dynamic_cast<StratumJobSia *>(exJobPtr->sjob_);
+  if (nullptr == siaJob)
+  {
+    return;
+  }
+
+  localJobs_.push_back(LocalJob());
+  LocalJob &ljob = *(localJobs_.rbegin());
+  ljob.jobId_ = siaJob->jobId_;
+  ljob.shortJobId_ = shortJobId_++;
+  ljob.jobDifficulty_ = diffController_->calcCurDiff();
+  uint256 shareTarget;
+  DiffToTarget(ljob.jobDifficulty_, shareTarget);
+  string strShareTarget = shareTarget.GetHex();
+  LOG(INFO) << "new sia stratum job mining.notify: share difficulty=" << ljob.jobDifficulty_ << ", share target=" << strShareTarget;
+  const string strNotify = Strings::Format("{\"id\":6,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
+                                           "\"params\":[\"%u\",\"0x%s\",\"0x%s\"]}\n",
+                                           ljob.shortJobId_,
+                                           siaJob->blockHashForMergedMining_.c_str(),
+                                           strShareTarget.c_str());
+
+  sendData(strNotify); // send notify string
+
+  // clear localJobs_
+  clearLocalJobs();
+}
+
+void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode &jparams)
+{
+  if (state_ != AUTHENTICATED)
+  {
+    responseError(idStr, StratumError::UNAUTHORIZED);
+    // there must be something wrong, send reconnect command
+    const string s = "{\"id\":null,\"method\":\"client.reconnect\",\"params\":[]}\n";
+    sendData(s);
+    return;
+  }
+
+  auto params = (const_cast<JsonNode &>(jparams)).array();
+  if (params.size() != 3)
+  {
+    responseError(idStr, StratumError::ILLEGAL_PARARMS);
+    LOG(ERROR) << "illegal header size: " << params.size();
+    return;
+  }
+
+  string header = params[2].str();
+  //string header = "00000000000000021f3e8ede65495c4311ef59e5b7a4338542e573819f5979e982719d0366014155e935aa5a00000000201929782a8fe3209b152520c51d2a82dc364e4a3eb6fb8131439835e278ff8b";
+  if (162 == header.length())
+    header = header.substr(2, 160);
+  if (header.length() != 160)
+  {
+    responseError(idStr, StratumError::ILLEGAL_PARARMS);
+    LOG(ERROR) << "illegal header" << params[2].str();
+    return;
+  }
+
+  uint8 bHeader[80] = {0};
+  for (int i = 0; i < 80; ++i)
+    bHeader[i] = strtol(header.substr(i * 2, 2).c_str(), 0, 16);
+  // uint64 nonce = strtoull(header.substr(64, 16).c_str(), nullptr, 16);
+  // uint64 timestamp = strtoull(header.substr(80, 16).c_str(), nullptr, 16);
+  // DLOG(INFO) << "nonce=" << std::hex << nonce << ", timestamp=" << std::hex << timestamp; 
+  // //memcpy(bHeader + 32, &nonce, 8);
+  // memcpy(bHeader + 40, &timestamp, 8);
+  // for (int i = 48; i < 80; ++i)
+  //   bHeader[i] = strtol(header.substr(i * 2, 2).c_str(), 0, 16);
+  string str;
+  for (int i = 0; i < 80; ++i)
+    str += Strings::Format("%02x", bHeader[i]);
+  DLOG(INFO) << str;
+
+  uint8 out[32] = {0};
+  int ret = blake2b(out, 32, bHeader, 80, nullptr, 0);
+  DLOG(INFO) << "blake2b return=" << ret;
+  //str = "";
+  for (int i = 0; i < 32; ++i)
+    str += Strings::Format("%02x", out[i]);
+  DLOG(INFO) << str;
+
+  uint8 shortJobId = (uint8)atoi(params[1].str());
+  LocalJob *localJob = findLocalJob(shortJobId);
+  if (nullptr == localJob) {
+    responseError(idStr, StratumError::JOB_NOT_FOUND);
+    LOG(ERROR) << "sia local job not found " << (int)shortJobId;
+    return;
+  }
+
+  shared_ptr<StratumJobEx> exjob;
+  exjob = server_->jobRepository_->getStratumJobEx(localJob->jobId_);
+  if (nullptr == exjob || nullptr == exjob->sjob_) {
+    responseError(idStr, StratumError::JOB_NOT_FOUND);
+    LOG(ERROR) << "sia local job not found " << std::hex << localJob->jobId_;
+    return;
+  }
+
+  uint64 nonce = *((uint64*) (bHeader + 32));
+  LocalShare localShare(nonce, 0, 0);
+  if (!server_->isEnableSimulator_ && !localJob->addLocalShare(localShare))
+  {
+    responseError(idStr, StratumError::DUPLICATE_SHARE);
+    LOG(ERROR) << "duplicated share nonce " << std::hex << nonce;
+    // add invalid share to counter
+    invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
+    return;
+  }
+
+  Share share;
+  share.jobId_ = localJob->jobId_;
+  share.workerHashId_ = worker_.workerHashId_;
+  share.ip_ = clientIpInt_;
+  share.userId_ = worker_.userId_;
+  share.share_ = localJob->jobDifficulty_;
+  share.timestamp_ = (uint32_t)time(nullptr);
+  share.result_ = Share::Result::ACCEPT;
+
+  arith_uint256 shareTarget(str);
+  arith_uint256 networkTarget = UintToArith256(exjob->sjob_->networkTarget_);
+  
+  if (shareTarget < networkTarget) {
+    //valid share
+    //submit share
+    ServerSia *s = dynamic_cast<ServerSia*> (server_);
+    s->sendSolvedShare2Kafka(bHeader, 80);
+    diffController_->addAcceptedShare(share.share_);
+    LOG(INFO) << "sia solution found";
+  }
+
+  rpc2ResponseBoolean(idStr, true);
+  server_->sendShare2Kafka((const uint8_t *)&share, sizeof(Share));
+}
+
+/////////////////////////////StratumSessionBytom////////////////////////////
+StratumSessionBytom::StratumSessionBytom(evutil_socket_t fd, struct bufferevent *bev,
+                                         Server *server, struct sockaddr *saddr,
+                                         const int32_t shareAvgSeconds, const uint32_t extraNonce1) : StratumSession(fd,
+                                                                                                                     bev,
+                                                                                                                     server,
+                                                                                                                     saddr,
+                                                                                                                     shareAvgSeconds,
+                                                                                                                     extraNonce1),
+                                                                                                                     shortJobId_(1)
+{
+}
+
+void StratumSessionBytom::handleRequest_Authorize(const string &idStr, const JsonNode &jparams)
+{
+  state_ = SUBSCRIBED;
+  auto params = const_cast<JsonNode&> (jparams);
+  string fullName = params["login"].str();
+  string pwd = params["pass"].str();
+  checkUserAndPwd(idStr, fullName, pwd);
+}
+
+void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob)
+{
+  if (state_ < AUTHENTICATED || nullptr == exJobPtr)
+  {
+    LOG(ERROR) << "bytom sendMiningNotify failed, state: " << state_;
+    return;
+  }
+
+  StratumJobBytom *sJob = dynamic_cast<StratumJobBytom *>(exJobPtr->sjob_);
+  if (nullptr == sJob)
+    return;
+
+  localJobs_.push_back(LocalJob());
+  LocalJob &ljob = *(localJobs_.rbegin());
+  ljob.jobId_ = sJob->jobId_;
+  ljob.shortJobId_ = shortJobId_++;
+  ljob.jobDifficulty_ = diffController_->calcCurDiff();
+  LocalJob &ljobTest = *(localJobs_.rbegin());
+  DLOG(INFO) << "last local job id=" << (int)ljobTest.shortJobId_;
+
+  uint32 target = 0xffffffff;
+  uint64 nonce = (((uint64)server_->serverId_) << 40);
+  string notifyStr, nonceStr, versionStr, heightStr, timestampStr, bitsStr;
+  Bin2Hex((uint8 *)&nonce, 8, nonceStr);
+  Bin2Hex((uint8 *)&sJob->blockHeader_.version, 8, versionStr);
+  Bin2Hex((uint8 *)&sJob->blockHeader_.height, 8, heightStr);
+  Bin2Hex((uint8 *)&sJob->blockHeader_.timestamp, 8, timestampStr);
+  if (server_->isDevModeEnable_)
+  {
+    uint64 testBits = sJob->blockHeader_.bits | 0x2f00000000000000;
+    Bin2Hex((uint8 *)&testBits, 8, bitsStr);
+  }
+  else
+    Bin2Hex((uint8 *)&sJob->blockHeader_.bits, 8, bitsStr);
+
+  if (isFirstJob)
+  {
+    //     {
+    // "id": 1,
+    // "jsonrpc": "2.0",
+    // "result": {
+    // "id": "antminer_1",
+    //     "job": {
+    //         "version": "0100000000000000",
+    //         "height": "552b000000000000",
+    //         "previous_block_hash": "a381c915148d1374e106533822cb55b92a0676577909964af53204150e473108",
+    //         "timestamp": "a846d95a00000000",
+    //         "transactions_merkle_root": "542fb09c8f827e2bbcbf6612f64ccb83d84cc762c243d3366626443b893c2f49",
+    //         "transaction_status_hash": "6978a65b4ee5b6f4914fe5c05000459a803ecf59132604e5d334d64249c5e50a",
+    //         "nonce": "00000000a6040000",
+    //         "bits": "a30baa000000001d",
+    //         "job_id": "710425",
+    //         "seed": "2947a722c7af35bca92dc612ed29a8f61cf59734b214a4994dcce2521220e4bc",
+    //         "target": "c5a70000"
+    //     },
+    //     "status": "OK"
+    // },
+    // "error": null
+    // }
+    notifyStr = Strings::Format(
+        "{\"id\": 1, \"jsonrpc\": \"2.0\", \"result\": {\"id\": \"%s\", \"job\": {\"version\": \"%s\","
+        "\"height\": \"%s\","
+        "\"previous_block_hash\": \"%s\","
+        "\"timestamp\": \"%s\","
+        "\"transactions_merkle_root\": \"%s\","
+        "\"transaction_status_hash\": \"%s\","
+        "\"nonce\": \"%s\","
+        "\"bits\": \"%s\","
+        "\"job_id\": \"%d\","
+        "\"seed\": \"%s\","
+        "\"target\": \"%08x\"}, \"status\": \"OK\"}, \"error\": null}\n",
+        server_->isDevModeEnable_ ? "antminer_1" : worker_.fullName_.c_str(),
+        versionStr.c_str(),
+        heightStr.c_str(),
+        sJob->blockHeader_.previousBlockHash.c_str(),
+        timestampStr.c_str(),
+        sJob->blockHeader_.transactionsMerkleRoot.c_str(),
+        sJob->blockHeader_.transactionStatusHash.c_str(),
+        nonceStr.c_str(),
+        bitsStr.c_str(),
+        ljob.shortJobId_,
+        sJob->seed_.c_str(),
+        target);
+  }
+  else
+  {
+    //   {
+    //   "id": 1,
+    //   "jsonrpc": "2.0",
+    //   "result": {
+    //      "1",//JobId
+    //      "1"//Version
+    //      "1" //Height
+    //      "e733c4b1c4ea57bc87346d9fce8c492248f1f414b9eac17faf9e9b8e0a107fa1", //PreviousBlockHash
+    //      "5aa39c6e", //Timestamp
+    //      "15bd7762b3ee8057ecb83b792e2168c6b6bddaf10163d110f7e63db387e6aacf", //TransactionsMerkleRoot
+    //      "53c0ab896cb7a3778cc1d35a271264d991792b7c44f5c334116bb0786dbc5635", //TransactionStatusHash
+    //      "8000000000000000", //Nonce
+    //      "20000000007fffff", //Bits
+    //      "e733c4b1c4ea57bc87346d9fce8c492248f1f414b9eac17faf9e9b8e0a107fa1",//Seed
+    //      "bdba0400",//Target
+    //     }
+    // }
+    notifyStr = Strings::Format(
+        "{\"id\": 1,\"jsonrpc\": \"2.0\", \"result\": {\"%u\", \"%" PRIu64 "\", \"%" PRIu64 "\", \"%s\", \"%08x\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%08x\"}}\n",
+        ljob.shortJobId_,
+        sJob->blockHeader_.version,
+        sJob->blockHeader_.height,
+        sJob->blockHeader_.previousBlockHash.c_str(),
+        sJob->blockHeader_.timestamp,
+        sJob->blockHeader_.transactionsMerkleRoot.c_str(),
+        sJob->blockHeader_.transactionStatusHash.c_str(),
+        nonceStr.c_str(),
+        bitsStr.c_str(),
+        sJob->seed_.c_str(),
+        target);
+  }
+  LOG(INFO) << "bytom sendMiningNotify: " << notifyStr;
+  sendData(notifyStr);
+}
+
+void StratumSessionBytom::handleRequest_GetWork(const string &idStr, const JsonNode &jparams) {
+    sendMiningNotify(server_->jobRepository_->getLatestStratumJobEx(), false);
+}
+
+void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNode &jparams)
+{
+  LOG(INFO) << "bytom handle request submit";
+  JsonNode &params = const_cast<JsonNode &>(jparams);
+  uint8 shortJobId = (uint8)params["job_id"].uint32();
+
+  LocalJob *localJob= findLocalJob(shortJobId);
+  if (nullptr == localJob)
+  {
+    responseError(idStr, StratumError::JOB_NOT_FOUND);
+    LOG(ERROR) << "can not find local bytom job id=" << shortJobId;
+    return;
+  }
+
+  shared_ptr<StratumJobEx> exjob;
+  exjob = server_->jobRepository_->getStratumJobEx(localJob->jobId_);
+  if (nullptr == exjob || nullptr == exjob->sjob_)
+  {
+    responseError(idStr, StratumError::JOB_NOT_FOUND);
+    LOG(ERROR) << "bytom local job not found " << std::hex << localJob->jobId_;
+    return;
+  }
+
+  StratumJobBytom *sJob = dynamic_cast<StratumJobBytom *>(exjob->sjob_);
+  if (nullptr == sJob)
+    return;
+
+  //get header submission string and header hash string
+  uint64 nonce = params["nonce"].uint64();
+  EncodeBlockHeader_return encoded = EncodeBlockHeader(sJob->blockHeader_.version, sJob->blockHeader_.height, (char *)sJob->blockHeader_.previousBlockHash.c_str(), sJob->blockHeader_.timestamp,
+                                  nonce, sJob->blockHeader_.bits, (char *)sJob->blockHeader_.transactionsMerkleRoot.c_str(), (char *)sJob->blockHeader_.transactionStatusHash.c_str());
+
+  DLOG(INFO) << "verify blockheader hash=" << encoded.r1 << ", seed=" << sJob->seed_;
+  vector<char> vHeader, vSeed;
+  Hex2Bin(encoded.r1, vHeader);
+  Hex2Bin(sJob->seed_.c_str(), sJob->seed_.length(), vSeed);
+
+  //Check share
+  Share share;
+  share.jobId_ = localJob->jobId_;
+  share.workerHashId_ = worker_.workerHashId_;
+  share.ip_ = clientIpInt_;
+  share.userId_ = worker_.userId_;
+  share.share_ = localJob->jobDifficulty_;
+  share.timestamp_ = (uint32_t)time(nullptr);
+  share.result_ = Share::Result::ACCEPT;
+  
+  ServerBytom *s = dynamic_cast<ServerBytom*> (server_);
+  if (s != nullptr)
+    s->sendSolvedShare2Kafka(encoded.r0);
+
+  rpc2ResponseBoolean(idStr, true);
+  server_->sendShare2Kafka((const uint8_t *)&share, sizeof(Share));
+
+  free(encoded.r0);
+  free(encoded.r1);
+}
+
+bool StratumSessionBytom::validate(const JsonNode &jmethod, const JsonNode &jparams)
+{
+  if (jmethod.type() == Utilities::JS::type::Str &&
+      jmethod.size() != 0 &&
+      jparams.type() == Utilities::JS::type::Obj)
+  {
+    return true;
+  }
+
+  return false;
+}
 
 ///////////////////////////////// AgentSessions ////////////////////////////////
 AgentSessions::AgentSessions(const int32_t shareAvgSeconds,
@@ -1140,7 +1938,7 @@ void AgentSessions::handleExMessage_RegisterWorker(const string *exMessage) {
 
   // acquires new pointer
   assert(diffControllers_[sessionId] == nullptr);
-  diffControllers_[sessionId] = new DiffController(shareAvgSeconds_);
+  diffControllers_[sessionId] = new DiffController(stratumSession_->server_->defaultDifficultyController_.get());
 
   // set curr diff to default Diff
   curDiff2ExpVec_[sessionId] = kDefaultDiff2Exp_;

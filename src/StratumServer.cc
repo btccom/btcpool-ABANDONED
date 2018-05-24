@@ -21,6 +21,8 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
+#include  <iostream>
+#include  <iomanip>
 #include "StratumServer.h"
 
 #include "Common.h"
@@ -32,9 +34,11 @@
 #include <utilstrencodings.h>
 #include <hash.h>
 #include <inttypes.h>
+#include "rsk/RskSolvedShareData.h"
 
 #include "utilities_js.hpp"
 
+using namespace std;
 
 #ifndef WORK_WITH_STRATUM_SWITCHER
 
@@ -91,11 +95,9 @@ void SessionIDManager::freeSessionId(uint32_t sessionId) {
 
 
 ////////////////////////////////// JobRepository ///////////////////////////////
-JobRepository::JobRepository(const char *kafkaBrokers,
-                             const string &fileLastNotifyTime,
-                             Server *server):
+JobRepository::JobRepository(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server):
 running_(true),
-kafkaConsumer_(kafkaBrokers, KAFKA_TOPIC_STRATUM_JOB, 0/*patition*/),
+kafkaConsumer_(kafkaBrokers, consumerTopic, 0/*patition*/),
 server_(server), fileLastNotifyTime_(fileLastNotifyTime),
 kMaxJobsLifeTime_(300),
 kMiningNotifyInterval_(30),  // TODO: make as config arg
@@ -107,6 +109,11 @@ lastJobSendTime_(0)
 JobRepository::~JobRepository() {
   if (threadConsume_.joinable())
     threadConsume_.join();
+}
+
+void JobRepository::setMaxJobDelay (const time_t maxJobDelay) {
+  LOG(INFO) << "set max job delay to " << maxJobDelay << "s";
+  kMaxJobsLifeTime_ = maxJobDelay;
 }
 
 shared_ptr<StratumJobEx> JobRepository::getStratumJobEx(const uint64_t jobId) {
@@ -182,6 +189,65 @@ void JobRepository::runThreadConsume() {
   LOG(INFO) << "stop job repository consume thread";
 }
 
+void JobRepository::broadcastStratumJob(StratumJob *sjob) {
+  bool isClean = false;
+  if (latestPrevBlockHash_ != sjob->prevHash_) {
+    isClean = true;
+    latestPrevBlockHash_ = sjob->prevHash_;
+    LOG(INFO) << "received new height stratum job, height: " << sjob->height_
+    << ", prevhash: " << sjob->prevHash_.ToString();
+  }
+
+  bool isRskClean = sjob->isRskCleanJob_;
+
+  // 
+  // The `clean_jobs` field should be `true` ONLY IF a new block found in Bitcoin blockchains.
+  // Most miner implements will never submit their previous shares if the field is `true`.
+  // There will be a huge loss of hashrates and earnings if the field is often `true`.
+  // 
+  // There is the definition from <https://slushpool.com/help/manual/stratum-protocol>:
+  // 
+  // clean_jobs - When true, server indicates that submitting shares from previous jobs
+  // don't have a sense and such shares will be rejected. When this flag is set,
+  // miner should also drop all previous jobs.
+  // 
+  shared_ptr<StratumJobEx> exJob(createStratumJobEx(sjob, isClean));
+  {
+    ScopeLock sl(lock_);
+
+    if (isClean) {
+      // mark all jobs as stale, should do this before insert new job
+      for (auto it : exJobs_) {
+        it.second->markStale();
+      }
+    }
+
+    // insert new job
+    exJobs_[sjob->jobId_] = exJob;
+  }
+
+  // if job has clean flag, call server to send job
+  if (isClean || isRskClean) {
+    sendMiningNotify(exJob);
+    return;
+  }
+
+  // if last job is an empty block job(clean=true), we need to send a
+  // new non-empty job as quick as possible.
+  if (isClean == false && exJobs_.size() >= 2) {
+    auto itr = exJobs_.rbegin();
+    shared_ptr<StratumJobEx> exJob1 = itr->second;
+    itr++;
+    shared_ptr<StratumJobEx> exJob2 = itr->second;
+
+    if (exJob2->isClean_ == true &&
+        exJob2->sjob_->merkleBranch_.size() == 0 &&
+        exJob1->sjob_->merkleBranch_.size() != 0) {
+      sendMiningNotify(exJob);
+    }
+  }
+}
+
 void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   // check error
   if (rkmessage->err) {
@@ -206,7 +272,7 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
     return;
   }
 
-  StratumJob *sjob = new StratumJob();
+  StratumJob *sjob = createStratumJob();
   bool res = sjob->unserializeFromJson((const char *)rkmessage->payload,
                                        rkmessage->len);
   if (res == false) {
@@ -215,8 +281,9 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
     return;
   }
   // make sure the job is not expired.
-  if (jobId2Time(sjob->jobId_) + 60 < time(nullptr)) {
-    LOG(ERROR) << "too large delay from kafka to receive topic 'StratumJob'";
+  time_t now = time(nullptr);
+  if (sjob->jobTime() + kMaxJobsLifeTime_ < now) {
+    LOG(ERROR) << "too large delay from kafka to receive topic 'StratumJob' job time=" << sjob->jobTime() << ", max delay=" << kMaxJobsLifeTime_ << ", now=" << now;
     delete sjob;
     return;
   }
@@ -228,49 +295,14 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
     return;
   }
 
-  bool isClean = false;
-  if (latestPrevBlockHash_ != sjob->prevHash_) {
-    isClean = true;
-    latestPrevBlockHash_ = sjob->prevHash_;
-    LOG(INFO) << "received new height statum job, height: " << sjob->height_
-    << ", prevhash: " << sjob->prevHash_.ToString();
-  }
+  broadcastStratumJob(sjob);
+}
 
-  shared_ptr<StratumJobEx> exJob = std::make_shared<StratumJobEx>(sjob, isClean);
-  {
-    ScopeLock sl(lock_);
-
-    if (isClean) {
-      // mark all jobs as stale, should do this before insert new job
-      for (auto it : exJobs_) {
-        it.second->markStale();
-      }
-    }
-
-    // insert new job
-    exJobs_[sjob->jobId_] = exJob;
-  }
-
-  // if job has clean flag, call server to send job
-  if (isClean) {
-    sendMiningNotify(exJob);
-    return;
-  }
-
-  // if last job is an empty block job(clean=true), we need to send a
-  // new non-empty job as quick as possible.
-  if (isClean == false && exJobs_.size() >= 2) {
-    auto itr = exJobs_.rbegin();
-    shared_ptr<StratumJobEx> exJob1 = itr->second;
-    itr++;
-    shared_ptr<StratumJobEx> exJob2 = itr->second;
-
-    if (exJob2->isClean_ == true &&
-        exJob2->sjob_->merkleBranch_.size() == 0 &&
-        exJob1->sjob_->merkleBranch_.size() != 0) {
-      sendMiningNotify(exJob);
-    }
-  }
+StratumJobEx* JobRepository::createStratumJobEx(StratumJob *sjob, bool isClean){
+  StratumJobEx *job = new StratumJobEx(sjob, isClean);
+  if (job)
+    job->init();
+  return job;
 }
 
 void JobRepository::markAllJobsAsStale() {
@@ -327,6 +359,162 @@ void JobRepository::tryCleanExpiredJobs() {
     LOG(INFO) << "remove expired stratum job, id: " << itr->first
     << ", time: " << date("%F %T", jobTime);
   }
+}
+
+////////////////////////////////// JobRepositoryEth ///////////////////////////////
+JobRepositoryEth::JobRepositoryEth(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server):
+JobRepository(kafkaBrokers, consumerTopic, fileLastNotifyTime, server),
+light_(nullptr), 
+nextLight_(nullptr),
+epochs_(0xffffffffffffffff)
+{
+}
+
+StratumJobEx* JobRepositoryEth::createStratumJobEx(StratumJob *sjob, bool isClean){
+  return new StratumJobExNoInit(sjob, isClean);
+}
+
+void JobRepositoryEth::broadcastStratumJob(StratumJob *sjob) {
+  LOG(INFO) << "broadcast eth stratum job " << std::hex << sjob->jobId_;
+  bool isClean = true;
+  
+  shared_ptr<StratumJobEx> exJob(createStratumJobEx(sjob, isClean));
+  {
+    ScopeLock sl(lock_);
+
+    if (isClean) {
+      // mark all jobs as stale, should do this before insert new job
+      for (auto it : exJobs_) {
+        it.second->markStale();
+      }
+    }
+
+    // insert new job
+    exJobs_[sjob->jobId_] = exJob;
+  }
+
+  //send job first
+  sendMiningNotify(exJob);
+  //then, create light for verification
+  newLight(dynamic_cast<StratumJobEth*>(sjob));
+}
+
+JobRepositoryEth::~JobRepositoryEth() {
+  deleteLight();
+}
+
+void JobRepositoryEth::newLight(StratumJobEth* job) {
+  if (nullptr == job)
+    return;
+
+  newLight(job->blockNumber_);
+}
+
+void JobRepositoryEth::newLight(uint64_t blkNum)
+{
+  uint64_t const epochs = blkNum / ETHASH_EPOCH_LENGTH;
+  //same seed do nothing
+  if (epochs == epochs_)
+    return;
+  epochs_ = epochs;
+
+  LOG(INFO) << "creating light for blk num... " << blkNum;
+  time_t now = time(nullptr);
+  time_t elapse;
+  {
+    ScopeLock sl(lightLock_);
+    //deleteLightNoLock();
+    if (nullptr == nextLight_)
+      light_ = ethash_light_new(blkNum);
+    else {
+      //get pre-generated light if exists
+      ethash_light_delete(light_);
+      light_ =  nextLight_;
+    }
+    if (nullptr == light_)
+      LOG(FATAL) << "create light for blk num: " << blkNum << " failed";
+    else
+    {
+      elapse = time(nullptr) - now;
+      LOG(INFO) << "create light for blk num: " << blkNum << " takes " << elapse << " seconds";
+    }
+  }
+
+  now = time(nullptr);
+  uint64_t nextBlkNum = blkNum + ETHASH_EPOCH_LENGTH;
+  LOG(INFO) << "creating light for blk num... " << nextBlkNum;
+  nextLight_ = ethash_light_new(nextBlkNum);
+  elapse = time(nullptr) - now;
+  LOG(INFO) << "create light for blk num: " << nextBlkNum << " takes " << elapse << " seconds";
+}
+
+void JobRepositoryEth::deleteLight()
+{
+  ScopeLock sl(lightLock_);
+  deleteLightNoLock();
+}
+
+void JobRepositoryEth::deleteLightNoLock() {
+  if (light_ != nullptr) {
+    ethash_light_delete(light_);
+    light_ = nullptr;
+  }
+
+  if (nextLight_ != nullptr) {
+    ethash_light_delete(nextLight_);
+    nextLight_ = nullptr;
+  }
+}
+
+bool JobRepositoryEth::compute(ethash_h256_t const header, uint64_t nonce, ethash_return_value_t &r)
+{
+  ScopeLock sl(lightLock_);
+  if (light_ != nullptr)
+  {
+    r = ethash_light_compute(light_, header, nonce);
+    // LOG(INFO) << "ethash_light_compute: " << r.success << ", result: ";
+    // for (int i = 0; i < 32; ++i)
+    //   LOG(INFO) << hex << (int)r.result.b[i];
+
+    // LOG(INFO) << "mixed hash: ";
+    // for (int i = 0; i < 32; ++i)
+    //   LOG(INFO) << hex << (int)r.mix_hash.b[i];
+
+    return r.success;
+  }
+  return false;
+}
+
+//////////////////////////////////// JobRepositorySia /////////////////////////////////
+JobRepositorySia::JobRepositorySia(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server) : 
+JobRepository(kafkaBrokers, consumerTopic, fileLastNotifyTime, server)
+{
+}
+
+StratumJobEx* JobRepositorySia::createStratumJobEx(StratumJob *sjob, bool isClean){
+  return new StratumJobExNoInit(sjob, isClean);
+}
+
+void JobRepositorySia::broadcastStratumJob(StratumJob *sjob) {
+  LOG(INFO) << "broadcast sia stratum job " << std::hex << sjob->jobId_;
+  shared_ptr<StratumJobEx> exJob(createStratumJobEx(sjob, true));
+  {
+    ScopeLock sl(lock_);
+
+    // mark all jobs as stale, should do this before insert new job
+    for (auto it : exJobs_)
+      it.second->markStale();
+
+    // insert new job
+    exJobs_[sjob->jobId_] = exJob;
+  }
+
+  sendMiningNotify(exJob);
+}
+
+///////////////////////////////////JobRepositoryBytom///////////////////////////////////
+StratumJobEx* JobRepositoryBytom::createStratumJobEx(StratumJob *sjob, bool isClean){
+  return new StratumJobExNoInit(sjob, isClean);
 }
 
 
@@ -616,7 +804,7 @@ StratumJobEx::StratumJobEx(StratumJob *sjob, bool isClean):
 state_(0), isClean_(isClean), sjob_(sjob)
 {
   assert(sjob != nullptr);
-  makeMiningNotifyStr();
+  init();
 }
 
 StratumJobEx::~StratumJobEx() {
@@ -626,7 +814,7 @@ StratumJobEx::~StratumJobEx() {
   }
 }
 
-void StratumJobEx::makeMiningNotifyStr() {
+void StratumJobEx::init() {
   string merkleBranchStr;
   {
     // '"'+ 64 + '"' + ',' = 67 bytes
@@ -739,22 +927,48 @@ StratumServer::StratumServer(const char *ip, const unsigned short port,
                              const char *kafkaBrokers, const string &userAPIUrl,
                              const uint8_t serverId, const string &fileLastNotifyTime,
                              bool isEnableSimulator, bool isSubmitInvalidBlock,
-                             const int32_t shareAvgSeconds)
-:running_(true), server_(shareAvgSeconds),
-ip_(ip), port_(port), serverId_(serverId),
-fileLastNotifyTime_(fileLastNotifyTime),
-kafkaBrokers_(kafkaBrokers), userAPIUrl_(userAPIUrl),
-isEnableSimulator_(isEnableSimulator), isSubmitInvalidBlock_(isSubmitInvalidBlock)
+                             bool isDevModeEnable, float minerDifficulty,
+                             const string &consumerTopic,
+                             uint32 maxJobDelay,
+                             shared_ptr<DiffController> defaultDifficultyController,
+                             const string& solvedShareTopic,
+                             const string& shareTopic)
+    : running_(true),
+      ip_(ip), port_(port), serverId_(serverId),
+      fileLastNotifyTime_(fileLastNotifyTime),
+      kafkaBrokers_(kafkaBrokers), userAPIUrl_(userAPIUrl),
+      isEnableSimulator_(isEnableSimulator), isSubmitInvalidBlock_(isSubmitInvalidBlock),
+      isDevModeEnable_(isDevModeEnable), minerDifficulty_(minerDifficulty),
+      consumerTopic_(consumerTopic),
+      maxJobDelay_(maxJobDelay),
+      defaultDifficultyController_(defaultDifficultyController),
+      solvedShareTopic_(solvedShareTopic),
+      shareTopic_(shareTopic)
 {
 }
 
 StratumServer::~StratumServer() {
 }
 
-bool StratumServer::init() {
-  if (!server_.setup(ip_.c_str(), port_, kafkaBrokers_.c_str(),
-                     userAPIUrl_, serverId_, fileLastNotifyTime_,
-                     isEnableSimulator_, isSubmitInvalidBlock_)) {
+bool StratumServer::createServer(string type, const int32_t shareAvgSeconds) {
+  LOG(INFO) << "createServer type: " << type << ", shareAvgSeconds: " << shareAvgSeconds;
+  if ("BTC" == type)
+    server_ = make_shared<Server> (shareAvgSeconds);
+  else if ("ETH" == type)
+    server_ = make_shared<ServerEth> (shareAvgSeconds);
+  else if ("SIA" == type)
+    server_ = make_shared<ServerSia> (shareAvgSeconds);
+  else if ("BYTOM" == type) 
+    server_ = make_shared<ServerBytom> (shareAvgSeconds);
+  else 
+    return false;
+  return server_ != nullptr;
+}
+
+bool StratumServer::init()
+{
+  if (!server_->setup(this))
+  {
     LOG(ERROR) << "fail to setup server";
     return false;
   }
@@ -766,12 +980,12 @@ void StratumServer::stop() {
     return;
   }
   running_ = false;
-  server_.stop();
+  server_->stop();
   LOG(INFO) << "stop stratum server";
 }
 
 void StratumServer::run() {
-  server_.run();
+  server_->run();
 }
 
 ///////////////////////////////////// Server ///////////////////////////////////
@@ -781,14 +995,17 @@ kafkaProducerShareLog_(nullptr),
 kafkaProducerSolvedShare_(nullptr),
 kafkaProducerNamecoinSolvedShare_(nullptr),
 kafkaProducerCommonEvents_(nullptr),
+kafkaProducerRskSolvedShare_(nullptr),
 isEnableSimulator_(false), isSubmitInvalidBlock_(false),
 
 #ifndef WORK_WITH_STRATUM_SWITCHER
 sessionIDManager_(nullptr),
 #endif
 
+isDevModeEnable_(false), minerDifficulty_(1.0),
 kShareAvgSeconds_(shareAvgSeconds),
-jobRepository_(nullptr), userInfo_(nullptr)
+jobRepository_(nullptr), userInfo_(nullptr),
+serverId_(0)
 {
 }
 
@@ -811,6 +1028,9 @@ Server::~Server() {
   if (kafkaProducerNamecoinSolvedShare_ != nullptr) {
     delete kafkaProducerNamecoinSolvedShare_;
   }
+  if (kafkaProducerRskSolvedShare_ != nullptr) {
+    delete kafkaProducerRskSolvedShare_;
+  }
   if (kafkaProducerCommonEvents_ != nullptr) {
     delete kafkaProducerCommonEvents_;
   }
@@ -828,48 +1048,120 @@ Server::~Server() {
 #endif
 }
 
-bool Server::setup(const char *ip, const unsigned short port,
-                   const char *kafkaBrokers,
-                   const string &userAPIUrl,
-                   const uint8_t serverId, const string &fileLastNotifyTime,
-                   bool isEnableSimulator, bool isSubmitInvalidBlock) {
-  if (isEnableSimulator) {
+// JobRepository *Server::createJobRepository(StratumServerType type,
+//                                            const char *kafkaBrokers,
+//                                            const string &fileLastNotifyTime,
+//                                            Server *server)
+// {
+//   JobRepository *jobRepo = nullptr;
+//   switch (type)
+//   {
+//   case BTC:
+//     jobRepo = new JobRepository(kafkaBrokers, fileLastNotifyTime, this);
+//     break;
+//   case ETH:
+//     jobRepo = new JobRepositoryEth(kafkaBrokers, fileLastNotifyTime, this);
+//     break;
+//   }
+//   return jobRepo;
+// }
+
+JobRepository *Server::createJobRepository(const char *kafkaBrokers,
+                                           const char *consumerTopic,
+                                           const string &fileLastNotifyTime,
+                                           Server *server)
+{
+  return new JobRepository(kafkaBrokers, consumerTopic, fileLastNotifyTime, this);
+}
+
+StratumSession *Server::createSession(evutil_socket_t fd, struct bufferevent *bev,
+                                      Server *server, struct sockaddr *saddr,
+                                      const int32_t shareAvgSeconds,
+                                      const uint32_t sessionID)
+{
+  return new StratumSession(fd, bev, server, saddr,
+                     server->kShareAvgSeconds_,
+                     sessionID);
+}
+
+// StratumSession* Server::createSession(StratumServerType type, evutil_socket_t fd, struct bufferevent *bev,
+//                                       Server *server, struct sockaddr *saddr,
+//                                       const int32_t shareAvgSeconds,
+//                                       const uint32_t sessionID)
+// {
+//   StratumSession *conn = nullptr;
+//   switch (type)
+//   {
+//   case BTC:
+//     conn = new StratumSession(fd, bev, server, saddr,
+//                               server->kShareAvgSeconds_,
+//                               sessionID);
+//     break;
+//   case ETH:
+//     conn = new StratumSessionEth(fd, bev, server, saddr,
+//                                  server->kShareAvgSeconds_,
+//                                  sessionID);
+//     break;
+//   }
+
+//   if (!conn->initialize()) {
+//     delete conn;
+//     conn = nullptr;
+//   }
+
+//   return conn;
+// }
+
+bool Server::setup(StratumServer* sserver) {
+  if (sserver->isEnableSimulator_) {
     isEnableSimulator_ = true;
     LOG(WARNING) << "Simulator is enabled, all share will be accepted";
   }
 
-  if (isSubmitInvalidBlock) {
+  if (sserver->isSubmitInvalidBlock_) {
     isSubmitInvalidBlock_ = true;
     LOG(WARNING) << "submit invalid block is enabled, all block will be submited";
   }
 
-  kafkaProducerSolvedShare_ = new KafkaProducer(kafkaBrokers,
-                                                KAFKA_TOPIC_SOLVED_SHARE,
+  if (sserver->isDevModeEnable_) {
+    isDevModeEnable_ = true;
+    minerDifficulty_ = sserver->minerDifficulty_;
+    LOG(INFO) << "development mode is enabled with difficulty: " << minerDifficulty_;
+  }
+
+  defaultDifficultyController_ = sserver->defaultDifficultyController_;
+
+  kafkaProducerSolvedShare_ = new KafkaProducer(sserver->kafkaBrokers_.c_str(),
+                                                sserver->solvedShareTopic_.c_str(),
                                                 RD_KAFKA_PARTITION_UA);
-  kafkaProducerNamecoinSolvedShare_ = new KafkaProducer(kafkaBrokers,
+  kafkaProducerNamecoinSolvedShare_ = new KafkaProducer(sserver->kafkaBrokers_.c_str(),
                                                         KAFKA_TOPIC_NMC_SOLVED_SHARE,
                                                         RD_KAFKA_PARTITION_UA);
-  kafkaProducerShareLog_ = new KafkaProducer(kafkaBrokers,
-                                             KAFKA_TOPIC_SHARE_LOG,
+  kafkaProducerRskSolvedShare_ = new KafkaProducer(sserver->kafkaBrokers_.c_str(),
+                                                        KAFKA_TOPIC_RSK_SOLVED_SHARE,
+                                                        RD_KAFKA_PARTITION_UA);
+  kafkaProducerShareLog_ = new KafkaProducer(sserver->kafkaBrokers_.c_str(),
+                                             sserver->shareTopic_.c_str(),
                                              RD_KAFKA_PARTITION_UA);
-  kafkaProducerCommonEvents_ = new KafkaProducer(kafkaBrokers,
+  kafkaProducerCommonEvents_ = new KafkaProducer(sserver->kafkaBrokers_.c_str(),
                                                  KAFKA_TOPIC_COMMON_EVENTS,
                                                  RD_KAFKA_PARTITION_UA);
 
   // job repository
-  jobRepository_ = new JobRepository(kafkaBrokers, fileLastNotifyTime, this);
+  jobRepository_ = createJobRepository(sserver->kafkaBrokers_.c_str(), sserver->consumerTopic_.c_str(), sserver->fileLastNotifyTime_, this);
+  jobRepository_->setMaxJobDelay(sserver->maxJobDelay_);
   if (!jobRepository_->setupThreadConsume()) {
     return false;
   }
 
   // user info
-  userInfo_ = new UserInfo(userAPIUrl, this);
+  userInfo_ = new UserInfo(sserver->userAPIUrl_, this);
   if (!userInfo_->setupThreads()) {
     return false;
   }
-
+  serverId_ = sserver->serverId_;
 #ifndef WORK_WITH_STRATUM_SWITCHER
-  sessionIDManager_ = new SessionIDManager(serverId);
+  sessionIDManager_ = new SessionIDManager(serverId_);
 #endif
 
   // kafkaProducerShareLog_
@@ -923,6 +1215,21 @@ bool Server::setup(const char *ip, const unsigned short port,
     }
   }
 
+  // kafkaProducerRskSolvedShare_
+  {
+    map<string, string> options;
+    // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
+    options["queue.buffering.max.ms"] = "1";
+    if (!kafkaProducerRskSolvedShare_->setup(&options)) {
+      LOG(ERROR) << "kafka kafkaProducerRskSolvedShare_ setup failure";
+      return false;
+    }
+    if (!kafkaProducerRskSolvedShare_->checkAlive()) {
+      LOG(ERROR) << "kafka kafkaProducerRskSolvedShare_ is NOT alive";
+      return false;
+    }
+  }
+
   // kafkaProducerCommonEvents_
   {
     map<string, string> options;
@@ -948,8 +1255,9 @@ bool Server::setup(const char *ip, const unsigned short port,
 
   memset(&sin_, 0, sizeof(sin_));
   sin_.sin_family = AF_INET;
-  sin_.sin_port   = htons(port);
+  sin_.sin_port   = htons(sserver->port_);
   sin_.sin_addr.s_addr = htonl(INADDR_ANY);
+  const char* ip = sserver->ip_.c_str();
   if (ip && inet_pton(AF_INET, ip, &sin_.sin_addr) == 0) {
     LOG(ERROR) << "invalid ip: " << ip;
     return false;
@@ -961,7 +1269,7 @@ bool Server::setup(const char *ip, const unsigned short port,
                                       LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE,
                                       -1, (struct sockaddr*)&sin_, sizeof(sin_));
   if(!listener_) {
-    LOG(ERROR) << "cannot create listener: " << ip << ":" << port;
+    LOG(ERROR) << "cannot create listener: " << ip << ":" << sserver->port_;
     return false;
   }
   return true;
@@ -1058,9 +1366,14 @@ void Server::listenerCallback(struct evconnlistener* listener,
   }
 
   // create stratum session
-  StratumSession* conn = new StratumSession(fd, bev, server, saddr,
-                                            server->kShareAvgSeconds_,
-                                            sessionID);
+  StratumSession *conn = server->createSession(fd, bev, server, saddr,
+                                       server->kShareAvgSeconds_,
+                                       sessionID);
+  if (!conn->initialize())
+  {
+    delete conn;
+    return;
+  }
   // set callback functions
   bufferevent_setcb(bev,
                     Server::readCallback, nullptr,
@@ -1168,6 +1481,50 @@ int Server::checkShare(const Share &share,
   }
 
   //
+  // found new RSK block
+  //
+  if (!sjob->blockHashForMergedMining_.empty() &&
+      (isSubmitInvalidBlock_ == true || bnBlockHash <= UintToArith256(sjob->rskNetworkTarget_))) {
+    //
+    // build data needed to submit block to RSK
+    //
+    RskSolvedShareData shareData;
+    shareData.jobId_    = share.jobId_;
+    shareData.workerId_ = share.workerHashId_;
+    shareData.userId_   = share.userId_;
+    // height = matching bitcoin block height
+    shareData.height_   = sjob->height_;
+    snprintf(shareData.feesForMiner_, sizeof(shareData.feesForMiner_), "%s", sjob->feesForMiner_.c_str());
+    snprintf(shareData.rpcAddress_, sizeof(shareData.rpcAddress_), "%s", sjob->rskdRpcAddress_.c_str());
+    snprintf(shareData.rpcUserPwd_, sizeof(shareData.rpcUserPwd_), "%s", sjob->rskdRpcUserPwd_.c_str());
+    memcpy(shareData.header80_, (const uint8_t *)&header, sizeof(CBlockHeader));
+    snprintf(shareData.workerFullName_, sizeof(shareData.workerFullName_), "%s", workFullName.c_str());
+    
+    //
+    // send to kafka topic
+    //
+    string buf;
+    buf.resize(sizeof(RskSolvedShareData) + coinbaseBin.size());
+    uint8_t *p = (uint8_t *)buf.data();
+
+    // RskSolvedShareData
+    memcpy(p, (const uint8_t *)&shareData, sizeof(RskSolvedShareData));
+    p += sizeof(RskSolvedShareData);
+
+    // coinbase TX
+    memcpy(p, coinbaseBin.data(), coinbaseBin.size());
+
+    kafkaProducerRskSolvedShare_->produce(buf.data(), buf.size());
+
+    //
+    // log the finding
+    //
+    LOG(INFO) << ">>>> found a new RSK block: " << blkHash.ToString()
+    << ", jobId: " << share.jobId_ << ", userId: " << share.userId_
+    << ", by: " << workFullName << " <<<<";
+  }
+
+  //
   // found namecoin block
   //
   if (sjob->nmcAuxBits_ != 0 &&
@@ -1243,4 +1600,143 @@ void Server::sendSolvedShare2Kafka(const FoundBlock *foundBlock,
 
 void Server::sendCommonEvents2Kafka(const string &message) {
   kafkaProducerCommonEvents_->produce(message.data(), message.size());
+}
+
+////////////////////////////////// ServierEth ///////////////////////////////
+int ServerEth::checkShare(const Share &share,
+                          const uint64_t nonce,
+                          const uint256 header,
+                          const uint256 mixHash)
+{
+  //accept every share in simulator mode
+  if (isEnableSimulator_)
+  {
+    usleep(20000);
+    return StratumError::NO_ERROR;
+  }
+
+  JobRepositoryEth *jobRepo = dynamic_cast<JobRepositoryEth *>(jobRepository_);
+  if (nullptr == jobRepo)
+    return StratumError::ILLEGAL_PARARMS;
+
+  shared_ptr<StratumJobEx> exJobPtr = jobRepository_->getStratumJobEx(share.jobId_);
+  if (nullptr == exJobPtr)
+  {
+    return StratumError::JOB_NOT_FOUND;
+  }
+
+  if (exJobPtr->isStale())
+  {
+    return StratumError::JOB_NOT_FOUND;
+  }
+
+  StratumJob *sjob = exJobPtr->sjob_;
+  //LOG(INFO) << "checking share nonce: " << hex << nonce << ", header: " << header.GetHex() << ", mixHash: " << mixHash.GetHex();
+  ethash_return_value_t r;
+  ethash_h256_t ethashHeader = {0};
+  Uint256ToEthash256(header, ethashHeader);
+
+  // for (int i = 0; i < 32; ++i)
+  //   LOG(INFO) << "ethash_h256_t byte " << i << ": " << hex << (int)ethashHeader.b[i];
+  timeval start, end;
+  long mtime, seconds, useconds;
+  gettimeofday(&start, NULL);
+  bool ret = jobRepo->compute(ethashHeader, nonce, r);
+  gettimeofday(&end, NULL);
+  seconds = end.tv_sec - start.tv_sec;
+  useconds = end.tv_usec - start.tv_usec;
+  mtime = ((seconds)*1000 + useconds / 1000.0) + 0.5;
+  LOG(INFO) << "light compute takes " << mtime << " ms";
+
+  if (!ret || !r.success)
+  {
+    LOG(ERROR) << "light cache creation error";
+    return StratumError::INTERNAL_ERROR;
+  }
+
+  uint256 mix = Ethash256ToUint256(r.mix_hash);
+  if (mix != mixHash)
+  {
+    LOG(ERROR) << "mix hash does not match: " << mix.GetHex();
+    return StratumError::INTERNAL_ERROR;
+  }
+
+  uint256 shareTarget = Ethash256ToUint256(r.result);
+  //DLOG(INFO) << "comapre share target: " << shareTarget.GetHex() << ", network target: " << sjob->rskNetworkTarget_.GetHex();
+  //can not compare directly because unit256 uses memcmp
+  if (UintToArith256(sjob->rskNetworkTarget_) < UintToArith256(shareTarget))
+    return StratumError::LOW_DIFFICULTY;
+
+  return StratumError::NO_ERROR;
+}
+
+void ServerEth::sendSolvedShare2Kafka(const string &strNonce, const string &strHeader, const string &strMix)
+{
+  string msg = Strings::Format("{\"nonce\":\"%s\",\"header\":\"%s\",\"mix\":\"%s\"}", strNonce.c_str(), strHeader.c_str(), strMix.c_str());
+  kafkaProducerSolvedShare_->produce(msg.c_str(), msg.length());
+}
+
+StratumSession *ServerEth::createSession(evutil_socket_t fd, struct bufferevent *bev,
+                                         Server *server, struct sockaddr *saddr,
+                                         const int32_t shareAvgSeconds,
+                                         const uint32_t sessionID)
+{
+  return new StratumSessionEth(fd, bev, server, saddr,
+                        server->kShareAvgSeconds_,
+                        sessionID);
+}
+
+JobRepository *ServerEth::createJobRepository(const char *kafkaBrokers,
+                                            const char *consumerTopic,
+                                           const string &fileLastNotifyTime,
+                                           Server *server)
+{
+  return new JobRepositoryEth(kafkaBrokers, consumerTopic, fileLastNotifyTime, this);
+}
+
+////////////////////////////////// ServierSia ///////////////////////////////
+StratumSession *ServerSia::createSession(evutil_socket_t fd, struct bufferevent *bev,
+                                         Server *server, struct sockaddr *saddr,
+                                         const int32_t shareAvgSeconds,
+                                         const uint32_t sessionID)
+{
+  return new StratumSessionSia(fd, bev, server, saddr,
+                        server->kShareAvgSeconds_,
+                        sessionID);
+}
+
+JobRepository *ServerSia::createJobRepository(const char *kafkaBrokers,
+                                            const char *consumerTopic,
+                                           const string &fileLastNotifyTime,
+                                           Server *server)
+{
+  return new JobRepositorySia(kafkaBrokers, consumerTopic, fileLastNotifyTime, this);
+}
+
+void ServerSia::sendSolvedShare2Kafka(uint8* buf, int len) {
+   kafkaProducerSolvedShare_->produce(buf, len);
+}
+
+///////////////////////////////ServerBytom///////////////////////////////
+JobRepository *ServerBytom::createJobRepository(const char *kafkaBrokers,
+                                                const char *consumerTopic,
+                                                const string &fileLastNotifyTime,
+                                                Server *server)
+{
+  return new JobRepositoryBytom(kafkaBrokers, consumerTopic, fileLastNotifyTime, this);
+}
+
+StratumSession *ServerBytom::createSession(evutil_socket_t fd, struct bufferevent *bev,
+                                           Server *server, struct sockaddr *saddr,
+                                           const int32_t shareAvgSeconds,
+                                           const uint32_t sessionID)
+{
+  return new StratumSessionBytom(fd, bev, server, saddr,
+                                 server->kShareAvgSeconds_,
+                                 sessionID);
+}
+
+void ServerBytom::sendSolvedShare2Kafka(const char* headerStr) {
+  LOG(INFO) << "bytom sendSolvedShare2Kafka " << headerStr;
+  kafkaProducerSolvedShare_->produce(headerStr, strlen(headerStr));
 }
