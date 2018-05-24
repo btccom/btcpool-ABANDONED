@@ -279,6 +279,8 @@ class StatsServer {
   
   string fileLastFlushTime_;     // write last db flush time to the file
 
+  int32_t height_; // block height (TODO: change the summation mechanism and delete the member)
+
   // httpd
   struct event_base *base_;
   string httpdHost_;
