@@ -59,11 +59,11 @@ TEST(Stratum, Share) {
   ASSERT_EQ(s.isValid(), false);
   ASSERT_EQ(s.score(), 0);
   ASSERT_EQ(s.toString(), "share(jobId: 0, ip: 0.0.0.0, userId: 0, workerId: 0,"
-            " timeStamp: 0/1970-01-01 00:00:00, height: 0, share: 0, blkBits: 00000000, result: 0)");
+            " timeStamp: 0/1970-01-01 00:00:00, height: 0, blkBits: 00000000, nonce: 00000000, extraNonce1: 00000000, share: 0, result: 0)");
 
   s.ip_ = htonl(167772161);  // 167772161 : 10.0.0.1
   ASSERT_EQ(s.toString(), "share(jobId: 0, ip: 10.0.0.1, userId: 0, workerId: 0,"
-            " timeStamp: 0/1970-01-01 00:00:00, height: 0, share: 0, blkBits: 00000000, result: 0)");
+            " timeStamp: 0/1970-01-01 00:00:00, height: 0, blkBits: 00000000, nonce: 00000000, extraNonce1: 00000000, share: 0, result: 0)");
 }
 
 TEST(Stratum, Share2) {

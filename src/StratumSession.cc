@@ -804,14 +804,18 @@ void StratumSession::handleRequest_Submit(const string &idStr,
     return;
   }
 
-  // 0 means miner use stratum job's default block time
-  if (nTime == 0) {
-    shared_ptr<StratumJobEx> exjob;
-    exjob = server_->jobRepository_->getStratumJobEx(localJob->jobId_);
-    if (exjob.get() != NULL)
-    	nTime = exjob->sjob_->nTime_;
-    if (exjob.get() != NULL)
-      height_ = exjob->sjob_->height_;
+  uint32_t height = 0;
+
+  shared_ptr<StratumJobEx> exjob;
+  exjob = server_->jobRepository_->getStratumJobEx(localJob->jobId_);
+
+  if (exjob.get() != NULL) {
+    // 0 means miner use stratum job's default block time
+    if (nTime == 0) {
+        nTime = exjob->sjob_->nTime_;
+    }
+
+    height = exjob->sjob_->height_;
   }
 
   Share share;
@@ -823,7 +827,10 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   share.blkBits_      = localJob->blkBits_;
   share.timestamp_    = (uint32_t)time(nullptr);
   share.result_       = Share::Result::REJECT;
-  share.height_       = height_;
+  share.height_       = height;
+  share.nonce_        = nonce;
+  share.extraNonce1_  = extraNonce1_;
+
   if (isAgentSession == true) {
     const uint16_t sessionId = (uint16_t)(extraNonce2 >> 32);
 

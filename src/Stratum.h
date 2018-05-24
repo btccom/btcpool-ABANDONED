@@ -104,10 +104,13 @@ public:
   uint32_t timestamp_;
   uint32_t blkBits_;
   int32_t result_;
-  uint32_t  height_;
+  uint32_t height_;
+  uint32_t nonce_;
+  uint32_t extraNonce1_;
 
   Share() : jobId_(0), workerHashId_(0), ip_(0), userId_(0), share_(0),
-            timestamp_(0), blkBits_(0), result_(0), height_(0) {}
+            timestamp_(0), blkBits_(0), result_(0), height_(0),
+            nonce_(0), extraNonce1_(0) {}
 
   Share(const Share &r)
   {
@@ -120,6 +123,8 @@ public:
     blkBits_ = r.blkBits_;
     result_ = r.result_;
     height_ = r.height_;
+    nonce_ = r.nonce_;
+    extraNonce1_ = r.extraNonce1_;
   }
 
   Share &operator=(const Share &r)
@@ -133,6 +138,8 @@ public:
     blkBits_ = r.blkBits_;
     result_ = r.result_;
     height_ = r.height_;
+    nonce_ = r.nonce_;
+    extraNonce1_ = r.extraNonce1_;
     return *this;
   }
 
@@ -171,11 +178,11 @@ public:
     char ipStr[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &(ip_), ipStr, INET_ADDRSTRLEN);
     return Strings::Format("share(jobId: %" PRIu64 ", ip: %s, userId: %d, "
-                           "workerId: %" PRId64 ", timeStamp: %u/%s, height: %u, share: %" PRIu64 ", "
-                           "blkBits: %08x, result: %d)",
+                           "workerId: %" PRId64 ", timeStamp: %u/%s, height: %u, "
+                           "blkBits: %08x, nonce: %08x, extraNonce1: %08x, share: %" PRIu64 ", result: %d)",
                            jobId_, ipStr, userId_, workerHashId_,
                            timestamp_, date("%F %T", timestamp_).c_str(),
-                           height_, share_, blkBits_, result_);
+                           height_, blkBits_, nonce_, extraNonce1_, share_, result_);
   }
 };
 
