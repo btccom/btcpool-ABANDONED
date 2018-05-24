@@ -41,6 +41,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include <chainparams.h>
+#include "BitcoinUtils.h"
 static
 string getStatsFilePath(const string &dataDir, time_t ts, const char *type = "BTC") {
   bool needSlash = false;
@@ -195,7 +197,7 @@ void StatsServer::processShare(const Share &share) {
   const time_t now = time(nullptr);
 
   lastShareTime_ = share.timestamp_;
-
+  height_ = share.height_;
   // ignore too old shares
   if (now > share.timestamp_ + STATS_SLIDING_WINDOW_SECONDS) {
     return;
@@ -1153,6 +1155,7 @@ void ShareStatsDay::processShare(uint32_t hourIdx, const Share &share) {
     shareReject1d_          += share.share_;
   }
   modifyHoursFlag_ |= (0x01u << hourIdx);
+  height_ = share.height_;
 }
 
 void ShareStatsDay::getShareStatsHour(uint32_t hourIdx, ShareStats *stats) {
@@ -1162,7 +1165,9 @@ void ShareStatsDay::getShareStatsHour(uint32_t hourIdx, ShareStats *stats) {
 
   stats->shareAccept_ = shareAccept1h_[hourIdx];
   stats->shareReject_ = shareReject1h_[hourIdx];
-  stats->earn_        = score1h_[hourIdx] * BLOCK_REWARD;
+  const CChainParams& chainparams = Params();
+  auto reward = GetBlockSubsidy(height_, chainparams.GetConsensus());
+  stats->earn_        = score1h_[hourIdx] * reward;
   if (stats->shareReject_)
   	stats->rejectRate_  = (stats->shareReject_ * 1.0 / (stats->shareAccept_ + stats->shareReject_));
   else
@@ -1173,7 +1178,9 @@ void ShareStatsDay::getShareStatsDay(ShareStats *stats) {
   ScopeLock sl(lock_);
   stats->shareAccept_ = shareAccept1d_;
   stats->shareReject_ = shareReject1d_;
-  stats->earn_        = score1d_ * BLOCK_REWARD;
+  const CChainParams& chainparams = Params();
+  auto reward = GetBlockSubsidy(height_, chainparams.GetConsensus());
+  stats->earn_        = score1d_ * reward;
   if (stats->shareReject_)
     stats->rejectRate_  = (stats->shareReject_ * 1.0 / (stats->shareAccept_ + stats->shareReject_));
   else
@@ -1478,7 +1485,9 @@ void ShareLogParser::generateHoursData(shared_ptr<ShareStatsDay> stats,
       	rejectRate = (double)reject / (accept + reject);
       const string nowStr   = date("%F %T");
       const string scoreStr = score2Str(stats->score1h_[i]);
-      const int64_t earn    = stats->score1h_[i] * BLOCK_REWARD;
+      const CChainParams& chainparams = Params();
+      auto reward = GetBlockSubsidy(stats->height_, chainparams.GetConsensus());
+      const int64_t earn    = stats->score1h_[i] * reward;
 
       valuesStr = Strings::Format("%s %d,%" PRIu64",%" PRIu64","
                                   "  %lf,'%s',%" PRId64",'%s','%s'",
@@ -1604,7 +1613,9 @@ void ShareLogParser::generateDailyData(shared_ptr<ShareStatsDay> stats,
       rejectRate = (double)reject / (accept + reject);
     const string nowStr   = date("%F %T");
     const string scoreStr = score2Str(stats->score1d_);
-    const int64_t earn    = stats->score1d_ * BLOCK_REWARD;
+    const CChainParams& chainparams = Params();
+    auto reward = GetBlockSubsidy(stats->height_, chainparams.GetConsensus());
+    const int64_t earn    = stats->score1d_ * reward;
 
     valuesStr = Strings::Format("%s %d,%" PRIu64",%" PRIu64","
                                 "  %lf,'%s',%" PRId64",'%s','%s'",

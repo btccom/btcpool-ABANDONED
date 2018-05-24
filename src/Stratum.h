@@ -104,9 +104,10 @@ public:
   uint32_t timestamp_;
   uint32_t blkBits_;
   int32_t result_;
+  uint32_t  height_;
 
   Share() : jobId_(0), workerHashId_(0), ip_(0), userId_(0), share_(0),
-            timestamp_(0), blkBits_(0), result_(0) {}
+            timestamp_(0), blkBits_(0), result_(0), height_(0) {}
 
   Share(const Share &r)
   {
@@ -118,6 +119,7 @@ public:
     timestamp_ = r.timestamp_;
     blkBits_ = r.blkBits_;
     result_ = r.result_;
+    height_ = r.height_;
   }
 
   Share &operator=(const Share &r)
@@ -130,6 +132,7 @@ public:
     timestamp_ = r.timestamp_;
     blkBits_ = r.blkBits_;
     result_ = r.result_;
+    height_ = r.height_;
     return *this;
   }
 
@@ -155,17 +158,11 @@ public:
 
   bool isValid() const
   {
-    uint32_t jobTime = jobId2Time(jobId_);
-
-    /* TODO: increase timestamp check before 2020-01-01 */
-    if (userId_ > 0 && workerHashId_ != 0 && share_ > 0 &&
-        timestamp_ > 1467816952U /* 2016-07-06 14:55:52 UTC+0 */ &&
-        timestamp_ < 1577836800U /* 2020-01-01 00:00:00 UTC+0 */ &&
-        jobTime > 1467816952U /* 2016-07-06 14:55:52 UTC+0 */ &&
-        jobTime < 1577836800U /* 2020-01-01 00:00:00 UTC+0 */)
+    if (userId_ > 0 && workerHashId_ != 0 && height_ > 0 && share_ > 0)
     {
       return true;
     }
+    
     return false;
   }
 
@@ -174,11 +171,11 @@ public:
     char ipStr[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &(ip_), ipStr, INET_ADDRSTRLEN);
     return Strings::Format("share(jobId: %" PRIu64 ", ip: %s, userId: %d, "
-                           "workerId: %" PRId64 ", timeStamp: %u/%s, share: %" PRIu64 ", "
+                           "workerId: %" PRId64 ", timeStamp: %u/%s, height: %u, share: %" PRIu64 ", "
                            "blkBits: %08x, result: %d)",
                            jobId_, ipStr, userId_, workerHashId_,
                            timestamp_, date("%F %T", timestamp_).c_str(),
-                           share_, blkBits_, result_);
+                           height_, share_, blkBits_, result_);
   }
 };
 

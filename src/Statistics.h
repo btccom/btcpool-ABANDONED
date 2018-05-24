@@ -393,6 +393,8 @@ public:
   uint32_t modifyHoursFlag_;
   mutex lock_;
 
+  // block height
+  int32_t height_;
   ShareStatsDay();
 
   void processShare(uint32_t hourIdx, const Share &share);

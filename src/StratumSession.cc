@@ -810,6 +810,8 @@ void StratumSession::handleRequest_Submit(const string &idStr,
     exjob = server_->jobRepository_->getStratumJobEx(localJob->jobId_);
     if (exjob.get() != NULL)
     	nTime = exjob->sjob_->nTime_;
+    if (exjob.get() != NULL)
+      height_ = exjob->sjob_->height_;
   }
 
   Share share;
@@ -821,7 +823,7 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   share.blkBits_      = localJob->blkBits_;
   share.timestamp_    = (uint32_t)time(nullptr);
   share.result_       = Share::Result::REJECT;
-
+  share.height_       = height_;
   if (isAgentSession == true) {
     const uint16_t sessionId = (uint16_t)(extraNonce2 >> 32);
 
