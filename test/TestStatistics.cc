@@ -160,12 +160,15 @@ TEST(StatsWindow, map) {
 
 ////////////////////////////////  ShareStatsDay  ///////////////////////////////
 TEST(ShareStatsDay, ShareStatsDay) {
+  // using mainnet
+  SelectParams(CBaseChainParams::MAIN);
 
   // 1
   {
     ShareStatsDay stats;
     Share share;
 
+    share.height_ = 504031;
     share.result_ = Share::ACCEPT;
     uint64_t shareValue = 1ll;
 
@@ -204,6 +207,7 @@ TEST(ShareStatsDay, ShareStatsDay) {
     ShareStatsDay stats;
     Share share;
 
+    share.height_ = 504031;
     share.result_  = Share::ACCEPT;
     uint64_t shareValue = UINT32_MAX;
 
