@@ -37,7 +37,7 @@
 #include <zmq.hpp>
 
 #include "Utils.h"
-#include "Statistics.h"
+#include "StatsHttpd.h"
 
 using namespace std;
 using namespace libconfig;

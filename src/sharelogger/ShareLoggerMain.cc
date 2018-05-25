@@ -37,7 +37,7 @@
 #include <zmq.hpp>
 
 #include "Utils.h"
-#include "Statistics.h"
+#include "ShareLogger.h"
 
 using namespace std;
 using namespace libconfig;
