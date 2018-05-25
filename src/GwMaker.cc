@@ -266,7 +266,7 @@ bool GwMakerHandlerEth::checkFields(JsonNode &r)
   }
 
   if (result.type() != Utilities::JS::type::Array ||
-      result.array().size() != 3)
+      result.array().size() < 3)
   {
     LOG(ERROR) << "getwork retrun unexpected";
     return false;
