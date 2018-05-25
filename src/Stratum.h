@@ -42,8 +42,6 @@
 #include <base58.h>
 #include "rsk/RskWork.h"
 
-// TODO: update when next Halving
-#define BLOCK_REWARD 1250000000ll
 
 //
 // max coinbase tx size, bytes

@@ -384,19 +384,19 @@ public:
   // hours
   uint64_t shareAccept1h_[24];
   uint64_t shareReject1h_[24];
-  double   score1h_[24];  // only accept share
+  double   score1h_[24]; // For reference only, it is no longer the basis for earnings calculation
+  double   earn1h_[24];
 
   // daily
   uint64_t shareAccept1d_;
   uint64_t shareReject1d_;
-  double   score1d_;
+  double   score1d_; // For reference only, it is no longer the basis for earnings calculation
+  double   earn1d_;
 
   // mark which hour data has been modified: 23, 22, ...., 0
   uint32_t modifyHoursFlag_;
   mutex lock_;
 
-  // block height
-  int32_t height_;
   ShareStatsDay();
 
   void processShare(uint32_t hourIdx, const Share &share);
