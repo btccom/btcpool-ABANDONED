@@ -112,6 +112,6 @@ void readFromSetting(const S &setting,
   }
 }
 
-string getStatsFilePath(const string &dataDir, time_t ts, const char *type = "BTC");
+string getStatsFilePath(const char *chainType, const string &dataDir, time_t ts);
 
 #endif

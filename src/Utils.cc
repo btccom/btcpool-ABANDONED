@@ -363,7 +363,7 @@ bool fileExists(const char* file) {
   return (stat(file, &buf) == 0);
 }
 
-string getStatsFilePath(const string &dataDir, time_t ts, const char *type) {
+string getStatsFilePath(const char *chainType, const string &dataDir, time_t ts) {
   bool needSlash = false;
   if (dataDir.length() > 0 && *dataDir.rbegin() != '/') {
     needSlash = true;
@@ -371,6 +371,6 @@ string getStatsFilePath(const string &dataDir, time_t ts, const char *type) {
   // filename: sharelog-2016-07-12.bin
   return Strings::Format("%s%ssharelog%s-%s.bin",
                          dataDir.c_str(), needSlash ? "/" : "",
-                         type,
+                         chainType,
                          date("%F", ts).c_str());
 }

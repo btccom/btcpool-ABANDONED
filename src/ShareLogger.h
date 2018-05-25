@@ -55,7 +55,8 @@ class ShareLogWriter {
   std::map<uint32_t, FILE *> fileHandlers_;
   std::vector<Share> shares_;
 
-  KafkaHighLevelConsumer hlConsumer_;  // consume topic: 'ShareLog'
+  const string chainType_;
+  KafkaHighLevelConsumer hlConsumer_;  // consume topic: shareLogTopic
 
   FILE* getFileHandler(uint32_t ts);
   void consumeShareLog(rd_kafka_message_t *rkmessage);
@@ -63,7 +64,7 @@ class ShareLogWriter {
   void tryCloseOldHanders();
 
 public:
-  ShareLogWriter(const char *kafkaBrokers, const string &dataDir,
+  ShareLogWriter(const char *kafkaBrokers, const string &dataDir, const char *chainType,
                  const string &kafkaGroupID, const char *shareLogTopic);
   ~ShareLogWriter();
 

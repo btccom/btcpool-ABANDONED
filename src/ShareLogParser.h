@@ -51,7 +51,7 @@ class ShareLogDumper {
   void parseShare(const Share *share);
 
 public:
-  ShareLogDumper(const string &dataDir, time_t timestamp, const std::set<int32_t> &uids);
+  ShareLogDumper(const char *chainType, const string &dataDir, time_t timestamp, const std::set<int32_t> &uids);
   ~ShareLogDumper();
 
   void dump2stdout();
@@ -106,8 +106,8 @@ class ShareLogParser {
   void removeExpiredDataFromDB();
 
 public:
-  ShareLogParser(const string &dataDir, time_t timestamp,
-                 const MysqlConnectInfo &poolDBInfo);
+  ShareLogParser(const char *chainType, const string &dataDir,
+                 time_t timestamp, const MysqlConnectInfo &poolDBInfo);
   ~ShareLogParser();
 
   bool init();
@@ -149,10 +149,10 @@ class ShareLogParserServer {
   atomic<bool> running_;
   pthread_rwlock_t rwlock_;
   time_t uptime_;
-
   // share log daily
   time_t date_;      // date_ % 86400 == 0
   shared_ptr<ShareLogParser> shareLogParser_;
+  const string chainType_;
   string dataDir_;
   MysqlConnectInfo poolDBInfo_;  // save stats data
   time_t kFlushDBInterval_;
@@ -181,8 +181,8 @@ public:
   atomic<uint64_t> responseBytes_;
 
 public:
-  ShareLogParserServer(const string dataDir, const string &httpdHost,
-                       unsigned short httpdPort,
+  ShareLogParserServer(const char *chainType, const string dataDir,
+                       const string &httpdHost, unsigned short httpdPort,
                        const MysqlConnectInfo &poolDBInfo,
                        const uint32_t kFlushDBInterval);
   ~ShareLogParserServer();

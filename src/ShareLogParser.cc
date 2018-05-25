@@ -46,11 +46,11 @@
 
 
 ///////////////////////////////  ShareLogDumper  ///////////////////////////////
-ShareLogDumper::ShareLogDumper(const string &dataDir, time_t timestamp,
-                               const std::set<int32_t> &uids)
+ShareLogDumper::ShareLogDumper(const char *chainType, const string &dataDir,
+                               time_t timestamp, const std::set<int32_t> &uids)
 : uids_(uids), isDumpAll_(false)
 {
-  filePath_ = getStatsFilePath(dataDir, timestamp);
+  filePath_ = getStatsFilePath(chainType, dataDir, timestamp);
 
   if (uids_.empty())
     isDumpAll_ = true;
@@ -115,8 +115,8 @@ void ShareLogDumper::parseShare(const Share *share) {
 }
 
 ///////////////////////////////  ShareLogParser  ///////////////////////////////
-ShareLogParser::ShareLogParser(const string &dataDir, time_t timestamp,
-                               const MysqlConnectInfo &poolDBInfo)
+ShareLogParser::ShareLogParser(const char *chainType, const string &dataDir,
+                               time_t timestamp, const MysqlConnectInfo &poolDBInfo)
 : date_(timestamp), f_(nullptr), buf_(nullptr), lastPosition_(0), poolDB_(poolDBInfo)
 {
   pthread_rwlock_init(&rwlock_, nullptr);
@@ -126,7 +126,7 @@ ShareLogParser::ShareLogParser(const string &dataDir, time_t timestamp,
     WorkerKey pkey(0, 0);
     workersStats_[pkey] = std::make_shared<ShareStatsDay>();
   }
-  filePath_ = getStatsFilePath(dataDir, timestamp);
+  filePath_ = getStatsFilePath(chainType, dataDir, timestamp);
 
   // prealloc memory
   buf_ = (uint8_t *)malloc(kMaxElementsNum_ * sizeof(Share));
@@ -631,12 +631,13 @@ bool ShareLogParser::flushToDB() {
 
 
 ////////////////////////////  ShareLogParserServer  ////////////////////////////
-ShareLogParserServer::ShareLogParserServer(const string dataDir,
+ShareLogParserServer::ShareLogParserServer(const char *chainType,
+                                           const string dataDir,
                                            const string &httpdHost,
                                            unsigned short httpdPort,
                                            const MysqlConnectInfo &poolDBInfo,
                                            const uint32_t kFlushDBInterval):
-running_(true), dataDir_(dataDir),
+running_(true), chainType_(chainType), dataDir_(dataDir),
 poolDBInfo_(poolDBInfo), kFlushDBInterval_(kFlushDBInterval),
 base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort),
 requestCount_(0), responseBytes_(0)
@@ -676,7 +677,7 @@ bool ShareLogParserServer::initShareLogParser(time_t datets) {
   shareLogParser_ = nullptr;
 
   // set new obj
-  shared_ptr<ShareLogParser> parser(new ShareLogParser(dataDir_, date_, poolDBInfo_));
+  shared_ptr<ShareLogParser> parser(new ShareLogParser(chainType_.c_str(), dataDir_, date_, poolDBInfo_));
   if (!parser->init()) {
     LOG(ERROR) << "parser check failure, date: " << date("%F", date_);
     pthread_rwlock_unlock(&rwlock_);
@@ -995,7 +996,7 @@ void ShareLogParserServer::trySwithBinFile(shared_ptr<ShareLogParser> shareLogPa
   //   2. last bin file has reached EOF
   //   3. new file exists
   //
-  const string filePath = getStatsFilePath(dataDir_, now);
+  const string filePath = getStatsFilePath(chainType_.c_str(), dataDir_, now);
   if (now > beginTs + 5 &&
       shareLogParser->isReachEOF() &&
       fileExists(filePath.c_str()))

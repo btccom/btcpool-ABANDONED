@@ -48,9 +48,10 @@
 //////////////////////////////  ShareLogWriter  ///////////////////////////////
 ShareLogWriter::ShareLogWriter(const char *kafkaBrokers,
                                const string &dataDir,
+                               const char *chainType,
                                const string &kafkaGroupID,
                                const char *shareLogTopic)
-:running_(true), dataDir_(dataDir),
+:running_(true), dataDir_(dataDir), chainType_(chainType),
 hlConsumer_(kafkaBrokers, shareLogTopic, 0/* patition */, kafkaGroupID)
 {
 }
@@ -76,7 +77,7 @@ FILE* ShareLogWriter::getFileHandler(uint32_t ts) {
     return fileHandlers_[ts];
   }
 
-  const string filePath = getStatsFilePath(dataDir_, ts, "ETH");
+  const string filePath = getStatsFilePath(chainType_.c_str(), dataDir_, ts);
   LOG(INFO) << "fopen: " << filePath;
 
   FILE *f = fopen(filePath.c_str(), "ab");  // append mode, bin file

@@ -141,7 +141,8 @@ int main(int argc, char **argv)
     for (int i = 0; i < defs.getLength(); ++i)
     {
       const Setting &def = defs[i];
-      writers.push_back(make_shared<ShareLogWriter>(brokers.c_str(),
+      writers.push_back(make_shared<ShareLogWriter>(def.lookup("chain_type").c_str(),
+                                                    brokers.c_str(),
                                                     def.lookup("data_dir").c_str(),
                                                     def.lookup("kafka_group_id").c_str(),
                                                     def.lookup("share_topic")));
