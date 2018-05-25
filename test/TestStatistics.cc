@@ -25,6 +25,7 @@
 #include "gtest/gtest.h"
 #include "Common.h"
 #include "Statistics.h"
+#include "BitcoinUtils.h"
 
 
 ////////////////////////////////  StatsWindow  /////////////////////////////////
@@ -172,6 +173,8 @@ TEST(ShareStatsDay, ShareStatsDay) {
     share.result_ = Share::ACCEPT;
     uint64_t shareValue = 1ll;
 
+    auto reward = GetBlockSubsidy(share.height_, Params().GetConsensus());
+
     // share -> socre = 1 : 1
     // https://btc.com/000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f
     share.blkBits_ = 0x1d00ffffu;
@@ -194,12 +197,12 @@ TEST(ShareStatsDay, ShareStatsDay) {
       stats.getShareStatsHour(i, &ss);
       ASSERT_EQ(ss.shareAccept_, shareValue);
       ASSERT_EQ(ss.shareReject_, shareValue);
-      ASSERT_EQ(ss.earn_, 1 * BLOCK_REWARD);
+      ASSERT_EQ(ss.earn_, 1 * reward);
     }
     stats.getShareStatsDay(&ss);
     ASSERT_EQ(ss.shareAccept_, shareValue * 24);
     ASSERT_EQ(ss.shareReject_, shareValue * 24);
-    ASSERT_EQ(ss.earn_, 1 * 24 * BLOCK_REWARD);
+    ASSERT_EQ(ss.earn_, 1 * 24 * reward);
   }
 
   // UINT32_MAX
