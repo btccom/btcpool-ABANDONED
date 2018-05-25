@@ -67,7 +67,7 @@ void ShareStatsDay::processShare(uint32_t hourIdx, const Share &share) {
     shareAccept1d_          += share.share_;
 
     double score = share.score();
-    double reward = GetBlockSubsidy(share.height_, Params().GetConsensus());
+    double reward = GetBlockReward(share.height_, Params().GetConsensus());
     double earn = score * reward;
 
     score1h_[hourIdx] += score;

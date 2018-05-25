@@ -40,7 +40,7 @@
 
 std::string EncodeHexBlock(const CBlock &block);
 
-CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams);
+CAmount GetBlockReward(int nHeight, const Consensus::Params& consensusParams);
 
 #ifdef CHAIN_TYPE_SBTC
 CTxDestination DecodeDestination(const std::string& str);

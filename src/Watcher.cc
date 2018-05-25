@@ -319,7 +319,7 @@ bool ClientContainer::makeEmptyGBT(int32_t blockHeight, uint32_t nBits,
   gbt += Strings::Format(",\"height\":%d", blockHeight);
   const CChainParams& chainparams = Params();
   gbt += Strings::Format(",\"coinbasevalue\":%" PRId64"",
-                         GetBlockSubsidy(blockHeight, chainparams.GetConsensus()));
+                         GetBlockReward(blockHeight, chainparams.GetConsensus()));
   gbt += Strings::Format(",\"bits\":\"%08x\"", nBits);
   const uint32_t minTime = blockTime - 60*10;  // just set 10 mins ago
   gbt += Strings::Format(",\"mintime\":%" PRIu32"", minTime);

@@ -29,7 +29,7 @@ std::string EncodeHexBlock(const CBlock &block) {
   return HexStr(ssBlock.begin(), ssBlock.end());
 }
 
-CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
+CAmount GetBlockReward(int nHeight, const Consensus::Params& consensusParams)
 {
   int halvings = nHeight / consensusParams.nSubsidyHalvingInterval;
   // Force block reward to zero when right shift is undefined.

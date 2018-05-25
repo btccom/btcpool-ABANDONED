@@ -173,7 +173,7 @@ TEST(ShareStatsDay, ShareStatsDay) {
     share.result_ = Share::ACCEPT;
     uint64_t shareValue = 1ll;
 
-    auto reward = GetBlockSubsidy(share.height_, Params().GetConsensus());
+    auto reward = GetBlockReward(share.height_, Params().GetConsensus());
 
     // share -> socre = 1 : 1
     // https://btc.com/000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f
