@@ -1363,15 +1363,16 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   //"params":["0x17a0eae8082fb64c","0x94a789fba387d454312db3287f8440f841de762522da8ba620b7fcf34a80330c",
   //"0x2cc7dad9f2f92519891a2d5f67378e646571b89e5994fe9290d6d669e480fdff"]}
   auto params = (const_cast<JsonNode &>(jparams)).array();
-  if (STRATUM == ethProtocol_ && params.size() != 5)
+
+  if (STRATUM == ethProtocol_ && params.size() < 5)
   {
-    LOG(ERROR) << "mining.submit parameter size is not 5";
+    LOG(ERROR) << "mining.submit params are less than 5";
     return;
   }
 
-  if (ETHPROXY == ethProtocol_ && params.size() != 4)
+  if (ETHPROXY == ethProtocol_ && params.size() < 3)
   {
-    LOG(ERROR) << "eth_submitWork parameter size is not 4";
+    LOG(ERROR) << "eth_submitWork params are less than 3";
     return;
   }
 
@@ -1387,15 +1388,25 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
     sMixHash = params[4].str();
   }
   break;
-    {
-      sNonce = params[1].str();
-      jobId = sHeader = params[2].str();
-      sMixHash = params[3].str();
-    }
   case ETHPROXY:
-    break;
+  {
+    sNonce = params[0].str();
+    sHeader = params[1].str();
+    sMixHash = params[2].str();
+    jobId = sHeader;
+  }
+  break;
   default:
-    break;
+  {
+    LOG(WARNING) << "Unsupported Stratum Protocol: " << ethProtocol_;
+  }
+  break;
+  }
+
+  // Claymore's jobId starting with "0x"
+  // Check here to avoid compatibility issues with Claymore or other miners
+  if (jobId.substr(0, 2) == "0x" || jobId.substr(0, 2) == "0X" ) {
+    jobId = jobId.substr(2);
   }
 
   LocalJob tmpJob;
