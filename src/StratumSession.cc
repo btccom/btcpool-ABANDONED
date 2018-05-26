@@ -1417,6 +1417,16 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
     return;
   }
 
+  
+  uint64_t nonce = stoull(sNonce, nullptr, 16);
+  uint32_t height = 0;
+
+  shared_ptr<StratumJobEx> exjob;
+  exjob = server_->jobRepository_->getStratumJobEx(localJob->jobId_);
+  if (exjob.get() != NULL) {
+    height = exjob->sjob_->height_;
+  }
+
   Share share;
   share.jobId_ = localJob->jobId_;
   share.workerHashId_ = worker_.workerHashId_;
@@ -1425,11 +1435,12 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   share.share_ = localJob->jobDifficulty_;
   share.timestamp_ = (uint32_t)time(nullptr);
   share.result_ = Share::Result::REJECT;
+  share.height_       = height;
+  share.nonce_        = (uint32_t)(nonce & 0xFFFFFFFFULL);
+  share.extraNonce1_  = (uint32_t)(nonce >> 32);
 
   ServerEth *s = dynamic_cast<ServerEth *>(server_);
 
-  size_t pos;
-  uint64_t nonce = stoull(sNonce, &pos, 16);
 
   LocalShare localShare(nonce, 0, 0);
   // can't find local share
