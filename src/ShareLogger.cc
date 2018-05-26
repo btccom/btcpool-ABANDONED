@@ -124,6 +124,7 @@ void ShareLogWriter::consumeShareLog(rd_kafka_message_t *rkmessage) {
 
   memcpy((uint8_t *)share, (const uint8_t *)rkmessage->payload, rkmessage->len);
 
+  DLOG(INFO) << share->toString();
   if (!share->isValid()) {
     LOG(ERROR) << "invalid share: " << share->toString();
     shares_.pop_back();
@@ -174,10 +175,14 @@ void ShareLogWriter::run() {
   const int32_t kFlushDiskInterval = 2;
   const int32_t kTimeoutMs = 1000;
 
+  LOG(INFO) << "setup sharelog consumer...";
+
   if (!hlConsumer_.setup()) {
     LOG(ERROR) << "setup sharelog consumer fail";
     return;
   }
+
+  LOG(INFO) << "waiting sharelog messages...";
 
   while (running_) {
     //
@@ -200,6 +205,8 @@ void ShareLogWriter::run() {
     if (rkmessage == nullptr) {
       continue;
     }
+    
+    DLOG(INFO) << "a new message, size: " << rkmessage->len;
 
     // consume share log
     consumeShareLog(rkmessage);
