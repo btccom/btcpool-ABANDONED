@@ -630,7 +630,7 @@ bool StratumJob::isEmptyBlock() {
 }
 
 ///////////////////////////////StratumJobEth///////////////////////////
-StratumJobEth::StratumJobEth() : blockNumber_(0)
+StratumJobEth::StratumJobEth() : height_(0)
 {
 
 }
@@ -663,7 +663,7 @@ bool StratumJobEth::initFromGw(const RskWorkEth &latestRskBlockJson,
     isRskCleanJob_ = latestRskBlockJson.getIsCleanJob();
     seedHash_ = latestRskBlockJson.getSeedHash();
     size_t pos;
-    blockNumber_ = stoull(result["number"].str(), &pos, 16);
+    height_ = stoull(result["number"].str(), &pos, 16);
     string header = blockHashForMergedMining_.substr(2, 64);
     uint32 h = djb2(header.c_str());
     DLOG(INFO) << "djb2=" << std::hex << h << " for header " << header;
@@ -680,7 +680,7 @@ bool StratumJobEth::initFromGw(const RskWorkEth &latestRskBlockJson,
 
 string StratumJobEth::serializeToJson() const {
   return Strings::Format("{\"jobId\":%" PRIu64""
-                          ",\"num\":%" PRIu64""
+                          ",\"height\":%" PRIu64""
                          // rsk 
                          ",\"sHash\":\"%s\""
                          ",\"rskBlockHashForMergedMining\":\"%s\",\"rskNetworkTarget\":\"0x%s\""
@@ -689,7 +689,7 @@ string StratumJobEth::serializeToJson() const {
                          ",\"isRskCleanJob\":%s"
                          "}",
                          jobId_,
-                         blockNumber_,
+                         height_,
                          // rsk
                          seedHash_.c_str(),
                          blockHashForMergedMining_.size() ? blockHashForMergedMining_.c_str() : "",
@@ -708,7 +708,7 @@ bool StratumJobEth::unserializeFromJson(const char *s, size_t len)
     return false;
   }
   if (j["jobId"].type() != Utilities::JS::type::Int ||
-      j["num"].type() != Utilities::JS::type::Int ||
+      j["height"].type() != Utilities::JS::type::Int ||
       j["sHash"].type() != Utilities::JS::type::Str)
   {
     LOG(ERROR) << "parse eth stratum job failure: " << s;
@@ -716,7 +716,7 @@ bool StratumJobEth::unserializeFromJson(const char *s, size_t len)
   }
 
   jobId_ = j["jobId"].uint64();
-  blockNumber_ = j["num"].uint64();
+  height_ = j["height"].uint64();
   seedHash_ = j["sHash"].str();
 
   if (j["rskBlockHashForMergedMining"].type() == Utilities::JS::type::Str &&

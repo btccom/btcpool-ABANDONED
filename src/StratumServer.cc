@@ -407,7 +407,7 @@ void JobRepositoryEth::newLight(StratumJobEth* job) {
   if (nullptr == job)
     return;
 
-  newLight(job->blockNumber_);
+  newLight(job->height_);
 }
 
 void JobRepositoryEth::newLight(uint64_t blkNum)
@@ -418,7 +418,7 @@ void JobRepositoryEth::newLight(uint64_t blkNum)
     return;
   epochs_ = epochs;
 
-  LOG(INFO) << "creating light for blk num... " << blkNum;
+  LOG(INFO) << "creating light for blk height... " << blkNum;
   time_t now = time(nullptr);
   time_t elapse;
   {
@@ -432,20 +432,20 @@ void JobRepositoryEth::newLight(uint64_t blkNum)
       light_ =  nextLight_;
     }
     if (nullptr == light_)
-      LOG(FATAL) << "create light for blk num: " << blkNum << " failed";
+      LOG(FATAL) << "create light for blk height: " << blkNum << " failed";
     else
     {
       elapse = time(nullptr) - now;
-      LOG(INFO) << "create light for blk num: " << blkNum << " takes " << elapse << " seconds";
+      LOG(INFO) << "create light for blk height: " << blkNum << " takes " << elapse << " seconds";
     }
   }
 
   now = time(nullptr);
   uint64_t nextBlkNum = blkNum + ETHASH_EPOCH_LENGTH;
-  LOG(INFO) << "creating light for blk num... " << nextBlkNum;
+  LOG(INFO) << "creating light for blk height... " << nextBlkNum;
   nextLight_ = ethash_light_new(nextBlkNum);
   elapse = time(nullptr) - now;
-  LOG(INFO) << "create light for blk num: " << nextBlkNum << " takes " << elapse << " seconds";
+  LOG(INFO) << "create light for blk height: " << nextBlkNum << " takes " << elapse << " seconds";
 }
 
 void JobRepositoryEth::deleteLight()
