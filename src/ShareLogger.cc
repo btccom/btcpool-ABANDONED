@@ -46,9 +46,9 @@
 
 
 //////////////////////////////  ShareLogWriter  ///////////////////////////////
-ShareLogWriter::ShareLogWriter(const char *kafkaBrokers,
+ShareLogWriter::ShareLogWriter(const char *chainType,
+                               const char *kafkaBrokers,
                                const string &dataDir,
-                               const char *chainType,
                                const string &kafkaGroupID,
                                const char *shareLogTopic)
 :running_(true), dataDir_(dataDir), chainType_(chainType),
