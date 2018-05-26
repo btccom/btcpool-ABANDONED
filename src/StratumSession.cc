@@ -1420,11 +1420,13 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   
   uint64_t nonce = stoull(sNonce, nullptr, 16);
   uint32_t height = 0;
+  uint32_t blkBits = 0;
 
   shared_ptr<StratumJobEx> exjob;
   exjob = server_->jobRepository_->getStratumJobEx(localJob->jobId_);
   if (exjob.get() != NULL) {
     height = exjob->sjob_->height_;
+    blkBits = UintToArith256(exjob->sjob_->rskNetworkTarget_).GetCompact();
   }
 
   Share share;
@@ -1436,6 +1438,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   share.timestamp_ = (uint32_t)time(nullptr);
   share.result_ = Share::Result::REJECT;
   share.height_       = height;
+  share.blkBits_      = blkBits;
   share.nonce_        = (uint32_t)(nonce & 0xFFFFFFFFULL);
   share.extraNonce1_  = (uint32_t)(nonce >> 32);
 

@@ -630,7 +630,7 @@ bool StratumJob::isEmptyBlock() {
 }
 
 ///////////////////////////////StratumJobEth///////////////////////////
-StratumJobEth::StratumJobEth() : height_(0)
+StratumJobEth::StratumJobEth()
 {
 
 }

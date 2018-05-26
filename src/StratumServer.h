@@ -152,7 +152,7 @@ public:
 
 private:
   void newLight(StratumJobEth* job);
-  void newLight(uint64_t blkNum);
+  void newLight(uint64_t height);
   void deleteLight();
   void deleteLightNoLock();
 

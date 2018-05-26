@@ -324,7 +324,6 @@ public:
                   const string &blockJson);
 
   string seedHash_;
-  uint64_t height_;
 };
 
 class StratumJobSia : public StratumJob
