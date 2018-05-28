@@ -759,7 +759,11 @@ void JobMakerHandlerBitcoin::clearTimeoutGbt() {
 
   const uint32_t ts_now = time(nullptr);
 
-  for (auto itr = rawgbtMap_.begin(); itr != rawgbtMap_.end(); ) {
+  // Ensure that rawgbtMap_ has at least one element, even if it expires.
+  // So jobmaker can always generate jobs even if blockchain node does not
+  // update the response of getblocktemplate for a long time when there is no new transaction.
+  // This happens on SBTC v0.17.
+  for (auto itr = rawgbtMap_.begin(); rawgbtMap_.size() > 1 && itr != rawgbtMap_.end(); ) {
     const uint32_t ts  = gbtKeyGetTime(itr->first);
     const bool isEmpty = gbtKeyIsEmptyBlock(itr->first);
     const uint32_t height = gbtKeyGetHeight(itr->first);

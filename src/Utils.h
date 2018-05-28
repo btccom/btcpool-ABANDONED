@@ -35,7 +35,7 @@
 
 #include <libconfig.h++>
 #include <glog/logging.h>
-#include <zmq.hpp>
+#include "zmq.hpp"
 
 #include "Common.h"
 
@@ -113,5 +113,7 @@ void readFromSetting(const S &setting,
 }
 
 string getStatsFilePath(const char *chainType, const string &dataDir, time_t ts);
+
+bool checkBitcoinRPC(const string &rpcAddr, const string &rpcUserpass);
 
 #endif

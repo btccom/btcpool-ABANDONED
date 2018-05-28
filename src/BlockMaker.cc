@@ -192,7 +192,7 @@ void BlockMaker::addRawgbt(const char *str, size_t len) {
 
   const uint256 gbtHash = uint256S(r["gbthash"].str());
   if (rawGbtMap_.find(gbtHash) != rawGbtMap_.end()) {
-    LOG(ERROR) << "already exist raw gbt, ingore: " << gbtHash.ToString();
+    LOG(ERROR) << "already exist raw gbt, ignore: " << gbtHash.ToString();
     return;
   }
 
@@ -632,28 +632,12 @@ void BlockMaker::_saveBlockToDBThread(const FoundBlock &foundBlock,
 }
 
 bool BlockMaker::checkBitcoinds() {
-  const string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getnetworkinfo\",\"params\":[]}";
-
-  if (bitcoindRpcUri_.size() == 0)
+  if (bitcoindRpcUri_.size() == 0) {
     return false;
+  }
 
   for (const auto &itr : bitcoindRpcUri_) {
-    string response;
-    bool res = bitcoindRpcCall(itr.first.c_str(), itr.second.c_str(),
-                               request.c_str(), response);
-    if (res == false) {
-      return false;
-    }
-    LOG(INFO) << "response: " << response;
-    JsonNode r;
-    if (!JsonNode::parse(response.c_str(), response.c_str() + response.length(), r)) {
-      LOG(ERROR) << "json parse failure: " << response;
-      return false;
-    }
-    JsonNode result = r["result"];
-    if (result.type() == Utilities::JS::type::Null ||
-        result["connections"].int32() == 0) {
-      LOG(ERROR) << "bitcoind is NOT works fine, getnetworkinfo: " << response;
+    if (!checkBitcoinRPC(itr.first.c_str(), itr.second.c_str())) {
       return false;
     }
   }
@@ -816,17 +800,21 @@ void BlockMaker::runThreadConsumeNamecoinSovledShare() {
   @author Martin Medina
   @copyright RSK Labs Ltd.
 */
-void BlockMaker::submitRskBlockNonBlocking(const string &rpcAddress,
-                                        const string &rpcUserPwd,
-                                        const string &blockHex) {
-  boost::thread t(boost::bind(&BlockMaker::_submitRskBlockThread, this, rpcAddress, rpcUserPwd, blockHex));
+void BlockMaker::submitRskBlockPartialMerkleNonBlocking(const string &rpcAddress, const string &rpcUserPwd, const string &blockHashHex, 
+                                                        const string &blockHeaderHex, const string &coinbaseHex, const string &merkleHashesHex, 
+                                                        const string &totalTxCount) {
+  boost::thread t(boost::bind(&BlockMaker::_submitRskBlockPartialMerkleThread, this, rpcAddress, rpcUserPwd, blockHashHex, blockHeaderHex, coinbaseHex, merkleHashesHex, totalTxCount));
 }
 
-void BlockMaker::_submitRskBlockThread(const string &rpcAddress,
-                                    const string &rpcUserPwd,
-                                    const string &blockHex) {
-  string request = "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"method\":\"mnr_submitBitcoinBlock\",\"params\":[\"";
-  request += blockHex + "\"]}";
+void BlockMaker::_submitRskBlockPartialMerkleThread(const string &rpcAddress, const string &rpcUserPwd, const string &blockHashHex, 
+                                      const string &blockHeaderHex, const string &coinbaseHex, const string &merkleHashesHex, 
+                                      const string &totalTxCount) {
+  string request = "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"method\":\"mnr_submitBitcoinBlockPartialMerkle\",\"params\":[";
+  request += "\"" + blockHashHex + "\", ";
+  request += "\"" + blockHeaderHex + "\", ";
+  request += "\"" + coinbaseHex + "\", ";
+  request += "\"" + merkleHashesHex + "\", ";
+  request += "\"" + totalTxCount + "\"]}";
 
   LOG(INFO) << "submit block to: " << rpcAddress;
   // try N times
@@ -867,6 +855,10 @@ void BlockMaker::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
 
   LOG(INFO) << "received RskSolvedShareData message, len: " << rkmessage->len;
 
+  if (!submitToRskNode()) {
+    return;
+  }
+
   //
   // solved share message:  RskSolvedShareData + coinbase_Tx
   //
@@ -888,6 +880,8 @@ void BlockMaker::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
     memcpy((uint8_t *)&blkHeader, shareData.header80_, sizeof(CBlockHeader));
   }
 
+  LOG(INFO) << "submit RSK block: " << blkHeader.GetHash().ToString();
+  
   // get gbtHash and rawgbt (vtxs)
   uint256 gbtHash;
   shared_ptr<vector<CTransactionRef>> vtxs;
@@ -907,12 +901,11 @@ void BlockMaker::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
   }
   assert(vtxs.get() != nullptr);
 
-  //
-  // build new block
-  //
-  CBlock newblk(blkHeader);
 
-  // put coinbase tx
+  vector<uint256> vtxhashes;
+  vtxhashes.resize(1 + vtxs->size()); // coinbase + gbt txs
+
+  // put coinbase tx hash
   {
     CSerializeData sdata;
     sdata.insert(sdata.end(), coinbaseTxBin.begin(), coinbaseTxBin.end());
@@ -921,19 +914,41 @@ void BlockMaker::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
     CDataStream c(sdata, SER_NETWORK, PROTOCOL_VERSION);
     c >> tx;
 
-    newblk.vtx.push_back(MakeTransactionRef(std::move(tx)));
+    vtxhashes[0] = tx.GetHash();
   }
 
-  // put other txs
-  if (vtxs->size()) {
-    newblk.vtx.insert(newblk.vtx.end(), vtxs->begin(), vtxs->end());
+  // put other tx hashes
+  for (size_t i = 0; i < vtxs->size(); i++) {
+    vtxhashes[i + 1] = (*vtxs)[i]->GetHash(); // vtxs is a shared_ptr<vector<CTransactionRef>>
   }
 
-  if (submitToRskNode()) {
-    LOG(INFO) << "submit RSK block: " << newblk.GetHash().ToString();
-    const string blockHex = EncodeHexBlock(newblk);
-    submitRskBlockNonBlocking(shareData.rpcAddress_, shareData.rpcUserPwd_, blockHex);  // using thread
+  string blockHashHex = blkHeader.GetHash().ToString();
+  string blockHeaderHex = EncodeHexBlockHeader(blkHeader);
+
+  // coinbase bin -> hex
+  string coinbaseHex;  
+  Bin2Hex(coinbaseTxBin, coinbaseHex);
+
+  // build coinbase's merkle tree branch
+  string merkleHashesHex;
+  string hashHex;
+  vector<uint256> cbMerkleBranch = ComputeMerkleBranch(vtxhashes, 0);
+
+  Bin2Hex((uint8_t*)(vtxhashes[0].begin()), sizeof(uint256), hashHex); // coinbase hash
+  merkleHashesHex.append(hashHex);
+  for (size_t i = 0; i < cbMerkleBranch.size(); i++) {
+      merkleHashesHex.append("\x20"); // space character
+      Bin2Hex((uint8_t*)cbMerkleBranch[i].begin(), sizeof(uint256), hashHex);
+      merkleHashesHex.append(hashHex);
   }
+
+  // block tx count
+  std::stringstream sstream;
+  sstream << std::hex << vtxhashes.size();
+  string totalTxCountHex(sstream.str());
+
+  submitRskBlockPartialMerkleNonBlocking(shareData.rpcAddress_, shareData.rpcUserPwd_, blockHashHex, blockHeaderHex, 
+                                        coinbaseHex, merkleHashesHex, totalTxCountHex);  // using thread
 }
 
 /**

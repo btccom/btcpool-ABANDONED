@@ -34,7 +34,7 @@
 #include <glog/logging.h>
 #include <libconfig.h++>
 
-#include <zmq.hpp>
+#include "zmq.hpp"
 
 #include "Utils.h"
 #include "GbtMaker.h"

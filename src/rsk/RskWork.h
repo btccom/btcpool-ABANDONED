@@ -36,6 +36,9 @@
 #include "utilities_js.hpp"
 
 #include <glog/logging.h>
+#include <string>
+
+using std::string;
 
 class RskWork {
   static bool isCleanJob_;

@@ -35,7 +35,7 @@
 #include <libconfig.h++>
 #include <event2/thread.h>
 
-#include <zmq.hpp>
+#include "zmq.hpp"
 
 #include "Utils.h"
 #include "StratumClient.h"
@@ -112,6 +112,8 @@ int main(int argc, char **argv) {
 
   signal(SIGTERM, handler);
   signal(SIGINT,  handler);
+  // ignore SIGPIPE, avoiding process be killed
+  signal(SIGPIPE,  SIG_IGN);
 
   try {
     int32_t port = 3333;

@@ -46,10 +46,9 @@
 
 //
 // max coinbase tx size, bytes
-// WARNING: currently there is only 1 input and 1 or 2 output(if segwit has actived
-//          there will be 2 outputs), so 250 bytes is enough
-//
-#define COINBASE_TX_MAX_SIZE 250
+// Tips: currently there is only 1 input and 1, 2 or 3 output (reward, segwit and RSK outputs),
+//       so 500 bytes may enough.
+#define COINBASE_TX_MAX_SIZE   500
 
 // default worker name
 #define DEFAULT_WORKER_NAME "__default__"

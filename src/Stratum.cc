@@ -399,7 +399,6 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
       vtxhashs.push_back(MakeTransactionRef(std::move(tx))->GetHash());
     }
     // make merkleSteps and merkle branch
-    vector<uint256> merkleSteps;
     makeMerkleBranch(vtxhashs, merkleBranch_);
   }
 
@@ -612,7 +611,7 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
 
     // check coinbase tx size
     if (coinbaseTpl.size() >= COINBASE_TX_MAX_SIZE) {
-      LOG(FATAL) << "conbase tx size " << coinbaseTpl.size()
+      LOG(FATAL) << "coinbase tx size " << coinbaseTpl.size()
       << " is over than max " << COINBASE_TX_MAX_SIZE;
       return false;
     }
