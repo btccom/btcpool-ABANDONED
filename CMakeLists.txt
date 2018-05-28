@@ -269,8 +269,8 @@ if(NOT KAFKA_FOUND)
   message(FATAL_ERROR "librdkafka not found!")
 endif()
 
-find_package(CUDA 9.1 REQUIRED)
-if(NOT KAFKA_FOUND)
+find_package(CUDA 9.1)
+if(NOT CUDA_FOUND)
   message(FATAL_ERROR "cuda 9.1 not found!")
 endif()
 
@@ -309,8 +309,7 @@ set(THIRD_LIBRARIES ${BITCOIN_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL
                     ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${ZOOKEEPER_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBEVENT_LIB}
                     ${LIBEVENT_PTHREADS_LIB} ${secp256k1_LIBRARIES} ${PTHREAD_LIBRARIES} ${MYSQL_LIB} ${GMP_LIBRARIES} 
                     ethash blake2 ${PROJECT_SOURCE_DIR}/src/bytom/bh_shared.a ${PROJECT_SOURCE_DIR}/src/bytom/cutil/src/GpuTs.a
-                    ${CUDA_LIBRARIES}
-                    /usr/local/cuda/lib64/libcublas.so)
+                    ${CUDA_LIBRARIES} ${CUDA_CUBLAS_LIBRARIES})
 
 file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc src/bytom/*.cc)
 add_library(btcpool STATIC ${LIB_SOURCES})
