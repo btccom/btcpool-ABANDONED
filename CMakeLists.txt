@@ -297,9 +297,16 @@ if(NOT CMAKE_OBJCOPY)
 endif()
 
 ###################################### Targets ######################################
+execute_process(
+  COMMAND go build -buildmode=c-archive -o ${CMAKE_SOURCE_DIR}/src/bytom/bh_shared.a ${CMAKE_SOURCE_DIR}/src/bytom/bh_shared.go
+)
+
 
 add_subdirectory(src/libethash)
 add_subdirectory(src/libblake2)
+add_subdirectory(src/bytom/cutil/src/)
+
+# MESSAGE(STATUS "CMD_OUTPUT: " ${CMD_OUTPUT})
 
 include_directories(src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config ${CHAIN_SRC_ROOT}/src/secp256k1/include
                     ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS}
@@ -308,7 +315,7 @@ include_directories(src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config 
 set(THIRD_LIBRARIES ${BITCOIN_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY}
                     ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${ZOOKEEPER_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBEVENT_LIB}
                     ${LIBEVENT_PTHREADS_LIB} ${secp256k1_LIBRARIES} ${PTHREAD_LIBRARIES} ${MYSQL_LIB} ${GMP_LIBRARIES} 
-                    ethash blake2 ${PROJECT_SOURCE_DIR}/src/bytom/bh_shared.a ${PROJECT_SOURCE_DIR}/src/bytom/cutil/src/GpuTs.a
+                    ethash blake2 ${PROJECT_SOURCE_DIR}/src/bytom/bh_shared.a GpuTs
                     ${CUDA_LIBRARIES} ${CUDA_CUBLAS_LIBRARIES})
 
 file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc src/bytom/*.cc)
@@ -336,6 +343,7 @@ target_link_libraries(jobmaker btcpool ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE SSERVER_SOURCES src/sserver/*.cc)
 add_executable(sserver ${SSERVER_SOURCES})
+# add_dependencies(sserver build_bythom_shared)
 target_link_libraries(sserver btcpool ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE STATSHTTPD_SOURCES src/statshttpd/*.cc)
