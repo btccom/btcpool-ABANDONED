@@ -297,9 +297,9 @@ if(NOT CMAKE_OBJCOPY)
 endif()
 
 ###################################### Targets ######################################
-execute_process(
-  COMMAND go build -buildmode=c-archive -o ${CMAKE_SOURCE_DIR}/src/bytom/bh_shared.a ${CMAKE_SOURCE_DIR}/src/bytom/bh_shared.go
-)
+# execute_process(
+#   COMMAND go build -buildmode=c-archive -o ${CMAKE_SOURCE_DIR}/src/bytom/bh_shared.a ${CMAKE_SOURCE_DIR}/src/bytom/bh_shared.go
+# )
 
 
 add_subdirectory(src/libethash)

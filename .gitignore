@@ -20,5 +20,5 @@
 /GRTAGS
 /GTAGS
 
-src/bytom/bh_shared.a
-src/bytom/bh_shared.h
+#src/bytom/bh_shared.a
+#src/bytom/bh_shared.h
