@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 
 # set(CMAKE_CXX_COMPILER "/usr/local/cuda/bin/g++")
 
-include_directories("/usr/local/cuda/include")
+include_directories(${CUDA_INCLUDE_DIRECTORIES})
 
 CUDA_ADD_LIBRARY(GpuTs STATIC
   BytomPoW.cpp

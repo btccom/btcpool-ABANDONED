@@ -2,7 +2,7 @@
 .vs/
 .vscode/
 .idea/
-.DS_Store/
+.DS_Store
 
 # Building files
 /build
@@ -19,6 +19,3 @@
 /GPATH
 /GRTAGS
 /GTAGS
-
-#src/bytom/bh_shared.a
-#src/bytom/bh_shared.h

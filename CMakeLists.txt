@@ -118,6 +118,49 @@ endif()
 
 
 ###
+# Rebuild Bytom's Shared Library
+###
+option(REBUILD_BH_SHARED "Rebuild Bytom's Shared Library" OFF)
+
+if(REBUILD_BH_SHARED)
+  message("-- Rebuild Bytom's Shared Library: Enabled (-DREBUILD_BH_SHARED=ON)")
+  message("    golang required.")
+  message("    https://github.com/Bytom/bytom need to be cloned to $GOPATH/src")
+  message("    If you want to update the prebuild bh_shared.a/bh_shared.h,")
+  message("    you can copy them from ${CMAKE_BINARY_DIR}/src/bytom to ${PROJECT_SOURCE_DIR}/prebuild/bytom")
+
+  set(BH_SHARED_INCLUDE_DIR ${CMAKE_BINARY_DIR}/src)
+  set(BH_SHARED_LIBRARY ${BH_SHARED_INCLUDE_DIR}/bytom/bh_shared.a)
+else()
+  message("-- Rebuild Bytom's Shared Library: Disabled (-DREBUILD_BH_SHARED=OFF)")
+  message("    The prebuild bh_shared.a/bh_shared.h in ${PROJECT_SOURCE_DIR}/prebuild/bytom will be used")
+
+  set(BH_SHARED_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/prebuild)
+  set(BH_SHARED_LIBRARY ${BH_SHARED_INCLUDE_DIR}/bytom/bh_shared.a)
+endif()
+
+# ###
+# # Rebuild Bytom's GPU (Nvidia CUDA) Codes
+# ###
+# option(REBUILD_GPU_CODE "Rebuild Bytom's GPU (Nvidia CUDA) Codes" OFF)
+# 
+# if(REBUILD_GPU_CODE)
+#   message("-- Rebuild Bytom's GPU (Nvidia CUDA) Codes: Enabled (-DREBUILD_GPU_CODE=ON)")
+#   message("    Nvidia CUDA toolkit 9.1 or later required (https://developer.nvidia.com/cuda-downloads).")
+#   message("    https://github.com/Bytom/bytom need to be cloned to $GOPATH/src")
+#   message("    If you want to update the prebuild libGpuTs.a,")
+#   message("    you can copy it from ${CMAKE_BINARY_DIR}/src/bytom/cutil/src to ${PROJECT_SOURCE_DIR}/prebuild/bytom")
+# 
+#   set(GPUTS_LIBRARY GpuTs)
+# else()
+#   message("-- Rebuild Bytom's GPU (Nvidia CUDA) Codes: Disabled (-DREBUILD_GPU_CODE=OFF)")
+#   message("    The prebuild libGpuTs.a in ${PROJECT_SOURCE_DIR}/prebuild/bytom will be used ")
+# 
+#   set(GPUTS_LIBRARY ${PROJECT_SOURCE_DIR}/prebuild/bytom/libGpuTs.a)
+# endif()
+
+
+###
 # work with stratum switcher
 ###
 option(POOL__WORK_WITH_STRATUM_SWITCHER "Work with Stratum Switcher" OFF)
@@ -297,24 +340,26 @@ if(NOT CMAKE_OBJCOPY)
 endif()
 
 ###################################### Targets ######################################
-# execute_process(
-#   COMMAND go build -buildmode=c-archive -o ${CMAKE_SOURCE_DIR}/src/bytom/bh_shared.a ${CMAKE_SOURCE_DIR}/src/bytom/bh_shared.go
-# )
 
+if (REBUILD_BH_SHARED)
+  message("-- rebuilding Bytom's shared library...")
+  execute_process(
+    COMMAND go build -buildmode=c-archive -o ${BH_SHARED_LIBRARY} ${CMAKE_SOURCE_DIR}/src/bytom/bh_shared.go
+  )
+endif()
 
 add_subdirectory(src/libethash)
 add_subdirectory(src/libblake2)
-add_subdirectory(src/bytom/cutil/src/)
+add_subdirectory(src/bytom/cutil/src)
 
 include_directories(src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config ${CHAIN_SRC_ROOT}/src/secp256k1/include
                     ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS}
-                    ${LIBEVENT_INCLUDE_DIR} ${MYSQL_INCLUDE})
+                    ${LIBEVENT_INCLUDE_DIR} ${MYSQL_INCLUDE} ${CUDA_INCLUDE_DIRECTORIES} ${BH_SHARED_INCLUDE_DIR})
 
 set(THIRD_LIBRARIES ${BITCOIN_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY}
                     ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${ZOOKEEPER_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBEVENT_LIB}
                     ${LIBEVENT_PTHREADS_LIB} ${secp256k1_LIBRARIES} ${PTHREAD_LIBRARIES} ${MYSQL_LIB} ${GMP_LIBRARIES} 
-                    ethash blake2 ${PROJECT_SOURCE_DIR}/src/bytom/bh_shared.a GpuTs
-                    ${CUDA_LIBRARIES} ${CUDA_CUBLAS_LIBRARIES})
+                    ethash blake2 ${BH_SHARED_LIBRARY} GpuTs ${CUDA_LIBRARIES} ${CUDA_CUBLAS_LIBRARIES})
 
 file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc src/bytom/*.cc)
 add_library(btcpool STATIC ${LIB_SOURCES})
