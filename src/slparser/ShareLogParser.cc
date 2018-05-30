@@ -111,82 +111,91 @@ int main(int argc, char **argv) {
     return(EXIT_FAILURE);
   }
 
-  // DB info
-  MysqlConnectInfo *poolDBInfo = nullptr;
-  {
-    int32_t poolDBPort = 3306;
-    cfg.lookupValue("pooldb.port", poolDBPort);
-    poolDBInfo = new MysqlConnectInfo(cfg.lookup("pooldb.host"), poolDBPort,
-                                      cfg.lookup("pooldb.username"),
-                                      cfg.lookup("pooldb.password"),
-                                      cfg.lookup("pooldb.dbname"));
-  }
-
-  //////////////////////////////////////////////////////////////////////////////
-  //  dump shares to stdout
-  //////////////////////////////////////////////////////////////////////////////
-  if (optDate != 0 && optPUID != -1) {
-    const string tsStr = Strings::Format("%04d-%02d-%02d 00:00:00",
-                                         optDate/10000,
-                                         optDate/100 % 100, optDate % 100);
-    const time_t ts = str2time(tsStr.c_str(), "%F %T");
-    std::set<int32_t> uids;
-    if (optPUID > 0)
-     uids.insert(optPUID);
-
-    ShareLogDumper sldumper(cfg.lookup("sharelog.chain_type").c_str(), cfg.lookup("sharelog.data_dir"), ts, uids);
-    sldumper.dump2stdout();
-
-    google::ShutdownGoogleLogging();
-    return 0;
-  }
-
-  //////////////////////////////////////////////////////////////////////////////
-  //  re-run someday's share bin log
-  //////////////////////////////////////////////////////////////////////////////
-  if (optDate != 0) {
-    const string tsStr = Strings::Format("%04d-%02d-%02d 00:00:00",
-                                         optDate/10000,
-                                         optDate/100 % 100, optDate % 100);
-    const time_t ts = str2time(tsStr.c_str(), "%F %T");
-
-    ShareLogParser slparser(cfg.lookup("sharelog.chain_type").c_str(),
-                            cfg.lookup("sharelog.data_dir"),
-                            ts, *poolDBInfo);
-    do {
-      if (slparser.init() == false) {
-        LOG(ERROR) << "init failure";
-        break;
-      }
-      if (!slparser.processUnchangedShareLog()) {
-        LOG(ERROR) << "processUnchangedShareLog fail";
-        break;
-      }
-      if (!slparser.flushToDB()) {
-        LOG(ERROR) << "processUnchangedShareLog fail";
-        break;
-      }
-    } while (0);
-
-    google::ShutdownGoogleLogging();
-    return 0;
-  }
-
-
-  //////////////////////////////////////////////////////////////////////////////
-
-  // lock cfg file:
-  //    you can't run more than one process with the same config file
-  boost::interprocess::file_lock pidFileLock(optConf);
-  if (pidFileLock.try_lock() == false) {
-    LOG(FATAL) << "lock cfg file fail";
-    return(EXIT_FAILURE);
-  }
-
-  signal(SIGTERM, handler);
-  signal(SIGINT,  handler);
-
   try {
+    // check if we are using testnet3
+    bool isTestnet3 = false;
+    cfg.lookupValue("testnet", isTestnet3);
+    if (isTestnet3) {
+      SelectParams(CBaseChainParams::TESTNET);
+      LOG(WARNING) << "using bitcoin testnet3";
+    } else {
+      SelectParams(CBaseChainParams::MAIN);
+    }
+
+    // DB info
+    MysqlConnectInfo *poolDBInfo = nullptr;
+    {
+      int32_t poolDBPort = 3306;
+      cfg.lookupValue("pooldb.port", poolDBPort);
+      poolDBInfo = new MysqlConnectInfo(cfg.lookup("pooldb.host"), poolDBPort,
+                                        cfg.lookup("pooldb.username"),
+                                        cfg.lookup("pooldb.password"),
+                                        cfg.lookup("pooldb.dbname"));
+    }
+
+    //////////////////////////////////////////////////////////////////////////////
+    //  dump shares to stdout
+    //////////////////////////////////////////////////////////////////////////////
+    if (optDate != 0 && optPUID != -1) {
+      const string tsStr = Strings::Format("%04d-%02d-%02d 00:00:00",
+                                          optDate/10000,
+                                          optDate/100 % 100, optDate % 100);
+      const time_t ts = str2time(tsStr.c_str(), "%F %T");
+      std::set<int32_t> uids;
+      if (optPUID > 0)
+      uids.insert(optPUID);
+
+      ShareLogDumper sldumper(cfg.lookup("sharelog.chain_type").c_str(), cfg.lookup("sharelog.data_dir"), ts, uids);
+      sldumper.dump2stdout();
+
+      google::ShutdownGoogleLogging();
+      return 0;
+    }
+
+    //////////////////////////////////////////////////////////////////////////////
+    //  re-run someday's share bin log
+    //////////////////////////////////////////////////////////////////////////////
+    if (optDate != 0) {
+      const string tsStr = Strings::Format("%04d-%02d-%02d 00:00:00",
+                                          optDate/10000,
+                                          optDate/100 % 100, optDate % 100);
+      const time_t ts = str2time(tsStr.c_str(), "%F %T");
+
+      ShareLogParser slparser(cfg.lookup("sharelog.chain_type").c_str(),
+                              cfg.lookup("sharelog.data_dir"),
+                              ts, *poolDBInfo);
+      do {
+        if (slparser.init() == false) {
+          LOG(ERROR) << "init failure";
+          break;
+        }
+        if (!slparser.processUnchangedShareLog()) {
+          LOG(ERROR) << "processUnchangedShareLog fail";
+          break;
+        }
+        if (!slparser.flushToDB()) {
+          LOG(ERROR) << "processUnchangedShareLog fail";
+          break;
+        }
+      } while (0);
+
+      google::ShutdownGoogleLogging();
+      return 0;
+    }
+
+    //////////////////////////////////////////////////////////////////////////////
+
+    // lock cfg file:
+    //    you can't run more than one process with the same config file
+    boost::interprocess::file_lock pidFileLock(optConf);
+    if (pidFileLock.try_lock() == false) {
+      LOG(FATAL) << "lock cfg file fail";
+      return(EXIT_FAILURE);
+    }
+
+    signal(SIGTERM, handler);
+    signal(SIGINT,  handler);
+
     int32_t port = 8081;
     cfg.lookupValue("slparserhttpd.port", port);
     uint32_t kFlushDBInterval = 20;
