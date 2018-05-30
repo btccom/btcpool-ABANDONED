@@ -43,9 +43,14 @@ int64_t GetBlockReward(int nHeight, const Consensus::Params& consensusParams)
 
   int64_t nSubsidy = 50 * COIN_TO_SATOSHIS;
 
-  // Subsidy is cut in half every 210,000 blocks which will occur approximately every 4 years.
+  // Block reward is cut in half every 210,000 blocks which will occur approximately every 4 years.
   nSubsidy = nSubsidy / (2 << halvings);
   return nSubsidy;
+}
+
+int64_t GetBlockRewardEth(int /*nHeight*/) {
+  // Ethereum has a static block reward at current
+  return 3e+18;
 }
 
 #ifdef CHAIN_TYPE_SBTC

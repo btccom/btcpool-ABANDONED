@@ -70,6 +70,7 @@ class ShareLogParser {
 
   time_t date_;      // date_ % 86400 == 0
   string filePath_;  // sharelog data file path
+  const string chainType_;
 
   //
   // for processGrowingShareLog()
@@ -86,6 +87,8 @@ class ShareLogParser {
     // %H	Hour in 24h format (00-23)
     return atoi(date("%H", ts).c_str());
   }
+
+  shared_ptr<ShareStatsDay> newShareStatsDay(const string &chainType);
 
   void parseShareLog(const uint8_t *buf, size_t len);
   void parseShare(const Share *share);

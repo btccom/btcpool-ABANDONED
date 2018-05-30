@@ -212,9 +212,14 @@ public:
 
   ShareStatsDay();
 
-  void processShare(uint32_t hourIdx, const Share &share);
+  virtual void processShare(uint32_t hourIdx, const Share &share);
   void getShareStatsHour(uint32_t hourIdx, ShareStats *stats);
   void getShareStatsDay(ShareStats *stats);
+};
+
+
+class ShareStatsDayEth : public ShareStatsDay {
+  virtual void processShare(uint32_t hourIdx, const Share &share);
 };
 
 

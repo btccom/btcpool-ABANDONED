@@ -108,3 +108,26 @@ void ShareStatsDay::getShareStatsDay(ShareStats *stats) {
   else
     stats->rejectRate_ = 0.0;
 }
+
+void ShareStatsDayEth::processShare(uint32_t hourIdx, const Share &share) {
+  ScopeLock sl(lock_);
+
+  if (share.result_ == Share::Result::ACCEPT) {
+    shareAccept1h_[hourIdx] += share.share_;
+    shareAccept1d_          += share.share_;
+
+    double score = share.score();
+    double reward = GetBlockRewardEth(share.height_);
+    double earn = score * reward;
+
+    score1h_[hourIdx] += score;
+    score1d_          += score;
+    earn1h_[hourIdx]  += earn;
+    earn1d_           += earn;
+
+  } else {
+    shareReject1h_[hourIdx] += share.share_;
+    shareReject1d_          += share.share_;
+  }
+  modifyHoursFlag_ |= (0x01u << hourIdx);
+}

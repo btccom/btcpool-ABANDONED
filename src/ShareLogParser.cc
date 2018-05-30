@@ -117,14 +117,14 @@ void ShareLogDumper::parseShare(const Share *share) {
 ///////////////////////////////  ShareLogParser  ///////////////////////////////
 ShareLogParser::ShareLogParser(const char *chainType, const string &dataDir,
                                time_t timestamp, const MysqlConnectInfo &poolDBInfo)
-: date_(timestamp), f_(nullptr), buf_(nullptr), lastPosition_(0), poolDB_(poolDBInfo)
+: date_(timestamp), chainType_(chainType), f_(nullptr), buf_(nullptr), lastPosition_(0), poolDB_(poolDBInfo)
 {
   pthread_rwlock_init(&rwlock_, nullptr);
 
   {
     // for the pool
     WorkerKey pkey(0, 0);
-    workersStats_[pkey] = std::make_shared<ShareStatsDay>();
+    workersStats_[pkey] = newShareStatsDay(chainType);
   }
   filePath_ = getStatsFilePath(chainType, dataDir, timestamp);
 
@@ -172,6 +172,21 @@ bool ShareLogParser::init() {
   return true;
 }
 
+shared_ptr<ShareStatsDay> ShareLogParser::newShareStatsDay(const string &chainType) {
+  if (chainType == "BTC")
+  {
+    return std::make_shared<ShareStatsDay>();
+  }
+  else if (chainType == "ETH")
+  {
+    return std::make_shared<ShareStatsDayEth>();
+  }
+  else {
+    LOG(FATAL) << "Unknown chain " << chainType;
+    return nullptr;
+  }
+}
+
 void ShareLogParser::parseShareLog(const uint8_t *buf, size_t len) {
   assert(len % sizeof(Share) == 0);
   const size_t size = len / sizeof(Share);
@@ -193,10 +208,10 @@ void ShareLogParser::parseShare(const Share *share) {
 
   pthread_rwlock_wrlock(&rwlock_);
   if (workersStats_.find(wkey) == workersStats_.end()) {
-    workersStats_[wkey] = std::make_shared<ShareStatsDay>();
+    workersStats_[wkey] = newShareStatsDay(chainType_);
   }
   if (workersStats_.find(ukey) == workersStats_.end()) {
-    workersStats_[ukey] = std::make_shared<ShareStatsDay>();
+    workersStats_[ukey] = newShareStatsDay(chainType_);
   }
   pthread_rwlock_unlock(&rwlock_);
 
