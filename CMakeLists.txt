@@ -306,8 +306,6 @@ add_subdirectory(src/libethash)
 add_subdirectory(src/libblake2)
 add_subdirectory(src/bytom/cutil/src/)
 
-# MESSAGE(STATUS "CMD_OUTPUT: " ${CMD_OUTPUT})
-
 include_directories(src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config ${CHAIN_SRC_ROOT}/src/secp256k1/include
                     ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS}
                     ${LIBEVENT_INCLUDE_DIR} ${MYSQL_INCLUDE})
