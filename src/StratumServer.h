@@ -182,6 +182,7 @@ public:
   StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
   //void broadcastStratumJob(StratumJob *sjob) override;
 };
+
 ///////////////////////////////////// UserInfo /////////////////////////////////
 // 1. update userName->userId by interval
 // 2. insert worker name to db
@@ -386,7 +387,8 @@ public:
   int checkShare(const Share &share,
                  const uint64_t nonce,
                  const uint256 header,
-                 const uint256 mixHash);
+                 const uint256 mixHash,
+                 const uint256 jobTarget);
   void sendSolvedShare2Kafka(const string& strNonce, const string& strHeader, const string& strMix);
 
   virtual JobRepository* createJobRepository(const char *kafkaBrokers,

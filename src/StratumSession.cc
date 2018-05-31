@@ -1466,30 +1466,31 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
     return;
   }
 
-  int submitResult = s->checkShare(share, nonce, uint256S(sHeader), uint256S(sMixHash));
+  int submitResult = s->checkShare(share, nonce, uint256S(sHeader), uint256S(sMixHash),
+                                   uint256S(Eth_DifficultyToTarget(localJob->jobDifficulty_)));
 
   // we send share to kafka by default, but if there are lots of invalid
   // shares in a short time, we just drop them.
 
-  if (StratumError::NO_ERROR == submitResult)
+  if (StratumError::SOLVED == submitResult)
   {
-    LOG(INFO) << "solution found";
     s->sendSolvedShare2Kafka(sNonce, sHeader, sMixHash);
     // accepted share
     share.result_ = Share::Result::ACCEPT;
     diffController_->addAcceptedShare(share.share_);
     rpc2ResponseBoolean(idStr, true);
   }
-  else if (StratumError::LOW_DIFFICULTY == submitResult)
+  else if (StratumError::NO_ERROR == submitResult)
   {
     share.result_ = Share::Result::ACCEPT;
+    diffController_->addAcceptedShare(share.share_);
     rpc2ResponseBoolean(idStr, true);
   }
   else
   {
     // add invalid share to counter
     invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
-    rpc2ResponseBoolean(idStr, false);
+    responseError(idStr, submitResult);
   }
 
   bool isSendShareToKafka = true;

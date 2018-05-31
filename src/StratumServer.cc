@@ -1606,18 +1606,13 @@ void Server::sendCommonEvents2Kafka(const string &message) {
 int ServerEth::checkShare(const Share &share,
                           const uint64_t nonce,
                           const uint256 header,
-                          const uint256 mixHash)
+                          const uint256 mixHash,
+                          uint256 jobTarget)
 {
-  //accept every share in simulator mode
-  if (isEnableSimulator_)
-  {
-    usleep(20000);
-    return StratumError::NO_ERROR;
-  }
-
   JobRepositoryEth *jobRepo = dynamic_cast<JobRepositoryEth *>(jobRepository_);
-  if (nullptr == jobRepo)
+  if (nullptr == jobRepo) {
     return StratumError::ILLEGAL_PARARMS;
+  }
 
   shared_ptr<StratumJobEx> exJobPtr = jobRepository_->getStratumJobEx(share.jobId_);
   if (nullptr == exJobPtr)
@@ -1631,13 +1626,13 @@ int ServerEth::checkShare(const Share &share,
   }
 
   StratumJob *sjob = exJobPtr->sjob_;
-  //LOG(INFO) << "checking share nonce: " << hex << nonce << ", header: " << header.GetHex() << ", mixHash: " << mixHash.GetHex();
+  
+  DLOG(INFO) << "checking share nonce: " << hex << nonce << ", header: " << header.GetHex() << ", mixHash: " << mixHash.GetHex();
+  
   ethash_return_value_t r;
   ethash_h256_t ethashHeader = {0};
   Uint256ToEthash256(header, ethashHeader);
 
-  // for (int i = 0; i < 32; ++i)
-  //   LOG(INFO) << "ethash_h256_t byte " << i << ": " << hex << (int)ethashHeader.b[i];
   timeval start, end;
   long mtime, seconds, useconds;
   gettimeofday(&start, NULL);
@@ -1662,12 +1657,20 @@ int ServerEth::checkShare(const Share &share,
   }
 
   uint256 shareTarget = Ethash256ToUint256(r.result);
-  //DLOG(INFO) << "comapre share target: " << shareTarget.GetHex() << ", network target: " << sjob->rskNetworkTarget_.GetHex();
+  
+  DLOG(INFO) << "comapre share target: " << shareTarget.GetHex() << ", job target: " << jobTarget.GetHex() << ", network target: " << sjob->rskNetworkTarget_.GetHex();
+  
   //can not compare directly because unit256 uses memcmp
-  if (UintToArith256(sjob->rskNetworkTarget_) < UintToArith256(shareTarget))
-    return StratumError::LOW_DIFFICULTY;
+  if (isSubmitInvalidBlock_ || UintToArith256(shareTarget) < UintToArith256(sjob->rskNetworkTarget_)) {
+    LOG(INFO) << "solution found, share target: " << shareTarget.GetHex() << ", job target: " << jobTarget.GetHex() << ", network target: " << sjob->rskNetworkTarget_.GetHex();
+    return StratumError::SOLVED;
+  }
 
-  return StratumError::NO_ERROR;
+  if (isEnableSimulator_ || UintToArith256(shareTarget) < UintToArith256(jobTarget)) {
+    return StratumError::NO_ERROR;
+  }
+
+  return StratumError::LOW_DIFFICULTY;
 }
 
 void ServerEth::sendSolvedShare2Kafka(const string &strNonce, const string &strHeader, const string &strMix)

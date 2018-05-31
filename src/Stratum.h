@@ -190,7 +190,8 @@ class StratumError
 public:
   enum
   {
-    NO_ERROR = 0,
+    NO_ERROR = 0, // share reached the job target (but may not reached the network target)
+    SOLVED   = 1, // share reached the network target (only ServerEth::checkShare use it at current)
 
     UNKNOWN = 20,
     JOB_NOT_FOUND = 21,
