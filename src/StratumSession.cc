@@ -1084,7 +1084,7 @@ void StratumSession::sendData(const char *data, size_t len) {
   // add data to a bufferevent’s output buffer
   // it is automatically locked so we don't need to lock
   bufferevent_write(bev_, data, len);
-//  DLOG(INFO) << "send(" << len << "): " << data;
+  DLOG(INFO) << "send(" << len << "): " << data;
 }
 
 // if read a message (ex-message or stratum) success should return true,
@@ -1465,6 +1465,8 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
     invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
     return;
   }
+
+  DLOG(INFO) << "share job diff: " << localJob->jobDifficulty_;
 
   int submitResult = s->checkShare(share, nonce, uint256S(sHeader), uint256S(sMixHash),
                                    uint256S(Eth_DifficultyToTarget(localJob->jobDifficulty_)));
