@@ -972,7 +972,7 @@ void StratumSession::sendData(const char *data, size_t len) {
   // add data to a bufferevent’s output buffer
   // it is automatically locked so we don't need to lock
   bufferevent_write(bev_, data, len);
-//  DLOG(INFO) << "send(" << len << "): " << data;
+  DLOG(INFO) << "send(" << len << "): " << data;
 }
 
 // if read a message (ex-message or stratum) success should return true,
