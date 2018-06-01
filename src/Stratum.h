@@ -175,12 +175,16 @@ public:
   {
     char ipStr[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &(ip_), ipStr, INET_ADDRSTRLEN);
+
+    double networkDifficulty = 0.0;
+    BitsToDifficulty(blkBits_, &networkDifficulty);
+
     return Strings::Format("share(jobId: %" PRIu64 ", ip: %s, userId: %d, "
                            "workerId: %" PRId64 ", timeStamp: %u/%s, height: %u, "
-                           "blkBits: %08x, nonce: %08x, extraNonce1: %08x, share: %" PRIu64 ", result: %d)",
-                           jobId_, ipStr, userId_, workerHashId_,
-                           timestamp_, date("%F %T", timestamp_).c_str(),
-                           height_, blkBits_, nonce_, extraNonce1_, share_, result_);
+                           "blkBits: %08x/%lf, nonce: %08x, extraNonce1: %08x, share: %" PRIu64 ", result: %d)",
+                           jobId_, ipStr, userId_,
+                           workerHashId_, timestamp_, date("%F %T", timestamp_).c_str(), height_,
+                           blkBits_, networkDifficulty, nonce_, extraNonce1_, share_, result_);
   }
 };
 
