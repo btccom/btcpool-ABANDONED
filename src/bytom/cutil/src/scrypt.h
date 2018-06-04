@@ -1,3 +1,4 @@
+/* scrypt.h */
 #ifndef SCRYPT_H
 #define SCRYPT_H
 
@@ -11,7 +12,7 @@ struct Words16 {
 
 #define ROTL(a, b) (((a) << (b)) | ((a) >> (32 - (b))))
 
-static inline void xor_salsa8(uint32_t B[16], const uint32_t Bx[16]) {
+inline void xor_salsa8(uint32_t B[16], const uint32_t Bx[16]) {
   uint32_t x00,x01,x02,x03,x04,x05,x06,x07,x08,x09,x10,x11,x12,x13,x14,x15;
   int i;
 
@@ -81,7 +82,7 @@ struct Words32 {
   uint32_t get(uint32_t i) const {
     if(i<16) return lo.w[i];
     else if(i<32) return hi.w[i-16];
-    else {assert(false); return 0;}
+    else {assert(false);return 0;}
   }
   void xor_other(const Words32& other) {
     for(int i=0; i<16; i++) lo.w[i]^=other.lo.w[i];
@@ -94,6 +95,13 @@ struct LTCMemory {
   const Words32& get(uint32_t i) const {
     assert(i<1024);
     return w32[i];
+  }
+  void printItems() {
+    printf("\nprint scrypt items\n");
+    for(int i = 0; i < 16; i++) {
+      printf(" ");
+      printf(" %u ", uint32_t(this->get(0).lo.w[i]));
+    }
   }
   void scrypt(Words32& X) {
     for (int i = 0; i < 1024; i++) {

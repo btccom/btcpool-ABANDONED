@@ -1,11 +1,12 @@
 package cutil
 
 import (
-	"testing"
 	"fmt"
-	"github.com/bytom/protocol/bc"
-	"time"
 	"reflect"
+	"testing"
+	"time"
+
+	"github.com/bytom/protocol/bc"
 )
 
 // Tests that tensority hash result is correct.
@@ -141,7 +142,7 @@ func TestHash(t *testing.T) {
 	count := 0
 	for i, tt := range tests {
 		fmt.Printf("Test case %d:\n", i+1)
-		for a := 0; a < 100000; a++ {
+		for a := 0; a < 100; a++ {
 			sT := time.Now()
 			bhhash := bc.NewHash(tt.blockHeader)
 			sdhash := bc.NewHash(tt.seed)

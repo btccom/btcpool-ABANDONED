@@ -1,12 +1,12 @@
 package cutil
 
-// #cgo CFLAGS: -I /usr/local/cuda/include
-// #cgo LDFLAGS: -L./src/ -l:GpuTs.a -lstdc++ -L /usr/local/cuda/lib64 -lcudart -lcublas
+// #cgo CFLAGS: -I /usr/local/cuda/include -I ../
+// #cgo LDFLAGS: -L../ -lGpuTs -lstdc++ -L /usr/local/cuda/lib64 -lcudart -lcublas
 // #include <stdint.h>
 // #include "./src/GpuTs.h"
 import "C"
 
-import(
+import (
 	"unsafe"
 
 	"github.com/bytom/protocol/bc"

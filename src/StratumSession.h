@@ -104,12 +104,13 @@ public:
   void setCurDiff(uint64 curDiff); // set current diff with bounds checking
   virtual uint64 _calcCurDiff();
   int adjustHashRateLevel(const double hashRateT);
-  double minerCoefficient(const time_t now, const int64_t idx);
 
   inline bool isFullWindow(const time_t now)
   {
     return now >= startTime_ + kDiffWindow_;
   }
+private:
+  double minerCoefficient(const time_t now, const int64_t idx);
 
 public:
   DiffController(const uint64 defaultDifficulty,

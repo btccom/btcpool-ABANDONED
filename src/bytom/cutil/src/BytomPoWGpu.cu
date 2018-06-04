@@ -1,58 +1,10 @@
 #include "BytomPoW.h"
+#include <cuda.h>
 #include <cuda_runtime.h>
 #include "cublas_v2.h"
 
-
-static const char *_cudaGetErrorEnum(cublasStatus_t error)
-{
-    switch (error)
-    {
-        case CUBLAS_STATUS_SUCCESS:
-            return "CUBLAS_STATUS_SUCCESS";
-
-        case CUBLAS_STATUS_NOT_INITIALIZED:
-            return "CUBLAS_STATUS_NOT_INITIALIZED";
-
-        case CUBLAS_STATUS_ALLOC_FAILED:
-            return "CUBLAS_STATUS_ALLOC_FAILED";
-
-        case CUBLAS_STATUS_INVALID_VALUE:
-            return "CUBLAS_STATUS_INVALID_VALUE";
-
-        case CUBLAS_STATUS_ARCH_MISMATCH:
-            return "CUBLAS_STATUS_ARCH_MISMATCH";
-
-        case CUBLAS_STATUS_MAPPING_ERROR:
-            return "CUBLAS_STATUS_MAPPING_ERROR";
-
-        case CUBLAS_STATUS_EXECUTION_FAILED:
-            return "CUBLAS_STATUS_EXECUTION_FAILED";
-
-        case CUBLAS_STATUS_INTERNAL_ERROR:
-            return "CUBLAS_STATUS_INTERNAL_ERROR";
-    }
-
-    return "<unknown>";
-}
-
-void initMatVecGpu(BytomMatListGpu* matListGpu_int8, BytomMatList* matList_int8) {
-  for(int i=0; i<matList_int8->matVec.size(); i++) {
-    int8_t* hostPtr_i8 = (int8_t*)(matList_int8->at(i).d);
-    int8_t* devPtr_i8 = (int8_t*)(matListGpu_int8->at(i));
-    cublasStatus_t stat = cublasSetMatrix (256, 256, sizeof(*devPtr_i8), hostPtr_i8, 256, devPtr_i8, 256);
-    if (stat != CUBLAS_STATUS_SUCCESS) {
-      std::cerr<<"Fail to Set CuBlas Matrix. stat=" << _cudaGetErrorEnum(stat) <<std::endl;
-      exit(EXIT_FAILURE);
-    }
-  }
-}
-
-static inline void converInt32ToInt8(int32_t (&a)[256][256], int8_t (&b)[256][256]) {
-  for(int i=0; i<256; i++) {
-    for(int j=0; j<256; j++) {
-      b[i][j]=((a[i][j]&0xFF)+ ((a[i][j]>>8)&0xFF))&0xFF;
-    }
-  }
+void initMatVecGpu(BytomMatListGpu* matListGpu_int8, BytomMatList8* matList_int8) {
+  cudaMemcpy(matListGpu_int8->matVecGpu, matList_int8->matVec, 256 * 256 * 256, cudaMemcpyHostToDevice);
 }
 
 __global__ void converInt32ToInt8_gpu(int32_t* a, int8_t* b) {
@@ -62,9 +14,9 @@ __global__ void converInt32ToInt8_gpu(int32_t* a, int8_t* b) {
 }
 
 void core_mineBytom_gpu(
-		std::vector<uint8_t> fourSeq[4],
-		BytomMatListGpu* matListGpu_int8,
-		uint32_t data[64],
+        std::vector<uint8_t> fourSeq[4],
+        BytomMatListGpu* matListGpu_int8,
+        uint32_t data[64],
         cublasHandle_t handle) {
 
   Mat256x256i8 *idt=new Mat256x256i8;
@@ -79,7 +31,7 @@ void core_mineBytom_gpu(
   cudaMalloc ((void**)&devIdt_i8, 256*256*sizeof(*devIdt_i8));
   cudaMalloc ((void**)&devTmp_i8, 256*256*sizeof(*devTmp_i8));
   cudaMalloc ((void**)&devTmp_i32, 256*256*sizeof(*devTmp_i32));
-  cublasStatus_t stat = cublasSetMatrix (256, 256, sizeof(*devIdt_i8), idt->d, 256, devIdt_i8, 256); //HKKUO: A). Memory Set
+  cublasStatus_t stat = cublasSetMatrix (256, 256, sizeof(*devIdt_i8), idt->d, 256, devIdt_i8, 256);
   const int alpha = 1;
   const int beta = 0;
 
@@ -105,7 +57,7 @@ void core_mineBytom_gpu(
                               CUDA_R_32I,
                               256,
                               CUDA_R_32I,
-                              CUBLAS_GEMM_DFALT);  //HKKUO: B). General Matrix Multiplication (GEMM)
+                              CUBLAS_GEMM_DFALT);
         else
           stat = cublasGemmEx(handle,
                               CUBLAS_OP_N,
@@ -125,10 +77,13 @@ void core_mineBytom_gpu(
                               CUDA_R_32I,
                               256,
                               CUDA_R_32I,
-                              CUBLAS_GEMM_DFALT);  //HKKUO: B). General Matrix Multiplication (GEMM)
+                              CUBLAS_GEMM_DFALT); 
         if (stat != CUBLAS_STATUS_SUCCESS) {
-          std::cerr<<"Fail to Run CuBlas GemmEx, status=" << _cudaGetErrorEnum(stat) <<std::endl;
-          exit(EXIT_FAILURE);
+          std::cout<<"Fail to Run CuBlas GemmEx.1"<<std::endl;
+          std::cout<<stat<<std::endl;
+          std::cout<<"skip"<<std::endl;
+          return;
+          // exit(EXIT_FAILURE);
         }
         converInt32ToInt8_gpu<<<256, 256>>>(devTmp_i32, devTmp_i8);
         stat = cublasGemmEx(handle,
@@ -149,9 +104,9 @@ void core_mineBytom_gpu(
                             CUDA_R_32I,
                             256,
                             CUDA_R_32I,
-                            CUBLAS_GEMM_DFALT);  //HKKUO: B). General Matrix Multiplication (GEMM)
+                            CUBLAS_GEMM_DFALT); 
         if (stat != CUBLAS_STATUS_SUCCESS) {
-          std::cerr<<"Fail to Run CuBlas GemmEx, status=" << _cudaGetErrorEnum(stat) <<std::endl;
+          std::cerr<<"Fail to Run CuBlas GemmEx.2"<<std::endl;
           exit(EXIT_FAILURE);
         }
         converInt32ToInt8_gpu<<<256, 256>>>(devTmp_i32, devTmp_i8);
@@ -160,18 +115,21 @@ void core_mineBytom_gpu(
     stat = cublasGetMatrix (256, 256, sizeof(*devTmp_i8), devTmp_i8, 256, res[k].d, 256);
   }
 
-  mat->add(res[0], res[1]);  //HKKUO: C). Matrix Addition
-  tmp->add(*mat, res[2]);    //HKKUO: C). Matrix Addition
-  mat->add(*tmp, res[3]);    //HKKUO: C). Matrix Addition
+  mat->add(res[0], res[1]);  
+  tmp->add(*mat, res[2]);    
+  mat->add(*tmp, res[3]);    
 
   Arr256x64i32 arr(*mat);
-  arr.reduceFNV();           //HKKUO: D). Reduction
-  arr.fillWithD0(data);      //HKKUO: E). Memory Set
+  arr.reduceFNV();           
+  arr.fillWithD0(data);      
+  
   delete idt;
   delete mat;
   delete tmp;
   delete[] res;
+
   cudaFree(devIdt_i8);
   cudaFree(devTmp_i8);
   cudaFree(devTmp_i32);
+  cublasDestroy(handle);
 }
