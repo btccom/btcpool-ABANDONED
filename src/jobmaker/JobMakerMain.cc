@@ -45,20 +45,23 @@
 using namespace std;
 using namespace libconfig;
 
-#define JOBMAKER_LOCK_NODE_PATH    "/locks/jobmaker" ZOOKEEPER_NODE_POSTFIX
+// Zookeeper lock is now unnecessary because
+// multiple jobmakers can run at the same time without conflict.
+
+//#define JOBMAKER_LOCK_NODE_PATH    "/locks/jobmaker" ZOOKEEPER_NODE_POSTFIX
 
 JobMaker *gJobMaker = nullptr;
-Zookeeper *gZookeeper = nullptr;
+//Zookeeper *gZookeeper = nullptr;
 
 void handler(int sig) {
   if (gJobMaker) {
     gJobMaker->stop();
   }
 
-  if (gZookeeper) {
+  /*if (gZookeeper) {
     delete gZookeeper;
     gZookeeper = nullptr;
-  }
+  }*/
 }
 
 void usage() {
@@ -120,7 +123,7 @@ int main(int argc, char **argv) {
     return(EXIT_FAILURE);
   }
 
-  try {
+  /*try {
     // get lock from zookeeper
     gZookeeper = new Zookeeper(cfg.lookup("zookeeper.brokers"));
     gZookeeper->getLock(JOBMAKER_LOCK_NODE_PATH);
@@ -128,7 +131,7 @@ int main(int argc, char **argv) {
   } catch(const ZookeeperException &zooex) {
     LOG(FATAL) << zooex.what();
     return(EXIT_FAILURE);
-  }
+  }*/
 
   signal(SIGTERM, handler);
   signal(SIGINT,  handler);
