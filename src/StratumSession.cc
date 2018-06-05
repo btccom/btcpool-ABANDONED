@@ -778,9 +778,11 @@ void StratumSession::handleRequest_Submit(const string &idStr,
 
   // can't find local share
   if (!localJob->addLocalShare(localShare)) {
-    if (isAgentSession == false)
-      submitResult = StratumError::DUPLICATE_SHARE;
+    submitResult = StratumError::DUPLICATE_SHARE;
+
+    if (isAgentSession == false) {
       responseError(idStr, submitResult);
+    }
 
     // add invalid share to counter
     invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
@@ -816,8 +818,9 @@ void StratumSession::handleRequest_Submit(const string &idStr,
     }
   } else {
     // reject share
-    if (isAgentSession == false)
+    if (isAgentSession == false) {
     	responseError(idStr, submitResult);
+    }
 
     // add invalid share to counter
     invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
