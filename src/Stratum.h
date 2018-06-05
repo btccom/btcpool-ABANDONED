@@ -295,7 +295,8 @@ public:
                    const CTxDestination &poolPayoutAddr,
                    const uint32_t blockVersion,
                    const string &nmcAuxBlockJson,
-                   const RskWork &latestRskBlockJson);
+                   const RskWork &latestRskBlockJson,
+                   const uint8_t serverId);
   bool isEmptyBlock();
 };
 
