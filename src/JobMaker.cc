@@ -48,9 +48,9 @@
 JobMaker::JobMaker(const string &kafkaBrokers,  uint32_t stratumJobInterval,
                    const string &payoutAddr, uint32_t gbtLifeTime,
                    uint32_t emptyGbtLifeTime, const string &fileLastJobTime,
-                   uint32_t rskNotifyPolicy,
-                   uint32_t blockVersion, const string &poolCoinbaseInfo):
-running_(true),
+                   uint32_t rskNotifyPolicy, uint32_t blockVersion,
+                   const string &poolCoinbaseInfo, uint8_t serverId):
+serverId_(serverId), running_(true),
 kafkaBrokers_(kafkaBrokers),
 kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, RD_KAFKA_PARTITION_UA/* partition */),
 kafkaRawGbtConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT,       0/* partition */),
@@ -568,7 +568,7 @@ void JobMaker::sendStratumJob(const char *gbt) {
 
   StratumJob sjob;
   if (!sjob.initFromGbt(gbt, poolCoinbaseInfo_, poolPayoutAddr_, blockVersion_,
-                        latestNmcAuxBlockJson, currentRskBlockJson)) {
+                        latestNmcAuxBlockJson, currentRskBlockJson, serverId_)) {
     LOG(ERROR) << "init stratum job message from gbt str fail";
     return;
   }
