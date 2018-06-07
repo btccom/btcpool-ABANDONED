@@ -372,7 +372,7 @@ void StratumSession::handleLine(const string &line) {
   }
 
   // invalid params
-  responseError(idStr, StratumError::ILLEGAL_PARARMS);
+  responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
 }
 
 void StratumSession::responseError(const string &idStr, int errCode) {
@@ -383,7 +383,7 @@ void StratumSession::responseError(const string &idStr, int errCode) {
   int len = snprintf(buf, sizeof(buf),
                      "{\"id\":%s,\"result\":null,\"error\":[%d,\"%s\",null]}\n",
                      idStr.empty() ? "null" : idStr.c_str(),
-                     errCode, StratumError::toString(errCode));                  
+                     errCode, StratumStatus::toString(errCode));                  
   sendData(buf, len);
 }
 
@@ -482,7 +482,7 @@ bool _isNiceHashAgent(const string &clientAgent) {
 void StratumSession::handleRequest_Subscribe(const string &idStr,
                                              const JsonNode &jparams) {
   if (state_ != CONNECTED) {
-    responseError(idStr, StratumError::UNKNOWN);
+    responseError(idStr, StratumStatus::UNKNOWN);
     return;
   }
 
@@ -502,7 +502,7 @@ void StratumSession::handleRequest_Subscribe(const string &idStr,
   //
 
   if (jparams.children()->size() < 2) {
-    responseError(idStr, StratumError::ILLEGAL_PARARMS);
+    responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
     return;
   }
 
@@ -629,7 +629,7 @@ void StratumSession::checkUserAndPwd(const string &idStr, const string &fullName
   if (userId <= 0)
   {
     LOG(ERROR) << "invalid username=" << userName << ", userId=" << userId;
-    responseError(idStr, StratumError::INVALID_USERNAME);
+    responseError(idStr, StratumStatus::INVALID_USERNAME);
     return;
   }
 
@@ -677,7 +677,7 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
 {
   if (state_ != SUBSCRIBED)
   {
-    responseError(idStr, StratumError::NOT_SUBSCRIBED);
+    responseError(idStr, StratumStatus::NOT_SUBSCRIBED);
     return;
   }
 
@@ -690,7 +690,7 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
   //
   if (jparams.children()->size() < 1)
   {
-    responseError(idStr, StratumError::INVALID_USERNAME);
+    responseError(idStr, StratumStatus::INVALID_USERNAME);
     return;
   }
   string password;
@@ -725,7 +725,7 @@ void StratumSession::handleRequest_SuggestTarget(const string &idStr,
     return;  // suggest should be call before subscribe
   }
   if (jparams.children()->size() == 0) {
-    responseError(idStr, StratumError::ILLEGAL_PARARMS);
+    responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
     return;
   }
   _handleRequest_SetDifficulty(TargetToDiff(jparams.children()->at(0).str()));
@@ -737,7 +737,7 @@ void StratumSession::handleRequest_SuggestDifficulty(const string &idStr,
     return;  // suggest should be call before subscribe
   }
   if (jparams.children()->size() == 0) {
-    responseError(idStr, StratumError::ILLEGAL_PARARMS);
+    responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
     return;
   }
   _handleRequest_SetDifficulty(jparams.children()->at(0).uint64());
@@ -746,7 +746,7 @@ void StratumSession::handleRequest_SuggestDifficulty(const string &idStr,
 void StratumSession::handleRequest_Submit(const string &idStr,
                                           const JsonNode &jparams) {
   if (state_ != AUTHENTICATED) {
-    responseError(idStr, StratumError::UNAUTHORIZED);
+    responseError(idStr, StratumStatus::UNAUTHORIZED);
 
     // there must be something wrong, send reconnect command
     const string s = "{\"id\":null,\"method\":\"client.reconnect\",\"params\":[]}\n";
@@ -761,7 +761,7 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   //  params[3] = nTime
   //  params[4] = nonce
   if (jparams.children()->size() < 5) {
-    responseError(idStr, StratumError::ILLEGAL_PARARMS);
+    responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
     return;
   }
 
@@ -779,6 +779,7 @@ void StratumSession::handleRequest_Submit(const string &idStr,
                        false /* not agent session */, nullptr);
 }
 
+// TODO: remove goto.
 void StratumSession::handleRequest_Submit(const string &idStr,
                                           const uint8_t shortJobId,
                                           const uint64_t extraNonce2,
@@ -801,10 +802,10 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   if (localJob == nullptr) {
     // if can't find localJob, could do nothing
     if (isAgentSession == false) {
-    	responseError(idStr, StratumError::JOB_NOT_FOUND);
+    	responseError(idStr, StratumStatus::JOB_NOT_FOUND);
     }
     
-    LOG(INFO) << "rejected share: " << StratumError::toString(StratumError::JOB_NOT_FOUND)
+    LOG(INFO) << "rejected share: " << StratumStatus::toString(StratumStatus::JOB_NOT_FOUND)
     << ", worker: " << worker_.fullName_ << ", Share(id: " << idStr << ", shortJobId: "
     << (int)shortJobId << ", nTime: " << nTime << "/" << date("%F %T", nTime) << ")";
     return;
@@ -824,18 +825,18 @@ void StratumSession::handleRequest_Submit(const string &idStr,
     height = exjob->sjob_->height_;
   }
 
-  Share share;
+  ShareBitcoin share;
   share.jobId_        = localJob->jobId_;
   share.workerHashId_ = worker_.workerHashId_;
-  share.ip_           = clientIpInt_;
   share.userId_       = worker_.userId_;
-  share.share_        = localJob->jobDifficulty_;
+  share.shareDiff_    = localJob->jobDifficulty_;
   share.blkBits_      = localJob->blkBits_;
-  share.timestamp_    = (uint32_t)time(nullptr);
-  share.result_       = Share::Result::REJECT;
+  share.timestamp_    = (uint64_t)time(nullptr);
   share.height_       = height;
   share.nonce_        = nonce;
-  share.extraNonce1_  = extraNonce1_;
+  share.sessionId_  = extraNonce1_;
+  share.status_       = StratumStatus::REJECT_NO_REASON;
+  share.ip_.fromIpv4Int(clientIpInt_);
 
   if (isAgentSession == true) {
     const uint16_t sessionId = (uint16_t)(extraNonce2 >> 32);
@@ -852,25 +853,24 @@ void StratumSession::handleRequest_Submit(const string &idStr,
       LOG(ERROR) << "can't find agent session's diff, sessionId: " << sessionId << ", worker: " << worker_.fullName_;
       return;
     }
-    share.share_ = (uint64_t)exp2(localJob->agentSessionsDiff2Exp_[sessionId]);
+    share.shareDiff_ = (uint64_t)exp2(localJob->agentSessionsDiff2Exp_[sessionId]);
   }
 
   // calc jobTarget
   uint256 jobTarget;
-  DiffToTarget(share.share_, jobTarget);
+  DiffToTarget(share.shareDiff_, jobTarget);
 
   // we send share to kafka by default, but if there are lots of invalid
   // shares in a short time, we just drop them.
   bool isSendShareToKafka = true;
 
-  int submitResult;
   LocalShare localShare(extraNonce2, nonce, nTime);
 
   // can't find local share
   if (!localJob->addLocalShare(localShare)) {
     if (isAgentSession == false)
-      submitResult = StratumError::DUPLICATE_SHARE;
-      responseError(idStr, submitResult);
+      share.status_ = StratumStatus::DUPLICATE_SHARE;
+      responseError(idStr, share.status_);
 
     // add invalid share to counter
     invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
@@ -880,34 +880,33 @@ void StratumSession::handleRequest_Submit(const string &idStr,
 
 #ifdef  USER_DEFINED_COINBASE
   // check block header
-  submitResult = server_->checkShare(share, extraNonce1_, extraNonce2Hex,
+  share.status_ = server_->checkShare(share, extraNonce1_, extraNonce2Hex,
                                      nTime, nonce, jobTarget,
                                      worker_.fullName_,
                                      &localJob->userCoinbaseInfo_);
 #else
   // check block header
-  submitResult = server_->checkShare(share, extraNonce1_, extraNonce2Hex,
+  share.status_ = server_->checkShare(share, extraNonce1_, extraNonce2Hex,
                                      nTime, nonce, jobTarget,
                                      worker_.fullName_);
 #endif
 
-  if (submitResult == StratumError::NO_ERROR) {
-    // accepted share
-    share.result_ = Share::Result::ACCEPT;
+  // accepted share
+  if (share.status_ == StratumStatus::ACCEPT || share.status_ == StratumStatus::SOLVED) {
 
     // agent miner's diff controller
     if (isAgentSession && sessionDiffController != nullptr) {
-      sessionDiffController->addAcceptedShare(share.share_);
+      sessionDiffController->addAcceptedShare(share.shareDiff_);
     }
 
     if (isAgentSession == false) {
-    	diffController_->addAcceptedShare(share.share_);
+    	diffController_->addAcceptedShare(share.shareDiff_);
       responseTrue(idStr);
     }
   } else {
     // reject share
     if (isAgentSession == false)
-    	responseError(idStr, submitResult);
+    	responseError(idStr, share.status_);
 
     // add invalid share to counter
     invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
@@ -917,10 +916,10 @@ void StratumSession::handleRequest_Submit(const string &idStr,
 finish:
   DLOG(INFO) << share.toString();
 
-  if (share.result_ != Share::Result::ACCEPT) {
+  if (share.status_ != StratumStatus::ACCEPT && share.status_ != StratumStatus::SOLVED) {
     
     // log all rejected share to answer "Why the rejection rate of my miner increased?"
-    LOG(INFO) << "rejected share: " << StratumError::toString(submitResult)
+    LOG(INFO) << "rejected share: " << StratumStatus::toString(share.status_)
     << ", worker: " << worker_.fullName_ << ", " << share.toString();
 
     // check if thers is invalid share spamming
@@ -931,12 +930,13 @@ finish:
       isSendShareToKafka = false;
 
       LOG(INFO) << "invalid share spamming, diff: "
-      << share.share_ << ", worker: " << worker_.fullName_ << ", agent: "
+      << share.shareDiff_ << ", worker: " << worker_.fullName_ << ", agent: "
       << clientAgent_ << ", ip: " << clientIp_;
     }
   }
 
   if (isSendShareToKafka) {
+    share.checkSum_ = share.checkSum();
   	server_->sendShare2Kafka((const uint8_t *)&share, sizeof(Share));
   }
   return;
@@ -1308,7 +1308,7 @@ void StratumSessionEth::handleRequest_Subscribe(const string &idStr, const JsonN
 {
   if (state_ != CONNECTED)
   {
-    responseError(idStr, StratumError::UNKNOWN);
+    responseError(idStr, StratumStatus::UNKNOWN);
     return;
   }
 
@@ -1352,7 +1352,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
 {
   if (state_ != AUTHENTICATED)
   {
-    responseError(idStr, StratumError::UNAUTHORIZED);
+    responseError(idStr, StratumStatus::UNAUTHORIZED);
 
     // there must be something wrong, send reconnect command
     const string s = "{\"id\":null,\"method\":\"client.reconnect\",\"params\":[]}\n";
@@ -1424,43 +1424,42 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   LocalJob *localJob = server_->isEnableSimulator_ ? &tmpJob : findLocalJob(jobId);
   if (!server_->isEnableSimulator_ && localJob == nullptr)
   {
-    responseError(idStr, StratumError::JOB_NOT_FOUND);
+    responseError(idStr, StratumStatus::JOB_NOT_FOUND);
     return;
   }
 
   
   uint64_t nonce = stoull(sNonce, nullptr, 16);
   uint32_t height = 0;
-  uint32_t blkBits = 0;
+  uint64_t networkDiff = 0;
 
   shared_ptr<StratumJobEx> exjob;
   exjob = server_->jobRepository_->getStratumJobEx(localJob->jobId_);
   if (exjob.get() != NULL) {
     height = exjob->sjob_->height_;
-    blkBits = UintToArith256(exjob->sjob_->rskNetworkTarget_).GetCompact();
+    networkDiff = Eth_TargetToDifficulty(exjob->sjob_->rskNetworkTarget_.GetHex());
   }
 
-  Share share;
-  share.jobId_ = localJob->jobId_;
+  ShareEth share;
+  share.jobId_        = localJob->jobId_;
   share.workerHashId_ = worker_.workerHashId_;
-  share.ip_ = clientIpInt_;
-  share.userId_ = worker_.userId_;
-  share.share_ = localJob->jobDifficulty_;
-  share.timestamp_ = (uint32_t)time(nullptr);
-  share.result_ = Share::Result::REJECT;
+  share.userId_       = worker_.userId_;
+  share.shareDiff_    = localJob->jobDifficulty_;
+  share.networkDiff_  = networkDiff;
+  share.timestamp_    = (uint64_t)time(nullptr);
+  share.status_       = StratumStatus::REJECT_NO_REASON;
   share.height_       = height;
-  share.blkBits_      = blkBits;
-  share.nonce_        = (uint32_t)(nonce & 0xFFFFFFFFULL);
-  share.extraNonce1_  = (uint32_t)(nonce >> 32);
+  share.nonce_        = nonce;
+  share.sessionId_    = extraNonce1_; // TODO: fix it, set as real session id.
+  share.ip_.fromIpv4Int(clientIpInt_);
 
   ServerEth *s = dynamic_cast<ServerEth *>(server_);
-
 
   LocalShare localShare(nonce, 0, 0);
   // can't find local share
   if (!server_->isEnableSimulator_ && !localJob->addLocalShare(localShare))
   {
-    responseError(idStr, StratumError::DUPLICATE_SHARE);
+    responseError(idStr, StratumStatus::DUPLICATE_SHARE);
     // add invalid share to counter
     invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
     return;
@@ -1468,38 +1467,36 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
 
   DLOG(INFO) << "share job diff: " << localJob->jobDifficulty_;
 
-  int submitResult = s->checkShare(share, nonce, uint256S(sHeader), uint256S(sMixHash),
-                                   uint256S(Eth_DifficultyToTarget(localJob->jobDifficulty_)));
+  share.status_ = s->checkShare(share, nonce, uint256S(sHeader), uint256S(sMixHash),
+                                uint256S(Eth_DifficultyToTarget(localJob->jobDifficulty_)));
 
   // we send share to kafka by default, but if there are lots of invalid
   // shares in a short time, we just drop them.
 
-  if (StratumError::SOLVED == submitResult)
+  if (StratumStatus::SOLVED == share.status_)
   {
     s->sendSolvedShare2Kafka(sNonce, sHeader, sMixHash);
-    // accepted share
-    share.result_ = Share::Result::ACCEPT;
-    diffController_->addAcceptedShare(share.share_);
+
+    diffController_->addAcceptedShare(share.shareDiff_);
     rpc2ResponseBoolean(idStr, true);
   }
-  else if (StratumError::NO_ERROR == submitResult)
+  else if (StratumStatus::ACCEPT == share.status_)
   {
-    share.result_ = Share::Result::ACCEPT;
-    diffController_->addAcceptedShare(share.share_);
+    diffController_->addAcceptedShare(share.shareDiff_);
     rpc2ResponseBoolean(idStr, true);
   }
   else
   {
     // add invalid share to counter
     invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
-    responseError(idStr, submitResult);
+    responseError(idStr, share.status_);
   }
 
   bool isSendShareToKafka = true;
   //finish:
   DLOG(INFO) << share.toString();
   // check if thers is invalid share spamming
-  if (share.result_ != Share::Result::ACCEPT)
+  if (StratumStatus::SOLVED != share.status_ && StratumStatus::ACCEPT == share.status_)
   {
     int64_t invalidSharesNum = invalidSharesCounter_.sum(time(nullptr), INVALID_SHARE_SLIDING_WINDOWS_SIZE);
     // too much invalid shares, don't send them to kafka
@@ -1507,9 +1504,9 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
     {
       isSendShareToKafka = false;
       LOG(WARNING) << "invalid share spamming, diff: "
-                   << share.share_ << ", uid: " << worker_.userId_
+                   << share.shareDiff_ << ", uid: " << worker_.userId_
                    << ", uname: \"" << worker_.userName_ << "\", ip: " << clientIp_
-                   << "checkshare result: " << submitResult;
+                   << "checkshare result: " << share.status_;
     }
   }
 
@@ -1539,7 +1536,7 @@ void StratumSessionSia::handleRequest_Subscribe(const string &idStr, const JsonN
 {
   if (state_ != CONNECTED)
   {
-    responseError(idStr, StratumError::UNKNOWN);
+    responseError(idStr, StratumStatus::UNKNOWN);
     return;
   }
 
@@ -1593,7 +1590,7 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
 {
   if (state_ != AUTHENTICATED)
   {
-    responseError(idStr, StratumError::UNAUTHORIZED);
+    responseError(idStr, StratumStatus::UNAUTHORIZED);
     // there must be something wrong, send reconnect command
     const string s = "{\"id\":null,\"method\":\"client.reconnect\",\"params\":[]}\n";
     sendData(s);
@@ -1603,7 +1600,7 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
   auto params = (const_cast<JsonNode &>(jparams)).array();
   if (params.size() != 3)
   {
-    responseError(idStr, StratumError::ILLEGAL_PARARMS);
+    responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
     LOG(ERROR) << "illegal header size: " << params.size();
     return;
   }
@@ -1614,7 +1611,7 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
     header = header.substr(2, 160);
   if (header.length() != 160)
   {
-    responseError(idStr, StratumError::ILLEGAL_PARARMS);
+    responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
     LOG(ERROR) << "illegal header" << params[2].str();
     return;
   }
@@ -1645,7 +1642,7 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
   uint8 shortJobId = (uint8)atoi(params[1].str());
   LocalJob *localJob = findLocalJob(shortJobId);
   if (nullptr == localJob) {
-    responseError(idStr, StratumError::JOB_NOT_FOUND);
+    responseError(idStr, StratumStatus::JOB_NOT_FOUND);
     LOG(ERROR) << "sia local job not found " << (int)shortJobId;
     return;
   }
@@ -1653,7 +1650,7 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
   shared_ptr<StratumJobEx> exjob;
   exjob = server_->jobRepository_->getStratumJobEx(localJob->jobId_);
   if (nullptr == exjob || nullptr == exjob->sjob_) {
-    responseError(idStr, StratumError::JOB_NOT_FOUND);
+    responseError(idStr, StratumStatus::JOB_NOT_FOUND);
     LOG(ERROR) << "sia local job not found " << std::hex << localJob->jobId_;
     return;
   }
@@ -1662,21 +1659,21 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
   LocalShare localShare(nonce, 0, 0);
   if (!server_->isEnableSimulator_ && !localJob->addLocalShare(localShare))
   {
-    responseError(idStr, StratumError::DUPLICATE_SHARE);
+    responseError(idStr, StratumStatus::DUPLICATE_SHARE);
     LOG(ERROR) << "duplicated share nonce " << std::hex << nonce;
     // add invalid share to counter
     invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
     return;
   }
 
-  Share share;
+  ShareBitcoin share;
   share.jobId_ = localJob->jobId_;
   share.workerHashId_ = worker_.workerHashId_;
   share.ip_ = clientIpInt_;
   share.userId_ = worker_.userId_;
-  share.share_ = localJob->jobDifficulty_;
+  share.shareDiff_ = localJob->jobDifficulty_;
   share.timestamp_ = (uint32_t)time(nullptr);
-  share.result_ = Share::Result::ACCEPT;
+  share.status_ = StratumStatus::REJECT_NO_REASON;
 
   arith_uint256 shareTarget(str);
   arith_uint256 networkTarget = UintToArith256(exjob->sjob_->networkTarget_);
@@ -1686,7 +1683,7 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
     //submit share
     ServerSia *s = dynamic_cast<ServerSia*> (server_);
     s->sendSolvedShare2Kafka(bHeader, 80);
-    diffController_->addAcceptedShare(share.share_);
+    diffController_->addAcceptedShare(share.shareDiff_);
     LOG(INFO) << "sia solution found";
   }
 
@@ -1852,7 +1849,7 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   LocalJob *localJob= findLocalJob(shortJobId);
   if (nullptr == localJob)
   {
-    responseError(idStr, StratumError::JOB_NOT_FOUND);
+    responseError(idStr, StratumStatus::JOB_NOT_FOUND);
     LOG(ERROR) << "can not find local bytom job id=" << (int)shortJobId;
     return;
   }
@@ -1861,7 +1858,7 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   exjob = server_->jobRepository_->getStratumJobEx(localJob->jobId_);
   if (nullptr == exjob || nullptr == exjob->sjob_)
   {
-    responseError(idStr, StratumError::JOB_NOT_FOUND);
+    responseError(idStr, StratumStatus::JOB_NOT_FOUND);
     LOG(ERROR) << "bytom local job not found " << std::hex << localJob->jobId_;
     return;
   }
@@ -1884,14 +1881,14 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   Hex2Bin(sJob->seed_.c_str(), sJob->seed_.length(), vSeed);
 
   //Check share
-  Share share;
+  ShareBitcoin share;
   share.jobId_ = localJob->jobId_;
   share.workerHashId_ = worker_.workerHashId_;
   share.ip_ = clientIpInt_;
   share.userId_ = worker_.userId_;
-  share.share_ = localJob->jobDifficulty_;
+  share.shareDiff_ = localJob->jobDifficulty_;
   share.timestamp_ = (uint32_t)time(nullptr);
-  share.result_ = Share::Result::ACCEPT;
+  share.status_ = StratumStatus::REJECT_NO_REASON;
   
   ServerBytom *s = dynamic_cast<ServerBytom*> (server_);
   if (s != nullptr) {

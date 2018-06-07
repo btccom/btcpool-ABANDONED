@@ -166,11 +166,11 @@ TEST(ShareStatsDay, ShareStatsDay) {
 
   // 1
   {
-    ShareStatsDay stats;
-    Share share;
+    ShareStatsDay<ShareBitcoin> stats;
+    ShareBitcoin share;
 
     share.height_ = 504031;
-    share.result_ = Share::ACCEPT;
+    share.status_ = StratumStatus::ACCEPT;
     uint64_t shareValue = 1ll;
 
     auto reward = GetBlockReward(share.height_, Params().GetConsensus());
@@ -181,14 +181,14 @@ TEST(ShareStatsDay, ShareStatsDay) {
 
     // accept
     for (uint32_t i = 0; i < 24; i++) {  // hour idx range: [0, 23]
-      share.share_ = shareValue;
+      share.shareDiff_ = shareValue;
       stats.processShare(i, share);
     }
 
     // reject
-    share.result_ = Share::REJECT;
+    share.status_ = StratumStatus::REJECT_NO_REASON;
     for (uint32_t i = 0; i < 24; i++) {
-      share.share_ = shareValue;
+      share.shareDiff_ = shareValue;
       stats.processShare(i, share);
     }
 
@@ -207,11 +207,11 @@ TEST(ShareStatsDay, ShareStatsDay) {
 
   // UINT32_MAX
   {
-    ShareStatsDay stats;
-    Share share;
+    ShareStatsDay<ShareBitcoin> stats;
+    ShareBitcoin share;
 
     share.height_ = 504031;
-    share.result_  = Share::ACCEPT;
+    share.status_  = StratumStatus::ACCEPT;
     uint64_t shareValue = UINT32_MAX;
 
     // share -> socre = UINT32_MAX : 0.0197582875516673
@@ -220,15 +220,15 @@ TEST(ShareStatsDay, ShareStatsDay) {
 
     // accept
     for (uint32_t i = 0; i < 24; i++) {  // hour idx range: [0, 23]
-      share.share_ = shareValue;
+      share.shareDiff_ = shareValue;
       stats.processShare(i, share);
 //      LOG(INFO) << score2Str(share.score());
     }
 
     // reject
-    share.result_ = Share::REJECT;
+    share.status_ = StratumStatus::REJECT_NO_REASON;
     for (uint32_t i = 0; i < 24; i++) {
-      share.share_ = shareValue;
+      share.shareDiff_ = shareValue;
       stats.processShare(i, share);
     }
 
@@ -239,18 +239,18 @@ TEST(ShareStatsDay, ShareStatsDay) {
       ASSERT_EQ(ss.shareReject_, shareValue);
 
       #ifndef CHAIN_TYPE_UBTC
-        ASSERT_EQ(ss.earn_, 24697859);  // satoshi
+        ASSERT_EQ((uint64_t)ss.earn_, 24697859);  // satoshi
       #else
-        ASSERT_EQ(ss.earn_, 1975828);  // satoshi, only for UBTC
+        ASSERT_EQ((uint64_t)ss.earn_, 1975828);  // satoshi, only for UBTC
       #endif
     }
     stats.getShareStatsDay(&ss);
     ASSERT_EQ(ss.shareAccept_, shareValue * 24);
     ASSERT_EQ(ss.shareReject_, shareValue * 24);
     #ifndef CHAIN_TYPE_UBTC
-      ASSERT_EQ(ss.earn_, 592748626);  // satoshi
+      ASSERT_EQ((uint64_t)ss.earn_, 592748626);  // satoshi
     #else
-      ASSERT_EQ(ss.earn_, 47419890);  // satoshi, only for UBTC
+      ASSERT_EQ((uint64_t)ss.earn_, 47419890);  // satoshi, only for UBTC
     #endif
   }
 }

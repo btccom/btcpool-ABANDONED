@@ -42,7 +42,7 @@
 using namespace std;
 using namespace libconfig;
 
-StatsServer *gStatsServer = nullptr;
+StatsServerBitcoin *gStatsServer = nullptr;
 
 void handler(int sig) {
   if (gStatsServer) {
@@ -130,7 +130,7 @@ int main(int argc, char **argv) {
     cfg.lookupValue("statshttpd.port", port);
     cfg.lookupValue("statshttpd.flush_db_interval", flushInterval);
     cfg.lookupValue("statshttpd.file_last_flush_time",   fileLastFlushTime);
-    gStatsServer = new StatsServer(cfg.lookup("kafka.brokers").c_str(),
+    gStatsServer = new StatsServerBitcoin(cfg.lookup("kafka.brokers").c_str(),
                                    cfg.lookup("statshttpd.ip").c_str(),
                                    (unsigned short)port, *poolDBInfo,
                                    (time_t)flushInterval, fileLastFlushTime);

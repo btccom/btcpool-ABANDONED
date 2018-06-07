@@ -55,10 +55,14 @@ string filterWorkerName(const string &workerName) {
 
 
 //////////////////////////////// StratumError ////////////////////////////////
-const char * StratumError::toString(int err) {
+const char * StratumStatus::toString(int err) {
   switch (err) {
-    case NO_ERROR:
-      return "no error";
+    case ACCEPT:
+      return "Share accepted";
+    case SOLVED:
+      return "Share accepted and solved";
+    case REJECT_NO_REASON:
+      return "Share rejected";
 
     case JOB_NOT_FOUND:
       return "Job not found (=stale)";

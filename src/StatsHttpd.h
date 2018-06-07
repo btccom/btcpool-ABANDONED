@@ -50,33 +50,29 @@
 class WorkerStatus {
 public:
   // share, base on sliding window
-  uint64_t accept1m_;
-  uint64_t accept5m_;
+  uint64_t accept1m_ = 0;
+  uint64_t accept5m_ = 0;
 
-  uint64_t accept15m_;
-  uint64_t reject15m_;
+  uint64_t accept15m_ = 0;
+  uint64_t reject15m_ = 0;
 
-  uint64_t accept1h_;
-  uint64_t reject1h_;
+  uint64_t accept1h_ = 0;
+  uint64_t reject1h_ = 0;
 
-  uint32_t acceptCount_;
+  uint32_t acceptCount_ = 0;
 
-  uint32_t lastShareIP_;
-  uint32_t lastShareTime_;
+  IpAddress lastShareIP_ = 0;
+  uint64_t lastShareTime_ = 0;
 
-  WorkerStatus():
-  accept1m_(0), accept5m_(0), accept15m_(0), reject15m_(0),
-  accept1h_(0), reject1h_(0),
-  acceptCount_(0), lastShareIP_(0), lastShareTime_(0)
-  {
-  }
-
-  // all members are int, so we don't need to write copy constructor
+  WorkerStatus() = default;
+  WorkerStatus(const WorkerStatus &r) = default;
+  WorkerStatus &operator=(const WorkerStatus &r) = default;
 };
 
 
 ////////////////////////////////  WorkerShares  ////////////////////////////////
 // thread safe
+template <class SHARE>
 class WorkerShares {
   mutex lock_;
   int64_t workerId_;
@@ -84,8 +80,8 @@ class WorkerShares {
 
   uint32_t acceptCount_;
 
-  uint32_t lastShareIP_;
-  uint32_t lastShareTime_;
+  IpAddress lastShareIP_;
+  uint64_t lastShareTime_;
 
   StatsWindow<uint64_t> acceptShareSec_;
   StatsWindow<uint64_t> rejectShareMin_;
@@ -96,7 +92,7 @@ public:
 //  void serialize(...);
 //  bool unserialize(const ...);
 
-  void processShare(const Share &share);
+  void processShare(const SHARE &share);
   WorkerStatus getWorkerStatus();
   void getWorkerStatus(WorkerStatus &status);
   bool isExpired();
@@ -109,6 +105,7 @@ public:
 // 2. httpd: API for request alive worker status (realtime)
 // 3. flush worker status to DB
 //
+template <class SHARE>
 class StatsServer {
   struct ServerStatus {
     uint32_t uptime_;
@@ -125,9 +122,9 @@ class StatsServer {
   time_t uptime_;
 
   pthread_rwlock_t rwlock_;  // for workerSet_
-  std::unordered_map<WorkerKey/* userId + workerId */, shared_ptr<WorkerShares> > workerSet_;
+  std::unordered_map<WorkerKey/* userId + workerId */, shared_ptr<WorkerShares<SHARE>> > workerSet_;
   std::unordered_map<int32_t /* userId */, int32_t> userWorkerCount_;
-  WorkerShares poolWorker_;  // worker status for the pool
+  WorkerShares<SHARE> poolWorker_;  // worker status for the pool
 
   KafkaConsumer kafkaConsumer_;  // consume topic: 'ShareLog'
   thread threadConsume_;
@@ -160,8 +157,8 @@ class StatsServer {
   bool updateWorkerStatus(const int32_t userId, const int64_t workerId,
                           const char *workerName, const char *minerAgent);
 
-  void _processShare(WorkerKey &key1, WorkerKey &key2, const Share &share);
-  void processShare(const Share &share);
+  void _processShare(WorkerKey &key1, WorkerKey &key2, const SHARE &share);
+  void processShare(const SHARE &share);
   void getWorkerStatusBatch(const vector<WorkerKey> &keys,
                             vector<WorkerStatus> &workerStatus);
   WorkerStatus mergeWorkerStatus(const vector<WorkerStatus> &workerStatus);
@@ -194,6 +191,18 @@ public:
 
   void getWorkerStatus(struct evbuffer *evb, const char *pUserId,
                        const char *pWorkerId, const char *pIsMerge);
+};
+
+////////////////////////////  StatsServerBitcoin  ////////////////////////////
+class StatsServerBitcoin : public StatsServer<ShareBitcoin> {
+public:
+  using StatsServer::StatsServer;
+};
+
+////////////////////////////  StatsServerEth  ////////////////////////////
+class StatsServerEth : public StatsServer<ShareEth> {
+public:
+  using StatsServer::StatsServer;
 };
 
 #endif // STATSHTTPD_H_

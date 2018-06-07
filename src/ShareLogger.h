@@ -46,6 +46,7 @@
 // 1. consume topic 'ShareLog'
 // 2. write sharelog to Disk
 //
+template<class SHARE>
 class ShareLogWriter {
   atomic<bool> running_;
   string dataDir_;  // where to put sharelog data files
@@ -53,7 +54,7 @@ class ShareLogWriter {
   // key:   timestamp - (timestamp % 86400)
   // value: FILE *
   std::map<uint32_t, FILE *> fileHandlers_;
-  std::vector<Share> shares_;
+  std::vector<SHARE> shares_;
 
   const string chainType_;
   KafkaHighLevelConsumer hlConsumer_;  // consume topic: shareLogTopic
@@ -72,5 +73,18 @@ public:
   void run();
 };
 
+//////////////////////////////  ShareLogWriterBitcoin  ///////////////////////////////
+class ShareLogWriterBitcoin : public ShareLogWriter<ShareBitcoin> {
+public:
+
+  using ShareLogWriter::ShareLogWriter;
+};
+
+//////////////////////////////  ShareLogWriterEth  ///////////////////////////////
+class ShareLogWriterEth : public ShareLogWriter<ShareEth> {
+public:
+
+  using ShareLogWriter::ShareLogWriter;
+};
 
 #endif // SHARELOGGER_H_

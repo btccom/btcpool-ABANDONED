@@ -126,16 +126,25 @@ inline int64 HToBe(int64 v) {
   return (int64)HToBe((uint64)v);
 }
 
+
+////////////////////////////// for Bitcoin //////////////////////////////
 uint64 TargetToDiff(uint256 &target);
 uint64 TargetToDiff(const string &str);
 
 void BitsToTarget(uint32 bits, uint256 & target);
 void DiffToTarget(uint64 diff, uint256 & target, bool useTable=true);
+
+
+////////////////////////////// for Eth //////////////////////////////
 string Eth_DifficultyToTarget(uint64 diff);
+uint64 Eth_TargetToDifficulty(string target);
 void Hex256ToEthash256(const string &strHex, ethash_h256_t &ethashHeader);
 void Uint256ToEthash256(const uint256 hash, ethash_h256_t &ethashHeader);
 uint256 Ethash256ToUint256(const ethash_h256_t &ethashHeader);
 uint32 djb2(const char *str);
+
+
+////////////////////////////// for Bitcoin //////////////////////////////
 
 inline void BitsToDifficulty(uint32 bits, double *difficulty) {
   int nShift = (bits >> 24) & 0xff;

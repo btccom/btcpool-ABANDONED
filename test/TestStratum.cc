@@ -58,27 +58,29 @@ TEST(Stratum, jobId2Time) {
 }
 
 TEST(Stratum, Share) {
-  Share s;
+  ShareBitcoin s;
 
   ASSERT_EQ(s.isValid(), false);
   ASSERT_EQ(s.score(), 0);
-  ASSERT_EQ(s.toString(), "share(jobId: 0, ip: 0.0.0.0, userId: 0, workerId: 0,"
-            " timeStamp: 0/1970-01-01 00:00:00, height: 0, blkBits: 00000000, nonce: 00000000, extraNonce1: 00000000, share: 0, result: 0)");
+  ASSERT_EQ(s.toString(), "share(jobId: 0, ip: 0.0.0.0, userId: 0, workerId: 0, "
+                          "time: 0/1970-01-01 00:00:00, height: 0, blkBits: 00000000/inf, "
+                          "nonce: 00000000, sessionId: 00000000, shareDiff: 0, status: 0/Share rejected)");
 
-  s.ip_ = htonl(167772161);  // 167772161 : 10.0.0.1
-  ASSERT_EQ(s.toString(), "share(jobId: 0, ip: 10.0.0.1, userId: 0, workerId: 0,"
-            " timeStamp: 0/1970-01-01 00:00:00, height: 0, blkBits: 00000000, nonce: 00000000, extraNonce1: 00000000, share: 0, result: 0)");
+  s.ip_.fromIpv4Int(htonl(167772161));  // 167772161 : 10.0.0.1
+  ASSERT_EQ(s.toString(), "share(jobId: 0, ip: 10.0.0.1, userId: 0, workerId: 0, "
+                          "time: 0/1970-01-01 00:00:00, height: 0, blkBits: 00000000/inf, "
+                          "nonce: 00000000, sessionId: 00000000, shareDiff: 0, status: 0/Share rejected)");
 }
 
 TEST(Stratum, Share2) {
-  Share s;
+  ShareBitcoin s;
 
   s.blkBits_ = 0x1d00ffffu;
-  s.share_ = 1ll;
+  s.shareDiff_ = 1ll;
   ASSERT_EQ(s.score(), 1ll);
 
   s.blkBits_ = 0x18050edcu;
-  s.share_ = UINT32_MAX;
+  s.shareDiff_ = UINT32_MAX;
   // double will be: 0.0197583
   ASSERT_EQ(score2Str(s.score()), "0.0197582875516673");
 }

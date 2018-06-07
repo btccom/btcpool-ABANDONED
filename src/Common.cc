@@ -157,14 +157,25 @@ void DiffToTarget(uint64 diff, uint256 &target, bool useTable) {
   BitsToTarget(_DiffToBits(diff), target);
 }
 
-static arith_uint256 maxInt256("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+static arith_uint256 kMaxUint256("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 
 string Eth_DifficultyToTarget(uint64 diff)  {
   if (0 == diff)
     return "";
 
-  arith_uint256 target = maxInt256 / diff;
+  arith_uint256 target = kMaxUint256 / diff;
   return target.GetHex();
+}
+
+uint64 Eth_TargetToDifficulty(string targetHex) {
+  arith_uint256 target(targetHex);
+
+  if (target == 0) {
+    return 0;
+  }
+
+  arith_uint256 diff = kMaxUint256 / target;
+  return diff.GetLow64();
 }
 
 void Hex256ToEthash256(const string &strHex, ethash_h256_t &ethashHeader)

@@ -86,25 +86,37 @@ public:
 ///////////////////////////////////// IPv4/IPv6 compatible address structure ////////////////////////////////////
 union IpAddress {
   // all datas are big endian
-  uint8_t  addrByte[16];
-  uint16_t addrShort[8];
-  uint32_t addrLong[4];
+  uint8_t  addrUint8[16];
+  uint16_t addrUint16[8];
+  uint32_t addrUint32[4];
+  uint64_t addrUint64[2];
   // use addrIpv4[3] to store the IPv4 addr
   struct in_addr addrIpv4[4];
   struct in6_addr addrIpv6;
 
   // memory mapping:
-  // addrByte  | 0| 1| 2| 3| 4| 5| 6| 7| 8| 9|10|11|12|13|14|15|
-  // addrShort |  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |
-  // addrLong  |     0     |     1     |     2     |     3     |
-  // addrIpv4  | don't use | don't use | don't use |     3     |
-  // addrIpv6  |                      all                      |
+  // addrUint8  | 0| 1| 2| 3| 4| 5| 6| 7| 8| 9|10|11|12|13|14|15|
+  // addrUint16 |  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |
+  // addrUint32 |     0     |     1     |     2     |     3     |
+  // addrUint64 |           0           |           1           |
+  // addrIpv4   | don't use | don't use | don't use |     3     |
+  // addrIpv6   |                      all                      |
+
+  IpAddress() {
+    addrUint64[0] = 0;
+    addrUint64[1] = 0;
+  }
+
+  IpAddress(uint64_t initNum) {
+    addrUint64[0] = initNum;
+    addrUint64[1] = initNum;
+  }
 
   bool fromString(const string &ipStr) {
     if (isIpv4(ipStr)) {
-      addrLong[0] = 0;
-      addrLong[1] = 0;
-      addrLong[2] = 0;
+      addrUint32[0] = 0;
+      addrUint32[1] = 0;
+      addrUint32[2] = 0;
       return inet_pton(AF_INET, ipStr.c_str(), (void *)&addrIpv4[3]);
     }
     else {
@@ -112,7 +124,7 @@ union IpAddress {
     }
   }
 
-  string toString() {
+  string toString() const {
     const char *pStr;
 
     if (isIpv4()) {
@@ -128,9 +140,9 @@ union IpAddress {
   }
 
   void fromInAddr(const struct in_addr &inAddr) {
-    addrLong[0] = 0;
-    addrLong[1] = 0;
-    addrLong[2] = 0;
+    addrUint32[0] = 0;
+    addrUint32[1] = 0;
+    addrUint32[2] = 0;
     addrIpv4[3] = inAddr;
   }
 
@@ -138,16 +150,23 @@ union IpAddress {
     addrIpv6 = inAddr;
   }
 
-  bool isIpv4() {
-    if (addrLong[0] == 0 && addrLong[1] == 0) {
+  void fromIpv4Int(const uint32_t ipv4Int) {
+    addrUint32[0] = 0;
+    addrUint32[1] = 0;
+    addrUint32[2] = 0;
+    addrUint32[3] = ipv4Int;
+  }
+
+  bool isIpv4() const {
+    if (addrUint32[0] == 0 && addrUint32[1] == 0) {
       // IPv4 compatible address
       // ::w.x.y.z
-      if (addrLong[2] == 0) {
+      if (addrUint32[2] == 0) {
         return true;
       }
       // IPv4 mapping address
       // ::ffff:w.x.y.z
-      if (addrShort[4] == 0 && addrShort[5] == 0xffff) {
+      if (addrUint16[4] == 0 && addrUint16[5] == 0xffff) {
         return true;
       }
     }
@@ -165,121 +184,23 @@ union IpAddress {
 // IpAddress should be 16 bytes
 static_assert(sizeof(IpAddress) == 16, "union IpAddress should not large than 16 bytes");
 
-///////////////////////////////////// Share ////////////////////////////////////
-class Share
-{
-public:
-  enum Result
-  {
-    // make default 0 as REJECT, so code bug is unlikely to make false ACCEPT shares
-    REJECT = 0,
-    ACCEPT = 1
-  };
-
-  uint64_t jobId_;
-  int64_t workerHashId_;
-  uint32_t ip_;
-  int32_t userId_;
-  uint64_t share_;
-  uint32_t timestamp_;
-  uint32_t blkBits_;
-  int32_t result_;
-  uint32_t height_;
-  uint32_t nonce_;
-  uint32_t extraNonce1_;
-
-  Share() : jobId_(0), workerHashId_(0), ip_(0), userId_(0), share_(0),
-            timestamp_(0), blkBits_(0), result_(0), height_(0),
-            nonce_(0), extraNonce1_(0) {}
-
-  Share(const Share &r)
-  {
-    jobId_ = r.jobId_;
-    workerHashId_ = r.workerHashId_;
-    ip_ = r.ip_;
-    userId_ = r.userId_;
-    share_ = r.share_;
-    timestamp_ = r.timestamp_;
-    blkBits_ = r.blkBits_;
-    result_ = r.result_;
-    height_ = r.height_;
-    nonce_ = r.nonce_;
-    extraNonce1_ = r.extraNonce1_;
-  }
-
-  Share &operator=(const Share &r)
-  {
-    jobId_ = r.jobId_;
-    workerHashId_ = r.workerHashId_;
-    ip_ = r.ip_;
-    userId_ = r.userId_;
-    share_ = r.share_;
-    timestamp_ = r.timestamp_;
-    blkBits_ = r.blkBits_;
-    result_ = r.result_;
-    height_ = r.height_;
-    nonce_ = r.nonce_;
-    extraNonce1_ = r.extraNonce1_;
-    return *this;
-  }
-
-  double score() const
-  {
-    if (share_ == 0 || blkBits_ == 0)
-    {
-      return 0.0;
-    }
-    double networkDifficulty = 0.0;
-    BitsToDifficulty(blkBits_, &networkDifficulty);
-
-    // Network diff may less than share diff on testnet or regression test network.
-    // On regression test network, the network diff may be zero.
-    // But no matter how low the network diff is, you can only dig one block at a time.
-    if (networkDifficulty < (double)share_)
-    {
-      return 1.0;
-    }
-
-    return (double)share_ / networkDifficulty;
-  }
-
-  bool isValid() const
-  {
-    if (userId_ > 0 && workerHashId_ != 0 && height_ > 0 && share_ > 0)
-    {
-      return true;
-    }
-    
-    return false;
-  }
-
-  string toString() const
-  {
-    char ipStr[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &(ip_), ipStr, INET_ADDRSTRLEN);
-
-    double networkDifficulty = 0.0;
-    BitsToDifficulty(blkBits_, &networkDifficulty);
-
-    return Strings::Format("share(jobId: %" PRIu64 ", ip: %s, userId: %d, "
-                           "workerId: %" PRId64 ", timeStamp: %u/%s, height: %u, "
-                           "blkBits: %08x/%lf, nonce: %08x, extraNonce1: %08x, share: %" PRIu64 ", result: %d)",
-                           jobId_, ipStr, userId_,
-                           workerHashId_, timestamp_, date("%F %T", timestamp_).c_str(), height_,
-                           blkBits_, networkDifficulty, nonce_, extraNonce1_, share_, result_);
-  }
-};
-
 //////////////////////////////// StratumError ////////////////////////////////
-class StratumError
+class StratumStatus
 {
 public:
   enum
   {
-    NO_ERROR = 0, // share reached the job target (but may not reached the network target)
-    SOLVED   = 1, // share reached the network target (only ServerEth::checkShare use it at current)
+    // make ACCEPT and SOLVED be two singular value,
+    // so code bug is unlikely to make false ACCEPT shares
 
-    UNKNOWN = 20,
+    // share reached the job target (but may not reached the network target)
+    ACCEPT = 1798084231, // bin(01101011 00101100 10010110 10000111)
+
+    // share reached the network target (only ServerEth::checkShare use it at current)
+    SOLVED = 1422486894, // bin(‭01010100 11001001 01101101 01101110‬)
+
+    REJECT_NO_REASON = 0,
+
     JOB_NOT_FOUND = 21,
     DUPLICATE_SHARE = 22,
     LOW_DIFFICULTY = 23,
@@ -292,9 +213,214 @@ public:
     INVALID_USERNAME = 29,
     INTERNAL_ERROR = 30,
     TIME_TOO_OLD = 31,
-    TIME_TOO_NEW = 32
+    TIME_TOO_NEW = 32,
+
+    UNKNOWN = 2147483647 // bin(01111111 11111111 11111111 11111111)
   };
   static const char *toString(int err);
+};
+
+///////////////////////////////////// Share ////////////////////////////////////
+// Class Share should not be used directly.
+// Use a derived class of class Share (example: ShareBitcoin, ShareEth).
+// Also, keep class Share plain, don't add any virtual functions.
+// Otherwise, derived classes will not be able to use byte-based
+// object serialization (because of the addition of a virtual function table).
+class Share
+{
+public:
+  
+  uint32_t  version_      = 0;
+  uint32_t  checkSum_     = 0;
+  int64_t   workerHashId_ = 0;
+  int32_t   userId_       = 0;
+  int32_t   status_       = 0;
+  int64_t   timestamp_    = 0;
+  IpAddress ip_           = 0;
+
+  Share() = default;
+  Share(const Share &r) = default;
+  Share &operator=(const Share &r) = default;
+};
+
+class ShareBitcoin : public Share
+{
+public:
+
+  const uint32_t CURRENT_VERSION = 0x00010002u; // first 0001: bitcoin, second 0002: version 2.
+
+  uint64_t jobId_     = 0;
+  uint64_t shareDiff_ = 0;
+  uint32_t blkBits_   = 0;
+  uint32_t height_    = 0;
+  uint32_t nonce_     = 0;
+  uint32_t sessionId_ = 0;
+
+  ShareBitcoin() = default;
+  ShareBitcoin(const ShareBitcoin &r) = default;
+  ShareBitcoin &operator=(const ShareBitcoin &r) = default;
+
+  double score() const
+  {
+    if (shareDiff_ == 0 || blkBits_ == 0)
+    {
+      return 0.0;
+    }
+
+    double networkDifficulty = 0.0;
+    BitsToDifficulty(blkBits_, &networkDifficulty);
+
+    // Network diff may less than share diff on testnet or regression test network.
+    // On regression test network, the network diff may be zero.
+    // But no matter how low the network diff is, you can only dig one block at a time.
+    if (networkDifficulty < (double)shareDiff_)
+    {
+      return 1.0;
+    }
+
+    return (double)shareDiff_ / networkDifficulty;
+  }
+
+  uint32_t checkSum() const {
+    uint64_t c = 0;
+
+    c += (uint64_t) version_;
+    c += (uint64_t) workerHashId_;
+    c += (uint64_t) userId_;
+    c += (uint64_t) status_;
+    c += (uint64_t) timestamp_;
+    c += (uint64_t) ip_.addrUint64[0];
+    c += (uint64_t) ip_.addrUint64[1];
+    c += (uint64_t) jobId_;
+    c += (uint64_t) shareDiff_;
+    c += (uint64_t) blkBits_;
+    c += (uint64_t) height_;
+    c += (uint64_t) nonce_;
+    c += (uint64_t) sessionId_;
+
+    return ((uint32_t) c) + ((uint32_t) (c >> 32));
+  }
+
+  bool isValid() const
+  {
+    if (version_ != CURRENT_VERSION) {
+      return false;
+    }
+
+    if (checkSum_ != checkSum()) {
+      return false;
+    }
+
+    if (jobId_ == 0 || userId_ == 0 || workerHashId_ == 0 ||
+        height_ == 0 || blkBits_ == 0 || shareDiff_ == 0)
+    {
+      return false;
+    }
+    
+    return true;
+  }
+
+  string toString() const
+  {
+    double networkDifficulty = 0.0;
+    BitsToDifficulty(blkBits_, &networkDifficulty);
+
+    return Strings::Format("share(jobId: %" PRIu64 ", ip: %s, userId: %d, "
+                           "workerId: %" PRId64 ", time: %u/%s, height: %u, "
+                           "blkBits: %08x/%lf, nonce: %08x, sessionId: %08x, shareDiff: %" PRIu64 ", "
+                           "status: %d/%s)",
+                           jobId_, ip_.toString().c_str(), userId_,
+                           workerHashId_, timestamp_, date("%F %T", timestamp_).c_str(), height_,
+                           blkBits_, networkDifficulty, nonce_, sessionId_, shareDiff_,
+                           status_, StratumStatus::toString(status_));
+  }
+};
+
+class ShareEth : public Share
+{
+public:
+
+  const uint32_t CURRENT_VERSION = 0x00110002u; // first 0011: ETH, second 0002: version 2
+
+  uint64_t jobId_       = 0;
+  uint64_t shareDiff_   = 0;
+  uint64_t networkDiff_ = 0;
+  uint64_t nonce_       = 0;
+  uint32_t sessionId_   = 0;
+  uint32_t height_      = 0;
+
+  ShareEth() = default;
+  ShareEth(const ShareEth &r) = default;
+  ShareEth &operator=(const ShareEth &r) = default;
+
+  double score() const
+  {
+    if (shareDiff_ == 0 || networkDiff_ == 0)
+    {
+      return 0.0;
+    }
+
+    // Network diff may less than share diff on testnet or regression test network.
+    // On regression test network, the network diff may be zero.
+    // But no matter how low the network diff is, you can only dig one block at a time.
+    if (networkDiff_ < shareDiff_)
+    {
+      return 1.0;
+    }
+
+    return (double)shareDiff_ / (double)networkDiff_;
+  }
+
+  uint32_t checkSum() const {
+    uint64_t c = 0;
+
+    c += (uint64_t) version_;
+    c += (uint64_t) workerHashId_;
+    c += (uint64_t) userId_;
+    c += (uint64_t) status_;
+    c += (uint64_t) timestamp_;
+    c += (uint64_t) ip_.addrUint64[0];
+    c += (uint64_t) ip_.addrUint64[1];
+    c += (uint64_t) jobId_;
+    c += (uint64_t) shareDiff_;
+    c += (uint64_t) networkDiff_;
+    c += (uint64_t) nonce_;
+    c += (uint64_t) sessionId_;
+    c += (uint64_t) height_;
+
+    return ((uint32_t) c) + ((uint32_t) (c >> 32));
+  }
+
+  bool isValid() const
+  {
+    if (version_ != CURRENT_VERSION) {
+      return false;
+    }
+
+    if (checkSum_ != checkSum()) {
+      return false;
+    }
+
+    if (jobId_ == 0 || userId_ == 0 || workerHashId_ == 0 ||
+        height_ == 0 || networkDiff_ == 0 || shareDiff_ == 0)
+    {
+      return false;
+    }
+    
+    return true;
+  }
+
+  string toString() const
+  {
+    return Strings::Format("share(jobId: %" PRIu64 ", ip: %s, userId: %d, "
+                           "workerId: %" PRId64 ", time: %u/%s, height: %u, "
+                           "shareDiff: %" PRIu64 ", networkDiff: %" PRIu64 ", nonce: %016" PRIx64 ", sessionId: %08x, "
+                           "status: %d/%s)",
+                           jobId_, ip_.toString().c_str(), userId_,
+                           workerHashId_, timestamp_, date("%F %T", timestamp_).c_str(), height_,
+                           shareDiff_, networkDiff_, nonce_, sessionId_,
+                           status_, StratumStatus::toString(status_));
+  }
 };
 
 //////////////////////////////// StratumWorker ////////////////////////////////

@@ -358,7 +358,7 @@ public:
   static void readCallback (struct bufferevent *, void *connection);
   static void eventCallback(struct bufferevent *, short, void *connection);
 
-  int checkShare(const Share &share,
+  int checkShare(const ShareBitcoin &share,
                  const uint32 extraNonce1, const string &extraNonce2Hex,
                  const uint32_t nTime, const uint32_t nonce,
                  const uint256 &jobTarget, const string &workFullName,
@@ -384,7 +384,7 @@ class ServerEth : public Server
 {
 public:
   ServerEth(const int32_t shareAvgSeconds) : Server(shareAvgSeconds) {}
-  int checkShare(const Share &share,
+  int checkShare(const ShareEth &share,
                  const uint64_t nonce,
                  const uint256 header,
                  const uint256 mixHash,
@@ -436,6 +436,8 @@ public:
                                const uint32_t sessionID) override;
   void sendSolvedShare2Kafka(const char* headerStr);
 };
+
+
 ////////////////////////////////// StratumServer ///////////////////////////////
 class StratumServer {
 

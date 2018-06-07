@@ -46,7 +46,8 @@
 
 
 //////////////////////////////  ShareLogWriter  ///////////////////////////////
-ShareLogWriter::ShareLogWriter(const char *chainType,
+template<class SHARE>
+ShareLogWriter<SHARE>::ShareLogWriter(const char *chainType,
                                const char *kafkaBrokers,
                                const string &dataDir,
                                const string &kafkaGroupID,
@@ -56,7 +57,8 @@ hlConsumer_(kafkaBrokers, shareLogTopic, 0/* patition */, kafkaGroupID)
 {
 }
 
-ShareLogWriter::~ShareLogWriter() {
+template<class SHARE>
+ShareLogWriter<SHARE>::~ShareLogWriter() {
   // close file handlers
   for (auto & itr : fileHandlers_) {
     LOG(INFO) << "fclose file handler, date: " << date("%F", itr.first);
@@ -65,14 +67,16 @@ ShareLogWriter::~ShareLogWriter() {
   fileHandlers_.clear();
 }
 
-void ShareLogWriter::stop() {
+template<class SHARE>
+void ShareLogWriter<SHARE>::stop() {
   if (!running_)
     return;
 
   running_ = false;
 }
 
-FILE* ShareLogWriter::getFileHandler(uint32_t ts) {
+template<class SHARE>
+FILE * ShareLogWriter<SHARE>::getFileHandler(uint32_t ts) {
   if (fileHandlers_.find(ts) != fileHandlers_.end()) {
     return fileHandlers_[ts];
   }
@@ -90,7 +94,8 @@ FILE* ShareLogWriter::getFileHandler(uint32_t ts) {
   return f;
 }
 
-void ShareLogWriter::consumeShareLog(rd_kafka_message_t *rkmessage) {
+template<class SHARE>
+void ShareLogWriter<SHARE>::consumeShareLog(rd_kafka_message_t *rkmessage) {
   // check error
   if (rkmessage->err) {
     if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
@@ -114,13 +119,13 @@ void ShareLogWriter::consumeShareLog(rd_kafka_message_t *rkmessage) {
     return;
   }
 
-  if (rkmessage->len != sizeof(Share)) {
-    LOG(ERROR) << "sharelog message size(" << rkmessage->len << ") is not: " << sizeof(Share);
+  if (rkmessage->len != sizeof(SHARE)) {
+    LOG(ERROR) << "sharelog message size(" << rkmessage->len << ") is not: " << sizeof(SHARE);
     return;
   }
 
-  shares_.push_back(Share());
-  Share *share = &(*shares_.rbegin());
+  shares_.push_back(SHARE());
+  SHARE *share = &(*shares_.rbegin());
 
   memcpy((uint8_t *)share, (const uint8_t *)rkmessage->payload, rkmessage->len);
 
@@ -132,7 +137,8 @@ void ShareLogWriter::consumeShareLog(rd_kafka_message_t *rkmessage) {
   }
 }
 
-void ShareLogWriter::tryCloseOldHanders() {
+template<class SHARE>
+void ShareLogWriter<SHARE>::tryCloseOldHanders() {
   while (fileHandlers_.size() > 3) {
     // Maps (and sets) are sorted, so the first element is the smallest,
     // and the last element is the largest.
@@ -145,7 +151,8 @@ void ShareLogWriter::tryCloseOldHanders() {
   }
 }
 
-bool ShareLogWriter::flushToDisk() {
+template<class SHARE>
+bool ShareLogWriter<SHARE>::flushToDisk() {
   std::set<FILE*> usedHandlers;
 
   for (const auto& share : shares_) {
@@ -155,7 +162,7 @@ bool ShareLogWriter::flushToDisk() {
       return false;
 
     usedHandlers.insert(f);
-    fwrite((uint8_t *)&share, sizeof(Share), 1, f);
+    fwrite((uint8_t *)&share, sizeof(SHARE), 1, f);
   }
 
   shares_.clear();
@@ -170,7 +177,8 @@ bool ShareLogWriter::flushToDisk() {
   return true;
 }
 
-void ShareLogWriter::run() {
+template<class SHARE>
+void ShareLogWriter<SHARE>::run() {
   time_t lastFlushTime = time(nullptr);
   const int32_t kFlushDiskInterval = 2;
   const int32_t kTimeoutMs = 1000;
@@ -218,3 +226,9 @@ void ShareLogWriter::run() {
     flushToDisk();
 }
 
+
+///////////////  template instantiation ///////////////
+// Without this, some linking errors will issued.
+// If you add a new derived class of Share, add it at the following.
+template class ShareLogWriter<ShareBitcoin>;
+template class ShareLogWriter<ShareEth>;

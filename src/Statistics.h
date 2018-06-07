@@ -183,44 +183,41 @@ public:
   uint64_t shareAccept_;
   uint64_t shareReject_;
   double   rejectRate_;
-  int64_t  earn_;
+  double   earn_;
 
-  ShareStats(): shareAccept_(0U), shareReject_(0U), rejectRate_(0.0), earn_(0) {}
+  ShareStats(): shareAccept_(0U), shareReject_(0U), rejectRate_(0.0), earn_(0.0) {}
 };
 
 
 
 ///////////////////////////////  ShareStatsDay  ////////////////////////////////
 // thread-safe
+template <class SHARE>
 class ShareStatsDay {
 public:
   // hours
-  uint64_t shareAccept1h_[24];
-  uint64_t shareReject1h_[24];
-  double   score1h_[24]; // For reference only, it is no longer the basis for earnings calculation
-  double   earn1h_[24];
+  uint64_t shareAccept1h_[24] = {0};
+  uint64_t shareReject1h_[24] = {0};
+  double   score1h_[24] = {0.0}; // For reference only, it is no longer the basis for earnings calculation
+  double   earn1h_[24] = {0.0};
 
   // daily
-  uint64_t shareAccept1d_;
-  uint64_t shareReject1d_;
-  double   score1d_; // For reference only, it is no longer the basis for earnings calculation
-  double   earn1d_;
+  uint64_t shareAccept1d_ = 0;
+  uint64_t shareReject1d_ = 0;
+  double   score1d_ = 0; // For reference only, it is no longer the basis for earnings calculation
+  double   earn1d_ = 0;
 
   // mark which hour data has been modified: 23, 22, ...., 0
   uint32_t modifyHoursFlag_;
   mutex lock_;
 
-  ShareStatsDay();
+  ShareStatsDay() = default;
+  ShareStatsDay(const ShareStatsDay &r) = default;
+  ShareStatsDay &operator=(const ShareStatsDay &r) = default;
 
-  virtual void processShare(uint32_t hourIdx, const Share &share);
+  void processShare(uint32_t hourIdx, const SHARE &share);
   void getShareStatsHour(uint32_t hourIdx, ShareStats *stats);
   void getShareStatsDay(ShareStats *stats);
 };
-
-
-class ShareStatsDayEth : public ShareStatsDay {
-  virtual void processShare(uint32_t hourIdx, const Share &share);
-};
-
 
 #endif

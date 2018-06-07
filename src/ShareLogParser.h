@@ -42,13 +42,14 @@
 
 
 ///////////////////////////////  ShareLogDumper  ///////////////////////////////
+template <class SHARE>
 class ShareLogDumper {
   string filePath_;  // sharelog data file path
   std::set<int32_t> uids_;  // if empty dump all user's shares
   bool isDumpAll_;
 
   void parseShareLog(const uint8_t *buf, size_t len);
-  void parseShare(const Share *share);
+  void parseShare(const SHARE *share);
 
 public:
   ShareLogDumper(const char *chainType, const string &dataDir, time_t timestamp, const std::set<int32_t> &uids);
@@ -57,16 +58,30 @@ public:
   void dump2stdout();
 };
 
+///////////////////////////////  ShareLogDumperBitcoin  ///////////////////////////////
+class ShareLogDumperBitcoin : public ShareLogDumper<ShareBitcoin> {
+public:
+  using ShareLogDumper::ShareLogDumper;
+};
+
+///////////////////////////////  ShareLogDumperEth  ///////////////////////////////
+class ShareLogDumperEth : public ShareLogDumper<ShareEth> {
+public:
+  using ShareLogDumper::ShareLogDumper;
+};
+
+
 ///////////////////////////////  ShareLogParser  ///////////////////////////////
 //
 // 1. read sharelog data files
 // 2. calculate share & score
 // 3. write stats data to DB
 //
+template <class SHARE>
 class ShareLogParser {
   pthread_rwlock_t rwlock_;
   // key: WorkerKey, value: share stats
-  std::unordered_map<WorkerKey/* userID + workerID */, shared_ptr<ShareStatsDay>> workersStats_;
+  std::unordered_map<WorkerKey/* userID + workerID */, shared_ptr<ShareStatsDay<SHARE>>> workersStats_;
 
   time_t date_;      // date_ % 86400 == 0
   string filePath_;  // sharelog data file path
@@ -78,7 +93,7 @@ class ShareLogParser {
   FILE *f_;        // file handler
   uint8_t *buf_;   // fread buffer
   // 48 * 1000000 = 48,000,000 ~ 48 MB
-  static const size_t kMaxElementsNum_ = 1000000;  // num of Share
+  static const size_t kMaxElementsNum_ = 1000000;  // num of shares
   off_t lastPosition_;
 
   MySQLConnection  poolDB_;  // save stats data
@@ -88,17 +103,15 @@ class ShareLogParser {
     return atoi(date("%H", ts).c_str());
   }
 
-  shared_ptr<ShareStatsDay> newShareStatsDay(const string &chainType);
-
   void parseShareLog(const uint8_t *buf, size_t len);
-  void parseShare(const Share *share);
+  void parseShare(const SHARE *share);
 
-  void generateDailyData(shared_ptr<ShareStatsDay> stats,
+  void generateDailyData(shared_ptr<ShareStatsDay<SHARE>> stats,
                          const int32_t userId, const int64_t workerId,
                          vector<string> *valuesWorkersDay,
                          vector<string> *valuesUsersDay,
                          vector<string> *valuesPoolDay);
-  void generateHoursData(shared_ptr<ShareStatsDay> stats,
+  void generateHoursData(shared_ptr<ShareStatsDay<SHARE>> stats,
                          const int32_t userId, const int64_t workerId,
                          vector<string> *valuesWorkersHour,
                          vector<string> *valuesUsersHour,
@@ -119,7 +132,7 @@ public:
   bool flushToDB();
 
   // get share stats day handler
-  shared_ptr<ShareStatsDay> getShareStatsDayHandler(const WorkerKey &key);
+  shared_ptr<ShareStatsDay<SHARE>> getShareStatsDayHandler(const WorkerKey &key);
 
   // read unchanged share data bin file, for example yestoday's file. it will
   // use mmap() to get high performance. call only once will process
@@ -131,6 +144,18 @@ public:
   bool isReachEOF();  // only for growing file
 };
 
+///////////////////////////////  ShareLogParserBitcoin  ///////////////////////////////
+class ShareLogParserBitcoin : public ShareLogParser<ShareBitcoin> {
+public:
+  using ShareLogParser::ShareLogParser;
+};
+
+///////////////////////////////  ShareLogParserEth  ///////////////////////////////
+class ShareLogParserEth : public ShareLogParser<ShareEth> {
+public:
+  using ShareLogParser::ShareLogParser;
+};
+
 
 
 ////////////////////////////  ShareLogParserServer  ////////////////////////////
@@ -139,6 +164,7 @@ public:
 // table.stats_xxxx. meanwhile hold there stats data in memory so it could
 // provide httpd service. web/app could read the latest data from it's http API.
 //
+template <class SHARE>
 class ShareLogParserServer {
   struct ServerStatus {
     uint32_t uptime_;
@@ -154,7 +180,7 @@ class ShareLogParserServer {
   time_t uptime_;
   // share log daily
   time_t date_;      // date_ % 86400 == 0
-  shared_ptr<ShareLogParser> shareLogParser_;
+  shared_ptr<ShareLogParser<SHARE>> shareLogParser_;
   const string chainType_;
   string dataDir_;
   MysqlConnectInfo poolDBInfo_;  // save stats data
@@ -176,7 +202,7 @@ class ShareLogParserServer {
   void runThreadShareLogParser();
   bool initShareLogParser(time_t datets);
   bool setupThreadShareLogParser();
-  void trySwithBinFile(shared_ptr<ShareLogParser> shareLogParser);
+  void trySwithBinFile(shared_ptr<ShareLogParser<SHARE>> shareLogParser);
   void runHttpd();
 
 public:
@@ -195,6 +221,18 @@ public:
 
   static void httpdServerStatus(struct evhttp_request *req, void *arg);
   static void httpdShareStats  (struct evhttp_request *req, void *arg);
+};
+
+////////////////////////////  ShareLogParserServerBitcoin  ////////////////////////////
+class ShareLogParserServerBitcoin : public ShareLogParserServer<ShareBitcoin> {
+public:
+  using ShareLogParserServer::ShareLogParserServer;
+};
+
+////////////////////////////  ShareLogParserServerEth  ////////////////////////////
+class ShareLogParserServerEth : public ShareLogParserServer<ShareEth> {
+public:
+  using ShareLogParserServer::ShareLogParserServer;
 };
 
 #endif // SHARELOGPARSER_H_

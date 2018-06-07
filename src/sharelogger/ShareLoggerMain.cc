@@ -43,7 +43,7 @@ using namespace std;
 using namespace libconfig;
 
 //ShareLogWriter *gShareLogWriter = nullptr;
-vector<shared_ptr<ShareLogWriter>> writers;
+vector<shared_ptr<ShareLogWriterBitcoin>> writers;
 void handler(int sig)
 {
   for (auto writer : writers)
@@ -58,7 +58,7 @@ void usage()
   fprintf(stderr, "Usage:\n\tsharelogger -c \"sharelogger.cfg\" -l \"log_dir\"\n");
 }
 
-void workerThread(shared_ptr<ShareLogWriter> w)
+void workerThread(shared_ptr<ShareLogWriterBitcoin> w)
 {
   if (w != nullptr)
     w->run();
@@ -141,7 +141,7 @@ int main(int argc, char **argv)
     for (int i = 0; i < defs.getLength(); ++i)
     {
       const Setting &def = defs[i];
-      writers.push_back(make_shared<ShareLogWriter>(def.lookup("chain_type").c_str(),
+      writers.push_back(make_shared<ShareLogWriterBitcoin>(def.lookup("chain_type").c_str(),
                                                     brokers.c_str(),
                                                     def.lookup("data_dir").c_str(),
                                                     def.lookup("kafka_group_id").c_str(),

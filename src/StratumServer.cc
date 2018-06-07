@@ -1168,11 +1168,11 @@ bool Server::setup(StratumServer* sserver) {
   {
     map<string, string> options;
     // we could delay 'sharelog' in producer
-    // 10000000 * sizeof(Share) ~= 480 MB
+    // 10000000 * sizeof(ShareBitcoin) ~= 480 MB
     options["queue.buffering.max.messages"] = "10000000";
     // send every second
     options["queue.buffering.max.ms"] = "1000";
-    // 10000 * sizeof(Share) ~= 480 KB
+    // 10000 * sizeof(ShareBitcoin) ~= 480 KB
     options["batch.num.messages"] = "10000";
 
     if (!kafkaProducerShareLog_->setup(&options)) {
@@ -1413,25 +1413,25 @@ void Server::eventCallback(struct bufferevent* bev, short events,
   server->removeConnection(conn->fd_);
 }
 
-int Server::checkShare(const Share &share,
+int Server::checkShare(const ShareBitcoin &share,
                        const uint32 extraNonce1, const string &extraNonce2Hex,
                        const uint32_t nTime, const uint32_t nonce,
                        const uint256 &jobTarget, const string &workFullName,
                        string *userCoinbaseInfo) {
   shared_ptr<StratumJobEx> exJobPtr = jobRepository_->getStratumJobEx(share.jobId_);
   if (exJobPtr == nullptr) {
-    return StratumError::JOB_NOT_FOUND;
+    return StratumStatus::JOB_NOT_FOUND;
   }
   StratumJob *sjob = exJobPtr->sjob_;
 
   if (exJobPtr->isStale()) {
-    return StratumError::JOB_NOT_FOUND;
+    return StratumStatus::JOB_NOT_FOUND;
   }
   if (nTime <= sjob->minTime_) {
-    return StratumError::TIME_TOO_OLD;
+    return StratumStatus::TIME_TOO_OLD;
   }
   if (nTime > sjob->nTime_ + 600) {
-    return StratumError::TIME_TOO_NEW;
+    return StratumStatus::TIME_TOO_NEW;
   }
 
   CBlockHeader header;
@@ -1565,14 +1565,14 @@ int Server::checkShare(const Share &share,
 
   // check share diff
   if (isEnableSimulator_ == false && bnBlockHash >= UintToArith256(jobTarget)) {
-    return StratumError::LOW_DIFFICULTY;
+    return StratumStatus::LOW_DIFFICULTY;
   }
 
   DLOG(INFO) << "blkHash: " << blkHash.ToString() << ", jobTarget: "
   << jobTarget.ToString() << ", networkTarget: " << sjob->networkTarget_.ToString();
 
   // reach here means an valid share
-  return StratumError::NO_ERROR;
+  return StratumStatus::ACCEPT;
 }
 
 void Server::sendShare2Kafka(const uint8_t *data, size_t len) {
@@ -1603,7 +1603,7 @@ void Server::sendCommonEvents2Kafka(const string &message) {
 }
 
 ////////////////////////////////// ServierEth ///////////////////////////////
-int ServerEth::checkShare(const Share &share,
+int ServerEth::checkShare(const ShareEth &share,
                           const uint64_t nonce,
                           const uint256 header,
                           const uint256 mixHash,
@@ -1611,18 +1611,18 @@ int ServerEth::checkShare(const Share &share,
 {
   JobRepositoryEth *jobRepo = dynamic_cast<JobRepositoryEth *>(jobRepository_);
   if (nullptr == jobRepo) {
-    return StratumError::ILLEGAL_PARARMS;
+    return StratumStatus::ILLEGAL_PARARMS;
   }
 
   shared_ptr<StratumJobEx> exJobPtr = jobRepository_->getStratumJobEx(share.jobId_);
   if (nullptr == exJobPtr)
   {
-    return StratumError::JOB_NOT_FOUND;
+    return StratumStatus::JOB_NOT_FOUND;
   }
 
   if (exJobPtr->isStale())
   {
-    return StratumError::JOB_NOT_FOUND;
+    return StratumStatus::JOB_NOT_FOUND;
   }
 
   StratumJob *sjob = exJobPtr->sjob_;
@@ -1646,14 +1646,14 @@ int ServerEth::checkShare(const Share &share,
   if (!ret || !r.success)
   {
     LOG(ERROR) << "light cache creation error";
-    return StratumError::INTERNAL_ERROR;
+    return StratumStatus::INTERNAL_ERROR;
   }
 
   uint256 mix = Ethash256ToUint256(r.mix_hash);
   if (mix != mixHash)
   {
     LOG(ERROR) << "mix hash does not match: " << mix.GetHex();
-    return StratumError::INTERNAL_ERROR;
+    return StratumStatus::INTERNAL_ERROR;
   }
 
   uint256 shareTarget = Ethash256ToUint256(r.result);
@@ -1663,14 +1663,14 @@ int ServerEth::checkShare(const Share &share,
   //can not compare directly because unit256 uses memcmp
   if (isSubmitInvalidBlock_ || UintToArith256(shareTarget) < UintToArith256(sjob->rskNetworkTarget_)) {
     LOG(INFO) << "solution found, share target: " << shareTarget.GetHex() << ", job target: " << jobTarget.GetHex() << ", network target: " << sjob->rskNetworkTarget_.GetHex();
-    return StratumError::SOLVED;
+    return StratumStatus::SOLVED;
   }
 
   if (isEnableSimulator_ || UintToArith256(shareTarget) < UintToArith256(jobTarget)) {
-    return StratumError::NO_ERROR;
+    return StratumStatus::ACCEPT;
   }
 
-  return StratumError::LOW_DIFFICULTY;
+  return StratumStatus::LOW_DIFFICULTY;
 }
 
 void ServerEth::sendSolvedShare2Kafka(const string &strNonce, const string &strHeader, const string &strMix)

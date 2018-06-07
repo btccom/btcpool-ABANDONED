@@ -46,7 +46,8 @@
 
 
 ////////////////////////////////  WorkerShares  ////////////////////////////////
-WorkerShares::WorkerShares(const int64_t workerId, const int32_t userId):
+template <class SHARE>
+WorkerShares<SHARE>::WorkerShares(const int64_t workerId, const int32_t userId):
 workerId_(workerId), userId_(userId), acceptCount_(0),
 lastShareIP_(0), lastShareTime_(0),
 acceptShareSec_(STATS_SLIDING_WINDOW_SECONDS),
@@ -55,25 +56,27 @@ rejectShareMin_(STATS_SLIDING_WINDOW_SECONDS/60)
   assert(STATS_SLIDING_WINDOW_SECONDS >= 3600);
 }
 
-void WorkerShares::processShare(const Share &share) {
+template <class SHARE>
+void WorkerShares<SHARE>::processShare(const SHARE &share) {
   ScopeLock sl(lock_);
   const time_t now = time(nullptr);
   if (now > share.timestamp_ + STATS_SLIDING_WINDOW_SECONDS) {
     return;
   }
 
-  if (share.result_ == Share::Result::ACCEPT) {
+  if (share.status_ == StratumStatus::ACCEPT || share.status_ == StratumStatus::SOLVED) {
     acceptCount_++;
-    acceptShareSec_.insert(share.timestamp_,    share.share_);
+    acceptShareSec_.insert(share.timestamp_,    share.shareDiff_);
   } else {
-    rejectShareMin_.insert(share.timestamp_/60, share.share_);
+    rejectShareMin_.insert(share.timestamp_/60, share.shareDiff_);
   }
 
   lastShareIP_   = share.ip_;
   lastShareTime_ = share.timestamp_;
 }
 
-WorkerStatus WorkerShares::getWorkerStatus() {
+template <class SHARE>
+WorkerStatus WorkerShares<SHARE>::getWorkerStatus() {
   ScopeLock sl(lock_);
   const time_t now = time(nullptr);
   WorkerStatus s;
@@ -93,7 +96,8 @@ WorkerStatus WorkerShares::getWorkerStatus() {
   return s;
 }
 
-void WorkerShares::getWorkerStatus(WorkerStatus &s) {
+template <class SHARE>
+void WorkerShares<SHARE>::getWorkerStatus(WorkerStatus &s) {
   ScopeLock sl(lock_);
   const time_t now = time(nullptr);
 
@@ -110,16 +114,19 @@ void WorkerShares::getWorkerStatus(WorkerStatus &s) {
   s.lastShareTime_ = lastShareTime_;
 }
 
-bool WorkerShares::isExpired() {
+template <class SHARE>
+bool WorkerShares<SHARE>::isExpired() {
   ScopeLock sl(lock_);
   return (lastShareTime_ + STATS_SLIDING_WINDOW_SECONDS) < (uint32_t)time(nullptr);
 }
 
 
 ////////////////////////////////  StatsServer  ////////////////////////////////
-atomic<bool> StatsServer::isInitializing_(true);
+template <class SHARE>
+atomic<bool> StatsServer<SHARE>::isInitializing_(true);
 
-StatsServer::StatsServer(const char *kafkaBrokers, const string &httpdHost,
+template <class SHARE>
+StatsServer<SHARE>::StatsServer(const char *kafkaBrokers, const string &httpdHost,
                          unsigned short httpdPort, const MysqlConnectInfo &poolDBInfo,
                          const time_t kFlushDBInterval, const string &fileLastFlushTime):
 running_(true), totalWorkerCount_(0), totalUserCount_(0), uptime_(time(nullptr)),
@@ -132,12 +139,11 @@ fileLastFlushTime_(fileLastFlushTime),
 base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort),
 requestCount_(0), responseBytes_(0)
 {
-  isInitializing_ = true;
-  
   pthread_rwlock_init(&rwlock_, nullptr);
 }
 
-StatsServer::~StatsServer() {
+template <class SHARE>
+StatsServer<SHARE>::~StatsServer() {
   stop();
 
   if (threadConsume_.joinable())
@@ -149,7 +155,8 @@ StatsServer::~StatsServer() {
   pthread_rwlock_destroy(&rwlock_);
 }
 
-bool StatsServer::init() {
+template <class SHARE>
+bool StatsServer<SHARE>::init() {
   if (!poolDB_.ping()) {
     LOG(INFO) << "db ping failure";
     return false;
@@ -172,7 +179,8 @@ bool StatsServer::init() {
   return true;
 }
 
-void StatsServer::stop() {
+template <class SHARE>
+void StatsServer<SHARE>::stop() {
   if (!running_)
     return;
 
@@ -182,7 +190,8 @@ void StatsServer::stop() {
   event_base_loopexit(base_, NULL);
 }
 
-void StatsServer::processShare(const Share &share) {
+template <class SHARE>
+void StatsServer<SHARE>::processShare(const SHARE &share) {
   const time_t now = time(nullptr);
 
   lastShareTime_ = share.timestamp_;
@@ -198,7 +207,8 @@ void StatsServer::processShare(const Share &share) {
   _processShare(key1, key2, share);
 }
 
-void StatsServer::_processShare(WorkerKey &key1, WorkerKey &key2, const Share &share) {
+template <class SHARE>
+void StatsServer<SHARE>::_processShare(WorkerKey &key1, WorkerKey &key2, const SHARE &share) {
   assert(key2.workerId_ == 0);  // key2 is user's total stats
 
   pthread_rwlock_rdlock(&rwlock_);
@@ -206,19 +216,19 @@ void StatsServer::_processShare(WorkerKey &key1, WorkerKey &key2, const Share &s
   auto itr2 = workerSet_.find(key2);
   pthread_rwlock_unlock(&rwlock_);
 
-  shared_ptr<WorkerShares> workerShare1 = nullptr, workerShare2 = nullptr;
+  shared_ptr<WorkerShares<SHARE>> workerShare1 = nullptr, workerShare2 = nullptr;
 
   if (itr1 != workerSet_.end()) {
     itr1->second->processShare(share);
   } else {
-    workerShare1 = make_shared<WorkerShares>(share.workerHashId_, share.userId_);
+    workerShare1 = make_shared<WorkerShares<SHARE>>(share.workerHashId_, share.userId_);
     workerShare1->processShare(share);
   }
 
   if (itr2 != workerSet_.end()) {
     itr2->second->processShare(share);
   } else {
-    workerShare2 = make_shared<WorkerShares>(share.workerHashId_, share.userId_);
+    workerShare2 = make_shared<WorkerShares<SHARE>>(share.workerHashId_, share.userId_);
     workerShare2->processShare(share);
   }
 
@@ -237,7 +247,8 @@ void StatsServer::_processShare(WorkerKey &key1, WorkerKey &key2, const Share &s
   }
 }
 
-void StatsServer::flushWorkersToDB() {
+template <class SHARE>
+void StatsServer<SHARE>::flushWorkersToDB() {
   LOG(INFO) << "flush mining workers to DB...";
   if (isInserting_) {
     LOG(WARNING) << "last flush is not finish yet, ingore";
@@ -245,10 +256,11 @@ void StatsServer::flushWorkersToDB() {
   }
 
   isInserting_ = true;
-  boost::thread t(boost::bind(&StatsServer::_flushWorkersToDBThread, this));
+  boost::thread t(boost::bind(&StatsServer<SHARE>::_flushWorkersToDBThread, this));
 }
 
-void StatsServer::_flushWorkersToDBThread() {
+template <class SHARE>
+void StatsServer<SHARE>::_flushWorkersToDBThread() {
   //
   // merge two table items
   // table.`mining_workers` unique index: `puid` + `worker_id`
@@ -287,7 +299,7 @@ void StatsServer::_flushWorkersToDBThread() {
 
     const int32_t userId   = itr->first.userId_;
     const int64_t workerId = itr->first.workerId_;
-    shared_ptr<WorkerShares> workerShare = itr->second;
+    shared_ptr<WorkerShares<SHARE>> workerShare = itr->second;
     const WorkerStatus status = workerShare->getWorkerStatus();
 
     char ipStr[INET_ADDRSTRLEN] = {0};
@@ -344,7 +356,8 @@ finish:
   isInserting_ = false;
 }
 
-void StatsServer::removeExpiredWorkers() {
+template <class SHARE>
+void StatsServer<SHARE>::removeExpiredWorkers() {
   size_t expiredCnt = 0;
 
   pthread_rwlock_wrlock(&rwlock_);  // write lock
@@ -353,7 +366,7 @@ void StatsServer::removeExpiredWorkers() {
   for (auto itr = workerSet_.begin(); itr != workerSet_.end(); ) {
     const int32_t userId   = itr->first.userId_;
     const int64_t workerId = itr->first.workerId_;
-    shared_ptr<WorkerShares> workerShare = itr->second;
+    shared_ptr<WorkerShares<SHARE>> workerShare = itr->second;
 
     if (workerShare->isExpired()) {
       if (workerId == 0) {
@@ -375,11 +388,12 @@ void StatsServer::removeExpiredWorkers() {
   LOG(INFO) << "removed expired workers: " << expiredCnt;
 }
 
-void StatsServer::getWorkerStatusBatch(const vector<WorkerKey> &keys,
+template <class SHARE>
+void StatsServer<SHARE>::getWorkerStatusBatch(const vector<WorkerKey> &keys,
                                        vector<WorkerStatus> &workerStatus) {
   workerStatus.resize(keys.size());
 
-  vector<shared_ptr<WorkerShares> > ptrs;
+  vector<shared_ptr<WorkerShares<SHARE>> > ptrs;
   ptrs.resize(keys.size());
 
   // find all shared pointer
@@ -401,7 +415,8 @@ void StatsServer::getWorkerStatusBatch(const vector<WorkerKey> &keys,
   }
 }
 
-WorkerStatus StatsServer::mergeWorkerStatus(const vector<WorkerStatus> &workerStatus) {
+template <class SHARE>
+WorkerStatus StatsServer<SHARE>::mergeWorkerStatus(const vector<WorkerStatus> &workerStatus) {
   WorkerStatus s;
 
   if (workerStatus.size() == 0)
@@ -424,7 +439,8 @@ WorkerStatus StatsServer::mergeWorkerStatus(const vector<WorkerStatus> &workerSt
   return s;
 }
 
-void StatsServer::consumeShareLog(rd_kafka_message_t *rkmessage) {
+template <class SHARE>
+void StatsServer<SHARE>::consumeShareLog(rd_kafka_message_t *rkmessage) {
   // check error
   if (rkmessage->err) {
     if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
@@ -448,9 +464,9 @@ void StatsServer::consumeShareLog(rd_kafka_message_t *rkmessage) {
     return;
   }
 
-  Share share;
-  if (rkmessage->len != sizeof(Share)) {
-    LOG(ERROR) << "sharelog message size(" << rkmessage->len << ") is not: " << sizeof(Share);
+  SHARE share;
+  if (rkmessage->len != sizeof(SHARE)) {
+    LOG(ERROR) << "sharelog message size(" << rkmessage->len << ") is not: " << sizeof(SHARE);
     return;
   }
   memcpy((uint8_t *)&share, (const uint8_t *)rkmessage->payload, rkmessage->len);
@@ -463,13 +479,14 @@ void StatsServer::consumeShareLog(rd_kafka_message_t *rkmessage) {
   processShare(share);
 }
 
-bool StatsServer::setupThreadConsume() {
+template <class SHARE>
+bool StatsServer<SHARE>::setupThreadConsume() {
   // kafkaConsumer_
   {
     //
     // assume we have 100,000 online workers and every share per 10 seconds,
     // so in 60 mins there will be 100000/10*3600 = 36,000,000 shares.
-    // data size will be 36,000,000 * sizeof(Share) = 1,728,000,000 Bytes.
+    // data size will be 36,000,000 * sizeof(SHARE) = 1,728,000,000 Bytes.
     //
     const int32_t kConsumeLatestN = 100000/10*3600;  // 36,000,000
 
@@ -513,13 +530,14 @@ bool StatsServer::setupThreadConsume() {
   }
 
   // run threads
-  threadConsume_ = thread(&StatsServer::runThreadConsume, this);
-  threadConsumeCommonEvents_ = thread(&StatsServer::runThreadConsumeCommonEvents, this);
+  threadConsume_ = thread(&StatsServer<SHARE>::runThreadConsume, this);
+  threadConsumeCommonEvents_ = thread(&StatsServer<SHARE>::runThreadConsumeCommonEvents, this);
   
   return true;
 }
 
-void StatsServer::runThreadConsume() {
+template <class SHARE>
+void StatsServer<SHARE>::runThreadConsume() {
   LOG(INFO) << "start sharelog consume thread";
   time_t lastCleanTime     = time(nullptr);
   time_t lastFlushDBTime   = time(nullptr);
@@ -586,7 +604,8 @@ void StatsServer::runThreadConsume() {
   stop();  // if thread exit, we must call server to stop
 }
 
-void StatsServer::runThreadConsumeCommonEvents() {
+template <class SHARE>
+void StatsServer<SHARE>::runThreadConsumeCommonEvents() {
   LOG(INFO) << "start common events consume thread";
 
   const int32_t kTimeoutMs = 3000;  // consumer timeout
@@ -612,7 +631,8 @@ void StatsServer::runThreadConsumeCommonEvents() {
   LOG(INFO) << "stop common events consume thread";
 }
 
-void StatsServer::consumeCommonEvents(rd_kafka_message_t *rkmessage) {
+template <class SHARE>
+void StatsServer<SHARE>::consumeCommonEvents(rd_kafka_message_t *rkmessage) {
   // check error
   if (rkmessage->err) {
     if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
@@ -673,7 +693,8 @@ void StatsServer::consumeCommonEvents(rd_kafka_message_t *rkmessage) {
 
 }
 
-bool StatsServer::updateWorkerStatus(const int32_t userId, const int64_t workerId,
+template <class SHARE>
+bool StatsServer<SHARE>::updateWorkerStatus(const int32_t userId, const int64_t workerId,
                                      const char *workerName, const char *minerAgent) {
   string sql;
   char **row = nullptr;
@@ -729,7 +750,8 @@ bool StatsServer::updateWorkerStatus(const int32_t userId, const int64_t workerI
   return true;
 }
 
-StatsServer::ServerStatus StatsServer::getServerStatus() {
+template <class SHARE>
+typename StatsServer<SHARE>::ServerStatus StatsServer<SHARE>::getServerStatus() {
   ServerStatus s;
 
   s.uptime_        = (uint32_t)(time(nullptr) - uptime_);
@@ -742,7 +764,8 @@ StatsServer::ServerStatus StatsServer::getServerStatus() {
   return s;
 }
 
-void StatsServer::httpdServerStatus(struct evhttp_request *req, void *arg) {
+template <class SHARE>
+void StatsServer<SHARE>::httpdServerStatus(struct evhttp_request *req, void *arg) {
   evhttp_add_header(evhttp_request_get_output_headers(req),
                     "Content-Type", "text/json");
   StatsServer *server = (StatsServer *)arg;
@@ -759,7 +782,7 @@ void StatsServer::httpdServerStatus(struct evhttp_request *req, void *arg) {
     return;
   }
   
-  StatsServer::ServerStatus s = server->getServerStatus();
+  StatsServer<SHARE>::ServerStatus s = server->getServerStatus();
 
   evbuffer_add_printf(evb, "{\"err_no\":0,\"err_msg\":\"\","
                       "\"data\":{\"uptime\":\"%04u d %02u h %02u m %02u s\","
@@ -784,7 +807,8 @@ void StatsServer::httpdServerStatus(struct evhttp_request *req, void *arg) {
   evbuffer_free(evb);
 }
 
-void StatsServer::httpdGetWorkerStatus(struct evhttp_request *req, void *arg) {
+template <class SHARE>
+void StatsServer<SHARE>::httpdGetWorkerStatus(struct evhttp_request *req, void *arg) {
   evhttp_add_header(evhttp_request_get_output_headers(req),
                     "Content-Type", "text/json");
   StatsServer *server = (StatsServer *)arg;
@@ -861,7 +885,8 @@ finish:
     free(query);
 }
 
-void StatsServer::getWorkerStatus(struct evbuffer *evb, const char *pUserId,
+template <class SHARE>
+void StatsServer<SHARE>::getWorkerStatus(struct evbuffer *evb, const char *pUserId,
                                   const char *pWorkerId, const char *pIsMerge) {
   assert(pWorkerId != nullptr);
   const int32_t userId = atoi(pUserId);
@@ -907,7 +932,7 @@ void StatsServer::getWorkerStatus(struct evbuffer *evb, const char *pUserId,
     evbuffer_add_printf(evb,
                         "%s\"%" PRId64"\":{\"accept\":[%" PRIu64",%" PRIu64",%" PRIu64",%" PRIu64"]"
                         ",\"reject\":[0,0,%" PRIu64",%" PRIu64"],\"accept_count\":%" PRIu32""
-                        ",\"last_share_ip\":\"%s\",\"last_share_time\":%u"
+                        ",\"last_share_ip\":\"%s\",\"last_share_time\":%" PRIu64
                         "%s}",
                         (i == 0 ? "" : ","),
                         (isMerge ? 0 : keys[i].workerId_),
@@ -920,7 +945,8 @@ void StatsServer::getWorkerStatus(struct evbuffer *evb, const char *pUserId,
   }
 }
 
-void StatsServer::runHttpd() {
+template <class SHARE>
+void StatsServer<SHARE>::runHttpd() {
   struct evhttp_bound_socket *handle;
   struct evhttp *httpd;
 
@@ -930,9 +956,9 @@ void StatsServer::runHttpd() {
   evhttp_set_allowed_methods(httpd, EVHTTP_REQ_GET | EVHTTP_REQ_POST | EVHTTP_REQ_HEAD);
   evhttp_set_timeout(httpd, 5 /* timeout in seconds */);
 
-  evhttp_set_cb(httpd, "/",               StatsServer::httpdServerStatus, this);
-  evhttp_set_cb(httpd, "/worker_status",  StatsServer::httpdGetWorkerStatus, this);
-  evhttp_set_cb(httpd, "/worker_status/", StatsServer::httpdGetWorkerStatus, this);
+  evhttp_set_cb(httpd, "/",               StatsServer<SHARE>::httpdServerStatus, this);
+  evhttp_set_cb(httpd, "/worker_status",  StatsServer<SHARE>::httpdGetWorkerStatus, this);
+  evhttp_set_cb(httpd, "/worker_status/", StatsServer<SHARE>::httpdGetWorkerStatus, this);
 
   handle = evhttp_bind_socket_with_handle(httpd, httpdHost_.c_str(), httpdPort_);
   if (!handle) {
@@ -942,10 +968,20 @@ void StatsServer::runHttpd() {
   event_base_dispatch(base_);
 }
 
-void StatsServer::run() {
+template <class SHARE>
+void StatsServer<SHARE>::run() {
   if (setupThreadConsume() == false) {
     return;
   }
 
   runHttpd();
 }
+
+///////////////  template instantiation ///////////////
+// Without this, some linking errors will issued.
+// If you add a new derived class of Share, add it at the following.
+template class WorkerShares<ShareBitcoin>;
+template class WorkerShares<ShareEth>;
+
+template class StatsServer<ShareBitcoin>;
+template class StatsServer<ShareEth>;

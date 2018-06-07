@@ -47,42 +47,8 @@
 
 
 ///////////////////////////////  ShareStatsDay  ////////////////////////////////
-ShareStatsDay::ShareStatsDay() {
-  memset((uint8_t *)&shareAccept1h_[0], 0, sizeof(shareAccept1h_));
-  memset((uint8_t *)&shareReject1h_[0], 0, sizeof(shareReject1h_));
-  memset((uint8_t *)&score1h_[0],       0, sizeof(score1h_));
-  memset((uint8_t *)&earn1h_[0],        0, sizeof(earn1h_));
-  shareAccept1d_   = 0;
-  shareReject1d_   = 0;
-  score1d_         = 0.0;
-  earn1d_            = 0;
-  modifyHoursFlag_ = 0x0u;
-}
-
-void ShareStatsDay::processShare(uint32_t hourIdx, const Share &share) {
-  ScopeLock sl(lock_);
-
-  if (share.result_ == Share::Result::ACCEPT) {
-    shareAccept1h_[hourIdx] += share.share_;
-    shareAccept1d_          += share.share_;
-
-    double score = share.score();
-    double reward = GetBlockReward(share.height_, Params().GetConsensus());
-    double earn = score * reward;
-
-    score1h_[hourIdx] += score;
-    score1d_          += score;
-    earn1h_[hourIdx]  += earn;
-    earn1d_           += earn;
-
-  } else {
-    shareReject1h_[hourIdx] += share.share_;
-    shareReject1d_          += share.share_;
-  }
-  modifyHoursFlag_ |= (0x01u << hourIdx);
-}
-
-void ShareStatsDay::getShareStatsHour(uint32_t hourIdx, ShareStats *stats) {
+template <class SHARE>
+void ShareStatsDay<SHARE>::getShareStatsHour(uint32_t hourIdx, ShareStats *stats) {
   ScopeLock sl(lock_);
   if (hourIdx > 23)
     return;
@@ -97,7 +63,8 @@ void ShareStatsDay::getShareStatsHour(uint32_t hourIdx, ShareStats *stats) {
     stats->rejectRate_ = 0.0;
 }
 
-void ShareStatsDay::getShareStatsDay(ShareStats *stats) {
+template <class SHARE>
+void ShareStatsDay<SHARE>::getShareStatsDay(ShareStats *stats) {
   ScopeLock sl(lock_);
   stats->shareAccept_ = shareAccept1d_;
   stats->shareReject_ = shareReject1d_;
@@ -109,12 +76,37 @@ void ShareStatsDay::getShareStatsDay(ShareStats *stats) {
     stats->rejectRate_ = 0.0;
 }
 
-void ShareStatsDayEth::processShare(uint32_t hourIdx, const Share &share) {
+template <>
+void ShareStatsDay<ShareBitcoin>::processShare(uint32_t hourIdx, const ShareBitcoin &share) {
   ScopeLock sl(lock_);
 
-  if (share.result_ == Share::Result::ACCEPT) {
-    shareAccept1h_[hourIdx] += share.share_;
-    shareAccept1d_          += share.share_;
+  if (share.status_ == StratumStatus::ACCEPT || share.status_ == StratumStatus::SOLVED) {
+    shareAccept1h_[hourIdx] += share.shareDiff_;
+    shareAccept1d_          += share.shareDiff_;
+
+    double score = share.score();
+    double reward = GetBlockReward(share.height_, Params().GetConsensus());
+    double earn = score * reward;
+
+    score1h_[hourIdx] += score;
+    score1d_          += score;
+    earn1h_[hourIdx]  += earn;
+    earn1d_           += earn;
+
+  } else {
+    shareReject1h_[hourIdx] += share.shareDiff_;
+    shareReject1d_          += share.shareDiff_;
+  }
+  modifyHoursFlag_ |= (0x01u << hourIdx);
+}
+
+template <>
+void ShareStatsDay<ShareEth>::processShare(uint32_t hourIdx, const ShareEth &share) {
+  ScopeLock sl(lock_);
+
+  if (share.status_ == StratumStatus::ACCEPT || share.status_ == StratumStatus::SOLVED) {
+    shareAccept1h_[hourIdx] += share.shareDiff_;
+    shareAccept1d_          += share.shareDiff_;
 
     double score = share.score();
     double reward = GetBlockRewardEth(share.height_);
@@ -126,8 +118,14 @@ void ShareStatsDayEth::processShare(uint32_t hourIdx, const Share &share) {
     earn1d_           += earn;
 
   } else {
-    shareReject1h_[hourIdx] += share.share_;
-    shareReject1d_          += share.share_;
+    shareReject1h_[hourIdx] += share.shareDiff_;
+    shareReject1d_          += share.shareDiff_;
   }
   modifyHoursFlag_ |= (0x01u << hourIdx);
 }
+
+///////////////  template instantiation ///////////////
+// Without this, some linking errors will issued.
+// If you add a new derived class of Share, add it at the following.
+template class ShareStatsDay<ShareBitcoin>;
+template class ShareStatsDay<ShareEth>;

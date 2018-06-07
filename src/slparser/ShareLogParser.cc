@@ -42,7 +42,7 @@
 using namespace std;
 using namespace libconfig;
 
-ShareLogParserServer *gShareLogParserServer = nullptr;
+ShareLogParserServerBitcoin *gShareLogParserServer = nullptr;
 
 void handler(int sig) {
   if (gShareLogParserServer) {
@@ -145,7 +145,7 @@ int main(int argc, char **argv) {
       if (optPUID > 0)
       uids.insert(optPUID);
 
-      ShareLogDumper sldumper(cfg.lookup("sharelog.chain_type").c_str(), cfg.lookup("sharelog.data_dir"), ts, uids);
+      ShareLogDumperBitcoin sldumper(cfg.lookup("sharelog.chain_type").c_str(), cfg.lookup("sharelog.data_dir"), ts, uids);
       sldumper.dump2stdout();
 
       google::ShutdownGoogleLogging();
@@ -161,7 +161,7 @@ int main(int argc, char **argv) {
                                           optDate/100 % 100, optDate % 100);
       const time_t ts = str2time(tsStr.c_str(), "%F %T");
 
-      ShareLogParser slparser(cfg.lookup("sharelog.chain_type").c_str(),
+      ShareLogParserBitcoin slparser(cfg.lookup("sharelog.chain_type").c_str(),
                               cfg.lookup("sharelog.data_dir"),
                               ts, *poolDBInfo);
       do {
@@ -200,7 +200,7 @@ int main(int argc, char **argv) {
     cfg.lookupValue("slparserhttpd.port", port);
     uint32_t kFlushDBInterval = 20;
     cfg.lookupValue("slparserhttpd.flush_db_interval", kFlushDBInterval);
-    gShareLogParserServer = new ShareLogParserServer(cfg.lookup("sharelog.chain_type").c_str(),
+    gShareLogParserServer = new ShareLogParserServerBitcoin(cfg.lookup("sharelog.chain_type").c_str(),
                                                      cfg.lookup("sharelog.data_dir"),
                                                      cfg.lookup("slparserhttpd.ip"),
                                                      port, *poolDBInfo,
