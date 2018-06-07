@@ -352,7 +352,7 @@ void StratumSession::handleLine(const string &line) {
 
   JsonNode jnode;
   if (!JsonNode::parse(line.data(), line.data() + line.size(), jnode)) {
-    LOG(ERROR) << "decode line fail, not a json string";
+    LOG(ERROR) << "decode line fail, not a json string. string value: \"" << line.c_str() << "\"";
     return;
   }
   JsonNode jid = jnode["id"];
@@ -1749,6 +1749,8 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
   else
     Bin2Hex((uint8 *)&sJob->blockHeader_.bits, 8, bitsStr);
 
+  LOG(INFO) << "bytom sendMiningNotify bits: " << sJob->blockHeader_.bits << " - str: " << bitsStr.c_str();
+
   if (isFirstJob)
   {
     //     {
@@ -1841,7 +1843,7 @@ void StratumSessionBytom::handleRequest_GetWork(const string &idStr, const JsonN
 
 void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNode &jparams)
 {
-  LOG(INFO) << "bytom handle request submit";
+  LOG(INFO) << idStr.c_str() << ": bytom handle request submit";
   JsonNode &params = const_cast<JsonNode &>(jparams);
   uint8 shortJobId = (uint8)params["job_id"].uint32();
 
@@ -1849,7 +1851,7 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   if (nullptr == localJob)
   {
     responseError(idStr, StratumError::JOB_NOT_FOUND);
-    LOG(ERROR) << "can not find local bytom job id=" << shortJobId;
+    LOG(ERROR) << "can not find local bytom job id=" << (int)shortJobId;
     return;
   }
 
@@ -1868,10 +1870,13 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
 
   //get header submission string and header hash string
   uint64 nonce = params["nonce"].uint64();
+  LOG(INFO) << idStr.c_str() << ": bytom handle request submit jobId " << (int)shortJobId
+            << " with nonce: " << nonce;
+
   EncodeBlockHeader_return encoded = EncodeBlockHeader(sJob->blockHeader_.version, sJob->blockHeader_.height, (char *)sJob->blockHeader_.previousBlockHash.c_str(), sJob->blockHeader_.timestamp,
                                   nonce, sJob->blockHeader_.bits, (char *)sJob->blockHeader_.transactionsMerkleRoot.c_str(), (char *)sJob->blockHeader_.transactionStatusHash.c_str());
 
-  DLOG(INFO) << "verify blockheader hash=" << encoded.r1 << ", seed=" << sJob->seed_;
+  LOG(INFO) << "verify blockheader hash=" << encoded.r1 << ", seed=" << sJob->seed_;
   vector<char> vHeader, vSeed;
   Hex2Bin(encoded.r1, vHeader);
   Hex2Bin(sJob->seed_.c_str(), sJob->seed_.length(), vSeed);
@@ -1889,13 +1894,13 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   ServerBytom *s = dynamic_cast<ServerBytom*> (server_);
   if (s != nullptr) {
     uint8_t *pTarget = GpuTs((uint8_t*)vHeader.data(), (uint8_t*)vSeed.data());
-    string targetStr;
-    Bin2Hex(pTarget, 32, targetStr);
-    arith_uint256 shareTarget(targetStr);
-    arith_uint256 networkTarget = UintToArith256(sJob->networkTarget_);
-    DLOG(INFO) << "compare " << targetStr << " with " << networkTarget.GetHex();
-    if (shareTarget < networkTarget) 
+    GoSlice text = {(void *)pTarget, 32, 32};
+    bool powResult = CheckProofOfWork(text, sJob->blockHeader_.bits);
+    if(powResult)
+    {
+      LOG(INFO) << "share accepted";
       s->sendSolvedShare2Kafka(encoded.r0);
+    }
   }
 
   rpc2ResponseBoolean(idStr, true);

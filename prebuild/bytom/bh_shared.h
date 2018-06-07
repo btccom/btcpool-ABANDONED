@@ -108,6 +108,8 @@ struct EncodeBlockHeader_return {
 
 extern struct EncodeBlockHeader_return EncodeBlockHeader(GoUint64 p0, GoUint64 p1, char* p2, GoUint64 p3, GoUint64 p4, GoUint64 p5, char* p6, char* p7);
 
+extern GoUint8 CheckProofOfWork(GoSlice p0, GoUint64 p1);
+
 #ifdef __cplusplus
 }
 #endif

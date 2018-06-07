@@ -2,6 +2,8 @@ package main
 
 import "C"
 import (
+	"github.com/bytom/consensus/difficulty"
+	"github.com/bytom/protocol/bc"
 	"github.com/bytom/protocol/bc/types"
 	"github.com/bytom/testutil"
 )
@@ -41,6 +43,14 @@ func EncodeBlockHeader(v, h uint64, prevBlockHashStr *C.char, timeStamp, nonce, 
 	buf, _ := bh.MarshalText()
 	hash := bh.Hash()
 	return C.CString(string(buf)), C.CString(hash.String())
+}
+
+//export CheckProofOfWork
+func CheckProofOfWork(compareHash []byte, bits uint64) bool {
+	x := [32]byte{}
+	copy(x[:], compareHash[:32])
+	ch := bc.NewHash(x)
+	return difficulty.HashToBig(&ch).Cmp(difficulty.CompactToBig(bits)) <= 0
 }
 
 func main() {
