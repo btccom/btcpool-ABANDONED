@@ -34,14 +34,14 @@ std::string EncodeHexBlockHeader(const CBlockHeader &blkHeader) {
   return HexStr(ssBlkHeader.begin(), ssBlkHeader.end());
 }
 
-AMOUNT_TYPE GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
+int64_t GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
 {
   int halvings = nHeight / consensusParams.nSubsidyHalvingInterval;
   // Force block reward to zero when right shift is undefined.
   if (halvings >= 64)
-    return AMOUNT_TYPE(0);
+    return 0;
 
-  AMOUNT_TYPE nSubsidy = AMOUNT_TYPE(50 * COIN_TO_SATOSHIS);
+  int64_t nSubsidy = 50 * COIN_TO_SATOSHIS;
 
   // Subsidy is cut in half every 210,000 blocks which will occur approximately every 4 years.
   nSubsidy >>= halvings; // this line is secure, it copied from bitcoin's validation.cpp

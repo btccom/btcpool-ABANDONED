@@ -53,7 +53,7 @@
 std::string EncodeHexBlock(const CBlock &block);
 std::string EncodeHexBlockHeader(const CBlockHeader &blkHeader);
 
-AMOUNT_TYPE GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams);
+int64_t GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams);
 
 #ifdef CHAIN_TYPE_SBTC
 CTxDestination DecodeDestination(const std::string& str);
