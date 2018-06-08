@@ -44,7 +44,7 @@ int64_t GetBlockReward(int nHeight, const Consensus::Params& consensusParams)
   int64_t nSubsidy = 50 * COIN_TO_SATOSHIS;
 
   // Block reward is cut in half every 210,000 blocks which will occur approximately every 4 years.
-  nSubsidy = nSubsidy / (2 << halvings);
+  nSubsidy = nSubsidy / (1 << halvings);
   return nSubsidy;
 }
 
