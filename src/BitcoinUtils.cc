@@ -44,7 +44,7 @@ AMOUNT_TYPE GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParam
   AMOUNT_TYPE nSubsidy = AMOUNT_TYPE(50 * COIN_TO_SATOSHIS);
 
   // Subsidy is cut in half every 210,000 blocks which will occur approximately every 4 years.
-  nSubsidy = nSubsidy / (1 << halvings);
+  nSubsidy >>= halvings; // this line is secure, it copied from bitcoin's validation.cpp
   return nSubsidy;
 }
 
