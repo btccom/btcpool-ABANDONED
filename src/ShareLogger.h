@@ -42,12 +42,20 @@
 
 
 //////////////////////////////  ShareLogWriter  ///////////////////////////////
-//
+// Interface, used as a pointer type.
+class ShareLogWriter {
+public:
+  virtual ~ShareLogWriter() {};
+  virtual void stop() = 0;
+  virtual void run() = 0;
+};
+
+//////////////////////////////  ShareLogWriterT  /////////////////////////////////
 // 1. consume topic 'ShareLog'
 // 2. write sharelog to Disk
 //
 template<class SHARE>
-class ShareLogWriter {
+class ShareLogWriterT : public ShareLogWriter {
   atomic<bool> running_;
   string dataDir_;  // where to put sharelog data files
 
@@ -65,26 +73,16 @@ class ShareLogWriter {
   void tryCloseOldHanders();
 
 public:
-  ShareLogWriter(const char *chainType, const char *kafkaBrokers, const string &dataDir,
+  ShareLogWriterT(const char *chainType, const char *kafkaBrokers, const string &dataDir,
                  const string &kafkaGroupID, const char *shareLogTopic);
-  ~ShareLogWriter();
+  ~ShareLogWriterT();
 
   void stop();
   void run();
 };
 
-//////////////////////////////  ShareLogWriterBitcoin  ///////////////////////////////
-class ShareLogWriterBitcoin : public ShareLogWriter<ShareBitcoin> {
-public:
-
-  using ShareLogWriter::ShareLogWriter;
-};
-
-//////////////////////////////  ShareLogWriterEth  ///////////////////////////////
-class ShareLogWriterEth : public ShareLogWriter<ShareEth> {
-public:
-
-  using ShareLogWriter::ShareLogWriter;
-};
+//////////////////////////////  Alias  ///////////////////////////////
+using ShareLogWriterBitcoin = ShareLogWriterT<ShareBitcoin>;
+using ShareLogWriterEth = ShareLogWriterT<ShareEth>;
 
 #endif // SHARELOGGER_H_

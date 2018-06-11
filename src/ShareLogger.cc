@@ -45,9 +45,9 @@
 #include "BitcoinUtils.h"
 
 
-//////////////////////////////  ShareLogWriter  ///////////////////////////////
+//////////////////////////////  ShareLogWriterT  ///////////////////////////////
 template<class SHARE>
-ShareLogWriter<SHARE>::ShareLogWriter(const char *chainType,
+ShareLogWriterT<SHARE>::ShareLogWriterT(const char *chainType,
                                const char *kafkaBrokers,
                                const string &dataDir,
                                const string &kafkaGroupID,
@@ -58,7 +58,7 @@ hlConsumer_(kafkaBrokers, shareLogTopic, 0/* patition */, kafkaGroupID)
 }
 
 template<class SHARE>
-ShareLogWriter<SHARE>::~ShareLogWriter() {
+ShareLogWriterT<SHARE>::~ShareLogWriterT() {
   // close file handlers
   for (auto & itr : fileHandlers_) {
     LOG(INFO) << "fclose file handler, date: " << date("%F", itr.first);
@@ -68,7 +68,7 @@ ShareLogWriter<SHARE>::~ShareLogWriter() {
 }
 
 template<class SHARE>
-void ShareLogWriter<SHARE>::stop() {
+void ShareLogWriterT<SHARE>::stop() {
   if (!running_)
     return;
 
@@ -76,7 +76,7 @@ void ShareLogWriter<SHARE>::stop() {
 }
 
 template<class SHARE>
-FILE * ShareLogWriter<SHARE>::getFileHandler(uint32_t ts) {
+FILE * ShareLogWriterT<SHARE>::getFileHandler(uint32_t ts) {
   if (fileHandlers_.find(ts) != fileHandlers_.end()) {
     return fileHandlers_[ts];
   }
@@ -95,7 +95,7 @@ FILE * ShareLogWriter<SHARE>::getFileHandler(uint32_t ts) {
 }
 
 template<class SHARE>
-void ShareLogWriter<SHARE>::consumeShareLog(rd_kafka_message_t *rkmessage) {
+void ShareLogWriterT<SHARE>::consumeShareLog(rd_kafka_message_t *rkmessage) {
   // check error
   if (rkmessage->err) {
     if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
@@ -138,7 +138,7 @@ void ShareLogWriter<SHARE>::consumeShareLog(rd_kafka_message_t *rkmessage) {
 }
 
 template<class SHARE>
-void ShareLogWriter<SHARE>::tryCloseOldHanders() {
+void ShareLogWriterT<SHARE>::tryCloseOldHanders() {
   while (fileHandlers_.size() > 3) {
     // Maps (and sets) are sorted, so the first element is the smallest,
     // and the last element is the largest.
@@ -152,7 +152,7 @@ void ShareLogWriter<SHARE>::tryCloseOldHanders() {
 }
 
 template<class SHARE>
-bool ShareLogWriter<SHARE>::flushToDisk() {
+bool ShareLogWriterT<SHARE>::flushToDisk() {
   std::set<FILE*> usedHandlers;
 
   for (const auto& share : shares_) {
@@ -178,7 +178,7 @@ bool ShareLogWriter<SHARE>::flushToDisk() {
 }
 
 template<class SHARE>
-void ShareLogWriter<SHARE>::run() {
+void ShareLogWriterT<SHARE>::run() {
   time_t lastFlushTime = time(nullptr);
   const int32_t kFlushDiskInterval = 2;
   const int32_t kTimeoutMs = 1000;
@@ -230,5 +230,5 @@ void ShareLogWriter<SHARE>::run() {
 ///////////////  template instantiation ///////////////
 // Without this, some linking errors will issued.
 // If you add a new derived class of Share, add it at the following.
-template class ShareLogWriter<ShareBitcoin>;
-template class ShareLogWriter<ShareEth>;
+template class ShareLogWriterT<ShareBitcoin>;
+template class ShareLogWriterT<ShareEth>;

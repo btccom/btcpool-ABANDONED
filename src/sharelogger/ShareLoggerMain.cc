@@ -43,7 +43,7 @@ using namespace std;
 using namespace libconfig;
 
 //ShareLogWriter *gShareLogWriter = nullptr;
-vector<shared_ptr<ShareLogWriterBitcoin>> writers;
+vector<shared_ptr<ShareLogWriter>> writers;
 void handler(int sig)
 {
   for (auto writer : writers)
@@ -58,10 +58,33 @@ void usage()
   fprintf(stderr, "Usage:\n\tsharelogger -c \"sharelogger.cfg\" -l \"log_dir\"\n");
 }
 
-void workerThread(shared_ptr<ShareLogWriterBitcoin> w)
+void workerThread(shared_ptr<ShareLogWriter> w)
 {
   if (w != nullptr)
     w->run();
+}
+
+std::shared_ptr<ShareLogWriter> newShareLogWriter(const string &kafkaBrokers, const Setting &def) {
+  string chainType = def.lookup("chain_type");
+
+  if (chainType == "BTC") {
+    return make_shared<ShareLogWriterBitcoin>(def.lookup("chain_type").c_str(),
+                                              kafkaBrokers.c_str(),
+                                              def.lookup("data_dir").c_str(),
+                                              def.lookup("kafka_group_id").c_str(),
+                                              def.lookup("share_topic"));
+  }
+  else if (chainType == "ETH") {
+    return make_shared<ShareLogWriterEth>(def.lookup("chain_type").c_str(),
+                                          kafkaBrokers.c_str(),
+                                          def.lookup("data_dir").c_str(),
+                                          def.lookup("kafka_group_id").c_str(),
+                                          def.lookup("share_topic"));
+  }
+  else {
+    LOG(FATAL) << "Unknown chain type " << chainType;
+    return nullptr;
+  }
 }
 
 int main(int argc, char **argv)
@@ -141,12 +164,8 @@ int main(int argc, char **argv)
     for (int i = 0; i < defs.getLength(); ++i)
     {
       const Setting &def = defs[i];
-      writers.push_back(make_shared<ShareLogWriterBitcoin>(def.lookup("chain_type").c_str(),
-                                                    brokers.c_str(),
-                                                    def.lookup("data_dir").c_str(),
-                                                    def.lookup("kafka_group_id").c_str(),
-                                                    def.lookup("share_topic")));
-      vector<shared_ptr<thread>> workers; 
+      writers.push_back(newShareLogWriter(brokers, def));
+      vector<shared_ptr<thread>> workers;
       for (auto writer : writers)
         workers.push_back(std::make_shared<thread>(workerThread, writer));
 
