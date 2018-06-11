@@ -158,10 +158,12 @@ void DiffToTarget(uint64 diff, uint256 &target, bool useTable) {
 }
 
 static arith_uint256 kMaxUint256("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+static uint64_t kMaxUint64 = 0xffffffffffffffffull;
 
 string Eth_DifficultyToTarget(uint64 diff)  {
-  if (0 == diff)
-    return "";
+  if (0 == diff) {
+    return kMaxUint256.GetHex();
+  }
 
   arith_uint256 target = kMaxUint256 / diff;
   return target.GetHex();
@@ -171,7 +173,7 @@ uint64 Eth_TargetToDifficulty(string targetHex) {
   arith_uint256 target(targetHex);
 
   if (target == 0) {
-    return 0;
+    return kMaxUint64;
   }
 
   arith_uint256 diff = kMaxUint256 / target;
