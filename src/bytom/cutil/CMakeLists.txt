@@ -10,7 +10,8 @@ CUDA_ADD_LIBRARY(GpuTs STATIC
   ${BytomPoW}
   )
 
-target_compile_features(GpuTs PUBLIC cxx_std_11)
+# set C++ standard
+set(CMAKE_CXX_STANDARD 11)
 
 # copy file for testing bytom code
 configure_file(src/GpuTs.h src/GpuTs.h COPYONLY )
