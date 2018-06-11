@@ -296,3 +296,12 @@ TEST(Common, formatDifficulty) {
   ASSERT_EQ(formatDifficulty(2), 2ULL);
   ASSERT_EQ(formatDifficulty(3), 4ULL);
 }
+
+TEST(Common, Eth_TargetToDifficulty) {
+  ASSERT_EQ(Eth_TargetToDifficulty("0x000000029794e0c85b08583ac96ea15f8b6f4d6bbcd1ee76326cd948d541eac3"), 0x62c2d313ull);
+  ASSERT_EQ(Eth_TargetToDifficulty(  "000000029794e0c85b08583ac96ea15f8b6f4d6bbcd1ee76326cd948d541eac3"), 0x62c2d313ull);
+}
+
+TEST(Common, Eth_DifficultyToTarget) {
+  ASSERT_EQ(Eth_DifficultyToTarget(0x62c2d313ull), "000000029794e0c85b08583ac96ea15f8b6f4d6bbcd1ee76326cd948d541eac3");
+}
