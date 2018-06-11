@@ -826,6 +826,7 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   }
 
   ShareBitcoin share;
+  share.version_      = ShareBitcoin::CURRENT_VERSION;
   share.jobId_        = localJob->jobId_;
   share.workerHashId_ = worker_.workerHashId_;
   share.userId_       = worker_.userId_;
@@ -834,7 +835,7 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   share.timestamp_    = (uint64_t)time(nullptr);
   share.height_       = height;
   share.nonce_        = nonce;
-  share.sessionId_  = extraNonce1_;
+  share.sessionId_    = extraNonce1_;
   share.status_       = StratumStatus::REJECT_NO_REASON;
   share.ip_.fromIpv4Int(clientIpInt_);
 
@@ -1441,6 +1442,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   }
 
   ShareEth share;
+  share.version_      = ShareEth::CURRENT_VERSION;
   share.jobId_        = localJob->jobId_;
   share.workerHashId_ = worker_.workerHashId_;
   share.userId_       = worker_.userId_;
@@ -1512,6 +1514,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
 
   if (isSendShareToKafka)
   {
+    share.checkSum_ = share.checkSum();
     server_->sendShare2Kafka((const uint8_t *)&share, sizeof(ShareEth));
   }
 }
@@ -1667,6 +1670,7 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
   }
 
   ShareBitcoin share;
+  share.version_ = ShareBitcoin::CURRENT_VERSION;
   share.jobId_ = localJob->jobId_;
   share.workerHashId_ = worker_.workerHashId_;
   share.ip_ = clientIpInt_;
@@ -1688,6 +1692,7 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
   }
 
   rpc2ResponseBoolean(idStr, true);
+  share.checkSum_ = share.checkSum();
   server_->sendShare2Kafka((const uint8_t *)&share, sizeof(ShareBitcoin));
 }
 
@@ -1882,6 +1887,7 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
 
   //Check share
   ShareBitcoin share;
+  share.version_ = ShareBitcoin::CURRENT_VERSION;
   share.jobId_ = localJob->jobId_;
   share.workerHashId_ = worker_.workerHashId_;
   share.ip_ = clientIpInt_;
@@ -1903,6 +1909,7 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   }
 
   rpc2ResponseBoolean(idStr, true);
+  share.checkSum_ = share.checkSum();
   server_->sendShare2Kafka((const uint8_t *)&share, sizeof(ShareBitcoin));
 
   free(encoded.r0);

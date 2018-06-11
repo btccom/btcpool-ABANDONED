@@ -247,7 +247,7 @@ class ShareBitcoin : public ShareBase
 {
 public:
 
-  const uint32_t CURRENT_VERSION = 0x00010002u; // first 0001: bitcoin, second 0002: version 2.
+  const static uint32_t CURRENT_VERSION = 0x00010002u; // first 0001: bitcoin, second 0002: version 2.
 
   uint64_t jobId_     = 0;
   uint64_t shareDiff_ = 0;
@@ -308,6 +308,7 @@ public:
     }
 
     if (checkSum_ != checkSum()) {
+      DLOG(INFO) << "checkSum mismatched! checkSum_: " << checkSum_ << ", checkSum(): " << checkSum();
       return false;
     }
 
@@ -340,7 +341,7 @@ class ShareEth : public ShareBase
 {
 public:
 
-  const uint32_t CURRENT_VERSION = 0x00110002u; // first 0011: ETH, second 0002: version 2
+  const static uint32_t CURRENT_VERSION = 0x00110002u; // first 0011: ETH, second 0002: version 2
 
   uint64_t jobId_       = 0;
   uint64_t shareDiff_   = 0;
@@ -398,6 +399,7 @@ public:
     }
 
     if (checkSum_ != checkSum()) {
+      DLOG(INFO) << "checkSum mismatched! checkSum_: " << checkSum_ << ", checkSum(): " << checkSum();
       return false;
     }
 
