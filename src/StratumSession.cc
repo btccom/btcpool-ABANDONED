@@ -937,7 +937,7 @@ finish:
 
   if (isSendShareToKafka) {
     share.checkSum_ = share.checkSum();
-  	server_->sendShare2Kafka((const uint8_t *)&share, sizeof(Share));
+  	server_->sendShare2Kafka((const uint8_t *)&share, sizeof(ShareBitcoin));
   }
   return;
 }
@@ -1512,7 +1512,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
 
   if (isSendShareToKafka)
   {
-    server_->sendShare2Kafka((const uint8_t *)&share, sizeof(Share));
+    server_->sendShare2Kafka((const uint8_t *)&share, sizeof(ShareEth));
   }
 }
 
@@ -1688,7 +1688,7 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
   }
 
   rpc2ResponseBoolean(idStr, true);
-  server_->sendShare2Kafka((const uint8_t *)&share, sizeof(Share));
+  server_->sendShare2Kafka((const uint8_t *)&share, sizeof(ShareBitcoin));
 }
 
 /////////////////////////////StratumSessionBytom////////////////////////////
@@ -1903,7 +1903,7 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   }
 
   rpc2ResponseBoolean(idStr, true);
-  server_->sendShare2Kafka((const uint8_t *)&share, sizeof(Share));
+  server_->sendShare2Kafka((const uint8_t *)&share, sizeof(ShareBitcoin));
 
   free(encoded.r0);
   free(encoded.r1);

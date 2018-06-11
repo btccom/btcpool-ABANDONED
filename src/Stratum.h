@@ -220,13 +220,13 @@ public:
   static const char *toString(int err);
 };
 
-///////////////////////////////////// Share ////////////////////////////////////
-// Class Share should not be used directly.
-// Use a derived class of class Share (example: ShareBitcoin, ShareEth).
-// Also, keep class Share plain, don't add any virtual functions.
+///////////////////////////////////// ShareBase ////////////////////////////////////
+// Class ShareBase should not be used directly.
+// Use a derived class of class ShareBase (example: ShareBitcoin, ShareEth).
+// Also, keep class ShareBase plain, don't add any virtual functions.
 // Otherwise, derived classes will not be able to use byte-based
 // object serialization (because of the addition of a virtual function table).
-class Share
+class ShareBase
 {
 public:
   
@@ -238,12 +238,12 @@ public:
   int64_t   timestamp_    = 0;
   IpAddress ip_           = 0;
 
-  Share() = default;
-  Share(const Share &r) = default;
-  Share &operator=(const Share &r) = default;
+  ShareBase() = default;
+  ShareBase(const ShareBase &r) = default;
+  ShareBase &operator=(const ShareBase &r) = default;
 };
 
-class ShareBitcoin : public Share
+class ShareBitcoin : public ShareBase
 {
 public:
 
@@ -336,7 +336,7 @@ public:
   }
 };
 
-class ShareEth : public Share
+class ShareEth : public ShareBase
 {
 public:
 

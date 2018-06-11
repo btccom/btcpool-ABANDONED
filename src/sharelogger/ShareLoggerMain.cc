@@ -164,6 +164,13 @@ int main(int argc, char **argv)
     for (int i = 0; i < defs.getLength(); ++i)
     {
       const Setting &def = defs[i];
+      bool enabled = false;
+      def.lookupValue("enabled", enabled);
+
+      if (!enabled) {
+        continue;
+      }
+
       writers.push_back(newShareLogWriter(brokers, def));
       vector<shared_ptr<thread>> workers;
       for (auto writer : writers)
