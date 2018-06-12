@@ -1214,7 +1214,7 @@ StratumSessionEth::StratumSessionEth(evutil_socket_t fd, struct bufferevent *bev
                                                                                                                  shareAvgSeconds, extraNonce1),
                                                                                                   extraNonce16b_(1)
 {
-  ethProtocol_ = STRATUM;
+  ethProtocol_ = ETHPROXY;
 }
 
 void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob)
@@ -1314,6 +1314,7 @@ void StratumSessionEth::handleRequest_Subscribe(const string &idStr, const JsonN
   }
 
   state_ = SUBSCRIBED;
+  ethProtocol_ = STRATUM;
 
   const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":true}\n", idStr.c_str());
   sendData(s);
@@ -1334,7 +1335,6 @@ string StratumSessionEth::getFullName(const string& fullNameStr) {
 
 void StratumSessionEth::handleRequest_Authorize(const string &idStr, const JsonNode &jparams)
 {
-  ethProtocol_ = ETHPROXY;
   state_ = SUBSCRIBED;
   StratumSession::handleRequest_Authorize(idStr, jparams);
 }
