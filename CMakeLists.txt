@@ -44,6 +44,13 @@ else()
 endif()
 
 option(USE_CUDA "Use cuda in build" ON)
+# Use Nvidia CUDA in build
+if(USE_CUDA)
+  message("-- Use Nvidia CUDA in build: Enabled (-DUSE_CUDA=ON)")
+else()
+  message("-- Use Nvidia CUDA in build: Disabled (-DUSE_CUDA=OFF)")
+  message("    WARNING: Bytom share checking will be too slow without Nvidia CUDA.")
+endif()
 
 #
 # Chain Type
