@@ -357,10 +357,10 @@ void ShareLogParserT<SHARE>::generateHoursData(shared_ptr<ShareStatsDay<SHARE>> 
       	rejectRate = (double)reject / (accept + reject);
       const string nowStr   = date("%F %T");
       const string scoreStr = score2Str(stats->score1h_[i]);
-      const int64_t earn    = stats->earn1h_[i];
+      const double earn    = stats->earn1h_[i];
 
       valuesStr = Strings::Format("%s %d,%" PRIu64",%" PRIu64","
-                                  "  %lf,'%s',%" PRId64",'%s','%s'",
+                                  "  %lf,'%s',%0.0lf,'%s','%s'",
                                   extraValues.c_str(),
                                   hour, accept, reject, rejectRate, scoreStr.c_str(),
                                   earn, nowStr.c_str(), nowStr.c_str());
@@ -485,10 +485,10 @@ void ShareLogParserT<SHARE>::generateDailyData(shared_ptr<ShareStatsDay<SHARE>> 
       rejectRate = (double)reject / (accept + reject);
     const string nowStr   = date("%F %T");
     const string scoreStr = score2Str(stats->score1d_);
-    const int64_t earn    = stats->earn1d_;
+    const double earn    = stats->earn1d_;
 
     valuesStr = Strings::Format("%s %d,%" PRIu64",%" PRIu64","
-                                "  %lf,'%s',%" PRId64",'%s','%s'",
+                                "  %lf,'%s',%0.0lf,'%s','%s'",
                                 extraValues.c_str(),
                                 day, accept, reject, rejectRate, scoreStr.c_str(),
                                 earn, nowStr.c_str(), nowStr.c_str());
