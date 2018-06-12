@@ -2000,6 +2000,10 @@ void AgentSessions::handleExMessage_RegisterWorker(const string *exMessage) {
   << ", workerName: " << workerName << ", workerId: "
   << workerId << ", session id:" << sessionId;
 
+  // ptr can't be nullptr, just make it easy for test
+  if (stratumSession_ == nullptr)
+    return;
+
   // set sessionId -> workerId
   workerIds_[sessionId] = workerId;
 
@@ -2017,10 +2021,8 @@ void AgentSessions::handleExMessage_RegisterWorker(const string *exMessage) {
   curDiff2ExpVec_[sessionId] = kDefaultDiff2Exp_;
 
   // submit worker info to stratum session
-  // ptr can't be nullptr, just make it easy for test
-  if (stratumSession_ != nullptr)
-    stratumSession_->handleExMessage_AuthorizeAgentWorker(workerId, clientAgent,
-                                                          workerName);
+  stratumSession_->handleExMessage_AuthorizeAgentWorker(workerId, clientAgent,
+                                                        workerName);
 }
 
 void AgentSessions::handleExMessage_SubmitShare(const string *exMessage,
