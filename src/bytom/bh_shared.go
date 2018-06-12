@@ -2,11 +2,17 @@ package main
 
 import "C"
 import (
+	"log"
+	"math/big"
+
 	"github.com/bytom/consensus/difficulty"
+	"github.com/bytom/mining/tensority"
 	"github.com/bytom/protocol/bc"
 	"github.com/bytom/protocol/bc/types"
 	"github.com/bytom/testutil"
 )
+
+const maxBits = 0x1c7FFFFFFFFFFFFF
 
 //export DecodeHeaderString
 func DecodeHeaderString(text []byte) (uint64, uint64, uint64, uint64, uint64, uint64, uint64, uint64, uint64, uint64, uint64, uint64, uint64, uint64, uint64, uint64) {
@@ -40,6 +46,8 @@ func EncodeBlockHeader(v, h uint64, prevBlockHashStr *C.char, timeStamp, nonce, 
 		},
 	}
 
+	log.Printf("bh: %v\n", bh)
+
 	buf, _ := bh.MarshalText()
 	hash := bh.Hash()
 	return C.CString(string(buf)), C.CString(hash.String())
@@ -51,6 +59,70 @@ func CheckProofOfWork(compareHash []byte, bits uint64) bool {
 	copy(x[:], compareHash[:32])
 	ch := bc.NewHash(x)
 	return difficulty.HashToBig(&ch).Cmp(difficulty.CompactToBig(bits)) <= 0
+}
+
+//export CheckProofOfWorkCPU
+func CheckProofOfWorkCPU(hash, seed []byte, bits uint64) bool {
+	xHash := [32]byte{}
+	copy(xHash[:], hash[:32])
+	xSeed := [32]byte{}
+	copy(xSeed[:], seed[:32])
+	hhash := bc.NewHash(xHash)
+	hseed := bc.NewHash(xSeed)
+
+	compareHash := tensority.AIHash.Hash(&hhash, &hseed)
+	log.Printf("Proof hash: 0x%s", compareHash.String())
+	return difficulty.HashToBig(compareHash).Cmp(difficulty.CompactToBig(bits)) <= 0
+}
+
+func StringToBig(h string) *big.Int {
+	n := new(big.Int)
+	n.SetString(h, 0)
+	return n
+}
+
+var Diff1 = StringToBig("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
+
+//export CalculateTargetByBitsDifficulty
+func CalculateTargetByBitsDifficulty(diff, blockBits uint64) uint64 {
+	diffBig := new(big.Int).SetUint64(diff)
+	log.Printf("diffBig: %v\n", *diffBig)
+	blockBitsBig := difficulty.CompactToBig(blockBits)
+	log.Printf("blockBitsBig: %v\n", *blockBitsBig)
+	targetBig := new(big.Int).Div(Diff1, diffBig)
+	log.Printf("targetBig: %v\n", *blockBitsBig)
+	diff2Big := new(big.Int).Div(targetBig, blockBitsBig)
+	log.Printf("diff2Big: %v\n", *diff2Big)
+	nTarget := new(big.Int).Mul(Diff1, diff2Big)
+	log.Printf("nTarget: %v\n", *nTarget)
+	nTarget.Rsh(nTarget, 8*24)
+	return nTarget.Uint64()
+}
+
+func CalculateTargetBigIntByDifficulty(diff uint64) *big.Int {
+	diffBig := new(big.Int).SetUint64(diff)
+	targetBig := new(big.Int).Div(Diff1, diffBig)
+	return targetBig
+}
+
+//export CalculateTargetByDifficulty
+func CalculateTargetByDifficulty(diff uint64) uint64 {
+	targetBig := CalculateTargetBigIntByDifficulty(diff)
+	targetBig.Rsh(targetBig, 8*24)
+	return targetBig.Uint64()
+}
+
+//export CalculateTargetCompactByDifficulty
+func CalculateTargetCompactByDifficulty(diff uint64) uint64 {
+	targetBig := CalculateTargetBigIntByDifficulty(diff)
+	return difficulty.BigToCompact(targetBig)
+}
+
+//export CalculateDifficultyByTarget
+func CalculateDifficultyByTarget(target uint64) uint64 {
+	targetBig := new(big.Int).SetUint64(target)
+	diffBig := new(big.Int).Div(Diff1, targetBig)
+	return difficulty.BigToCompact(diffBig)
 }
 
 func main() {

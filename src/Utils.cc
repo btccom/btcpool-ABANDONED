@@ -45,6 +45,29 @@ static inline int _hex2bin_char(const char c) {
   return -1;
 }
 
+bool Hex2BinReverse(const char *in, size_t size, vector<char> &out) {
+  out.clear();
+  out.reserve(size/2);
+
+  uint8 h, l;
+  // skip space, 0x
+  const char *psz = in + size - 1;
+  while (isspace(*psz))
+    psz--;
+
+  // convert
+  while (psz > in) {
+    if(*psz == 'x')
+      break;
+    l = _hex2bin_char(*psz--);
+    h = _hex2bin_char(*psz--);
+    
+    out.push_back((h << 4) | l);
+  }
+  return true;
+
+}
+
 bool Hex2Bin(const char *in, size_t size, vector<char> &out) {
   out.clear();
   out.reserve(size/2);
@@ -104,12 +127,18 @@ void Bin2Hex(const vector<char> &in, string &str) {
   Bin2Hex((uint8 *)in.data(), in.size(), str);
 }
 
-void Bin2HexR(const vector<char> &in, string &str) {
+void Bin2HexR(const uint8 *in, size_t len, string &str) {
   vector<char> r;
-  for (auto it = in.rbegin(); it != in.rend(); ++it) {
-    r.push_back(*it);
+  r.resize(len);
+  for(size_t i = 0; i < len; ++i)
+  {
+    r[i] = in[len - 1 - i];
   }
   Bin2Hex(r, str);
+}
+
+void Bin2HexR(const vector<char> &in, string &str) {
+  Bin2HexR((const uint8_t*)in.data(), in.size(), str);
 }
 
 //  Receive 0MQ string from socket and convert into string

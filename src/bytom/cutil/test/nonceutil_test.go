@@ -146,9 +146,16 @@ func TestHash(t *testing.T) {
 			sT := time.Now()
 			bhhash := bc.NewHash(tt.blockHeader)
 			sdhash := bc.NewHash(tt.seed)
-			result := Hash(&bhhash, &sdhash).Bytes()
+			result := Hash(&bhhash, &sdhash)
+			resultCPU := HashCPU(&bhhash, &sdhash)
+			fmt.Printf("%s -- %s", result.String(), resultCPU.String())
+
+			if *result != *resultCPU {
+				fmt.Printf("\tFAIL CPU AND GPU test\n")
+			}
+
 			var resArr [32]byte
-			copy(resArr[:], result)
+			copy(resArr[:], result.Bytes())
 			eT := time.Now()
 			fmt.Println("\tTotal verification time:", eT.Sub(sT))
 
