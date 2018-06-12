@@ -83,33 +83,18 @@ func StringToBig(h string) *big.Int {
 
 var Diff1 = StringToBig("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
 
-//export CalculateTargetByBitsDifficulty
-func CalculateTargetByBitsDifficulty(diff, blockBits uint64) uint64 {
-	diffBig := new(big.Int).SetUint64(diff)
-	log.Printf("diffBig: %v\n", *diffBig)
-	blockBitsBig := difficulty.CompactToBig(blockBits)
-	log.Printf("blockBitsBig: %v\n", *blockBitsBig)
-	targetBig := new(big.Int).Div(Diff1, diffBig)
-	log.Printf("targetBig: %v\n", *blockBitsBig)
-	diff2Big := new(big.Int).Div(targetBig, blockBitsBig)
-	log.Printf("diff2Big: %v\n", *diff2Big)
-	nTarget := new(big.Int).Mul(Diff1, diff2Big)
-	log.Printf("nTarget: %v\n", *nTarget)
-	nTarget.Rsh(nTarget, 8*24)
-	return nTarget.Uint64()
-}
-
 func CalculateTargetBigIntByDifficulty(diff uint64) *big.Int {
 	diffBig := new(big.Int).SetUint64(diff)
 	targetBig := new(big.Int).Div(Diff1, diffBig)
 	return targetBig
 }
 
-//export CalculateTargetByDifficulty
-func CalculateTargetByDifficulty(diff uint64) uint64 {
-	targetBig := CalculateTargetBigIntByDifficulty(diff)
-	targetBig.Rsh(targetBig, 8*24)
-	return targetBig.Uint64()
+//export CalculateTargetBinaryByDifficulty
+func CalculateTargetBinaryByDifficulty(diff uint64, out []byte) {
+	targetCompact := CalculateTargetCompactByDifficulty(diff)
+	targetBig := difficulty.CompactToBig(targetCompact)
+	targetBytes := targetBig.Bytes()
+	copy(out[:], targetBytes[:32])
 }
 
 //export CalculateTargetCompactByDifficulty

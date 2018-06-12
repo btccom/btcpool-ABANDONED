@@ -145,7 +145,7 @@ uint32 djb2(const char *str);
 
 ////////////////////////////// for Bytom //////////////////////////////
 uint64 Bytom_TargetToDifficulty(uint64 bits);
-uint64 Bytom_DifficultyToTarget(uint64 difficulty);
+void Bytom_DifficultyToTargetBinary(uint64 difficulty, vector<uint8_t>& out);
 uint64 Bytom_JobDifficultyToTargetCompact(uint64 difficulty);
 uint64 Bytom_BitsDifficultyToTarget(uint64 blockBits, uint64 difficulty);
 

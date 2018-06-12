@@ -186,21 +186,17 @@ uint64 Bytom_TargetToDifficulty(uint64 bits)
   return CalculateDifficultyByTarget(bits);
 }
 
-uint64 Bytom_DifficultyToTarget(uint64 difficulty)
+void Bytom_DifficultyToTargetBinary(uint64 difficulty, vector<uint8_t>& out)
 {
-  return CalculateTargetByDifficulty(difficulty);
+  out.resize(32);
+  GoSlice outSlice = {(void *)out.data(), 32, 32};  
+  CalculateTargetBinaryByDifficulty(difficulty, outSlice);
 }
 
 uint64 Bytom_JobDifficultyToTargetCompact(uint64 difficulty)
 {
   return CalculateTargetCompactByDifficulty(difficulty);
 }
-
-uint64 Bytom_BitsDifficultyToTarget(uint64 blockBits, uint64 difficulty)
-{
-  return CalculateTargetByBitsDifficulty(difficulty, blockBits);
-}
-
 
 void Hex256ToEthash256(const string &strHex, ethash_h256_t &ethashHeader)
 {
