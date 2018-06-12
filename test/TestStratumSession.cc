@@ -121,7 +121,7 @@ TEST(StratumSession, AgentSessions_RegisterWorker) {
 
   ASSERT_EQ((size_t)(p - (uint8_t *)exMessage.data()), exMessage.size());
 
-  // agent.handleExMessage_RegisterWorker(&exMessage);
+  agent.handleExMessage_RegisterWorker(&exMessage);
   // please check ouput log
 }
 
@@ -129,37 +129,37 @@ TEST(StratumSession, AgentSessions_RegisterWorker2) {
   AgentSessions agent(10, nullptr);
 
   // | magic_number(1) | cmd(1) | len (2) | session_id(2) | clientAgent | worker_name |
-  // string exMessage;
-  // const string clientAgent = "\"'";
-  // const string workerName = "a.b";
-  // const uint16_t sessionId = 0;
-  // exMessage.resize(1+1+2+2 + clientAgent.length() + 1 + workerName.length() + 1, 0);
+  string exMessage;
+  const string clientAgent = "\"'";
+  const string workerName = "a.b";
+  const uint16_t sessionId = 0;
+  exMessage.resize(1+1+2+2 + clientAgent.length() + 1 + workerName.length() + 1, 0);
 
-  // uint8_t *p = (uint8_t *)exMessage.data();
+  uint8_t *p = (uint8_t *)exMessage.data();
 
-  // // cmd
-  // *p++ = CMD_MAGIC_NUMBER;
-  // *p++ = CMD_REGISTER_WORKER;
+  // cmd
+  *p++ = CMD_MAGIC_NUMBER;
+  *p++ = CMD_REGISTER_WORKER;
 
-  // // len
-  // *(uint16_t *)p = (uint16_t)exMessage.size();
-  // p += 2;
+  // len
+  *(uint16_t *)p = (uint16_t)exMessage.size();
+  p += 2;
 
-  // // session Id
-  // *(uint16_t *)p = sessionId;
-  // p += 2;
+  // session Id
+  *(uint16_t *)p = sessionId;
+  p += 2;
 
-  // // client agent
-  // strcpy((char *)p, clientAgent.c_str());
-  // p += strlen(clientAgent.c_str()) + 1;
+  // client agent
+  strcpy((char *)p, clientAgent.c_str());
+  p += strlen(clientAgent.c_str()) + 1;
 
-  // // worker name
-  // strcpy((char *)p, workerName.c_str());
-  // p += strlen(workerName.c_str()) + 1;
+  // worker name
+  strcpy((char *)p, workerName.c_str());
+  p += strlen(workerName.c_str()) + 1;
 
-  // ASSERT_EQ((size_t)(p - (uint8_t *)exMessage.data()), exMessage.size());
+  ASSERT_EQ((size_t)(p - (uint8_t *)exMessage.data()), exMessage.size());
 
-  // agent.handleExMessage_RegisterWorker(&exMessage);
+  agent.handleExMessage_RegisterWorker(&exMessage);
   // please check ouput log
 }
 
@@ -167,37 +167,37 @@ TEST(StratumSession, AgentSessions_RegisterWorker3) {
   AgentSessions agent(10, nullptr);
 
   // | magic_number(1) | cmd(1) | len (2) | session_id(2) | clientAgent | worker_name |
-  // string exMessage;
-  // const string clientAgent;
-  // const string workerName;
-  // const uint16_t sessionId = 0;
-  // exMessage.resize(1+1+2+2 + clientAgent.length() + 1 + workerName.length() + 1, 0);
+  string exMessage;
+  const string clientAgent;
+  const string workerName;
+  const uint16_t sessionId = 0;
+  exMessage.resize(1+1+2+2 + clientAgent.length() + 1 + workerName.length() + 1, 0);
 
-  // uint8_t *p = (uint8_t *)exMessage.data();
+  uint8_t *p = (uint8_t *)exMessage.data();
 
-  // // cmd
-  // *p++ = CMD_MAGIC_NUMBER;
-  // *p++ = CMD_REGISTER_WORKER;
+  // cmd
+  *p++ = CMD_MAGIC_NUMBER;
+  *p++ = CMD_REGISTER_WORKER;
 
-  // // len
-  // *(uint16_t *)p = (uint16_t)exMessage.size();
-  // p += 2;
+  // len
+  *(uint16_t *)p = (uint16_t)exMessage.size();
+  p += 2;
 
-  // // session Id
-  // *(uint16_t *)p = sessionId;
-  // p += 2;
+  // session Id
+  *(uint16_t *)p = sessionId;
+  p += 2;
 
-  // // client agent
-  // strcpy((char *)p, clientAgent.c_str());
-  // p += strlen(clientAgent.c_str()) + 1;
+  // client agent
+  strcpy((char *)p, clientAgent.c_str());
+  p += strlen(clientAgent.c_str()) + 1;
 
-  // // worker name
-  // strcpy((char *)p, workerName.c_str());
-  // p += strlen(workerName.c_str()) + 1;
+  // worker name
+  strcpy((char *)p, workerName.c_str());
+  p += strlen(workerName.c_str()) + 1;
 
-  // ASSERT_EQ((size_t)(p - (uint8_t *)exMessage.data()), exMessage.size());
+  ASSERT_EQ((size_t)(p - (uint8_t *)exMessage.data()), exMessage.size());
 
-  // agent.handleExMessage_RegisterWorker(&exMessage);
+  agent.handleExMessage_RegisterWorker(&exMessage);
   // please check ouput log
 }
 
@@ -205,86 +205,86 @@ TEST(StratumSession, AgentSessions_RegisterWorker4) {
   AgentSessions agent(10, nullptr);
 
   // | magic_number(1) | cmd(1) | len (2) | session_id(2) | clientAgent | worker_name |
-  // string exMessage;
-  // const uint16_t sessionId = AGENT_MAX_SESSION_ID;
-  // exMessage.resize(1+1+2+2 + 1 + 1, 0);
+  string exMessage;
+  const uint16_t sessionId = AGENT_MAX_SESSION_ID;
+  exMessage.resize(1+1+2+2 + 1 + 1, 0);
 
-  // uint8_t *p = (uint8_t *)exMessage.data();
+  uint8_t *p = (uint8_t *)exMessage.data();
 
-  // // cmd
-  // *p++ = CMD_MAGIC_NUMBER;
-  // *p++ = CMD_REGISTER_WORKER;
+  // cmd
+  *p++ = CMD_MAGIC_NUMBER;
+  *p++ = CMD_REGISTER_WORKER;
 
-  // // len
-  // *(uint16_t *)p = (uint16_t)exMessage.size();
-  // p += 2;
+  // len
+  *(uint16_t *)p = (uint16_t)exMessage.size();
+  p += 2;
 
-  // // session Id
-  // *(uint16_t *)p = sessionId;
-  // p += 2;
+  // session Id
+  *(uint16_t *)p = sessionId;
+  p += 2;
 
-  // // client agent
-  // p++;
+  // client agent
+  p++;
 
-  // // worker name
-  // p++;
+  // worker name
+  p++;
 
-  // ASSERT_EQ((size_t)(p - (uint8_t *)exMessage.data()), exMessage.size());
+  ASSERT_EQ((size_t)(p - (uint8_t *)exMessage.data()), exMessage.size());
 
-  // //
-  // // empty agent and name
-  // //
-  // agent.handleExMessage_RegisterWorker(&exMessage);
-  // // please check ouput log
-  // //   clientAgent: , workerName: default
+  //
+  // empty agent and name
+  //
+  agent.handleExMessage_RegisterWorker(&exMessage);
+  // please check ouput log
+  //   clientAgent: , workerName: default
 
-  // //
-  // // no zero
-  // //
-  // exMessage[exMessage.size() - 1] = 'n';
-  // exMessage[exMessage.size() - 2] = 'a';
-  // agent.handleExMessage_RegisterWorker(&exMessage);
-  // // please check ouput log
-  // //   clientAgent: a, workerName: default
+  //
+  // no zero
+  //
+  exMessage[exMessage.size() - 1] = 'n';
+  exMessage[exMessage.size() - 2] = 'a';
+  agent.handleExMessage_RegisterWorker(&exMessage);
+  // please check ouput log
+  //   clientAgent: a, workerName: default
 
-  // //
-  // //
-  // //
-  // exMessage[exMessage.size() - 1] = '\0';
-  // exMessage[exMessage.size() - 2] = 'a';
-  // agent.handleExMessage_RegisterWorker(&exMessage);
-  // // please check ouput log
-  // //   clientAgent: a, workerName: default
+  //
+  //
+  //
+  exMessage[exMessage.size() - 1] = '\0';
+  exMessage[exMessage.size() - 2] = 'a';
+  agent.handleExMessage_RegisterWorker(&exMessage);
+  // please check ouput log
+  //   clientAgent: a, workerName: default
 
-  // //
-  // //
-  // //
-  // exMessage[exMessage.size() - 1] = 'n';
-  // exMessage[exMessage.size() - 2] = '\0';
-  // agent.handleExMessage_RegisterWorker(&exMessage);
-  // // please check ouput log
-  // //   clientAgent: , workerName: default
+  //
+  //
+  //
+  exMessage[exMessage.size() - 1] = 'n';
+  exMessage[exMessage.size() - 2] = '\0';
+  agent.handleExMessage_RegisterWorker(&exMessage);
+  // please check ouput log
+  //   clientAgent: , workerName: default
 
-  // //
-  // //
-  // //
-  // exMessage.resize(exMessage.size() + 1);
-  // (*(uint16_t *)(exMessage.data() + 2))++;  // len++
+  //
+  //
+  //
+  exMessage.resize(exMessage.size() + 1);
+  (*(uint16_t *)(exMessage.data() + 2))++;  // len++
 
-  // exMessage[exMessage.size() - 1] = 'n';
-  // exMessage[exMessage.size() - 2] = '\0';
-  // exMessage[exMessage.size() - 3] = '\0';
-  // agent.handleExMessage_RegisterWorker(&exMessage);
-  // // please check ouput log
-  // //   clientAgent: , workerName: default
+  exMessage[exMessage.size() - 1] = 'n';
+  exMessage[exMessage.size() - 2] = '\0';
+  exMessage[exMessage.size() - 3] = '\0';
+  agent.handleExMessage_RegisterWorker(&exMessage);
+  // please check ouput log
+  //   clientAgent: , workerName: default
 
-  // //
-  // //
-  // //
-  // exMessage[exMessage.size() - 1] = '\0';
-  // exMessage[exMessage.size() - 2] = 'n';
-  // exMessage[exMessage.size() - 3] = '\0';
-  // agent.handleExMessage_RegisterWorker(&exMessage);
+  //
+  //
+  //
+  exMessage[exMessage.size() - 1] = '\0';
+  exMessage[exMessage.size() - 2] = 'n';
+  exMessage[exMessage.size() - 3] = '\0';
+  agent.handleExMessage_RegisterWorker(&exMessage);
   // please check ouput log
   //   clientAgent: , workerName: n
 }
