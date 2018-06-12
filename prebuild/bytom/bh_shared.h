@@ -110,6 +110,8 @@ extern struct EncodeBlockHeader_return EncodeBlockHeader(GoUint64 p0, GoUint64 p
 
 extern GoUint8 CheckProofOfWork(GoSlice p0, GoUint64 p1);
 
+extern void ProofOfWorkHashCPU(GoSlice p0, GoSlice p1, GoSlice p2);
+
 extern GoUint8 CheckProofOfWorkCPU(GoSlice p0, GoSlice p1, GoUint64 p2);
 
 extern void CalculateTargetBinaryByDifficulty(GoUint64 p0, GoSlice p1);
