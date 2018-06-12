@@ -19,11 +19,11 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 message("-- Build Type: ${CMAKE_BUILD_TYPE} (-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE})")
 IF(CMAKE_BUILD_TYPE MATCHES Debug)
-  set(CMAKE_CXX_FLAGS "-g -O0 -Wall")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0 -Wall")
 ELSEIF(CMAKE_BUILD_TYPE MATCHES Release)
-  set(CMAKE_CXX_FLAGS "-g -O2 -Wall")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O2 -Wall")
 ELSE()
-  set(CMAKE_CXX_FLAGS "-g -Wall")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall")
 ENDIF()
 
 # compiler options
@@ -42,6 +42,8 @@ else()
   message("-- Concurrent Jobs: 1 (-DJOBS=1)")
   set(MAKE_JOBS "") 
 endif()
+
+option(USE_CUDA "Use cuda in build" ON)
 
 #
 # Chain Type
@@ -313,9 +315,12 @@ if(NOT KAFKA_FOUND)
   message(FATAL_ERROR "librdkafka not found!")
 endif()
 
-find_package(CUDA 9.1)
-if(NOT CUDA_FOUND)
-  message(FATAL_ERROR "cuda 9.1 not found!")
+if(USE_CUDA)
+  find_package(CUDA 9.1)
+  if(NOT CUDA_FOUND)
+    message(WARNING "cuda 9.1 not found! USE_CUDA set to OFF")
+    set(USE_CUDA OFF)
+  endif()
 endif()
 
 message("") # add an empty line
@@ -351,16 +356,23 @@ endif()
 
 add_subdirectory(src/libethash)
 add_subdirectory(src/libblake2)
-add_subdirectory(src/bytom/cutil)
+
+if(USE_CUDA)
+  set(USE_CUDA_INCLUDE_DIRECTORY ${CUDA_INCLUDE_DIRECTORIES})
+  add_subdirectory(src/bytom/cutil)
+  set(USE_CUDA_LIBRARIES GpuTs ${CUDA_LIBRARIES} ${CUDA_CUBLAS_LIBRARIES})
+else()
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNO_CUDA")  
+endif(USE_CUDA)
 
 include_directories(src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config ${CHAIN_SRC_ROOT}/src/secp256k1/include
                     ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS}
-                    ${LIBEVENT_INCLUDE_DIR} ${MYSQL_INCLUDE} ${CUDA_INCLUDE_DIRECTORIES} ${BH_SHARED_INCLUDE_DIR})
+                    ${LIBEVENT_INCLUDE_DIR} ${MYSQL_INCLUDE} ${USE_CUDA_INCLUDE_DIRECTORY} ${BH_SHARED_INCLUDE_DIR})
 
 set(THIRD_LIBRARIES ${BITCOIN_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL_LIBRARY} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY}
                     ${LIBZMQ_LIBRARIES} ${GLOG_LIBRARIES} ${CURL_LIBRARIES} ${ZOOKEEPER_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBEVENT_LIB}
                     ${LIBEVENT_PTHREADS_LIB} ${secp256k1_LIBRARIES} ${PTHREAD_LIBRARIES} ${MYSQL_LIB} ${GMP_LIBRARIES} 
-                    ethash blake2 ${BH_SHARED_LIBRARY} GpuTs ${CUDA_LIBRARIES} ${CUDA_CUBLAS_LIBRARIES})
+                    ethash blake2 ${BH_SHARED_LIBRARY} ${USE_CUDA_LIBRARIES})
 
 file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc src/bytom/*.cc)
 add_library(btcpool STATIC ${LIB_SOURCES})

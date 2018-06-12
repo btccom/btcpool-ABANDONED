@@ -61,6 +61,19 @@ func CheckProofOfWork(compareHash []byte, bits uint64) bool {
 	return difficulty.HashToBig(&ch).Cmp(difficulty.CompactToBig(bits)) <= 0
 }
 
+//export ProofOfWorkHashCPU
+func ProofOfWorkHashCPU(hash, seed []byte, outHash []byte) {
+	xHash := [32]byte{}
+	copy(xHash[:], hash[:32])
+	xSeed := [32]byte{}
+	copy(xSeed[:], seed[:32])
+	hhash := bc.NewHash(xHash)
+	hseed := bc.NewHash(xSeed)
+
+	compareHash := tensority.AIHash.Hash(&hhash, &hseed)
+	copy(outHash[:], compareHash.Bytes()[:32])
+}
+
 //export CheckProofOfWorkCPU
 func CheckProofOfWorkCPU(hash, seed []byte, bits uint64) bool {
 	xHash := [32]byte{}

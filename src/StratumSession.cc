@@ -29,7 +29,10 @@
 #include <boost/algorithm/string.hpp>
 #include "bytom/bh_shared.h"
 #include "StratumServer.h"
+
+#ifndef NO_CUDA
 #include "bytom/cutil/src/GpuTs.h"
+#endif  //NO_CUDA
 
 //////////////////////////////// DiffController ////////////////////////////////
 void DiffController::setMinDiff(uint64 minDiff) {
@@ -1897,7 +1900,15 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
     
   ServerBytom *s = dynamic_cast<ServerBytom*> (server_);
   if (s != nullptr) {
+#ifndef NO_CUDA
     uint8_t *pTarget = GpuTs((uint8_t*)vHeader.data(), (uint8_t*)vSeed.data());
+#else    
+    GoSlice hSlice = {(void *)vHeader.data(), (int)vHeader.size(), (int)vHeader.size()};
+    GoSlice sSlice = {(void *)vSeed.data(), (int)vSeed.size(), (int)vSeed.size()};
+    uint8_t pTarget[32];
+    GoSlice hOut = {(void *)pTarget, 32, 32};
+    ProofOfWorkHashCPU(hSlice, sSlice, hOut);
+#endif
 
     //  first job target first before checking solved share
     string targetStr;
