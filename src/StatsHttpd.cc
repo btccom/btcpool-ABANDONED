@@ -121,12 +121,12 @@ bool WorkerShares<SHARE>::isExpired() {
 }
 
 
-////////////////////////////////  StatsServer  ////////////////////////////////
+////////////////////////////////  StatsServerT  ////////////////////////////////
 template <class SHARE>
-atomic<bool> StatsServer<SHARE>::isInitializing_(true);
+atomic<bool> StatsServerT<SHARE>::isInitializing_(true);
 
 template <class SHARE>
-StatsServer<SHARE>::StatsServer(const char *kafkaBrokers, const string &httpdHost,
+StatsServerT<SHARE>::StatsServerT(const char *kafkaBrokers, const string &httpdHost,
                          unsigned short httpdPort, const MysqlConnectInfo &poolDBInfo,
                          const time_t kFlushDBInterval, const string &fileLastFlushTime):
 running_(true), totalWorkerCount_(0), totalUserCount_(0), uptime_(time(nullptr)),
@@ -143,7 +143,7 @@ requestCount_(0), responseBytes_(0)
 }
 
 template <class SHARE>
-StatsServer<SHARE>::~StatsServer() {
+StatsServerT<SHARE>::~StatsServerT() {
   stop();
 
   if (threadConsume_.joinable())
@@ -156,7 +156,7 @@ StatsServer<SHARE>::~StatsServer() {
 }
 
 template <class SHARE>
-bool StatsServer<SHARE>::init() {
+bool StatsServerT<SHARE>::init() {
   if (!poolDB_.ping()) {
     LOG(INFO) << "db ping failure";
     return false;
@@ -180,18 +180,18 @@ bool StatsServer<SHARE>::init() {
 }
 
 template <class SHARE>
-void StatsServer<SHARE>::stop() {
+void StatsServerT<SHARE>::stop() {
   if (!running_)
     return;
 
-  LOG(INFO) << "stop StatsServer...";
+  LOG(INFO) << "stop StatsServerT...";
 
   running_ = false;
   event_base_loopexit(base_, NULL);
 }
 
 template <class SHARE>
-void StatsServer<SHARE>::processShare(const SHARE &share) {
+void StatsServerT<SHARE>::processShare(const SHARE &share) {
   const time_t now = time(nullptr);
 
   lastShareTime_ = share.timestamp_;
@@ -208,7 +208,7 @@ void StatsServer<SHARE>::processShare(const SHARE &share) {
 }
 
 template <class SHARE>
-void StatsServer<SHARE>::_processShare(WorkerKey &key1, WorkerKey &key2, const SHARE &share) {
+void StatsServerT<SHARE>::_processShare(WorkerKey &key1, WorkerKey &key2, const SHARE &share) {
   assert(key2.workerId_ == 0);  // key2 is user's total stats
 
   pthread_rwlock_rdlock(&rwlock_);
@@ -248,7 +248,7 @@ void StatsServer<SHARE>::_processShare(WorkerKey &key1, WorkerKey &key2, const S
 }
 
 template <class SHARE>
-void StatsServer<SHARE>::flushWorkersToDB() {
+void StatsServerT<SHARE>::flushWorkersToDB() {
   LOG(INFO) << "flush mining workers to DB...";
   if (isInserting_) {
     LOG(WARNING) << "last flush is not finish yet, ingore";
@@ -256,11 +256,11 @@ void StatsServer<SHARE>::flushWorkersToDB() {
   }
 
   isInserting_ = true;
-  boost::thread t(boost::bind(&StatsServer<SHARE>::_flushWorkersToDBThread, this));
+  boost::thread t(boost::bind(&StatsServerT<SHARE>::_flushWorkersToDBThread, this));
 }
 
 template <class SHARE>
-void StatsServer<SHARE>::_flushWorkersToDBThread() {
+void StatsServerT<SHARE>::_flushWorkersToDBThread() {
   //
   // merge two table items
   // table.`mining_workers` unique index: `puid` + `worker_id`
@@ -357,7 +357,7 @@ finish:
 }
 
 template <class SHARE>
-void StatsServer<SHARE>::removeExpiredWorkers() {
+void StatsServerT<SHARE>::removeExpiredWorkers() {
   size_t expiredCnt = 0;
 
   pthread_rwlock_wrlock(&rwlock_);  // write lock
@@ -389,7 +389,7 @@ void StatsServer<SHARE>::removeExpiredWorkers() {
 }
 
 template <class SHARE>
-void StatsServer<SHARE>::getWorkerStatusBatch(const vector<WorkerKey> &keys,
+void StatsServerT<SHARE>::getWorkerStatusBatch(const vector<WorkerKey> &keys,
                                        vector<WorkerStatus> &workerStatus) {
   workerStatus.resize(keys.size());
 
@@ -416,7 +416,7 @@ void StatsServer<SHARE>::getWorkerStatusBatch(const vector<WorkerKey> &keys,
 }
 
 template <class SHARE>
-WorkerStatus StatsServer<SHARE>::mergeWorkerStatus(const vector<WorkerStatus> &workerStatus) {
+WorkerStatus StatsServerT<SHARE>::mergeWorkerStatus(const vector<WorkerStatus> &workerStatus) {
   WorkerStatus s;
 
   if (workerStatus.size() == 0)
@@ -440,7 +440,7 @@ WorkerStatus StatsServer<SHARE>::mergeWorkerStatus(const vector<WorkerStatus> &w
 }
 
 template <class SHARE>
-void StatsServer<SHARE>::consumeShareLog(rd_kafka_message_t *rkmessage) {
+void StatsServerT<SHARE>::consumeShareLog(rd_kafka_message_t *rkmessage) {
   // check error
   if (rkmessage->err) {
     if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
@@ -480,7 +480,7 @@ void StatsServer<SHARE>::consumeShareLog(rd_kafka_message_t *rkmessage) {
 }
 
 template <class SHARE>
-bool StatsServer<SHARE>::setupThreadConsume() {
+bool StatsServerT<SHARE>::setupThreadConsume() {
   // kafkaConsumer_
   {
     //
@@ -530,14 +530,14 @@ bool StatsServer<SHARE>::setupThreadConsume() {
   }
 
   // run threads
-  threadConsume_ = thread(&StatsServer<SHARE>::runThreadConsume, this);
-  threadConsumeCommonEvents_ = thread(&StatsServer<SHARE>::runThreadConsumeCommonEvents, this);
+  threadConsume_ = thread(&StatsServerT<SHARE>::runThreadConsume, this);
+  threadConsumeCommonEvents_ = thread(&StatsServerT<SHARE>::runThreadConsumeCommonEvents, this);
   
   return true;
 }
 
 template <class SHARE>
-void StatsServer<SHARE>::runThreadConsume() {
+void StatsServerT<SHARE>::runThreadConsume() {
   LOG(INFO) << "start sharelog consume thread";
   time_t lastCleanTime     = time(nullptr);
   time_t lastFlushDBTime   = time(nullptr);
@@ -605,7 +605,7 @@ void StatsServer<SHARE>::runThreadConsume() {
 }
 
 template <class SHARE>
-void StatsServer<SHARE>::runThreadConsumeCommonEvents() {
+void StatsServerT<SHARE>::runThreadConsumeCommonEvents() {
   LOG(INFO) << "start common events consume thread";
 
   const int32_t kTimeoutMs = 3000;  // consumer timeout
@@ -632,7 +632,7 @@ void StatsServer<SHARE>::runThreadConsumeCommonEvents() {
 }
 
 template <class SHARE>
-void StatsServer<SHARE>::consumeCommonEvents(rd_kafka_message_t *rkmessage) {
+void StatsServerT<SHARE>::consumeCommonEvents(rd_kafka_message_t *rkmessage) {
   // check error
   if (rkmessage->err) {
     if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
@@ -694,7 +694,7 @@ void StatsServer<SHARE>::consumeCommonEvents(rd_kafka_message_t *rkmessage) {
 }
 
 template <class SHARE>
-bool StatsServer<SHARE>::updateWorkerStatus(const int32_t userId, const int64_t workerId,
+bool StatsServerT<SHARE>::updateWorkerStatus(const int32_t userId, const int64_t workerId,
                                      const char *workerName, const char *minerAgent) {
   string sql;
   char **row = nullptr;
@@ -751,7 +751,7 @@ bool StatsServer<SHARE>::updateWorkerStatus(const int32_t userId, const int64_t 
 }
 
 template <class SHARE>
-typename StatsServer<SHARE>::ServerStatus StatsServer<SHARE>::getServerStatus() {
+typename StatsServerT<SHARE>::ServerStatus StatsServerT<SHARE>::getServerStatus() {
   ServerStatus s;
 
   s.uptime_        = (uint32_t)(time(nullptr) - uptime_);
@@ -765,10 +765,10 @@ typename StatsServer<SHARE>::ServerStatus StatsServer<SHARE>::getServerStatus() 
 }
 
 template <class SHARE>
-void StatsServer<SHARE>::httpdServerStatus(struct evhttp_request *req, void *arg) {
+void StatsServerT<SHARE>::httpdServerStatus(struct evhttp_request *req, void *arg) {
   evhttp_add_header(evhttp_request_get_output_headers(req),
                     "Content-Type", "text/json");
-  StatsServer *server = (StatsServer *)arg;
+  StatsServerT *server = (StatsServerT *)arg;
   server->requestCount_++;
 
   struct evbuffer *evb = evbuffer_new();
@@ -782,7 +782,7 @@ void StatsServer<SHARE>::httpdServerStatus(struct evhttp_request *req, void *arg
     return;
   }
   
-  StatsServer<SHARE>::ServerStatus s = server->getServerStatus();
+  StatsServerT<SHARE>::ServerStatus s = server->getServerStatus();
 
   evbuffer_add_printf(evb, "{\"err_no\":0,\"err_msg\":\"\","
                       "\"data\":{\"uptime\":\"%04u d %02u h %02u m %02u s\","
@@ -808,10 +808,10 @@ void StatsServer<SHARE>::httpdServerStatus(struct evhttp_request *req, void *arg
 }
 
 template <class SHARE>
-void StatsServer<SHARE>::httpdGetWorkerStatus(struct evhttp_request *req, void *arg) {
+void StatsServerT<SHARE>::httpdGetWorkerStatus(struct evhttp_request *req, void *arg) {
   evhttp_add_header(evhttp_request_get_output_headers(req),
                     "Content-Type", "text/json");
-  StatsServer *server = (StatsServer *)arg;
+  StatsServerT *server = (StatsServerT *)arg;
   server->requestCount_++;
 
   evhttp_cmd_type rMethod = evhttp_request_get_command(req);
@@ -886,7 +886,7 @@ finish:
 }
 
 template <class SHARE>
-void StatsServer<SHARE>::getWorkerStatus(struct evbuffer *evb, const char *pUserId,
+void StatsServerT<SHARE>::getWorkerStatus(struct evbuffer *evb, const char *pUserId,
                                   const char *pWorkerId, const char *pIsMerge) {
   assert(pWorkerId != nullptr);
   const int32_t userId = atoi(pUserId);
@@ -946,7 +946,7 @@ void StatsServer<SHARE>::getWorkerStatus(struct evbuffer *evb, const char *pUser
 }
 
 template <class SHARE>
-void StatsServer<SHARE>::runHttpd() {
+void StatsServerT<SHARE>::runHttpd() {
   struct evhttp_bound_socket *handle;
   struct evhttp *httpd;
 
@@ -956,9 +956,9 @@ void StatsServer<SHARE>::runHttpd() {
   evhttp_set_allowed_methods(httpd, EVHTTP_REQ_GET | EVHTTP_REQ_POST | EVHTTP_REQ_HEAD);
   evhttp_set_timeout(httpd, 5 /* timeout in seconds */);
 
-  evhttp_set_cb(httpd, "/",               StatsServer<SHARE>::httpdServerStatus, this);
-  evhttp_set_cb(httpd, "/worker_status",  StatsServer<SHARE>::httpdGetWorkerStatus, this);
-  evhttp_set_cb(httpd, "/worker_status/", StatsServer<SHARE>::httpdGetWorkerStatus, this);
+  evhttp_set_cb(httpd, "/",               StatsServerT<SHARE>::httpdServerStatus, this);
+  evhttp_set_cb(httpd, "/worker_status",  StatsServerT<SHARE>::httpdGetWorkerStatus, this);
+  evhttp_set_cb(httpd, "/worker_status/", StatsServerT<SHARE>::httpdGetWorkerStatus, this);
 
   handle = evhttp_bind_socket_with_handle(httpd, httpdHost_.c_str(), httpdPort_);
   if (!handle) {
@@ -969,7 +969,7 @@ void StatsServer<SHARE>::runHttpd() {
 }
 
 template <class SHARE>
-void StatsServer<SHARE>::run() {
+void StatsServerT<SHARE>::run() {
   if (setupThreadConsume() == false) {
     return;
   }
@@ -983,5 +983,5 @@ void StatsServer<SHARE>::run() {
 template class WorkerShares<ShareBitcoin>;
 template class WorkerShares<ShareEth>;
 
-template class StatsServer<ShareBitcoin>;
-template class StatsServer<ShareEth>;
+template class StatsServerT<ShareBitcoin>;
+template class StatsServerT<ShareEth>;

@@ -100,13 +100,23 @@ public:
 
 
 ////////////////////////////////  StatsServer  ////////////////////////////////
+// Interface, used as a pointer type.
+class StatsServer {
+public:
+  virtual ~StatsServer() {};
+  virtual bool init() = 0;
+  virtual void stop() = 0;
+  virtual void run() = 0;
+};
+
+////////////////////////////////  StatsServerT  ////////////////////////////////
 //
 // 1. consume topic 'ShareLog'
 // 2. httpd: API for request alive worker status (realtime)
 // 3. flush worker status to DB
 //
 template <class SHARE>
-class StatsServer {
+class StatsServerT : public StatsServer {
   struct ServerStatus {
     uint32_t uptime_;
     uint64_t requestCount_;
@@ -174,10 +184,10 @@ public:
   atomic<uint64_t> responseBytes_;
 
 public:
-  StatsServer(const char *kafkaBrokers, const string &httpdHost,
+  StatsServerT(const char *kafkaBrokers, const string &httpdHost,
               unsigned short httpdPort, const MysqlConnectInfo &poolDBInfo,
               const time_t kFlushDBInterval, const string &fileLastFlushTime);
-  ~StatsServer();
+  ~StatsServerT();
 
   bool init();
   void stop();
@@ -193,16 +203,8 @@ public:
                        const char *pWorkerId, const char *pIsMerge);
 };
 
-////////////////////////////  StatsServerBitcoin  ////////////////////////////
-class StatsServerBitcoin : public StatsServer<ShareBitcoin> {
-public:
-  using StatsServer::StatsServer;
-};
-
-////////////////////////////  StatsServerEth  ////////////////////////////
-class StatsServerEth : public StatsServer<ShareEth> {
-public:
-  using StatsServer::StatsServer;
-};
+////////////////////////////  Alias  ////////////////////////////
+using StatsServerBitcoin = StatsServerT<ShareBitcoin>;
+using StatsServerEth = StatsServerT<ShareEth>;
 
 #endif // STATSHTTPD_H_
