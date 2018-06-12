@@ -126,13 +126,14 @@ template <class SHARE>
 atomic<bool> StatsServerT<SHARE>::isInitializing_(true);
 
 template <class SHARE>
-StatsServerT<SHARE>::StatsServerT(const char *kafkaBrokers, const string &httpdHost,
-                         unsigned short httpdPort, const MysqlConnectInfo &poolDBInfo,
-                         const time_t kFlushDBInterval, const string &fileLastFlushTime):
+StatsServerT<SHARE>::StatsServerT(const char *kafkaBrokers, const char *kafkaShareTopic, const char *kafkaCommonEventsTopic,
+                                  const string &httpdHost, unsigned short httpdPort,
+                                  const MysqlConnectInfo &poolDBInfo,
+                                  const time_t kFlushDBInterval, const string &fileLastFlushTime):
 running_(true), totalWorkerCount_(0), totalUserCount_(0), uptime_(time(nullptr)),
 poolWorker_(0u/* worker id */, 0/* user id */),
-kafkaConsumer_(kafkaBrokers, KAFKA_TOPIC_SHARE_LOG, 0/* patition */),
-kafkaConsumerCommonEvents_(kafkaBrokers, KAFKA_TOPIC_COMMON_EVENTS, 0/* patition */),
+kafkaConsumer_(kafkaBrokers, kafkaShareTopic, 0/* patition */),
+kafkaConsumerCommonEvents_(kafkaBrokers, kafkaCommonEventsTopic, 0/* patition */),
 poolDB_(poolDBInfo), poolDBCommonEvents_(poolDBInfo),
 kFlushDBInterval_(kFlushDBInterval), isInserting_(false),
 fileLastFlushTime_(fileLastFlushTime),

@@ -932,7 +932,8 @@ StratumServer::StratumServer(const char *ip, const unsigned short port,
                              uint32 maxJobDelay,
                              shared_ptr<DiffController> defaultDifficultyController,
                              const string& solvedShareTopic,
-                             const string& shareTopic)
+                             const string& shareTopic,
+                             const string& commonEventsTopic)
     : running_(true),
       ip_(ip), port_(port), serverId_(serverId),
       fileLastNotifyTime_(fileLastNotifyTime),
@@ -943,7 +944,8 @@ StratumServer::StratumServer(const char *ip, const unsigned short port,
       maxJobDelay_(maxJobDelay),
       defaultDifficultyController_(defaultDifficultyController),
       solvedShareTopic_(solvedShareTopic),
-      shareTopic_(shareTopic)
+      shareTopic_(shareTopic),
+      commonEventsTopic_(commonEventsTopic)
 {
 }
 
@@ -1144,7 +1146,7 @@ bool Server::setup(StratumServer* sserver) {
                                              sserver->shareTopic_.c_str(),
                                              RD_KAFKA_PARTITION_UA);
   kafkaProducerCommonEvents_ = new KafkaProducer(sserver->kafkaBrokers_.c_str(),
-                                                 KAFKA_TOPIC_COMMON_EVENTS,
+                                                 sserver->commonEventsTopic_.c_str(),
                                                  RD_KAFKA_PARTITION_UA);
 
   // job repository

@@ -54,18 +54,20 @@ void usage() {
   fprintf(stderr, "Usage:\n\tstatshttpd -c \"statshttpd.cfg\" -l \"log_dir\"\n");
 }
 
-std::shared_ptr<StatsServer> newStatsServer(const string &chainType, const char *kafkaBrokers, const string &httpdHost,
-                                            unsigned short httpdPort, const MysqlConnectInfo &poolDBInfo,
+std::shared_ptr<StatsServer> newStatsServer(const string &chainType, const char *kafkaBrokers,
+                                            const char *kafkaShareTopic, const char *kafkaCommonEventsTopic,
+                                            const string &httpdHost, unsigned short httpdPort,
+                                            const MysqlConnectInfo &poolDBInfo,
                                             const time_t kFlushDBInterval, const string &fileLastFlushTime)
 {
   if (chainType == "BTC") {
-    return std::make_shared<StatsServerBitcoin>(kafkaBrokers, httpdHost,
-                                                httpdPort, poolDBInfo,
+    return std::make_shared<StatsServerBitcoin>(kafkaBrokers, kafkaShareTopic, kafkaCommonEventsTopic,
+                                                httpdHost, httpdPort, poolDBInfo,
                                                 kFlushDBInterval, fileLastFlushTime);
   }
   else if (chainType == "ETH") {
-    return std::make_shared<StatsServerEth>(kafkaBrokers, httpdHost,
-                                            httpdPort, poolDBInfo,
+    return std::make_shared<StatsServerEth>(kafkaBrokers, kafkaShareTopic, kafkaCommonEventsTopic,
+                                            httpdHost, httpdPort, poolDBInfo,
                                             kFlushDBInterval, fileLastFlushTime);
   }
   else {
@@ -150,10 +152,13 @@ int main(int argc, char **argv) {
     cfg.lookupValue("statshttpd.port", port);
     cfg.lookupValue("statshttpd.flush_db_interval", flushInterval);
     cfg.lookupValue("statshttpd.file_last_flush_time",   fileLastFlushTime);
-    gStatsServer = newStatsServer(cfg.lookup("statshttpd.chain_type"), cfg.lookup("kafka.brokers").c_str(),
-                                   cfg.lookup("statshttpd.ip").c_str(),
-                                   (unsigned short)port, *poolDBInfo,
-                                   (time_t)flushInterval, fileLastFlushTime);
+    gStatsServer = newStatsServer(cfg.lookup("statshttpd.chain_type"),
+                                  cfg.lookup("kafka.brokers").c_str(),
+                                  cfg.lookup("statshttpd.share_topic").c_str(),
+                                  cfg.lookup("statshttpd.common_events_topic").c_str(),
+                                  cfg.lookup("statshttpd.ip").c_str(),
+                                  (unsigned short)port, *poolDBInfo,
+                                  (time_t)flushInterval, fileLastFlushTime);
     if (gStatsServer->init()) {
     	gStatsServer->run();
     }

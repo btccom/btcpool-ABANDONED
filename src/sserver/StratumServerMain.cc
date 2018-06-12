@@ -212,7 +212,8 @@ int main(int argc, char **argv)
                                        maxJobDelay,
                                        dc,
                                        cfg.lookup("sserver.solved_share_topic"),
-                                       cfg.lookup("sserver.share_topic"));
+                                       cfg.lookup("sserver.share_topic"),
+                                       cfg.lookup("sserver.common_events_topic"));
     if (!gStratumServer->createServer(cfg.lookup("sserver.type"), shareAvgSeconds))
     {
       LOG(FATAL) << "createServer failed";

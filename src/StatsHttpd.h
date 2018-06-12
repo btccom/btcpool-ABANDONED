@@ -184,9 +184,10 @@ public:
   atomic<uint64_t> responseBytes_;
 
 public:
-  StatsServerT(const char *kafkaBrokers, const string &httpdHost,
-              unsigned short httpdPort, const MysqlConnectInfo &poolDBInfo,
-              const time_t kFlushDBInterval, const string &fileLastFlushTime);
+  StatsServerT(const char *kafkaBrokers, const char *kafkaShareTopic, const char *kafkaCommonEventsTopic,
+               const string &httpdHost, unsigned short httpdPort,
+               const MysqlConnectInfo &poolDBInfo,
+               const time_t kFlushDBInterval, const string &fileLastFlushTime);
   ~StatsServerT();
 
   bool init();

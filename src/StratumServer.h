@@ -471,6 +471,7 @@ public:
   shared_ptr<DiffController> defaultDifficultyController_;
   string solvedShareTopic_;
   string shareTopic_;
+  string commonEventsTopic_;
 
   StratumServer(const char *ip, const unsigned short port,
                 const char *kafkaBrokers,
@@ -484,7 +485,8 @@ public:
                 uint32 maxJobDelay,
                 shared_ptr<DiffController> defaultDifficultyController,
                 const string& solvedShareTopic,
-                const string& shareTopic);
+                const string& shareTopic,
+                const string& commonEventsTopic);
   ~StratumServer();
   bool createServer(string type, const int32_t shareAvgSeconds);
   bool init();
