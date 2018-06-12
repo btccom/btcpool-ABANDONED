@@ -42,7 +42,7 @@
 using namespace std;
 using namespace libconfig;
 
-ShareLogParserServerBitcoin *gShareLogParserServer = nullptr;
+std::shared_ptr<ShareLogParserServer> gShareLogParserServer = nullptr;
 
 void handler(int sig) {
   if (gShareLogParserServer) {
@@ -54,6 +54,57 @@ void usage() {
   fprintf(stderr, "Usage:\n\tslparser -c \"slparser.cfg\" -l \"log_dir\"\n");
   fprintf(stderr, "\tslparser -c \"slparser.cfg\" -l \"log_dir2\" -d \"20160830\"\n");
   fprintf(stderr, "\tslparser -c \"slparser.cfg\" -l \"log_dir3\" -d \"20160830\" -u \"puid(0: dump all, >0: someone's)\"\n");
+}
+
+std::shared_ptr<ShareLogDumper> newShareLogDumper(const string &chainType, const string &dataDir,
+                                                  time_t timestamp, const std::set<int32_t> &uids)
+{
+  if (chainType == "BTC") {
+    return std::make_shared<ShareLogDumperBitcoin>(chainType.c_str(), dataDir, timestamp, uids);
+  }
+  else if (chainType == "ETH") {
+    return std::make_shared<ShareLogDumperEth>(chainType.c_str(), dataDir, timestamp, uids);
+  }
+  else {
+    LOG(FATAL) << "newShareLogDumper: unknown chain type " << chainType;
+    return nullptr;
+  }
+}
+
+std::shared_ptr<ShareLogParser> newShareLogParser(const string &chainType, const string &dataDir,
+                                                  time_t timestamp, const MysqlConnectInfo &poolDBInfo)
+{
+  if (chainType == "BTC") {
+    return std::make_shared<ShareLogParserBitcoin>(chainType.c_str(), dataDir, timestamp, poolDBInfo);
+  }
+  else if (chainType == "ETH") {
+    return std::make_shared<ShareLogParserEth>(chainType.c_str(), dataDir, timestamp, poolDBInfo);
+  }
+  else {
+    LOG(FATAL) << "newShareLogParser: unknown chain type " << chainType;
+    return nullptr;
+  }
+}
+
+std::shared_ptr<ShareLogParserServer> newShareLogParserServer(const string &chainType, const string &dataDir,
+                                                        const string &httpdHost, unsigned short httpdPort,
+                                                        const MysqlConnectInfo &poolDBInfo,
+                                                        const uint32_t kFlushDBInterval)
+{
+  if (chainType == "BTC") {
+    return std::make_shared<ShareLogParserServerBitcoin>(chainType.c_str(), dataDir,
+                                                         httpdHost, httpdPort,
+                                                         poolDBInfo, kFlushDBInterval);
+  }
+  else if (chainType == "ETH") {
+    return std::make_shared<ShareLogParserServerEth>(chainType.c_str(), dataDir,
+                                                     httpdHost, httpdPort,
+                                                     poolDBInfo, kFlushDBInterval);
+  }
+  else {
+    LOG(FATAL) << "newShareLogParserServer: unknown chain type " << chainType;
+    return nullptr;
+  }
 }
 
 int main(int argc, char **argv) {
@@ -133,6 +184,9 @@ int main(int argc, char **argv) {
                                         cfg.lookup("pooldb.dbname"));
     }
 
+    // chain type
+    string chainType = cfg.lookup("sharelog.chain_type");
+
     //////////////////////////////////////////////////////////////////////////////
     //  dump shares to stdout
     //////////////////////////////////////////////////////////////////////////////
@@ -145,8 +199,8 @@ int main(int argc, char **argv) {
       if (optPUID > 0)
       uids.insert(optPUID);
 
-      ShareLogDumperBitcoin sldumper(cfg.lookup("sharelog.chain_type").c_str(), cfg.lookup("sharelog.data_dir"), ts, uids);
-      sldumper.dump2stdout();
+      std::shared_ptr<ShareLogDumper> sldumper = newShareLogDumper(chainType, cfg.lookup("sharelog.data_dir"), ts, uids);
+      sldumper->dump2stdout();
 
       google::ShutdownGoogleLogging();
       return 0;
@@ -161,19 +215,19 @@ int main(int argc, char **argv) {
                                           optDate/100 % 100, optDate % 100);
       const time_t ts = str2time(tsStr.c_str(), "%F %T");
 
-      ShareLogParserBitcoin slparser(cfg.lookup("sharelog.chain_type").c_str(),
-                              cfg.lookup("sharelog.data_dir"),
-                              ts, *poolDBInfo);
+      std::shared_ptr<ShareLogParser> slparser = newShareLogParser(chainType,
+                                                             cfg.lookup("sharelog.data_dir"),
+                                                             ts, *poolDBInfo);
       do {
-        if (slparser.init() == false) {
+        if (slparser->init() == false) {
           LOG(ERROR) << "init failure";
           break;
         }
-        if (!slparser.processUnchangedShareLog()) {
+        if (!slparser->processUnchangedShareLog()) {
           LOG(ERROR) << "processUnchangedShareLog fail";
           break;
         }
-        if (!slparser.flushToDB()) {
+        if (!slparser->flushToDB()) {
           LOG(ERROR) << "processUnchangedShareLog fail";
           break;
         }
@@ -200,13 +254,12 @@ int main(int argc, char **argv) {
     cfg.lookupValue("slparserhttpd.port", port);
     uint32_t kFlushDBInterval = 20;
     cfg.lookupValue("slparserhttpd.flush_db_interval", kFlushDBInterval);
-    gShareLogParserServer = new ShareLogParserServerBitcoin(cfg.lookup("sharelog.chain_type").c_str(),
-                                                     cfg.lookup("sharelog.data_dir"),
-                                                     cfg.lookup("slparserhttpd.ip"),
-                                                     port, *poolDBInfo,
-                                                     kFlushDBInterval);
+    gShareLogParserServer = newShareLogParserServer(chainType,
+                                                 cfg.lookup("sharelog.data_dir"),
+                                                 cfg.lookup("slparserhttpd.ip"),
+                                                 port, *poolDBInfo,
+                                                 kFlushDBInterval);
     gShareLogParserServer->run();
-    delete gShareLogParserServer;
   }
   catch (std::exception & e) {
     LOG(FATAL) << "exception: " << e.what();

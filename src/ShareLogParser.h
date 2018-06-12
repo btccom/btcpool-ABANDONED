@@ -42,8 +42,17 @@
 
 
 ///////////////////////////////  ShareLogDumper  ///////////////////////////////
-template <class SHARE>
+// Interface, used as a pointer type.
 class ShareLogDumper {
+public:
+  virtual ~ShareLogDumper() {};
+  virtual void dump2stdout() = 0;
+};
+
+///////////////////////////////  ShareLogDumperT  ///////////////////////////////
+// print share.toString() to stdout
+template <class SHARE>
+class ShareLogDumperT : public ShareLogDumper {
   string filePath_;  // sharelog data file path
   std::set<int32_t> uids_;  // if empty dump all user's shares
   bool isDumpAll_;
@@ -52,33 +61,29 @@ class ShareLogDumper {
   void parseShare(const SHARE *share);
 
 public:
-  ShareLogDumper(const char *chainType, const string &dataDir, time_t timestamp, const std::set<int32_t> &uids);
-  ~ShareLogDumper();
+  ShareLogDumperT(const char *chainType, const string &dataDir, time_t timestamp, const std::set<int32_t> &uids);
+  ~ShareLogDumperT();
 
   void dump2stdout();
 };
 
-///////////////////////////////  ShareLogDumperBitcoin  ///////////////////////////////
-class ShareLogDumperBitcoin : public ShareLogDumper<ShareBitcoin> {
+///////////////////////////////  ShareLogDumper  ///////////////////////////////
+// Interface, used as a pointer type.
+class ShareLogParser {
 public:
-  using ShareLogDumper::ShareLogDumper;
+  virtual ~ShareLogParser() {}
+  virtual bool init() = 0;
+  virtual bool flushToDB() = 0;
+  virtual bool processUnchangedShareLog() = 0;
 };
-
-///////////////////////////////  ShareLogDumperEth  ///////////////////////////////
-class ShareLogDumperEth : public ShareLogDumper<ShareEth> {
-public:
-  using ShareLogDumper::ShareLogDumper;
-};
-
-
-///////////////////////////////  ShareLogParser  ///////////////////////////////
+///////////////////////////////  ShareLogParserT  ///////////////////////////////
 //
 // 1. read sharelog data files
 // 2. calculate share & score
 // 3. write stats data to DB
 //
 template <class SHARE>
-class ShareLogParser {
+class ShareLogParserT : public ShareLogParser {
   pthread_rwlock_t rwlock_;
   // key: WorkerKey, value: share stats
   std::unordered_map<WorkerKey/* userID + workerID */, shared_ptr<ShareStatsDay<SHARE>>> workersStats_;
@@ -122,9 +127,9 @@ class ShareLogParser {
   void removeExpiredDataFromDB();
 
 public:
-  ShareLogParser(const char *chainType, const string &dataDir,
+  ShareLogParserT(const char *chainType, const string &dataDir,
                  time_t timestamp, const MysqlConnectInfo &poolDBInfo);
-  ~ShareLogParser();
+  ~ShareLogParserT();
 
   bool init();
 
@@ -144,28 +149,24 @@ public:
   bool isReachEOF();  // only for growing file
 };
 
-///////////////////////////////  ShareLogParserBitcoin  ///////////////////////////////
-class ShareLogParserBitcoin : public ShareLogParser<ShareBitcoin> {
-public:
-  using ShareLogParser::ShareLogParser;
-};
-
-///////////////////////////////  ShareLogParserEth  ///////////////////////////////
-class ShareLogParserEth : public ShareLogParser<ShareEth> {
-public:
-  using ShareLogParser::ShareLogParser;
-};
-
-
 
 ////////////////////////////  ShareLogParserServer  ////////////////////////////
+// Interface, used as a pointer type.
+class ShareLogParserServer {
+public:
+  virtual ~ShareLogParserServer() {};
+  virtual void stop() = 0;
+  virtual void run() = 0;
+};
+
+////////////////////////////  ShareLogParserServerT  ////////////////////////////
 //
 // read share binlog, parse shares, calc stats data than save them to database
 // table.stats_xxxx. meanwhile hold there stats data in memory so it could
 // provide httpd service. web/app could read the latest data from it's http API.
 //
 template <class SHARE>
-class ShareLogParserServer {
+class ShareLogParserServerT : public ShareLogParserServer {
   struct ServerStatus {
     uint32_t uptime_;
     uint64_t requestCount_;
@@ -180,7 +181,7 @@ class ShareLogParserServer {
   time_t uptime_;
   // share log daily
   time_t date_;      // date_ % 86400 == 0
-  shared_ptr<ShareLogParser<SHARE>> shareLogParser_;
+  shared_ptr<ShareLogParserT<SHARE>> shareLogParser_;
   const string chainType_;
   string dataDir_;
   MysqlConnectInfo poolDBInfo_;  // save stats data
@@ -202,7 +203,7 @@ class ShareLogParserServer {
   void runThreadShareLogParser();
   bool initShareLogParser(time_t datets);
   bool setupThreadShareLogParser();
-  void trySwithBinFile(shared_ptr<ShareLogParser<SHARE>> shareLogParser);
+  void trySwithBinFile(shared_ptr<ShareLogParserT<SHARE>> shareLogParser);
   void runHttpd();
 
 public:
@@ -210,11 +211,11 @@ public:
   atomic<uint64_t> responseBytes_;
 
 public:
-  ShareLogParserServer(const char *chainType, const string dataDir,
+  ShareLogParserServerT(const char *chainType, const string dataDir,
                        const string &httpdHost, unsigned short httpdPort,
                        const MysqlConnectInfo &poolDBInfo,
                        const uint32_t kFlushDBInterval);
-  ~ShareLogParserServer();
+  ~ShareLogParserServerT();
 
   void stop();
   void run();
@@ -223,16 +224,13 @@ public:
   static void httpdShareStats  (struct evhttp_request *req, void *arg);
 };
 
-////////////////////////////  ShareLogParserServerBitcoin  ////////////////////////////
-class ShareLogParserServerBitcoin : public ShareLogParserServer<ShareBitcoin> {
-public:
-  using ShareLogParserServer::ShareLogParserServer;
-};
 
-////////////////////////////  ShareLogParserServerEth  ////////////////////////////
-class ShareLogParserServerEth : public ShareLogParserServer<ShareEth> {
-public:
-  using ShareLogParserServer::ShareLogParserServer;
-};
+///////////////////////////////  Alias  ///////////////////////////////
+using ShareLogDumperBitcoin = ShareLogDumperT<ShareBitcoin>;
+using ShareLogDumperEth = ShareLogDumperT<ShareEth>;
+using ShareLogParserBitcoin = ShareLogParserT<ShareBitcoin>;
+using ShareLogParserEth = ShareLogParserT<ShareEth>;
+using ShareLogParserServerBitcoin = ShareLogParserServerT<ShareBitcoin>;
+using ShareLogParserServerEth = ShareLogParserServerT<ShareEth>;
 
 #endif // SHARELOGPARSER_H_

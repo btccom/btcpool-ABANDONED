@@ -45,9 +45,9 @@
 #include "BitcoinUtils.h"
 
 
-///////////////////////////////  ShareLogDumper  ///////////////////////////////
+///////////////////////////////  ShareLogDumperT  ///////////////////////////////
 template <class SHARE>
-ShareLogDumper<SHARE>::ShareLogDumper(const char *chainType, const string &dataDir,
+ShareLogDumperT<SHARE>::ShareLogDumperT(const char *chainType, const string &dataDir,
                                time_t timestamp, const std::set<int32_t> &uids)
 : uids_(uids), isDumpAll_(false)
 {
@@ -58,11 +58,11 @@ ShareLogDumper<SHARE>::ShareLogDumper(const char *chainType, const string &dataD
 }
 
 template <class SHARE>
-ShareLogDumper<SHARE>::~ShareLogDumper() {
+ShareLogDumperT<SHARE>::~ShareLogDumperT() {
 }
 
 template <class SHARE>
-void ShareLogDumper<SHARE>::dump2stdout() {
+void ShareLogDumperT<SHARE>::dump2stdout() {
   FILE *f = nullptr;
 
   // open file
@@ -97,7 +97,7 @@ void ShareLogDumper<SHARE>::dump2stdout() {
 }
 
 template <class SHARE>
-void ShareLogDumper<SHARE>::parseShareLog(const uint8_t *buf, size_t len) {
+void ShareLogDumperT<SHARE>::parseShareLog(const uint8_t *buf, size_t len) {
   assert(len % sizeof(SHARE) == 0);
   const size_t size = len / sizeof(SHARE);
 
@@ -107,7 +107,7 @@ void ShareLogDumper<SHARE>::parseShareLog(const uint8_t *buf, size_t len) {
 }
 
 template <class SHARE>
-void ShareLogDumper<SHARE>::parseShare(const SHARE *share) {
+void ShareLogDumperT<SHARE>::parseShare(const SHARE *share) {
   if (!share->isValid()) {
     LOG(ERROR) << "invalid share: " << share->toString();
     return;
@@ -119,9 +119,9 @@ void ShareLogDumper<SHARE>::parseShare(const SHARE *share) {
   }
 }
 
-///////////////////////////////  ShareLogParser  ///////////////////////////////
+///////////////////////////////  ShareLogParserT  ///////////////////////////////
 template <class SHARE>
-ShareLogParser<SHARE>::ShareLogParser(const char *chainType, const string &dataDir,
+ShareLogParserT<SHARE>::ShareLogParserT(const char *chainType, const string &dataDir,
                                time_t timestamp, const MysqlConnectInfo &poolDBInfo)
 : date_(timestamp), chainType_(chainType), f_(nullptr), buf_(nullptr), lastPosition_(0), poolDB_(poolDBInfo)
 {
@@ -140,7 +140,7 @@ ShareLogParser<SHARE>::ShareLogParser(const char *chainType, const string &dataD
 }
 
 template <class SHARE>
-ShareLogParser<SHARE>::~ShareLogParser() {
+ShareLogParserT<SHARE>::~ShareLogParserT() {
   if (f_)
     fclose(f_);
 
@@ -149,7 +149,7 @@ ShareLogParser<SHARE>::~ShareLogParser() {
 }
 
 template <class SHARE>
-bool ShareLogParser<SHARE>::init() {
+bool ShareLogParserT<SHARE>::init() {
   // check db
   if (!poolDB_.ping()) {
     LOG(ERROR) << "connect to db fail";
@@ -182,7 +182,7 @@ bool ShareLogParser<SHARE>::init() {
 }
 
 template <class SHARE>
-void ShareLogParser<SHARE>::parseShareLog(const uint8_t *buf, size_t len) {
+void ShareLogParserT<SHARE>::parseShareLog(const uint8_t *buf, size_t len) {
   assert(len % sizeof(SHARE) == 0);
   const size_t size = len / sizeof(SHARE);
 
@@ -192,7 +192,7 @@ void ShareLogParser<SHARE>::parseShareLog(const uint8_t *buf, size_t len) {
 }
 
 template <class SHARE>
-void ShareLogParser<SHARE>::parseShare(const SHARE *share) {
+void ShareLogParserT<SHARE>::parseShare(const SHARE *share) {
   if (!share->isValid()) {
     LOG(ERROR) << "invalid share: " << share->toString();
     return;
@@ -218,7 +218,7 @@ void ShareLogParser<SHARE>::parseShare(const SHARE *share) {
 }
 
 template <class SHARE>
-bool ShareLogParser<SHARE>::processUnchangedShareLog() {
+bool ShareLogParserT<SHARE>::processUnchangedShareLog() {
   FILE *f = nullptr;
 
   // open file
@@ -254,7 +254,7 @@ bool ShareLogParser<SHARE>::processUnchangedShareLog() {
 }
 
 template <class SHARE>
-int64_t ShareLogParser<SHARE>::processGrowingShareLog() {
+int64_t ShareLogParserT<SHARE>::processGrowingShareLog() {
   size_t readNum = 0;
 
   if (f_ == nullptr) {
@@ -291,7 +291,7 @@ int64_t ShareLogParser<SHARE>::processGrowingShareLog() {
 }
 
 template <class SHARE>
-bool ShareLogParser<SHARE>::isReachEOF() {
+bool ShareLogParserT<SHARE>::isReachEOF() {
   struct stat sb;
   int fd = open(filePath_.c_str(), O_RDONLY);
   if (fd == -1) {
@@ -308,7 +308,7 @@ bool ShareLogParser<SHARE>::isReachEOF() {
 }
 
 template <class SHARE>
-void ShareLogParser<SHARE>::generateHoursData(shared_ptr<ShareStatsDay<SHARE>> stats,
+void ShareLogParserT<SHARE>::generateHoursData(shared_ptr<ShareStatsDay<SHARE>> stats,
                                        const int32_t userId,
                                        const int64_t workerId,
                                        vector<string> *valuesWorkersHour,
@@ -377,7 +377,7 @@ void ShareLogParser<SHARE>::generateHoursData(shared_ptr<ShareStatsDay<SHARE>> s
 }
 
 template <class SHARE>
-void ShareLogParser<SHARE>::flushHourOrDailyData(const vector<string> values,
+void ShareLogParserT<SHARE>::flushHourOrDailyData(const vector<string> values,
                                           const string &tableName,
                                           const string &extraFields) {
   string mergeSQL;
@@ -447,7 +447,7 @@ void ShareLogParser<SHARE>::flushHourOrDailyData(const vector<string> values,
 }
 
 template <class SHARE>
-void ShareLogParser<SHARE>::generateDailyData(shared_ptr<ShareStatsDay<SHARE>> stats,
+void ShareLogParserT<SHARE>::generateDailyData(shared_ptr<ShareStatsDay<SHARE>> stats,
                                        const int32_t userId,
                                        const int64_t workerId,
                                        vector<string> *valuesWorkersDay,
@@ -504,7 +504,7 @@ void ShareLogParser<SHARE>::generateDailyData(shared_ptr<ShareStatsDay<SHARE>> s
 }
 
 template <class SHARE>
-shared_ptr<ShareStatsDay<SHARE>> ShareLogParser<SHARE>::getShareStatsDayHandler(const WorkerKey &key) {
+shared_ptr<ShareStatsDay<SHARE>> ShareLogParserT<SHARE>::getShareStatsDayHandler(const WorkerKey &key) {
   pthread_rwlock_rdlock(&rwlock_);
   auto itr = workersStats_.find(key);
   pthread_rwlock_unlock(&rwlock_);
@@ -516,7 +516,7 @@ shared_ptr<ShareStatsDay<SHARE>> ShareLogParser<SHARE>::getShareStatsDayHandler(
 }
 
 template <class SHARE>
-void ShareLogParser<SHARE>::removeExpiredDataFromDB() {
+void ShareLogParserT<SHARE>::removeExpiredDataFromDB() {
   static time_t lastRemoveTime = 0u;
   string sql;
 
@@ -575,7 +575,7 @@ void ShareLogParser<SHARE>::removeExpiredDataFromDB() {
 }
 
 template <class SHARE>
-bool ShareLogParser<SHARE>::flushToDB() {
+bool ShareLogParserT<SHARE>::flushToDB() {
   if (!poolDB_.ping()) {
     LOG(ERROR) << "connect db fail";
     return false;
@@ -648,9 +648,9 @@ bool ShareLogParser<SHARE>::flushToDB() {
 }
 
 
-////////////////////////////  ShareLogParserServer<SHARE>  ////////////////////////////
+////////////////////////////  ShareLogParserServerT<SHARE>  ////////////////////////////
 template <class SHARE>
-ShareLogParserServer<SHARE>::ShareLogParserServer(const char *chainType,
+ShareLogParserServerT<SHARE>::ShareLogParserServerT(const char *chainType,
                                            const string dataDir,
                                            const string &httpdHost,
                                            unsigned short httpdPort,
@@ -670,7 +670,7 @@ requestCount_(0), responseBytes_(0)
 }
 
 template <class SHARE>
-ShareLogParserServer<SHARE>::~ShareLogParserServer<SHARE>() {
+ShareLogParserServerT<SHARE>::~ShareLogParserServerT<SHARE>() {
   stop();
 
   if (threadShareLogParser_.joinable())
@@ -680,18 +680,18 @@ ShareLogParserServer<SHARE>::~ShareLogParserServer<SHARE>() {
 }
 
 template <class SHARE>
-void ShareLogParserServer<SHARE>::stop() {
+void ShareLogParserServerT<SHARE>::stop() {
   if (!running_)
     return;
 
-  LOG(INFO) << "stop ShareLogParserServer<SHARE>...";
+  LOG(INFO) << "stop ShareLogParserServerT<SHARE>...";
 
   running_ = false;
   event_base_loopexit(base_, NULL);
 }
 
 template <class SHARE>
-bool ShareLogParserServer<SHARE>::initShareLogParser(time_t datets) {
+bool ShareLogParserServerT<SHARE>::initShareLogParser(time_t datets) {
   pthread_rwlock_wrlock(&rwlock_);
 
   // reset
@@ -699,8 +699,8 @@ bool ShareLogParserServer<SHARE>::initShareLogParser(time_t datets) {
   shareLogParser_ = nullptr;
 
   // set new obj
-  shared_ptr<ShareLogParser<SHARE>> parser =
-    std::make_shared<ShareLogParser<SHARE>>(chainType_.c_str(), dataDir_, date_, poolDBInfo_);
+  shared_ptr<ShareLogParserT<SHARE>> parser =
+    std::make_shared<ShareLogParserT<SHARE>>(chainType_.c_str(), dataDir_, date_, poolDBInfo_);
   
   if (!shareLogParser_->init()) {
     LOG(ERROR) << "parser check failure, date: " << date("%F", date_);
@@ -713,7 +713,7 @@ bool ShareLogParserServer<SHARE>::initShareLogParser(time_t datets) {
 }
 
 template <class SHARE>
-void ShareLogParserServer<SHARE>::getShareStats(struct evbuffer *evb, const char *pUserId,
+void ShareLogParserServerT<SHARE>::getShareStats(struct evbuffer *evb, const char *pUserId,
                                          const char *pWorkerId, const char *pHour) {
   vector<string> vHoursStr;
   vector<string> vWorkerIdsStr;
@@ -770,11 +770,11 @@ void ShareLogParserServer<SHARE>::getShareStats(struct evbuffer *evb, const char
 }
 
 template <class SHARE>
-void ShareLogParserServer<SHARE>::_getShareStats(const vector<WorkerKey> &keys,
+void ShareLogParserServerT<SHARE>::_getShareStats(const vector<WorkerKey> &keys,
                                           const vector<int32_t> &hours,
                                           vector<ShareStats> &shareStats) {
   pthread_rwlock_rdlock(&rwlock_);
-  shared_ptr<ShareLogParser<SHARE>> shareLogParser = shareLogParser_;
+  shared_ptr<ShareLogParserT<SHARE>> shareLogParser = shareLogParser_;
   pthread_rwlock_unlock(&rwlock_);
 
   if (shareLogParser == nullptr)
@@ -800,11 +800,11 @@ void ShareLogParserServer<SHARE>::_getShareStats(const vector<WorkerKey> &keys,
 }
 
 template <class SHARE>
-void ShareLogParserServer<SHARE>::httpdShareStats(struct evhttp_request *req,
+void ShareLogParserServerT<SHARE>::httpdShareStats(struct evhttp_request *req,
                                            void *arg) {
   evhttp_add_header(evhttp_request_get_output_headers(req),
                     "Content-Type", "text/json");
-  ShareLogParserServer<SHARE> *server = (ShareLogParserServer<SHARE> *)arg;
+  ShareLogParserServerT<SHARE> *server = (ShareLogParserServerT<SHARE> *)arg;
   server->requestCount_++;
 
   evhttp_cmd_type rMethod = evhttp_request_get_command(req);
@@ -870,14 +870,14 @@ finish:
 }
 
 template <class SHARE>
-void ShareLogParserServer<SHARE>::getServerStatus(ShareLogParserServer<SHARE>::ServerStatus &s) {
+void ShareLogParserServerT<SHARE>::getServerStatus(ShareLogParserServerT<SHARE>::ServerStatus &s) {
   s.date_          = date_;
   s.uptime_        = (uint32_t)(time(nullptr) - uptime_);
   s.requestCount_  = requestCount_;
   s.responseBytes_ = responseBytes_;
 
   pthread_rwlock_rdlock(&rwlock_);
-  shared_ptr<ShareLogParser<SHARE>> shareLogParser = shareLogParser_;
+  shared_ptr<ShareLogParserT<SHARE>> shareLogParser = shareLogParser_;
   pthread_rwlock_unlock(&rwlock_);
 
   WorkerKey pkey(0, 0);
@@ -889,15 +889,15 @@ void ShareLogParserServer<SHARE>::getServerStatus(ShareLogParserServer<SHARE>::S
 }
 
 template <class SHARE>
-void ShareLogParserServer<SHARE>::httpdServerStatus(struct evhttp_request *req, void *arg) {
+void ShareLogParserServerT<SHARE>::httpdServerStatus(struct evhttp_request *req, void *arg) {
   evhttp_add_header(evhttp_request_get_output_headers(req),
                     "Content-Type", "text/json");
-  ShareLogParserServer<SHARE> *server = (ShareLogParserServer<SHARE> *)arg;
+  ShareLogParserServerT<SHARE> *server = (ShareLogParserServerT<SHARE> *)arg;
   server->requestCount_++;
 
   struct evbuffer *evb = evbuffer_new();
 
-  ShareLogParserServer<SHARE>::ServerStatus s;
+  ShareLogParserServerT<SHARE>::ServerStatus s;
   server->getServerStatus(s);
 
   double rejectRate0 = 0.0, rejectRate1 = 0.0;
@@ -937,7 +937,7 @@ void ShareLogParserServer<SHARE>::httpdServerStatus(struct evhttp_request *req, 
 }
 
 template <class SHARE>
-void ShareLogParserServer<SHARE>::runHttpd() {
+void ShareLogParserServerT<SHARE>::runHttpd() {
   struct evhttp_bound_socket *handle;
   struct evhttp *httpd;
 
@@ -947,9 +947,9 @@ void ShareLogParserServer<SHARE>::runHttpd() {
   evhttp_set_allowed_methods(httpd, EVHTTP_REQ_GET | EVHTTP_REQ_POST | EVHTTP_REQ_HEAD);
   evhttp_set_timeout(httpd, 5 /* timeout in seconds */);
 
-  evhttp_set_cb(httpd, "/",             ShareLogParserServer<SHARE>::httpdServerStatus, this);
-  evhttp_set_cb(httpd, "/share_stats",  ShareLogParserServer<SHARE>::httpdShareStats,   this);
-  evhttp_set_cb(httpd, "/share_stats/", ShareLogParserServer<SHARE>::httpdShareStats,   this);
+  evhttp_set_cb(httpd, "/",             ShareLogParserServerT<SHARE>::httpdServerStatus, this);
+  evhttp_set_cb(httpd, "/share_stats",  ShareLogParserServerT<SHARE>::httpdShareStats,   this);
+  evhttp_set_cb(httpd, "/share_stats/", ShareLogParserServerT<SHARE>::httpdShareStats,   this);
 
   handle = evhttp_bind_socket_with_handle(httpd, httpdHost_.c_str(), httpdPort_);
   if (!handle) {
@@ -960,21 +960,21 @@ void ShareLogParserServer<SHARE>::runHttpd() {
 }
 
 template <class SHARE>
-bool ShareLogParserServer<SHARE>::setupThreadShareLogParser() {
-  threadShareLogParser_ = thread(&ShareLogParserServer<SHARE>::runThreadShareLogParser, this);
+bool ShareLogParserServerT<SHARE>::setupThreadShareLogParser() {
+  threadShareLogParser_ = thread(&ShareLogParserServerT<SHARE>::runThreadShareLogParser, this);
   return true;
 }
 
 template <class SHARE>
-void ShareLogParserServer<SHARE>::runThreadShareLogParser() {
+void ShareLogParserServerT<SHARE>::runThreadShareLogParser() {
   LOG(INFO) << "thread sharelog parser start";
 
   time_t lastFlushDBTime = 0;
 
   while (running_) {
-    // get ShareLogParser
+    // get ShareLogParserT
     pthread_rwlock_rdlock(&rwlock_);
-    shared_ptr<ShareLogParser<SHARE>> shareLogParser = shareLogParser_;
+    shared_ptr<ShareLogParserT<SHARE>> shareLogParser = shareLogParser_;
     pthread_rwlock_unlock(&rwlock_);
 
     // maybe last switch has been fail, we need to check and try again
@@ -1013,7 +1013,7 @@ void ShareLogParserServer<SHARE>::runThreadShareLogParser() {
 }
 
 template <class SHARE>
-void ShareLogParserServer<SHARE>::trySwithBinFile(shared_ptr<ShareLogParser<SHARE>> shareLogParser) {
+void ShareLogParserServerT<SHARE>::trySwithBinFile(shared_ptr<ShareLogParserT<SHARE>> shareLogParser) {
   assert(shareLogParser != nullptr);
 
   const time_t now = time(nullptr);
@@ -1043,7 +1043,7 @@ void ShareLogParserServer<SHARE>::trySwithBinFile(shared_ptr<ShareLogParser<SHAR
 }
 
 template <class SHARE>
-void ShareLogParserServer<SHARE>::run() {
+void ShareLogParserServerT<SHARE>::run() {
   // use current timestamp when first setup
   if (initShareLogParser(time(nullptr)) == false) {
     return;
@@ -1059,11 +1059,11 @@ void ShareLogParserServer<SHARE>::run() {
 ///////////////  template instantiation ///////////////
 // Without this, some linking errors will issued.
 // If you add a new derived class of Share, add it at the following.
-template class ShareLogDumper<ShareBitcoin>;
-template class ShareLogDumper<ShareEth>;
+template class ShareLogDumperT<ShareBitcoin>;
+template class ShareLogDumperT<ShareEth>;
 
-template class ShareLogParser<ShareBitcoin>;
-template class ShareLogParser<ShareEth>;
+template class ShareLogParserT<ShareBitcoin>;
+template class ShareLogParserT<ShareEth>;
 
-template class ShareLogParserServer<ShareBitcoin>;
-template class ShareLogParserServer<ShareEth>;
+template class ShareLogParserServerT<ShareBitcoin>;
+template class ShareLogParserServerT<ShareEth>;
