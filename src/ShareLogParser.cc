@@ -702,12 +702,13 @@ bool ShareLogParserServerT<SHARE>::initShareLogParser(time_t datets) {
   shared_ptr<ShareLogParserT<SHARE>> parser =
     std::make_shared<ShareLogParserT<SHARE>>(chainType_.c_str(), dataDir_, date_, poolDBInfo_);
   
-  if (!shareLogParser_->init()) {
+  if (!parser->init()) {
     LOG(ERROR) << "parser check failure, date: " << date("%F", date_);
     pthread_rwlock_unlock(&rwlock_);
     return false;
   }
 
+  shareLogParser_ = parser;
   pthread_rwlock_unlock(&rwlock_);
   return true;
 }
