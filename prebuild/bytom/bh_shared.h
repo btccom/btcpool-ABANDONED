@@ -112,9 +112,7 @@ extern GoUint8 CheckProofOfWork(GoSlice p0, GoUint64 p1);
 
 extern GoUint8 CheckProofOfWorkCPU(GoSlice p0, GoSlice p1, GoUint64 p2);
 
-extern GoUint64 CalculateTargetByBitsDifficulty(GoUint64 p0, GoUint64 p1);
-
-extern GoUint64 CalculateTargetByDifficulty(GoUint64 p0);
+extern void CalculateTargetBinaryByDifficulty(GoUint64 p0, GoSlice p1);
 
 extern GoUint64 CalculateTargetCompactByDifficulty(GoUint64 p0);
 

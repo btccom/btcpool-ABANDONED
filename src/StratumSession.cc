@@ -1756,7 +1756,6 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
   }
 
 
-  uint64 target = Bytom_DifficultyToTarget(ljob.jobDifficulty_);
   uint64 nonce = (((uint64)server_->serverId_) << 40);
   string notifyStr, nonceStr, versionStr, heightStr, timestampStr, bitsStr;
   Bin2HexR((uint8 *)&nonce, 8, nonceStr);
@@ -1766,7 +1765,19 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
   Bin2Hex((uint8 *)&sJob->blockHeader_.bits, 8, bitsStr);
 
   string targetStr;
-  Bin2Hex((uint8 *)&target, 8, targetStr);
+  {
+    vector<uint8_t> targetBin;
+    Bytom_DifficultyToTargetBinary(ljob.jobDifficulty_, targetBin);
+    //  trim the zeroes to reduce bandwidth
+    unsigned int endIdx = targetBin.size() - 1;
+    for(; endIdx > 0; --endIdx)  //  > 0 (not >=0) because need to print at least 1 byte
+    {
+      if(targetBin[endIdx] != 0)
+        break;
+    }
+    //  reversed based on logic seen in B3-Mimic. Miner expect reversed hex
+    Bin2HexR(targetBin.data(), endIdx + 1, targetStr);  
+  }
 
   string jobString = Strings::Format(
     "{\"version\": \"%s\","
@@ -1795,17 +1806,17 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
   if (isFirstJob)
   {
     notifyStr = Strings::Format(
-        "{\"id\": 1, \"jsonrpc\": \"2.0\", \"result\": {\"id\": \"%s\", \"job\": %s, \"status\": \"OK\"}, \"error\": null}\n",
+        "{\"id\": 1, \"jsonrpc\": \"2.0\", \"result\": {\"id\": \"%s\", \"job\": %s, \"status\": \"OK\"}, \"error\": null}",
         server_->isDevModeEnable_ ? "antminer_1" : worker_.fullName_.c_str(),
         jobString.c_str());
   }
   else
   {
     notifyStr = Strings::Format(
-        "{\"jsonrpc\": \"2.0\", \"method\":\"job\", \"params\": %s}\n",
+        "{\"jsonrpc\": \"2.0\", \"method\":\"job\", \"params\": %s}",
         jobString.c_str());
   }
-  // LOG(INFO) << "sendMiningNotify " << notifyStr.c_str();
+  LOG(INFO) << "Difficulty: " << ljob.jobDifficulty_ << "\nsendMiningNotify " << notifyStr.c_str();
   sendData(notifyStr);
 }
 
