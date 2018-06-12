@@ -19,11 +19,11 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 message("-- Build Type: ${CMAKE_BUILD_TYPE} (-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE})")
 IF(CMAKE_BUILD_TYPE MATCHES Debug)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0 -Wall")
+  set(CMAKE_CXX_FLAGS "-g -O0 -Wall")
 ELSEIF(CMAKE_BUILD_TYPE MATCHES Release)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O2 -Wall")
+  set(CMAKE_CXX_FLAGS "-g -O2 -Wall")
 ELSE()
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall")
+  set(CMAKE_CXX_FLAGS "-g -Wall")
 ENDIF()
 
 # compiler options
@@ -362,7 +362,7 @@ if(USE_CUDA)
   add_subdirectory(src/bytom/cutil)
   set(USE_CUDA_LIBRARIES GpuTs ${CUDA_LIBRARIES} ${CUDA_CUBLAS_LIBRARIES})
 else()
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNO_CUDA")  
+  add_definitions(-DNO_CUDA)
 endif(USE_CUDA)
 
 include_directories(src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config ${CHAIN_SRC_ROOT}/src/secp256k1/include
