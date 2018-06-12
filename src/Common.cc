@@ -23,6 +23,7 @@
  */
 #include "Common.h"
 #include <arith_uint256.h>
+#include "bytom/bh_shared.h"
 
 #include <math.h>
 
@@ -179,6 +180,27 @@ uint64 Eth_TargetToDifficulty(string targetHex) {
   arith_uint256 diff = kMaxUint256 / target;
   return diff.GetLow64();
 }
+
+uint64 Bytom_TargetToDifficulty(uint64 bits)
+{
+  return CalculateDifficultyByTarget(bits);
+}
+
+uint64 Bytom_DifficultyToTarget(uint64 difficulty)
+{
+  return CalculateTargetByDifficulty(difficulty);
+}
+
+uint64 Bytom_JobDifficultyToTargetCompact(uint64 difficulty)
+{
+  return CalculateTargetCompactByDifficulty(difficulty);
+}
+
+uint64 Bytom_BitsDifficultyToTarget(uint64 blockBits, uint64 difficulty)
+{
+  return CalculateTargetByBitsDifficulty(difficulty, blockBits);
+}
+
 
 void Hex256ToEthash256(const string &strHex, ethash_h256_t &ethashHeader)
 {

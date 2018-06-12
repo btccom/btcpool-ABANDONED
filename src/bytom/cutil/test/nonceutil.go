@@ -9,6 +9,7 @@ import "C"
 import (
 	"unsafe"
 
+	"github.com/bytom/mining/tensority"
 	"github.com/bytom/protocol/bc"
 )
 
@@ -23,4 +24,9 @@ func Hash(blockHeader, seed *bc.Hash) *bc.Hash {
 
 	res := bc.NewHash(*(*[32]byte)(unsafe.Pointer(resPtr)))
 	return &res
+}
+
+func HashCPU(hash, seed *bc.Hash) *bc.Hash {
+	compareHash := tensority.AIHash.Hash(hash, seed)
+	return compareHash
 }
