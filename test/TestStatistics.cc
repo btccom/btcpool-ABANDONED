@@ -169,7 +169,7 @@ TEST(ShareStatsDay, ShareStatsDay) {
     ShareStatsDay<ShareBitcoin> stats;
     ShareBitcoin share;
 
-    share.height_ = 504031;
+    share.height_ = 527259;
     share.status_ = StratumStatus::ACCEPT;
     uint64_t shareValue = 1ll;
 
@@ -210,7 +210,7 @@ TEST(ShareStatsDay, ShareStatsDay) {
     ShareStatsDay<ShareBitcoin> stats;
     ShareBitcoin share;
 
-    share.height_ = 504031;
+    share.height_ = 527259;
     share.status_  = StratumStatus::ACCEPT;
     uint64_t shareValue = UINT32_MAX;
 

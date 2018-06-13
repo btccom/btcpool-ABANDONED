@@ -34,6 +34,9 @@ std::string EncodeHexBlockHeader(const CBlockHeader &blkHeader) {
   return HexStr(ssBlkHeader.begin(), ssBlkHeader.end());
 }
 
+#ifndef CHAIN_TYPE_UBTC
+
+/////////////////////// Block Reward of BTC, BCH, SBTC ///////////////////////
 int64_t GetBlockReward(int nHeight, const Consensus::Params& consensusParams)
 {
   int halvings = nHeight / consensusParams.nSubsidyHalvingInterval;
@@ -47,6 +50,53 @@ int64_t GetBlockReward(int nHeight, const Consensus::Params& consensusParams)
   nSubsidy >>= halvings; // this line is secure, it copied from bitcoin's validation.cpp
   return nSubsidy;
 }
+
+#else
+
+/////////////////////// Block Reward of UBTC ///////////////////////
+// copied from UnitedBitcoin-v1.1.0.0
+int64_t GetBlockReward(int nHeight, const Consensus::Params& consensusParams)
+{
+	int halvings;
+
+	if (nHeight < Params().GetConsensus().ForkV1Height)
+	{
+	    halvings = nHeight / consensusParams.nSubsidyHalvingInterval;
+	    // Force block reward to zero when right shift is undefined.
+	    if (halvings >= 64)
+	        return 0;
+
+	    int64_t nSubsidy = 50 * COIN_TO_SATOSHIS;
+	    // Subsidy is cut in half every 210,000 blocks which will occur approximately every 4 years.
+	    nSubsidy >>= halvings;
+	    return nSubsidy;
+	}
+	else {
+		int halfPeriodLeft = consensusParams.ForkV1Height - 1 - consensusParams.nSubsidyHalvingInterval * 2;
+		int halfPeriodRight = (consensusParams.nSubsidyHalvingInterval - halfPeriodLeft) * 10;
+
+		int PeriodEndHeight = consensusParams.ForkV1Height -1 + (consensusParams.nSubsidyHalvingInterval - halfPeriodLeft) * 10;
+		if (nHeight <= PeriodEndHeight)
+			halvings = 2;
+		else
+		{
+			halvings = 3 + (nHeight - PeriodEndHeight - 1) / (consensusParams.nSubsidyHalvingInterval * 10);
+		}
+
+		// Force block reward to zero when right shift is undefined.
+	    if (halvings >= 64)
+	        return 0;
+
+	    int64_t nSubsidy = 50 * COIN_TO_SATOSHIS;
+	    // Subsidy is cut in half every 210,000 blocks which will occur approximately every 4 years.
+	    nSubsidy >>= halvings;
+		nSubsidy = nSubsidy / 10 * 0.8;
+		
+	    return nSubsidy;	
+	}
+}
+
+#endif
 
 int64_t GetBlockRewardEth(int /*nHeight*/) {
   // Ethereum has a static block reward at current
