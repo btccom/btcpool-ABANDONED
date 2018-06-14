@@ -123,9 +123,6 @@ bool WorkerShares<SHARE>::isExpired() {
 
 ////////////////////////////////  StatsServerT  ////////////////////////////////
 template <class SHARE>
-atomic<bool> StatsServerT<SHARE>::isInitializing_(true);
-
-template <class SHARE>
 StatsServerT<SHARE>::StatsServerT(const char *kafkaBrokers, const char *kafkaShareTopic, const char *kafkaCommonEventsTopic,
                                   const string &httpdHost, unsigned short httpdPort,
                                   const MysqlConnectInfo &poolDBInfo,
@@ -137,6 +134,7 @@ kafkaConsumer_(kafkaBrokers, kafkaShareTopic, 0/* patition */),
 kafkaConsumerCommonEvents_(kafkaBrokers, kafkaCommonEventsTopic, 0/* patition */),
 poolDB_(poolDBInfo), poolDBCommonEvents_(poolDBInfo),
 kFlushDBInterval_(kFlushDBInterval), isInserting_(false),
+lastShareTime_(0), isInitializing_(true), lastFlushTime_(0),
 fileLastFlushTime_(fileLastFlushTime), dupShareChecker_(dupShareChecker),
 base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort),
 requestCount_(0), responseBytes_(0)
@@ -350,9 +348,10 @@ void StatsServerT<SHARE>::_flushWorkersToDBThread() {
   }
   LOG(INFO) << "flush mining workers to DB... done, items: " << counter;
   
+  lastFlushTime_ = time(nullptr);
   // save flush timestamp to file, for monitor system
   if (!fileLastFlushTime_.empty())
-  	writeTime2File(fileLastFlushTime_.c_str(), (uint32_t)time(nullptr));
+  	writeTime2File(fileLastFlushTime_.c_str(), lastFlushTime_);
 
 finish:
   isInserting_ = false;
@@ -779,8 +778,8 @@ void StatsServerT<SHARE>::httpdServerStatus(struct evhttp_request *req, void *ar
 
   struct evbuffer *evb = evbuffer_new();
 
-  // service is initializing, return
-  if (isInitializing_) {
+  // service is initializing, response a error message
+  if (server->isInitializing_) {
     evbuffer_add_printf(evb, "{\"err_no\":2,\"err_msg\":\"service is initializing...\"}");
     evhttp_send_reply(req, HTTP_OK, "OK", evb);
     evbuffer_free(evb);
@@ -846,8 +845,8 @@ void StatsServerT<SHARE>::httpdGetWorkerStatus(struct evhttp_request *req, void 
   // evbuffer for output
   struct evbuffer *evb = evbuffer_new();
 
-  // service is initializing, return
-  if (isInitializing_) {
+  // service is initializing, response a error message
+  if (server->isInitializing_) {
     evbuffer_add_printf(evb, "{\"err_no\":2,\"err_msg\":\"service is initializing...\"}");
     evhttp_send_reply(req, HTTP_OK, "OK", evb);
     evbuffer_free(evb);
@@ -952,6 +951,31 @@ void StatsServerT<SHARE>::getWorkerStatus(struct evbuffer *evb, const char *pUse
 }
 
 template <class SHARE>
+void StatsServerT<SHARE>::httpdGetFlushDBTime(struct evhttp_request *req, void *arg) {
+  evhttp_add_header(evhttp_request_get_output_headers(req),
+                    "Content-Type", "text/json");
+  StatsServerT *server = (StatsServerT *)arg;
+  server->requestCount_++;
+
+  struct evbuffer *evb = evbuffer_new();
+
+  // service is initializing, return
+  if (server->isInitializing_) {
+    evbuffer_add_printf(evb, "{\"err_no\":2,\"err_msg\":\"service is initializing...\"}");
+    evhttp_send_reply(req, HTTP_OK, "OK", evb);
+    evbuffer_free(evb);
+
+    return;
+  }
+  
+  evbuffer_add_printf(evb, "{\"err_no\":0,\"err_msg\":\"\",\"data\":{\"flush_db_time\":%" PRId64 "}}", (int64_t)server->lastFlushTime_);
+
+  server->responseBytes_ += evbuffer_get_length(evb);
+  evhttp_send_reply(req, HTTP_OK, "OK", evb);
+  evbuffer_free(evb);
+}
+
+template <class SHARE>
 void StatsServerT<SHARE>::runHttpd() {
   struct evhttp_bound_socket *handle;
   struct evhttp *httpd;
@@ -965,6 +989,7 @@ void StatsServerT<SHARE>::runHttpd() {
   evhttp_set_cb(httpd, "/",               StatsServerT<SHARE>::httpdServerStatus, this);
   evhttp_set_cb(httpd, "/worker_status",  StatsServerT<SHARE>::httpdGetWorkerStatus, this);
   evhttp_set_cb(httpd, "/worker_status/", StatsServerT<SHARE>::httpdGetWorkerStatus, this);
+  evhttp_set_cb(httpd, "/flush_db_time",  StatsServerT<SHARE>::httpdGetFlushDBTime, this);
 
   handle = evhttp_bind_socket_with_handle(httpd, httpdHost_.c_str(), httpdPort_);
   if (!handle) {
