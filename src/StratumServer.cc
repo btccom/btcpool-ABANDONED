@@ -1606,6 +1606,7 @@ void Server::sendCommonEvents2Kafka(const string &message) {
 
 ////////////////////////////////// ServierEth ///////////////////////////////
 int ServerEth::checkShare(const ShareEth &share,
+                          const uint64_t jobId,
                           const uint64_t nonce,
                           const uint256 header,
                           const uint256 mixHash,
@@ -1616,7 +1617,7 @@ int ServerEth::checkShare(const ShareEth &share,
     return StratumStatus::ILLEGAL_PARARMS;
   }
 
-  shared_ptr<StratumJobEx> exJobPtr = jobRepository_->getStratumJobEx(share.jobId_);
+  shared_ptr<StratumJobEx> exJobPtr = jobRepository_->getStratumJobEx(jobId);
   if (nullptr == exJobPtr)
   {
     return StratumStatus::JOB_NOT_FOUND;

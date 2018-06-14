@@ -343,7 +343,7 @@ public:
 
   const static uint32_t CURRENT_VERSION = 0x00110002u; // first 0011: ETH, second 0002: version 2
 
-  uint64_t jobId_       = 0;
+  uint64_t headerHash_  = 0;
   uint64_t shareDiff_   = 0;
   uint64_t networkDiff_ = 0;
   uint64_t nonce_       = 0;
@@ -382,7 +382,7 @@ public:
     c += (uint64_t) timestamp_;
     c += (uint64_t) ip_.addrUint64[0];
     c += (uint64_t) ip_.addrUint64[1];
-    c += (uint64_t) jobId_;
+    c += (uint64_t) headerHash_;
     c += (uint64_t) shareDiff_;
     c += (uint64_t) networkDiff_;
     c += (uint64_t) nonce_;
@@ -403,8 +403,8 @@ public:
       return false;
     }
 
-    if (jobId_ == 0 || userId_ == 0 || workerHashId_ == 0 ||
-        height_ == 0 || networkDiff_ == 0 || shareDiff_ == 0)
+    if (userId_ == 0 || workerHashId_ == 0 || height_ == 0 ||
+        networkDiff_ == 0 || shareDiff_ == 0)
     {
       return false;
     }
@@ -414,14 +414,14 @@ public:
 
   string toString() const
   {
-    return Strings::Format("share(jobId: %" PRIu64 ", ip: %s, userId: %d, "
-                           "workerId: %" PRId64 ", time: %u/%s, height: %u, "
-                           "shareDiff: %" PRIu64 ", networkDiff: %" PRIu64 ", nonce: %016" PRIx64 ", sessionId: %08x, "
-                           "status: %d/%s)",
-                           jobId_, ip_.toString().c_str(), userId_,
-                           workerHashId_, timestamp_, date("%F %T", timestamp_).c_str(), height_,
-                           shareDiff_, networkDiff_, nonce_, sessionId_,
-                           status_, StratumStatus::toString(status_));
+    return Strings::Format("share(height: %u, headerHash: %016" PRIx64 "..., ip: %s, userId: %d, "
+                           "workerId: %" PRId64 ", time: %u/%s, "
+                           "shareDiff: %" PRIu64 ", networkDiff: %" PRIu64 ", nonce: %016" PRIx64 ", "
+                           "sessionId: %08x, status: %d/%s)",
+                           height_, headerHash_, ip_.toString().c_str(), userId_,
+                           workerHashId_, timestamp_, date("%F %T", timestamp_).c_str(),
+                           shareDiff_, networkDiff_, nonce_,
+                           sessionId_, status_, StratumStatus::toString(status_));
   }
 };
 

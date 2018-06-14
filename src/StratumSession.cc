@@ -1436,6 +1436,8 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   uint64_t nonce = stoull(sNonce, nullptr, 16);
   uint32_t height = 0;
   uint64_t networkDiff = 0;
+  // Used to prevent duplicate shares.
+  uint64_t headerPrefix = stoull(sHeader.substr(0, 16), nullptr, 16);
 
   shared_ptr<StratumJobEx> exjob;
   exjob = server_->jobRepository_->getStratumJobEx(localJob->jobId_);
@@ -1446,7 +1448,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
 
   ShareEth share;
   share.version_      = ShareEth::CURRENT_VERSION;
-  share.jobId_        = localJob->jobId_;
+  share.headerHash_   = headerPrefix;
   share.workerHashId_ = worker_.workerHashId_;
   share.userId_       = worker_.userId_;
   share.shareDiff_    = localJob->jobDifficulty_;
@@ -1472,7 +1474,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
 
   DLOG(INFO) << "share job diff: " << localJob->jobDifficulty_;
 
-  share.status_ = s->checkShare(share, nonce, uint256S(sHeader), uint256S(sMixHash),
+  share.status_ = s->checkShare(share, localJob->jobId_, nonce, uint256S(sHeader), uint256S(sMixHash),
                                 uint256S(Eth_DifficultyToTarget(localJob->jobDifficulty_)));
 
   // we send share to kafka by default, but if there are lots of invalid

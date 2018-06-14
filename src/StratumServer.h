@@ -385,6 +385,7 @@ class ServerEth : public Server
 public:
   ServerEth(const int32_t shareAvgSeconds) : Server(shareAvgSeconds) {}
   int checkShare(const ShareEth &share,
+                 const uint64_t jobId,
                  const uint64_t nonce,
                  const uint256 header,
                  const uint256 mixHash,
