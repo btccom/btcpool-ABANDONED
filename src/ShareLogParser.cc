@@ -122,8 +122,11 @@ void ShareLogDumperT<SHARE>::parseShare(const SHARE *share) {
 ///////////////////////////////  ShareLogParserT  ///////////////////////////////
 template <class SHARE>
 ShareLogParserT<SHARE>::ShareLogParserT(const char *chainType, const string &dataDir,
-                               time_t timestamp, const MysqlConnectInfo &poolDBInfo)
-: date_(timestamp), chainType_(chainType), f_(nullptr), buf_(nullptr), lastPosition_(0), poolDB_(poolDBInfo)
+                               time_t timestamp, const MysqlConnectInfo &poolDBInfo,
+                               shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker)
+: date_(timestamp), chainType_(chainType), f_(nullptr), buf_(nullptr)
+, lastPosition_(0), poolDB_(poolDBInfo)
+, dupShareChecker_(dupShareChecker)
 {
   pthread_rwlock_init(&rwlock_, nullptr);
 
@@ -195,6 +198,10 @@ template <class SHARE>
 void ShareLogParserT<SHARE>::parseShare(const SHARE *share) {
   if (!share->isValid()) {
     LOG(ERROR) << "invalid share: " << share->toString();
+    return;
+  }
+  if (dupShareChecker_ && !dupShareChecker_->addShare(*share)) {
+    LOG(INFO) << "duplicate share attack: " << share->toString();
     return;
   }
 
@@ -655,9 +662,11 @@ ShareLogParserServerT<SHARE>::ShareLogParserServerT(const char *chainType,
                                            const string &httpdHost,
                                            unsigned short httpdPort,
                                            const MysqlConnectInfo &poolDBInfo,
-                                           const uint32_t kFlushDBInterval):
+                                           const uint32_t kFlushDBInterval,
+                                           shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker):
 running_(true), chainType_(chainType), dataDir_(dataDir),
 poolDBInfo_(poolDBInfo), kFlushDBInterval_(kFlushDBInterval),
+dupShareChecker_(dupShareChecker),
 base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort),
 requestCount_(0), responseBytes_(0)
 {
@@ -699,8 +708,8 @@ bool ShareLogParserServerT<SHARE>::initShareLogParser(time_t datets) {
   shareLogParser_ = nullptr;
 
   // set new obj
-  shared_ptr<ShareLogParserT<SHARE>> parser =
-    std::make_shared<ShareLogParserT<SHARE>>(chainType_.c_str(), dataDir_, date_, poolDBInfo_);
+  shared_ptr<ShareLogParserT<SHARE>> parser = std::make_shared<ShareLogParserT<SHARE>>(
+    chainType_.c_str(), dataDir_, date_, poolDBInfo_, dupShareChecker_);
   
   if (!parser->init()) {
     LOG(ERROR) << "parser check failure, date: " << date("%F", date_);

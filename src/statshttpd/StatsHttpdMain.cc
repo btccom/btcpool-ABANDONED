@@ -58,17 +58,19 @@ std::shared_ptr<StatsServer> newStatsServer(const string &chainType, const char 
                                             const char *kafkaShareTopic, const char *kafkaCommonEventsTopic,
                                             const string &httpdHost, unsigned short httpdPort,
                                             const MysqlConnectInfo &poolDBInfo,
-                                            const time_t kFlushDBInterval, const string &fileLastFlushTime)
+                                            const time_t kFlushDBInterval, const string &fileLastFlushTime,
+                                            const int dupShareTrackingHeight)
 {
   if (chainType == "BTC") {
     return std::make_shared<StatsServerBitcoin>(kafkaBrokers, kafkaShareTopic, kafkaCommonEventsTopic,
                                                 httpdHost, httpdPort, poolDBInfo,
-                                                kFlushDBInterval, fileLastFlushTime);
+                                                kFlushDBInterval, fileLastFlushTime, nullptr);
   }
   else if (chainType == "ETH") {
     return std::make_shared<StatsServerEth>(kafkaBrokers, kafkaShareTopic, kafkaCommonEventsTopic,
                                             httpdHost, httpdPort, poolDBInfo,
-                                            kFlushDBInterval, fileLastFlushTime);
+                                            kFlushDBInterval, fileLastFlushTime,
+                                            std::make_shared<DuplicateShareCheckerEth>(dupShareTrackingHeight));
   }
   else {
     LOG(FATAL) << "newStatsServer: unknown chain type " << chainType;
@@ -149,16 +151,19 @@ int main(int argc, char **argv) {
 
     int32_t port = 8080;
     int32_t flushInterval = 20;
+    int32_t dupShareTrackingHeight = 0;
     cfg.lookupValue("statshttpd.port", port);
     cfg.lookupValue("statshttpd.flush_db_interval", flushInterval);
-    cfg.lookupValue("statshttpd.file_last_flush_time",   fileLastFlushTime);
+    cfg.lookupValue("statshttpd.file_last_flush_time", fileLastFlushTime);
+    cfg.lookupValue("dup_share_checker.tracking_height_number", dupShareTrackingHeight);
     gStatsServer = newStatsServer(cfg.lookup("statshttpd.chain_type"),
                                   cfg.lookup("kafka.brokers").c_str(),
                                   cfg.lookup("statshttpd.share_topic").c_str(),
                                   cfg.lookup("statshttpd.common_events_topic").c_str(),
                                   cfg.lookup("statshttpd.ip").c_str(),
                                   (unsigned short)port, *poolDBInfo,
-                                  (time_t)flushInterval, fileLastFlushTime);
+                                  (time_t)flushInterval, fileLastFlushTime,
+                                  dupShareTrackingHeight);
     if (gStatsServer->init()) {
     	gStatsServer->run();
     }

@@ -176,7 +176,6 @@ public:
 }
 
 
-
 /////////////////////////////////  ShareStats  /////////////////////////////////
 class ShareStats {
 public:
@@ -187,7 +186,6 @@ public:
 
   ShareStats(): shareAccept_(0U), shareReject_(0U), rejectRate_(0.0), earn_(0.0) {}
 };
-
 
 
 ///////////////////////////////  ShareStatsDay  ////////////////////////////////
@@ -219,5 +217,92 @@ public:
   void getShareStatsHour(uint32_t hourIdx, ShareStats *stats);
   void getShareStatsDay(ShareStats *stats);
 };
+
+
+///////////////////////////////  GlobalShareEth  ////////////////////////////////
+// Used to detect duplicate share attacks on ETH mining.
+struct GlobalShareEth {
+  uint64_t headerHash_;
+  uint64_t nonce_;
+
+  GlobalShareEth() = default;
+
+  GlobalShareEth(const ShareEth &share)
+    : headerHash_(share.headerHash_)
+    , nonce_(share.nonce_)
+  {}
+
+  GlobalShareEth& operator=(const GlobalShareEth &r) = default;
+
+  bool operator<(const GlobalShareEth &r) const {
+    if (headerHash_ < r.headerHash_ ||
+        (headerHash_ == r.headerHash_ && nonce_ < r.nonce_)) {
+      return true;
+    }
+    return false;
+  }
+};
+
+///////////////////////////////  DuplicateShareCheckerT  ////////////////////////////////
+// Used to detect duplicate share attacks.
+// Interface
+template <class SHARE>
+class DuplicateShareChecker {
+public:
+  virtual ~DuplicateShareChecker() {}
+  virtual bool addShare(const SHARE &share) = 0;
+};
+
+///////////////////////////////  DuplicateShareCheckerT  ////////////////////////////////
+// Used to detect duplicate share attacks on ETH mining.
+template <class SHARE, class GSHARE>
+class DuplicateShareCheckerT : public DuplicateShareChecker<SHARE> {
+public:
+  using GShareSet = std::set<GSHARE>;
+
+  DuplicateShareCheckerT(uint32_t trackingHeightNumber)
+    : trackingHeightNumber_(trackingHeightNumber)
+  {}
+
+  bool addGShare(uint32_t height, const GSHARE &gshare) {
+    GShareSet &gset = gshareSetMap_[height];
+
+    auto itr = gset.find(gshare);
+    if (itr != gset.end()) {
+      return false;  // already exist
+    }
+
+    gset.insert(gshare);
+
+    if (gshareSetMap_.size() > trackingHeightNumber_) {
+      clearExcessGShareSet();
+    }
+
+    return true;
+  }
+
+  bool addShare(const SHARE &share) {
+    return addGShare(share.height_, GSHARE(share));
+  }
+
+  size_t gshareSetMapSize() {
+    return gshareSetMap_.size();
+  }
+
+private:
+  inline void clearExcessGShareSet() {
+    for (
+      auto itr = gshareSetMap_.begin();
+      gshareSetMap_.size() > trackingHeightNumber_;
+      itr = gshareSetMap_.erase(itr)
+    );
+  }
+
+  std::map<uint32_t /*height*/, GShareSet> gshareSetMap_;
+  const uint32_t trackingHeightNumber_; // if set to 3, max(gshareSetMap_.size()) == 3
+};
+
+////////////////////////////  Alias  ////////////////////////////
+using DuplicateShareCheckerEth = DuplicateShareCheckerT<ShareEth, GlobalShareEth>;
 
 #endif

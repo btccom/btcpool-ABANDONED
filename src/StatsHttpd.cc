@@ -129,14 +129,15 @@ template <class SHARE>
 StatsServerT<SHARE>::StatsServerT(const char *kafkaBrokers, const char *kafkaShareTopic, const char *kafkaCommonEventsTopic,
                                   const string &httpdHost, unsigned short httpdPort,
                                   const MysqlConnectInfo &poolDBInfo,
-                                  const time_t kFlushDBInterval, const string &fileLastFlushTime):
+                                  const time_t kFlushDBInterval, const string &fileLastFlushTime,
+                                  shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker):
 running_(true), totalWorkerCount_(0), totalUserCount_(0), uptime_(time(nullptr)),
 poolWorker_(0u/* worker id */, 0/* user id */),
 kafkaConsumer_(kafkaBrokers, kafkaShareTopic, 0/* patition */),
 kafkaConsumerCommonEvents_(kafkaBrokers, kafkaCommonEventsTopic, 0/* patition */),
 poolDB_(poolDBInfo), poolDBCommonEvents_(poolDBInfo),
 kFlushDBInterval_(kFlushDBInterval), isInserting_(false),
-fileLastFlushTime_(fileLastFlushTime),
+fileLastFlushTime_(fileLastFlushTime), dupShareChecker_(dupShareChecker),
 base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort),
 requestCount_(0), responseBytes_(0)
 {
@@ -474,6 +475,10 @@ void StatsServerT<SHARE>::consumeShareLog(rd_kafka_message_t *rkmessage) {
 
   if (!share.isValid()) {
     LOG(ERROR) << "invalid share: " << share.toString();
+    return;
+  }
+  if (dupShareChecker_ && !dupShareChecker_->addShare(share)) {
+    LOG(INFO) << "duplicate share attack: " << share.toString();
     return;
   }
 

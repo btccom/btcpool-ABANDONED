@@ -254,3 +254,146 @@ TEST(ShareStatsDay, ShareStatsDay) {
     #endif
   }
 }
+
+////////////////////////////////  GlobalShare  ///////////////////////////////
+TEST(GlobalShare, GlobalShareEth) {
+    ShareEth share1;
+    share1.headerHash_ = 0x12345678;
+    share1.nonce_ = 0x87654321;
+
+    ShareEth share2;
+    share2.headerHash_ = 0x12345678;
+    share2.nonce_ = 0x33333333;
+
+    ShareEth share3;
+    share3.headerHash_ = 0x33333333;
+    share3.nonce_ = 0x55555555;
+
+    GlobalShareEth a(share1);
+    GlobalShareEth b(share2);
+    GlobalShareEth c(share3);
+    GlobalShareEth d(share3);
+
+    ASSERT_EQ(a < a, false);
+
+    ASSERT_EQ(c < d, false);
+    ASSERT_EQ(d < c, false);
+
+    ASSERT_EQ(a < b, false);
+    ASSERT_EQ(b < a, true);
+
+    ASSERT_EQ(a < c, true);
+    ASSERT_EQ(c < a, false);
+
+    ASSERT_EQ(b < c, true);
+    ASSERT_EQ(c < b, false);
+}
+
+////////////////////////////////  DuplicateShareChecker  ///////////////////////////////
+TEST(DuplicateShareChecker, DuplicateShareCheckerEth) {
+  // same share
+  {
+    DuplicateShareCheckerEth dsc(3);
+
+    ShareEth share;
+    share.height_ = 12345;
+    share.headerHash_ = 0x12345678;
+    share.nonce_ = 0x87654321;
+
+    ASSERT_EQ(dsc.addShare(share), true);
+    ASSERT_EQ(dsc.addShare(share), false);
+    ASSERT_EQ(dsc.addShare(share), false);
+  }
+
+  // different height
+  {
+    DuplicateShareCheckerEth dsc(3);
+
+    ShareEth share;
+    share.height_ = 12345;
+    share.headerHash_ = 0x12345678;
+    share.nonce_ = 0x87654321;
+
+    ASSERT_EQ(dsc.addShare(share), true);
+
+    share.height_ = 12346;
+    ASSERT_EQ(dsc.addShare(share), true);
+
+    share.height_ = 12347;
+    ASSERT_EQ(dsc.addShare(share), true);
+
+    share.height_ = 12348;
+    ASSERT_EQ(dsc.addShare(share), true);
+
+    share.height_ = 12347;
+    ASSERT_EQ(dsc.addShare(share), false);
+
+    share.height_ = 12346;
+    ASSERT_EQ(dsc.addShare(share), false);
+
+    share.height_ = 12349;
+    ASSERT_EQ(dsc.addShare(share), true);
+
+    ASSERT_EQ(dsc.gshareSetMapSize(), 3ull);
+  }
+
+  // different headerHash
+  {
+    DuplicateShareCheckerEth dsc(3);
+
+    ShareEth share;
+    share.height_ = 12345;
+    share.headerHash_ = 0x12345678;
+    share.nonce_ = 0x87654321;
+
+    ASSERT_EQ(dsc.addShare(share), true);
+
+    share.headerHash_ = 0x123;
+    ASSERT_EQ(dsc.addShare(share), true);
+
+    share.headerHash_ = 0x456;
+    ASSERT_EQ(dsc.addShare(share), true);
+
+    share.headerHash_ = 0x123;
+    ASSERT_EQ(dsc.addShare(share), false);
+
+    share.headerHash_ = 0x456;
+    ASSERT_EQ(dsc.addShare(share), false);
+
+    share.headerHash_ = 0x12345678;
+    ASSERT_EQ(dsc.addShare(share), false);
+
+    share.headerHash_ = 0x87654321;
+    ASSERT_EQ(dsc.addShare(share), true);
+  }
+
+  // different nonce
+  {
+    DuplicateShareCheckerEth dsc(3);
+
+    ShareEth share;
+    share.height_ = 12345;
+    share.headerHash_ = 0x12345678;
+    share.nonce_ = 0x87654321;
+
+    ASSERT_EQ(dsc.addShare(share), true);
+
+    share.nonce_ = 0x123;
+    ASSERT_EQ(dsc.addShare(share), true);
+
+    share.nonce_ = 0x456;
+    ASSERT_EQ(dsc.addShare(share), true);
+
+    share.nonce_ = 0x123;
+    ASSERT_EQ(dsc.addShare(share), false);
+
+    share.nonce_ = 0x456;
+    ASSERT_EQ(dsc.addShare(share), false);
+
+    share.nonce_ = 0x12345678;
+    ASSERT_EQ(dsc.addShare(share), true);
+
+    share.nonce_ = 0x87654321;
+    ASSERT_EQ(dsc.addShare(share), false);
+  }
+}

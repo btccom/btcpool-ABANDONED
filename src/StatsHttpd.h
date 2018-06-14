@@ -154,6 +154,8 @@ class StatsServerT : public StatsServer {
 
   int32_t height_; // block height (TODO: change the summation mechanism and delete the member)
 
+  shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker_; // Used to detect duplicate share attacks.
+
   // httpd
   struct event_base *base_;
   string httpdHost_;
@@ -187,7 +189,8 @@ public:
   StatsServerT(const char *kafkaBrokers, const char *kafkaShareTopic, const char *kafkaCommonEventsTopic,
                const string &httpdHost, unsigned short httpdPort,
                const MysqlConnectInfo &poolDBInfo,
-               const time_t kFlushDBInterval, const string &fileLastFlushTime);
+               const time_t kFlushDBInterval, const string &fileLastFlushTime,
+               shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker);
   ~StatsServerT();
 
   bool init();
