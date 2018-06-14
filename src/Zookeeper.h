@@ -28,6 +28,7 @@
 #include <zookeeper/proto.h>
 
 #include <string>
+#include <stdexcept>
 
 using std::string;
 
