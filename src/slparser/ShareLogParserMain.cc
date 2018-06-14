@@ -191,7 +191,7 @@ int main(int argc, char **argv) {
     // chain type
     string chainType = cfg.lookup("sharelog.chain_type");
     // Track duplicate shares within N blocks.
-    int32_t dupShareTrackingHeight = 0;
+    int32_t dupShareTrackingHeight = 3;
     cfg.lookupValue("dup_share_checker.tracking_height_number", dupShareTrackingHeight);
 
     //////////////////////////////////////////////////////////////////////////////

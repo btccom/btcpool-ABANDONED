@@ -151,7 +151,7 @@ int main(int argc, char **argv) {
 
     int32_t port = 8080;
     int32_t flushInterval = 20;
-    int32_t dupShareTrackingHeight = 0;
+    int32_t dupShareTrackingHeight = 3;
     cfg.lookupValue("statshttpd.port", port);
     cfg.lookupValue("statshttpd.flush_db_interval", flushInterval);
     cfg.lookupValue("statshttpd.file_last_flush_time", fileLastFlushTime);

@@ -262,7 +262,11 @@ public:
 
   DuplicateShareCheckerT(uint32_t trackingHeightNumber)
     : trackingHeightNumber_(trackingHeightNumber)
-  {}
+  {
+    if (trackingHeightNumber == 0) {
+      LOG(FATAL) << "DuplicateShareChecker: trackingHeightNumber should not be 0.";
+    }
+  }
 
   bool addGShare(uint32_t height, const GSHARE &gshare) {
     GShareSet &gset = gshareSetMap_[height];
