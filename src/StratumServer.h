@@ -390,7 +390,8 @@ public:
                  const uint256 header,
                  const uint256 mixHash,
                  const uint256 jobTarget);
-  void sendSolvedShare2Kafka(const string& strNonce, const string& strHeader, const string& strMix);
+  void sendSolvedShare2Kafka(const string& strNonce, const string& strHeader, const string& strMix,
+                             const uint32_t height, const uint64_t networkDiff, const StratumWorker &worker);
 
   virtual JobRepository* createJobRepository(const char *kafkaBrokers,
                                     const char *consumerTopic,

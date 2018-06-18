@@ -1482,7 +1482,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
 
   if (StratumStatus::SOLVED == share.status_)
   {
-    s->sendSolvedShare2Kafka(sNonce, sHeader, sMixHash);
+    s->sendSolvedShare2Kafka(sNonce, sHeader, sMixHash, height, networkDiff, worker_);
 
     diffController_->addAcceptedShare(share.shareDiff_);
     rpc2ResponseBoolean(idStr, true);

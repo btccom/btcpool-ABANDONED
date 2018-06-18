@@ -1029,10 +1029,21 @@ void BlockMakerEth::processSolvedShare(rd_kafka_message_t *rkmessage)
   if (r.type() != Utilities::JS::type::Obj ||
       r["nonce"].type() != Utilities::JS::type::Str ||
       r["header"].type() != Utilities::JS::type::Str ||
-      r["mix"].type() != Utilities::JS::type::Str)
+      r["mix"].type() != Utilities::JS::type::Str ||
+      r["height"].type() != Utilities::JS::type::Int ||
+      r["networkDiff"].type() != Utilities::JS::type::Int ||
+      r["userId"].type() != Utilities::JS::type::Int ||
+      r["workerId"].type() != Utilities::JS::type::Int ||
+      r["workerFullName"].type() != Utilities::JS::type::Str)
   {
     LOG(ERROR) << "eth solved share format wrong";
+    return;
   }
+
+  StratumWorker worker;
+  worker.userId_ = r["userId"].int32();
+  worker.workerHashId_ = r["workerId"].int64();
+  worker.fullName_ = r["workerFullName"].str();
 
   string request = Strings::Format("{\"jsonrpc\": \"2.0\", \"method\": \"eth_submitWork\", \"params\": [\"%s\",\"%s\",\"%s\"], \"id\": 5}\n",
                                    r["nonce"].str().c_str(),
@@ -1040,6 +1051,8 @@ void BlockMakerEth::processSolvedShare(rd_kafka_message_t *rkmessage)
                                    r["mix"].str().c_str());
 
   submitBlockNonBlocking(request);
+  saveBlockToDBNonBlocking(r["header"].str().c_str(), r["height"].uint32(),
+                           r["networkDiff"].uint64(), worker);
 }
 
 bool BlockMakerEth::init() {
@@ -1073,6 +1086,45 @@ void BlockMakerEth::_submitBlockThread(const string &rpcAddress, const string &r
   string response;
   bitcoindRpcCall(rpcAddress.c_str(), rpcUserpass.c_str(), blockJson.c_str(), response);
   LOG(INFO) << "submission result: " << response;
+}
+
+void BlockMakerEth::saveBlockToDBNonBlocking(const string &header, const uint32_t height,
+                                             const uint64_t networkDiff, const StratumWorker &worker) {
+  boost::thread t(boost::bind(&BlockMakerEth::_saveBlockToDBThread, this,
+                              header, height, networkDiff, worker));
+}
+
+void BlockMakerEth::_saveBlockToDBThread(const string &header, const uint32_t height,
+                                         const uint64_t networkDiff, const StratumWorker &worker) {
+  const string nowStr = date("%F %T");
+  string sql;
+  sql = Strings::Format("INSERT INTO `found_blocks` "
+                        " (`puid`, `worker_id`"
+                        ", `worker_full_name`"
+                        ", `height`, `hash`, `rewards`"
+                        ", `network_diff`, `created_at`)"
+                        " VALUES (%ld, %" PRId64
+                        ", '%s'"
+                        ", %lu, '%s', %" PRId64
+                        ", %" PRIu64 ", '%s'); ",
+                        worker.userId_, worker.workerHashId_,
+                        // filter again, just in case
+                        filterWorkerName(worker.fullName_).c_str(),
+                        height, header.c_str(), GetBlockRewardEth(height),
+                        networkDiff, nowStr.c_str());
+
+  // try connect to DB
+  MySQLConnection db(poolDB_);
+  for (size_t i = 0; i < 3; i++) {
+    if (db.ping())
+      break;
+    else
+      sleep(3);
+  }
+
+  if (db.execute(sql) == false) {
+    LOG(ERROR) << "insert found block failure: " << sql;
+  }
 }
 
 //////////////////////////////////////BlockMakerSia//////////////////////////////////////////////////
