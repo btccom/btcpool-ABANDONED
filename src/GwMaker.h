@@ -103,6 +103,7 @@ class GwMakerHandlerEth : public GwMakerHandler
   virtual string constructRawMsg(JsonNode &r);
   string processRawGw(const string &gw) override;
   string getRequestData() override { return "{\"jsonrpc\": \"2.0\", \"method\": \"eth_getWork\", \"params\": [], \"id\": 1}"; }
+  string getBlockHeight();
 };
 
 class GwMakerHandlerBytom : public GwMakerHandlerEth

@@ -277,12 +277,32 @@ bool GwMakerHandlerEth::checkFields(JsonNode &r)
 
 string GwMakerHandlerEth::constructRawMsg(JsonNode &r) {
   auto result = r["result"].array();
+
+  string heightStr = "";
+
+  // height/block-number in eth_getWork.
+  // Parity will response this field.
+  if (result[3].type() == Utilities::JS::type::Str) {
+    heightStr = result[3].str();
+  }
+  // Get block height via eth_getBlockByNumber(pending, false)
+  // The result may be wrong because a new block is found.
+  else {
+    heightStr = getBlockHeight();
+  }
+
+  long height = strtol(heightStr.c_str(), nullptr, 16);
+  if (height < 1 || height == LONG_MAX) {
+    LOG(WARNING) << "block height/number wrong: " << heightStr << " (" << height << ")";
+    return "";
+  }
   
   LOG(INFO) << "chain: "    << def_.chainType_
             << ", topic: "  << def_.rawGwTopic_
             << ", target: " << result[2].str()
             << ", hHash: "  << result[0].str()
-            << ", sHash: "  << result[1].str();
+            << ", sHash: "  << result[1].str()
+            << ", height: " << height;
 
   return Strings::Format("{\"created_at_ts\":%u,"
                          "\"chainType\":\"%s\","
@@ -290,14 +310,44 @@ string GwMakerHandlerEth::constructRawMsg(JsonNode &r) {
                          "\"rpcUserPwd\":\"%s\","
                          "\"target\":\"%s\","
                          "\"hHash\":\"%s\","
-                         "\"sHash\":\"%s\"}",
+                         "\"sHash\":\"%s\","
+                         "\"height\":%ld}",
                          (uint32_t)time(nullptr),
                          def_.chainType_.c_str(),
                          def_.rpcAddr_.c_str(), 
                          def_.rpcUserPwd_.c_str(),
                          result[2].str().c_str(),
                          result[0].str().c_str(), 
-                         result[1].str().c_str());
+                         result[1].str().c_str(),
+                         height);
+}
+
+string GwMakerHandlerEth::getBlockHeight() {
+  const string request = "{\"jsonrpc\":\"2.0\",\"method\":\"eth_getBlockByNumber\",\"params\":[\"pending\", false],\"id\":2}";
+
+  string response;
+  bool res = bitcoindRpcCall(def_.rpcAddr_.c_str(), def_.rpcUserPwd_.c_str(), request.c_str(), response);
+  if (!res) {
+    LOG(ERROR) << "get pending block failed";
+    return "";
+  }
+
+  JsonNode j;
+  if (!JsonNode::parse(response.c_str(), response.c_str() + response.length(), j))
+  {
+    LOG(ERROR) << "deserialize block informaiton failed";
+    return "";
+  }
+
+  JsonNode result = j["result"];
+  if (result.type() != Utilities::JS::type::Obj ||
+      result["number"].type() != Utilities::JS::type::Str)
+  {
+    LOG(ERROR) << "block informaiton format not expected: " << response;
+    return "";
+  }
+
+  return result["number"].str();
 }
 
 ///////////////////////////////GwMakerHandlerBytom////////////////////////////////////
