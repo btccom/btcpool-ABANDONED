@@ -75,12 +75,15 @@ private:
 
 class RskWorkEth : public RskWork {
   virtual bool validate(JsonNode &work);
-  virtual void initialize(JsonNode &work); 
+  virtual void initialize(JsonNode &work);
+  
   //string currBlkHeaderPOWHash_;
   string seedHash_;
+  uint32_t height_;
 
 public:
-  string getSeedHash() const {return seedHash_;}
+  string getSeedHash() const { return seedHash_; }
+  uint32_t getHeight() const { return height_; }
 };
 
 #endif

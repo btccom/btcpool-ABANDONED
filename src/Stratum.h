@@ -535,8 +535,7 @@ public:
   StratumJobEth();
   string serializeToJson() const override;
   bool unserializeFromJson(const char *s, size_t len) override;
-  bool initFromGw(const RskWorkEth &latestRskBlockJson,
-                  const string &blockJson);
+  bool initFromGw(const RskWorkEth &latestRskBlockJson);
 
   string seedHash_;
 };

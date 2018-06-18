@@ -639,24 +639,8 @@ StratumJobEth::StratumJobEth()
 
 }
 
-bool StratumJobEth::initFromGw(const RskWorkEth &latestRskBlockJson,
-                               const string &blockJson)
+bool StratumJobEth::initFromGw(const RskWorkEth &latestRskBlockJson)
 {
-  JsonNode j;
-  if (!JsonNode::parse(blockJson.c_str(), blockJson.c_str() + blockJson.length(), j))
-  {
-    LOG(ERROR) << "deserialize block informaiton failed";
-    return false;
-  }
-
-  JsonNode result = j["result"];
-  if (result.type() != Utilities::JS::type::Obj ||
-      result["number"].type() != Utilities::JS::type::Str)
-  {
-    LOG(ERROR) << "block informaiton format not expected: " << blockJson;
-    return false;
-  }
-
   if (latestRskBlockJson.isInitialized())
   {
     blockHashForMergedMining_ = latestRskBlockJson.getBlockHash();
@@ -666,8 +650,9 @@ bool StratumJobEth::initFromGw(const RskWorkEth &latestRskBlockJson,
     rskdRpcUserPwd_ = latestRskBlockJson.getRpcUserPwd();
     isRskCleanJob_ = latestRskBlockJson.getIsCleanJob();
     seedHash_ = latestRskBlockJson.getSeedHash();
-    size_t pos;
-    height_ = stoull(result["number"].str(), &pos, 16);
+    height_ = latestRskBlockJson.getHeight();
+
+    // generate job id
     string header = blockHashForMergedMining_.substr(2, 64);
     uint32 h = djb2(header.c_str());
     DLOG(INFO) << "djb2=" << std::hex << h << " for header " << header;
@@ -677,7 +662,8 @@ bool StratumJobEth::initFromGw(const RskWorkEth &latestRskBlockJson,
                                             h);
     DLOG(INFO) << "job id string: " << jobIdStr;
     assert(jobIdStr.length() == 16);
-    jobId_ = stoull(jobIdStr, &pos, 16 /* hex */);
+    
+    jobId_ = stoull(jobIdStr, nullptr, 16 /* hex */);
   }
   return seedHash_.size() && blockHashForMergedMining_.size();
 }

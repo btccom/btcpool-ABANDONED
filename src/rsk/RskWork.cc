@@ -141,7 +141,8 @@ bool RskWorkEth::validate(JsonNode &work)
       work["rpcUserPwd"].type() != Utilities::JS::type::Str ||
       work["hHash"].type() != Utilities::JS::type::Str ||
       work["sHash"].type() != Utilities::JS::type::Str ||
-      work["target"].type() != Utilities::JS::type::Str)
+      work["target"].type() != Utilities::JS::type::Str ||
+      work["height"].type() != Utilities::JS::type::Int)
   {
     LOG(ERROR) << "getwork fields failure";
     return false;
@@ -165,6 +166,7 @@ void RskWorkEth::initialize(JsonNode &work)
   blockHash_ = work["hHash"].str();
   seedHash_ = work["sHash"].str();
   target_ = work["target"].str();
+  height_ = work["height"].uint32();
   DLOG(INFO) << "address " << rpcAddress_;
   initialized_ = true;
 }
