@@ -182,7 +182,7 @@ int main(int argc, char **argv)
     string minDiffStr = cfg.lookup("sserver.min_difficulty");
     uint64 minDifficulty = stoull(minDiffStr, &pos, 16);
 
-    uint32 diffAdjustPeriod = 0;
+    uint32 diffAdjustPeriod = 300;
     cfg.lookupValue("sserver.diff_adjust_period", diffAdjustPeriod);
 
     if (0 == defaultDifficulty ||
@@ -191,6 +191,11 @@ int main(int argc, char **argv)
         0 == diffAdjustPeriod)
     {
       LOG(FATAL) << "difficulty settings are not expected: def=" << defaultDifficulty << ", min=" << minDifficulty << ", max=" << maxDifficulty << ", adjustPeriod=" << diffAdjustPeriod;
+      return 1;
+    }
+
+    if ((int32_t)diffAdjustPeriod < (int32_t)shareAvgSeconds) {
+      LOG(FATAL) << "`diff_adjust_period` should not less than `share_avg_seconds`";
       return 1;
     }
 

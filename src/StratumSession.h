@@ -130,6 +130,8 @@ public:
   {
     assert(curDiff_ <= kMaxDiff_);
     assert(kMinDiff_ <= curDiff_);
+    assert(sharesNum_.getWindowSize() > 0);
+    assert(shares_.getWindowSize() > 0);
 
     if (shareAvgSeconds >= 1 && shareAvgSeconds <= 60)
     {

@@ -63,6 +63,8 @@ public:
 
   void mapMultiply(const T val);
   void mapDivide  (const T val);
+
+  int32_t getWindowSize() const { return windowSize_; }
 };
 
 //----------------------
