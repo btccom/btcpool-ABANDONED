@@ -117,14 +117,14 @@ public:
                  const uint64 maxDifficulty,
                  const uint64 minDifficulty,
                  const uint32 shareAvgSeconds,
-                 const uint32 avgBlockTIme) : startTime_(0),
+                 const uint32 diffAdjustPeriod) : startTime_(0),
                                               kMinDiff_(minDifficulty),
                                               minDiff_(minDifficulty),
                                               kMaxDiff_(maxDifficulty),
                                               curDiff_(defaultDifficulty),
                                               curHashRateLevel_(0),
                                               kRecordSeconds_(shareAvgSeconds),
-                                              kDiffWindow_(avgBlockTIme),
+                                              kDiffWindow_(diffAdjustPeriod),
                                               sharesNum_(kDiffWindow_ / kRecordSeconds_), /* every N seconds as a record */
                                               shares_(kDiffWindow_ / kRecordSeconds_)
   {

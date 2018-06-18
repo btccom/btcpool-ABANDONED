@@ -182,19 +182,19 @@ int main(int argc, char **argv)
     string minDiffStr = cfg.lookup("sserver.min_difficulty");
     uint64 minDifficulty = stoull(minDiffStr, &pos, 16);
 
-    uint32 avgBlockTIme = 0;
-    cfg.lookupValue("sserver.avg_block_time", avgBlockTIme);
+    uint32 diffAdjustPeriod = 0;
+    cfg.lookupValue("sserver.diff_adjust_period", diffAdjustPeriod);
 
     if (0 == defaultDifficulty ||
         0 == maxDifficulty ||
         0 == minDifficulty ||
-        0 == avgBlockTIme)
+        0 == diffAdjustPeriod)
     {
-      LOG(FATAL) << "difficulty settings are not expected: def=" << defaultDifficulty << ", min=" << minDifficulty << ", max=" << maxDifficulty << ", avg=" << avgBlockTIme;
+      LOG(FATAL) << "difficulty settings are not expected: def=" << defaultDifficulty << ", min=" << minDifficulty << ", max=" << maxDifficulty << ", adjustPeriod=" << diffAdjustPeriod;
       return 1;
     }
 
-    shared_ptr<DiffController> dc = make_shared<DiffController>(defaultDifficulty, maxDifficulty, minDifficulty, shareAvgSeconds, avgBlockTIme);
+    shared_ptr<DiffController> dc = make_shared<DiffController>(defaultDifficulty, maxDifficulty, minDifficulty, shareAvgSeconds, diffAdjustPeriod);
     evthread_use_pthreads();
 
     // new StratumServer
