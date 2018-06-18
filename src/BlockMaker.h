@@ -215,6 +215,9 @@ public:
   BlockMakerEth(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
   void processSolvedShare(rd_kafka_message_t *rkmessage) override;
   bool init() override;
+  void submitBlockNonBlocking(const string &blockJson);
+  void _submitBlockThread(const string &rpcAddress, const string &rpcUserpass,
+                          const string &blockJson);
 };
 
 class BlockMakerSia : public BlockMakerEth

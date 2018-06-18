@@ -1039,14 +1039,7 @@ void BlockMakerEth::processSolvedShare(rd_kafka_message_t *rkmessage)
                                    r["header"].str().c_str(),
                                    r["mix"].str().c_str());
 
-  string response;
-
-  for (const auto &itr : bitcoindRpcUri_)
-  {
-    string response;
-    bitcoindRpcCall(itr.first.c_str(), itr.second.c_str(), request.c_str(), response);
-    LOG(INFO) << "submission result: " << response;
-  }
+  submitBlockNonBlocking(request);
 }
 
 bool BlockMakerEth::init() {
@@ -1064,6 +1057,22 @@ bool BlockMakerEth::init() {
   }
 
   return true;
+}
+
+void BlockMakerEth::submitBlockNonBlocking(const string &blockJson) {
+  for (const auto &itr : bitcoindRpcUri_) {
+    // use thread to submit
+    boost::thread t(boost::bind(&BlockMakerEth::_submitBlockThread, this,
+                                itr.first, itr.second, blockJson));
+  }
+}
+
+void BlockMakerEth::_submitBlockThread(const string &rpcAddress, const string &rpcUserpass,
+                                       const string &blockJson)
+{
+  string response;
+  bitcoindRpcCall(rpcAddress.c_str(), rpcUserpass.c_str(), blockJson.c_str(), response);
+  LOG(INFO) << "submission result: " << response;
 }
 
 //////////////////////////////////////BlockMakerSia//////////////////////////////////////////////////
