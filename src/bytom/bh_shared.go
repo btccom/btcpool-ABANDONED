@@ -46,7 +46,7 @@ func EncodeBlockHeader(v, h uint64, prevBlockHashStr *C.char, timeStamp, nonce, 
 		},
 	}
 
-	log.Printf("bh: %v\n", bh)
+	// log.Printf("bh: %v\n", bh)
 
 	buf, _ := bh.MarshalText()
 	hash := bh.Hash()
