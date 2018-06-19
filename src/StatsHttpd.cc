@@ -302,10 +302,8 @@ void StatsServerT<SHARE>::_flushWorkersToDBThread() {
     shared_ptr<WorkerShares<SHARE>> workerShare = itr->second;
     const WorkerStatus status = workerShare->getWorkerStatus();
 
-    char ipStr[INET_ADDRSTRLEN] = {0};
-    inet_ntop(AF_INET, &(status.lastShareIP_), ipStr, INET_ADDRSTRLEN);
     const string nowStr = date("%F %T", time(nullptr));
-
+    
     values.push_back(Strings::Format("%" PRId64",%d,%d,%" PRIu64",%" PRIu64","
                                      "%" PRIu64",%" PRIu64","  // accept_15m, reject_15m
                                      "%" PRIu64",%" PRIu64","  // accept_1h,  reject_1h
@@ -316,7 +314,7 @@ void StatsServerT<SHARE>::_flushWorkersToDBThread() {
                                      status.accept1m_, status.accept5m_,
                                      status.accept15m_, status.reject15m_,
                                      status.accept1h_, status.reject1h_,
-                                     status.acceptCount_, ipStr,
+                                     status.acceptCount_, status.lastShareIP_.toString().c_str(),
                                      date("%F %T", status.lastShareTime_).c_str(),
                                      nowStr.c_str(), nowStr.c_str()));
   }
@@ -923,9 +921,6 @@ void StatsServerT<SHARE>::getWorkerStatus(struct evbuffer *evb, const char *pUse
 
   size_t i = 0;
   for (const auto &status : workerStatus) {
-    char ipStr[INET_ADDRSTRLEN] = {0};
-    inet_ntop(AF_INET, &(status.lastShareIP_), ipStr, INET_ADDRSTRLEN);
-
     // extra infomations
     string extraInfo;
     if (!isMerge && keys[i].workerId_ == 0) {  // all workers of this user
@@ -944,7 +939,7 @@ void StatsServerT<SHARE>::getWorkerStatus(struct evbuffer *evb, const char *pUse
                         status.accept1m_, status.accept5m_, status.accept15m_, status.accept1h_,
                         status.reject15m_, status.reject1h_,
                         status.acceptCount_,
-                        ipStr, status.lastShareTime_,
+                        status.lastShareIP_.toString().c_str(), status.lastShareTime_,
                         extraInfo.length() ? extraInfo.c_str() : "");
     i++;
   }
