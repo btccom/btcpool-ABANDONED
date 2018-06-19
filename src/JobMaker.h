@@ -77,6 +77,7 @@ struct GwJobMakerDefinition : public JobMakerDefinition
 
   string rawGwTopic_;
   uint32 maxJobDelay_;
+  uint32 workLifeTime_;
 };
 
 struct GbtJobMakerDefinition : public JobMakerDefinition
@@ -136,10 +137,12 @@ class JobMakerHandlerEth : public GwJobMakerHandler
 public:
   bool processMsg(const string &msg) override;
   string makeStratumJobMsg() override;
+
 private:
   void clearTimeoutMsg();
-  shared_ptr<RskWork> previousRskWork_;
-  shared_ptr<RskWork> currentRskWork_;
+  inline uint64_t makeWorkKey(const RskWorkEth &work);
+
+  std::map<uint64_t/* @see makeWorkKey() */, shared_ptr<RskWorkEth>> workMap_;  // sorting works by height + time + hash
 };
 
 class JobMakerHandlerSia : public GwJobMakerHandler

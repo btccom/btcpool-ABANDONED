@@ -118,6 +118,7 @@ GwJobMakerDefinition createGwJobMakerDefinition(const Setting &setting)
 
   readFromSetting(setting, "job_interval",        def.jobInterval_);
   readFromSetting(setting, "max_job_delay",       def.maxJobDelay_);
+  readFromSetting(setting, "work_life_time",      def.workLifeTime_);
 
   readFromSetting(setting, "zookeeper_lock_path", def.zookeeperLockPath_);
   readFromSetting(setting, "file_last_job_time",  def.fileLastJobTime_, true);

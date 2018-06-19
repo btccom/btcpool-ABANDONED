@@ -243,61 +243,94 @@ bool GwJobMakerHandler::initConsumerHandlers(const string &kafkaBrokers, vector<
 ////////////////////////////////JobMakerHandlerEth//////////////////////////////////
 bool JobMakerHandlerEth::processMsg(const string &msg)
 {
-  shared_ptr<RskWork> rskWork = make_shared<RskWorkEth>();
-  if (rskWork->initFromGw(msg))
+  static uint32_t lastHeight = 0;
+
+  shared_ptr<RskWorkEth> work = make_shared<RskWorkEth>();
+  if (!work->initFromGw(msg))
   {
-    previousRskWork_ = currentRskWork_;
-    currentRskWork_ = rskWork;
-    DLOG(INFO) << "currentRskBlockJson: " << msg;
-  }
-  else {
     LOG(ERROR) << "eth initFromGw failed " << msg;
     return false;
   }
 
+  const uint64_t key = makeWorkKey(*work);
+  if (workMap_.find(key) != workMap_.end()) {
+    DLOG(INFO) << "key already exist in workMap: " << key;
+  }
+  
+  workMap_.insert(std::make_pair(key, work));
+  DLOG(INFO) << "add work: " << msg;
+
   clearTimeoutMsg();
 
-  if (nullptr == previousRskWork_ && nullptr == currentRskWork_) {
-    LOG(ERROR) << "no current work" << msg;
+  if (work->getHeight() <= lastHeight) {
+    if (work->getHeight() < lastHeight) {
+      LOG(WARNING) << "low height work. lastHeight:" << lastHeight << ", workHeight: " << work->getHeight()
+                   << ", work: " << msg;
+    }
     return false;
   }
 
-  //first job 
-  if (nullptr == previousRskWork_ && currentRskWork_ != nullptr)
-    return true;
-
-  // Check if header changes so the new workpackage is really new
-  return currentRskWork_->getBlockHash() != previousRskWork_->getBlockHash(); 
+  lastHeight = work->getHeight();
+  return true;
 }
 
 void JobMakerHandlerEth::clearTimeoutMsg() {
-  const uint32_t now = time(nullptr);
-  if(currentRskWork_ != nullptr && currentRskWork_->getCreatedAt() + def_.maxJobDelay_ < now) 
-      currentRskWork_ = nullptr;
+  // Maps (and sets) are sorted, so the first element is the smallest,
+  // and the last element is the largest.
 
-  if(previousRskWork_ != nullptr && previousRskWork_->getCreatedAt() + def_.maxJobDelay_ < now) 
-      previousRskWork_ = nullptr;
+  const uint32_t ts_now = time(nullptr);
+
+  // Ensure that workMap_ has at least one element, even if it expires.
+  // So jobmaker can always generate jobs even if blockchain node does not
+  // update the response of getwork for a long time when there is no new transaction.
+  for (auto itr = workMap_.begin(); workMap_.size() > 1 && itr != workMap_.end(); ) {
+    const uint32_t ts  = itr->second->getCreatedAt();
+    const uint32_t height = itr->second->getHeight();
+
+    // gbt expired time
+    const uint32_t expiredTime = ts + def_.workLifeTime_;
+
+    if (expiredTime > ts_now) {
+      // not expired
+      ++itr;
+    } else {
+      // remove expired gbt
+      LOG(INFO) << "remove timeout work: " << date("%F %T", ts) << "|" << ts <<
+      ", height:" << height << ", headerHash:" << itr->second->getBlockHash();
+
+      // c++11: returns an iterator to the next element in the map
+      itr = workMap_.erase(itr);
+    }
+  }
 }
 
 string JobMakerHandlerEth::makeStratumJobMsg()
 {
-  if (nullptr == currentRskWork_)
+  if (workMap_.empty()) {
     return "";
+  }
 
-  if (0 == currentRskWork_->getRpcAddress().length())
-    return "";
-
-  RskWorkEth *currentRskBlockJson = dynamic_cast<RskWorkEth*>(currentRskWork_.get());
-  if (nullptr == currentRskBlockJson)
-    return "";
-
+  shared_ptr<RskWorkEth> work = workMap_.rbegin()->second;
   StratumJobEth sjob;
-  if (!sjob.initFromGw(*currentRskBlockJson)) {
-    LOG(ERROR) << "init stratum job message from gw str fail";
+
+  if (!sjob.initFromGw(*work)) {
+    LOG(ERROR) << "init stratum job from work fail";
     return "";
   }
 
   return sjob.serializeToJson();
+}
+
+uint64_t JobMakerHandlerEth::makeWorkKey(const RskWorkEth &work) {
+  const string &blockHash = work.getBlockHash();
+  uint64_t blockHashSuffix = strtoull(blockHash.substr(blockHash.size() - 4).c_str(), nullptr, 16);
+
+  // key = | 32bits height | 16bit time | 16bit hashSuffix |
+  uint64_t key = ((uint64_t)work.getHeight()) << 32;
+  key += (((uint64_t)work.getCreatedAt()) & 0xFFFFull) << 16;
+  key += blockHashSuffix;
+
+  return key;
 }
 
 ////////////////////////////////JobMakerHandlerSia//////////////////////////////////
