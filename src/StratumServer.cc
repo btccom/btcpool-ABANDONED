@@ -42,26 +42,30 @@ using namespace std;
 
 #ifndef WORK_WITH_STRATUM_SWITCHER
 
-//////////////////////////////// SessionIDManager //////////////////////////////
-SessionIDManager::SessionIDManager(const uint8_t serverId) :
+//////////////////////////////// SessionIDManagerT //////////////////////////////
+template <uint8_t IBITS>
+SessionIDManagerT<IBITS>::SessionIDManagerT(const uint8_t serverId) :
 serverId_(serverId), count_(0), allocIdx_(0)
 {
   sessionIds_.reset();
 }
 
-bool SessionIDManager::ifFull() {
+template <uint8_t IBITS>
+bool SessionIDManagerT<IBITS>::ifFull() {
   ScopeLock sl(lock_);
   return _ifFull();
 }
 
-bool SessionIDManager::_ifFull() {
-  if (count_ >= (int32_t)(MAX_SESSION_INDEX_SERVER + 1)) {
+template <uint8_t IBITS>
+bool SessionIDManagerT<IBITS>::_ifFull() {
+  if (count_ >= kFullSessionIndex) {
     return true;
   }
   return false;
 }
 
-bool SessionIDManager::allocSessionId(uint32_t *sessionID) {
+template <uint8_t IBITS>
+bool SessionIDManagerT<IBITS>::allocSessionId(uint32_t *sessionID) {
   ScopeLock sl(lock_);
 
   if (_ifFull())
@@ -70,7 +74,7 @@ bool SessionIDManager::allocSessionId(uint32_t *sessionID) {
   // find an empty bit
   while (sessionIds_.test(allocIdx_) == true) {
     allocIdx_++;
-    if (allocIdx_ > MAX_SESSION_INDEX_SERVER) {
+    if (allocIdx_ > kMaxSessionIndex) {
       allocIdx_ = 0;
     }
   }
@@ -79,17 +83,23 @@ bool SessionIDManager::allocSessionId(uint32_t *sessionID) {
   sessionIds_.set(allocIdx_, true);
   count_++;
 
-  *sessionID = (((uint32_t)serverId_ << 24) | allocIdx_);
+  *sessionID = (((uint32_t)serverId_ << IBITS) | allocIdx_);
   return true;
 }
 
-void SessionIDManager::freeSessionId(uint32_t sessionId) {
+template <uint8_t IBITS>
+void SessionIDManagerT<IBITS>::freeSessionId(uint32_t sessionId) {
   ScopeLock sl(lock_);
 
-  const uint32_t idx = (sessionId & 0x00FFFFFFu);
+  const uint32_t idx = (sessionId & kFullSessionIndex);
   sessionIds_.set(idx, false);
   count_--;
 }
+
+// Class template instantiation
+template class SessionIDManagerT<8>;
+template class SessionIDManagerT<16>;
+template class SessionIDManagerT<24>;
 
 #endif // #ifndef WORK_WITH_STRATUM_SWITCHER
 
@@ -1163,7 +1173,7 @@ bool Server::setup(StratumServer* sserver) {
   }
   serverId_ = sserver->serverId_;
 #ifndef WORK_WITH_STRATUM_SWITCHER
-  sessionIDManager_ = new SessionIDManager(serverId_);
+  sessionIDManager_ = new SessionIDManagerT<24>(serverId_);
 #endif
 
   // kafkaProducerShareLog_

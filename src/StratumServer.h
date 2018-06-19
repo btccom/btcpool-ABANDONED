@@ -56,8 +56,6 @@ class StratumServer;
 #ifndef WORK_WITH_STRATUM_SWITCHER
 
 //////////////////////////////// SessionIDManager //////////////////////////////
-// DO NOT CHANGE
-#define MAX_SESSION_INDEX_SERVER   0x00FFFFFEu   // 16777214
 
 enum StratumServerType
 {
@@ -65,31 +63,45 @@ enum StratumServerType
   ETH
 };
 
-// thread-safe
 class SessionIDManager {
+public:
+  virtual ~SessionIDManager() {}
+  virtual bool ifFull() = 0;
+  virtual bool allocSessionId(uint32_t *sessionID) = 0;
+  virtual void freeSessionId(uint32_t sessionId) = 0;
+};
+
+// thread-safe
+// template IBITS: index bits
+template <uint8_t IBITS>
+class SessionIDManagerT : public SessionIDManager {
   //
   //  SESSION ID: UINT32_T
   //
-  //   xxxxxxxx     xxxxxxxx xxxxxxxx xxxxxxxx
-  //  ----------    --------------------------
-  //  server ID          session id
-  //   [1, 255]        range: [0, MAX_SESSION_INDEX_SERVER]
+  //  0 bit or longer       8bit            24 bit or shorter
+  // -----------------    ---------    ----------------------------
+  // leading zero bits    server ID             session id
+  //     [000...]          [1, 255]    range: [0, kMaxSessionIndex]
   //
-  uint8_t serverId_;
-  std::bitset<MAX_SESSION_INDEX_SERVER + 1> sessionIds_;
 
-  int32_t count_;  // how many ids are used now
+  const static uint32_t kFullSessionIndex = (1 << IBITS) - 1;      // example: 0x00FFFFFF;
+  const static uint32_t kMaxSessionIndex = kFullSessionIndex - 1; // example: 0x00FFFFFE;
+
+  uint8_t serverId_;
+  std::bitset<kFullSessionIndex> sessionIds_;
+
+  uint32_t count_;  // how many ids are used now
   uint32_t allocIdx_;
   mutex lock_;
 
   bool _ifFull();
 
 public:
-  SessionIDManager(const uint8_t serverId);
+  SessionIDManagerT(const uint8_t serverId);
 
-  bool ifFull();
-  bool allocSessionId(uint32_t *sessionID);
-  void freeSessionId(uint32_t sessionId);
+  bool ifFull() override;
+  bool allocSessionId(uint32_t *sessionID) override;
+  void freeSessionId(uint32_t sessionId) override;
 };
 
 #endif // #ifndef WORK_WITH_STRATUM_SWITCHER
