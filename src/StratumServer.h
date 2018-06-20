@@ -354,7 +354,7 @@ public:
   Server(const int32_t shareAvgSeconds);
   virtual ~Server();
 
-  bool setup(StratumServer* sserver);
+  virtual bool setup(StratumServer* sserver);
   void run();
   void stop();
 
@@ -396,6 +396,7 @@ class ServerEth : public Server
 {
 public:
   ServerEth(const int32_t shareAvgSeconds) : Server(shareAvgSeconds) {}
+  bool setup(StratumServer* sserver) override;
   int checkShare(const ShareEth &share,
                  const uint64_t jobId,
                  const uint64_t nonce,

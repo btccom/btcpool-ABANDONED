@@ -1615,6 +1615,25 @@ void Server::sendCommonEvents2Kafka(const string &message) {
 }
 
 ////////////////////////////////// ServierEth ///////////////////////////////
+bool ServerEth::setup(StratumServer* sserver) {
+  bool success = Server::setup(sserver);
+  if (!success) {
+    return false;
+  }
+
+  // TODO: WORK_WITH_STRATUM_SWITCHER only effects Bitcoin's sserver
+  #ifndef WORK_WITH_STRATUM_SWITCHER
+    // Use 16 bits index of Session ID.
+    // The full Session ID (with server id as prefix) is 24 bits.
+    // Session ID will be used as starting nonce, so the single
+    // searching space of a miner will be 2^40 (= 2^64 - 2^24).
+    delete sessionIDManager_;
+    sessionIDManager_ = new SessionIDManagerT<16>(serverId_);
+  #endif
+
+  return true;
+}
+
 int ServerEth::checkShare(const ShareEth &share,
                           const uint64_t jobId,
                           const uint64_t nonce,

@@ -247,7 +247,7 @@ protected:
   string   clientIp_;
   uint32_t clientIpInt_;
 
-  uint32_t extraNonce1_;   // MUST be unique across all servers
+  uint32_t extraNonce1_;   // MUST be unique across all servers. TODO: rename it to "sessionId_"
   static const int kExtraNonce2Size_ = 8;  // extraNonce2 size is always 8 bytes
 
   uint64_t currDiff_;

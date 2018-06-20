@@ -1253,6 +1253,11 @@ void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool
   //string seed = ethJob->seedHash_.substr(2, 64);
   string strShareTarget = Eth_DifficultyToTarget(ljob.jobDifficulty_);
 
+
+  // extraNonce1_ == Session ID, 24 bits.
+  // Miners will fills 0 after the prefix to 64 bits.
+  uint32_t startNoncePrefix = extraNonce1_;
+
   LOG(INFO) << "new eth stratum job mining.notify: share difficulty=" << std::hex << ljob.jobDifficulty_ << ", share target=" << strShareTarget << ", protocol=" << ethProtocol_;
   string strNotify;
 
@@ -1281,7 +1286,6 @@ void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool
     //["0x599fffbc07777d4b6455c0e7ca479c9edbceef6c3fec956fecaaf4f2c727a492",
     //"0x1261dfe17d0bf58cb2861ae84734488b1463d282b7ee88ccfa18b7a92a7b77f7",
     //"0x0112e0be826d694b2e62d01511f12a6061fbaec8bc02357593e70e52ba","0x4ec6f5"]}
-    int extraNonce = (server_->serverId_ << 16) + extraNonce16b_;
     strNotify = Strings::Format("{\"id\":%d,\"jsonrpc\":\"2.0\","
                                 "\"result\":[\"%s\",\"%s\",\"0x%s\",\"0x%06x\"]}\n",
                                 isFirstJob ? 3 : 0,
@@ -1289,15 +1293,15 @@ void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool
                                 seed.c_str(),
                                 //Claymore use 58 bytes target
                                 strShareTarget.substr(6, 58).c_str(),
-                                extraNonce);
-    DLOG(INFO) << strNotify;
-    if (!isFirstJob)
-      ++extraNonce16b_;
+                                startNoncePrefix);
   }
   break;
   default:
+    LOG(ERROR) << "Unknown ethProtocol_: " << ethProtocol_;
     break;
   }
+
+  DLOG(INFO) << strNotify;
 
   if (!strNotify.empty())
     sendData(strNotify); // send notify string
