@@ -1821,7 +1821,7 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
         "{\"jsonrpc\": \"2.0\", \"method\":\"job\", \"params\": %s}",
         jobString.c_str());
   }
-  // LOG(INFO) << "Difficulty: " << ljob.jobDifficulty_ << "\nsendMiningNotify " << notifyStr.c_str();
+  LOG(INFO) << "Difficulty: " << ljob.jobDifficulty_ << "\nsendMiningNotify " << notifyStr.c_str();
   sendData(notifyStr);
 }
 
