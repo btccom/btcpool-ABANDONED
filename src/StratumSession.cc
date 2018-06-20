@@ -1761,7 +1761,7 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
   }
 
 
-  uint64 nonce = (((uint64)server_->serverId_) << 40);
+  uint64 nonce = (((uint64)extraNonce1_) << 32);
   string notifyStr, nonceStr, versionStr, heightStr, timestampStr, bitsStr;
   Bin2HexR((uint8 *)&nonce, 8, nonceStr);
   Bin2Hex((uint8 *)&sJob->blockHeader_.version, 8, versionStr);
@@ -1821,7 +1821,7 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
         "{\"jsonrpc\": \"2.0\", \"method\":\"job\", \"params\": %s}",
         jobString.c_str());
   }
-  LOG(INFO) << "Difficulty: " << ljob.jobDifficulty_ << "\nsendMiningNotify " << notifyStr.c_str();
+  // LOG(INFO) << "Difficulty: " << ljob.jobDifficulty_ << "\nsendMiningNotify " << notifyStr.c_str();
   sendData(notifyStr);
 }
 
@@ -1891,14 +1891,18 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
 
   //Check share
   ShareBitcoin share;
+  //  ShareBase portion
   share.version_ = ShareBitcoin::CURRENT_VERSION;
-  share.jobId_ = localJob->jobId_;
+  //  TODO: not set: share.checkSum_
   share.workerHashId_ = worker_.workerHashId_;
-  share.ip_ = clientIpInt_;
   share.userId_ = worker_.userId_;
-  share.shareDiff_ = localJob->jobDifficulty_;
-  share.timestamp_ = (uint32_t)time(nullptr);
   share.status_ = StratumStatus::REJECT_NO_REASON;
+  share.timestamp_ = (uint32_t)time(nullptr);
+  share.ip_ = clientIpInt_;
+
+  //  ShareBitcoin portion
+  share.jobId_ = localJob->jobId_;
+  share.shareDiff_ = localJob->jobDifficulty_;
     
   ServerBytom *s = dynamic_cast<ServerBytom*> (server_);
   if (s != nullptr) {
