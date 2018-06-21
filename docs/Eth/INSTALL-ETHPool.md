@@ -28,7 +28,7 @@ apt-get update
 apt-get install -y build-essential autotools-dev libtool autoconf automake pkg-config cmake \
                    openssl libssl-dev libcurl4-openssl-dev libconfig++-dev \
                    libboost-all-dev libgmp-dev libmysqlclient-dev libzookeeper-mt-dev \
-                   libzmq3-dev libgoogle-glog-dev libevent-dev
+                   libzmq3-dev libgoogle-glog-dev libevent-dev libhiredis-dev
 ```
 
 Sometimes one or two packages will fail due to dependency problems, and you can try `aptitude`.
@@ -39,7 +39,7 @@ apt-get install -y aptitude
 aptitude install build-essential autotools-dev libtool autoconf automake pkg-config cmake \
                    openssl libssl-dev libcurl4-openssl-dev libconfig++-dev \
                    libboost-all-dev libgmp-dev libmysqlclient-dev libzookeeper-mt-dev \
-                   libzmq3-dev libgoogle-glog-dev libevent-dev
+                   libzmq3-dev libgoogle-glog-dev libevent-dev libhiredis-dev
 
 # Input `n` if the solution is `NOT INSTALL` some package.
 # Eventually aptitude will give a solution that downgrade some packages to allow all packages to be installed.
@@ -69,7 +69,7 @@ sudo apt-get install ethereum
 Please install [brew](https://brew.sh/) first.
 
 ```bash
-brew install cmake openssl libconfig boost mysql zmq gmp libevent zookeeper librdkafka
+brew install cmake openssl libconfig boost mysql zmq gmp libevent zookeeper librdkafka libhiredis
 ```
 
 * glog-v0.3.4
