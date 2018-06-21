@@ -38,6 +38,7 @@
 
 #include "Utils.h"
 #include "StatsHttpd.h"
+#include "RedisConnection.h"
 
 using namespace std;
 using namespace libconfig;
@@ -57,18 +58,24 @@ void usage() {
 std::shared_ptr<StatsServer> newStatsServer(const string &chainType, const char *kafkaBrokers,
                                             const char *kafkaShareTopic, const char *kafkaCommonEventsTopic,
                                             const string &httpdHost, unsigned short httpdPort,
-                                            const MysqlConnectInfo &poolDBInfo,
+                                            const MysqlConnectInfo *poolDBInfo, const RedisConnectInfo *redisInfo,
+                                            const uint32_t redisConcurrency, const string &redisKeyPrefix, const int redisKeyExpire,
+                                            const int redisPublishPolicy, const int redisIndexPolicy,
                                             const time_t kFlushDBInterval, const string &fileLastFlushTime,
                                             const int dupShareTrackingHeight)
 {
   if (chainType == "BTC") {
     return std::make_shared<StatsServerBitcoin>(kafkaBrokers, kafkaShareTopic, kafkaCommonEventsTopic,
-                                                httpdHost, httpdPort, poolDBInfo,
+                                                httpdHost, httpdPort, poolDBInfo, redisInfo,
+                                                redisConcurrency, redisKeyPrefix, redisKeyExpire,
+                                                redisPublishPolicy, redisIndexPolicy,
                                                 kFlushDBInterval, fileLastFlushTime, nullptr);
   }
   else if (chainType == "ETH") {
     return std::make_shared<StatsServerEth>(kafkaBrokers, kafkaShareTopic, kafkaCommonEventsTopic,
-                                            httpdHost, httpdPort, poolDBInfo,
+                                            httpdHost, httpdPort, poolDBInfo, redisInfo,
+                                            redisConcurrency, redisKeyPrefix, redisKeyExpire,
+                                            redisPublishPolicy, redisIndexPolicy,
                                             kFlushDBInterval, fileLastFlushTime,
                                             std::make_shared<DuplicateShareCheckerEth>(dupShareTrackingHeight));
   }
@@ -137,14 +144,38 @@ int main(int argc, char **argv) {
   signal(SIGINT,  handler);
 
   try {
+    bool useMysql = true;
+    cfg.lookupValue("statshttpd.use_mysql", useMysql);
+    bool useRedis = false;
+    cfg.lookupValue("statshttpd.use_redis", useRedis);
+
     MysqlConnectInfo *poolDBInfo = nullptr;
-    {
+    if (useMysql) {
       int32_t poolDBPort = 3306;
       cfg.lookupValue("pooldb.port", poolDBPort);
       poolDBInfo = new MysqlConnectInfo(cfg.lookup("pooldb.host"), poolDBPort,
                                         cfg.lookup("pooldb.username"),
                                         cfg.lookup("pooldb.password"),
                                         cfg.lookup("pooldb.dbname"));
+    }
+
+    RedisConnectInfo *redisInfo = nullptr;
+    string redisKeyPrefix;
+    int redisKeyExpire = 0;
+    int redisPublishPolicy = 0;
+    int redisIndexPolicy = 0;
+    uint32_t redisConcurrency = 1;
+
+    if (useRedis) {
+      int32_t redisPort = 6379;
+      cfg.lookupValue("redis.port", redisPort);
+      redisInfo = new RedisConnectInfo(cfg.lookup("redis.host"), redisPort, cfg.lookup("redis.password"));
+
+      cfg.lookupValue("redis.key_prefix", redisKeyPrefix);
+      cfg.lookupValue("redis.key_expire", redisKeyExpire);
+      cfg.lookupValue("redis.publish_policy", redisPublishPolicy);
+      cfg.lookupValue("redis.index_policy", redisIndexPolicy);
+      cfg.lookupValue("redis.concurrency", redisConcurrency);
     }
     
     string fileLastFlushTime;
@@ -161,7 +192,9 @@ int main(int argc, char **argv) {
                                   cfg.lookup("statshttpd.share_topic").c_str(),
                                   cfg.lookup("statshttpd.common_events_topic").c_str(),
                                   cfg.lookup("statshttpd.ip").c_str(),
-                                  (unsigned short)port, *poolDBInfo,
+                                  (unsigned short)port, poolDBInfo,
+                                  redisInfo, redisConcurrency, redisKeyPrefix,
+                                  redisKeyExpire, redisPublishPolicy, redisIndexPolicy,
                                   (time_t)flushInterval, fileLastFlushTime,
                                   dupShareTrackingHeight);
     if (gStatsServer->init()) {
