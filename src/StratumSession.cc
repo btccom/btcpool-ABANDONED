@@ -1272,11 +1272,12 @@ void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool
     //"a8784097a4d03c2d2ac6a3a2beebd0606aa30a8536a700446b40800841c0162c",
     //"0000000112e0be826d694b2e62d01511f12a6061fbaec8bc02357593e70e52ba",false]}
     strNotify = Strings::Format("{\"id\":8,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
-                                "\"params\":[\"%s\",\"%s\",\"%s\",\"%s\", false]}\n",
+                                "\"params\":[\"%s\",\"%s\",\"%s\",\"%s\", %s]}\n",
                                 header.c_str(),
                                 header.c_str(),
                                 seed.c_str(),
-                                strShareTarget.c_str());
+                                strShareTarget.c_str(),
+                                exJobPtr->isClean_ ? "true" : "false");
   }
   break;
   case ETHPROXY:

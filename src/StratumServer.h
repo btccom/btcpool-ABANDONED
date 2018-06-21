@@ -174,6 +174,7 @@ private:
   ethash_light_t nextLight_;
   uint64_t epochs_;
   mutex lightLock_;
+  int32_t lastHeight_;
 };
 
 class JobRepositorySia : public JobRepository

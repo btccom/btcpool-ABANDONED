@@ -385,10 +385,20 @@ StratumJobEx* JobRepositoryEth::createStratumJobEx(StratumJob *sjob, bool isClea
 }
 
 void JobRepositoryEth::broadcastStratumJob(StratumJob *sjob) {
-  LOG(INFO) << "broadcast eth stratum job " << std::hex << sjob->jobId_;
-  bool isClean = true;
+  StratumJobEth* sjobEth = dynamic_cast<StratumJobEth*>(sjob);
+
+  LOG(INFO) << "broadcast eth stratum job " << std::hex << sjobEth->jobId_;
+
+  bool isClean = false;
+  if (sjobEth->height_ != lastHeight_) {
+    isClean = true;
+    lastHeight_ = sjobEth->height_;
+
+    LOG(INFO) << "received new height stratum job, height: " << sjobEth->height_
+              << ", headerHash: " << sjobEth->blockHashForMergedMining_;
+  }
   
-  shared_ptr<StratumJobEx> exJob(createStratumJobEx(sjob, isClean));
+  shared_ptr<StratumJobEx> exJob(createStratumJobEx(sjobEth, isClean));
   {
     ScopeLock sl(lock_);
 
@@ -400,13 +410,13 @@ void JobRepositoryEth::broadcastStratumJob(StratumJob *sjob) {
     }
 
     // insert new job
-    exJobs_[sjob->jobId_] = exJob;
+    exJobs_[sjobEth->jobId_] = exJob;
   }
 
   //send job first
   sendMiningNotify(exJob);
   //then, create light for verification
-  newLight(dynamic_cast<StratumJobEth*>(sjob));
+  newLight(sjobEth);
 }
 
 JobRepositoryEth::~JobRepositoryEth() {
