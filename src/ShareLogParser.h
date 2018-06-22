@@ -233,9 +233,14 @@ public:
 ///////////////////////////////  Alias  ///////////////////////////////
 using ShareLogDumperBitcoin = ShareLogDumperT<ShareBitcoin>;
 using ShareLogDumperEth = ShareLogDumperT<ShareEth>;
+using ShareLogDumperBytom = ShareLogDumperT<ShareBytom>;
+
 using ShareLogParserBitcoin = ShareLogParserT<ShareBitcoin>;
 using ShareLogParserEth = ShareLogParserT<ShareEth>;
+using ShareLogParserBytom = ShareLogParserT<ShareBytom>;
+
 using ShareLogParserServerBitcoin = ShareLogParserServerT<ShareBitcoin>;
 using ShareLogParserServerEth = ShareLogParserServerT<ShareEth>;
+using ShareLogParserServerBytom = ShareLogParserServerT<ShareBytom>;
 
 #endif // SHARELOGPARSER_H_

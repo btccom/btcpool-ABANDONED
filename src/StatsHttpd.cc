@@ -1673,6 +1673,8 @@ void StatsServerT<SHARE>::run() {
 // If you add a new derived class of Share, add it at the following.
 template class WorkerShares<ShareBitcoin>;
 template class WorkerShares<ShareEth>;
+template class WorkerShares<ShareBytom>;
 
 template class StatsServerT<ShareBitcoin>;
 template class StatsServerT<ShareEth>;
+template class StatsServerT<ShareBytom>;

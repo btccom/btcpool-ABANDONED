@@ -282,5 +282,6 @@ public:
 ////////////////////////////  Alias  ////////////////////////////
 using StatsServerBitcoin = StatsServerT<ShareBitcoin>;
 using StatsServerEth = StatsServerT<ShareEth>;
+using StatsServerBytom = StatsServerT<ShareBytom>;
 
 #endif // STATSHTTPD_H_

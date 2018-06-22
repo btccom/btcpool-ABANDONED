@@ -124,8 +124,33 @@ void ShareStatsDay<ShareEth>::processShare(uint32_t hourIdx, const ShareEth &sha
   modifyHoursFlag_ |= (0x01u << hourIdx);
 }
 
+template <>
+void ShareStatsDay<ShareBytom>::processShare(uint32_t hourIdx, const ShareBytom &share) {
+  ScopeLock sl(lock_);
+
+  if (share.status_ == StratumStatus::ACCEPT || share.status_ == StratumStatus::SOLVED) {
+    shareAccept1h_[hourIdx] += share.shareDiff_;
+    shareAccept1d_          += share.shareDiff_;
+
+    double score = share.score();
+    double reward = GetBlockReward(share.height_, Params().GetConsensus());
+    double earn = score * reward;
+
+    score1h_[hourIdx] += score;
+    score1d_          += score;
+    earn1h_[hourIdx]  += earn;
+    earn1d_           += earn;
+
+  } else {
+    shareReject1h_[hourIdx] += share.shareDiff_;
+    shareReject1d_          += share.shareDiff_;
+  }
+  modifyHoursFlag_ |= (0x01u << hourIdx);
+}
+
 ///////////////  template instantiation ///////////////
 // Without this, some linking errors will issued.
 // If you add a new derived class of Share, add it at the following.
 template class ShareStatsDay<ShareBitcoin>;
 template class ShareStatsDay<ShareEth>;
+template class ShareStatsDay<ShareBytom>;

@@ -1071,9 +1071,12 @@ void ShareLogParserServerT<SHARE>::run() {
 // If you add a new derived class of Share, add it at the following.
 template class ShareLogDumperT<ShareBitcoin>;
 template class ShareLogDumperT<ShareEth>;
+template class ShareLogDumperT<ShareBytom>;
 
 template class ShareLogParserT<ShareBitcoin>;
 template class ShareLogParserT<ShareEth>;
+template class ShareLogParserT<ShareBytom>;
 
 template class ShareLogParserServerT<ShareBitcoin>;
 template class ShareLogParserServerT<ShareEth>;
+template class ShareLogParserServerT<ShareBytom>;

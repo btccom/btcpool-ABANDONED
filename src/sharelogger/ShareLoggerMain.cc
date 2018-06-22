@@ -81,6 +81,13 @@ std::shared_ptr<ShareLogWriter> newShareLogWriter(const string &kafkaBrokers, co
                                           def.lookup("kafka_group_id").c_str(),
                                           def.lookup("share_topic"));
   }
+  else if (chainType == "BTM") {
+    return make_shared<ShareLogWriterBytom>(def.lookup("chain_type").c_str(),
+                                          kafkaBrokers.c_str(),
+                                          def.lookup("data_dir").c_str(),
+                                          def.lookup("kafka_group_id").c_str(),
+                                          def.lookup("share_topic"));    
+  }
   else {
     LOG(FATAL) << "Unknown chain type " << chainType;
     return nullptr;

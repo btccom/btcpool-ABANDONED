@@ -232,3 +232,4 @@ void ShareLogWriterT<SHARE>::run() {
 // If you add a new derived class of Share, add it at the following.
 template class ShareLogWriterT<ShareBitcoin>;
 template class ShareLogWriterT<ShareEth>;
+template class ShareLogWriterT<ShareBytom>;

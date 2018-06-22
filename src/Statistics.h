@@ -39,6 +39,8 @@
 #include <pthread.h>
 #include <memory>
 
+#include <uint256.h>
+
 
 ////////////////////////////////// StatsWindow /////////////////////////////////
 // none thread safe
@@ -244,6 +246,23 @@ struct GlobalShareEth {
     return false;
   }
 };
+///////////////////////////////  GlobalShareBytom  ////////////////////////////////
+// Used to detect duplicate share attacks on Bytom mining.
+struct GlobalShareBytom {
+  BytomCombinedHeader combinedHeader_;
+
+  GlobalShareBytom() = delete;
+
+  GlobalShareBytom(const ShareBytom &share)
+    : combinedHeader_(share.combinedHeader_)
+  {}
+
+  GlobalShareBytom& operator=(const GlobalShareBytom &r) = default;
+
+  bool operator<(const GlobalShareBytom &r) const {
+    return std::memcmp(&combinedHeader_, &r.combinedHeader_, sizeof(BytomCombinedHeader)) < 0;
+  }
+};
 
 ///////////////////////////////  DuplicateShareCheckerT  ////////////////////////////////
 // Used to detect duplicate share attacks.
@@ -310,5 +329,6 @@ private:
 
 ////////////////////////////  Alias  ////////////////////////////
 using DuplicateShareCheckerEth = DuplicateShareCheckerT<ShareEth, GlobalShareEth>;
+using DuplicateShareCheckerBytom = DuplicateShareCheckerT<ShareBytom, GlobalShareBytom>;
 
 #endif

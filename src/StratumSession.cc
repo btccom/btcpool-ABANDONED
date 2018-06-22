@@ -1895,9 +1895,9 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   Hex2Bin(sJob->seed_.c_str(), sJob->seed_.length(), vSeed);
 
   //Check share
-  ShareBitcoin share;
+  ShareBytom share;
   //  ShareBase portion
-  share.version_ = ShareBitcoin::CURRENT_VERSION;
+  share.version_ = ShareBytom::CURRENT_VERSION;
   //  TODO: not set: share.checkSum_
   share.workerHashId_ = worker_.workerHashId_;
   share.userId_ = worker_.userId_;
@@ -1905,9 +1905,26 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   share.timestamp_ = (uint32_t)time(nullptr);
   share.ip_ = clientIpInt_;
 
-  //  ShareBitcoin portion
+  //  ShareBytom portion
   share.jobId_ = localJob->jobId_;
   share.shareDiff_ = localJob->jobDifficulty_;
+  share.blkBits_ = sJob->blockHeader_.bits;
+  share.height_ = sJob->blockHeader_.height;
+  
+  auto StringToCheapHash = [](const std::string& str) -> uint64
+  {
+    int merkleRootLen = std::min(32, (int)str.length());
+    auto merkleRootBegin = (uint8_t*)&str[0];
+    auto merkleRootEnd = merkleRootBegin + merkleRootLen;
+
+    vector<uint8_t> merkleRootBin(merkleRootBegin, merkleRootEnd);
+    return uint256(merkleRootBin).GetCheapHash();
+  };
+
+  share.combinedHeader_.blockCommitmentMerkleRootCheapHash_ = StringToCheapHash(sJob->blockHeader_.transactionsMerkleRoot);
+  share.combinedHeader_.blockCommitmentStatusHashCheapHash_ = StringToCheapHash(sJob->blockHeader_.transactionStatusHash);
+  share.combinedHeader_.timestamp_ = sJob->blockHeader_.timestamp;
+  share.combinedHeader_.nonce_ = nonce;
     
   ServerBytom *s = dynamic_cast<ServerBytom*> (server_);
   if (s != nullptr) {
@@ -1939,7 +1956,9 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
         share.status_ = StratumStatus::SOLVED;
         LOG(INFO) << "share solved";
         s->sendSolvedShare2Kafka(encoded.r0);
+        diffController_->addAcceptedShare(share.shareDiff_);
       }
+      rpc2ResponseBoolean(idStr, true);
     }
     else
     {
@@ -1951,10 +1970,36 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
     }
   }
 
-  rpc2ResponseBoolean(idStr, true);
-  share.checkSum_ = share.checkSum();
-  server_->sendShare2Kafka((const uint8_t *)&share, sizeof(ShareBitcoin));
+  bool isSendShareToKafka = true;
+  DLOG(INFO) << share.toString();
+  // check if thers is invalid share spamming
+  if (StratumStatus::SOLVED != share.status_ && StratumStatus::ACCEPT == share.status_)
+  {
+    int64_t invalidSharesNum = invalidSharesCounter_.sum(time(nullptr), INVALID_SHARE_SLIDING_WINDOWS_SIZE);
+    // too much invalid shares, don't send them to kafka
+    if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT)
+    {
+      isSendShareToKafka = false;
+      LOG(WARNING) << "invalid share spamming, diff: "
+                   << share.shareDiff_ << ", uid: " << worker_.userId_
+                   << ", uname: \"" << worker_.userName_ << "\", ip: " << clientIp_
+                   << "checkshare result: " << share.status_;
+    }
+  }
 
+  if (isSendShareToKafka)
+  {
+    share.checkSum_ = share.checkSum();
+    server_->sendShare2Kafka((const uint8_t *)&share, sizeof(ShareEth));
+
+    string shareInHex;
+    Bin2Hex((uint8_t*)&share, sizeof(ShareBytom), shareInHex);
+    LOG(INFO) << "\nsendShare2Kafka ShareBytom:\n" 
+              << "- size: " << sizeof(ShareBytom) << " bytes\n"
+              << "- hexvalue: " << shareInHex.c_str() << "\n";
+
+  }
+  
   free(encoded.r0);
   free(encoded.r1);
 }

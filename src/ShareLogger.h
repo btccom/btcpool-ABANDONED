@@ -84,5 +84,6 @@ public:
 //////////////////////////////  Alias  ///////////////////////////////
 using ShareLogWriterBitcoin = ShareLogWriterT<ShareBitcoin>;
 using ShareLogWriterEth = ShareLogWriterT<ShareEth>;
+using ShareLogWriterBytom = ShareLogWriterT<ShareBytom>;
 
 #endif // SHARELOGGER_H_
