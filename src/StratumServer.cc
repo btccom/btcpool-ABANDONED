@@ -1586,7 +1586,7 @@ int Server::checkShare(const ShareBitcoin &share,
   }
 
   // check share diff
-  if (isEnableSimulator_ == false && bnBlockHash >= UintToArith256(jobTarget)) {
+  if (isEnableSimulator_ == false && bnBlockHash > UintToArith256(jobTarget)) {
     return StratumStatus::LOW_DIFFICULTY;
   }
 
@@ -1703,12 +1703,12 @@ int ServerEth::checkShare(const ShareEth &share,
   DLOG(INFO) << "comapre share target: " << shareTarget.GetHex() << ", job target: " << jobTarget.GetHex() << ", network target: " << sjob->rskNetworkTarget_.GetHex();
   
   //can not compare directly because unit256 uses memcmp
-  if (isSubmitInvalidBlock_ || UintToArith256(shareTarget) < UintToArith256(sjob->rskNetworkTarget_)) {
+  if (isSubmitInvalidBlock_ || UintToArith256(shareTarget) <= UintToArith256(sjob->rskNetworkTarget_)) {
     LOG(INFO) << "solution found, share target: " << shareTarget.GetHex() << ", job target: " << jobTarget.GetHex() << ", network target: " << sjob->rskNetworkTarget_.GetHex();
     return StratumStatus::SOLVED;
   }
 
-  if (isEnableSimulator_ || UintToArith256(shareTarget) < UintToArith256(jobTarget)) {
+  if (isEnableSimulator_ || UintToArith256(shareTarget) <= UintToArith256(jobTarget)) {
     return StratumStatus::ACCEPT;
   }
 
