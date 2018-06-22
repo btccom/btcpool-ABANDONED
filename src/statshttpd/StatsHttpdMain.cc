@@ -79,12 +79,12 @@ std::shared_ptr<StatsServer> newStatsServer(const string &chainType, const char 
                                             kFlushDBInterval, fileLastFlushTime,
                                             std::make_shared<DuplicateShareCheckerEth>(dupShareTrackingHeight));
   }
-  else if (chainType == "BTM") {
-    return std::make_shared<StatsServerBytom>(kafkaBrokers, kafkaShareTopic, kafkaCommonEventsTopic,
-                                            httpdHost, httpdPort, poolDBInfo,
-                                            kFlushDBInterval, fileLastFlushTime,
-                                            std::make_shared<DuplicateShareCheckerBytom>(dupShareTrackingHeight));
-  }
+  // else if (chainType == "BTM") {
+  //   return std::make_shared<StatsServerBytom>(kafkaBrokers, kafkaShareTopic, kafkaCommonEventsTopic,
+  //                                           httpdHost, httpdPort, poolDBInfo,
+  //                                           kFlushDBInterval, fileLastFlushTime,
+  //                                           std::make_shared<DuplicateShareCheckerBytom>(dupShareTrackingHeight));
+  // }
   else {
     LOG(FATAL) << "newStatsServer: unknown chain type " << chainType;
     return nullptr;
