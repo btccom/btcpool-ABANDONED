@@ -58,9 +58,9 @@ void handler(int sig)
   }
 }
 
-void usage()
-{
-  fprintf(stderr, "Usage:\n\tsharelogger -c \"sharelogger.cfg\" -l \"log_dir\"\n");
+void usage() {
+  fprintf(stderr, BIN_VERSION_STRING("sharelogger"));
+  fprintf(stderr, "Usage:\tsharelogger -c \"sharelogger.cfg\" -l \"log_dir\"\n");
 }
 
 void workerThread(shared_ptr<ShareLogWriter> w)
@@ -163,6 +163,8 @@ int main(int argc, char **argv)
   FLAGS_max_log_size = 100;  // max log file size 100 MB
   FLAGS_logbuflevel = -1;    // don't buffer logs
   FLAGS_stop_logging_if_full_disk = true;
+
+  LOG(INFO) << BIN_VERSION_STRING("sharelogger");
 
   // Read the file. If there is an error, report it and exit.
   libconfig::Config cfg;
