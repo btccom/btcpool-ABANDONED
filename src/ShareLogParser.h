@@ -29,6 +29,7 @@
 #include "MySQLConnection.h"
 #include "Stratum.h"
 #include "Statistics.h"
+#include "zlibstream/zstr.hpp"
 
 #include <event2/event.h>
 #include <event2/http.h>
@@ -95,11 +96,11 @@ class ShareLogParserT : public ShareLogParser {
   //
   // for processGrowingShareLog()
   //
-  FILE *f_;        // file handler
+  zstr::ifstream *f_;        // file handler
   uint8_t *buf_;   // fread buffer
   // 48 * 1000000 = 48,000,000 ~ 48 MB
   static const size_t kMaxElementsNum_ = 1000000;  // num of shares
-  off_t lastPosition_;
+  size_t incompleteShareSize_;
 
   MySQLConnection  poolDB_;  // save stats data
   
@@ -207,7 +208,7 @@ class ShareLogParserServerT : public ShareLogParserServer {
   void runThreadShareLogParser();
   bool initShareLogParser(time_t datets);
   bool setupThreadShareLogParser();
-  void trySwithBinFile(shared_ptr<ShareLogParserT<SHARE>> shareLogParser);
+  void trySwitchBinFile(shared_ptr<ShareLogParserT<SHARE>> shareLogParser);
   void runHttpd();
 
 public:

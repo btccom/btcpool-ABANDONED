@@ -397,6 +397,11 @@ bool fileExists(const char* file) {
   return (stat(file, &buf) == 0);
 }
 
+bool fileNonEmpty(const char* file) {
+  struct stat buf;
+  return (stat(file, &buf) == 0) && (buf.st_size > 0);
+}
+
 string getStatsFilePath(const char *chainType, const string &dataDir, time_t ts) {
   bool needSlash = false;
   if (dataDir.length() > 0 && *dataDir.rbegin() != '/') {

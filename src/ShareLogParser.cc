@@ -30,6 +30,7 @@
 
 #include <algorithm>
 #include <string>
+#include <fstream>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/thread.hpp>
@@ -63,11 +64,11 @@ ShareLogDumperT<SHARE>::~ShareLogDumperT() {
 
 template <class SHARE>
 void ShareLogDumperT<SHARE>::dump2stdout() {
-  FILE *f = nullptr;
-
-  // open file
+  // open file (auto-detecting compression format or non-compression)
   LOG(INFO) << "open file: " << filePath_;
-  if ((f = fopen(filePath_.c_str(), "rb")) == nullptr) {
+  zstr::ifstream f(filePath_, std::ios::binary);
+
+  if (!f) {
     LOG(ERROR) << "open file fail: " << filePath_;
     return;
   }
@@ -78,11 +79,19 @@ void ShareLogDumperT<SHARE>::dump2stdout() {
   string buf;
   buf.resize(kElements * sizeof(SHARE));
 
-  while (1) {
-    readNum = fread((uint8_t *)buf.data(), sizeof(SHARE), kElements, f);
+  for (;;) {
+    f.read((char *)buf.data(), kElements * sizeof(SHARE));
+    readNum = f.gcount();
+
+    size_t readNumMod = readNum % sizeof(SHARE);
+    if (readNumMod > 0) {
+      LOG(WARNING) << "Incomplete share detected: " << readNumMod << " bytes "
+                   << "(should be " << sizeof(SHARE) << " bytes)";
+      readNum -= readNumMod;
+    }
 
     if (readNum == 0) {
-      if (feof(f)) {
+      if (f.eof()) {
         LOG(INFO) << "End-of-File reached: " << filePath_;
         break;
       }
@@ -90,10 +99,8 @@ void ShareLogDumperT<SHARE>::dump2stdout() {
       continue;
     }
 
-    parseShareLog((uint8_t *)buf.data(), readNum * sizeof(SHARE));
+    parseShareLog((uint8_t *)buf.data(), readNum);
   };
-
-  fclose(f);
 }
 
 template <class SHARE>
@@ -125,7 +132,7 @@ ShareLogParserT<SHARE>::ShareLogParserT(const char *chainType, const string &dat
                                time_t timestamp, const MysqlConnectInfo &poolDBInfo,
                                shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker)
 : date_(timestamp), chainType_(chainType), f_(nullptr), buf_(nullptr)
-, lastPosition_(0), poolDB_(poolDBInfo)
+, incompleteShareSize_(0), poolDB_(poolDBInfo)
 , dupShareChecker_(dupShareChecker)
 {
   pthread_rwlock_init(&rwlock_, nullptr);
@@ -145,7 +152,7 @@ ShareLogParserT<SHARE>::ShareLogParserT(const char *chainType, const string &dat
 template <class SHARE>
 ShareLogParserT<SHARE>::~ShareLogParserT() {
   if (f_)
-    fclose(f_);
+    delete f_;
 
   if (buf_)
     free(buf_);
@@ -158,28 +165,6 @@ bool ShareLogParserT<SHARE>::init() {
     LOG(ERROR) << "connect to db fail";
     return false;
   }
-
-  // try to open file
-  FILE *f = fopen(filePath_.c_str(), "rb");
-
-  if (f == nullptr) {
-    LOG(ERROR) << "open file fail, try create it: " << filePath_;
-
-    f = fopen(filePath_.c_str(), "ab");
-
-    if (f == nullptr) {
-      LOG(ERROR) << "create file fail: " << filePath_;
-      return false;
-    }
-    else {
-      LOG(INFO) << "create file success: " << filePath_;
-    }
-  }
-  else {
-    LOG(INFO) << "open file success: " << filePath_;
-  }
-
-  fclose(f);
 
   return true;
 }
@@ -226,11 +211,11 @@ void ShareLogParserT<SHARE>::parseShare(const SHARE *share) {
 
 template <class SHARE>
 bool ShareLogParserT<SHARE>::processUnchangedShareLog() {
-  FILE *f = nullptr;
-
   // open file
   LOG(INFO) << "open file: " << filePath_;
-  if ((f = fopen(filePath_.c_str(), "rb")) == nullptr) {
+  zstr::ifstream f(filePath_, std::ios::binary);
+
+  if (!f) {
     LOG(ERROR) << "open file fail: " << filePath_;
     return false;
   }
@@ -241,11 +226,19 @@ bool ShareLogParserT<SHARE>::processUnchangedShareLog() {
   string buf;
   buf.resize(kElements * sizeof(SHARE));
 
-  while (1) {
-    readNum = fread((uint8_t *)buf.data(), sizeof(SHARE), kElements, f);
+  for (;;) {
+    f.read((char *)buf.data(), kElements * sizeof(SHARE));
+    readNum = f.gcount();
 
+    size_t readNumMod = readNum % sizeof(SHARE);
+    if (readNumMod > 0) {
+      LOG(WARNING) << "Incomplete share detected: " << readNumMod << " bytes "
+                   << "(should be " << sizeof(SHARE) << " bytes)";
+      readNum -= readNumMod;
+    }
+    
     if (readNum == 0) {
-      if (feof(f)) {
+      if (f.eof()) {
         LOG(INFO) << "End-of-File reached: " << filePath_;
         break;
       }
@@ -253,10 +246,9 @@ bool ShareLogParserT<SHARE>::processUnchangedShareLog() {
       continue;
     }
 
-    parseShareLog((uint8_t *)buf.data(), readNum * sizeof(SHARE));
+    parseShareLog((uint8_t *)buf.data(), readNum);
   };
 
-  fclose(f);
   return true;
 }
 
@@ -265,17 +257,25 @@ int64_t ShareLogParserT<SHARE>::processGrowingShareLog() {
   size_t readNum = 0;
 
   if (f_ == nullptr) {
-    if ((f_ = fopen(filePath_.c_str(), "rb")) == nullptr) {
+    f_ = new zstr::ifstream(filePath_, std::ios::binary);
+    if (!*f_) {
       LOG(ERROR) << "open file fail: " << filePath_;
+
+      delete f_;
+      f_ = nullptr;
+
       return -1;
     }
   }
   assert(f_ != nullptr);
 
-  // seek to last position. we manager the file indicator by our own.
-  fseek(f_, lastPosition_, SEEK_SET);
+  // clear the eof status so the stream can coninue reading.
+  if (f_->eof()) {
+    f_->clear();
+  }
 
   //
+  // Old Comments:
   // no need to set buffer memory to zero before fread
   // return: the total number of elements successfully read is returned.
   //
@@ -283,35 +283,43 @@ int64_t ShareLogParserT<SHARE>::processGrowingShareLog() {
   // C11 at 7.21.8.1.2 and 7.21.8.2.2 says: If an error occurs, the resulting
   // value of the file position indicator for the stream is indeterminate.
   //
-  readNum = fread(buf_, sizeof(SHARE), kMaxElementsNum_, f_);
-  if (readNum == 0)
-    return 0;
+  // Now zlib/gzip file stream is used.
+  //
 
-  const size_t bufSize = readNum * sizeof(SHARE);
-  lastPosition_ += bufSize;
-  assert(lastPosition_ % sizeof(SHARE) == 0);
+  // If an incomplete share was found at last read, only reading the rest part of it.
+  f_->read((char *)buf_ + incompleteShareSize_, kMaxElementsNum_ * sizeof(SHARE) - incompleteShareSize_);
+  readNum = f_->gcount() + incompleteShareSize_;
+
+  incompleteShareSize_ = readNum % sizeof(SHARE);
+  if (incompleteShareSize_ > 0) {
+    LOG(WARNING) << "Incomplete share detected: " << incompleteShareSize_ << " bytes "
+                 << "(should be " << sizeof(SHARE) << " bytes)";
+    readNum -= incompleteShareSize_;
+  }
+
+  if (readNum == 0) {
+    return 0;
+  }
 
   // parse shares
-  parseShareLog(buf_, bufSize);
+  parseShareLog(buf_, readNum);
 
-  return readNum;
+  if (incompleteShareSize_ > 0) {
+    // move the incomplete share to the beginning of buf_
+    memcpy((char *)buf_, (char *)buf_ + readNum, incompleteShareSize_);
+  }
+
+  return readNum / sizeof(SHARE);
 }
 
 template <class SHARE>
 bool ShareLogParserT<SHARE>::isReachEOF() {
-  struct stat sb;
-  int fd = open(filePath_.c_str(), O_RDONLY);
-  if (fd == -1) {
-    LOG(ERROR) << "open file fail: " << filePath_;
-    return true;  // if error we consider as EOF
-  }
-  if (fstat(fd, &sb) == -1) {
-    LOG(ERROR) << "fstat fail: " << filePath_;
+  if (f_ == nullptr || !*f_) {
+    // if error we consider as EOF
     return true;
   }
-  close(fd);
 
-  return lastPosition_ == sb.st_size;
+  return f_->eof();
 }
 
 template <class SHARE>
@@ -979,6 +987,7 @@ template <class SHARE>
 void ShareLogParserServerT<SHARE>::runThreadShareLogParser() {
   LOG(INFO) << "thread sharelog parser start";
 
+  static size_t nonShareCounter = 0;
   time_t lastFlushDBTime = 0;
 
   while (running_) {
@@ -1000,8 +1009,10 @@ void ShareLogParserServerT<SHARE>::runThreadShareLogParser() {
     while (running_) {
       int64_t res = shareLogParser->processGrowingShareLog();
       if (res <= 0) {
+        nonShareCounter++;
         break;
       }
+      nonShareCounter = 0;
       DLOG(INFO) << "process share: " << res;
     }
     sleep(1);
@@ -1012,8 +1023,13 @@ void ShareLogParserServerT<SHARE>::runThreadShareLogParser() {
       lastFlushDBTime = time(nullptr);
     }
 
-    // check if need to switch bin file
-    trySwithBinFile(shareLogParser);
+    // No new share has been read in the last five times.
+    // Maybe sharelog has switched to a new file.
+    if (nonShareCounter > 5) {
+      // check if need to switch bin file
+      DLOG(INFO) << "no new shares, try switch bin file";
+      trySwitchBinFile(shareLogParser);
+    }
 
   } /* while */
 
@@ -1023,7 +1039,7 @@ void ShareLogParserServerT<SHARE>::runThreadShareLogParser() {
 }
 
 template <class SHARE>
-void ShareLogParserServerT<SHARE>::trySwithBinFile(shared_ptr<ShareLogParserT<SHARE>> shareLogParser) {
+void ShareLogParserServerT<SHARE>::trySwitchBinFile(shared_ptr<ShareLogParserT<SHARE>> shareLogParser) {
   assert(shareLogParser != nullptr);
 
   const time_t now = time(nullptr);
@@ -1041,13 +1057,13 @@ void ShareLogParserServerT<SHARE>::trySwithBinFile(shared_ptr<ShareLogParserT<SH
   const string filePath = getStatsFilePath(chainType_.c_str(), dataDir_, now);
   if (now > beginTs + 5 &&
       shareLogParser->isReachEOF() &&
-      fileExists(filePath.c_str()))
+      fileNonEmpty(filePath.c_str()))
   {
     shareLogParser->flushToDB();  // flush data
 
     bool res = initShareLogParser(now);
     if (!res) {
-      LOG(ERROR) << "trySwithBinFile fail";
+      LOG(ERROR) << "trySwitchBinFile fail";
     }
   }
 }

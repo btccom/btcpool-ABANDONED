@@ -48,11 +48,13 @@
 //////////////////////////////  ShareLogWriterT  ///////////////////////////////
 template<class SHARE>
 ShareLogWriterT<SHARE>::ShareLogWriterT(const char *chainType,
-                               const char *kafkaBrokers,
-                               const string &dataDir,
-                               const string &kafkaGroupID,
-                               const char *shareLogTopic)
-:running_(true), dataDir_(dataDir), chainType_(chainType),
+                                        const char *kafkaBrokers,
+                                        const string &dataDir,
+                                        const string &kafkaGroupID,
+                                        const char *shareLogTopic,
+                                        const int compressionLevel)
+:running_(true), dataDir_(dataDir),
+compressionLevel_(compressionLevel), chainType_(chainType),
 hlConsumer_(kafkaBrokers, shareLogTopic, 0/* patition */, kafkaGroupID)
 {
 }
@@ -62,7 +64,7 @@ ShareLogWriterT<SHARE>::~ShareLogWriterT() {
   // close file handlers
   for (auto & itr : fileHandlers_) {
     LOG(INFO) << "fclose file handler, date: " << date("%F", itr.first);
-    fclose(itr.second);
+    delete itr.second;
   }
   fileHandlers_.clear();
 }
@@ -76,7 +78,7 @@ void ShareLogWriterT<SHARE>::stop() {
 }
 
 template<class SHARE>
-FILE * ShareLogWriterT<SHARE>::getFileHandler(uint32_t ts) {
+zstr::ofstream * ShareLogWriterT<SHARE>::getFileHandler(uint32_t ts) {
   if (fileHandlers_.find(ts) != fileHandlers_.end()) {
     return fileHandlers_[ts];
   }
@@ -84,8 +86,8 @@ FILE * ShareLogWriterT<SHARE>::getFileHandler(uint32_t ts) {
   const string filePath = getStatsFilePath(chainType_.c_str(), dataDir_, ts);
   LOG(INFO) << "fopen: " << filePath;
 
-  FILE *f = fopen(filePath.c_str(), "ab");  // append mode, bin file
-  if (f == nullptr) {
+  zstr::ofstream *f = new zstr::ofstream(filePath, std::ios::app | std::ios::binary, compressionLevel_);  // append mode, bin file
+  if (!*f) {
     LOG(FATAL) << "fopen file fail: " << filePath;
     return nullptr;
   }
@@ -145,7 +147,7 @@ void ShareLogWriterT<SHARE>::tryCloseOldHanders() {
     auto itr = fileHandlers_.begin();
 
     LOG(INFO) << "fclose file handler, date: " << date("%F", itr->first);
-    fclose(itr->second);
+    delete itr->second;
 
     fileHandlers_.erase(itr);
   }
@@ -153,22 +155,23 @@ void ShareLogWriterT<SHARE>::tryCloseOldHanders() {
 
 template<class SHARE>
 bool ShareLogWriterT<SHARE>::flushToDisk() {
-  std::set<FILE*> usedHandlers;
+  std::set<zstr::ofstream*> usedHandlers;
 
   for (const auto& share : shares_) {
     const uint32_t ts = share.timestamp_ - (share.timestamp_ % 86400);
-    FILE *f = getFileHandler(ts);
+    zstr::ofstream *f = getFileHandler(ts);
     if (f == nullptr)
       return false;
 
     usedHandlers.insert(f);
-    fwrite((uint8_t *)&share, sizeof(SHARE), 1, f);
+    f->write((char *)&share, sizeof(SHARE));
   }
 
   shares_.clear();
 
   for (auto & f : usedHandlers) {
-    fflush(f);
+    DLOG(INFO) << "fflush() file to disk";
+    f->flush();
   }
 
   // should call this after write data

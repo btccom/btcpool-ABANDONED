@@ -38,6 +38,7 @@
 
 #include "Utils.h"
 #include "ShareLogger.h"
+#include "zlibstream/zstr.hpp"
 
 using namespace std;
 using namespace libconfig;
@@ -67,26 +68,33 @@ void workerThread(shared_ptr<ShareLogWriter> w)
 std::shared_ptr<ShareLogWriter> newShareLogWriter(const string &kafkaBrokers, const Setting &def) {
   string chainType = def.lookup("chain_type");
 
+  int compressionLevel = Z_DEFAULT_COMPRESSION;
+  def.lookupValue("compression_level", compressionLevel);
+
+
   if (chainType == "BTC") {
     return make_shared<ShareLogWriterBitcoin>(def.lookup("chain_type").c_str(),
                                               kafkaBrokers.c_str(),
                                               def.lookup("data_dir").c_str(),
                                               def.lookup("kafka_group_id").c_str(),
-                                              def.lookup("share_topic"));
+                                              def.lookup("share_topic"),
+                                              compressionLevel);
   }
   else if (chainType == "ETH") {
     return make_shared<ShareLogWriterEth>(def.lookup("chain_type").c_str(),
                                           kafkaBrokers.c_str(),
                                           def.lookup("data_dir").c_str(),
                                           def.lookup("kafka_group_id").c_str(),
-                                          def.lookup("share_topic"));
+                                          def.lookup("share_topic"),
+                                          compressionLevel);
   }
   else if (chainType == "BTM") {
     return make_shared<ShareLogWriterBytom>(def.lookup("chain_type").c_str(),
                                           kafkaBrokers.c_str(),
                                           def.lookup("data_dir").c_str(),
                                           def.lookup("kafka_group_id").c_str(),
-                                          def.lookup("share_topic"));    
+                                          def.lookup("share_topic"),
+                                          compressionLevel);    
   }
   else {
     LOG(FATAL) << "Unknown chain type " << chainType;

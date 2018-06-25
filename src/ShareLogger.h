@@ -29,6 +29,7 @@
 #include "MySQLConnection.h"
 #include "Stratum.h"
 #include "Statistics.h"
+#include "zlibstream/zstr.hpp"
 
 #include <event2/event.h>
 #include <event2/http.h>
@@ -58,23 +59,28 @@ template<class SHARE>
 class ShareLogWriterT : public ShareLogWriter {
   atomic<bool> running_;
   string dataDir_;  // where to put sharelog data files
+  
+  // zlib/gzip compression level: -1 to 9.
+  // -1: defaule level, 0: non-compression, 1: best speed, 9: best size.
+  int compressionLevel_;
 
   // key:   timestamp - (timestamp % 86400)
-  // value: FILE *
-  std::map<uint32_t, FILE *> fileHandlers_;
+  // value: zstr::ofstream *
+  std::map<uint32_t, zstr::ofstream *> fileHandlers_;
   std::vector<SHARE> shares_;
 
   const string chainType_;
   KafkaHighLevelConsumer hlConsumer_;  // consume topic: shareLogTopic
 
-  FILE* getFileHandler(uint32_t ts);
+  zstr::ofstream* getFileHandler(uint32_t ts);
   void consumeShareLog(rd_kafka_message_t *rkmessage);
   bool flushToDisk();
   void tryCloseOldHanders();
 
 public:
   ShareLogWriterT(const char *chainType, const char *kafkaBrokers, const string &dataDir,
-                 const string &kafkaGroupID, const char *shareLogTopic);
+                  const string &kafkaGroupID, const char *shareLogTopic,
+                  const int compressionLevel = Z_DEFAULT_COMPRESSION);
   ~ShareLogWriterT();
 
   void stop();
