@@ -51,7 +51,8 @@ void handler(int sig) {
 }
 
 void usage() {
-  fprintf(stderr, "Usage:\n\tslparser -c \"slparser.cfg\" -l \"log_dir\"\n");
+  fprintf(stderr, BIN_VERSION_STRING("slparser"));
+  fprintf(stderr, "Usage:\tslparser -c \"slparser.cfg\" -l \"log_dir\"\n");
   fprintf(stderr, "\tslparser -c \"slparser.cfg\" -l \"log_dir2\" -d \"20160830\"\n");
   fprintf(stderr, "\tslparser -c \"slparser.cfg\" -l \"log_dir3\" -d \"20160830\" -u \"puid(0: dump all, >0: someone's)\"\n");
 }
@@ -96,6 +97,8 @@ int main(int argc, char **argv) {
   FLAGS_max_log_size    = 100;  // max log file size 100 MB
   FLAGS_logbuflevel     = -1;   // don't buffer logs
   FLAGS_stop_logging_if_full_disk = true;
+
+  LOG(INFO) << BIN_VERSION_STRING("slparser");
 
   // Read the file. If there is an error, report it and exit.
   libconfig::Config cfg;

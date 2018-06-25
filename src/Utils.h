@@ -32,10 +32,13 @@
 #include <util.h>
 #include <utilstrencodings.h>
 #include <streams.h>
+#include <glog/logging.h>
 
 #include "zmq.hpp"
 
 #include "Common.h"
+
+#define BIN_VERSION_STRING(binName) CHAIN_TYPE_STR " " binName " version " GIT_COMMIT_HASH "\n"
 
 bool Hex2Bin(const char *in, size_t size, vector<char> &out);
 bool Hex2Bin(const char *in, vector<char> &out);

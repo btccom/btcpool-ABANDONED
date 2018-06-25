@@ -54,7 +54,8 @@ void handler(int sig) {
 }
 
 void usage() {
-  fprintf(stderr, "Usage:\n\tsserver -c \"sserver.cfg\" -l \"log_dir\"\n");
+  fprintf(stderr, BIN_VERSION_STRING("sserver"));
+  fprintf(stderr, "Usage:\tsserver -c \"sserver.cfg\" -l \"log_dir\"\n");
 }
 
 int main(int argc, char **argv) {
@@ -89,6 +90,8 @@ int main(int argc, char **argv) {
   FLAGS_max_log_size    = 100;  // max log file size 100 MB
   FLAGS_logbuflevel     = -1;   // don't buffer logs
   FLAGS_stop_logging_if_full_disk = true;
+
+  LOG(INFO) << BIN_VERSION_STRING("sserver");
 
   // Read the file. If there is an error, report it and exit.
   libconfig::Config cfg;

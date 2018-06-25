@@ -49,7 +49,8 @@ void handler(int sig) {
 }
 
 void usage() {
-  fprintf(stderr, "Usage:\n\tblkmaker -c \"blkmaker.cfg\" -l \"log_dir\"\n");
+  fprintf(stderr, BIN_VERSION_STRING("blkmaker"));
+  fprintf(stderr, "Usage:\tblkmaker -c \"blkmaker.cfg\" -l \"log_dir\"\n");
 }
 
 int main(int argc, char **argv) {
@@ -84,6 +85,8 @@ int main(int argc, char **argv) {
   FLAGS_max_log_size    = 100;  // max log file size 100 MB
   FLAGS_logbuflevel     = -1;   // don't buffer logs
   FLAGS_stop_logging_if_full_disk = true;
+
+  LOG(INFO) << BIN_VERSION_STRING("blkmaker");
 
   // Read the file. If there is an error, report it and exit.
   libconfig::Config cfg;
