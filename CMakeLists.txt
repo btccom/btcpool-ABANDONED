@@ -385,8 +385,9 @@ else()
   set(GIT_COMMIT_HASH "0")
 endif()
 
-add_definitions(-DGIT_COMMIT_HASH="${GIT_COMMIT_HASH}")
+########################## Generate configuration files #############################
 
+configure_file(${CMAKE_SOURCE_DIR}/src/config/bpool-version.h.in ${CMAKE_SOURCE_DIR}/src/config/bpool-version.h)
 
 ###################################### Targets ######################################
 

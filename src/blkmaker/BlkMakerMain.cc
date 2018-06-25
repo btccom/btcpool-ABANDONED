@@ -34,6 +34,7 @@
 #include <glog/logging.h>
 #include <libconfig.h++>
 
+#include "config/bpool-version.h"
 #include "Utils.h"
 
 #include "bitcoin/BlockMakerBitcoin.h"

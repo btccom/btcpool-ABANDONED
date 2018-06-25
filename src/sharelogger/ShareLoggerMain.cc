@@ -38,6 +38,7 @@
 
 #include "zlibstream/zstr.hpp"
 
+#include "config/bpool-version.h"
 #include "Utils.h"
 #include "bitcoin/ShareLoggerBitcoin.h"
 #include "eth/ShareLoggerEth.h"

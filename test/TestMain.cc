@@ -25,7 +25,7 @@
 #include <execinfo.h>
 #include <string>
 #include "gtest/gtest.h"
-#include "Utils.h"
+#include "config/bpool-version.h"
 
 #include <glog/logging.h>
 

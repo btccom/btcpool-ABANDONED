@@ -12,9 +12,10 @@ build*/
 /patches/
 /data/
 
-# Legacy files
-
 # GNU global files
 /GPATH
 /GRTAGS
 /GTAGS
+
+# generated configuration files
+/src/config/*.h
