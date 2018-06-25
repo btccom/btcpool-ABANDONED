@@ -37,6 +37,7 @@
 
 #include "Utils.h"
 #include "Watcher.h"
+#include "config/bpool-version.h"
 
 #include <chainparams.h>
 

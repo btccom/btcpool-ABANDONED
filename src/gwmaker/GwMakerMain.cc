@@ -38,6 +38,7 @@
 
 #include "Utils.h"
 #include "GwMaker.h"
+#include "config/bpool-version.h"
 
 using namespace std;
 using namespace libconfig;

@@ -39,6 +39,7 @@
 
 #include "Utils.h"
 #include "StratumServer.h"
+#include "config/bpool-version.h"
 
 #include <chainparams.h>
 

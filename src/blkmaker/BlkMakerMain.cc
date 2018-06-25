@@ -36,6 +36,7 @@
 
 #include "Utils.h"
 #include "BlockMaker.h"
+#include "config/bpool-version.h"
 
 using namespace std;
 using namespace libconfig;

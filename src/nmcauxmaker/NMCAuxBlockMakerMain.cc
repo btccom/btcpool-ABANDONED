@@ -38,6 +38,7 @@
 
 #include "Utils.h"
 #include "GbtMaker.h"
+#include "config/bpool-version.h"
 
 using namespace std;
 using namespace libconfig;

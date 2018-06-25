@@ -39,6 +39,7 @@
 #include "Utils.h"
 #include "JobMaker.h"
 #include "Zookeeper.h"
+#include "config/bpool-version.h"
 
 #include <chainparams.h>
 
