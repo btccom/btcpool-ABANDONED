@@ -1859,7 +1859,7 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
 
   shared_ptr<StratumJobEx> exjob;
   exjob = server_->jobRepository_->getStratumJobEx(localJob->jobId_);
-  if (nullptr == exjob || nullptr == exjob->sjob_)
+  if (nullptr == exjob || nullptr == exjob->sjob_ || exjob->isStale())
   {
     responseError(idStr, StratumStatus::JOB_NOT_FOUND);
     LOG(ERROR) << "bytom local job not found " << std::hex << localJob->jobId_;
