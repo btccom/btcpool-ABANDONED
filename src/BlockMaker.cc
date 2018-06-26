@@ -1162,10 +1162,23 @@ void BlockMakerBytom::processSolvedShare(rd_kafka_message_t *rkmessage)
   string request = Strings::Format("{\"block_header\": \"%s\"}\n",
                                    bh.c_str());
 
-  for (const auto &itr : nodeRpcUri_)
-  {
-    string response;
-    rpcCall(itr.first.c_str(), itr.second.c_str(), request.c_str(), request.length(), response, "curl");
-    LOG(INFO) << "submission result: " << response;
+  submitBlockNonBlocking(request);
+}
+
+void BlockMakerBytom::submitBlockNonBlocking(const string &request) {
+  for (const auto &itr : nodeRpcUri_) {
+    // use thread to submit
+    boost::thread t(boost::bind(&BlockMakerBytom::_submitBlockThread, this,
+                                itr.first, itr.second, request));
+    t.detach();
   }
+}
+
+void BlockMakerBytom::_submitBlockThread(const string &rpcAddress, const string &rpcUserpass,
+                                       const string &request)
+{
+  string response;
+  LOG(INFO) << "submitting block to " << rpcAddress.c_str() << " with request value: " << request.c_str();
+  rpcCall(rpcAddress.c_str(), rpcUserpass.c_str(), request.c_str(), request.length(), response, "curl");
+  LOG(INFO) << "submission result: " << response;
 }

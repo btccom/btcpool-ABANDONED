@@ -236,6 +236,11 @@ class BlockMakerBytom : public BlockMakerEth
 public:
   BlockMakerBytom(const BlockMakerDefinition &def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
   void processSolvedShare(rd_kafka_message_t *rkmessage) override;
+
+private:
+  void submitBlockNonBlocking(const string &request);
+  void _submitBlockThread(const string &rpcAddress, const string &rpcUserpass, const string& request);
+
 };
 
 #endif
