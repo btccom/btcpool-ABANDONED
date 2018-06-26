@@ -27,7 +27,6 @@
 
 #include "Common.h"
 #include "Kafka.h"
-#include "MySQLConnection.h"
 #include "Utils.h"
 
 #include <arith_uint256.h>

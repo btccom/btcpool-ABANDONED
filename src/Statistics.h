@@ -26,7 +26,6 @@
 
 #include "Common.h"
 #include "Kafka.h"
-#include "MySQLConnection.h"
 #include "Stratum.h"
 
 #include <event2/event.h>

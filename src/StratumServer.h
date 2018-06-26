@@ -45,7 +45,6 @@
 #include <primitives/block.h>
 
 #include "Kafka.h"
-#include "MySQLConnection.h"
 #include "Stratum.h"
 #include "StratumSession.h"
 
