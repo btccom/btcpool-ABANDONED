@@ -72,8 +72,8 @@ void BlockMaker::stop() {
   LOG(INFO) << "stop block maker";
 }
 
-void BlockMaker::addBitcoind(const string &rpcAddress, const string &rpcUserpass) {
-  bitcoindRpcUri_.push_back(make_pair(rpcAddress, rpcUserpass));
+void BlockMaker::addNodeRpc(const string &rpcAddress, const string &rpcUserpass) {
+  nodeRpcUri_.push_back(make_pair(rpcAddress, rpcUserpass));
 }
 
 bool BlockMaker::init() {
@@ -346,7 +346,7 @@ void BlockMaker::consumeNamecoinSovledShare(rd_kafka_message_t *rkmessage) {
   const string auxBlockHash   = j["aux_block_hash"].str();
   const string blockHeaderHex = j["block_header"].str();
   const string coinbaseTxHex  = j["coinbase_tx"].str();
-  const string rpcAddr        = j["rpc_addr"].str();
+  const string rpcAddr        = j["P"].str();
   const string rpcUserpass    = j["rpc_userpass"].str();
   assert(blockHeaderHex.size() == sizeof(CBlockHeader)*2);
 
@@ -632,11 +632,11 @@ void BlockMaker::_saveBlockToDBThread(const FoundBlock &foundBlock,
 }
 
 bool BlockMaker::checkBitcoinds() {
-  if (bitcoindRpcUri_.size() == 0) {
+  if (nodeRpcUri_.size() == 0) {
     return false;
   }
 
-  for (const auto &itr : bitcoindRpcUri_) {
+  for (const auto &itr : nodeRpcUri_) {
     if (!checkBitcoinRPC(itr.first.c_str(), itr.second.c_str())) {
       return false;
     }
@@ -646,7 +646,7 @@ bool BlockMaker::checkBitcoinds() {
 }
 
 void BlockMaker::submitBlockNonBlocking(const string &blockHex) {
-  for (const auto &itr : bitcoindRpcUri_) {
+  for (const auto &itr : nodeRpcUri_) {
     // use thread to submit
     boost::thread t(boost::bind(&BlockMaker::_submitBlockThread, this,
                                 itr.first, itr.second, blockHex));
@@ -1073,7 +1073,7 @@ bool BlockMakerEth::init() {
 }
 
 void BlockMakerEth::submitBlockNonBlocking(const string &blockJson) {
-  for (const auto &itr : bitcoindRpcUri_) {
+  for (const auto &itr : nodeRpcUri_) {
     // use thread to submit
     boost::thread t(boost::bind(&BlockMakerEth::_submitBlockThread, this,
                                 itr.first, itr.second, blockJson));
@@ -1142,7 +1142,7 @@ void BlockMakerSia::processSolvedShare(rd_kafka_message_t *rkmessage)
 
   char buf[80] = {0};
   memcpy(buf, rkmessage->payload, 80);
-  for (const auto &itr : bitcoindRpcUri_)
+  for (const auto &itr : nodeRpcUri_)
   {
     string response;
     rpcCall(itr.first.c_str(), itr.second.c_str(), buf, 80, response, "Sia-Agent");
@@ -1162,7 +1162,7 @@ void BlockMakerBytom::processSolvedShare(rd_kafka_message_t *rkmessage)
   string request = Strings::Format("{\"block_header\": \"%s\"}\n",
                                    bh.c_str());
 
-  for (const auto &itr : bitcoindRpcUri_)
+  for (const auto &itr : nodeRpcUri_)
   {
     string response;
     rpcCall(itr.first.c_str(), itr.second.c_str(), request.c_str(), request.length(), response, "curl");

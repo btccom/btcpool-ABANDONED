@@ -79,7 +79,7 @@ BlockMaker* createBlockMaker(const BlockMakerDefinition& def, const string& brok
 
   if (maker) {
     for (auto node : def.nodes) 
-      maker->addBitcoind(node.rpcAddr_, node.rpcUserPwd_);
+      maker->addNodeRpc(node.rpcAddr_, node.rpcUserPwd_);
   }
 
   return maker;
@@ -238,7 +238,7 @@ int main(int argc, char **argv) {
   //     string rpcAddr, rpcUserpwd;
   //     bitcoinds[i].lookupValue("rpc_addr",    rpcAddr);
   //     bitcoinds[i].lookupValue("rpc_userpwd", rpcUserpwd);
-  //     gBlockMaker->addBitcoind(rpcAddr, rpcUserpwd);
+  //     gBlockMaker->addNodeRpc(rpcAddr, rpcUserpwd);
   //   }
   // }
 

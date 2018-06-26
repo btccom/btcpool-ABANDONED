@@ -132,7 +132,7 @@ protected:
 
   // submit new block to bitcoind
   // pair: <RpcAddress, RpcUserpass>
-  std::vector<std::pair<string, string>> bitcoindRpcUri_;
+  std::vector<std::pair<string, string>> nodeRpcUri_;
 
   MysqlConnectInfo poolDB_; // save blocks to table.found_blocks
 
@@ -202,7 +202,7 @@ public:
   BlockMaker(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
   virtual ~BlockMaker();
 
-  void addBitcoind(const string &rpcAddress, const string &rpcUserpass);
+  void addNodeRpc(const string &rpcAddress, const string &rpcUserpass);
 
   virtual bool init();
   void stop();

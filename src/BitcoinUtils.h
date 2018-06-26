@@ -55,6 +55,7 @@ std::string EncodeHexBlockHeader(const CBlockHeader &blkHeader);
 
 int64_t GetBlockReward(int nHeight, const Consensus::Params& consensusParams);
 int64_t GetBlockRewardEth(int nHeight);
+uint64_t GetBlockRewardBytom(uint64_t nHeight);
 
 #ifdef CHAIN_TYPE_SBTC
 CTxDestination DecodeDestination(const std::string& str);
