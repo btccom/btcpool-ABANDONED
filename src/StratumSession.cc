@@ -1955,7 +1955,8 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
       {
         share.status_ = StratumStatus::SOLVED;
         LOG(INFO) << "share solved";
-        s->sendSolvedShare2Kafka(encoded.r0);
+        s->sendSolvedShare2Kafka(nonce, encoded.r0, share.height_, 
+                                Bytom_TargetToDifficulty(sJob->blockHeader_.bits), worker_);
         diffController_->addAcceptedShare(share.shareDiff_);
       }
       rpc2ResponseBoolean(idStr, true);

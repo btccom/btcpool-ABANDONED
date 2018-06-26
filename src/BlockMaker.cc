@@ -31,6 +31,7 @@
 #include "utilities_js.hpp"
 
 #include "rsk/RskSolvedShareData.h"
+#include "bytom/bh_shared.h"
 
 
 ////////////////////////////////// BlockMaker //////////////////////////////////
@@ -1158,11 +1159,47 @@ BlockMakerEth(def, kafkaBrokers, poolDB)
 
 void BlockMakerBytom::processSolvedShare(rd_kafka_message_t *rkmessage)
 {
-  string bh((char*)rkmessage->payload, rkmessage->len);
+  const char *message = (const char *)rkmessage->payload;
+  JsonNode r;
+  if (!JsonNode::parse(message, message + rkmessage->len, r))
+  {
+    LOG(ERROR) << "decode common event failure";
+    return;
+  }
+
+  if (r.type() != Utilities::JS::type::Obj ||
+      r["nonce"].type() != Utilities::JS::type::Int ||
+      r["header"].type() != Utilities::JS::type::Str ||
+      r["height"].type() != Utilities::JS::type::Int ||
+      r["networkDiff"].type() != Utilities::JS::type::Int ||
+      r["userId"].type() != Utilities::JS::type::Int ||
+      r["workerId"].type() != Utilities::JS::type::Int ||
+      r["workerFullName"].type() != Utilities::JS::type::Str)
+  {
+    LOG(ERROR) << "eth solved share format wrong";
+    return;
+  }
+
+
+  string bhString = r["header"].str();
   string request = Strings::Format("{\"block_header\": \"%s\"}\n",
-                                   bh.c_str());
+                                   bhString.c_str());
 
   submitBlockNonBlocking(request);
+
+
+  StratumWorker worker;
+  worker.userId_ = r["userId"].int32();
+  worker.workerHashId_ = r["workerId"].int64();
+  worker.fullName_ = r["workerFullName"].str();
+
+  // GoSlice text = {(void *)bhString.data(), (int)bhString.length(), (int)bhString.length()};
+  // DecodeBlockHeader_return bh = DecodeBlockHeader(text);
+
+  uint64_t networkDiff = r["networkDiff"].uint64();
+  uint64_t height = r["height"].uint64();
+  // BlockMakerEth::saveBlockToDBNonBlocking(bhString, height, networkDiff, worker);
+
 }
 
 void BlockMakerBytom::submitBlockNonBlocking(const string &request) {
@@ -1182,3 +1219,4 @@ void BlockMakerBytom::_submitBlockThread(const string &rpcAddress, const string 
   rpcCall(rpcAddress.c_str(), rpcUserpass.c_str(), request.c_str(), request.length(), response, "curl");
   LOG(INFO) << "submission result: " << response;
 }
+

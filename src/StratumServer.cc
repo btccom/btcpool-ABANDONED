@@ -1786,7 +1786,14 @@ StratumSession *ServerBytom::createSession(evutil_socket_t fd, struct buffereven
                                  sessionID);
 }
 
-void ServerBytom::sendSolvedShare2Kafka(const char* headerStr) {
-  LOG(INFO) << "bytom sendSolvedShare2Kafka " << headerStr;
-  kafkaProducerSolvedShare_->produce(headerStr, strlen(headerStr));
+void ServerBytom::sendSolvedShare2Kafka(uint64_t nonce, const string &strHeader,
+                                      uint64_t height, uint64_t networkDiff, const StratumWorker &worker)
+{
+  string msg = Strings::Format("{\"nonce\":%lu,\"header\":\"%s\","
+                               "\"height\":%lu,\"networkDiff\":%" PRIu64 ",\"userId\":%ld,"
+                               "\"workerId\":%" PRId64 ",\"workerFullName\":\"%s\"}",
+                               nonce, strHeader.c_str(),
+                               height, networkDiff, worker.userId_,
+                               worker.workerHashId_, filterWorkerName(worker.fullName_).c_str());
+  kafkaProducerSolvedShare_->produce(msg.c_str(), msg.length());
 }

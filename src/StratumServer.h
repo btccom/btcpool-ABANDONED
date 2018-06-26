@@ -449,7 +449,8 @@ public:
                                Server *server, struct sockaddr *saddr,
                                const int32_t shareAvgSeconds,
                                const uint32_t sessionID) override;
-  void sendSolvedShare2Kafka(const char* headerStr);
+  void sendSolvedShare2Kafka(uint64_t nonce, const string &strHeader,
+                                      uint64_t height, uint64_t networkDiff, const StratumWorker &worker);
 };
 
 
