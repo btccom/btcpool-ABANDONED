@@ -401,12 +401,14 @@ void JobRepositoryEth::broadcastStratumJob(StratumJob *sjob) {
   {
     ScopeLock sl(lock_);
 
+    // Because Ethereum can contain orphan blocks as "uncles", mark old job as stale is unnecessary.
+    /*
     if (isClean) {
       // mark all jobs as stale, should do this before insert new job
       for (auto it : exJobs_) {
         it.second->markStale();
       }
-    }
+    }*/
 
     // insert new job
     exJobs_[sjobEth->jobId_] = exJob;
