@@ -64,43 +64,48 @@ ShareLogDumperT<SHARE>::~ShareLogDumperT() {
 
 template <class SHARE>
 void ShareLogDumperT<SHARE>::dump2stdout() {
-  // open file (auto-detecting compression format or non-compression)
-  LOG(INFO) << "open file: " << filePath_;
-  zstr::ifstream f(filePath_, std::ios::binary);
+  try {
+    // open file (auto-detecting compression format or non-compression)
+    LOG(INFO) << "open file: " << filePath_;
+    zstr::ifstream f(filePath_, std::ios::binary);
 
-  if (!f) {
-    LOG(ERROR) << "open file fail: " << filePath_;
-    return;
-  }
-
-  // 2000000 * 48 = 96,000,000 Bytes
-  const uint32_t kElements = 2000000;
-  size_t readNum;
-  string buf;
-  buf.resize(kElements * sizeof(SHARE));
-
-  for (;;) {
-    f.read((char *)buf.data(), kElements * sizeof(SHARE));
-    readNum = f.gcount();
-
-    size_t readNumMod = readNum % sizeof(SHARE);
-    if (readNumMod > 0) {
-      LOG(WARNING) << "Incomplete share detected: " << readNumMod << " bytes "
-                   << "(should be " << sizeof(SHARE) << " bytes)";
-      readNum -= readNumMod;
+    if (!f) {
+      LOG(ERROR) << "open file fail: " << filePath_;
+      return;
     }
 
-    if (readNum == 0) {
-      if (f.eof()) {
-        LOG(INFO) << "End-of-File reached: " << filePath_;
-        break;
+    // 2000000 * 48 = 96,000,000 Bytes
+    const uint32_t kElements = 2000000;
+    size_t readNum;
+    string buf;
+    buf.resize(kElements * sizeof(SHARE));
+
+    for (;;) {
+      f.read((char *)buf.data(), kElements * sizeof(SHARE));
+      readNum = f.gcount();
+
+      size_t readNumMod = readNum % sizeof(SHARE);
+      if (readNumMod > 0) {
+        LOG(WARNING) << "Incomplete share detected: " << readNumMod << " bytes "
+                    << "(should be " << sizeof(SHARE) << " bytes)";
+        readNum -= readNumMod;
       }
-      LOG(INFO) << "read 0 bytes: " << filePath_;
-      continue;
-    }
 
-    parseShareLog((uint8_t *)buf.data(), readNum);
-  };
+      if (readNum == 0) {
+        if (f.eof()) {
+          LOG(INFO) << "End-of-File reached: " << filePath_;
+          break;
+        }
+        LOG(INFO) << "read 0 bytes: " << filePath_;
+        continue;
+      }
+
+      parseShareLog((uint8_t *)buf.data(), readNum);
+    };
+  
+  } catch (...) {
+    LOG(ERROR) << "open file fail: " << filePath_;
+  }
 }
 
 template <class SHARE>
@@ -211,105 +216,118 @@ void ShareLogParserT<SHARE>::parseShare(const SHARE *share) {
 
 template <class SHARE>
 bool ShareLogParserT<SHARE>::processUnchangedShareLog() {
-  // open file
-  LOG(INFO) << "open file: " << filePath_;
-  zstr::ifstream f(filePath_, std::ios::binary);
+  try {
+    // open file
+    LOG(INFO) << "open file: " << filePath_;
+    zstr::ifstream f(filePath_, std::ios::binary);
 
-  if (!f) {
+    if (!f) {
+      LOG(ERROR) << "open file fail: " << filePath_;
+      return false;
+    }
+
+    // 2000000 * 48 = 96,000,000 Bytes
+    const uint32_t kElements = 2000000;
+    size_t readNum;
+    string buf;
+    buf.resize(kElements * sizeof(SHARE));
+
+    for (;;) {
+      f.read((char *)buf.data(), kElements * sizeof(SHARE));
+      readNum = f.gcount();
+
+      size_t readNumMod = readNum % sizeof(SHARE);
+      if (readNumMod > 0) {
+        LOG(WARNING) << "Incomplete share detected: " << readNumMod << " bytes "
+                    << "(should be " << sizeof(SHARE) << " bytes)";
+        readNum -= readNumMod;
+      }
+      
+      if (readNum == 0) {
+        if (f.eof()) {
+          LOG(INFO) << "End-of-File reached: " << filePath_;
+          break;
+        }
+        LOG(INFO) << "read 0 bytes: " << filePath_;
+        continue;
+      }
+
+      parseShareLog((uint8_t *)buf.data(), readNum);
+    };
+
+    return true;
+
+  } catch (...) {
     LOG(ERROR) << "open file fail: " << filePath_;
     return false;
   }
-
-  // 2000000 * 48 = 96,000,000 Bytes
-  const uint32_t kElements = 2000000;
-  size_t readNum;
-  string buf;
-  buf.resize(kElements * sizeof(SHARE));
-
-  for (;;) {
-    f.read((char *)buf.data(), kElements * sizeof(SHARE));
-    readNum = f.gcount();
-
-    size_t readNumMod = readNum % sizeof(SHARE);
-    if (readNumMod > 0) {
-      LOG(WARNING) << "Incomplete share detected: " << readNumMod << " bytes "
-                   << "(should be " << sizeof(SHARE) << " bytes)";
-      readNum -= readNumMod;
-    }
-    
-    if (readNum == 0) {
-      if (f.eof()) {
-        LOG(INFO) << "End-of-File reached: " << filePath_;
-        break;
-      }
-      LOG(INFO) << "read 0 bytes: " << filePath_;
-      continue;
-    }
-
-    parseShareLog((uint8_t *)buf.data(), readNum);
-  };
-
-  return true;
 }
 
 template <class SHARE>
 int64_t ShareLogParserT<SHARE>::processGrowingShareLog() {
-  size_t readNum = 0;
+  try {
+    size_t readNum = 0;
 
-  if (f_ == nullptr) {
-    f_ = new zstr::ifstream(filePath_, std::ios::binary);
-    if (!*f_) {
-      LOG(ERROR) << "open file fail: " << filePath_;
+    if (f_ == nullptr) {
+      f_ = new zstr::ifstream(filePath_, std::ios::binary);
 
-      delete f_;
-      f_ = nullptr;
+      if (!*f_) {
+        LOG(ERROR) << "open file fail: " << filePath_;
 
-      return -1;
+        delete f_;
+        f_ = nullptr;
+
+        return -1;
+      }
     }
+    assert(f_ != nullptr);
+
+    // clear the eof status so the stream can coninue reading.
+    if (f_->eof()) {
+      f_->clear();
+    }
+
+    //
+    // Old Comments:
+    // no need to set buffer memory to zero before fread
+    // return: the total number of elements successfully read is returned.
+    //
+    // fread():
+    // C11 at 7.21.8.1.2 and 7.21.8.2.2 says: If an error occurs, the resulting
+    // value of the file position indicator for the stream is indeterminate.
+    //
+    // Now zlib/gzip file stream is used.
+    //
+
+    // If an incomplete share was found at last read, only reading the rest part of it.
+    f_->read((char *)buf_ + incompleteShareSize_, kMaxElementsNum_ * sizeof(SHARE) - incompleteShareSize_);
+    readNum = f_->gcount() + incompleteShareSize_;
+
+    incompleteShareSize_ = readNum % sizeof(SHARE);
+    if (incompleteShareSize_ > 0) {
+      LOG(WARNING) << "Incomplete share detected: " << incompleteShareSize_ << " bytes "
+                  << "(should be " << sizeof(SHARE) << " bytes)";
+      readNum -= incompleteShareSize_;
+    }
+
+    if (readNum == 0) {
+      return 0;
+    }
+
+    // parse shares
+    parseShareLog(buf_, readNum);
+
+    if (incompleteShareSize_ > 0) {
+      // move the incomplete share to the beginning of buf_
+      memcpy((char *)buf_, (char *)buf_ + readNum, incompleteShareSize_);
+    }
+
+    return readNum / sizeof(SHARE);
+
+  } catch (...) {
+    LOG(ERROR) << "open file fail: " << filePath_;
+    return -1;
   }
-  assert(f_ != nullptr);
-
-  // clear the eof status so the stream can coninue reading.
-  if (f_->eof()) {
-    f_->clear();
-  }
-
-  //
-  // Old Comments:
-  // no need to set buffer memory to zero before fread
-  // return: the total number of elements successfully read is returned.
-  //
-  // fread():
-  // C11 at 7.21.8.1.2 and 7.21.8.2.2 says: If an error occurs, the resulting
-  // value of the file position indicator for the stream is indeterminate.
-  //
-  // Now zlib/gzip file stream is used.
-  //
-
-  // If an incomplete share was found at last read, only reading the rest part of it.
-  f_->read((char *)buf_ + incompleteShareSize_, kMaxElementsNum_ * sizeof(SHARE) - incompleteShareSize_);
-  readNum = f_->gcount() + incompleteShareSize_;
-
-  incompleteShareSize_ = readNum % sizeof(SHARE);
-  if (incompleteShareSize_ > 0) {
-    LOG(WARNING) << "Incomplete share detected: " << incompleteShareSize_ << " bytes "
-                 << "(should be " << sizeof(SHARE) << " bytes)";
-    readNum -= incompleteShareSize_;
-  }
-
-  if (readNum == 0) {
-    return 0;
-  }
-
-  // parse shares
-  parseShareLog(buf_, readNum);
-
-  if (incompleteShareSize_ > 0) {
-    // move the incomplete share to the beginning of buf_
-    memcpy((char *)buf_, (char *)buf_ + readNum, incompleteShareSize_);
-  }
-
-  return readNum / sizeof(SHARE);
 }
 
 template <class SHARE>
@@ -1006,16 +1024,19 @@ void ShareLogParserServerT<SHARE>::runThreadShareLogParser() {
     }
     assert(shareLogParser != nullptr);
 
+    int64_t shareNum = 0;
+
     while (running_) {
-      int64_t res = shareLogParser->processGrowingShareLog();
-      if (res <= 0) {
+      shareNum = shareLogParser->processGrowingShareLog();
+      if (shareNum <= 0) {
         nonShareCounter++;
         break;
       }
       nonShareCounter = 0;
-      DLOG(INFO) << "process share: " << res;
+      DLOG(INFO) << "process share: " << shareNum;
     }
-    sleep(1);
+    // shareNum < 0 means that the file read error. So wait longer.
+    sleep(shareNum < 0 ? 5 : 1);
 
     // flush data to db
     if (time(nullptr) > lastFlushDBTime + kFlushDBInterval_) {

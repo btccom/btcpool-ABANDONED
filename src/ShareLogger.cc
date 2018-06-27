@@ -79,21 +79,29 @@ void ShareLogWriterT<SHARE>::stop() {
 
 template<class SHARE>
 zstr::ofstream * ShareLogWriterT<SHARE>::getFileHandler(uint32_t ts) {
-  if (fileHandlers_.find(ts) != fileHandlers_.end()) {
-    return fileHandlers_[ts];
-  }
+  string filePath;
 
-  const string filePath = getStatsFilePath(chainType_.c_str(), dataDir_, ts);
-  LOG(INFO) << "fopen: " << filePath;
+  try {
+    if (fileHandlers_.find(ts) != fileHandlers_.end()) {
+      return fileHandlers_[ts];
+    }
 
-  zstr::ofstream *f = new zstr::ofstream(filePath, std::ios::app | std::ios::binary, compressionLevel_);  // append mode, bin file
-  if (!*f) {
-    LOG(FATAL) << "fopen file fail: " << filePath;
+    filePath = getStatsFilePath(chainType_.c_str(), dataDir_, ts);
+    LOG(INFO) << "fopen: " << filePath;
+
+    zstr::ofstream *f = new zstr::ofstream(filePath, std::ios::app | std::ios::binary, compressionLevel_);  // append mode, bin file
+    if (!*f) {
+      LOG(FATAL) << "fopen file fail: " << filePath;
+      return nullptr;
+    }
+
+    fileHandlers_[ts] = f;
+    return f;
+
+  } catch (...) {
+    LOG(ERROR) << "open file fail: " << filePath;
     return nullptr;
   }
-
-  fileHandlers_[ts] = f;
-  return f;
 }
 
 template<class SHARE>
@@ -155,29 +163,35 @@ void ShareLogWriterT<SHARE>::tryCloseOldHanders() {
 
 template<class SHARE>
 bool ShareLogWriterT<SHARE>::flushToDisk() {
-  std::set<zstr::ofstream*> usedHandlers;
+  try {
+    std::set<zstr::ofstream*> usedHandlers;
 
-  for (const auto& share : shares_) {
-    const uint32_t ts = share.timestamp_ - (share.timestamp_ % 86400);
-    zstr::ofstream *f = getFileHandler(ts);
-    if (f == nullptr)
-      return false;
+    for (const auto& share : shares_) {
+      const uint32_t ts = share.timestamp_ - (share.timestamp_ % 86400);
+      zstr::ofstream *f = getFileHandler(ts);
+      if (f == nullptr)
+        return false;
 
-    usedHandlers.insert(f);
-    f->write((char *)&share, sizeof(SHARE));
+      usedHandlers.insert(f);
+      f->write((char *)&share, sizeof(SHARE));
+    }
+
+    shares_.clear();
+
+    for (auto & f : usedHandlers) {
+      DLOG(INFO) << "fflush() file to disk";
+      f->flush();
+    }
+
+    // should call this after write data
+    tryCloseOldHanders();
+
+    return true;
+  
+  } catch (...) {
+    LOG(ERROR) << "write file fail";
+    return false;
   }
-
-  shares_.clear();
-
-  for (auto & f : usedHandlers) {
-    DLOG(INFO) << "fflush() file to disk";
-    f->flush();
-  }
-
-  // should call this after write data
-  tryCloseOldHanders();
-
-  return true;
 }
 
 template<class SHARE>
