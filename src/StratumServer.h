@@ -406,15 +406,15 @@ public:
   void sendSolvedShare2Kafka(const string& strNonce, const string& strHeader, const string& strMix,
                              const uint32_t height, const uint64_t networkDiff, const StratumWorker &worker);
 
-  virtual JobRepository* createJobRepository(const char *kafkaBrokers,
+  JobRepository* createJobRepository(const char *kafkaBrokers,
                                     const char *consumerTopic,
                                      const string &fileLastNotifyTime,
-                                     Server *server);
+                                     Server *server) override;
 
-  virtual StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
+  StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
                                Server *server, struct sockaddr *saddr,
                                const int32_t shareAvgSeconds,
-                               const uint32_t sessionID);
+                               const uint32_t sessionID) override;
 };
 
 class ServerSia : public Server

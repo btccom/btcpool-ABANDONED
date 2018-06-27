@@ -1964,10 +1964,11 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
     }
     else
     {
-      uint64 bitsTarget = *(uint64*)pTarget;
-      auto submittedDifficulty = Bytom_TargetToDifficulty(bitsTarget);
-      LOG(WARNING) << "share not accepted because of low difficulty. localJobDifficulty: " 
-          << localJob->jobDifficulty_ << " - submitted: " << submittedDifficulty << " - bits: " << bitsTarget;
+      //  Disabled: wrong logic
+      // uint64 bitsTarget = *(uint64*)pTarget;
+      // auto submittedDifficulty = Bytom_TargetToDifficulty(bitsTarget);
+      // LOG(WARNING) << "share not accepted because of low difficulty. localJobDifficulty: " 
+      //     << localJob->jobDifficulty_ << " - submitted: " << submittedDifficulty << " - bits: " << bitsTarget;
       responseError(idStr, StratumStatus::LOW_DIFFICULTY);
     }
   }
