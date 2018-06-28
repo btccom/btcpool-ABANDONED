@@ -455,7 +455,7 @@ void JobRepositoryEth::newLight(uint64_t height)
     else {
       // pre-generated light unavailable because of epochs jumping
       ethash_light_delete(nextLight_);
-      nextLight_ = nullptr;
+      ethash_light_delete(light_);
       // regenerate light with current epochs
       light_ = ethash_light_new(height);
     }
