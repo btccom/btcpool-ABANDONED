@@ -174,6 +174,7 @@ bool ShareLogWriterT<SHARE>::flushToDisk() {
 
       usedHandlers.insert(f);
       LOG(INFO) << ts << ": before write file offset: " << f->tellp();
+      LOG(INFO) << ts << ": writing " << sizeof(SHARE) << " bytes";
       f->write((char *)&share, sizeof(SHARE));
       LOG(INFO) << ts << ": after write file offset: " << f->tellp();
     }
