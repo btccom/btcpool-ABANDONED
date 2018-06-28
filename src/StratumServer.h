@@ -159,9 +159,9 @@ public:
 
   bool compute(ethash_h256_t const header, uint64_t nonce, ethash_return_value_t& r);
 
-  virtual StratumJob *createStratumJob() {return new StratumJobEth();}
-  virtual StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean);
-  virtual void broadcastStratumJob(StratumJob *sjob);
+  StratumJob *createStratumJob() override {return new StratumJobEth();}
+  StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
+  void broadcastStratumJob(StratumJob *sjob) override;
 
 private:
   void newLight(StratumJobEth* job);
@@ -180,9 +180,9 @@ class JobRepositorySia : public JobRepository
 {
 public:
   JobRepositorySia(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server);
-  virtual StratumJob *createStratumJob() {return new StratumJobSia();}
-  virtual StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean);
-  virtual void broadcastStratumJob(StratumJob *sjob);
+  StratumJob *createStratumJob() override {return new StratumJobSia();}
+  StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
+  void broadcastStratumJob(StratumJob *sjob) override;
 };
 
 class JobRepositoryBytom : public JobRepository
@@ -406,15 +406,15 @@ public:
   void sendSolvedShare2Kafka(const string& strNonce, const string& strHeader, const string& strMix,
                              const uint32_t height, const uint64_t networkDiff, const StratumWorker &worker);
 
-  virtual JobRepository* createJobRepository(const char *kafkaBrokers,
+  JobRepository* createJobRepository(const char *kafkaBrokers,
                                     const char *consumerTopic,
                                      const string &fileLastNotifyTime,
-                                     Server *server);
+                                     Server *server) override;
 
-  virtual StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
+  StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
                                Server *server, struct sockaddr *saddr,
                                const int32_t shareAvgSeconds,
-                               const uint32_t sessionID);
+                               const uint32_t sessionID) override;
 };
 
 class ServerSia : public Server
@@ -449,7 +449,8 @@ public:
                                Server *server, struct sockaddr *saddr,
                                const int32_t shareAvgSeconds,
                                const uint32_t sessionID) override;
-  void sendSolvedShare2Kafka(const char* headerStr);
+  void sendSolvedShare2Kafka(uint64_t nonce, const string &strHeader,
+                                      uint64_t height, uint64_t networkDiff, const StratumWorker &worker);
 };
 
 

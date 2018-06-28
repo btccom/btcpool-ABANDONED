@@ -31,6 +31,7 @@
 #include "utilities_js.hpp"
 
 #include "rsk/RskSolvedShareData.h"
+#include "bytom/bh_shared.h"
 
 
 ////////////////////////////////// BlockMaker //////////////////////////////////
@@ -1158,14 +1159,61 @@ BlockMakerEth(def, kafkaBrokers, poolDB)
 
 void BlockMakerBytom::processSolvedShare(rd_kafka_message_t *rkmessage)
 {
-  string bh((char*)rkmessage->payload, rkmessage->len);
-  string request = Strings::Format("{\"block_header\": \"%s\"}\n",
-                                   bh.c_str());
-
-  for (const auto &itr : nodeRpcUri_)
+  const char *message = (const char *)rkmessage->payload;
+  JsonNode r;
+  if (!JsonNode::parse(message, message + rkmessage->len, r))
   {
-    string response;
-    rpcCall(itr.first.c_str(), itr.second.c_str(), request.c_str(), request.length(), response, "curl");
-    LOG(INFO) << "submission result: " << response;
+    LOG(ERROR) << "decode common event failure";
+    return;
+  }
+
+  if (r.type() != Utilities::JS::type::Obj ||
+      r["nonce"].type() != Utilities::JS::type::Int ||
+      r["header"].type() != Utilities::JS::type::Str ||
+      r["height"].type() != Utilities::JS::type::Int ||
+      r["networkDiff"].type() != Utilities::JS::type::Int ||
+      r["userId"].type() != Utilities::JS::type::Int ||
+      r["workerId"].type() != Utilities::JS::type::Int ||
+      r["workerFullName"].type() != Utilities::JS::type::Str)
+  {
+    LOG(ERROR) << "eth solved share format wrong";
+    return;
+  }
+
+
+  string bhString = r["header"].str();
+  string request = Strings::Format("{\"block_header\": \"%s\"}\n",
+                                   bhString.c_str());
+
+  submitBlockNonBlocking(request);
+
+  // NOTE: Database save is not implemented. Need to setup mysql in test environment
+  // StratumWorker worker;
+  // worker.userId_ = r["userId"].int32();
+  // worker.workerHashId_ = r["workerId"].int64();
+  // worker.fullName_ = r["workerFullName"].str();
+
+  // uint64_t networkDiff = r["networkDiff"].uint64();
+  // uint64_t height = r["height"].uint64();
+  // BlockMakerEth::saveBlockToDBNonBlocking(bhString, height, networkDiff, worker);
+
+}
+
+void BlockMakerBytom::submitBlockNonBlocking(const string &request) {
+  for (const auto &itr : nodeRpcUri_) {
+    // use thread to submit
+    boost::thread t(boost::bind(&BlockMakerBytom::_submitBlockThread, this,
+                                itr.first, itr.second, request));
+    t.detach();
   }
 }
+
+void BlockMakerBytom::_submitBlockThread(const string &rpcAddress, const string &rpcUserpass,
+                                       const string &request)
+{
+  string response;
+  LOG(INFO) << "submitting block to " << rpcAddress.c_str() << " with request value: " << request.c_str();
+  rpcCall(rpcAddress.c_str(), rpcUserpass.c_str(), request.c_str(), request.length(), response, "curl");
+  LOG(INFO) << "submission result: " << response;
+}
+

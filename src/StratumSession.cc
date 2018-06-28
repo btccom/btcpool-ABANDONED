@@ -1859,7 +1859,7 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
 
   shared_ptr<StratumJobEx> exjob;
   exjob = server_->jobRepository_->getStratumJobEx(localJob->jobId_);
-  if (nullptr == exjob || nullptr == exjob->sjob_)
+  if (nullptr == exjob || nullptr == exjob->sjob_ || exjob->isStale())
   {
     responseError(idStr, StratumStatus::JOB_NOT_FOUND);
     LOG(ERROR) << "bytom local job not found " << std::hex << localJob->jobId_;
@@ -1955,17 +1955,20 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
       {
         share.status_ = StratumStatus::SOLVED;
         LOG(INFO) << "share solved";
-        s->sendSolvedShare2Kafka(encoded.r0);
-        diffController_->addAcceptedShare(share.shareDiff_);
+        s->sendSolvedShare2Kafka(nonce, encoded.r0, share.height_, 
+                                Bytom_TargetToDifficulty(sJob->blockHeader_.bits), worker_);
+        server_->jobRepository_->markAllJobsAsStale();
       }
+      diffController_->addAcceptedShare(share.shareDiff_);
       rpc2ResponseBoolean(idStr, true);
     }
     else
     {
-      uint64 bitsTarget = *(uint64*)pTarget;
-      auto submittedDifficulty = Bytom_TargetToDifficulty(bitsTarget);
-      LOG(WARNING) << "share not accepted because of low difficulty. localJobDifficulty: " 
-          << localJob->jobDifficulty_ << " - submitted: " << submittedDifficulty << " - bits: " << bitsTarget;
+      //  Disabled: wrong logic
+      // uint64 bitsTarget = *(uint64*)pTarget;
+      // auto submittedDifficulty = Bytom_TargetToDifficulty(bitsTarget);
+      // LOG(WARNING) << "share not accepted because of low difficulty. localJobDifficulty: " 
+      //     << localJob->jobDifficulty_ << " - submitted: " << submittedDifficulty << " - bits: " << bitsTarget;
       responseError(idStr, StratumStatus::LOW_DIFFICULTY);
     }
   }
