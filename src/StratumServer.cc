@@ -435,9 +435,9 @@ void JobRepositoryEth::newLightNonBlocking(StratumJobEth* job) {
 
 void JobRepositoryEth::_newLightThread(uint64_t height)
 {
-  uint64_t const epochs = height / ETHASH_EPOCH_LENGTH;
+  uint64_t const newEpochs = height / ETHASH_EPOCH_LENGTH;
   //same seed do nothing
-  if (epochs == epochs_) {
+  if (newEpochs == epochs_) {
     return;
   }
 
@@ -445,10 +445,10 @@ void JobRepositoryEth::_newLightThread(uint64_t height)
     ScopeLock slLight(lightLock_);
     ScopeLock slNextLight(nextLightLock_);
 
-    // maybe another thread updated the epochs_
-    if (epochs == epochs_) {
-      return;
-    }
+    // Update epochs_ immediately to prevent the next thread
+    // blocking for waiting nextLightLock_.
+    uint64_t oldEpochs = epochs_;
+    epochs_ = newEpochs;
 
     LOG(INFO) << "creating light for blk height... " << height;
     time_t now = time(nullptr);
@@ -456,7 +456,7 @@ void JobRepositoryEth::_newLightThread(uint64_t height)
     if (nullptr == nextLight_) {
       light_ = ethash_light_new(height);
     }
-    else if (epochs == epochs_ + 1) {
+    else if (newEpochs == oldEpochs + 1) {
       //get pre-generated light if exists
       ethash_light_delete(light_);
       light_ =  nextLight_;
@@ -475,8 +475,6 @@ void JobRepositoryEth::_newLightThread(uint64_t height)
     if (nullptr == light_) {
       LOG(FATAL) << "create light for blk height: " << height << " failed";
     }
-
-    epochs_ = epochs;
 
     time_t elapse = time(nullptr) - now;
     LOG(INFO) << "create light for blk height: " << height << " takes " << elapse << " seconds";
