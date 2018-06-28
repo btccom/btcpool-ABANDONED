@@ -1384,8 +1384,8 @@ bool StatsServerT<SHARE>::updateWorkerStatusToDB(const int32_t userId, const int
   if (poolDBCommonEvents_->execute(sql) == false) {
     LOG(ERROR) << "insert worker name failure";
 
-    // try ping & reconnect mysql, so last update may success
-    if (!poolDBCommonEvents_->ping()) {
+    // try to reconnect mysql, so last update may success
+    if (!poolDBCommonEvents_->reconnect()) {
       LOG(ERROR) << "updateWorkerStatusToDB: can't connect to pool DB";
     }
 
