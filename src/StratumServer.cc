@@ -437,29 +437,39 @@ void JobRepositoryEth::newLight(uint64_t height)
   //same seed do nothing
   if (epochs == epochs_)
     return;
-  epochs_ = epochs;
 
   LOG(INFO) << "creating light for blk height... " << height;
   time_t now = time(nullptr);
   time_t elapse;
   {
     ScopeLock sl(lightLock_);
-    //deleteLightNoLock();
-    if (nullptr == nextLight_)
+
+    if (nullptr == nextLight_) {
       light_ = ethash_light_new(height);
-    else {
+    }
+    else if (epochs == epochs_ + 1) {
       //get pre-generated light if exists
       ethash_light_delete(light_);
       light_ =  nextLight_;
     }
-    if (nullptr == light_)
+    else {
+      // pre-generated light unavailable because of epochs jumping
+      ethash_light_delete(nextLight_);
+      nextLight_ = nullptr;
+      // regenerate light with current epochs
+      light_ = ethash_light_new(height);
+    }
+
+    if (nullptr == light_) {
       LOG(FATAL) << "create light for blk height: " << height << " failed";
-    else
-    {
+    }
+    else {
       elapse = time(nullptr) - now;
       LOG(INFO) << "create light for blk height: " << height << " takes " << elapse << " seconds";
     }
   }
+
+  epochs_ = epochs;
 
   now = time(nullptr);
   uint64_t nextBlkNum = height + ETHASH_EPOCH_LENGTH;
