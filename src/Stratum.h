@@ -446,7 +446,7 @@ public:
   uint64_t jobId_     = 0;
   uint64_t shareDiff_ = 0;
   uint64_t blkBits_   = 0;
-  uint32_t height_    = 0;
+  uint64_t height_    = 0;
   BytomCombinedHeader combinedHeader_;
 
   ShareBytom() = default;

@@ -1993,7 +1993,7 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   if (isSendShareToKafka)
   {
     share.checkSum_ = share.checkSum();
-    server_->sendShare2Kafka((const uint8_t *)&share, sizeof(ShareEth));
+    server_->sendShare2Kafka((const uint8_t *)&share, sizeof(ShareBytom));
 
     string shareInHex;
     Bin2Hex((uint8_t*)&share, sizeof(ShareBytom), shareInHex);
