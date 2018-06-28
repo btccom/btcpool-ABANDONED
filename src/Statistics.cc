@@ -709,6 +709,8 @@ bool StatsServer::updateWorkerStatus(const int32_t userId, const int64_t workerI
                           userId, workerId);
     if (poolDBCommonEvents_.execute(sql) == false) {
       LOG(ERROR) << "update worker status failure";
+      // something went wrong with the current mysql connection, try to reconnect.
+      poolDBCommonEvents_.reconnect();
       return false;
     }
   }
@@ -730,6 +732,8 @@ bool StatsServer::updateWorkerStatus(const int32_t userId, const int64_t workerI
                           nowStr.c_str());
     if (poolDBCommonEvents_.execute(sql) == false) {
       LOG(ERROR) << "insert worker name failure";
+      // something went wrong with the current mysql connection, try to reconnect.
+      poolDBCommonEvents_.reconnect();
       return false;
     }
   }
