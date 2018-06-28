@@ -31,6 +31,7 @@
 #include <vector>
 #include <memory>
 #include <bitset>
+#include <atomic>
 
 #include <arpa/inet.h>
 #include <sys/socket.h>
@@ -164,15 +165,17 @@ public:
   void broadcastStratumJob(StratumJob *sjob) override;
 
 private:
-  void newLight(StratumJobEth* job);
-  void newLight(uint64_t height);
+  void newLightNonBlocking(StratumJobEth* job);
+  void _newLightThread(uint64_t height);
   void deleteLight();
   void deleteLightNoLock();
 
   ethash_light_t light_;
   ethash_light_t nextLight_;
-  uint64_t epochs_;
+  std::atomic<uint64_t> epochs_;
   mutex lightLock_;
+  mutex nextLightLock_;
+
   int32_t lastHeight_;
 };
 

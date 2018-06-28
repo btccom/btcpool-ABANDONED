@@ -21,8 +21,9 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-#include  <iostream>
-#include  <iomanip>
+#include <iostream>
+#include <iomanip>
+#include <boost/thread.hpp>
 #include "StratumServer.h"
 
 #include "Common.h"
@@ -417,32 +418,40 @@ void JobRepositoryEth::broadcastStratumJob(StratumJob *sjob) {
   //send job first
   sendMiningNotify(exJob);
   //then, create light for verification
-  newLight(sjobEth);
+  newLightNonBlocking(sjobEth);
 }
 
 JobRepositoryEth::~JobRepositoryEth() {
   deleteLight();
 }
 
-void JobRepositoryEth::newLight(StratumJobEth* job) {
+void JobRepositoryEth::newLightNonBlocking(StratumJobEth* job) {
   if (nullptr == job)
     return;
 
-  newLight(job->height_);
+  boost::thread t(boost::bind(&JobRepositoryEth::_newLightThread, this, job->height_));
+  t.detach();
 }
 
-void JobRepositoryEth::newLight(uint64_t height)
+void JobRepositoryEth::_newLightThread(uint64_t height)
 {
   uint64_t const epochs = height / ETHASH_EPOCH_LENGTH;
   //same seed do nothing
-  if (epochs == epochs_)
+  if (epochs == epochs_) {
     return;
+  }
 
-  LOG(INFO) << "creating light for blk height... " << height;
-  time_t now = time(nullptr);
-  time_t elapse;
   {
-    ScopeLock sl(lightLock_);
+    ScopeLock slLight(lightLock_);
+    ScopeLock slNextLight(nextLightLock_);
+
+    // maybe another thread updated the epochs_
+    if (epochs == epochs_) {
+      return;
+    }
+
+    LOG(INFO) << "creating light for blk height... " << height;
+    time_t now = time(nullptr);
 
     if (nullptr == nextLight_) {
       light_ = ethash_light_new(height);
@@ -451,10 +460,13 @@ void JobRepositoryEth::newLight(uint64_t height)
       //get pre-generated light if exists
       ethash_light_delete(light_);
       light_ =  nextLight_;
+      nextLight_ = nullptr;
     }
     else {
       // pre-generated light unavailable because of epochs jumping
       ethash_light_delete(nextLight_);
+      nextLight_ = nullptr;
+
       ethash_light_delete(light_);
       // regenerate light with current epochs
       light_ = ethash_light_new(height);
@@ -463,25 +475,31 @@ void JobRepositoryEth::newLight(uint64_t height)
     if (nullptr == light_) {
       LOG(FATAL) << "create light for blk height: " << height << " failed";
     }
-    else {
-      elapse = time(nullptr) - now;
-      LOG(INFO) << "create light for blk height: " << height << " takes " << elapse << " seconds";
-    }
+
+    epochs_ = epochs;
+
+    time_t elapse = time(nullptr) - now;
+    LOG(INFO) << "create light for blk height: " << height << " takes " << elapse << " seconds";
   }
 
-  epochs_ = epochs;
+  {
+    ScopeLock slNextLight(nextLightLock_);
 
-  now = time(nullptr);
-  uint64_t nextBlkNum = height + ETHASH_EPOCH_LENGTH;
-  LOG(INFO) << "creating light for blk height... " << nextBlkNum;
-  nextLight_ = ethash_light_new(nextBlkNum);
-  elapse = time(nullptr) - now;
-  LOG(INFO) << "create light for blk height: " << nextBlkNum << " takes " << elapse << " seconds";
+    time_t now = time(nullptr);
+    uint64_t nextBlkNum = height + ETHASH_EPOCH_LENGTH;
+    LOG(INFO) << "creating light for blk height... " << nextBlkNum;
+
+    nextLight_ = ethash_light_new(nextBlkNum);
+
+    time_t elapse = time(nullptr) - now;
+    LOG(INFO) << "create light for blk height: " << nextBlkNum << " takes " << elapse << " seconds";
+  }
 }
 
 void JobRepositoryEth::deleteLight()
 {
-  ScopeLock sl(lightLock_);
+  ScopeLock slLight(lightLock_);
+  ScopeLock slNextLight(nextLightLock_);
   deleteLightNoLock();
 }
 
@@ -513,6 +531,7 @@ bool JobRepositoryEth::compute(ethash_h256_t const header, uint64_t nonce, ethas
 
     return r.success;
   }
+  LOG(ERROR) << "light_ is nullptr, what's wrong?";
   return false;
 }
 
