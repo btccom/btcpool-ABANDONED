@@ -1441,8 +1441,8 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   uint64_t nonce = stoull(sNonce, nullptr, 16);
   uint32_t height = 0;
   uint64_t networkDiff = 0;
-  // Used to prevent duplicate shares.
-  uint64_t headerPrefix = stoull(sHeader.substr(0, 16), nullptr, 16);
+  // Used to prevent duplicate shares. (sHeader has a prefix "0x")
+  uint64_t headerPrefix = stoull(sHeader.substr(2, 16), nullptr, 16);
 
   shared_ptr<StratumJobEx> exjob;
   exjob = server_->jobRepository_->getStratumJobEx(localJob->jobId_);
