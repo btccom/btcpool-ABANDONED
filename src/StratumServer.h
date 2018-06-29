@@ -165,6 +165,9 @@ public:
   StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
   void broadcastStratumJob(StratumJob *sjob) override;
 
+  // Public it to re-computing light when checking share failed.
+  void newLightNonBlocking(StratumJobEth* job);
+
 private:
   // TODO: move to configuration file
   const char *kLightCacheFilePath = "./sserver-eth-dagcache.dat";
@@ -176,7 +179,6 @@ private:
 	  uint64_t cacheSize_;
   };
 
-  void newLightNonBlocking(StratumJobEth* job);
   void _newLightThread(uint64_t height);
   void deleteLight();
   void deleteLightNoLock();

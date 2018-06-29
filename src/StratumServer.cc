@@ -1849,7 +1849,7 @@ int ServerEth::checkShare(const ShareEth &share,
     return StratumStatus::JOB_NOT_FOUND;
   }
 
-  StratumJob *sjob = exJobPtr->sjob_;
+  StratumJobEth *sjob = dynamic_cast<StratumJobEth *>(exJobPtr->sjob_);
   
   DLOG(INFO) << "checking share nonce: " << hex << nonce << ", header: " << header.GetHex() << ", mixHash: " << mixHash.GetHex();
   
@@ -1869,14 +1869,16 @@ int ServerEth::checkShare(const ShareEth &share,
 
   if (!ret || !r.success)
   {
-    LOG(ERROR) << "light cache creation error";
+    LOG(ERROR) << "light cache creation error, try re-create it";
+    jobRepo->newLightNonBlocking(sjob);
     return StratumStatus::INTERNAL_ERROR;
   }
 
   uint256 mix = Ethash256ToUint256(r.mix_hash);
   if (mix != mixHash)
   {
-    LOG(ERROR) << "mix hash does not match: " << mix.GetHex();
+    LOG(ERROR) << "mix hash does not match: " << mix.GetHex() << ", try re-create light";
+    jobRepo->newLightNonBlocking(sjob);
     return StratumStatus::INTERNAL_ERROR;
   }
 
