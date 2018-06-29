@@ -431,6 +431,11 @@ JobRepositoryEth::~JobRepositoryEth() {
   deleteLight();
 }
 
+void JobRepositoryEth::rebuildLightNonBlocking(StratumJobEth* job) {
+  epochs_ = 0;
+  newLightNonBlocking(job);
+}
+
 void JobRepositoryEth::newLightNonBlocking(StratumJobEth* job) {
   if (nullptr == job)
     return;
@@ -1870,7 +1875,7 @@ int ServerEth::checkShare(const ShareEth &share,
   if (!ret || !r.success)
   {
     LOG(ERROR) << "light cache creation error, try re-create it";
-    jobRepo->newLightNonBlocking(sjob);
+    jobRepo->rebuildLightNonBlocking(sjob);
     return StratumStatus::INTERNAL_ERROR;
   }
 
@@ -1878,7 +1883,7 @@ int ServerEth::checkShare(const ShareEth &share,
   if (mix != mixHash)
   {
     LOG(ERROR) << "mix hash does not match: " << mix.GetHex() << ", try re-create light";
-    jobRepo->newLightNonBlocking(sjob);
+    jobRepo->rebuildLightNonBlocking(sjob);
     return StratumStatus::INTERNAL_ERROR;
   }
 
