@@ -1188,14 +1188,14 @@ void BlockMakerBytom::processSolvedShare(rd_kafka_message_t *rkmessage)
   submitBlockNonBlocking(request);
 
   // NOTE: Database save is not implemented. Need to setup mysql in test environment
-  // StratumWorker worker;
-  // worker.userId_ = r["userId"].int32();
-  // worker.workerHashId_ = r["workerId"].int64();
-  // worker.fullName_ = r["workerFullName"].str();
+  StratumWorker worker;
+  worker.userId_ = r["userId"].int32();
+  worker.workerHashId_ = r["workerId"].int64();
+  worker.fullName_ = r["workerFullName"].str();
 
-  // uint64_t networkDiff = r["networkDiff"].uint64();
-  // uint64_t height = r["height"].uint64();
-  // BlockMakerEth::saveBlockToDBNonBlocking(bhString, height, networkDiff, worker);
+  uint64_t networkDiff = r["networkDiff"].uint64();
+  uint64_t height = r["height"].uint64();
+  BlockMakerEth::saveBlockToDBNonBlocking(bhString, height, networkDiff, worker);
 
 }
 
