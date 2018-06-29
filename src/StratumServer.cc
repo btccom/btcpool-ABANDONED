@@ -23,18 +23,22 @@
  */
 #include <iostream>
 #include <iomanip>
+#include <fstream>
+#include <inttypes.h>
+#include <memory.h>
 #include <boost/thread.hpp>
 #include "StratumServer.h"
 
 #include "Common.h"
 #include "Kafka.h"
 #include "Utils.h"
+#include "rsk/RskSolvedShareData.h"
+#include "libethash/ethash.h"
+#include "libethash/internal.h"
 
 #include <arith_uint256.h>
 #include <utilstrencodings.h>
 #include <hash.h>
-#include <inttypes.h>
-#include "rsk/RskSolvedShareData.h"
 
 #include "utilities_js.hpp"
 
@@ -378,6 +382,7 @@ light_(nullptr),
 nextLight_(nullptr),
 epochs_(0xffffffffffffffff)
 {
+  loadLightFromFile();
 }
 
 StratumJobEx* JobRepositoryEth::createStratumJobEx(StratumJob *sjob, bool isClean){
@@ -422,6 +427,7 @@ void JobRepositoryEth::broadcastStratumJob(StratumJob *sjob) {
 }
 
 JobRepositoryEth::~JobRepositoryEth() {
+  saveLightToFile();
   deleteLight();
 }
 
@@ -511,6 +517,154 @@ void JobRepositoryEth::deleteLightNoLock() {
     ethash_light_delete(nextLight_);
     nextLight_ = nullptr;
   }
+}
+
+void JobRepositoryEth::saveLightToFile() {
+  ScopeLock slLight(lightLock_);
+  ScopeLock slNextLight(nextLightLock_);
+
+  if (light_ == nullptr && nextLight_ == nullptr) {
+    LOG(INFO) << "no DAG light can be cached";
+    return;
+  }
+
+  std::ofstream f(kLightCacheFilePath, std::ios::binary | std::ios::trunc);
+  if (!f) {
+    LOG(ERROR) << "create DAG light caching file " << kLightCacheFilePath << " failed";
+    return;
+  }
+
+  if (light_ != nullptr) {
+    LOG(INFO) << "cache DAG light of current epoch to file...";
+    saveLightToFile(light_, f);
+  }
+
+  if (nextLight_ != nullptr) {
+    LOG(INFO) << "cache DAG light of next epoch to file...";
+    saveLightToFile(nextLight_, f);
+  }
+
+  f.close();
+  LOG(INFO) << "DAG light was cached to file " << kLightCacheFilePath;
+}
+
+void JobRepositoryEth::saveLightToFile(const ethash_light_t &light, std::ofstream &f) {
+  LightCacheHeader header;
+  header.blockNumber_ = light->block_number;
+  header.cacheSize_ = light->cache_size;
+  header.checkSum_ = computeLightCacheCheckSum(header, (const uint8_t *)light->cache);
+
+  f.write((const char *)&header, sizeof(header));
+  f.write((const char *)light->cache, header.cacheSize_);
+  f.flush();
+}
+
+void JobRepositoryEth::loadLightFromFile() {
+  ScopeLock slLight(lightLock_);
+  ScopeLock slNextLight(nextLightLock_);
+
+  std::ifstream f(kLightCacheFilePath, std::ios::binary);
+  if (!f) {
+    LOG(WARNING) << "cannot read DAG light caching file " << kLightCacheFilePath;
+    return;
+  }
+
+  LOG(INFO) << "load DAG light of current epoch from file...";
+  light_ = loadLightFromFile(f);
+
+  LOG(INFO) << "load DAG light of next epoch from file...";
+  nextLight_ = loadLightFromFile(f);
+
+  if (light_ != nullptr) {
+    epochs_ = light_->block_number / ETHASH_EPOCH_LENGTH;
+  }
+
+  f.close();
+  LOG(INFO) << "loading DAG light from file " << kLightCacheFilePath << " finished";
+}
+
+ethash_light_t JobRepositoryEth::loadLightFromFile(std::ifstream &f) {
+  if (f.eof()) {
+    LOG(WARNING) << "cannot load DAG light: file EOF reached when reading header";
+    return NULL;
+  }
+
+  uint64_t checkSum;
+  LightCacheHeader header;
+
+  f.read((char *)&header, sizeof(header));
+  if (f.gcount() != sizeof(header)) {
+    LOG(WARNING) << "cannot load DAG light: only " << f.gcount() << " bytes was read"
+                    " but header size is " << sizeof(header) << "bytes";
+    return NULL;
+  }
+
+  // ethash_light_delete() will use free() to release the memory.
+  // So malloc() and calloc() should used for memory allocation.
+  // The basic logic and codes copied from ethash_light_new_internal().
+	struct ethash_light *ret;
+	ret = (ethash_light *)calloc(sizeof(*ret), 1);
+	if (!ret) {
+		return NULL;
+	}
+#if defined(__MIC__)
+	ret->cache = _mm_malloc((size_t)header.cacheSize_, 64);
+#else
+	ret->cache = malloc((size_t)header.cacheSize_);
+#endif
+	if (!ret->cache) {
+		goto fail_free_light;
+	}
+
+  if (f.eof()) {
+    LOG(WARNING) << "cannot load DAG light: file EOF reached when reading cache";
+    goto fail_free_cache_mem;
+  }
+
+  f.read((char *)ret->cache, header.cacheSize_);
+  if (f.gcount() != (std::streamsize)header.cacheSize_) {
+    LOG(WARNING) << "cannot load DAG light: only " << f.gcount() << " bytes was read"
+                 << " but cache size is " << header.cacheSize_ << " bytes";
+    goto fail_free_cache_mem;
+  }
+
+  checkSum = computeLightCacheCheckSum(header, (const uint8_t *)ret->cache);
+  if (checkSum != header.checkSum_) {
+    LOG(WARNING) << "cannot load DAG light: checkSum mis-matched, it should be " << header.checkSum_
+                 << " but is " << checkSum << " now";
+    goto fail_free_cache_mem;
+  }
+
+  ret->block_number = header.blockNumber_;
+	ret->cache_size = header.cacheSize_;
+	return ret;
+
+fail_free_cache_mem:
+#if defined(__MIC__)
+	_mm_free(ret->cache);
+#else
+	free(ret->cache);
+#endif
+fail_free_light:
+	free(ret);
+	return NULL;
+}
+
+uint64_t JobRepositoryEth::computeLightCacheCheckSum(const LightCacheHeader &header, const uint8_t *data) {
+  union {
+    uint64_t u64;
+    uint8_t  u8[8];
+  } checkSum;
+
+  checkSum.u64 = 0;
+  checkSum.u64 += header.blockNumber_;
+  checkSum.u64 += header.cacheSize_;
+  
+  for (size_t i=0; i<header.cacheSize_; i++) {
+    checkSum.u8[i % 8] += data[i];
+  }
+
+  return checkSum.u64;
 }
 
 bool JobRepositoryEth::compute(ethash_h256_t const header, uint64_t nonce, ethash_return_value_t &r)

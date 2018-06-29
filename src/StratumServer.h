@@ -32,6 +32,7 @@
 #include <memory>
 #include <bitset>
 #include <atomic>
+#include <fstream>
 
 #include <arpa/inet.h>
 #include <sys/socket.h>
@@ -165,10 +166,30 @@ public:
   void broadcastStratumJob(StratumJob *sjob) override;
 
 private:
+  // TODO: move to configuration file
+  const char *kLightCacheFilePath = "./sserver-eth-dagcache.dat";
+
+  // save ethash_light_t to file
+  struct LightCacheHeader {
+    uint64_t checkSum_;
+	  uint64_t blockNumber_;
+	  uint64_t cacheSize_;
+  };
+
   void newLightNonBlocking(StratumJobEth* job);
   void _newLightThread(uint64_t height);
   void deleteLight();
   void deleteLightNoLock();
+
+  // Creating a new ethash_light_t (DAG cache) is so slow, it may need
+  // more than 120 seconds for current Ethereum mainnet.
+  // So save it to a file before shutdown and load it back at next time 
+  // to reduce the computation time required after a reboot.
+  void saveLightToFile();
+  void saveLightToFile(const ethash_light_t &light, std::ofstream &f);
+  void loadLightFromFile();
+  ethash_light_t loadLightFromFile(std::ifstream &f);
+  uint64_t computeLightCacheCheckSum(const LightCacheHeader &header, const uint8_t *data);
 
   ethash_light_t light_;
   ethash_light_t nextLight_;
