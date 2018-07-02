@@ -322,6 +322,7 @@ int64_t ShareLogParserT<SHARE>::processGrowingShareLog() {
       memcpy((char *)buf_, (char *)buf_ + readNum, incompleteShareSize_);
     }
 
+    DLOG(INFO) << "processGrowingShareLog share count: " << readNum / sizeof(SHARE);
     return readNum / sizeof(SHARE);
 
   } catch (...) {
