@@ -12,13 +12,7 @@ If you want to run BTCPool on a 32-bit operating system, you must fix the proble
 
 ## Build
 
-[Need fix] If you are the first time build btcpool, you could run `bash install/install_btcpool.sh` instead of exec these shell commands one by one.
-
-```
-cd /work
-wget https://raw.githubusercontent.com/btccom/btcpool/master/install/install_btcpool.sh
-bash ./install_btcpool.sh
-```
+You can download & install the pre-built deb packages at the [release page](https://github.com/btccom/btcpool/releases), or build it by yourself.
 
 ### Install dependency
 
@@ -28,7 +22,7 @@ apt-get update
 apt-get install -y build-essential autotools-dev libtool autoconf automake pkg-config cmake \
                    openssl libssl-dev libcurl4-openssl-dev libconfig++-dev \
                    libboost-all-dev libgmp-dev libmysqlclient-dev libzookeeper-mt-dev \
-                   libzmq3-dev libgoogle-glog-dev libevent-dev
+                   libzmq3-dev libgoogle-glog-dev libevent-dev libhiredis-dev
 ```
 
 Sometimes one or two packages will fail due to dependency problems, and you can try `aptitude`.
@@ -39,7 +33,7 @@ apt-get install -y aptitude
 aptitude install build-essential autotools-dev libtool autoconf automake pkg-config cmake \
                    openssl libssl-dev libcurl4-openssl-dev libconfig++-dev \
                    libboost-all-dev libgmp-dev libmysqlclient-dev libzookeeper-mt-dev \
-                   libzmq3-dev libgoogle-glog-dev libevent-dev
+                   libzmq3-dev libgoogle-glog-dev libevent-dev libhiredis-dev
 
 # Input `n` if the solution is `NOT INSTALL` some package.
 # Eventually aptitude will give a solution that downgrade some packages to allow all packages to be installed.

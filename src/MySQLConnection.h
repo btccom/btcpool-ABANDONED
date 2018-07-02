@@ -107,6 +107,7 @@ public:
   bool open();
   void close();
   bool ping();
+  bool reconnect();
 
   bool execute(const char * sql);
   bool execute(const string &sql) {

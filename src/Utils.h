@@ -95,4 +95,10 @@ bool fileExists(const char* file);
 
 bool checkBitcoinRPC(const string &rpcAddr, const string &rpcUserpass);
 
+// redis sorted-set uses double as its rank.
+// 37^9  = 1.299617398e+14 < 2^52 = 4.503599627e+15
+// 37^10 = 4.808584372e+15 > 2^52 = 4.503599627e+15
+// so max significand is 9 if you convert the rank as double.
+uint64_t getAlphaNumRank(const string &str, size_t significand = 9);
+
 #endif

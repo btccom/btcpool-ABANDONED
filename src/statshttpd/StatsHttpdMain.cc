@@ -38,6 +38,7 @@
 
 #include "Utils.h"
 #include "Statistics.h"
+#include "RedisConnection.h"
 #include "config/bpool-version.h"
 
 using namespace std;
@@ -117,14 +118,38 @@ int main(int argc, char **argv) {
   signal(SIGINT,  handler);
 
   try {
+    bool useMysql = true;
+    cfg.lookupValue("statshttpd.use_mysql", useMysql);
+    bool useRedis = false;
+    cfg.lookupValue("statshttpd.use_redis", useRedis);
+
     MysqlConnectInfo *poolDBInfo = nullptr;
-    {
+    if (useMysql) {
       int32_t poolDBPort = 3306;
       cfg.lookupValue("pooldb.port", poolDBPort);
       poolDBInfo = new MysqlConnectInfo(cfg.lookup("pooldb.host"), poolDBPort,
                                         cfg.lookup("pooldb.username"),
                                         cfg.lookup("pooldb.password"),
                                         cfg.lookup("pooldb.dbname"));
+    }
+
+    RedisConnectInfo *redisInfo = nullptr;
+    string redisKeyPrefix;
+    int redisKeyExpire = 0;
+    int redisPublishPolicy = 0;
+    int redisIndexPolicy = 0;
+    uint32_t redisConcurrency = 1;
+
+    if (useRedis) {
+      int32_t redisPort = 6379;
+      cfg.lookupValue("redis.port", redisPort);
+      redisInfo = new RedisConnectInfo(cfg.lookup("redis.host"), redisPort, cfg.lookup("redis.password"));
+
+      cfg.lookupValue("redis.key_prefix", redisKeyPrefix);
+      cfg.lookupValue("redis.key_expire", redisKeyExpire);
+      cfg.lookupValue("redis.publish_policy", redisPublishPolicy);
+      cfg.lookupValue("redis.index_policy", redisIndexPolicy);
+      cfg.lookupValue("redis.concurrency", redisConcurrency);
     }
     
     string fileLastFlushTime;
@@ -136,7 +161,9 @@ int main(int argc, char **argv) {
     cfg.lookupValue("statshttpd.file_last_flush_time",   fileLastFlushTime);
     gStatsServer = new StatsServer(cfg.lookup("kafka.brokers").c_str(),
                                    cfg.lookup("statshttpd.ip").c_str(),
-                                   (unsigned short)port, *poolDBInfo,
+                                   (unsigned short)port, poolDBInfo,
+                                   redisInfo, redisConcurrency, redisKeyPrefix,
+                                   redisKeyExpire, redisPublishPolicy, redisIndexPolicy,
                                    (time_t)flushInterval, fileLastFlushTime);
     if (gStatsServer->init()) {
     	gStatsServer->run();
