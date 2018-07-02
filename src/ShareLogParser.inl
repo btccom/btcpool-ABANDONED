@@ -439,6 +439,8 @@ void ShareLogParserT<SHARE>::flushHourOrDailyData(const vector<string> values,
   }
   if (!poolDB_.execute(createTmpTable)) {
     LOG(ERROR) << "CREATE TABLE `" << tmpTableName << "` failure";
+    // something went wrong with the current mysql connection, try to reconnect.
+    poolDB_.reconnect();
     return;
   }
 
