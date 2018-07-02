@@ -322,12 +322,12 @@ void StatsServer::_flushWorkersToDBThread() {
     goto finish;
   }
 
-  if (!poolDB_.execute("DROP TABLE IF EXISTS `mining_workers_tmp`;")) {
-    LOG(ERROR) << "DROP TABLE `mining_workers_tmp` failure";
+  if (!poolDB_.execute("DROP TEMPORARY TABLE IF EXISTS `mining_workers_tmp`;")) {
+    LOG(ERROR) << "DROP TEMPORARY TABLE `mining_workers_tmp` failure";
     goto finish;
   }
-  if (!poolDB_.execute("CREATE TABLE `mining_workers_tmp` like `mining_workers`;")) {
-    LOG(ERROR) << "CREATE TABLE `mining_workers_tmp` failure";
+  if (!poolDB_.execute("CREATE TEMPORARY TABLE `mining_workers_tmp` like `mining_workers`;")) {
+    LOG(ERROR) << "CREATE TEMPORARY TABLE `mining_workers_tmp` failure";
     // something went wrong with the current mysql connection, try to reconnect.
     poolDB_.reconnect();
     goto finish;
@@ -1548,18 +1548,18 @@ void ShareLogParser::flushHourOrDailyData(const vector<string> values,
   }
 
   // drop tmp table
-  const string sqlDropTmpTable = Strings::Format("DROP TABLE IF EXISTS `%s`;",
+  const string sqlDropTmpTable = Strings::Format("DROP TEMPORARY TABLE IF EXISTS `%s`;",
                                                  tmpTableName.c_str());
   // create tmp table
-  const string createTmpTable = Strings::Format("CREATE TABLE `%s` like `%s`;",
+  const string createTmpTable = Strings::Format("CREATE TEMPORARY TABLE `%s` like `%s`;",
                                                 tmpTableName.c_str(), tableName.c_str());
 
   if (!poolDB_.execute(sqlDropTmpTable)) {
-    LOG(ERROR) << "DROP TABLE `" << tmpTableName << "` failure";
+    LOG(ERROR) << "DROP TEMPORARY TABLE `" << tmpTableName << "` failure";
     return;
   }
   if (!poolDB_.execute(createTmpTable)) {
-    LOG(ERROR) << "CREATE TABLE `" << tmpTableName << "` failure";
+    LOG(ERROR) << "CREATE TEMPORARY TABLE `" << tmpTableName << "` failure";
     // something went wrong with the current mysql connection, try to reconnect.
     poolDB_.reconnect();
     return;
@@ -1592,7 +1592,7 @@ void ShareLogParser::flushHourOrDailyData(const vector<string> values,
   }
 
   if (!poolDB_.execute(sqlDropTmpTable)) {
-    LOG(ERROR) << "DROP TABLE `" << tmpTableName << "` failure";
+    LOG(ERROR) << "DROP TEMPORARY TABLE `" << tmpTableName << "` failure";
     return;
   }
 }
