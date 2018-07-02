@@ -112,7 +112,7 @@ std::shared_ptr<ShareLogParserServer> newShareLogParserServer(const string &chai
                                                      poolDBInfo, kFlushDBInterval,
                                                      std::make_shared<DuplicateShareCheckerEth>(dupShareTrackingHeight));
   }
-  else if (chainType == "ETH") {
+  else if (chainType == "BTM") {
     return std::make_shared<ShareLogParserServerBytom>(chainType.c_str(), dataDir,
                                                      httpdHost, httpdPort,
                                                      poolDBInfo, kFlushDBInterval,
