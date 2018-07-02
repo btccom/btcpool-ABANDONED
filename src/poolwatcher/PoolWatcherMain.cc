@@ -37,6 +37,9 @@
 
 #include "Utils.h"
 #include "Watcher.h"
+#include "config/bpool-version.h"
+
+#include <chainparams.h>
 
 using namespace std;
 using namespace libconfig;
@@ -51,7 +54,8 @@ void handler(int sig) {
 }
 
 void usage() {
-  fprintf(stderr, "Usage:\n\tpoolwatcher -c \"poolwatcher.cfg\" -l \"log_poolwatcher\"\n");
+  fprintf(stderr, BIN_VERSION_STRING("poolwatcher"));
+  fprintf(stderr, "Usage:\tpoolwatcher -c \"poolwatcher.cfg\" -l \"log_poolwatcher\"\n");
 }
 
 int main(int argc, char **argv) {
@@ -87,8 +91,10 @@ int main(int argc, char **argv) {
   FLAGS_logbuflevel     = -1;   // don't buffer logs
   FLAGS_stop_logging_if_full_disk = true;
 
+  LOG(INFO) << BIN_VERSION_STRING("poolwatcher");
+
   // Read the file. If there is an error, report it and exit.
-  Config cfg;
+  libconfig::Config cfg;
   try
   {
     cfg.readFile(optConf);

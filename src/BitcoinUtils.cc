@@ -28,22 +28,23 @@ std::string EncodeHexBlock(const CBlock &block) {
   ssBlock << block;
   return HexStr(ssBlock.begin(), ssBlock.end());
 }
+std::string EncodeHexBlockHeader(const CBlockHeader &blkHeader) {
+  CDataStream ssBlkHeader(SER_NETWORK, PROTOCOL_VERSION);
+  ssBlkHeader << blkHeader;
+  return HexStr(ssBlkHeader.begin(), ssBlkHeader.end());
+}
 
-CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
+int64_t GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
 {
   int halvings = nHeight / consensusParams.nSubsidyHalvingInterval;
   // Force block reward to zero when right shift is undefined.
   if (halvings >= 64)
     return 0;
 
-#ifdef CHAIN_TYPE_BCH
-  CAmount nSubsidy = 50 * COIN.GetSatoshis();
-#else
-  CAmount nSubsidy = 50 * COIN;
-#endif
+  int64_t nSubsidy = 50 * COIN_TO_SATOSHIS;
 
   // Subsidy is cut in half every 210,000 blocks which will occur approximately every 4 years.
-  nSubsidy >>= halvings;
+  nSubsidy >>= halvings; // this line is secure, it copied from bitcoin's validation.cpp
   return nSubsidy;
 }
 

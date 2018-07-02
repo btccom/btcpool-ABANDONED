@@ -39,28 +39,35 @@
 #include "Utils.h"
 #include "JobMaker.h"
 #include "Zookeeper.h"
+#include "config/bpool-version.h"
+
+#include <chainparams.h>
 
 using namespace std;
 using namespace libconfig;
 
-#define JOBMAKER_LOCK_NODE_PATH    "/locks/jobmaker" ZOOKEEPER_NODE_POSTFIX
+// Zookeeper lock is now unnecessary because
+// multiple jobmakers can run at the same time without conflict.
+
+//#define JOBMAKER_LOCK_NODE_PATH    "/locks/jobmaker" ZOOKEEPER_NODE_POSTFIX
 
 JobMaker *gJobMaker = nullptr;
-Zookeeper *gZookeeper = nullptr;
+//Zookeeper *gZookeeper = nullptr;
 
 void handler(int sig) {
   if (gJobMaker) {
     gJobMaker->stop();
   }
 
-  if (gZookeeper) {
+  /*if (gZookeeper) {
     delete gZookeeper;
     gZookeeper = nullptr;
-  }
+  }*/
 }
 
 void usage() {
-  fprintf(stderr, "Usage:\n\tjobmaker -c \"jobmaker.cfg\" -l \"log_dir\"\n");
+  fprintf(stderr, BIN_VERSION_STRING("jobmaker"));
+  fprintf(stderr, "Usage:\tjobmaker -c \"jobmaker.cfg\" -l \"log_dir\"\n");
 }
 
 int main(int argc, char **argv) {
@@ -96,8 +103,10 @@ int main(int argc, char **argv) {
   FLAGS_logbuflevel     = -1;   // don't buffer logs
   FLAGS_stop_logging_if_full_disk = true;
 
+  LOG(INFO) << BIN_VERSION_STRING("jobmaker");
+
   // Read the file. If there is an error, report it and exit.
-  Config cfg;
+  libconfig::Config cfg;
   try
   {
     cfg.readFile(optConf);
@@ -118,7 +127,7 @@ int main(int argc, char **argv) {
     return(EXIT_FAILURE);
   }
 
-  try {
+  /*try {
     // get lock from zookeeper
     gZookeeper = new Zookeeper(cfg.lookup("zookeeper.brokers"));
     gZookeeper->getLock(JOBMAKER_LOCK_NODE_PATH);
@@ -126,7 +135,7 @@ int main(int argc, char **argv) {
   } catch(const ZookeeperException &zooex) {
     LOG(FATAL) << zooex.what();
     return(EXIT_FAILURE);
-  }
+  }*/
 
   signal(SIGTERM, handler);
   signal(SIGINT,  handler);
@@ -143,27 +152,35 @@ int main(int argc, char **argv) {
     }
 
     string fileLastJobTime;
-	string poolCoinbaseInfo;
+    string poolCoinbaseInfo;
 
     // with default values
     uint32_t stratumJobInterval = 20;  // seconds
     uint32_t gbtLifeTime        = 90;
     uint32_t emptyGbtLifeTime   = 15;
-	uint32_t rskNotifyPolicy    = 0u;
+    uint32_t rskNotifyPolicy    = 0u;
     uint32_t blockVersion       = 0u;
+    uint32_t serverId           = 0u;
 
     cfg.lookupValue("jobmaker.stratum_job_interval", stratumJobInterval);
     cfg.lookupValue("jobmaker.gbt_life_time",        gbtLifeTime);
     cfg.lookupValue("jobmaker.empty_gbt_life_time",  emptyGbtLifeTime);
     cfg.lookupValue("jobmaker.file_last_job_time",   fileLastJobTime);
     cfg.lookupValue("jobmaker.block_version",        blockVersion);
-	cfg.lookupValue("pool.coinbase_info",            poolCoinbaseInfo);
-	cfg.lookupValue("jobmaker.rsk_notify_policy", rskNotifyPolicy);
+    cfg.lookupValue("pool.coinbase_info",            poolCoinbaseInfo);
+    cfg.lookupValue("jobmaker.rsk_notify_policy", rskNotifyPolicy);
+    cfg.lookupValue("jobmaker.id", serverId);
+
+    if (serverId > 0xFFu || serverId == 0) {
+      LOG(FATAL) << "invalid server id, range: [1, 255]";
+      return(EXIT_FAILURE);
+    }
 
     gJobMaker = new JobMaker(cfg.lookup("kafka.brokers"), stratumJobInterval,
                              cfg.lookup("pool.payout_address"), gbtLifeTime,
                              emptyGbtLifeTime, fileLastJobTime, 
-							 rskNotifyPolicy, blockVersion, poolCoinbaseInfo);
+                             rskNotifyPolicy, blockVersion,
+                             poolCoinbaseInfo, serverId);
 
     if (!gJobMaker->init()) {
       LOG(FATAL) << "init failure";

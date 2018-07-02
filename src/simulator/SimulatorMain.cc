@@ -39,6 +39,7 @@
 
 #include "Utils.h"
 #include "StratumClient.h"
+#include "config/bpool-version.h"
 
 using namespace std;
 using namespace libconfig;
@@ -52,7 +53,8 @@ void handler(int sig) {
 }
 
 void usage() {
-  fprintf(stderr, "Usage:\n\tsimulator -c \"simulator.cfg\" -l \"log_dir\"\n");
+  fprintf(stderr, BIN_VERSION_STRING("simulator"));
+  fprintf(stderr, "Usage:\tsimulator -c \"simulator.cfg\" -l \"log_dir\"\n");
 }
 
 int main(int argc, char **argv) {
@@ -88,8 +90,10 @@ int main(int argc, char **argv) {
   FLAGS_logbuflevel     = -1;   // don't buffer logs
   FLAGS_stop_logging_if_full_disk = true;
 
+  LOG(INFO) << BIN_VERSION_STRING("simulator");
+
   // Read the file. If there is an error, report it and exit.
-  Config cfg;
+  libconfig::Config cfg;
   try
   {
     cfg.readFile(optConf);
@@ -112,6 +116,8 @@ int main(int argc, char **argv) {
 
   signal(SIGTERM, handler);
   signal(SIGINT,  handler);
+  // ignore SIGPIPE, avoiding process be killed
+  signal(SIGPIPE,  SIG_IGN);
 
   try {
     int32_t port = 3333;

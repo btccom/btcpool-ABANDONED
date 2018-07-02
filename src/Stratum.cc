@@ -28,6 +28,7 @@
 #include <script/script.h>
 #include <uint256.h>
 #include <util.h>
+#include <pubkey.h>
 
 #include "Utils.h"
 
@@ -339,7 +340,8 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
                              const CTxDestination &poolPayoutAddr,
                              const uint32_t blockVersion,
                              const string &nmcAuxBlockJson,
-                             const RskWork &latestRskBlockJson) {
+                             const RskWork &latestRskBlockJson,
+                             const uint8_t serverId) {
   uint256 gbtHash = Hash(gbt, gbt + strlen(gbt));
   JsonNode r;
   if (!JsonNode::parse(gbt, gbt + strlen(gbt), r)) {
@@ -350,8 +352,9 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
 
   // jobId: timestamp + gbtHash, we need to make sure jobId is unique in a some time
   // jobId can convert to uint64_t
-  const string jobIdStr = Strings::Format("%08x%s", (uint32_t)time(nullptr),
-                                          gbtHash.ToString().substr(0, 8).c_str());
+  const string jobIdStr = Strings::Format("%08x%s%02x", (uint32_t)time(nullptr),
+                                                        gbtHash.ToString().substr(0, 6).c_str(),
+                                                        serverId);
   assert(jobIdStr.length() == 16);
   jobId_ = strtoull(jobIdStr.c_str(), nullptr, 16/* hex */);
 
@@ -398,7 +401,6 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
       vtxhashs.push_back(MakeTransactionRef(std::move(tx))->GetHash());
     }
     // make merkleSteps and merkle branch
-    vector<uint256> merkleSteps;
     makeMerkleBranch(vtxhashs, merkleBranch_);
   }
 

@@ -42,9 +42,14 @@
 #include <base58.h>
 
 #include "rsk/RskWork.h"
+#include "script/standard.h"
 
 // TODO: update when next Halving
-#define BLOCK_REWARD 1250000000ll
+#ifdef CHAIN_TYPE_UBTC
+  #define BLOCK_REWARD 100000000ll  // now block reward of UBTC is 1
+#else
+  #define BLOCK_REWARD 1250000000ll // it's also 12.5 for other chains now
+#endif
 
 //
 // max coinbase tx size, bytes
@@ -290,7 +295,8 @@ public:
                    const CTxDestination &poolPayoutAddr,
                    const uint32_t blockVersion,
                    const string &nmcAuxBlockJson,
-                   const RskWork &latestRskBlockJson);
+                   const RskWork &latestRskBlockJson,
+                   const uint8_t serverId);
   bool isEmptyBlock();
 };
 

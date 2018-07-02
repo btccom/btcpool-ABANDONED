@@ -38,6 +38,7 @@
 
 #include "Utils.h"
 #include "GbtMaker.h"
+#include "config/bpool-version.h"
 
 using namespace std;
 using namespace libconfig;
@@ -51,7 +52,8 @@ void handler(int sig) {
 }
 
 void usage() {
-  fprintf(stderr, "Usage:\n\tnmcauxmaker -c \"nmcauxmaker.cfg\" -l \"log_nmcauxmaker\"\n");
+  fprintf(stderr, BIN_VERSION_STRING("nmcauxmaker"));
+  fprintf(stderr, "Usage:\tnmcauxmaker -c \"nmcauxmaker.cfg\" -l \"log_nmcauxmaker\"\n");
 }
 
 int main(int argc, char **argv) {
@@ -87,8 +89,10 @@ int main(int argc, char **argv) {
   FLAGS_logbuflevel     = -1;   // don't buffer logs
   FLAGS_stop_logging_if_full_disk = true;
 
+  LOG(INFO) << BIN_VERSION_STRING("nmcauxmaker");
+
   // Read the file. If there is an error, report it and exit.
-  Config cfg;
+  libconfig::Config cfg;
   try
   {
     cfg.readFile(optConf);

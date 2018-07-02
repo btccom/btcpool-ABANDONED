@@ -35,6 +35,10 @@
 #include <util.h>
 #include <utilstrencodings.h>
 
+#ifdef INCLUDE_BTC_KEY_IO_H //  
+#include <key_io.h> //  IsValidDestinationString for bch is not in this file.
+#endif
+
 #include "utilities_js.hpp"
 #include "Utils.h"
 #include "BitcoinUtils.h"
@@ -44,9 +48,9 @@
 JobMaker::JobMaker(const string &kafkaBrokers,  uint32_t stratumJobInterval,
                    const string &payoutAddr, uint32_t gbtLifeTime,
                    uint32_t emptyGbtLifeTime, const string &fileLastJobTime,
-                   uint32_t rskNotifyPolicy,
-                   uint32_t blockVersion, const string &poolCoinbaseInfo):
-running_(true),
+                   uint32_t rskNotifyPolicy, uint32_t blockVersion,
+                   const string &poolCoinbaseInfo, uint8_t serverId):
+serverId_(serverId), running_(true),
 kafkaBrokers_(kafkaBrokers),
 kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, RD_KAFKA_PARTITION_UA/* partition */),
 kafkaRawGbtConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT,       0/* partition */),
@@ -521,7 +525,11 @@ void JobMaker::clearTimeoutGbt() {
 
   const uint32_t ts_now = time(nullptr);
 
-  for (auto itr = rawgbtMap_.begin(); itr != rawgbtMap_.end(); ) {
+  // Ensure that rawgbtMap_ has at least one element, even if it expires.
+  // So jobmaker can always generate jobs even if blockchain node does not
+  // update the response of getblocktemplate for a long time when there is no new transaction.
+  // This happens on SBTC v0.17.
+  for (auto itr = rawgbtMap_.begin(); rawgbtMap_.size() > 1 && itr != rawgbtMap_.end(); ) {
     const uint32_t ts  = gbtKeyGetTime(itr->first);
     const bool isEmpty = gbtKeyIsEmptyBlock(itr->first);
     const uint32_t height = gbtKeyGetHeight(itr->first);
@@ -560,7 +568,7 @@ void JobMaker::sendStratumJob(const char *gbt) {
 
   StratumJob sjob;
   if (!sjob.initFromGbt(gbt, poolCoinbaseInfo_, poolPayoutAddr_, blockVersion_,
-                        latestNmcAuxBlockJson, currentRskBlockJson)) {
+                        latestNmcAuxBlockJson, currentRskBlockJson, serverId_)) {
     LOG(ERROR) << "init stratum job message from gbt str fail";
     return;
   }
@@ -577,7 +585,7 @@ void JobMaker::sendStratumJob(const char *gbt) {
 
   // save send timestamp to file, for monitor system
   if (!fileLastJobTime_.empty())
-  	writeTime2File(fileLastJobTime_.c_str(), (uint32_t)time(nullptr));
+  	writeTime2File(fileLastJobTime_.c_str(), (uint32_t)sjob.nTime_);
 
   LOG(INFO) << "--------producer stratum job, jobId: " << sjob.jobId_
   << ", height: " << sjob.height_ << "--------";

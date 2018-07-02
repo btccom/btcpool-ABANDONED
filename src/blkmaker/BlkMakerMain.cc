@@ -36,6 +36,7 @@
 
 #include "Utils.h"
 #include "BlockMaker.h"
+#include "config/bpool-version.h"
 
 using namespace std;
 using namespace libconfig;
@@ -49,7 +50,8 @@ void handler(int sig) {
 }
 
 void usage() {
-  fprintf(stderr, "Usage:\n\tblkmaker -c \"blkmaker.cfg\" -l \"log_dir\"\n");
+  fprintf(stderr, BIN_VERSION_STRING("blkmaker"));
+  fprintf(stderr, "Usage:\tblkmaker -c \"blkmaker.cfg\" -l \"log_dir\"\n");
 }
 
 int main(int argc, char **argv) {
@@ -85,8 +87,10 @@ int main(int argc, char **argv) {
   FLAGS_logbuflevel     = -1;   // don't buffer logs
   FLAGS_stop_logging_if_full_disk = true;
 
+  LOG(INFO) << BIN_VERSION_STRING("blkmaker");
+
   // Read the file. If there is an error, report it and exit.
-  Config cfg;
+  libconfig::Config cfg;
   try
   {
     cfg.readFile(optConf);

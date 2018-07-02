@@ -42,14 +42,14 @@ MySQLResult::~MySQLResult() {
   }
 }
 
-uint64 MySQLResult::numRows() {
+uint64_t MySQLResult::numRows() {
   if (result) {
   	return mysql_num_rows(result);
   }
   return 0;
 }
 
-uint32 MySQLResult::fields() {
+uint32_t MySQLResult::fields() {
   return mysql_num_fields(result);
 }
 
@@ -136,6 +136,13 @@ bool MySQLConnection::ping() {
   return false;
 }
 
+bool reconnect() {
+  LOG(INFO) << "reconnect to mysql DB";
+  close();
+  open();
+  return ping();
+}
+
 bool MySQLConnection::execute(const char * sql) {
   uint32_t error_no;
   int queryTimes = 0;
@@ -189,11 +196,11 @@ int64_t MySQLConnection::update(const char * sql) {
     return -1;
 }
 
-uint64 MySQLConnection::affectedRows() {
+uint64_t MySQLConnection::affectedRows() {
   return mysql_affected_rows(conn);
 }
 
-uint64 MySQLConnection::getInsertId() {
+uint64_t MySQLConnection::getInsertId() {
   return mysql_insert_id(conn);
 }
 

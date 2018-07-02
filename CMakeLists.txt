@@ -52,7 +52,12 @@ if (CHAIN_TYPE STREQUAL "BTC")
   set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-bitcoin")
   set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.btc")
 
+  if (HAVE_KEY_IO_H)
+    add_definitions(-DINCLUDE_BTC_KEY_IO_H)
+  endif()
+
   add_definitions(-DCHAIN_TYPE_BTC)
+  add_definitions(-DCHAIN_TYPE_STR="BTC")
   add_definitions(-DKAFKA_TOPIC_PREFIX="") # for compatibility with old deployments, let it empty.
   add_definitions(-DZOOKEEPER_NODE_POSTFIX="") # for compatibility with old deployments, let it empty.
 
@@ -63,6 +68,7 @@ elseif(CHAIN_TYPE STREQUAL "BCH")
   set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.bcc") # for compatibility with old deployments, use bcc instead of bch.
 
   add_definitions(-DCHAIN_TYPE_BCH)
+  add_definitions(-DCHAIN_TYPE_STR="BCH")
   add_definitions(-DKAFKA_TOPIC_PREFIX="") # for compatibility with old deployments, let it empty.
   add_definitions(-DZOOKEEPER_NODE_POSTFIX="") # for compatibility with old deployments, let it empty.
 
@@ -73,6 +79,7 @@ elseif(CHAIN_TYPE STREQUAL "UBTC")
   set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.ubtc")
 
   add_definitions(-DCHAIN_TYPE_UBTC)
+  add_definitions(-DCHAIN_TYPE_STR="UBTC")
   add_definitions(-DKAFKA_TOPIC_PREFIX="UBTC_")
   add_definitions(-DZOOKEEPER_NODE_POSTFIX="_ubtc")
 
@@ -83,6 +90,7 @@ elseif(CHAIN_TYPE STREQUAL "SBTC")
   set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.sbtc")
 
   add_definitions(-DCHAIN_TYPE_SBTC)
+  add_definitions(-DCHAIN_TYPE_STR="SBTC")
   add_definitions(-DKAFKA_TOPIC_PREFIX="SBTC_")
   add_definitions(-DZOOKEEPER_NODE_POSTFIX="_sbtc")
 
@@ -289,6 +297,24 @@ if(NOT CMAKE_OBJCOPY)
   mark_as_advanced(CMAKE_OBJCOPY)
 endif()
 
+# Get the current abbreviated commit hash of the working branch
+execute_process(
+  COMMAND git log -1 --format=%h
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+  OUTPUT_VARIABLE GIT_COMMIT_HASH
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+if(GIT_COMMIT_HASH)
+  message("-- GIT commit hash: ${GIT_COMMIT_HASH}")
+else()
+  set(GIT_COMMIT_HASH "0")
+endif()
+
+########################## Generate configuration files #############################
+
+configure_file(${CMAKE_SOURCE_DIR}/src/config/bpool-version.h.in ${CMAKE_SOURCE_DIR}/src/config/bpool-version.h)
+
 ###################################### Targets ######################################
 
 include_directories(src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config ${CHAIN_SRC_ROOT}/src/secp256k1/include
@@ -452,7 +478,7 @@ if(POOL__GENERATE_DEB_PACKAGE)
   # version
   SET(CPACK_PACKAGE_VERSION_MAJOR "2")
   SET(CPACK_PACKAGE_VERSION_MINOR "0")
-  SET(CPACK_PACKAGE_VERSION_PATCH "0")
+  SET(CPACK_PACKAGE_VERSION_PATCH "0-${GIT_COMMIT_HASH}")
 
   # components
   set(CPACK_DEB_COMPONENT_INSTALL ON)

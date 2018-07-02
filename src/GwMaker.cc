@@ -40,6 +40,7 @@
 
 #include "Utils.h"
 #include "utilities_js.hpp"
+#include "hash.h"
 
 GwMaker::GwMaker(const string &rskdRpcAddr, const string &rskdRpcUserpass,
                    const string &kafkaBrokers, uint32_t kRpcCallInterval)

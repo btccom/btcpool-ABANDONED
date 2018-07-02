@@ -7,3 +7,6 @@ cmake-build-debug/
 /patches/
 /data/
 /src/bitcoin/
+
+# generated configuration files
+/src/config/*.h

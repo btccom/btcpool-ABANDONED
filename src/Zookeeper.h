@@ -24,10 +24,13 @@
 #ifndef BTCPOOL_ZOOKEEPER_H_ // <zookeeper/zookeeper.h> has defined ZOOKEEPER_H_
 #define BTCPOOL_ZOOKEEPER_H_ // add a prefix BTCPOOL_ to avoid the conflict
 
-#include "Common.h"
-
 #include <zookeeper/zookeeper.h>
 #include <zookeeper/proto.h>
+
+#include <string>
+#include <stdexcept>
+
+using std::string;
 
 #define ZOOKEEPER_CONNECT_TIMEOUT 10000 //(ms)
 #define ZOOKEEPER_LOCK_PATH_MAX_LEN 255
