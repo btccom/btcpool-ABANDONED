@@ -327,7 +327,9 @@ void StatsServer::_flushWorkersToDBThread() {
     goto finish;
   }
   if (!poolDB_.execute("CREATE TABLE `mining_workers_tmp` like `mining_workers`;")) {
-    LOG(ERROR) << "TRUNCATE TABLE `mining_workers_tmp` failure";
+    LOG(ERROR) << "CREATE TABLE `mining_workers_tmp` failure";
+    // something went wrong with the current mysql connection, try to reconnect.
+    poolDB_.reconnect();
     goto finish;
   }
 
@@ -1558,6 +1560,8 @@ void ShareLogParser::flushHourOrDailyData(const vector<string> values,
   }
   if (!poolDB_.execute(createTmpTable)) {
     LOG(ERROR) << "CREATE TABLE `" << tmpTableName << "` failure";
+    // something went wrong with the current mysql connection, try to reconnect.
+    poolDB_.reconnect();
     return;
   }
 
