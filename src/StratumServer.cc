@@ -610,6 +610,7 @@ ethash_light_t JobRepositoryEth::loadLightFromFile(std::ifstream &f) {
 	struct ethash_light *ret;
 	ret = (ethash_light *)calloc(sizeof(*ret), 1);
 	if (!ret) {
+    LOG(WARNING) << "cannot load DAG light: calloc " << sizeof(*ret) << " bytes failed";
 		return NULL;
 	}
 #if defined(__MIC__)
@@ -618,6 +619,7 @@ ethash_light_t JobRepositoryEth::loadLightFromFile(std::ifstream &f) {
 	ret->cache = malloc((size_t)header.cacheSize_);
 #endif
 	if (!ret->cache) {
+    LOG(WARNING) << "cannot load DAG light: malloc " << header.cacheSize_ << " bytes failed (cache maybe broken)";
 		goto fail_free_light;
 	}
 
