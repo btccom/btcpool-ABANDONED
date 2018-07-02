@@ -340,6 +340,7 @@ void StatsServer::flushWorkersAndUsersToRedis() {
 }
 
 void StatsServer::_flushWorkersAndUsersToRedisThread() {
+  const time_t beginningTime = time(nullptr);
   std::vector<boost::thread> threadPool;
 
   assert(redisGroup_.size() == redisConcurrency_);
@@ -356,7 +357,8 @@ void StatsServer::_flushWorkersAndUsersToRedisThread() {
   }
 
   pthread_rwlock_rdlock(&rwlock_);
-  LOG(INFO) << "flush to redis... done, " << workerSet_.size() << " workers, " << userSet_.size() << " users";
+  LOG(INFO) << "flush to redis... done, " << workerSet_.size() << " workers, " << userSet_.size() << " users"
+            << ", time: " << (time(nullptr) - beginningTime) << "s";
   pthread_rwlock_unlock(&rwlock_);
 
   isUpdateRedis_ = false;
@@ -739,6 +741,8 @@ void StatsServer::flushWorkersAndUsersToDB() {
 }
 
 void StatsServer::_flushWorkersAndUsersToDBThread() {
+  const time_t beginningTime = time(nullptr);
+
   //
   // merge two table items
   // table.`mining_workers` unique index: `puid` + `worker_id`
@@ -859,7 +863,8 @@ void StatsServer::_flushWorkersAndUsersToDBThread() {
     LOG(ERROR) << "merge mining_workers failure";
     goto finish;
   }
-  LOG(INFO) << "flush to DB... done, workers: " << workerCounter << ", users: " << userCounter;
+  LOG(INFO) << "flush to DB... done, workers: " << workerCounter << ", users: " << userCounter
+            << ", time: " << (time(nullptr) - beginningTime) << "s";
 
   lastFlushTime_ = time(nullptr);
   // save flush timestamp to file, for monitor system
@@ -1373,7 +1378,7 @@ bool StatsServer::updateWorkerStatusToDB(const int32_t userId, const int64_t wor
   if (poolDBCommonEvents_->execute(sql) == false) {
     LOG(ERROR) << "insert worker name failure";
     // something went wrong with the current mysql connection, try to reconnect.
-    poolDBCommonEvents_.reconnect();
+    poolDBCommonEvents_->reconnect();
     return false;
   }
 
@@ -2360,6 +2365,8 @@ void ShareLogParser::removeExpiredDataFromDB() {
 }
 
 bool ShareLogParser::flushToDB() {
+  const time_t beginningTime = time(nullptr);
+
   if (!poolDB_.ping()) {
     LOG(ERROR) << "connect db fail";
     return false;
@@ -2423,7 +2430,8 @@ bool ShareLogParser::flushToDB() {
   counter += valuesWorkersDay.size() + valuesUsersDay.size() + valuesPoolDay.size();
 
   // done: daily data and hour data
-  LOG(INFO) << "flush to DB... done, items: " << counter;
+  LOG(INFO) << "flush to DB... done, items: " << counter
+            << ", time: " << (time(nullptr) - beginningTime) << "s";
 
   // clean expired data
   removeExpiredDataFromDB();

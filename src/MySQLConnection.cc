@@ -136,7 +136,7 @@ bool MySQLConnection::ping() {
   return false;
 }
 
-bool reconnect() {
+bool MySQLConnection::reconnect() {
   LOG(INFO) << "reconnect to mysql DB";
   close();
   open();
