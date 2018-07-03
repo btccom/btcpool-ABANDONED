@@ -64,7 +64,7 @@ void WorkerShares<SHARE>::processShare(const SHARE &share) {
     return;
   }
 
-  if (share.status_ == StratumStatus::ACCEPT || share.status_ == StratumStatus::SOLVED) {
+  if (StratumStatus::isAccepted(share.status_)) {
     acceptCount_++;
     acceptShareSec_.insert(share.timestamp_,    share.shareDiff_);
   } else {

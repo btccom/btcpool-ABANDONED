@@ -896,7 +896,7 @@ void StratumSession::handleRequest_Submit(const string &idStr,
 #endif
 
   // accepted share
-  if (share.status_ == StratumStatus::ACCEPT || share.status_ == StratumStatus::SOLVED) {
+  if (StratumStatus::isAccepted(share.status_)) {
 
     // agent miner's diff controller
     if (isAgentSession && sessionDiffController != nullptr) {
@@ -920,7 +920,7 @@ void StratumSession::handleRequest_Submit(const string &idStr,
 finish:
   DLOG(INFO) << share.toString();
 
-  if (share.status_ != StratumStatus::ACCEPT && share.status_ != StratumStatus::SOLVED) {
+  if (!StratumStatus::isAccepted(share.status_)) {
     
     // log all rejected share to answer "Why the rejection rate of my miner increased?"
     LOG(INFO) << "rejected share: " << StratumStatus::toString(share.status_)
@@ -1485,15 +1485,12 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   // we send share to kafka by default, but if there are lots of invalid
   // shares in a short time, we just drop them.
 
-  if (StratumStatus::SOLVED == share.status_)
+  if (StratumStatus::isAccepted(share.status_))
   {
-    s->sendSolvedShare2Kafka(sNonce, sHeader, sMixHash, height, networkDiff, worker_);
+    if (StratumStatus::isSolved(share.status_)) {
+      s->sendSolvedShare2Kafka(sNonce, sHeader, sMixHash, height, networkDiff, worker_);
+    }
 
-    diffController_->addAcceptedShare(share.shareDiff_);
-    rpc2ResponseBoolean(idStr, true);
-  }
-  else if (StratumStatus::ACCEPT == share.status_)
-  {
     diffController_->addAcceptedShare(share.shareDiff_);
     rpc2ResponseBoolean(idStr, true);
   }
@@ -1505,10 +1502,10 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   }
 
   bool isSendShareToKafka = true;
-  //finish:
   DLOG(INFO) << share.toString();
+
   // check if thers is invalid share spamming
-  if (StratumStatus::SOLVED != share.status_ && StratumStatus::ACCEPT == share.status_)
+  if (!StratumStatus::isAccepted(share.status_))
   {
     int64_t invalidSharesNum = invalidSharesCounter_.sum(time(nullptr), INVALID_SHARE_SLIDING_WINDOWS_SIZE);
     // too much invalid shares, don't send them to kafka
@@ -1981,7 +1978,7 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   bool isSendShareToKafka = true;
   DLOG(INFO) << share.toString();
   // check if thers is invalid share spamming
-  if (StratumStatus::SOLVED != share.status_ && StratumStatus::ACCEPT == share.status_)
+  if (!StratumStatus::isAccepted(share.status_))
   {
     int64_t invalidSharesNum = invalidSharesCounter_.sum(time(nullptr), INVALID_SHARE_SLIDING_WINDOWS_SIZE);
     // too much invalid shares, don't send them to kafka

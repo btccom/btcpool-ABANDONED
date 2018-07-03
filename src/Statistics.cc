@@ -80,7 +80,7 @@ template <>
 void ShareStatsDay<ShareBitcoin>::processShare(uint32_t hourIdx, const ShareBitcoin &share) {
   ScopeLock sl(lock_);
 
-  if (share.status_ == StratumStatus::ACCEPT || share.status_ == StratumStatus::SOLVED) {
+  if (StratumStatus::isAccepted(share.status_)) {
     shareAccept1h_[hourIdx] += share.shareDiff_;
     shareAccept1d_          += share.shareDiff_;
 
@@ -104,7 +104,7 @@ template <>
 void ShareStatsDay<ShareEth>::processShare(uint32_t hourIdx, const ShareEth &share) {
   ScopeLock sl(lock_);
 
-  if (share.status_ == StratumStatus::ACCEPT || share.status_ == StratumStatus::SOLVED) {
+  if (StratumStatus::isAccepted(share.status_)) {
     shareAccept1h_[hourIdx] += share.shareDiff_;
     shareAccept1d_          += share.shareDiff_;
 
@@ -128,7 +128,7 @@ template <>
 void ShareStatsDay<ShareBytom>::processShare(uint32_t hourIdx, const ShareBytom &share) {
   ScopeLock sl(lock_);
 
-  if (share.status_ == StratumStatus::ACCEPT || share.status_ == StratumStatus::SOLVED) {
+  if (StratumStatus::isAccepted(share.status_)) {
     shareAccept1h_[hourIdx] += share.shareDiff_;
     shareAccept1d_          += share.shareDiff_;
 

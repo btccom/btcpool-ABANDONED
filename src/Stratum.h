@@ -217,7 +217,16 @@ public:
 
     UNKNOWN = 2147483647 // bin(01111111 11111111 11111111 11111111)
   };
+
   static const char *toString(int err);
+  
+  inline static bool isAccepted(int status) {
+    return (status == ACCEPT) || (status == SOLVED);
+  }
+
+  inline static bool isSolved(int status) {
+    return (status == SOLVED);
+  }
 };
 
 ///////////////////////////////////// ShareBase ////////////////////////////////////
