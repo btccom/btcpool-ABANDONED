@@ -278,6 +278,7 @@ protected:
   void responseError(const string &idStr, int code);
   void responseTrue(const string &idStr);
   void rpc2ResponseBoolean(const string &idStr, bool result);
+  void rpc2ResponseError(const string &idStr, int errCode);
 
   bool tryReadLine(string &line);
   void handleLine(const string &line);
@@ -345,7 +346,25 @@ public:
 class StratumSessionEth : public StratumSession
 {
 public:
-  typedef enum { STRATUM = 0, ETHPROXY, ETHEREUMSTRATUM } StratumProtocol;
+  enum class StratumProtocol {
+    ETHPROXY,
+    STRATUM,
+    // @see https://www.nicehash.com/sw/Ethereum_specification_R1.txt
+    NICEHASH_STRATUM
+  };
+  
+  static const char* getProtocolString(const StratumProtocol protocol) {
+    switch(protocol) {
+      case StratumProtocol::ETHPROXY:
+        return "ETHPROXY";
+      case StratumProtocol::STRATUM:
+        return "STRATUM";
+      case StratumProtocol::NICEHASH_STRATUM:
+        return "NICEHASH_STRATUM";
+    }
+    // should not be here
+    return "UNKNOWN";
+  }
 
   StratumSessionEth(evutil_socket_t fd, struct bufferevent *bev,
                     Server *server, struct sockaddr *saddr,
@@ -362,6 +381,8 @@ public:
 private: 
   StratumProtocol ethProtocol_;
   uint16 extraNonce16b_;
+  // Record the difficulty of the last time sent to the miner in NICEHASH_STRATUM protocol.
+  uint64_t nicehashLastSentDiff_;
 };
 
 class StratumSessionBytom : public StratumSession

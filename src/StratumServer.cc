@@ -1836,9 +1836,9 @@ bool ServerEth::setup(StratumServer* sserver) {
 int ServerEth::checkShare(const ShareEth &share,
                           const uint64_t jobId,
                           const uint64_t nonce,
-                          const uint256 header,
-                          const uint256 mixHash,
-                          uint256 jobTarget)
+                          const uint256 &header,
+                          const uint256 &jobTarget,
+                          uint256 &returnedMixHash)
 {
   JobRepositoryEth *jobRepo = dynamic_cast<JobRepositoryEth *>(jobRepository_);
   if (nullptr == jobRepo) {
@@ -1858,7 +1858,7 @@ int ServerEth::checkShare(const ShareEth &share,
 
   StratumJobEth *sjob = dynamic_cast<StratumJobEth *>(exJobPtr->sjob_);
   
-  DLOG(INFO) << "checking share nonce: " << hex << nonce << ", header: " << header.GetHex() << ", mixHash: " << mixHash.GetHex();
+  DLOG(INFO) << "checking share nonce: " << hex << nonce << ", header: " << header.GetHex();
   
   ethash_return_value_t r;
   ethash_h256_t ethashHeader = {0};
@@ -1881,16 +1881,9 @@ int ServerEth::checkShare(const ShareEth &share,
     return StratumStatus::INTERNAL_ERROR;
   }
 
-  uint256 mix = Ethash256ToUint256(r.mix_hash);
-  if (mix != mixHash)
-  {
-    LOG(ERROR) << "mix hash does not match: " << mix.GetHex() << ", try re-create light";
-    jobRepo->rebuildLightNonBlocking(sjob);
-    return StratumStatus::INTERNAL_ERROR;
-  }
+  returnedMixHash = Ethash256ToUint256(r.mix_hash);
 
   uint256 shareTarget = Ethash256ToUint256(r.result);
-  
   DLOG(INFO) << "comapre share target: " << shareTarget.GetHex() << ", job target: " << jobTarget.GetHex() << ", network target: " << sjob->rskNetworkTarget_.GetHex();
   
   //can not compare directly because unit256 uses memcmp
