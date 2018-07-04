@@ -364,23 +364,6 @@ private:
   uint16 extraNonce16b_;
 };
 
-class StratumSessionBytom : public StratumSession
-{
-public:
-  StratumSessionBytom(evutil_socket_t fd, struct bufferevent *bev,
-                    Server *server, struct sockaddr *saddr,
-                    const int32_t shareAvgSeconds, const uint32_t extraNonce1);
-  void handleRequest_Authorize(const string &idStr, const JsonNode &jparams) override;
-  void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false) override;  
-  void handleRequest_GetWork(const string &idStr, const JsonNode &jparams) override; 
-  void handleRequest_Submit   (const string &idStr, const JsonNode &jparams) override;   
-  bool validate(const JsonNode &jmethod, const JsonNode &jparams) override;
-  bool needToSendLoginResponse() const override {return false;}
-  
-private:
-  uint8 shortJobId_;    //jobId starts from 1
-};
-
 class StratumSessionSia : public StratumSession
 {
 public:

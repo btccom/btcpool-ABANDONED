@@ -265,21 +265,35 @@ bool ShareLogParserT<SHARE>::processUnchangedShareLog() {
 
 template <class SHARE>
 int64_t ShareLogParserT<SHARE>::processGrowingShareLog() {
-  try {
-    size_t readNum = 0;
-
-    if (f_ == nullptr) {
+  if(f_ == nullptr)
+  {
+    bool fileOpened = true;
+    try
+    {
       f_ = new zstr::ifstream(filePath_, std::ios::binary);
-
-      if (!*f_) {
-        LOG(ERROR) << "open file fail: " << filePath_;
-
-        delete f_;
-        f_ = nullptr;
-
-        return -1;
+      if (f_ == nullptr) {
+        LOG(WARNING) << "open file fail. Filename: " << filePath_;
+        fileOpened = false;
       }
     }
+    catch(...)
+    {
+      //  just log warning instead of error because it's a usual scenario the file not exist and it throw an exception
+      LOG(WARNING) << "open file fail with exception. Filename: " << filePath_;
+      fileOpened = false;
+    }
+
+    if(!fileOpened)
+    {
+      delete f_;
+      f_ = nullptr;
+
+      return -1;      
+    }
+  }
+
+  size_t readNum = 0;
+  try {
     assert(f_ != nullptr);
 
     // clear the eof status so the stream can coninue reading.
@@ -322,10 +336,11 @@ int64_t ShareLogParserT<SHARE>::processGrowingShareLog() {
       memcpy((char *)buf_, (char *)buf_ + readNum, incompleteShareSize_);
     }
 
+    DLOG(INFO) << "processGrowingShareLog share count: " << readNum / sizeof(SHARE);
     return readNum / sizeof(SHARE);
 
-  } catch (...) {
-    LOG(ERROR) << "open file fail: " << filePath_;
+  } catch (...) {  
+    LOG(ERROR) << "reading file fail with exception: " << filePath_;
     return -1;
   }
 }

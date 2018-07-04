@@ -163,9 +163,13 @@ void ShareLogWriterT<SHARE>::tryCloseOldHanders() {
 
 template<class SHARE>
 bool ShareLogWriterT<SHARE>::flushToDisk() {
+  if(shares_.empty())
+    return true;
+
   try {
     std::set<zstr::ofstream*> usedHandlers;
 
+    DLOG(INFO) << "flushToDisk shares count: " << shares_.size();
     for (const auto& share : shares_) {
       const uint32_t ts = share.timestamp_ - (share.timestamp_ % 86400);
       zstr::ofstream *f = getFileHandler(ts);

@@ -144,10 +144,9 @@ uint256 Ethash256ToUint256(const ethash_h256_t &ethashHeader);
 uint32 djb2(const char *str);
 
 ////////////////////////////// for Bytom //////////////////////////////
-uint64 Bytom_TargetToDifficulty(uint64 bits);
+uint64 Bytom_TargetCompactToDifficulty(uint64 bits);
 void Bytom_DifficultyToTargetBinary(uint64 difficulty, vector<uint8_t>& out);
 uint64 Bytom_JobDifficultyToTargetCompact(uint64 difficulty);
-uint64 Bytom_BitsDifficultyToTarget(uint64 blockBits, uint64 difficulty);
 
 ////////////////////////////// for Bitcoin //////////////////////////////
 

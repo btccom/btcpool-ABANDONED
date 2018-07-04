@@ -133,7 +133,7 @@ void ShareStatsDay<ShareBytom>::processShare(uint32_t hourIdx, const ShareBytom 
     shareAccept1d_          += share.shareDiff_;
 
     double score = share.score();
-    double reward = GetBlockReward(share.height_, Params().GetConsensus());
+    double reward = GetBlockRewardBytom(share.height_);
     double earn = score * reward;
 
     score1h_[hourIdx] += score;

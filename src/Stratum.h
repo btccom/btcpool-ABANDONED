@@ -469,7 +469,7 @@ public:
       return 0.0;
     }
 
-    uint64_t difficulty = Bytom_TargetToDifficulty(blkBits_);
+    uint64_t difficulty = Bytom_TargetCompactToDifficulty(blkBits_);
 
     // Network diff may less than share diff on testnet or regression test network.
     // On regression test network, the network diff may be zero.
@@ -526,7 +526,7 @@ public:
 
   string toString() const
   {
-    uint64_t networkDifficulty = Bytom_TargetToDifficulty(blkBits_);
+    uint64_t networkDifficulty = Bytom_TargetCompactToDifficulty(blkBits_);
 
     return Strings::Format("share(jobId: %" PRIu64 ", ip: %s, userId: %d, "
                            "workerId: %" PRId64 ", time: %u/%s, height: %u, "

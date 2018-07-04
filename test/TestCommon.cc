@@ -305,3 +305,30 @@ TEST(Common, Eth_TargetToDifficulty) {
 TEST(Common, Eth_DifficultyToTarget) {
   ASSERT_EQ(Eth_DifficultyToTarget(0x62c2d313ull), "000000029794e0c85b08583ac96ea15f8b6f4d6bbcd1ee76326cd948d541eac3");
 }
+
+TEST(Common, Bytom_TargetCompactAndDifficulty) {
+  {
+    uint64_t targetCompact = Bytom_JobDifficultyToTargetCompact(1UL);
+    std::cout << targetCompact << "\n";
+    EXPECT_EQ(1UL, Bytom_TargetCompactToDifficulty(targetCompact));
+  }
+
+  {
+    uint64_t targetCompact = Bytom_JobDifficultyToTargetCompact(10UL);
+    std::cout << targetCompact << "\n";
+    EXPECT_EQ(10UL, Bytom_TargetCompactToDifficulty(targetCompact));
+  }
+
+  {
+    uint64_t targetCompact = Bytom_JobDifficultyToTargetCompact(20UL);
+    std::cout << targetCompact << "\n";
+    EXPECT_EQ(20UL, Bytom_TargetCompactToDifficulty(targetCompact));
+  }
+
+  {
+    uint64_t targetCompact = 2305843009214532812UL;
+    uint64_t diff = Bytom_TargetCompactToDifficulty(targetCompact);
+    EXPECT_EQ(20UL, diff);
+  }
+
+}

@@ -49,6 +49,7 @@
 #include "Kafka.h"
 #include "Stratum.h"
 #include "StratumSession.h"
+#include "StratumSessionBytom.h"
 
 class Server;
 class StratumJobEx;

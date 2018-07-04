@@ -1126,6 +1126,10 @@ void BlockMakerEth::_saveBlockToDBThread(const string &header, const uint32_t he
   if (db.execute(sql) == false) {
     LOG(ERROR) << "insert found block failure: " << sql;
   }
+  else
+  {
+    LOG(INFO) << "insert found block success for height " << height;
+  }
 }
 
 //////////////////////////////////////BlockMakerSia//////////////////////////////////////////////////

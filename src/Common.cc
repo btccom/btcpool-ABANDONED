@@ -181,9 +181,9 @@ uint64 Eth_TargetToDifficulty(string targetHex) {
   return diff.GetLow64();
 }
 
-uint64 Bytom_TargetToDifficulty(uint64 bits)
+uint64 Bytom_TargetCompactToDifficulty(uint64 bits)
 {
-  return CalculateDifficultyByTarget(bits);
+  return CalculateDifficultyByTargetCompact(bits);
 }
 
 void Bytom_DifficultyToTargetBinary(uint64 difficulty, vector<uint8_t>& out)
