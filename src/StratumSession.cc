@@ -370,7 +370,7 @@ void StratumSession::handleLine(const string &line) {
   }
 
   if (validate(jmethod, jparams)) {
-    handleRequest(idStr, jmethod.str(), jparams);
+    handleRequest(idStr, jmethod.str(), jparams, jnode);
     return;
   }
 
@@ -413,7 +413,7 @@ void StratumSession::rpc2ResponseError(const string &idStr, int errCode) {
 }
 
 void StratumSession::handleRequest(const string &idStr, const string &method,
-                                   const JsonNode &jparams)
+                                   const JsonNode &jparams, const JsonNode &jroot)
 {
   if (method == "mining.submit" ||
       "eth_submitWork" == method ||
@@ -433,7 +433,7 @@ void StratumSession::handleRequest(const string &idStr, const string &method,
   {
     // "eth_submitLogin": claymore eth
     // "login": bytom
-    handleRequest_Authorize(idStr, jparams);
+    handleRequest_Authorize(idStr, jparams, jroot);
   }
   else if (method == "mining.multi_version")
   {
@@ -463,7 +463,7 @@ void StratumSession::handleRequest(const string &idStr, const string &method,
   }
   else
   {
-    if (!handleRequest_Specific(idStr, method, jparams))
+    if (!handleRequest_Specific(idStr, method, jparams, jroot))
     {
       // unrecognised method, just ignore it
       LOG(WARNING) << "unrecognised method: \"" << method << "\""
@@ -688,7 +688,7 @@ void StratumSession::checkUserAndPwd(const string &idStr, const string &fullName
 }
 
 void StratumSession::handleRequest_Authorize(const string &idStr,
-                                             const JsonNode &jparams)
+                                             const JsonNode &jparams, const JsonNode &/*jroot*/)
 {
   if (state_ != SUBSCRIBED)
   {
@@ -708,14 +708,14 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
     responseError(idStr, StratumStatus::INVALID_USERNAME);
     return;
   }
+
+  string fullName = jparams.children()->at(0).str();
   string password;
   if (jparams.children()->size() > 1)
   {
     password = jparams.children()->at(1).str();
   }
 
-  string fullName = jparams.children()->at(0).str();
-  fullName = getFullName(fullName);
   checkUserAndPwd(idStr, fullName, password);
 }
 
@@ -1419,23 +1419,48 @@ void StratumSessionEth::handleRequest_Subscribe(const string &idStr, const JsonN
   }
 }
 
-string StratumSessionEth::getFullName(const string& fullNameStr) {
-  if (ethProtocol_ != StratumProtocol::ETHPROXY)
+string StratumSessionEth::stripEthAddrFromFullName(const string& fullNameStr) {
+  const size_t pos = fullNameStr.find('.');
+  // The Ethereum address is 42 bytes and starting with "0x" as normal
+  // Example: 0x00d8c82Eb65124Ea3452CaC59B64aCC230AA3482
+  if (pos != 42 || fullNameStr[0] != '0' || (fullNameStr[1] != 'x' && fullNameStr[1] != 'X')) {
     return fullNameStr;
-  
-  size_t pos = fullNameStr.find('.');
-  if (string::npos == pos) {
-    LOG(ERROR) << "invalid username=" << fullNameStr;
-    return "";
   }
-
-  return fullNameStr.substr(pos + 1, string::npos);
+  return fullNameStr.substr(pos + 1);
 }
 
-void StratumSessionEth::handleRequest_Authorize(const string &idStr, const JsonNode &jparams)
+void StratumSessionEth::handleRequest_Authorize(const string &idStr, const JsonNode &jparams, const JsonNode &jroot)
 {
+  // const type cannot access string indexed object member
+  JsonNode &jsonRoot = const_cast<JsonNode &>(jroot);
+
   state_ = SUBSCRIBED;
-  StratumSession::handleRequest_Authorize(idStr, jparams);
+
+  // STRATUM / NICEHASH_STRATUM:        {"id":3, "method":"mining.authorize", "params":["test.aaa", "x"]} 
+  // ETH_PROXY (Claymore):              {"worker": "eth1.0", "jsonrpc": "2.0", "params": ["0x00d8c82Eb65124Ea3452CaC59B64aCC230AA3482.test.aaa", "x"], "id": 2, "method": "eth_submitLogin"}
+  // ETH_PROXY (EthMiner, situation 1): {"id":1, "method":"eth_submitLogin", "params":["0x00d8c82Eb65124Ea3452CaC59B64aCC230AA3482"], "worker":"test.aaa"}
+  // ETH_PROXY (EthMiner, situation 1): {"id":1, "method":"eth_submitLogin", "params":["test"], "worker":"aaa"}
+  
+  if (jparams.children()->size() < 1)
+  {
+    responseError(idStr, StratumStatus::INVALID_USERNAME);
+    return;
+  }
+
+  string fullName = jparams.children()->at(0).str();
+  if (StratumProtocol::ETHPROXY == ethProtocol_ && jsonRoot["worker"].type() == Utilities::JS::type::Str) {
+    fullName += '.';
+    fullName += jsonRoot["worker"].str();
+  }
+  fullName = stripEthAddrFromFullName(fullName);
+
+  string password;
+  if (jparams.children()->size() > 1)
+  {
+    password = jparams.children()->at(1).str();
+  }
+
+  checkUserAndPwd(idStr, fullName, password);
 }
 
 void StratumSessionEth::handleRequest_GetWork(const string &idStr, const JsonNode &jparams)
@@ -1834,7 +1859,7 @@ StratumSessionBytom::StratumSessionBytom(evutil_socket_t fd, struct bufferevent 
 {
 }
 
-void StratumSessionBytom::handleRequest_Authorize(const string &idStr, const JsonNode &jparams)
+void StratumSessionBytom::handleRequest_Authorize(const string &idStr, const JsonNode &jparams, const JsonNode &/*jroot*/)
 {
   state_ = SUBSCRIBED;
   auto params = const_cast<JsonNode&> (jparams);
