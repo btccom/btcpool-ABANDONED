@@ -1327,7 +1327,7 @@ void StratumSessionEth::sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr
       //  "params": [ 0.5 ]
       // }
       strNotify += Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"method\":\"mining.set_difficulty\","
-                                   "\"params\":[\"%lf\"]}\n", idStr.c_str(), Eth_DiffToNicehashDiff(ljob.jobDifficulty_));
+                                   "\"params\":[%lf]}\n", idStr.c_str(), Eth_DiffToNicehashDiff(ljob.jobDifficulty_));
       nicehashLastSentDiff_ = ljob.jobDifficulty_;
     }
 
