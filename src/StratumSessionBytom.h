@@ -32,7 +32,7 @@ public:
   StratumSessionBytom(evutil_socket_t fd, struct bufferevent *bev,
                     Server *server, struct sockaddr *saddr,
                     const int32_t shareAvgSeconds, const uint32_t extraNonce1);
-  void handleRequest_Authorize(const string &idStr, const JsonNode &jparams) override;
+  void handleRequest_Authorize(const string &idStr, const JsonNode &jparams, const JsonNode &jroot) override;
   void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false) override;  
   void handleRequest_GetWork(const string &idStr, const JsonNode &jparams) override; 
   void handleRequest_Submit   (const string &idStr, const JsonNode &jparams) override;   

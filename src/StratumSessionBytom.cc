@@ -47,7 +47,7 @@ StratumSessionBytom::StratumSessionBytom(evutil_socket_t fd, struct bufferevent 
 {
 }
 
-void StratumSessionBytom::handleRequest_Authorize(const string &idStr, const JsonNode &jparams)
+void StratumSessionBytom::handleRequest_Authorize(const string &idStr, const JsonNode &jparams, const JsonNode &/*jroot*/)
 {
   state_ = SUBSCRIBED;
   auto params = const_cast<JsonNode&> (jparams);
@@ -344,7 +344,7 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   bool isSendShareToKafka = true;
   DLOG(INFO) << share.toString();
   // check if thers is invalid share spamming
-  if (StratumStatus::SOLVED != share.status_ && StratumStatus::ACCEPT != share.status_)
+  if (!StratumStatus::isAccepted(share.status_))
   {
     int64_t invalidSharesNum = invalidSharesCounter_.sum(time(nullptr), INVALID_SHARE_SLIDING_WINDOWS_SIZE);
     // too much invalid shares, don't send them to kafka

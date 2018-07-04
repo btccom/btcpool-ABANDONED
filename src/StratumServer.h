@@ -428,9 +428,9 @@ public:
   int checkShare(const ShareEth &share,
                  const uint64_t jobId,
                  const uint64_t nonce,
-                 const uint256 header,
-                 const uint256 mixHash,
-                 const uint256 jobTarget);
+                 const uint256 &header,
+                 const uint256 &jobTarget,
+                 uint256 &returnedMixHash);
   void sendSolvedShare2Kafka(const string& strNonce, const string& strHeader, const string& strMix,
                              const uint32_t height, const uint64_t networkDiff, const StratumWorker &worker);
 

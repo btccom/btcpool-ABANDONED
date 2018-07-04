@@ -143,6 +143,16 @@ void Uint256ToEthash256(const uint256 hash, ethash_h256_t &ethashHeader);
 uint256 Ethash256ToUint256(const ethash_h256_t &ethashHeader);
 uint32 djb2(const char *str);
 
+// NICEHASH_STRATUM uses a different difficulty value than the Ethereum network and BTCPool ETH.
+// Conversion between difficulty and target is done the same way as with Bitcoin; 
+// difficulty of 1 is transformed to target being in HEX:
+// 00000000ffff0000000000000000000000000000000000000000000000000000
+// @see https://www.nicehash.com/sw/Ethereum_specification_R1.txt
+inline double Eth_DiffToNicehashDiff(uint64_t diff) {
+  // Ethereum difficulty is numerically equivalent to 2^32 times the difficulty of Bitcoin/NICEHASH_STRATUM.
+  return ((double)diff) / ((double)4294967296.0);
+}
+
 ////////////////////////////// for Bytom //////////////////////////////
 uint64 Bytom_TargetCompactToDifficulty(uint64 bits);
 void Bytom_DifficultyToTargetBinary(uint64 difficulty, vector<uint8_t>& out);

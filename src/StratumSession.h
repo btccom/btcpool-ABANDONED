@@ -275,13 +275,14 @@ protected:
 
   bool handleMessage();  // handle all messages: ex-message and stratum message
 
-  void responseError(const string &idStr, int code);
-  void responseTrue(const string &idStr);
+  virtual void responseError(const string &idStr, int code);
+  virtual void responseTrue(const string &idStr);
   void rpc2ResponseBoolean(const string &idStr, bool result);
+  void rpc2ResponseError(const string &idStr, int errCode);
 
   bool tryReadLine(string &line);
   void handleLine(const string &line);
-  void handleRequest(const string &idStr, const string &method, const JsonNode &jparams);
+  void handleRequest(const string &idStr, const string &method, const JsonNode &jparams, const JsonNode &jroot);
 
   void handleRequest_SuggestTarget    (const string &idStr, const JsonNode &jparams);
   void handleRequest_SuggestDifficulty(const string &idStr, const JsonNode &jparams);
@@ -300,13 +301,13 @@ protected:
   void checkUserAndPwd(const string &idStr, const string &fullName, const string &password);
 
   virtual void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams);
-  virtual void handleRequest_Authorize        (const string &idStr, const JsonNode &jparams);
+  virtual void handleRequest_Authorize        (const string &idStr, const JsonNode &jparams, const JsonNode &jroot);
   virtual void handleRequest_Submit           (const string &idStr, const JsonNode &jparams);
   virtual void handleRequest_GetWork(const string &idStr, const JsonNode &jparams) {}; 
   virtual void handleRequest_SubmitHashrate(const string &idStr, const JsonNode &jparams) {}; 
-   //return true if request is handled
-  virtual bool handleRequest_Specific(const string &idStr, const string &method, const JsonNode &jparams) {return false;}
-  virtual string getFullName(const string& fullNameStr) { return fullNameStr; }
+  //return true if request is handled
+  virtual bool handleRequest_Specific(const string &idStr, const string &method,
+                                      const JsonNode &jparams, const JsonNode &jroot) { return false; }
   virtual bool needToSendLoginResponse() const {return true;}
 public:
   struct bufferevent* bev_;
@@ -345,23 +346,49 @@ public:
 class StratumSessionEth : public StratumSession
 {
 public:
-  typedef enum { STRATUM = 0, ETHPROXY, ETHEREUMSTRATUM } StratumProtocol;
+  enum class StratumProtocol {
+    ETHPROXY,
+    STRATUM,
+    // @see https://www.nicehash.com/sw/Ethereum_specification_R1.txt
+    NICEHASH_STRATUM
+  };
+  
+  static const char* getProtocolString(const StratumProtocol protocol) {
+    switch(protocol) {
+      case StratumProtocol::ETHPROXY:
+        return "ETHPROXY";
+      case StratumProtocol::STRATUM:
+        return "STRATUM";
+      case StratumProtocol::NICEHASH_STRATUM:
+        return "NICEHASH_STRATUM";
+    }
+    // should not be here
+    return "UNKNOWN";
+  }
 
   StratumSessionEth(evutil_socket_t fd, struct bufferevent *bev,
                     Server *server, struct sockaddr *saddr,
                     const int32_t shareAvgSeconds, const uint32_t extraNonce1);
-  //virtual bool initialize();
+  
+protected:
+  void responseError(const string &idStr, int code) override;
+  void responseTrue(const string &idStr) override;
+
   void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false) override;  
+  void sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr, const string &idStr);
   void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams) override;      
   void handleRequest_Submit           (const string &idStr, const JsonNode &jparams) override;         
-  void handleRequest_Authorize(const string &idStr, const JsonNode &jparams) override;   
+  void handleRequest_Authorize(const string &idStr, const JsonNode &jparams, const JsonNode &jroot) override;   
   void handleRequest_GetWork(const string &idStr, const JsonNode &jparams) override; 
   void handleRequest_SubmitHashrate(const string &idStr, const JsonNode &jparams) override; 
 
-  string getFullName(const string& fullNameStr) override;
+  // Remove the Ethereum address prefix from worker's full name
+  // 0x00d8c82Eb65124Ea3452CaC59B64aCC230AA3482.test.aaa -> test.aaa
+  string stripEthAddrFromFullName(const string& fullNameStr);
 private: 
   StratumProtocol ethProtocol_;
-  uint16 extraNonce16b_;
+  // Record the difficulty of the last time sent to the miner in NICEHASH_STRATUM protocol.
+  uint64_t nicehashLastSentDiff_;
 };
 
 class StratumSessionSia : public StratumSession
