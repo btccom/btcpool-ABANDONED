@@ -1231,10 +1231,10 @@ StratumSessionEth::StratumSessionEth(evutil_socket_t fd, struct bufferevent *bev
 }
 
 void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
-  sendMiningNotify(exJobPtr, "null");
+  sendMiningNotifyWithId(exJobPtr, "null");
 }
 
-void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, const string &idStr)
+void StratumSessionEth::sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr, const string &idStr)
 {
   if (state_ < AUTHENTICATED || exJobPtr == nullptr)
   {
@@ -1432,7 +1432,7 @@ void StratumSessionEth::handleRequest_Authorize(const string &idStr, const JsonN
 
 void StratumSessionEth::handleRequest_GetWork(const string &idStr, const JsonNode &jparams)
 {
-  sendMiningNotify(server_->jobRepository_->getLatestStratumJobEx(), idStr);
+  sendMiningNotifyWithId(server_->jobRepository_->getLatestStratumJobEx(), idStr);
 }
 
 void StratumSessionEth::handleRequest_SubmitHashrate(const string &idStr, const JsonNode &jparams)

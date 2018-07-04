@@ -371,7 +371,7 @@ public:
                     const int32_t shareAvgSeconds, const uint32_t extraNonce1);
   //virtual bool initialize();
   void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false) override;  
-  void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, const string &idStr);
+  void sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr, const string &idStr);
   void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams) override;      
   void handleRequest_Submit           (const string &idStr, const JsonNode &jparams) override;         
   void handleRequest_Authorize(const string &idStr, const JsonNode &jparams) override;   
