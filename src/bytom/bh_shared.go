@@ -116,11 +116,12 @@ func CalculateTargetCompactByDifficulty(diff uint64) uint64 {
 	return difficulty.BigToCompact(targetBig)
 }
 
-//export CalculateDifficultyByTarget
-func CalculateDifficultyByTarget(target uint64) uint64 {
-	targetBig := new(big.Int).SetUint64(target)
+//export CalculateDifficultyByTargetCompact
+func CalculateDifficultyByTargetCompact(target uint64) uint64 {
+	targetBig := difficulty.CompactToBig(target)
 	diffBig := new(big.Int).Div(Diff1, targetBig)
-	return difficulty.BigToCompact(diffBig)
+	return diffBig.Uint64()
+	// return difficulty.BigToCompact(diffBig)
 }
 
 func main() {

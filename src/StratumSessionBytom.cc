@@ -326,7 +326,7 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
     {
       case StratumStatus::SOLVED:
         LOG(INFO) << "share solved";
-        s->sendSolvedShare2Kafka(nonce, encoded.r0, share.height_, Bytom_TargetToDifficulty(sJob->blockHeader_.bits), worker_);
+        s->sendSolvedShare2Kafka(nonce, encoded.r0, share.height_, Bytom_TargetCompactToDifficulty(sJob->blockHeader_.bits), worker_);
         server_->jobRepository_->markAllJobsAsStale();      
         //  do not put break here! It needs to run "ACCEPT" code.
       case StratumStatus::ACCEPT:

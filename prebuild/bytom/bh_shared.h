@@ -96,7 +96,7 @@ extern void CalculateTargetBinaryByDifficulty(GoUint64 p0, GoSlice p1);
 
 extern GoUint64 CalculateTargetCompactByDifficulty(GoUint64 p0);
 
-extern GoUint64 CalculateDifficultyByTarget(GoUint64 p0);
+extern GoUint64 CalculateDifficultyByTargetCompact(GoUint64 p0);
 
 #ifdef __cplusplus
 }
