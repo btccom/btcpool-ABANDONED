@@ -49,6 +49,7 @@
 #include "Kafka.h"
 #include "Stratum.h"
 #include "StratumSession.h"
+#include "StratumSessionEth.h"
 #include "StratumSessionBytom.h"
 
 class Server;
@@ -152,56 +153,6 @@ public:
   virtual StratumJob* createStratumJob() {return new StratumJob();}
   virtual StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean);
   virtual void broadcastStratumJob(StratumJob *sjob);
-};
-
-class JobRepositoryEth : public JobRepository
-{
-public:
-  JobRepositoryEth(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server);
-  virtual ~JobRepositoryEth();
-
-  bool compute(ethash_h256_t const header, uint64_t nonce, ethash_return_value_t& r);
-
-  StratumJob *createStratumJob() override {return new StratumJobEth();}
-  StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
-  void broadcastStratumJob(StratumJob *sjob) override;
-
-  // re-computing light when checking share failed.
-  void rebuildLightNonBlocking(StratumJobEth* job);
-
-private:
-  // TODO: move to configuration file
-  const char *kLightCacheFilePath = "./sserver-eth-dagcache.dat";
-
-  // save ethash_light_t to file
-  struct LightCacheHeader {
-    uint64_t checkSum_;
-	  uint64_t blockNumber_;
-	  uint64_t cacheSize_;
-  };
-
-  void newLightNonBlocking(StratumJobEth* job);
-  void _newLightThread(uint64_t height);
-  void deleteLight();
-  void deleteLightNoLock();
-
-  // Creating a new ethash_light_t (DAG cache) is so slow, it may need
-  // more than 120 seconds for current Ethereum mainnet.
-  // So save it to a file before shutdown and load it back at next time 
-  // to reduce the computation time required after a reboot.
-  void saveLightToFile();
-  void saveLightToFile(const ethash_light_t &light, std::ofstream &f);
-  void loadLightFromFile();
-  ethash_light_t loadLightFromFile(std::ifstream &f);
-  uint64_t computeLightCacheCheckSum(const LightCacheHeader &header, const uint8_t *data);
-
-  ethash_light_t light_;
-  ethash_light_t nextLight_;
-  std::atomic<uint64_t> epochs_;
-  mutex lightLock_;
-  mutex nextLightLock_;
-
-  int32_t lastHeight_;
 };
 
 class JobRepositorySia : public JobRepository
@@ -418,31 +369,6 @@ public:
                                Server *server, struct sockaddr *saddr,
                                const int32_t shareAvgSeconds,
                                const uint32_t sessionID);
-};
-
-class ServerEth : public Server
-{
-public:
-  ServerEth(const int32_t shareAvgSeconds) : Server(shareAvgSeconds) {}
-  bool setup(StratumServer* sserver) override;
-  int checkShare(const ShareEth &share,
-                 const uint64_t jobId,
-                 const uint64_t nonce,
-                 const uint256 &header,
-                 const uint256 &jobTarget,
-                 uint256 &returnedMixHash);
-  void sendSolvedShare2Kafka(const string& strNonce, const string& strHeader, const string& strMix,
-                             const uint32_t height, const uint64_t networkDiff, const StratumWorker &worker);
-
-  JobRepository* createJobRepository(const char *kafkaBrokers,
-                                    const char *consumerTopic,
-                                     const string &fileLastNotifyTime,
-                                     Server *server) override;
-
-  StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
-                               Server *server, struct sockaddr *saddr,
-                               const int32_t shareAvgSeconds,
-                               const uint32_t sessionID) override;
 };
 
 class ServerSia : public Server
