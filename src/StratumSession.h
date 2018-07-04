@@ -275,8 +275,8 @@ protected:
 
   bool handleMessage();  // handle all messages: ex-message and stratum message
 
-  void responseError(const string &idStr, int code);
-  void responseTrue(const string &idStr);
+  virtual void responseError(const string &idStr, int code);
+  virtual void responseTrue(const string &idStr);
   void rpc2ResponseBoolean(const string &idStr, bool result);
   void rpc2ResponseError(const string &idStr, int errCode);
 
@@ -369,7 +369,11 @@ public:
   StratumSessionEth(evutil_socket_t fd, struct bufferevent *bev,
                     Server *server, struct sockaddr *saddr,
                     const int32_t shareAvgSeconds, const uint32_t extraNonce1);
-  //virtual bool initialize();
+  
+protected:
+  void responseError(const string &idStr, int code) override;
+  void responseTrue(const string &idStr) override;
+
   void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false) override;  
   void sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr, const string &idStr);
   void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams) override;      

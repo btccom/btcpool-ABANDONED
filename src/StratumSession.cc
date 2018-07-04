@@ -1230,6 +1230,14 @@ StratumSessionEth::StratumSessionEth(evutil_socket_t fd, struct bufferevent *bev
 {
 }
 
+void StratumSessionEth::responseError(const string &idStr, int code) {
+  return rpc2ResponseError(idStr, code);
+}
+
+void StratumSessionEth::responseTrue(const string &idStr) {
+  return rpc2ResponseBoolean(idStr, true);
+}
+
 void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
   sendMiningNotifyWithId(exJobPtr, "null");
 }
