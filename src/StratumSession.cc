@@ -1226,7 +1226,6 @@ StratumSessionEth::StratumSessionEth(evutil_socket_t fd, struct bufferevent *bev
                                      const int32_t shareAvgSeconds, const uint32_t extraNonce1)
 : StratumSession(fd, bev, server, saddr, shareAvgSeconds, extraNonce1)
 , ethProtocol_(StratumProtocol::ETHPROXY)
-, extraNonce16b_(1)
 , nicehashLastSentDiff_(0)
 {
 }

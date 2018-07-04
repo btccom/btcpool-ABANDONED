@@ -380,7 +380,6 @@ public:
   string getFullName(const string& fullNameStr) override;
 private: 
   StratumProtocol ethProtocol_;
-  uint16 extraNonce16b_;
   // Record the difficulty of the last time sent to the miner in NICEHASH_STRATUM protocol.
   uint64_t nicehashLastSentDiff_;
 };
