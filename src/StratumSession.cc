@@ -1398,7 +1398,7 @@ void StratumSessionEth::handleRequest_Subscribe(const string &idStr, const JsonN
     const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":[["
                                         "\"mining.notify\","
                                         "\"%06x\","
-                                        "\"EthereumStratum/1.0.0\","
+                                        "\"EthereumStratum/1.0.0\""
                                      "],\"%06x\"],\"error\":null}\n",
                                      idStr.c_str(), extraNonce1_, extraNonce1_);
     sendData(s);
