@@ -1230,7 +1230,11 @@ StratumSessionEth::StratumSessionEth(evutil_socket_t fd, struct bufferevent *bev
 {
 }
 
-void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob)
+void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
+  sendMiningNotify(exJobPtr, "null");
+}
+
+void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, const string &idStr)
 {
   if (state_ < AUTHENTICATED || exJobPtr == nullptr)
   {
@@ -1286,8 +1290,9 @@ void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool
     //"dd159c7ec5b056ad9e95e7c997829f667bc8e34c6d43fcb9e0c440ed94a85d80",
     //"a8784097a4d03c2d2ac6a3a2beebd0606aa30a8536a700446b40800841c0162c",
     //"0000000112e0be826d694b2e62d01511f12a6061fbaec8bc02357593e70e52ba",false]}
-    strNotify = Strings::Format("{\"id\":8,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
+    strNotify = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
                                 "\"params\":[\"%s\",\"%s\",\"%s\",\"%s\", %s]}\n",
+                                idStr.c_str(),
                                 header.c_str(),
                                 header.c_str(),
                                 seed.c_str(),
@@ -1302,9 +1307,9 @@ void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool
     //["0x599fffbc07777d4b6455c0e7ca479c9edbceef6c3fec956fecaaf4f2c727a492",
     //"0x1261dfe17d0bf58cb2861ae84734488b1463d282b7ee88ccfa18b7a92a7b77f7",
     //"0x0112e0be826d694b2e62d01511f12a6061fbaec8bc02357593e70e52ba","0x4ec6f5"]}
-    strNotify = Strings::Format("{\"id\":%d,\"jsonrpc\":\"2.0\","
+    strNotify = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\","
                                 "\"result\":[\"%s\",\"%s\",\"0x%s\",\"0x%06x\"]}\n",
-                                isFirstJob ? 3 : 0,
+                                idStr.c_str(),
                                 header.c_str(),
                                 seed.c_str(),
                                 //Claymore use 58 bytes target
@@ -1321,8 +1326,8 @@ void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool
       //  "method": "mining.set_difficulty", 
       //  "params": [ 0.5 ]
       // }
-      strNotify += Strings::Format("{\"id\":null,\"jsonrpc\":\"2.0\",\"method\":\"mining.set_difficulty\","
-                                   "\"params\":[\"%lf\"]}\n", Eth_DiffToNicehashDiff(ljob.jobDifficulty_));
+      strNotify += Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"method\":\"mining.set_difficulty\","
+                                   "\"params\":[\"%lf\"]}\n", idStr.c_str(), Eth_DiffToNicehashDiff(ljob.jobDifficulty_));
       nicehashLastSentDiff_ = ljob.jobDifficulty_;
     }
 
@@ -1335,8 +1340,9 @@ void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool
     //     "645cf20198c2f3861e947d4f67e3ab63b7b2e24dcc9095bd9123e7b33371f6cc",
     //     true
     //   ]}
-    strNotify += Strings::Format("{\"id\":null,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
+    strNotify += Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
                                  "\"params\":[\"%s\",\"%s\",\"%s\", %s]}\n",
+                                 idStr.c_str(),
                                  header.c_str(),
                                  seed.c_str(),
                                  header.c_str(),
@@ -1426,7 +1432,7 @@ void StratumSessionEth::handleRequest_Authorize(const string &idStr, const JsonN
 
 void StratumSessionEth::handleRequest_GetWork(const string &idStr, const JsonNode &jparams)
 {
-  sendMiningNotify(server_->jobRepository_->getLatestStratumJobEx(), true);
+  sendMiningNotify(server_->jobRepository_->getLatestStratumJobEx(), idStr);
 }
 
 void StratumSessionEth::handleRequest_SubmitHashrate(const string &idStr, const JsonNode &jparams)
