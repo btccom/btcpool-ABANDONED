@@ -431,9 +431,6 @@ void StatsServerT<SHARE>::flushWorkersToRedis(uint32_t threadStep) {
     shared_ptr<WorkerShares<SHARE>> workerShare = itr->second;
     const WorkerStatus status = workerShare->getWorkerStatus();
 
-    char ipStr[INET_ADDRSTRLEN] = {0};
-    inet_ntop(AF_INET, &(status.lastShareIP_), ipStr, INET_ADDRSTRLEN);
-    
     string key = getRedisKeyMiningWorker(userId, workerId);
 
     // update info
@@ -445,7 +442,7 @@ void StatsServerT<SHARE>::flushWorkersToRedis(uint32_t threadStep) {
                       "accept_1h", std::to_string(status.accept1h_),
                       "reject_1h", std::to_string(status.reject1h_),
                       "accept_count", std::to_string(status.acceptCount_),
-                      "last_share_ip", ipStr,
+                      "last_share_ip", status.lastShareIP_.toString(),
                       "last_share_time", std::to_string(status.lastShareTime_),
                       "updated_at", std::to_string(time(nullptr))
                   });
@@ -668,9 +665,6 @@ void StatsServerT<SHARE>::flushUsersToRedis(uint32_t threadStep) {
     const WorkerStatus status = workerShare->getWorkerStatus();
     const int32_t workerCount = userWorkerCount_[userId];
 
-    char ipStr[INET_ADDRSTRLEN] = {0};
-    inet_ntop(AF_INET, &(status.lastShareIP_), ipStr, INET_ADDRSTRLEN);
-    
     string key = getRedisKeyMiningWorker(userId);
 
     // update info
@@ -683,7 +677,7 @@ void StatsServerT<SHARE>::flushUsersToRedis(uint32_t threadStep) {
                       "accept_1h", std::to_string(status.accept1h_),
                       "reject_1h", std::to_string(status.reject1h_),
                       "accept_count", std::to_string(status.acceptCount_),
-                      "last_share_ip", ipStr,
+                      "last_share_ip", status.lastShareIP_.toString(),
                       "last_share_time", std::to_string(status.lastShareTime_),
                       "updated_at", std::to_string(time(nullptr))
                   });
@@ -801,8 +795,6 @@ void StatsServerT<SHARE>::_flushWorkersAndUsersToDBThread() {
     shared_ptr<WorkerShares<SHARE>> workerShare = itr->second;
     const WorkerStatus status = workerShare->getWorkerStatus();
 
-    char ipStr[INET_ADDRSTRLEN] = {0};
-    inet_ntop(AF_INET, &(status.lastShareIP_), ipStr, INET_ADDRSTRLEN);
     const string nowStr = date("%F %T", time(nullptr));
 
     values.push_back(Strings::Format("%" PRId64",%d,%d,%" PRIu64",%" PRIu64","
@@ -815,7 +807,7 @@ void StatsServerT<SHARE>::_flushWorkersAndUsersToDBThread() {
                                      status.accept1m_, status.accept5m_,
                                      status.accept15m_, status.reject15m_,
                                      status.accept1h_, status.reject1h_,
-                                     status.acceptCount_, ipStr,
+                                     status.acceptCount_, status.lastShareIP_.toString().c_str(),
                                      date("%F %T", status.lastShareTime_).c_str(),
                                      nowStr.c_str(), nowStr.c_str()));
   }
@@ -829,8 +821,6 @@ void StatsServerT<SHARE>::_flushWorkersAndUsersToDBThread() {
     shared_ptr<WorkerShares<SHARE>> workerShare = itr->second;
     const WorkerStatus status = workerShare->getWorkerStatus();
 
-    char ipStr[INET_ADDRSTRLEN] = {0};
-    inet_ntop(AF_INET, &(status.lastShareIP_), ipStr, INET_ADDRSTRLEN);
     const string nowStr = date("%F %T", time(nullptr));
 
     values.push_back(Strings::Format("%" PRId64",%d,%d,%" PRIu64",%" PRIu64","
@@ -843,7 +833,7 @@ void StatsServerT<SHARE>::_flushWorkersAndUsersToDBThread() {
                                      status.accept1m_, status.accept5m_,
                                      status.accept15m_, status.reject15m_,
                                      status.accept1h_, status.reject1h_,
-                                     status.acceptCount_, ipStr,
+                                     status.acceptCount_, status.lastShareIP_.toString().c_str(),
                                      date("%F %T", status.lastShareTime_).c_str(),
                                      nowStr.c_str(), nowStr.c_str()));
   }
@@ -1583,9 +1573,6 @@ void StatsServerT<SHARE>::getWorkerStatus(struct evbuffer *evb, const char *pUse
 
   size_t i = 0;
   for (const auto &status : workerStatus) {
-    char ipStr[INET_ADDRSTRLEN] = {0};
-    inet_ntop(AF_INET, &(status.lastShareIP_), ipStr, INET_ADDRSTRLEN);
-
     // extra infomations
     string extraInfo;
     if (!isMerge && keys[i].workerId_ == 0) {  // all workers of this user
@@ -1604,7 +1591,7 @@ void StatsServerT<SHARE>::getWorkerStatus(struct evbuffer *evb, const char *pUse
                         status.accept1m_, status.accept5m_, status.accept15m_, status.accept1h_,
                         status.reject15m_, status.reject1h_,
                         status.acceptCount_,
-                        ipStr, status.lastShareTime_,
+                        status.lastShareIP_.toString().c_str(), status.lastShareTime_,
                         extraInfo.length() ? extraInfo.c_str() : "");
     i++;
   }
