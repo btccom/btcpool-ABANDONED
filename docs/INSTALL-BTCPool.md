@@ -381,6 +381,10 @@ USE bpool_local_stats_db;
 SOURCE bpool_local_stats_db.sql;
 ```
 
+### (optional) install Redis
+
+If you want to install Redis as your `statshttpd`'s optional storage, refer to [](INSTALL-Redis.md).
+
 ### User list API
 
 You need to implement a HTTP API for stratum server (`sserver`). The API is use to fetch user list in incremental model. Stratum Server will call this API every few seconds, interval is about 10 seconds. When Stratum Server start, it will fetch again and again util no more users.
