@@ -1221,3 +1221,28 @@ void BlockMakerBytom::_submitBlockThread(const string &rpcAddress, const string 
   LOG(INFO) << "submission result: " << response;
 }
 
+void BlockMakerBytom::saveBlockToDBNonBlocking(const string &header, const uint32_t height,
+                                             const uint64_t networkDiff, const StratumWorker &worker) {
+  boost::thread t(boost::bind(&BlockMakerBytom::_saveBlockToDBThread, this,
+                              header, height, networkDiff, worker));
+}
+
+void BlockMakerBytom::_saveBlockToDBThread(const string &header, const uint32_t height,
+                                         const uint64_t networkDiff, const StratumWorker &worker) {
+  const string nowStr = date("%F %T");
+  string sql;
+  sql = Strings::Format("INSERT INTO `found_blocks` "
+                        " (`puid`, `worker_id`"
+                        ", `worker_full_name`"
+                        ", `height`, `hash`, `rewards`"
+                        ", `network_diff`, `created_at`)"
+                        " VALUES (%ld, %" PRId64
+                        ", '%s'"
+                        ", %lu, '%s', %" PRId64
+                        ", %" PRIu64 ", '%s'); ",
+                        worker.userId_, worker.workerHashId_,
+                        // filter again, just in case
+                        filterWorkerName(worker.fullName_).c_str(),
+                        height, header.c_str(), GetBlockRewardBytom(height),
+                        networkDiff, nowStr.c_str());
+}
