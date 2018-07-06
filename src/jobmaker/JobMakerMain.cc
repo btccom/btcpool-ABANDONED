@@ -153,7 +153,7 @@ shared_ptr<GwJobMakerDefinition> createGwJobMakerDefinition(const Setting &setti
 
 shared_ptr<GbtJobMakerDefinition> createGbtJobMakerDefinition(const Setting &setting)
 {
-  shared_ptr<GbtJobMakerDefinition> def;
+  shared_ptr<GbtJobMakerDefinition> def = make_shared<GbtJobMakerDefinition>();
 
   readFromSetting(setting, "chain_type",          def->chainType_);
   readFromSetting(setting, "testnet",             def->testnet_);
