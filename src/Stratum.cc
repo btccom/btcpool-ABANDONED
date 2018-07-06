@@ -680,7 +680,7 @@ string StratumJobEth::serializeToJson() const {
                          ",\"isRskCleanJob\":%s"
                          "}",
                          jobId_,
-                         EthConsensus::getChainStr(chain_),
+                         EthConsensus::getChainStr(chain_).c_str(),
                          height_,
                          // rsk
                          seedHash_.c_str(),
