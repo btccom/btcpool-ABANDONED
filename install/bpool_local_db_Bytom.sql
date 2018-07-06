@@ -12,8 +12,6 @@ CREATE TABLE `found_blocks` (
   `worker_id` bigint(20) NOT NULL,
   `worker_full_name` varchar(50) NOT NULL,
   `height` int(11) NOT NULL,
-  `is_uncle` tinyint(4) NOT NULL DEFAULT '0',
-  `ref_uncles` varchar(255) NOT NULL DEFAULT '',
   `hash` char(66) NOT NULL,
   `rewards` decimal(35,0) NOT NULL,
   `size` int(11) NOT NULL DEFAULT '0',
