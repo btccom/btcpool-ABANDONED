@@ -1199,8 +1199,8 @@ void BlockMakerBytom::processSolvedShare(rd_kafka_message_t *rkmessage)
 
   uint64_t networkDiff = r["networkDiff"].uint64();
   uint64_t height = r["height"].uint64();
-  BlockMakerEth::saveBlockToDBNonBlocking(bhString, height, networkDiff, worker);
 
+  BlockMakerBytom::saveBlockToDBNonBlocking(bhString, height, networkDiff, worker);
 }
 
 void BlockMakerBytom::submitBlockNonBlocking(const string &request) {
