@@ -216,13 +216,10 @@ public:
   void processSolvedShare(rd_kafka_message_t *rkmessage) override;
   bool init() override;
 
-protected:
-  void saveBlockToDBNonBlocking(const string &header, const uint32_t height, const uint64_t networkDiff, const StratumWorker &worker);
-
 private:
   void submitBlockNonBlocking(const string &blockJson);
-  void _submitBlockThread(const string &rpcAddress, const string &rpcUserpass,
-                          const string &blockJson);
+  void _submitBlockThread(const string &rpcAddress, const string &rpcUserpass, const string &blockJson);
+  void saveBlockToDBNonBlocking(const string &header, const uint32_t height, const uint64_t networkDiff, const StratumWorker &worker);
   void _saveBlockToDBThread(const string &header, const uint32_t height, const uint64_t networkDiff, const StratumWorker &worker);
 };
 

@@ -1200,7 +1200,6 @@ void BlockMakerBytom::processSolvedShare(rd_kafka_message_t *rkmessage)
   uint64_t networkDiff = r["networkDiff"].uint64();
   uint64_t height = r["height"].uint64();
   saveBlockToDBNonBlocking(bhString, height, networkDiff, worker);
-
 }
 
 void BlockMakerBytom::submitBlockNonBlocking(const string &request) {
@@ -1245,7 +1244,7 @@ void BlockMakerBytom::_saveBlockToDBThread(const string &header, const uint32_t 
                         filterWorkerName(worker.fullName_).c_str(),
                         height, header.c_str(), GetBlockRewardBytom(height),
                         networkDiff, nowStr.c_str());
-
+  
   // try connect to DB
   MySQLConnection db(poolDB_);
   for (size_t i = 0; i < 3; i++) {
