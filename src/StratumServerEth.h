@@ -90,7 +90,8 @@ public:
                  const uint256 &jobTarget,
                  uint256 &returnedMixHash);
   void sendSolvedShare2Kafka(const string& strNonce, const string& strHeader, const string& strMix,
-                             const uint32_t height, const uint64_t networkDiff, const StratumWorker &worker);
+                             const uint32_t height, const uint64_t networkDiff, const StratumWorker &worker,
+                             const EthConsensus::Chain chain);
 
   JobRepository* createJobRepository(const char *kafkaBrokers,
                                     const char *consumerTopic,

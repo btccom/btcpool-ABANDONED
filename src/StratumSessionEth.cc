@@ -367,14 +367,21 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
 
   DLOG(INFO) << "submit: " << jobId << ", " << sNonce << ", " << sHeader;
 
-  LocalJob tmpJob;
-  LocalJob *localJob = server_->isEnableSimulator_ ? &tmpJob : findLocalJob(jobId);
-  // can't find local share
-  if (!server_->isEnableSimulator_ && localJob == nullptr)
+  LocalJob *localJob = findLocalJob(jobId);
+  // can't find local job
+  if (localJob == nullptr)
   {
     rpc2ResponseError(idStr, StratumStatus::JOB_NOT_FOUND);
     return;
   }
+
+  // can't find stratum job
+  shared_ptr<StratumJobEx> exjob = server_->jobRepository_->getStratumJobEx(localJob->jobId_);
+  if (exjob.get() == nullptr) {
+    rpc2ResponseError(idStr, StratumStatus::JOB_NOT_FOUND);
+    return;
+  }
+  StratumJobEth *sjob = dynamic_cast<StratumJobEth *>(exjob->sjob_);
 
   if (StratumProtocol::NICEHASH_STRATUM == ethProtocol_) {
     if (sNonce.size() != 16) {
@@ -383,20 +390,14 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   }
   
   uint64_t nonce = stoull(sNonce, nullptr, 16);
-  uint32_t height = 0;
-  uint64_t networkDiff = 0;
+  uint32_t height = exjob->sjob_->height_;
+  uint64_t networkDiff = Eth_TargetToDifficulty(sjob->rskNetworkTarget_.GetHex());
   // Used to prevent duplicate shares. (sHeader has a prefix "0x")
   uint64_t headerPrefix = stoull(sHeader.substr(2, 16), nullptr, 16);
-
-  shared_ptr<StratumJobEx> exjob;
-  exjob = server_->jobRepository_->getStratumJobEx(localJob->jobId_);
-  if (exjob.get() != NULL) {
-    height = exjob->sjob_->height_;
-    networkDiff = Eth_TargetToDifficulty(exjob->sjob_->rskNetworkTarget_.GetHex());
-  }
+  EthConsensus::Chain chain = sjob->chain_;
 
   ShareEth share;
-  share.version_      = ShareEth::CURRENT_VERSION;
+  share.version_      = ShareEth::getVersion(chain);
   share.headerHash_   = headerPrefix;
   share.workerHashId_ = worker_.workerHashId_;
   share.userId_       = worker_.userId_;
@@ -412,7 +413,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   ServerEth *s = dynamic_cast<ServerEth *>(server_);
 
   LocalShare localShare(nonce, 0, 0);
-  // can't find local share
+  // can't add local share
   if (!server_->isEnableSimulator_ && !localJob->addLocalShare(localShare))
   {
     rpc2ResponseError(idStr, StratumStatus::DUPLICATE_SHARE);
@@ -436,10 +437,10 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   // we send share to kafka by default, but if there are lots of invalid
   // shares in a short time, we just drop them.
 
-  if (StratumStatus::isAccepted(share.status_))
+  if (server_->isEnableSimulator_ || StratumStatus::isAccepted(share.status_))
   {
-    if (StratumStatus::isSolved(share.status_)) {
-      s->sendSolvedShare2Kafka(sNonce, sHeader, shareMixHash.GetHex(), height, networkDiff, worker_);
+    if (server_->isSubmitInvalidBlock_ || StratumStatus::isSolved(share.status_)) {
+      s->sendSolvedShare2Kafka(sNonce, sHeader, shareMixHash.GetHex(), height, networkDiff, worker_, chain);
     }
 
     diffController_->addAcceptedShare(share.shareDiff_);
@@ -456,7 +457,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   DLOG(INFO) << share.toString();
 
   // check if thers is invalid share spamming
-  if (!StratumStatus::isAccepted(share.status_))
+  if (!server_->isEnableSimulator_ && !StratumStatus::isAccepted(share.status_))
   {
     int64_t invalidSharesNum = invalidSharesCounter_.sum(time(nullptr), INVALID_SHARE_SLIDING_WINDOWS_SIZE);
     // too much invalid shares, don't send them to kafka

@@ -43,6 +43,7 @@
 
 #include <chainparams.h>
 #include "BitcoinUtils.h"
+#include "EthConsensus.h"
 
 
 
@@ -109,7 +110,7 @@ void ShareStatsDay<ShareEth>::processShare(uint32_t hourIdx, const ShareEth &sha
     shareAccept1d_          += share.shareDiff_;
 
     double score = share.score();
-    double reward = GetBlockRewardEth(share.height_);
+    double reward = EthConsensus::getStaticBlockReward(share.height_, share.getChain());
     double earn = score * reward;
 
     score1h_[hourIdx] += score;

@@ -27,6 +27,7 @@
 #include "Common.h"
 #include "Kafka.h"
 #include "Stratum.h"
+#include "EthConsensus.h"
 
 #include <uint256.h>
 #include <base58.h>
@@ -80,6 +81,12 @@ struct GwJobMakerDefinition : public JobMakerDefinition
   uint32 workLifeTime_;
 };
 
+struct JobMakerDefinitionEth : public GwJobMakerDefinition {
+  virtual ~JobMakerDefinitionEth() {}
+
+  EthConsensus::Chain chain_;
+};
+
 struct GbtJobMakerDefinition : public JobMakerDefinition
 {
   virtual ~GbtJobMakerDefinition() {}
@@ -106,11 +113,16 @@ class JobMakerHandler
 public:
   virtual ~JobMakerHandler() {}
 
+  virtual bool init(shared_ptr<JobMakerDefinition> def) { def_ = def; return true; }
+
   virtual bool initConsumerHandlers(const string &kafkaBrokers, vector<JobMakerConsumerHandler> &handlers) = 0;
   virtual string makeStratumJobMsg() = 0;
 
   // read-only definition
-  virtual const JobMakerDefinition& def() = 0;
+  inline shared_ptr<const JobMakerDefinition> def() { return def_; }
+
+protected:
+  shared_ptr<JobMakerDefinition> def_;
 };
 
 class GwJobMakerHandler : public JobMakerHandler
@@ -118,25 +130,24 @@ class GwJobMakerHandler : public JobMakerHandler
 public:
   virtual ~GwJobMakerHandler() {}
 
-  virtual void init(const GwJobMakerDefinition &def) { def_ = def; }
-
-  virtual bool initConsumerHandlers(const string &kafkaBrokers, vector<JobMakerConsumerHandler> &handlers);
+  virtual bool initConsumerHandlers(const string &kafkaBrokers, vector<JobMakerConsumerHandler> &handlers) override;
 
   //return true if need to produce stratum job
   virtual bool processMsg(const string &msg) = 0;
 
   // read-only definition
-  virtual const JobMakerDefinition& def() { return def_; }
-
-protected:
-  GwJobMakerDefinition def_;
+  inline shared_ptr<const GwJobMakerDefinition> def() { return std::dynamic_pointer_cast<const GwJobMakerDefinition>(def_); }
 };
 
 class JobMakerHandlerEth : public GwJobMakerHandler
 {
 public:
+  virtual ~JobMakerHandlerEth() {}
   bool processMsg(const string &msg) override;
   string makeStratumJobMsg() override;
+
+  // read-only definition
+  inline shared_ptr<const JobMakerDefinitionEth> def() { return std::dynamic_pointer_cast<const JobMakerDefinitionEth>(def_); }
 
 private:
   void clearTimeoutMsg();
@@ -149,6 +160,7 @@ class JobMakerHandlerSia : public GwJobMakerHandler
 {
 public:
   JobMakerHandlerSia();
+  virtual ~JobMakerHandlerSia() {}
   bool processMsg(const string &msg) override;
   string makeStratumJobMsg() override;
   virtual bool processMsg(JsonNode &j);
@@ -164,6 +176,7 @@ protected:
 class JobMakerHandlerBytom : public JobMakerHandlerSia
 {
 public:
+  virtual ~JobMakerHandlerBytom() {}
   bool processMsg(JsonNode &j) override;
   string makeStratumJobMsg() override;
 
@@ -174,8 +187,6 @@ protected:
 
 class JobMakerHandlerBitcoin : public JobMakerHandler
 {
-  GbtJobMakerDefinition def_;
-
   // mining bitcoin blocks
   shared_ptr<KafkaConsumer> kafkaRawGbtConsumer_;
   CTxDestination poolPayoutAddr_;
@@ -219,17 +230,17 @@ public:
   JobMakerHandlerBitcoin();
   virtual ~JobMakerHandlerBitcoin() {}
 
-  virtual bool init(const GbtJobMakerDefinition &def);
-  virtual bool initConsumerHandlers(const string &kafkaBrokers, vector<JobMakerConsumerHandler> &handlers);
+  bool init(shared_ptr<JobMakerDefinition> def) override;
+  virtual bool initConsumerHandlers(const string &kafkaBrokers, vector<JobMakerConsumerHandler> &handlers) override;
   
   bool processRawGbtMsg(const string &msg);
   bool processAuxPowMsg(const string &msg);
   bool processRskGwMsg(const string &msg);
 
-  virtual string makeStratumJobMsg();
+  virtual string makeStratumJobMsg() override;
 
   // read-only definition
-  virtual const JobMakerDefinition& def() { return def_; }
+  inline shared_ptr<const GbtJobMakerDefinition> def() { return std::dynamic_pointer_cast<const GbtJobMakerDefinition>(def_); }
 };
 
 

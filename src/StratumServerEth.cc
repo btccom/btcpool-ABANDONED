@@ -453,14 +453,17 @@ int ServerEth::checkShare(const ShareEth &share,
 }
 
 void ServerEth::sendSolvedShare2Kafka(const string &strNonce, const string &strHeader, const string &strMix,
-                                      const uint32_t height, const uint64_t networkDiff, const StratumWorker &worker)
+                                      const uint32_t height, const uint64_t networkDiff, const StratumWorker &worker,
+                                      const EthConsensus::Chain chain)
 {
   string msg = Strings::Format("{\"nonce\":\"%s\",\"header\":\"%s\",\"mix\":\"%s\","
                                "\"height\":%lu,\"networkDiff\":%" PRIu64 ",\"userId\":%ld,"
-                               "\"workerId\":%" PRId64 ",\"workerFullName\":\"%s\"}",
+                               "\"workerId\":%" PRId64 ",\"workerFullName\":\"%s\","
+                               "\"chain\":\"%s\"}",
                                strNonce.c_str(), strHeader.c_str(), strMix.c_str(),
                                height, networkDiff, worker.userId_,
-                               worker.workerHashId_, filterWorkerName(worker.fullName_).c_str());
+                               worker.workerHashId_, filterWorkerName(worker.fullName_).c_str(),
+                               EthConsensus::getChainStr(chain).c_str());
   kafkaProducerSolvedShare_->produce(msg.c_str(), msg.length());
 }
 

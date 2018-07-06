@@ -639,10 +639,11 @@ StratumJobEth::StratumJobEth()
 
 }
 
-bool StratumJobEth::initFromGw(const RskWorkEth &latestRskBlockJson)
+bool StratumJobEth::initFromGw(const RskWorkEth &latestRskBlockJson, EthConsensus::Chain chain)
 {
   if (latestRskBlockJson.isInitialized())
   {
+    chain_ = chain;
     blockHashForMergedMining_ = latestRskBlockJson.getBlockHash();
     rskNetworkTarget_ = uint256S(latestRskBlockJson.getTarget());
     feesForMiner_ = latestRskBlockJson.getFees();
@@ -670,8 +671,8 @@ bool StratumJobEth::initFromGw(const RskWorkEth &latestRskBlockJson)
 
 string StratumJobEth::serializeToJson() const {
   return Strings::Format("{\"jobId\":%" PRIu64""
-                          ",\"height\":%" PRIu64""
-                         // rsk 
+                         ",\"chain\":\"%s\""
+                         ",\"height\":%" PRIu64""
                          ",\"sHash\":\"%s\""
                          ",\"rskBlockHashForMergedMining\":\"%s\",\"rskNetworkTarget\":\"0x%s\""
                          ",\"rskFeesForMiner\":\"%s\""
@@ -679,6 +680,7 @@ string StratumJobEth::serializeToJson() const {
                          ",\"isRskCleanJob\":%s"
                          "}",
                          jobId_,
+                         EthConsensus::getChainStr(chain_),
                          height_,
                          // rsk
                          seedHash_.c_str(),
@@ -698,6 +700,7 @@ bool StratumJobEth::unserializeFromJson(const char *s, size_t len)
     return false;
   }
   if (j["jobId"].type() != Utilities::JS::type::Int ||
+      j["chain"].type() != Utilities::JS::type::Str ||
       j["height"].type() != Utilities::JS::type::Int ||
       j["sHash"].type() != Utilities::JS::type::Str)
   {
@@ -706,6 +709,7 @@ bool StratumJobEth::unserializeFromJson(const char *s, size_t len)
   }
 
   jobId_ = j["jobId"].uint64();
+  chain_ = EthConsensus::getChain(j["chain"].str());
   height_ = j["height"].uint64();
   seedHash_ = j["sHash"].str();
 

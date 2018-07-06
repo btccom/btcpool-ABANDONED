@@ -98,10 +98,6 @@ int64_t GetBlockReward(int nHeight, const Consensus::Params& consensusParams)
 
 #endif
 
-int64_t GetBlockRewardEth(int /*nHeight*/) {
-  // Ethereum has a static block reward at current
-  return 3e+18;
-}
 
 uint64_t GetBlockRewardBytom(uint64_t nHeight)
 {
