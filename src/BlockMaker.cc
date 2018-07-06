@@ -1035,7 +1035,8 @@ void BlockMakerEth::processSolvedShare(rd_kafka_message_t *rkmessage)
       r["networkDiff"].type() != Utilities::JS::type::Int ||
       r["userId"].type() != Utilities::JS::type::Int ||
       r["workerId"].type() != Utilities::JS::type::Int ||
-      r["workerFullName"].type() != Utilities::JS::type::Str)
+      r["workerFullName"].type() != Utilities::JS::type::Str ||
+      r["chain"].type() != Utilities::JS::type::Str)
   {
     LOG(ERROR) << "eth solved share format wrong";
     return;
@@ -1053,7 +1054,7 @@ void BlockMakerEth::processSolvedShare(rd_kafka_message_t *rkmessage)
 
   submitBlockNonBlocking(request);
   saveBlockToDBNonBlocking(r["header"].str().c_str(), r["height"].uint32(),
-                           r["networkDiff"].uint64(), worker);
+                           r["chain"].str().c_str(), r["networkDiff"].uint64(), worker);
 }
 
 bool BlockMakerEth::init() {
@@ -1089,19 +1090,19 @@ void BlockMakerEth::_submitBlockThread(const string &rpcAddress, const string &r
   LOG(INFO) << "submission result: " << response;
 }
 
-void BlockMakerEth::saveBlockToDBNonBlocking(const string &header, const uint32_t height,
+void BlockMakerEth::saveBlockToDBNonBlocking(const string &header, const uint32_t height, const string &chain,
                                              const uint64_t networkDiff, const StratumWorker &worker) {
   boost::thread t(boost::bind(&BlockMakerEth::_saveBlockToDBThread, this,
-                              header, height, networkDiff, worker));
+                              header, height, chain, networkDiff, worker));
 }
 
-void BlockMakerEth::_saveBlockToDBThread(const string &header, const uint32_t height,
+void BlockMakerEth::_saveBlockToDBThread(const string &header, const uint32_t height, const string &chain,
                                          const uint64_t networkDiff, const StratumWorker &worker) {
   const string nowStr = date("%F %T");
   string sql;
   sql = Strings::Format("INSERT INTO `found_blocks` "
                         " (`puid`, `worker_id`"
-                        ", `worker_full_name`"
+                        ", `worker_full_name`, `chain`"
                         ", `height`, `hash`, `rewards`"
                         ", `network_diff`, `created_at`)"
                         " VALUES (%ld, %" PRId64
@@ -1110,8 +1111,8 @@ void BlockMakerEth::_saveBlockToDBThread(const string &header, const uint32_t he
                         ", %" PRIu64 ", '%s'); ",
                         worker.userId_, worker.workerHashId_,
                         // filter again, just in case
-                        filterWorkerName(worker.fullName_).c_str(),
-                        height, header.c_str(), GetBlockRewardEth(height),
+                        filterWorkerName(worker.fullName_).c_str(), chain.c_str(),
+                        height, header.c_str(), EthConsensus::getStaticBlockReward(height, chain),
                         networkDiff, nowStr.c_str());
 
   // try connect to DB

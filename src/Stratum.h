@@ -27,6 +27,7 @@
 #include "Common.h"
 #include "utilities_js.hpp"
 #include "Utils.h"
+#include "EthConsensus.h"
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -350,7 +351,8 @@ class ShareEth : public ShareBase
 {
 public:
 
-  const static uint32_t CURRENT_VERSION = 0x00110002u; // first 0011: ETH, second 0002: version 2
+  const static uint32_t CURRENT_VERSION_FOUNDATION = 0x00110002u; // first 0011: ETH, second 0002: version 2
+  const static uint32_t CURRENT_VERSION_CLASSIC    = 0x00160002u; // first 0016: ETC, second 0002: version 2
 
   uint64_t headerHash_  = 0;
   uint64_t shareDiff_   = 0;
@@ -362,6 +364,36 @@ public:
   ShareEth() = default;
   ShareEth(const ShareEth &r) = default;
   ShareEth &operator=(const ShareEth &r) = default;
+
+  inline static EthConsensus::Chain getChain(uint32_t version) {
+    switch (version) {
+    case CURRENT_VERSION_FOUNDATION:
+      return EthConsensus::Chain::FOUNDATION;
+    case CURRENT_VERSION_CLASSIC:
+      return EthConsensus::Chain::CLASSIC;
+    default:
+      return EthConsensus::Chain::UNKNOWN;
+    }
+  }
+
+  inline static uint32_t getVersion(EthConsensus::Chain chain) {
+    switch (chain) {
+      case EthConsensus::Chain::FOUNDATION:
+        return CURRENT_VERSION_FOUNDATION;
+      case EthConsensus::Chain::CLASSIC:
+        return CURRENT_VERSION_CLASSIC;
+      case EthConsensus::Chain::UNKNOWN:
+        LOG(FATAL) << "Unknown chain";
+        return 0;
+    }
+    // should not be here
+    LOG(FATAL) << "Inexpectant const value";
+    return 0;
+  }
+
+  EthConsensus::Chain getChain() const {
+    return getChain(version_);
+  }
 
   double score() const
   {
@@ -403,7 +435,7 @@ public:
 
   bool isValid() const
   {
-    if (version_ != CURRENT_VERSION) {
+    if (version_ != CURRENT_VERSION_FOUNDATION && version_ != CURRENT_VERSION_CLASSIC) {
       return false;
     }
 
@@ -649,8 +681,9 @@ public:
   StratumJobEth();
   string serializeToJson() const override;
   bool unserializeFromJson(const char *s, size_t len) override;
-  bool initFromGw(const RskWorkEth &latestRskBlockJson);
+  bool initFromGw(const RskWorkEth &latestRskBlockJson, EthConsensus::Chain chain);
 
+  EthConsensus::Chain chain_;
   string seedHash_;
 };
 

@@ -65,24 +65,24 @@ bool isGwChain(const string &chainType)
           "BYTOM" == chainType);
 }
 
-shared_ptr<JobMakerHandler> createGwJobMakerHandler(const GwJobMakerDefinition &def) {
+shared_ptr<JobMakerHandler> createGwJobMakerHandler(shared_ptr<GwJobMakerDefinition> def) {
   shared_ptr<GwJobMakerHandler> handler;
 
-  if      (def.chainType_ == "ETH")
+  if      (def->chainType_ == "ETH")
     handler = make_shared<JobMakerHandlerEth>();
-  else if (def.chainType_ == "SIA")
+  else if (def->chainType_ == "SIA")
     handler = make_shared<JobMakerHandlerSia>();
-  else if (def.chainType_ == "BYTOM")
+  else if (def->chainType_ == "BYTOM")
     handler = make_shared<JobMakerHandlerBytom>();
   else
-    LOG(FATAL) << "unknown chain type: " << def.chainType_;
+    LOG(FATAL) << "unknown chain type: " << def->chainType_;
 
   handler->init(def);
 
   return handler;
 }
 
-shared_ptr<JobMakerHandler> createGbtJobMakerHandler(const GbtJobMakerDefinition &def) {
+shared_ptr<JobMakerHandler> createGbtJobMakerHandler(shared_ptr<GbtJobMakerDefinition> def) {
   shared_ptr<JobMakerHandlerBitcoin> handler;
 
   #ifdef CHAIN_TYPE_BTC
@@ -98,64 +98,86 @@ shared_ptr<JobMakerHandler> createGbtJobMakerHandler(const GbtJobMakerDefinition
     const char *chain = "SBTC";
   #endif
 
-  if (def.chainType_ == chain)
+  if (def->chainType_ == chain)
     handler = make_shared<JobMakerHandlerBitcoin>();
   else
-    LOG(FATAL) << "unknown chain type: " << def.chainType_;
+    LOG(FATAL) << "unknown chain type: " << def->chainType_;
 
   handler->init(def);
 
   return handler;
 }
 
-GwJobMakerDefinition createGwJobMakerDefinition(const Setting &setting)
+shared_ptr<GwJobMakerDefinition> createGwJobMakerDefinition(const Setting &setting)
 {
-  GwJobMakerDefinition def;
+  shared_ptr<GwJobMakerDefinition> def;
 
-  readFromSetting(setting, "chain_type",          def.chainType_);
-  readFromSetting(setting, "rawgw_topic",         def.rawGwTopic_);
-  readFromSetting(setting, "job_topic",           def.jobTopic_);
+  string chainType;
+  readFromSetting(setting, "chain_type", chainType, true);
 
-  readFromSetting(setting, "job_interval",        def.jobInterval_);
-  readFromSetting(setting, "max_job_delay",       def.maxJobDelay_);
-  readFromSetting(setting, "work_life_time",      def.workLifeTime_);
+  if (chainType == "ETH") {
+    string chainName;
+    readFromSetting(setting, "chain_name", chainName);
+    const EthConsensus::Chain chain = EthConsensus::getChain(chainName);
 
-  readFromSetting(setting, "zookeeper_lock_path", def.zookeeperLockPath_);
-  readFromSetting(setting, "file_last_job_time",  def.fileLastJobTime_, true);
+    if (chain == EthConsensus::Chain::UNKNOWN) {
+      LOG(FATAL) << "Unknown ETH chain_name: " << chainName;
+      return nullptr;
+    }
 
-  def.enabled_ = false;
-  readFromSetting(setting, "enabled", def.enabled_, true);
+    auto defEth = make_shared<JobMakerDefinitionEth>();
+    defEth->chain_ = chain;
+    def = defEth;
+  }
+  else {
+    def = make_shared<GwJobMakerDefinition>();
+  }
+
+  def->chainType_ = chainType;
+
+  readFromSetting(setting, "rawgw_topic",         def->rawGwTopic_);
+  readFromSetting(setting, "job_topic",           def->jobTopic_);
+
+  readFromSetting(setting, "job_interval",        def->jobInterval_);
+  readFromSetting(setting, "max_job_delay",       def->maxJobDelay_);
+  readFromSetting(setting, "work_life_time",      def->workLifeTime_);
+
+  readFromSetting(setting, "zookeeper_lock_path", def->zookeeperLockPath_);
+  readFromSetting(setting, "file_last_job_time",  def->fileLastJobTime_, true);
+
+  def->enabled_ = false;
+  readFromSetting(setting, "enabled", def->enabled_, true);
 
   return def;
 }
 
-GbtJobMakerDefinition createGbtJobMakerDefinition(const Setting &setting)
+shared_ptr<GbtJobMakerDefinition> createGbtJobMakerDefinition(const Setting &setting)
 {
-  GbtJobMakerDefinition def;
+  shared_ptr<GbtJobMakerDefinition> def;
 
-  readFromSetting(setting, "chain_type",          def.chainType_);
-  readFromSetting(setting, "testnet",             def.testnet_);
+  readFromSetting(setting, "chain_type",          def->chainType_);
+  readFromSetting(setting, "testnet",             def->testnet_);
 
-  readFromSetting(setting, "payout_address",      def.payoutAddr_);
-  readFromSetting(setting, "coinbase_info",       def.coinbaseInfo_);
-  readFromSetting(setting, "block_version",       def.blockVersion_);
+  readFromSetting(setting, "payout_address",      def->payoutAddr_);
+  readFromSetting(setting, "coinbase_info",       def->coinbaseInfo_);
+  readFromSetting(setting, "block_version",       def->blockVersion_);
 
-  readFromSetting(setting, "rawgbt_topic",        def.rawGbtTopic_);
-  readFromSetting(setting, "auxpow_topic",        def.auxPowTopic_);
-  readFromSetting(setting, "rsk_rawgw_topic",     def.rskRawGwTopic_);
-  readFromSetting(setting, "job_topic",           def.jobTopic_);
+  readFromSetting(setting, "rawgbt_topic",        def->rawGbtTopic_);
+  readFromSetting(setting, "auxpow_topic",        def->auxPowTopic_);
+  readFromSetting(setting, "rsk_rawgw_topic",     def->rskRawGwTopic_);
+  readFromSetting(setting, "job_topic",           def->jobTopic_);
 
-  readFromSetting(setting, "job_interval",        def.jobInterval_);
-  readFromSetting(setting, "max_job_delay",       def.maxJobDelay_);
-  readFromSetting(setting, "gbt_life_time",       def.gbtLifeTime_);
-  readFromSetting(setting, "empty_gbt_life_time", def.emptyGbtLifeTime_);
-  readFromSetting(setting, "rsk_notify_policy",   def.rskNotifyPolicy_);
+  readFromSetting(setting, "job_interval",        def->jobInterval_);
+  readFromSetting(setting, "max_job_delay",       def->maxJobDelay_);
+  readFromSetting(setting, "gbt_life_time",       def->gbtLifeTime_);
+  readFromSetting(setting, "empty_gbt_life_time", def->emptyGbtLifeTime_);
+  readFromSetting(setting, "rsk_notify_policy",   def->rskNotifyPolicy_);
 
-  readFromSetting(setting, "zookeeper_lock_path", def.zookeeperLockPath_);
-  readFromSetting(setting, "file_last_job_time",  def.fileLastJobTime_, true);
+  readFromSetting(setting, "zookeeper_lock_path", def->zookeeperLockPath_);
+  readFromSetting(setting, "file_last_job_time",  def->fileLastJobTime_, true);
 
-  def.enabled_ = false;
-  readFromSetting(setting, "enabled", def.enabled_, true);
+  def->enabled_ = false;
+  readFromSetting(setting, "enabled", def->enabled_, true);
 
   return def;
 }
@@ -172,28 +194,28 @@ void createJobMakers(const libconfig::Config &cfg, const string &kafkaBrokers, c
     
     if (isGwChain(chainType))
     {
-      GwJobMakerDefinition def = createGwJobMakerDefinition(workerDefs[i]);
+      auto def = createGwJobMakerDefinition(workerDefs[i]);
 
-      if (!def.enabled_) {
-        LOG(INFO) << "chain: " << def.chainType_ << ", topic: " << def.jobTopic_ << ", disabled.";
+      if (!def->enabled_) {
+        LOG(INFO) << "chain: " << def->chainType_ << ", topic: " << def->jobTopic_ << ", disabled.";
         continue;
       }
       
-      LOG(INFO) << "chain: " << def.chainType_ << ", topic: " << def.jobTopic_ << ", enabled.";
+      LOG(INFO) << "chain: " << def->chainType_ << ", topic: " << def->jobTopic_ << ", enabled.";
 
       auto handle = createGwJobMakerHandler(def);
       makers.push_back(std::make_shared<JobMaker>(handle, kafkaBrokers, zkBrokers));
     }
     else
     {
-      GbtJobMakerDefinition def = createGbtJobMakerDefinition(workerDefs[i]);
+      auto def = createGbtJobMakerDefinition(workerDefs[i]);
 
-      if (!def.enabled_) {
-        LOG(INFO) << "chain: " << def.chainType_ << ", topic: " << def.jobTopic_ << ", disabled.";
+      if (!def->enabled_) {
+        LOG(INFO) << "chain: " << def->chainType_ << ", topic: " << def->jobTopic_ << ", disabled.";
         continue;
       }
       
-      LOG(INFO) << "chain: " << def.chainType_ << ", topic: " << def.jobTopic_ << ", enabled.";
+      LOG(INFO) << "chain: " << def->chainType_ << ", topic: " << def->jobTopic_ << ", enabled.";
 
       auto handle = createGbtJobMakerHandler(def);
       makers.push_back(std::make_shared<JobMaker>(handle, kafkaBrokers, zkBrokers));
