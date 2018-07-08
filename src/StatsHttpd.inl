@@ -51,7 +51,7 @@ void WorkerShares<SHARE>::processShare(const SHARE &share, bool acceptStale) {
       (acceptStale || !StratumStatus::isAcceptedStale(share.status()))) {
     acceptCount_++;
     acceptShares_.insert(acceptShareTime(share.timestamp()), share.sharediff());
-  } else if (StratumStatus::isRejectedStale(share.status())) {
+  } else if (StratumStatus::isAnyStale(share.status())) {
     staleShares_.insert(rejectShareTime(share.timestamp()), share.sharediff());
   } else {
     rejectShares_[share.status()].insert(

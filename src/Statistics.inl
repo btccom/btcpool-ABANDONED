@@ -117,7 +117,7 @@ void ShareStatsDay<SHARE>::processShare(
     earn1h_[hourIdx] += earn;
     earn1d_ += earn;
 
-  } else if (StratumStatus::isRejectedStale(share.status())) {
+  } else if (StratumStatus::isAnyStale(share.status())) {
     shareStale1h_[hourIdx] += share.sharediff();
     shareStale1d_ += share.sharediff();
   } else {

@@ -113,6 +113,10 @@ public:
     return (status == JOB_NOT_FOUND_OR_STALE) || (status == STALE_SHARE);
   }
 
+  inline static bool isAnyStale(int status) {
+    return isAcceptedStale(status) || isRejectedStale(status);
+  }
+
   inline static bool isSolved(int status) {
     return (status == SOLVED) || (status == SOLVED_STALE) ||
         (status == SOLVED_PRELIMINARY);
