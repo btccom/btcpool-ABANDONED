@@ -1116,7 +1116,7 @@ void StatsServerT<SHARE>::runThreadConsume() {
     if (isInitializing_) {
       if (lastFlushDBTime + kFlushDBInterval_ < time(nullptr)) {
         // the initialization state ends after consuming a share that generated in the last minute.
-      // If no shares received at the first consumption (lastShareTime_ == 0), the initialization state ends too.
+        // If no shares received at the first consumption (lastShareTime_ == 0), the initialization state ends too.
         if (lastShareTime_ != 0 && lastShareTime_ + 60 < time(nullptr)) {
           LOG(INFO) << "consuming history shares: " << date("%F %T", lastShareTime_);
           lastFlushDBTime = time(nullptr);
