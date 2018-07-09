@@ -1104,19 +1104,19 @@ void StatsServerT<SHARE>::runThreadConsume() {
 
       // timeout, most of time it's not nullptr and set an error:
       //          rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF
-      if (rkmessage == nullptr) {
-        continue;
+      if (rkmessage != nullptr) {
+        // consume share log
+        consumeShareLog(rkmessage);
+        rd_kafka_message_destroy(rkmessage);  /* Return message to rdkafka */
       }
-      // consume share log
-      consumeShareLog(rkmessage);
-      rd_kafka_message_destroy(rkmessage);  /* Return message to rdkafka */
     }
 
     // don't flush database while consuming history shares.
     // otherwise, users' hashrate will be updated to 0 when statshttpd restarted.
     if (isInitializing_) {
       if (lastFlushDBTime + kFlushDBInterval_ < time(nullptr)) {
-        // the initialization ends after consuming a share that generated in the last minute.
+        // the initialization state ends after consuming a share that generated in the last minute.
+        // If no shares received at the first consumption (lastShareTime_ == 0), the initialization state ends too.
         if (lastShareTime_ != 0 && lastShareTime_ + 60 < time(nullptr)) {
           LOG(INFO) << "consuming history shares: " << date("%F %T", lastShareTime_);
           lastFlushDBTime = time(nullptr);
