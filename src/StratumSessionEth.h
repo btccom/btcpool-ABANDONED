@@ -24,6 +24,7 @@
 #ifndef STRATUM_SESSION_ETH_H_
 #define STRATUM_SESSION_ETH_H_
 
+#include <set>
 #include "StratumSession.h"
 
 
@@ -36,7 +37,7 @@ public:
     // @see https://www.nicehash.com/sw/Ethereum_specification_R1.txt
     NICEHASH_STRATUM
   };
-  
+
   static const char* getProtocolString(const StratumProtocol protocol) {
     switch(protocol) {
       case StratumProtocol::ETHPROXY:
@@ -50,11 +51,40 @@ public:
     return "UNKNOWN";
   }
 
+    // latest stratum jobs of this session
+  struct LocalJobEth {
+    uint64_t jobId_ = 0;
+    std::string headerHash_ = "";
+    std::set<LocalShare> submitShares_ = {};
+
+    // difficulty of this job (due to difficulty adjustment, 
+    // there can be multiple diffs in the same job)
+    std::set<uint64_t> jobDiffs_ = {};
+    uint64_t currentJobDiff_ = 0;
+
+    bool addLocalShare(const LocalShare &localShare) {
+      auto itr = submitShares_.find(localShare);
+      if (itr != submitShares_.end()) {
+        return false;  // already exist
+      }
+      submitShares_.insert(localShare);
+      return true;
+    }
+
+    void addDiff(uint64_t diff) {
+      jobDiffs_.insert(diff);
+      currentJobDiff_ = diff;
+    }
+  };
+
   StratumSessionEth(evutil_socket_t fd, struct bufferevent *bev,
                     Server *server, struct sockaddr *saddr,
                     const int32_t shareAvgSeconds, const uint32_t extraNonce1);
   
 protected:
+  LocalJobEth *findLocalJob(const string &headerHash);
+  void clearLocalJobs();
+
   void responseError(const string &idStr, int code) override;
   void responseTrue(const string &idStr) override;
 
@@ -73,6 +103,8 @@ private:
   StratumProtocol ethProtocol_;
   // Record the difficulty of the last time sent to the miner in NICEHASH_STRATUM protocol.
   uint64_t nicehashLastSentDiff_;
+  // latest stratum jobs of this session
+  std::deque<LocalJobEth> localEthJobs_;
 };
 
 
