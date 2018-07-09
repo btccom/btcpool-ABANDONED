@@ -386,12 +386,12 @@ bool ServerEth::setup(StratumServer* sserver) {
   return true;
 }
 
-int ServerEth::checkShare(const ShareEth &share,
-                          const uint64_t jobId,
-                          const uint64_t nonce,
-                          const uint256 &header,
-                          const uint256 &jobTarget,
-                          uint256 &returnedMixHash)
+int ServerEth::checkShareAndUpdateDiff(ShareEth &share,
+                                       const uint64_t jobId,
+                                       const uint64_t nonce,
+                                       const uint256 &header,
+                                       const std::set<uint64_t> &jobDiffs,
+                                       uint256 &returnedMixHash)
 {
   JobRepositoryEth *jobRepo = dynamic_cast<JobRepositoryEth *>(jobRepository_);
   if (nullptr == jobRepo) {
@@ -437,16 +437,24 @@ int ServerEth::checkShare(const ShareEth &share,
   returnedMixHash = Ethash256ToUint256(r.mix_hash);
 
   uint256 shareTarget = Ethash256ToUint256(r.result);
-  DLOG(INFO) << "comapre share target: " << shareTarget.GetHex() << ", job target: " << jobTarget.GetHex() << ", network target: " << sjob->rskNetworkTarget_.GetHex();
+  DLOG(INFO) << "comapre share target: " << shareTarget.GetHex() << ", network target: " << sjob->rskNetworkTarget_.GetHex();
   
   //can not compare directly because unit256 uses memcmp
   if (isSubmitInvalidBlock_ || UintToArith256(shareTarget) <= UintToArith256(sjob->rskNetworkTarget_)) {
-    LOG(INFO) << "solution found, share target: " << shareTarget.GetHex() << ", job target: " << jobTarget.GetHex() << ", network target: " << sjob->rskNetworkTarget_.GetHex();
+    LOG(INFO) << "solution found, share target: " << shareTarget.GetHex() << ", network target: " << sjob->rskNetworkTarget_.GetHex();
+    LOG(INFO) << "solved share: " << share.toString();
     return StratumStatus::SOLVED;
   }
 
-  if (isEnableSimulator_ || UintToArith256(shareTarget) <= UintToArith256(jobTarget)) {
-    return StratumStatus::ACCEPT;
+  // higher difficulty is prior
+  for (auto itr = jobDiffs.rbegin(); itr != jobDiffs.rend(); itr++) {
+    auto jobTarget = uint256S(Eth_DifficultyToTarget(*itr));
+    DLOG(INFO) << "comapre share target: " << shareTarget.GetHex() << ", job target: " << jobTarget.GetHex();
+
+    if (isEnableSimulator_ || UintToArith256(shareTarget) <= UintToArith256(jobTarget)) {
+      share.shareDiff_ = *itr;
+      return StratumStatus::ACCEPT;
+    }
   }
 
   return StratumStatus::LOW_DIFFICULTY;

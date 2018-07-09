@@ -38,6 +38,23 @@ StratumSessionEth::StratumSessionEth(evutil_socket_t fd, struct bufferevent *bev
 {
 }
 
+StratumSessionEth::LocalJobEth* StratumSessionEth::findLocalJob(const string &headerHash) {
+  for (auto rit = localEthJobs_.rbegin(); rit != localEthJobs_.rend(); ++rit) {
+    if (rit->headerHash_ == headerHash) {
+      return &(*rit);
+    }
+  }
+  return nullptr;
+}
+
+void StratumSessionEth::clearLocalJobs()
+{
+  while (localEthJobs_.size() >= kMaxNumLocalJobs_)
+  {
+    localEthJobs_.pop_front();
+  }
+}
+
 void StratumSessionEth::responseError(const string &idStr, int code) {
   return rpc2ResponseError(idStr, code);
 }
@@ -63,28 +80,30 @@ void StratumSessionEth::sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr
   {
     return;
   }
-
-  localJobs_.push_back(LocalJob());
-  LocalJob &ljob = *(localJobs_.rbegin());
-  ljob.blkBits_ = ethJob->nBits_;
-  ljob.jobId_ = ethJob->jobId_;
-  ljob.shortJobId_ = allocShortJobId();
-  ljob.jobDifficulty_ = diffController_->calcCurDiff();
-
+  
   string header = ethJob->blockHashForMergedMining_;
   string seed = ethJob->seedHash_;
+
   // strip prefix "0x"
-  if (StratumProtocol::STRATUM == ethProtocol_ ||
-      StratumProtocol::NICEHASH_STRATUM == ethProtocol_)
-  {
-    if (66 == header.length())
-      header = header.substr(2, 64);
-    if (66 == seed.length())
-      seed = seed.substr(2, 64);
+  if (66 == header.length()) {
+    header = header.substr(2, 64);
   }
-  //string header = ethJob->blockHashForMergedMining_.substr(2, 64);
-  //string seed = ethJob->seedHash_.substr(2, 64);
-  string strShareTarget = Eth_DifficultyToTarget(ljob.jobDifficulty_);
+  if (66 == seed.length()) {
+    seed = seed.substr(2, 64);
+  }
+
+  LocalJobEth *ljob = findLocalJob(header);
+  // create a new LocalJobEth if not exists
+  if (ljob == nullptr) {
+    localEthJobs_.push_back(LocalJobEth());
+    ljob = &(*(localEthJobs_.rbegin()));
+  }
+  // update the job
+  ljob->jobId_ = ethJob->jobId_;
+  ljob->headerHash_ = header;
+  ljob->addDiff(diffController_->calcCurDiff());
+
+  string strShareTarget = Eth_DifficultyToTarget(ljob->currentJobDiff_);
 
   // extraNonce1_ == Session ID, 24 bits.
   // Miners will fills 0 after the prefix to 64 bits.
@@ -93,7 +112,7 @@ void StratumSessionEth::sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr
   // Tips: NICEHASH_STRATUM use an extrNnonce, it is really an extraNonce (not startNonce)
   // and is sent at the subscribe of the session.
 
-  LOG(INFO) << "new eth stratum job mining.notify: share difficulty=" << std::hex << ljob.jobDifficulty_ << ", share target=" << strShareTarget << ", protocol=" << getProtocolString(ethProtocol_);
+  LOG(INFO) << "new eth stratum job mining.notify: share difficulty=" << std::hex << ljob->currentJobDiff_ << ", share target=" << strShareTarget << ", protocol=" << getProtocolString(ethProtocol_);
   string strNotify;
 
   switch (ethProtocol_)
@@ -124,7 +143,7 @@ void StratumSessionEth::sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr
     //"0x1261dfe17d0bf58cb2861ae84734488b1463d282b7ee88ccfa18b7a92a7b77f7",
     //"0x0112e0be826d694b2e62d01511f12a6061fbaec8bc02357593e70e52ba","0x4ec6f5"]}
     strNotify = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\","
-                                "\"result\":[\"%s\",\"%s\",\"0x%s\",\"0x%06x\"]}\n",
+                                "\"result\":[\"0x%s\",\"0x%s\",\"0x%s\",\"0x%06x\"]}\n",
                                 idStr.c_str(),
                                 header.c_str(),
                                 seed.c_str(),
@@ -136,15 +155,15 @@ void StratumSessionEth::sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr
   case StratumProtocol::NICEHASH_STRATUM:
   {
     // send new difficulty
-    if (ljob.jobDifficulty_ != nicehashLastSentDiff_) {
+    if (ljob->currentJobDiff_ != nicehashLastSentDiff_) {
       // NICEHASH_STRATUM mining.set_difficulty
       // {"id": null, 
       //  "method": "mining.set_difficulty", 
       //  "params": [ 0.5 ]
       // }
       strNotify += Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"method\":\"mining.set_difficulty\","
-                                   "\"params\":[%lf]}\n", idStr.c_str(), Eth_DiffToNicehashDiff(ljob.jobDifficulty_));
-      nicehashLastSentDiff_ = ljob.jobDifficulty_;
+                                   "\"params\":[%lf]}\n", idStr.c_str(), Eth_DiffToNicehashDiff(ljob->currentJobDiff_));
+      nicehashLastSentDiff_ = ljob->currentJobDiff_;
     }
 
     // NICEHASH_STRATUM mining.notify
@@ -174,7 +193,7 @@ void StratumSessionEth::sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr
   else
     LOG(ERROR) << "Eth notify string is empty";
 
-  // clear localJobs_
+  // clear localEthJobs_
   clearLocalJobs();
 }
 
@@ -367,7 +386,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
 
   DLOG(INFO) << "submit: " << jobId << ", " << sNonce << ", " << sHeader;
 
-  LocalJob *localJob = findLocalJob(jobId);
+  LocalJobEth *localJob = findLocalJob(jobId);
   // can't find local job
   if (localJob == nullptr)
   {
@@ -401,7 +420,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   share.headerHash_   = headerPrefix;
   share.workerHashId_ = worker_.workerHashId_;
   share.userId_       = worker_.userId_;
-  share.shareDiff_    = localJob->jobDifficulty_;
+  share.shareDiff_    = localJob->currentJobDiff_;
   share.networkDiff_  = networkDiff;
   share.timestamp_    = (uint64_t)time(nullptr);
   share.status_       = StratumStatus::REJECT_NO_REASON;
@@ -414,7 +433,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
 
   LocalShare localShare(nonce, 0, 0);
   // can't add local share
-  if (!server_->isEnableSimulator_ && !localJob->addLocalShare(localShare))
+  if (!localJob->addLocalShare(localShare))
   {
     rpc2ResponseError(idStr, StratumStatus::DUPLICATE_SHARE);
     // add invalid share to counter
@@ -422,7 +441,6 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
     return;
   }
 
-  DLOG(INFO) << "share job diff: " << localJob->jobDifficulty_;
 
   // The mixHash is used to submit the work to the Ethereum node.
   // We don't need to pay attention to whether the mixHash submitted
@@ -430,16 +448,22 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   // SolvedShare will be accepted correctly by the ETH node if
   // the difficulty is reached in our calculations.
   uint256 shareMixHash;
-  share.status_ = s->checkShare(share, localJob->jobId_, nonce, uint256S(sHeader),
-                                uint256S(Eth_DifficultyToTarget(localJob->jobDifficulty_)),
-                                shareMixHash);
+  share.status_ = s->checkShareAndUpdateDiff(share, localJob->jobId_, nonce, uint256S(sHeader),
+                                             localJob->jobDiffs_, shareMixHash);
+  
+  if (StratumStatus::isAccepted(share.status_)) {
+    DLOG(INFO) << "share reached the diff: " << share.shareDiff_;
+  }
+  else {
+    DLOG(INFO) << "share not reached the diff: " << share.shareDiff_;
+  }
 
   // we send share to kafka by default, but if there are lots of invalid
   // shares in a short time, we just drop them.
 
-  if (server_->isEnableSimulator_ || StratumStatus::isAccepted(share.status_))
+  if (StratumStatus::isAccepted(share.status_))
   {
-    if (server_->isSubmitInvalidBlock_ || StratumStatus::isSolved(share.status_)) {
+    if (StratumStatus::isSolved(share.status_)) {
       s->sendSolvedShare2Kafka(sNonce, sHeader, shareMixHash.GetHex(), height, networkDiff, worker_, chain);
     }
 
@@ -457,7 +481,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   DLOG(INFO) << share.toString();
 
   // check if thers is invalid share spamming
-  if (!server_->isEnableSimulator_ && !StratumStatus::isAccepted(share.status_))
+  if (!StratumStatus::isAccepted(share.status_))
   {
     int64_t invalidSharesNum = invalidSharesCounter_.sum(time(nullptr), INVALID_SHARE_SLIDING_WINDOWS_SIZE);
     // too much invalid shares, don't send them to kafka

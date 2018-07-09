@@ -956,18 +956,6 @@ finish:
   return;
 }
 
-StratumSession::LocalJob* StratumSession::findLocalJob(const string& strJobId) {
-  uint32 h = djb2(strJobId.c_str());
-  for (auto rit = localJobs_.rbegin(); rit != localJobs_.rend(); ++rit) {
-    //DLOG(INFO) << "findLocalJob: " << std::hex << rit->jobId_ << ", " << std::hex << h;
-    //jobId = timestamp + std::hash(strJobId)
-    if ((rit->jobId_ & 0xffffffff) == h) {
-      return &(*rit);
-    }
-  }
-  return nullptr;
-}
-
 StratumSession::LocalJob *StratumSession::findLocalJob(uint8_t shortJobId) {
   //DLOG(INFO) << "findLocalJob id=" << shortJobId;
   for (auto rit = localJobs_.rbegin(); rit != localJobs_.rend(); ++rit) {

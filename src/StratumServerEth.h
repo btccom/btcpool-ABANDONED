@@ -24,6 +24,7 @@
 #ifndef STRATUM_SERVER_ETH_H_
 #define STRATUM_SERVER_ETH_H_
 
+#include <set>
 #include "StratumServer.h"
 
 
@@ -83,12 +84,12 @@ class ServerEth : public Server
 public:
   ServerEth(const int32_t shareAvgSeconds) : Server(shareAvgSeconds) {}
   bool setup(StratumServer* sserver) override;
-  int checkShare(const ShareEth &share,
-                 const uint64_t jobId,
-                 const uint64_t nonce,
-                 const uint256 &header,
-                 const uint256 &jobTarget,
-                 uint256 &returnedMixHash);
+  int checkShareAndUpdateDiff(ShareEth &share,
+                              const uint64_t jobId,
+                              const uint64_t nonce,
+                              const uint256 &header,
+                              const std::set<uint64_t> &jobDiffs,
+                              uint256 &returnedMixHash);
   void sendSolvedShare2Kafka(const string& strNonce, const string& strHeader, const string& strMix,
                              const uint32_t height, const uint64_t networkDiff, const StratumWorker &worker,
                              const EthConsensus::Chain chain);
