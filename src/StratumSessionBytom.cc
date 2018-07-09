@@ -290,7 +290,7 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   share.userId_ = worker_.userId_;
   share.status_ = StratumStatus::REJECT_NO_REASON;
   share.timestamp_ = (uint32_t)time(nullptr);
-  share.ip_ = clientIpInt_;
+  share.ip_.fromIpv4Int(clientIpInt_);
 
   //  ShareBytom portion
   share.jobId_ = localJob->jobId_;
