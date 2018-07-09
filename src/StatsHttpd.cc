@@ -1094,7 +1094,7 @@ void StatsServerT<SHARE>::runThreadConsume() {
   const time_t kExpiredCleanInterval = 60*30;
   const int32_t kTimeoutMs = 1000;  // consumer timeout
 
-  bool haveUnsavedMessage = false;
+  bool haveUnflushedMessage = false;
   while (running_) {
     {
       //
@@ -1106,15 +1106,15 @@ void StatsServerT<SHARE>::runThreadConsume() {
       // timeout, most of time it's not nullptr and set an error:
       //          rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF
       if (rkmessage == nullptr) {
-        if(!haveUnsavedMessage)
-          continue;
+        if(!haveUnflushedMessage) //  if haveUnflushedMessage, then give a change to flush by not immediately continue the loop
+          continue; //  no unflushed message, then can immediately attempt to consume message
       }
       else
       {
         // consume share log
         consumeShareLog(rkmessage);
         rd_kafka_message_destroy(rkmessage);  /* Return message to rdkafka */
-        haveUnsavedMessage = true;
+        haveUnflushedMessage = true;
       }
     }
 
@@ -1153,7 +1153,7 @@ void StatsServerT<SHARE>::runThreadConsume() {
           flushWorkersAndUsersToRedis();
         }
         lastFlushDBTime = time(nullptr);
-        haveUnsavedMessage = false;
+        haveUnflushedMessage = false;
       }
     }
 
