@@ -238,7 +238,7 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
     << ", prevhash: " << sjob->prevHash_.ToString();
   }
 
-  bool isRskClean = sjob->isRskCleanJob_;
+  bool isMergedMiningClean = sjob->isMergedMiningCleanJob_;
 
   // 
   // The `clean_jobs` field should be `true` ONLY IF a new block found in Bitcoin blockchains.
@@ -267,7 +267,7 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   }
 
   // if job has clean flag, call server to send job
-  if (isClean || isRskClean) {
+  if (isClean || isMergedMiningClean) {
     sendMiningNotify(exJob);
     return;
   }

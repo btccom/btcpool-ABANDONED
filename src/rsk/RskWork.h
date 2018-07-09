@@ -41,8 +41,6 @@
 using std::string;
 
 class RskWork {
-  static bool isCleanJob_;
-
   u_int32_t created_at;
   string blockHash_;
   string target_;
@@ -64,8 +62,6 @@ public:
   string getRpcAddress() const;
   string getRpcUserPwd() const;
   bool getNotifyFlag() const;
-  static void setIsCleanJob(bool cleanJob);
-  bool getIsCleanJob() const;
 };
 
 #endif

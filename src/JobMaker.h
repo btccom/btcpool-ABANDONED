@@ -48,14 +48,17 @@ class JobMaker {
 
   KafkaConsumer kafkaNmcAuxConsumer_;  // merged mining for namecoin
   mutex auxJsonlock_;
+  // TODO: Use a structure instead of three separate variables.
   string latestNmcAuxBlockJson_;
+  uint32_t latestNmcAuxBlockHeight_;
+  string latestNmcAuxBlockHash_;
 
   // merged mining for RSK
   KafkaConsumer kafkaRawGwConsumer_;  
   mutex rskWorkAccessLock_;
   RskWork *previousRskWork_;
   RskWork *currentRskWork_;
-  uint32_t rskNotifyPolicy_;
+  uint32_t mergedMiningNotifyPolicy_;
 
   uint32_t currBestHeight_;
   uint32_t lastJobSendTime_;
@@ -85,11 +88,11 @@ class JobMaker {
 
   void clearTimeoutGbt();
   bool isReachTimeout();
-  void sendStratumJob(const char *gbt);
+  void sendStratumJob(const char *gbt, bool isMergedMiningUpdate);
 
   void clearTimeoutGw();
   bool triggerRskUpdate();
-  void checkAndSendStratumJob(bool isRskUpdate);
+  void checkAndSendStratumJob(bool isMergedMiningUpdate);
   void runThreadConsumeNmcAuxBlock();
   void runThreadConsumeRawGw();
 
@@ -102,7 +105,7 @@ public:
   JobMaker(const string &kafkaBrokers, uint32_t stratumJobInterval,
            const string &payoutAddr, uint32_t gbtLifeTime,
            uint32_t emptyGbtLifeTime, const string &fileLastJobTime,
-           uint32_t rskNotifyPolicy, uint32_t blockVersion,
+           uint32_t mergedMiningNotifyPolicy, uint32_t blockVersion,
 					 const string &poolCoinbaseInfo, uint8_t serverId);
   ~JobMaker();
 

@@ -221,7 +221,7 @@ TEST(Stratum, StratumJob) {
     ASSERT_EQ(IsValidDestinationString("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U"), true);
     
     CTxDestination poolPayoutAddrTestnet = DecodeDestination("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U");
-    res = sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion, "", RskWork(), 1);
+    res = sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion, "", RskWork(), 1, false);
     ASSERT_EQ(res, true);
 
     const string jsonStr = sjob.serializeToJson();
@@ -356,7 +356,7 @@ TEST(Stratum, StratumJobWithWitnessCommitment) {
     ASSERT_EQ(IsValidDestinationString("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U"), true);
 
     CTxDestination poolPayoutAddrTestnet = DecodeDestination("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U");
-    res = sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion, "", RskWork(), 1);
+    res = sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion, "", RskWork(), 1, false);
     ASSERT_EQ(res, true);
 
     const string jsonStr = sjob.serializeToJson();
@@ -485,7 +485,7 @@ TEST(Stratum, StratumJobWithSegwitPayoutAddr) {
     SelectParams(CBaseChainParams::TESTNET);
     ASSERT_EQ(IsValidDestinationString("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7"), true);
     CTxDestination poolPayoutAddrTestnet = DecodeDestination("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7");
-    res = sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion, "", RskWork(), 1);
+    res = sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion, "", RskWork(), 1, false);
     ASSERT_EQ(res, true);
 
     const string jsonStr = sjob.serializeToJson();
@@ -594,7 +594,7 @@ TEST(Stratum, StratumJobWithRskWork) {
     ASSERT_EQ(rskWork.getNotifyFlag(), true);
 
     CTxDestination poolPayoutAddrTestnet = DecodeDestination("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U");
-    sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion, "", rskWork, 1);
+    sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion, "", rskWork, 1, true);
 
     // check rsk required data copied properly to the stratum job
     ASSERT_EQ(sjob.blockHashForMergedMining_, "0xe6b0a8e84e0ce68471ca28db4f51b71139b0ab78ae1c3e0ae8364604e9f8a15d");
@@ -602,7 +602,7 @@ TEST(Stratum, StratumJobWithRskWork) {
     ASSERT_EQ(sjob.feesForMiner_, "0");
     ASSERT_EQ(sjob.rskdRpcAddress_, "http://10.0.2.2:4444");
     ASSERT_EQ(sjob.rskdRpcUserPwd_, "user:pass");
-    ASSERT_EQ(sjob.isRskCleanJob_, false);
+    ASSERT_EQ(sjob.isMergedMiningCleanJob_, true);
 
     // check rsk merged mining tag present in the coinbase
     // Hex("RSKBLOCK:") = 0x52534b424c4f434b3a

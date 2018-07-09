@@ -48,15 +48,16 @@
 JobMaker::JobMaker(const string &kafkaBrokers,  uint32_t stratumJobInterval,
                    const string &payoutAddr, uint32_t gbtLifeTime,
                    uint32_t emptyGbtLifeTime, const string &fileLastJobTime,
-                   uint32_t rskNotifyPolicy, uint32_t blockVersion,
+                   uint32_t mergedMiningNotifyPolicy, uint32_t blockVersion,
                    const string &poolCoinbaseInfo, uint8_t serverId):
 serverId_(serverId), running_(true),
 kafkaBrokers_(kafkaBrokers),
 kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, RD_KAFKA_PARTITION_UA/* partition */),
 kafkaRawGbtConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT,       0/* partition */),
 kafkaNmcAuxConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_NMC_AUXBLOCK, 0/* partition */),
+latestNmcAuxBlockHeight_(0),
 kafkaRawGwConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGW, 0/* partition */),
-previousRskWork_(nullptr), currentRskWork_(nullptr), rskNotifyPolicy_(rskNotifyPolicy),
+previousRskWork_(nullptr), currentRskWork_(nullptr), mergedMiningNotifyPolicy_(mergedMiningNotifyPolicy),
 currBestHeight_(0), lastJobSendTime_(0),
 isLastJobEmptyBlock_(false),
 stratumJobInterval_(stratumJobInterval),
@@ -68,8 +69,6 @@ blockVersion_(blockVersion)
 	LOG(INFO) << "Block Version: " << std::hex << blockVersion_;
 	LOG(INFO) << "Coinbase Info: " << poolCoinbaseInfo_;
   LOG(INFO) << "Payout Address: " << poolPayoutAddrStr_;
-
-  RskWork::setIsCleanJob(rskNotifyPolicy != 0);
 }
 
 JobMaker::~JobMaker() {
@@ -232,12 +231,52 @@ void JobMaker::consumeNmcAuxBlockMsg(rd_kafka_message_t *rkmessage) {
     return;
   }
 
-  // set json string
   LOG(INFO) << "received nmcauxblock message, len: " << rkmessage->len;
+
+  uint32_t currentNmcBlockHeight = 0;
+  string currentNmcBlockHash;
+  // get block height
+  {
+    JsonNode r;
+    if (!JsonNode::parse((const char *)rkmessage->payload, ((const char *)rkmessage->payload) + rkmessage->len, r)) {
+      LOG(ERROR) << "parse NmcAuxBlock message to json fail";
+      return;
+    }
+
+    if (r["height"].type() != Utilities::JS::type::Int ||
+        r["hash"].type() != Utilities::JS::type::Str) {
+      LOG(ERROR) << "nmc auxblock fields failure";
+      return;
+    }
+
+    currentNmcBlockHeight = r["height"].uint32();
+    currentNmcBlockHash = r["hash"].str();
+  }
+
+  // set json string
+  uint32_t latestNmcAuxBlockHeight = 0;
+  string latestNmcAuxBlockHash;
   {
     ScopeLock sl(auxJsonlock_);
+
+    // backup old height / hash
+    latestNmcAuxBlockHeight = latestNmcAuxBlockHeight_;
+    latestNmcAuxBlockHash = latestNmcAuxBlockHash_;
+    // update height / hash
+    latestNmcAuxBlockHeight_ = currentNmcBlockHeight;
+    latestNmcAuxBlockHash_ = currentNmcBlockHash;
+    // update json
     latestNmcAuxBlockJson_ = string((const char *)rkmessage->payload, rkmessage->len);
+
     DLOG(INFO) << "latestNmcAuxBlockJson: " << latestNmcAuxBlockJson_;
+  }
+
+  // trigger update
+  bool higherHeightUpdate  = mergedMiningNotifyPolicy_ == 1 && currentNmcBlockHeight > latestNmcAuxBlockHeight;
+  bool differentHashUpdate = mergedMiningNotifyPolicy_ == 2 && currentNmcBlockHash != latestNmcAuxBlockHash;
+
+  if (higherHeightUpdate || differentHashUpdate) {
+    checkAndSendStratumJob(true);
   }
 }
 
@@ -362,12 +401,11 @@ bool JobMaker::triggerRskUpdate() {
     previousRskWork = *previousRskWork_;
   }
 
-  bool notify_flag_update = rskNotifyPolicy_ == 1 && currentRskWork.getNotifyFlag();
-  bool different_block_hashUpdate = rskNotifyPolicy_ == 2 && 
-                                      (currentRskWork.getBlockHash() != 
-                                        previousRskWork.getBlockHash());
+  bool notifyFlagUpdate    = mergedMiningNotifyPolicy_ == 1 && currentRskWork.getNotifyFlag();
+  bool differentHashUpdate = mergedMiningNotifyPolicy_ == 2 && 
+                             (currentRskWork.getBlockHash() != previousRskWork.getBlockHash());
 
-  return notify_flag_update || different_block_hashUpdate;
+  return notifyFlagUpdate || differentHashUpdate;
 }
 
 void JobMaker::clearTimeoutGw() {
@@ -551,7 +589,7 @@ void JobMaker::clearTimeoutGbt() {
   }
 }
 
-void JobMaker::sendStratumJob(const char *gbt) {
+void JobMaker::sendStratumJob(const char *gbt, bool isMergedMiningUpdate) {
   string latestNmcAuxBlockJson;
   {
     ScopeLock sl(auxJsonlock_);
@@ -568,7 +606,8 @@ void JobMaker::sendStratumJob(const char *gbt) {
 
   StratumJob sjob;
   if (!sjob.initFromGbt(gbt, poolCoinbaseInfo_, poolPayoutAddr_, blockVersion_,
-                        latestNmcAuxBlockJson, currentRskBlockJson, serverId_)) {
+                        latestNmcAuxBlockJson, currentRskBlockJson, serverId_,
+                        isMergedMiningUpdate)) {
     LOG(ERROR) << "init stratum job message from gbt str fail";
     return;
   }
@@ -601,7 +640,7 @@ bool JobMaker::isReachTimeout() {
   return false;
 }
 
-void JobMaker::checkAndSendStratumJob(bool isRskUpdate) {
+void JobMaker::checkAndSendStratumJob(bool isMergedMiningUpdate) {
   static uint64_t lastSendBestKey = 0;
 
   ScopeLock sl(lock_);
@@ -633,7 +672,7 @@ void JobMaker::checkAndSendStratumJob(bool isRskUpdate) {
     LOG(INFO) << "--------update last empty block job--------";
   }
 
-  if (!needUpdateEmptyBlockJob && !isRskUpdate && bestKey == lastSendBestKey) {
+  if (!needUpdateEmptyBlockJob && !isMergedMiningUpdate && bestKey == lastSendBestKey) {
     LOG(WARNING) << "bestKey is the same as last one: " << lastSendBestKey;
     return;
   }
@@ -647,11 +686,11 @@ void JobMaker::checkAndSendStratumJob(bool isRskUpdate) {
     isFindNewHeight = true;
   }
 
-  if (isFindNewHeight || needUpdateEmptyBlockJob || isRskUpdate || isReachTimeout()) {
+  if (isFindNewHeight || needUpdateEmptyBlockJob || isMergedMiningUpdate || isReachTimeout()) {
     lastSendBestKey     = bestKey;
     currBestHeight_     = bestHeight;
 
-    sendStratumJob(rawgbtMap_.rbegin()->second.c_str());
+    sendStratumJob(rawgbtMap_.rbegin()->second.c_str(), isMergedMiningUpdate);
   }
 }
 

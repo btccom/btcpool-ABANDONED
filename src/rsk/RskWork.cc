@@ -111,13 +111,3 @@ string RskWork::getRpcUserPwd() const {
 bool RskWork::getNotifyFlag() const {
   return notifyFlag_;
 }
-
-bool RskWork::isCleanJob_;
-
-void RskWork::setIsCleanJob(bool cleanJob) {
-  isCleanJob_ = cleanJob;
-}
-
-bool RskWork::getIsCleanJob() const {
-  return isCleanJob_;
-}

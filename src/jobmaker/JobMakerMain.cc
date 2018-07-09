@@ -158,7 +158,7 @@ int main(int argc, char **argv) {
     uint32_t stratumJobInterval = 20;  // seconds
     uint32_t gbtLifeTime        = 90;
     uint32_t emptyGbtLifeTime   = 15;
-    uint32_t rskNotifyPolicy    = 0u;
+    uint32_t mergedMiningNotify = 1u;
     uint32_t blockVersion       = 0u;
     uint32_t serverId           = 0u;
 
@@ -168,7 +168,7 @@ int main(int argc, char **argv) {
     cfg.lookupValue("jobmaker.file_last_job_time",   fileLastJobTime);
     cfg.lookupValue("jobmaker.block_version",        blockVersion);
     cfg.lookupValue("pool.coinbase_info",            poolCoinbaseInfo);
-    cfg.lookupValue("jobmaker.rsk_notify_policy", rskNotifyPolicy);
+    cfg.lookupValue("jobmaker.merged_mining_notify", mergedMiningNotify);
     cfg.lookupValue("jobmaker.id", serverId);
 
     if (serverId > 0xFFu || serverId == 0) {
@@ -179,7 +179,7 @@ int main(int argc, char **argv) {
     gJobMaker = new JobMaker(cfg.lookup("kafka.brokers"), stratumJobInterval,
                              cfg.lookup("pool.payout_address"), gbtLifeTime,
                              emptyGbtLifeTime, fileLastJobTime, 
-                             rskNotifyPolicy, blockVersion,
+                             mergedMiningNotify, blockVersion,
                              poolCoinbaseInfo, serverId);
 
     if (!gJobMaker->init()) {

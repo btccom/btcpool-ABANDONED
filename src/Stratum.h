@@ -282,7 +282,7 @@ public:
   string   rskdRpcUserPwd_;
   string   feesForMiner_;
   uint256  rskNetworkTarget_;
-  bool     isRskCleanJob_;
+  bool     isMergedMiningCleanJob_;
 
 
 public:
@@ -296,7 +296,8 @@ public:
                    const uint32_t blockVersion,
                    const string &nmcAuxBlockJson,
                    const RskWork &latestRskBlockJson,
-                   const uint8_t serverId);
+                   const uint8_t serverId,
+                   const bool isMergedMiningUpdate);
   bool isEmptyBlock();
 };
 
