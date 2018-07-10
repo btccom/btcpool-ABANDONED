@@ -84,6 +84,7 @@ int64_t EthConsensus::getStaticBlockRewardClassic(int nHeight) {
     int64_t reward = 5e+18;
 
     for (int i=1; i<blockEra; i++) {
+        // ECIP-1017: all rewards will be reduced at a constant rate of 20% upon entering a new Era.
         // reward *= 0.8 (avoid converts to float)
         reward = reward * 8 / 10;
     }
@@ -92,8 +93,54 @@ int64_t EthConsensus::getStaticBlockRewardClassic(int nHeight) {
 }
 
 // static block rewards of Ethereum Main Network
-int64_t EthConsensus::getStaticBlockRewardFoundation(int nHeight) {
+int64_t EthConsensus::getStaticBlockRewardFoundation(int /*nHeight*/) {
   // Ethereum Main Network has a static block reward (3 Ether) at current.
   // And it seems does not have a clear block reward policy for the long-term.
   return 3e+18;
+}
+
+double EthConsensus::getUncleBlockRewardRatio(int nHeight, Chain chain) {
+    switch (chain) {
+    case Chain::CLASSIC:
+        return getUncleBlockRewardRatioClassic(nHeight);
+    case Chain::FOUNDATION:
+        return getUncleBlockRewardRatioFoundation(nHeight);
+    case Chain::UNKNOWN:
+        return 0.0;
+    }
+    // should not be here
+    return 0.0;
+}
+
+// uncle block reward radio of Ethereum Classic Main Network
+// The implementation followed ECIP-1017:
+// https://github.com/ethereumproject/ECIPs/blob/master/ECIPs/ECIP-1017.md
+double EthConsensus::getUncleBlockRewardRatioClassic(int nHeight) {
+    // Assume that there is only one height lower than the main chain block
+
+    const int64_t blockEra = (nHeight - 1) / 5000000 + 1;
+
+    if (blockEra == 1) {
+        // The blockEra 1 is special
+        return 7.0 / 8.0;
+    }
+    else if (blockEra == 2) {
+        // The blockEra is 2 in 2018.
+        // Avoid calculations by giving the result directly.
+        return 1.0 / 32.0;
+    }
+
+    double radio = 1.0 / 32.0;
+
+    for (int i=2; i<blockEra; i++) {
+        // ECIP-1017: all rewards will be reduced at a constant rate of 20% upon entering a new Era.
+        radio *= 0.8;
+    }
+
+    return radio;
+}
+
+double EthConsensus::getUncleBlockRewardRatioFoundation(int /*nHeight*/) {
+    // Assume that there is only one height lower than the main chain block
+    return 7.0 / 8.0;
 }

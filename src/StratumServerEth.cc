@@ -78,14 +78,13 @@ void JobRepositoryEth::broadcastStratumJob(StratumJob *sjob) {
   {
     ScopeLock sl(lock_);
 
-    // Because Ethereum can contain orphan blocks as "uncles", mark old job as stale is unnecessary.
-    /*
     if (isClean) {
       // mark all jobs as stale, should do this before insert new job
+      // stale shares will not be rejected, they will be marked as ACCEPT_STALE and have lower rewards.
       for (auto it : exJobs_) {
         it.second->markStale();
       }
-    }*/
+    }
 
     // insert new job
     exJobs_[sjobEth->jobId_] = exJob;
@@ -404,11 +403,6 @@ int ServerEth::checkShareAndUpdateDiff(ShareEth &share,
     return StratumStatus::JOB_NOT_FOUND;
   }
 
-  if (exJobPtr->isStale())
-  {
-    return StratumStatus::JOB_NOT_FOUND;
-  }
-
   StratumJobEth *sjob = dynamic_cast<StratumJobEth *>(exJobPtr->sjob_);
   
   DLOG(INFO) << "checking share nonce: " << hex << nonce << ", header: " << header.GetHex();
@@ -442,8 +436,16 @@ int ServerEth::checkShareAndUpdateDiff(ShareEth &share,
   //can not compare directly because unit256 uses memcmp
   if (isSubmitInvalidBlock_ || UintToArith256(shareTarget) <= UintToArith256(sjob->rskNetworkTarget_)) {
     LOG(INFO) << "solution found, share target: " << shareTarget.GetHex() << ", network target: " << sjob->rskNetworkTarget_.GetHex();
-    LOG(INFO) << "solved share: " << share.toString();
-    return StratumStatus::SOLVED;
+
+    if (exJobPtr->isStale()) {
+      LOG(INFO) << "stale solved share: " << share.toString();
+      return StratumStatus::SOLVED_STALE;
+    }
+    else {
+      LOG(INFO) << "solved share: " << share.toString();
+      return StratumStatus::SOLVED;
+    }
+    
   }
 
   // higher difficulty is prior
@@ -453,7 +455,7 @@ int ServerEth::checkShareAndUpdateDiff(ShareEth &share,
 
     if (isEnableSimulator_ || UintToArith256(shareTarget) <= UintToArith256(jobTarget)) {
       share.shareDiff_ = *itr;
-      return StratumStatus::ACCEPT;
+      return exJobPtr->isStale() ? StratumStatus::ACCEPT_STALE : StratumStatus::ACCEPT;
     }
   }
 

@@ -54,13 +54,17 @@ string filterWorkerName(const string &workerName) {
 }
 
 
-//////////////////////////////// StratumError ////////////////////////////////
+//////////////////////////////// StratumStatus ////////////////////////////////
 const char * StratumStatus::toString(int err) {
   switch (err) {
     case ACCEPT:
       return "Share accepted";
+    case ACCEPT_STALE:
+      return "Share accepted (stale)";
     case SOLVED:
       return "Share accepted and solved";
+    case SOLVED_STALE:
+      return "Share accepted and solved (stale)";
     case REJECT_NO_REASON:
       return "Share rejected";
 
