@@ -207,12 +207,46 @@ void StratumSessionEth::handleRequest_Subscribe(const string &idStr, const JsonN
   state_ = SUBSCRIBED;
 
   auto params = jparams.children();
+
+  if (params->size() >= 1) {
+    clientAgent_ = params->at(0).str().substr(0, 30);  // 30 is max len
+    clientAgent_ = filterWorkerName(clientAgent_);
+  }
+
   string protocolStr;
   if (params->size() >= 2) {
     protocolStr = params->at(1).str();
     // tolower
     std::transform(protocolStr.begin(), protocolStr.end(), protocolStr.begin(), ::tolower);
   }
+
+  // session id and miner ip need to pass within params if working with stratum switcher
+  #ifdef WORK_WITH_STRATUM_SWITCHER
+    //  params[0] = client version           [require]
+    //  params[1] = protocol version         [require, can be empty]
+    //  params[2] = session id / ExtraNonce1 [require]
+    //  params[3] = miner's real IP (unit32) [optional]
+
+    if (params->size() < 3) {
+      responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
+      return;
+    }
+
+    string extraNonce1Str = params->at(2).str().substr(0, 8);  // 8 is max len
+    sscanf(extraNonce1Str.c_str(), "%x", &extraNonce1_); // convert hex to int
+
+    // receive miner's IP from stratumSwitcher
+    if (params->size() >= 4) {
+      clientIpInt_ = htonl(params->at(3).uint32());
+
+      // ipv4
+      clientIp_.resize(INET_ADDRSTRLEN);
+      struct in_addr addr;
+      addr.s_addr = clientIpInt_;
+      clientIp_ = inet_ntop(AF_INET, &addr, (char *)clientIp_.data(), (socklen_t)clientIp_.size());
+      LOG(INFO) << "client real IP: " << clientIp_;
+    }
+  #endif // WORK_WITH_STRATUM_SWITCHER
 
   if (!protocolStr.empty() && protocolStr.substr(0, 16) == "ethereumstratum/") {
     ethProtocol_ = StratumProtocol::NICEHASH_STRATUM;
