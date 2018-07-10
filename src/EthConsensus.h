@@ -49,12 +49,19 @@ public:
         return getStaticBlockReward(nHeight, getChain(chainStr));
     }
 
+    // Get the ratio of the uncle block's reward and the main chain block's reward.
+    // Example: the block reward of FOUNDATION uncle block is 7/8 of a mainchain block's,
+    // the 0.875 will be returned.
+    static double getUncleBlockRewardRatio(int nHeight, Chain chain);
+
 protected:
     // static block rewards of Ethereum Classic Main Network
     static int64_t getStaticBlockRewardClassic(int nHeight);
-
     // static block rewards of Ethereum Main Network
     static int64_t getStaticBlockRewardFoundation(int nHeight);
+
+    static double getUncleBlockRewardRatioClassic(int nHeight);
+    static double getUncleBlockRewardRatioFoundation(int nHeight);
 };
 
 #endif // ETH_CONSENSUS_H_

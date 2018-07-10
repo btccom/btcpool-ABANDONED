@@ -197,8 +197,16 @@ public:
     // share reached the job target (but may not reached the network target)
     ACCEPT = 1798084231, // bin(01101011 00101100 10010110 10000111)
 
-    // share reached the network target (only ServerEth::checkShare use it at current)
+    // share reached the job target but the job is stale
+    // if uncle block is allowed in the chain, share can be accept as this status
+    ACCEPT_STALE = 950395421, // bin(00111000 10100101 11100010 00011101)
+
+    // share reached the network target
     SOLVED = 1422486894, // bin(‭01010100 11001001 01101101 01101110‬)
+
+    // share reached the network target but the job is stale
+    // if uncle block is allowed in the chain, share can be accept as this status
+    SOLVED_STALE = 1713984938, // bin(01100110 00101001 01010101 10101010)
 
     REJECT_NO_REASON = 0,
 
@@ -222,11 +230,16 @@ public:
   static const char *toString(int err);
   
   inline static bool isAccepted(int status) {
-    return (status == ACCEPT) || (status == SOLVED);
+    return (status == ACCEPT) || (status == ACCEPT_STALE) ||
+           (status == SOLVED) || (status == SOLVED_STALE);
+  }
+
+  inline static bool isStale(int status) {
+    return (status == ACCEPT_STALE) || (status == SOLVED_STALE);
   }
 
   inline static bool isSolved(int status) {
-    return (status == SOLVED);
+    return (status == SOLVED) || (status == SOLVED_STALE);
   }
 };
 
@@ -397,20 +410,28 @@ public:
 
   double score() const
   {
-    if (shareDiff_ == 0 || networkDiff_ == 0)
-    {
+    if (!StratumStatus::isAccepted(status_) || shareDiff_ == 0 || networkDiff_ == 0) {
       return 0.0;
     }
+
+    double result = 0.0;
 
     // Network diff may less than share diff on testnet or regression test network.
     // On regression test network, the network diff may be zero.
     // But no matter how low the network diff is, you can only dig one block at a time.
-    if (networkDiff_ < shareDiff_)
-    {
-      return 1.0;
+    if (networkDiff_ < shareDiff_) {
+      result = 1.0;
+    }
+    else {
+      result = (double)shareDiff_ / (double)networkDiff_;
     }
 
-    return (double)shareDiff_ / (double)networkDiff_;
+    // Share of the uncle block has a lower reward.
+    if (StratumStatus::isStale(status_)) {
+      result *= EthConsensus::getUncleBlockRewardRatio(height_, getChain());
+    }
+
+    return result;
   }
 
   uint32_t checkSum() const {
