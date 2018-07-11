@@ -204,7 +204,6 @@ void StratumSessionEth::handleRequest_Subscribe(const string &idStr, const JsonN
     rpc2ResponseError(idStr, StratumStatus::UNKNOWN);
     return;
   }
-  state_ = SUBSCRIBED;
 
   auto params = jparams.children();
 
@@ -278,6 +277,8 @@ void StratumSessionEth::handleRequest_Subscribe(const string &idStr, const JsonN
     const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":true}\n", idStr.c_str());
     sendData(s);
   }
+
+  state_ = SUBSCRIBED;
 }
 
 string StratumSessionEth::stripEthAddrFromFullName(const string& fullNameStr) {
@@ -295,21 +296,28 @@ void StratumSessionEth::handleRequest_Authorize(const string &idStr, const JsonN
   // const type cannot access string indexed object member
   JsonNode &jsonRoot = const_cast<JsonNode &>(jroot);
 
-  state_ = SUBSCRIBED;
+  if (StratumProtocol::ETHPROXY == ethProtocol_ && jsonRoot["method"].str() == "eth_submitLogin") {
+    // subscribe is not required for ETHPROXY
+    state_ = SUBSCRIBED;
+  }
+
+  if (state_ != SUBSCRIBED) {
+    responseError(idStr, StratumStatus::NOT_SUBSCRIBED);
+    return;
+  }
 
   // STRATUM / NICEHASH_STRATUM:        {"id":3, "method":"mining.authorize", "params":["test.aaa", "x"]} 
   // ETH_PROXY (Claymore):              {"worker": "eth1.0", "jsonrpc": "2.0", "params": ["0x00d8c82Eb65124Ea3452CaC59B64aCC230AA3482.test.aaa", "x"], "id": 2, "method": "eth_submitLogin"}
   // ETH_PROXY (EthMiner, situation 1): {"id":1, "method":"eth_submitLogin", "params":["0x00d8c82Eb65124Ea3452CaC59B64aCC230AA3482"], "worker":"test.aaa"}
   // ETH_PROXY (EthMiner, situation 1): {"id":1, "method":"eth_submitLogin", "params":["test"], "worker":"aaa"}
   
-  if (jparams.children()->size() < 1)
-  {
+  if (jparams.children()->size() < 1) {
     responseError(idStr, StratumStatus::INVALID_USERNAME);
     return;
   }
 
   string fullName = jparams.children()->at(0).str();
-  if (StratumProtocol::ETHPROXY == ethProtocol_ && jsonRoot["worker"].type() == Utilities::JS::type::Str) {
+  if (jsonRoot["worker"].type() == Utilities::JS::type::Str) {
     fullName += '.';
     fullName += jsonRoot["worker"].str();
   }
