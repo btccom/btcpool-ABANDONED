@@ -247,7 +247,7 @@ void StratumSessionEth::handleRequest_Subscribe(const string &idStr, const JsonN
     }
   #endif // WORK_WITH_STRATUM_SWITCHER
 
-  if (!protocolStr.empty() && protocolStr.substr(0, 16) == "ethereumstratum/") {
+  if (protocolStr.substr(0, 16) == "ethereumstratum/") {
     ethProtocol_ = StratumProtocol::NICEHASH_STRATUM;
 
     // mining.notify of NICEHASH_STRATUM's subscribe
@@ -271,6 +271,17 @@ void StratumSessionEth::handleRequest_Subscribe(const string &idStr, const JsonN
                                      idStr.c_str(), extraNonce1_, extraNonce1_);
     sendData(s);
   }
+#ifdef WORK_WITH_STRATUM_SWITCHER
+  else if (protocolStr.substr(0, 9) == "ethproxy/") {
+    // required for stratum switcher
+    // Because ethproxy has no subscribe phase, switcher has no chance to set session id.
+    // So deliberately added a subscribe phase of ethproxy here.
+    ethProtocol_ = StratumProtocol::ETHPROXY;
+
+    const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":true}\n", idStr.c_str());
+    sendData(s);
+  }
+#endif // WORK_WITH_STRATUM_SWITCHER
   else {
     ethProtocol_ = StratumProtocol::STRATUM;
 
@@ -296,10 +307,13 @@ void StratumSessionEth::handleRequest_Authorize(const string &idStr, const JsonN
   // const type cannot access string indexed object member
   JsonNode &jsonRoot = const_cast<JsonNode &>(jroot);
 
+#ifndef WORK_WITH_STRATUM_SWITCHER
   if (StratumProtocol::ETHPROXY == ethProtocol_ && jsonRoot["method"].str() == "eth_submitLogin") {
-    // subscribe is not required for ETHPROXY
+    // Subscribe is not required for ETHPROXY (without stratum switcher).
+    // But if WORK_WITH_STRATUM_SWITCHER enabled, subscribe for ETHProxy is required.
     state_ = SUBSCRIBED;
   }
+#endif
 
   if (state_ != SUBSCRIBED) {
     responseError(idStr, StratumStatus::NOT_SUBSCRIBED);
