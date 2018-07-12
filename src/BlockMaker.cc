@@ -1107,7 +1107,7 @@ void BlockMakerEth::_saveBlockToDBThread(const string &header, const uint32_t he
                         ", `height`, `hash`, `rewards`"
                         ", `network_diff`, `created_at`)"
                         " VALUES (%ld, %" PRId64
-                        ", '%s'"
+                        ", '%s', '%s'"
                         ", %lu, '%s', %" PRId64
                         ", %" PRIu64 ", '%s'); ",
                         worker.userId_, worker.workerHashId_,
