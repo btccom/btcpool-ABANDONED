@@ -1048,9 +1048,9 @@ void BlockMakerEth::processSolvedShare(rd_kafka_message_t *rkmessage)
   worker.fullName_ = r["workerFullName"].str();
 
   string request = Strings::Format("{\"jsonrpc\": \"2.0\", \"method\": \"eth_submitWork\", \"params\": [\"%s\",\"%s\",\"%s\"], \"id\": 5}\n",
-                                   r["nonce"].str().c_str(),
-                                   r["header"].str().c_str(),
-                                   r["mix"].str().c_str());
+                                   HexAddPrefix(r["nonce"].str()).c_str(),
+                                   HexAddPrefix(r["header"].str()).c_str(),
+                                   HexAddPrefix(r["mix"].str()).c_str());
 
   submitBlockNonBlocking(request);
   saveBlockToDBNonBlocking(r["header"].str().c_str(), r["height"].uint32(),
@@ -1086,6 +1086,7 @@ void BlockMakerEth::_submitBlockThread(const string &rpcAddress, const string &r
                                        const string &blockJson)
 {
   string response;
+  LOG(INFO) << "submit ETH block: " << blockJson;
   bitcoindRpcCall(rpcAddress.c_str(), rpcUserpass.c_str(), blockJson.c_str(), response);
   LOG(INFO) << "submission result: " << response;
 }

@@ -285,10 +285,10 @@ string StratumSessionEth::stripEthAddrFromFullName(const string& fullNameStr) {
   const size_t pos = fullNameStr.find('.');
   // The Ethereum address is 42 bytes and starting with "0x" as normal
   // Example: 0x00d8c82Eb65124Ea3452CaC59B64aCC230AA3482
-  if (pos != 42 || fullNameStr[0] != '0' || (fullNameStr[1] != 'x' && fullNameStr[1] != 'X')) {
-    return fullNameStr;
+  if (pos == 42 && fullNameStr[0] == '0' && (fullNameStr[1] == 'x' || fullNameStr[1] == 'X')) {
+    return fullNameStr.substr(pos + 1);
   }
-  return fullNameStr.substr(pos + 1);
+  return fullNameStr;
 }
 
 void StratumSessionEth::handleRequest_Authorize(const string &idStr, const JsonNode &jparams, const JsonNode &jroot)
@@ -309,7 +309,7 @@ void StratumSessionEth::handleRequest_Authorize(const string &idStr, const JsonN
   // STRATUM / NICEHASH_STRATUM:        {"id":3, "method":"mining.authorize", "params":["test.aaa", "x"]} 
   // ETH_PROXY (Claymore):              {"worker": "eth1.0", "jsonrpc": "2.0", "params": ["0x00d8c82Eb65124Ea3452CaC59B64aCC230AA3482.test.aaa", "x"], "id": 2, "method": "eth_submitLogin"}
   // ETH_PROXY (EthMiner, situation 1): {"id":1, "method":"eth_submitLogin", "params":["0x00d8c82Eb65124Ea3452CaC59B64aCC230AA3482"], "worker":"test.aaa"}
-  // ETH_PROXY (EthMiner, situation 1): {"id":1, "method":"eth_submitLogin", "params":["test"], "worker":"aaa"}
+  // ETH_PROXY (EthMiner, situation 2): {"id":1, "method":"eth_submitLogin", "params":["test"], "worker":"aaa"}
   
   if (jparams.children()->size() < 1) {
     responseError(idStr, StratumStatus::INVALID_USERNAME);

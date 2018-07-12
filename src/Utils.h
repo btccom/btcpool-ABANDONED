@@ -49,6 +49,22 @@ void Bin2Hex(const vector<char> &in, string &str);
 void Bin2HexR(const uint8 *in, size_t len, string &str);
 void Bin2HexR(const vector<char> &in, string &str);
 
+// remove prefix 0x of a hex string
+inline string HexStripPrefix(const string &hex) {
+  if (hex.size() >= 2 && hex[0] == '0' && (hex[1] == 'x' || hex[1] == 'X')) {
+    return hex.substr(2);
+  }
+  return hex;
+}
+
+// add prefix 0x to a hex string
+inline string HexAddPrefix(const string &hex) {
+  if (hex.size() >= 2 && hex[0] == '0' && (hex[1] == 'x' || hex[1] == 'X')) {
+    return hex;
+  }
+  return string("0x") + hex;
+}
+
 //bool DecodeBinTx(CTransaction& tx, const unsigned char *data, size_t len);
 //bool DecodeBinBlk(CBlock& block, const unsigned char *data, size_t len);
 
