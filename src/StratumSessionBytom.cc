@@ -209,6 +209,18 @@ int checkProofOfWork(EncodeBlockHeader_return encoded, StratumJobBytom *sJob, St
 
 }
 
+void StratumSessionBytom::Bytom_rpc2ResponseBoolean(const string &idStr, bool result, const string& failMessage) {
+  if(result)
+  {
+    const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":{\"status\":\"OK\"},\"error\":null}\n", idStr.c_str());
+    sendData(s);
+  }
+  else
+  {
+    const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":null,\"error\":{\"code\":-1, \"message\":\"%s\"}}\n", idStr.c_str(), failMessage.c_str());
+    sendData(s);
+  }
+}
 
 void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNode &jparams)
 {
@@ -226,7 +238,7 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
 
   ServerBytom *s = dynamic_cast<ServerBytom*> (server_);
   if (s == nullptr) {
-    responseError(idStr, StratumStatus::REJECT_NO_REASON);
+    Bytom_rpc2ResponseBoolean(idStr, false, "Server error. Contact support.");
     LOG(FATAL) << "Code error, casting Server to ServerBytom failed";
     //  should we assert here?
     return;
@@ -237,7 +249,7 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   LocalJob *localJob= findLocalJob(shortJobId);
   if (nullptr == localJob)
   {
-    responseError(idStr, StratumStatus::JOB_NOT_FOUND);
+    Bytom_rpc2ResponseBoolean(idStr, false, "Block expired");
     LOG(ERROR) << "can not find local bytom job id=" << (int)shortJobId;
     return;
   }
@@ -246,7 +258,7 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   exjob = server_->jobRepository_->getStratumJobEx(localJob->jobId_);
   if (nullptr == exjob || nullptr == exjob->sjob_)
   {
-    responseError(idStr, StratumStatus::JOB_NOT_FOUND);
+    Bytom_rpc2ResponseBoolean(idStr, false, "Block expired");
     LOG(ERROR) << "bytom local job not found " << std::hex << localJob->jobId_;
     return;
   }
@@ -254,7 +266,7 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   StratumJobBytom *sJob = dynamic_cast<StratumJobBytom *>(exjob->sjob_);
   if (nullptr == sJob)
   {
-    responseError(idStr, StratumStatus::REJECT_NO_REASON);
+    Bytom_rpc2ResponseBoolean(idStr, false, "Unknown reason");
     LOG(FATAL) << "Code error, casting stratum job bytom failed for job id=" << std::hex << localJob->jobId_;
     return;
   }
@@ -315,29 +327,41 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   if(exjob->isStale())
   {
     share.status_ = StratumStatus::JOB_NOT_FOUND;
-    responseError(idStr, StratumStatus::JOB_NOT_FOUND);
+    Bytom_rpc2ResponseBoolean(idStr, false, "Block expired");
   }
   else
   {
     EncodeBlockHeader_return encoded = EncodeBlockHeader(sJob->blockHeader_.version, sJob->blockHeader_.height, (char *)sJob->blockHeader_.previousBlockHash.c_str(), sJob->blockHeader_.timestamp,
                                     nonce, sJob->blockHeader_.bits, (char *)sJob->blockHeader_.transactionStatusHash.c_str(), (char *)sJob->blockHeader_.transactionsMerkleRoot.c_str());
     int powResult = BytomUtils::checkProofOfWork(encoded, sJob, localJob);
-    switch(powResult)
+    share.status_ = powResult;
+    if(powResult == StratumStatus::SOLVED)
     {
-      case StratumStatus::SOLVED:
-        LOG(INFO) << "share solved";
-        s->sendSolvedShare2Kafka(nonce, encoded.r0, share.height_, Bytom_TargetCompactToDifficulty(sJob->blockHeader_.bits), worker_);
-        server_->jobRepository_->markAllJobsAsStale();      
-        //  do not put break here! It needs to run "ACCEPT" code.
-      case StratumStatus::ACCEPT:
-        diffController_->addAcceptedShare(share.shareDiff_);
-        rpc2ResponseBoolean(idStr, true);
-        break;
+      std::cout << "share solved\n";
+      LOG(INFO) << "share solved";
+      s->sendSolvedShare2Kafka(nonce, encoded.r0, share.height_, Bytom_TargetCompactToDifficulty(sJob->blockHeader_.bits), worker_);
+      server_->jobRepository_->markAllJobsAsStale();      
+      diffController_->addAcceptedShare(share.shareDiff_);
+      Bytom_rpc2ResponseBoolean(idStr, true);
+    }
+    else if(powResult == StratumStatus::ACCEPT)
+    {
+      diffController_->addAcceptedShare(share.shareDiff_);
+      Bytom_rpc2ResponseBoolean(idStr, true);
+    }
+    else
+    {
+      std::string failMessage = "Unknown reason";
+      switch(share.status_)
+      {
+        case StratumStatus::LOW_DIFFICULTY:
+          failMessage = "Low difficulty share";
+        break;        
+      }
+      Bytom_rpc2ResponseBoolean(idStr, false, failMessage);
     }
     free(encoded.r0);
     free(encoded.r1);
-
-    share.status_ = powResult;
   }
 
 
