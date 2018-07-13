@@ -67,7 +67,7 @@ void handler(int sig) {
 
 void usage() {
   fprintf(stderr, BIN_VERSION_STRING("jobmaker"));
-  fprintf(stderr, "Usage:\tjobmaker -c \"jobmaker.cfg\" -l \"log_dir\"\n");
+  fprintf(stderr, "Usage:\tjobmaker -c \"jobmaker.cfg\" [-l <log_dir|stderr>]\n");
 }
 
 int main(int argc, char **argv) {
@@ -95,7 +95,11 @@ int main(int argc, char **argv) {
 
   // Initialize Google's logging library.
   google::InitGoogleLogging(argv[0]);
-  FLAGS_log_dir         = string(optLogDir);
+  if (optLogDir == NULL || strcmp(optLogDir, "stderr") == 0) {
+    FLAGS_logtostderr = 1;
+  } else {
+    FLAGS_log_dir = string(optLogDir);
+  }
   // Log messages at a level >= this flag are automatically sent to
   // stderr in addition to log files.
   FLAGS_stderrthreshold = 3;    // 3: FATAL
