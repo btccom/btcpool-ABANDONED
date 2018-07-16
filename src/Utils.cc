@@ -349,13 +349,13 @@ bool fileExists(const char* file) {
   return (stat(file, &buf) == 0);
 }
 
-bool checkBitcoinRPC(const string &rpcAddr, const string &rpcUserpass) {
+static bool checkBitcoinRPCGetNetworkInfo(const string &rpcAddr, const string &rpcUserpass) {
   string response;
   string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getnetworkinfo\",\"params\":[]}";
   bool res = bitcoindRpcCall(rpcAddr.c_str(), rpcUserpass.c_str(),
                              request.c_str(), response);
   if (!res) {
-    LOG(ERROR) << "rpc call failure";
+    LOG(ERROR) << "rpc getnetworkinfo call failure";
     return false;
   }
 
@@ -366,27 +366,6 @@ bool checkBitcoinRPC(const string &rpcAddr, const string &rpcUserpass) {
                        response.c_str() + response.length(), r)) {
     LOG(ERROR) << "decode getnetworkinfo failure";
     return false;
-  }
-
-  // check if the method not found
-  if (r["result"].type() != Utilities::JS::type::Obj) {
-    LOG(INFO) << "node doesn't support getnetworkinfo, try getinfo";
-
-    request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getinfo\",\"params\":[]}";
-    res = bitcoindRpcCall(rpcAddr.c_str(), rpcUserpass.c_str(),
-                          request.c_str(), response);
-    if (!res) {
-      LOG(ERROR) << "rpc call failure";
-      return false;
-    }
-
-    LOG(INFO) << "getinfo: " << response;
-
-    if (!JsonNode::parse(response.c_str(),
-                         response.c_str() + response.length(), r)) {
-      LOG(ERROR) << "decode getinfo failure";
-      return false;
-    }
   }
 
   // check fields & connections
@@ -401,6 +380,44 @@ bool checkBitcoinRPC(const string &rpcAddr, const string &rpcUserpass) {
   }
 
   return true;
+}
+
+static bool checkBitcoinRPCGetInfo(const string &rpcAddr, const string &rpcUserpass) {
+  string response;
+  string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getinfo\",\"params\":[]}";
+  bool  res = bitcoindRpcCall(rpcAddr.c_str(), rpcUserpass.c_str(),
+                          request.c_str(), response);
+  if (!res) {
+    LOG(ERROR) << "rpc getinfo call failure";
+    return false;
+  }
+
+  LOG(INFO) << "getinfo: " << response;
+
+  JsonNode r;
+  if (!JsonNode::parse(response.c_str(),
+                       response.c_str() + response.length(), r)) {
+    LOG(ERROR) << "decode getinfo failure";
+    return false;
+  }
+
+  // check fields & connections
+  if (r["result"].type() != Utilities::JS::type::Obj ||
+      r["result"]["connections"].type() != Utilities::JS::type::Int) {
+    LOG(ERROR) << "getinfo missing some fields";
+    return false;
+  }
+  if (r["result"]["connections"].int32() <= 0) {
+    LOG(ERROR) << "node connections is zero";
+    return false;
+  }
+
+  return true;
+}
+
+bool checkBitcoinRPC(const string &rpcAddr, const string &rpcUserpass) {
+  return checkBitcoinRPCGetNetworkInfo(rpcAddr, rpcUserpass) ||
+         checkBitcoinRPCGetInfo(rpcAddr, rpcUserpass);
 }
 
 // A 37-character character set.
