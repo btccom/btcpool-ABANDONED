@@ -141,14 +141,16 @@ func TestHash(t *testing.T) {
 	startT := time.Now()
 	count := 0
 	for i, tt := range tests {
+		bhhash := bc.NewHash(tt.blockHeader)
+		sdhash := bc.NewHash(tt.seed)
+
+		resultCPU := HashCPU(&bhhash, &sdhash)
+
 		fmt.Printf("Test case %d:\n", i+1)
 		for a := 0; a < 100; a++ {
 			sT := time.Now()
-			bhhash := bc.NewHash(tt.blockHeader)
-			sdhash := bc.NewHash(tt.seed)
 			result := Hash(&bhhash, &sdhash)
-			resultCPU := HashCPU(&bhhash, &sdhash)
-			fmt.Printf("%s -- %s", result.String(), resultCPU.String())
+			// fmt.Printf("%s -- %s", result.String(), resultCPU.String())
 
 			if *result != *resultCPU {
 				fmt.Printf("\tFAIL CPU AND GPU test\n")

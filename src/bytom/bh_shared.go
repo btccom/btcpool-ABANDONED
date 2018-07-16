@@ -2,7 +2,6 @@ package main
 
 import "C"
 import (
-	"log"
 	"math/big"
 
 	"github.com/bytom/consensus/difficulty"
@@ -84,7 +83,7 @@ func CheckProofOfWorkCPU(hash, seed []byte, bits uint64) bool {
 	hseed := bc.NewHash(xSeed)
 
 	compareHash := tensority.AIHash.Hash(&hhash, &hseed)
-	log.Printf("Proof hash: 0x%s", compareHash.String())
+	// log.Printf("Proof hash: 0x%s", compareHash.String())
 	return difficulty.HashToBig(compareHash).Cmp(difficulty.CompactToBig(bits)) <= 0
 }
 
@@ -107,7 +106,13 @@ func CalculateTargetBinaryByDifficulty(diff uint64, out []byte) {
 	targetCompact := CalculateTargetCompactByDifficulty(diff)
 	targetBig := difficulty.CompactToBig(targetCompact)
 	targetBytes := targetBig.Bytes()
-	copy(out[:], targetBytes[:32])
+	bytesLen := len(targetBytes)
+	startIdx := 32 - bytesLen
+	for i := 0; i < startIdx; i++ {
+		out[i] = 0
+	}
+	copy(out[startIdx:32], targetBytes[:bytesLen])
+	// log.Printf("diff %d - compact %d - big %v - bytes %v len %d - out %v len %d", diff, targetCompact, *targetBig, targetBytes, len(targetBytes), out, len(out))
 }
 
 //export CalculateTargetCompactByDifficulty

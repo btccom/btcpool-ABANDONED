@@ -40,6 +40,8 @@ public:
   bool needToSendLoginResponse() const override {return false;}
   
 private:
+  void Bytom_rpc2ResponseBoolean(const string &idStr, bool result, const string& failMessage = "");
+
   uint8 shortJobId_;    //jobId starts from 1
 };
 
