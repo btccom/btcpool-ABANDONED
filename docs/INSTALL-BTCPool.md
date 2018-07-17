@@ -156,8 +156,8 @@ make -j4
 ```bash
 mkdir /work
 cd /work
-wget -O UnitedBitcoin-1.1.0.0.tar.gz https://github.com/UnitedBitcoin/UnitedBitcoin/archive/v1.1.0.0.tar.gz
-tar zxf UnitedBitcoin-1.1.0.0.tar.gz
+wget -O UnitedBitcoin-2.1.0.0.tar.gz https://github.com/UnitedBitcoin/UnitedBitcoin/archive/v2.1.0.0.tar.gz
+tar zxf UnitedBitcoin-2.1.0.0.tar.gz
 
 # install libdb that UnitedBitcoin's wallet required
 apt-get install -y software-properties-common
@@ -166,7 +166,7 @@ apt-get -y update
 apt-get install -y libdb4.8-dev libdb4.8++-dev
 
 # UnitedBitcoin will build failed with `--disable-wallet`, so we have to build it manually with wallet
-cd UnitedBitcoin-1.1.0.0
+cd UnitedBitcoin-2.1.0.0
 ./autogen.sh
 ./configure --disable-bench --disable-tests
 make -j4
@@ -178,19 +178,19 @@ mkdir build
 cd build
 
 # Release build with 4 jobs:
-cmake -DJOBS=4 -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-1.1.0.0 ..
+cmake -DJOBS=4 -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-2.1.0.0 ..
 make -j4
 
 # Release build at macOS:
-cmake -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-1.1.0.0 -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl ..
+cmake -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-2.1.0.0 -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl ..
 make
 
 # Debug build:
-cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-1.1.0.0 ..
+cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-2.1.0.0 ..
 make
 
 # Build a special version of pool's stratum server, so you can run it with a stratum switcher:
-cmake -DJOBS=4 -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-1.1.0.0 -DPOOL__WORK_WITH_STRATUM_SWITCHER=ON ..
+cmake -DJOBS=4 -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-2.1.0.0 -DPOOL__WORK_WITH_STRATUM_SWITCHER=ON ..
 make -j4
 ```
 
@@ -350,7 +350,7 @@ Also start Rsk node or Namecoin node if merged mining for any of those chains.
 The following are the full-nodes that we recommend:
 * Bitcoin: [docker for Bitcoin Core](../docker/bitcoind/v0.15.1)
 * BitcoinCash: [docker for Bitcoin ABC](../docker/bitcoin-abc/v0.16.1)
-* UnitedBitcoin: [docker for UnitedBitcoin](../docker/united-bitcoin/v1.1.0.0)
+* UnitedBitcoin: [docker for UnitedBitcoin](../docker/united-bitcoin/v2.1.0.0)
 * SuperBitcoin: [docker for SuperBitcoin](../docker/super-bitcoin/v0.17.1)
 * RSK: [docker for RSKJ](https://github.com/rsksmart/rskj/wiki/install-rskj-using-docker)
 
