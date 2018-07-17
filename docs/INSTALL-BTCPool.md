@@ -123,6 +123,9 @@ cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=BTC -DCHAIN_SRC_ROOT=/work/bitcoin-0
 make
 
 # Build a special version of pool's stratum server, so you can run it with a stratum switcher:
+# Important: This version of sserver CANNOT run independently, `Illegal params` will throw
+# if you try to connect it directly without using StratumSwitcher.
+# Don't use `-DPOOL__WORK_WITH_STRATUM_SWITCHER=ON` if you don't know what StratumSwitcher is.
 cmake -DJOBS=4 -DCHAIN_TYPE=BTC -DCHAIN_SRC_ROOT=/work/bitcoin-0.16.0 -DPOOL__WORK_WITH_STRATUM_SWITCHER=ON ..
 make -j4
 ```
@@ -153,6 +156,9 @@ cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=BCH -DCHAIN_SRC_ROOT=/work/bitcoin-a
 make
 
 # Build a special version of pool's stratum server, so you can run it with a stratum switcher:
+# Important: This version of sserver CANNOT run independently, `Illegal params` will throw
+# if you try to connect it directly without using StratumSwitcher.
+# Don't use `-DPOOL__WORK_WITH_STRATUM_SWITCHER=ON` if you don't know what StratumSwitcher is.
 cmake -DJOBS=4 -DCHAIN_TYPE=BCH -DCHAIN_SRC_ROOT=/work/bitcoin-abc-0.17.1 -DPOOL__WORK_WITH_STRATUM_SWITCHER=ON ..
 make -j4
 ```
@@ -196,11 +202,20 @@ cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBi
 make
 
 # Build a special version of pool's stratum server, so you can run it with a stratum switcher:
+# Important: This version of sserver CANNOT run independently, `Illegal params` will throw
+# if you try to connect it directly without using StratumSwitcher.
+# Don't use `-DPOOL__WORK_WITH_STRATUM_SWITCHER=ON` if you don't know what StratumSwitcher is.
 cmake -DJOBS=4 -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-2.1.0.0 -DPOOL__WORK_WITH_STRATUM_SWITCHER=ON ..
 make -j4
 ```
 
 **build BTCPool that linking to SuperBitcoin**
+
+**Warning**: Support for SuperBitcoin is **outdated** and lacks maintenance.
+Existing code may **not be compatible** with the current SuperBitcoin blockchain.
+
+In addition, if you have a plan to maintain the SuperBitcoin supporting,
+you are welcome to make a pull request.
 
 ```bash
 mkdir /work
@@ -226,6 +241,9 @@ cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=SBTC -DCHAIN_SRC_ROOT=/work/SuperBit
 make
 
 # Build a special version of pool's stratum server, so you can run it with a stratum switcher:
+# Important: This version of sserver CANNOT run independently, `Illegal params` will throw
+# if you try to connect it directly without using StratumSwitcher.
+# Don't use `-DPOOL__WORK_WITH_STRATUM_SWITCHER=ON` if you don't know what StratumSwitcher is.
 cmake -DJOBS=4 -DCHAIN_TYPE=SBTC -DCHAIN_SRC_ROOT=/work/SuperBitcoin-0.17.1 -DPOOL__WORK_WITH_STRATUM_SWITCHER=ON ..
 make -j4
 ```
