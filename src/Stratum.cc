@@ -217,7 +217,11 @@ string StratumJob::serializeToJson() const {
                          ",\"height\":%d,\"coinbase1\":\"%s\",\"coinbase2\":\"%s\""
                          ",\"merkleBranch\":\"%s\""
                          ",\"nVersion\":%d,\"nBits\":%u,\"nTime\":%u"
-                         ",\"minTime\":%u,\"coinbaseValue\":%lld,\"witnessCommitment\":\"%s\""
+                         ",\"minTime\":%u,\"coinbaseValue\":%lld"
+                         ",\"witnessCommitment\":\"%s\""
+                        #ifdef CHAIN_TYPE_UBTC
+                         ",\"rootStateHash\":\"%s\""
+                        #endif
                          // namecoin, optional
                          ",\"nmcBlockHash\":\"%s\",\"nmcBits\":%u,\"nmcHeight\":%d"
                          ",\"nmcRpcAddr\":\"%s\",\"nmcRpcUserpass\":\"%s\""
@@ -237,6 +241,9 @@ string StratumJob::serializeToJson() const {
                          nVersion_, nBits_, nTime_,
                          minTime_, coinbaseValue_,
                          witnessCommitment_.size() ? witnessCommitment_.c_str() : "",
+                        #ifdef CHAIN_TYPE_UBTC
+                         rootStateHash_.size() ? rootStateHash_.c_str() : "",
+                        #endif
                          // nmc
                          nmcAuxBlockHash_.ToString().c_str(),
                          nmcAuxBits_, nmcHeight_,
@@ -288,11 +295,20 @@ bool StratumJob::unserializeFromJson(const char *s, size_t len) {
   coinbaseValue_ = j["coinbaseValue"].int64();
 
   // witnessCommitment, optional
-  // default_witness_commitment must be at least 38 bytes
-  if (j["default_witness_commitment"].type() == Utilities::JS::type::Str &&
-      j["default_witness_commitment"].str().length() >= 38*2) {
-    witnessCommitment_ = j["default_witness_commitment"].str();
+  // witnessCommitment must be at least 38 bytes
+  if (j["witnessCommitment"].type() == Utilities::JS::type::Str &&
+      j["witnessCommitment"].str().length() >= 38*2) {
+    witnessCommitment_ = j["witnessCommitment"].str();
   }
+
+#ifdef CHAIN_TYPE_UBTC
+  // rootStateHash, optional
+  // rootStateHash must be at least 66 bytes
+  if (j["rootStateHash"].type() == Utilities::JS::type::Str &&
+      j["rootStateHash"].str().length() >= 66*2) {
+    rootStateHash_ = j["rootStateHash"].str();
+  }
+#endif
 
   // for Namecoin and RSK merged mining, optional
   if (j["mergedMiningClean"].type() == Utilities::JS::type::Bool) {
@@ -386,6 +402,16 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
       jgbt["default_witness_commitment"].str().length() >= 38*2) {
     witnessCommitment_ = jgbt["default_witness_commitment"].str();
   }
+
+#ifdef CHAIN_TYPE_UBTC
+  // rootStateHash, optional
+  // default_root_state_hash must be at least 66 bytes
+  if (jgbt["default_root_state_hash"].type() == Utilities::JS::type::Str &&
+      jgbt["default_root_state_hash"].str().length() >= 66*2) {
+    rootStateHash_ = jgbt["default_root_state_hash"].str();
+  }
+#endif
+
   BitsToTarget(nBits_, networkTarget_);
 
   // previous block hash
@@ -581,9 +607,26 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
       cbOut.push_back(witnessTxOut);
     }
 
+  #ifdef CHAIN_TYPE_UBTC
     //
-    // output[2]: RSK merge mining
-    // Tips: it may be output[1] if segwit not enabled in a chain (like BitcoinCash).
+    // output[2] (optional): root state hash of UB smart contract
+    //
+    if (!rootStateHash_.empty()) {
+      DLOG(INFO) << "root state hash: " << rootStateHash_.c_str();
+      vector<char> binBuf;
+      Hex2Bin(rootStateHash_.c_str(), binBuf);
+
+      CTxOut rootStateTxOut;
+      rootStateTxOut.scriptPubKey = CScript((unsigned char*)binBuf.data(),
+                                      (unsigned char*)binBuf.data() + binBuf.size());
+      rootStateTxOut.nValue = 0;
+
+      cbOut.push_back(rootStateTxOut);
+    }
+  #endif
+
+    //
+    // output[3] (optional): RSK merge mining
     //
     if (latestRskBlockJson.isInitialized()) {
       DLOG(INFO) << "RSK blockhash: " << blockHashForMergedMining_;

@@ -263,6 +263,10 @@ public:
   int64_t  coinbaseValue_;
   // if segwit is not active, it will be empty
   string   witnessCommitment_;
+#ifdef CHAIN_TYPE_UBTC
+  // if UB smart contract is not active, it will be empty
+  string   rootStateHash_;
+#endif
 
   uint256 networkTarget_;
 
