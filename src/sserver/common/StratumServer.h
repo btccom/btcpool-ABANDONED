@@ -49,8 +49,6 @@
 #include "Kafka.h"
 #include "Stratum.h"
 #include "StratumSession.h"
-#include "StratumSessionEth.h"
-#include "StratumSessionBytom.h"
 
 class Server;
 class StratumJobEx;
@@ -116,6 +114,7 @@ class JobRepository
 protected:
   atomic<bool> running_;
   mutex lock_;
+  std::map<uint64_t, shared_ptr<StratumJob>> jobs_;
   std::map<uint64_t /* jobId */, shared_ptr<StratumJobEx>> exJobs_;
 
   KafkaConsumer kafkaConsumer_; // consume topic: 'StratumJob'
@@ -162,16 +161,6 @@ public:
   StratumJob *createStratumJob() override {return new StratumJobSia();}
   StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
   void broadcastStratumJob(StratumJob *sjob) override;
-};
-
-class JobRepositoryBytom : public JobRepository
-{
-public:
-  JobRepositoryBytom(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server):
-  JobRepository(kafkaBrokers, consumerTopic, fileLastNotifyTime, server) {}
-  StratumJob *createStratumJob() override {return new StratumJobBytom();}
-  StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
-  //void broadcastStratumJob(StratumJob *sjob) override;
 };
 
 ///////////////////////////////////// UserInfo /////////////////////////////////
@@ -242,19 +231,9 @@ public:
 class StratumJobEx {
   // 0: MINING, 1: STALE
   atomic<int32_t> state_;
-  void generateCoinbaseTx(std::vector<char> *coinbaseBin,
-                          const uint32_t extraNonce1,
-                          const string &extraNonce2Hex,
-                          string *userCoinbaseInfo = nullptr);
 
 public:
   bool isClean_;
-  StratumJob *sjob_;
-  string miningNotify1_;
-  string miningNotify2_;
-  string coinbase1_;
-  string miningNotify3_;
-  string miningNotify3Clean_;
 
 public:
   StratumJobEx(StratumJob *sjob, bool isClean);
@@ -263,6 +242,23 @@ public:
   void markStale();
   bool isStale();
 
+};
+
+class StratumJobExBitcoin : public StratumJobEx
+{
+  void generateCoinbaseTx(std::vector<char> *coinbaseBin,
+                          const uint32_t extraNonce1,
+                          const string &extraNonce2Hex,
+                          string *userCoinbaseInfo = nullptr);
+
+public:
+  string miningNotify1_;
+  string miningNotify2_;
+  string coinbase1_;
+  string miningNotify3_;
+  string miningNotify3Clean_;
+
+public:
   void generateBlockHeader(CBlockHeader  *header,
                            std::vector<char> *coinbaseBin,
                            const uint32_t extraNonce1,
@@ -272,14 +268,9 @@ public:
                            const uint32_t nBits, const int32_t nVersion,
                            const uint32_t nTime, const uint32_t nonce,
                            string *userCoinbaseInfo = nullptr);
-  virtual void init();
-};
+  void init();
 
-class StratumJobExNoInit : public StratumJobEx {
-public:
-  StratumJobExNoInit(StratumJob *sjob, bool isClean) : StratumJobEx(sjob, isClean) {}
-  void init() override {}
-};
+}
 
 ///////////////////////////////////// Server ///////////////////////////////////
 class Server {
@@ -388,25 +379,6 @@ public:
   
   void sendSolvedShare2Kafka(uint8* buf, int len);
 };
-
-class ServerBytom : public Server
-{
-public:
-  ServerBytom(const int32_t shareAvgSeconds) : Server(shareAvgSeconds) {}
-
-  JobRepository* createJobRepository(const char *kafkaBrokers,
-                                     const char *consumerTopic,     
-                                     const string &fileLastNotifyTime,
-                                     Server *server) override;
-
-  StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
-                               Server *server, struct sockaddr *saddr,
-                               const int32_t shareAvgSeconds,
-                               const uint32_t sessionID) override;
-  void sendSolvedShare2Kafka(uint64_t nonce, const string &strHeader,
-                                      uint64_t height, uint64_t networkDiff, const StratumWorker &worker);
-};
-
 
 ////////////////////////////////// StratumServer ///////////////////////////////
 class StratumServer {

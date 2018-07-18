@@ -25,7 +25,7 @@
 #define STRATUM_SERVER_ETH_H_
 
 #include <set>
-#include "StratumServer.h"
+#include "sserver/common/StratumServer.h"
 
 
 class JobRepositoryEth : public JobRepository

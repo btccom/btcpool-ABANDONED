@@ -28,7 +28,7 @@
 #include <arpa/inet.h>
 #include <boost/algorithm/string.hpp>
 #include "bytom/bh_shared.h"
-#include "StratumServer.h"
+#include "StratumServerBytom.h"
 
 #ifndef NO_CUDA
 #include "bytom/cutil/src/GpuTs.h"

@@ -24,7 +24,7 @@
 #ifndef STRATUM_SESSION_BYTOM_H_
 #define STRATUM_SESSION_BYTOM_H_
 
-#include "StratumSession.h"
+#include "sserver/common/StratumSession.h"
 
 class StratumSessionBytom : public StratumSession
 {

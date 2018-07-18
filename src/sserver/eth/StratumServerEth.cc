@@ -22,6 +22,7 @@
  THE SOFTWARE.
  */
 #include "StratumServerEth.h"
+#include "StratumSessionEth.h"
 
 #include <iostream>
 #include <iomanip>

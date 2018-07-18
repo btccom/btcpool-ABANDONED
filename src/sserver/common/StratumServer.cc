@@ -29,7 +29,7 @@
 #include <boost/thread.hpp>
 
 #include "StratumServer.h"
-#include "StratumServerEth.h"
+#include "sserver/CreateStratumServerTemp.h"
 
 #include "Common.h"
 #include "Kafka.h"
@@ -405,11 +405,6 @@ void JobRepositorySia::broadcastStratumJob(StratumJob *sjob) {
   sendMiningNotify(exJob);
 }
 
-///////////////////////////////////JobRepositoryBytom///////////////////////////////////
-StratumJobEx* JobRepositoryBytom::createStratumJobEx(StratumJob *sjob, bool isClean){
-  return new StratumJobExNoInit(sjob, isClean);
-}
-
 
 //////////////////////////////////// UserInfo /////////////////////////////////
 UserInfo::UserInfo(const string &apiUrl, Server *server):
@@ -707,7 +702,18 @@ StratumJobEx::~StratumJobEx() {
   }
 }
 
-void StratumJobEx::init() {
+void StratumJobEx::markStale() {
+  // 0: MINING, 1: STALE
+  state_ = 1;
+}
+
+bool StratumJobEx::isStale() {
+  // 0: MINING, 1: STALE
+  return (state_ == 1);
+}
+
+
+void StratumJobExBitcoin::init() {
   string merkleBranchStr;
   {
     // '"'+ 64 + '"' + ',' = 67 bytes
@@ -754,17 +760,8 @@ void StratumJobEx::init() {
 
 }
 
-void StratumJobEx::markStale() {
-  // 0: MINING, 1: STALE
-  state_ = 1;
-}
 
-bool StratumJobEx::isStale() {
-  // 0: MINING, 1: STALE
-  return (state_ == 1);
-}
-
-void StratumJobEx::generateCoinbaseTx(std::vector<char> *coinbaseBin,
+void StratumJobExBitcoin::generateCoinbaseTx(std::vector<char> *coinbaseBin,
                                       const uint32_t extraNonce1,
                                       const string &extraNonce2Hex,
                                       string *userCoinbaseInfo) {
@@ -787,7 +784,7 @@ void StratumJobEx::generateCoinbaseTx(std::vector<char> *coinbaseBin,
   Hex2Bin((const char *)coinbaseHex.c_str(), *coinbaseBin);
 }
 
-void StratumJobEx::generateBlockHeader(CBlockHeader *header,
+void StratumJobExBitcoin::generateBlockHeader(CBlockHeader *header,
                                        std::vector<char> *coinbaseBin,
                                        const uint32_t extraNonce1,
                                        const string &extraNonce2Hex,
@@ -846,17 +843,7 @@ StratumServer::~StratumServer() {
 }
 
 bool StratumServer::createServer(string type, const int32_t shareAvgSeconds) {
-  LOG(INFO) << "createServer type: " << type << ", shareAvgSeconds: " << shareAvgSeconds;
-  if ("BTC" == type)
-    server_ = make_shared<Server> (shareAvgSeconds);
-  else if ("ETH" == type)
-    server_ = make_shared<ServerEth> (shareAvgSeconds);
-  else if ("SIA" == type)
-    server_ = make_shared<ServerSia> (shareAvgSeconds);
-  else if ("BYTOM" == type) 
-    server_ = make_shared<ServerBytom> (shareAvgSeconds);
-  else 
-    return false;
+  server_ = createStratumServer(type, shareAvgSeconds);
   return server_ != nullptr;
 }
 
@@ -1521,33 +1508,3 @@ void ServerSia::sendSolvedShare2Kafka(uint8* buf, int len) {
    kafkaProducerSolvedShare_->produce(buf, len);
 }
 
-///////////////////////////////ServerBytom///////////////////////////////
-JobRepository *ServerBytom::createJobRepository(const char *kafkaBrokers,
-                                                const char *consumerTopic,
-                                                const string &fileLastNotifyTime,
-                                                Server *server)
-{
-  return new JobRepositoryBytom(kafkaBrokers, consumerTopic, fileLastNotifyTime, this);
-}
-
-StratumSession *ServerBytom::createSession(evutil_socket_t fd, struct bufferevent *bev,
-                                           Server *server, struct sockaddr *saddr,
-                                           const int32_t shareAvgSeconds,
-                                           const uint32_t sessionID)
-{
-  return new StratumSessionBytom(fd, bev, server, saddr,
-                                 server->kShareAvgSeconds_,
-                                 sessionID);
-}
-
-void ServerBytom::sendSolvedShare2Kafka(uint64_t nonce, const string &strHeader,
-                                      uint64_t height, uint64_t networkDiff, const StratumWorker &worker)
-{
-  string msg = Strings::Format("{\"nonce\":%lu,\"header\":\"%s\","
-                               "\"height\":%lu,\"networkDiff\":%" PRIu64 ",\"userId\":%ld,"
-                               "\"workerId\":%" PRId64 ",\"workerFullName\":\"%s\"}",
-                               nonce, strHeader.c_str(),
-                               height, networkDiff, worker.userId_,
-                               worker.workerHashId_, filterWorkerName(worker.fullName_).c_str());
-  kafkaProducerSolvedShare_->produce(msg.c_str(), msg.length());
-}

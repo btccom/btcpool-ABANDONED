@@ -26,12 +26,17 @@
 #include "Common.h"
 #include "Utils.h"
 
-#include "StratumServer.h"
+#include "sserver/common/StratumServer.h"
 
+// #include "Kafka.h"
 
 #ifndef WORK_WITH_STRATUM_SWITCHER
 
 TEST(StratumServer, SessionIDManager24Bits) {
+  // KafkaProducer a("", "", 0);
+  // a.produce("", 0);
+
+
   SessionIDManagerT<24> m(0xFFu);
   uint32_t j, sessionID;
 
