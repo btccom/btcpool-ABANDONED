@@ -706,7 +706,7 @@ void BlockMaker::consumeStratumJob(rd_kafka_message_t *rkmessage) {
 
   LOG(INFO) << "received StratumJob message, len: " << rkmessage->len;
 
-  StratumJob *sjob = new StratumJob();
+  StratumJobBitcoin *sjob = new StratumJobBitcoin();
   bool res = sjob->unserializeFromJson((const char *)rkmessage->payload,
                                        rkmessage->len);
   if (res == false) {

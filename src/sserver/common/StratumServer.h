@@ -148,9 +148,17 @@ public:
   shared_ptr<StratumJobEx> getStratumJobEx(const uint64_t jobId);
   shared_ptr<StratumJobEx> getLatestStratumJobEx();
 
-  virtual StratumJob* createStratumJob() {return new StratumJob();}
+  virtual StratumJob* createStratumJob() {return new StratumJobBitcoin();}
   virtual StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean);
   virtual void broadcastStratumJob(StratumJob *sjob);
+};
+
+class JobRepositoryBitcoin : public JobRepository
+{
+public:
+  StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
+  void broadcastStratumJob(StratumJob *sjob) override;
+
 };
 
 class JobRepositorySia : public JobRepository

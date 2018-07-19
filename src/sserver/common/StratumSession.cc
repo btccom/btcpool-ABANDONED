@@ -996,7 +996,7 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtrShared, b
   if (state_ < AUTHENTICATED || exJobPtr == nullptr) {
     return;
   }
-  StratumJob *sjob = exJobPtr->sjob_;
+  StratumJobBitcoin *sjob = dynamic_cast<StratumJobBitcoin*>(exJobPtr->sjob_);
 
   localJobs_.push_back(LocalJob());
   LocalJob &ljob = *(localJobs_.rbegin());

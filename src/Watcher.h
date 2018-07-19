@@ -63,7 +63,7 @@ class ClientContainer {
   KafkaProducer kafkaProducer_;  // produce GBT message
   KafkaConsumer kafkaStratumJobConsumer_;  // consume topic: 'StratumJob'
 
-  StratumJob *poolStratumJob_; // the last stratum job from the pool itself
+  StratumJobBitcoin *poolStratumJob_; // the last stratum job from the pool itself
   boost::shared_mutex stratumJobMutex_;
   thread threadStratumJobConsume_;
 
@@ -90,7 +90,7 @@ public:
   static void eventCallback(struct bufferevent *bev, short events, void *ptr);
 
   boost::shared_lock<boost::shared_mutex> getPoolStratumJobReadLock();
-  const StratumJob * getPoolStratumJob();
+  const StratumJobBitcoin * getPoolStratumJob();
 };
 
 

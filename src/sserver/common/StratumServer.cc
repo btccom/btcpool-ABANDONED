@@ -205,7 +205,8 @@ void JobRepository::runThreadConsume() {
   LOG(INFO) << "stop job repository consume thread";
 }
 
-void JobRepository::broadcastStratumJob(StratumJob *sjob) {
+void JobRepository::broadcastStratumJob(StratumJob *sjobBase) {
+  StratumJobBitcoin* sjob = dynamic_cast<StratumJobBitcoin*>(sjobBase);
   bool isClean = false;
   if (latestPrevBlockHash_ != sjob->prevHash_) {
     isClean = true;
@@ -256,9 +257,12 @@ void JobRepository::broadcastStratumJob(StratumJob *sjob) {
     itr++;
     shared_ptr<StratumJobEx> exJob2 = itr->second;
 
+    StratumJobBitcoin* sjob1 = dynamic_cast<StratumJobBitcoin*>(exJob1->sjob_);
+    StratumJobBitcoin* sjob2 = dynamic_cast<StratumJobBitcoin*>(exJob2->sjob_);
+
     if (exJob2->isClean_ == true &&
-        exJob2->sjob_->merkleBranch_.size() == 0 &&
-        exJob1->sjob_->merkleBranch_.size() != 0) {
+        sjob2->merkleBranch_.size() == 0 &&
+        sjob1->merkleBranch_.size() != 0) {
       sendMiningNotify(exJob);
     }
   }
@@ -716,16 +720,17 @@ StratumJobExBitcoin::StratumJobExBitcoin(StratumJob *sjob, bool isClean)
 
 
 void StratumJobExBitcoin::init() {
+  StratumJobBitcoin* sjob = dynamic_cast<StratumJobBitcoin*>(sjob_);
   string merkleBranchStr;
   {
     // '"'+ 64 + '"' + ',' = 67 bytes
-    merkleBranchStr.reserve(sjob_->merkleBranch_.size() * 67);
-    for (size_t i = 0; i < sjob_->merkleBranch_.size(); i++) {
+    merkleBranchStr.reserve(sjob->merkleBranch_.size() * 67);
+    for (size_t i = 0; i < sjob->merkleBranch_.size(); i++) {
       //
       // do NOT use GetHex() or uint256.ToString(), need to dump the memory
       //
       string merklStr;
-      Bin2Hex(sjob_->merkleBranch_[i].begin(), 32, merklStr);
+      Bin2Hex(sjob->merkleBranch_[i].begin(), 32, merklStr);
       merkleBranchStr.append("\"" + merklStr + "\",");
     }
     if (merkleBranchStr.length()) {
@@ -737,28 +742,28 @@ void StratumJobExBitcoin::init() {
   miningNotify1_ = "{\"id\":null,\"method\":\"mining.notify\",\"params\":[\"";
 
   miningNotify2_ = Strings::Format("\",\"%s\",\"",
-                                   sjob_->prevHashBeStr_.c_str());
+                                   sjob->prevHashBeStr_.c_str());
 
   // coinbase1_ may be modified when USER_DEFINED_COINBASE enabled,
   // so put it into a single variable.
-  coinbase1_ = sjob_->coinbase1_.c_str();
+  coinbase1_ = sjob->coinbase1_.c_str();
 
   miningNotify3_ = Strings::Format("\",\"%s\""
                                    ",[%s]"
                                    ",\"%08x\",\"%08x\",\"%08x\",%s"
                                    "]}\n",
-                                   sjob_->coinbase2_.c_str(),
+                                   sjob->coinbase2_.c_str(),
                                    merkleBranchStr.c_str(),
-                                   sjob_->nVersion_, sjob_->nBits_, sjob_->nTime_,
+                                   sjob->nVersion_, sjob->nBits_, sjob->nTime_,
                                    isClean_ ? "true" : "false");
   // always set clean to true, reset of them is the same with miningNotify2_
   miningNotify3Clean_ = Strings::Format("\",\"%s\""
                                    ",[%s]"
                                    ",\"%08x\",\"%08x\",\"%08x\",true"
                                    "]}\n",
-                                   sjob_->coinbase2_.c_str(),
+                                   sjob->coinbase2_.c_str(),
                                    merkleBranchStr.c_str(),
-                                   sjob_->nVersion_, sjob_->nBits_, sjob_->nTime_);
+                                   sjob->nVersion_, sjob->nBits_, sjob->nTime_);
 
 }
 
@@ -769,7 +774,8 @@ void StratumJobExBitcoin::generateCoinbaseTx(std::vector<char> *coinbaseBin,
                                       string *userCoinbaseInfo) {
   string coinbaseHex;
   const string extraNonceStr = Strings::Format("%08x%s", extraNonce1, extraNonce2Hex.c_str());
-  string coinbase1 = sjob_->coinbase1_;
+  StratumJobBitcoin* sjob = dynamic_cast<StratumJobBitcoin*>(sjob_);
+  string coinbase1 = sjob->coinbase1_;
 
 #ifdef USER_DEFINED_COINBASE
   if (userCoinbaseInfo != nullptr) {
@@ -782,7 +788,7 @@ void StratumJobExBitcoin::generateCoinbaseTx(std::vector<char> *coinbaseBin,
 
   coinbaseHex.append(coinbase1);
   coinbaseHex.append(extraNonceStr);
-  coinbaseHex.append(sjob_->coinbase2_);
+  coinbaseHex.append(sjob->coinbase2_);
   Hex2Bin((const char *)coinbaseHex.c_str(), *coinbaseBin);
 }
 
@@ -1307,7 +1313,7 @@ int Server::checkShare(const ShareBitcoin &share,
   if (exJobPtr == nullptr) {
     return StratumStatus::JOB_NOT_FOUND;
   }
-  StratumJob *sjob = exJobPtr->sjob_;
+  StratumJobBitcoin *sjob = dynamic_cast<StratumJobBitcoin*>(exJobPtr->sjob_);
 
   if (exJobPtr->isStale()) {
     return StratumStatus::JOB_NOT_FOUND;
