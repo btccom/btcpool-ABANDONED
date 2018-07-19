@@ -222,8 +222,8 @@ if(NOT OPENSSL_FOUND)
 endif()
 
 find_package(LibConfig)
-if(NOT LIBCONFIG_FOUND)
-  message(FATAL_ERROR "LibConfig not found!")
+if(NOT LIBCONFIGPP_FOUND)
+  message(FATAL_ERROR "LibConfig++ not found!")
 endif()
 
 find_package(Glog)
