@@ -48,11 +48,11 @@ using namespace std;
 
 
 ////////////////////////////////// JobRepositoryEth ///////////////////////////////
-JobRepositoryEth::JobRepositoryEth(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server):
-JobRepository(kafkaBrokers, consumerTopic, fileLastNotifyTime, server),
-light_(nullptr), 
-nextLight_(nullptr),
-epochs_(0xffffffffffffffff)
+JobRepositoryEth::JobRepositoryEth(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerEth *server)
+  : JobRepositoryBase(kafkaBrokers, consumerTopic, fileLastNotifyTime, server)
+  , light_(nullptr)
+  , nextLight_(nullptr)
+  , epochs_(0xffffffffffffffff)
 {
   loadLightFromFile();
 }

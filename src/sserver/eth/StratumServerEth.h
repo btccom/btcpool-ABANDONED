@@ -28,10 +28,39 @@
 #include "sserver/common/StratumServer.h"
 
 
-class JobRepositoryEth : public JobRepository
+
+
+
+class ServerEth : public Server
 {
 public:
-  JobRepositoryEth(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server);
+  ServerEth(const int32_t shareAvgSeconds) : Server(shareAvgSeconds) {}
+  bool setup(StratumServer* sserver) override;
+  int checkShareAndUpdateDiff(ShareEth &share,
+                              const uint64_t jobId,
+                              const uint64_t nonce,
+                              const uint256 &header,
+                              const std::set<uint64_t> &jobDiffs,
+                              uint256 &returnedMixHash);
+  void sendSolvedShare2Kafka(const string& strNonce, const string& strHeader, const string& strMix,
+                             const uint32_t height, const uint64_t networkDiff, const StratumWorker &worker,
+                             const EthConsensus::Chain chain);
+
+  JobRepository* createJobRepository(const char *kafkaBrokers,
+                                    const char *consumerTopic,
+                                     const string &fileLastNotifyTime,
+                                     Server *server) override;
+
+  StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
+                               Server *server, struct sockaddr *saddr,
+                               const int32_t shareAvgSeconds,
+                               const uint32_t sessionID) override;
+};
+
+class JobRepositoryEth : public JobRepositoryBase<ServerEth>
+{
+public:
+  JobRepositoryEth(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerEth *server);
   virtual ~JobRepositoryEth();
 
   bool compute(ethash_h256_t const header, uint64_t nonce, ethash_return_value_t& r);
@@ -77,32 +106,4 @@ private:
 
   int32_t lastHeight_;
 };
-
-
-class ServerEth : public Server
-{
-public:
-  ServerEth(const int32_t shareAvgSeconds) : Server(shareAvgSeconds) {}
-  bool setup(StratumServer* sserver) override;
-  int checkShareAndUpdateDiff(ShareEth &share,
-                              const uint64_t jobId,
-                              const uint64_t nonce,
-                              const uint256 &header,
-                              const std::set<uint64_t> &jobDiffs,
-                              uint256 &returnedMixHash);
-  void sendSolvedShare2Kafka(const string& strNonce, const string& strHeader, const string& strMix,
-                             const uint32_t height, const uint64_t networkDiff, const StratumWorker &worker,
-                             const EthConsensus::Chain chain);
-
-  JobRepository* createJobRepository(const char *kafkaBrokers,
-                                    const char *consumerTopic,
-                                     const string &fileLastNotifyTime,
-                                     Server *server) override;
-
-  StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
-                               Server *server, struct sockaddr *saddr,
-                               const int32_t shareAvgSeconds,
-                               const uint32_t sessionID) override;
-};
-
 #endif // STRATUM_SERVER_ETH_H_

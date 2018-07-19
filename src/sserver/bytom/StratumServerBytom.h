@@ -27,18 +27,6 @@
 #include "sserver/common/StratumServer.h"
 #include "stratum/bytom/StratumBytom.h"
 
-class JobRepositoryBytom : public JobRepository
-{
-private:
-  string latestPreviousBlockHash_;
-
-public:
-  JobRepositoryBytom(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server);
-  StratumJob* createStratumJob() override {return new StratumJobBytom();}
-  StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
-  void broadcastStratumJob(StratumJob *sjob) override;
-};
-
 class ServerBytom : public Server
 {
 public:
@@ -55,6 +43,18 @@ public:
                                const uint32_t sessionID) override;
   void sendSolvedShare2Kafka(uint64_t nonce, const string &strHeader,
                                       uint64_t height, uint64_t networkDiff, const StratumWorker &worker);
+};
+
+class JobRepositoryBytom : public JobRepositoryBase<ServerBytom>
+{
+private:
+  string latestPreviousBlockHash_;
+
+public:
+  JobRepositoryBytom(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerBytom *server);
+  StratumJob* createStratumJob() override {return new StratumJobBytom();}
+  StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
+  void broadcastStratumJob(StratumJob *sjob) override;
 };
 
 #endif  // STRATUM_SERVER_BYTOM_H_

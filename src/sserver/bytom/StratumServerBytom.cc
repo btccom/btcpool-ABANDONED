@@ -27,8 +27,8 @@ using namespace std;
 
 
 ///////////////////////////////////JobRepositoryBytom///////////////////////////////////
-JobRepositoryBytom::JobRepositoryBytom(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server)
-  : JobRepository(kafkaBrokers, consumerTopic, fileLastNotifyTime, server)
+JobRepositoryBytom::JobRepositoryBytom(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerBytom *server)
+  : JobRepositoryBase(kafkaBrokers, consumerTopic, fileLastNotifyTime, server)
 {
 
 }

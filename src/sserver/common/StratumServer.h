@@ -153,27 +153,26 @@ public:
   virtual void broadcastStratumJob(StratumJob *sjob) = 0;
 };
 
-class JobRepositoryBitcoin : public JobRepository
+//  Provide template just to help type safety when accessing server_ and not paying additional price by bloating the binary
+template<typename ServerType>
+class JobRepositoryBase : public JobRepository
 {
+protected:
+  JobRepositoryBase(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerType *server)
+    : JobRepository(kafkaBrokers, consumerTopic, fileLastNotifyTime, server)
+  {
+
+  }
+protected:
+  inline ServerType* GetServer() const
+  {
+    return static_cast<ServerType*>(server_);
+  }
 private:
-  uint256 latestPrevBlockHash_;
-public:
-  JobRepositoryBitcoin(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server);
-  virtual ~JobRepositoryBitcoin();
-  virtual StratumJob* createStratumJob() {return new StratumJobBitcoin();}
-  StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
-  void broadcastStratumJob(StratumJob *sjob) override;
-
+  using JobRepository::server_; //  hide the server_ member variable
 };
 
-class JobRepositorySia : public JobRepository
-{
-public:
-  JobRepositorySia(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server);
-  StratumJob *createStratumJob() override {return new StratumJobSia();}
-  StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
-  void broadcastStratumJob(StratumJob *sjob) override;
-};
+
 
 ///////////////////////////////////// UserInfo /////////////////////////////////
 // 1. update userName->userId by interval
@@ -257,36 +256,6 @@ public:
 
 };
 
-class StratumJobExBitcoin : public StratumJobEx
-{
-  void generateCoinbaseTx(std::vector<char> *coinbaseBin,
-                          const uint32_t extraNonce1,
-                          const string &extraNonce2Hex,
-                          string *userCoinbaseInfo = nullptr);
-
-public:
-
-  string miningNotify1_;
-  string miningNotify2_;
-  string coinbase1_;
-  string miningNotify3_;
-  string miningNotify3Clean_;
-
-public:
-  StratumJobExBitcoin(StratumJob *sjob, bool isClean);
-
-  void generateBlockHeader(CBlockHeader  *header,
-                           std::vector<char> *coinbaseBin,
-                           const uint32_t extraNonce1,
-                           const string &extraNonce2Hex,
-                           const vector<uint256> &merkleBranch,
-                           const uint256 &hashPrevBlock,
-                           const uint32_t nBits, const int32_t nVersion,
-                           const uint32_t nTime, const uint32_t nonce,
-                           string *userCoinbaseInfo = nullptr);
-  void init();
-
-};
 
 ///////////////////////////////////// Server ///////////////////////////////////
 class Server {
@@ -356,27 +325,21 @@ public:
   static void readCallback (struct bufferevent *, void *connection);
   static void eventCallback(struct bufferevent *, short, void *connection);
 
-  int checkShare(const ShareBitcoin &share,
-                 const uint32 extraNonce1, const string &extraNonce2Hex,
-                 const uint32_t nTime, const uint32_t nonce,
-                 const uint256 &jobTarget, const string &workFullName,
-                 string *userCoinbaseInfo = nullptr);
-
   void sendShare2Kafka      (const uint8_t *data, size_t len);
-  void sendSolvedShare2Kafka(const FoundBlock *foundBlock,
-                             const std::vector<char> &coinbaseBin);
   void sendCommonEvents2Kafka(const string &message);
 
   virtual JobRepository* createJobRepository(const char *kafkaBrokers,
                                     const char *consumerTopic,
                                      const string &fileLastNotifyTime,
-                                     Server *server);
+                                     Server *server) = 0;
 
   virtual StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
                                Server *server, struct sockaddr *saddr,
                                const int32_t shareAvgSeconds,
-                               const uint32_t sessionID);
+                               const uint32_t sessionID) = 0;
 };
+
+
 
 class ServerSia : public Server
 {
@@ -394,6 +357,15 @@ public:
                                const uint32_t sessionID);
   
   void sendSolvedShare2Kafka(uint8* buf, int len);
+};
+
+class JobRepositorySia : public JobRepositoryBase<ServerSia>
+{
+public:
+  JobRepositorySia(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerSia *server);
+  StratumJob *createStratumJob() override {return new StratumJobSia();}
+  StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
+  void broadcastStratumJob(StratumJob *sjob) override;
 };
 
 ////////////////////////////////// StratumServer ///////////////////////////////

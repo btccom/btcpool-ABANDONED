@@ -8,7 +8,7 @@
 inline std::shared_ptr<Server> createStratumServer(string type, const int32_t shareAvgSeconds) {
   LOG(INFO) << "createServer type: " << type << ", shareAvgSeconds: " << shareAvgSeconds;
   if ("BTC" == type)
-    return make_shared<Server> (shareAvgSeconds);
+    return make_shared<ServerBitcoin> (shareAvgSeconds);
   else if ("ETH" == type)
     return make_shared<ServerEth> (shareAvgSeconds);
   else if ("SIA" == type)

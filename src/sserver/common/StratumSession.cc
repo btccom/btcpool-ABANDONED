@@ -23,11 +23,13 @@
  */
 #include "StratumSession.h"
 #include "StratumServer.h"
+#include "sserver/bitcoin/StratumServerBitcoin.h"
 #include "Utils.h"
 #include "utilities_js.hpp"
 #include <arith_uint256.h>
 #include <arpa/inet.h>
 #include <boost/algorithm/string.hpp>
+
 
 //////////////////////////////// DiffController ////////////////////////////////
 void DiffController::setMinDiff(uint64 minDiff) {
@@ -797,6 +799,12 @@ void StratumSession::handleRequest_Submit(const string &idStr,
                                           uint32_t nTime,
                                           bool isAgentSession,
                                           DiffController *sessionDiffController) {
+  ServerBitcoin* serverBitcoin = dynamic_cast<ServerBitcoin*>(server_);
+  if(!serverBitcoin)
+  {
+    LOG(FATAL) << "StratumSession::handleRequest_Submit. cast ServerBitcoin failed";
+  }
+
   //
   // if share is from agent session, we don't need to send reply json
   //
@@ -893,13 +901,13 @@ void StratumSession::handleRequest_Submit(const string &idStr,
 
 #ifdef  USER_DEFINED_COINBASE
   // check block header
-  share.status_ = server_->checkShare(share, extraNonce1_, extraNonce2Hex,
+  share.status_ = serverBitcoin->checkShare(share, extraNonce1_, extraNonce2Hex,
                                      nTime, nonce, jobTarget,
                                      worker_.fullName_,
                                      &localJob->userCoinbaseInfo_);
 #else
   // check block header
-  share.status_ = server_->checkShare(share, extraNonce1_, extraNonce2Hex,
+  share.status_ = serverBitcoin->checkShare(share, extraNonce1_, extraNonce2Hex,
                                      nTime, nonce, jobTarget,
                                      worker_.fullName_);
 #endif
