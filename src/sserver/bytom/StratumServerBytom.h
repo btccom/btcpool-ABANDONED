@@ -25,15 +25,18 @@
 #define STRATUM_SERVER_BYTOM_H_
 
 #include "sserver/common/StratumServer.h"
+#include "StratumBytom.h"
 
 class JobRepositoryBytom : public JobRepository
 {
+private:
+  string latestPreviousBlockHash_;
+
 public:
-  JobRepositoryBytom(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server):
-  JobRepository(kafkaBrokers, consumerTopic, fileLastNotifyTime, server) {}
-  StratumJob *createStratumJob() override {return new StratumJobBytom();}
+  JobRepositoryBytom(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server);
+  StratumJob* createStratumJob() override {return new StratumJobBytom();}
   StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
-  //void broadcastStratumJob(StratumJob *sjob) override;
+  void broadcastStratumJob(StratumJob *sjob) override;
 };
 
 class ServerBytom : public Server

@@ -125,7 +125,6 @@ protected:
   const time_t kMiningNotifyInterval_;
 
   time_t lastJobSendTime_;
-  uint256 latestPrevBlockHash_;
 
   thread threadConsume_;
 
@@ -135,8 +134,9 @@ private:
   void tryCleanExpiredJobs();
   void checkAndSendMiningNotify();
 
-public:
+protected:
   JobRepository(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server);
+public:
   virtual ~JobRepository();
 
   void stop();
@@ -148,14 +148,19 @@ public:
   shared_ptr<StratumJobEx> getStratumJobEx(const uint64_t jobId);
   shared_ptr<StratumJobEx> getLatestStratumJobEx();
 
-  virtual StratumJob* createStratumJob() {return new StratumJobBitcoin();}
+  virtual StratumJob* createStratumJob() = 0;
   virtual StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean);
-  virtual void broadcastStratumJob(StratumJob *sjob);
+  virtual void broadcastStratumJob(StratumJob *sjob) = 0;
 };
 
 class JobRepositoryBitcoin : public JobRepository
 {
+private:
+  uint256 latestPrevBlockHash_;
 public:
+  JobRepositoryBitcoin(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server);
+  virtual ~JobRepositoryBitcoin();
+  virtual StratumJob* createStratumJob() {return new StratumJobBitcoin();}
   StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
   void broadcastStratumJob(StratumJob *sjob) override;
 

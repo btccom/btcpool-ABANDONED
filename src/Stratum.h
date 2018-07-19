@@ -427,9 +427,10 @@ public:
   bool isRskCleanJob_;
 
   uint256 networkTarget_;
+protected:
+  StratumJob(); //  protected so cannot create it.
 public:
-  StratumJob();
-  virtual ~StratumJob(){};
+  virtual ~StratumJob();
 
   virtual string serializeToJson() const;
   virtual bool unserializeFromJson(const char *s, size_t len);

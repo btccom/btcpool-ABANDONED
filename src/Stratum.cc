@@ -215,6 +215,11 @@ StratumJob::StratumJob()
 {
 }
 
+StratumJob::~StratumJob()
+{
+  
+}
+
 string StratumJob::serializeToJson() const
 {
   return Strings::Format

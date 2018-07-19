@@ -111,15 +111,20 @@ template class SessionIDManagerT<24>;
 
 
 ////////////////////////////////// JobRepository ///////////////////////////////
-JobRepository::JobRepository(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server):
-running_(true),
-kafkaConsumer_(kafkaBrokers, consumerTopic, 0/*patition*/),
-server_(server), fileLastNotifyTime_(fileLastNotifyTime),
-kMaxJobsLifeTime_(300),
-kMiningNotifyInterval_(30),  // TODO: make as config arg
-lastJobSendTime_(0)
+JobRepository::JobRepository(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server)
+  : running_(true)
+  , kafkaConsumer_(kafkaBrokers, consumerTopic, 0/*patition*/)
+  , server_(server), fileLastNotifyTime_(fileLastNotifyTime)
+  , kMaxJobsLifeTime_(300)
+  , kMiningNotifyInterval_(30)  // TODO: make as config arg
+  , lastJobSendTime_(0)
 {
   assert(kMiningNotifyInterval_ < kMaxJobsLifeTime_);
+}
+
+JobRepositoryBitcoin::~JobRepositoryBitcoin()
+{
+
 }
 
 JobRepository::~JobRepository() {
@@ -205,68 +210,7 @@ void JobRepository::runThreadConsume() {
   LOG(INFO) << "stop job repository consume thread";
 }
 
-void JobRepository::broadcastStratumJob(StratumJob *sjobBase) {
-  StratumJobBitcoin* sjob = dynamic_cast<StratumJobBitcoin*>(sjobBase);
-  bool isClean = false;
-  if (latestPrevBlockHash_ != sjob->prevHash_) {
-    isClean = true;
-    latestPrevBlockHash_ = sjob->prevHash_;
-    LOG(INFO) << "received new height stratum job, height: " << sjob->height_
-    << ", prevhash: " << sjob->prevHash_.ToString();
-  }
 
-  bool isRskClean = sjob->isRskCleanJob_;
-
-  // 
-  // The `clean_jobs` field should be `true` ONLY IF a new block found in Bitcoin blockchains.
-  // Most miner implements will never submit their previous shares if the field is `true`.
-  // There will be a huge loss of hashrates and earnings if the field is often `true`.
-  // 
-  // There is the definition from <https://slushpool.com/help/manual/stratum-protocol>:
-  // 
-  // clean_jobs - When true, server indicates that submitting shares from previous jobs
-  // don't have a sense and such shares will be rejected. When this flag is set,
-  // miner should also drop all previous jobs.
-  // 
-  shared_ptr<StratumJobEx> exJob(createStratumJobEx(sjob, isClean));
-  {
-    ScopeLock sl(lock_);
-
-    if (isClean) {
-      // mark all jobs as stale, should do this before insert new job
-      for (auto it : exJobs_) {
-        it.second->markStale();
-      }
-    }
-
-    // insert new job
-    exJobs_[sjob->jobId_] = exJob;
-  }
-
-  // if job has clean flag, call server to send job
-  if (isClean || isRskClean) {
-    sendMiningNotify(exJob);
-    return;
-  }
-
-  // if last job is an empty block job(clean=true), we need to send a
-  // new non-empty job as quick as possible.
-  if (isClean == false && exJobs_.size() >= 2) {
-    auto itr = exJobs_.rbegin();
-    shared_ptr<StratumJobEx> exJob1 = itr->second;
-    itr++;
-    shared_ptr<StratumJobEx> exJob2 = itr->second;
-
-    StratumJobBitcoin* sjob1 = dynamic_cast<StratumJobBitcoin*>(exJob1->sjob_);
-    StratumJobBitcoin* sjob2 = dynamic_cast<StratumJobBitcoin*>(exJob2->sjob_);
-
-    if (exJob2->isClean_ == true &&
-        sjob2->merkleBranch_.size() == 0 &&
-        sjob1->merkleBranch_.size() != 0) {
-      sendMiningNotify(exJob);
-    }
-  }
-}
 
 void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   // check error
@@ -375,6 +319,88 @@ void JobRepository::tryCleanExpiredJobs() {
 
     LOG(INFO) << "remove expired stratum job, id: " << itr->first
     << ", time: " << date("%F %T", jobTime);
+  }
+}
+
+
+//////////////////////////////////// JobRepositoryBitcoin /////////////////////////////////
+JobRepositoryBitcoin::JobRepositoryBitcoin(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server)
+  : JobRepository(kafkaBrokers, consumerTopic, fileLastNotifyTime, server)
+{
+
+}
+
+StratumJobEx* JobRepositoryBitcoin::createStratumJobEx(StratumJob *sjob, bool isClean)
+{
+  return new StratumJobExBitcoin(sjob, isClean);
+}
+
+
+void JobRepositoryBitcoin::broadcastStratumJob(StratumJob *sjobBase) {
+  StratumJobBitcoin* sjob = dynamic_cast<StratumJobBitcoin*>(sjobBase);
+  if(!sjob)
+  {
+    LOG(FATAL) << "JobRepositoryBitcoin::broadcastStratumJob error: cast StratumJobBitcoin failed";
+    return;
+  }
+  bool isClean = false;
+  if (latestPrevBlockHash_ != sjob->prevHash_) {
+    isClean = true;
+    latestPrevBlockHash_ = sjob->prevHash_;
+    LOG(INFO) << "received new height stratum job, height: " << sjob->height_
+    << ", prevhash: " << sjob->prevHash_.ToString();
+  }
+
+  bool isRskClean = sjob->isRskCleanJob_;
+
+  // 
+  // The `clean_jobs` field should be `true` ONLY IF a new block found in Bitcoin blockchains.
+  // Most miner implements will never submit their previous shares if the field is `true`.
+  // There will be a huge loss of hashrates and earnings if the field is often `true`.
+  // 
+  // There is the definition from <https://slushpool.com/help/manual/stratum-protocol>:
+  // 
+  // clean_jobs - When true, server indicates that submitting shares from previous jobs
+  // don't have a sense and such shares will be rejected. When this flag is set,
+  // miner should also drop all previous jobs.
+  // 
+  shared_ptr<StratumJobEx> exJob(createStratumJobEx(sjob, isClean));
+  {
+    ScopeLock sl(lock_);
+
+    if (isClean) {
+      // mark all jobs as stale, should do this before insert new job
+      for (auto it : exJobs_) {
+        it.second->markStale();
+      }
+    }
+
+    // insert new job
+    exJobs_[sjob->jobId_] = exJob;
+  }
+
+  // if job has clean flag, call server to send job
+  if (isClean || isRskClean) {
+    sendMiningNotify(exJob);
+    return;
+  }
+
+  // if last job is an empty block job(clean=true), we need to send a
+  // new non-empty job as quick as possible.
+  if (isClean == false && exJobs_.size() >= 2) {
+    auto itr = exJobs_.rbegin();
+    shared_ptr<StratumJobEx> exJob1 = itr->second;
+    itr++;
+    shared_ptr<StratumJobEx> exJob2 = itr->second;
+
+    StratumJobBitcoin* sjob1 = dynamic_cast<StratumJobBitcoin*>(exJob1->sjob_);
+    StratumJobBitcoin* sjob2 = dynamic_cast<StratumJobBitcoin*>(exJob2->sjob_);
+
+    if (exJob2->isClean_ == true &&
+        sjob2->merkleBranch_.size() == 0 &&
+        sjob1->merkleBranch_.size() != 0) {
+      sendMiningNotify(exJob);
+    }
   }
 }
 
@@ -689,8 +715,10 @@ int32_t UserInfo::insertWorkerName() {
 
 
 ////////////////////////////////// StratumJobEx ////////////////////////////////
-StratumJobEx::StratumJobEx(StratumJob *sjob, bool isClean):
-state_(0), isClean_(isClean), sjob_(sjob)
+StratumJobEx::StratumJobEx(StratumJob *sjob, bool isClean)
+  : state_(0)
+  , isClean_(isClean)
+  , sjob_(sjob)
 {
   assert(sjob != nullptr);
 }
@@ -961,7 +989,7 @@ JobRepository *Server::createJobRepository(const char *kafkaBrokers,
                                            const string &fileLastNotifyTime,
                                            Server *server)
 {
-  return new JobRepository(kafkaBrokers, consumerTopic, fileLastNotifyTime, this);
+  return new JobRepositoryBitcoin(kafkaBrokers, consumerTopic, fileLastNotifyTime, this);
 }
 
 StratumSession *Server::createSession(evutil_socket_t fd, struct bufferevent *bev,

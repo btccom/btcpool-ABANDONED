@@ -27,9 +27,51 @@ using namespace std;
 
 
 ///////////////////////////////////JobRepositoryBytom///////////////////////////////////
-StratumJobEx* JobRepositoryBytom::createStratumJobEx(StratumJob *sjob, bool isClean){
+JobRepositoryBytom::JobRepositoryBytom(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server)
+  : JobRepository(kafkaBrokers, consumerTopic, fileLastNotifyTime, server)
+{
+
+}
+
+StratumJobEx* JobRepositoryBytom::createStratumJobEx(StratumJob *sjob, bool isClean)
+{
   return new StratumJobEx(sjob, isClean);
 }
+
+void JobRepositoryBytom::broadcastStratumJob(StratumJob *sjobBase)
+{
+  StratumJobBytom* sjob = dynamic_cast<StratumJobBytom*>(sjobBase);
+  if(!sjob)
+  {
+    LOG(FATAL) << "JobRepositoryBytom::broadcastStratumJob error: cast StratumJobBytom failed";
+    return;
+  }
+  bool isClean = false;
+  if (latestPreviousBlockHash_ != sjob->blockHeader_.previousBlockHash) {
+    isClean = true;
+    latestPreviousBlockHash_ = sjob->blockHeader_.previousBlockHash;
+    LOG(INFO) << "received new height stratum job, height: " << sjob->blockHeader_.height
+              << ", prevhash: " << sjob->blockHeader_.previousBlockHash.c_str();
+  }  
+  shared_ptr<StratumJobEx> exJob(createStratumJobEx(sjob, isClean));
+  {
+    ScopeLock sl(lock_);
+
+    if (isClean) {
+      // mark all jobs as stale, should do this before insert new job
+      for (auto it : exJobs_) {
+        it.second->markStale();
+      }
+    }
+
+    // insert new job
+    exJobs_[sjob->jobId_] = exJob;
+  }
+  if (isClean) {
+    sendMiningNotify(exJob);
+  }
+}
+
 
 ///////////////////////////////ServerBytom///////////////////////////////
 JobRepository *ServerBytom::createJobRepository(const char *kafkaBrokers,
