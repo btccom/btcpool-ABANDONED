@@ -26,7 +26,7 @@
 
 #include <set>
 #include "sserver/common/StratumServer.h"
-
+#include "stratum/eth/StratumEth.h"
 
 
 

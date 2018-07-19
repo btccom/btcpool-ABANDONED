@@ -21,6 +21,10 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
+#include "StratumServerBitcoin.h"
+#include "StratumSessionBitcoin.h"
+
+
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -28,7 +32,6 @@
 #include <memory.h>
 #include <boost/thread.hpp>
 
-#include "StratumServerBitcoin.h"
 
 #include "Common.h"
 #include "Kafka.h"
@@ -261,7 +264,7 @@ JobRepository *ServerBitcoin::createJobRepository(const char *kafkaBrokers,
 StratumSession *ServerBitcoin::createSession(evutil_socket_t fd, struct bufferevent *bev,
                                       struct sockaddr *saddr, const uint32_t sessionID)
 {
-  return new StratumSession(fd, bev, this, saddr,
+  return new StratumSessionBitcoin(fd, bev, this, saddr,
                      kShareAvgSeconds_, sessionID);
 }
 

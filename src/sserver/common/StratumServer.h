@@ -48,11 +48,12 @@
 
 #include "Kafka.h"
 #include "stratum/Stratum.h"
-#include "StratumSession.h"
 
 class Server;
 class StratumJobEx;
 class StratumServer;
+class StratumSession;
+class DiffController;
 
 #ifndef WORK_WITH_STRATUM_SWITCHER
 

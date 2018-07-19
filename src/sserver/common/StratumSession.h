@@ -62,7 +62,6 @@ class Server;
 class StratumJobEx;
 class DiffController;
 class StratumSession;
-class AgentSessions;
 
 //////////////////////////////// StratumSession ////////////////////////////////
 class StratumSession {
@@ -148,8 +147,6 @@ protected:
   // nicehash has can't use short JobID
   bool isNiceHashClient_;
 
-  AgentSessions *agentSessions_;
-
   atomic<bool> isDead_;
 
   // invalid share counter
@@ -160,7 +157,7 @@ protected:
   void setup();
   void setReadTimeout(const int32_t timeout);
 
-  bool handleMessage();  // handle all messages: ex-message and stratum message
+  virtual bool handleMessage();  // handle all messages: ex-message and stratum message
 
   virtual void responseError(const string &idStr, int code);
   virtual void responseTrue(const string &idStr);
@@ -179,18 +176,14 @@ protected:
 
   LocalJob *findLocalJob(uint8_t shortJobId);
   void clearLocalJobs();
-  void handleExMessage_RegisterWorker     (const string *exMessage);
-  void handleExMessage_UnRegisterWorker   (const string *exMessage);
-  void handleExMessage_SubmitShare        (const string *exMessage);
-  void handleExMessage_SubmitShareWithTime(const string *exMessage);
 
   void checkUserAndPwd(const string &idStr, const string &fullName, const string &password);
 
-  virtual void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams);
-  virtual void handleRequest_Authorize        (const string &idStr, const JsonNode &jparams, const JsonNode &jroot);
-  virtual void handleRequest_Submit           (const string &idStr, const JsonNode &jparams);
-  virtual void handleRequest_GetWork(const string &idStr, const JsonNode &jparams) {}; 
-  virtual void handleRequest_SubmitHashrate(const string &idStr, const JsonNode &jparams) {}; 
+  virtual void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams) = 0;
+  virtual void handleRequest_Authorize        (const string &idStr, const JsonNode &jparams, const JsonNode &jroot) = 0;
+  virtual void handleRequest_Submit           (const string &idStr, const JsonNode &jparams) = 0;
+  virtual void handleRequest_GetWork(const string &idStr, const JsonNode &jparams) {};          //  Gani#TODO: non standard? move to derived class?
+  virtual void handleRequest_SubmitHashrate(const string &idStr, const JsonNode &jparams) {};   //  Gani#TODO: non standard? move to derived class?
   //return true if request is handled
   virtual bool handleRequest_Specific(const string &idStr, const string &method,
                                       const JsonNode &jparams, const JsonNode &jroot) { return false; }
@@ -199,13 +192,14 @@ public:
   struct bufferevent* bev_;
   evutil_socket_t fd_;
   Server *server_;
-public:
+protected:
   StratumSession(evutil_socket_t fd, struct bufferevent *bev,
                  Server *server, struct sockaddr *saddr,
                  const int32_t shareAvgSeconds, const uint32_t extraNonce1);
+public:
   virtual ~StratumSession();
   virtual bool initialize();
-  virtual void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false);
+  virtual void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false) = 0;
   virtual bool validate(const JsonNode &jmethod, const JsonNode &jparams);
 
   void markAsDead();
@@ -218,15 +212,27 @@ public:
   }
   void readBuf(struct evbuffer *buf);
 
-  void handleExMessage_AuthorizeAgentWorker(const int64_t workerId,
-                                            const string &clientAgent,
-                                            const string &workerName);
-  void handleRequest_Submit(const string &idStr,
-                            const uint8_t shortJobId, const uint64_t extraNonce2,
-                            const uint32_t nonce, uint32_t nTime,
-                            bool isAgentSession,
-                            DiffController *sessionDiffController);
   uint32_t getSessionId() const;
+};
+
+template<typename ServerType>
+class StratumSessionBase : public StratumSession
+{
+protected:
+  StratumSessionBase(evutil_socket_t fd, struct bufferevent *bev,
+                 ServerType *server, struct sockaddr *saddr,
+                 const int32_t shareAvgSeconds, const uint32_t extraNonce1)
+    : StratumSession(fd, bev, server, saddr, shareAvgSeconds, extraNonce1)
+  {
+
+  }
+public:
+  inline ServerType* GetServer() const
+  {
+    return static_cast<ServerType*>(server_);
+  }
+private:
+  using StratumSession::server_; //  hide the server_ member variable
 };
 
 
@@ -238,42 +244,12 @@ public:
                     const int32_t shareAvgSeconds, const uint32_t extraNonce1);
   //virtual bool initialize();
   void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false) override;  
-  void handleRequest_Submit (const string &idStr, const JsonNode &jparams) override;  
+  void handleRequest_Authorize(const string &idStr, const JsonNode &jparams, const JsonNode &jroot) override{ } //  no implementation yet
   void handleRequest_Subscribe   (const string &idStr, const JsonNode &jparams) override;        
+  void handleRequest_Submit (const string &idStr, const JsonNode &jparams) override;  
 
 private:
   uint8 shortJobId_;    //Claymore jobId starts from 0
-};
-
-///////////////////////////////// AgentSessions ////////////////////////////////
-class AgentSessions {
-  //
-  // sessionId is vector's index
-  //
-  // session ID range: [0, 65535], so vector max size is 65536
-  vector<int64_t> workerIds_;
-  vector<DiffController *> diffControllers_;
-  vector<uint8_t> curDiff2ExpVec_;
-  int32_t shareAvgSeconds_;
-  uint8_t kDefaultDiff2Exp_;
-
-  StratumSession *stratumSession_;
-
-public:
-  AgentSessions(const int32_t shareAvgSeconds, StratumSession *stratumSession);
-  ~AgentSessions();
-
-  int64_t getWorkerId(const uint16_t sessionId);
-
-  void handleExMessage_SubmitShare     (const string *exMessage, const bool isWithTime);
-  void handleExMessage_RegisterWorker  (const string *exMessage);
-  void handleExMessage_UnRegisterWorker(const string *exMessage);
-
-  void calcSessionsJobDiff(vector<uint8_t> &sessionsDiff2Exp);
-  void getSessionsChangedDiff(const vector<uint8_t> &sessionsDiff2Exp,
-                              string &data);
-  void getSetDiffCommand(map<uint8_t, vector<uint16_t> > &diffSessionIds,
-                         string &data);
 };
 
 #endif

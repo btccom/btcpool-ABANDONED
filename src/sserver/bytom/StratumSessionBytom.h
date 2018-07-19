@@ -32,12 +32,16 @@ public:
   StratumSessionBytom(evutil_socket_t fd, struct bufferevent *bev,
                     Server *server, struct sockaddr *saddr,
                     const int32_t shareAvgSeconds, const uint32_t extraNonce1);
-  void handleRequest_Authorize(const string &idStr, const JsonNode &jparams, const JsonNode &jroot) override;
   void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false) override;  
-  void handleRequest_GetWork(const string &idStr, const JsonNode &jparams) override; 
-  void handleRequest_Submit   (const string &idStr, const JsonNode &jparams) override;   
   bool validate(const JsonNode &jmethod, const JsonNode &jparams) override;
   bool needToSendLoginResponse() const override {return false;}
+
+
+protected:
+  void handleRequest_Authorize(const string &idStr, const JsonNode &jparams, const JsonNode &jroot) override;
+  void handleRequest_Subscribe(const string &idStr, const JsonNode &jparams) override { }
+  void handleRequest_GetWork(const string &idStr, const JsonNode &jparams) override; 
+  void handleRequest_Submit   (const string &idStr, const JsonNode &jparams) override;   
   
 private:
   void Bytom_rpc2ResponseBoolean(const string &idStr, bool result, const string& failMessage = "");

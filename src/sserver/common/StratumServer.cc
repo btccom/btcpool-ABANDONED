@@ -29,6 +29,9 @@
 #include <boost/thread.hpp>
 
 #include "StratumServer.h"
+#include "StratumSession.h"
+#include "DiffController.h"
+
 #include "sserver/bitcoin/StratumServerBitcoin.h"
 #include "sserver/CreateStratumServerTemp.h"
 
