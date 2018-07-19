@@ -39,7 +39,7 @@
 #include <key_io.h> //  IsValidDestinationString for bch is not in this file.
 #endif
 
-#include "StratumEth.h"
+#include "stratum/eth/StratumEth.h"
 #include "utilities_js.hpp"
 #include "Utils.h"
 #include "BitcoinUtils.h"

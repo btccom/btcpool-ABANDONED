@@ -27,7 +27,7 @@
 #include "Common.h"
 #include "Kafka.h"
 #include "MySQLConnection.h"
-#include "Stratum.h"
+#include "stratum/Stratum.h"
 
 #include <deque>
 #include <vector>

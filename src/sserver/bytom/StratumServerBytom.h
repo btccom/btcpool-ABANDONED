@@ -25,7 +25,7 @@
 #define STRATUM_SERVER_BYTOM_H_
 
 #include "sserver/common/StratumServer.h"
-#include "StratumBytom.h"
+#include "stratum/bytom/StratumBytom.h"
 
 class JobRepositoryBytom : public JobRepository
 {

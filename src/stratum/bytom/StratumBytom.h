@@ -24,7 +24,7 @@
 #ifndef STRATUM_BYTOM_H_
 #define STRATUM_BYTOM_H_
 
-#include "Stratum.h"
+#include "stratum/Stratum.h"
 
 union BytomCombinedHeader
 {

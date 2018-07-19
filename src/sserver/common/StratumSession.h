@@ -37,7 +37,7 @@
 
 #include <uint256.h>
 #include "utilities_js.hpp"
-#include "Stratum.h"
+#include "stratum/Stratum.h"
 #include "Statistics.h"
 
 

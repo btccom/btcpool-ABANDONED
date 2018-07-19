@@ -47,7 +47,7 @@
 #include <primitives/block.h>
 
 #include "Kafka.h"
-#include "Stratum.h"
+#include "stratum/Stratum.h"
 #include "StratumSession.h"
 
 class Server;

@@ -24,7 +24,7 @@
 #ifndef STRATUM_ETH_H_
 #define STRATUM_ETH_H_
 
-#include "Stratum.h"
+#include "stratum/Stratum.h"
 
 
 class ShareEth : public ShareBase

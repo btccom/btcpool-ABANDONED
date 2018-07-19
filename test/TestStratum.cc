@@ -26,7 +26,7 @@
 #include "Common.h"
 #include "Utils.h"
 #include "BitcoinUtils.h"
-#include "Stratum.h"
+#include "stratum/Stratum.h"
 
 #include <chainparams.h>
 #include <hash.h>
