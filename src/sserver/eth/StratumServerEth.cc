@@ -58,7 +58,7 @@ epochs_(0xffffffffffffffff)
 }
 
 StratumJobEx* JobRepositoryEth::createStratumJobEx(StratumJob *sjob, bool isClean){
-  return new StratumJobExNoInit(sjob, isClean);
+  return new StratumJobEx(sjob, isClean);
 }
 
 void JobRepositoryEth::broadcastStratumJob(StratumJob *sjob) {

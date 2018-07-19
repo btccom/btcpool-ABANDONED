@@ -315,10 +315,7 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
 }
 
 StratumJobEx* JobRepository::createStratumJobEx(StratumJob *sjob, bool isClean){
-  StratumJobEx *job = new StratumJobEx(sjob, isClean);
-  if (job)
-    job->init();
-  return job;
+  return new StratumJobExBitcoin(sjob, isClean);
 }
 
 void JobRepository::markAllJobsAsStale() {
@@ -385,7 +382,7 @@ JobRepository(kafkaBrokers, consumerTopic, fileLastNotifyTime, server)
 }
 
 StratumJobEx* JobRepositorySia::createStratumJobEx(StratumJob *sjob, bool isClean){
-  return new StratumJobExNoInit(sjob, isClean);
+  return new StratumJobEx(sjob, isClean);
 }
 
 void JobRepositorySia::broadcastStratumJob(StratumJob *sjob) {
@@ -692,7 +689,6 @@ StratumJobEx::StratumJobEx(StratumJob *sjob, bool isClean):
 state_(0), isClean_(isClean), sjob_(sjob)
 {
   assert(sjob != nullptr);
-  init();
 }
 
 StratumJobEx::~StratumJobEx() {
@@ -710,6 +706,12 @@ void StratumJobEx::markStale() {
 bool StratumJobEx::isStale() {
   // 0: MINING, 1: STALE
   return (state_ == 1);
+}
+
+StratumJobExBitcoin::StratumJobExBitcoin(StratumJob *sjob, bool isClean)
+  : StratumJobEx(sjob, isClean)
+{
+  init();
 }
 
 
@@ -1300,7 +1302,8 @@ int Server::checkShare(const ShareBitcoin &share,
                        const uint32_t nTime, const uint32_t nonce,
                        const uint256 &jobTarget, const string &workFullName,
                        string *userCoinbaseInfo) {
-  shared_ptr<StratumJobEx> exJobPtr = jobRepository_->getStratumJobEx(share.jobId_);
+  shared_ptr<StratumJobEx> exJobPtrShared = jobRepository_->getStratumJobEx(share.jobId_);
+  StratumJobExBitcoin* exJobPtr = static_cast<StratumJobExBitcoin*>(exJobPtrShared.get());
   if (exJobPtr == nullptr) {
     return StratumStatus::JOB_NOT_FOUND;
   }

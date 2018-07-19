@@ -28,7 +28,7 @@ using namespace std;
 
 ///////////////////////////////////JobRepositoryBytom///////////////////////////////////
 StratumJobEx* JobRepositoryBytom::createStratumJobEx(StratumJob *sjob, bool isClean){
-  return new StratumJobExNoInit(sjob, isClean);
+  return new StratumJobEx(sjob, isClean);
 }
 
 ///////////////////////////////ServerBytom///////////////////////////////

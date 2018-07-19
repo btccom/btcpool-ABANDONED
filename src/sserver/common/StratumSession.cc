@@ -991,7 +991,8 @@ uint8_t StratumSession::allocShortJobId() {
   return shortJobIdIdx_++;
 }
 
-void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
+void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtrShared, bool isFirstJob) {
+  StratumJobExBitcoin* exJobPtr = static_cast<StratumJobExBitcoin*>(exJobPtrShared.get());
   if (state_ < AUTHENTICATED || exJobPtr == nullptr) {
     return;
   }

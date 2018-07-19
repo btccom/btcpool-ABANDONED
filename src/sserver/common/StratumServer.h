@@ -114,7 +114,6 @@ class JobRepository
 protected:
   atomic<bool> running_;
   mutex lock_;
-  std::map<uint64_t, shared_ptr<StratumJob>> jobs_;
   std::map<uint64_t /* jobId */, shared_ptr<StratumJobEx>> exJobs_;
 
   KafkaConsumer kafkaConsumer_; // consume topic: 'StratumJob'
@@ -234,6 +233,7 @@ class StratumJobEx {
 
 public:
   bool isClean_;
+  StratumJob *sjob_;
 
 public:
   StratumJobEx(StratumJob *sjob, bool isClean);
@@ -252,6 +252,7 @@ class StratumJobExBitcoin : public StratumJobEx
                           string *userCoinbaseInfo = nullptr);
 
 public:
+
   string miningNotify1_;
   string miningNotify2_;
   string coinbase1_;
@@ -259,6 +260,8 @@ public:
   string miningNotify3Clean_;
 
 public:
+  StratumJobExBitcoin(StratumJob *sjob, bool isClean);
+
   void generateBlockHeader(CBlockHeader  *header,
                            std::vector<char> *coinbaseBin,
                            const uint32_t extraNonce1,
@@ -270,7 +273,7 @@ public:
                            string *userCoinbaseInfo = nullptr);
   void init();
 
-}
+};
 
 ///////////////////////////////////// Server ///////////////////////////////////
 class Server {
