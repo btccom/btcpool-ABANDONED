@@ -39,6 +39,7 @@
 
 #include "Utils.h"
 #include "sserver/common/StratumServer.h"
+#include "sserver/common/DiffController.h"
 
 #include <chainparams.h>
 

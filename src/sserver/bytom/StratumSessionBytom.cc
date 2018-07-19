@@ -22,6 +22,9 @@
  THE SOFTWARE.
  */
 #include "StratumSessionBytom.h"
+#include "sserver/common/DiffController.h"
+
+
 #include "Utils.h"
 #include "utilities_js.hpp"
 #include <arith_uint256.h>
