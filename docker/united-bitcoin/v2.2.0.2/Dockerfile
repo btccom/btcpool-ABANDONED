@@ -28,9 +28,9 @@ RUN apt-get install -y software-properties-common \
 
 # build bitcoind
 RUN mkdir ~/source
-RUN cd ~/source && wget https://github.com/UnitedBitcoin/UnitedBitcoin/archive/v2.1.0.0.tar.gz
+RUN cd ~/source && wget https://github.com/UnitedBitcoin/UnitedBitcoin/archive/v2.2.0.2.tar.gz
 RUN cd ~/source \
-  && tar zxf v2.1.0.0.tar.gz && cd UnitedBitcoin-2.1.0.0 \
+  && tar zxf v2.2.0.2.tar.gz && cd UnitedBitcoin-2.2.0.2 \
   && ./autogen.sh \
   && ./configure --disable-bench --disable-tests \
   && make && make install
