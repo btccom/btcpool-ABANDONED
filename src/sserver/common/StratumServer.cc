@@ -1028,9 +1028,7 @@ void Server::listenerCallback(struct evconnlistener* listener,
   }
 
   // create stratum session
-  StratumSession *conn = server->createSession(fd, bev, server, saddr,
-                                       server->kShareAvgSeconds_,
-                                       sessionID);
+  StratumSession *conn = server->createSession(fd, bev, saddr, sessionID);
   if (!conn->initialize())
   {
     delete conn;
@@ -1086,17 +1084,12 @@ void Server::sendCommonEvents2Kafka(const string &message) {
   kafkaProducerCommonEvents_->produce(message.data(), message.size());
 }
 
-
-
 ////////////////////////////////// ServierSia ///////////////////////////////
 StratumSession *ServerSia::createSession(evutil_socket_t fd, struct bufferevent *bev,
-                                         Server *server, struct sockaddr *saddr,
-                                         const int32_t shareAvgSeconds,
-                                         const uint32_t sessionID)
+                                         struct sockaddr *saddr, const uint32_t sessionID)
 {
-  return new StratumSessionSia(fd, bev, server, saddr,
-                        server->kShareAvgSeconds_,
-                        sessionID);
+  return new StratumSessionSia(fd, bev, this, saddr,
+                        kShareAvgSeconds_, sessionID);
 }
 
 JobRepository *ServerSia::createJobRepository(const char *kafkaBrokers,

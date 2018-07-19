@@ -259,13 +259,10 @@ JobRepository *ServerBitcoin::createJobRepository(const char *kafkaBrokers,
 }
 
 StratumSession *ServerBitcoin::createSession(evutil_socket_t fd, struct bufferevent *bev,
-                                      Server *server, struct sockaddr *saddr,
-                                      const int32_t shareAvgSeconds,
-                                      const uint32_t sessionID)
+                                      struct sockaddr *saddr, const uint32_t sessionID)
 {
-  return new StratumSession(fd, bev, server, saddr,
-                     server->kShareAvgSeconds_,
-                     sessionID);
+  return new StratumSession(fd, bev, this, saddr,
+                     kShareAvgSeconds_, sessionID);
 }
 
 void ServerBitcoin::sendSolvedShare2Kafka(const FoundBlock *foundBlock,

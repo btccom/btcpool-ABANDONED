@@ -480,13 +480,10 @@ void ServerEth::sendSolvedShare2Kafka(const string &strNonce, const string &strH
 }
 
 StratumSession *ServerEth::createSession(evutil_socket_t fd, struct bufferevent *bev,
-                                         Server *server, struct sockaddr *saddr,
-                                         const int32_t shareAvgSeconds,
-                                         const uint32_t sessionID)
+                                         struct sockaddr *saddr, const uint32_t sessionID)
 {
-  return new StratumSessionEth(fd, bev, server, saddr,
-                        server->kShareAvgSeconds_,
-                        sessionID);
+  return new StratumSessionEth(fd, bev, this, saddr,
+                        kShareAvgSeconds_, sessionID);
 }
 
 JobRepository *ServerEth::createJobRepository(const char *kafkaBrokers,

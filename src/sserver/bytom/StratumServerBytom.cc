@@ -85,13 +85,10 @@ JobRepository *ServerBytom::createJobRepository(const char *kafkaBrokers,
 }
 
 StratumSession *ServerBytom::createSession(evutil_socket_t fd, struct bufferevent *bev,
-                                           Server *server, struct sockaddr *saddr,
-                                           const int32_t shareAvgSeconds,
-                                           const uint32_t sessionID)
+                                           struct sockaddr *saddr, const uint32_t sessionID)
 {
-  return new StratumSessionBytom(fd, bev, server, saddr,
-                                 server->kShareAvgSeconds_,
-                                 sessionID);
+  return new StratumSessionBytom(fd, bev, this, saddr,
+                                 kShareAvgSeconds_, sessionID);
 }
 
 void ServerBytom::sendSolvedShare2Kafka(uint64_t nonce, const string &strHeader,

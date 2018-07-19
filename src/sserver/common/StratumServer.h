@@ -334,9 +334,7 @@ public:
                                      Server *server) = 0;
 
   virtual StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
-                               Server *server, struct sockaddr *saddr,
-                               const int32_t shareAvgSeconds,
-                               const uint32_t sessionID) = 0;
+                               struct sockaddr *saddr, const uint32_t sessionID) = 0;
 };
 
 
@@ -352,9 +350,7 @@ public:
                                      Server *server);
 
   virtual StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
-                               Server *server, struct sockaddr *saddr,
-                               const int32_t shareAvgSeconds,
-                               const uint32_t sessionID);
+                               struct sockaddr *saddr, const uint32_t sessionID);
   
   void sendSolvedShare2Kafka(uint8* buf, int len);
 };

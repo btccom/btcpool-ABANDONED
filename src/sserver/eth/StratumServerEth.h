@@ -52,9 +52,7 @@ public:
                                      Server *server) override;
 
   StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
-                               Server *server, struct sockaddr *saddr,
-                               const int32_t shareAvgSeconds,
-                               const uint32_t sessionID) override;
+                               struct sockaddr *saddr, const uint32_t sessionID) override;
 };
 
 class JobRepositoryEth : public JobRepositoryBase<ServerEth>
