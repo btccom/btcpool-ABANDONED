@@ -27,6 +27,7 @@
 #include "Common.h"
 #include "utilities_js.hpp"
 #include "Utils.h"
+#include "Network.h"
 #include "EthConsensus.h"
 
 #include <arpa/inet.h>
@@ -83,107 +84,6 @@ public:
     memset(workerFullName_, 0, sizeof(workerFullName_));
   }
 };
-
-///////////////////////////////////// IPv4/IPv6 compatible address structure ////////////////////////////////////
-union IpAddress {
-  // all datas are big endian
-  uint8_t  addrUint8[16];
-  uint16_t addrUint16[8];
-  uint32_t addrUint32[4];
-  uint64_t addrUint64[2];
-  // use addrIpv4[3] to store the IPv4 addr
-  struct in_addr addrIpv4[4];
-  struct in6_addr addrIpv6;
-
-  // memory mapping:
-  // addrUint8  | 0| 1| 2| 3| 4| 5| 6| 7| 8| 9|10|11|12|13|14|15|
-  // addrUint16 |  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |
-  // addrUint32 |     0     |     1     |     2     |     3     |
-  // addrUint64 |           0           |           1           |
-  // addrIpv4   | don't use | don't use | don't use |     3     |
-  // addrIpv6   |                      all                      |
-
-  IpAddress() {
-    addrUint64[0] = 0;
-    addrUint64[1] = 0;
-  }
-
-  IpAddress(uint64_t initNum) {
-    addrUint64[0] = initNum;
-    addrUint64[1] = initNum;
-  }
-
-  bool fromString(const string &ipStr) {
-    if (isIpv4(ipStr)) {
-      addrUint32[0] = 0;
-      addrUint32[1] = 0;
-      addrUint32[2] = 0;
-      return inet_pton(AF_INET, ipStr.c_str(), (void *)&addrIpv4[3]);
-    }
-    else {
-      return inet_pton(AF_INET, ipStr.c_str(), (void *)&addrIpv6);
-    }
-  }
-
-  string toString() const {
-    const char *pStr;
-
-    if (isIpv4()) {
-      char str[INET_ADDRSTRLEN];  
-      pStr = inet_ntop(AF_INET, (void *)&(addrIpv4[3]), str, sizeof(str));
-    }
-    else {
-      char str[INET6_ADDRSTRLEN];  
-      pStr = inet_ntop(AF_INET6, &addrIpv6, str, sizeof(str));
-    }
-
-    return string(pStr);
-  }
-
-  void fromInAddr(const struct in_addr &inAddr) {
-    addrUint32[0] = 0;
-    addrUint32[1] = 0;
-    addrUint32[2] = 0;
-    addrIpv4[3] = inAddr;
-  }
-
-  void fromInAddr(const struct in6_addr &inAddr) {
-    addrIpv6 = inAddr;
-  }
-
-  void fromIpv4Int(const uint32_t ipv4Int) {
-    addrUint32[0] = 0;
-    addrUint32[1] = 0;
-    addrUint32[2] = 0;
-    addrUint32[3] = ipv4Int;
-  }
-
-  bool isIpv4() const {
-    if (addrUint32[0] == 0 && addrUint32[1] == 0) {
-      // IPv4 compatible address
-      // ::w.x.y.z
-      if (addrUint32[2] == 0) {
-        return true;
-      }
-      // IPv4 mapping address
-      // ::ffff:w.x.y.z
-      if (addrUint16[4] == 0 && addrUint16[5] == 0xffff) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  static bool isIpv4(const string &ipStr) {
-    if (ipStr.find(':') == ipStr.npos) {
-      return true;
-    }
-    return false;
-  }
-};
-
-// IpAddress should be 16 bytes
-static_assert(sizeof(IpAddress) == 16, "union IpAddress should not large than 16 bytes");
 
 //////////////////////////////// StratumError ////////////////////////////////
 class StratumStatus
@@ -261,6 +161,7 @@ public:
   int64_t   timestamp_    = 0;
   IpAddress ip_           = 0;
 
+protected:
   ShareBase() = default;
   ShareBase(const ShareBase &r) = default;
   ShareBase &operator=(const ShareBase &r) = default;
