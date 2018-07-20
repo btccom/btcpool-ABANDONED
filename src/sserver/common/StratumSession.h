@@ -215,6 +215,8 @@ public:
   uint32_t getSessionId() const;
 };
 
+//  This base class is to help type safety of accessing server_ member variable. Avoid manual casting.
+//  And by templating a minimum class declaration, we avoid bloating the code too much.
 template<typename ServerType>
 class StratumSessionBase : public StratumSession
 {
@@ -233,23 +235,6 @@ public:
   }
 private:
   using StratumSession::server_; //  hide the server_ member variable
-};
-
-
-class StratumSessionSia : public StratumSession
-{
-public:
-  StratumSessionSia(evutil_socket_t fd, struct bufferevent *bev,
-                    Server *server, struct sockaddr *saddr,
-                    const int32_t shareAvgSeconds, const uint32_t extraNonce1);
-  //virtual bool initialize();
-  void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false) override;  
-  void handleRequest_Authorize(const string &idStr, const JsonNode &jparams, const JsonNode &jroot) override{ } //  no implementation yet
-  void handleRequest_Subscribe   (const string &idStr, const JsonNode &jparams) override;        
-  void handleRequest_Submit (const string &idStr, const JsonNode &jparams) override;  
-
-private:
-  uint8 shortJobId_;    //Claymore jobId starts from 0
 };
 
 #endif

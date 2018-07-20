@@ -21,33 +21,27 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-#ifndef STRATUM_SESSION_BYTOM_H_
-#define STRATUM_SESSION_BYTOM_H_
+#ifndef STRATUM_SESSION_SIA_H_
+#define STRATUM_SESSION_SIA_H_
 
 #include "sserver/common/StratumSession.h"
-#include "StratumServerBytom.h"
+#include "StratumServerSia.h"
 
-class StratumSessionBytom : public StratumSessionBase<ServerBytom>
+
+class StratumSessionSia : public StratumSessionBase<ServerSia>
 {
 public:
-  StratumSessionBytom(evutil_socket_t fd, struct bufferevent *bev,
-                    ServerBytom *server, struct sockaddr *saddr,
+  StratumSessionSia(evutil_socket_t fd, struct bufferevent *bev,
+                    ServerSia *server, struct sockaddr *saddr,
                     const int32_t shareAvgSeconds, const uint32_t extraNonce1);
+  //virtual bool initialize();
   void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false) override;  
-  bool validate(const JsonNode &jmethod, const JsonNode &jparams) override;
-  bool needToSendLoginResponse() const override {return false;}
+  void handleRequest_Authorize(const string &idStr, const JsonNode &jparams, const JsonNode &jroot) override{ } //  no implementation yet
+  void handleRequest_Subscribe   (const string &idStr, const JsonNode &jparams) override;        
+  void handleRequest_Submit (const string &idStr, const JsonNode &jparams) override;  
 
-
-protected:
-  void handleRequest_Authorize(const string &idStr, const JsonNode &jparams, const JsonNode &jroot) override;
-  void handleRequest_Subscribe(const string &idStr, const JsonNode &jparams) override { }
-  void handleRequest_GetWork(const string &idStr, const JsonNode &jparams) override; 
-  void handleRequest_Submit   (const string &idStr, const JsonNode &jparams) override;   
-  
 private:
-  void Bytom_rpc2ResponseBoolean(const string &idStr, bool result, const string& failMessage = "");
-
-  uint8 shortJobId_;    //jobId starts from 1
+  uint8 shortJobId_;    //Claymore jobId starts from 0
 };
 
-#endif  // STRATUM_SESSION_BYTOM_H_
+#endif

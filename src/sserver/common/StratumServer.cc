@@ -32,15 +32,12 @@
 #include "StratumSession.h"
 #include "DiffController.h"
 
-#include "sserver/bitcoin/StratumServerBitcoin.h"
-#include "sserver/CreateStratumServerTemp.h"
+#include "CreateStratumServerTemp.h"
 
 #include "Common.h"
 #include "Kafka.h"
 #include "Utils.h"
 #include "rsk/RskSolvedShareData.h"
-#include "libethash/ethash.h"
-#include "libethash/internal.h"
 
 #include <arith_uint256.h>
 #include <utilstrencodings.h>
@@ -262,7 +259,7 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
 }
 
 StratumJobEx* JobRepository::createStratumJobEx(StratumJob *sjob, bool isClean){
-  return new StratumJobExBitcoin(sjob, isClean);
+  return new StratumJobEx(sjob, isClean);
 }
 
 void JobRepository::markAllJobsAsStale() {
@@ -323,32 +320,6 @@ void JobRepository::tryCleanExpiredJobs() {
 
 
 
-//////////////////////////////////// JobRepositorySia /////////////////////////////////
-JobRepositorySia::JobRepositorySia(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerSia *server) : 
-  JobRepositoryBase(kafkaBrokers, consumerTopic, fileLastNotifyTime, server)
-{
-}
-
-StratumJobEx* JobRepositorySia::createStratumJobEx(StratumJob *sjob, bool isClean){
-  return new StratumJobEx(sjob, isClean);
-}
-
-void JobRepositorySia::broadcastStratumJob(StratumJob *sjob) {
-  LOG(INFO) << "broadcast sia stratum job " << std::hex << sjob->jobId_;
-  shared_ptr<StratumJobEx> exJob(createStratumJobEx(sjob, true));
-  {
-    ScopeLock sl(lock_);
-
-    // mark all jobs as stale, should do this before insert new job
-    for (auto it : exJobs_)
-      it.second->markStale();
-
-    // insert new job
-    exJobs_[sjob->jobId_] = exJob;
-  }
-
-  sendMiningNotify(exJob);
-}
 
 
 //////////////////////////////////// UserInfo /////////////////////////////////
@@ -689,7 +660,7 @@ StratumServer::~StratumServer() {
 }
 
 bool StratumServer::createServer(string type, const int32_t shareAvgSeconds) {
-  server_ = createStratumServer(type, shareAvgSeconds);
+  server_ = std::shared_ptr<Server>(createStratumServer(type, shareAvgSeconds));
   return server_ != nullptr;
 }
 
@@ -813,7 +784,7 @@ bool Server::setup(StratumServer* sserver) {
                                                  RD_KAFKA_PARTITION_UA);
 
   // job repository
-  jobRepository_ = createJobRepository(sserver->kafkaBrokers_.c_str(), sserver->consumerTopic_.c_str(), sserver->fileLastNotifyTime_, this);
+  jobRepository_ = createJobRepository(sserver->kafkaBrokers_.c_str(), sserver->consumerTopic_.c_str(), sserver->fileLastNotifyTime_);
   jobRepository_->setMaxJobDelay(sserver->maxJobDelay_);
   if (!jobRepository_->setupThreadConsume()) {
     return false;
@@ -986,23 +957,18 @@ void Server::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {
   }
 }
 
-void Server::addConnection(evutil_socket_t fd, StratumSession *connection) {
+void Server::addConnection(StratumSession *connection) {
   ScopeLock sl(connsLock_);
+  evutil_socket_t fd = connection->fd_;
   connections_.insert(std::pair<evutil_socket_t, StratumSession *>(fd, connection));
 }
 
-void Server::removeConnection(evutil_socket_t fd) {
+void Server::removeConnection(StratumSession *connection) {
   //
   // if we are here, means the related evbuffer has already been locked.
   // don't lock connsLock_ in this function, it will cause deadlock.
   //
-  auto itr = connections_.find(fd);
-  if (itr == connections_.end()) {
-    return;
-  }
-
-  // mark to delete
-  itr->second->markAsDead();
+  connection->markAsDead();
 }
 
 void Server::listenerCallback(struct evconnlistener* listener,
@@ -1044,7 +1010,7 @@ void Server::listenerCallback(struct evconnlistener* listener,
   // By default, a newly created bufferevent has writing enabled.
   bufferevent_enable(bev, EV_READ|EV_WRITE);
 
-  server->addConnection(fd, conn);
+  server->addConnection(conn);
 }
 
 void Server::readCallback(struct bufferevent* bev, void *connection) {
@@ -1073,7 +1039,7 @@ void Server::eventCallback(struct bufferevent* bev, short events,
   else {
     LOG(ERROR) << "unhandled socket events: " << events;
   }
-  server->removeConnection(conn->fd_);
+  server->removeConnection(conn);
 }
 
 
@@ -1086,24 +1052,3 @@ void Server::sendShare2Kafka(const uint8_t *data, size_t len) {
 void Server::sendCommonEvents2Kafka(const string &message) {
   kafkaProducerCommonEvents_->produce(message.data(), message.size());
 }
-
-////////////////////////////////// ServierSia ///////////////////////////////
-StratumSession *ServerSia::createSession(evutil_socket_t fd, struct bufferevent *bev,
-                                         struct sockaddr *saddr, const uint32_t sessionID)
-{
-  return new StratumSessionSia(fd, bev, this, saddr,
-                        kShareAvgSeconds_, sessionID);
-}
-
-JobRepository *ServerSia::createJobRepository(const char *kafkaBrokers,
-                                            const char *consumerTopic,
-                                           const string &fileLastNotifyTime,
-                                           Server *server)
-{
-  return new JobRepositorySia(kafkaBrokers, consumerTopic, fileLastNotifyTime, this);
-}
-
-void ServerSia::sendSolvedShare2Kafka(uint8* buf, int len) {
-   kafkaProducerSolvedShare_->produce(buf, len);
-}
-

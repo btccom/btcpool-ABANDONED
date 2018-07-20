@@ -154,7 +154,8 @@ public:
   virtual void broadcastStratumJob(StratumJob *sjob) = 0;
 };
 
-//  Provide template just to help type safety when accessing server_ and not paying additional price by bloating the binary
+//  This base class is to help type safety of accessing server_ member variable. Avoid manual casting.
+//  And by templating a minimum class declaration, we avoid bloating the code too much.
 template<typename ServerType>
 class JobRepositoryBase : public JobRepository
 {
@@ -316,8 +317,8 @@ public:
 
   void sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr);
 
-  void addConnection   (evutil_socket_t fd, StratumSession *connection);
-  void removeConnection(evutil_socket_t fd);
+  void addConnection   (StratumSession *connection);
+  void removeConnection(StratumSession *connection);
 
   static void listenerCallback(struct evconnlistener* listener,
                                evutil_socket_t socket,
@@ -329,40 +330,16 @@ public:
   void sendShare2Kafka      (const uint8_t *data, size_t len);
   void sendCommonEvents2Kafka(const string &message);
 
-  virtual JobRepository* createJobRepository(const char *kafkaBrokers,
-                                    const char *consumerTopic,
-                                     const string &fileLastNotifyTime,
-                                     Server *server) = 0;
+  void addSessionConnection();
 
   virtual StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
                                struct sockaddr *saddr, const uint32_t sessionID) = 0;
-};
 
-
-
-class ServerSia : public Server
-{
-public:
-  ServerSia(const int32_t shareAvgSeconds) : Server(shareAvgSeconds) {}
-
+protected:
   virtual JobRepository* createJobRepository(const char *kafkaBrokers,
-                                     const char *consumerTopic,     
-                                     const string &fileLastNotifyTime,
-                                     Server *server);
+                                    const char *consumerTopic,
+                                     const string &fileLastNotifyTime) = 0;
 
-  virtual StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
-                               struct sockaddr *saddr, const uint32_t sessionID);
-  
-  void sendSolvedShare2Kafka(uint8* buf, int len);
-};
-
-class JobRepositorySia : public JobRepositoryBase<ServerSia>
-{
-public:
-  JobRepositorySia(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerSia *server);
-  StratumJob *createStratumJob() override {return new StratumJobSia();}
-  StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
-  void broadcastStratumJob(StratumJob *sjob) override;
 };
 
 ////////////////////////////////// StratumServer ///////////////////////////////

@@ -388,7 +388,14 @@ set(THIRD_LIBRARIES ${BITCOIN_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL
 
 file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc src/bytom/*.cc)
 file(GLOB_RECURSE LIB_SOURCES_STRATUM src/stratum/*.cc)
-file(GLOB LIB_SOURCES_SSERVER src/sserver/common/*.cc src/sserver/eth/*.cc src/sserver/bytom/*.cc src/sserver/bitcoin/*.cc)
+file(GLOB LIB_SOURCES_SSERVER 
+        src/sserver/common/*.cc 
+        src/sserver/eth/*.cc 
+        src/sserver/bytom/*.cc 
+        src/sserver/bitcoin/*.cc 
+        src/sserver/sia/*.cc
+    )
+    
 add_library(btcpool STATIC ${LIB_SOURCES} ${LIB_SOURCES_STRATUM} ${LIB_SOURCES_SSERVER})
 
 file(GLOB_RECURSE TEST_SOURCES test/*.cc)

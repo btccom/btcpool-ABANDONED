@@ -488,8 +488,7 @@ StratumSession *ServerEth::createSession(evutil_socket_t fd, struct bufferevent 
 
 JobRepository *ServerEth::createJobRepository(const char *kafkaBrokers,
                                             const char *consumerTopic,
-                                           const string &fileLastNotifyTime,
-                                           Server *server)
+                                           const string &fileLastNotifyTime)
 {
   return new JobRepositoryEth(kafkaBrokers, consumerTopic, fileLastNotifyTime, this);
 }

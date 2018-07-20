@@ -78,8 +78,7 @@ void JobRepositoryBytom::broadcastStratumJob(StratumJob *sjobBase)
 ///////////////////////////////ServerBytom///////////////////////////////
 JobRepository *ServerBytom::createJobRepository(const char *kafkaBrokers,
                                                 const char *consumerTopic,
-                                                const string &fileLastNotifyTime,
-                                                Server *server)
+                                                const string &fileLastNotifyTime)
 {
   return new JobRepositoryBytom(kafkaBrokers, consumerTopic, fileLastNotifyTime, this);
 }

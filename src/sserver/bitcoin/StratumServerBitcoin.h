@@ -34,10 +34,6 @@ public:
   ServerBitcoin(const int32_t shareAvgSeconds);
   virtual ~ServerBitcoin();
 
-  JobRepository* createJobRepository(const char *kafkaBrokers,
-                                    const char *consumerTopic,
-                                     const string &fileLastNotifyTime,
-                                     Server *server) override;
 
   StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
                                struct sockaddr *saddr, const uint32_t sessionID) override;
@@ -49,6 +45,10 @@ public:
                  const uint32_t nTime, const uint32_t nonce,
                  const uint256 &jobTarget, const string &workFullName,
                  string *userCoinbaseInfo = nullptr);
+private:
+  JobRepository* createJobRepository(const char *kafkaBrokers,
+                                    const char *consumerTopic,
+                                     const string &fileLastNotifyTime) override;
 
 };
 

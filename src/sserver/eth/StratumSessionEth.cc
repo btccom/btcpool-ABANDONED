@@ -32,11 +32,11 @@
 
 ///////////////////////////////// StratumSessionEth ////////////////////////////////
 StratumSessionEth::StratumSessionEth(evutil_socket_t fd, struct bufferevent *bev,
-                                     Server *server, struct sockaddr *saddr,
+                                     ServerEth *server, struct sockaddr *saddr,
                                      const int32_t shareAvgSeconds, const uint32_t extraNonce1)
-: StratumSession(fd, bev, server, saddr, shareAvgSeconds, extraNonce1)
-, ethProtocol_(StratumProtocol::ETHPROXY)
-, nicehashLastSentDiff_(0)
+  : StratumSessionBase(fd, bev, server, saddr, shareAvgSeconds, extraNonce1)
+  , ethProtocol_(StratumProtocol::ETHPROXY)
+  , nicehashLastSentDiff_(0)
 {
 }
 
@@ -350,7 +350,7 @@ void StratumSessionEth::handleRequest_Authorize(const string &idStr, const JsonN
 
 void StratumSessionEth::handleRequest_GetWork(const string &idStr, const JsonNode &jparams)
 {
-  sendMiningNotifyWithId(server_->jobRepository_->getLatestStratumJobEx(), idStr);
+  sendMiningNotifyWithId(GetServer()->jobRepository_->getLatestStratumJobEx(), idStr);
 }
 
 void StratumSessionEth::handleRequest_SubmitHashrate(const string &idStr, const JsonNode &jparams)
@@ -453,7 +453,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   }
 
   // can't find stratum job
-  shared_ptr<StratumJobEx> exjob = server_->jobRepository_->getStratumJobEx(localJob->jobId_);
+  shared_ptr<StratumJobEx> exjob = GetServer()->jobRepository_->getStratumJobEx(localJob->jobId_);
   if (exjob.get() == nullptr) {
     rpc2ResponseError(idStr, StratumStatus::JOB_NOT_FOUND);
     return;
@@ -487,7 +487,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   share.sessionId_    = extraNonce1_; // TODO: fix it, set as real session id.
   share.ip_.fromIpv4Int(clientIpInt_);
 
-  ServerEth *s = dynamic_cast<ServerEth *>(server_);
+  ServerEth *s = GetServer();
 
   LocalShare localShare(nonce, 0, 0);
   // can't add local share
@@ -556,6 +556,6 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   if (isSendShareToKafka)
   {
     share.checkSum_ = share.checkSum();
-    server_->sendShare2Kafka((const uint8_t *)&share, sizeof(ShareEth));
+    GetServer()->sendShare2Kafka((const uint8_t *)&share, sizeof(ShareEth));
   }
 }

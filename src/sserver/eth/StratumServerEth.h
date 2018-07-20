@@ -48,8 +48,7 @@ public:
 
   JobRepository* createJobRepository(const char *kafkaBrokers,
                                     const char *consumerTopic,
-                                     const string &fileLastNotifyTime,
-                                     Server *server) override;
+                                     const string &fileLastNotifyTime) override;
 
   StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
                                struct sockaddr *saddr, const uint32_t sessionID) override;

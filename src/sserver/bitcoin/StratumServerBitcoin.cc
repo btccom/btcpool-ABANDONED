@@ -255,8 +255,7 @@ ServerBitcoin::~ServerBitcoin()
 
 JobRepository *ServerBitcoin::createJobRepository(const char *kafkaBrokers,
                                            const char *consumerTopic,
-                                           const string &fileLastNotifyTime,
-                                           Server *server)
+                                           const string &fileLastNotifyTime)
 {
   return new JobRepositoryBitcoin(kafkaBrokers, consumerTopic, fileLastNotifyTime, this);
 }

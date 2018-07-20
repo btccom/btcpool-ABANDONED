@@ -26,9 +26,10 @@
 
 #include <set>
 #include "sserver/common/StratumSession.h"
+#include "StratumServerEth.h"
 
 
-class StratumSessionEth : public StratumSession
+class StratumSessionEth : public StratumSessionBase<ServerEth>
 {
 public:
   enum class StratumProtocol {
@@ -78,7 +79,7 @@ public:
   };
 
   StratumSessionEth(evutil_socket_t fd, struct bufferevent *bev,
-                    Server *server, struct sockaddr *saddr,
+                    ServerEth *server, struct sockaddr *saddr,
                     const int32_t shareAvgSeconds, const uint32_t extraNonce1);
   
 protected:
