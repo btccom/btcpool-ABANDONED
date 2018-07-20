@@ -244,13 +244,68 @@ void StratumJobExBitcoin::generateBlockHeader(CBlockHeader *header,
 ////////////////////////////////// ServerBitcoin ///////////////////////////////
 ServerBitcoin::ServerBitcoin(const int32_t shareAvgSeconds)
   : Server(shareAvgSeconds)
+  , kafkaProducerNamecoinSolvedShare_(nullptr)
+  , kafkaProducerRskSolvedShare_(nullptr)
 {
 
 }
 
 ServerBitcoin::~ServerBitcoin()
 {
+  if (kafkaProducerNamecoinSolvedShare_ != nullptr) {
+    delete kafkaProducerNamecoinSolvedShare_;
+  }
+  if (kafkaProducerRskSolvedShare_ != nullptr) {
+    delete kafkaProducerRskSolvedShare_;
+  }
+}
 
+bool ServerBitcoin::setup(StratumServer* sserver)
+{
+  if(!Server::setup(sserver))
+  {
+    return false;
+  }
+
+  kafkaProducerNamecoinSolvedShare_ = new KafkaProducer(sserver->kafkaBrokers_.c_str(),
+                                                        KAFKA_TOPIC_NMC_SOLVED_SHARE,
+                                                        RD_KAFKA_PARTITION_UA);
+  kafkaProducerRskSolvedShare_ = new KafkaProducer(sserver->kafkaBrokers_.c_str(),
+                                                        KAFKA_TOPIC_RSK_SOLVED_SHARE,
+                                                        RD_KAFKA_PARTITION_UA);
+
+  // kafkaProducerNamecoinSolvedShare_
+  {
+    map<string, string> options;
+    // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
+    options["queue.buffering.max.ms"] = "1";
+    if (!kafkaProducerNamecoinSolvedShare_->setup(&options)) {
+      LOG(ERROR) << "kafka kafkaProducerNamecoinSolvedShare_ setup failure";
+      return false;
+    }
+    if (!kafkaProducerNamecoinSolvedShare_->checkAlive()) {
+      LOG(ERROR) << "kafka kafkaProducerNamecoinSolvedShare_ is NOT alive";
+      return false;
+    }
+  }
+
+  // kafkaProducerRskSolvedShare_
+  {
+    map<string, string> options;
+    // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
+    options["queue.buffering.max.ms"] = "1";
+    if (!kafkaProducerRskSolvedShare_->setup(&options)) {
+      LOG(ERROR) << "kafka kafkaProducerRskSolvedShare_ setup failure";
+      return false;
+    }
+    if (!kafkaProducerRskSolvedShare_->checkAlive()) {
+      LOG(ERROR) << "kafka kafkaProducerRskSolvedShare_ is NOT alive";
+      return false;
+    }
+  }
+
+
+  return true;
 }
 
 JobRepository *ServerBitcoin::createJobRepository(const char *kafkaBrokers,
