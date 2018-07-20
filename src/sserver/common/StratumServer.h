@@ -47,14 +47,13 @@
 #include <primitives/block.h>
 
 #include "Kafka.h"
-#include "Stratum.h"
-#include "StratumSession.h"
-#include "StratumSessionEth.h"
-#include "StratumSessionBytom.h"
+#include "stratum/Stratum.h"
 
 class Server;
 class StratumJobEx;
 class StratumServer;
+class StratumSession;
+class DiffController;
 
 #ifndef WORK_WITH_STRATUM_SWITCHER
 
@@ -127,7 +126,6 @@ protected:
   const time_t kMiningNotifyInterval_;
 
   time_t lastJobSendTime_;
-  uint256 latestPrevBlockHash_;
 
   thread threadConsume_;
 
@@ -137,8 +135,9 @@ private:
   void tryCleanExpiredJobs();
   void checkAndSendMiningNotify();
 
-public:
+protected:
   JobRepository(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server);
+public:
   virtual ~JobRepository();
 
   void stop();
@@ -150,29 +149,32 @@ public:
   shared_ptr<StratumJobEx> getStratumJobEx(const uint64_t jobId);
   shared_ptr<StratumJobEx> getLatestStratumJobEx();
 
-  virtual StratumJob* createStratumJob() {return new StratumJob();}
+  virtual StratumJob* createStratumJob() = 0;
   virtual StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean);
-  virtual void broadcastStratumJob(StratumJob *sjob);
+  virtual void broadcastStratumJob(StratumJob *sjob) = 0;
 };
 
-class JobRepositorySia : public JobRepository
+//  This base class is to help type safety of accessing server_ member variable. Avoid manual casting.
+//  And by templating a minimum class declaration, we avoid bloating the code too much.
+template<typename ServerType>
+class JobRepositoryBase : public JobRepository
 {
-public:
-  JobRepositorySia(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server);
-  StratumJob *createStratumJob() override {return new StratumJobSia();}
-  StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
-  void broadcastStratumJob(StratumJob *sjob) override;
+protected:
+  JobRepositoryBase(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerType *server)
+    : JobRepository(kafkaBrokers, consumerTopic, fileLastNotifyTime, server)
+  {
+
+  }
+protected:
+  inline ServerType* GetServer() const
+  {
+    return static_cast<ServerType*>(server_);
+  }
+private:
+  using JobRepository::server_; //  hide the server_ member variable
 };
 
-class JobRepositoryBytom : public JobRepository
-{
-public:
-  JobRepositoryBytom(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server):
-  JobRepository(kafkaBrokers, consumerTopic, fileLastNotifyTime, server) {}
-  StratumJob *createStratumJob() override {return new StratumJobBytom();}
-  StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
-  //void broadcastStratumJob(StratumJob *sjob) override;
-};
+
 
 ///////////////////////////////////// UserInfo /////////////////////////////////
 // 1. update userName->userId by interval
@@ -242,19 +244,10 @@ public:
 class StratumJobEx {
   // 0: MINING, 1: STALE
   atomic<int32_t> state_;
-  void generateCoinbaseTx(std::vector<char> *coinbaseBin,
-                          const uint32_t extraNonce1,
-                          const string &extraNonce2Hex,
-                          string *userCoinbaseInfo = nullptr);
 
 public:
   bool isClean_;
   StratumJob *sjob_;
-  string miningNotify1_;
-  string miningNotify2_;
-  string coinbase1_;
-  string miningNotify3_;
-  string miningNotify3Clean_;
 
 public:
   StratumJobEx(StratumJob *sjob, bool isClean);
@@ -263,23 +256,8 @@ public:
   void markStale();
   bool isStale();
 
-  void generateBlockHeader(CBlockHeader  *header,
-                           std::vector<char> *coinbaseBin,
-                           const uint32_t extraNonce1,
-                           const string &extraNonce2Hex,
-                           const vector<uint256> &merkleBranch,
-                           const uint256 &hashPrevBlock,
-                           const uint32_t nBits, const int32_t nVersion,
-                           const uint32_t nTime, const uint32_t nonce,
-                           string *userCoinbaseInfo = nullptr);
-  virtual void init();
 };
 
-class StratumJobExNoInit : public StratumJobEx {
-public:
-  StratumJobExNoInit(StratumJob *sjob, bool isClean) : StratumJobEx(sjob, isClean) {}
-  void init() override {}
-};
 
 ///////////////////////////////////// Server ///////////////////////////////////
 class Server {
@@ -339,8 +317,8 @@ public:
 
   void sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr);
 
-  void addConnection   (evutil_socket_t fd, StratumSession *connection);
-  void removeConnection(evutil_socket_t fd);
+  void addConnection   (StratumSession *connection);
+  void removeConnection(StratumSession *connection);
 
   static void listenerCallback(struct evconnlistener* listener,
                                evutil_socket_t socket,
@@ -349,64 +327,20 @@ public:
   static void readCallback (struct bufferevent *, void *connection);
   static void eventCallback(struct bufferevent *, short, void *connection);
 
-  int checkShare(const ShareBitcoin &share,
-                 const uint32 extraNonce1, const string &extraNonce2Hex,
-                 const uint32_t nTime, const uint32_t nonce,
-                 const uint256 &jobTarget, const string &workFullName,
-                 string *userCoinbaseInfo = nullptr);
-
   void sendShare2Kafka      (const uint8_t *data, size_t len);
-  void sendSolvedShare2Kafka(const FoundBlock *foundBlock,
-                             const std::vector<char> &coinbaseBin);
   void sendCommonEvents2Kafka(const string &message);
 
+  void addSessionConnection();
+
+  virtual StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
+                               struct sockaddr *saddr, const uint32_t sessionID) = 0;
+
+protected:
   virtual JobRepository* createJobRepository(const char *kafkaBrokers,
                                     const char *consumerTopic,
-                                     const string &fileLastNotifyTime,
-                                     Server *server);
+                                     const string &fileLastNotifyTime) = 0;
 
-  virtual StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
-                               Server *server, struct sockaddr *saddr,
-                               const int32_t shareAvgSeconds,
-                               const uint32_t sessionID);
 };
-
-class ServerSia : public Server
-{
-public:
-  ServerSia(const int32_t shareAvgSeconds) : Server(shareAvgSeconds) {}
-
-  virtual JobRepository* createJobRepository(const char *kafkaBrokers,
-                                     const char *consumerTopic,     
-                                     const string &fileLastNotifyTime,
-                                     Server *server);
-
-  virtual StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
-                               Server *server, struct sockaddr *saddr,
-                               const int32_t shareAvgSeconds,
-                               const uint32_t sessionID);
-  
-  void sendSolvedShare2Kafka(uint8* buf, int len);
-};
-
-class ServerBytom : public Server
-{
-public:
-  ServerBytom(const int32_t shareAvgSeconds) : Server(shareAvgSeconds) {}
-
-  JobRepository* createJobRepository(const char *kafkaBrokers,
-                                     const char *consumerTopic,     
-                                     const string &fileLastNotifyTime,
-                                     Server *server) override;
-
-  StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
-                               Server *server, struct sockaddr *saddr,
-                               const int32_t shareAvgSeconds,
-                               const uint32_t sessionID) override;
-  void sendSolvedShare2Kafka(uint64_t nonce, const string &strHeader,
-                                      uint64_t height, uint64_t networkDiff, const StratumWorker &worker);
-};
-
 
 ////////////////////////////////// StratumServer ///////////////////////////////
 class StratumServer {

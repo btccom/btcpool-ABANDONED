@@ -29,14 +29,15 @@
 #include <boost/thread.hpp>
 
 #include "StratumServer.h"
-#include "StratumServerEth.h"
+#include "StratumSession.h"
+#include "DiffController.h"
+
+#include "CreateStratumServerTemp.h"
 
 #include "Common.h"
 #include "Kafka.h"
 #include "Utils.h"
 #include "rsk/RskSolvedShareData.h"
-#include "libethash/ethash.h"
-#include "libethash/internal.h"
 
 #include <arith_uint256.h>
 #include <utilstrencodings.h>
@@ -111,13 +112,13 @@ template class SessionIDManagerT<24>;
 
 
 ////////////////////////////////// JobRepository ///////////////////////////////
-JobRepository::JobRepository(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server):
-running_(true),
-kafkaConsumer_(kafkaBrokers, consumerTopic, 0/*patition*/),
-server_(server), fileLastNotifyTime_(fileLastNotifyTime),
-kMaxJobsLifeTime_(300),
-kMiningNotifyInterval_(30),  // TODO: make as config arg
-lastJobSendTime_(0)
+JobRepository::JobRepository(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server)
+  : running_(true)
+  , kafkaConsumer_(kafkaBrokers, consumerTopic, 0/*patition*/)
+  , server_(server), fileLastNotifyTime_(fileLastNotifyTime)
+  , kMaxJobsLifeTime_(300)
+  , kMiningNotifyInterval_(30)  // TODO: make as config arg
+  , lastJobSendTime_(0)
 {
   assert(kMiningNotifyInterval_ < kMaxJobsLifeTime_);
 }
@@ -205,64 +206,7 @@ void JobRepository::runThreadConsume() {
   LOG(INFO) << "stop job repository consume thread";
 }
 
-void JobRepository::broadcastStratumJob(StratumJob *sjob) {
-  bool isClean = false;
-  if (latestPrevBlockHash_ != sjob->prevHash_) {
-    isClean = true;
-    latestPrevBlockHash_ = sjob->prevHash_;
-    LOG(INFO) << "received new height stratum job, height: " << sjob->height_
-    << ", prevhash: " << sjob->prevHash_.ToString();
-  }
 
-  bool isRskClean = sjob->isRskCleanJob_;
-
-  // 
-  // The `clean_jobs` field should be `true` ONLY IF a new block found in Bitcoin blockchains.
-  // Most miner implements will never submit their previous shares if the field is `true`.
-  // There will be a huge loss of hashrates and earnings if the field is often `true`.
-  // 
-  // There is the definition from <https://slushpool.com/help/manual/stratum-protocol>:
-  // 
-  // clean_jobs - When true, server indicates that submitting shares from previous jobs
-  // don't have a sense and such shares will be rejected. When this flag is set,
-  // miner should also drop all previous jobs.
-  // 
-  shared_ptr<StratumJobEx> exJob(createStratumJobEx(sjob, isClean));
-  {
-    ScopeLock sl(lock_);
-
-    if (isClean) {
-      // mark all jobs as stale, should do this before insert new job
-      for (auto it : exJobs_) {
-        it.second->markStale();
-      }
-    }
-
-    // insert new job
-    exJobs_[sjob->jobId_] = exJob;
-  }
-
-  // if job has clean flag, call server to send job
-  if (isClean || isRskClean) {
-    sendMiningNotify(exJob);
-    return;
-  }
-
-  // if last job is an empty block job(clean=true), we need to send a
-  // new non-empty job as quick as possible.
-  if (isClean == false && exJobs_.size() >= 2) {
-    auto itr = exJobs_.rbegin();
-    shared_ptr<StratumJobEx> exJob1 = itr->second;
-    itr++;
-    shared_ptr<StratumJobEx> exJob2 = itr->second;
-
-    if (exJob2->isClean_ == true &&
-        exJob2->sjob_->merkleBranch_.size() == 0 &&
-        exJob1->sjob_->merkleBranch_.size() != 0) {
-      sendMiningNotify(exJob);
-    }
-  }
-}
 
 void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   // check error
@@ -315,10 +259,7 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
 }
 
 StratumJobEx* JobRepository::createStratumJobEx(StratumJob *sjob, bool isClean){
-  StratumJobEx *job = new StratumJobEx(sjob, isClean);
-  if (job)
-    job->init();
-  return job;
+  return new StratumJobEx(sjob, isClean);
 }
 
 void JobRepository::markAllJobsAsStale() {
@@ -378,37 +319,7 @@ void JobRepository::tryCleanExpiredJobs() {
 }
 
 
-//////////////////////////////////// JobRepositorySia /////////////////////////////////
-JobRepositorySia::JobRepositorySia(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server) : 
-JobRepository(kafkaBrokers, consumerTopic, fileLastNotifyTime, server)
-{
-}
 
-StratumJobEx* JobRepositorySia::createStratumJobEx(StratumJob *sjob, bool isClean){
-  return new StratumJobExNoInit(sjob, isClean);
-}
-
-void JobRepositorySia::broadcastStratumJob(StratumJob *sjob) {
-  LOG(INFO) << "broadcast sia stratum job " << std::hex << sjob->jobId_;
-  shared_ptr<StratumJobEx> exJob(createStratumJobEx(sjob, true));
-  {
-    ScopeLock sl(lock_);
-
-    // mark all jobs as stale, should do this before insert new job
-    for (auto it : exJobs_)
-      it.second->markStale();
-
-    // insert new job
-    exJobs_[sjob->jobId_] = exJob;
-  }
-
-  sendMiningNotify(exJob);
-}
-
-///////////////////////////////////JobRepositoryBytom///////////////////////////////////
-StratumJobEx* JobRepositoryBytom::createStratumJobEx(StratumJob *sjob, bool isClean){
-  return new StratumJobExNoInit(sjob, isClean);
-}
 
 
 //////////////////////////////////// UserInfo /////////////////////////////////
@@ -693,11 +604,12 @@ int32_t UserInfo::insertWorkerName() {
 
 
 ////////////////////////////////// StratumJobEx ////////////////////////////////
-StratumJobEx::StratumJobEx(StratumJob *sjob, bool isClean):
-state_(0), isClean_(isClean), sjob_(sjob)
+StratumJobEx::StratumJobEx(StratumJob *sjob, bool isClean)
+  : state_(0)
+  , isClean_(isClean)
+  , sjob_(sjob)
 {
   assert(sjob != nullptr);
-  init();
 }
 
 StratumJobEx::~StratumJobEx() {
@@ -705,53 +617,6 @@ StratumJobEx::~StratumJobEx() {
     delete sjob_;
     sjob_ = nullptr;
   }
-}
-
-void StratumJobEx::init() {
-  string merkleBranchStr;
-  {
-    // '"'+ 64 + '"' + ',' = 67 bytes
-    merkleBranchStr.reserve(sjob_->merkleBranch_.size() * 67);
-    for (size_t i = 0; i < sjob_->merkleBranch_.size(); i++) {
-      //
-      // do NOT use GetHex() or uint256.ToString(), need to dump the memory
-      //
-      string merklStr;
-      Bin2Hex(sjob_->merkleBranch_[i].begin(), 32, merklStr);
-      merkleBranchStr.append("\"" + merklStr + "\",");
-    }
-    if (merkleBranchStr.length()) {
-      merkleBranchStr.resize(merkleBranchStr.length() - 1);  // remove last ','
-    }
-  }
-
-  // we don't put jobId here, session will fill with the shortJobId
-  miningNotify1_ = "{\"id\":null,\"method\":\"mining.notify\",\"params\":[\"";
-
-  miningNotify2_ = Strings::Format("\",\"%s\",\"",
-                                   sjob_->prevHashBeStr_.c_str());
-
-  // coinbase1_ may be modified when USER_DEFINED_COINBASE enabled,
-  // so put it into a single variable.
-  coinbase1_ = sjob_->coinbase1_.c_str();
-
-  miningNotify3_ = Strings::Format("\",\"%s\""
-                                   ",[%s]"
-                                   ",\"%08x\",\"%08x\",\"%08x\",%s"
-                                   "]}\n",
-                                   sjob_->coinbase2_.c_str(),
-                                   merkleBranchStr.c_str(),
-                                   sjob_->nVersion_, sjob_->nBits_, sjob_->nTime_,
-                                   isClean_ ? "true" : "false");
-  // always set clean to true, reset of them is the same with miningNotify2_
-  miningNotify3Clean_ = Strings::Format("\",\"%s\""
-                                   ",[%s]"
-                                   ",\"%08x\",\"%08x\",\"%08x\",true"
-                                   "]}\n",
-                                   sjob_->coinbase2_.c_str(),
-                                   merkleBranchStr.c_str(),
-                                   sjob_->nVersion_, sjob_->nBits_, sjob_->nTime_);
-
 }
 
 void StratumJobEx::markStale() {
@@ -762,57 +627,6 @@ void StratumJobEx::markStale() {
 bool StratumJobEx::isStale() {
   // 0: MINING, 1: STALE
   return (state_ == 1);
-}
-
-void StratumJobEx::generateCoinbaseTx(std::vector<char> *coinbaseBin,
-                                      const uint32_t extraNonce1,
-                                      const string &extraNonce2Hex,
-                                      string *userCoinbaseInfo) {
-  string coinbaseHex;
-  const string extraNonceStr = Strings::Format("%08x%s", extraNonce1, extraNonce2Hex.c_str());
-  string coinbase1 = sjob_->coinbase1_;
-
-#ifdef USER_DEFINED_COINBASE
-  if (userCoinbaseInfo != nullptr) {
-    string userCoinbaseHex;
-    Bin2Hex((uint8*)(*userCoinbaseInfo).c_str(), (*userCoinbaseInfo).size(), userCoinbaseHex);
-    // replace the last `userCoinbaseHex.size()` bytes to `userCoinbaseHex`
-    coinbase1.replace(coinbase1.size()-userCoinbaseHex.size(), userCoinbaseHex.size(), userCoinbaseHex);
-  }
-#endif
-
-  coinbaseHex.append(coinbase1);
-  coinbaseHex.append(extraNonceStr);
-  coinbaseHex.append(sjob_->coinbase2_);
-  Hex2Bin((const char *)coinbaseHex.c_str(), *coinbaseBin);
-}
-
-void StratumJobEx::generateBlockHeader(CBlockHeader *header,
-                                       std::vector<char> *coinbaseBin,
-                                       const uint32_t extraNonce1,
-                                       const string &extraNonce2Hex,
-                                       const vector<uint256> &merkleBranch,
-                                       const uint256 &hashPrevBlock,
-                                       const uint32_t nBits, const int32_t nVersion,
-                                       const uint32_t nTime, const uint32_t nonce,
-                                       string *userCoinbaseInfo) {
-  generateCoinbaseTx(coinbaseBin, extraNonce1, extraNonce2Hex, userCoinbaseInfo);
-
-  header->hashPrevBlock = hashPrevBlock;
-  header->nVersion      = nVersion;
-  header->nBits         = nBits;
-  header->nTime         = nTime;
-  header->nNonce        = nonce;
-
-  // hashMerkleRoot
-  header->hashMerkleRoot = Hash(coinbaseBin->begin(), coinbaseBin->end());
-
-  for (const uint256 & step : merkleBranch) {
-    header->hashMerkleRoot = Hash(BEGIN(header->hashMerkleRoot),
-                                  END  (header->hashMerkleRoot),
-                                  BEGIN(step),
-                                  END  (step));
-  }
 }
 
 ////////////////////////////////// StratumServer ///////////////////////////////
@@ -846,17 +660,7 @@ StratumServer::~StratumServer() {
 }
 
 bool StratumServer::createServer(string type, const int32_t shareAvgSeconds) {
-  LOG(INFO) << "createServer type: " << type << ", shareAvgSeconds: " << shareAvgSeconds;
-  if ("BTC" == type)
-    server_ = make_shared<Server> (shareAvgSeconds);
-  else if ("ETH" == type)
-    server_ = make_shared<ServerEth> (shareAvgSeconds);
-  else if ("SIA" == type)
-    server_ = make_shared<ServerSia> (shareAvgSeconds);
-  else if ("BYTOM" == type) 
-    server_ = make_shared<ServerBytom> (shareAvgSeconds);
-  else 
-    return false;
+  server_ = std::shared_ptr<Server>(createStratumServer(type, shareAvgSeconds));
   return server_ != nullptr;
 }
 
@@ -943,69 +747,6 @@ Server::~Server() {
 #endif
 }
 
-// JobRepository *Server::createJobRepository(StratumServerType type,
-//                                            const char *kafkaBrokers,
-//                                            const string &fileLastNotifyTime,
-//                                            Server *server)
-// {
-//   JobRepository *jobRepo = nullptr;
-//   switch (type)
-//   {
-//   case BTC:
-//     jobRepo = new JobRepository(kafkaBrokers, fileLastNotifyTime, this);
-//     break;
-//   case ETH:
-//     jobRepo = new JobRepositoryEth(kafkaBrokers, fileLastNotifyTime, this);
-//     break;
-//   }
-//   return jobRepo;
-// }
-
-JobRepository *Server::createJobRepository(const char *kafkaBrokers,
-                                           const char *consumerTopic,
-                                           const string &fileLastNotifyTime,
-                                           Server *server)
-{
-  return new JobRepository(kafkaBrokers, consumerTopic, fileLastNotifyTime, this);
-}
-
-StratumSession *Server::createSession(evutil_socket_t fd, struct bufferevent *bev,
-                                      Server *server, struct sockaddr *saddr,
-                                      const int32_t shareAvgSeconds,
-                                      const uint32_t sessionID)
-{
-  return new StratumSession(fd, bev, server, saddr,
-                     server->kShareAvgSeconds_,
-                     sessionID);
-}
-
-// StratumSession* Server::createSession(StratumServerType type, evutil_socket_t fd, struct bufferevent *bev,
-//                                       Server *server, struct sockaddr *saddr,
-//                                       const int32_t shareAvgSeconds,
-//                                       const uint32_t sessionID)
-// {
-//   StratumSession *conn = nullptr;
-//   switch (type)
-//   {
-//   case BTC:
-//     conn = new StratumSession(fd, bev, server, saddr,
-//                               server->kShareAvgSeconds_,
-//                               sessionID);
-//     break;
-//   case ETH:
-//     conn = new StratumSessionEth(fd, bev, server, saddr,
-//                                  server->kShareAvgSeconds_,
-//                                  sessionID);
-//     break;
-//   }
-
-//   if (!conn->initialize()) {
-//     delete conn;
-//     conn = nullptr;
-//   }
-
-//   return conn;
-// }
 
 bool Server::setup(StratumServer* sserver) {
   if (sserver->isEnableSimulator_) {
@@ -1043,7 +784,7 @@ bool Server::setup(StratumServer* sserver) {
                                                  RD_KAFKA_PARTITION_UA);
 
   // job repository
-  jobRepository_ = createJobRepository(sserver->kafkaBrokers_.c_str(), sserver->consumerTopic_.c_str(), sserver->fileLastNotifyTime_, this);
+  jobRepository_ = createJobRepository(sserver->kafkaBrokers_.c_str(), sserver->consumerTopic_.c_str(), sserver->fileLastNotifyTime_);
   jobRepository_->setMaxJobDelay(sserver->maxJobDelay_);
   if (!jobRepository_->setupThreadConsume()) {
     return false;
@@ -1216,23 +957,18 @@ void Server::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {
   }
 }
 
-void Server::addConnection(evutil_socket_t fd, StratumSession *connection) {
+void Server::addConnection(StratumSession *connection) {
   ScopeLock sl(connsLock_);
+  evutil_socket_t fd = connection->fd_;
   connections_.insert(std::pair<evutil_socket_t, StratumSession *>(fd, connection));
 }
 
-void Server::removeConnection(evutil_socket_t fd) {
+void Server::removeConnection(StratumSession *connection) {
   //
   // if we are here, means the related evbuffer has already been locked.
   // don't lock connsLock_ in this function, it will cause deadlock.
   //
-  auto itr = connections_.find(fd);
-  if (itr == connections_.end()) {
-    return;
-  }
-
-  // mark to delete
-  itr->second->markAsDead();
+  connection->markAsDead();
 }
 
 void Server::listenerCallback(struct evconnlistener* listener,
@@ -1261,9 +997,7 @@ void Server::listenerCallback(struct evconnlistener* listener,
   }
 
   // create stratum session
-  StratumSession *conn = server->createSession(fd, bev, server, saddr,
-                                       server->kShareAvgSeconds_,
-                                       sessionID);
+  StratumSession *conn = server->createSession(fd, bev, saddr, sessionID);
   if (!conn->initialize())
   {
     delete conn;
@@ -1276,7 +1010,7 @@ void Server::listenerCallback(struct evconnlistener* listener,
   // By default, a newly created bufferevent has writing enabled.
   bufferevent_enable(bev, EV_READ|EV_WRITE);
 
-  server->addConnection(fd, conn);
+  server->addConnection(conn);
 }
 
 void Server::readCallback(struct bufferevent* bev, void *connection) {
@@ -1305,249 +1039,16 @@ void Server::eventCallback(struct bufferevent* bev, short events,
   else {
     LOG(ERROR) << "unhandled socket events: " << events;
   }
-  server->removeConnection(conn->fd_);
+  server->removeConnection(conn);
 }
 
-int Server::checkShare(const ShareBitcoin &share,
-                       const uint32 extraNonce1, const string &extraNonce2Hex,
-                       const uint32_t nTime, const uint32_t nonce,
-                       const uint256 &jobTarget, const string &workFullName,
-                       string *userCoinbaseInfo) {
-  shared_ptr<StratumJobEx> exJobPtr = jobRepository_->getStratumJobEx(share.jobId_);
-  if (exJobPtr == nullptr) {
-    return StratumStatus::JOB_NOT_FOUND;
-  }
-  StratumJob *sjob = exJobPtr->sjob_;
 
-  if (exJobPtr->isStale()) {
-    return StratumStatus::JOB_NOT_FOUND;
-  }
-  if (nTime <= sjob->minTime_) {
-    return StratumStatus::TIME_TOO_OLD;
-  }
-  if (nTime > sjob->nTime_ + 600) {
-    return StratumStatus::TIME_TOO_NEW;
-  }
-
-  CBlockHeader header;
-  std::vector<char> coinbaseBin;
-  exJobPtr->generateBlockHeader(&header, &coinbaseBin,
-                                extraNonce1, extraNonce2Hex,
-                                sjob->merkleBranch_, sjob->prevHash_,
-                                sjob->nBits_, sjob->nVersion_, nTime, nonce,
-                                userCoinbaseInfo);
-  uint256 blkHash = header.GetHash();
-
-  arith_uint256 bnBlockHash     = UintToArith256(blkHash);
-  arith_uint256 bnNetworkTarget = UintToArith256(sjob->networkTarget_);
-
-  //
-  // found new block
-  //
-  if (isSubmitInvalidBlock_ == true || bnBlockHash <= bnNetworkTarget) {
-    //
-    // build found block
-    //
-    FoundBlock foundBlock;
-    foundBlock.jobId_    = share.jobId_;
-    foundBlock.workerId_ = share.workerHashId_;
-    foundBlock.userId_   = share.userId_;
-    foundBlock.height_   = sjob->height_;
-    memcpy(foundBlock.header80_, (const uint8_t *)&header, sizeof(CBlockHeader));
-    snprintf(foundBlock.workerFullName_, sizeof(foundBlock.workerFullName_),
-             "%s", workFullName.c_str());
-    // send
-    sendSolvedShare2Kafka(&foundBlock, coinbaseBin);
-
-    // mark jobs as stale
-    jobRepository_->markAllJobsAsStale();
-
-    LOG(INFO) << ">>>> found a new block: " << blkHash.ToString()
-    << ", jobId: " << share.jobId_ << ", userId: " << share.userId_
-    << ", by: " << workFullName << " <<<<";
-  }
-
-  // print out high diff share, 2^10 = 1024
-  if ((bnBlockHash >> 10) <= bnNetworkTarget) {
-    LOG(INFO) << "high diff share, blkhash: " << blkHash.ToString()
-    << ", diff: " << TargetToDiff(blkHash)
-    << ", networkDiff: " << TargetToDiff(sjob->networkTarget_)
-    << ", by: " << workFullName;
-  }
-
-  //
-  // found new RSK block
-  //
-  if (!sjob->blockHashForMergedMining_.empty() &&
-      (isSubmitInvalidBlock_ == true || bnBlockHash <= UintToArith256(sjob->rskNetworkTarget_))) {
-    //
-    // build data needed to submit block to RSK
-    //
-    RskSolvedShareData shareData;
-    shareData.jobId_    = share.jobId_;
-    shareData.workerId_ = share.workerHashId_;
-    shareData.userId_   = share.userId_;
-    // height = matching bitcoin block height
-    shareData.height_   = sjob->height_;
-    snprintf(shareData.feesForMiner_, sizeof(shareData.feesForMiner_), "%s", sjob->feesForMiner_.c_str());
-    snprintf(shareData.rpcAddress_, sizeof(shareData.rpcAddress_), "%s", sjob->rskdRpcAddress_.c_str());
-    snprintf(shareData.rpcUserPwd_, sizeof(shareData.rpcUserPwd_), "%s", sjob->rskdRpcUserPwd_.c_str());
-    memcpy(shareData.header80_, (const uint8_t *)&header, sizeof(CBlockHeader));
-    snprintf(shareData.workerFullName_, sizeof(shareData.workerFullName_), "%s", workFullName.c_str());
-    
-    //
-    // send to kafka topic
-    //
-    string buf;
-    buf.resize(sizeof(RskSolvedShareData) + coinbaseBin.size());
-    uint8_t *p = (uint8_t *)buf.data();
-
-    // RskSolvedShareData
-    memcpy(p, (const uint8_t *)&shareData, sizeof(RskSolvedShareData));
-    p += sizeof(RskSolvedShareData);
-
-    // coinbase TX
-    memcpy(p, coinbaseBin.data(), coinbaseBin.size());
-
-    kafkaProducerRskSolvedShare_->produce(buf.data(), buf.size());
-
-    //
-    // log the finding
-    //
-    LOG(INFO) << ">>>> found a new RSK block: " << blkHash.ToString()
-    << ", jobId: " << share.jobId_ << ", userId: " << share.userId_
-    << ", by: " << workFullName << " <<<<";
-  }
-
-  //
-  // found namecoin block
-  //
-  if (sjob->nmcAuxBits_ != 0 &&
-      (isSubmitInvalidBlock_ == true || bnBlockHash <= UintToArith256(sjob->nmcNetworkTarget_))) {
-    //
-    // build namecoin solved share message
-    //
-    string blockHeaderHex;
-    Bin2Hex((const uint8_t *)&header, sizeof(CBlockHeader), blockHeaderHex);
-    DLOG(INFO) << "blockHeaderHex: " << blockHeaderHex;
-
-    string coinbaseTxHex;
-    Bin2Hex((const uint8_t *)coinbaseBin.data(), coinbaseBin.size(), coinbaseTxHex);
-    DLOG(INFO) << "coinbaseTxHex: " << coinbaseTxHex;
-
-    const string nmcAuxSolvedShare = Strings::Format("{\"job_id\":%" PRIu64","
-                                                     " \"aux_block_hash\":\"%s\","
-                                                     " \"block_header\":\"%s\","
-                                                     " \"coinbase_tx\":\"%s\","
-                                                     " \"rpc_addr\":\"%s\","
-                                                     " \"rpc_userpass\":\"%s\""
-                                                     "}",
-                                                     share.jobId_,
-                                                     sjob->nmcAuxBlockHash_.ToString().c_str(),
-                                                     blockHeaderHex.c_str(),
-                                                     coinbaseTxHex.c_str(),
-                                                     sjob->nmcRpcAddr_.size()     ? sjob->nmcRpcAddr_.c_str()     : "",
-                                                     sjob->nmcRpcUserpass_.size() ? sjob->nmcRpcUserpass_.c_str() : "");
-    // send found namecoin aux block to kafka
-    kafkaProducerNamecoinSolvedShare_->produce(nmcAuxSolvedShare.data(),
-                                               nmcAuxSolvedShare.size());
-
-    LOG(INFO) << ">>>> found namecoin block: " << sjob->nmcHeight_ << ", "
-    << sjob->nmcAuxBlockHash_.ToString()
-    << ", jobId: " << share.jobId_ << ", userId: " << share.userId_
-    << ", by: " << workFullName << " <<<<";
-  }
-
-  // check share diff
-  if (isEnableSimulator_ == false && bnBlockHash > UintToArith256(jobTarget)) {
-    return StratumStatus::LOW_DIFFICULTY;
-  }
-
-  DLOG(INFO) << "blkHash: " << blkHash.ToString() << ", jobTarget: "
-  << jobTarget.ToString() << ", networkTarget: " << sjob->networkTarget_.ToString();
-
-  // reach here means an valid share
-  return StratumStatus::ACCEPT;
-}
 
 void Server::sendShare2Kafka(const uint8_t *data, size_t len) {
   kafkaProducerShareLog_->produce(data, len);
 }
 
-void Server::sendSolvedShare2Kafka(const FoundBlock *foundBlock,
-                                   const std::vector<char> &coinbaseBin) {
-  //
-  // solved share message:  FoundBlock + coinbase_Tx
-  //
-  string buf;
-  buf.resize(sizeof(FoundBlock) + coinbaseBin.size());
-  uint8_t *p = (uint8_t *)buf.data();
-
-  // FoundBlock
-  memcpy(p, (const uint8_t *)foundBlock, sizeof(FoundBlock));
-  p += sizeof(FoundBlock);
-
-  // coinbase TX
-  memcpy(p, coinbaseBin.data(), coinbaseBin.size());
-
-  kafkaProducerSolvedShare_->produce(buf.data(), buf.size());
-}
 
 void Server::sendCommonEvents2Kafka(const string &message) {
   kafkaProducerCommonEvents_->produce(message.data(), message.size());
-}
-
-
-////////////////////////////////// ServierSia ///////////////////////////////
-StratumSession *ServerSia::createSession(evutil_socket_t fd, struct bufferevent *bev,
-                                         Server *server, struct sockaddr *saddr,
-                                         const int32_t shareAvgSeconds,
-                                         const uint32_t sessionID)
-{
-  return new StratumSessionSia(fd, bev, server, saddr,
-                        server->kShareAvgSeconds_,
-                        sessionID);
-}
-
-JobRepository *ServerSia::createJobRepository(const char *kafkaBrokers,
-                                            const char *consumerTopic,
-                                           const string &fileLastNotifyTime,
-                                           Server *server)
-{
-  return new JobRepositorySia(kafkaBrokers, consumerTopic, fileLastNotifyTime, this);
-}
-
-void ServerSia::sendSolvedShare2Kafka(uint8* buf, int len) {
-   kafkaProducerSolvedShare_->produce(buf, len);
-}
-
-///////////////////////////////ServerBytom///////////////////////////////
-JobRepository *ServerBytom::createJobRepository(const char *kafkaBrokers,
-                                                const char *consumerTopic,
-                                                const string &fileLastNotifyTime,
-                                                Server *server)
-{
-  return new JobRepositoryBytom(kafkaBrokers, consumerTopic, fileLastNotifyTime, this);
-}
-
-StratumSession *ServerBytom::createSession(evutil_socket_t fd, struct bufferevent *bev,
-                                           Server *server, struct sockaddr *saddr,
-                                           const int32_t shareAvgSeconds,
-                                           const uint32_t sessionID)
-{
-  return new StratumSessionBytom(fd, bev, server, saddr,
-                                 server->kShareAvgSeconds_,
-                                 sessionID);
-}
-
-void ServerBytom::sendSolvedShare2Kafka(uint64_t nonce, const string &strHeader,
-                                      uint64_t height, uint64_t networkDiff, const StratumWorker &worker)
-{
-  string msg = Strings::Format("{\"nonce\":%lu,\"header\":\"%s\","
-                               "\"height\":%lu,\"networkDiff\":%" PRIu64 ",\"userId\":%ld,"
-                               "\"workerId\":%" PRId64 ",\"workerFullName\":\"%s\"}",
-                               nonce, strHeader.c_str(),
-                               height, networkDiff, worker.userId_,
-                               worker.workerHashId_, filterWorkerName(worker.fullName_).c_str());
-  kafkaProducerSolvedShare_->produce(msg.c_str(), msg.length());
 }

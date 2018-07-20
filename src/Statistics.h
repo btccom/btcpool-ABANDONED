@@ -26,7 +26,9 @@
 
 #include "Common.h"
 #include "Kafka.h"
-#include "Stratum.h"
+#include "stratum/Stratum.h"
+#include "stratum/eth/StratumEth.h"
+#include "stratum/bytom/StratumBytom.h"
 
 #include <event2/event.h>
 #include <event2/http.h>

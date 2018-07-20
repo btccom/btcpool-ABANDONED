@@ -26,7 +26,7 @@
 #include "Common.h"
 #include "Utils.h"
 #include "BitcoinUtils.h"
-#include "Stratum.h"
+#include "stratum/Stratum.h"
 
 #include <chainparams.h>
 #include <hash.h>
@@ -174,8 +174,8 @@ TEST(JobMaker, BitcoinAddress) {
 #endif
 }
 
-TEST(Stratum, StratumJob) {
-  StratumJob sjob;
+TEST(Stratum, StratumJobBitcoin) {
+  StratumJobBitcoin sjob;
   string poolCoinbaseInfo = "/BTC.COM/";
   uint32_t blockVersion = 0;
   bool res;
@@ -227,7 +227,7 @@ TEST(Stratum, StratumJob) {
     ASSERT_EQ(res, true);
 
     const string jsonStr = sjob.serializeToJson();
-    StratumJob sjob2;
+    StratumJobBitcoin sjob2;
     res = sjob2.unserializeFromJson(jsonStr.c_str(), jsonStr.length());
     ASSERT_EQ(res, true);
 

@@ -26,7 +26,7 @@
 
 #include "Common.h"
 #include "Kafka.h"
-#include "Stratum.h"
+#include "stratum/Stratum.h"
 #include "Statistics.h"
 #include "zlibstream/zstr.hpp"
 

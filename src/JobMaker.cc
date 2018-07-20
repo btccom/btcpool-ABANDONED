@@ -39,6 +39,7 @@
 #include <key_io.h> //  IsValidDestinationString for bch is not in this file.
 #endif
 
+#include "stratum/eth/StratumEth.h"
 #include "utilities_js.hpp"
 #include "Utils.h"
 #include "BitcoinUtils.h"
@@ -913,7 +914,7 @@ string JobMakerHandlerBitcoin::makeStratumJob(const string &gbt) {
     }
   }
 
-  StratumJob sjob;
+  StratumJobBitcoin sjob;
   if (!sjob.initFromGbt(gbt.c_str(), def()->coinbaseInfo_,
                                      poolPayoutAddr_,
                                      def()->blockVersion_,

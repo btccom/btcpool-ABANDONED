@@ -144,7 +144,7 @@ boost::shared_lock<boost::shared_mutex> ClientContainer::getPoolStratumJobReadLo
   return boost::shared_lock<boost::shared_mutex>(stratumJobMutex_);
 }
 
-const StratumJob * ClientContainer::getPoolStratumJob() {
+const StratumJobBitcoin * ClientContainer::getPoolStratumJob() {
   return poolStratumJob_;
 }
 
@@ -196,7 +196,7 @@ void ClientContainer::consumeStratumJob(rd_kafka_message_t *rkmessage) {
       return;
     }
   
-    StratumJob *sjob = new StratumJob();
+    StratumJobBitcoin *sjob = new StratumJobBitcoin();
     bool res = sjob->unserializeFromJson((const char *)rkmessage->payload,
                                          rkmessage->len);
     if (res == false) {
@@ -534,7 +534,7 @@ void PoolWatchClient::handleStratumMessage(const string &line) {
           // get a read lock before lookup this->poolStratumJob_
           // it will unlock by itself in destructor.
           auto readLock = container_->getPoolStratumJobReadLock();
-          const StratumJob *poolStratumJob = container_->getPoolStratumJob();
+          const StratumJobBitcoin *poolStratumJob = container_->getPoolStratumJob();
 
           if (poolStratumJob == nullptr) {
             LOG(WARNING) << "<" << poolName_ << "> discard the job: pool stratum job is empty";

@@ -21,7 +21,7 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-#include "Stratum.h"
+#include "stratum/Stratum.h"
 
 #include <core_io.h>
 #include <hash.h>
@@ -206,11 +206,111 @@ int64 findExtraNonceStart(const vector<char> &coinbaseOriTpl,
 
 
 //////////////////////////////////  StratumJob  ////////////////////////////////
-StratumJob::StratumJob(): jobId_(0), height_(0), nVersion_(0), nBits_(0U),
-nTime_(0U), minTime_(0U), coinbaseValue_(0), nmcAuxBits_(0u), isRskCleanJob_(false) {
+StratumJob::StratumJob()
+  : jobId_(0), height_(0)
+  , nVersion_(0), nBits_(0U)
+  , nTime_(0U)
+  , minTime_(0U)
+  , isRskCleanJob_(false)
+{
 }
 
-string StratumJob::serializeToJson() const {
+StratumJob::~StratumJob()
+{
+  
+}
+
+string StratumJob::serializeToJson() const
+{
+  return Strings::Format
+          (
+            "{"
+              "\"jobId\":%" PRIu64
+              ",\"height\":%d"
+              ",\"nVersion\":%d"
+              ",\"nBits\":%u"
+              ",\"nTime\":%u"
+              ",\"minTime\":%u"
+              // rsk 
+              ",\"rskBlockHashForMergedMining\":\"%s\",\"rskNetworkTarget\":\"0x%s\""
+              ",\"rskFeesForMiner\":\"%s\""
+              ",\"rskdRpcAddress\":\"%s\",\"rskdRpcUserPwd\":\"%s\""
+              ",\"isRskCleanJob\":%s"
+            "}"
+            , jobId_
+            , height_
+            , nVersion_
+            , nBits_
+            , nTime_
+            , minTime_
+            // rsk
+            , blockHashForMergedMining_.size() ? blockHashForMergedMining_.c_str() : ""
+            , rskNetworkTarget_.GetHex().c_str()
+            , feesForMiner_.size()             ? feesForMiner_.c_str()             : ""
+            , rskdRpcAddress_.size()           ? rskdRpcAddress_.c_str()           : ""
+            , rskdRpcUserPwd_.c_str()          ? rskdRpcUserPwd_.c_str()           : ""
+            , isRskCleanJob_ ? "true" : "false"
+          );
+}
+
+
+bool StratumJob::unserializeFromJson(const char *s, size_t len) {
+  JsonNode j;
+  if (!JsonNode::parse(s, s + len, j)) {
+    return false;
+  }
+  if(
+      j["jobId"].type()        != Utilities::JS::type::Int ||
+      j["height"].type()       != Utilities::JS::type::Int ||
+      j["nVersion"].type()     != Utilities::JS::type::Int ||
+      j["nBits"].type()        != Utilities::JS::type::Int ||
+      j["nTime"].type()        != Utilities::JS::type::Int ||
+      j["minTime"].type()      != Utilities::JS::type::Int
+    ) 
+  {
+    LOG(ERROR) << "parse stratum job failure: " << s;
+    return false;
+  }
+
+  jobId_         = j["jobId"].uint64();
+  height_        = j["height"].int32();
+  nVersion_      = j["nVersion"].int32();
+  nBits_         = j["nBits"].uint32();
+  nTime_         = j["nTime"].uint32();
+  minTime_       = j["minTime"].uint32();
+
+  //
+  // rsk, optional
+  //
+  if(
+      j["rskBlockHashForMergedMining"].type()   == Utilities::JS::type::Str &&
+      j["rskNetworkTarget"].type()              == Utilities::JS::type::Str &&
+      j["rskFeesForMiner"].type()               == Utilities::JS::type::Str &&
+      j["rskdRpcAddress"].type()                == Utilities::JS::type::Str &&
+      j["rskdRpcUserPwd"].type()                == Utilities::JS::type::Str &&
+      j["isRskCleanJob"].type()                 == Utilities::JS::type::Bool
+    ) 
+  {
+    blockHashForMergedMining_ = j["rskBlockHashForMergedMining"].str();
+    rskNetworkTarget_         = uint256S(j["rskNetworkTarget"].str());
+    feesForMiner_             = j["rskFeesForMiner"].str();
+    rskdRpcAddress_           = j["rskdRpcAddress"].str();
+    rskdRpcUserPwd_           = j["rskdRpcUserPwd"].str();
+    isRskCleanJob_            = j["isRskCleanJob"].boolean();
+  }
+
+  BitsToTarget(nBits_, networkTarget_);
+
+  return true;
+}
+
+StratumJobBitcoin::StratumJobBitcoin()
+  : coinbaseValue_(0), nmcAuxBits_(0u)
+{
+
+}
+
+string StratumJobBitcoin::serializeToJson() const {
   string merkleBranchStr;
   merkleBranchStr.reserve(merkleBranch_.size() * 64 + 1);
   for (size_t i = 0; i < merkleBranch_.size(); i++) {
@@ -220,76 +320,63 @@ string StratumJob::serializeToJson() const {
   //
   // we use key->value json string, so it's easy to update system
   //
-  return Strings::Format("{\"jobId\":%" PRIu64",\"gbtHash\":\"%s\""
-                         ",\"prevHash\":\"%s\",\"prevHashBeStr\":\"%s\""
-                         ",\"height\":%d,\"coinbase1\":\"%s\",\"coinbase2\":\"%s\""
-                         ",\"merkleBranch\":\"%s\""
-                         ",\"nVersion\":%d,\"nBits\":%u,\"nTime\":%u"
-                         ",\"minTime\":%u,\"coinbaseValue\":%lld,\"witnessCommitment\":\"%s\""
-                         // namecoin, optional
-                         ",\"nmcBlockHash\":\"%s\",\"nmcBits\":%u,\"nmcHeight\":%d"
-                         ",\"nmcRpcAddr\":\"%s\",\"nmcRpcUserpass\":\"%s\""
-                         // rsk 
-                         ",\"rskBlockHashForMergedMining\":\"%s\",\"rskNetworkTarget\":\"0x%s\""
-                         ",\"rskFeesForMiner\":\"%s\""
-                         ",\"rskdRpcAddress\":\"%s\",\"rskdRpcUserPwd\":\"%s\""
-                         ",\"isRskCleanJob\":%s"
-                         "}",
-                         jobId_, gbtHash_.c_str(),
-                         prevHash_.ToString().c_str(), prevHashBeStr_.c_str(),
-                         height_, coinbase1_.c_str(), coinbase2_.c_str(),
-                         // merkleBranch_ could be empty
-                         merkleBranchStr.size() ? merkleBranchStr.c_str() : "",
-                         nVersion_, nBits_, nTime_,
-                         minTime_, coinbaseValue_,
-                         witnessCommitment_.size() ? witnessCommitment_.c_str() : "",
-                         // nmc
-                         nmcAuxBlockHash_.ToString().c_str(),
-                         nmcAuxBits_, nmcHeight_,
-                         nmcRpcAddr_.size()     ? nmcRpcAddr_.c_str()     : "",
-                         nmcRpcUserpass_.size() ? nmcRpcUserpass_.c_str() : "",
-                         // rsk
-                         blockHashForMergedMining_.size() ? blockHashForMergedMining_.c_str() : "",
-                         rskNetworkTarget_.GetHex().c_str(),
-                         feesForMiner_.size()             ? feesForMiner_.c_str()             : "",
-                         rskdRpcAddress_.size()           ? rskdRpcAddress_.c_str()           : "",
-                         rskdRpcUserPwd_.c_str()          ? rskdRpcUserPwd_.c_str()           : "",
-                         isRskCleanJob_ ? "true" : "false");
+  string resBase = StratumJob::serializeToJson();
+  resBase = resBase.substr(1, resBase.length() - 2);  //  remove {}
+  string res = Strings::Format
+          (
+            ",\"gbtHash\":\"%s\""
+            ",\"prevHash\":\"%s\""
+            ",\"prevHashBeStr\":\"%s\""
+            ",\"coinbase1\":\"%s\",\"coinbase2\":\"%s\""
+            ",\"merkleBranch\":\"%s\""
+            ",\"coinbaseValue\":%lld,\"witnessCommitment\":\"%s\""
+            // namecoin, optional
+            ",\"nmcBlockHash\":\"%s\",\"nmcBits\":%u,\"nmcHeight\":%d"
+            ",\"nmcRpcAddr\":\"%s\",\"nmcRpcUserpass\":\"%s\""
+            , gbtHash_.c_str()
+            , prevHash_.ToString().c_str()
+            , prevHashBeStr_.c_str()
+            , coinbase1_.c_str(), coinbase2_.c_str()
+            // merkleBranch_ could be empty
+            , merkleBranchStr.size() ? merkleBranchStr.c_str() : ""
+            , coinbaseValue_, witnessCommitment_.size() ? witnessCommitment_.c_str() : ""
+            // nmc
+            , nmcAuxBlockHash_.ToString().c_str()
+            , nmcAuxBits_, nmcHeight_
+            , nmcRpcAddr_.size()     ? nmcRpcAddr_.c_str()     : ""
+            , nmcRpcUserpass_.size() ? nmcRpcUserpass_.c_str() : ""
+          );
+  string merge = Strings::Format("{%s, %s}", resBase.c_str(), res.c_str());
+  return merge;
 }
 
-bool StratumJob::unserializeFromJson(const char *s, size_t len) {
+bool StratumJobBitcoin::unserializeFromJson(const char *s, size_t len) {
+  if(!StratumJob::unserializeFromJson(s, len))
+    return false;
+
   JsonNode j;
   if (!JsonNode::parse(s, s + len, j)) {
     return false;
   }
-  if (j["jobId"].type()        != Utilities::JS::type::Int ||
+  if(
       j["gbtHash"].type()      != Utilities::JS::type::Str ||
       j["prevHash"].type()     != Utilities::JS::type::Str ||
       j["prevHashBeStr"].type()!= Utilities::JS::type::Str ||
-      j["height"].type()       != Utilities::JS::type::Int ||
       j["coinbase1"].type()    != Utilities::JS::type::Str ||
       j["coinbase2"].type()    != Utilities::JS::type::Str ||
       j["merkleBranch"].type() != Utilities::JS::type::Str ||
-      j["nVersion"].type()     != Utilities::JS::type::Int ||
-      j["nBits"].type()        != Utilities::JS::type::Int ||
-      j["nTime"].type()        != Utilities::JS::type::Int ||
-      j["minTime"].type()      != Utilities::JS::type::Int ||
-      j["coinbaseValue"].type()!= Utilities::JS::type::Int) {
+      j["coinbaseValue"].type()!= Utilities::JS::type::Int
+    ) 
+  {
     LOG(ERROR) << "parse stratum job failure: " << s;
     return false;
   }
 
-  jobId_         = j["jobId"].uint64();
   gbtHash_       = j["gbtHash"].str();
   prevHash_      = uint256S(j["prevHash"].str());
   prevHashBeStr_ = j["prevHashBeStr"].str();
-  height_        = j["height"].int32();
   coinbase1_     = j["coinbase1"].str();
   coinbase2_     = j["coinbase2"].str();
-  nVersion_      = j["nVersion"].int32();
-  nBits_         = j["nBits"].uint32();
-  nTime_         = j["nTime"].uint32();
-  minTime_       = j["minTime"].uint32();
   coinbaseValue_ = j["coinbaseValue"].int64();
 
   // witnessCommitment, optional
@@ -315,23 +402,6 @@ bool StratumJob::unserializeFromJson(const char *s, size_t len) {
     BitsToTarget(nmcAuxBits_, nmcNetworkTarget_);
   }
 
-  //
-  // rsk, optional
-  //
-  if (j["rskBlockHashForMergedMining"].type()   == Utilities::JS::type::Str &&
-      j["rskNetworkTarget"].type()              == Utilities::JS::type::Str &&
-      j["rskFeesForMiner"].type()               == Utilities::JS::type::Str &&
-      j["rskdRpcAddress"].type()                == Utilities::JS::type::Str &&
-      j["rskdRpcUserPwd"].type()                == Utilities::JS::type::Str &&
-      j["isRskCleanJob"].type()                 == Utilities::JS::type::Bool) {
-    blockHashForMergedMining_ = j["rskBlockHashForMergedMining"].str();
-    rskNetworkTarget_         = uint256S(j["rskNetworkTarget"].str());
-    feesForMiner_             = j["rskFeesForMiner"].str();
-    rskdRpcAddress_           = j["rskdRpcAddress"].str();
-    rskdRpcUserPwd_           = j["rskdRpcUserPwd"].str();
-    isRskCleanJob_            = j["isRskCleanJob"].boolean();
-  }
-
   const string merkleBranchStr = j["merkleBranch"].str();
   const size_t merkleBranchCount = merkleBranchStr.length() / 64;
   merkleBranch_.resize(merkleBranchCount);
@@ -339,12 +409,10 @@ bool StratumJob::unserializeFromJson(const char *s, size_t len) {
     merkleBranch_[i] = uint256S(merkleBranchStr.substr(i*64, 64));
   }
 
-  BitsToTarget(nBits_, networkTarget_);
-
   return true;
 }
 
-bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
+bool StratumJobBitcoin::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
                              const CTxDestination &poolPayoutAddr,
                              const uint32_t blockVersion,
                              const string &nmcAuxBlockJson,
@@ -633,107 +701,10 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
   return true;
 }
 
-bool StratumJob::isEmptyBlock() {
+bool StratumJobBitcoin::isEmptyBlock() {
   return merkleBranch_.size() == 0 ? true : false;
 }
 
-///////////////////////////////StratumJobEth///////////////////////////
-StratumJobEth::StratumJobEth()
-{
-
-}
-
-bool StratumJobEth::initFromGw(const RskWorkEth &latestRskBlockJson, EthConsensus::Chain chain)
-{
-  if (latestRskBlockJson.isInitialized())
-  {
-    chain_ = chain;
-    blockHashForMergedMining_ = latestRskBlockJson.getBlockHash();
-    rskNetworkTarget_ = uint256S(latestRskBlockJson.getTarget());
-    feesForMiner_ = latestRskBlockJson.getFees();
-    rskdRpcAddress_ = latestRskBlockJson.getRpcAddress();
-    rskdRpcUserPwd_ = latestRskBlockJson.getRpcUserPwd();
-    isRskCleanJob_ = latestRskBlockJson.getIsCleanJob();
-    seedHash_ = latestRskBlockJson.getSeedHash();
-    height_ = latestRskBlockJson.getHeight();
-
-    // generate job id
-    string header = blockHashForMergedMining_.substr(2, 64);
-    uint32 h = djb2(header.c_str());
-    DLOG(INFO) << "djb2=" << std::hex << h << " for header " << header;
-    // jobId: timestamp + hash of header
-    const string jobIdStr = Strings::Format("%08x%08x",
-                                            (uint32_t)time(nullptr),
-                                            h);
-    DLOG(INFO) << "job id string: " << jobIdStr;
-    assert(jobIdStr.length() == 16);
-    
-    jobId_ = stoull(jobIdStr, nullptr, 16 /* hex */);
-  }
-  return seedHash_.size() && blockHashForMergedMining_.size();
-}
-
-string StratumJobEth::serializeToJson() const {
-  return Strings::Format("{\"jobId\":%" PRIu64""
-                         ",\"chain\":\"%s\""
-                         ",\"height\":%" PRIu64""
-                         ",\"sHash\":\"%s\""
-                         ",\"rskBlockHashForMergedMining\":\"%s\",\"rskNetworkTarget\":\"0x%s\""
-                         ",\"rskFeesForMiner\":\"%s\""
-                         ",\"rskdRpcAddress\":\"%s\",\"rskdRpcUserPwd\":\"%s\""
-                         ",\"isRskCleanJob\":%s"
-                         "}",
-                         jobId_,
-                         EthConsensus::getChainStr(chain_).c_str(),
-                         height_,
-                         // rsk
-                         seedHash_.c_str(),
-                         blockHashForMergedMining_.size() ? blockHashForMergedMining_.c_str() : "",
-                         rskNetworkTarget_.GetHex().c_str(),
-                         feesForMiner_.size()             ? feesForMiner_.c_str()             : "",
-                         rskdRpcAddress_.size()           ? rskdRpcAddress_.c_str()           : "",
-                         rskdRpcUserPwd_.c_str()          ? rskdRpcUserPwd_.c_str()           : "",
-                         isRskCleanJob_ ? "true" : "false");
-}
-
-bool StratumJobEth::unserializeFromJson(const char *s, size_t len)
-{
-  JsonNode j;
-  if (!JsonNode::parse(s, s + len, j))
-  {
-    return false;
-  }
-  if (j["jobId"].type() != Utilities::JS::type::Int ||
-      j["chain"].type() != Utilities::JS::type::Str ||
-      j["height"].type() != Utilities::JS::type::Int ||
-      j["sHash"].type() != Utilities::JS::type::Str)
-  {
-    LOG(ERROR) << "parse eth stratum job failure: " << s;
-    return false;
-  }
-
-  jobId_ = j["jobId"].uint64();
-  chain_ = EthConsensus::getChain(j["chain"].str());
-  height_ = j["height"].uint64();
-  seedHash_ = j["sHash"].str();
-
-  if (j["rskBlockHashForMergedMining"].type() == Utilities::JS::type::Str &&
-      j["rskNetworkTarget"].type() == Utilities::JS::type::Str &&
-      j["rskFeesForMiner"].type() == Utilities::JS::type::Str &&
-      j["rskdRpcAddress"].type() == Utilities::JS::type::Str &&
-      j["rskdRpcUserPwd"].type() == Utilities::JS::type::Str &&
-      j["isRskCleanJob"].type() == Utilities::JS::type::Bool)
-  {
-    blockHashForMergedMining_ = j["rskBlockHashForMergedMining"].str();
-    rskNetworkTarget_ = uint256S(j["rskNetworkTarget"].str());
-    feesForMiner_ = j["rskFeesForMiner"].str();
-    rskdRpcAddress_ = j["rskdRpcAddress"].str();
-    rskdRpcUserPwd_ = j["rskdRpcUserPwd"].str();
-    isRskCleanJob_ = j["isRskCleanJob"].boolean();
-  }
-
-  return true;
-}
 
 ///////////////////////////////StratumJobSia///////////////////////////
 bool StratumJobSia::unserializeFromJson(const char *s, size_t len)
@@ -760,105 +731,3 @@ bool StratumJobSia::unserializeFromJson(const char *s, size_t len)
   return true;
 }
 
-///////////////////////////////StratumJobSia///////////////////////////
-bool StratumJobBytom::unserializeFromJson(const char *s, size_t len)
-{
-  JsonNode j;
-  if (!JsonNode::parse(s, s + len, j))
-  {
-    return false;
-  }
-  if (j["created_at_ts"].type() != Utilities::JS::type::Int ||
-      j["jobId"].type() != Utilities::JS::type::Int ||
-      j["sHash"].type() != Utilities::JS::type::Str ||
-      j["hHash"].type() != Utilities::JS::type::Str)
-  {
-    LOG(ERROR) << "parse bytom stratum job failure: " << s;
-    return false;
-  }
-  // 	0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //Version 1
-  // 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //Height 0
-
-  // 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //PreviousBlockId 0000000000000000000000000000000000000000000000000000000000000000
-  // 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //PreviousBlockId 0000000000000000000000000000000000000000000000000000000000000000
-  // 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //PreviousBlockId 0000000000000000000000000000000000000000000000000000000000000000
-  // 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //PreviousBlockId 0000000000000000000000000000000000000000000000000000000000000000
-
-  // 0xe5, 0x5a, 0x68, 0x5a, 0x00, 0x00, 0x00, 0x00, //Timestamp 1516788453
-
-  // 0x23, 0x7b, 0xf7, 0x7d, 0xf5, 0xc3, 0x18, 0xdf, //TransactionsRoot 237bf77df5c318dfa1d780043b507e00046fec7f8fdad80fc39fd8722852b27a
-  // 0xa1, 0xd7, 0x80, 0x04, 0x3b, 0x50, 0x7e, 0x00, //TransactionsRoot 237bf77df5c318dfa1d780043b507e00046fec7f8fdad80fc39fd8722852b27a
-  // 0x04, 0x6f, 0xec, 0x7f, 0x8f, 0xda, 0xd8, 0x0f, //TransactionsRoot 237bf77df5c318dfa1d780043b507e00046fec7f8fdad80fc39fd8722852b27a
-  // 0xc3, 0x9f, 0xd8, 0x72, 0x28, 0x52, 0xb2, 0x7a, //TransactionsRoot 237bf77df5c318dfa1d780043b507e00046fec7f8fdad80fc39fd8722852b27a
-
-  // 0x53, 0xc0, 0xab, 0x89, 0x6c, 0xb7, 0xa3, 0x77, //TransactionStatusHash 53c0ab896cb7a3778cc1d35a271264d991792b7c44f5c334116bb0786dbc5635
-  // 0x8c, 0xc1, 0xd3, 0x5a, 0x27, 0x12, 0x64, 0xd9, //TransactionStatusHash 53c0ab896cb7a3778cc1d35a271264d991792b7c44f5c334116bb0786dbc5635
-  // 0x91, 0x79, 0x2b, 0x7c, 0x44, 0xf5, 0xc3, 0x34, //TransactionStatusHash 53c0ab896cb7a3778cc1d35a271264d991792b7c44f5c334116bb0786dbc5635
-  // 0x11, 0x6b, 0xb0, 0x78, 0x6d, 0xbc, 0x56, 0x35, //TransactionStatusHash 53c0ab896cb7a3778cc1d35a271264d991792b7c44f5c334116bb0786dbc5635
-
-  // 0xff, 0xff, 0x7f, 0x00, 0x00, 0x00, 0x00, 0x20, // Bits 2305843009222082559
-
-  // 0x10, 0x55, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, //Nonce 4216080
-  string hHash = j["hHash"].str();
-
-  GoSlice text = {(void *)hHash.data(), (int)hHash.length(), (int)hHash.length()};
-  DecodeBlockHeader_return bh = DecodeBlockHeader(text);
-  DLOG(INFO) << "bytom block height=" << bh.r1 << ", timestamp=" << bh.r3;
-  blockHeader_.version = bh.r0;
-  blockHeader_.height = bh.r1;
-  blockHeader_.previousBlockHash = bh.r2;
-  blockHeader_.timestamp = bh.r3;
-  blockHeader_.bits = bh.r4;
-  blockHeader_.transactionsMerkleRoot = bh.r5;
-  blockHeader_.transactionStatusHash = bh.r6;
-  free(bh.r2);
-  free(bh.r5);
-  free(bh.r6);
-  // DLOG(INFO) << "DecodeBlockHeader";
-  // char* str = DecodeBlockHeader(text);
-  // DLOG(INFO) << "DecodeBlockHeader return " << str;
-  // free(str);
-  //DecodeHeaderString_return bh = DecodeHeaderString(text);
-  //string merkleRoot(bh.r4.p, bh.r4.n);
-  // blockHeader_.previousBlockHash = Strings::Format("%08x%08x%08x%08x%08x%08x%08x%08x",
-  //                                                  bh.r4 >> 32, bh.r4 & 0xFFFFFFFF, bh.r5 >> 32, bh.r5 & 0xFFFFFFFF, bh.r6 >> 32, bh.r6 & 0xFFFFFFFF, bh.r7 >> 32, bh.r7 & 0xFFFFFFFF);
-  // blockHeader_.transactionsMerkleRoot = Strings::Format("%08x%08x%08x%08x%08x%08x%08x%08x",
-  //                                                       bh.r8 >> 32, bh.r8 & 0xFFFFFFFF, bh.r9 >> 32, bh.r9 & 0xFFFFFFFF, bh.r10 >> 32, bh.r10 & 0xFFFFFFFF, bh.r11 >> 32, bh.r11 & 0xFFFFFFFF);
-  // blockHeader_.transactionStatusHash = Strings::Format("%08x%08x%08x%08x%08x%08x%08x%08x",
-  //                                                      bh.r12 >> 32, bh.r12 & 0xFFFFFFFF, bh.r13 >> 32, bh.r13 & 0xFFFFFFFF, bh.r14 >> 32, bh.r14 & 0xFFFFFFFF, bh.r15 >> 32, bh.r15 & 0xFFFFFFFF);
-  // DLOG(INFO) << "bytom block height=" << blockHeader_.height();
-  jobId_ = j["jobId"].uint64();
-  nTime_ = j["created_at_ts"].uint32();
-  seed_ = j["sHash"].str();
-  return true;
-}
-
-string BlockHeaderBytom::serializeToJson() const
-{
-  return Strings::Format("{\"Version\":%" PRIu64 ""
-                         ",\"Height\":%" PRIu64 ""
-                         ",\"PreviousBlockHash\":\"%s\""
-                         ",\"Timestamp\":%" PRIu64 ""
-                         ",\"TransactionsMerkleRoot\":\"%s\""
-                         ",\"TransactionStatusHash\":\"%s\""
-                         ",\"Bits\":%" PRIu64 ""
-                         "}",
-                         version,
-                         height,
-                         previousBlockHash.c_str(),
-                         timestamp,
-                         transactionsMerkleRoot.c_str(),
-                         transactionStatusHash.c_str(),
-                         bits);
-  //  "1"//Version
-  //  "1" //Height
-  //  "e733c4b1c4ea57bc87346d9fce8c492248f1f414b9eac17faf9e9b8e0a107fa1", //PreviousBlockHash
-  //  "5aa39c6e", //Timestamp
-  //  "15bd7762b3ee8057ecb83b792e2168c6b6bddaf10163d110f7e63db387e6aacf", //TransactionsMerkleRoot
-  //  "53c0ab896cb7a3778cc1d35a271264d991792b7c44f5c334116bb0786dbc5635", //TransactionStatusHash
-  //  "8000000000000000", //Nonce
-  //  "20000000007fffff", //Bits
-  //  "e733c4b1c4ea57bc87346d9fce8c492248f1f414b9eac17faf9e9b8e0a107fa1",//Seed
-  //  "bdba0400",//Target
-  // }
-}

@@ -22,13 +22,16 @@
  THE SOFTWARE.
  */
 #include "StratumSessionBytom.h"
+#include "sserver/common/DiffController.h"
+
+
 #include "Utils.h"
 #include "utilities_js.hpp"
 #include <arith_uint256.h>
 #include <arpa/inet.h>
 #include <boost/algorithm/string.hpp>
 #include "bytom/bh_shared.h"
-#include "StratumServer.h"
+#include "StratumServerBytom.h"
 
 #ifndef NO_CUDA
 #include "bytom/cutil/src/GpuTs.h"
@@ -36,14 +39,10 @@
 
 /////////////////////////////StratumSessionBytom////////////////////////////
 StratumSessionBytom::StratumSessionBytom(evutil_socket_t fd, struct bufferevent *bev,
-                                         Server *server, struct sockaddr *saddr,
-                                         const int32_t shareAvgSeconds, const uint32_t extraNonce1) : StratumSession(fd,
-                                                                                                                     bev,
-                                                                                                                     server,
-                                                                                                                     saddr,
-                                                                                                                     shareAvgSeconds,
-                                                                                                                     extraNonce1),
-                                                                                                                     shortJobId_(1)
+                                         ServerBytom *server, struct sockaddr *saddr,
+                                         const int32_t shareAvgSeconds, const uint32_t extraNonce1) 
+  : StratumSessionBase(fd, bev, server, saddr, shareAvgSeconds, extraNonce1)
+  , shortJobId_(1)
 {
 }
 
@@ -58,6 +57,7 @@ void StratumSessionBytom::handleRequest_Authorize(const string &idStr, const Jso
 
 void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob)
 {
+  ServerBytom* server = GetServer();
   /*
     Bytom difficulty logic (based on B3-Mimic repo)
     - constants
@@ -84,9 +84,9 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
   ljob.jobId_ = sJob->jobId_;
   ljob.shortJobId_ = shortJobId_++;
 
-  if (server_->isDevModeEnable_)
+  if (server->isDevModeEnable_)
   {
-    ljob.jobDifficulty_ = server_->minerDifficulty_;
+    ljob.jobDifficulty_ = server->minerDifficulty_;
   }
   else
   {
@@ -145,7 +145,7 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
   {
     notifyStr = Strings::Format(
         "{\"id\": 1, \"jsonrpc\": \"2.0\", \"result\": {\"id\": \"%s\", \"job\": %s, \"status\": \"OK\"}, \"error\": null}",
-        server_->isDevModeEnable_ ? "antminer_1" : worker_.fullName_.c_str(),
+        server->isDevModeEnable_ ? "antminer_1" : worker_.fullName_.c_str(),
         jobString.c_str());
   }
   else
@@ -159,7 +159,7 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
 }
 
 void StratumSessionBytom::handleRequest_GetWork(const string &idStr, const JsonNode &jparams) {
-    sendMiningNotify(server_->jobRepository_->getLatestStratumJobEx(), false);
+    sendMiningNotify(GetServer()->jobRepository_->getLatestStratumJobEx(), false);
 }
 
 namespace BytomUtils
@@ -224,6 +224,7 @@ void StratumSessionBytom::Bytom_rpc2ResponseBoolean(const string &idStr, bool re
 
 void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNode &jparams)
 {
+  ServerBytom* server = GetServer();
   /*
     Calculating difficulty
     - Nonce. B3-Mimic send hex value.
@@ -236,14 +237,6 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   LOG(INFO) << idStr.c_str() << ": bytom handle request submit";
   JsonNode &params = const_cast<JsonNode &>(jparams);
 
-  ServerBytom *s = dynamic_cast<ServerBytom*> (server_);
-  if (s == nullptr) {
-    Bytom_rpc2ResponseBoolean(idStr, false, "Server error. Contact support.");
-    LOG(FATAL) << "Code error, casting Server to ServerBytom failed";
-    //  should we assert here?
-    return;
-  }
-
   uint8 shortJobId = (uint8)params["job_id"].uint32();
 
   LocalJob *localJob= findLocalJob(shortJobId);
@@ -255,7 +248,7 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   }
 
   shared_ptr<StratumJobEx> exjob;
-  exjob = server_->jobRepository_->getStratumJobEx(localJob->jobId_);
+  exjob = server->jobRepository_->getStratumJobEx(localJob->jobId_);
   if (nullptr == exjob || nullptr == exjob->sjob_)
   {
     Bytom_rpc2ResponseBoolean(idStr, false, "Block expired");
@@ -285,7 +278,7 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
 
   //  Check share duplication
   LocalShare localShare(nonce, 0, 0);
-  if (!server_->isEnableSimulator_ && !localJob->addLocalShare(localShare))
+  if (!server->isEnableSimulator_ && !localJob->addLocalShare(localShare))
   {
     responseError(idStr, StratumStatus::DUPLICATE_SHARE);
     // add invalid share to counter
@@ -339,8 +332,8 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
     {
       std::cout << "share solved\n";
       LOG(INFO) << "share solved";
-      s->sendSolvedShare2Kafka(nonce, encoded.r0, share.height_, Bytom_TargetCompactToDifficulty(sJob->blockHeader_.bits), worker_);
-      server_->jobRepository_->markAllJobsAsStale();      
+      server->sendSolvedShare2Kafka(nonce, encoded.r0, share.height_, Bytom_TargetCompactToDifficulty(sJob->blockHeader_.bits), worker_);
+      server->jobRepository_->markAllJobsAsStale();      
       diffController_->addAcceptedShare(share.shareDiff_);
       Bytom_rpc2ResponseBoolean(idStr, true);
     }
@@ -385,7 +378,7 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   if (isSendShareToKafka)
   {
     share.checkSum_ = share.checkSum();
-    server_->sendShare2Kafka((const uint8_t *)&share, sizeof(ShareBytom));
+    server->sendShare2Kafka((const uint8_t *)&share, sizeof(ShareBytom));
 
     string shareInHex;
     Bin2Hex((uint8_t*)&share, sizeof(ShareBytom), shareInHex);

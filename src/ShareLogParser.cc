@@ -24,7 +24,7 @@
 #include "ShareLogParser.h"
 
 #include "Common.h"
-#include "Stratum.h"
+#include "stratum/Stratum.h"
 #include "Utils.h"
 #include "utilities_js.hpp"
 

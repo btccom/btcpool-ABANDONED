@@ -22,6 +22,8 @@
  THE SOFTWARE.
  */
 #include "StratumServerEth.h"
+#include "StratumSessionEth.h"
+#include "sserver/common/DiffController.h"
 
 #include <iostream>
 #include <iomanip>
@@ -47,17 +49,17 @@ using namespace std;
 
 
 ////////////////////////////////// JobRepositoryEth ///////////////////////////////
-JobRepositoryEth::JobRepositoryEth(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server):
-JobRepository(kafkaBrokers, consumerTopic, fileLastNotifyTime, server),
-light_(nullptr), 
-nextLight_(nullptr),
-epochs_(0xffffffffffffffff)
+JobRepositoryEth::JobRepositoryEth(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerEth *server)
+  : JobRepositoryBase(kafkaBrokers, consumerTopic, fileLastNotifyTime, server)
+  , light_(nullptr)
+  , nextLight_(nullptr)
+  , epochs_(0xffffffffffffffff)
 {
   loadLightFromFile();
 }
 
 StratumJobEx* JobRepositoryEth::createStratumJobEx(StratumJob *sjob, bool isClean){
-  return new StratumJobExNoInit(sjob, isClean);
+  return new StratumJobEx(sjob, isClean);
 }
 
 void JobRepositoryEth::broadcastStratumJob(StratumJob *sjob) {
@@ -478,19 +480,15 @@ void ServerEth::sendSolvedShare2Kafka(const string &strNonce, const string &strH
 }
 
 StratumSession *ServerEth::createSession(evutil_socket_t fd, struct bufferevent *bev,
-                                         Server *server, struct sockaddr *saddr,
-                                         const int32_t shareAvgSeconds,
-                                         const uint32_t sessionID)
+                                         struct sockaddr *saddr, const uint32_t sessionID)
 {
-  return new StratumSessionEth(fd, bev, server, saddr,
-                        server->kShareAvgSeconds_,
-                        sessionID);
+  return new StratumSessionEth(fd, bev, this, saddr,
+                        kShareAvgSeconds_, sessionID);
 }
 
 JobRepository *ServerEth::createJobRepository(const char *kafkaBrokers,
                                             const char *consumerTopic,
-                                           const string &fileLastNotifyTime,
-                                           Server *server)
+                                           const string &fileLastNotifyTime)
 {
   return new JobRepositoryEth(kafkaBrokers, consumerTopic, fileLastNotifyTime, this);
 }

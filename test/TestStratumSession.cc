@@ -28,7 +28,7 @@
 
 #include <boost/algorithm/string.hpp>
 
-#include "StratumSession.h"
+#include "sserver/bitcoin/StratumSessionBitcoin.h"
 
 TEST(StratumSession, LocalShare) {
   StratumSession::LocalShare ls1(0xFFFFFFFFFFFFFFFFULL,
