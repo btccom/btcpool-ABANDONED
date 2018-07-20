@@ -41,7 +41,7 @@
 #include "utilities_js.hpp"
 #include <base58.h>
 
-#include "stratum/Stratum.h"
+#include "stratum/bitcoin/StratumBitcoin.h"
 
 #define BTCCOM_WATCHER_AGENT   "btc.com-watcher/0.2"
 

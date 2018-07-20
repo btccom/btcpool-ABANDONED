@@ -25,15 +25,20 @@
 #define STRATUM_SERVER_BITCOIN_H_
 
 #include "sserver/common/StratumServer.h"
-
+#include "stratum/bitcoin/StratumBitcoin.h"
 
 
 class ServerBitcoin : public Server
 {
+private:
+  KafkaProducer *kafkaProducerNamecoinSolvedShare_;
+  KafkaProducer *kafkaProducerRskSolvedShare_;
+
 public:
   ServerBitcoin(const int32_t shareAvgSeconds);
   virtual ~ServerBitcoin();
 
+  bool setup(StratumServer* sserver) override;
 
   StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
                                struct sockaddr *saddr, const uint32_t sessionID) override;

@@ -21,29 +21,12 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-#include <iostream>
-#include <iomanip>
-#include <fstream>
-#include <inttypes.h>
-#include <memory.h>
-#include <boost/thread.hpp>
-
 #include "StratumServer.h"
 #include "StratumSession.h"
 #include "DiffController.h"
-
 #include "CreateStratumServerTemp.h"
 
-#include "Common.h"
-#include "Kafka.h"
-#include "Utils.h"
-#include "rsk/RskSolvedShareData.h"
-
-#include <arith_uint256.h>
-#include <utilstrencodings.h>
-#include <hash.h>
-
-#include "utilities_js.hpp"
+#include <boost/thread.hpp>
 
 using namespace std;
 
@@ -688,23 +671,22 @@ void StratumServer::run() {
 }
 
 ///////////////////////////////////// Server ///////////////////////////////////
-Server::Server(const int32_t shareAvgSeconds):
-base_(nullptr), signal_event_(nullptr), listener_(nullptr),
-kafkaProducerShareLog_(nullptr),
-kafkaProducerSolvedShare_(nullptr),
-kafkaProducerNamecoinSolvedShare_(nullptr),
-kafkaProducerCommonEvents_(nullptr),
-kafkaProducerRskSolvedShare_(nullptr),
-isEnableSimulator_(false), isSubmitInvalidBlock_(false),
-
+Server::Server(const int32_t shareAvgSeconds)
+  : base_(nullptr), signal_event_(nullptr), listener_(nullptr)
+  , kafkaProducerShareLog_(nullptr)
+  , kafkaProducerSolvedShare_(nullptr)
+  , kafkaProducerCommonEvents_(nullptr)
+  , isEnableSimulator_(false)
+  , isSubmitInvalidBlock_(false)
 #ifndef WORK_WITH_STRATUM_SWITCHER
-sessionIDManager_(nullptr),
+  , sessionIDManager_(nullptr)
 #endif
-
-isDevModeEnable_(false), minerDifficulty_(1.0),
-kShareAvgSeconds_(shareAvgSeconds),
-jobRepository_(nullptr), userInfo_(nullptr),
-serverId_(0)
+  , isDevModeEnable_(false)
+  , minerDifficulty_(1.0)
+  , kShareAvgSeconds_(shareAvgSeconds)
+  , jobRepository_(nullptr)
+  , userInfo_(nullptr)
+  , serverId_(0)
 {
 }
 
@@ -723,12 +705,6 @@ Server::~Server() {
   }
   if (kafkaProducerSolvedShare_ != nullptr) {
     delete kafkaProducerSolvedShare_;
-  }
-  if (kafkaProducerNamecoinSolvedShare_ != nullptr) {
-    delete kafkaProducerNamecoinSolvedShare_;
-  }
-  if (kafkaProducerRskSolvedShare_ != nullptr) {
-    delete kafkaProducerRskSolvedShare_;
   }
   if (kafkaProducerCommonEvents_ != nullptr) {
     delete kafkaProducerCommonEvents_;
@@ -770,12 +746,6 @@ bool Server::setup(StratumServer* sserver) {
   kafkaProducerSolvedShare_ = new KafkaProducer(sserver->kafkaBrokers_.c_str(),
                                                 sserver->solvedShareTopic_.c_str(),
                                                 RD_KAFKA_PARTITION_UA);
-  kafkaProducerNamecoinSolvedShare_ = new KafkaProducer(sserver->kafkaBrokers_.c_str(),
-                                                        KAFKA_TOPIC_NMC_SOLVED_SHARE,
-                                                        RD_KAFKA_PARTITION_UA);
-  kafkaProducerRskSolvedShare_ = new KafkaProducer(sserver->kafkaBrokers_.c_str(),
-                                                        KAFKA_TOPIC_RSK_SOLVED_SHARE,
-                                                        RD_KAFKA_PARTITION_UA);
   kafkaProducerShareLog_ = new KafkaProducer(sserver->kafkaBrokers_.c_str(),
                                              sserver->shareTopic_.c_str(),
                                              RD_KAFKA_PARTITION_UA);
@@ -832,36 +802,6 @@ bool Server::setup(StratumServer* sserver) {
     }
     if (!kafkaProducerSolvedShare_->checkAlive()) {
       LOG(ERROR) << "kafka kafkaProducerSolvedShare_ is NOT alive";
-      return false;
-    }
-  }
-
-  // kafkaProducerNamecoinSolvedShare_
-  {
-    map<string, string> options;
-    // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
-    options["queue.buffering.max.ms"] = "1";
-    if (!kafkaProducerNamecoinSolvedShare_->setup(&options)) {
-      LOG(ERROR) << "kafka kafkaProducerNamecoinSolvedShare_ setup failure";
-      return false;
-    }
-    if (!kafkaProducerNamecoinSolvedShare_->checkAlive()) {
-      LOG(ERROR) << "kafka kafkaProducerNamecoinSolvedShare_ is NOT alive";
-      return false;
-    }
-  }
-
-  // kafkaProducerRskSolvedShare_
-  {
-    map<string, string> options;
-    // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
-    options["queue.buffering.max.ms"] = "1";
-    if (!kafkaProducerRskSolvedShare_->setup(&options)) {
-      LOG(ERROR) << "kafka kafkaProducerRskSolvedShare_ setup failure";
-      return false;
-    }
-    if (!kafkaProducerRskSolvedShare_->checkAlive()) {
-      LOG(ERROR) << "kafka kafkaProducerRskSolvedShare_ is NOT alive";
       return false;
     }
   }

@@ -24,12 +24,11 @@
 #ifndef STRATUM_SERVER_ETH_H_
 #define STRATUM_SERVER_ETH_H_
 
+#include "CommonEth.h"
+
 #include <set>
 #include "sserver/common/StratumServer.h"
 #include "stratum/eth/StratumEth.h"
-
-
-
 
 class ServerEth : public Server
 {

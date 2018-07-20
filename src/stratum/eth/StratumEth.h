@@ -25,6 +25,9 @@
 #define STRATUM_ETH_H_
 
 #include "stratum/Stratum.h"
+#include "EthConsensus.h"
+
+#include "rsk/RskWork.h"
 
 
 class ShareEth : public ShareBase

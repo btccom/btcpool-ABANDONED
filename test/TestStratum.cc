@@ -42,6 +42,8 @@
 
 #include <stdint.h>
 
+#include "stratum/bitcoin/StratumBitcoin.h"
+
 TEST(Stratum, jobId2Time) {
   uint64_t jobId;
 

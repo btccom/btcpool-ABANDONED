@@ -26,7 +26,7 @@
 
 #include "Common.h"
 #include "Kafka.h"
-#include "stratum/Stratum.h"
+#include "stratum/bitcoin/StratumBitcoin.h"
 #include "Statistics.h"
 #include "zlibstream/zstr.hpp"
 

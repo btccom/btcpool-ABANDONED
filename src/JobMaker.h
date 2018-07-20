@@ -26,7 +26,6 @@
 
 #include "Common.h"
 #include "Kafka.h"
-#include "stratum/Stratum.h"
 #include "EthConsensus.h"
 
 #include <uint256.h>

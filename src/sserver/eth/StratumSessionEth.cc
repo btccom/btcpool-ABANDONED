@@ -25,10 +25,7 @@
 #include "StratumServerEth.h"
 #include "sserver/common/DiffController.h"
 
-#include "Utils.h"
-#include "utilities_js.hpp"
-#include <boost/algorithm/string.hpp>
-
+#include "CommonEth.h"
 
 ///////////////////////////////// StratumSessionEth ////////////////////////////////
 StratumSessionEth::StratumSessionEth(evutil_socket_t fd, struct bufferevent *bev,

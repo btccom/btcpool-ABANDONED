@@ -21,22 +21,10 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-#include <iostream>
-#include <iomanip>
-#include <fstream>
-#include <inttypes.h>
-#include <memory.h>
-#include <boost/thread.hpp>
 
 #include "StratumServerSia.h"
 #include "StratumSessionSia.h"
 #include "sserver/common/DiffController.h"
-
-#include "Common.h"
-#include "Kafka.h"
-#include "Utils.h"
-
-#include "utilities_js.hpp"
 
 using namespace std;
 

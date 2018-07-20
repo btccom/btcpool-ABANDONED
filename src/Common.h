@@ -29,7 +29,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <string.h>
 #include <assert.h>
 #include <time.h>
 #include <stdexcept>
@@ -47,10 +46,6 @@
 #include <mutex>
 #include <condition_variable>
 #include <functional>
-
-#include <uint256.h>
-#include "libethash/ethash.h"
-#include "libblake2/blake2.h"
 
 using std::string;
 using std::vector;
@@ -126,76 +121,6 @@ inline int64 HToBe(int64 v) {
   return (int64)HToBe((uint64)v);
 }
 
-
-////////////////////////////// for Bitcoin //////////////////////////////
-uint64 TargetToDiff(uint256 &target);
-uint64 TargetToDiff(const string &str);
-
-void BitsToTarget(uint32 bits, uint256 & target);
-void DiffToTarget(uint64 diff, uint256 & target, bool useTable=true);
-
-
-////////////////////////////// for Eth //////////////////////////////
-string Eth_DifficultyToTarget(uint64 diff);
-uint64 Eth_TargetToDifficulty(string target);
-void Hex256ToEthash256(const string &strHex, ethash_h256_t &ethashHeader);
-void Uint256ToEthash256(const uint256 hash, ethash_h256_t &ethashHeader);
-uint256 Ethash256ToUint256(const ethash_h256_t &ethashHeader);
 uint32 djb2(const char *str);
-
-// NICEHASH_STRATUM uses a different difficulty value than the Ethereum network and BTCPool ETH.
-// Conversion between difficulty and target is done the same way as with Bitcoin; 
-// difficulty of 1 is transformed to target being in HEX:
-// 00000000ffff0000000000000000000000000000000000000000000000000000
-// @see https://www.nicehash.com/sw/Ethereum_specification_R1.txt
-inline double Eth_DiffToNicehashDiff(uint64_t diff) {
-  // Ethereum difficulty is numerically equivalent to 2^32 times the difficulty of Bitcoin/NICEHASH_STRATUM.
-  return ((double)diff) / ((double)4294967296.0);
-}
-
-////////////////////////////// for Bytom //////////////////////////////
-uint64 Bytom_TargetCompactToDifficulty(uint64 bits);
-void Bytom_DifficultyToTargetBinary(uint64 difficulty, vector<uint8_t>& out);
-uint64 Bytom_JobDifficultyToTargetCompact(uint64 difficulty);
-
-////////////////////////////// for Bitcoin //////////////////////////////
-
-inline void BitsToDifficulty(uint32 bits, double *difficulty) {
-  int nShift = (bits >> 24) & 0xff;
-  double dDiff = (double)0x0000ffff / (double)(bits & 0x00ffffff);
-  while (nShift < 29) {
-    dDiff *= 256.0;
-    nShift++;
-  }
-  while (nShift > 29) {
-    dDiff /= 256.0;
-    nShift--;
-  }
-  *difficulty = dDiff;
-}
-
-inline void BitsToDifficulty(uint32 bits, uint64 *difficulty) {
-  double diff;
-  BitsToDifficulty(bits, &diff);
-  *difficulty = (uint64)diff;
-}
-
-// diff must be 2^N
-inline uint64_t formatDifficulty(const uint64_t diff) {
-  // set 2^63 as maximum difficulty, 2^63 = 9223372036854775808
-  const uint64_t kMaxDiff = 9223372036854775808ull;
-  if (diff >= kMaxDiff) {
-    return kMaxDiff;
-  }
-
-  uint64_t newDiff = 1;
-  int i = 0;
-  while (newDiff < diff) {
-    newDiff = newDiff << 1;
-    i++;
-  }
-  assert(i <= 63);
-  return 1ULL << i;
-}
 
 #endif

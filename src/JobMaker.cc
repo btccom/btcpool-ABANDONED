@@ -22,6 +22,9 @@
  THE SOFTWARE.
  */
 #include "JobMaker.h"
+#include "CommonBitcoin.h"
+
+#include "stratum/bitcoin/StratumBitcoin.h"
 
 #include <iostream>
 #include <stdlib.h>

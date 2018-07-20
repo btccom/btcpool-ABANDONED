@@ -21,25 +21,24 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-#ifndef STRATUM_BYTOM_H_
-#define STRATUM_BYTOM_H_
+#ifndef STRATUM_BITCOIN_H_
+#define STRATUM_BITCOIN_H_
 
 #include "stratum/Stratum.h"
-#include "CommonBytom.h"
+#include "CommonBitcoin.h"
 
-union BytomCombinedHeader
-{
-  struct
-  {
-    uint64_t blockCommitmentMerkleRootCheapHash_;
-    uint64_t blockCommitmentStatusHashCheapHash_;
-    uint64_t timestamp_;
-    uint64_t nonce_;      
-  };
-  uint8_t bytes[32];
-};
+#include <uint256.h>
+#include <base58.h>
+#include "rsk/RskWork.h"
+#include "script/standard.h"
 
-class ShareBytom : public ShareBase
+//
+// max coinbase tx size, bytes
+// Tips: currently there is only 1 input and 1, 2 or 3 output (reward, segwit and RSK outputs),
+//       so 500 bytes may enough.
+#define COINBASE_TX_MAX_SIZE   500
+
+class ShareBitcoin : public ShareBase
 {
 public:
 
@@ -47,13 +46,14 @@ public:
 
   uint64_t jobId_     = 0;
   uint64_t shareDiff_ = 0;
-  uint64_t blkBits_   = 0;
-  uint64_t height_    = 0;
-  BytomCombinedHeader combinedHeader_;
+  uint32_t blkBits_   = 0;
+  uint32_t height_    = 0;
+  uint32_t nonce_     = 0;
+  uint32_t sessionId_ = 0;
 
-  ShareBytom() = default;
-  ShareBytom(const ShareBytom &r) = default;
-  ShareBytom &operator=(const ShareBytom &r) = default;
+  ShareBitcoin() = default;
+  ShareBitcoin(const ShareBitcoin &r) = default;
+  ShareBitcoin &operator=(const ShareBitcoin &r) = default;
 
   double score() const
   {
@@ -62,17 +62,18 @@ public:
       return 0.0;
     }
 
-    uint64_t difficulty = Bytom_TargetCompactToDifficulty(blkBits_);
+    double networkDifficulty = 0.0;
+    BitsToDifficulty(blkBits_, &networkDifficulty);
 
     // Network diff may less than share diff on testnet or regression test network.
     // On regression test network, the network diff may be zero.
     // But no matter how low the network diff is, you can only dig one block at a time.
-    if (difficulty < shareDiff_)
+    if (networkDifficulty < (double)shareDiff_)
     {
       return 1.0;
     }
 
-    return (double)shareDiff_ / (double)difficulty;
+    return (double)shareDiff_ / networkDifficulty;
   }
 
   uint32_t checkSum() const {
@@ -89,10 +90,8 @@ public:
     c += (uint64_t) shareDiff_;
     c += (uint64_t) blkBits_;
     c += (uint64_t) height_;
-    c += (uint64_t) combinedHeader_.blockCommitmentMerkleRootCheapHash_;
-    c += (uint64_t) combinedHeader_.blockCommitmentStatusHashCheapHash_;
-    c += (uint64_t) combinedHeader_.timestamp_;
-    c += (uint64_t) combinedHeader_.nonce_;
+    c += (uint64_t) nonce_;
+    c += (uint64_t) sessionId_;
 
     return ((uint32_t) c) + ((uint32_t) (c >> 32));
   }
@@ -119,36 +118,56 @@ public:
 
   string toString() const
   {
-    uint64_t networkDifficulty = Bytom_TargetCompactToDifficulty(blkBits_);
+    double networkDifficulty = 0.0;
+    BitsToDifficulty(blkBits_, &networkDifficulty);
 
     return Strings::Format("share(jobId: %" PRIu64 ", ip: %s, userId: %d, "
                            "workerId: %" PRId64 ", time: %u/%s, height: %u, "
-                           "blkBits: %08x/%" PRId64 ", nonce: %08x, shareDiff: %" PRIu64 ", "
+                           "blkBits: %08x/%lf, nonce: %08x, sessionId: %08x, shareDiff: %" PRIu64 ", "
                            "status: %d/%s)",
                            jobId_, ip_.toString().c_str(), userId_,
                            workerHashId_, timestamp_, date("%F %T", timestamp_).c_str(), height_,
-                           blkBits_, networkDifficulty, combinedHeader_.nonce_, shareDiff_,
+                           blkBits_, networkDifficulty, nonce_, sessionId_, shareDiff_,
                            status_, StratumStatus::toString(status_));
   }
 };
 
-struct BlockHeaderBytom
-{
-  uint64 version;           // The version of the block.
-  uint64 height;            // The height of the block.
-  string previousBlockHash; // The hash of the previous block.
-  uint64 timestamp;         // The time of the block in seconds.
-  uint64 bits;              // Difficulty target for the block.
-  string transactionsMerkleRoot;
-  string transactionStatusHash;
-  string serializeToJson() const;
-};
-
-class StratumJobBytom : public StratumJob
+class StratumJobBitcoin : public StratumJob
 {
 public:
+  string gbtHash_; // gbt hash id
+  uint256 prevHash_;
+  string prevHashBeStr_; // little-endian hex, memory's order
+  string coinbase1_;
+  string coinbase2_;
+  vector<uint256> merkleBranch_;
+
+  int64_t coinbaseValue_;
+  // if segwit is not active, it will be empty
+  string witnessCommitment_;
+
+
+  // namecoin merged mining
+  uint32_t nmcAuxBits_;
+  uint256 nmcAuxBlockHash_;
+  int32_t nmcAuxMerkleSize_;
+  int32_t nmcAuxMerkleNonce_;
+  uint256 nmcNetworkTarget_;
+  int32_t nmcHeight_;
+  string nmcRpcAddr_;
+  string nmcRpcUserpass_;
+
+public:
+  StratumJobBitcoin();
+  bool initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
+                   const CTxDestination &poolPayoutAddr,
+                   const uint32_t blockVersion,
+                   const string &nmcAuxBlockJson,
+                   const RskWork &latestRskBlockJson);
+  string serializeToJson() const override;
   bool unserializeFromJson(const char *s, size_t len) override;
-  BlockHeaderBytom blockHeader_;
-  string seed_;
+  bool isEmptyBlock();
+
 };
+
 #endif

@@ -25,19 +25,6 @@
 #define DIFF_CONTROLLER_H_
 
 #include "Common.h"
-
-#include <netinet/in.h>
-#include <deque>
-#include <unordered_map>
-#include <event2/event.h>
-#include <event2/buffer.h>
-#include <event2/bufferevent.h>
-
-#include <glog/logging.h>
-
-#include <uint256.h>
-#include "utilities_js.hpp"
-#include "stratum/Stratum.h"
 #include "Statistics.h"
 
 
