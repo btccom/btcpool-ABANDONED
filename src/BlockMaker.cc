@@ -33,7 +33,7 @@
 #include "rsk/RskSolvedShareData.h"
 #include "bytom/bh_shared.h"
 #include "EthConsensus.h"
-#include "stratum/bitcoin/StratumBitcoin.h"
+#include "bitcoin/StratumBitcoin.h"
 
 
 ////////////////////////////////// BlockMaker //////////////////////////////////

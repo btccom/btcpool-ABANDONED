@@ -23,12 +23,13 @@
  */
 #include "StatsHttpd.h"
 
-#include "CommonBitcoin.h"
-#include "CommonBytom.h"
-
-#include "stratum/Stratum.h"
+#include "Stratum.h"
 #include "Utils.h"
 #include "utilities_js.hpp"
+#include "BitcoinUtils.h"
+
+#include "bitcoin/CommonBitcoin.h"
+#include "bytom/CommonBytom.h"
 
 #include <algorithm>
 #include <string>
@@ -44,7 +45,6 @@
 #include <unistd.h>
 
 #include <chainparams.h>
-#include "BitcoinUtils.h"
 
 
 ////////////////////////////////  WorkerShares  ////////////////////////////////

@@ -23,7 +23,7 @@
  */
 #include "StratumSessionEth.h"
 #include "StratumServerEth.h"
-#include "sserver/common/DiffController.h"
+#include "DiffController.h"
 
 #include "CommonEth.h"
 

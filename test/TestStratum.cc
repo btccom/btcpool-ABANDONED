@@ -26,7 +26,7 @@
 #include "Common.h"
 #include "Utils.h"
 #include "BitcoinUtils.h"
-#include "stratum/Stratum.h"
+#include "Stratum.h"
 
 #include <chainparams.h>
 #include <hash.h>
@@ -42,7 +42,7 @@
 
 #include <stdint.h>
 
-#include "stratum/bitcoin/StratumBitcoin.h"
+#include "bitcoin/StratumBitcoin.h"
 
 TEST(Stratum, jobId2Time) {
   uint64_t jobId;

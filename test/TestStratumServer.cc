@@ -26,7 +26,7 @@
 #include "Common.h"
 #include "Utils.h"
 
-#include "sserver/common/StratumServer.h"
+#include "StratumServer.h"
 
 // #include "Kafka.h"
 

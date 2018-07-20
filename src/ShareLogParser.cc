@@ -23,9 +23,10 @@
  */
 #include "ShareLogParser.h"
 
-#include "CommonBytom.h"
 #include "Utils.h"
 #include "utilities_js.hpp"
+
+#include "bytom/CommonBytom.h"
 
 #include <algorithm>
 #include <string>

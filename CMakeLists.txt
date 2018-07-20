@@ -387,16 +387,14 @@ set(THIRD_LIBRARIES ${BITCOIN_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL
                     ethash blake2 ${BH_SHARED_LIBRARY} ${USE_CUDA_LIBRARIES})
 
 file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc src/bytom/*.cc)
-file(GLOB_RECURSE LIB_SOURCES_STRATUM src/stratum/*.cc)
-file(GLOB LIB_SOURCES_SSERVER 
-        src/sserver/common/*.cc 
-        src/sserver/eth/*.cc 
-        src/sserver/bytom/*.cc 
-        src/sserver/bitcoin/*.cc 
-        src/sserver/sia/*.cc
+file(GLOB LIB_SOURCES_CHAINS
+        src/eth/*.cc 
+        src/bytom/*.cc 
+        src/bitcoin/*.cc 
+        src/sia/*.cc
     )
     
-add_library(btcpool STATIC ${LIB_SOURCES} ${LIB_SOURCES_STRATUM} ${LIB_SOURCES_SSERVER})
+add_library(btcpool STATIC ${LIB_SOURCES} ${LIB_SOURCES_CHAINS})
 
 file(GLOB_RECURSE TEST_SOURCES test/*.cc)
 add_executable(unittest ${TEST_SOURCES})
@@ -418,7 +416,7 @@ file(GLOB_RECURSE JOBMAKER_SOURCES src/jobmaker/*.cc)
 add_executable(jobmaker ${JOBMAKER_SOURCES})
 target_link_libraries(jobmaker btcpool ${THIRD_LIBRARIES})
 
-add_executable(sserver src/sserver/main/StratumServerMain.cc)
+add_executable(sserver src/sserver/StratumServerMain.cc)
 # add_dependencies(sserver build_bythom_shared)
 target_link_libraries(sserver btcpool ${THIRD_LIBRARIES})
 

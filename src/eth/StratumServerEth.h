@@ -27,8 +27,8 @@
 #include "CommonEth.h"
 
 #include <set>
-#include "sserver/common/StratumServer.h"
-#include "stratum/eth/StratumEth.h"
+#include "StratumServer.h"
+#include "eth/StratumEth.h"
 
 class ServerEth : public Server
 {

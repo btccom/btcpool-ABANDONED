@@ -24,7 +24,7 @@
 #include "StratumSession.h"
 #include "StratumServer.h"
 #include "DiffController.h"
-#include "sserver/bitcoin/StratumServerBitcoin.h"
+#include "bitcoin/CommonBitcoin.h"
 
 #include <boost/algorithm/string.hpp>
 

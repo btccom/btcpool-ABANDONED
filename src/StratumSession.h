@@ -36,7 +36,7 @@
 #include <glog/logging.h>
 
 #include "utilities_js.hpp"
-#include "stratum/Stratum.h"
+#include "Stratum.h"
 #include "Statistics.h"
 
 

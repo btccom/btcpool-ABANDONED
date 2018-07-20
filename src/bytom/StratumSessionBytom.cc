@@ -23,7 +23,7 @@
  */
 #include "StratumSessionBytom.h"
 #include "StratumServerBytom.h"
-#include "sserver/common/DiffController.h"
+#include "DiffController.h"
 
 #include "bytom/bh_shared.h"
 

@@ -38,8 +38,8 @@
 #include "zmq.hpp"
 
 #include "Utils.h"
-#include "sserver/common/StratumServer.h"
-#include "sserver/common/DiffController.h"
+#include "StratumServer.h"
+#include "DiffController.h"
 
 #include <chainparams.h>
 

@@ -25,10 +25,12 @@
 #include <glog/logging.h>
 
 #include "gtest/gtest.h"
-#include "CommonBitcoin.h"
-#include "CommonEth.h"
-#include "CommonBytom.h"
+
 #include "Utils.h"
+
+#include "bitcoin/CommonBitcoin.h"
+#include "eth/CommonEth.h"
+#include "bytom/CommonBytom.h"
 
 #include <uint256.h>
 #include <arith_uint256.h>

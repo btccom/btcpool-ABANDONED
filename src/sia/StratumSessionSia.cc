@@ -22,11 +22,12 @@
  THE SOFTWARE.
  */
 #include "StratumSessionSia.h"
-#include "sserver/common/DiffController.h"
-#include "stratum/bitcoin/StratumBitcoin.h"
+#include "DiffController.h"
+
+#include "bitcoin/StratumBitcoin.h"
+#include "eth/CommonEth.h"
 
 #include <arith_uint256.h>
-#include "CommonEth.h"
 
 ///////////////////////////////// StratumSessionSia ////////////////////////////////
 StratumSessionSia::StratumSessionSia(evutil_socket_t fd,

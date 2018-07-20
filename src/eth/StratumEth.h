@@ -24,7 +24,7 @@
 #ifndef STRATUM_ETH_H_
 #define STRATUM_ETH_H_
 
-#include "stratum/Stratum.h"
+#include "Stratum.h"
 #include "EthConsensus.h"
 
 #include "rsk/RskWork.h"

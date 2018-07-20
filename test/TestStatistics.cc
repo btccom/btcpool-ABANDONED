@@ -27,7 +27,7 @@
 #include "Statistics.h"
 #include "BitcoinUtils.h"
 
-#include "stratum/bitcoin/StratumBitcoin.h"
+#include "bitcoin/StratumBitcoin.h"
 
 ////////////////////////////////  StatsWindow  /////////////////////////////////
 TEST(StatsWindow, clear) {

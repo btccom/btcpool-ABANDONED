@@ -23,7 +23,7 @@
  */
 #include "StratumServerBytom.h"
 #include "StratumSessionBytom.h"
-#include "sserver/common/DiffController.h"
+#include "DiffController.h"
 
 using namespace std;
 

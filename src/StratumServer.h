@@ -45,7 +45,7 @@
 #include <glog/logging.h>
 
 #include "Kafka.h"
-#include "stratum/Stratum.h"
+#include "Stratum.h"
 
 class Server;
 class StratumJobEx;

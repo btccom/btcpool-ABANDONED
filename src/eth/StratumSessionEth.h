@@ -25,7 +25,7 @@
 #define STRATUM_SESSION_ETH_H_
 
 #include <set>
-#include "sserver/common/StratumSession.h"
+#include "StratumSession.h"
 #include "StratumServerEth.h"
 
 

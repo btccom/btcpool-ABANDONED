@@ -21,13 +21,14 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-#include "stratum/Stratum.h"
-#include "CommonBitcoin.h"
+#include "Stratum.h"
 
 #include "Utils.h"
-#include "bytom/bh_shared.h"
-#include <glog/logging.h>
 
+#include "bitcoin/CommonBitcoin.h"
+#include "bytom/bh_shared.h"
+
+#include <glog/logging.h>
 
 // filter for woker name and miner agent
 string filterWorkerName(const string &workerName) {

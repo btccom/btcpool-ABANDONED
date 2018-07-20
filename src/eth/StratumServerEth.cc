@@ -23,7 +23,7 @@
  */
 #include "StratumServerEth.h"
 #include "StratumSessionEth.h"
-#include "sserver/common/DiffController.h"
+#include "DiffController.h"
 
 #include <boost/thread.hpp>
 

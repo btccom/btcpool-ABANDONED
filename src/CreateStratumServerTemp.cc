@@ -1,10 +1,10 @@
 #include "CreateStratumServerTemp.h"
 
 #include "StratumServer.h"
-#include "sserver/bitcoin/StratumServerBitcoin.h"
-#include "sserver/eth/StratumServerEth.h"
-#include "sserver/bytom/StratumServerBytom.h"
-#include "sserver/sia/StratumServerSia.h"
+#include "bitcoin/StratumServerBitcoin.h"
+#include "eth/StratumServerEth.h"
+#include "bytom/StratumServerBytom.h"
+#include "sia/StratumServerSia.h"
 
 Server* createStratumServer(std::string type, const int32_t shareAvgSeconds) {
   LOG(INFO) << "createServer type: " << type << ", shareAvgSeconds: " << shareAvgSeconds;

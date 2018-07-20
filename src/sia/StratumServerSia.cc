@@ -24,7 +24,7 @@
 
 #include "StratumServerSia.h"
 #include "StratumSessionSia.h"
-#include "sserver/common/DiffController.h"
+#include "DiffController.h"
 
 using namespace std;
 

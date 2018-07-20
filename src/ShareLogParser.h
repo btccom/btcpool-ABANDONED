@@ -24,12 +24,14 @@
 #ifndef SHARELOGPARSER_H_
 #define SHARELOGPARSER_H_
 
-#include "CommonBitcoin.h"
+
 #include "Kafka.h"
 #include "MySQLConnection.h"
-#include "stratum/bitcoin/StratumBitcoin.h"
 #include "Statistics.h"
 #include "zlibstream/zstr.hpp"
+
+#include "bitcoin/CommonBitcoin.h"
+#include "bitcoin/StratumBitcoin.h"
 
 #include <event2/event.h>
 #include <event2/http.h>

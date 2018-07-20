@@ -21,37 +21,37 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-#ifndef STRATUM_SERVER_SIA_H_
-#define STRATUM_SERVER_SIA_H_
+#ifndef STRATUM_SERVER_BYTOM_H_
+#define STRATUM_SERVER_BYTOM_H_
 
-#include "sserver/common/StratumServer.h"
+#include "StratumServer.h"
+#include "bytom/StratumBytom.h"
 
-class ServerSia : public Server
+class ServerBytom : public Server
 {
 public:
-  ServerSia(const int32_t shareAvgSeconds) : Server(shareAvgSeconds) {}
-  virtual ~ServerSia();
+  ServerBytom(const int32_t shareAvgSeconds) : Server(shareAvgSeconds) {}
 
-
-  virtual StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
-                               struct sockaddr *saddr, const uint32_t sessionID);
-  
-  void sendSolvedShare2Kafka(uint8* buf, int len);
-private:
   JobRepository* createJobRepository(const char *kafkaBrokers,
                                      const char *consumerTopic,     
                                      const string &fileLastNotifyTime) override;
 
+  StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
+                               struct sockaddr *saddr, const uint32_t sessionID) override;
+  void sendSolvedShare2Kafka(uint64_t nonce, const string &strHeader,
+                                      uint64_t height, uint64_t networkDiff, const StratumWorker &worker);
 };
 
-class JobRepositorySia : public JobRepositoryBase<ServerSia>
+class JobRepositoryBytom : public JobRepositoryBase<ServerBytom>
 {
+private:
+  string latestPreviousBlockHash_;
+
 public:
-  JobRepositorySia(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerSia *server);
-  ~JobRepositorySia();
-  StratumJob *createStratumJob() override {return new StratumJobSia();}
+  JobRepositoryBytom(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerBytom *server);
+  StratumJob* createStratumJob() override {return new StratumJobBytom();}
   StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
   void broadcastStratumJob(StratumJob *sjob) override;
 };
 
-#endif
+#endif  // STRATUM_SERVER_BYTOM_H_
