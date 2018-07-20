@@ -24,7 +24,6 @@
 #include "StratumEth.h"
 
 #include "Utils.h"
-#include "bytom/bh_shared.h"
 #include <glog/logging.h>
 ///////////////////////////////StratumJobEth///////////////////////////
 StratumJobEth::StratumJobEth()

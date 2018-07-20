@@ -51,6 +51,10 @@ protected:
   void handleExMessage_SubmitShare        (const string *exMessage);
   void handleExMessage_SubmitShareWithTime(const string *exMessage);
 
+  bool handleRequest_Specific(const string &idStr, const string &method
+                              , const JsonNode &jparams, const JsonNode &jroot) override;
+  void handleRequest_SuggestTarget    (const string &idStr, const JsonNode &jparams);
+
 public:
   void handleRequest_Submit(const string &idStr,
                             const uint8_t shortJobId, const uint64_t extraNonce2,

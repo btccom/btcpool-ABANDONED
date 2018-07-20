@@ -122,5 +122,6 @@ inline int64 HToBe(int64 v) {
 }
 
 uint32 djb2(const char *str);
+uint64_t formatDifficulty(const uint64_t diff);
 
 #endif

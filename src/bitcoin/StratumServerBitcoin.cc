@@ -23,7 +23,7 @@
  */
 #include "StratumServerBitcoin.h"
 #include "StratumSessionBitcoin.h"
-#include "bitcoin/StratumBitcoin.h"
+#include "StratumBitcoin.h"
 
 #include "rsk/RskSolvedShareData.h"
 

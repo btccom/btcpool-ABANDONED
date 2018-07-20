@@ -543,6 +543,29 @@ void StratumSessionBitcoin::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtrSh
   clearLocalJobs();
 }
 
+bool StratumSessionBitcoin::handleRequest_Specific(const string &idStr, const string &method
+                            , const JsonNode &jparams, const JsonNode &jroot)
+{
+  if (method == "mining.suggest_target")
+  {
+    handleRequest_SuggestTarget(idStr, jparams);
+    return true;
+  }
+  return false;
+}
+
+void StratumSessionBitcoin::handleRequest_SuggestTarget(const string &idStr,
+                                                 const JsonNode &jparams) {
+  if (state_ != CONNECTED) {
+    return;  // suggest should be call before subscribe
+  }
+  if (jparams.children()->size() == 0) {
+    responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
+    return;
+  }
+  _handleRequest_SetDifficulty(TargetToDiff(jparams.children()->at(0).str()));
+}
+
 void StratumSessionBitcoin::handleExMessage_RegisterWorker(const string *exMessage) {
   if (agentSessions_ == nullptr) {
     return;

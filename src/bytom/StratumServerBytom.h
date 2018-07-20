@@ -25,7 +25,7 @@
 #define STRATUM_SERVER_BYTOM_H_
 
 #include "StratumServer.h"
-#include "bytom/StratumBytom.h"
+#include "StratumBytom.h"
 
 class ServerBytom : public Server
 {

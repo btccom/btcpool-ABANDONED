@@ -24,7 +24,6 @@
 #include "StratumSession.h"
 #include "StratumServer.h"
 #include "DiffController.h"
-#include "bitcoin/CommonBitcoin.h"
 
 #include <boost/algorithm/string.hpp>
 
@@ -240,10 +239,6 @@ void StratumSession::handleRequest(const string &idStr, const string &method,
   {
     handleRequest_MultiVersion(idStr, jparams);
   }
-  else if (method == "mining.suggest_target")
-  {
-    handleRequest_SuggestTarget(idStr, jparams);
-  }
   else if (method == "mining.suggest_difficulty")
   {
     handleRequest_SuggestDifficulty(idStr, jparams);
@@ -384,18 +379,6 @@ void StratumSession::checkUserAndPwd(const string &idStr, const string &fullName
 
 void StratumSession::_handleRequest_SetDifficulty(uint64_t suggestDiff) {
   diffController_->resetCurDiff(formatDifficulty(suggestDiff));
-}
-
-void StratumSession::handleRequest_SuggestTarget(const string &idStr,
-                                                 const JsonNode &jparams) {
-  if (state_ != CONNECTED) {
-    return;  // suggest should be call before subscribe
-  }
-  if (jparams.children()->size() == 0) {
-    responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
-    return;
-  }
-  _handleRequest_SetDifficulty(TargetToDiff(jparams.children()->at(0).str()));
 }
 
 void StratumSession::handleRequest_SuggestDifficulty(const string &idStr,

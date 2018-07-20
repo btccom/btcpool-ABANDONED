@@ -36,7 +36,6 @@ void BitsToTarget(uint32 bits, uint256 & target);
 void DiffToTarget(uint64 diff, uint256 & target, bool useTable=true);
 void BitsToDifficulty(uint32 bits, double *difficulty);
 void BitsToDifficulty(uint32 bits, uint64 *difficulty);
-uint64_t formatDifficulty(const uint64_t diff);
 
 ////////////////////////////// for Bitcoin //////////////////////////////
 

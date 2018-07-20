@@ -167,7 +167,6 @@ protected:
   void handleLine(const string &line);
   void handleRequest(const string &idStr, const string &method, const JsonNode &jparams, const JsonNode &jroot);
 
-  void handleRequest_SuggestTarget    (const string &idStr, const JsonNode &jparams);
   void handleRequest_SuggestDifficulty(const string &idStr, const JsonNode &jparams);
   void handleRequest_MultiVersion     (const string &idStr, const JsonNode &jparams);
   void _handleRequest_SetDifficulty(uint64_t suggestDiff);
