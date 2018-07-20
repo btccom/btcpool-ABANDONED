@@ -266,7 +266,7 @@ TEST(Stratum, StratumJobBitcoin) {
 
 #ifdef CHAIN_TYPE_BTC
 TEST(Stratum, StratumJobWithWitnessCommitment) {
-  StratumJob sjob;
+  StratumJobBitcoin sjob;
   string poolCoinbaseInfo = "/BTC.COM/";
   uint32_t blockVersion = 0;
   bool res;
@@ -362,7 +362,7 @@ TEST(Stratum, StratumJobWithWitnessCommitment) {
     ASSERT_EQ(res, true);
 
     const string jsonStr = sjob.serializeToJson();
-    StratumJob sjob2;
+    StratumJobBitcoin sjob2;
     res = sjob2.unserializeFromJson(jsonStr.c_str(), jsonStr.length());
     ASSERT_EQ(res, true);
 
@@ -396,7 +396,7 @@ TEST(Stratum, StratumJobWithWitnessCommitment) {
 
 #ifdef CHAIN_TYPE_BTC
 TEST(Stratum, StratumJobWithSegwitPayoutAddr) {
-  StratumJob sjob;
+  StratumJobBitcoin sjob;
   string poolCoinbaseInfo = "/BTC.COM/";
   uint32_t blockVersion = 0;
   bool res;
@@ -491,7 +491,7 @@ TEST(Stratum, StratumJobWithSegwitPayoutAddr) {
     ASSERT_EQ(res, true);
 
     const string jsonStr = sjob.serializeToJson();
-    StratumJob sjob2;
+    StratumJobBitcoin sjob2;
     res = sjob2.unserializeFromJson(jsonStr.c_str(), jsonStr.length());
     ASSERT_EQ(res, true);
 
@@ -525,7 +525,7 @@ TEST(Stratum, StratumJobWithSegwitPayoutAddr) {
 
 #ifdef CHAIN_TYPE_BTC
 TEST(Stratum, StratumJobWithRskWork) {
-  StratumJob sjob;
+  StratumJobBitcoin sjob;
   RskWork rskWork;
   string poolCoinbaseInfo = "/BTC.COM/";
   uint32_t blockVersion = 0;
