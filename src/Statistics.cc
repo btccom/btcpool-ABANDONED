@@ -28,6 +28,9 @@
 #include "Utils.h"
 #include "utilities_js.hpp"
 
+#include "bitcoin/BitcoinUtils.h"
+#include "EthConsensus.h"
+
 #include <algorithm>
 #include <string>
 
@@ -42,10 +45,6 @@
 #include <unistd.h>
 
 #include <chainparams.h>
-#include "BitcoinUtils.h"
-#include "EthConsensus.h"
-
-
 
 ///////////////////////////////  ShareStatsDay  ////////////////////////////////
 template <class SHARE>

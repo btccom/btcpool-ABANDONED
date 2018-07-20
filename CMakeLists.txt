@@ -386,7 +386,7 @@ set(THIRD_LIBRARIES ${BITCOIN_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} ${OPENSSL_SSL
                     ${LIBEVENT_PTHREADS_LIB} ${secp256k1_LIBRARIES} ${PTHREAD_LIBRARIES} ${MYSQL_LIB} ${GMP_LIBRARIES} ${Hiredis_LIBRARIES}
                     ethash blake2 ${BH_SHARED_LIBRARY} ${USE_CUDA_LIBRARIES})
 
-file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc src/bytom/*.cc)
+file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc)
 file(GLOB LIB_SOURCES_CHAINS
         src/eth/*.cc 
         src/bytom/*.cc 

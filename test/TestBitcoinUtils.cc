@@ -24,7 +24,8 @@
 
 #include "gtest/gtest.h"
 #include "Common.h"
-#include "BitcoinUtils.h"
+
+#include "bitcoin/BitcoinUtils.h"
 
 
 ////////////////////////////////  Block Rewards  /////////////////////////////////

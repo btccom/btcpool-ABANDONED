@@ -26,7 +26,7 @@
 #include "Stratum.h"
 #include "Utils.h"
 #include "utilities_js.hpp"
-#include "BitcoinUtils.h"
+#include "bitcoin/BitcoinUtils.h"
 
 #include "bitcoin/CommonBitcoin.h"
 #include "bytom/CommonBytom.h"

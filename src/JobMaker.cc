@@ -41,10 +41,12 @@
 #include <key_io.h> //  IsValidDestinationString for bch is not in this file.
 #endif
 
-#include "eth/StratumEth.h"
 #include "utilities_js.hpp"
 #include "Utils.h"
-#include "BitcoinUtils.h"
+
+#include "bitcoin/BitcoinUtils.h"
+
+#include "eth/StratumEth.h"
 
 ///////////////////////////////////  JobMaker  /////////////////////////////////
 JobMaker::JobMaker(shared_ptr<JobMakerHandler> handler,
