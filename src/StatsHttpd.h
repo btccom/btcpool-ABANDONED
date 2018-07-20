@@ -28,7 +28,7 @@
 #include "Kafka.h"
 #include "MySQLConnection.h"
 #include "RedisConnection.h"
-#include "stratum/Stratum.h"
+#include "stratum/bitcoin/StratumBitcoin.h"
 #include "Statistics.h"
 
 #include <event2/event.h>

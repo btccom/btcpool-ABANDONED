@@ -1,4 +1,4 @@
-/*
+/* 
  The MIT License (MIT)
 
  Copyright (c) [2016] [BTC.COM]
@@ -20,16 +20,14 @@
  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
- */
+*/
+#ifndef POOL_COMMON_BYTOM_H_
+#define POOL_COMMON_BYTOM_H_
+
 #include "Common.h"
 
-uint32 djb2(const char *s)
-{
-  uint32 hash = 5381;
-  int c;
-  uint8* str = (uint8*) s;
-  while ((c = *str++))
-    hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+uint64 Bytom_TargetCompactToDifficulty(uint64 bits);
+void Bytom_DifficultyToTargetBinary(uint64 difficulty, vector<uint8_t>& out);
+uint64 Bytom_JobDifficultyToTargetCompact(uint64 difficulty);
 
-  return hash;
-}
+#endif

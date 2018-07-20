@@ -22,14 +22,22 @@
  THE SOFTWARE.
  */
 #include "Common.h"
+#include "bytom/bh_shared.h"
 
-uint32 djb2(const char *s)
+
+uint64 Bytom_TargetCompactToDifficulty(uint64 bits)
 {
-  uint32 hash = 5381;
-  int c;
-  uint8* str = (uint8*) s;
-  while ((c = *str++))
-    hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+  return CalculateDifficultyByTargetCompact(bits);
+}
 
-  return hash;
+void Bytom_DifficultyToTargetBinary(uint64 difficulty, vector<uint8_t>& out)
+{
+  out.resize(32);
+  GoSlice outSlice = {(void *)out.data(), 32, 32};  
+  CalculateTargetBinaryByDifficulty(difficulty, outSlice);
+}
+
+uint64 Bytom_JobDifficultyToTargetCompact(uint64 difficulty)
+{
+  return CalculateTargetCompactByDifficulty(difficulty);
 }

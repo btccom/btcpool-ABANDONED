@@ -25,7 +25,7 @@
 #define STRATUM_SERVER_BITCOIN_H_
 
 #include "sserver/common/StratumServer.h"
-
+#include "stratum/bitcoin/StratumBitcoin.h"
 
 
 class ServerBitcoin : public Server

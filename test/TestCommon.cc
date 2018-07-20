@@ -25,7 +25,9 @@
 #include <glog/logging.h>
 
 #include "gtest/gtest.h"
-#include "Common.h"
+#include "CommonBitcoin.h"
+#include "CommonEth.h"
+#include "CommonBytom.h"
 #include "Utils.h"
 
 #include <uint256.h>

@@ -23,8 +23,7 @@
  */
 #include "ShareLogParser.h"
 
-#include "Common.h"
-#include "stratum/Stratum.h"
+#include "CommonBytom.h"
 #include "Utils.h"
 #include "utilities_js.hpp"
 
@@ -41,9 +40,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-
-#include <chainparams.h>
-#include "BitcoinUtils.h"
 
 
 ///////////////////////////////  ShareLogDumperT  ///////////////////////////////

@@ -23,13 +23,6 @@
  */
 #include "DiffController.h"
 
-// #include "Utils.h"
-// #include "utilities_js.hpp"
-// #include <arith_uint256.h>
-// #include <arpa/inet.h>
-// #include <boost/algorithm/string.hpp>
-
-
 //////////////////////////////// DiffController ////////////////////////////////
 void DiffController::setMinDiff(uint64 minDiff) {
   if (minDiff < kMinDiff_) {

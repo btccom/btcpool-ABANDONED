@@ -23,7 +23,9 @@
  */
 #include "StatsHttpd.h"
 
-#include "Common.h"
+#include "CommonBitcoin.h"
+#include "CommonBytom.h"
+
 #include "stratum/Stratum.h"
 #include "Utils.h"
 #include "utilities_js.hpp"

@@ -23,8 +23,10 @@
  */
 #include "StratumSessionSia.h"
 #include "sserver/common/DiffController.h"
+#include "stratum/bitcoin/StratumBitcoin.h"
 
 #include <arith_uint256.h>
+#include "CommonEth.h"
 
 ///////////////////////////////// StratumSessionSia ////////////////////////////////
 StratumSessionSia::StratumSessionSia(evutil_socket_t fd,

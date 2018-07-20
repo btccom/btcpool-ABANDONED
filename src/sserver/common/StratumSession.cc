@@ -22,15 +22,11 @@
  THE SOFTWARE.
  */
 #include "StratumSession.h"
-#include "DiffController.h"
 #include "StratumServer.h"
+#include "DiffController.h"
 #include "sserver/bitcoin/StratumServerBitcoin.h"
-#include "Utils.h"
-#include "utilities_js.hpp"
-#include <arith_uint256.h>
-#include <arpa/inet.h>
-#include <boost/algorithm/string.hpp>
 
+#include <boost/algorithm/string.hpp>
 
 //////////////////////////////// StratumSession ////////////////////////////////
 StratumSession::StratumSession(evutil_socket_t fd, struct bufferevent *bev,

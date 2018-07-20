@@ -23,30 +23,13 @@
  */
 #include "StratumServerBitcoin.h"
 #include "StratumSessionBitcoin.h"
+#include "stratum/bitcoin/StratumBitcoin.h"
 
-
-#include <iostream>
-#include <iomanip>
-#include <fstream>
-#include <inttypes.h>
-#include <memory.h>
-#include <boost/thread.hpp>
-
-
-#include "Common.h"
-#include "Kafka.h"
-#include "Utils.h"
 #include "rsk/RskSolvedShareData.h"
 
 #include <arith_uint256.h>
-#include <utilstrencodings.h>
-#include <hash.h>
-
-#include "utilities_js.hpp"
 
 using namespace std;
-
-
 
 //////////////////////////////////// JobRepositoryBitcoin /////////////////////////////////
 JobRepositoryBitcoin::JobRepositoryBitcoin(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerBitcoin *server)

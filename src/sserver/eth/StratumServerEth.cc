@@ -25,25 +25,13 @@
 #include "StratumSessionEth.h"
 #include "sserver/common/DiffController.h"
 
-#include <iostream>
-#include <iomanip>
-#include <fstream>
-#include <inttypes.h>
-#include <memory.h>
 #include <boost/thread.hpp>
 
-#include "Common.h"
-#include "Kafka.h"
-#include "Utils.h"
-#include "rsk/RskSolvedShareData.h"
+#include "CommonEth.h"
 #include "libethash/ethash.h"
 #include "libethash/internal.h"
 
 #include <arith_uint256.h>
-#include <utilstrencodings.h>
-#include <hash.h>
-
-#include "utilities_js.hpp"
 
 using namespace std;
 
