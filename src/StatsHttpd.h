@@ -30,11 +30,7 @@
 #include "RedisConnection.h"
 #include "Statistics.h"
 
-#include "bitcoin/StratumBitcoin.h"
 
-#include "eth/StratumEth.h"
-
-#include "bytom/StratumBytom.h"
 
 #include <event2/event.h>
 #include <event2/http.h>
@@ -284,9 +280,8 @@ public:
                        const char *pWorkerId, const char *pIsMerge);
 };
 
+#include "StatsHttpd.inl"
+
 ////////////////////////////  Alias  ////////////////////////////
-using StatsServerBitcoin = StatsServerT<ShareBitcoin>;
-using StatsServerEth = StatsServerT<ShareEth>;
-using StatsServerBytom = StatsServerT<ShareBytom>;
 
 #endif // STATSHTTPD_H_

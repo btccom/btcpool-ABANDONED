@@ -21,31 +21,9 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-#include "StatsHttpd.h"
-
-#include "Stratum.h"
-#include "Utils.h"
-#include "utilities_js.hpp"
-#include "bitcoin/BitcoinUtils.h"
-
-#include "bitcoin/CommonBitcoin.h"
-#include "bytom/CommonBytom.h"
-
-#include <algorithm>
-#include <string>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/thread.hpp>
-
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-
-#include <chainparams.h>
-
 
 ////////////////////////////////  WorkerShares  ////////////////////////////////
 template <class SHARE>
@@ -1664,10 +1642,3 @@ void StatsServerT<SHARE>::run() {
 ///////////////  template instantiation ///////////////
 // Without this, some linking errors will issued.
 // If you add a new derived class of Share, add it at the following.
-template class WorkerShares<ShareBitcoin>;
-template class WorkerShares<ShareEth>;
-template class WorkerShares<ShareBytom>;
-
-template class StatsServerT<ShareBitcoin>;
-template class StatsServerT<ShareEth>;
-template class StatsServerT<ShareBytom>;
