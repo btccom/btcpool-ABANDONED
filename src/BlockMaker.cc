@@ -23,19 +23,14 @@
  */
 #include "BlockMaker.h"
 
-#include <boost/thread.hpp>
-
-#include <consensus/merkle.h>
-#include <core_io.h>
-#include "utilities_js.hpp"
-
 #include "bitcoin/StratumBitcoin.h"
 #include "bitcoin/BitcoinUtils.h"
 
 #include "rsk/RskSolvedShareData.h"
-#include "bytom/bh_shared.h"
-// #include "eth/EthConsensus.h"
 
+#include <consensus/merkle.h>
+
+#include <boost/thread.hpp>
 
 ////////////////////////////////// BlockMaker //////////////////////////////////
 BlockMaker::BlockMaker(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB):

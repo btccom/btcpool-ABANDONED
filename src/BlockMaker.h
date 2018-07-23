@@ -29,15 +29,11 @@
 #include "MySQLConnection.h"
 #include "Stratum.h"
 
+#include <uint256.h>
+
 #include <deque>
 #include <vector>
 #include <boost/date_time/posix_time/posix_time.hpp>
-
-#include <uint256.h>
-#include <base58.h>
-
-#include "rsk/RskWork.h"
-#include "primitives/block.h"
 
 namespace bpt = boost::posix_time;
 
