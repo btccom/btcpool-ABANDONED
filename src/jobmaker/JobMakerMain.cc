@@ -40,6 +40,11 @@
 #include "JobMaker.h"
 #include "Zookeeper.h"
 
+#include "bitcoin/JobMakerBitcoin.h"
+#include "eth/JobMakerEth.h"
+#include "bytom/JobMakerBytom.h"
+#include "sia/JobMakerSia.h"
+
 #include <chainparams.h>
 
 using namespace std;
