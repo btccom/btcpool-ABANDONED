@@ -29,7 +29,7 @@
 #include "utilities_js.hpp"
 
 #include "bitcoin/BitcoinUtils.h"
-#include "EthConsensus.h"
+#include "eth/EthConsensus.h"
 
 #include <algorithm>
 #include <string>
