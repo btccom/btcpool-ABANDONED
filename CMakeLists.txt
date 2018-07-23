@@ -488,7 +488,6 @@ if(POOL__GENERATE_DEB_PACKAGE)
 
   # dependencies
   set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
-  set(CPACK_DEBIAN_PACKAGE_DEPENDS "librdkafka1 (>= 0.9.1-1)")
 
   include(CPack)
 endif()
