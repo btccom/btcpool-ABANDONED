@@ -35,7 +35,8 @@
 #include <libconfig.h++>
 
 #include "Utils.h"
-#include "BlockMaker.h"
+
+#include "bitcoin/BlockMakerBitcoin.h"
 #include "eth/BlockMakerEth.h"
 #include "bytom/BlockMakerBytom.h"
 #include "sia/BlockMakerSia.h"
@@ -72,7 +73,7 @@ void usage() {
 BlockMaker* createBlockMaker(const BlockMakerDefinition& def, const string& broker, MysqlConnectInfo* poolDBInfo) {
   BlockMaker *maker = nullptr;
   if ("BTC" == def.chainType_) 
-    maker = new BlockMaker(def, broker.c_str(), *poolDBInfo);
+    maker = new BlockMakerBitcoin(def, broker.c_str(), *poolDBInfo);
   else if ("ETH" == def.chainType_) 
     maker = new BlockMakerEth(def, broker.c_str(), *poolDBInfo);
   else if ("SIA" == def.chainType_)

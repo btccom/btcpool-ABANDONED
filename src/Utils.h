@@ -80,7 +80,7 @@ bool httpPOST(const char *url, const char *userpwd, const char *postData,
               string &response, long timeoutMs, const char *contentType);
 bool httpPOST(const char *url, const char *userpwd, const char *postData,
               string &response, long timeoutMs, const char *contentType, const char *agent);
-bool bitcoindRpcCall(const char *url, const char *userpwd, const char *reqData,
+bool blockchainNodeRpcCall(const char *url, const char *userpwd, const char *reqData,
                      string &response);
 
 bool rpcCall(const char *url, const char *userpwd, const char *reqData, int len, string &response, const char *agent);  
@@ -132,8 +132,6 @@ void readFromSetting(const S &setting,
 }
 
 string getStatsFilePath(const char *chainType, const string &dataDir, time_t ts);
-
-bool checkBitcoinRPC(const string &rpcAddr, const string &rpcUserpass);
 
 // redis sorted-set uses double as its rank.
 // 37^9  = 1.299617398e+14 < 2^52 = 4.503599627e+15

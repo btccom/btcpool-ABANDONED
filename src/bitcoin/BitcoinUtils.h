@@ -33,6 +33,8 @@
 #include <utilstrencodings.h>
 #include <base58.h>
 
+#include "CommonBitcoin.h"
+
 #ifdef CHAIN_TYPE_BCH
   // header that defined DecodeDestination & IsValidDestinationString
   #include <dstencode.h>
@@ -59,5 +61,7 @@ int64_t GetBlockReward(int nHeight, const Consensus::Params& consensusParams);
 CTxDestination DecodeDestination(const std::string& str);
 bool IsValidDestinationString(const std::string& str);
 #endif // CHAIN_TYPE_SBTC
+
+bool checkBitcoinRPC(const string &rpcAddr, const string &rpcUserpass);
 
 #endif // BITCOIN_UTILS_H_

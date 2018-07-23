@@ -326,7 +326,7 @@ string GwMakerHandlerEth::getBlockHeight() {
   const string request = "{\"jsonrpc\":\"2.0\",\"method\":\"eth_getBlockByNumber\",\"params\":[\"pending\", false],\"id\":2}";
 
   string response;
-  bool res = bitcoindRpcCall(def_.rpcAddr_.c_str(), def_.rpcUserPwd_.c_str(), request.c_str(), response);
+  bool res = blockchainNodeRpcCall(def_.rpcAddr_.c_str(), def_.rpcUserPwd_.c_str(), request.c_str(), response);
   if (!res) {
     LOG(ERROR) << "get pending block failed";
     return "";
