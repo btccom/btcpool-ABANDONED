@@ -36,6 +36,9 @@
 
 #include "Utils.h"
 #include "BlockMaker.h"
+#include "eth/BlockMakerEth.h"
+#include "bytom/BlockMakerBytom.h"
+#include "sia/BlockMakerSia.h"
 
 using namespace std;
 using namespace libconfig;

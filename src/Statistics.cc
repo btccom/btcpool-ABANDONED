@@ -30,6 +30,7 @@
 
 #include "bitcoin/BitcoinUtils.h"
 #include "eth/EthConsensus.h"
+#include "bytom/BytomUtils.h"
 
 #include <algorithm>
 #include <string>

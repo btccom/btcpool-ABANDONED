@@ -209,39 +209,5 @@ public:
   void run();
 };
 
-class BlockMakerEth : public BlockMaker
-{
-public:
-  BlockMakerEth(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
-  void processSolvedShare(rd_kafka_message_t *rkmessage) override;
-  bool init() override;
-
-private:
-  void submitBlockNonBlocking(const string &blockJson);
-  void _submitBlockThread(const string &rpcAddress, const string &rpcUserpass, const string &blockJson);
-  void saveBlockToDBNonBlocking(const string &header, const uint32_t height, const string &chain, const uint64_t networkDiff, const StratumWorker &worker);
-  void _saveBlockToDBThread(const string &header, const uint32_t height, const string &chain, const uint64_t networkDiff, const StratumWorker &worker);
-};
-
-class BlockMakerSia : public BlockMakerEth
-{
-public:
-  BlockMakerSia(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
-  void processSolvedShare(rd_kafka_message_t *rkmessage) override;
-};
-
-class BlockMakerBytom : public BlockMakerEth
-{
-public:
-  BlockMakerBytom(const BlockMakerDefinition &def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
-  void processSolvedShare(rd_kafka_message_t *rkmessage) override;
-
-private:
-  void submitBlockNonBlocking(const string &request);
-  void _submitBlockThread(const string &rpcAddress, const string &rpcUserpass, const string& request);
-  void saveBlockToDBNonBlocking(const string &header, const uint32_t height, const uint64_t networkDiff, const StratumWorker &worker);
-  void _saveBlockToDBThread(const string &header, const uint32_t height, const uint64_t networkDiff, const StratumWorker &worker);
-
-};
 
 #endif

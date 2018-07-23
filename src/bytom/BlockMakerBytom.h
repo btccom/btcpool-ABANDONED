@@ -21,43 +21,25 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-#ifndef BITCOIN_UTILS_H_
-#define BITCOIN_UTILS_H_
+#ifndef BLOCK_MAKER_BYTOM_H_
+#define BLOCK_MAKER_BYTOM_H_
 
-#include <string>
+#include "BlockMaker.h"
+#include "CommonBytom.h"
 
-#include <core_io.h>
-#include <streams.h>
-#include <amount.h>
-#include <chainparams.h>
-#include <utilstrencodings.h>
-#include <base58.h>
+class BlockMakerBytom : public BlockMaker
+{
+public:
+  BlockMakerBytom(const BlockMakerDefinition &def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
+  void processSolvedShare(rd_kafka_message_t *rkmessage) override;
+  bool init() override;
 
-#ifdef CHAIN_TYPE_BCH
-  // header that defined DecodeDestination & IsValidDestinationString
-  #include <dstencode.h>
-  #define AMOUNT_TYPE Amount
-  #define COIN_TO_SATOSHIS COIN.GetSatoshis()
-  #define AMOUNT_SATOSHIS(amt) amt.GetSatoshis()
-  inline CTxDestination DecodeDestination(const std::string& str)
-  {
-    return DecodeDestination(str, Params());
-  }
+private:
+  void submitBlockNonBlocking(const string &request);
+  void _submitBlockThread(const string &rpcAddress, const string &rpcUserpass, const string& request);
+  void saveBlockToDBNonBlocking(const string &header, const uint32_t height, const uint64_t networkDiff, const StratumWorker &worker);
+  void _saveBlockToDBThread(const string &header, const uint32_t height, const uint64_t networkDiff, const StratumWorker &worker);
 
-#else
-  #define AMOUNT_TYPE CAmount
-  #define COIN_TO_SATOSHIS COIN
-  #define AMOUNT_SATOSHIS(amt) amt
+};
+
 #endif
-
-std::string EncodeHexBlock(const CBlock &block);
-std::string EncodeHexBlockHeader(const CBlockHeader &blkHeader);
-
-int64_t GetBlockReward(int nHeight, const Consensus::Params& consensusParams);
-
-#ifdef CHAIN_TYPE_SBTC
-CTxDestination DecodeDestination(const std::string& str);
-bool IsValidDestinationString(const std::string& str);
-#endif // CHAIN_TYPE_SBTC
-
-#endif // BITCOIN_UTILS_H_

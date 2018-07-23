@@ -21,43 +21,40 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-#ifndef BITCOIN_UTILS_H_
-#define BITCOIN_UTILS_H_
+#include "BlockMakerSia.h"
 
-#include <string>
+#include <boost/thread.hpp>
 
-#include <core_io.h>
-#include <streams.h>
-#include <amount.h>
-#include <chainparams.h>
-#include <utilstrencodings.h>
-#include <base58.h>
+// #include <consensus/merkle.h>
+// #include <core_io.h>
+// #include "utilities_js.hpp"
 
-#ifdef CHAIN_TYPE_BCH
-  // header that defined DecodeDestination & IsValidDestinationString
-  #include <dstencode.h>
-  #define AMOUNT_TYPE Amount
-  #define COIN_TO_SATOSHIS COIN.GetSatoshis()
-  #define AMOUNT_SATOSHIS(amt) amt.GetSatoshis()
-  inline CTxDestination DecodeDestination(const std::string& str)
-  {
-    return DecodeDestination(str, Params());
+// #include "bitcoin/StratumBitcoin.h"
+// #include "bitcoin/BitcoinUtils.h"
+
+// #include "rsk/RskSolvedShareData.h"
+// #include "bytom/bh_shared.h"
+// #include "eth/EthConsensus.h"
+
+//////////////////////////////////////BlockMakerSia//////////////////////////////////////////////////
+BlockMakerSia::BlockMakerSia(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB) 
+  : BlockMaker(def, kafkaBrokers, poolDB)
+{
+}
+
+void BlockMakerSia::processSolvedShare(rd_kafka_message_t *rkmessage)
+{
+  if (rkmessage->len != 80) {
+    LOG(ERROR) << "incorrect header len: " << rkmessage->len;
+    return;
   }
 
-#else
-  #define AMOUNT_TYPE CAmount
-  #define COIN_TO_SATOSHIS COIN
-  #define AMOUNT_SATOSHIS(amt) amt
-#endif
-
-std::string EncodeHexBlock(const CBlock &block);
-std::string EncodeHexBlockHeader(const CBlockHeader &blkHeader);
-
-int64_t GetBlockReward(int nHeight, const Consensus::Params& consensusParams);
-
-#ifdef CHAIN_TYPE_SBTC
-CTxDestination DecodeDestination(const std::string& str);
-bool IsValidDestinationString(const std::string& str);
-#endif // CHAIN_TYPE_SBTC
-
-#endif // BITCOIN_UTILS_H_
+  char buf[80] = {0};
+  memcpy(buf, rkmessage->payload, 80);
+  for (const auto &itr : nodeRpcUri_)
+  {
+    string response;
+    rpcCall(itr.first.c_str(), itr.second.c_str(), buf, 80, response, "Sia-Agent");
+    LOG(INFO) << "submission result: " << response;
+  }
+}
