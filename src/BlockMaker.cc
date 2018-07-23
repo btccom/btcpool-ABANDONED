@@ -27,13 +27,14 @@
 
 #include <consensus/merkle.h>
 #include <core_io.h>
-#include "BitcoinUtils.h"
 #include "utilities_js.hpp"
+
+#include "bitcoin/StratumBitcoin.h"
+#include "bitcoin/BitcoinUtils.h"
 
 #include "rsk/RskSolvedShareData.h"
 #include "bytom/bh_shared.h"
 #include "EthConsensus.h"
-#include "stratum/bitcoin/StratumBitcoin.h"
 
 
 ////////////////////////////////// BlockMaker //////////////////////////////////

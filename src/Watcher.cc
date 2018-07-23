@@ -35,7 +35,7 @@
 #include <chainparams.h>
 #include <utilstrencodings.h>
 #include <hash.h>
-#include "BitcoinUtils.h"
+#include "bitcoin/BitcoinUtils.h"
 
 
 static

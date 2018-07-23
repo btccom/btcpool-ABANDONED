@@ -25,8 +25,11 @@
 #include "gtest/gtest.h"
 #include "Common.h"
 #include "Utils.h"
-#include "BitcoinUtils.h"
-#include "stratum/Stratum.h"
+#include "Stratum.h"
+
+#include "bitcoin/BitcoinUtils.h"
+#include "bitcoin/StratumBitcoin.h"
+#include "rsk/RskWork.h"
 
 #include <chainparams.h>
 #include <hash.h>
@@ -38,11 +41,8 @@
 #include <key_io.h> //  IsValidDestinationString for bch is not in this file.
 #endif
 
-#include "rsk/RskWork.h"
-
 #include <stdint.h>
 
-#include "stratum/bitcoin/StratumBitcoin.h"
 
 TEST(Stratum, jobId2Time) {
   uint64_t jobId;

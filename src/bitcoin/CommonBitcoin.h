@@ -1,4 +1,4 @@
-/*
+/* 
  The MIT License (MIT)
 
  Copyright (c) [2016] [BTC.COM]
@@ -20,35 +20,24 @@
  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
- */
+*/
+#ifndef POOL_COMMON_BITCOIN_H_
+#define POOL_COMMON_BITCOIN_H_
+
 #include "Common.h"
 
-uint32 djb2(const char *s)
-{
-  uint32 hash = 5381;
-  int c;
-  uint8* str = (uint8*) s;
-  while ((c = *str++))
-    hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+#include <uint256.h>
 
-  return hash;
-}
+////////////////////////////// for Bitcoin //////////////////////////////
+uint64 TargetToDiff(uint256 &target);
+uint64 TargetToDiff(const string &str);
 
-// diff must be 2^N
-uint64_t formatDifficulty(const uint64_t diff) {
-  // set 2^63 as maximum difficulty, 2^63 = 9223372036854775808
-  const uint64_t kMaxDiff = 9223372036854775808ull;
-  if (diff >= kMaxDiff) {
-    return kMaxDiff;
-  }
+void BitsToTarget(uint32 bits, uint256 & target);
+void DiffToTarget(uint64 diff, uint256 & target, bool useTable=true);
+void BitsToDifficulty(uint32 bits, double *difficulty);
+void BitsToDifficulty(uint32 bits, uint64 *difficulty);
 
-  uint64_t newDiff = 1;
-  int i = 0;
-  while (newDiff < diff) {
-    newDiff = newDiff << 1;
-    i++;
-  }
-  assert(i <= 63);
-  return 1ULL << i;
-}
+////////////////////////////// for Bitcoin //////////////////////////////
 
+
+#endif

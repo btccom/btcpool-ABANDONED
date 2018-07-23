@@ -21,34 +21,27 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-#include "Common.h"
+#ifndef STRATUM_SESSION_SIA_H_
+#define STRATUM_SESSION_SIA_H_
 
-uint32 djb2(const char *s)
+#include "StratumSession.h"
+#include "StratumServerSia.h"
+
+
+class StratumSessionSia : public StratumSessionBase<ServerSia>
 {
-  uint32 hash = 5381;
-  int c;
-  uint8* str = (uint8*) s;
-  while ((c = *str++))
-    hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+public:
+  StratumSessionSia(evutil_socket_t fd, struct bufferevent *bev,
+                    ServerSia *server, struct sockaddr *saddr,
+                    const int32_t shareAvgSeconds, const uint32_t extraNonce1);
+  //virtual bool initialize();
+  void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false) override;  
+  void handleRequest_Authorize(const string &idStr, const JsonNode &jparams, const JsonNode &jroot) override{ } //  no implementation yet
+  void handleRequest_Subscribe   (const string &idStr, const JsonNode &jparams) override;        
+  void handleRequest_Submit (const string &idStr, const JsonNode &jparams) override;  
 
-  return hash;
-}
+private:
+  uint8 shortJobId_;    //Claymore jobId starts from 0
+};
 
-// diff must be 2^N
-uint64_t formatDifficulty(const uint64_t diff) {
-  // set 2^63 as maximum difficulty, 2^63 = 9223372036854775808
-  const uint64_t kMaxDiff = 9223372036854775808ull;
-  if (diff >= kMaxDiff) {
-    return kMaxDiff;
-  }
-
-  uint64_t newDiff = 1;
-  int i = 0;
-  while (newDiff < diff) {
-    newDiff = newDiff << 1;
-    i++;
-  }
-  assert(i <= 63);
-  return 1ULL << i;
-}
-
+#endif

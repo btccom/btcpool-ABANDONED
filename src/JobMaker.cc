@@ -22,9 +22,8 @@
  THE SOFTWARE.
  */
 #include "JobMaker.h"
-#include "CommonBitcoin.h"
-
-#include "stratum/bitcoin/StratumBitcoin.h"
+#include "bitcoin/CommonBitcoin.h"
+#include "bitcoin/StratumBitcoin.h"
 
 #include <iostream>
 #include <stdlib.h>
@@ -42,10 +41,12 @@
 #include <key_io.h> //  IsValidDestinationString for bch is not in this file.
 #endif
 
-#include "stratum/eth/StratumEth.h"
 #include "utilities_js.hpp"
 #include "Utils.h"
-#include "BitcoinUtils.h"
+
+#include "bitcoin/BitcoinUtils.h"
+
+#include "eth/StratumEth.h"
 
 ///////////////////////////////////  JobMaker  /////////////////////////////////
 JobMaker::JobMaker(shared_ptr<JobMakerHandler> handler,

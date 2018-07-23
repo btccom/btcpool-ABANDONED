@@ -13,7 +13,6 @@
 /data/
 
 # Legacy files
-/src/bitcoin/
 
 # GNU global files
 /GPATH
