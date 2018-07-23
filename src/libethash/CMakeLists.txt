@@ -18,8 +18,9 @@ else()
     list(APPEND FILES io_posix.c)
 endif()
 
-add_library(ethash ${FILES})
+add_library(ethash STATIC ${FILES})
 set_target_properties(ethash PROPERTIES C_STANDARD 99)
 
-install(TARGETS ethash DESTINATION /usr/local/lib)
-install(FILES ethash.h DESTINATION /usr/local/include)
+# End users do not need to install static libraries and header files
+#install(TARGETS ethash DESTINATION /usr/local/lib)
+#install(FILES ethash.h DESTINATION /usr/local/include)
