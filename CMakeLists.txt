@@ -7,8 +7,11 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 message("") # empty line
 message("------------------------------- Options -------------------------------")
 
-# packname postfix will be different with some optional feature enabled
-set(POOL__DEB_PACKNAME_POSTFIX "")
+# Package name postfix will be different with some optional feature enabled.
+# This option can be defined to change the default package name.
+if(NOT POOL__DEB_PACKNAME_POSTFIX)
+    set(POOL__DEB_PACKNAME_POSTFIX "")
+endif()
 
 #
 # Build Type: -DCMAKE_BUILD_TYPE=Debug|Release
