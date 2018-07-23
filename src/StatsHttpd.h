@@ -28,8 +28,13 @@
 #include "Kafka.h"
 #include "MySQLConnection.h"
 #include "RedisConnection.h"
-#include "bitcoin/StratumBitcoin.h"
 #include "Statistics.h"
+
+#include "bitcoin/StratumBitcoin.h"
+
+#include "eth/StratumEth.h"
+
+#include "bytom/StratumBytom.h"
 
 #include <event2/event.h>
 #include <event2/http.h>

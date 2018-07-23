@@ -39,6 +39,11 @@
 #include "Utils.h"
 #include "ShareLogParser.h"
 
+#include "bitcoin/StatisticsBitcoin.h"
+#include "eth/StatisticsEth.h"
+#include "bytom/StatisticsBytom.h"
+
+
 using namespace std;
 using namespace libconfig;
 

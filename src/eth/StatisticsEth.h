@@ -21,29 +21,38 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-#include "BlockMakerSia.h"
+#ifndef STATISTICS_ETH_H_
+#define STATISTICS_ETH_H_
 
-#include <boost/thread.hpp>
+#include "Statistics.h"
 
-//////////////////////////////////////BlockMakerSia//////////////////////////////////////////////////
-BlockMakerSia::BlockMakerSia(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB) 
-  : BlockMaker(def, kafkaBrokers, poolDB)
-{
-}
+#include "CommonEth.h"
+#include "StratumEth.h"
 
-void BlockMakerSia::processSolvedShare(rd_kafka_message_t *rkmessage)
-{
-  if (rkmessage->len != 80) {
-    LOG(ERROR) << "incorrect header len: " << rkmessage->len;
-    return;
+///////////////////////////////  GlobalShareEth  ////////////////////////////////
+// Used to detect duplicate share attacks on ETH mining.
+struct GlobalShareEth {
+  uint64_t headerHash_;
+  uint64_t nonce_;
+
+  GlobalShareEth() = default;
+
+  GlobalShareEth(const ShareEth &share)
+    : headerHash_(share.headerHash_)
+    , nonce_(share.nonce_)
+  {}
+
+  GlobalShareEth& operator=(const GlobalShareEth &r) = default;
+
+  bool operator<(const GlobalShareEth &r) const {
+    if (headerHash_ < r.headerHash_ ||
+        (headerHash_ == r.headerHash_ && nonce_ < r.nonce_)) {
+      return true;
+    }
+    return false;
   }
+};
+////////////////////////////  Alias  ////////////////////////////
+using DuplicateShareCheckerEth = DuplicateShareCheckerT<ShareEth, GlobalShareEth>;
 
-  char buf[80] = {0};
-  memcpy(buf, rkmessage->payload, 80);
-  for (const auto &itr : nodeRpcUri_)
-  {
-    string response;
-    rpcCall(itr.first.c_str(), itr.second.c_str(), buf, 80, response, "Sia-Agent");
-    LOG(INFO) << "submission result: " << response;
-  }
-}
+#endif  // STATISTICS_ETH_H_

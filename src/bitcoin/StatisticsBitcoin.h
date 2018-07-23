@@ -21,29 +21,10 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-#include "BlockMakerSia.h"
+#ifndef STATISTICS_BITCOIN_H_
+#define STATISTICS_BITCOIN_H_
 
-#include <boost/thread.hpp>
+#include "Statistics.h"
+#include "CommonBitcoin.h"
 
-//////////////////////////////////////BlockMakerSia//////////////////////////////////////////////////
-BlockMakerSia::BlockMakerSia(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB) 
-  : BlockMaker(def, kafkaBrokers, poolDB)
-{
-}
-
-void BlockMakerSia::processSolvedShare(rd_kafka_message_t *rkmessage)
-{
-  if (rkmessage->len != 80) {
-    LOG(ERROR) << "incorrect header len: " << rkmessage->len;
-    return;
-  }
-
-  char buf[80] = {0};
-  memcpy(buf, rkmessage->payload, 80);
-  for (const auto &itr : nodeRpcUri_)
-  {
-    string response;
-    rpcCall(itr.first.c_str(), itr.second.c_str(), buf, 80, response, "Sia-Agent");
-    LOG(INFO) << "submission result: " << response;
-  }
-}
+#endif

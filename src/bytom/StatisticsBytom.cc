@@ -21,29 +21,38 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-#include "BlockMakerSia.h"
 
-#include <boost/thread.hpp>
+#include "Statistics.h"
 
-//////////////////////////////////////BlockMakerSia//////////////////////////////////////////////////
-BlockMakerSia::BlockMakerSia(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB) 
-  : BlockMaker(def, kafkaBrokers, poolDB)
-{
+#include "StratumBytom.h"
+#include "BytomUtils.h"
+
+
+template <>
+void ShareStatsDay<ShareBytom>::processShare(uint32_t hourIdx, const ShareBytom &share) {
+  ScopeLock sl(lock_);
+
+  if (StratumStatus::isAccepted(share.status_)) {
+    shareAccept1h_[hourIdx] += share.shareDiff_;
+    shareAccept1d_          += share.shareDiff_;
+
+    double score = share.score();
+    double reward = GetBlockRewardBytom(share.height_);
+    double earn = score * reward;
+
+    score1h_[hourIdx] += score;
+    score1d_          += score;
+    earn1h_[hourIdx]  += earn;
+    earn1d_           += earn;
+
+  } else {
+    shareReject1h_[hourIdx] += share.shareDiff_;
+    shareReject1d_          += share.shareDiff_;
+  }
+  modifyHoursFlag_ |= (0x01u << hourIdx);
 }
 
-void BlockMakerSia::processSolvedShare(rd_kafka_message_t *rkmessage)
-{
-  if (rkmessage->len != 80) {
-    LOG(ERROR) << "incorrect header len: " << rkmessage->len;
-    return;
-  }
-
-  char buf[80] = {0};
-  memcpy(buf, rkmessage->payload, 80);
-  for (const auto &itr : nodeRpcUri_)
-  {
-    string response;
-    rpcCall(itr.first.c_str(), itr.second.c_str(), buf, 80, response, "Sia-Agent");
-    LOG(INFO) << "submission result: " << response;
-  }
-}
+///////////////  template instantiation ///////////////
+// Without this, some linking errors will issued.
+// If you add a new derived class of Share, add it at the following.
+template class ShareStatsDay<ShareBytom>;

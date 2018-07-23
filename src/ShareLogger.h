@@ -26,8 +26,12 @@
 
 #include "Common.h"
 #include "Kafka.h"
+
 #include "bitcoin/StratumBitcoin.h"
-#include "Statistics.h"
+
+#include "eth/StratumEth.h"
+#include "bytom/StratumBytom.h"
+
 #include "zlibstream/zstr.hpp"
 
 #include <event2/event.h>

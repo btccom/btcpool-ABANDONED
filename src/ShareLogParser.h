@@ -33,6 +33,10 @@
 #include "bitcoin/CommonBitcoin.h"
 #include "bitcoin/StratumBitcoin.h"
 
+#include "eth/StratumEth.h"
+
+#include "bytom/StratumBytom.h"
+
 #include <event2/event.h>
 #include <event2/http.h>
 #include <event2/buffer.h>

@@ -21,29 +21,32 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-#include "BlockMakerSia.h"
+#ifndef STATISTICS_BYTOM_H_
+#define STATISTICS_BYTOM_H_
 
-#include <boost/thread.hpp>
+#include "Statistics.h"
 
-//////////////////////////////////////BlockMakerSia//////////////////////////////////////////////////
-BlockMakerSia::BlockMakerSia(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB) 
-  : BlockMaker(def, kafkaBrokers, poolDB)
-{
-}
+#include "CommonBytom.h"
 
-void BlockMakerSia::processSolvedShare(rd_kafka_message_t *rkmessage)
-{
-  if (rkmessage->len != 80) {
-    LOG(ERROR) << "incorrect header len: " << rkmessage->len;
-    return;
+///////////////////////////////  GlobalShareBytom  ////////////////////////////////
+// Used to detect duplicate share attacks on Bytom mining.
+struct GlobalShareBytom {
+  BytomCombinedHeader combinedHeader_;
+
+  GlobalShareBytom() = delete;
+
+  GlobalShareBytom(const ShareBytom &share)
+    : combinedHeader_(share.combinedHeader_)
+  {}
+
+  GlobalShareBytom& operator=(const GlobalShareBytom &r) = default;
+
+  bool operator<(const GlobalShareBytom &r) const {
+    return std::memcmp(&combinedHeader_, &r.combinedHeader_, sizeof(BytomCombinedHeader)) < 0;
   }
+};
 
-  char buf[80] = {0};
-  memcpy(buf, rkmessage->payload, 80);
-  for (const auto &itr : nodeRpcUri_)
-  {
-    string response;
-    rpcCall(itr.first.c_str(), itr.second.c_str(), buf, 80, response, "Sia-Agent");
-    LOG(INFO) << "submission result: " << response;
-  }
-}
+////////////////////////////  Alias  ////////////////////////////
+using DuplicateShareCheckerBytom = DuplicateShareCheckerT<ShareBytom, GlobalShareBytom>;
+
+#endif
