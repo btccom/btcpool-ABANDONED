@@ -27,6 +27,7 @@
 #include "Statistics.h"
 
 #include "CommonBytom.h"
+#include "StratumBytom.h"
 
 ///////////////////////////////  GlobalShareBytom  ////////////////////////////////
 // Used to detect duplicate share attacks on Bytom mining.

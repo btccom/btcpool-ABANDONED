@@ -33,10 +33,6 @@
 #include "bitcoin/CommonBitcoin.h"
 #include "bitcoin/StratumBitcoin.h"
 
-#include "eth/StratumEth.h"
-
-#include "bytom/StratumBytom.h"
-
 #include <event2/event.h>
 #include <event2/http.h>
 #include <event2/buffer.h>
@@ -236,18 +232,9 @@ public:
   static void httpdShareStats  (struct evhttp_request *req, void *arg);
 };
 
+#include "ShareLogParser.inl"
 
 ///////////////////////////////  Alias  ///////////////////////////////
-using ShareLogDumperBitcoin = ShareLogDumperT<ShareBitcoin>;
-using ShareLogDumperEth = ShareLogDumperT<ShareEth>;
-using ShareLogDumperBytom = ShareLogDumperT<ShareBytom>;
 
-using ShareLogParserBitcoin = ShareLogParserT<ShareBitcoin>;
-using ShareLogParserEth = ShareLogParserT<ShareEth>;
-using ShareLogParserBytom = ShareLogParserT<ShareBytom>;
-
-using ShareLogParserServerBitcoin = ShareLogParserServerT<ShareBitcoin>;
-using ShareLogParserServerEth = ShareLogParserServerT<ShareEth>;
-using ShareLogParserServerBytom = ShareLogParserServerT<ShareBytom>;
 
 #endif // SHARELOGPARSER_H_

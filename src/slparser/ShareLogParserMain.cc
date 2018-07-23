@@ -40,8 +40,13 @@
 #include "ShareLogParser.h"
 
 #include "bitcoin/StatisticsBitcoin.h"
+#include "bitcoin/ShareLogParserBitcoin.h"
+
 #include "eth/StatisticsEth.h"
+#include "eth/ShareLogParserEth.h"
+
 #include "bytom/StatisticsBytom.h"
+#include "bytom/ShareLogParserBytom.h"
 
 
 using namespace std;

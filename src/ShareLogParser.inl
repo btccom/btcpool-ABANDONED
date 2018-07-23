@@ -21,27 +21,8 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-#include "ShareLogParser.h"
-
-#include "Utils.h"
-#include "utilities_js.hpp"
-
-#include "bytom/CommonBytom.h"
-
-#include <algorithm>
-#include <string>
-#include <fstream>
 
 #include <boost/algorithm/string.hpp>
-#include <boost/thread.hpp>
-
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-
 
 ///////////////////////////////  ShareLogDumperT  ///////////////////////////////
 template <class SHARE>
@@ -1115,17 +1096,3 @@ void ShareLogParserServerT<SHARE>::run() {
   runHttpd();
 }
 
-///////////////  template instantiation ///////////////
-// Without this, some linking errors will issued.
-// If you add a new derived class of Share, add it at the following.
-template class ShareLogDumperT<ShareBitcoin>;
-template class ShareLogDumperT<ShareEth>;
-template class ShareLogDumperT<ShareBytom>;
-
-template class ShareLogParserT<ShareBitcoin>;
-template class ShareLogParserT<ShareEth>;
-template class ShareLogParserT<ShareBytom>;
-
-template class ShareLogParserServerT<ShareBitcoin>;
-template class ShareLogParserServerT<ShareEth>;
-template class ShareLogParserServerT<ShareBytom>;
