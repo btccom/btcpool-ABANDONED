@@ -38,12 +38,12 @@ bool BlockMakerBytom::init() {
   // Sloved Share
   //
   // we need to consume the latest 2 messages, just in case
-  if (kafkaConsumerSovledShare_.setup(RD_KAFKA_OFFSET_TAIL(2)) == false) {
-    LOG(INFO) << "setup kafkaConsumerSovledShare_ fail";
+  if (kafkaConsumerSolvedShare_.setup(RD_KAFKA_OFFSET_TAIL(2)) == false) {
+    LOG(INFO) << "setup kafkaConsumerSolvedShare_ fail";
     return false;
   }
-  if (!kafkaConsumerSovledShare_.checkAlive()) {
-    LOG(ERROR) << "kafka brokers is not alive: kafkaConsumerSovledShare_";
+  if (!kafkaConsumerSolvedShare_.checkAlive()) {
+    LOG(ERROR) << "kafka brokers is not alive: kafkaConsumerSolvedShare_";
     return false;
   }
 

@@ -47,8 +47,8 @@ lastSubmittedBlockTime(),
 submittedRskBlocks(0),
 kafkaConsumerRawGbt_     (kafkaBrokers, KAFKA_TOPIC_RAWGBT,       0/* patition */),
 kafkaConsumerStratumJob_ (kafkaBrokers, KAFKA_TOPIC_STRATUM_JOB,  0/* patition */),
-kafkaConsumerSovledShare_(kafkaBrokers, def.solvedShareTopic_.c_str(), 0/* patition */),
-kafkaConsumerNamecoinSovledShare_(kafkaBrokers, KAFKA_TOPIC_NMC_SOLVED_SHARE, 0/* patition */),
+kafkaConsumerSolvedShare_(kafkaBrokers, def.solvedShareTopic_.c_str(), 0/* patition */),
+kafkaConsumerNamecoinSolvedShare_(kafkaBrokers, KAFKA_TOPIC_NMC_SOLVED_SHARE, 0/* patition */),
 kafkaConsumerRskSolvedShare_(kafkaBrokers, KAFKA_TOPIC_RSK_SOLVED_SHARE, 0/* patition */),
 poolDB_(poolDB)
 {
@@ -61,8 +61,8 @@ BlockMaker::~BlockMaker() {
   if (threadConsumeStratumJob_.joinable())
     threadConsumeStratumJob_.join();
 
-  if (threadConsumeNamecoinSovledShare_.joinable())
-    threadConsumeNamecoinSovledShare_.join();
+  if (threadConsumeNamecoinSolvedShare_.joinable())
+    threadConsumeNamecoinSolvedShare_.join();
 
   if (threadConsumeRskSolvedShare_.joinable())
     threadConsumeRskSolvedShare_.join();
@@ -114,12 +114,12 @@ bool BlockMaker::init() {
   // Sloved Share
   //
   // we need to consume the latest 2 messages, just in case
-  if (kafkaConsumerSovledShare_.setup(RD_KAFKA_OFFSET_TAIL(2)) == false) {
-    LOG(INFO) << "setup kafkaConsumerSovledShare_ fail";
+  if (kafkaConsumerSolvedShare_.setup(RD_KAFKA_OFFSET_TAIL(2)) == false) {
+    LOG(INFO) << "setup kafkaConsumerSolvedShare_ fail";
     return false;
   }
-  if (!kafkaConsumerSovledShare_.checkAlive()) {
-    LOG(ERROR) << "kafka brokers is not alive: kafkaConsumerSovledShare_";
+  if (!kafkaConsumerSolvedShare_.checkAlive()) {
+    LOG(ERROR) << "kafka brokers is not alive: kafkaConsumerSolvedShare_";
     return false;
   }
 
@@ -127,12 +127,12 @@ bool BlockMaker::init() {
   // Namecoin Sloved Share
   //
   // we need to consume the latest 2 messages, just in case
-  if (kafkaConsumerNamecoinSovledShare_.setup(RD_KAFKA_OFFSET_TAIL(2)) == false) {
-    LOG(INFO) << "setup kafkaConsumerNamecoinSovledShare_ fail";
+  if (kafkaConsumerNamecoinSolvedShare_.setup(RD_KAFKA_OFFSET_TAIL(2)) == false) {
+    LOG(INFO) << "setup kafkaConsumerNamecoinSolvedShare_ fail";
     return false;
   }
-  if (!kafkaConsumerNamecoinSovledShare_.checkAlive()) {
-    LOG(ERROR) << "kafka brokers is not alive: kafkaConsumerNamecoinSovledShare_";
+  if (!kafkaConsumerNamecoinSolvedShare_.checkAlive()) {
+    LOG(ERROR) << "kafka brokers is not alive: kafkaConsumerNamecoinSolvedShare_";
     return false;
   }
 
@@ -298,7 +298,7 @@ string _buildAuxPow(const CBlock *block) {
   return auxPow;
 }
 
-void BlockMaker::consumeNamecoinSovledShare(rd_kafka_message_t *rkmessage) {
+void BlockMaker::consumeNamecoinSolvedShare(rd_kafka_message_t *rkmessage) {
   // check error
   if (rkmessage->err) {
     if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
@@ -563,7 +563,7 @@ void BlockMaker::processSolvedShare(rd_kafka_message_t *rkmessage) {
                            blockHex.length()/2);
 }
 
-void BlockMaker::consumeSovledShare(rd_kafka_message_t *rkmessage) {
+void BlockMaker::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
   // check error
   if (rkmessage->err) {
     if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
@@ -766,32 +766,32 @@ void BlockMaker::runThreadConsumeStratumJob() {
   }
 }
 
-void BlockMaker::runThreadConsumeSovledShare() {
+void BlockMaker::runThreadConsumeSolvedShare() {
   const int32_t timeoutMs = 1000;
 
   while (running_) {
     rd_kafka_message_t *rkmessage;
-    rkmessage = kafkaConsumerSovledShare_.consumer(timeoutMs);
+    rkmessage = kafkaConsumerSolvedShare_.consumer(timeoutMs);
     if (rkmessage == nullptr) /* timeout */
       continue;
 
-    consumeSovledShare(rkmessage);
+    consumeSolvedShare(rkmessage);
 
     /* Return message to rdkafka */
     rd_kafka_message_destroy(rkmessage);
   }
 }
 
-void BlockMaker::runThreadConsumeNamecoinSovledShare() {
+void BlockMaker::runThreadConsumeNamecoinSolvedShare() {
   const int32_t timeoutMs = 1000;
 
   while (running_) {
     rd_kafka_message_t *rkmessage;
-    rkmessage = kafkaConsumerNamecoinSovledShare_.consumer(timeoutMs);
+    rkmessage = kafkaConsumerNamecoinSolvedShare_.consumer(timeoutMs);
     if (rkmessage == nullptr) /* timeout */
       continue;
 
-    consumeNamecoinSovledShare(rkmessage);
+    consumeNamecoinSolvedShare(rkmessage);
 
     /* Return message to rdkafka */
     rd_kafka_message_destroy(rkmessage);
@@ -1007,9 +1007,9 @@ void BlockMaker::run() {
   // setup threads
   // threadConsumeRawGbt_      = thread(&BlockMaker::runThreadConsumeRawGbt,     this);
   // threadConsumeStratumJob_  = thread(&BlockMaker::runThreadConsumeStratumJob, this);
-  // threadConsumeNamecoinSovledShare_ = thread(&BlockMaker::runThreadConsumeNamecoinSovledShare, this);
+  // threadConsumeNamecoinSolvedShare_ = thread(&BlockMaker::runThreadConsumeNamecoinSolvedShare, this);
   // threadConsumeRskSolvedShare_ = thread(&BlockMaker::runThreadConsumeRskSolvedShare, this);
   sleep(3);
 
-  runThreadConsumeSovledShare();
+  runThreadConsumeSolvedShare();
 }

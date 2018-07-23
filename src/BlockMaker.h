@@ -126,8 +126,8 @@ protected:
 
   KafkaConsumer kafkaConsumerRawGbt_;
   KafkaConsumer kafkaConsumerStratumJob_;
-  KafkaConsumer kafkaConsumerSovledShare_;
-  KafkaConsumer kafkaConsumerNamecoinSovledShare_;
+  KafkaConsumer kafkaConsumerSolvedShare_;
+  KafkaConsumer kafkaConsumerNamecoinSolvedShare_;
   KafkaConsumer kafkaConsumerRskSolvedShare_;
 
   // submit new block to bitcoind
@@ -141,20 +141,20 @@ protected:
 
   thread threadConsumeRawGbt_;
   thread threadConsumeStratumJob_;
-  thread threadConsumeNamecoinSovledShare_;
+  thread threadConsumeNamecoinSolvedShare_;
   thread threadConsumeRskSolvedShare_;
 
   void runThreadConsumeRawGbt();
-  void runThreadConsumeSovledShare();
+  void runThreadConsumeSolvedShare();
   void runThreadConsumeStratumJob();
-  void runThreadConsumeNamecoinSovledShare();
+  void runThreadConsumeNamecoinSolvedShare();
   void runThreadConsumeRskSolvedShare();
 
   void consumeRawGbt(rd_kafka_message_t *rkmessage);
   void consumeStratumJob(rd_kafka_message_t *rkmessage);
-  void consumeSovledShare(rd_kafka_message_t *rkmessage);
+  void consumeSolvedShare(rd_kafka_message_t *rkmessage);
   virtual void processSolvedShare(rd_kafka_message_t *rkmessage);
-  void consumeNamecoinSovledShare(rd_kafka_message_t *rkmessage);
+  void consumeNamecoinSolvedShare(rd_kafka_message_t *rkmessage);
   void consumeRskSolvedShare(rd_kafka_message_t *rkmessage);
 
   void addRawgbt(const char *str, size_t len);
