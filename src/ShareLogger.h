@@ -27,10 +27,7 @@
 #include "Common.h"
 #include "Kafka.h"
 
-#include "bitcoin/StratumBitcoin.h"
-
 #include "eth/StratumEth.h"
-#include "bytom/StratumBytom.h"
 
 #include "zlibstream/zstr.hpp"
 
@@ -90,9 +87,6 @@ public:
   void run();
 };
 
-//////////////////////////////  Alias  ///////////////////////////////
-using ShareLogWriterBitcoin = ShareLogWriterT<ShareBitcoin>;
-using ShareLogWriterEth = ShareLogWriterT<ShareEth>;
-using ShareLogWriterBytom = ShareLogWriterT<ShareBytom>;
+#include "ShareLogger.inl"
 
 #endif // SHARELOGGER_H_
