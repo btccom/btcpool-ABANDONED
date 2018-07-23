@@ -21,38 +21,20 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-#ifndef STRATUM_SERVER_SIA_H_
-#define STRATUM_SERVER_SIA_H_
+#ifndef STRATUM_SIA_H_
+#define STRATUM_SIA_H_
 
-#include "StratumServer.h"
-#include "StratumSia.h"
+#include "Stratum.h"
 
-class ServerSia : public Server
+
+class StratumJobSia : public StratumJob
 {
 public:
-  ServerSia(const int32_t shareAvgSeconds) : Server(shareAvgSeconds) {}
-  virtual ~ServerSia();
 
-
-  virtual StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
-                               struct sockaddr *saddr, const uint32_t sessionID);
-  
-  void sendSolvedShare2Kafka(uint8* buf, int len);
-private:
-  JobRepository* createJobRepository(const char *kafkaBrokers,
-                                     const char *consumerTopic,     
-                                     const string &fileLastNotifyTime) override;
-
-};
-
-class JobRepositorySia : public JobRepositoryBase<ServerSia>
-{
 public:
-  JobRepositorySia(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerSia *server);
-  ~JobRepositorySia();
-  StratumJob *createStratumJob() override {return new StratumJobSia();}
-  StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
-  void broadcastStratumJob(StratumJob *sjob) override;
+  bool unserializeFromJson(const char *s, size_t len) override;
+  uint32 jobTime() const override { return nTime_; }
 };
+
 
 #endif

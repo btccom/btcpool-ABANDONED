@@ -21,38 +21,35 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-#ifndef STRATUM_SERVER_SIA_H_
-#define STRATUM_SERVER_SIA_H_
-
-#include "StratumServer.h"
 #include "StratumSia.h"
 
-class ServerSia : public Server
+#include "Utils.h"
+#include "utilities_js.hpp"
+
+#include <glog/logging.h>
+
+///////////////////////////////StratumJobSia///////////////////////////
+bool StratumJobSia::unserializeFromJson(const char *s, size_t len)
 {
-public:
-  ServerSia(const int32_t shareAvgSeconds) : Server(shareAvgSeconds) {}
-  virtual ~ServerSia();
+  JsonNode j;
+  if (!JsonNode::parse(s, s + len, j))
+  {
+    return false;
+  }
+  if (j["created_at_ts"].type() != Utilities::JS::type::Int ||
+      j["jobId"].type() != Utilities::JS::type::Int ||
+      j["target"].type() != Utilities::JS::type::Str ||
+      j["hHash"].type() != Utilities::JS::type::Str)
+  {
+    LOG(ERROR) << "parse sia stratum job failure: " << s;
+    return false;
+  }
 
+  jobId_ = j["jobId"].uint64();
+  nTime_ = j["created_at_ts"].uint32();
+  networkTarget_ = uint256S(j["target"].str());
+  blockHashForMergedMining_ = j["hHash"].str();
 
-  virtual StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
-                               struct sockaddr *saddr, const uint32_t sessionID);
-  
-  void sendSolvedShare2Kafka(uint8* buf, int len);
-private:
-  JobRepository* createJobRepository(const char *kafkaBrokers,
-                                     const char *consumerTopic,     
-                                     const string &fileLastNotifyTime) override;
+  return true;
+}
 
-};
-
-class JobRepositorySia : public JobRepositoryBase<ServerSia>
-{
-public:
-  JobRepositorySia(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerSia *server);
-  ~JobRepositorySia();
-  StratumJob *createStratumJob() override {return new StratumJobSia();}
-  StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
-  void broadcastStratumJob(StratumJob *sjob) override;
-};
-
-#endif

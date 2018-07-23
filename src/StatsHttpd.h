@@ -29,18 +29,9 @@
 #include "MySQLConnection.h"
 #include "RedisConnection.h"
 #include "Statistics.h"
-
-
+#include "Network.h"
 
 #include <event2/event.h>
-#include <event2/http.h>
-#include <event2/buffer.h>
-#include <event2/util.h>
-#include <event2/keyvalq_struct.h>
-
-#include <string.h>
-#include <pthread.h>
-#include <memory>
 
 #define STATS_SLIDING_WINDOW_SECONDS 3600
 

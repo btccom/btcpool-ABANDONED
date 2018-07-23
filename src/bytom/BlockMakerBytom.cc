@@ -24,6 +24,8 @@
 #include "BlockMakerBytom.h"
 #include "BytomUtils.h"
 
+#include "utilities_js.hpp"
+
 #include <boost/thread.hpp>
 
 

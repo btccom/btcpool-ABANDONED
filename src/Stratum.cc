@@ -25,8 +25,7 @@
 
 #include "Utils.h"
 
-#include "bitcoin/CommonBitcoin.h"
-#include "bytom/bh_shared.h"
+#include "utilities_js.hpp"
 
 #include <glog/logging.h>
 
@@ -255,33 +254,7 @@ bool StratumJob::unserializeFromJson(const char *s, size_t len) {
     isRskCleanJob_            = j["isRskCleanJob"].boolean();
   }
 
-  BitsToTarget(nBits_, networkTarget_);
-
   return true;
 }
 
-///////////////////////////////StratumJobSia///////////////////////////
-bool StratumJobSia::unserializeFromJson(const char *s, size_t len)
-{
-  JsonNode j;
-  if (!JsonNode::parse(s, s + len, j))
-  {
-    return false;
-  }
-  if (j["created_at_ts"].type() != Utilities::JS::type::Int ||
-      j["jobId"].type() != Utilities::JS::type::Int ||
-      j["target"].type() != Utilities::JS::type::Str ||
-      j["hHash"].type() != Utilities::JS::type::Str)
-  {
-    LOG(ERROR) << "parse sia stratum job failure: " << s;
-    return false;
-  }
-
-  jobId_ = j["jobId"].uint64();
-  nTime_ = j["created_at_ts"].uint32();
-  networkTarget_ = uint256S(j["target"].str());
-  blockHashForMergedMining_ = j["hHash"].str();
-
-  return true;
-}
 

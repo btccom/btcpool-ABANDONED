@@ -25,19 +25,8 @@
 #define STRATUM_H_
 
 #include "Common.h"
-#include "utilities_js.hpp"
 #include "Utils.h"
 #include "Network.h"
-
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <queue>
-
-#include <event2/event.h>
-#include <event2/buffer.h>
-#include <event2/bufferevent.h>
-
-#include <glog/logging.h>
 
 // default worker name
 #define DEFAULT_WORKER_NAME "__default__"
@@ -231,16 +220,5 @@ public:
   virtual uint32 jobTime() const { return jobId2Time(jobId_); }
 
 };
-
-
-class StratumJobSia : public StratumJob
-{
-public:
-
-public:
-  bool unserializeFromJson(const char *s, size_t len) override;
-  uint32 jobTime() const override { return nTime_; }
-};
-
 
 #endif

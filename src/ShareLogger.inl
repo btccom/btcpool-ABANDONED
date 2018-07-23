@@ -22,6 +22,8 @@
  THE SOFTWARE.
  */
 
+#include <glog/logging.h>
+
 //////////////////////////////  ShareLogWriterT  ///////////////////////////////
 template<class SHARE>
 ShareLogWriterT<SHARE>::ShareLogWriterT(const char *chainType,

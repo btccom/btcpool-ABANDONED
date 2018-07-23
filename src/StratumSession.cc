@@ -27,6 +27,8 @@
 
 #include <boost/algorithm/string.hpp>
 
+#include <event2/buffer.h>
+
 //////////////////////////////// StratumSession ////////////////////////////////
 StratumSession::StratumSession(evutil_socket_t fd, struct bufferevent *bev,
                                Server *server, struct sockaddr *saddr,

@@ -23,6 +23,7 @@
  */
 
 #include <boost/algorithm/string.hpp>
+#include <set>
 
 ///////////////////////////////  ShareLogDumperT  ///////////////////////////////
 template <class SHARE>

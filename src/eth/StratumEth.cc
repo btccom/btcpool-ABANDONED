@@ -25,6 +25,9 @@
 
 #include "Utils.h"
 #include <glog/logging.h>
+
+#include "bitcoin/CommonBitcoin.h"
+
 ///////////////////////////////StratumJobEth///////////////////////////
 StratumJobEth::StratumJobEth()
 {
@@ -119,6 +122,8 @@ bool StratumJobEth::unserializeFromJson(const char *s, size_t len)
     rskdRpcUserPwd_ = j["rskdRpcUserPwd"].str();
     isRskCleanJob_ = j["isRskCleanJob"].boolean();
   }
+
+  BitsToTarget(nBits_, networkTarget_); //  Gani#Question: Does eth require this call?
 
   return true;
 }

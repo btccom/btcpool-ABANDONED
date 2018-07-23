@@ -22,6 +22,8 @@
  THE SOFTWARE.
  */
 
+#include "Stratum.h"
+
 ////////////////////////////////// StatsWindow /////////////////////////////////
 template <typename T>
 StatsWindow<T>::StatsWindow(const int windowSize)

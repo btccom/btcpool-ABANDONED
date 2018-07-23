@@ -29,7 +29,6 @@
 #include "Utils.h"
 
 #include "zlibstream/zstr.hpp"
-#include <glog/logging.h>
 
 
 //////////////////////////////  ShareLogWriter  ///////////////////////////////
