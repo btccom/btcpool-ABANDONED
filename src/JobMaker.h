@@ -26,13 +26,13 @@
 
 #include "Common.h"
 #include "Kafka.h"
-#include "EthConsensus.h"
+
+#include "rsk/RskWork.h"
+#include "eth/EthConsensus.h"
 
 #include <uint256.h>
 #include <base58.h>
-#include <pubkey.h>
 
-#include "rsk/RskWork.h"
 #include "Zookeeper.h"
 
 #include <map>
