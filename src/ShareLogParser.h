@@ -25,23 +25,15 @@
 #define SHARELOGPARSER_H_
 
 
-#include "Kafka.h"
 #include "MySQLConnection.h"
 #include "Statistics.h"
 #include "zlibstream/zstr.hpp"
 
-#include "bitcoin/CommonBitcoin.h"
-#include "bitcoin/StratumBitcoin.h"
 
 #include <event2/event.h>
 #include <event2/http.h>
 #include <event2/buffer.h>
-#include <event2/util.h>
 #include <event2/keyvalq_struct.h>
-
-#include <string.h>
-#include <pthread.h>
-#include <memory>
 
 
 ///////////////////////////////  ShareLogDumper  ///////////////////////////////
@@ -232,18 +224,9 @@ public:
   static void httpdShareStats  (struct evhttp_request *req, void *arg);
 };
 
+#include "ShareLogParser.inl"
 
 ///////////////////////////////  Alias  ///////////////////////////////
-using ShareLogDumperBitcoin = ShareLogDumperT<ShareBitcoin>;
-using ShareLogDumperEth = ShareLogDumperT<ShareEth>;
-using ShareLogDumperBytom = ShareLogDumperT<ShareBytom>;
 
-using ShareLogParserBitcoin = ShareLogParserT<ShareBitcoin>;
-using ShareLogParserEth = ShareLogParserT<ShareEth>;
-using ShareLogParserBytom = ShareLogParserT<ShareBytom>;
-
-using ShareLogParserServerBitcoin = ShareLogParserServerT<ShareBitcoin>;
-using ShareLogParserServerEth = ShareLogParserServerT<ShareEth>;
-using ShareLogParserServerBytom = ShareLogParserServerT<ShareBytom>;
 
 #endif // SHARELOGPARSER_H_

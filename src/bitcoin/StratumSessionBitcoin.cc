@@ -24,6 +24,8 @@
 #include "StratumSessionBitcoin.h"
 #include "DiffController.h"
 
+#include <event2/buffer.h>
+
 static
 bool _isNiceHashAgent(const string &clientAgent) {
   if (clientAgent.length() < 9) {

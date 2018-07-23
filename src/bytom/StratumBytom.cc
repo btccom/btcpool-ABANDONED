@@ -22,10 +22,11 @@
  THE SOFTWARE.
  */
 #include "StratumBytom.h"
-
-
 #include "Utils.h"
+#include "utilities_js.hpp"
+
 #include "bytom/bh_shared.h"
+
 #include <glog/logging.h>
 
 bool StratumJobBytom::unserializeFromJson(const char *s, size_t len)

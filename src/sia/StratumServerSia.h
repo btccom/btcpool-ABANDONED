@@ -25,6 +25,7 @@
 #define STRATUM_SERVER_SIA_H_
 
 #include "StratumServer.h"
+#include "StratumSia.h"
 
 class ServerSia : public Server
 {

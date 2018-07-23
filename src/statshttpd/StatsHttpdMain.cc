@@ -40,6 +40,15 @@
 #include "StatsHttpd.h"
 #include "RedisConnection.h"
 
+#include "bitcoin/StatisticsBitcoin.h"
+#include "bitcoin/StatsHttpdBitcoin.h"
+
+#include "eth/StatisticsEth.h"
+#include "eth/StatsHttpdEth.h"
+
+#include "bytom/StatisticsBytom.h"
+#include "bytom/StatsHttpdBytom.h"
+
 using namespace std;
 using namespace libconfig;
 

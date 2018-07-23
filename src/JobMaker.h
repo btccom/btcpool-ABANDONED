@@ -27,19 +27,11 @@
 #include "Common.h"
 #include "Kafka.h"
 
-#include "rsk/RskWork.h"
-#include "eth/EthConsensus.h"
-
-#include <uint256.h>
-#include <base58.h>
-
 #include "Zookeeper.h"
 
-#include <map>
 #include <deque>
 #include <vector>
 #include <memory>
-#include <functional>
 
 using std::vector;
 using std::shared_ptr;
@@ -78,12 +70,6 @@ struct GwJobMakerDefinition : public JobMakerDefinition
   string rawGwTopic_;
   uint32 maxJobDelay_;
   uint32 workLifeTime_;
-};
-
-struct JobMakerDefinitionEth : public GwJobMakerDefinition {
-  virtual ~JobMakerDefinitionEth() {}
-
-  EthConsensus::Chain chain_;
 };
 
 struct GbtJobMakerDefinition : public JobMakerDefinition
@@ -137,111 +123,6 @@ public:
   // read-only definition
   inline shared_ptr<const GwJobMakerDefinition> def() { return std::dynamic_pointer_cast<const GwJobMakerDefinition>(def_); }
 };
-
-class JobMakerHandlerEth : public GwJobMakerHandler
-{
-public:
-  virtual ~JobMakerHandlerEth() {}
-  bool processMsg(const string &msg) override;
-  string makeStratumJobMsg() override;
-
-  // read-only definition
-  inline shared_ptr<const JobMakerDefinitionEth> def() { return std::dynamic_pointer_cast<const JobMakerDefinitionEth>(def_); }
-
-private:
-  void clearTimeoutMsg();
-  inline uint64_t makeWorkKey(const RskWorkEth &work);
-
-  std::map<uint64_t/* @see makeWorkKey() */, shared_ptr<RskWorkEth>> workMap_;  // sorting works by height + time + hash
-};
-
-class JobMakerHandlerSia : public GwJobMakerHandler
-{
-public:
-  JobMakerHandlerSia();
-  virtual ~JobMakerHandlerSia() {}
-  bool processMsg(const string &msg) override;
-  string makeStratumJobMsg() override;
-  virtual bool processMsg(JsonNode &j);
-
-protected:
-  string target_;
-  string header_;
-  uint32 time_;
-  virtual bool validate(JsonNode &j);
-
-};
-
-class JobMakerHandlerBytom : public JobMakerHandlerSia
-{
-public:
-  virtual ~JobMakerHandlerBytom() {}
-  bool processMsg(JsonNode &j) override;
-  string makeStratumJobMsg() override;
-
-protected:
-  string seed_;
-  bool validate(JsonNode &j) override;
-};
-
-class JobMakerHandlerBitcoin : public JobMakerHandler
-{
-  // mining bitcoin blocks
-  shared_ptr<KafkaConsumer> kafkaRawGbtConsumer_;
-  CTxDestination poolPayoutAddr_;
-  uint32_t currBestHeight_;
-  uint32_t lastJobSendTime_;
-  bool isLastJobEmptyBlock_;
-  mutex lock_; // lock when update rawgbtMap_
-  std::map<uint64_t/* @see makeGbtKey() */, string> rawgbtMap_;  // sorted gbt by timestamp
-  deque<uint256> lastestGbtHash_;
-
-  // merged mining for AuxPow blocks (example: Namecoin, ElastOS)
-  shared_ptr<KafkaConsumer> kafkaAuxPowConsumer_;
-  mutex auxJsonLock_;
-  string latestAuxPowJson_;
-
-  // merged mining for RSK
-  shared_ptr<KafkaConsumer> kafkaRskGwConsumer_;
-  mutex rskWorkAccessLock_;
-  RskWork *previousRskWork_;
-  RskWork *currentRskWork_;
-  bool isRskUpdate_; // a flag to mark RSK has an update
-
-  bool addRawGbt(const string &msg);
-  void clearTimeoutGbt();
-  bool isReachTimeout();
-
-  void clearTimeoutRskGw();
-  bool triggerRskUpdate();
-
-  // return false if there is no best rawGbt or
-  // doesn't need to send a stratum job at current.
-  bool findBestRawGbt(bool isRskUpdate, string &bestRawGbt);
-  string makeStratumJob(const string &gbt);
-
-  inline uint64_t makeGbtKey(uint32_t gbtTime, bool isEmptyBlock, uint32_t height);
-  inline uint32_t gbtKeyGetTime     (uint64_t gbtKey);
-  inline uint32_t gbtKeyGetHeight   (uint64_t gbtKey);
-  inline bool     gbtKeyIsEmptyBlock(uint64_t gbtKey);
-
-public:
-  JobMakerHandlerBitcoin();
-  virtual ~JobMakerHandlerBitcoin() {}
-
-  bool init(shared_ptr<JobMakerDefinition> def) override;
-  virtual bool initConsumerHandlers(const string &kafkaBrokers, vector<JobMakerConsumerHandler> &handlers) override;
-  
-  bool processRawGbtMsg(const string &msg);
-  bool processAuxPowMsg(const string &msg);
-  bool processRskGwMsg(const string &msg);
-
-  virtual string makeStratumJobMsg() override;
-
-  // read-only definition
-  inline shared_ptr<const GbtJobMakerDefinition> def() { return std::dynamic_pointer_cast<const GbtJobMakerDefinition>(def_); }
-};
-
 
 class JobMaker {
 protected:

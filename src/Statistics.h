@@ -25,23 +25,8 @@
 #define STATISTICS_H_
 
 #include "Common.h"
-#include "Kafka.h"
-#include "Stratum.h"
-#include "eth/StratumEth.h"
-#include "bytom/StratumBytom.h"
 
-#include <event2/event.h>
-#include <event2/http.h>
-#include <event2/buffer.h>
-#include <event2/util.h>
-#include <event2/keyvalq_struct.h>
-
-#include <string.h>
-#include <pthread.h>
-#include <memory>
-
-#include <uint256.h>
-
+#include "glog/logging.h"
 
 ////////////////////////////////// StatsWindow /////////////////////////////////
 // none thread safe
@@ -69,79 +54,6 @@ public:
 
   int32_t getWindowSize() const { return windowSize_; }
 };
-
-//----------------------
-
-template <typename T>
-StatsWindow<T>::StatsWindow(const int windowSize)
-:maxRingIdx_(-1), windowSize_(windowSize), elements_(windowSize) {
-}
-
-template <typename T>
-void StatsWindow<T>::mapMultiply(const T val) {
-  for (int32_t i = 0; i < windowSize_; i++) {
-    elements_[i] *= val;
-  }
-}
-
-template <typename T>
-void StatsWindow<T>::mapDivide(const T val) {
-  for (int32_t i = 0; i < windowSize_; i++) {
-    elements_[i] /= val;
-  }
-}
-
-template <typename T>
-void StatsWindow<T>::clear() {
-  maxRingIdx_ = -1;
-  elements_.clear();
-  elements_.resize(windowSize_);
-}
-
-template <typename T>
-bool StatsWindow<T>::insert(const int64_t curRingIdx, const T val) {
-  if (maxRingIdx_ > curRingIdx + windowSize_) {  // too small index, drop it
-    return false;
-  }
-
-  if (maxRingIdx_ == -1/* first insert */ ||
-      curRingIdx - maxRingIdx_ > windowSize_/* all data expired */) {
-    clear();
-    maxRingIdx_ = curRingIdx;
-  }
-
-  while (maxRingIdx_ < curRingIdx) {
-    maxRingIdx_++;
-    elements_[maxRingIdx_ % windowSize_] = 0;  // reset
-  }
-
-  elements_[curRingIdx % windowSize_] += val;
-  return true;
-}
-
-template <typename T>
-T StatsWindow<T>::sum(int64_t beginRingIdx, int len) {
-  T sum = 0;
-  len = std::min(len, windowSize_);
-  if (len <= 0 || beginRingIdx - len >= maxRingIdx_) {
-    return 0;
-  }
-  int64_t endRingIdx = beginRingIdx - len;
-  if (beginRingIdx > maxRingIdx_) {
-    beginRingIdx = maxRingIdx_;
-  }
-  while (beginRingIdx > endRingIdx) {
-    sum += elements_[beginRingIdx % windowSize_];
-    beginRingIdx--;
-  }
-  return sum;
-}
-
-template <typename T>
-T StatsWindow<T>::sum(int64_t beginRingIdx) {
-  return sum(beginRingIdx, windowSize_);
-}
-
 
 //////////////////////////////////  WorkerKey  /////////////////////////////////
 class WorkerKey {
@@ -223,48 +135,6 @@ public:
   void getShareStatsDay(ShareStats *stats);
 };
 
-
-///////////////////////////////  GlobalShareEth  ////////////////////////////////
-// Used to detect duplicate share attacks on ETH mining.
-struct GlobalShareEth {
-  uint64_t headerHash_;
-  uint64_t nonce_;
-
-  GlobalShareEth() = default;
-
-  GlobalShareEth(const ShareEth &share)
-    : headerHash_(share.headerHash_)
-    , nonce_(share.nonce_)
-  {}
-
-  GlobalShareEth& operator=(const GlobalShareEth &r) = default;
-
-  bool operator<(const GlobalShareEth &r) const {
-    if (headerHash_ < r.headerHash_ ||
-        (headerHash_ == r.headerHash_ && nonce_ < r.nonce_)) {
-      return true;
-    }
-    return false;
-  }
-};
-///////////////////////////////  GlobalShareBytom  ////////////////////////////////
-// Used to detect duplicate share attacks on Bytom mining.
-struct GlobalShareBytom {
-  BytomCombinedHeader combinedHeader_;
-
-  GlobalShareBytom() = delete;
-
-  GlobalShareBytom(const ShareBytom &share)
-    : combinedHeader_(share.combinedHeader_)
-  {}
-
-  GlobalShareBytom& operator=(const GlobalShareBytom &r) = default;
-
-  bool operator<(const GlobalShareBytom &r) const {
-    return std::memcmp(&combinedHeader_, &r.combinedHeader_, sizeof(BytomCombinedHeader)) < 0;
-  }
-};
-
 ///////////////////////////////  DuplicateShareCheckerT  ////////////////////////////////
 // Used to detect duplicate share attacks.
 // Interface
@@ -328,8 +198,6 @@ private:
   const uint32_t trackingHeightNumber_; // if set to 3, max(gshareSetMap_.size()) == 3
 };
 
-////////////////////////////  Alias  ////////////////////////////
-using DuplicateShareCheckerEth = DuplicateShareCheckerT<ShareEth, GlobalShareEth>;
-using DuplicateShareCheckerBytom = DuplicateShareCheckerT<ShareBytom, GlobalShareBytom>;
+#include "Statistics.inl"
 
 #endif

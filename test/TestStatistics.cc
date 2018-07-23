@@ -24,10 +24,13 @@
 
 #include "gtest/gtest.h"
 #include "Common.h"
-#include "Statistics.h"
 
-#include "bitcoin/BitcoinUtils.h"
 #include "bitcoin/StratumBitcoin.h"
+#include "bitcoin/StatisticsBitcoin.h"
+#include "bitcoin/BitcoinUtils.h"
+
+#include "eth/StratumEth.h"
+#include "eth/StatisticsEth.h"
 
 ////////////////////////////////  StatsWindow  /////////////////////////////////
 TEST(StatsWindow, clear) {

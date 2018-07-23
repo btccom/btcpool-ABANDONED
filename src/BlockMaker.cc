@@ -23,19 +23,14 @@
  */
 #include "BlockMaker.h"
 
-#include <boost/thread.hpp>
-
-#include <consensus/merkle.h>
-#include <core_io.h>
-#include "utilities_js.hpp"
-
 #include "bitcoin/StratumBitcoin.h"
 #include "bitcoin/BitcoinUtils.h"
 
 #include "rsk/RskSolvedShareData.h"
-#include "bytom/bh_shared.h"
-#include "eth/EthConsensus.h"
 
+#include <consensus/merkle.h>
+
+#include <boost/thread.hpp>
 
 ////////////////////////////////// BlockMaker //////////////////////////////////
 BlockMaker::BlockMaker(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB):
@@ -47,8 +42,8 @@ lastSubmittedBlockTime(),
 submittedRskBlocks(0),
 kafkaConsumerRawGbt_     (kafkaBrokers, KAFKA_TOPIC_RAWGBT,       0/* patition */),
 kafkaConsumerStratumJob_ (kafkaBrokers, KAFKA_TOPIC_STRATUM_JOB,  0/* patition */),
-kafkaConsumerSovledShare_(kafkaBrokers, def.solvedShareTopic_.c_str(), 0/* patition */),
-kafkaConsumerNamecoinSovledShare_(kafkaBrokers, KAFKA_TOPIC_NMC_SOLVED_SHARE, 0/* patition */),
+kafkaConsumerSolvedShare_(kafkaBrokers, def.solvedShareTopic_.c_str(), 0/* patition */),
+kafkaConsumerNamecoinSolvedShare_(kafkaBrokers, KAFKA_TOPIC_NMC_SOLVED_SHARE, 0/* patition */),
 kafkaConsumerRskSolvedShare_(kafkaBrokers, KAFKA_TOPIC_RSK_SOLVED_SHARE, 0/* patition */),
 poolDB_(poolDB)
 {
@@ -61,8 +56,8 @@ BlockMaker::~BlockMaker() {
   if (threadConsumeStratumJob_.joinable())
     threadConsumeStratumJob_.join();
 
-  if (threadConsumeNamecoinSovledShare_.joinable())
-    threadConsumeNamecoinSovledShare_.join();
+  if (threadConsumeNamecoinSolvedShare_.joinable())
+    threadConsumeNamecoinSolvedShare_.join();
 
   if (threadConsumeRskSolvedShare_.joinable())
     threadConsumeRskSolvedShare_.join();
@@ -114,12 +109,12 @@ bool BlockMaker::init() {
   // Sloved Share
   //
   // we need to consume the latest 2 messages, just in case
-  if (kafkaConsumerSovledShare_.setup(RD_KAFKA_OFFSET_TAIL(2)) == false) {
-    LOG(INFO) << "setup kafkaConsumerSovledShare_ fail";
+  if (kafkaConsumerSolvedShare_.setup(RD_KAFKA_OFFSET_TAIL(2)) == false) {
+    LOG(INFO) << "setup kafkaConsumerSolvedShare_ fail";
     return false;
   }
-  if (!kafkaConsumerSovledShare_.checkAlive()) {
-    LOG(ERROR) << "kafka brokers is not alive: kafkaConsumerSovledShare_";
+  if (!kafkaConsumerSolvedShare_.checkAlive()) {
+    LOG(ERROR) << "kafka brokers is not alive: kafkaConsumerSolvedShare_";
     return false;
   }
 
@@ -127,12 +122,12 @@ bool BlockMaker::init() {
   // Namecoin Sloved Share
   //
   // we need to consume the latest 2 messages, just in case
-  if (kafkaConsumerNamecoinSovledShare_.setup(RD_KAFKA_OFFSET_TAIL(2)) == false) {
-    LOG(INFO) << "setup kafkaConsumerNamecoinSovledShare_ fail";
+  if (kafkaConsumerNamecoinSolvedShare_.setup(RD_KAFKA_OFFSET_TAIL(2)) == false) {
+    LOG(INFO) << "setup kafkaConsumerNamecoinSolvedShare_ fail";
     return false;
   }
-  if (!kafkaConsumerNamecoinSovledShare_.checkAlive()) {
-    LOG(ERROR) << "kafka brokers is not alive: kafkaConsumerNamecoinSovledShare_";
+  if (!kafkaConsumerNamecoinSolvedShare_.checkAlive()) {
+    LOG(ERROR) << "kafka brokers is not alive: kafkaConsumerNamecoinSolvedShare_";
     return false;
   }
 
@@ -298,7 +293,7 @@ string _buildAuxPow(const CBlock *block) {
   return auxPow;
 }
 
-void BlockMaker::consumeNamecoinSovledShare(rd_kafka_message_t *rkmessage) {
+void BlockMaker::consumeNamecoinSolvedShare(rd_kafka_message_t *rkmessage) {
   // check error
   if (rkmessage->err) {
     if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
@@ -563,7 +558,7 @@ void BlockMaker::processSolvedShare(rd_kafka_message_t *rkmessage) {
                            blockHex.length()/2);
 }
 
-void BlockMaker::consumeSovledShare(rd_kafka_message_t *rkmessage) {
+void BlockMaker::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
   // check error
   if (rkmessage->err) {
     if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
@@ -766,32 +761,32 @@ void BlockMaker::runThreadConsumeStratumJob() {
   }
 }
 
-void BlockMaker::runThreadConsumeSovledShare() {
+void BlockMaker::runThreadConsumeSolvedShare() {
   const int32_t timeoutMs = 1000;
 
   while (running_) {
     rd_kafka_message_t *rkmessage;
-    rkmessage = kafkaConsumerSovledShare_.consumer(timeoutMs);
+    rkmessage = kafkaConsumerSolvedShare_.consumer(timeoutMs);
     if (rkmessage == nullptr) /* timeout */
       continue;
 
-    consumeSovledShare(rkmessage);
+    consumeSolvedShare(rkmessage);
 
     /* Return message to rdkafka */
     rd_kafka_message_destroy(rkmessage);
   }
 }
 
-void BlockMaker::runThreadConsumeNamecoinSovledShare() {
+void BlockMaker::runThreadConsumeNamecoinSolvedShare() {
   const int32_t timeoutMs = 1000;
 
   while (running_) {
     rd_kafka_message_t *rkmessage;
-    rkmessage = kafkaConsumerNamecoinSovledShare_.consumer(timeoutMs);
+    rkmessage = kafkaConsumerNamecoinSolvedShare_.consumer(timeoutMs);
     if (rkmessage == nullptr) /* timeout */
       continue;
 
-    consumeNamecoinSovledShare(rkmessage);
+    consumeNamecoinSolvedShare(rkmessage);
 
     /* Return message to rdkafka */
     rd_kafka_message_destroy(rkmessage);
@@ -1007,263 +1002,9 @@ void BlockMaker::run() {
   // setup threads
   // threadConsumeRawGbt_      = thread(&BlockMaker::runThreadConsumeRawGbt,     this);
   // threadConsumeStratumJob_  = thread(&BlockMaker::runThreadConsumeStratumJob, this);
-  // threadConsumeNamecoinSovledShare_ = thread(&BlockMaker::runThreadConsumeNamecoinSovledShare, this);
+  // threadConsumeNamecoinSolvedShare_ = thread(&BlockMaker::runThreadConsumeNamecoinSolvedShare, this);
   // threadConsumeRskSolvedShare_ = thread(&BlockMaker::runThreadConsumeRskSolvedShare, this);
   sleep(3);
 
-  runThreadConsumeSovledShare();
-}
-
-////////////////////////////////////////////////BlockMakerEth////////////////////////////////////////////////////////////////
-BlockMakerEth::BlockMakerEth(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB) : 
-BlockMaker(def, kafkaBrokers, poolDB)
-{
-}
-
-void BlockMakerEth::processSolvedShare(rd_kafka_message_t *rkmessage)
-{
-  const char *message = (const char *)rkmessage->payload;
-  JsonNode r;
-  if (!JsonNode::parse(message, message + rkmessage->len, r))
-  {
-    LOG(ERROR) << "decode common event failure";
-    return;
-  }
-
-  if (r.type() != Utilities::JS::type::Obj ||
-      r["nonce"].type() != Utilities::JS::type::Str ||
-      r["header"].type() != Utilities::JS::type::Str ||
-      r["mix"].type() != Utilities::JS::type::Str ||
-      r["height"].type() != Utilities::JS::type::Int ||
-      r["networkDiff"].type() != Utilities::JS::type::Int ||
-      r["userId"].type() != Utilities::JS::type::Int ||
-      r["workerId"].type() != Utilities::JS::type::Int ||
-      r["workerFullName"].type() != Utilities::JS::type::Str ||
-      r["chain"].type() != Utilities::JS::type::Str)
-  {
-    LOG(ERROR) << "eth solved share format wrong";
-    return;
-  }
-
-  StratumWorker worker;
-  worker.userId_ = r["userId"].int32();
-  worker.workerHashId_ = r["workerId"].int64();
-  worker.fullName_ = r["workerFullName"].str();
-
-  string request = Strings::Format("{\"jsonrpc\": \"2.0\", \"method\": \"eth_submitWork\", \"params\": [\"%s\",\"%s\",\"%s\"], \"id\": 5}\n",
-                                   HexAddPrefix(r["nonce"].str()).c_str(),
-                                   HexAddPrefix(r["header"].str()).c_str(),
-                                   HexAddPrefix(r["mix"].str()).c_str());
-
-  submitBlockNonBlocking(request);
-  saveBlockToDBNonBlocking(r["header"].str().c_str(), r["height"].uint32(),
-                           r["chain"].str().c_str(), r["networkDiff"].uint64(), worker);
-}
-
-bool BlockMakerEth::init() {
-  //
-  // Sloved Share
-  //
-  // we need to consume the latest 2 messages, just in case
-  if (kafkaConsumerSovledShare_.setup(RD_KAFKA_OFFSET_TAIL(2)) == false) {
-    LOG(INFO) << "setup kafkaConsumerSovledShare_ fail";
-    return false;
-  }
-  if (!kafkaConsumerSovledShare_.checkAlive()) {
-    LOG(ERROR) << "kafka brokers is not alive: kafkaConsumerSovledShare_";
-    return false;
-  }
-
-  return true;
-}
-
-void BlockMakerEth::submitBlockNonBlocking(const string &blockJson) {
-  for (const auto &itr : nodeRpcUri_) {
-    // use thread to submit
-    boost::thread t(boost::bind(&BlockMakerEth::_submitBlockThread, this,
-                                itr.first, itr.second, blockJson));
-  }
-}
-
-void BlockMakerEth::_submitBlockThread(const string &rpcAddress, const string &rpcUserpass,
-                                       const string &blockJson)
-{
-  string response;
-  LOG(INFO) << "submit ETH block: " << blockJson;
-  bitcoindRpcCall(rpcAddress.c_str(), rpcUserpass.c_str(), blockJson.c_str(), response);
-  LOG(INFO) << "submission result: " << response;
-}
-
-void BlockMakerEth::saveBlockToDBNonBlocking(const string &header, const uint32_t height, const string &chain,
-                                             const uint64_t networkDiff, const StratumWorker &worker) {
-  boost::thread t(boost::bind(&BlockMakerEth::_saveBlockToDBThread, this,
-                              header, height, chain, networkDiff, worker));
-}
-
-void BlockMakerEth::_saveBlockToDBThread(const string &header, const uint32_t height, const string &chain,
-                                         const uint64_t networkDiff, const StratumWorker &worker) {
-  const string nowStr = date("%F %T");
-  string sql;
-  sql = Strings::Format("INSERT INTO `found_blocks` "
-                        " (`puid`, `worker_id`"
-                        ", `worker_full_name`, `chain`"
-                        ", `height`, `hash`, `rewards`"
-                        ", `network_diff`, `created_at`)"
-                        " VALUES (%ld, %" PRId64
-                        ", '%s', '%s'"
-                        ", %lu, '%s', %" PRId64
-                        ", %" PRIu64 ", '%s'); ",
-                        worker.userId_, worker.workerHashId_,
-                        // filter again, just in case
-                        filterWorkerName(worker.fullName_).c_str(), chain.c_str(),
-                        height, header.c_str(), EthConsensus::getStaticBlockReward(height, chain),
-                        networkDiff, nowStr.c_str());
-
-  // try connect to DB
-  MySQLConnection db(poolDB_);
-  for (size_t i = 0; i < 3; i++) {
-    if (db.ping())
-      break;
-    else
-      sleep(3);
-  }
-
-  if (db.execute(sql) == false) {
-    LOG(ERROR) << "insert found block failure: " << sql;
-  }
-  else
-  {
-    LOG(INFO) << "insert found block success for height " << height;
-  }
-}
-
-//////////////////////////////////////BlockMakerSia//////////////////////////////////////////////////
-BlockMakerSia::BlockMakerSia(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB) :
-BlockMakerEth(def, kafkaBrokers, poolDB)
-{
-}
-
-void BlockMakerSia::processSolvedShare(rd_kafka_message_t *rkmessage)
-{
-  if (rkmessage->len != 80) {
-    LOG(ERROR) << "incorrect header len: " << rkmessage->len;
-    return;
-  }
-
-  char buf[80] = {0};
-  memcpy(buf, rkmessage->payload, 80);
-  for (const auto &itr : nodeRpcUri_)
-  {
-    string response;
-    rpcCall(itr.first.c_str(), itr.second.c_str(), buf, 80, response, "Sia-Agent");
-    LOG(INFO) << "submission result: " << response;
-  }
-}
-
-//////////////////////////////////////BlockMakerBytom//////////////////////////////////////////////////
-BlockMakerBytom::BlockMakerBytom(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB) :
-BlockMakerEth(def, kafkaBrokers, poolDB)
-{
-}
-
-void BlockMakerBytom::processSolvedShare(rd_kafka_message_t *rkmessage)
-{
-  const char *message = (const char *)rkmessage->payload;
-  JsonNode r;
-  if (!JsonNode::parse(message, message + rkmessage->len, r))
-  {
-    LOG(ERROR) << "decode common event failure";
-    return;
-  }
-
-  if (r.type() != Utilities::JS::type::Obj ||
-      r["nonce"].type() != Utilities::JS::type::Int ||
-      r["header"].type() != Utilities::JS::type::Str ||
-      r["height"].type() != Utilities::JS::type::Int ||
-      r["networkDiff"].type() != Utilities::JS::type::Int ||
-      r["userId"].type() != Utilities::JS::type::Int ||
-      r["workerId"].type() != Utilities::JS::type::Int ||
-      r["workerFullName"].type() != Utilities::JS::type::Str)
-  {
-    LOG(ERROR) << "eth solved share format wrong";
-    return;
-  }
-
-
-  string bhString = r["header"].str();
-  string request = Strings::Format("{\"block_header\": \"%s\"}\n",
-                                   bhString.c_str());
-
-  submitBlockNonBlocking(request);
-
-  // NOTE: Database save is not implemented. Need to setup mysql in test environment
-  StratumWorker worker;
-  worker.userId_ = r["userId"].int32();
-  worker.workerHashId_ = r["workerId"].int64();
-  worker.fullName_ = r["workerFullName"].str();
-
-  uint64_t networkDiff = r["networkDiff"].uint64();
-  uint64_t height = r["height"].uint64();
-  saveBlockToDBNonBlocking(bhString, height, networkDiff, worker);
-}
-
-void BlockMakerBytom::submitBlockNonBlocking(const string &request) {
-  for (const auto &itr : nodeRpcUri_) {
-    // use thread to submit
-    boost::thread t(boost::bind(&BlockMakerBytom::_submitBlockThread, this,
-                                itr.first, itr.second, request));
-    t.detach();
-  }
-}
-
-void BlockMakerBytom::_submitBlockThread(const string &rpcAddress, const string &rpcUserpass,
-                                       const string &request)
-{
-  string response;
-  LOG(INFO) << "submitting block to " << rpcAddress.c_str() << " with request value: " << request.c_str();
-  rpcCall(rpcAddress.c_str(), rpcUserpass.c_str(), request.c_str(), request.length(), response, "curl");
-  LOG(INFO) << "submission result: " << response;
-}
-
-void BlockMakerBytom::saveBlockToDBNonBlocking(const string &header, const uint32_t height,
-                                             const uint64_t networkDiff, const StratumWorker &worker) {
-  boost::thread t(boost::bind(&BlockMakerBytom::_saveBlockToDBThread, this,
-                              header, height, networkDiff, worker));
-}
-
-void BlockMakerBytom::_saveBlockToDBThread(const string &header, const uint32_t height,
-                                         const uint64_t networkDiff, const StratumWorker &worker) {
-  const string nowStr = date("%F %T");
-  string sql;
-  sql = Strings::Format("INSERT INTO `found_blocks` "
-                        " (`puid`, `worker_id`"
-                        ", `worker_full_name`"
-                        ", `height`, `hash`, `rewards`"
-                        ", `network_diff`, `created_at`)"
-                        " VALUES (%ld, %" PRId64
-                        ", '%s'"
-                        ", %lu, '%s', %" PRId64
-                        ", %" PRIu64 ", '%s'); ",
-                        worker.userId_, worker.workerHashId_,
-                        // filter again, just in case
-                        filterWorkerName(worker.fullName_).c_str(),
-                        height, header.c_str(), GetBlockRewardBytom(height),
-                        networkDiff, nowStr.c_str());
-  
-  // try connect to DB
-  MySQLConnection db(poolDB_);
-  for (size_t i = 0; i < 3; i++) {
-    if (db.ping())
-      break;
-    else
-      sleep(3);
-  }
-
-  if (db.execute(sql) == false) {
-    LOG(ERROR) << "insert found block failure: " << sql;
-  }
-  else
-  {
-    LOG(INFO) << "insert found block success for height " << height;
-  }
+  runThreadConsumeSolvedShare();
 }

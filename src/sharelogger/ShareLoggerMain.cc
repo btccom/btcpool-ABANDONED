@@ -36,9 +36,12 @@
 
 #include "zmq.hpp"
 
-#include "Utils.h"
-#include "ShareLogger.h"
 #include "zlibstream/zstr.hpp"
+
+#include "Utils.h"
+#include "bitcoin/ShareLoggerBitcoin.h"
+#include "eth/ShareLoggerEth.h"
+#include "bytom/ShareLoggerBytom.h"
 
 using namespace std;
 using namespace libconfig;

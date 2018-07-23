@@ -178,6 +178,8 @@ bool StratumJobBitcoin::unserializeFromJson(const char *s, size_t len) {
     merkleBranch_[i] = uint256S(merkleBranchStr.substr(i*64, 64));
   }
 
+  BitsToTarget(nBits_, networkTarget_);
+
   return true;
 }
 

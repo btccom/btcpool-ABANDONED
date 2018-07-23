@@ -28,18 +28,10 @@
 #include "Kafka.h"
 #include "MySQLConnection.h"
 #include "RedisConnection.h"
-#include "bitcoin/StratumBitcoin.h"
 #include "Statistics.h"
+#include "Network.h"
 
 #include <event2/event.h>
-#include <event2/http.h>
-#include <event2/buffer.h>
-#include <event2/util.h>
-#include <event2/keyvalq_struct.h>
-
-#include <string.h>
-#include <pthread.h>
-#include <memory>
 
 #define STATS_SLIDING_WINDOW_SECONDS 3600
 
@@ -279,9 +271,8 @@ public:
                        const char *pWorkerId, const char *pIsMerge);
 };
 
+#include "StatsHttpd.inl"
+
 ////////////////////////////  Alias  ////////////////////////////
-using StatsServerBitcoin = StatsServerT<ShareBitcoin>;
-using StatsServerEth = StatsServerT<ShareEth>;
-using StatsServerBytom = StatsServerT<ShareBytom>;
 
 #endif // STATSHTTPD_H_

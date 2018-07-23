@@ -29,15 +29,11 @@
 #include "MySQLConnection.h"
 #include "Stratum.h"
 
+#include <uint256.h>
+
 #include <deque>
 #include <vector>
 #include <boost/date_time/posix_time/posix_time.hpp>
-
-#include <uint256.h>
-#include <base58.h>
-
-#include "rsk/RskWork.h"
-#include "primitives/block.h"
 
 namespace bpt = boost::posix_time;
 
@@ -126,8 +122,8 @@ protected:
 
   KafkaConsumer kafkaConsumerRawGbt_;
   KafkaConsumer kafkaConsumerStratumJob_;
-  KafkaConsumer kafkaConsumerSovledShare_;
-  KafkaConsumer kafkaConsumerNamecoinSovledShare_;
+  KafkaConsumer kafkaConsumerSolvedShare_;
+  KafkaConsumer kafkaConsumerNamecoinSolvedShare_;
   KafkaConsumer kafkaConsumerRskSolvedShare_;
 
   // submit new block to bitcoind
@@ -141,20 +137,20 @@ protected:
 
   thread threadConsumeRawGbt_;
   thread threadConsumeStratumJob_;
-  thread threadConsumeNamecoinSovledShare_;
+  thread threadConsumeNamecoinSolvedShare_;
   thread threadConsumeRskSolvedShare_;
 
   void runThreadConsumeRawGbt();
-  void runThreadConsumeSovledShare();
+  void runThreadConsumeSolvedShare();
   void runThreadConsumeStratumJob();
-  void runThreadConsumeNamecoinSovledShare();
+  void runThreadConsumeNamecoinSolvedShare();
   void runThreadConsumeRskSolvedShare();
 
   void consumeRawGbt(rd_kafka_message_t *rkmessage);
   void consumeStratumJob(rd_kafka_message_t *rkmessage);
-  void consumeSovledShare(rd_kafka_message_t *rkmessage);
+  void consumeSolvedShare(rd_kafka_message_t *rkmessage);
   virtual void processSolvedShare(rd_kafka_message_t *rkmessage);
-  void consumeNamecoinSovledShare(rd_kafka_message_t *rkmessage);
+  void consumeNamecoinSolvedShare(rd_kafka_message_t *rkmessage);
   void consumeRskSolvedShare(rd_kafka_message_t *rkmessage);
 
   void addRawgbt(const char *str, size_t len);
@@ -209,39 +205,5 @@ public:
   void run();
 };
 
-class BlockMakerEth : public BlockMaker
-{
-public:
-  BlockMakerEth(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
-  void processSolvedShare(rd_kafka_message_t *rkmessage) override;
-  bool init() override;
-
-private:
-  void submitBlockNonBlocking(const string &blockJson);
-  void _submitBlockThread(const string &rpcAddress, const string &rpcUserpass, const string &blockJson);
-  void saveBlockToDBNonBlocking(const string &header, const uint32_t height, const string &chain, const uint64_t networkDiff, const StratumWorker &worker);
-  void _saveBlockToDBThread(const string &header, const uint32_t height, const string &chain, const uint64_t networkDiff, const StratumWorker &worker);
-};
-
-class BlockMakerSia : public BlockMakerEth
-{
-public:
-  BlockMakerSia(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
-  void processSolvedShare(rd_kafka_message_t *rkmessage) override;
-};
-
-class BlockMakerBytom : public BlockMakerEth
-{
-public:
-  BlockMakerBytom(const BlockMakerDefinition &def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
-  void processSolvedShare(rd_kafka_message_t *rkmessage) override;
-
-private:
-  void submitBlockNonBlocking(const string &request);
-  void _submitBlockThread(const string &rpcAddress, const string &rpcUserpass, const string& request);
-  void saveBlockToDBNonBlocking(const string &header, const uint32_t height, const uint64_t networkDiff, const StratumWorker &worker);
-  void _saveBlockToDBThread(const string &header, const uint32_t height, const uint64_t networkDiff, const StratumWorker &worker);
-
-};
 
 #endif
