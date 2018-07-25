@@ -1,9 +1,9 @@
-Docker for UnitedBitcoin v2.2.0.2
+Docker for UnitedBitcoin v2.2.0.3
 ============================
 
 * OS: `Ubuntu 14.04 LTS`, `Ubuntu 16.04 LTS`
 * Docker Image OS: `Ubuntu 16.04 LTS`
-* UnitedBitcoin: `v2.2.0.2`
+* UnitedBitcoin: `v2.2.0.3`
 
 ## Install Docker
 
@@ -22,14 +22,14 @@ service docker status
 cd /work
 
 git clone https://github.com/btccom/btcpool.git
-cd btcpool/docker/united-bitcoin/v2.2.0.2
+cd btcpool/docker/united-bitcoin/v2.2.0.3
 
 # If your server is in China, please check "Dockerfile" and uncomment some lines.
 # If you want to enable testnet3, please uncomment several lines behind `# service for testnet3`
 
 # build
-docker build -t united-bitcoin:2.2.0.2 .
-# docker build --no-cache -t united-bitcoin:2.2.0.2 .
+docker build -t united-bitcoin:2.2.0.3 .
+# docker build --no-cache -t united-bitcoin:2.2.0.3 .
 
 # mkdir for united-bitcoin
 mkdir -p /work/united-bitcoin
@@ -59,7 +59,7 @@ dbcache=1000
 
 ```
 # start docker
-docker run -it -v /work/united-bitcoin:/root/.bitcoin --name united-bitcoin -p 8333:8333 -p 8332:8332 -p 8331:8331 -p 18333:18333 -p 18332:18332 -p 18331:18331 --restart always -d united-bitcoin:2.2.0.2
+docker run -it -v /work/united-bitcoin:/root/.bitcoin --name united-bitcoin -p 8333:8333 -p 8332:8332 -p 8331:8331 -p 18333:18333 -p 18332:18332 -p 18331:18331 --restart always -d united-bitcoin:2.2.0.3
 
 # login
 docker exec -it united-bitcoin /bin/bash
