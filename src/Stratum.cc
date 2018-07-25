@@ -303,9 +303,9 @@ bool StratumJob::unserializeFromJson(const char *s, size_t len) {
 
 #ifdef CHAIN_TYPE_UBTC
   // rootStateHash, optional
-  // rootStateHash must be at least 66 bytes
+  // rootStateHash must be at least 2 bytes (00f9, empty root state hash)
   if (j["rootStateHash"].type() == Utilities::JS::type::Str &&
-      j["rootStateHash"].str().length() >= 66*2) {
+      j["rootStateHash"].str().length() >= 2*2) {
     rootStateHash_ = j["rootStateHash"].str();
   }
 #endif
@@ -405,9 +405,9 @@ bool StratumJob::initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
 
 #ifdef CHAIN_TYPE_UBTC
   // rootStateHash, optional
-  // default_root_state_hash must be at least 66 bytes
+  // default_root_state_hash must be at least 2 bytes (00f9, empty root state hash)
   if (jgbt["default_root_state_hash"].type() == Utilities::JS::type::Str &&
-      jgbt["default_root_state_hash"].str().length() >= 66*2) {
+      jgbt["default_root_state_hash"].str().length() >= 2*2) {
     rootStateHash_ = jgbt["default_root_state_hash"].str();
   }
 #endif
