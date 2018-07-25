@@ -24,7 +24,12 @@
 #ifndef BPOOL_VERSION_H_
 #define BPOOL_VERSION_H_
 
-#cmakedefine GIT_COMMIT_HASH "@GIT_COMMIT_HASH@"
-#define BIN_VERSION_STRING(binName) CHAIN_TYPE_STR " " binName " version " GIT_COMMIT_HASH "\n"
+#cmakedefine BPOOL_VERSION_STR "@BPOOL_VERSION_STR@"
 
+#ifndef BPOOL_VERSION_STR
+  #define BPOOL_VERSION_STR "unknown"
 #endif
+
+#define BIN_VERSION_STRING(binName) CHAIN_TYPE_STR " " binName " version " BPOOL_VERSION_STR "\n"
+
+#endif // BPOOL_VERSION_H_
