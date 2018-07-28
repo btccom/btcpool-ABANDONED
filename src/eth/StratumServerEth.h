@@ -40,7 +40,8 @@ public:
                               const uint64_t nonce,
                               const uint256 &header,
                               const std::set<uint64_t> &jobDiffs,
-                              uint256 &returnedMixHash);
+                              uint256 &returnedMixHash,
+                              const string &workFullName);
   void sendSolvedShare2Kafka(const string& strNonce, const string& strHeader, const string& strMix,
                              const uint32_t height, const uint64_t networkDiff, const StratumWorker &worker,
                              const EthConsensus::Chain chain);
@@ -84,10 +85,13 @@ private:
   void deleteLight();
   void deleteLightNoLock();
 
-  // Creating a new ethash_light_t (DAG cache) is so slow, it may need
-  // more than 120 seconds for current Ethereum mainnet.
+  // Creating a new ethash_light_t (DAG cache) is so slow (in Debug build),
+  // it may need more than 120 seconds for current Ethereum mainnet.
   // So save it to a file before shutdown and load it back at next time 
   // to reduce the computation time required after a reboot.
+  // 
+  // Note: The performance difference between Debug and Release builds is very large.
+  // The Release build may complete in 5 s, while the Debug build takes more than 60 s.
   void saveLightToFile();
   void saveLightToFile(const ethash_light_t &light, std::ofstream &f);
   void loadLightFromFile();

@@ -111,7 +111,7 @@ void StratumSessionEth::sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr
   // Tips: NICEHASH_STRATUM use an extrNnonce, it is really an extraNonce (not startNonce)
   // and is sent at the subscribe of the session.
 
-  LOG(INFO) << "new eth stratum job mining.notify: share difficulty=" << std::hex << ljob->currentJobDiff_ << ", share target=" << strShareTarget << ", protocol=" << getProtocolString(ethProtocol_);
+  DLOG(INFO) << "new eth stratum job mining.notify: share difficulty=" << std::hex << ljob->currentJobDiff_ << ", share target=" << strShareTarget << ", protocol=" << getProtocolString(ethProtocol_);
   string strNotify;
 
   switch (ethProtocol_)
@@ -504,7 +504,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   // the difficulty is reached in our calculations.
   uint256 shareMixHash;
   share.status_ = s->checkShareAndUpdateDiff(share, localJob->jobId_, nonce, uint256S(sHeader),
-                                             localJob->jobDiffs_, shareMixHash);
+                                             localJob->jobDiffs_, shareMixHash, worker_.fullName_);
   
   if (StratumStatus::isAccepted(share.status_)) {
     DLOG(INFO) << "share reached the diff: " << share.shareDiff_;

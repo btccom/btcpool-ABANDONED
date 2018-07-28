@@ -148,6 +148,8 @@ void JobRepositoryEth::_newLightThread(uint64_t height)
     }
 
     time_t elapse = time(nullptr) - now;
+    // Note: The performance difference between Debug and Release builds is very large.
+    // The Release build may complete in 5 s, while the Debug build takes more than 60 s.
     LOG(INFO) << "create light for blk height: " << height << " takes " << elapse << " seconds";
   }
 
@@ -161,6 +163,8 @@ void JobRepositoryEth::_newLightThread(uint64_t height)
     nextLight_ = ethash_light_new(nextBlkNum);
 
     time_t elapse = time(nullptr) - now;
+    // Note: The performance difference between Debug and Release builds is very large.
+    // The Release build may complete in 5 s, while the Debug build takes more than 60 s.
     LOG(INFO) << "create light for blk height: " << nextBlkNum << " takes " << elapse << " seconds";
   }
 }
@@ -380,7 +384,8 @@ int ServerEth::checkShareAndUpdateDiff(ShareEth &share,
                                        const uint64_t nonce,
                                        const uint256 &header,
                                        const std::set<uint64_t> &jobDiffs,
-                                       uint256 &returnedMixHash)
+                                       uint256 &returnedMixHash,
+                                       const string &workFullName)
 {
   JobRepositoryEth *jobRepo = dynamic_cast<JobRepositoryEth *>(jobRepository_);
   if (nullptr == jobRepo) {
@@ -401,15 +406,24 @@ int ServerEth::checkShareAndUpdateDiff(ShareEth &share,
   ethash_h256_t ethashHeader = {0};
   Uint256ToEthash256(header, ethashHeader);
 
+#ifndef NDEBUG
+  // Calculate the time required of light verification.
   timeval start, end;
   long mtime, seconds, useconds;
   gettimeofday(&start, NULL);
+#endif
+
   bool ret = jobRepo->compute(ethashHeader, nonce, r);
+
+#ifndef NDEBUG
   gettimeofday(&end, NULL);
   seconds = end.tv_sec - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;
   mtime = ((seconds)*1000 + useconds / 1000.0) + 0.5;
-  LOG(INFO) << "light compute takes " << mtime << " ms";
+  // Note: The performance difference between Debug and Release builds is very large.
+  // The Release build may complete in 4 ms, while the Debug build takes 100 ms.
+  DLOG(INFO) << "light compute takes " << mtime << " ms";
+#endif
 
   if (!ret || !r.success)
   {
@@ -421,11 +435,25 @@ int ServerEth::checkShareAndUpdateDiff(ShareEth &share,
   returnedMixHash = Ethash256ToUint256(r.mix_hash);
 
   uint256 shareTarget = Ethash256ToUint256(r.result);
-  DLOG(INFO) << "comapre share target: " << shareTarget.GetHex() << ", network target: " << sjob->rskNetworkTarget_.GetHex();
   
-  //can not compare directly because unit256 uses memcmp
-  if (isSubmitInvalidBlock_ || UintToArith256(shareTarget) <= UintToArith256(sjob->rskNetworkTarget_)) {
-    LOG(INFO) << "solution found, share target: " << shareTarget.GetHex() << ", network target: " << sjob->rskNetworkTarget_.GetHex();
+  //can not compare two uint256 directly because uint256 is little endian and uses memcmp
+  arith_uint256 bnShareTarget = UintToArith256(shareTarget);
+  arith_uint256 bnNetworkTarget = UintToArith256(sjob->rskNetworkTarget_);
+  
+  DLOG(INFO) << "comapre share target: " << shareTarget.GetHex()
+             << ", network target: " << sjob->rskNetworkTarget_.GetHex();
+  
+  // print out high diff share, 2^10 = 1024
+  if ((bnShareTarget >> 10) <= bnNetworkTarget) {
+    LOG(INFO) << "high diff share, share target: " << shareTarget.GetHex()
+              << ", network target: " << sjob->rskNetworkTarget_.GetHex()
+              << ", worker: " << workFullName;
+  }
+
+  if (isSubmitInvalidBlock_ || bnShareTarget <= bnNetworkTarget) {
+    LOG(INFO) << "solution found, share target: " << shareTarget.GetHex()
+              << ", network target: " << sjob->rskNetworkTarget_.GetHex()
+              << ", worker: " << workFullName;
 
     if (exJobPtr->isStale()) {
       LOG(INFO) << "stale solved share: " << share.toString();
@@ -443,7 +471,7 @@ int ServerEth::checkShareAndUpdateDiff(ShareEth &share,
     auto jobTarget = uint256S(Eth_DifficultyToTarget(*itr));
     DLOG(INFO) << "comapre share target: " << shareTarget.GetHex() << ", job target: " << jobTarget.GetHex();
 
-    if (isEnableSimulator_ || UintToArith256(shareTarget) <= UintToArith256(jobTarget)) {
+    if (isEnableSimulator_ || bnShareTarget <= UintToArith256(jobTarget)) {
       share.shareDiff_ = *itr;
       return exJobPtr->isStale() ? StratumStatus::ACCEPT_STALE : StratumStatus::ACCEPT;
     }
