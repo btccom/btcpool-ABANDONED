@@ -34,24 +34,24 @@
 
 class JobMakerHandlerBitcoin : public JobMakerHandler
 {
+  mutex lock_; // lock when update rawgbtMap_
+  mutex auxJsonLock_;
+  mutex rskWorkAccessLock_;
+
   // mining bitcoin blocks
-  shared_ptr<KafkaConsumer> kafkaRawGbtConsumer_;
   CTxDestination poolPayoutAddr_;
   uint32_t currBestHeight_;
   uint32_t lastJobSendTime_;
   bool isLastJobEmptyBlock_;
-  mutex lock_; // lock when update rawgbtMap_
   std::map<uint64_t/* @see makeGbtKey() */, string> rawgbtMap_;  // sorted gbt by timestamp
   deque<uint256> lastestGbtHash_;
 
   // merged mining for AuxPow blocks (example: Namecoin, ElastOS)
-  shared_ptr<KafkaConsumer> kafkaAuxPowConsumer_;
-  mutex auxJsonLock_;
-  string latestAuxPowJson_;
+  string latestNmcAuxBlockJson_;
+  string latestNmcAuxBlockHash_;
+  uint32_t latestNmcAuxBlockHeight_;
 
   // merged mining for RSK
-  shared_ptr<KafkaConsumer> kafkaRskGwConsumer_;
-  mutex rskWorkAccessLock_;
   RskWork *previousRskWork_;
   RskWork *currentRskWork_;
   bool isRskUpdate_; // a flag to mark RSK has an update
@@ -60,12 +60,12 @@ class JobMakerHandlerBitcoin : public JobMakerHandler
   void clearTimeoutGbt();
   bool isReachTimeout();
 
-  void clearTimeoutRskGw();
+  void clearTimeoutGw();
   bool triggerRskUpdate();
 
   // return false if there is no best rawGbt or
   // doesn't need to send a stratum job at current.
-  bool findBestRawGbt(bool isRskUpdate, string &bestRawGbt);
+  bool findBestRawGbt(bool isMergedMiningUpdate, string &bestRawGbt);
   string makeStratumJob(const string &gbt);
 
   inline uint64_t makeGbtKey(uint32_t gbtTime, bool isEmptyBlock, uint32_t height);

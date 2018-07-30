@@ -23,6 +23,9 @@
  */
 #include "GbtMaker.h"
 
+#include "BitcoinUtils.h"
+#include "KafkaBitcoin.h"
+
 #include <glog/logging.h>
 
 #include <util.h>
@@ -32,7 +35,6 @@
 #include "utilities_js.hpp"
 #include "hash.h"
 
-#include "bitcoin/BitcoinUtils.h"
 
 //
 // bitcoind zmq pub msg type: "hashblock", "hashtx", "rawblock", "rawtx"

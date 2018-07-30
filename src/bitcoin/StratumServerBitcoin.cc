@@ -24,6 +24,7 @@
 #include "StratumServerBitcoin.h"
 #include "StratumSessionBitcoin.h"
 #include "StratumBitcoin.h"
+#include "KafkaBitcoin.h"
 
 #include "rsk/RskSolvedShareData.h"
 

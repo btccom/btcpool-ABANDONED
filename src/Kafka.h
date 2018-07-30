@@ -28,19 +28,6 @@
 
 #include <librdkafka/rdkafka.h>
 
-#define KAFKA_TOPIC_RAWGBT            KAFKA_TOPIC_PREFIX "RawGbt"
-#define KAFKA_TOPIC_STRATUM_JOB       KAFKA_TOPIC_PREFIX "StratumJob"
-#define KAFKA_TOPIC_SOLVED_SHARE      KAFKA_TOPIC_PREFIX "SolvedShare"
-#define KAFKA_TOPIC_SHARE_LOG         KAFKA_TOPIC_PREFIX "ShareLog"
-#define KAFKA_TOPIC_COMMON_EVENTS     KAFKA_TOPIC_PREFIX "CommonEvents"
-
-#define KAFKA_TOPIC_NMC_AUXBLOCK      KAFKA_TOPIC_PREFIX "NMCAuxBlock"
-#define KAFKA_TOPIC_NMC_SOLVED_SHARE  KAFKA_TOPIC_PREFIX "NMCSolvedShare"
-
-#define KAFKA_TOPIC_RAWGW             KAFKA_TOPIC_PREFIX "RawGw"
-#define KAFKA_TOPIC_RSK_SOLVED_SHARE  KAFKA_TOPIC_PREFIX "RskSolvedShare"
-
-
 ///////////////////////////////////////////////////////////////////////
 // librdkafka options
 // https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md

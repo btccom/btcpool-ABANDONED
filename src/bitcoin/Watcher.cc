@@ -23,6 +23,9 @@
  */
 #include "Watcher.h"
 
+#include "BitcoinUtils.h"
+#include "KafkaBitcoin.h"
+
 #include <arpa/inet.h>
 #include <cinttypes>
 
@@ -35,7 +38,6 @@
 #include <chainparams.h>
 #include <utilstrencodings.h>
 #include <hash.h>
-#include "bitcoin/BitcoinUtils.h"
 
 
 static

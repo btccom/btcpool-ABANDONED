@@ -32,6 +32,8 @@
 
 #include <boost/thread.hpp>
 
+#include "KafkaBitcoin.h"
+
 ////////////////////////////////// BlockMaker //////////////////////////////////
 BlockMakerBitcoin::BlockMakerBitcoin(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB)
   : BlockMaker(def, kafkaBrokers, poolDB)
