@@ -73,7 +73,18 @@ std::shared_ptr<StatsServer> newStatsServer(const string &chainType, const char 
                                             const time_t kFlushDBInterval, const string &fileLastFlushTime,
                                             const int dupShareTrackingHeight)
 {
-  if (chainType == "BTC") {
+#if defined(CHAIN_TYPE_BTC)
+  if ("BTC" == chainType)
+#elif defined(CHAIN_TYPE_BCH)
+  if ("BCH" == chainType)
+#elif defined(CHAIN_TYPE_UBTC)
+  if ("UBTC" == chainType)
+#elif defined(CHAIN_TYPE_SBTC)
+  if ("SBTC" == chainType)
+#else 
+  if (false)
+#endif  
+  {
     return std::make_shared<StatsServerBitcoin>(kafkaBrokers, kafkaShareTopic, kafkaCommonEventsTopic,
                                                 httpdHost, httpdPort, poolDBInfo, redisInfo,
                                                 redisConcurrency, redisKeyPrefix, redisKeyExpire,
