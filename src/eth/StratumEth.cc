@@ -44,7 +44,7 @@ bool StratumJobEth::initFromGw(const RskWorkEth &latestRskBlockJson, EthConsensu
     feesForMiner_ = latestRskBlockJson.getFees();
     rskdRpcAddress_ = latestRskBlockJson.getRpcAddress();
     rskdRpcUserPwd_ = latestRskBlockJson.getRpcUserPwd();
-    isRskCleanJob_ = latestRskBlockJson.getIsCleanJob();
+    isMergedMiningCleanJob_ = false;
     seedHash_ = latestRskBlockJson.getSeedHash();
     height_ = latestRskBlockJson.getHeight();
 
@@ -84,7 +84,7 @@ string StratumJobEth::serializeToJson() const {
                          feesForMiner_.size()             ? feesForMiner_.c_str()             : "",
                          rskdRpcAddress_.size()           ? rskdRpcAddress_.c_str()           : "",
                          rskdRpcUserPwd_.c_str()          ? rskdRpcUserPwd_.c_str()           : "",
-                         isRskCleanJob_ ? "true" : "false");
+                         isMergedMiningCleanJob_ ? "true" : "false");
 }
 
 bool StratumJobEth::unserializeFromJson(const char *s, size_t len)
@@ -120,7 +120,7 @@ bool StratumJobEth::unserializeFromJson(const char *s, size_t len)
     feesForMiner_ = j["rskFeesForMiner"].str();
     rskdRpcAddress_ = j["rskdRpcAddress"].str();
     rskdRpcUserPwd_ = j["rskdRpcUserPwd"].str();
-    isRskCleanJob_ = j["isRskCleanJob"].boolean();
+    isMergedMiningCleanJob_ = j["isRskCleanJob"].boolean();
   }
 
   BitsToTarget(nBits_, networkTarget_); //  Gani#Question: Does eth require this call?

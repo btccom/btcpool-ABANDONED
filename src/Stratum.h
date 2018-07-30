@@ -207,7 +207,7 @@ public:
   string rskdRpcAddress_;
   string rskdRpcUserPwd_;
   string feesForMiner_;
-  bool isRskCleanJob_;
+  bool isMergedMiningCleanJob_;
 
   uint256 networkTarget_;
 protected:

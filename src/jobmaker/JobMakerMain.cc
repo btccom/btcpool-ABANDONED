@@ -149,6 +149,7 @@ shared_ptr<GwJobMakerDefinition> createGwJobMakerDefinition(const Setting &setti
 
   readFromSetting(setting, "zookeeper_lock_path", def->zookeeperLockPath_);
   readFromSetting(setting, "file_last_job_time",  def->fileLastJobTime_, true);
+  readFromSetting(setting, "id", def->serverId_);
 
   def->enabled_ = false;
   readFromSetting(setting, "enabled", def->enabled_, true);
@@ -180,6 +181,7 @@ shared_ptr<GbtJobMakerDefinition> createGbtJobMakerDefinition(const Setting &set
 
   readFromSetting(setting, "zookeeper_lock_path", def->zookeeperLockPath_);
   readFromSetting(setting, "file_last_job_time",  def->fileLastJobTime_, true);
+  readFromSetting(setting, "id", def->serverId_);
 
   def->enabled_ = false;
   readFromSetting(setting, "enabled", def->enabled_, true);

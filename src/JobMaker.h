@@ -58,6 +58,7 @@ struct JobMakerDefinition
 
   string jobTopic_;
   uint32 jobInterval_;
+  uint32 serverId_;
 
   string zookeeperLockPath_;
   string fileLastJobTime_;

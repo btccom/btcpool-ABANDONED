@@ -65,7 +65,7 @@ void JobRepositoryBitcoin::broadcastStratumJob(StratumJob *sjobBase) {
     << ", prevhash: " << sjob->prevHash_.ToString();
   }
 
-  bool isRskClean = sjob->isRskCleanJob_;
+  bool isRskClean = sjob->isMergedMiningCleanJob_;
 
   // 
   // The `clean_jobs` field should be `true` ONLY IF a new block found in Bitcoin blockchains.

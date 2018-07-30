@@ -89,34 +89,51 @@ string StratumJobBitcoin::serializeToJson() const {
   //
   // we use key->value json string, so it's easy to update system
   //
-  string resBase = StratumJob::serializeToJson();
-  resBase = resBase.substr(1, resBase.length() - 2);  //  remove {}
-  string res = Strings::Format
-          (
-            ",\"gbtHash\":\"%s\""
-            ",\"prevHash\":\"%s\""
-            ",\"prevHashBeStr\":\"%s\""
-            ",\"coinbase1\":\"%s\",\"coinbase2\":\"%s\""
-            ",\"merkleBranch\":\"%s\""
-            ",\"coinbaseValue\":%lld,\"witnessCommitment\":\"%s\""
-            // namecoin, optional
-            ",\"nmcBlockHash\":\"%s\",\"nmcBits\":%u,\"nmcHeight\":%d"
-            ",\"nmcRpcAddr\":\"%s\",\"nmcRpcUserpass\":\"%s\""
-            , gbtHash_.c_str()
-            , prevHash_.ToString().c_str()
-            , prevHashBeStr_.c_str()
-            , coinbase1_.c_str(), coinbase2_.c_str()
-            // merkleBranch_ could be empty
-            , merkleBranchStr.size() ? merkleBranchStr.c_str() : ""
-            , coinbaseValue_, witnessCommitment_.size() ? witnessCommitment_.c_str() : ""
-            // nmc
-            , nmcAuxBlockHash_.ToString().c_str()
-            , nmcAuxBits_, nmcHeight_
-            , nmcRpcAddr_.size()     ? nmcRpcAddr_.c_str()     : ""
-            , nmcRpcUserpass_.size() ? nmcRpcUserpass_.c_str() : ""
-          );
-  string merge = Strings::Format("{%s, %s}", resBase.c_str(), res.c_str());
-  return merge;
+  return Strings::Format("{\"jobId\":%" PRIu64",\"gbtHash\":\"%s\""
+                         ",\"prevHash\":\"%s\",\"prevHashBeStr\":\"%s\""
+                         ",\"height\":%d,\"coinbase1\":\"%s\",\"coinbase2\":\"%s\""
+                         ",\"merkleBranch\":\"%s\""
+                         ",\"nVersion\":%d,\"nBits\":%u,\"nTime\":%u"
+                         ",\"minTime\":%u,\"coinbaseValue\":%lld"
+                         ",\"witnessCommitment\":\"%s\""
+                        #ifdef CHAIN_TYPE_UBTC
+                         ",\"rootStateHash\":\"%s\""
+                        #endif
+                         // namecoin, optional
+                         ",\"nmcBlockHash\":\"%s\",\"nmcBits\":%u,\"nmcHeight\":%d"
+                         ",\"nmcRpcAddr\":\"%s\",\"nmcRpcUserpass\":\"%s\""
+                         // RSK, optional
+                         ",\"rskBlockHashForMergedMining\":\"%s\",\"rskNetworkTarget\":\"0x%s\""
+                         ",\"rskFeesForMiner\":\"%s\""
+                         ",\"rskdRpcAddress\":\"%s\",\"rskdRpcUserPwd\":\"%s\""
+                         // namecoin and RSK
+                         // TODO: delete isRskCleanJob (keep it for forward compatible).
+                         ",\"isRskCleanJob\":%s,\"mergedMiningClean\":%s"
+                         "}",
+                         jobId_, gbtHash_.c_str(),
+                         prevHash_.ToString().c_str(), prevHashBeStr_.c_str(),
+                         height_, coinbase1_.c_str(), coinbase2_.c_str(),
+                         // merkleBranch_ could be empty
+                         merkleBranchStr.size() ? merkleBranchStr.c_str() : "",
+                         nVersion_, nBits_, nTime_,
+                         minTime_, coinbaseValue_,
+                         witnessCommitment_.size() ? witnessCommitment_.c_str() : "",
+                        #ifdef CHAIN_TYPE_UBTC
+                         rootStateHash_.size() ? rootStateHash_.c_str() : "",
+                        #endif
+                         // nmc
+                         nmcAuxBlockHash_.ToString().c_str(),
+                         nmcAuxBits_, nmcHeight_,
+                         nmcRpcAddr_.size()     ? nmcRpcAddr_.c_str()     : "",
+                         nmcRpcUserpass_.size() ? nmcRpcUserpass_.c_str() : "",
+                         // rsk
+                         blockHashForMergedMining_.size() ? blockHashForMergedMining_.c_str() : "",
+                         rskNetworkTarget_.GetHex().c_str(),
+                         feesForMiner_.size()             ? feesForMiner_.c_str()             : "",
+                         rskdRpcAddress_.size()           ? rskdRpcAddress_.c_str()           : "",
+                         rskdRpcUserPwd_.c_str()          ? rskdRpcUserPwd_.c_str()           : "",
+                         isMergedMiningCleanJob_ ? "true" : "false",
+                         isMergedMiningCleanJob_ ? "true" : "false");
 }
 
 bool StratumJobBitcoin::unserializeFromJson(const char *s, size_t len) {
@@ -155,6 +172,20 @@ bool StratumJobBitcoin::unserializeFromJson(const char *s, size_t len) {
     witnessCommitment_ = j["default_witness_commitment"].str();
   }
 
+#ifdef CHAIN_TYPE_UBTC
+  // rootStateHash, optional
+  // rootStateHash must be at least 66 bytes
+  if (j["rootStateHash"].type() == Utilities::JS::type::Str &&
+      j["rootStateHash"].str().length() >= 66*2) {
+    rootStateHash_ = j["rootStateHash"].str();
+  }
+#endif
+
+  // for Namecoin and RSK merged mining, optional
+  if (j["mergedMiningClean"].type() == Utilities::JS::type::Bool) {
+    isMergedMiningCleanJob_ = j["mergedMiningClean"].boolean();
+  }
+  
   //
   // namecoin, optional
   //
@@ -187,7 +218,10 @@ bool StratumJobBitcoin::initFromGbt(const char *gbt, const string &poolCoinbaseI
                              const CTxDestination &poolPayoutAddr,
                              const uint32_t blockVersion,
                              const string &nmcAuxBlockJson,
-                             const RskWork &latestRskBlockJson) {
+                             const RskWork &latestRskBlockJson,
+                             const uint8_t serverId,
+                             const bool isMergedMiningUpdate) 
+{
   uint256 gbtHash = Hash(gbt, gbt + strlen(gbt));
   JsonNode r;
   if (!JsonNode::parse(gbt, gbt + strlen(gbt), r)) {
@@ -198,8 +232,9 @@ bool StratumJobBitcoin::initFromGbt(const char *gbt, const string &poolCoinbaseI
 
   // jobId: timestamp + gbtHash, we need to make sure jobId is unique in a some time
   // jobId can convert to uint64_t
-  const string jobIdStr = Strings::Format("%08x%s", (uint32_t)time(nullptr),
-                                          gbtHash.ToString().substr(0, 8).c_str());
+  const string jobIdStr = Strings::Format("%08x%s%02x", (uint32_t)time(nullptr),
+                                                        gbtHash.ToString().substr(0, 6).c_str(),
+                                                        serverId);
   assert(jobIdStr.length() == 16);
   jobId_ = strtoull(jobIdStr.c_str(), nullptr, 16/* hex */);
 
@@ -224,6 +259,7 @@ bool StratumJobBitcoin::initFromGbt(const char *gbt, const string &poolCoinbaseI
       jgbt["default_witness_commitment"].str().length() >= 38*2) {
     witnessCommitment_ = jgbt["default_witness_commitment"].str();
   }
+
   BitsToTarget(nBits_, networkTarget_);
 
   // previous block hash
@@ -248,6 +284,9 @@ bool StratumJobBitcoin::initFromGbt(const char *gbt, const string &poolCoinbaseI
     // make merkleSteps and merkle branch
     makeMerkleBranch(vtxhashs, merkleBranch_);
   }
+
+  // for Namecoin and RSK merged mining
+  isMergedMiningCleanJob_ = isMergedMiningUpdate;
 
   //
   // namecoin merged mining
@@ -302,7 +341,6 @@ bool StratumJobBitcoin::initFromGbt(const char *gbt, const string &poolCoinbaseI
     feesForMiner_ = latestRskBlockJson.getFees();
     rskdRpcAddress_ = latestRskBlockJson.getRpcAddress();
     rskdRpcUserPwd_ = latestRskBlockJson.getRpcUserPwd();
-    isRskCleanJob_ = latestRskBlockJson.getIsCleanJob();
   }
 
   // make coinbase1 & coinbase2

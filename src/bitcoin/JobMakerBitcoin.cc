@@ -79,9 +79,6 @@ bool JobMakerHandlerBitcoin::init(shared_ptr<JobMakerDefinition> defPtr) {
   }
   poolPayoutAddr_ = DecodeDestination(def()->payoutAddr_);
 
-  // notify policy for RSK
-  RskWork::setIsCleanJob(def()->rskNotifyPolicy_ != 0);
-
   return true;
 }
 
@@ -488,12 +485,16 @@ string JobMakerHandlerBitcoin::makeStratumJob(const string &gbt) {
     }
   }
 
+  bool mergeMiningUpdate = def()->rskNotifyPolicy_ != 0;
   StratumJobBitcoin sjob;
   if (!sjob.initFromGbt(gbt.c_str(), def()->coinbaseInfo_,
                                      poolPayoutAddr_,
                                      def()->blockVersion_,
                                      latestNmcAuxBlockJson,
-                                     currentRskBlockJson)) {
+                                     currentRskBlockJson, 
+                                     def()->serverId_,
+                                     mergeMiningUpdate)) 
+  {
     LOG(ERROR) << "init stratum job message from gbt str fail";
     return "";
   }
