@@ -145,6 +145,10 @@ public:
   int64_t coinbaseValue_;
   // if segwit is not active, it will be empty
   string witnessCommitment_;
+#ifdef CHAIN_TYPE_UBTC
+  // if UB smart contract is not active, it will be empty
+  string   rootStateHash_;
+#endif
 
 
   // namecoin merged mining
@@ -159,11 +163,13 @@ public:
 
 public:
   StratumJobBitcoin();
-  bool initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
-                   const CTxDestination &poolPayoutAddr,
-                   const uint32_t blockVersion,
-                   const string &nmcAuxBlockJson,
-                   const RskWork &latestRskBlockJson);
+  bool initFromGbt( const char *gbt, const string &poolCoinbaseInfo,
+                    const CTxDestination &poolPayoutAddr,
+                    const uint32_t blockVersion,
+                    const string &nmcAuxBlockJson,
+                    const RskWork &latestRskBlockJson,
+                    const uint8_t serverId,
+                    const bool isMergedMiningUpdate);
   string serializeToJson() const override;
   bool unserializeFromJson(const char *s, size_t len) override;
   bool isEmptyBlock();

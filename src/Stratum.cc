@@ -166,7 +166,7 @@ StratumJob::StratumJob()
   , nVersion_(0), nBits_(0U)
   , nTime_(0U)
   , minTime_(0U)
-  , isRskCleanJob_(false)
+  , isMergedMiningCleanJob_(false)
 {
 }
 
@@ -177,35 +177,8 @@ StratumJob::~StratumJob()
 
 string StratumJob::serializeToJson() const
 {
-  return Strings::Format
-          (
-            "{"
-              "\"jobId\":%" PRIu64
-              ",\"height\":%d"
-              ",\"nVersion\":%d"
-              ",\"nBits\":%u"
-              ",\"nTime\":%u"
-              ",\"minTime\":%u"
-              // rsk 
-              ",\"rskBlockHashForMergedMining\":\"%s\",\"rskNetworkTarget\":\"0x%s\""
-              ",\"rskFeesForMiner\":\"%s\""
-              ",\"rskdRpcAddress\":\"%s\",\"rskdRpcUserPwd\":\"%s\""
-              ",\"isRskCleanJob\":%s"
-            "}"
-            , jobId_
-            , height_
-            , nVersion_
-            , nBits_
-            , nTime_
-            , minTime_
-            // rsk
-            , blockHashForMergedMining_.size() ? blockHashForMergedMining_.c_str() : ""
-            , rskNetworkTarget_.GetHex().c_str()
-            , feesForMiner_.size()             ? feesForMiner_.c_str()             : ""
-            , rskdRpcAddress_.size()           ? rskdRpcAddress_.c_str()           : ""
-            , rskdRpcUserPwd_.c_str()          ? rskdRpcUserPwd_.c_str()           : ""
-            , isRskCleanJob_ ? "true" : "false"
-          );
+  assert(false);
+  return "";
 }
 
 
@@ -251,7 +224,7 @@ bool StratumJob::unserializeFromJson(const char *s, size_t len) {
     feesForMiner_             = j["rskFeesForMiner"].str();
     rskdRpcAddress_           = j["rskdRpcAddress"].str();
     rskdRpcUserPwd_           = j["rskdRpcUserPwd"].str();
-    isRskCleanJob_            = j["isRskCleanJob"].boolean();
+    isMergedMiningCleanJob_            = j["isRskCleanJob"].boolean();
   }
 
   return true;

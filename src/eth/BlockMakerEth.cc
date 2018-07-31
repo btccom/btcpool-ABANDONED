@@ -74,23 +74,6 @@ void BlockMakerEth::processSolvedShare(rd_kafka_message_t *rkmessage)
                            r["chain"].str().c_str(), r["networkDiff"].uint64(), worker);
 }
 
-bool BlockMakerEth::init() {
-  //
-  // Sloved Share
-  //
-  // we need to consume the latest 2 messages, just in case
-  if (kafkaConsumerSolvedShare_.setup(RD_KAFKA_OFFSET_TAIL(2)) == false) {
-    LOG(INFO) << "setup kafkaConsumerSolvedShare_ fail";
-    return false;
-  }
-  if (!kafkaConsumerSolvedShare_.checkAlive()) {
-    LOG(ERROR) << "kafka brokers is not alive: kafkaConsumerSolvedShare_";
-    return false;
-  }
-
-  return true;
-}
-
 void BlockMakerEth::submitBlockNonBlocking(const string &blockJson) {
   for (const auto &itr : nodeRpcUri_) {
     // use thread to submit
@@ -104,7 +87,7 @@ void BlockMakerEth::_submitBlockThread(const string &rpcAddress, const string &r
 {
   string response;
   LOG(INFO) << "submit ETH block: " << blockJson;
-  bitcoindRpcCall(rpcAddress.c_str(), rpcUserpass.c_str(), blockJson.c_str(), response);
+  blockchainNodeRpcCall(rpcAddress.c_str(), rpcUserpass.c_str(), blockJson.c_str(), response);
   LOG(INFO) << "submission result: " << response;
 }
 

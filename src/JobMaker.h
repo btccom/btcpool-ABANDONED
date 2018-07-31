@@ -58,6 +58,7 @@ struct JobMakerDefinition
 
   string jobTopic_;
   uint32 jobInterval_;
+  uint32 serverId_;
 
   string zookeeperLockPath_;
   string fileLastJobTime_;
@@ -105,6 +106,8 @@ public:
 
   // read-only definition
   inline shared_ptr<const JobMakerDefinition> def() { return def_; }
+  JobMakerConsumerHandler createConsumerHandler(const string &kafkaBrokers, const string &topic, int64_t offset
+    , vector<pair<string, string>> consumerOptions, JobMakerMessageProcessor messageProcessor);
 
 protected:
   shared_ptr<JobMakerDefinition> def_;
@@ -155,6 +158,8 @@ public:
   bool init();
   void stop();
   void run();
+private:
+  bool setupKafkaProducer();
 };
 
 #endif

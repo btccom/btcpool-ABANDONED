@@ -69,7 +69,18 @@ void usage() {
 std::shared_ptr<ShareLogDumper> newShareLogDumper(const string &chainType, const string &dataDir,
                                                   time_t timestamp, const std::set<int32_t> &uids)
 {
-  if (chainType == "BTC") {
+#if defined(CHAIN_TYPE_BTC)
+  if ("BTC" == chainType)
+#elif defined(CHAIN_TYPE_BCH)
+  if ("BCH" == chainType)
+#elif defined(CHAIN_TYPE_UBTC)
+  if ("UBTC" == chainType)
+#elif defined(CHAIN_TYPE_SBTC)
+  if ("SBTC" == chainType)
+#else 
+  if (false)
+#endif
+  {
     return std::make_shared<ShareLogDumperBitcoin>(chainType.c_str(), dataDir, timestamp, uids);
   }
   else if (chainType == "ETH") {
@@ -88,7 +99,18 @@ std::shared_ptr<ShareLogParser> newShareLogParser(const string &chainType, const
                                                   time_t timestamp, const MysqlConnectInfo &poolDBInfo,
                                                   const int dupShareTrackingHeight)
 {
-  if (chainType == "BTC") {
+#if defined(CHAIN_TYPE_BTC)
+  if ("BTC" == chainType)
+#elif defined(CHAIN_TYPE_BCH)
+  if ("BCH" == chainType)
+#elif defined(CHAIN_TYPE_UBTC)
+  if ("UBTC" == chainType)
+#elif defined(CHAIN_TYPE_SBTC)
+  if ("SBTC" == chainType)
+#else 
+  if (false)
+#endif  
+{
     return std::make_shared<ShareLogParserBitcoin>(chainType.c_str(), dataDir, timestamp, poolDBInfo, nullptr);
   }
   else if (chainType == "ETH") {
@@ -111,7 +133,18 @@ std::shared_ptr<ShareLogParserServer> newShareLogParserServer(const string &chai
                                                         const uint32_t kFlushDBInterval,
                                                         const int dupShareTrackingHeight)
 {
-  if (chainType == "BTC") {
+#if defined(CHAIN_TYPE_BTC)
+  if ("BTC" == chainType)
+#elif defined(CHAIN_TYPE_BCH)
+  if ("BCH" == chainType)
+#elif defined(CHAIN_TYPE_UBTC)
+  if ("UBTC" == chainType)
+#elif defined(CHAIN_TYPE_SBTC)
+  if ("SBTC" == chainType)
+#else 
+  if (false)
+#endif  
+  {
     return std::make_shared<ShareLogParserServerBitcoin>(chainType.c_str(), dataDir,
                                                          httpdHost, httpdPort,
                                                          poolDBInfo, kFlushDBInterval, nullptr);

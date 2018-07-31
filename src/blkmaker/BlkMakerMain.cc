@@ -35,7 +35,8 @@
 #include <libconfig.h++>
 
 #include "Utils.h"
-#include "BlockMaker.h"
+
+#include "bitcoin/BlockMakerBitcoin.h"
 #include "eth/BlockMakerEth.h"
 #include "bytom/BlockMakerBytom.h"
 #include "sia/BlockMakerSia.h"
@@ -71,13 +72,23 @@ void usage() {
 
 BlockMaker* createBlockMaker(const BlockMakerDefinition& def, const string& broker, MysqlConnectInfo* poolDBInfo) {
   BlockMaker *maker = nullptr;
-  if ("BTC" == def.chainType_) 
-    maker = new BlockMaker(def, broker.c_str(), *poolDBInfo);
+#if defined(CHAIN_TYPE_BTC)
+  if ("BTC" == def.chainType_)
+#elif defined(CHAIN_TYPE_BCH)
+  if ("BCH" == def.chainType_)
+#elif defined(CHAIN_TYPE_UBTC)
+  if ("UBTC" == def.chainType_)
+#elif defined(CHAIN_TYPE_SBTC)
+  if ("SBTC" == def.chainType_)
+#else 
+  if (false)
+#endif  
+    maker = new BlockMakerBitcoin(def, broker.c_str(), *poolDBInfo);
   else if ("ETH" == def.chainType_) 
     maker = new BlockMakerEth(def, broker.c_str(), *poolDBInfo);
   else if ("SIA" == def.chainType_)
     maker = new BlockMakerSia(def, broker.c_str(), *poolDBInfo);
-  else if ("BYTOM" == def.chainType_)
+  else if ("BTM" == def.chainType_)
     maker = new BlockMakerBytom(def, broker.c_str(), *poolDBInfo);
 
   if (maker) {
@@ -230,28 +241,8 @@ int main(int argc, char **argv) {
   }
 
   createBlockMakers(cfg, poolDBInfo);
-  ///gBlockMaker = createBlockMaker(cfg, poolDBInfo);
-
-  // add bitcoinds
-  // {
-  //   const Setting &root = cfg.getRoot();
-  //   const Setting &bitcoinds = root["bitcoinds"];
-
-  //   for (int i = 0; i < bitcoinds.getLength(); i++) {
-  //     string rpcAddr, rpcUserpwd;
-  //     bitcoinds[i].lookupValue("rpc_addr",    rpcAddr);
-  //     bitcoinds[i].lookupValue("rpc_userpwd", rpcUserpwd);
-  //     gBlockMaker->addNodeRpc(rpcAddr, rpcUserpwd);
-  //   }
-  // }
 
   try {
-    // if (!gBlockMaker->init()) {
-    //   LOG(FATAL) << "blkmaker init failure";
-    // } else {
-    //   gBlockMaker->run();
-    // }
-    // delete gBlockMaker;
     vector<shared_ptr<thread>> workers;
     for (auto maker : makers)
     {

@@ -47,6 +47,22 @@ void JobMaker::stop() {
   LOG(INFO) << "stop jobmaker";
 }
 
+bool JobMaker::setupKafkaProducer()
+{
+  map<string, string> options;
+  // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
+  options["queue.buffering.max.ms"] = "1";
+  if (!kafkaProducer_.setup(&options)) {
+    LOG(ERROR) << "kafka producer setup failure";
+    return false;
+  }
+  if (!kafkaProducer_.checkAlive()) {
+    LOG(ERROR) << "kafka producer is NOT alive";
+    return false;
+  }
+  return true;
+}
+
 bool JobMaker::init() {
 
   /* get lock from zookeeper */
@@ -61,20 +77,8 @@ bool JobMaker::init() {
     return false;
   }
 
-  /* setup kafka producer */
-  {
-    map<string, string> options;
-    // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
-    options["queue.buffering.max.ms"] = "1";
-    if (!kafkaProducer_.setup(&options)) {
-      LOG(ERROR) << "kafka producer setup failure";
-      return false;
-    }
-    if (!kafkaProducer_.checkAlive()) {
-      LOG(ERROR) << "kafka producer is NOT alive";
-      return false;
-    }
-  }
+  if(!setupKafkaProducer())
+    return false;
 
   /* setup kafka consumers */
   if (!handler_->initConsumerHandlers(kafkaBrokers_, kafkaConsumerHandlers_)) {
@@ -87,6 +91,7 @@ bool JobMaker::init() {
 void JobMaker::consumeKafkaMsg(rd_kafka_message_t *rkmessage, JobMakerConsumerHandler &consumerHandler)
 {
   // check error
+  string topic = rd_kafka_topic_name(rkmessage->rkt);
   if (rkmessage->err)
   {
     if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF)
@@ -95,7 +100,7 @@ void JobMaker::consumeKafkaMsg(rd_kafka_message_t *rkmessage, JobMakerConsumerHa
       return;
     }
 
-    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
+    LOG(ERROR) << "consume error for topic " << topic.c_str()
                << "[" << rkmessage->partition << "] offset " << rkmessage->offset
                << ": " << rd_kafka_message_errstr(rkmessage);
 
@@ -109,7 +114,7 @@ void JobMaker::consumeKafkaMsg(rd_kafka_message_t *rkmessage, JobMakerConsumerHa
   }
 
   // set json string
-  LOG(INFO) << "received " << consumerHandler.kafkaTopic_ << " message len: " << rkmessage->len;
+  LOG(INFO) << "received " << topic.c_str() << " message len: " << rkmessage->len;
 
   string msg((const char *)rkmessage->payload, rkmessage->len);
 
@@ -194,29 +199,44 @@ void JobMaker::run() {
 }
 
 
+JobMakerConsumerHandler JobMakerHandler::createConsumerHandler(const string &kafkaBrokers, const string &topic, int64_t offset
+    , vector<pair<string, string>> consumerOptions, JobMakerMessageProcessor messageProcessor)
+{
+  std::map<string, string> usedConsumerOptions;
+  //  default
+  usedConsumerOptions["fetch.wait.max.ms"] = "5";
+  //  passed settings
+  for(auto& option : consumerOptions)
+  {
+    usedConsumerOptions[option.first] = option.second;
+  }
+
+  JobMakerConsumerHandler result;
+  auto consumer = std::make_shared<KafkaConsumer>(kafkaBrokers.c_str(), topic.c_str(), 0);
+  if (!consumer->setup(RD_KAFKA_OFFSET_TAIL(offset), &usedConsumerOptions)) {
+    LOG(ERROR) << "kafka consumer " << topic << " setup failure";
+  }
+  else if (!consumer->checkAlive()) {
+    LOG(FATAL) << "kafka consumer " << topic << " is NOT alive";
+  }
+  else
+  {
+    result.kafkaConsumer_ = consumer;
+    result.messageProcessor_ = messageProcessor;
+  }
+
+  return result;
+}
+
 ////////////////////////////////GwJobMakerHandler//////////////////////////////////
 bool GwJobMakerHandler::initConsumerHandlers(const string &kafkaBrokers, vector<JobMakerConsumerHandler> &handlers)
 {
-  JobMakerConsumerHandler handler = {
-    /* kafkaTopic_ = */       def()->rawGwTopic_,
-    /* kafkaConsumer_ = */    std::make_shared<KafkaConsumer>(kafkaBrokers.c_str(), def()->rawGwTopic_.c_str(), 0/* partition */),
-    /* messageProcessor_ = */ std::bind(&GwJobMakerHandler::processMsg, this, std::placeholders::_1)
-  };
-
-  // init kafka consumer
   {
-    map<string, string> consumerOptions;
-    consumerOptions["fetch.wait.max.ms"] = "5";
-    if (!handler.kafkaConsumer_->setup(RD_KAFKA_OFFSET_TAIL(1), &consumerOptions)) {
-      LOG(ERROR) << "kafka consumer " << def()->rawGwTopic_ << " setup failure";
+    auto messageProcessor = std::bind(&GwJobMakerHandler::processMsg, this, std::placeholders::_1);
+    auto handler = createConsumerHandler(kafkaBrokers, def()->rawGwTopic_, 1, {}, messageProcessor);
+    if(handler.kafkaConsumer_ == nullptr)
       return false;
-    }
-    if (!handler.kafkaConsumer_->checkAlive()) {
-      LOG(FATAL) << "kafka consumer " << def()->rawGwTopic_ << " is NOT alive";
-      return false;
-    }
+    handlers.push_back(handler);
   }
-
-  handlers.push_back(handler);
-  return true;
+  return true;  
 }

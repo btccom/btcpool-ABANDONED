@@ -24,6 +24,7 @@
 #include "StratumServerBitcoin.h"
 #include "StratumSessionBitcoin.h"
 #include "StratumBitcoin.h"
+#include "KafkaBitcoin.h"
 
 #include "rsk/RskSolvedShareData.h"
 
@@ -64,7 +65,7 @@ void JobRepositoryBitcoin::broadcastStratumJob(StratumJob *sjobBase) {
     << ", prevhash: " << sjob->prevHash_.ToString();
   }
 
-  bool isRskClean = sjob->isRskCleanJob_;
+  bool isMergedMiningClean = sjob->isMergedMiningCleanJob_;
 
   // 
   // The `clean_jobs` field should be `true` ONLY IF a new block found in Bitcoin blockchains.
@@ -93,7 +94,7 @@ void JobRepositoryBitcoin::broadcastStratumJob(StratumJob *sjobBase) {
   }
 
   // if job has clean flag, call server to send job
-  if (isClean || isRskClean) {
+  if (isClean || isMergedMiningClean) {
     sendMiningNotify(exJob);
     return;
   }

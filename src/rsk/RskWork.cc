@@ -123,16 +123,6 @@ bool RskWork::getNotifyFlag() const {
   return notifyFlag_;
 }
 
-bool RskWork::isCleanJob_;
-
-void RskWork::setIsCleanJob(bool cleanJob) {
-  isCleanJob_ = cleanJob;
-}
-
-bool RskWork::getIsCleanJob() const {
-  return isCleanJob_;
-}
-
 bool RskWorkEth::validate(JsonNode &work)
 {
   // check fields are valid

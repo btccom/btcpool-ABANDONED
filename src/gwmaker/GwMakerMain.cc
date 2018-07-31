@@ -65,7 +65,7 @@ shared_ptr<GwMakerHandler> createGwMakerHandler(const GwMakerDefinition &def) {
     handler = make_shared<GwMakerHandlerSia>();
   else if (def.chainType_ == "RSK")
     handler = make_shared<GwMakerHandlerRsk>();
-  else if (def.chainType_ == "BYTOM")
+  else if (def.chainType_ == "BTM")
     handler = make_shared<GwMakerHandlerBytom>();
   else
     LOG(FATAL) << "unknown chain type: " << def.chainType_;

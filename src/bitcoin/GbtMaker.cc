@@ -23,6 +23,9 @@
  */
 #include "GbtMaker.h"
 
+#include "BitcoinUtils.h"
+#include "KafkaBitcoin.h"
+
 #include <glog/logging.h>
 
 #include <util.h>
@@ -31,6 +34,7 @@
 #include "Utils.h"
 #include "utilities_js.hpp"
 #include "hash.h"
+
 
 //
 // bitcoind zmq pub msg type: "hashblock", "hashtx", "rawblock", "rawtx"
@@ -133,7 +137,7 @@ void GbtMaker::kafkaProduceMsg(const void *payload, size_t len) {
 
 bool GbtMaker::bitcoindRpcGBT(string &response) {
   string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getblocktemplate\",\"params\":[{\"rules\" : [\"segwit\"]}]}";
-  bool res = bitcoindRpcCall(bitcoindRpcAddr_.c_str(), bitcoindRpcUserpass_.c_str(),
+  bool res = blockchainNodeRpcCall(bitcoindRpcAddr_.c_str(), bitcoindRpcUserpass_.c_str(),
                              request.c_str(), response);
   if (!res) {
     LOG(ERROR) << "bitcoind rpc failure";
@@ -335,7 +339,7 @@ bool NMCAuxBlockMaker::callRpcCreateAuxBlock(string &resp) {
   string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"createauxblock\",\"params\":[\"";
   request += coinbaseAddress_;
   request += "\"]}";
-  bool res = bitcoindRpcCall(rpcAddr_.c_str(), rpcUserpass_.c_str(),
+  bool res = blockchainNodeRpcCall(rpcAddr_.c_str(), rpcUserpass_.c_str(),
                              request.c_str(), resp);
   if (!res) {
     LOG(ERROR) << "namecoind rpc failure";
@@ -508,7 +512,7 @@ bool NMCAuxBlockMaker::init() {
   {
     string response;
     string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"help\",\"params\":[]}";
-    bool res = bitcoindRpcCall(rpcAddr_.c_str(), rpcUserpass_.c_str(),
+    bool res = blockchainNodeRpcCall(rpcAddr_.c_str(), rpcUserpass_.c_str(),
                                request.c_str(), response);
     if (!res) {
       LOG(ERROR) << "namecoind rpc call failure";

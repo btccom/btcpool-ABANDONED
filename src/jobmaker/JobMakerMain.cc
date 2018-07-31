@@ -67,7 +67,7 @@ bool isGwChain(const string &chainType)
 {
   return ("ETH" == chainType ||
           "SIA" == chainType ||
-          "BYTOM" == chainType);
+          "BTM" == chainType);
 }
 
 shared_ptr<JobMakerHandler> createGwJobMakerHandler(shared_ptr<GwJobMakerDefinition> def) {
@@ -77,7 +77,7 @@ shared_ptr<JobMakerHandler> createGwJobMakerHandler(shared_ptr<GwJobMakerDefinit
     handler = make_shared<JobMakerHandlerEth>();
   else if (def->chainType_ == "SIA")
     handler = make_shared<JobMakerHandlerSia>();
-  else if (def->chainType_ == "BYTOM")
+  else if (def->chainType_ == "BTM")
     handler = make_shared<JobMakerHandlerBytom>();
   else
     LOG(FATAL) << "unknown chain type: " << def->chainType_;
@@ -149,6 +149,7 @@ shared_ptr<GwJobMakerDefinition> createGwJobMakerDefinition(const Setting &setti
 
   readFromSetting(setting, "zookeeper_lock_path", def->zookeeperLockPath_);
   readFromSetting(setting, "file_last_job_time",  def->fileLastJobTime_, true);
+  readFromSetting(setting, "id", def->serverId_);
 
   def->enabled_ = false;
   readFromSetting(setting, "enabled", def->enabled_, true);
@@ -168,8 +169,8 @@ shared_ptr<GbtJobMakerDefinition> createGbtJobMakerDefinition(const Setting &set
   readFromSetting(setting, "block_version",       def->blockVersion_);
 
   readFromSetting(setting, "rawgbt_topic",        def->rawGbtTopic_);
-  readFromSetting(setting, "auxpow_topic",        def->auxPowTopic_);
-  readFromSetting(setting, "rsk_rawgw_topic",     def->rskRawGwTopic_);
+  // readFromSetting(setting, "auxpow_topic",        def->auxPowTopic_);
+  // readFromSetting(setting, "rsk_rawgw_topic",     def->rskRawGwTopic_);
   readFromSetting(setting, "job_topic",           def->jobTopic_);
 
   readFromSetting(setting, "job_interval",        def->jobInterval_);
@@ -180,6 +181,7 @@ shared_ptr<GbtJobMakerDefinition> createGbtJobMakerDefinition(const Setting &set
 
   readFromSetting(setting, "zookeeper_lock_path", def->zookeeperLockPath_);
   readFromSetting(setting, "file_last_job_time",  def->fileLastJobTime_, true);
+  readFromSetting(setting, "id", def->serverId_);
 
   def->enabled_ = false;
   readFromSetting(setting, "enabled", def->enabled_, true);

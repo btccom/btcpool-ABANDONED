@@ -37,7 +37,7 @@
 #include "zmq.hpp"
 
 #include "Utils.h"
-#include "GbtMaker.h"
+#include "bitcoin/GbtMaker.h"
 
 using namespace std;
 using namespace libconfig;

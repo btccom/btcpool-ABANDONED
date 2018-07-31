@@ -75,7 +75,19 @@ std::shared_ptr<ShareLogWriter> newShareLogWriter(const string &kafkaBrokers, co
   def.lookupValue("compression_level", compressionLevel);
 
 
-  if (chainType == "BTC") {
+
+#if defined(CHAIN_TYPE_BTC)
+  if ("BTC" == chainType)
+#elif defined(CHAIN_TYPE_BCH)
+  if ("BCH" == chainType)
+#elif defined(CHAIN_TYPE_UBTC)
+  if ("UBTC" == chainType)
+#elif defined(CHAIN_TYPE_SBTC)
+  if ("SBTC" == chainType)
+#else 
+  if (false)
+#endif
+  {
     return make_shared<ShareLogWriterBitcoin>(def.lookup("chain_type").c_str(),
                                               kafkaBrokers.c_str(),
                                               def.lookup("data_dir").c_str(),

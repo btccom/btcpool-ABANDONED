@@ -35,24 +35,6 @@ BlockMakerBytom::BlockMakerBytom(const BlockMakerDefinition& def, const char *ka
 {
 }
 
-bool BlockMakerBytom::init() {
-  //
-  // Sloved Share
-  //
-  // we need to consume the latest 2 messages, just in case
-  if (kafkaConsumerSolvedShare_.setup(RD_KAFKA_OFFSET_TAIL(2)) == false) {
-    LOG(INFO) << "setup kafkaConsumerSolvedShare_ fail";
-    return false;
-  }
-  if (!kafkaConsumerSolvedShare_.checkAlive()) {
-    LOG(ERROR) << "kafka brokers is not alive: kafkaConsumerSolvedShare_";
-    return false;
-  }
-
-  return true;
-}
-
-
 void BlockMakerBytom::processSolvedShare(rd_kafka_message_t *rkmessage)
 {
   const char *message = (const char *)rkmessage->payload;

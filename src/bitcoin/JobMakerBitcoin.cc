@@ -50,6 +50,7 @@ JobMakerHandlerBitcoin::JobMakerHandlerBitcoin()
   : currBestHeight_(0)
   , lastJobSendTime_(0)
   , isLastJobEmptyBlock_(false)
+  , latestNmcAuxBlockHeight_(0)
   , previousRskWork_(nullptr)
   , currentRskWork_(nullptr)
   , isRskUpdate_(false)
@@ -78,87 +79,40 @@ bool JobMakerHandlerBitcoin::init(shared_ptr<JobMakerDefinition> defPtr) {
   }
   poolPayoutAddr_ = DecodeDestination(def()->payoutAddr_);
 
-  // notify policy for RSK
-  RskWork::setIsCleanJob(def()->rskNotifyPolicy_ != 0);
-
   return true;
 }
 
 bool JobMakerHandlerBitcoin::initConsumerHandlers(const string &kafkaBrokers, vector<JobMakerConsumerHandler> &handlers) {
+
   const int32_t consumeLatestN = 20;
-
-  //
-  // consumer for RawGbt, offset: latest N messages
-  //
+  shared_ptr<KafkaConsumer> kafkaRawGbtConsumer;
   {
-    kafkaRawGbtConsumer_ = std::make_shared<KafkaConsumer>(kafkaBrokers.c_str(), def()->rawGbtTopic_.c_str(), 0/* partition */);
-
-    map<string, string> consumerOptions;
-    consumerOptions["fetch.wait.max.ms"] = "5";
-
-    if (!kafkaRawGbtConsumer_->setup(RD_KAFKA_OFFSET_TAIL(consumeLatestN), &consumerOptions)) {
-      LOG(ERROR) << "kafka consumer rawgbt setup failure";
+    auto messageProcessor = std::bind(&JobMakerHandlerBitcoin::processRawGbtMsg, this, std::placeholders::_1);
+    auto handler = createConsumerHandler(kafkaBrokers, def()->rawGbtTopic_, consumeLatestN, {}, messageProcessor);
+    if(handler.kafkaConsumer_ == nullptr)
       return false;
-    }
-    if (!kafkaRawGbtConsumer_->checkAlive()) {
-      LOG(ERROR) << "kafka consumer rawgbt is NOT alive";
-      return false;
-    }
-
-    handlers.push_back({
-      def()->rawGbtTopic_,
-      kafkaRawGbtConsumer_,
-      std::bind(&JobMakerHandlerBitcoin::processRawGbtMsg, this, std::placeholders::_1)
-    });
+    handlers.push_back(handler);
+    kafkaRawGbtConsumer = handler.kafkaConsumer_;
   }
 
-  //
-  // consumer for aux block
-  //
+  shared_ptr<KafkaConsumer> kafkaAuxPowConsumer;
   {
-    kafkaAuxPowConsumer_ = std::make_shared<KafkaConsumer>(kafkaBrokers.c_str(), def()->auxPowTopic_.c_str(), 0/* partition */);
-
-    map<string, string> consumerOptions;
-    consumerOptions["fetch.wait.max.ms"] = "5";
-    
-    if (!kafkaAuxPowConsumer_->setup(RD_KAFKA_OFFSET_TAIL(1), &consumerOptions)) {
-      LOG(ERROR) << "kafka consumer aux pow setup failure";
+    auto messageProcessor = std::bind(&JobMakerHandlerBitcoin::processAuxPowMsg, this, std::placeholders::_1);
+    auto handler = createConsumerHandler(kafkaBrokers, def()->auxPowTopic_, 1, {}, messageProcessor);
+    if(handler.kafkaConsumer_ == nullptr)
       return false;
-    }
-    if (!kafkaAuxPowConsumer_->checkAlive()) {
-      LOG(ERROR) << "kafka consumer aux pow is NOT alive";
-      return false;
-    }
-
-    handlers.push_back({
-      def()->auxPowTopic_,
-      kafkaAuxPowConsumer_,
-      std::bind(&JobMakerHandlerBitcoin::processAuxPowMsg, this, std::placeholders::_1)
-    });
+    handlers.push_back(handler);
+    kafkaAuxPowConsumer = handler.kafkaConsumer_;
   }
 
-  //
-  // consumer for RSK messages
-  //
+  shared_ptr<KafkaConsumer> kafkaRskGwConsumer;
   {
-    kafkaRskGwConsumer_ = std::make_shared<KafkaConsumer>(kafkaBrokers.c_str(), def()->rskRawGwTopic_.c_str(), 0/* partition */);
-
-    map<string, string> consumerOptions;
-    consumerOptions["fetch.wait.max.ms"] = "5";
-    if (!kafkaRskGwConsumer_->setup(RD_KAFKA_OFFSET_TAIL(1), &consumerOptions)) {
-      LOG(ERROR) << "kafka consumer rawgw block setup failure";
+    auto messageProcessor = std::bind(&JobMakerHandlerBitcoin::processRskGwMsg, this, std::placeholders::_1);
+    auto handler = createConsumerHandler(kafkaBrokers, def()->rskRawGwTopic_, 1, {}, messageProcessor);
+    if(handler.kafkaConsumer_ == nullptr)
       return false;
-    }
-    if (!kafkaRskGwConsumer_->checkAlive()) {
-      LOG(ERROR) << "kafka consumer rawgw block is NOT alive";
-      return false;
-    }
-
-    handlers.push_back({
-      def()->rskRawGwTopic_,
-      kafkaRskGwConsumer_,
-      std::bind(&JobMakerHandlerBitcoin::processRskGwMsg, this, std::placeholders::_1)
-    });
+    handlers.push_back(handler);
+    kafkaRskGwConsumer = handler.kafkaConsumer_;
   }
 
   // sleep 3 seconds, wait for the latest N messages transfer from broker to client
@@ -171,7 +125,7 @@ bool JobMakerHandlerBitcoin::initConsumerHandlers(const string &kafkaBrokers, ve
   //
   {
     rd_kafka_message_t *rkmessage;
-    rkmessage = kafkaAuxPowConsumer_->consumer(1000/* timeout ms */);
+    rkmessage = kafkaAuxPowConsumer->consumer(1000/* timeout ms */);
     if (rkmessage != nullptr && !rkmessage->err) {
       string msg((const char *)rkmessage->payload, rkmessage->len);
       processAuxPowMsg(msg);
@@ -184,7 +138,7 @@ bool JobMakerHandlerBitcoin::initConsumerHandlers(const string &kafkaBrokers, ve
   //
   {
     rd_kafka_message_t *rkmessage;
-    rkmessage = kafkaRskGwConsumer_->consumer(1000/* timeout ms */);
+    rkmessage = kafkaRskGwConsumer->consumer(1000/* timeout ms */);
     if (rkmessage != nullptr && !rkmessage->err) {
       string msg((const char *)rkmessage->payload, rkmessage->len);
       processRskGwMsg(msg);
@@ -198,7 +152,7 @@ bool JobMakerHandlerBitcoin::initConsumerHandlers(const string &kafkaBrokers, ve
   LOG(INFO) << "consume latest rawgbt messages from kafka...";
   for (int32_t i = 0; i < consumeLatestN; i++) {
     rd_kafka_message_t *rkmessage;
-    rkmessage = kafkaRawGbtConsumer_->consumer(5000/* timeout ms */);
+    rkmessage = kafkaRawGbtConsumer->consumer(5000/* timeout ms */);
     if (rkmessage == nullptr || rkmessage->err) {
       break;
     }
@@ -260,7 +214,7 @@ bool JobMakerHandlerBitcoin::addRawGbt(const string &msg) {
   {
     ScopeLock sl(lock_);
 
-    if (!rawgbtMap_.empty()) {
+    if (rawgbtMap_.size() > 0) {
       const uint64_t bestKey = rawgbtMap_.rbegin()->first;
       const uint32_t bestTime = gbtKeyGetTime(bestKey);
       const uint32_t bestHeight = gbtKeyGetHeight(bestKey);
@@ -299,14 +253,14 @@ bool JobMakerHandlerBitcoin::addRawGbt(const string &msg) {
   return true;
 }
 
-bool JobMakerHandlerBitcoin::findBestRawGbt(bool isRskUpdate, string &bestRawGbt) {
+bool JobMakerHandlerBitcoin::findBestRawGbt(bool isMergedMiningUpdate, string &bestRawGbt) {
   static uint64_t lastSendBestKey = 0;
 
   ScopeLock sl(lock_);
 
   // clean expired gbt first
   clearTimeoutGbt();
-  clearTimeoutRskGw();
+  clearTimeoutGw();
 
   if (rawgbtMap_.size() == 0) {
     LOG(WARNING) << "RawGbt Map is empty";
@@ -331,7 +285,7 @@ bool JobMakerHandlerBitcoin::findBestRawGbt(bool isRskUpdate, string &bestRawGbt
     LOG(INFO) << "--------update last empty block job--------";
   }
 
-  if (!needUpdateEmptyBlockJob && !isRskUpdate && bestKey == lastSendBestKey) {
+  if (!needUpdateEmptyBlockJob && !isMergedMiningUpdate && bestKey == lastSendBestKey) {
     LOG(WARNING) << "bestKey is the same as last one: " << lastSendBestKey;
     return false;
   }
@@ -345,7 +299,7 @@ bool JobMakerHandlerBitcoin::findBestRawGbt(bool isRskUpdate, string &bestRawGbt
     isFindNewHeight = true;
   }
 
-  if (isFindNewHeight || needUpdateEmptyBlockJob || isRskUpdate || isReachTimeout()) {
+  if (isFindNewHeight || needUpdateEmptyBlockJob || isMergedMiningUpdate || isReachTimeout()) {
     lastSendBestKey     = bestKey;
     currBestHeight_     = bestHeight;
 
@@ -397,7 +351,7 @@ void JobMakerHandlerBitcoin::clearTimeoutGbt() {
   }
 }
 
-void JobMakerHandlerBitcoin::clearTimeoutRskGw() {
+void JobMakerHandlerBitcoin::clearTimeoutGw() {
   RskWork currentRskWork;
   RskWork previousRskWork;
   {
@@ -433,28 +387,61 @@ bool JobMakerHandlerBitcoin::triggerRskUpdate() {
     previousRskWork = *previousRskWork_;
   }
 
-  bool notify_flag_update = def()->rskNotifyPolicy_ == 1 && currentRskWork.getNotifyFlag();
-  bool different_block_hashUpdate = def()->rskNotifyPolicy_ == 2 && 
-                                      (currentRskWork.getBlockHash() != 
-                                       previousRskWork.getBlockHash());
+  bool notifyFlagUpdate = def()->rskNotifyPolicy_ == 1 && currentRskWork.getNotifyFlag();
+  bool differentHashUpdate = def()->rskNotifyPolicy_ == 2 && 
+                                      (currentRskWork.getBlockHash() != previousRskWork.getBlockHash());
 
-  return notify_flag_update || different_block_hashUpdate;
+  return notifyFlagUpdate || differentHashUpdate;
 }
 
 bool JobMakerHandlerBitcoin::processRawGbtMsg(const string &msg) {
   return addRawGbt(msg);
 }
 
-bool JobMakerHandlerBitcoin::processAuxPowMsg(const string &msg) {
+bool JobMakerHandlerBitcoin::processAuxPowMsg(const string &msg) 
+{
+  uint32_t currentNmcBlockHeight = 0;
+  string currentNmcBlockHash;
+  // get block height
+  {
+    JsonNode r;
+    if (!JsonNode::parse(msg.data(), msg.data() + msg.size(), r)) {
+      LOG(ERROR) << "parse NmcAuxBlock message to json fail";
+      return false;
+    }
+
+    if (r["height"].type() != Utilities::JS::type::Int ||
+        r["hash"].type() != Utilities::JS::type::Str) {
+      LOG(ERROR) << "nmc auxblock fields failure";
+      return false;
+    }
+
+    currentNmcBlockHeight = r["height"].uint32();
+    currentNmcBlockHash = r["hash"].str();
+  }
+
+
+  uint32_t latestNmcAuxBlockHeight = 0;
+  string latestNmcAuxBlockHash;
   // set json string
   {
     ScopeLock sl(auxJsonLock_);
-    latestAuxPowJson_ = msg;
-    DLOG(INFO) << "latestAuxPowJson: " << latestAuxPowJson_;
+    // backup old height / hash
+    latestNmcAuxBlockHeight = latestNmcAuxBlockHeight_;
+    latestNmcAuxBlockHash = latestNmcAuxBlockHash_;
+    // update height / hash
+    latestNmcAuxBlockHeight_ = currentNmcBlockHeight;
+    latestNmcAuxBlockHash_ = currentNmcBlockHash;
+    // update json
+    latestNmcAuxBlockJson_ = msg;
+    DLOG(INFO) << "latestAuxPowJson: " << latestNmcAuxBlockJson_;
   }
 
-  // auxpow message will nerver triggered a stratum job updating
-  return false;
+  bool higherHeightUpdate  = def()->rskNotifyPolicy_ == 1 && currentNmcBlockHeight > latestNmcAuxBlockHeight;
+  bool differentHashUpdate = def()->rskNotifyPolicy_ == 2 && currentNmcBlockHash != latestNmcAuxBlockHash;
+
+  isRskUpdate_ = higherHeightUpdate || differentHashUpdate;
+  return isRskUpdate_;
 }
 
 bool JobMakerHandlerBitcoin::processRskGwMsg(const string &rawGetWork) {
@@ -484,10 +471,10 @@ bool JobMakerHandlerBitcoin::processRskGwMsg(const string &rawGetWork) {
 }
 
 string JobMakerHandlerBitcoin::makeStratumJob(const string &gbt) {
-  string latestAuxPowJson;
+  string latestNmcAuxBlockJson;
   {
     ScopeLock sl(auxJsonLock_);
-    latestAuxPowJson = latestAuxPowJson_;
+    latestNmcAuxBlockJson = latestNmcAuxBlockJson_;
   }
 
   RskWork currentRskBlockJson;
@@ -498,12 +485,16 @@ string JobMakerHandlerBitcoin::makeStratumJob(const string &gbt) {
     }
   }
 
+  bool mergeMiningUpdate = def()->rskNotifyPolicy_ != 0;
   StratumJobBitcoin sjob;
   if (!sjob.initFromGbt(gbt.c_str(), def()->coinbaseInfo_,
                                      poolPayoutAddr_,
                                      def()->blockVersion_,
-                                     latestAuxPowJson,
-                                     currentRskBlockJson)) {
+                                     latestNmcAuxBlockJson,
+                                     currentRskBlockJson, 
+                                     def()->serverId_,
+                                     mergeMiningUpdate)) 
+  {
     LOG(ERROR) << "init stratum job message from gbt str fail";
     return "";
   }
