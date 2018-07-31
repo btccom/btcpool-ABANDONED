@@ -934,9 +934,9 @@ void BlockMakerBitcoin::runThreadConsumeRskSolvedShare() {
 
 void BlockMakerBitcoin::run() {
   // setup threads
-  // threadConsumeRawGbt_      = thread(&BlockMaker::runThreadConsumeRawGbt,     this);
-  // threadConsumeStratumJob_  = thread(&BlockMaker::runThreadConsumeStratumJob, this);
-  // threadConsumeNamecoinSolvedShare_ = thread(&BlockMaker::runThreadConsumeNamecoinSolvedShare, this);
-  // threadConsumeRskSolvedShare_ = thread(&BlockMaker::runThreadConsumeRskSolvedShare, this);
+  threadConsumeRawGbt_      = thread(&BlockMakerBitcoin::runThreadConsumeRawGbt,     this);
+  threadConsumeStratumJob_  = thread(&BlockMakerBitcoin::runThreadConsumeStratumJob, this);
+  threadConsumeNamecoinSolvedShare_ = thread(&BlockMakerBitcoin::runThreadConsumeNamecoinSolvedShare, this);
+  threadConsumeRskSolvedShare_ = thread(&BlockMakerBitcoin::runThreadConsumeRskSolvedShare, this);
   BlockMaker::run();
 }

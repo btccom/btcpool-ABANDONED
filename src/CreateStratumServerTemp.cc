@@ -24,7 +24,7 @@ Server* createStratumServer(std::string type, const int32_t shareAvgSeconds) {
     return new ServerEth(shareAvgSeconds);
   else if ("SIA" == type)
     return new ServerSia(shareAvgSeconds);
-  else if ("BYTOM" == type) 
+  else if ("BTM" == type) 
     return new ServerBytom (shareAvgSeconds);
   return nullptr;
 }
