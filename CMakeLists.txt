@@ -63,6 +63,10 @@ if(NOT CHAIN_TYPE)
 endif()
 # Bitcoin
 if (CHAIN_TYPE STREQUAL "BTC")
+  # bitcoin core is using c++ (alias). This to make sure pool and bitcoin using the same compiler
+  set(CMAKE_CXX_COMPILER "c++")
+  set(CMAKE_C_COMPILER "cc")
+
   set(CHAIN_NAME "Bitcoin Core")
   set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-bitcoin")
   set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.btc")
