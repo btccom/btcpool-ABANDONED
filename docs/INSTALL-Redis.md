@@ -1,4 +1,4 @@
-Install Kafka
+Install Redis
 ==============
 
 * OS: `Ubuntu 16.04 LTS, 64 Bits`, `Ubuntu 18.04 LTS, 64 Bits`
