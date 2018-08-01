@@ -137,13 +137,50 @@ string StratumJobBitcoin::serializeToJson() const {
 }
 
 bool StratumJobBitcoin::unserializeFromJson(const char *s, size_t len) {
-  if(!StratumJob::unserializeFromJson(s, len))
-    return false;
-
   JsonNode j;
   if (!JsonNode::parse(s, s + len, j)) {
     return false;
   }
+  if(
+      j["jobId"].type()        != Utilities::JS::type::Int ||
+      j["height"].type()       != Utilities::JS::type::Int ||
+      j["nVersion"].type()     != Utilities::JS::type::Int ||
+      j["nBits"].type()        != Utilities::JS::type::Int ||
+      j["nTime"].type()        != Utilities::JS::type::Int ||
+      j["minTime"].type()      != Utilities::JS::type::Int
+    ) 
+  {
+    LOG(ERROR) << "parse stratum job failure: " << s;
+    return false;
+  }
+
+  jobId_         = j["jobId"].uint64();
+  height_        = j["height"].int32();
+  nVersion_      = j["nVersion"].int32();
+  nBits_         = j["nBits"].uint32();
+  nTime_         = j["nTime"].uint32();
+  minTime_       = j["minTime"].uint32();
+
+  //
+  // rsk, optional
+  //
+  if(
+      j["rskBlockHashForMergedMining"].type()   == Utilities::JS::type::Str &&
+      j["rskNetworkTarget"].type()              == Utilities::JS::type::Str &&
+      j["rskFeesForMiner"].type()               == Utilities::JS::type::Str &&
+      j["rskdRpcAddress"].type()                == Utilities::JS::type::Str &&
+      j["rskdRpcUserPwd"].type()                == Utilities::JS::type::Str &&
+      j["isRskCleanJob"].type()                 == Utilities::JS::type::Bool
+    ) 
+  {
+    blockHashForMergedMining_ = j["rskBlockHashForMergedMining"].str();
+    rskNetworkTarget_         = uint256S(j["rskNetworkTarget"].str());
+    feesForMiner_             = j["rskFeesForMiner"].str();
+    rskdRpcAddress_           = j["rskdRpcAddress"].str();
+    rskdRpcUserPwd_           = j["rskdRpcUserPwd"].str();
+    isMergedMiningCleanJob_            = j["isRskCleanJob"].boolean();
+  }
+
   if(
       j["gbtHash"].type()      != Utilities::JS::type::Str ||
       j["prevHash"].type()     != Utilities::JS::type::Str ||

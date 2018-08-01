@@ -38,11 +38,6 @@
 #include <set>
 #include <boost/thread/shared_mutex.hpp>
 
-#include "utilities_js.hpp"
-#include <base58.h>
-
-#include "StratumBitcoin.h"
-
 #define BTCCOM_WATCHER_AGENT   "btc.com-watcher/0.2"
 
 
@@ -60,37 +55,39 @@ class ClientContainer {
   struct event *signal_event_;
 
   string kafkaBrokers_;
-  KafkaProducer kafkaProducer_;  // produce GBT message
-  KafkaConsumer kafkaStratumJobConsumer_;  // consume topic: 'StratumJob'
 
-  StratumJobBitcoin *poolStratumJob_; // the last stratum job from the pool itself
-  boost::shared_mutex stratumJobMutex_;
   thread threadStratumJobConsume_;
 
   void runThreadStratumJobConsume();
   void consumeStratumJob(rd_kafka_message_t *rkmessage);
+protected:
+  KafkaProducer kafkaProducer_;  // produce GBT message
+  KafkaConsumer kafkaStratumJobConsumer_;  // consume topic: 'StratumJob'
+protected:
+  virtual void consumeStratumJobInternal(const string& str) = 0;
+  virtual string createOnConnectedReplyString() const = 0;
+  virtual PoolWatchClient* createPoolWatchClient( 
+                struct event_base *base, 
+                const string &poolName, const string &poolHost,
+                const int16_t poolPort, const string &workerName) = 0;
+
+  ClientContainer(const string &kafkaBrokers, const char* consumerTopic, const char* producerTopic);
 
 public:
-  ClientContainer(const string &kafkaBrokers);
-  ~ClientContainer();
+  virtual ~ClientContainer();
 
   bool addPools(const string &poolName, const string &poolHost,
                 const int16_t poolPort, const string &workerName);
-  bool init();
+  virtual bool init();
   void run();
   void stop();
 
   void removeAndCreateClient(PoolWatchClient *client);
 
-  bool makeEmptyGBT(int32_t blockHeight, uint32_t nBits,
-                    const string &blockPrevHash,
-                    uint32_t blockTime, uint32_t blockVersion);
 
   static void readCallback (struct bufferevent *bev, void *ptr);
   static void eventCallback(struct bufferevent *bev, short events, void *ptr);
 
-  boost::shared_lock<boost::shared_mutex> getPoolStratumJobReadLock();
-  const StratumJobBitcoin * getPoolStratumJob();
 };
 
 
@@ -98,14 +95,8 @@ public:
 class PoolWatchClient {
   struct bufferevent *bev_;
 
-  uint32_t extraNonce1_;
-  uint32_t extraNonce2Size_;
-
-  string lastPrevBlockHash_;
-
   bool handleMessage();
-  void handleStratumMessage(const string &line);
-  bool handleExMessage(struct evbuffer *inBuf);
+  virtual void handleStratumMessage(const string &line) = 0;
 
 public:
   enum State {
@@ -121,13 +112,14 @@ public:
   string  poolHost_;
   int16_t poolPort_;
   string  workerName_;
-
-public:
+protected:
   PoolWatchClient(struct event_base *base, ClientContainer *container,
                   const string &poolName,
                   const string &poolHost, const int16_t poolPort,
                   const string &workerName);
-  ~PoolWatchClient();
+
+public:
+  virtual ~PoolWatchClient();
 
   bool connect();
 

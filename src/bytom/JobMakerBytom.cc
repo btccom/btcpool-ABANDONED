@@ -22,6 +22,7 @@
  THE SOFTWARE.
  */
 #include "JobMakerBytom.h"
+#include "StratumBytom.h"
 
 #include "Utils.h"
 #include "utilities_js.hpp"
@@ -77,18 +78,16 @@ string JobMakerHandlerBytom::makeStratumJobMsg()
       0 == seed_.size())
     return "";
 
+
   const string jobIdStr = Strings::Format("%08x%08x", (uint32_t)time(nullptr), djb2(header_.c_str()));
   assert(jobIdStr.length() == 16);
   size_t pos;
   uint64 jobId = stoull(jobIdStr, &pos, 16);
 
-  return Strings::Format("{\"created_at_ts\":%u"
-                         ",\"jobId\":%" PRIu64 ""
-                         ",\"sHash\":\"%s\""
-                         ",\"hHash\":\"%s\""
-                         "}",
-                         time_,
-                         jobId,
-                         seed_.c_str(),
-                         header_.c_str());
+  StratumJobBytom job;
+  job.nTime_ = time_;
+  job.jobId_ = jobId;
+  job.seed_ = seed_;
+  job.hHash_ = header_;
+  return job.serializeToJson();
 }
