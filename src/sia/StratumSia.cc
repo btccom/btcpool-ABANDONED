@@ -28,6 +28,19 @@
 
 #include <glog/logging.h>
 
+string StratumJobSia::serializeToJson() const
+{
+  return Strings::Format("{\"created_at_ts\":%u"
+                         ",\"jobId\":%" PRIu64 ""
+                         ",\"target\":\"%s\""
+                         ",\"hHash\":\"%s\""
+                         "}",
+                         nTime_,
+                         jobId_,
+                         networkTarget_.GetHex().c_str(),
+                         blockHashForMergedMining_.c_str());
+}
+
 ///////////////////////////////StratumJobSia///////////////////////////
 bool StratumJobSia::unserializeFromJson(const char *s, size_t len)
 {

@@ -23,6 +23,8 @@
  */
 #include "StratumBitcoin.h"
 
+#include "BitcoinUtils.h"
+
 #include <core_io.h>
 #include <hash.h>
 #include <script/script.h>
@@ -137,13 +139,50 @@ string StratumJobBitcoin::serializeToJson() const {
 }
 
 bool StratumJobBitcoin::unserializeFromJson(const char *s, size_t len) {
-  if(!StratumJob::unserializeFromJson(s, len))
-    return false;
-
   JsonNode j;
   if (!JsonNode::parse(s, s + len, j)) {
     return false;
   }
+  if(
+      j["jobId"].type()        != Utilities::JS::type::Int ||
+      j["height"].type()       != Utilities::JS::type::Int ||
+      j["nVersion"].type()     != Utilities::JS::type::Int ||
+      j["nBits"].type()        != Utilities::JS::type::Int ||
+      j["nTime"].type()        != Utilities::JS::type::Int ||
+      j["minTime"].type()      != Utilities::JS::type::Int
+    ) 
+  {
+    LOG(ERROR) << "parse stratum job failure: " << s;
+    return false;
+  }
+
+  jobId_         = j["jobId"].uint64();
+  height_        = j["height"].int32();
+  nVersion_      = j["nVersion"].int32();
+  nBits_         = j["nBits"].uint32();
+  nTime_         = j["nTime"].uint32();
+  minTime_       = j["minTime"].uint32();
+
+  //
+  // rsk, optional
+  //
+  if(
+      j["rskBlockHashForMergedMining"].type()   == Utilities::JS::type::Str &&
+      j["rskNetworkTarget"].type()              == Utilities::JS::type::Str &&
+      j["rskFeesForMiner"].type()               == Utilities::JS::type::Str &&
+      j["rskdRpcAddress"].type()                == Utilities::JS::type::Str &&
+      j["rskdRpcUserPwd"].type()                == Utilities::JS::type::Str &&
+      j["isRskCleanJob"].type()                 == Utilities::JS::type::Bool
+    ) 
+  {
+    blockHashForMergedMining_ = j["rskBlockHashForMergedMining"].str();
+    rskNetworkTarget_         = uint256S(j["rskNetworkTarget"].str());
+    feesForMiner_             = j["rskFeesForMiner"].str();
+    rskdRpcAddress_           = j["rskdRpcAddress"].str();
+    rskdRpcUserPwd_           = j["rskdRpcUserPwd"].str();
+    isMergedMiningCleanJob_            = j["isRskCleanJob"].boolean();
+  }
+
   if(
       j["gbtHash"].type()      != Utilities::JS::type::Str ||
       j["prevHash"].type()     != Utilities::JS::type::Str ||
@@ -259,6 +298,15 @@ bool StratumJobBitcoin::initFromGbt(const char *gbt, const string &poolCoinbaseI
       jgbt["default_witness_commitment"].str().length() >= 38*2) {
     witnessCommitment_ = jgbt["default_witness_commitment"].str();
   }
+
+#ifdef CHAIN_TYPE_UBTC
+  // rootStateHash, optional
+  // default_root_state_hash must be at least 2 bytes (00f9, empty root state hash)
+  if (jgbt["default_root_state_hash"].type() == Utilities::JS::type::Str &&
+      jgbt["default_root_state_hash"].str().length() >= 2*2) {
+    rootStateHash_ = jgbt["default_root_state_hash"].str();
+  }
+#endif
 
   BitsToTarget(nBits_, networkTarget_);
 
@@ -455,9 +503,26 @@ bool StratumJobBitcoin::initFromGbt(const char *gbt, const string &poolCoinbaseI
       cbOut.push_back(witnessTxOut);
     }
 
+  #ifdef CHAIN_TYPE_UBTC
     //
-    // output[2]: RSK merge mining
-    // Tips: it may be output[1] if segwit not enabled in a chain (like BitcoinCash).
+    // output[2] (optional): root state hash of UB smart contract
+    //
+    if (!rootStateHash_.empty()) {
+      DLOG(INFO) << "root state hash: " << rootStateHash_.c_str();
+      vector<char> binBuf;
+      Hex2Bin(rootStateHash_.c_str(), binBuf);
+
+      CTxOut rootStateTxOut;
+      rootStateTxOut.scriptPubKey = CScript((unsigned char*)binBuf.data(),
+                                      (unsigned char*)binBuf.data() + binBuf.size());
+      rootStateTxOut.nValue = 0;
+
+      cbOut.push_back(rootStateTxOut);
+    }
+  #endif
+
+    //
+    // output[3] (optional): RSK merge mining
     //
     if (latestRskBlockJson.isInitialized()) {
       DLOG(INFO) << "RSK blockhash: " << blockHashForMergedMining_;

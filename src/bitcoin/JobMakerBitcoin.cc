@@ -395,6 +395,7 @@ bool JobMakerHandlerBitcoin::triggerRskUpdate() {
 }
 
 bool JobMakerHandlerBitcoin::processRawGbtMsg(const string &msg) {
+  DLOG(INFO) << "JobMakerHandlerBitcoin::processRawGbtMsg: " << msg;
   return addRawGbt(msg);
 }
 

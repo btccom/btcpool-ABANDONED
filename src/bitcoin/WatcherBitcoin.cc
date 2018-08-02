@@ -21,94 +21,16 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-#include "Watcher.h"
+#include "WatcherBitcoin.h"
 
 #include "BitcoinUtils.h"
 #include "KafkaBitcoin.h"
 
-#include <arpa/inet.h>
-#include <cinttypes>
-
-#include <event2/event.h>
-#include <event2/buffer.h>
-#include <event2/bufferevent.h>
-#include <event2/listener.h>
-#include <glog/logging.h>
+#include "utilities_js.hpp"
 
 #include <chainparams.h>
 #include <utilstrencodings.h>
 #include <hash.h>
-
-
-static
-bool tryReadLine(string &line, struct bufferevent *bufev) {
-  line.clear();
-  struct evbuffer *inBuf = bufferevent_get_input(bufev);
-
-  // find eol
-  struct evbuffer_ptr loc;
-  loc = evbuffer_search_eol(inBuf, NULL, NULL, EVBUFFER_EOL_LF);
-  if (loc.pos == -1) {
-    return false;  // not found
-  }
-
-  // copies and removes the first datlen bytes from the front of buf
-  // into the memory at data
-  line.resize(loc.pos + 1);  // containing "\n"
-  evbuffer_remove(inBuf, (void *)line.data(), line.size());
-
-  return true;
-}
-
-static
-bool resolve(const string &host, struct	in_addr *sin_addr) {
-  struct evutil_addrinfo *ai = NULL;
-  struct evutil_addrinfo hints_in;
-  memset(&hints_in, 0, sizeof(evutil_addrinfo));
-  // AF_INET, v4; AF_INT6, v6; AF_UNSPEC, both v4 & v6
-  hints_in.ai_family   = AF_UNSPEC;
-  hints_in.ai_socktype = SOCK_STREAM;
-  hints_in.ai_protocol = IPPROTO_TCP;
-  hints_in.ai_flags    = EVUTIL_AI_ADDRCONFIG;
-
-  // TODO: use non-blocking to resolve hostname
-  int err = evutil_getaddrinfo(host.c_str(), NULL, &hints_in, &ai);
-  if (err != 0) {
-    LOG(ERROR) << "evutil_getaddrinfo err: " << err << ", " << evutil_gai_strerror(err);
-    return false;
-  }
-  if (ai == NULL) {
-    LOG(ERROR) << "evutil_getaddrinfo res is null";
-    return false;
-  }
-
-  // only get the first record, ignore ai = ai->ai_next
-  if (ai->ai_family == AF_INET) {
-    struct sockaddr_in *sin = (struct sockaddr_in*)ai->ai_addr;
-    *sin_addr = sin->sin_addr;
-
-    char ipStr[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &(sin->sin_addr), ipStr, INET_ADDRSTRLEN);
-    LOG(INFO) << "resolve host: " << host << ", ip: " << ipStr;
-  } else if (ai->ai_family == AF_INET6) {
-    // not support yet
-    LOG(ERROR) << "not support ipv6 yet";
-    return false;
-  }
-  evutil_freeaddrinfo(ai);
-  return true;
-}
-
-static
-int32_t getBlockHeightFromCoinbase(const string &coinbase1) {
-  // https://github.com/bitcoin/bips/blob/master/bip-0034.mediawiki
-  const string a = coinbase1.substr(86, 2);
-  const string b = coinbase1.substr(88, 2);
-  const string c = coinbase1.substr(90, 2);
-  const string heightHex = c + b + a;  // little-endian
-
-  return (int32_t)strtol(heightHex.c_str(), nullptr, 16);
-}
 
 
 //
@@ -128,84 +50,42 @@ string convertPrevHash(const string &prevHash) {
 
 
 ///////////////////////////////// ClientContainer //////////////////////////////
-ClientContainer::ClientContainer(const string &kafkaBrokers)
-:running_(true), kafkaBrokers_(kafkaBrokers),
-kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT, 0/* partition */),
-kafkaStratumJobConsumer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_STRATUM_JOB, 0/*patition*/),
-poolStratumJob_(nullptr)
+ClientContainerBitcoin::ClientContainerBitcoin(const string &kafkaBrokers)
+  : ClientContainer(kafkaBrokers, KAFKA_TOPIC_STRATUM_JOB, KAFKA_TOPIC_RAWGBT)
+  , poolStratumJob_(nullptr)
 {
-  base_ = event_base_new();
-  assert(base_ != nullptr);
 }
 
-ClientContainer::~ClientContainer() {
-  event_base_free(base_);
+ClientContainerBitcoin::~ClientContainerBitcoin() 
+{
 }
 
-boost::shared_lock<boost::shared_mutex> ClientContainer::getPoolStratumJobReadLock() {
+boost::shared_lock<boost::shared_mutex> ClientContainerBitcoin::getPoolStratumJobReadLock() {
   return boost::shared_lock<boost::shared_mutex>(stratumJobMutex_);
 }
 
-const StratumJobBitcoin * ClientContainer::getPoolStratumJob() {
+const StratumJobBitcoin * ClientContainerBitcoin::getPoolStratumJob() {
   return poolStratumJob_;
 }
 
-void ClientContainer::runThreadStratumJobConsume() {
-  LOG(INFO) << "start stratum job consume thread";
-  
-  const int32_t kTimeoutMs = 1000;
-
-  while (running_) {
-    rd_kafka_message_t *rkmessage;
-    rkmessage = kafkaStratumJobConsumer_.consumer(kTimeoutMs);
-
-    // timeout, most of time it's not nullptr and set an error:
-    //          rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF
-    if (rkmessage == nullptr) {
-      continue;
-    }
-
-    consumeStratumJob(rkmessage);
-
-    /* Return message to rdkafka */
-    rd_kafka_message_destroy(rkmessage);
-  }
-
-  LOG(INFO) << "stop jstratum job consume thread";
+PoolWatchClient* ClientContainerBitcoin::createPoolWatchClient( 
+                struct event_base *base, const string &poolName, const string &poolHost,
+                const int16_t poolPort, const string &workerName)
+{
+  return new PoolWatchClientBitcoin(base, this,
+                                 poolName, poolHost, poolPort, workerName);
 }
 
-void ClientContainer::consumeStratumJob(rd_kafka_message_t *rkmessage) {
-    // check error
-    if (rkmessage->err) {
-      if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
-        // Reached the end of the topic+partition queue on the broker.
-        // Not really an error.
-        //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
-        //      << "[" << rkmessage->partition << "] "
-        //      << " message queue at offset " << rkmessage->offset;
-        // acturlly
-        return;
-      }
-    
-      LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
-      << "[" << rkmessage->partition << "] offset " << rkmessage->offset
-      << ": " << rd_kafka_message_errstr(rkmessage);
-    
-      if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
-          rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
-        LOG(FATAL) << "consume fatal";
-      }
-      return;
-    }
-  
+void ClientContainerBitcoin::consumeStratumJobInternal(const string& str) 
+{
     StratumJobBitcoin *sjob = new StratumJobBitcoin();
-    bool res = sjob->unserializeFromJson((const char *)rkmessage->payload,
-                                         rkmessage->len);
+    bool res = sjob->unserializeFromJson((const char *)str.data(), str.size());
     if (res == false) {
       LOG(ERROR) << "unserialize stratum job fail";
       delete sjob;
       return;
     }
+
     // make sure the job is not expired.
     if (jobId2Time(sjob->jobId_) + 60 < time(nullptr)) {
       LOG(ERROR) << "too large delay from kafka to receive topic 'StratumJob'";
@@ -213,7 +93,7 @@ void ClientContainer::consumeStratumJob(rd_kafka_message_t *rkmessage) {
       return;
     }
 
-    DLOG(INFO) << "[POOL] stratum job received, height: " << sjob->height_
+    LOG(INFO) << "[POOL] stratum job received, height: " << sjob->height_
               << ", prevhash: " << sjob->prevHash_.ToString()
               << ", nBits: " << sjob->nBits_;
 
@@ -239,79 +119,7 @@ void ClientContainer::consumeStratumJob(rd_kafka_message_t *rkmessage) {
     }
 }
 
-void ClientContainer::run() {
-  event_base_dispatch(base_);
-}
-
-void ClientContainer::stop() {
-  if (!running_)
-    return;
-
-  LOG(INFO) << "stop event loop";
-  running_ = false;
-  event_base_loopexit(base_, NULL);
-}
-
-bool ClientContainer::init() {
-  // check pools
-  if (clients_.size() == 0) {
-    LOG(ERROR) << "no avaiable pools";
-    return false;
-  }
-
-  /* setup kafka */
-  {
-    map<string, string> options;
-    // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
-    options["queue.buffering.max.ms"] = "1";
-    if (!kafkaProducer_.setup(&options)) {
-      LOG(ERROR) << "kafka producer setup failure";
-      return false;
-    }
-    if (!kafkaProducer_.checkAlive()) {
-      LOG(ERROR) << "kafka producer is NOT alive";
-      return false;
-    }
-  }
-
-  /* setup threadStratumJobConsume */
-  {
-    const int32_t kConsumeLatestN = 1;
-    
-    // we need to consume the latest one
-    map<string, string> consumerOptions;
-    consumerOptions["fetch.wait.max.ms"] = "10";
-    if (kafkaStratumJobConsumer_.setup(RD_KAFKA_OFFSET_TAIL(kConsumeLatestN),
-        &consumerOptions) == false) {
-      LOG(INFO) << "setup stratumJobConsume fail";
-      return false;
-    }
-  
-    if (!kafkaStratumJobConsumer_.checkAlive()) {
-      LOG(ERROR) << "kafka brokers is not alive";
-      return false;
-    }
-
-    threadStratumJobConsume_ = thread(&ClientContainer::runThreadStratumJobConsume, this);
-  }
-
-  return true;
-}
-
-// do add pools before init()
-bool ClientContainer::addPools(const string &poolName, const string &poolHost,
-                               const int16_t poolPort, const string &workerName) {
-  auto ptr = new PoolWatchClient(base_, this,
-                                 poolName, poolHost, poolPort, workerName);
-  if (!ptr->connect()) {
-    return false;
-  }
-  clients_.push_back(ptr);
-
-  return true;
-}
-
-bool ClientContainer::makeEmptyGBT(int32_t blockHeight, uint32_t nBits,
+bool ClientContainerBitcoin::sendEmptyGBT(int32_t blockHeight, uint32_t nBits,
                                    const string &blockPrevHash,
                                    uint32_t blockTime, uint32_t blockVersion) {
 
@@ -351,137 +159,33 @@ bool ClientContainer::makeEmptyGBT(int32_t blockHeight, uint32_t nBits,
   return true;
 }
 
-void ClientContainer::removeAndCreateClient(PoolWatchClient *client) {
-  for (size_t i = 0; i < clients_.size(); i++) {
-    if (clients_[i] == client) {
-      auto ptr = new PoolWatchClient(base_, this,
-                                     client->poolName_, client->poolHost_,
-                                     client->poolPort_, client->workerName_);
-      ptr->connect();
-      LOG(INFO) << "reconnect " << ptr->poolName_;
-
-      // set new object, delete old one
-      clients_[i] = ptr;
-      delete client;
-
-      break;
-    }
-  }
+string ClientContainerBitcoin::createOnConnectedReplyString() const
+{
+  string s = Strings::Format("{\"id\":1,\"method\":\"mining.subscribe\""
+                              ",\"params\":[\"%s\"]}\n", BTCCOM_WATCHER_AGENT);
+  return s;
 }
-
-// static func
-void ClientContainer::readCallback(struct bufferevent *bev, void *ptr) {
-  static_cast<PoolWatchClient *>(ptr)->recvData();
-}
-
-// static func
-void ClientContainer::eventCallback(struct bufferevent *bev,
-                                    short events, void *ptr) {
-  PoolWatchClient *client = static_cast<PoolWatchClient *>(ptr);
-  ClientContainer *container = client->container_;
-
-  if (events & BEV_EVENT_CONNECTED) {
-    client->state_ = PoolWatchClient::State::CONNECTED;
-
-    // do subscribe
-    string s = Strings::Format("{\"id\":1,\"method\":\"mining.subscribe\""
-                               ",\"params\":[\"%s\"]}\n", BTCCOM_WATCHER_AGENT);
-    client->sendData(s);
-    return;
-  }
-
-  if (events & BEV_EVENT_EOF) {
-    LOG(INFO) << "upsession closed";
-  }
-  else if (events & BEV_EVENT_ERROR) {
-    LOG(ERROR) << "got an error on the upsession: "
-    << evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR());
-  }
-  else if (events & BEV_EVENT_TIMEOUT) {
-    LOG(INFO) << "upsession read/write timeout, events: " << events;
-  }
-  else {
-    LOG(ERROR) << "unhandled upsession events: " << events;
-  }
-
-  // update client
-  container->removeAndCreateClient(client);
-}
-
 
 ///////////////////////////////// PoolWatchClient //////////////////////////////
-PoolWatchClient::PoolWatchClient(struct event_base *base, ClientContainer *container,
+PoolWatchClientBitcoin::PoolWatchClientBitcoin(struct event_base *base, ClientContainerBitcoin *container,
                                  const string &poolName,
                                  const string &poolHost, const int16_t poolPort,
                                  const string &workerName)
-: container_(container), poolName_(poolName), poolHost_(poolHost),
-poolPort_(poolPort), workerName_(workerName)
+  : PoolWatchClient(base, container, poolName, poolHost, poolPort, workerName) 
+  , extraNonce1_(0), extraNonce2Size_(0)
 {
-  bev_ = bufferevent_socket_new(base, -1, BEV_OPT_CLOSE_ON_FREE);
-  assert(bev_ != nullptr);
 
-  bufferevent_setcb(bev_,
-                    ClientContainer::readCallback,  NULL,
-                    ClientContainer::eventCallback, this);
-  bufferevent_enable(bev_, EV_READ|EV_WRITE);
-
-  extraNonce1_ = 0;
-  extraNonce2Size_ = 0;
-
-  state_ = INIT;
-
-  // set read timeout
-  struct timeval readtv = {120, 0};
-  bufferevent_set_timeouts(bev_, &readtv, NULL);
 }
 
-PoolWatchClient::~PoolWatchClient() {
-  bufferevent_free(bev_);
+PoolWatchClientBitcoin::~PoolWatchClientBitcoin() 
+{
 }
 
-bool PoolWatchClient::connect() {
-  struct sockaddr_in sin;
-  memset(&sin, 0, sizeof(sin));
-  sin.sin_family = AF_INET;
-  sin.sin_port   = htons(poolPort_);
-  if (!resolve(poolHost_, &sin.sin_addr)) {
-    return false;
-  }
 
-  // bufferevent_socket_connect(): This function returns 0 if the connect
-  // was successfully launched, and -1 if an error occurred.
-  int res = bufferevent_socket_connect(bev_, (struct sockaddr *)&sin, sizeof(sin));
-  if (res == 0) {
-    state_ = CONNECTED;
-    return true;
-  }
-
-  return false;
-}
-
-void PoolWatchClient::sendData(const char *data, size_t len) {
-  // add data to a bufferevent’s output buffer
-  bufferevent_write(bev_, data, len);
-  DLOG(INFO) << "PoolWatchClient send(" << len << "): " << data;
-}
-
-void PoolWatchClient::recvData() {
-  while (handleMessage()) {
-  }
-}
-
-bool PoolWatchClient::handleMessage() {
-  string line;
-  if (tryReadLine(line, bev_)) {
-    handleStratumMessage(line);
-    return true;
-  }
-
-  return false;
-}
-
-void PoolWatchClient::handleStratumMessage(const string &line) {
+void PoolWatchClientBitcoin::handleStratumMessage(const string &line) {
   DLOG(INFO) << "<" << poolName_ << "> UpPoolWatchClient recv(" << line.size() << "): " << line;
+
+  auto containerBitcoin = GetContainerBitcoin();
 
   JsonNode jnode;
   if (!JsonNode::parse(line.data(), line.data() + line.size(), jnode)) {
@@ -535,8 +239,8 @@ void PoolWatchClient::handleStratumMessage(const string &line) {
         {
           // get a read lock before lookup this->poolStratumJob_
           // it will unlock by itself in destructor.
-          auto readLock = container_->getPoolStratumJobReadLock();
-          const StratumJobBitcoin *poolStratumJob = container_->getPoolStratumJob();
+          auto readLock = containerBitcoin->getPoolStratumJobReadLock();
+          const StratumJobBitcoin *poolStratumJob = containerBitcoin->getPoolStratumJob();
 
           if (poolStratumJob == nullptr) {
             LOG(WARNING) << "<" << poolName_ << "> discard the job: pool stratum job is empty";
@@ -573,7 +277,7 @@ void PoolWatchClient::handleStratumMessage(const string &line) {
           nVersion = poolStratumJob->nVersion_;
         }
 
-        container_->makeEmptyGBT(blockHeight, nBits, prevHash, blockTime, nVersion);
+        containerBitcoin->sendEmptyGBT(blockHeight, nBits, prevHash, blockTime, nVersion);
 
       }
     }

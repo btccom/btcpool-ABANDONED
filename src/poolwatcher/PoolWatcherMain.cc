@@ -36,7 +36,7 @@
 #include <event2/thread.h>
 
 #include "Utils.h"
-#include "bitcoin/Watcher.h"
+#include "bitcoin/WatcherBitcoin.h"
 
 #include <chainparams.h>
 
@@ -124,7 +124,7 @@ int main(int argc, char **argv) {
     SelectParams(CBaseChainParams::MAIN);
   }
 
-  gClientContainer = new ClientContainer(cfg.lookup("kafka.brokers"));
+  gClientContainer = new ClientContainerBitcoin(cfg.lookup("kafka.brokers"));
 
   // add pools
   {

@@ -29,6 +29,19 @@
 
 #include <glog/logging.h>
 
+string StratumJobBytom::serializeToJson() const
+{
+  return Strings::Format("{\"created_at_ts\":%u"
+                         ",\"jobId\":%" PRIu64 ""
+                         ",\"sHash\":\"%s\""
+                         ",\"hHash\":\"%s\""
+                         "}",
+                         nTime_,
+                         jobId_,
+                         seed_.c_str(),
+                         hHash_.c_str());
+}
+
 bool StratumJobBytom::unserializeFromJson(const char *s, size_t len)
 {
   JsonNode j;
@@ -45,9 +58,18 @@ bool StratumJobBytom::unserializeFromJson(const char *s, size_t len)
     return false;
   }
 
-  string hHash = j["hHash"].str();
+  hHash_ = j["hHash"].str();
+  updateBlockHeaderFromHash();
 
-  GoSlice text = {(void *)hHash.data(), (int)hHash.length(), (int)hHash.length()};
+  jobId_ = j["jobId"].uint64();
+  nTime_ = j["created_at_ts"].uint32();
+  seed_ = j["sHash"].str();
+  return true;
+}
+
+void StratumJobBytom::updateBlockHeaderFromHash()
+{
+  GoSlice text = {(void *)hHash_.data(), (int)hHash_.length(), (int)hHash_.length()};
   DecodeBlockHeader_return bh = DecodeBlockHeader(text);
   DLOG(INFO) << "bytom block height=" << bh.r1 << ", timestamp=" << bh.r3;
   blockHeader_.version = bh.r0;
@@ -60,10 +82,6 @@ bool StratumJobBytom::unserializeFromJson(const char *s, size_t len)
   free(bh.r2);
   free(bh.r5);
   free(bh.r6);
-  jobId_ = j["jobId"].uint64();
-  nTime_ = j["created_at_ts"].uint32();
-  seed_ = j["sHash"].str();
-  return true;
 }
 
 string BlockHeaderBytom::serializeToJson() const

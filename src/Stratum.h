@@ -215,8 +215,8 @@ protected:
 public:
   virtual ~StratumJob();
 
-  virtual string serializeToJson() const;
-  virtual bool unserializeFromJson(const char *s, size_t len);
+  virtual string serializeToJson() const = 0;
+  virtual bool unserializeFromJson(const char *s, size_t len) = 0;
   virtual uint32 jobTime() const { return jobId2Time(jobId_); }
 
 };

@@ -147,8 +147,12 @@ struct BlockHeaderBytom
 class StratumJobBytom : public StratumJob
 {
 public:
+  string serializeToJson() const;
   bool unserializeFromJson(const char *s, size_t len) override;
   BlockHeaderBytom blockHeader_;
   string seed_;
+  string hHash_;
+
+  void updateBlockHeaderFromHash();
 };
 #endif
