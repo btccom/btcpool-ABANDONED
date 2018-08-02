@@ -33,18 +33,6 @@
 #include <hash.h>
 
 
-static
-int32_t getBlockHeightFromCoinbase(const string &coinbase1) {
-  // https://github.com/bitcoin/bips/blob/master/bip-0034.mediawiki
-  const string a = coinbase1.substr(86, 2);
-  const string b = coinbase1.substr(88, 2);
-  const string c = coinbase1.substr(90, 2);
-  const string heightHex = c + b + a;  // little-endian
-
-  return (int32_t)strtol(heightHex.c_str(), nullptr, 16);
-}
-
-
 //
 // input  : 89c2f63dfb970e5638aa66ae3b7404a8a9914ad80328e9fe0000000000000000
 // output : 00000000000000000328e9fea9914ad83b7404a838aa66aefb970e5689c2f63d

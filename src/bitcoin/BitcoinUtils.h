@@ -64,4 +64,7 @@ bool IsValidDestinationString(const std::string& str);
 
 bool checkBitcoinRPC(const string &rpcAddr, const string &rpcUserpass);
 
+int32_t getBlockHeightFromCoinbase(const string &coinbase1);
+
+
 #endif // BITCOIN_UTILS_H_

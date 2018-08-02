@@ -23,6 +23,8 @@
  */
 #include "StratumBitcoin.h"
 
+#include "BitcoinUtils.h"
+
 #include <core_io.h>
 #include <hash.h>
 #include <script/script.h>
@@ -297,6 +299,15 @@ bool StratumJobBitcoin::initFromGbt(const char *gbt, const string &poolCoinbaseI
     witnessCommitment_ = jgbt["default_witness_commitment"].str();
   }
 
+#ifdef CHAIN_TYPE_UBTC
+  // rootStateHash, optional
+  // default_root_state_hash must be at least 2 bytes (00f9, empty root state hash)
+  if (jgbt["default_root_state_hash"].type() == Utilities::JS::type::Str &&
+      jgbt["default_root_state_hash"].str().length() >= 2*2) {
+    rootStateHash_ = jgbt["default_root_state_hash"].str();
+  }
+#endif
+
   BitsToTarget(nBits_, networkTarget_);
 
   // previous block hash
@@ -492,9 +503,26 @@ bool StratumJobBitcoin::initFromGbt(const char *gbt, const string &poolCoinbaseI
       cbOut.push_back(witnessTxOut);
     }
 
+  #ifdef CHAIN_TYPE_UBTC
     //
-    // output[2]: RSK merge mining
-    // Tips: it may be output[1] if segwit not enabled in a chain (like BitcoinCash).
+    // output[2] (optional): root state hash of UB smart contract
+    //
+    if (!rootStateHash_.empty()) {
+      DLOG(INFO) << "root state hash: " << rootStateHash_.c_str();
+      vector<char> binBuf;
+      Hex2Bin(rootStateHash_.c_str(), binBuf);
+
+      CTxOut rootStateTxOut;
+      rootStateTxOut.scriptPubKey = CScript((unsigned char*)binBuf.data(),
+                                      (unsigned char*)binBuf.data() + binBuf.size());
+      rootStateTxOut.nValue = 0;
+
+      cbOut.push_back(rootStateTxOut);
+    }
+  #endif
+
+    //
+    // output[3] (optional): RSK merge mining
     //
     if (latestRskBlockJson.isInitialized()) {
       DLOG(INFO) << "RSK blockhash: " << blockHashForMergedMining_;

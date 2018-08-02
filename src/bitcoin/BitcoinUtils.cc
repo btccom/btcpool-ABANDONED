@@ -169,3 +169,26 @@ bool checkBitcoinRPC(const string &rpcAddr, const string &rpcUserpass) {
 
   return true;
 }
+
+int32_t getBlockHeightFromCoinbase(const string &coinbase1) {
+  // https://github.com/bitcoin/bips/blob/master/bip-0034.mediawiki
+  const string sizeStr = coinbase1.substr(84, 2);
+  auto size = (int32_t)strtol(sizeStr.c_str(), nullptr, 16);
+
+  //  see CScript::push_int64 for the logic
+  if(size == OP_0)
+    return 0;
+  if(size >= OP_1 && size <= OP_1 + 16)
+    return size - (OP_1 - 1);
+
+  string heightHex;
+  for(int i = 0; i < size; ++i)
+  {
+    heightHex = coinbase1.substr(86 + (i * 2), 2) + heightHex;
+  }
+
+  DLOG(INFO) << "getBlockHeightFromCoinbase coinbase: " << coinbase1;
+  DLOG(INFO) << "getBlockHeightFromCoinbase heightHex: " << heightHex;
+
+  return (int32_t)strtol(heightHex.c_str(), nullptr, 16);
+}
