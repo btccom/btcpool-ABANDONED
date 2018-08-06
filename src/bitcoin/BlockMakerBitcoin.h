@@ -27,9 +27,12 @@
 #include "BlockMaker.h"
 
 #include <uint256.h>
+#include <primitives/transaction.h>
 
 #include <deque>
 #include <boost/date_time/posix_time/posix_time.hpp>
+
+class CBlockHeader;
 
 namespace bpt = boost::posix_time;
 

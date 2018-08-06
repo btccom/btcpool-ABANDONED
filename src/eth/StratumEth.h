@@ -29,6 +29,7 @@
 
 #include "rsk/RskWork.h"
 
+#include <uint256.h>
 
 class ShareEth : public ShareBase
 {
@@ -164,6 +165,14 @@ public:
   string serializeToJson() const override;
   bool unserializeFromJson(const char *s, size_t len) override;
   bool initFromGw(const RskWorkEth &latestRskBlockJson, EthConsensus::Chain chain);
+
+  // rsk merged mining
+  string blockHashForMergedMining_;
+  uint256 rskNetworkTarget_;
+  string rskdRpcAddress_;
+  string rskdRpcUserPwd_;
+  string feesForMiner_;
+  bool isMergedMiningCleanJob_;
 
   EthConsensus::Chain chain_;
   string seedHash_;

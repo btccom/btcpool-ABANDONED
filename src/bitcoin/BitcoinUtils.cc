@@ -21,9 +21,12 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
+
 #include "BitcoinUtils.h"
 #include "Utils.h"
 #include "utilities_js.hpp"
+
+#include <streams.h>
 
 std::string EncodeHexBlock(const CBlock &block) {
   CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);

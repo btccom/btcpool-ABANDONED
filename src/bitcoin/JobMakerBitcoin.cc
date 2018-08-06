@@ -472,6 +472,7 @@ bool JobMakerHandlerBitcoin::processRskGwMsg(const string &rawGetWork) {
 }
 
 string JobMakerHandlerBitcoin::makeStratumJob(const string &gbt) {
+  DLOG(INFO) << "JobMakerHandlerBitcoin::makeStratumJob gbt: " << gbt;
   string latestNmcAuxBlockJson;
   {
     ScopeLock sl(auxJsonLock_);

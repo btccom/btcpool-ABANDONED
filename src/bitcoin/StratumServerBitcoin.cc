@@ -29,6 +29,8 @@
 #include "rsk/RskSolvedShareData.h"
 
 #include <arith_uint256.h>
+#include "hash.h"
+#include "primitives/block.h"
 
 using namespace std;
 

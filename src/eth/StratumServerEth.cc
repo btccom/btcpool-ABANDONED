@@ -27,6 +27,8 @@
 
 #include <boost/thread.hpp>
 
+#include <fstream>
+
 #include "CommonEth.h"
 #include "libethash/ethash.h"
 #include "libethash/internal.h"

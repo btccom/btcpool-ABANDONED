@@ -30,6 +30,8 @@
 
 ///////////////////////////////StratumJobEth///////////////////////////
 StratumJobEth::StratumJobEth()
+  : isMergedMiningCleanJob_(false)
+
 {
 
 }
@@ -123,7 +125,7 @@ bool StratumJobEth::unserializeFromJson(const char *s, size_t len)
     isMergedMiningCleanJob_ = j["isRskCleanJob"].boolean();
   }
 
-  BitsToTarget(nBits_, networkTarget_); //  Gani#Question: Does eth require this call?
+  // BitsToTarget(nBits_, networkTarget_); //  Gani#Question: Does eth require this call?
 
   return true;
 }

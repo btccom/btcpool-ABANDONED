@@ -34,6 +34,8 @@
 
 #include "KafkaBitcoin.h"
 
+#include <streams.h>
+
 ////////////////////////////////// BlockMaker //////////////////////////////////
 BlockMakerBitcoin::BlockMakerBitcoin(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB)
   : BlockMaker(def, kafkaBrokers, poolDB)
@@ -565,6 +567,8 @@ void BlockMakerBitcoin::_saveBlockToDBThread(const FoundBlock &foundBlock,
                         coinbaseValue, blksize,
                         header.hashPrevBlock.ToString().c_str(),
                         header.nBits, header.nVersion, nowStr.c_str());
+
+  LOG(INFO) << "BlockMakerBitcoin::_saveBlockToDBThread: " << sql;
 
   // try connect to DB
   MySQLConnection db(poolDB_);

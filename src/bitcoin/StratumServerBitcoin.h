@@ -27,6 +27,7 @@
 #include "StratumServer.h"
 #include "StratumBitcoin.h"
 
+class CBlockHeader;
 
 class ServerBitcoin : public Server
 {

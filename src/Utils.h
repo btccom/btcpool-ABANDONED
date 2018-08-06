@@ -28,10 +28,10 @@
 #include <sstream>
 #include <vector>
 
-#include <base58.h>
-#include <util.h>
+// #include <base58.h>
+// #include <util.h>
 #include <utilstrencodings.h>
-#include <streams.h>
+// #include <streams.h>
 
 #include <libconfig.h++>
 #include <glog/logging.h>

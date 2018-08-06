@@ -35,11 +35,11 @@
 
 #include "GwMaker.h"
 
-#include <glog/logging.h>
-#include <util.h>
-#include <utilstrencodings.h>
 #include "Utils.h"
 
+#include <glog/logging.h>
+
+#include <limits.h>
 
 ///////////////////////////////GwMaker////////////////////////////////////
 GwMaker::GwMaker(shared_ptr<GwMakerHandler> handler,

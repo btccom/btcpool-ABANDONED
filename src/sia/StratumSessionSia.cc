@@ -159,9 +159,17 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
 
   shared_ptr<StratumJobEx> exjob;
   exjob = server->jobRepository_->getStratumJobEx(localJob->jobId_);
+
   if (nullptr == exjob || nullptr == exjob->sjob_) {
     responseError(idStr, StratumStatus::JOB_NOT_FOUND);
     LOG(ERROR) << "sia local job not found " << std::hex << localJob->jobId_;
+    return;
+  }
+
+  StratumJobSia *sjob = dynamic_cast<StratumJobSia*>(exjob->sjob_);
+  if (nullptr == sjob) {
+    responseError(idStr, StratumStatus::JOB_NOT_FOUND);
+    LOG(ERROR) << "cast sia local job failed " << std::hex << localJob->jobId_;
     return;
   }
 
@@ -187,7 +195,7 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
   share.status_ = StratumStatus::REJECT_NO_REASON;
 
   arith_uint256 shareTarget(str);
-  arith_uint256 networkTarget = UintToArith256(exjob->sjob_->networkTarget_);
+  arith_uint256 networkTarget = UintToArith256(sjob->networkTarget_);
   
   if (shareTarget < networkTarget) {
     //valid share

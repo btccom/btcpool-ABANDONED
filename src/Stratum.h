@@ -197,19 +197,7 @@ public:
   uint64_t jobId_;
   int32_t height_;
   int32_t nVersion_;
-  uint32_t nBits_;
   uint32_t nTime_;
-  uint32_t minTime_;
-
-  // rsk merged mining
-  string blockHashForMergedMining_;
-  uint256 rskNetworkTarget_;
-  string rskdRpcAddress_;
-  string rskdRpcUserPwd_;
-  string feesForMiner_;
-  bool isMergedMiningCleanJob_;
-
-  uint256 networkTarget_;
 protected:
   StratumJob(); //  protected so cannot create it.
 public:

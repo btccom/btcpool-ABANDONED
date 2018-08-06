@@ -27,7 +27,7 @@
 #include <string>
 
 #include <core_io.h>
-#include <streams.h>
+// #include <streams.h>
 #include <amount.h>
 #include <chainparams.h>
 #include <utilstrencodings.h>

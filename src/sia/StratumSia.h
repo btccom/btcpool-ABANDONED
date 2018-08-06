@@ -25,11 +25,13 @@
 #define STRATUM_SIA_H_
 
 #include "Stratum.h"
-
+#include <uint256.h>
 
 class StratumJobSia : public StratumJob
 {
 public:
+  string blockHashForMergedMining_;
+  uint256 networkTarget_;
 
 public:
   string serializeToJson() const;

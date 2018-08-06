@@ -28,9 +28,10 @@
 #include "CommonBitcoin.h"
 
 #include <uint256.h>
-#include <base58.h>
+// #include <base58.h>
 #include "rsk/RskWork.h"
 #include "script/standard.h"
+
 
 //
 // max coinbase tx size, bytes
@@ -135,6 +136,19 @@ public:
 class StratumJobBitcoin : public StratumJob
 {
 public:
+  uint32_t nBits_;
+  uint32_t minTime_;
+  uint256 networkTarget_;
+
+  // rsk merged mining
+  string blockHashForMergedMining_;
+  uint256 rskNetworkTarget_;
+  string rskdRpcAddress_;
+  string rskdRpcUserPwd_;
+  string feesForMiner_;
+  bool isMergedMiningCleanJob_;
+
+
   string gbtHash_; // gbt hash id
   uint256 prevHash_;
   string prevHashBeStr_; // little-endian hex, memory's order

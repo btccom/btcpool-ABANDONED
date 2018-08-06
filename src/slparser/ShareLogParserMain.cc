@@ -48,6 +48,8 @@
 #include "bytom/StatisticsBytom.h"
 #include "bytom/ShareLogParserBytom.h"
 
+#include "chainparamsbase.h"
+#include "chainparams.h"
 
 using namespace std;
 using namespace libconfig;

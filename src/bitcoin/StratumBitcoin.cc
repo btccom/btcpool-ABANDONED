@@ -31,6 +31,7 @@
 #include <uint256.h>
 #include <util.h>
 #include <pubkey.h>
+#include <streams.h>
 
 #include "Utils.h"
 #include "bytom/bh_shared.h"
@@ -76,7 +77,10 @@ int64 findExtraNonceStart(const vector<char> &coinbaseOriTpl,
 }
 
 StratumJobBitcoin::StratumJobBitcoin()
-  : coinbaseValue_(0), nmcAuxBits_(0u)
+  : nBits_(0U)
+  , minTime_(0U)
+  , isMergedMiningCleanJob_(false)
+  , coinbaseValue_(0), nmcAuxBits_(0u)
 {
 
 }

@@ -299,12 +299,16 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   
   auto StringToCheapHash = [](const std::string& str) -> uint64
   {
-    int merkleRootLen = std::min(32, (int)str.length());
+    // int merkleRootLen = std::min(32, (int)str.length());
     auto merkleRootBegin = (uint8_t*)&str[0];
-    auto merkleRootEnd = merkleRootBegin + merkleRootLen;
+    // auto merkleRootEnd = merkleRootBegin + merkleRootLen;
 
-    vector<uint8_t> merkleRootBin(merkleRootBegin, merkleRootEnd);
-    return uint256(merkleRootBin).GetCheapHash();
+    uint64 res;
+    memcpy(&res, merkleRootBegin, std::min(8, (int)str.length()));
+    return res;    
+
+    // vector<uint8_t> merkleRootBin(merkleRootBegin, merkleRootEnd);
+    // return uint256(merkleRootBin).GetCheapHash();
   };
 
   share.combinedHeader_.blockCommitmentMerkleRootCheapHash_ = StringToCheapHash(sJob->blockHeader_.transactionsMerkleRoot);

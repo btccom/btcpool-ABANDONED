@@ -28,6 +28,8 @@
 #include "utilities_js.hpp"
 
 #include <glog/logging.h>
+#include <uint256.h>
+#include <hash.h>
 
 // filter for woker name and miner agent
 string filterWorkerName(const string &workerName) {
@@ -162,11 +164,10 @@ int64_t StratumWorker::calcWorkerId(const string &workerName) {
 
 //////////////////////////////////  StratumJob  ////////////////////////////////
 StratumJob::StratumJob()
-  : jobId_(0), height_(0)
-  , nVersion_(0), nBits_(0U)
+  : jobId_(0)
+  , height_(0)
+  , nVersion_(0)
   , nTime_(0U)
-  , minTime_(0U)
-  , isMergedMiningCleanJob_(false)
 {
 }
 
