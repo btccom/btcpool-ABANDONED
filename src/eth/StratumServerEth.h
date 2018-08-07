@@ -30,11 +30,13 @@
 #include "StratumServer.h"
 #include "StratumEth.h"
 
-class ServerEth : public Server
+class JobRepositoryEth;
+
+class ServerEth : public ServerBase<JobRepositoryEth>
 {
 public:
-  ServerEth(const int32_t shareAvgSeconds) : Server(shareAvgSeconds) {}
-  bool setup(StratumServer* sserver) override;
+  ServerEth(const int32_t shareAvgSeconds) : ServerBase(shareAvgSeconds) {}
+  bool setupInternal(StratumServer* sserver) override;
   int checkShareAndUpdateDiff(ShareEth &share,
                               const uint64_t jobId,
                               const uint64_t nonce,

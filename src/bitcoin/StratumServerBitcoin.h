@@ -28,8 +28,9 @@
 #include "StratumBitcoin.h"
 
 class CBlockHeader;
+class JobRepositoryBitcoin;
 
-class ServerBitcoin : public Server
+class ServerBitcoin : public ServerBase<JobRepositoryBitcoin>
 {
 private:
   KafkaProducer *kafkaProducerNamecoinSolvedShare_;
@@ -39,7 +40,7 @@ public:
   ServerBitcoin(const int32_t shareAvgSeconds);
   virtual ~ServerBitcoin();
 
-  bool setup(StratumServer* sserver) override;
+  bool setupInternal(StratumServer* sserver) override;
 
   StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
                                struct sockaddr *saddr, const uint32_t sessionID) override;

@@ -28,6 +28,18 @@
 
 #include <glog/logging.h>
 
+StratumJobSia::StratumJobSia()
+  : nTime_(0U)
+{
+
+}
+
+StratumJobSia::~StratumJobSia()
+{
+
+}
+
+
 string StratumJobSia::serializeToJson() const
 {
   return Strings::Format("{\"created_at_ts\":%u"

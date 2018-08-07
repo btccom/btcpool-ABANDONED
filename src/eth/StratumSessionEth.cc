@@ -347,7 +347,7 @@ void StratumSessionEth::handleRequest_Authorize(const string &idStr, const JsonN
 
 void StratumSessionEth::handleRequest_GetWork(const string &idStr, const JsonNode &jparams)
 {
-  sendMiningNotifyWithId(GetServer()->jobRepository_->getLatestStratumJobEx(), idStr);
+  sendMiningNotifyWithId(GetServer()->GetJobRepository()->getLatestStratumJobEx(), idStr);
 }
 
 void StratumSessionEth::handleRequest_SubmitHashrate(const string &idStr, const JsonNode &jparams)
@@ -450,7 +450,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   }
 
   // can't find stratum job
-  shared_ptr<StratumJobEx> exjob = GetServer()->jobRepository_->getStratumJobEx(localJob->jobId_);
+  shared_ptr<StratumJobEx> exjob = GetServer()->GetJobRepository()->getStratumJobEx(localJob->jobId_);
   if (exjob.get() == nullptr) {
     rpc2ResponseError(idStr, StratumStatus::JOB_NOT_FOUND);
     return;
@@ -464,7 +464,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   }
   
   uint64_t nonce = stoull(sNonce, nullptr, 16);
-  uint32_t height = exjob->sjob_->height_;
+  uint32_t height = sjob->height_;
   uint64_t networkDiff = Eth_TargetToDifficulty(sjob->rskNetworkTarget_.GetHex());
   // Used to prevent duplicate shares. (sHeader has a prefix "0x")
   uint64_t headerPrefix = stoull(sHeader.substr(2, 16), nullptr, 16);

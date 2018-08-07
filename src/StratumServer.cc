@@ -848,7 +848,7 @@ bool Server::setup(StratumServer* sserver) {
     LOG(ERROR) << "cannot create listener: " << ip << ":" << sserver->port_;
     return false;
   }
-  return true;
+  return setupInternal(sserver);
 }
 
 void Server::run() {

@@ -362,12 +362,7 @@ bool JobRepositoryEth::compute(ethash_h256_t const header, uint64_t nonce, ethas
 
 
 ////////////////////////////////// ServierEth ///////////////////////////////
-bool ServerEth::setup(StratumServer* sserver) {
-  bool success = Server::setup(sserver);
-  if (!success) {
-    return false;
-  }
-
+bool ServerEth::setupInternal(StratumServer* sserver) {
   // TODO: WORK_WITH_STRATUM_SWITCHER only effects Bitcoin's sserver
   #ifndef WORK_WITH_STRATUM_SWITCHER
     // Use 16 bits index of Session ID.
@@ -389,12 +384,12 @@ int ServerEth::checkShareAndUpdateDiff(ShareEth &share,
                                        uint256 &returnedMixHash,
                                        const string &workFullName)
 {
-  JobRepositoryEth *jobRepo = dynamic_cast<JobRepositoryEth *>(jobRepository_);
+  JobRepositoryEth *jobRepo = GetJobRepository();
   if (nullptr == jobRepo) {
     return StratumStatus::ILLEGAL_PARARMS;
   }
 
-  shared_ptr<StratumJobEx> exJobPtr = jobRepository_->getStratumJobEx(jobId);
+  shared_ptr<StratumJobEx> exJobPtr = jobRepo->getStratumJobEx(jobId);
   if (nullptr == exJobPtr)
   {
     return StratumStatus::JOB_NOT_FOUND;

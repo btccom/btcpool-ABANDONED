@@ -293,12 +293,16 @@ public:
   UserInfo *userInfo_;
   shared_ptr<DiffController> defaultDifficultyController_;
   uint8 serverId_;
-  
-public:
+
+protected:
   Server(const int32_t shareAvgSeconds);
+
+  virtual bool setupInternal(StratumServer* sserver){ return true; };
+
+public:
   virtual ~Server();
 
-  virtual bool setup(StratumServer* sserver);
+  bool setup(StratumServer* sserver);
   void run();
   void stop();
 
@@ -327,6 +331,18 @@ protected:
                                     const char *consumerTopic,
                                      const string &fileLastNotifyTime) = 0;
 
+};
+
+template<typename TJobRepository>
+class ServerBase : public Server
+{
+public:
+  TJobRepository* GetJobRepository(){ return static_cast<TJobRepository*>(jobRepository_); }
+protected:
+  ServerBase(const int32_t shareAvgSeconds) : Server(shareAvgSeconds) { }
+
+private:
+  using Server::jobRepository_;
 };
 
 ////////////////////////////////// StratumServer ///////////////////////////////

@@ -27,10 +27,12 @@
 #include "StratumServer.h"
 #include "StratumBytom.h"
 
-class ServerBytom : public Server
+class JobRepositoryBytom;
+
+class ServerBytom : public ServerBase<JobRepositoryBytom>
 {
 public:
-  ServerBytom(const int32_t shareAvgSeconds) : Server(shareAvgSeconds) {}
+  ServerBytom(const int32_t shareAvgSeconds) : ServerBase(shareAvgSeconds) {}
 
   JobRepository* createJobRepository(const char *kafkaBrokers,
                                      const char *consumerTopic,     

@@ -165,9 +165,6 @@ int64_t StratumWorker::calcWorkerId(const string &workerName) {
 //////////////////////////////////  StratumJob  ////////////////////////////////
 StratumJob::StratumJob()
   : jobId_(0)
-  , height_(0)
-  , nVersion_(0)
-  , nTime_(0U)
 {
 }
 

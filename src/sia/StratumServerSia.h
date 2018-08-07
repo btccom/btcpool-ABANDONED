@@ -27,10 +27,12 @@
 #include "StratumServer.h"
 #include "StratumSia.h"
 
-class ServerSia : public Server
+class JobRepositorySia;
+
+class ServerSia : public ServerBase<JobRepositorySia>
 {
 public:
-  ServerSia(const int32_t shareAvgSeconds) : Server(shareAvgSeconds) {}
+  ServerSia(const int32_t shareAvgSeconds) : ServerBase(shareAvgSeconds) {}
   virtual ~ServerSia();
 
 

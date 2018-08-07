@@ -153,7 +153,7 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
 }
 
 void StratumSessionBytom::handleRequest_GetWork(const string &idStr, const JsonNode &jparams) {
-    sendMiningNotify(GetServer()->jobRepository_->getLatestStratumJobEx(), false);
+    sendMiningNotify(GetServer()->GetJobRepository()->getLatestStratumJobEx(), false);
 }
 
 namespace BytomUtils
@@ -242,7 +242,7 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
   }
 
   shared_ptr<StratumJobEx> exjob;
-  exjob = server->jobRepository_->getStratumJobEx(localJob->jobId_);
+  exjob = server->GetJobRepository()->getStratumJobEx(localJob->jobId_);
   if (nullptr == exjob || nullptr == exjob->sjob_)
   {
     Bytom_rpc2ResponseBoolean(idStr, false, "Block expired");
@@ -331,7 +331,7 @@ void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNo
       std::cout << "share solved\n";
       LOG(INFO) << "share solved";
       server->sendSolvedShare2Kafka(nonce, encoded.r0, share.height_, Bytom_TargetCompactToDifficulty(sJob->blockHeader_.bits), worker_);
-      server->jobRepository_->markAllJobsAsStale();      
+      server->GetJobRepository()->markAllJobsAsStale();      
       diffController_->addAcceptedShare(share.shareDiff_);
       Bytom_rpc2ResponseBoolean(idStr, true);
     }

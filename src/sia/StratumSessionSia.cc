@@ -158,7 +158,7 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
   }
 
   shared_ptr<StratumJobEx> exjob;
-  exjob = server->jobRepository_->getStratumJobEx(localJob->jobId_);
+  exjob = server->GetJobRepository()->getStratumJobEx(localJob->jobId_);
 
   if (nullptr == exjob || nullptr == exjob->sjob_) {
     responseError(idStr, StratumStatus::JOB_NOT_FOUND);

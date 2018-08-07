@@ -136,6 +136,10 @@ public:
 class StratumJobBitcoin : public StratumJob
 {
 public:
+  int32_t height_;
+  int32_t nVersion_;
+  uint32_t nTime_;
+
   uint32_t nBits_;
   uint32_t minTime_;
   uint256 networkTarget_;

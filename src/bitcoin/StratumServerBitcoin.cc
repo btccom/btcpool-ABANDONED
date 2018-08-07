@@ -229,7 +229,7 @@ void StratumJobExBitcoin::generateBlockHeader(CBlockHeader *header,
 }
 ////////////////////////////////// ServerBitcoin ///////////////////////////////
 ServerBitcoin::ServerBitcoin(const int32_t shareAvgSeconds)
-  : Server(shareAvgSeconds)
+  : ServerBase(shareAvgSeconds)
   , kafkaProducerNamecoinSolvedShare_(nullptr)
   , kafkaProducerRskSolvedShare_(nullptr)
 {
@@ -246,13 +246,8 @@ ServerBitcoin::~ServerBitcoin()
   }
 }
 
-bool ServerBitcoin::setup(StratumServer* sserver)
+bool ServerBitcoin::setupInternal(StratumServer* sserver)
 {
-  if(!Server::setup(sserver))
-  {
-    return false;
-  }
-
   kafkaProducerNamecoinSolvedShare_ = new KafkaProducer(sserver->kafkaBrokers_.c_str(),
                                                         KAFKA_TOPIC_NMC_SOLVED_SHARE,
                                                         RD_KAFKA_PARTITION_UA);
@@ -332,7 +327,7 @@ int ServerBitcoin::checkShare(const ShareBitcoin &share,
                        const uint32_t nTime, const uint32_t nonce,
                        const uint256 &jobTarget, const string &workFullName,
                        string *userCoinbaseInfo) {
-  shared_ptr<StratumJobEx> exJobPtrShared = jobRepository_->getStratumJobEx(share.jobId_);
+  shared_ptr<StratumJobEx> exJobPtrShared = GetJobRepository()->getStratumJobEx(share.jobId_);
   StratumJobExBitcoin* exJobPtr = static_cast<StratumJobExBitcoin*>(exJobPtrShared.get());
   if (exJobPtr == nullptr) {
     return StratumStatus::JOB_NOT_FOUND;
@@ -380,7 +375,7 @@ int ServerBitcoin::checkShare(const ShareBitcoin &share,
     sendSolvedShare2Kafka(&foundBlock, coinbaseBin);
 
     // mark jobs as stale
-    jobRepository_->markAllJobsAsStale();
+    GetJobRepository()->markAllJobsAsStale();
 
     LOG(INFO) << ">>>> found a new block: " << blkHash.ToString()
     << ", jobId: " << share.jobId_ << ", userId: " << share.userId_

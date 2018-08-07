@@ -30,8 +30,10 @@
 
 ///////////////////////////////StratumJobEth///////////////////////////
 StratumJobEth::StratumJobEth()
-  : isMergedMiningCleanJob_(false)
-
+  : height_(0)
+  , nVersion_(0)
+  , nTime_(0U)
+  , isMergedMiningCleanJob_(false)
 {
 
 }

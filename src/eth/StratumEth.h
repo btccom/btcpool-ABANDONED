@@ -166,6 +166,10 @@ public:
   bool unserializeFromJson(const char *s, size_t len) override;
   bool initFromGw(const RskWorkEth &latestRskBlockJson, EthConsensus::Chain chain);
 
+  int32_t height_;
+  int32_t nVersion_;
+  uint32_t nTime_;
+
   // rsk merged mining
   string blockHashForMergedMining_;
   uint256 rskNetworkTarget_;

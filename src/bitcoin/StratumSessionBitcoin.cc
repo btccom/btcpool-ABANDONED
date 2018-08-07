@@ -232,6 +232,7 @@ void StratumSessionBitcoin::handleRequest_Submit(const string &idStr,
                                           bool isAgentSession,
                                           DiffController *sessionDiffController) {
   ServerBitcoin* serverBitcoin = GetServer();
+  JobRepositoryBitcoin* jobRepoBitcoin = serverBitcoin->GetJobRepository();
   if(!serverBitcoin)
   {
     LOG(FATAL) << "StratumSession::handleRequest_Submit. cast ServerBitcoin failed";
@@ -264,15 +265,16 @@ void StratumSessionBitcoin::handleRequest_Submit(const string &idStr,
   uint32_t height = 0;
 
   shared_ptr<StratumJobEx> exjob;
-  exjob = GetServer()->jobRepository_->getStratumJobEx(localJob->jobId_);
+  exjob = jobRepoBitcoin->getStratumJobEx(localJob->jobId_);
 
   if (exjob.get() != NULL) {
     // 0 means miner use stratum job's default block time
+    StratumJobBitcoin* sjobBitcoin = static_cast<StratumJobBitcoin*>(exjob->sjob_);
     if (nTime == 0) {
-        nTime = exjob->sjob_->nTime_;
+        nTime = sjobBitcoin->nTime_;
     }
 
-    height = exjob->sjob_->height_;
+    height = sjobBitcoin->height_;
   }
 
   ShareBitcoin share;

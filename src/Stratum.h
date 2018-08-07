@@ -195,9 +195,6 @@ public:
   // jobId: timestamp + gbtHash, hex string, we need to make sure jobId is
   // unique in a some time, jobId can convert to uint64_t
   uint64_t jobId_;
-  int32_t height_;
-  int32_t nVersion_;
-  uint32_t nTime_;
 protected:
   StratumJob(); //  protected so cannot create it.
 public:
