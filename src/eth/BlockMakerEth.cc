@@ -104,7 +104,7 @@ void BlockMakerEth::_saveBlockToDBThread(const string &header, const uint32_t he
   sql = Strings::Format("INSERT INTO `found_blocks` "
                         " (`puid`, `worker_id`"
                         ", `worker_full_name`, `chain`"
-                        ", `height`, `hash`, `rewards`"
+                        ", `height`, `hash_no_nonce`, `rewards`"
                         ", `network_diff`, `created_at`)"
                         " VALUES (%ld, %" PRId64
                         ", '%s', '%s'"
