@@ -4,5 +4,8 @@
 -- then add a new field named `found_blocks.hash`.
 --
 ALTER TABLE `found_blocks`
+DROP INDEX `hash`,
 CHANGE `hash` `hash_no_nonce` char(66) NOT NULL,
-ADD `hash` char(66) DEFAULT '' NOT NULL AFTER `ref_uncles`;
+ADD `hash` char(66) DEFAULT '' NOT NULL AFTER `ref_uncles`,
+ADD INDEX `hash`(`hash`),
+ADD INDEX `hash_no_nonce`(`hash_no_nonce`);
