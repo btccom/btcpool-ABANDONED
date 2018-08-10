@@ -119,7 +119,7 @@ extra_data = "/Project BTCPool/"
 warp = true
 
 [misc]
-logging = "own_tx,sync=debug"
+logging = "own_tx=info,sync=info,chain=info,network=info,miner=info"
 log_file = "/root/.local/share/io.parity.ethereum/parity.log"
 ```
 
