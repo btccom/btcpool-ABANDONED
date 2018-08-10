@@ -35,10 +35,22 @@ public:
   void processSolvedShare(rd_kafka_message_t *rkmessage) override;
 
 private:
-  void submitBlockNonBlocking(const string &blockJson);
-  void _submitBlockThread(const string &rpcAddress, const string &rpcUserpass, const string &blockJson);
-  void saveBlockToDBNonBlocking(const string &header, const uint32_t height, const string &chain, const uint64_t networkDiff, const StratumWorker &worker);
-  void _saveBlockToDBThread(const string &header, const uint32_t height, const string &chain, const uint64_t networkDiff, const StratumWorker &worker);
+  void submitBlockNonBlocking(const string &nonce, const string &header, const string &mix, const vector<NodeDefinition> &nodes,
+                              const uint32_t height, const string &chain, const uint64_t networkDiff, const StratumWorker &worker);
+  void _submitBlockThread(const string &nonce, const string &header, const string &mix, const vector<NodeDefinition> &nodes,
+                          const uint32_t height, const string &chain, const uint64_t networkDiff, const StratumWorker &worker);
+  void saveBlockToDB(const string &header, const string &blockHash, const uint32_t height,
+                     const string &chain, const uint64_t networkDiff, const StratumWorker &worker);
+
+  bool submitBlock(const string &nonce, const string &header, const string &mix,
+                   const string &rpcUrl, const string &rpcUserPass);
+  bool submitBlockDetail(const string &nonce, const string &header, const string &mix,
+                         const string &rpcUrl, const string &rpcUserPass,
+                         string &errMsg, string &blockHash);
+  bool checkRpcSubmitBlock();
+  bool checkRpcSubmitBlockDetail();
+
+  bool useSubmitBlockDetail_;
 };
 
 #endif
