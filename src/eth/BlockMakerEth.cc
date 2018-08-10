@@ -250,41 +250,48 @@ void BlockMakerEth::_submitBlockThread(const string &nonce, const string &header
                                        const uint32_t height, const string &chain, const uint64_t networkDiff, const StratumWorker &worker) {
   string blockHash;
 
-  int retryTime = 5;
-  while (retryTime > 0) {
+  auto submitBlockOnce = [&]() {
+    // try eth_submitWorkDetail
     if (useSubmitBlockDetail_) {
-      // try eth_submitWorkDetail
       for (size_t i=0; i<nodes.size(); i++) {
         string errMsg;
         auto node = nodes[i];
         bool success = submitBlockDetail(nonce, header, mix, node.rpcAddr_, node.rpcUserPwd_,
-                                         errMsg, blockHash);
+                                        errMsg, blockHash);
         if (success) {
           LOG(INFO) << "eth_submitWorkDetail success, chain: " << chain << ", height: " << height << ", hash: " << blockHash
                     << ", networkDiff: " << networkDiff << ", worker: " << worker.fullName_;
-          break;
+          return true;
         }
 
         LOG(WARNING) << "eth_submitWorkDetail failed, chain: " << chain << ", height: " << height << ", hash_no_nonce: " << header
-                     << ", err_msg: " << errMsg;
+                    << ", err_msg: " << errMsg;
       }
     }
 
+    // try eth_submitWork
     {
-      // try eth_submitWork
       for (size_t i=0; i<nodes.size(); i++) {
         auto node = nodes[i];
         bool success = submitBlock(nonce, header, mix, node.rpcAddr_, node.rpcUserPwd_);
         if (success) {
           LOG(INFO) << "eth_submitWork success, chain: " << chain << ", height: " << height << ", hash_no_nonce: " << header
                     << ", networkDiff: " << networkDiff << ", worker: " << worker.fullName_;
-          break;
+          return true;
         }
 
         LOG(WARNING) << "eth_submitWork failed, chain: " << chain << ", height: " << height << ", hash_no_nonce: " << header;
       }
     }
 
+    return false;
+  };
+
+  int retryTime = 5;
+  while (retryTime > 0) {
+    if (submitBlockOnce()) {
+      break;
+    }
     sleep(6 - retryTime); // first sleep 1s, second sleep 2s, ...
     retryTime--;
   }
