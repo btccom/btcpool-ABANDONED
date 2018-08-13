@@ -37,7 +37,7 @@ BlockMakerEth::BlockMakerEth(const BlockMakerDefinition& def, const char *kafkaB
     LOG(INFO) << "use RPC eth_submitBlockDetail";
   }
   else if (checkRpcSubmitBlock()) {
-    LOG(INFO) << "use RPC eth_submitBlock, it has limited functionality and the block hash will not be set.";
+    LOG(INFO) << "use RPC eth_submitBlock, it has limited functionality and the block hash will not be recorded.";
   }
   else {
     LOG(FATAL) << "Ethereum nodes doesn't support both eth_submitBlockDetail and eth_submitBlock, cannot submit block!";
