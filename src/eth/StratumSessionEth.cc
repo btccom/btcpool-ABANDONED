@@ -149,7 +149,10 @@ void StratumSessionEth::sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr
     //"0x1261dfe17d0bf58cb2861ae84734488b1463d282b7ee88ccfa18b7a92a7b77f7",
     //"0x0112e0be826d694b2e62d01511f12a6061fbaec8bc02357593e70e52ba","0x4ec6f5"]}
     strNotify = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\","
-                                "\"result\":[\"0x%s\",\"0x%s\",\"0x%s\",\"0x%06x\"]}\n",
+                                "\"result\":[\"0x%s\",\"0x%s\",\"0x%s\","
+                                // nonce cannot start with 0x because of
+                                // a compatibility issue with AntMiner E3.
+                                "\"%06x\"]}\n",
                                 idStr.c_str(),
                                 header.c_str(),
                                 seed.c_str(),
