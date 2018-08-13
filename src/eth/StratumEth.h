@@ -31,6 +31,14 @@
 
 #include <uint256.h>
 
+// [[[[ IMPORTANT REMINDER! ]]]]
+// Please keep the Share structure forward compatible.
+// That is: don't change it unless you add code so that
+// both the modified and non-modified Shares can be processed.
+// Please note that in the usual upgrade, the old version of Share
+// and the new version will coexist for a while.
+// If there is no forward compatibility, one of the versions of Share
+// will be considered invalid, resulting in loss of users' hashrate.
 class ShareEth// : public ShareBase
 {
 public:
@@ -38,13 +46,14 @@ public:
   const static uint32_t CURRENT_VERSION_FOUNDATION = 0x00110002u; // first 0011: ETH, second 0002: version 2
   const static uint32_t CURRENT_VERSION_CLASSIC    = 0x00160002u; // first 0016: ETC, second 0002: version 2
 
-  uint32_t  checkSum_     = 0;
   uint32_t  version_      = 0;
+  uint32_t  checkSum_     = 0;
 
   int64_t   workerHashId_ = 0;
   int32_t   userId_       = 0;
   int32_t   status_       = 0;
   int64_t   timestamp_    = 0;
+  IpAddress ip_           = 0;
 
   uint64_t headerHash_  = 0;
   uint64_t shareDiff_   = 0;
@@ -52,8 +61,6 @@ public:
   uint64_t nonce_       = 0;
   uint32_t sessionId_   = 0;
   uint32_t height_      = 0;
-
-  IpAddress ip_           = 0;
 
   ShareEth() = default;
   ShareEth(const ShareEth &r) = default;
@@ -167,6 +174,8 @@ public:
                            sessionId_, status_, StratumStatus::toString(status_));
   }
 };
+
+static_assert(sizeof(ShareEth) == 88, "ShareEth should be 88 bytes");
 
 class StratumJobEth : public StratumJob
 {
