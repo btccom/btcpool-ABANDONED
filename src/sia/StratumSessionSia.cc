@@ -185,7 +185,6 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
   }
 
   ShareBitcoin share;
-  share.version_ = ShareBitcoin::CURRENT_VERSION;
   share.jobId_ = localJob->jobId_;
   share.workerHashId_ = worker_.workerHashId_;
   share.ip_ = clientIpInt_;

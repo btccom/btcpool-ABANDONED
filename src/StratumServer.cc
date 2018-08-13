@@ -232,7 +232,9 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   }
   // here you could use Map.find() without lock, it's sure
   // that everyone is using this Map readonly now
-  if (exJobs_.find(sjob->jobId_) != exJobs_.end()) {
+  auto existingJob = getStratumJobEx(sjob->jobId_);
+  if(existingJob != nullptr)
+  {
     LOG(ERROR) << "jobId already existed";
     delete sjob;
     return;

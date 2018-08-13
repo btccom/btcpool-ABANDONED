@@ -39,18 +39,44 @@
 //       so 500 bytes may enough.
 #define COINBASE_TX_MAX_SIZE   500
 
-class ShareBitcoin : public ShareBase
+////////////////////////////////// FoundBlock //////////////////////////////////
+class FoundBlock
+{
+public:
+  uint64_t jobId_;
+  int64_t workerId_; // found by who
+  int32_t userId_;
+  int32_t height_;
+  uint8_t header80_[80];
+  char workerFullName_[40]; // <UserName>.<WorkerName>
+
+  FoundBlock() : jobId_(0), workerId_(0), userId_(0), height_(0)
+  {
+    memset(header80_, 0, sizeof(header80_));
+    memset(workerFullName_, 0, sizeof(workerFullName_));
+  }
+};
+
+
+class ShareBitcoin
 {
 public:
 
   const static uint32_t CURRENT_VERSION = 0x00010002u; // first 0001: bitcoin, second 0002: version 2.
 
-  uint64_t jobId_     = 0;
-  uint64_t shareDiff_ = 0;
-  uint32_t blkBits_   = 0;
-  uint32_t height_    = 0;
-  uint32_t nonce_     = 0;
-  uint32_t sessionId_ = 0;
+  uint64_t  jobId_        = 0;
+  int64_t   workerHashId_ = 0;
+  uint32_t  legacy_ip_;
+  int32_t   userId_       = 0;
+  uint64_t  shareDiff_    = 0;  //  old name is share_
+  int64_t   timestamp_    = 0;
+  uint32_t  blkBits_      = 0;
+  int32_t   status_       = 0;  //  old name is result_
+
+  uint32_t  version_      = CURRENT_VERSION;
+  uint32_t  height_       = 0;
+  IpAddress ip_           = 0;
+  uint32_t  checkSum_     = 0;
 
   ShareBitcoin() = default;
   ShareBitcoin(const ShareBitcoin &r) = default;
@@ -91,8 +117,6 @@ public:
     c += (uint64_t) shareDiff_;
     c += (uint64_t) blkBits_;
     c += (uint64_t) height_;
-    c += (uint64_t) nonce_;
-    c += (uint64_t) sessionId_;
 
     return ((uint32_t) c) + ((uint32_t) (c >> 32));
   }
@@ -121,45 +145,34 @@ public:
   {
     double networkDifficulty = 0.0;
     BitsToDifficulty(blkBits_, &networkDifficulty);
+    return "";
 
-    return Strings::Format("share(jobId: %" PRIu64 ", ip: %s, userId: %d, "
-                           "workerId: %" PRId64 ", time: %u/%s, height: %u, "
-                           "blkBits: %08x/%lf, nonce: %08x, sessionId: %08x, shareDiff: %" PRIu64 ", "
-                           "status: %d/%s)",
-                           jobId_, ip_.toString().c_str(), userId_,
-                           workerHashId_, timestamp_, date("%F %T", timestamp_).c_str(), height_,
-                           blkBits_, networkDifficulty, nonce_, sessionId_, shareDiff_,
-                           status_, StratumStatus::toString(status_));
+    // return Strings::Format("share(jobId: %" PRIu64 ", ip: %s, userId: %d, "
+    //                        "workerId: %" PRId64 ", time: %u/%s, height: %u, "
+    //                        "blkBits: %08x/%lf, nonce: %08x, sessionId: %08x, shareDiff: %" PRIu64 ", "
+    //                        "status: %d/%s)",
+    //                        jobId_, ip_.toString().c_str(), userId_,
+    //                        workerHashId_, timestamp_, date("%F %T", timestamp_).c_str(), height_,
+    //                        blkBits_, networkDifficulty, nonce_, sessionId_, shareDiff_,
+    //                        status_, StratumStatus::toString(status_));
   }
 };
 
 class StratumJobBitcoin : public StratumJob
 {
 public:
-  int32_t height_;
-  int32_t nVersion_;
-  uint32_t nTime_;
-
-  uint32_t nBits_;
-  uint32_t minTime_;
-  uint256 networkTarget_;
-
-  // rsk merged mining
-  string blockHashForMergedMining_;
-  uint256 rskNetworkTarget_;
-  string rskdRpcAddress_;
-  string rskdRpcUserPwd_;
-  string feesForMiner_;
-  bool isMergedMiningCleanJob_;
-
-
   string gbtHash_; // gbt hash id
   uint256 prevHash_;
   string prevHashBeStr_; // little-endian hex, memory's order
+  int32_t height_;
   string coinbase1_;
   string coinbase2_;
   vector<uint256> merkleBranch_;
 
+  int32_t nVersion_;
+  uint32_t nBits_;
+  uint32_t nTime_;
+  uint32_t minTime_;
   int64_t coinbaseValue_;
   // if segwit is not active, it will be empty
   string witnessCommitment_;
@@ -168,6 +181,7 @@ public:
   string   rootStateHash_;
 #endif
 
+  uint256 networkTarget_;
 
   // namecoin merged mining
   uint32_t nmcAuxBits_;
@@ -178,6 +192,14 @@ public:
   int32_t nmcHeight_;
   string nmcRpcAddr_;
   string nmcRpcUserpass_;
+
+  // rsk merged mining
+  string blockHashForMergedMining_;
+  uint256 rskNetworkTarget_;
+  string rskdRpcAddress_;
+  string rskdRpcUserPwd_;
+  string feesForMiner_;
+  bool isMergedMiningCleanJob_;
 
 public:
   StratumJobBitcoin();

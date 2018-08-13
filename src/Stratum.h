@@ -43,23 +43,7 @@ inline string filterWorkerName(const char *workerName)
   return filterWorkerName(std::string(workerName));
 }
 
-////////////////////////////////// FoundBlock //////////////////////////////////
-class FoundBlock
-{
-public:
-  uint64_t jobId_;
-  int64_t workerId_; // found by who
-  int32_t userId_;
-  int32_t height_;
-  uint8_t header80_[80];
-  char workerFullName_[40]; // <UserName>.<WorkerName>
 
-  FoundBlock() : jobId_(0), workerId_(0), userId_(0), height_(0)
-  {
-    memset(header80_, 0, sizeof(header80_));
-    memset(workerFullName_, 0, sizeof(workerFullName_));
-  }
-};
 
 //////////////////////////////// StratumError ////////////////////////////////
 class StratumStatus

@@ -278,7 +278,6 @@ void StratumSessionBitcoin::handleRequest_Submit(const string &idStr,
   }
 
   ShareBitcoin share;
-  share.version_      = ShareBitcoin::CURRENT_VERSION;
   share.jobId_        = localJob->jobId_;
   share.workerHashId_ = worker_.workerHashId_;
   share.userId_       = worker_.userId_;
@@ -286,9 +285,8 @@ void StratumSessionBitcoin::handleRequest_Submit(const string &idStr,
   share.blkBits_      = localJob->blkBits_;
   share.timestamp_    = (uint64_t)time(nullptr);
   share.height_       = height;
-  share.nonce_        = nonce;
-  share.sessionId_    = extraNonce1_;
   share.status_       = StratumStatus::REJECT_NO_REASON;
+  share.legacy_ip_ = clientIpInt_;
   share.ip_.fromIpv4Int(clientIpInt_);
 
   if (isAgentSession == true) {

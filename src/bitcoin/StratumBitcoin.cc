@@ -79,11 +79,12 @@ int64 findExtraNonceStart(const vector<char> &coinbaseOriTpl,
 StratumJobBitcoin::StratumJobBitcoin()
   : height_(0)
   , nVersion_(0)
-  , nTime_(0U)
   , nBits_(0U)
+  , nTime_(0U)
   , minTime_(0U)
+  , coinbaseValue_(0)
+  , nmcAuxBits_(0u)
   , isMergedMiningCleanJob_(false)
-  , coinbaseValue_(0), nmcAuxBits_(0u)
 {
 
 }

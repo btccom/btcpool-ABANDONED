@@ -25,6 +25,7 @@
 #define BLOCK_MAKER_BITCOIN_H_
 
 #include "BlockMaker.h"
+#include "StratumBitcoin.h"
 
 #include <uint256.h>
 #include <primitives/transaction.h>
