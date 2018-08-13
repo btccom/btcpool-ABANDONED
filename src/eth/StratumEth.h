@@ -31,12 +31,20 @@
 
 #include <uint256.h>
 
-class ShareEth : public ShareBase
+class ShareEth// : public ShareBase
 {
 public:
 
   const static uint32_t CURRENT_VERSION_FOUNDATION = 0x00110002u; // first 0011: ETH, second 0002: version 2
   const static uint32_t CURRENT_VERSION_CLASSIC    = 0x00160002u; // first 0016: ETC, second 0002: version 2
+
+  uint32_t  checkSum_     = 0;
+  uint32_t  version_      = 0;
+
+  int64_t   workerHashId_ = 0;
+  int32_t   userId_       = 0;
+  int32_t   status_       = 0;
+  int64_t   timestamp_    = 0;
 
   uint64_t headerHash_  = 0;
   uint64_t shareDiff_   = 0;
@@ -44,6 +52,8 @@ public:
   uint64_t nonce_       = 0;
   uint32_t sessionId_   = 0;
   uint32_t height_      = 0;
+
+  IpAddress ip_           = 0;
 
   ShareEth() = default;
   ShareEth(const ShareEth &r) = default;

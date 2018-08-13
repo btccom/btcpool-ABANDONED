@@ -103,30 +103,6 @@ public:
   }
 };
 
-///////////////////////////////////// ShareBase ////////////////////////////////////
-// Class ShareBase should not be used directly.
-// Use a derived class of class ShareBase (example: ShareBitcoin, ShareEth).
-// Also, keep class ShareBase plain, don't add any virtual functions.
-// Otherwise, derived classes will not be able to use byte-based
-// object serialization (because of the addition of a virtual function table).
-class ShareBase
-{
-public:
-  
-  uint32_t  version_      = 0;
-  uint32_t  checkSum_     = 0;
-  int64_t   workerHashId_ = 0;
-  int32_t   userId_       = 0;
-  int32_t   status_       = 0;
-  int64_t   timestamp_    = 0;
-  IpAddress ip_           = 0;
-
-protected:
-  ShareBase() = default;
-  ShareBase(const ShareBase &r) = default;
-  ShareBase &operator=(const ShareBase &r) = default;
-};
-
 //////////////////////////////// StratumWorker ////////////////////////////////
 class StratumWorker
 {

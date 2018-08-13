@@ -66,17 +66,17 @@ public:
 
   uint64_t  jobId_        = 0;
   int64_t   workerHashId_ = 0;
-  uint32_t  legacy_ip_;
+  uint32_t  legacy_ip_    = 0;
   int32_t   userId_       = 0;
   uint64_t  shareDiff_    = 0;  //  old name is share_
   int64_t   timestamp_    = 0;
   uint32_t  blkBits_      = 0;
   int32_t   status_       = 0;  //  old name is result_
 
+  uint32_t  checkSum_     = 0;
   uint32_t  version_      = CURRENT_VERSION;
   uint32_t  height_       = 0;
   IpAddress ip_           = 0;
-  uint32_t  checkSum_     = 0;
 
   ShareBitcoin() = default;
   ShareBitcoin(const ShareBitcoin &r) = default;
@@ -145,16 +145,15 @@ public:
   {
     double networkDifficulty = 0.0;
     BitsToDifficulty(blkBits_, &networkDifficulty);
-    return "";
 
-    // return Strings::Format("share(jobId: %" PRIu64 ", ip: %s, userId: %d, "
-    //                        "workerId: %" PRId64 ", time: %u/%s, height: %u, "
-    //                        "blkBits: %08x/%lf, nonce: %08x, sessionId: %08x, shareDiff: %" PRIu64 ", "
-    //                        "status: %d/%s)",
-    //                        jobId_, ip_.toString().c_str(), userId_,
-    //                        workerHashId_, timestamp_, date("%F %T", timestamp_).c_str(), height_,
-    //                        blkBits_, networkDifficulty, nonce_, sessionId_, shareDiff_,
-    //                        status_, StratumStatus::toString(status_));
+    return Strings::Format("share(jobId: %" PRIu64 ", ip: %s, userId: %d, "
+                           "workerId: %" PRId64 ", time: %u/%s, height: %u, "
+                           "blkBits: %08x/%lf, shareDiff: %" PRIu64 ", "
+                           "status: %d/%s)",
+                           jobId_, ip_.toString().c_str(), userId_,
+                           workerHashId_, timestamp_, date("%F %T", timestamp_).c_str(), height_,
+                           blkBits_, networkDifficulty, shareDiff_,
+                           status_, StratumStatus::toString(status_));
   }
 };
 

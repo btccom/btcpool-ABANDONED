@@ -39,17 +39,26 @@ union BytomCombinedHeader
   uint8_t bytes[32];
 };
 
-class ShareBytom : public ShareBase
+class ShareBytom
 {
 public:
 
   const static uint32_t CURRENT_VERSION = 0x00010002u; // first 0001: bitcoin, second 0002: version 2.
 
-  uint64_t jobId_     = 0;
-  uint64_t shareDiff_ = 0;
-  uint64_t blkBits_   = 0;
-  uint64_t height_    = 0;
+
+  uint64_t  jobId_        = 0;
+  int64_t   workerHashId_ = 0;
+  int64_t   timestamp_    = 0;
+  uint64_t  shareDiff_    = 0;
+  uint64_t  blkBits_      = 0;
+  uint64_t  height_       = 0;
+  IpAddress ip_;
   BytomCombinedHeader combinedHeader_;
+
+  uint32_t  checkSum_     = 0;
+  uint32_t  version_      = CURRENT_VERSION;
+  int32_t   userId_       = 0;
+  int32_t   status_       = 0;
 
   ShareBytom() = default;
   ShareBytom(const ShareBytom &r) = default;
