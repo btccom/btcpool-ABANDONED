@@ -63,7 +63,14 @@ void StratumSessionEth::responseTrue(const string &idStr) {
 }
 
 void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
-  sendMiningNotifyWithId(exJobPtr, "null");
+  if (StratumProtocol::ETHPROXY == ethProtocol_) {
+    // AntMiner E3 need id to be 0, otherwise it will not be able to mine.
+    // It does not actively call `eth_getWork` like other ETHProxy miners.
+    sendMiningNotifyWithId(exJobPtr, "0");
+  }
+  else {
+    sendMiningNotifyWithId(exJobPtr, "null");
+  }
 }
 
 void StratumSessionEth::sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr, const string &idStr)
