@@ -43,8 +43,10 @@ class ShareBytom
 {
 public:
 
-  const static uint32_t CURRENT_VERSION = 0x00010002u; // first 0001: bitcoin, second 0002: version 2.
+  const static uint32_t CURRENT_VERSION = 0x00030001u; // first 0003: bytom, second 0002: version 1.
 
+  uint32_t  version_      = CURRENT_VERSION;
+  uint32_t  checkSum_     = 0;
 
   uint64_t  jobId_        = 0;
   int64_t   workerHashId_ = 0;
@@ -55,8 +57,6 @@ public:
   IpAddress ip_;
   BytomCombinedHeader combinedHeader_;
 
-  uint32_t  checkSum_     = 0;
-  uint32_t  version_      = CURRENT_VERSION;
   int32_t   userId_       = 0;
   int32_t   status_       = 0;
 

@@ -39,7 +39,7 @@
 // and the new version will coexist for a while.
 // If there is no forward compatibility, one of the versions of Share
 // will be considered invalid, resulting in loss of users' hashrate.
-class ShareEth// : public ShareBase
+class ShareEth
 {
 public:
 

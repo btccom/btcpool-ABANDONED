@@ -64,6 +64,10 @@ public:
 
   const static uint32_t CURRENT_VERSION = 0x00010002u; // first 0001: bitcoin, second 0002: version 2.
 
+  uint32_t  version_      = CURRENT_VERSION;
+  uint32_t  checkSum_     = 0;
+
+  //  The current master branch format
   uint64_t  jobId_        = 0;
   int64_t   workerHashId_ = 0;
   uint32_t  legacy_ip_    = 0;
@@ -72,9 +76,8 @@ public:
   int64_t   timestamp_    = 0;
   uint32_t  blkBits_      = 0;
   int32_t   status_       = 0;  //  old name is result_
+  //  End the current master branch format
 
-  uint32_t  checkSum_     = 0;
-  uint32_t  version_      = CURRENT_VERSION;
   uint32_t  height_       = 0;
   IpAddress ip_           = 0;
 
