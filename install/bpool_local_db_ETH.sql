@@ -26,6 +26,7 @@ CREATE TABLE `found_blocks` (
   PRIMARY KEY (`id`),
   KEY `hash` (`hash`),
   KEY `hash_no_nonce` (`hash_no_nonce`),
+  UNIQUE KEY `block_hash`(`hash_no_nonce`,`hash`),
   KEY `height` (`height`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
