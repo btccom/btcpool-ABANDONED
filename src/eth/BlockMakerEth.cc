@@ -212,6 +212,11 @@ bool BlockMakerEth::checkRpcSubmitBlockDetail() {
                                    "0x0000000000000000000000000000000000000000000000000000000000000000",
                                    "0x0000000000000000000000000000000000000000000000000000000000000000");
 
+  if (nodeRpcUri_.empty()) {
+    LOG(FATAL) << "Node list is empty, cannot submit block!";
+    return false;
+  }
+
   for (const auto &itr : nodeRpcUri_) {
     string response;
     bool ok = blockchainNodeRpcCall(itr.first.c_str(), itr.second.c_str(), request.c_str(), response);
