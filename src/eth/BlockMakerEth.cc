@@ -183,22 +183,22 @@ bool BlockMakerEth::checkRpcSubmitBlock() {
                                    "0x0000000000000000000000000000000000000000000000000000000000000000",
                                    "0x0000000000000000000000000000000000000000000000000000000000000000");
 
-  for (const auto &itr : nodeRpcUri_) {
+  for (const auto &itr : def_.nodes) {
     string response;
-    bool ok = blockchainNodeRpcCall(itr.first.c_str(), itr.second.c_str(), request.c_str(), response);
+    bool ok = blockchainNodeRpcCall(itr.rpcAddr_.c_str(), itr.rpcUserPwd_.c_str(), request.c_str(), response);
     if (!ok) {
-      LOG(WARNING) << "Call RPC eth_submitWork failed, node url: " << itr.first;
+      LOG(WARNING) << "Call RPC eth_submitWork failed, node url: " << itr.rpcAddr_;
       return false;
     }
 
     JsonNode r;
     if (!JsonNode::parse(response.c_str(), response.c_str() + response.size(), r)) {
-      LOG(WARNING) << "decode response failure, node url: " << itr.first << ", response: " << response;
+      LOG(WARNING) << "decode response failure, node url: " << itr.rpcAddr_ << ", response: " << response;
       return false;
     }
 
     if (r.type() != Utilities::JS::type::Obj || r["result"].type() != Utilities::JS::type::Bool) {
-      LOG(WARNING) << "node doesn't support eth_submitWork, node url: " << itr.first << ", response: " << response;
+      LOG(WARNING) << "node doesn't support eth_submitWork, node url: " << itr.rpcAddr_ << ", response: " << response;
       return false;
     }
   }
@@ -212,22 +212,22 @@ bool BlockMakerEth::checkRpcSubmitBlockDetail() {
                                    "0x0000000000000000000000000000000000000000000000000000000000000000",
                                    "0x0000000000000000000000000000000000000000000000000000000000000000");
 
-  if (nodeRpcUri_.empty()) {
+  if (def_.nodes.empty()) {
     LOG(FATAL) << "Node list is empty, cannot submit block!";
     return false;
   }
 
-  for (const auto &itr : nodeRpcUri_) {
+  for (const auto &itr : def_.nodes) {
     string response;
-    bool ok = blockchainNodeRpcCall(itr.first.c_str(), itr.second.c_str(), request.c_str(), response);
+    bool ok = blockchainNodeRpcCall(itr.rpcAddr_.c_str(), itr.rpcUserPwd_.c_str(), request.c_str(), response);
     if (!ok) {
-      LOG(WARNING) << "Call RPC eth_submitWorkDetail failed, node url: " << itr.first;
+      LOG(WARNING) << "Call RPC eth_submitWorkDetail failed, node url: " << itr.rpcAddr_;
       return false;
     }
 
     JsonNode r;
     if (!JsonNode::parse(response.c_str(), response.c_str() + response.size(), r)) {
-      LOG(WARNING) << "decode response failure, node url: " << itr.first << ", response: " << response;
+      LOG(WARNING) << "decode response failure, node url: " << itr.rpcAddr_ << ", response: " << response;
       return false;
     }
 
@@ -236,7 +236,7 @@ bool BlockMakerEth::checkRpcSubmitBlockDetail() {
       r["result"].children()->size() < 3 ||
       r["result"].children()->at(0).type() != Utilities::JS::type::Bool)
     {
-      LOG(WARNING) << "node doesn't support eth_submitWorkDetail, node url: " << itr.first << ", response: " << response;
+      LOG(WARNING) << "node doesn't support eth_submitWorkDetail, node url: " << itr.rpcAddr_ << ", response: " << response;
       return false;
     }
   }

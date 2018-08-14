@@ -91,11 +91,6 @@ BlockMaker* createBlockMaker(const BlockMakerDefinition& def, const string& brok
   else if ("BTM" == def.chainType_)
     maker = new BlockMakerBytom(def, broker.c_str(), *poolDBInfo);
 
-  if (maker) {
-    for (auto node : def.nodes) 
-      maker->addNodeRpc(node.rpcAddr_, node.rpcUserPwd_);
-  }
-
   return maker;
 }
 

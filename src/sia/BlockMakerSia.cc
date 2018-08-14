@@ -40,10 +40,10 @@ void BlockMakerSia::processSolvedShare(rd_kafka_message_t *rkmessage)
 
   char buf[80] = {0};
   memcpy(buf, rkmessage->payload, 80);
-  for (const auto &itr : nodeRpcUri_)
+  for (const auto &itr : def_.nodes)
   {
     string response;
-    rpcCall(itr.first.c_str(), itr.second.c_str(), buf, 80, response, "Sia-Agent");
+    rpcCall(itr.rpcAddr_.c_str(), itr.rpcUserPwd_.c_str(), buf, 80, response, "Sia-Agent");
     LOG(INFO) << "submission result: " << response;
   }
 }

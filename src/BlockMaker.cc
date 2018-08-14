@@ -43,10 +43,6 @@ void BlockMaker::stop() {
   LOG(INFO) << "stop block maker";
 }
 
-void BlockMaker::addNodeRpc(const string &rpcAddress, const string &rpcUserpass) {
-  nodeRpcUri_.push_back(make_pair(rpcAddress, rpcUserpass));
-}
-
 bool BlockMaker::init() {
 
   //

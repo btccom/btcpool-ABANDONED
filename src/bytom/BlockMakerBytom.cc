@@ -77,10 +77,10 @@ void BlockMakerBytom::processSolvedShare(rd_kafka_message_t *rkmessage)
 }
 
 void BlockMakerBytom::submitBlockNonBlocking(const string &request) {
-  for (const auto &itr : nodeRpcUri_) {
+  for (const auto &itr : def_.nodes) {
     // use thread to submit
     boost::thread t(boost::bind(&BlockMakerBytom::_submitBlockThread, this,
-                                itr.first, itr.second, request));
+                                itr.rpcAddr_, itr.rpcUserPwd_, request));
     t.detach();
   }
 }

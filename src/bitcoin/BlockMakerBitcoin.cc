@@ -585,12 +585,12 @@ void BlockMakerBitcoin::_saveBlockToDBThread(const FoundBlock &foundBlock,
 }
 
 bool BlockMakerBitcoin::checkBitcoinds() {
-  if (nodeRpcUri_.size() == 0) {
+  if (def_.nodes.size() == 0) {
     return false;
   }
 
-  for (const auto &itr : nodeRpcUri_) {
-    if (!checkBitcoinRPC(itr.first.c_str(), itr.second.c_str())) {
+  for (const auto &itr : def_.nodes) {
+    if (!checkBitcoinRPC(itr.rpcAddr_.c_str(), itr.rpcUserPwd_.c_str())) {
       return false;
     }
   }
@@ -599,10 +599,10 @@ bool BlockMakerBitcoin::checkBitcoinds() {
 }
 
 void BlockMakerBitcoin::submitBlockNonBlocking(const string &blockHex) {
-  for (const auto &itr : nodeRpcUri_) {
+  for (const auto &itr : def_.nodes) {
     // use thread to submit
     boost::thread t(boost::bind(&BlockMakerBitcoin::_submitBlockThread, this,
-                                itr.first, itr.second, blockHex));
+                                itr.rpcAddr_, itr.rpcUserPwd_, blockHex));
   }
 }
 

@@ -54,10 +54,6 @@ protected:
 
   KafkaConsumer kafkaConsumerSolvedShare_;
 
-  // submit new block to bitcoind
-  // pair: <RpcAddress, RpcUserpass>
-  std::vector<std::pair<string, string>> nodeRpcUri_;
-
   MysqlConnectInfo poolDB_; // save blocks to table.found_blocks
 
   void runThreadConsumeSolvedShare();
@@ -67,8 +63,6 @@ protected:
 public:
   BlockMaker(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
   virtual ~BlockMaker();
-
-  void addNodeRpc(const string &rpcAddress, const string &rpcUserpass);
 
   virtual bool init();
   virtual void stop();
