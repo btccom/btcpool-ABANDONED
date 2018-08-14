@@ -24,7 +24,8 @@ CREATE TABLE `found_blocks` (
   `network_diff` bigint(20) unsigned NOT NULL,
   `created_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `hash` (`hash`),
+  KEY `hash` (`hash`),
+  KEY `hash_no_nonce` (`hash_no_nonce`),
   KEY `height` (`height`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
