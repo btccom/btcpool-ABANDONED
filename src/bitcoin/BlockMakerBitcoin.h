@@ -88,6 +88,10 @@ namespace bpt = boost::posix_time;
 class BlockMakerBitcoin : public BlockMaker
 {
 protected:
+#ifdef CHAIN_TYPE_BCH
+  mutex rawGbtlightLock_;
+  std::map<uint256, std::string> rawGbtlightMap_;
+#endif // CHAIN_TYPE_BCH
 
   mutex rawGbtLock_;
   size_t kMaxRawGbtNum_; // how many rawgbt should we keep
@@ -137,6 +141,11 @@ protected:
   void _saveBlockToDBThread(const FoundBlock &foundBlock,
                             const CBlockHeader &header,
                             const uint64_t coinbaseValue, const int32_t blksize);
+#ifdef CHAIN_TYPE_BCH
+  void submitBlockLightNonBlocking(const string &blockHex, const string& job_id);
+  void _submitBlockLightThread(const string &rpcAddress, const string &rpcUserpass, const string& job_id,
+                          const string &blockHex);
+#endif // CHAIN_TYPE_BCH
 
   void submitBlockNonBlocking(const string &blockHex);
   void _submitBlockThread(const string &rpcAddress, const string &rpcUserpass,

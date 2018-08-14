@@ -393,7 +393,7 @@ set(THIRD_LIBRARIES ethash blake2 ${BH_SHARED_LIBRARY} ${USE_CUDA_LIBRARIES}
                     ${MYSQL_LIB} ${LIBZMQ_LIBRARIES} ${Hiredis_LIBRARIES} ${CURL_LIBRARIES} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY}
                     ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB}  ${GMP_LIBRARIES} ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} ${PTHREAD_LIBRARIES})
 
-file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc)
+file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc src/gbtsync/*.cpp)
 file(GLOB LIB_SOURCES_CHAINS
         src/eth/*.cc 
         src/bytom/*.cc 
@@ -403,7 +403,7 @@ file(GLOB LIB_SOURCES_CHAINS
     
 add_library(btcpool STATIC ${LIB_SOURCES} ${LIB_SOURCES_CHAINS})
 
-file(GLOB_RECURSE TEST_SOURCES test/*.cc)
+file(GLOB_RECURSE TEST_SOURCES test/*.cc test/*.cpp)
 add_executable(unittest ${TEST_SOURCES})
 target_link_libraries(unittest btcpool ${THIRD_LIBRARIES})
 
@@ -451,7 +451,11 @@ file(GLOB_RECURSE POOLWATCHER_SOURCES src/poolwatcher/*.cc)
 add_executable(poolwatcher ${POOLWATCHER_SOURCES})
 target_link_libraries(poolwatcher btcpool ${THIRD_LIBRARIES})
 
+file(GLOB_RECURSE GBTSYNC_SOURCES src/gbtsync/*.cpp)
+add_executable(gbtsync ${GBTSYNC_SOURCES})
+target_link_libraries(gbtsync btcpool ${THIRD_LIBRARIES})
 
+file(COPY "test/TestGbtSync/testdata/" DESTINATION testdata)
 ###################################### Install & Package ######################################
 message("") # empty line
 message("------------------------------- Install & Package -------------------------------")

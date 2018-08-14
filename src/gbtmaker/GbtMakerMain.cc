@@ -127,7 +127,11 @@ int main(int argc, char **argv) {
     if (!gGbtMaker->init()) {
       LOG(FATAL) << "gbtmaker init failure";
     } else {
+#ifdef CHAIN_TYPE_BCH
+      gGbtMaker->run(false, true);
+#else
       gGbtMaker->run();
+#endif
     }
     delete gGbtMaker;
   } catch (std::exception & e) {
