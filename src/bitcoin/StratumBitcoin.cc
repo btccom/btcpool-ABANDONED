@@ -34,7 +34,6 @@
 #include <streams.h>
 
 #include "Utils.h"
-#include "bytom/bh_shared.h"
 #include <glog/logging.h>
 
 
