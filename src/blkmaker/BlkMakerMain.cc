@@ -70,53 +70,74 @@ void usage() {
 //   return maker;
 // }
 
-BlockMaker* createBlockMaker(const BlockMakerDefinition& def, const string& broker, MysqlConnectInfo* poolDBInfo) {
+BlockMaker* createBlockMaker(shared_ptr<BlockMakerDefinition> def, const string& broker, MysqlConnectInfo* poolDBInfo) {
   BlockMaker *maker = nullptr;
 #if defined(CHAIN_TYPE_BTC)
-  if ("BTC" == def.chainType_)
+  if ("BTC" == def->chainType_)
 #elif defined(CHAIN_TYPE_BCH)
-  if ("BCH" == def.chainType_)
+  if ("BCH" == def->chainType_)
 #elif defined(CHAIN_TYPE_UBTC)
-  if ("UBTC" == def.chainType_)
+  if ("UBTC" == def->chainType_)
 #elif defined(CHAIN_TYPE_SBTC)
-  if ("SBTC" == def.chainType_)
+  if ("SBTC" == def->chainType_)
 #else 
   if (false)
 #endif  
     maker = new BlockMakerBitcoin(def, broker.c_str(), *poolDBInfo);
-  else if ("ETH" == def.chainType_) 
+  else if ("ETH" == def->chainType_) 
     maker = new BlockMakerEth(def, broker.c_str(), *poolDBInfo);
-  else if ("SIA" == def.chainType_)
+  else if ("SIA" == def->chainType_)
     maker = new BlockMakerSia(def, broker.c_str(), *poolDBInfo);
-  else if ("BTM" == def.chainType_)
+  else if ("BTM" == def->chainType_)
     maker = new BlockMakerBytom(def, broker.c_str(), *poolDBInfo);
 
   return maker;
 }
 
-void readConfigToString(const Setting &setting, const string &key, string &value) {
-  if (!setting.lookupValue(key, value)) {
-    LOG(FATAL) << "config section missing key=" << key;
-  }
-}
-
-BlockMakerDefinition createDefinition(const Setting &setting)
+shared_ptr<BlockMakerDefinition> createDefinition(const Setting &setting)
 {
-  BlockMakerDefinition def;
+  string chainType;
+  shared_ptr<BlockMakerDefinition> def;
 
-  readConfigToString(setting, "chain_type",  def.chainType_);
-  readConfigToString(setting, "solved_share_topic", def.solvedShareTopic_);
-  def.enabled_ = false;
-  setting.lookupValue("enabled", def.enabled_);
+  readFromSetting(setting, "chain_type",  chainType);
+  
+#if defined(CHAIN_TYPE_BTC)
+  if ("BTC" == chainType)
+#elif defined(CHAIN_TYPE_BCH)
+  if ("BCH" == chainType)
+#elif defined(CHAIN_TYPE_UBTC)
+  if ("UBTC" == chainType)
+#elif defined(CHAIN_TYPE_SBTC)
+  if ("SBTC" == chainType)
+#else 
+  if (false)
+#endif
+  {
+    shared_ptr<BlockMakerDefinitionBitcoin> bitcoinDef = std::make_shared<BlockMakerDefinitionBitcoin>();
+
+    readFromSetting(setting, "auxpow_solved_share_topic",  bitcoinDef->auxPowSolvedShareTopic_);
+    readFromSetting(setting, "rsk_solved_share_topic", bitcoinDef->rskSolvedShareTopic_);
+
+    def = bitcoinDef;
+  }
+  else
+  {
+    def = std::make_shared<BlockMakerDefinition>();
+  }
+
+  def->chainType_ = chainType;
+  def->enabled_ = false;
+  readFromSetting(setting, "enabled", def->enabled_, true);
+  readFromSetting(setting, "solved_share_topic", def->solvedShareTopic_);
 
   const Setting &nodes = setting["nodes"];
   for (int i = 0; i < nodes.getLength(); ++i)
   {
     const Setting &nodeSetting = nodes[i];
     NodeDefinition nodeDef;
-    readConfigToString(nodeSetting, "rpc_addr",  nodeDef.rpcAddr_);
-    readConfigToString(nodeSetting, "rpc_userpwd",  nodeDef.rpcUserPwd_);
-    def.nodes.push_back(nodeDef);
+    readFromSetting(nodeSetting, "rpc_addr",  nodeDef.rpcAddr_);
+    readFromSetting(nodeSetting, "rpc_userpwd",  nodeDef.rpcUserPwd_);
+    def->nodes.push_back(nodeDef);
   }
 
   return def;
@@ -126,14 +147,14 @@ BlockMakerDefinition createDefinition(const Setting &setting)
 // {
 //   shared_ptr<BlockMakerHandler> handler;
 
-//   if (def.chainType_ == "ETH")
+//   if (def->chainType_ == "ETH")
 //     handler = make_shared<BlockMakerHandler>();
-//   else if (def.chainType_ == "SIA")
+//   else if (def->chainType_ == "SIA")
 //     handler = make_shared<BlockMakerHandler>();
-//   else if (def.chainType_ == "RSK")
+//   else if (def->chainType_ == "RSK")
 //     handler = make_shared<BlockMakerHandler>();
 //   else
-//     LOG(FATAL) << "unknown chain type: " << def.chainType_;
+//     LOG(FATAL) << "unknown chain type: " << def->chainType_;
 
 //   handler->init(def);
 
@@ -148,13 +169,13 @@ void createBlockMakers(const libconfig::Config &cfg, MysqlConnectInfo* poolDBInf
 
   for (int i = 0; i < makerDefs.getLength(); ++i)
   {
-    BlockMakerDefinition def = createDefinition(makerDefs[i]);
-    if (!def.enabled_)
+    auto def = createDefinition(makerDefs[i]);
+    if (!def->enabled_)
     {
-      LOG(INFO) << "chain: " << def.chainType_ << ", topic: " << def.solvedShareTopic_ << ", disabled.";
+      LOG(INFO) << "chain: " << def->chainType_ << ", topic: " << def->solvedShareTopic_ << ", disabled.";
       continue;
     }
-    LOG(INFO) << "chain: " << def.chainType_ << ", topic: " << def.solvedShareTopic_ << ", enabled.";
+    LOG(INFO) << "chain: " << def->chainType_ << ", topic: " << def->solvedShareTopic_ << ", enabled.";
     //auto handler = createBlockMakerHandler(def);
     //makers.push_back(std::make_shared<BlockMaker>(broker.c_str(), *poolDBInfo));
     shared_ptr<BlockMaker> maker(createBlockMaker(def, broker, poolDBInfo));

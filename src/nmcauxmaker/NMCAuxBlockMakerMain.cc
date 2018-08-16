@@ -125,6 +125,7 @@ int main(int argc, char **argv) {
                                            cfg.lookup("namecoind.rpc_addr"),
                                            cfg.lookup("namecoind.rpc_userpwd"),
                                            cfg.lookup("kafka.brokers"),
+                                           cfg.lookup("auxpow_gw_topic"),
                                            rpcCallInterval, fileLastRpcCallTime,
                                            isCheckZmq, coinbaseAddress);
 

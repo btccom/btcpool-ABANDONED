@@ -5,6 +5,8 @@
 
 class Server;
 
-Server* createStratumServer(std::string type, const int32_t shareAvgSeconds);
+Server* createStratumServer(const std::string &type, const int32_t shareAvgSeconds,
+                            const std::string &auxPowSolvedShareTopic, /*bitcoin only. TODO: refactor this*/
+                            const std::string &rskSolvedShareTopic     /*bitcoin only. TODO: refactor this*/);
 
 #endif

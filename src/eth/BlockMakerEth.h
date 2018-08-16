@@ -31,7 +31,7 @@
 class BlockMakerEth : public BlockMaker
 {
 public:
-  BlockMakerEth(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
+  BlockMakerEth(shared_ptr<BlockMakerDefinition> def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
   void processSolvedShare(rd_kafka_message_t *rkmessage) override;
 
 private:

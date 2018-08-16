@@ -30,7 +30,7 @@
 class BlockMakerBytom : public BlockMaker
 {
 public:
-  BlockMakerBytom(const BlockMakerDefinition &def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
+  BlockMakerBytom(shared_ptr<BlockMakerDefinition> def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
   void processSolvedShare(rd_kafka_message_t *rkmessage) override;
 
 private:

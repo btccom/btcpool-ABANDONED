@@ -29,7 +29,7 @@
 #include <boost/thread.hpp>
 
 ////////////////////////////////////////////////BlockMakerEth////////////////////////////////////////////////////////////////
-BlockMakerEth::BlockMakerEth(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB) 
+BlockMakerEth::BlockMakerEth(shared_ptr<BlockMakerDefinition> def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB) 
   : BlockMaker(def, kafkaBrokers, poolDB)
 {
   useSubmitBlockDetail_ = checkRpcSubmitBlockDetail();
@@ -74,7 +74,7 @@ void BlockMakerEth::processSolvedShare(rd_kafka_message_t *rkmessage)
   worker.workerHashId_ = r["workerId"].int64();
   worker.fullName_ = r["workerFullName"].str();
 
-  submitBlockNonBlocking(r["nonce"].str(), r["header"].str(), r["mix"].str(), def_.nodes,
+  submitBlockNonBlocking(r["nonce"].str(), r["header"].str(), r["mix"].str(), def()->nodes,
                          r["height"].uint32(), r["chain"].str(), r["networkDiff"].uint64(),
                          worker);
 }
@@ -183,7 +183,7 @@ bool BlockMakerEth::checkRpcSubmitBlock() {
                                    "0x0000000000000000000000000000000000000000000000000000000000000000",
                                    "0x0000000000000000000000000000000000000000000000000000000000000000");
 
-  for (const auto &itr : def_.nodes) {
+  for (const auto &itr : def()->nodes) {
     string response;
     bool ok = blockchainNodeRpcCall(itr.rpcAddr_.c_str(), itr.rpcUserPwd_.c_str(), request.c_str(), response);
     if (!ok) {
@@ -212,12 +212,12 @@ bool BlockMakerEth::checkRpcSubmitBlockDetail() {
                                    "0x0000000000000000000000000000000000000000000000000000000000000000",
                                    "0x0000000000000000000000000000000000000000000000000000000000000000");
 
-  if (def_.nodes.empty()) {
+  if (def()->nodes.empty()) {
     LOG(FATAL) << "Node list is empty, cannot submit block!";
     return false;
   }
 
-  for (const auto &itr : def_.nodes) {
+  for (const auto &itr : def()->nodes) {
     string response;
     bool ok = blockchainNodeRpcCall(itr.rpcAddr_.c_str(), itr.rpcUserPwd_.c_str(), request.c_str(), response);
     if (!ok) {

@@ -33,11 +33,15 @@ class JobRepositoryBitcoin;
 class ServerBitcoin : public ServerBase<JobRepositoryBitcoin>
 {
 private:
+  string auxPowSolvedShareTopic_;
+  string rskSolvedShareTopic_;
   KafkaProducer *kafkaProducerNamecoinSolvedShare_;
   KafkaProducer *kafkaProducerRskSolvedShare_;
 
 public:
-  ServerBitcoin(const int32_t shareAvgSeconds);
+  ServerBitcoin(const int32_t shareAvgSeconds,
+                const string& auxPowSolvedShareTopic,
+                const string& rskSolvedShareTopic);
   virtual ~ServerBitcoin();
 
   bool setupInternal(StratumServer* sserver) override;

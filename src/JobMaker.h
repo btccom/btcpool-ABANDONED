@@ -84,7 +84,7 @@ struct GbtJobMakerDefinition : public JobMakerDefinition
   uint32 blockVersion_;
   
   string rawGbtTopic_;
-  string auxPowTopic_;
+  string auxPowGwTopic_;
   string rskRawGwTopic_;
 
   uint32 maxJobDelay_;
