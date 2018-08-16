@@ -71,7 +71,7 @@ protected:
                 const string &poolName, const string &poolHost,
                 const int16_t poolPort, const string &workerName) = 0;
 
-  ClientContainer(const string &kafkaBrokers, const char* consumerTopic, const char* producerTopic);
+  ClientContainer(const string &kafkaBrokers, const string &consumerTopic, const string &producerTopic);
 
 public:
   virtual ~ClientContainer();

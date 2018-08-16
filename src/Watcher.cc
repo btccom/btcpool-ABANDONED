@@ -94,10 +94,10 @@ bool resolve(const string &host, struct	in_addr *sin_addr) {
 }
 
 ///////////////////////////////// ClientContainer //////////////////////////////
-ClientContainer::ClientContainer(const string &kafkaBrokers, const char* consumerTopic, const char* producerTopic)
+ClientContainer::ClientContainer(const string &kafkaBrokers, const string &consumerTopic, const string &producerTopic)
   : running_(true), kafkaBrokers_(kafkaBrokers)
-  , kafkaProducer_(kafkaBrokers_.c_str(), producerTopic, 0/* partition */)
-  , kafkaStratumJobConsumer_(kafkaBrokers_.c_str(), consumerTopic, 0/*patition*/)
+  , kafkaProducer_(kafkaBrokers_.c_str(), producerTopic.c_str(), 0/* partition */)
+  , kafkaStratumJobConsumer_(kafkaBrokers_.c_str(), consumerTopic.c_str(), 0/*patition*/)
 {
   base_ = event_base_new();
   assert(base_ != nullptr);

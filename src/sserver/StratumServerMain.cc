@@ -214,13 +214,20 @@ int main(int argc, char **argv)
                                        isSubmitInvalidBlock,
                                        isDevModeEnabled,
                                        minerDifficulty,
-                                       cfg.lookup("sserver.consumer_topic"),
+                                       cfg.lookup("kafka.job_topic"),
                                        maxJobDelay,
                                        dc,
-                                       cfg.lookup("sserver.solved_share_topic"),
-                                       cfg.lookup("sserver.share_topic"),
-                                       cfg.lookup("sserver.common_events_topic"));
-    if (!gStratumServer->createServer(cfg.lookup("sserver.type"), shareAvgSeconds))
+                                       cfg.lookup("kafka.solved_share_topic"),
+                                       cfg.lookup("kafka.share_topic"),
+                                       cfg.lookup("kafka.common_events_topic"));
+    
+    // bitcoin only
+    // TODO: refactor it.
+    string auxPowSolvedShareTopic, rskSolvedShareTopic;
+    cfg.lookupValue("kafka.common_events_topic", auxPowSolvedShareTopic);
+    cfg.lookupValue("kafka.common_events_topic", rskSolvedShareTopic);
+
+    if (!gStratumServer->createServer(cfg.lookup("sserver.type"), shareAvgSeconds, auxPowSolvedShareTopic, rskSolvedShareTopic))
     {
       LOG(FATAL) << "createServer failed";
       return 1;

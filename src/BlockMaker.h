@@ -43,13 +43,25 @@ struct BlockMakerDefinition
   bool enabled_;
   vector<NodeDefinition> nodes; 
   string solvedShareTopic_;
+
+  virtual ~BlockMakerDefinition() {}
+};
+
+struct BlockMakerDefinitionBitcoin : public BlockMakerDefinition
+{
+  string rawGbtTopic_;
+  string stratumJobTopic_;
+  string auxPowSolvedShareTopic_; // merged mining solved share topic
+  string rskSolvedShareTopic_;
+
+  virtual ~BlockMakerDefinitionBitcoin() {}
 };
 
 ////////////////////////////////// BlockMaker //////////////////////////////////
 class BlockMaker
 {
 protected:
-  BlockMakerDefinition def_;
+  shared_ptr<BlockMakerDefinition> def_;
   atomic<bool> running_;
 
   KafkaConsumer kafkaConsumerSolvedShare_;
@@ -59,9 +71,11 @@ protected:
   void runThreadConsumeSolvedShare();
   void consumeSolvedShare(rd_kafka_message_t *rkmessage);
   virtual void processSolvedShare(rd_kafka_message_t *rkmessage) = 0;
+  // read-only definition
+  inline shared_ptr<const BlockMakerDefinition> def() { return def_; }
 
 public:
-  BlockMaker(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
+  BlockMaker(shared_ptr<BlockMakerDefinition> def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
   virtual ~BlockMaker();
 
   virtual bool init();
