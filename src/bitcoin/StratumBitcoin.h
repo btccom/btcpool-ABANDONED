@@ -64,22 +64,28 @@ public:
 
   const static uint32_t CURRENT_VERSION = 0x00010002u; // first 0001: bitcoin, second 0002: version 2.
 
+  // Please pay attention to memory alignment when adding / removing fields.
+  // Please note that changing the Share structure will be incompatible with the old deployment.
+  // Also, think carefully when removing fields. Some fields are not used by BTCPool itself,
+  // but are important to external statistics programs.
+
+  // TODO: Change to a data structure that is easier to upgrade, such as ProtoBuf.
+
   uint32_t  version_      = CURRENT_VERSION;
   uint32_t  checkSum_     = 0;
 
-  //  The current master branch format
-  uint64_t  jobId_        = 0;
   int64_t   workerHashId_ = 0;
-  uint32_t  legacy_ip_    = 0;
   int32_t   userId_       = 0;
-  uint64_t  shareDiff_    = 0;  //  old name is share_
+  int32_t   status_       = 0;
   int64_t   timestamp_    = 0;
-  uint32_t  blkBits_      = 0;
-  int32_t   status_       = 0;  //  old name is result_
-  //  End the current master branch format
-
-  uint32_t  height_       = 0;
   IpAddress ip_           = 0;
+
+  uint64_t jobId_     = 0;
+  uint64_t shareDiff_ = 0;
+  uint32_t blkBits_   = 0;
+  uint32_t height_    = 0;
+  uint32_t nonce_     = 0;
+  uint32_t sessionId_ = 0;
 
   ShareBitcoin() = default;
   ShareBitcoin(const ShareBitcoin &r) = default;
@@ -120,6 +126,8 @@ public:
     c += (uint64_t) shareDiff_;
     c += (uint64_t) blkBits_;
     c += (uint64_t) height_;
+    c += (uint64_t) nonce_;
+    c += (uint64_t) sessionId_;
 
     return ((uint32_t) c) + ((uint32_t) (c >> 32));
   }
@@ -159,6 +167,8 @@ public:
                            status_, StratumStatus::toString(status_));
   }
 };
+
+static_assert(sizeof(ShareBitcoin) == 80, "ShareBitcoin should be 80 bytes");
 
 class StratumJobBitcoin : public StratumJob
 {
