@@ -53,6 +53,7 @@ union IpAddress {
     addrUint64[1] = 0;
   }
 
+  // just for init
   IpAddress(uint64_t initNum) {
     addrUint64[0] = initNum;
     addrUint64[1] = initNum;
@@ -101,6 +102,10 @@ union IpAddress {
     addrUint32[1] = 0;
     addrUint32[2] = 0;
     addrUint32[3] = ipv4Int;
+  }
+
+  uint32_t toIpv4Int() const {
+    return addrUint32[3];
   }
 
   bool isIpv4() const {

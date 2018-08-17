@@ -34,22 +34,33 @@
 #include <glog/logging.h>
 #include <libconfig.h++>
 
-#include "Kafka.h"
+#include "ShareConvertor.hpp"
 
 using namespace std;
 using namespace libconfig;
 
-// container for pool watch clients
-//ClientContainer *gClientContainer = nullptr;
+// kafka repeater
+KafkaRepeater *gKafkaRepeater = nullptr;
 
 void handler(int sig) {
-  /*if (gClientContainer) {
-    gClientContainer->stop();
-  }*/
+  if (gKafkaRepeater) {
+    gKafkaRepeater->stop();
+  }
 }
 
 void usage() {
   fprintf(stderr, "Usage:\n\tkafka_repeater -c \"kafka_repeater.cfg\" -l \"log_kafka_repeater\"\n");
+}
+
+template<typename S, typename V>
+void readFromSetting(const S &setting,
+                     const string &key,
+                     V &value,
+                     bool optional = false)
+{
+  if (!setting.lookupValue(key, value) && !optional) {
+    LOG(FATAL) << "config section missing key: " << key;
+  }
 }
 
 int main(int argc, char **argv) {
@@ -77,7 +88,11 @@ int main(int argc, char **argv) {
 
   // Initialize Google's logging library.
   google::InitGoogleLogging(argv[0]);
-  FLAGS_log_dir         = string(optLogDir);
+  if (optLogDir == NULL || strcmp(optLogDir, "stderr") == 0) {
+    FLAGS_logtostderr = 1;
+  } else {
+    FLAGS_log_dir = string(optLogDir);
+  }
   // Log messages at a level >= this flag are automatically sent to
   // stderr in addition to log files.
   FLAGS_stderrthreshold = 3;    // 3: FATAL
@@ -111,7 +126,31 @@ int main(int argc, char **argv) {
   signal(SIGINT,  handler);
 
   try {
-    LOG(INFO) << "hello!";
+    bool enableSConvBtcV2ToV1 = false;
+    int repeatedNumberDisplayInterval = 10;
+    readFromSetting(cfg, "share_convertor.bitcoin_v2_to_v1", enableSConvBtcV2ToV1, true);
+    readFromSetting(cfg, "log.repeated_number_display_interval", repeatedNumberDisplayInterval, true);
+
+
+    if (enableSConvBtcV2ToV1) {
+      gKafkaRepeater = new ShareConvertorBitcoinV2ToV1(
+        cfg.lookup("kafka.in_brokers"), cfg.lookup("kafka.in_topic"), cfg.lookup("kafka.in_group_id"),
+        cfg.lookup("kafka.out_brokers"), cfg.lookup("kafka.out_topic")
+      );
+    }
+    else {
+      LOG(INFO) << "no repeater enabled";
+      return 0;
+    }
+
+    
+    if (!gKafkaRepeater->init()) {
+      LOG(FATAL) << "kafka repeater init failed";
+      return 1;
+    }
+
+    gKafkaRepeater->runMessageNumberDisplayThread(repeatedNumberDisplayInterval);
+    gKafkaRepeater->run();
   }
   catch (std::exception & e) {
     LOG(FATAL) << "exception: " << e.what();
