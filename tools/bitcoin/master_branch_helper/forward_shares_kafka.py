@@ -42,17 +42,18 @@ def forward_topics(settings):
 
     while True:
         # print("FORWARD TOPICS")
-        polled_messages = solvedShare_consumer.poll(1000)
-        for topic_partition, messages in polled_messages.items():
-            for message in messages:
-                # print("Receive message topic " + message.topic)
-                producer.send(master_solvedShare_topic, message.value)
+        # polled_messages = solvedShare_consumer.poll(1000)
+        # for topic_partition, messages in polled_messages.items():
+        #     for message in messages:
+        #         # print("Receive message topic " + message.topic)
+        #         producer.send(master_solvedShare_topic, message.value)
 
         polled_messages = shareLog_consumer.poll(100)
         for topic_partition, messages in polled_messages.items():
             for message in messages:
                 # print("Receive message topic " + message.topic)
-                producer.send(master_shareLog_topic, message.value[8:56])
+                # producer.send(master_shareLog_topic, message.value[8:56])
+                producer.send(master_shareLog_topic, message.value)
         # sys.stdout.flush()
         time.sleep(0.05)
 
@@ -67,6 +68,11 @@ def main():
 
     deveth_broker = "localhost:9092"
     master_broker = "otherkafkahost:9092" #Change this value
+
+    deveth_broker = sys.argv[1]
+    master_broker = sys.argv[2]
+
+    print(str(sys.argv))
 
     # len_argv = len(sys.argv)
     # for i in range(0, len_argv):
