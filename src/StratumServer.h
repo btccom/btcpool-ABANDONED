@@ -395,7 +395,9 @@ public:
                 const string& shareTopic,
                 const string& commonEventsTopic);
   ~StratumServer();
-  bool createServer(string type, const int32_t shareAvgSeconds);
+  bool createServer(const string &type, const int32_t shareAvgSeconds,
+                    const string& auxPowSolvedShareTopic, /*bitcoin only. TODO: refactor this*/
+                    const string& rskSolvedShareTopic     /*bitcoin only. TODO: refactor this*/);
   bool init();
   void stop();
   void run();

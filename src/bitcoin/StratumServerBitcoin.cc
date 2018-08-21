@@ -24,7 +24,6 @@
 #include "StratumServerBitcoin.h"
 #include "StratumSessionBitcoin.h"
 #include "StratumBitcoin.h"
-#include "KafkaBitcoin.h"
 
 #include "rsk/RskSolvedShareData.h"
 
@@ -228,8 +227,12 @@ void StratumJobExBitcoin::generateBlockHeader(CBlockHeader *header,
   }
 }
 ////////////////////////////////// ServerBitcoin ///////////////////////////////
-ServerBitcoin::ServerBitcoin(const int32_t shareAvgSeconds)
+ServerBitcoin::ServerBitcoin(const int32_t shareAvgSeconds,
+                             const string& auxPowSolvedShareTopic,
+                             const string& rskSolvedShareTopic)
   : ServerBase(shareAvgSeconds)
+  , auxPowSolvedShareTopic_(auxPowSolvedShareTopic)
+  , rskSolvedShareTopic_(rskSolvedShareTopic)
   , kafkaProducerNamecoinSolvedShare_(nullptr)
   , kafkaProducerRskSolvedShare_(nullptr)
 {
@@ -249,10 +252,10 @@ ServerBitcoin::~ServerBitcoin()
 bool ServerBitcoin::setupInternal(StratumServer* sserver)
 {
   kafkaProducerNamecoinSolvedShare_ = new KafkaProducer(sserver->kafkaBrokers_.c_str(),
-                                                        KAFKA_TOPIC_NMC_SOLVED_SHARE,
+                                                        auxPowSolvedShareTopic_.c_str(),
                                                         RD_KAFKA_PARTITION_UA);
   kafkaProducerRskSolvedShare_ = new KafkaProducer(sserver->kafkaBrokers_.c_str(),
-                                                        KAFKA_TOPIC_RSK_SOLVED_SHARE,
+                                                        rskSolvedShareTopic_.c_str(),
                                                         RD_KAFKA_PARTITION_UA);
 
   // kafkaProducerNamecoinSolvedShare_

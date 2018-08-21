@@ -124,7 +124,9 @@ int main(int argc, char **argv) {
     SelectParams(CBaseChainParams::MAIN);
   }
 
-  gClientContainer = new ClientContainerBitcoin(cfg.lookup("kafka.brokers"));
+  gClientContainer = new ClientContainerBitcoin(cfg.lookup("kafka.brokers"),
+                                                cfg.lookup("poolwatcher.job_topic"),
+                                                cfg.lookup("poolwatcher.rawgbt_topic"));
 
   // add pools
   {

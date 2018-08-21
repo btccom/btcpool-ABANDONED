@@ -42,7 +42,7 @@ protected:
                 const int16_t poolPort, const string &workerName) override;
 
 public:
-  ClientContainerBitcoin(const string &kafkaBrokers);
+  ClientContainerBitcoin(const string &kafkaBrokers, const string &jobTopic, const string &gbtTopic);
   ~ClientContainerBitcoin();
 
   bool sendEmptyGBT(int32_t blockHeight, uint32_t nBits,

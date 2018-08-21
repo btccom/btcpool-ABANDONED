@@ -170,8 +170,11 @@ protected:
                                           const string &totalTxCount);
   bool submitToRskNode();
 
+  // read-only definition
+  inline shared_ptr<const BlockMakerDefinitionBitcoin> def() { return std::dynamic_pointer_cast<const BlockMakerDefinitionBitcoin>(def_); }
+
 public:
-  BlockMakerBitcoin(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
+  BlockMakerBitcoin(shared_ptr<BlockMakerDefinition> def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
   virtual ~BlockMakerBitcoin();
 
   bool init() override;
