@@ -125,8 +125,8 @@ int main(int argc, char **argv) {
   }
 
   gClientContainer = new ClientContainerBitcoin(cfg.lookup("kafka.brokers"),
-                                                cfg.lookup("kafka.job_topic"),
-                                                cfg.lookup("kafka.rawgbt_topic"));
+                                                cfg.lookup("poolwatcher.job_topic"),
+                                                cfg.lookup("poolwatcher.rawgbt_topic"));
 
   // add pools
   {

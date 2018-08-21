@@ -120,7 +120,7 @@ int main(int argc, char **argv) {
                            cfg.lookup("bitcoind.rpc_addr"),
                            cfg.lookup("bitcoind.rpc_userpwd"),
                            cfg.lookup("kafka.brokers"),
-                           cfg.lookup("kafka.rawgbt_topic"),
+                           cfg.lookup("gbtmaker.rawgbt_topic"),
                            rpcCallInterval, isCheckZmq);
 
   try {
