@@ -115,6 +115,8 @@ shared_ptr<BlockMakerDefinition> createDefinition(const Setting &setting)
   {
     shared_ptr<BlockMakerDefinitionBitcoin> bitcoinDef = std::make_shared<BlockMakerDefinitionBitcoin>();
 
+    readFromSetting(setting, "job_topic",  bitcoinDef->stratumJobTopic_);
+    readFromSetting(setting, "rawgbt_topic",  bitcoinDef->rawGbtTopic_);
     readFromSetting(setting, "auxpow_solved_share_topic",  bitcoinDef->auxPowSolvedShareTopic_);
     readFromSetting(setting, "rsk_solved_share_topic", bitcoinDef->rskSolvedShareTopic_);
 

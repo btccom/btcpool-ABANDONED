@@ -214,12 +214,12 @@ int main(int argc, char **argv)
                                        isSubmitInvalidBlock,
                                        isDevModeEnabled,
                                        minerDifficulty,
-                                       cfg.lookup("kafka.job_topic"),
+                                       cfg.lookup("sserver.job_topic"),
                                        maxJobDelay,
                                        dc,
-                                       cfg.lookup("kafka.solved_share_topic"),
-                                       cfg.lookup("kafka.share_topic"),
-                                       cfg.lookup("kafka.common_events_topic"));
+                                       cfg.lookup("sserver.solved_share_topic"),
+                                       cfg.lookup("sserver.share_topic"),
+                                       cfg.lookup("sserver.common_events_topic"));
     
     // bitcoin only
     // TODO: refactor it.
