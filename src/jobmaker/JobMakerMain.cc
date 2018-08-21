@@ -169,8 +169,8 @@ shared_ptr<GbtJobMakerDefinition> createGbtJobMakerDefinition(const Setting &set
   readFromSetting(setting, "block_version",       def->blockVersion_);
 
   readFromSetting(setting, "rawgbt_topic",        def->rawGbtTopic_);
-  // readFromSetting(setting, "auxpow_topic",        def->auxPowTopic_);
-  // readFromSetting(setting, "rsk_rawgw_topic",     def->rskRawGwTopic_);
+  readFromSetting(setting, "auxpow_gw_topic",     def->auxPowGwTopic_);
+  readFromSetting(setting, "rsk_rawgw_topic",     def->rskRawGwTopic_);
   readFromSetting(setting, "job_topic",           def->jobTopic_);
 
   readFromSetting(setting, "job_interval",        def->jobInterval_);

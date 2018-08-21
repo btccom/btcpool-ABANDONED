@@ -24,7 +24,6 @@
 #include "WatcherBitcoin.h"
 
 #include "BitcoinUtils.h"
-#include "KafkaBitcoin.h"
 
 #include "utilities_js.hpp"
 
@@ -50,8 +49,8 @@ string convertPrevHash(const string &prevHash) {
 
 
 ///////////////////////////////// ClientContainer //////////////////////////////
-ClientContainerBitcoin::ClientContainerBitcoin(const string &kafkaBrokers)
-  : ClientContainer(kafkaBrokers, KAFKA_TOPIC_STRATUM_JOB, KAFKA_TOPIC_RAWGBT)
+ClientContainerBitcoin::ClientContainerBitcoin(const string &kafkaBrokers, const string &jobTopic, const string &gbtTopic)
+  : ClientContainer(kafkaBrokers, jobTopic, gbtTopic)
   , poolStratumJob_(nullptr)
 {
 }

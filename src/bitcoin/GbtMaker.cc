@@ -24,7 +24,6 @@
 #include "GbtMaker.h"
 
 #include "BitcoinUtils.h"
-#include "KafkaBitcoin.h"
 
 #include <glog/logging.h>
 
@@ -52,13 +51,13 @@
 ///////////////////////////////////  GbtMaker  /////////////////////////////////
 GbtMaker::GbtMaker(const string &zmqBitcoindAddr,
                    const string &bitcoindRpcAddr, const string &bitcoindRpcUserpass,
-                   const string &kafkaBrokers, uint32_t kRpcCallInterval,
-                   bool isCheckZmq)
+                   const string &kafkaBrokers, const string &kafkaRawGbtTopic,
+                   uint32_t kRpcCallInterval, bool isCheckZmq)
 : running_(true), zmqContext_(1/*i/o threads*/),
 zmqBitcoindAddr_(zmqBitcoindAddr), bitcoindRpcAddr_(bitcoindRpcAddr),
 bitcoindRpcUserpass_(bitcoindRpcUserpass), lastGbtMakeTime_(0), kRpcCallInterval_(kRpcCallInterval),
-kafkaBrokers_(kafkaBrokers),
-kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_RAWGBT, 0/* partition */),
+kafkaBrokers_(kafkaBrokers), kafkaRawGbtTopic_(kafkaRawGbtTopic),
+kafkaProducer_(kafkaBrokers_.c_str(), kafkaRawGbtTopic_.c_str(), 0/* partition */),
 isCheckZmq_(isCheckZmq)
 {
 }
@@ -281,6 +280,7 @@ NMCAuxBlockMaker::NMCAuxBlockMaker(const string &zmqNamecoindAddr,
                                    const string &rpcAddr,
                                    const string &rpcUserpass,
                                    const string &kafkaBrokers,
+                                   const string &kafkaAuxPowGwTopic,
                                    uint32_t kRpcCallInterval,
                                    const string &fileLastRpcCallTime,
                                    bool isCheckZmq,
@@ -290,8 +290,8 @@ zmqNamecoindAddr_(zmqNamecoindAddr),
 rpcAddr_(rpcAddr), rpcUserpass_(rpcUserpass),
 lastCallTime_(0), kRpcCallInterval_(kRpcCallInterval),
 fileLastRpcCallTime_(fileLastRpcCallTime),
-kafkaBrokers_(kafkaBrokers),
-kafkaProducer_(kafkaBrokers_.c_str(), KAFKA_TOPIC_NMC_AUXBLOCK, 0/* partition */),
+kafkaBrokers_(kafkaBrokers), kafkaAuxPowGwTopic_(kafkaAuxPowGwTopic),
+kafkaProducer_(kafkaBrokers_.c_str(), kafkaAuxPowGwTopic_.c_str(), 0/* partition */),
 isCheckZmq_(isCheckZmq), coinbaseAddress_(coinbaseAddress)
 {
 }
