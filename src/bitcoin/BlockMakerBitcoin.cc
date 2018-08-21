@@ -666,10 +666,10 @@ void BlockMakerBitcoin::_submitBlockThread(const string &rpcAddress,
 
 #ifdef CHAIN_TYPE_BCH
 void BlockMakerBitcoin::submitBlockLightNonBlocking(const string &blockHex, const string& job_id) {
-  for (const auto &itr : nodeRpcUri_) {
+  for (const auto &itr : def()->nodes) {
     // use thread to submit
     boost::thread t(boost::bind(&BlockMakerBitcoin::_submitBlockLightThread, this,
-                                itr.first, itr.second, job_id, blockHex));
+                                itr.rpcAddr_, itr.rpcUserPwd_, job_id, blockHex));
     t.detach();
   }
 }
