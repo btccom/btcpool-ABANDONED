@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 2.6)
 
 project (btcpool_tools_kafka_repeater)
-set(PROJECT_ROOT "${CMAKE_SOURCE_DIR}/../..")
+set(PROJECT_ROOT "${CMAKE_SOURCE_DIR}/../../..")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_ROOT}/cmake/Modules/")
 
 # set C++ standard
