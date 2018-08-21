@@ -26,7 +26,7 @@
 #include <boost/thread.hpp>
 
 //////////////////////////////////////BlockMakerSia//////////////////////////////////////////////////
-BlockMakerSia::BlockMakerSia(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB) 
+BlockMakerSia::BlockMakerSia(shared_ptr<BlockMakerDefinition> def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB) 
   : BlockMaker(def, kafkaBrokers, poolDB)
 {
 }
@@ -40,7 +40,7 @@ void BlockMakerSia::processSolvedShare(rd_kafka_message_t *rkmessage)
 
   char buf[80] = {0};
   memcpy(buf, rkmessage->payload, 80);
-  for (const auto &itr : def_.nodes)
+  for (const auto &itr : def()->nodes)
   {
     string response;
     rpcCall(itr.rpcAddr_.c_str(), itr.rpcUserPwd_.c_str(), buf, 80, response, "Sia-Agent");

@@ -24,10 +24,10 @@
 #include "BlockMaker.h"
 
 ////////////////////////////////// BlockMaker //////////////////////////////////
-BlockMaker::BlockMaker(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB)
+BlockMaker::BlockMaker(shared_ptr<BlockMakerDefinition> def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB)
   : def_(def)
   , running_(true)
-  , kafkaConsumerSolvedShare_(kafkaBrokers, def.solvedShareTopic_.c_str(), 0/* patition */)
+  , kafkaConsumerSolvedShare_(kafkaBrokers, def_->solvedShareTopic_.c_str(), 0/* patition */)
   , poolDB_(poolDB)
 {
 }

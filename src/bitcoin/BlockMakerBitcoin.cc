@@ -32,21 +32,19 @@
 
 #include <boost/thread.hpp>
 
-#include "KafkaBitcoin.h"
-
 #include <streams.h>
 
 ////////////////////////////////// BlockMaker //////////////////////////////////
-BlockMakerBitcoin::BlockMakerBitcoin(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB)
-  : BlockMaker(def, kafkaBrokers, poolDB)
+BlockMakerBitcoin::BlockMakerBitcoin(shared_ptr<BlockMakerDefinition> blkMakerDef, const char *kafkaBrokers, const MysqlConnectInfo &poolDB)
+  : BlockMaker(blkMakerDef, kafkaBrokers, poolDB)
   , kMaxRawGbtNum_(100)    /* if 5 seconds a rawgbt, will hold 100*5/60 = 8 mins rawgbt */
   , kMaxStratumJobNum_(120) /* if 30 seconds a stratum job, will hold 60 mins stratum job */
   , lastSubmittedBlockTime()
   , submittedRskBlocks(0)
-  , kafkaConsumerRawGbt_     (kafkaBrokers, KAFKA_TOPIC_RAWGBT,       0/* patition */)
-  , kafkaConsumerStratumJob_ (kafkaBrokers, KAFKA_TOPIC_STRATUM_JOB,  0/* patition */)
-  , kafkaConsumerNamecoinSolvedShare_(kafkaBrokers, KAFKA_TOPIC_NMC_SOLVED_SHARE, 0/* patition */)
-  , kafkaConsumerRskSolvedShare_(kafkaBrokers, KAFKA_TOPIC_RSK_SOLVED_SHARE, 0/* patition */)
+  , kafkaConsumerRawGbt_     (kafkaBrokers, def()->rawGbtTopic_.c_str(),       0/* patition */)
+  , kafkaConsumerStratumJob_ (kafkaBrokers, def()->stratumJobTopic_.c_str(),  0/* patition */)
+  , kafkaConsumerNamecoinSolvedShare_(kafkaBrokers, def()->auxPowSolvedShareTopic_.c_str(), 0/* patition */)
+  , kafkaConsumerRskSolvedShare_(kafkaBrokers, def()->rskSolvedShareTopic_.c_str(), 0/* patition */)
 {
 }
 
@@ -585,11 +583,11 @@ void BlockMakerBitcoin::_saveBlockToDBThread(const FoundBlock &foundBlock,
 }
 
 bool BlockMakerBitcoin::checkBitcoinds() {
-  if (def_.nodes.size() == 0) {
+  if (def()->nodes.size() == 0) {
     return false;
   }
 
-  for (const auto &itr : def_.nodes) {
+  for (const auto &itr : def()->nodes) {
     if (!checkBitcoinRPC(itr.rpcAddr_.c_str(), itr.rpcUserPwd_.c_str())) {
       return false;
     }
@@ -599,7 +597,7 @@ bool BlockMakerBitcoin::checkBitcoinds() {
 }
 
 void BlockMakerBitcoin::submitBlockNonBlocking(const string &blockHex) {
-  for (const auto &itr : def_.nodes) {
+  for (const auto &itr : def()->nodes) {
     // use thread to submit
     boost::thread t(boost::bind(&BlockMakerBitcoin::_submitBlockThread, this,
                                 itr.rpcAddr_, itr.rpcUserPwd_, blockHex));

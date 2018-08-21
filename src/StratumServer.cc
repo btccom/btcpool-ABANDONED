@@ -644,8 +644,10 @@ StratumServer::StratumServer(const char *ip, const unsigned short port,
 StratumServer::~StratumServer() {
 }
 
-bool StratumServer::createServer(string type, const int32_t shareAvgSeconds) {
-  server_ = std::shared_ptr<Server>(createStratumServer(type, shareAvgSeconds));
+bool StratumServer::createServer(const string &type, const int32_t shareAvgSeconds,
+                                 const string& auxPowSolvedShareTopic, /*bitcoin only. TODO: refactor this*/
+                                 const string& rskSolvedShareTopic     /*bitcoin only. TODO: refactor this*/) {
+  server_ = std::shared_ptr<Server>(createStratumServer(type, shareAvgSeconds, auxPowSolvedShareTopic, rskSolvedShareTopic));
   return server_ != nullptr;
 }
 

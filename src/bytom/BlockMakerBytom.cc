@@ -30,7 +30,7 @@
 
 
 //////////////////////////////////////BlockMakerBytom//////////////////////////////////////////////////
-BlockMakerBytom::BlockMakerBytom(const BlockMakerDefinition& def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB) 
+BlockMakerBytom::BlockMakerBytom(shared_ptr<BlockMakerDefinition> def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB) 
   : BlockMaker(def, kafkaBrokers, poolDB)
 {
 }
@@ -77,7 +77,7 @@ void BlockMakerBytom::processSolvedShare(rd_kafka_message_t *rkmessage)
 }
 
 void BlockMakerBytom::submitBlockNonBlocking(const string &request) {
-  for (const auto &itr : def_.nodes) {
+  for (const auto &itr : def()->nodes) {
     // use thread to submit
     boost::thread t(boost::bind(&BlockMakerBytom::_submitBlockThread, this,
                                 itr.rpcAddr_, itr.rpcUserPwd_, request));

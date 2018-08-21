@@ -98,7 +98,7 @@ bool JobMakerHandlerBitcoin::initConsumerHandlers(const string &kafkaBrokers, ve
   shared_ptr<KafkaConsumer> kafkaAuxPowConsumer;
   {
     auto messageProcessor = std::bind(&JobMakerHandlerBitcoin::processAuxPowMsg, this, std::placeholders::_1);
-    auto handler = createConsumerHandler(kafkaBrokers, def()->auxPowTopic_, 1, {}, messageProcessor);
+    auto handler = createConsumerHandler(kafkaBrokers, def()->auxPowGwTopic_, 1, {}, messageProcessor);
     if(handler.kafkaConsumer_ == nullptr)
       return false;
     handlers.push_back(handler);

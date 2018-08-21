@@ -44,6 +44,7 @@ class GbtMaker {
   uint32_t kRpcCallInterval_;
 
   string kafkaBrokers_;
+  string kafkaRawGbtTopic_;
   KafkaProducer kafkaProducer_;
   bool isCheckZmq_;
 
@@ -59,8 +60,8 @@ class GbtMaker {
 public:
   GbtMaker(const string &zmqBitcoindAddr,
            const string &bitcoindRpcAddr, const string &bitcoindRpcUserpass,
-           const string &kafkaBrokers, uint32_t kRpcCallInterval,
-           bool isCheckZmq);
+           const string &kafkaBrokers, const string &kafkaRawGbtTopic,
+           uint32_t kRpcCallInterval, bool isCheckZmq);
   ~GbtMaker();
 
   bool init();
@@ -88,6 +89,7 @@ class NMCAuxBlockMaker {
   string fileLastRpcCallTime_;
 
   string kafkaBrokers_;
+  string kafkaAuxPowGwTopic_;
   KafkaProducer kafkaProducer_;
   bool isCheckZmq_;
   string coinbaseAddress_;  // nmc coinbase payout address
@@ -104,7 +106,8 @@ class NMCAuxBlockMaker {
 public:
   NMCAuxBlockMaker(const string &zmqNamecoindAddr,
                    const string &rpcAddr, const string &rpcUserpass,
-                   const string &kafkaBrokers, uint32_t kRpcCallInterval,
+                   const string &kafkaBrokers, const string &kafkaAuxPowGwTopic,
+                   uint32_t kRpcCallInterval,
                    const string &fileLastRpcCallTime, bool isCheckZmq,
                    const string &coinbaseAddress);
   ~NMCAuxBlockMaker();
