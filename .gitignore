@@ -5,8 +5,8 @@
 .DS_Store
 
 # Building files
-/build
-/build*/
+build
+build*/
 
 # datas
 /patches/
