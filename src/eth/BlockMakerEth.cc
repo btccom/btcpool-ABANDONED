@@ -302,28 +302,28 @@ void BlockMakerEth::_submitBlockThread(const string &nonce, const string &header
   }
 
   // Still writing to the database even if submitting failed
-  saveBlockToDB(header, blockHash, height, chain, networkDiff, worker);
+  saveBlockToDB(nonce, header, blockHash, height, chain, networkDiff, worker);
 }
 
-void BlockMakerEth::saveBlockToDB(const string &header, const string &blockHash, const uint32_t height,
+void BlockMakerEth::saveBlockToDB(const string &nonce, const string &header, const string &blockHash, const uint32_t height,
                                   const string &chain, const uint64_t networkDiff, const StratumWorker &worker) {
   const string nowStr = date("%F %T");
   string sql;
   sql = Strings::Format("INSERT INTO `found_blocks` "
                         " (`puid`, `worker_id`"
                         ", `worker_full_name`, `chain`"
-                        ", `height`, `hash`, `hash_no_nonce`"
+                        ", `height`, `hash`, `hash_no_nonce`, `nonce`"
                         ", `rewards`"
                         ", `network_diff`, `created_at`)"
                         " VALUES (%ld, %" PRId64
                         ", '%s', '%s'"
-                        ", %lu, '%s', '%s'"
+                        ", %lu, '%s', '%s', '%s'"
                         ", %" PRId64
                         ", %" PRIu64 ", '%s'); ",
                         worker.userId_, worker.workerHashId_,
                         // filter again, just in case
                         filterWorkerName(worker.fullName_).c_str(), chain.c_str(),
-                        height, blockHash.c_str(), header.c_str(),
+                        height, blockHash.c_str(), header.c_str(), nonce.c_str(),
                         EthConsensus::getStaticBlockReward(height, chain),
                         networkDiff, nowStr.c_str());
 
