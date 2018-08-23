@@ -347,21 +347,21 @@ void GbtMaker::threadListenBitcoind() {
 }
 
 #ifdef CHAIN_TYPE_BCH
-void GbtMaker::run(bool normalVersion, bool lightVersion) {
+void GbtMaker::runLightGbt()
+{
   thread threadListenBitcoind = thread(&GbtMaker::threadListenBitcoind, this);
 
   while (running_) {
     sleep(1);
-    if(normalVersion)
-      submitRawGbtMsg(true);
-    if(lightVersion)
-      submitRawGbtLightMsg(true);
+    submitRawGbtLightMsg(true);
   }
 
   if (threadListenBitcoind.joinable())
     threadListenBitcoind.join();
+
 }
-#else
+
+#endif
 void GbtMaker::run() {
   thread threadListenBitcoind = thread(&GbtMaker::threadListenBitcoind, this);
 
@@ -373,7 +373,6 @@ void GbtMaker::run() {
   if (threadListenBitcoind.joinable())
     threadListenBitcoind.join();
 }
-#endif
 
 
 

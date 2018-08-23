@@ -77,10 +77,9 @@ public:
   bool init();
   void stop();
 #ifdef CHAIN_TYPE_BCH
-  void run(bool normalVersion, bool lightVersion);
-#else
-  void run();
+  void runLightGbt();
 #endif
+  void run();
 };
 
 

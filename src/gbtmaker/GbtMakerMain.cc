@@ -128,7 +128,16 @@ int main(int argc, char **argv) {
       LOG(FATAL) << "gbtmaker init failure";
     } else {
 #ifdef CHAIN_TYPE_BCH
-      gGbtMaker->run(false, true);
+      bool runLightGbt = true;
+      cfg.lookupValue("gbtmaker.lightgbt", runLightGbt);
+      if(runLightGbt)
+      {
+        gGbtMaker->runLightGbt();
+      }
+      else
+      {
+        gGbtMaker->run();
+      }
 #else
       gGbtMaker->run();
 #endif
