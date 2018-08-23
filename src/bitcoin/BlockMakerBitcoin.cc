@@ -184,6 +184,16 @@ void BlockMakerBitcoin::addRawgbt(const char *str, size_t len) {
   }
   JsonNode jgbt = nodeGbt["result"];
 
+#ifdef CHAIN_TYPE_BCH
+  bool isLightVersion = jgbt["job_id"].type() == Utilities::JS::type::Str;
+  if(isLightVersion)
+  {
+    ScopeLock ls(rawGbtlightLock_);
+    rawGbtlightMap_[gbtHash] = jgbt["job_id"].str();
+    LOG(INFO) << "insert rawgbt light: " << gbtHash.ToString() << ", job_id: " << jgbt["job_id"].str().c_str();
+    return;
+  }
+#endif // CHAIN_TYPE_BCH
   // transaction without coinbase_tx
   shared_ptr<vector<CTransactionRef>> vtxs = std::make_shared<vector<CTransactionRef>>();
   for (JsonNode & node : jgbt["transactions"].array()) {
@@ -351,6 +361,7 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(rd_kafka_message_t *rkmessage
       gbtHash = jobId2GbtHash_[jobId];
     }
   }
+
   {
     ScopeLock ls(rawGbtLock_);
     if (rawGbtMap_.find(gbtHash) == rawGbtMap_.end()) {
@@ -358,8 +369,8 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(rd_kafka_message_t *rkmessage
       return;
     }
     vtxs = rawGbtMap_[gbtHash];
+    assert(vtxs.get() != nullptr);
   }
-  assert(vtxs.get() != nullptr);
 
   //
   // build new block
@@ -376,7 +387,7 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(rd_kafka_message_t *rkmessage
   }
 
   // put other txs
-  if (vtxs->size()) {
+  if (vtxs && vtxs->size()) {
     newblk.vtx.insert(newblk.vtx.end(), vtxs->begin(), vtxs->end());
   }
 
@@ -495,6 +506,20 @@ void BlockMakerBitcoin::processSolvedShare(rd_kafka_message_t *rkmessage) {
       gbtHash = jobId2GbtHash_[foundBlock.jobId_];
     }
   }
+
+#ifdef CHAIN_TYPE_BCH
+  std::string gbtlightJobId;
+  {
+    ScopeLock ls(rawGbtlightLock_);
+    const auto iter = rawGbtlightMap_.find(gbtHash);
+    if(iter != rawGbtlightMap_.end())
+    {
+      gbtlightJobId = iter->second;
+    }
+  }
+  bool lightVersion = !gbtlightJobId.empty();
+  if(!lightVersion)
+#endif  // CHAIN_TYPE_BCH
   {
     ScopeLock ls(rawGbtLock_);
     if (rawGbtMap_.find(gbtHash) == rawGbtMap_.end()) {
@@ -502,8 +527,8 @@ void BlockMakerBitcoin::processSolvedShare(rd_kafka_message_t *rkmessage) {
       return;
     }
     vtxs = rawGbtMap_[gbtHash];
+    assert(vtxs.get() != nullptr);
   }
-  assert(vtxs.get() != nullptr);
 
   //
   // build new block
@@ -520,14 +545,24 @@ void BlockMakerBitcoin::processSolvedShare(rd_kafka_message_t *rkmessage) {
   }
 
   // put other txs
-  if (vtxs->size()) {
+  if (vtxs && vtxs->size()) {
     newblk.vtx.insert(newblk.vtx.end(), vtxs->begin(), vtxs->end());
   }
 
   // submit to bitcoind
-  LOG(INFO) << "submit block: " << newblk.GetHash().ToString();
   const string blockHex = EncodeHexBlock(newblk);
-  submitBlockNonBlocking(blockHex);  // using thread
+#ifdef CHAIN_TYPE_BCH
+  if(lightVersion)
+  {
+    LOG(INFO) << "submit block light: " << newblk.GetHash().ToString() << " with job_id: " << gbtlightJobId.c_str();
+    submitBlockLightNonBlocking(blockHex, gbtlightJobId);
+  }
+  else
+#endif  // CHAIN_TYPE_BCH
+  {
+    LOG(INFO) << "submit block: " << newblk.GetHash().ToString();
+    submitBlockNonBlocking(blockHex);  // using thread
+  }
 
   uint64_t coinbaseValue = AMOUNT_SATOSHIS(newblk.vtx[0]->GetValueOut());
 
@@ -628,6 +663,40 @@ void BlockMakerBitcoin::_submitBlockThread(const string &rpcAddress,
     LOG(ERROR) << "rpc call fail: " << response;
   }
 }
+
+#ifdef CHAIN_TYPE_BCH
+void BlockMakerBitcoin::submitBlockLightNonBlocking(const string &blockHex, const string& job_id) {
+  for (const auto &itr : def()->nodes) {
+    // use thread to submit
+    boost::thread t(boost::bind(&BlockMakerBitcoin::_submitBlockLightThread, this,
+                                itr.rpcAddr_, itr.rpcUserPwd_, job_id, blockHex));
+    t.detach();
+  }
+}
+void BlockMakerBitcoin::_submitBlockLightThread(const string &rpcAddress, const string &rpcUserpass, const string& job_id, 
+                        const string &blockHex)
+{
+  string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"submitblocklight\",\"params\":[\"";
+  request += blockHex + "\", \"";
+  request += job_id + "\"";
+  request += "]}";
+  LOG(INFO) << "submit block light to: " << rpcAddress;
+  DLOG(INFO) << "submitblock request: " << request;
+  // try N times
+  for (size_t i = 0; i < 3; i++) {
+    string response;
+    bool res = blockchainNodeRpcCall(rpcAddress.c_str(), rpcUserpass.c_str(),
+                               request.c_str(), response);
+    // success
+    if (res == true) {
+      LOG(INFO) << "rpc call success, submit block light response: " << response;
+      break;
+    }
+    // failure
+    LOG(ERROR) << "rpc call fail: " << response;
+  }  
+}
+#endif // CHAIN_TYPE_BCH
 
 void BlockMakerBitcoin::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   // check error

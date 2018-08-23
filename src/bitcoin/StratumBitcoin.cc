@@ -311,6 +311,21 @@ bool StratumJobBitcoin::initFromGbt(const char *gbt, const string &poolCoinbaseI
     prevHashBeStr_ += HexStr(BEGIN(a), END(a));
   }
 
+#ifdef CHAIN_TYPE_BCH
+  bool isLightVersion = jgbt["job_id"].type() == Utilities::JS::type::Str;
+  // merkle branch, merkleBranch_ could be empty
+  if(isLightVersion)
+  {
+    auto& gbtMerkle = jgbt["merkle"].array();
+    for(auto& mHex : gbtMerkle)
+    {
+      uint256 m;
+      m.SetHex(mHex.str().c_str());
+      merkleBranch_.push_back(m);
+    }
+  }
+  else
+#endif
   // merkle branch, merkleBranch_ could be empty
   {
     // read txs hash/data

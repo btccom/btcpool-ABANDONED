@@ -41,6 +41,9 @@ class GbtMaker {
   string bitcoindRpcAddr_;
   string bitcoindRpcUserpass_;
   atomic<uint32_t> lastGbtMakeTime_;
+#ifdef CHAIN_TYPE_BCH
+  atomic<uint32_t> lastGbtLightMakeTime_;
+#endif
   uint32_t kRpcCallInterval_;
 
   string kafkaBrokers_;
@@ -49,10 +52,17 @@ class GbtMaker {
   bool isCheckZmq_;
 
   bool checkBitcoindZMQ();
+
   bool bitcoindRpcGBT(string &resp);
   string makeRawGbtMsg();
-
   void submitRawGbtMsg(bool checkTime);
+
+#ifdef CHAIN_TYPE_BCH
+  bool bitcoindRpcGBTLight(string &resp);
+  string makeRawGbtLightMsg();
+  void submitRawGbtLightMsg(bool checkTime);
+#endif
+
   void threadListenBitcoind();
 
   void kafkaProduceMsg(const void *payload, size_t len);
@@ -66,6 +76,9 @@ public:
 
   bool init();
   void stop();
+#ifdef CHAIN_TYPE_BCH
+  void runLightGbt();
+#endif
   void run();
 };
 

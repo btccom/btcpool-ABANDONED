@@ -127,7 +127,20 @@ int main(int argc, char **argv) {
     if (!gGbtMaker->init()) {
       LOG(FATAL) << "gbtmaker init failure";
     } else {
+#ifdef CHAIN_TYPE_BCH
+      bool runLightGbt = true;
+      cfg.lookupValue("gbtmaker.lightgbt", runLightGbt);
+      if(runLightGbt)
+      {
+        gGbtMaker->runLightGbt();
+      }
+      else
+      {
+        gGbtMaker->run();
+      }
+#else
       gGbtMaker->run();
+#endif
     }
     delete gGbtMaker;
   } catch (std::exception & e) {

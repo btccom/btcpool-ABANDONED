@@ -208,8 +208,24 @@ bool JobMakerHandlerBitcoin::addRawGbt(const string &msg) {
   assert(nodeGbt["result"]["height"].type() == Utilities::JS::type::Int);
   const uint32_t height = nodeGbt["result"]["height"].uint32();
 
+
+#ifdef CHAIN_TYPE_BCH
+  bool isLightVersion = nodeGbt["result"]["job_id"].type() == Utilities::JS::type::Str;
+  bool isEmptyBlock = false;
+  if(isLightVersion)
+  {
+    assert(nodeGbt["result"]["merkle"].type() == Utilities::JS::type::Array);
+    isEmptyBlock = nodeGbt["result"]["merkle"].array().size() == 0;
+  }
+  else
+  {
+    assert(nodeGbt["result"]["transactions"].type() == Utilities::JS::type::Array);
+    isEmptyBlock = nodeGbt["result"]["transactions"].array().size() == 0;
+  }
+#else
   assert(nodeGbt["result"]["transactions"].type() == Utilities::JS::type::Array);
   const bool isEmptyBlock = nodeGbt["result"]["transactions"].array().size() == 0;
+#endif
 
   {
     ScopeLock sl(lock_);
