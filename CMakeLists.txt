@@ -347,13 +347,10 @@ if(USE_CUDA)
   endif()
 endif()
 
-message("") # add an empty line
-
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(MYSQL REQUIRED mysqlclient)
-message("-- MySQL include directories: ${MYSQL_INCLUDE_DIRS}")
-message("-- MySQL library directories: ${MYSQL_LIBRARY_DIRS}")
-message("-- MySQL libraries: ${MYSQL_LIBRARIES}")
+find_package(MYSQL)
+if(NOT MYSQL_FOUND)
+  message(FATAL_ERROR "libmysqlclient not found!")
+endif()
 
 ###################################### Building Tools ######################################
 
@@ -386,13 +383,13 @@ endif(USE_CUDA)
 
 include_directories(src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config ${CHAIN_SRC_ROOT}/src/secp256k1/include
                     ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS}
-                    ${LIBEVENT_INCLUDE_DIR} ${MYSQL_INCLUDE_DIRS} ${USE_CUDA_INCLUDE_DIRECTORY} ${BH_SHARED_INCLUDE_DIR})
+                    ${LIBEVENT_INCLUDE_DIR} ${USE_CUDA_INCLUDE_DIRECTORY} ${BH_SHARED_INCLUDE_DIR} ${MYSQL_INCLUDE_DIRS})
 
 link_directories(${MYSQL_LIBRARY_DIRS})
 set(THIRD_LIBRARIES ethash blake2 ${BH_SHARED_LIBRARY} ${USE_CUDA_LIBRARIES}
                     ${BITCOIN_LIBRARIES} ${secp256k1_LIBRARIES} ${GLOG_LIBRARIES} ${KAFKA_LIBRARIES} ${ZLIB_LIBRARIES} ${ZOOKEEPER_LIBRARIES}
                     ${MYSQL_LIBRARIES} ${LIBZMQ_LIBRARIES} ${Hiredis_LIBRARIES} ${CURL_LIBRARIES} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY}
-                    ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB}  ${GMP_LIBRARIES} ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} ${PTHREAD_LIBRARIES})
+                    ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB} ${GMP_LIBRARIES} ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} ${PTHREAD_LIBRARIES})
 
 file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc src/gbtsync/*.cpp)
 file(GLOB LIB_SOURCES_CHAINS
