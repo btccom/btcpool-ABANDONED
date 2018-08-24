@@ -18,7 +18,7 @@
 #include "MySQLConnection.h"
 #include "Utils.h"
 
-#include <mysql/mysql.h>
+#include <mysql.h>
 #include <glog/logging.h>
 
 MySQLResult::MySQLResult() :
