@@ -73,11 +73,11 @@ bool JobMakerHandlerBitcoin::init(shared_ptr<JobMakerDefinition> defPtr) {
   LOG(INFO) << "Payout Address: " << def()->payoutAddr_;
 
   // check pool payout address
-  if (!IsValidDestinationString(def()->payoutAddr_)) {
+  if (!BitcoinUtils::IsValidDestinationString(def()->payoutAddr_)) {
     LOG(ERROR) << "invalid pool payout address";
     return false;
   }
-  poolPayoutAddr_ = DecodeDestination(def()->payoutAddr_);
+  poolPayoutAddr_ = BitcoinUtils::DecodeDestination(def()->payoutAddr_);
 
   return true;
 }

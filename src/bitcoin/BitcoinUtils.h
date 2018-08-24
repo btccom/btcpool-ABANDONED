@@ -41,26 +41,50 @@
   #define AMOUNT_TYPE Amount
   #define COIN_TO_SATOSHIS COIN.GetSatoshis()
   #define AMOUNT_SATOSHIS(amt) amt.GetSatoshis()
-  inline CTxDestination DecodeDestination(const std::string& str)
-  {
-    return DecodeDestination(str, Params());
-  }
 
+  namespace BitcoinUtils
+  {
+    inline bool IsValidDestinationString(const std::string &addr)
+    {
+      return ::IsValidDestinationString(addr, Params());
+    }
+    inline CTxDestination DecodeDestination(const std::string& str)
+    {
+      return ::DecodeDestination(str, Params());
+    }
+  }
+#elif defined(CHAIN_TYPE_SBTC)
+  #define AMOUNT_TYPE CAmount
+  #define COIN_TO_SATOSHIS COIN
+  #define AMOUNT_SATOSHIS(amt) amt
+  
+  namespace BitcoinUtils
+  {
+    CTxDestination DecodeDestination(const std::string& str);
+    bool IsValidDestinationString(const std::string& str);
+  }
 #else
   #define AMOUNT_TYPE CAmount
   #define COIN_TO_SATOSHIS COIN
   #define AMOUNT_SATOSHIS(amt) amt
+
+  namespace BitcoinUtils
+  {
+    inline bool IsValidDestinationString(const std::string &addr)
+    {
+      return ::IsValidDestinationString(addr);
+    }
+    inline CTxDestination DecodeDestination(const std::string& str)
+    {
+      return ::DecodeDestination(str);
+    }
+  }
 #endif
 
 std::string EncodeHexBlock(const CBlock &block);
 std::string EncodeHexBlockHeader(const CBlockHeader &blkHeader);
 
 int64_t GetBlockReward(int nHeight, const Consensus::Params& consensusParams);
-
-#ifdef CHAIN_TYPE_SBTC
-CTxDestination DecodeDestination(const std::string& str);
-bool IsValidDestinationString(const std::string& str);
-#endif // CHAIN_TYPE_SBTC
 
 bool checkBitcoinRPC(const string &rpcAddr, const string &rpcUserpass);
 

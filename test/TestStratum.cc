@@ -143,36 +143,36 @@ TEST(Stratum, StratumWorker) {
 TEST(JobMaker, BitcoinAddress) {
   // main net
   SelectParams(CBaseChainParams::MAIN);
-  ASSERT_EQ(IsValidDestinationString("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"), true);
-  ASSERT_EQ(IsValidDestinationString("1A1zP1eP5QGefi2DMPPfTL5SLmv7DivfNa"), false);
+  ASSERT_EQ(BitcoinUtils::IsValidDestinationString("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"), true);
+  ASSERT_EQ(BitcoinUtils::IsValidDestinationString("1A1zP1eP5QGefi2DMPPfTL5SLmv7DivfNa"), false);
 
 #ifdef CHAIN_TYPE_BTC
-  ASSERT_EQ(IsValidDestinationString("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"), true);
-  ASSERT_EQ(IsValidDestinationString("bc1qw508c6qejxtdg4y5r3zarvary4c5xw7kv8f3t4"), false);
-  ASSERT_EQ(IsValidDestinationString("bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3"), true);
-  ASSERT_EQ(IsValidDestinationString("bc1qrp33g0q5c5txsp8arysrx4k6zdkfs4nde4xj0gdcccefvpysxf3qccfmv3"), false);
+  ASSERT_EQ(BitcoinUtils::IsValidDestinationString("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"), true);
+  ASSERT_EQ(BitcoinUtils::IsValidDestinationString("bc1qw508c6qejxtdg4y5r3zarvary4c5xw7kv8f3t4"), false);
+  ASSERT_EQ(BitcoinUtils::IsValidDestinationString("bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3"), true);
+  ASSERT_EQ(BitcoinUtils::IsValidDestinationString("bc1qrp33g0q5c5txsp8arysrx4k6zdkfs4nde4xj0gdcccefvpysxf3qccfmv3"), false);
 #endif
 
 #ifdef CHAIN_TYPE_BCH
-  ASSERT_EQ(IsValidDestinationString("bitcoincash:qp3wjpa3tjlj042z2wv7hahsldgwhwy0rq9sywjpyy"), true);
-  ASSERT_EQ(IsValidDestinationString("bitcoincash:qp3wjpa3tjlj142z2wv7hahsldgwhwy0rq9sywjpyy"), false);
+  ASSERT_EQ(BitcoinUtils::IsValidDestinationString("bitcoincash:qp3wjpa3tjlj042z2wv7hahsldgwhwy0rq9sywjpyy"), true);
+  ASSERT_EQ(BitcoinUtils::IsValidDestinationString("bitcoincash:qp3wjpa3tjlj142z2wv7hahsldgwhwy0rq9sywjpyy"), false);
 #endif
 
   // test net
   SelectParams(CBaseChainParams::TESTNET);
-  ASSERT_EQ(IsValidDestinationString("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U"), true);
-  ASSERT_EQ(IsValidDestinationString("myxopLJB19oFtNBdrADD5Z34Aw6P8o9P8U"), false);
+  ASSERT_EQ(BitcoinUtils::IsValidDestinationString("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U"), true);
+  ASSERT_EQ(BitcoinUtils::IsValidDestinationString("myxopLJB19oFtNBdrADD5Z34Aw6P8o9P8U"), false);
 
 #ifdef CHAIN_TYPE_BTC
-  ASSERT_EQ(IsValidDestinationString("tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx"), true);
-  ASSERT_EQ(IsValidDestinationString("tb1qw508d6qejxtdg6y5r3zarvary0c5xw7kxpjzsx"), false);
-  ASSERT_EQ(IsValidDestinationString("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7"), true);
-  ASSERT_EQ(IsValidDestinationString("tb1qrp33g0q5c5txsp9arysrx4k6zdkgs4nce4xj0gdcccefvpysxf3q0sl5k7"), false);
+  ASSERT_EQ(BitcoinUtils::IsValidDestinationString("tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx"), true);
+  ASSERT_EQ(BitcoinUtils::IsValidDestinationString("tb1qw508d6qejxtdg6y5r3zarvary0c5xw7kxpjzsx"), false);
+  ASSERT_EQ(BitcoinUtils::IsValidDestinationString("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7"), true);
+  ASSERT_EQ(BitcoinUtils::IsValidDestinationString("tb1qrp33g0q5c5txsp9arysrx4k6zdkgs4nce4xj0gdcccefvpysxf3q0sl5k7"), false);
 #endif
 
 #ifdef CHAIN_TYPE_BCH
-  ASSERT_EQ(IsValidDestinationString("bchtest:qr99vqygcra4umcz374pzzz7vslrgw50ts58trd220"), true);
-  ASSERT_EQ(IsValidDestinationString("bchtest:qr99vqygcra5umcz374pzzz7vslrgw50ts58trd220"), false);
+  ASSERT_EQ(BitcoinUtils::IsValidDestinationString("bchtest:qr99vqygcra4umcz374pzzz7vslrgw50ts58trd220"), true);
+  ASSERT_EQ(BitcoinUtils::IsValidDestinationString("bchtest:qr99vqygcra5umcz374pzzz7vslrgw50ts58trd220"), false);
 #endif
 }
 
@@ -222,9 +222,9 @@ TEST(Stratum, StratumJobBitcoin) {
 
     blockVersion = 0;
     SelectParams(CBaseChainParams::TESTNET);
-    ASSERT_EQ(IsValidDestinationString("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U"), true);
+    ASSERT_EQ(BitcoinUtils::IsValidDestinationString("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U"), true);
     
-    CTxDestination poolPayoutAddrTestnet = DecodeDestination("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U");
+    CTxDestination poolPayoutAddrTestnet = BitcoinUtils::DecodeDestination("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U");
     res = sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion, "", RskWork(), 1, false);
     ASSERT_EQ(res, true);
 
@@ -357,9 +357,9 @@ TEST(Stratum, StratumJobWithWitnessCommitment) {
 
     blockVersion = 0;
     SelectParams(CBaseChainParams::TESTNET);
-    ASSERT_EQ(IsValidDestinationString("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U"), true);
+    ASSERT_EQ(BitcoinUtils::IsValidDestinationString("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U"), true);
 
-    CTxDestination poolPayoutAddrTestnet = DecodeDestination("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U");
+    CTxDestination poolPayoutAddrTestnet = BitcoinUtils::DecodeDestination("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U");
     res = sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion, "", RskWork(), 1, false);
     ASSERT_EQ(res, true);
 
@@ -487,8 +487,8 @@ TEST(Stratum, StratumJobWithSegwitPayoutAddr) {
 
     blockVersion = 0;
     SelectParams(CBaseChainParams::TESTNET);
-    ASSERT_EQ(IsValidDestinationString("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7"), true);
-    CTxDestination poolPayoutAddrTestnet = DecodeDestination("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7");
+    ASSERT_EQ(BitcoinUtils::IsValidDestinationString("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7"), true);
+    CTxDestination poolPayoutAddrTestnet = BitcoinUtils::DecodeDestination("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7");
     res = sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion, "", RskWork(), 1, false);
     ASSERT_EQ(res, true);
 
@@ -597,7 +597,7 @@ TEST(Stratum, StratumJobWithRskWork) {
     ASSERT_EQ(rskWork.getRpcUserPwd(), "user:pass");
     ASSERT_EQ(rskWork.getNotifyFlag(), true);
 
-    CTxDestination poolPayoutAddrTestnet = DecodeDestination("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U");
+    CTxDestination poolPayoutAddrTestnet = BitcoinUtils::DecodeDestination("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U");
     sjob.initFromGbt(gbt.c_str(), poolCoinbaseInfo, poolPayoutAddrTestnet, blockVersion, "", rskWork, 1, true);
 
     // check rsk required data copied properly to the stratum job

@@ -106,16 +106,18 @@ int64_t GetBlockReward(int nHeight, const Consensus::Params& consensusParams)
 
 #ifdef CHAIN_TYPE_SBTC
 
-CTxDestination DecodeDestination(const std::string& str) {
-  CBitcoinAddress addr(str);
-  return addr.Get();
-}
+namespace BitcoinUtils
+{
+  CTxDestination DecodeDestination(const std::string& str) {
+    CBitcoinAddress addr(str);
+    return addr.Get();
+  }
 
-bool IsValidDestinationString(const std::string& str) {
-  CBitcoinAddress addr(str);
-  return addr.IsValid();
+  bool IsValidDestinationString(const std::string& str) {
+    CBitcoinAddress addr(str);
+    return addr.IsValid();
+  }
 }
-
 #endif // CHAIN_TYPE_SBTC
 
 
