@@ -158,7 +158,7 @@ class StratumJobBytom : public StratumJob
 public:
   StratumJobBytom();
   ~StratumJobBytom();
-  string serializeToJson() const;
+  string serializeToJson() const override;
   bool unserializeFromJson(const char *s, size_t len) override;
   BlockHeaderBytom blockHeader_;
   string seed_;

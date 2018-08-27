@@ -168,7 +168,7 @@ void SyncManager::Sync(DataManager::AddAndRemoveDataListPair& diffResult, DataMa
                     }
                     else
                     {
-                        copyData = std::move(loader->GiveupData());
+                        copyData = loader->GiveupData();
                     }
                     if(destManager.AddData(filename, std::move(copyData)))
                     {

@@ -285,7 +285,7 @@ class Node{
           std::sort(children_->begin(), children_->end());
           sorted_ = true;
         }
-        const auto comp = [this,val_end](const Node& node, const char* val) {
+        const auto comp = [val_end](const Node& node, const char* val) {
               return std::lexicographical_compare(
                               node.key_start_,node.key_end_
                              ,val,val_end);

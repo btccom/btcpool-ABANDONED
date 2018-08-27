@@ -81,7 +81,7 @@ public:
 // we use WorkerKey in std::unordered_map, so need to write it's hash func
 namespace std {
 template<>
-class hash<WorkerKey> {
+struct hash<WorkerKey> {
 public:
   size_t operator()(const WorkerKey &k) const
   {

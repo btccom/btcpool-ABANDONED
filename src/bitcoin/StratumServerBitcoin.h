@@ -70,7 +70,7 @@ private:
 public:
   JobRepositoryBitcoin(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerBitcoin *server);
   virtual ~JobRepositoryBitcoin();
-  virtual StratumJob* createStratumJob() {return new StratumJobBitcoin();}
+  virtual StratumJob* createStratumJob() override {return new StratumJobBitcoin();}
   StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
   void broadcastStratumJob(StratumJob *sjob) override;
 

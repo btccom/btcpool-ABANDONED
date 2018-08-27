@@ -103,7 +103,7 @@ std::unique_ptr<DataHandler> FileDataOperationManager::GetDataHandler(std::strin
     int dataSize = GetFileDataSize(filename);
     if(dataSize >= 0)
     {
-        auto fileOperation = new DataHandlerLoadOperationFile(std::move(m_DirPath + filename), m_FilePrefix.size(), dataSize);
+        auto fileOperation = new DataHandlerLoadOperationFile(m_DirPath + filename, m_FilePrefix.size(), dataSize);
         fileDataResult = std::unique_ptr<DataHandler>(new DataHandler(fileOperation));
     }
     return fileDataResult;
