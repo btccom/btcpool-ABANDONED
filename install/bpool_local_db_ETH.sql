@@ -18,6 +18,7 @@ CREATE TABLE `found_blocks` (
   `ref_uncles` varchar(255) NOT NULL DEFAULT '',
   `hash` char(66) NOT NULL DEFAULT '',
   `hash_no_nonce` char(66) NOT NULL,
+  `nonce` char(18) NOT NULL,
   `rewards` decimal(35,0) NOT NULL,
   `size` int(11) NOT NULL DEFAULT '0',
   `prev_hash` char(66) NOT NULL DEFAULT '',
@@ -25,9 +26,8 @@ CREATE TABLE `found_blocks` (
   `created_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `hash` (`hash`),
-  KEY `hash_no_nonce` (`hash_no_nonce`),
-  UNIQUE KEY `block_hash`(`hash_no_nonce`,`hash`),
-  KEY `height` (`height`)
+  KEY `height` (`height`),
+  UNIQUE KEY `unique_block`(`hash_no_nonce`,`nonce`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS `mining_workers`;
