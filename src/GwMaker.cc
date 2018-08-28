@@ -146,9 +146,8 @@ bool GwMakerHandler::callRpcGw(string &response)
   return true;
 }
 
-
-///////////////////////////////GwMakerHandlerRsk////////////////////////////////////
-string GwMakerHandlerRsk::processRawGw(const string& msg) 
+///////////////////////////////GwMakerHandlerJson///////////////////////////////////
+string GwMakerHandlerJson::processRawGw(const string& msg) 
 {
   JsonNode r;
   if (!JsonNode::parse(msg.c_str(), msg.c_str() + msg.length(), r)) {
@@ -165,6 +164,7 @@ string GwMakerHandlerRsk::processRawGw(const string& msg)
   return constructRawMsg(r);
 }
 
+///////////////////////////////GwMakerHandlerRsk////////////////////////////////////
 bool GwMakerHandlerRsk::checkFields(JsonNode &r) {
   if (r["result"].type()                                != Utilities::JS::type::Obj ||
       r["result"]["parentBlockHash"].type()             != Utilities::JS::type::Str ||
@@ -210,23 +210,6 @@ string GwMakerHandlerRsk::constructRawMsg(JsonNode &r) {
 
 
 ///////////////////////////////GwMakerHandlerEth////////////////////////////////////
-string GwMakerHandlerEth::processRawGw(const string& msg) 
-{
-  JsonNode r;
-  if (!JsonNode::parse(msg.c_str(), msg.c_str() + msg.length(), r)) {
-    LOG(ERROR) << "decode gw failure: " << msg;
-    return "";
-  }
-
-  // check fields
-  if (!checkFields(r)) {
-    LOG(ERROR) << "gw check fields failure";
-    return "";
-  }
-
-  return constructRawMsg(r);
-}
-
 bool GwMakerHandlerEth::checkFields(JsonNode &r)
 {
   // Ethereum's GetWork gives us 3 values:

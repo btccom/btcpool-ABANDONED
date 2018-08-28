@@ -89,24 +89,29 @@ class GwMakerHandler {
     GwMakerDefinition def_;
 };
 
-class GwMakerHandlerRsk : public GwMakerHandler 
+class GwMakerHandlerJson : public GwMakerHandler
 {
-  bool checkFields(JsonNode &r);
-  string constructRawMsg(JsonNode &r);
+  virtual bool checkFields(JsonNode &r) = 0;
+  virtual string constructRawMsg(JsonNode &r) = 0;
   string processRawGw(const string &gw) override;
+};
+
+class GwMakerHandlerRsk : public GwMakerHandlerJson 
+{
+  bool checkFields(JsonNode &r) override;
+  string constructRawMsg(JsonNode &r) override;
   string getRequestData() override { return "{\"jsonrpc\": \"2.0\", \"method\": \"mnr_getWork\", \"params\": [], \"id\": 1}"; }
 };
 
-class GwMakerHandlerEth : public GwMakerHandler
+class GwMakerHandlerEth : public GwMakerHandlerJson
 {
-  virtual bool checkFields(JsonNode &r);
-  virtual string constructRawMsg(JsonNode &r);
-  string processRawGw(const string &gw) override;
+  bool checkFields(JsonNode &r) override;
+  string constructRawMsg(JsonNode &r) override;
   string getRequestData() override { return "{\"jsonrpc\": \"2.0\", \"method\": \"eth_getWork\", \"params\": [], \"id\": 1}"; }
   string getBlockHeight();
 };
 
-class GwMakerHandlerBytom : public GwMakerHandlerEth
+class GwMakerHandlerBytom : public GwMakerHandlerJson
 {
   bool checkFields(JsonNode &r) override;
   string constructRawMsg(JsonNode &r) override;
