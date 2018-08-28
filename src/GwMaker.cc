@@ -456,3 +456,39 @@ string GwMakerHandlerSia::processRawGw(const string &msg)
                          targetStr.c_str(),
                          headerStr.c_str());
 }
+
+///////////////////////////////GwMakerHandlerDecred////////////////////////////////////
+bool GwMakerHandlerDecred::checkFields(JsonNode &r) {
+  if (r["result"].type() != Utilities::JS::type::Obj ||
+      r["result"]["data"].type() != Utilities::JS::type::Str ||
+      r["result"]["data"].size() != 384 ||
+      !IsHex(r["result"]["data"].str()) ||
+      r["result"]["target"].type() != Utilities::JS::type::Str ||
+      r["result"]["target"].size() != 64 ||
+      !IsHex(r["result"]["target"].str())) {
+    return false;
+  }
+
+  return true;
+}
+
+string GwMakerHandlerDecred::constructRawMsg(JsonNode &r) {
+
+  LOG(INFO) << "chain: " << def_.chainType_ << ", topic: " << def_.rawGwTopic_
+  << ", data: " << r["result"]["data"].str()
+  << ", target: " << r["result"]["target"].str();
+
+  return Strings::Format("{\"created_at_ts\":%u,"
+                         "\"chainType\":\"%s\","
+                         "\"rpcAddress\":\"%s\","
+                         "\"rpcUserPwd\":\"%s\","
+                         "\"data\":\"%s\","
+                         "\"target\":\"%s\"}",
+                         (uint32_t)time(nullptr),
+                         def_.chainType_.c_str(),
+                         def_.rpcAddr_.c_str(),
+                         def_.rpcUserPwd_.c_str(),
+                         r["result"]["data"].str().c_str(), 
+                         r["result"]["target"].str().c_str());
+}
+

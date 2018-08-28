@@ -125,6 +125,12 @@ class GwMakerHandlerSia : public GwMakerHandler
   string getUserAgent() override { return "Sia-Agent"; }
 };
 
+class GwMakerHandlerDecred : public GwMakerHandlerJson 
+{
+  bool checkFields(JsonNode &r) override;
+  string constructRawMsg(JsonNode &r) override;
+  string getRequestData() override { return "{\"jsonrpc\": \"2.0\", \"method\": \"getwork\", \"params\": [], \"id\": 1}"; }
+};
 
 class GwMaker {
   shared_ptr<GwMakerHandler> handler_;
