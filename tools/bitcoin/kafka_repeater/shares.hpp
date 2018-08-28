@@ -109,7 +109,7 @@ public:
 
 struct ShareBitcoinV2
 {
-  const static uint32_t CURRENT_VERSION = 0x00010002u; // first 0001: bitcoin, second 0002: version 2.
+  const static uint32_t CURRENT_VERSION = 0x00010003u; // first 0001: bitcoin, second 0003: version 3.
 
   uint32_t  version_      = 0;
   uint32_t  checkSum_     = 0;
