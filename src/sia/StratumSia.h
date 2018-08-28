@@ -37,7 +37,7 @@ public:
 public:
   StratumJobSia();
   ~StratumJobSia();
-  string serializeToJson() const;
+  string serializeToJson() const override;
   bool unserializeFromJson(const char *s, size_t len) override;
   uint32 jobTime() const override { return nTime_; }
 };

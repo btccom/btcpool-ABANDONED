@@ -35,7 +35,7 @@ set(CMAKE_C_COMPILER "gcc")
 # set C++ standard
 set(CMAKE_CXX_STANDARD 11)
 # stop building after the first error
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wfatal-errors")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wfatal-errors -Wno-missing-braces -Wno-unused-const-variable -Wno-unused-private-field")
 
 # The number of concurrent jobs when compiling a third-party library
 if(JOBS)
@@ -114,6 +114,8 @@ else()
   message("Unknown chain type! (-DCHAIN_TYPE=${CHAIN_TYPE})")
   message(FATAL_ERROR "Supported chain type: BTC|BCH|UBTC|SBTC")
 endif()
+
+option(CHAIN_ENABLE_WALLET "Enable chain wallet feature" OFF)
 
 message("-- Chain Type: ${CHAIN_NAME} (-DCHAIN_TYPE=${CHAIN_TYPE})")
 
@@ -248,7 +250,11 @@ list(GET BITCOIN_LIBRARIES 0 BITCOIN_LIBRARIE)
 if (NOT EXISTS ${BITCOIN_LIBRARIE})
   message(STATUS "building ${CHAIN_NAME}...")
   execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./autogen.sh)
-  execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./configure --with-gui=no --disable-wallet --disable-tests --disable-bench)
+  if (NOT CHAIN_ENABLE_WALLET)
+    execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./configure --with-gui=no --disable-wallet --disable-tests --disable-bench)
+  else()
+    execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./configure --with-gui=no --disable-tests --disable-bench)
+  endif()
   execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND make ${MAKE_JOBS})
 endif()
 

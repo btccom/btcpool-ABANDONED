@@ -37,7 +37,7 @@ public:
 
 
   virtual StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
-                               struct sockaddr *saddr, const uint32_t sessionID);
+                               struct sockaddr *saddr, const uint32_t sessionID) override;
   
   void sendSolvedShare2Kafka(uint8* buf, int len);
 private:

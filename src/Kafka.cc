@@ -170,7 +170,7 @@ bool KafkaConsumer::setup(int64_t offset, const std::map<string, string> *option
 
   /* Start consuming */
   if (rd_kafka_consume_start(topic_, partition_, offset) == -1) {
-    LOG(ERROR) << "failed to start consuming: " << rd_kafka_err2str(rd_kafka_errno2err(errno));
+    LOG(ERROR) << "failed to start consuming: " << rd_kafka_last_error();
     return false;
   }
 
@@ -461,6 +461,6 @@ void KafkaProducer::produce(const void *payload, size_t len) {
                              NULL);
   if (res == -1) {
     LOG(ERROR) << "produce to topic [ " << rd_kafka_topic_name(topic_)
-    << "]: " << rd_kafka_err2str(rd_kafka_errno2err(errno));
+    << "]: " << rd_kafka_err2str(rd_kafka_last_error());
   }
 }
