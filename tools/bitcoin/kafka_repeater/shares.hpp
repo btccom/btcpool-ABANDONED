@@ -181,7 +181,7 @@ struct ShareBitcoinV2
                            jobId_, ip_.toString().c_str(), userId_,
                            workerHashId_, timestamp_, date("%F %T", timestamp_).c_str(), height_,
                            blkBits_, networkDifficulty, shareDiff_,
-                           status_, StratumStatusV2::toString(status_));
+                           status_, StratumStatusV2::toString(status_).c_str());
   }
 
   bool toShareBitcoinV1(ShareBitcoinV1 &shareV1) {
