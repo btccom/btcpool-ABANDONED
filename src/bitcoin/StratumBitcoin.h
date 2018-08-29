@@ -62,7 +62,7 @@ class ShareBitcoin
 {
 public:
 
-  const static uint32_t CURRENT_VERSION = 0x00010003u; // first 0001: bitcoin, second 0002: version 2.
+  const static uint32_t CURRENT_VERSION = 0x00010003u; // first 0001: bitcoin, second 0003: version 3.
 
   // Please pay attention to memory alignment when adding / removing fields.
   // Please note that changing the Share structure will be incompatible with the old deployment.
