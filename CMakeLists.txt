@@ -399,13 +399,19 @@ set(THIRD_LIBRARIES ethash blake2 ${BH_SHARED_LIBRARY} ${USE_CUDA_LIBRARIES}
 
 file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc src/gbtsync/*.cpp)
 file(GLOB LIB_SOURCES_CHAINS
-        src/eth/*.cc 
+        src/eth/*.cc
         src/bytom/*.cc 
         src/bitcoin/*.cc 
         src/sia/*.cc
     )
-    
-add_library(btcpool STATIC ${LIB_SOURCES} ${LIB_SOURCES_CHAINS})
+
+set(LIB_SOURCES_DECRED
+  src/decred/CommonDecred.h
+  src/decred/JobMakerDecred.cc
+  src/decred/JobMakerDecred.h
+)
+
+add_library(btcpool STATIC ${LIB_SOURCES} ${LIB_SOURCES_CHAINS} ${LIB_SOURCES_DECRED})
 
 file(GLOB_RECURSE TEST_SOURCES test/*.cc test/*.cpp)
 add_executable(unittest ${TEST_SOURCES})
