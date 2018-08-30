@@ -24,6 +24,8 @@
 #ifndef BLOCK_MAKER_ETH_H_
 #define BLOCK_MAKER_ETH_H_
 
+#include <atomic>
+
 #include "BlockMaker.h"
 #include "CommonEth.h"
 
@@ -37,16 +39,18 @@ public:
 private:
   void submitBlockNonBlocking(const string &nonce, const string &header, const string &mix, const vector<NodeDefinition> &nodes,
                               const uint32_t height, const string &chain, const uint64_t networkDiff, const StratumWorker &worker);
-  void _submitBlockThread(const string &nonce, const string &header, const string &mix, const vector<NodeDefinition> &nodes,
-                          const uint32_t height, const string &chain, const uint64_t networkDiff, const StratumWorker &worker);
+  void _submitBlockThread(const string &nonce, const string &header, const string &mix, const NodeDefinition &node,
+                          const uint32_t height, const string &chain, const uint64_t networkDiff, const StratumWorker &worker,
+                          std::atomic<bool> *syncSubmitSuccess);
   void saveBlockToDB(const string &nonce, const string &header, const string &blockHash, const uint32_t height,
                      const string &chain, const uint64_t networkDiff, const StratumWorker &worker);
 
-  bool submitBlock(const string &nonce, const string &header, const string &mix,
-                   const string &rpcUrl, const string &rpcUserPass);
-  bool submitBlockDetail(const string &nonce, const string &header, const string &mix,
-                         const string &rpcUrl, const string &rpcUserPass,
-                         string &errMsg, string &blockHash);
+  static bool submitBlock(const string &nonce, const string &header, const string &mix,
+                          const string &rpcUrl, const string &rpcUserPass,
+                          string &errMsg, string &blockHash);
+  static bool submitBlockDetail(const string &nonce, const string &header, const string &mix,
+                                const string &rpcUrl, const string &rpcUserPass,
+                                string &errMsg, string &blockHash);
   bool checkRpcSubmitBlock();
   bool checkRpcSubmitBlockDetail();
 

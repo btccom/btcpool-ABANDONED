@@ -26,7 +26,7 @@
 
 #include "utilities_js.hpp"
 
-#include <boost/thread.hpp>
+#include <thread>
 
 ////////////////////////////////////////////////BlockMakerEth////////////////////////////////////////////////////////////////
 BlockMakerEth::BlockMakerEth(shared_ptr<BlockMakerDefinition> def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB) 
@@ -80,7 +80,8 @@ void BlockMakerEth::processSolvedShare(rd_kafka_message_t *rkmessage)
 }
 
 bool BlockMakerEth::submitBlock(const string &nonce, const string &header, const string &mix,
-                                const string &rpcUrl, const string &rpcUserPass) {
+                                const string &rpcUrl, const string &rpcUserPass,
+                                string &/*errMsg*/, string &/*blockHash*/) {
   string request = Strings::Format("{\"jsonrpc\": \"2.0\", \"method\": \"eth_submitWork\", \"params\": [\"%s\",\"%s\",\"%s\"], \"id\": 5}\n",
                                    HexAddPrefix(nonce).c_str(),
                                    HexAddPrefix(header).c_str(),
@@ -246,55 +247,57 @@ bool BlockMakerEth::checkRpcSubmitBlockDetail() {
 
 void BlockMakerEth::submitBlockNonBlocking(const string &nonce, const string &header, const string &mix, const vector<NodeDefinition> &nodes,
                                            const uint32_t height, const string &chain, const uint64_t networkDiff, const StratumWorker &worker) {
-  boost::thread t(boost::bind(&BlockMakerEth::_submitBlockThread, this,
-                              nonce, header, mix, nodes,
-                              height, chain, networkDiff, worker));
+  std::vector<std::shared_ptr<std::thread>> threadPool;
+  std::atomic<bool> syncSubmitSuccess(false);
+
+  // run threads
+  for (size_t i=0; i<nodes.size(); i++) {
+    auto t = std::make_shared<std::thread>(
+      std::bind(&BlockMakerEth::_submitBlockThread, this,
+                nonce, header, mix, nodes[i],
+                height, chain, networkDiff, worker,
+                &syncSubmitSuccess));
+    threadPool.push_back(t);
+  }
+
+  // waiting for threads to end
+  for (auto &t : threadPool) {
+    t->join();
+  }
 }
 
-void BlockMakerEth::_submitBlockThread(const string &nonce, const string &header, const string &mix, const vector<NodeDefinition> &nodes,
-                                       const uint32_t height, const string &chain, const uint64_t networkDiff, const StratumWorker &worker) {
+void BlockMakerEth::_submitBlockThread(const string &nonce, const string &header, const string &mix, const NodeDefinition &node,
+                                       const uint32_t height, const string &chain, const uint64_t networkDiff, const StratumWorker &worker,
+                                       std::atomic<bool> *syncSubmitSuccess) {
   string blockHash;
 
   auto submitBlockOnce = [&]() {
-    // try eth_submitWorkDetail
-    if (useSubmitBlockDetail_) {
-      for (size_t i=0; i<nodes.size(); i++) {
-        string errMsg;
-        auto node = nodes[i];
-        bool success = submitBlockDetail(nonce, header, mix, node.rpcAddr_, node.rpcUserPwd_,
-                                        errMsg, blockHash);
-        if (success) {
-          LOG(INFO) << "eth_submitWorkDetail success, chain: " << chain << ", height: " << height << ", hash: " << blockHash
-                    << ", networkDiff: " << networkDiff << ", worker: " << worker.fullName_;
-          return true;
-        }
+    // use eth_submitWorkDetail or eth_submitWork
+    auto submitFunc = useSubmitBlockDetail_ ? BlockMakerEth::submitBlockDetail : BlockMakerEth::submitBlock;
+    auto submitRpcName = useSubmitBlockDetail_ ? "eth_submitWorkDetail" : "eth_submitWork";
 
-        LOG(WARNING) << "eth_submitWorkDetail failed, chain: " << chain << ", height: " << height << ", hash_no_nonce: " << header
-                    << ", err_msg: " << errMsg;
-      }
+    string errMsg;
+    bool success = submitFunc(nonce, header, mix, node.rpcAddr_, node.rpcUserPwd_, errMsg, blockHash);
+    if (success) {
+      LOG(INFO) << submitRpcName << " success, chain: " << chain << ", height: " << height
+                << ", hash: " << blockHash << ", hash_no_nonce: " << header
+                << ", networkDiff: " << networkDiff << ", worker: " << worker.fullName_;
+      return true;
     }
 
-    // try eth_submitWork
-    {
-      for (size_t i=0; i<nodes.size(); i++) {
-        auto node = nodes[i];
-        bool success = submitBlock(nonce, header, mix, node.rpcAddr_, node.rpcUserPwd_);
-        if (success) {
-          LOG(INFO) << "eth_submitWork success, chain: " << chain << ", height: " << height << ", hash_no_nonce: " << header
-                    << ", networkDiff: " << networkDiff << ", worker: " << worker.fullName_;
-          return true;
-        }
-
-        LOG(WARNING) << "eth_submitWork failed, chain: " << chain << ", height: " << height << ", hash_no_nonce: " << header;
-      }
-    }
-
+    LOG(WARNING) << submitRpcName << " failed, chain: " << chain << ", height: " << height << ", hash_no_nonce: " << header
+                 << ", err_msg: " << errMsg;
     return false;
   };
 
   int retryTime = 5;
   while (retryTime > 0) {
+    if (*syncSubmitSuccess) {
+      LOG(INFO) << "_submitBlockThread(" << node.rpcAddr_ << "): " << "other thread submit success, skip";
+      return;
+    }
     if (submitBlockOnce()) {
+      *syncSubmitSuccess = true;
       break;
     }
     sleep(6 - retryTime); // first sleep 1s, second sleep 2s, ...
