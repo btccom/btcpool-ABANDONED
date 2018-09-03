@@ -105,10 +105,8 @@ bool JobMakerHandlerDecred::processMsg(JsonNode &j)
   }
 
   // The rightmost element has the highest height due to the nature of composite key
-  uint32_t bestHeight;
-  if (works_.empty()) {
-    bestHeight = 0;
-  } else {
+  uint32_t bestHeight = 0;
+  if (!works_.empty()) {
     auto& bestWork = *works_.get<ByBestBlockDecred>().rbegin();
     bestHeight = bestWork.height;
     auto bestTime = bestWork.createdAt;

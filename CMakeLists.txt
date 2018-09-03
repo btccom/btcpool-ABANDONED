@@ -409,6 +409,12 @@ set(LIB_SOURCES_DECRED
   src/decred/CommonDecred.h
   src/decred/JobMakerDecred.cc
   src/decred/JobMakerDecred.h
+  src/decred/StratumDecred.cc
+  src/decred/StratumDecred.h
+  src/decred/StratumServerDecred.cc
+  src/decred/StratumServerDecred.h
+  src/decred/StratumSessionDecred.cc
+  src/decred/StratumSessionDecred.h
 )
 
 add_library(btcpool STATIC ${LIB_SOURCES} ${LIB_SOURCES_CHAINS} ${LIB_SOURCES_DECRED})

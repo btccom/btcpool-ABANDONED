@@ -5,6 +5,7 @@
 #include "eth/StratumServerEth.h"
 #include "bytom/StratumServerBytom.h"
 #include "sia/StratumServerSia.h"
+#include "decred/StratumServerDecred.h"
 
 Server* createStratumServer(const std::string &type, const int32_t shareAvgSeconds,
                             const std::string &auxPowSolvedShareTopic, /*bitcoin only. TODO: refactor this*/
@@ -28,6 +29,8 @@ Server* createStratumServer(const std::string &type, const int32_t shareAvgSecon
     return new ServerSia(shareAvgSeconds);
   else if ("BTM" == type) 
     return new ServerBytom (shareAvgSeconds);
+  else if ("DCR" == type)
+    return new ServerDecred(shareAvgSeconds);
   return nullptr;
 }
 
