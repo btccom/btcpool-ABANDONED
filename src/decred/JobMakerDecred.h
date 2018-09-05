@@ -26,6 +26,7 @@
 #define JOB_MAKER_DECRED_H_
 
 #include "JobMaker.h"
+#include "CommonDecred.h"
 #include "utilities_js.hpp"
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/hashed_index.hpp>
@@ -35,8 +36,8 @@
 #include <boost/multi_index/tag.hpp>
 
 struct GetWorkDecred {
-  GetWorkDecred(const string& data, const string& target, uint32_t createdAt, uint32_t height)
-    : data(data), target(target), createdAt(createdAt), height(height)
+  GetWorkDecred(const string& data, const string& target, uint32_t createdAt, uint32_t height, NetworkDecred network)
+    : data(data), target(target), createdAt(createdAt), height(height), network(network)
   {
   }
 
@@ -44,6 +45,7 @@ struct GetWorkDecred {
   string target;
   uint32_t createdAt;
   uint32_t height;
+  NetworkDecred network;
 };
 
 struct ByBestBlockDecred {};
@@ -61,6 +63,7 @@ using GetWorkDecredMap = boost::multi_index_container<
       boost::multi_index::tag<ByBestBlockDecred>,
       boost::multi_index::composite_key<
         GetWorkDecred,
+        boost::multi_index::member<GetWorkDecred, NetworkDecred, &GetWorkDecred::network>,
         boost::multi_index::member<GetWorkDecred, uint32_t, &GetWorkDecred::height>,
         boost::multi_index::member<GetWorkDecred, uint32_t, &GetWorkDecred::createdAt>
       >

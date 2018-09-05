@@ -25,7 +25,8 @@
 #include "StratumServerDecred.h"
 #include "StratumDecred.h"
 #include "StratumSessionDecred.h"
-
+#include "CommonDecred.h"
+#include "arith_uint256.h"
 #include <iostream>
 
 using std::ostream;
@@ -98,4 +99,62 @@ StratumSession* ServerDecred::createSession(evutil_socket_t fd, bufferevent *bev
 JobRepository* ServerDecred::createJobRepository(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime)
 {
   return new JobRepositoryDecred(kafkaBrokers, consumerTopic, fileLastNotifyTime, this);
+}
+
+int ServerDecred::checkShare(ShareDecred &share, shared_ptr<StratumJobEx> exJobPtr, const vector<uint8_t> &extraNonce2,
+                             uint32_t ntime, uint32_t nonce, const string &workerFullName)
+{
+  if (!exJobPtr || exJobPtr->isStale()) {
+    return StratumStatus::JOB_NOT_FOUND;
+  }
+
+  auto sjob = dynamic_cast<StratumJobDecred*>(exJobPtr->sjob_);
+  share.network_ = sjob->network_;
+  if (ntime > sjob->header_.timestamp.value()+ 600) {
+    return StratumStatus::TIME_TOO_NEW;
+  }
+
+  FoundBlockDecred foundBlock(share.jobId_, share.workerHashId_, share.userId_, workerFullName, sjob->header_, sjob->network_);
+  foundBlock.header_.timestamp = ntime;
+  foundBlock.header_.nonce = nonce;
+  std::copy_n(extraNonce2.begin(), std::min(sizeof(foundBlock.header_.extraData), extraNonce2.size()), foundBlock.header_.extraData.begin());
+
+  uint256 blkHash = foundBlock.header_.getHash();
+  auto bnBlockHash = UintToArith256(blkHash);
+  auto bnNetworkTarget = UintToArith256(sjob->target_);
+
+  //
+  // found new block
+  //
+  if (isSubmitInvalidBlock_ == true || bnBlockHash <= bnNetworkTarget) {
+    // send
+    kafkaProducerSolvedShare_->produce(&foundBlock, sizeof(FoundBlockDecred));
+
+    // mark jobs as stale
+    GetJobRepository()->markAllJobsAsStale();
+
+    LOG(INFO) << ">>>> found a new block: " << blkHash.ToString()
+    << ", jobId: " << share.jobId_ << ", userId: " << share.userId_
+    << ", by: " << workerFullName << " <<<<";
+  }
+
+  // print out high diff share, 2^10 = 1024
+  if ((bnBlockHash >> 10) <= bnNetworkTarget) {
+    LOG(INFO) << "high diff share, blkhash: " << blkHash.ToString()
+              << ", networkTarget: " << sjob->target_.ToString()
+              << ", by: " << workerFullName;
+  }
+
+  // check share diff
+  auto jobTarget = NetworkParamsDecred::get(sjob->network_).powLimit / share.shareDiff_;
+
+  if (isEnableSimulator_ == false && bnBlockHash > jobTarget) {
+    return StratumStatus::LOW_DIFFICULTY;
+  }
+
+  DLOG(INFO) << "blkHash: " << blkHash.ToString() << ", jobTarget: "
+  << jobTarget.ToString() << ", networkTarget: " << sjob->target_.ToString();
+
+  // reach here means an valid share
+  return StratumStatus::ACCEPT;
 }

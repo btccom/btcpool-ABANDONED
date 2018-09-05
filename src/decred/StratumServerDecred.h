@@ -26,6 +26,7 @@
 #define STRATUM_SERVER_DECRED_H_
 
 #include "StratumServer.h"
+#include "StratumDecred.h"
 
 class ServerDecred;
 
@@ -45,8 +46,14 @@ public:
   explicit ServerDecred(int32_t shareAvgSeconds);
   StratumSession* createSession(evutil_socket_t fd, bufferevent *bev, sockaddr *saddr, const uint32_t sessionID) override;
 
+  int checkShare(ShareDecred &share, shared_ptr<StratumJobEx> exJobPtr, const vector<uint8_t> &extraNonce2,
+                 uint32_t ntime, uint32_t nonce, const string &workerFullName);
+
 protected:
   JobRepository* createJobRepository(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime) override;
+
+private:
+  void sendSolvedShare2Kafka(const FoundBlockDecred &foundBlock);
 };
 
 #endif

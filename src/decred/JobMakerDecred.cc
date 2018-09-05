@@ -38,7 +38,9 @@
 using std::ostream;
 static ostream& operator<<(ostream& os, const GetWorkDecred& work)
 {
-  os << "data = " << work.data << ", target = " << work.target << ", created at = " << work.createdAt << ", height = " << work.height;
+  os << "data = " << work.data << ", target = " << work.target
+     << ", created at = " << work.createdAt << ", height = " << work.height
+     << ", network = " << static_cast<uint32_t>(work.network);
   return os;
 }
 
@@ -83,12 +85,16 @@ string JobMakerHandlerDecred::makeStratumJobMsg()
                          ",\"coinBase1\":\"%s\""
                          ",\"coinBase2\":\"%s\""
                          ",\"version\":\"%s\""
+                         ",\"target\":\"%s\""
+                         ",\"network\":%" PRIu32
                          "}",
                          jobId,
                          prevHash.c_str(),
                          coinBase1.c_str(),
                          coinBase2.c_str(),
-                         version.c_str());
+                         version.c_str(),
+                         work.target.c_str(),
+                         static_cast<uint32_t>(work.network));
 }
 
 bool JobMakerHandlerDecred::processMsg(JsonNode &j)
@@ -97,6 +103,7 @@ bool JobMakerHandlerDecred::processMsg(JsonNode &j)
   auto data = j["data"].str();
   auto target = j["target"].str();
   auto createdAt = j["created_at_ts"].uint32();
+  auto network = static_cast<NetworkDecred>(j["network"].uint32());
   auto heightString = data.substr(OFFSET_AND_SIZE_DECRED(height));
   auto height = boost::endian::little_to_native(static_cast<uint32_t>(strtoul(heightString.c_str(), nullptr, 16)));
   if (height == 0) {
@@ -104,10 +111,12 @@ bool JobMakerHandlerDecred::processMsg(JsonNode &j)
     return false;
   }
 
-  // The rightmost element has the highest height due to the nature of composite key
+  // The rightmost element with the equivalent network has the highest height due to the nature of composite key
   uint32_t bestHeight = 0;
-  if (!works_.empty()) {
-    auto& bestWork = *works_.get<ByBestBlockDecred>().rbegin();
+  auto &works = works_.get<ByBestBlockDecred>();
+  auto r = works.equal_range(network);
+  if (r.first != works.end()) {
+    auto &bestWork = *(--r.second);
     bestHeight = bestWork.height;
     auto bestTime = bestWork.createdAt;
 
@@ -122,7 +131,7 @@ bool JobMakerHandlerDecred::processMsg(JsonNode &j)
     }
   }
 
-  auto p = works_.emplace(data, target, createdAt, height);
+  auto p = works_.emplace(data, target, createdAt, height, network);
   auto& work = *p.first;
   if (!p.second) {
     LOG(ERROR) << "current work is duplicated with a previous work: " << work << ", current created at = " << createdAt;
@@ -152,7 +161,8 @@ bool JobMakerHandlerDecred::validate(JsonNode &j)
     !IsHex(j["data"].str()) ||
     j["target"].type() != Utilities::JS::type::Str ||
     j["target"].size() != 64 ||
-    !IsHex(j["data"].str())) {
+    !IsHex(j["target"].str()) ||
+    j["network"].type() != Utilities::JS::type::Int) {
       LOG(ERROR) << "work format not expected";
     return false;
     }

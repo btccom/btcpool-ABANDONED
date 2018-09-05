@@ -158,8 +158,8 @@ void StratumSessionDecred::handleRequest_Subscribe(const string &idStr, const Js
   //  result[2] = ExtraNonce2_size, the number of bytes that the miner users for its ExtraNonce2 counter
   assert(kExtraNonce2Size_ == 8);
   const string s = Strings::Format("{\"id\":%s,\"result\":[[[\"mining.set_difficulty\",\"1\"]"
-                                   ",[\"mining.notify\",\"%08x\"]],\"%08x\",%d],\"error\":null}\n",
-                                   idStr.c_str(), extraNonce1_, extraNonce1_, kExtraNonce2Size_);
+                                   ",[\"mining.notify\",\"%08x\"]],\"0000000000000000%s\",%d],\"error\":null}\n",
+                                   idStr.c_str(), extraNonce1_, HexStr(BEGIN(extraNonce1_), END(extraNonce1_)).c_str(), kExtraNonce2Size_);
   sendData(s);
 }
 
@@ -196,4 +196,114 @@ void StratumSessionDecred::handleRequest_Authorize(const string &idStr, const Js
 
 void StratumSessionDecred::handleRequest_Submit(const string &idStr, const JsonNode &jparams)
 {
+  if (state_ != AUTHENTICATED) {
+    responseError(idStr, StratumStatus::UNAUTHORIZED);
+
+    // there must be something wrong, send reconnect command
+    string s = "{\"id\":null,\"method\":\"client.reconnect\",\"params\":[]}\n";
+    sendData(s);
+
+    return;
+  }
+
+  //  params[0] = Worker Name
+  //  params[1] = Job ID
+  //  params[2] = ExtraNonce 2
+  //  params[3] = nTime
+  //  params[4] = nonce
+  if (jparams.children()->size() < 5) {
+    responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
+    return;
+  }
+
+  auto shortJobId = static_cast<uint8_t>(jparams.children()->at(1).uint32());
+  auto extraNonce2 = ParseHex(jparams.children()->at(2).str());
+  auto ntime = jparams.children()->at(3).uint32_hex();
+  auto nonce = jparams.children()->at(4).uint32_hex();
+
+  auto server = GetServer();
+  auto jobRepo = server->GetJobRepository();
+
+  LocalJob *localJob = findLocalJob(shortJobId);
+  if (!localJob) {
+    // if can't find localJob, could do nothing
+    responseError(idStr, StratumStatus::JOB_NOT_FOUND);
+
+    LOG(INFO) << "rejected share: " << StratumStatus::toString(StratumStatus::JOB_NOT_FOUND)
+              << ", worker: " << worker_.fullName_ << ", Share(id: " << idStr << ", shortJobId: "
+              << static_cast<uint16_t>(shortJobId) << ", nTime: " << ntime << "/" << date("%F %T", ntime) << ")";
+    return;
+  }
+
+  uint32_t height = 0;
+  auto exjob = jobRepo->getStratumJobEx(localJob->jobId_);
+  if (exjob) {
+    // 0 means miner use stratum job's default block time
+    auto sjob = static_cast<StratumJobDecred*>(exjob->sjob_);
+    if (ntime == 0) {
+        ntime = sjob->header_.timestamp.value();
+    }
+
+    height = sjob->header_.height.value();
+  }
+
+  ShareDecred share(worker_.workerHashId_, worker_.userId_, clientIpInt_, localJob->jobId_, localJob->jobDifficulty_, localJob->blkBits_, height, nonce, extraNonce1_);
+
+  // we send share to kafka by default, but if there are lots of invalid
+  // shares in a short time, we just drop them.
+  bool isSendShareToKafka = true;
+
+  LocalShare localShare(reinterpret_cast<boost::endian::little_uint64_buf_t *>(extraNonce2.data())->value(), nonce, ntime);
+
+  // can't find local share
+  if (!localJob->addLocalShare(localShare)) {
+    share.status_ = StratumStatus::DUPLICATE_SHARE;
+    responseError(idStr, share.status_);
+
+    // add invalid share to counter
+    invalidSharesCounter_.insert(static_cast<int64_t>(time(nullptr)), 1);
+
+    goto finish;
+  }
+
+  share.status_ = server->checkShare(share, exjob, extraNonce2, ntime, nonce, worker_.fullName_);
+
+  // accepted share
+  if (StratumStatus::isAccepted(share.status_)) {
+    diffController_->addAcceptedShare(share.shareDiff_);
+    responseTrue(idStr);
+  } else {
+    // reject share
+    responseError(idStr, share.status_);
+
+    // add invalid share to counter
+    invalidSharesCounter_.insert(static_cast<int64_t>(time(nullptr)), 1);
+  }
+
+
+finish:
+  DLOG(INFO) << share.toString();
+
+  if (!StratumStatus::isAccepted(share.status_)) {
+    // log all rejected share to answer "Why the rejection rate of my miner increased?"
+    LOG(INFO) << "rejected share: " << StratumStatus::toString(share.status_)
+              << ", worker: " << worker_.fullName_ << ", " << share.toString();
+
+    // check if thers is invalid share spamming
+    int64_t invalidSharesNum = invalidSharesCounter_.sum(time(nullptr),
+                                                         INVALID_SHARE_SLIDING_WINDOWS_SIZE);
+    // too much invalid shares, don't send them to kafka
+    if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT) {
+      isSendShareToKafka = false;
+
+      LOG(INFO) << "invalid share spamming, diff: "<< share.shareDiff_ << ", worker: "
+                << worker_.fullName_ << ", agent: " << clientAgent_ << ", ip: " << clientIp_;
+    }
+  }
+
+  if (isSendShareToKafka) {
+    share.checkSum_ = share.checkSum();
+    GetServer()->sendShare2Kafka(reinterpret_cast<const uint8_t *>(&share), sizeof(ShareDecred));
+  }
+  return;
 }

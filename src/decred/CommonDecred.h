@@ -26,14 +26,17 @@
 #define COMMON_DECRED_H_
 
 #include <boost/endian/buffers.hpp>
+#include <arith_uint256.h>
+#include <uint256.h>
+#include <string>
 
 // Decred block header (https://docs.decred.org/advanced/block-header-specifications/)
 // Byte arrays are used so that the members are packed
 struct BlockHeaderDecred {
   boost::endian::little_uint32_buf_t version;
-  uint8_t prevBlock[32];
-  uint8_t merkelRoot[32];
-  uint8_t stakeRoot[32];
+  uint256 prevBlock;
+  uint256 merkelRoot;
+  uint256 stakeRoot;
   boost::endian::little_uint16_buf_t voteBits;
   boost::endian::little_uint48_buf_t finalState;
   boost::endian::little_uint16_buf_t voters;
@@ -46,10 +49,38 @@ struct BlockHeaderDecred {
   boost::endian::little_uint32_buf_t size;
   boost::endian::little_uint32_buf_t timestamp;
   boost::endian::little_uint32_buf_t nonce;
-  uint8_t extraData[32];
+  uint256 extraData;
   boost::endian::little_uint32_buf_t stakeVersion;
+
+  uint256 getHash() const;
 };
 
 static_assert(sizeof(BlockHeaderDecred) == 180, "Decred block header type is invalid");
+
+// Magic number from the network type
+enum class NetworkDecred : uint32_t {
+  MainNet = 0xd9b400f9,
+  TestNet = 0xb194aa75,
+  SimNet = 0x12141c16,
+};
+
+// Priority: mainnet > testnet > simnet > others
+inline bool operator<(NetworkDecred lhs, NetworkDecred rhs) {
+  switch (rhs) {
+  case NetworkDecred::MainNet:
+    return lhs != NetworkDecred::MainNet;
+  case NetworkDecred::TestNet:
+    return lhs != NetworkDecred::MainNet && lhs != NetworkDecred::TestNet;
+  case NetworkDecred::SimNet:
+    return lhs != NetworkDecred::MainNet && lhs != NetworkDecred::TestNet && lhs != NetworkDecred::SimNet;
+  }
+  return false;
+}
+
+struct NetworkParamsDecred {
+  arith_uint256 powLimit;
+
+  static const NetworkParamsDecred& get(NetworkDecred network);
+};
 
 #endif

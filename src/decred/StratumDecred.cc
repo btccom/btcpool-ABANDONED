@@ -39,12 +39,16 @@ string StratumJobDecred::serializeToJson() const {
                          ",\"coinBase1\":\"%s\""
                          ",\"coinBase2\":\"%s\""
                          ",\"version\":\"%s\""
+                         ",\"target\":\"%s\""
+                         ",\"network\":%" PRIu32
                          "}",
                          jobId_,
                          getPrevHash().c_str(),
                          getCoinBase1().c_str(),
                          HexStr(BEGIN(header_.stakeVersion), END(header_.stakeVersion)).c_str(),
-                         HexStr(BEGIN(header_.version), END(header_.version)).c_str());
+                         HexStr(BEGIN(header_.version), END(header_.version)).c_str(),
+                         target_.ToString().c_str(),
+                         static_cast<uint32_t>(network_));
 }
 
 bool StratumJobDecred::unserializeFromJson(const char *s, size_t len) {
@@ -61,13 +65,17 @@ bool StratumJobDecred::unserializeFromJson(const char *s, size_t len) {
       j["coinBase2"].type() != Utilities::JS::type::Str ||
       j["coinBase2"].size() != 8 ||
       j["version"].type() != Utilities::JS::type::Str ||
-      j["version"].size() != 8) {
+      j["version"].size() != 8 ||
+      j["target"].type() != Utilities::JS::type::Str ||
+      j["target"].size() != 64 ||
+      j["network"].type() != Utilities::JS::type::Int) {
     LOG(ERROR) << "parse stratum job failure: " << s;
     return false;
   }
 
   memset(&header_, 0, sizeof(BlockHeaderDecred));
   jobId_ = j["jobId"].uint64();
+  network_ = static_cast<NetworkDecred>(j["network"].uint32());
 
 #define UNSERIALIZE_SJOB_FIELD(n, d) \
   auto n##Str = j[#n].str(); \
@@ -81,6 +89,7 @@ bool StratumJobDecred::unserializeFromJson(const char *s, size_t len) {
   UNSERIALIZE_SJOB_FIELD(coinBase1, &header_.merkelRoot);
   UNSERIALIZE_SJOB_FIELD(coinBase2, &header_.stakeVersion);
   UNSERIALIZE_SJOB_FIELD(version, &header_.version);
+  UNSERIALIZE_SJOB_FIELD(target, target_.begin());
 #undef UNSERIALIZE_SJOB_FIELD
   
   return true;
@@ -88,10 +97,10 @@ bool StratumJobDecred::unserializeFromJson(const char *s, size_t len) {
 
 string StratumJobDecred::getPrevHash() const
 {
-  return HexStr(header_.prevBlock, header_.merkelRoot);
+  return HexStr(header_.prevBlock.begin(), header_.prevBlock.end());
 }
 
 string StratumJobDecred::getCoinBase1() const
 {
-  return HexStr(header_.merkelRoot, header_.extraData);
+  return HexStr(header_.merkelRoot.begin(), header_.extraData.begin());
 }
