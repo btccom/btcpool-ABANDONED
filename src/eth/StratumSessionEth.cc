@@ -219,6 +219,8 @@ void StratumSessionEth::handleRequest_Subscribe(const string &idStr, const JsonN
   if (params->size() >= 1) {
     clientAgent_ = params->at(0).str().substr(0, 30);  // 30 is max len
     clientAgent_ = filterWorkerName(clientAgent_);
+    // check if it's NinceHash/x.x.x
+    isNiceHashClient_ = isNiceHashAgent(clientAgent_);
   }
 
   string protocolStr;
@@ -259,6 +261,12 @@ void StratumSessionEth::handleRequest_Subscribe(const string &idStr, const JsonN
   if (protocolStr.substr(0, 16) == "ethereumstratum/") {
     ethProtocol_ = StratumProtocol::NICEHASH_STRATUM;
 
+    string noncePrefix = Strings::Format("%06x", extraNonce1_);
+    if (isNiceHashClient_) {
+      // NiceHash only accepts 2 bytes or shorter of extraNonce.
+      noncePrefix = noncePrefix.substr(0, 4);
+    }
+
     // mining.notify of NICEHASH_STRATUM's subscribe
     // {
     //   "id": 1, 
@@ -276,8 +284,8 @@ void StratumSessionEth::handleRequest_Subscribe(const string &idStr, const JsonN
                                         "\"mining.notify\","
                                         "\"%06x\","
                                         "\"EthereumStratum/1.0.0\""
-                                     "],\"%06x\"],\"error\":null}\n",
-                                     idStr.c_str(), extraNonce1_, extraNonce1_);
+                                     "],\"%s\"],\"error\":null}\n",
+                                     idStr.c_str(), extraNonce1_, noncePrefix.c_str());
     sendData(s);
   }
 #ifdef WORK_WITH_STRATUM_SWITCHER
@@ -469,7 +477,11 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
 
   if (StratumProtocol::NICEHASH_STRATUM == ethProtocol_) {
     if (sNonce.size() != 16) {
-      sNonce = Strings::Format("%06x", extraNonce1_) + sNonce;
+      string noncePrefix = Strings::Format("%06x", extraNonce1_);
+      if (isNiceHashClient_) {
+        noncePrefix = noncePrefix.substr(0, 4);
+      }
+      sNonce = noncePrefix + sNonce;
     }
   }
   

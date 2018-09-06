@@ -35,7 +35,7 @@ using namespace std;
 //////////////////////////////// SessionIDManagerT //////////////////////////////
 template <uint8_t IBITS>
 SessionIDManagerT<IBITS>::SessionIDManagerT(const uint8_t serverId) :
-serverId_(serverId), count_(0), allocIdx_(0)
+serverId_(serverId), count_(0), allocIdx_(0), allocInterval_(0)
 {
   sessionIds_.reset();
 }
@@ -52,6 +52,11 @@ bool SessionIDManagerT<IBITS>::_ifFull() {
     return true;
   }
   return false;
+}
+
+template <uint8_t IBITS>
+void SessionIDManagerT<IBITS>::setAllocInterval(uint32_t interval) {
+  allocInterval_ = interval;
 }
 
 template <uint8_t IBITS>
@@ -74,6 +79,7 @@ bool SessionIDManagerT<IBITS>::allocSessionId(uint32_t *sessionID) {
   count_++;
 
   *sessionID = (((uint32_t)serverId_ << IBITS) | allocIdx_);
+  allocIdx_ += allocInterval_;
   return true;
 }
 

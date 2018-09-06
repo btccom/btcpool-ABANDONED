@@ -26,19 +26,6 @@
 
 #include <event2/buffer.h>
 
-static
-bool _isNiceHashAgent(const string &clientAgent) {
-  if (clientAgent.length() < 9) {
-    return false;
-  }
-  string agent = clientAgent;
-  // tolower
-  std::transform(agent.begin(), agent.end(), agent.begin(), ::tolower);
-  if (agent.substr(0, 9) == "nicehash/") {
-    return true;
-  }
-  return false;
-}
 
 ///////////////////////////////// StratumSessionBitcoin ////////////////////////////////
 StratumSessionBitcoin::StratumSessionBitcoin(evutil_socket_t fd, struct bufferevent *bev,
@@ -172,7 +159,7 @@ void StratumSessionBitcoin::handleRequest_Subscribe(const string &idStr,
   }
 
   // check if it's NinceHash/x.x.x
-  if (_isNiceHashAgent(clientAgent_))
+  if (isNiceHashAgent(clientAgent_))
     isNiceHashClient_ = true;
 
   //

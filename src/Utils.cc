@@ -502,3 +502,16 @@ uint64_t getAlphaNumRank(const string &str, size_t significand) {
 
   return r;
 }
+
+bool isNiceHashAgent(const string &clientAgent) {
+  if (clientAgent.length() < 9) {
+    return false;
+  }
+  string agent = clientAgent;
+  // tolower
+  std::transform(agent.begin(), agent.end(), agent.begin(), ::tolower);
+  if (agent.substr(0, 9) == "nicehash/") {
+    return true;
+  }
+  return false;
+}
