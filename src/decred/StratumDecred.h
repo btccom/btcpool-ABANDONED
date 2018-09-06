@@ -75,6 +75,25 @@ public:
   uint32_t nonce_;
   uint32_t sessionId_;
   NetworkDecred network_;
+  uint16_t voters_;
+
+  ShareDecred()
+    : version_(ShareDecred::CURRENT_VERSION)
+    , checkSum_(0)
+    , workerHashId_(0)
+    , userId_(0)
+    , status_(StratumStatus::REJECT_NO_REASON)
+    , timestamp_(0)
+    , jobId_(0)
+    , shareDiff_(0)
+    , blkBits_(0)
+    , height_(0)
+    , nonce_(0)
+    , sessionId_(0)
+    , network_(NetworkDecred::MainNet)
+    , voters_(0)
+  {
+  }
 
   ShareDecred(
       int64_t workerHashId,
@@ -98,9 +117,30 @@ public:
     , height_(height)
     , nonce_(nonce)
     , sessionId_(extraNonce1)
-    , network_(NetworkDecred::TestNet)
+    , network_(NetworkDecred::MainNet)
+    , voters_(0)
   {
     ip_.fromIpv4Int(clientIpInt);
+  }
+
+  double score() const
+  {
+    if (shareDiff_ == 0 || blkBits_ == 0)
+    {
+      return 0.0;
+    }
+
+    double networkDifficulty = NetworkParamsDecred::get(network_).powLimit.getdouble() / arith_uint256().SetCompact(blkBits_).getdouble();
+
+    // Network diff may less than share diff on testnet or regression test network.
+    // On regression test network, the network diff may be zero.
+    // But no matter how low the network diff is, you can only dig one block at a time.
+    if (networkDifficulty < shareDiff_)
+    {
+      return 1.0;
+    }
+
+    return shareDiff_ / networkDifficulty;
   }
 
   uint32_t checkSum() const {
@@ -146,12 +186,13 @@ public:
 
   string toString() const
   {
+    double networkDifficulty = NetworkParamsDecred::get(network_).powLimit.getdouble() / arith_uint256().SetCompact(blkBits_).getdouble();
     return Strings::Format("share(jobId: %" PRIu64 ", ip: %s, userId: %d, "
                            "workerId: %" PRId64 ", time: %u/%s, height: %u, "
-                           "blkBits: %08x, shareDiff: %" PRIu64 ", status: %d/%s)",
+                           "blkBits: %08x/%lf, shareDiff: %" PRIu64 ", status: %d/%s)",
                            jobId_, ip_.toString().c_str(), userId_,
                            workerHashId_, timestamp_, date("%F %T", timestamp_).c_str(), height_,
-                           blkBits_, shareDiff_, status_, StratumStatus::toString(status_));
+                           blkBits_, networkDifficulty, shareDiff_, status_, StratumStatus::toString(status_));
   }
 };
 

@@ -110,7 +110,8 @@ int ServerDecred::checkShare(ShareDecred &share, shared_ptr<StratumJobEx> exJobP
 
   auto sjob = dynamic_cast<StratumJobDecred*>(exJobPtr->sjob_);
   share.network_ = sjob->network_;
-  if (ntime > sjob->header_.timestamp.value()+ 600) {
+  share.voters_ = sjob->header_.voters.value();
+  if (ntime > sjob->header_.timestamp.value() + 600) {
     return StratumStatus::TIME_TOO_NEW;
   }
 

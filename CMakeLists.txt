@@ -415,6 +415,14 @@ set(LIB_SOURCES_DECRED
   src/decred/DecredUtils.h
   src/decred/JobMakerDecred.cc
   src/decred/JobMakerDecred.h
+  src/decred/ShareLoggerDecred.cc
+  src/decred/ShareLoggerDecred.h
+  src/decred/ShareLogParserDecred.cc
+  src/decred/ShareLogParserDecred.h
+  src/decred/StatisticsDecred.cc
+  src/decred/StatisticsDecred.h
+  src/decred/StatsHttpdDecred.cc
+  src/decred/StatsHttpdDecred.h
   src/decred/StratumDecred.cc
   src/decred/StratumDecred.h
   src/decred/StratumServerDecred.cc
