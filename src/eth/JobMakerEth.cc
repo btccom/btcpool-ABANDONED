@@ -46,15 +46,15 @@ bool JobMakerHandlerEth::processMsg(const string &msg)
   }
   
   workMap_.insert(std::make_pair(key, work));
-  DLOG(INFO) << "add work: " << msg;
+  LOG(INFO) << "add work, height: " << work->getHeight() << ", header: " << work->getBlockHash() << ", from: " << work->getRpcAddress();
 
   clearTimeoutMsg();
 
+  if (work->getHeight() < lastHeight) {
+    LOG(WARNING) << "low height work. lastHeight:" << lastHeight << ", workHeight: " << work->getHeight();
+  }
+  // The job update is triggered only the block height increases.
   if (work->getHeight() <= lastHeight) {
-    if (work->getHeight() < lastHeight) {
-      LOG(WARNING) << "low height work. lastHeight:" << lastHeight << ", workHeight: " << work->getHeight()
-                   << ", work: " << msg;
-    }
     return false;
   }
 
