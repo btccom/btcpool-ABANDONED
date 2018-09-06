@@ -132,13 +132,15 @@ void StratumSessionEth::sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr
     //"a8784097a4d03c2d2ac6a3a2beebd0606aa30a8536a700446b40800841c0162c",
     //"0000000112e0be826d694b2e62d01511f12a6061fbaec8bc02357593e70e52ba",false]}
     strNotify = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
-                                "\"params\":[\"%s\",\"%s\",\"%s\",\"%s\", %s]}\n",
+                                "\"params\":[\"%s\",\"%s\",\"%s\",\"%s\", %s],"
+                                "\"height\":%lu}\n",
                                 idStr.c_str(),
                                 header.c_str(),
                                 header.c_str(),
                                 seed.c_str(),
                                 strShareTarget.c_str(),
-                                exJobPtr->isClean_ ? "true" : "false");
+                                exJobPtr->isClean_ ? "true" : "false",
+                                ethJob->height_);
   }
   break;
   case StratumProtocol::ETHPROXY:
@@ -152,13 +154,15 @@ void StratumSessionEth::sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr
                                 "\"result\":[\"0x%s\",\"0x%s\",\"0x%s\","
                                 // nonce cannot start with 0x because of
                                 // a compatibility issue with AntMiner E3.
-                                "\"%06x\"]}\n",
+                                "\"%06x\"],"
+                                "\"height\":%lu}\n",
                                 idStr.c_str(),
                                 header.c_str(),
                                 seed.c_str(),
                                 //Claymore use 58 bytes target
                                 strShareTarget.substr(6, 58).c_str(),
-                                startNoncePrefix);
+                                startNoncePrefix,
+                                ethJob->height_);
   }
   break;
   case StratumProtocol::NICEHASH_STRATUM:
@@ -185,12 +189,14 @@ void StratumSessionEth::sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr
     //     true
     //   ]}
     strNotify += Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
-                                 "\"params\":[\"%s\",\"%s\",\"%s\", %s]}\n",
+                                 "\"params\":[\"%s\",\"%s\",\"%s\", %s],"
+                                 "\"height\":%lu}\n",
                                  idStr.c_str(),
                                  header.c_str(),
                                  seed.c_str(),
                                  header.c_str(),
-                                 exJobPtr->isClean_ ? "true" : "false");
+                                 exJobPtr->isClean_ ? "true" : "false",
+                                 ethJob->height_);
   }
   break;
   }
