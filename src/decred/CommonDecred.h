@@ -79,6 +79,15 @@ inline bool operator<(NetworkDecred lhs, NetworkDecred rhs) {
 
 struct NetworkParamsDecred {
   arith_uint256 powLimit;
+  int64_t baseSubsidy;
+  int64_t mulSubsidy;
+  int64_t divSubsidy;
+  int64_t subsidyReductionInterval;
+  int64_t workRewardProportion;
+  int64_t stakeRewardProportion;
+  int64_t blockTaxProportion;
+  int64_t stakeValidationHeight;
+  uint16_t ticketsPerBlock;
 
   static const NetworkParamsDecred& get(NetworkDecred network);
 };

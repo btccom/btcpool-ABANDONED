@@ -407,8 +407,12 @@ file(GLOB LIB_SOURCES_CHAINS
     )
 
 set(LIB_SOURCES_DECRED
+  src/decred/BlockMakerDecred.cc
+  src/decred/BlockMakerDecred.h
   src/decred/CommonDecred.cc
   src/decred/CommonDecred.h
+  src/decred/DecredUtils.cc
+  src/decred/DecredUtils.h
   src/decred/JobMakerDecred.cc
   src/decred/JobMakerDecred.h
   src/decred/StratumDecred.cc

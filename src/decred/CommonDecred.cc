@@ -42,9 +42,42 @@ uint256 BlockHeaderDecred::getHash() const
 
 const NetworkParamsDecred& NetworkParamsDecred::get(NetworkDecred network)
 {
-  static NetworkParamsDecred mainnetParams{arith_uint256{"000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"}};
-  static NetworkParamsDecred testnetParams{arith_uint256{"0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"}};
-  static NetworkParamsDecred simnetParams{arith_uint256{"7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"}};
+  static NetworkParamsDecred mainnetParams{
+    arith_uint256{"000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"},
+    3119582664,
+    100,
+    101,
+    6144,
+    6,
+    3,
+    1,
+    4096,
+    5,
+  };
+  static NetworkParamsDecred testnetParams{
+    arith_uint256{"0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"},
+    2500000000,
+    100,
+    101,
+    2048,
+    6,
+    3,
+    1,
+    768,
+    5,
+  };
+  static NetworkParamsDecred simnetParams{
+    arith_uint256{"7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"},
+    50000000000,
+    100,
+    101,
+    128,
+    6,
+    3,
+    1,
+    16 + (64 * 2),
+    5,
+  };
 
   switch (network) {
   case NetworkDecred::MainNet:
