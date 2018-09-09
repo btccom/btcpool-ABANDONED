@@ -72,6 +72,24 @@ void StratumSessionEth::responseTrue(const string &idStr) {
   }
 }
 
+void StratumSessionEth::responseFalse(const string &idStr, int code) {
+  if (StratumProtocol::ETHPROXY == ethProtocol_) {
+    StratumSessionEth::rpc2ResponseFalse(idStr, code);
+  }
+  else {
+    StratumSession::responseError(idStr, code);
+  }
+}
+
+void StratumSessionEth::rpc2ResponseFalse(const string &idStr, int errCode) {
+  char buf[1024];
+  int len = snprintf(buf, sizeof(buf),
+                     "{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":false,\"data\":{\"code\":%d,\"message\":\"%s\"}}\n",
+                     idStr.empty() ? "null" : idStr.c_str(),
+                     errCode, StratumStatus::toString(errCode));                  
+  sendData(buf, len);
+}
+
 void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
   if (StratumProtocol::ETHPROXY == ethProtocol_) {
     // AntMiner E3 need id to be 0, otherwise it will not be able to mine.
@@ -475,14 +493,14 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   // can't find local job
   if (localJob == nullptr)
   {
-    responseError(idStr, StratumStatus::JOB_NOT_FOUND);
+    responseFalse(idStr, StratumStatus::JOB_NOT_FOUND);
     return;
   }
 
   // can't find stratum job
   shared_ptr<StratumJobEx> exjob = GetServer()->GetJobRepository()->getStratumJobEx(localJob->jobId_);
   if (exjob.get() == nullptr) {
-    responseError(idStr, StratumStatus::JOB_NOT_FOUND);
+    responseFalse(idStr, StratumStatus::JOB_NOT_FOUND);
     return;
   }
   StratumJobEth *sjob = dynamic_cast<StratumJobEth *>(exjob->sjob_);
@@ -524,7 +542,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   // can't add local share
   if (!localJob->addLocalShare(localShare))
   {
-    responseError(idStr, StratumStatus::DUPLICATE_SHARE);
+    responseFalse(idStr, StratumStatus::DUPLICATE_SHARE);
     // add invalid share to counter
     invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
     return;
@@ -563,7 +581,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   {
     // add invalid share to counter
     invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
-    responseError(idStr, share.status_);
+    responseFalse(idStr, share.status_);
   }
 
   bool isSendShareToKafka = true;

@@ -88,6 +88,9 @@ protected:
 
   void responseError(const string &idStr, int code) override;
   void responseTrue(const string &idStr) override;
+  void responseFalse(const string &idStr, int errCode);
+  // response a false with an error object as data
+  void rpc2ResponseFalse(const string &idStr, int errCode);
 
   void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false) override;  
   void sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr, const string &idStr);
