@@ -78,14 +78,13 @@ class SessionIDManagerT : public SessionIDManager {
   //  0 bit or longer       8bit            24 bit or shorter
   // -----------------    ---------    ----------------------------
   // leading zero bits    server ID             session id
-  //     [000...]          [1, 255]    range: [0, kMaxSessionIndex]
+  //     [000...]          [1, 255]    range: [0, kSessionIdMask]
   //
 
-  const static uint32_t kFullSessionIndex = (1 << IBITS) - 1;      // example: 0x00FFFFFF;
-  const static uint32_t kMaxSessionIndex = kFullSessionIndex - 1; // example: 0x00FFFFFE;
+  const static uint32_t kSessionIdMask = (1 << IBITS) - 1;      // example: 0x00FFFFFF;
 
   uint8_t serverId_;
-  std::bitset<kFullSessionIndex> sessionIds_;
+  std::bitset<kSessionIdMask + 1> sessionIds_;
 
   uint32_t count_;  // how many ids are used now
   uint32_t allocIdx_;
