@@ -55,11 +55,21 @@ void StratumSessionEth::clearLocalJobs()
 }
 
 void StratumSessionEth::responseError(const string &idStr, int code) {
-  return rpc2ResponseError(idStr, code);
+  if (StratumProtocol::ETHPROXY == ethProtocol_) {
+    StratumSession::rpc2ResponseError(idStr, code);
+  }
+  else {
+    StratumSession::responseError(idStr, code);
+  }
 }
 
 void StratumSessionEth::responseTrue(const string &idStr) {
-  return rpc2ResponseBoolean(idStr, true);
+  if (StratumProtocol::ETHPROXY == ethProtocol_) {
+    StratumSession::rpc2ResponseTrue(idStr);
+  }
+  else {
+    StratumSession::responseTrue(idStr);
+  }
 }
 
 void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
@@ -126,13 +136,13 @@ void StratumSessionEth::sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr
   case StratumProtocol::STRATUM:
   {
     //Etherminer mining.notify
-    //{"id":6,"jsonrpc":"2.0","method":"mining.notify","params":
+    //{"id":6,"method":"mining.notify","params":
     //["dd159c7ec5b056ad9e95e7c997829f667bc8e34c6d43fcb9e0c440ed94a85d80",
     //"dd159c7ec5b056ad9e95e7c997829f667bc8e34c6d43fcb9e0c440ed94a85d80",
     //"a8784097a4d03c2d2ac6a3a2beebd0606aa30a8536a700446b40800841c0162c",
     //"0000000112e0be826d694b2e62d01511f12a6061fbaec8bc02357593e70e52ba",false]}
-    strNotify = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
-                                "\"params\":[\"%s\",\"%s\",\"%s\",\"%s\", %s],"
+    strNotify = Strings::Format("{\"id\":%s,\"method\":\"mining.notify\","
+                                "\"params\":[\"%s\",\"%s\",\"%s\",\"%s\",%s],"
                                 "\"height\":%lu}\n",
                                 idStr.c_str(),
                                 header.c_str(),
@@ -174,7 +184,7 @@ void StratumSessionEth::sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr
       //  "method": "mining.set_difficulty", 
       //  "params": [ 0.5 ]
       // }
-      strNotify += Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"method\":\"mining.set_difficulty\","
+      strNotify += Strings::Format("{\"id\":%s,\"method\":\"mining.set_difficulty\","
                                    "\"params\":[%lf]}\n", idStr.c_str(), Eth_DiffToNicehashDiff(ljob->currentJobDiff_));
       nicehashLastSentDiff_ = ljob->currentJobDiff_;
     }
@@ -188,8 +198,8 @@ void StratumSessionEth::sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr
     //     "645cf20198c2f3861e947d4f67e3ab63b7b2e24dcc9095bd9123e7b33371f6cc",
     //     true
     //   ]}
-    strNotify += Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
-                                 "\"params\":[\"%s\",\"%s\",\"%s\", %s],"
+    strNotify += Strings::Format("{\"id\":%s,\"method\":\"mining.notify\","
+                                 "\"params\":[\"%s\",\"%s\",\"%s\",%s],"
                                  "\"height\":%lu}\n",
                                  idStr.c_str(),
                                  header.c_str(),
@@ -216,7 +226,7 @@ void StratumSessionEth::handleRequest_Subscribe(const string &idStr, const JsonN
 {
   if (state_ != CONNECTED)
   {
-    rpc2ResponseError(idStr, StratumStatus::UNKNOWN);
+    responseError(idStr, StratumStatus::UNKNOWN);
     return;
   }
 
@@ -286,7 +296,7 @@ void StratumSessionEth::handleRequest_Subscribe(const string &idStr, const JsonN
     //   ],
     //   "error": null
     // }
-    const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":[["
+    const string s = Strings::Format("{\"id\":%s,\"result\":[["
                                         "\"mining.notify\","
                                         "\"%06x\","
                                         "\"EthereumStratum/1.0.0\""
@@ -300,16 +310,12 @@ void StratumSessionEth::handleRequest_Subscribe(const string &idStr, const JsonN
     // Because ethproxy has no subscribe phase, switcher has no chance to set session id.
     // So deliberately added a subscribe phase of ethproxy here.
     ethProtocol_ = StratumProtocol::ETHPROXY;
-
-    const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":true}\n", idStr.c_str());
-    sendData(s);
+    responseTrue(idStr);
   }
 #endif // WORK_WITH_STRATUM_SWITCHER
   else {
     ethProtocol_ = StratumProtocol::STRATUM;
-
-    const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":true}\n", idStr.c_str());
-    sendData(s);
+    responseTrue(idStr);
   }
 
   state_ = SUBSCRIBED;
@@ -376,14 +382,14 @@ void StratumSessionEth::handleRequest_GetWork(const string &idStr, const JsonNod
 
 void StratumSessionEth::handleRequest_SubmitHashrate(const string &idStr, const JsonNode &jparams)
 {
-  rpc2ResponseBoolean(idStr, true);
+  responseTrue(idStr);
 }
 
 void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode &jparams)
 {
   if (state_ != AUTHENTICATED)
   {
-    rpc2ResponseError(idStr, StratumStatus::UNAUTHORIZED);
+    responseError(idStr, StratumStatus::UNAUTHORIZED);
 
     // there must be something wrong, send reconnect command
     const string s = "{\"id\":null,\"method\":\"client.reconnect\",\"params\":[]}\n";
@@ -416,17 +422,17 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
 
   if (StratumProtocol::STRATUM == ethProtocol_ && params.size() < 5)
   {
-    rpc2ResponseError(idStr, StratumStatus::ILLEGAL_PARARMS);
+    responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
     return;
   }
   else if (StratumProtocol::ETHPROXY == ethProtocol_ && params.size() < 3)
   {
-    rpc2ResponseError(idStr, StratumStatus::ILLEGAL_PARARMS);
+    responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
     return;
   }
   else if (StratumProtocol::NICEHASH_STRATUM == ethProtocol_ && params.size() < 3)
   {
-    rpc2ResponseError(idStr, StratumStatus::ILLEGAL_PARARMS);
+    responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
     return;
   }
 
@@ -469,14 +475,14 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   // can't find local job
   if (localJob == nullptr)
   {
-    rpc2ResponseError(idStr, StratumStatus::JOB_NOT_FOUND);
+    responseError(idStr, StratumStatus::JOB_NOT_FOUND);
     return;
   }
 
   // can't find stratum job
   shared_ptr<StratumJobEx> exjob = GetServer()->GetJobRepository()->getStratumJobEx(localJob->jobId_);
   if (exjob.get() == nullptr) {
-    rpc2ResponseError(idStr, StratumStatus::JOB_NOT_FOUND);
+    responseError(idStr, StratumStatus::JOB_NOT_FOUND);
     return;
   }
   StratumJobEth *sjob = dynamic_cast<StratumJobEth *>(exjob->sjob_);
@@ -518,7 +524,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   // can't add local share
   if (!localJob->addLocalShare(localShare))
   {
-    rpc2ResponseError(idStr, StratumStatus::DUPLICATE_SHARE);
+    responseError(idStr, StratumStatus::DUPLICATE_SHARE);
     // add invalid share to counter
     invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
     return;
@@ -551,13 +557,13 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
     }
 
     diffController_->addAcceptedShare(share.shareDiff_);
-    rpc2ResponseBoolean(idStr, true);
+    responseTrue(idStr);
   }
   else
   {
     // add invalid share to counter
     invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
-    rpc2ResponseError(idStr, share.status_);
+    responseError(idStr, share.status_);
   }
 
   bool isSendShareToKafka = true;
