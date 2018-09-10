@@ -49,6 +49,8 @@
 #include "bytom/StatisticsBytom.h"
 #include "bytom/StatsHttpdBytom.h"
 
+#include "decred/StatsHttpdDecred.h"
+
 using namespace std;
 using namespace libconfig;
 
@@ -106,6 +108,13 @@ std::shared_ptr<StatsServer> newStatsServer(const string &chainType, const char 
                                             redisPublishPolicy, redisIndexPolicy,
                                             kFlushDBInterval, fileLastFlushTime,
                                             std::make_shared<DuplicateShareCheckerBytom>(dupShareTrackingHeight));
+  }
+  else if (chainType == "DCR") {
+    return std::make_shared<StatsServerDecred>(kafkaBrokers, kafkaShareTopic, kafkaCommonEventsTopic,
+                                               httpdHost, httpdPort, poolDBInfo, redisInfo,
+                                               redisConcurrency, redisKeyPrefix, redisKeyExpire,
+                                               redisPublishPolicy, redisIndexPolicy,
+                                               kFlushDBInterval, fileLastFlushTime, nullptr);
   }
   else {
     LOG(FATAL) << "newStatsServer: unknown chain type " << chainType;

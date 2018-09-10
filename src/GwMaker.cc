@@ -146,9 +146,8 @@ bool GwMakerHandler::callRpcGw(string &response)
   return true;
 }
 
-
-///////////////////////////////GwMakerHandlerRsk////////////////////////////////////
-string GwMakerHandlerRsk::processRawGw(const string& msg) 
+///////////////////////////////GwMakerHandlerJson///////////////////////////////////
+string GwMakerHandlerJson::processRawGw(const string& msg) 
 {
   JsonNode r;
   if (!JsonNode::parse(msg.c_str(), msg.c_str() + msg.length(), r)) {
@@ -165,6 +164,7 @@ string GwMakerHandlerRsk::processRawGw(const string& msg)
   return constructRawMsg(r);
 }
 
+///////////////////////////////GwMakerHandlerRsk////////////////////////////////////
 bool GwMakerHandlerRsk::checkFields(JsonNode &r) {
   if (r["result"].type()                                != Utilities::JS::type::Obj ||
       r["result"]["parentBlockHash"].type()             != Utilities::JS::type::Str ||
@@ -210,23 +210,6 @@ string GwMakerHandlerRsk::constructRawMsg(JsonNode &r) {
 
 
 ///////////////////////////////GwMakerHandlerEth////////////////////////////////////
-string GwMakerHandlerEth::processRawGw(const string& msg) 
-{
-  JsonNode r;
-  if (!JsonNode::parse(msg.c_str(), msg.c_str() + msg.length(), r)) {
-    LOG(ERROR) << "decode gw failure: " << msg;
-    return "";
-  }
-
-  // check fields
-  if (!checkFields(r)) {
-    LOG(ERROR) << "gw check fields failure";
-    return "";
-  }
-
-  return constructRawMsg(r);
-}
-
 bool GwMakerHandlerEth::checkFields(JsonNode &r)
 {
   // Ethereum's GetWork gives us 3 values:
@@ -473,3 +456,54 @@ string GwMakerHandlerSia::processRawGw(const string &msg)
                          targetStr.c_str(),
                          headerStr.c_str());
 }
+
+///////////////////////////////GwMakerHandlerDecred////////////////////////////////////
+bool GwMakerHandlerDecred::checkFields(JsonNode &r) {
+  if (r.type() != Utilities::JS::type::Array ||
+      r.array().size() != 2) {
+    return false;
+  }
+
+  auto& r0 = r.array().at(0);
+  if (r0["result"].type() != Utilities::JS::type::Int) {
+    return false;
+  }
+
+  auto& r1 = r.array().at(1);
+  if (r1["result"].type() != Utilities::JS::type::Obj ||
+      r1["result"]["data"].type() != Utilities::JS::type::Str ||
+      r1["result"]["data"].size() != 384 ||
+      !IsHex(r1["result"]["data"].str()) ||
+      r1["result"]["target"].type() != Utilities::JS::type::Str ||
+      r1["result"]["target"].size() != 64 ||
+      !IsHex(r1["result"]["target"].str())) {
+    return false;
+  }
+
+  return true;
+}
+
+string GwMakerHandlerDecred::constructRawMsg(JsonNode &r) {
+  auto& r0 = r.array().at(0);
+  auto& r1 = r.array().at(1);
+  LOG(INFO) << "chain: " << def_.chainType_ << ", topic: " << def_.rawGwTopic_
+            << ", data: " << r1["result"]["data"].str()
+            << ", target: " << r1["result"]["target"].str()
+            << ", network: " << r0["result"].uint32();
+
+  return Strings::Format("{\"created_at_ts\":%u,"
+                         "\"chainType\":\"%s\","
+                         "\"rpcAddress\":\"%s\","
+                         "\"rpcUserPwd\":\"%s\","
+                         "\"data\":\"%s\","
+                         "\"target\":\"%s\","
+                         "\"network\":%u}",
+                         (uint32_t)time(nullptr),
+                         def_.chainType_.c_str(),
+                         def_.rpcAddr_.c_str(),
+                         def_.rpcUserPwd_.c_str(),
+                         r1["result"]["data"].str().c_str(),
+                         r1["result"]["target"].str().c_str(),
+                         r0["result"].uint32());
+}
+

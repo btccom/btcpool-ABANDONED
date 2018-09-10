@@ -40,6 +40,7 @@
 #include "eth/BlockMakerEth.h"
 #include "bytom/BlockMakerBytom.h"
 #include "sia/BlockMakerSia.h"
+#include "decred/BlockMakerDecred.h"
 
 using namespace std;
 using namespace libconfig;
@@ -90,6 +91,8 @@ BlockMaker* createBlockMaker(shared_ptr<BlockMakerDefinition> def, const string&
     maker = new BlockMakerSia(def, broker.c_str(), *poolDBInfo);
   else if ("BTM" == def->chainType_)
     maker = new BlockMakerBytom(def, broker.c_str(), *poolDBInfo);
+  else if ("DCR" == def->chainType_)
+    maker = new BlockMakerDecred(def, broker.c_str(), *poolDBInfo);
 
   return maker;
 }

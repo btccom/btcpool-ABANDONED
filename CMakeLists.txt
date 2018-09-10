@@ -378,6 +378,7 @@ endif()
 
 add_subdirectory(src/libethash)
 add_subdirectory(src/libblake2)
+add_subdirectory(src/libsph)
 
 if(USE_CUDA)
   set(USE_CUDA_INCLUDE_DIRECTORY ${CUDA_INCLUDE_DIRECTORIES})
@@ -392,20 +393,45 @@ include_directories(src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config 
                     ${LIBEVENT_INCLUDE_DIR} ${USE_CUDA_INCLUDE_DIRECTORY} ${BH_SHARED_INCLUDE_DIR} ${MYSQL_INCLUDE_DIR})
 
 link_directories(${MYSQL_LIBRARY_DIRS})
-set(THIRD_LIBRARIES ethash blake2 ${BH_SHARED_LIBRARY} ${USE_CUDA_LIBRARIES}
+set(THIRD_LIBRARIES ethash blake2 sph ${BH_SHARED_LIBRARY} ${USE_CUDA_LIBRARIES}
                     ${BITCOIN_LIBRARIES} ${secp256k1_LIBRARIES} ${GLOG_LIBRARIES} ${KAFKA_LIBRARIES} ${ZLIB_LIBRARIES} ${ZOOKEEPER_LIBRARIES}
                     ${MYSQL_LIBRARIES} ${LIBZMQ_LIBRARIES} ${Hiredis_LIBRARIES} ${CURL_LIBRARIES} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY}
                     ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB} ${GMP_LIBRARIES} ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} ${PTHREAD_LIBRARIES})
 
 file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc src/gbtsync/*.cpp)
 file(GLOB LIB_SOURCES_CHAINS
-        src/eth/*.cc 
+        src/eth/*.cc
         src/bytom/*.cc 
         src/bitcoin/*.cc 
         src/sia/*.cc
     )
-    
-add_library(btcpool STATIC ${LIB_SOURCES} ${LIB_SOURCES_CHAINS})
+
+set(LIB_SOURCES_DECRED
+  src/decred/BlockMakerDecred.cc
+  src/decred/BlockMakerDecred.h
+  src/decred/CommonDecred.cc
+  src/decred/CommonDecred.h
+  src/decred/DecredUtils.cc
+  src/decred/DecredUtils.h
+  src/decred/JobMakerDecred.cc
+  src/decred/JobMakerDecred.h
+  src/decred/ShareLoggerDecred.cc
+  src/decred/ShareLoggerDecred.h
+  src/decred/ShareLogParserDecred.cc
+  src/decred/ShareLogParserDecred.h
+  src/decred/StatisticsDecred.cc
+  src/decred/StatisticsDecred.h
+  src/decred/StatsHttpdDecred.cc
+  src/decred/StatsHttpdDecred.h
+  src/decred/StratumDecred.cc
+  src/decred/StratumDecred.h
+  src/decred/StratumServerDecred.cc
+  src/decred/StratumServerDecred.h
+  src/decred/StratumSessionDecred.cc
+  src/decred/StratumSessionDecred.h
+)
+
+add_library(btcpool STATIC ${LIB_SOURCES} ${LIB_SOURCES_CHAINS} ${LIB_SOURCES_DECRED})
 
 file(GLOB_RECURSE TEST_SOURCES test/*.cc test/*.cpp)
 add_executable(unittest ${TEST_SOURCES})
