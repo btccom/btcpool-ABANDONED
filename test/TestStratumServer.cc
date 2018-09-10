@@ -41,7 +41,7 @@ TEST(StratumServer, SessionIDManager24Bits) {
   uint32_t j, sessionID;
 
   // fill all session ids
-  for (uint32_t i = 0; i <= 0x00FFFFFEu; i++) {
+  for (uint32_t i = 0; i <= 0x00FFFFFFu; i++) {
     uint32_t id = (0xFFu << 24) | i;
     ASSERT_EQ(m.allocSessionId(&sessionID), true);
     ASSERT_EQ(sessionID, id);
@@ -56,8 +56,8 @@ TEST(StratumServer, SessionIDManager24Bits) {
   ASSERT_EQ(sessionID, j);
   ASSERT_EQ(m.ifFull(), true);
 
-  // free the one
-  j = 0xFFFFFFFEu;
+  // free the last one
+  j = 0xFFFFFFFFu;
   m.freeSessionId(j);
   ASSERT_EQ(m.ifFull(), false);
   ASSERT_EQ(m.allocSessionId(&sessionID), true);
@@ -70,7 +70,7 @@ TEST(StratumServer, SessionIDManager16Bits) {
   uint32_t j, sessionID;
 
   // fill all session ids
-  for (uint32_t i = 0; i <= 0x0000FFFEu; i++) {
+  for (uint32_t i = 0; i <= 0x0000FFFFu; i++) {
     uint32_t id = (0x99u << 16) | i;
     ASSERT_EQ(m.allocSessionId(&sessionID), true);
     ASSERT_EQ(sessionID, id);
@@ -85,8 +85,8 @@ TEST(StratumServer, SessionIDManager16Bits) {
   ASSERT_EQ(sessionID, j);
   ASSERT_EQ(m.ifFull(), true);
 
-  // free the one
-  j = 0x0099FFFEu;
+  // free the last one
+  j = 0x0099FFFFu;
   m.freeSessionId(j);
   ASSERT_EQ(m.ifFull(), false);
   ASSERT_EQ(m.allocSessionId(&sessionID), true);
@@ -94,12 +94,68 @@ TEST(StratumServer, SessionIDManager16Bits) {
   ASSERT_EQ(m.ifFull(), true);
 }
 
+TEST(StratumServer, SessionIDManager16BitsWithInterval) {
+  SessionIDManagerT<16> m(0x99u);
+  m.setAllocInterval(256);
+
+  uint32_t j, sessionID;
+
+  // fill all session ids
+  // Use std::vector<bool> because the compile time of 
+  // std::bitset<0x100000000ull> is too long.
+  {
+    std::vector<bool> ids(0x100000000ull);
+    for (uint32_t i = 0; i <= 0x0000FFFFu; i++) {
+      ASSERT_EQ(m.allocSessionId(&sessionID), true);
+      ASSERT_EQ(ids[sessionID], false);
+      ids[sessionID] = true;
+    }
+    ASSERT_EQ(m.ifFull(), true);
+  }
+
+  // free the fisrt one
+  {
+    j = 0x00990000u;
+    m.freeSessionId(j);
+    ASSERT_EQ(m.ifFull(), false);
+    ASSERT_EQ(m.allocSessionId(&sessionID), true);
+    ASSERT_EQ(sessionID, j);
+    ASSERT_EQ(m.ifFull(), true);
+  }
+
+  // free the last one
+  {
+    j = 0x0099FFFFu;
+    m.freeSessionId(j);
+    ASSERT_EQ(m.ifFull(), false);
+    ASSERT_EQ(m.allocSessionId(&sessionID), true);
+    ASSERT_EQ(sessionID, j);
+    ASSERT_EQ(m.ifFull(), true);
+  }
+
+  // free all
+  for (uint32_t i = 0x00990000u; i <= 0x0099FFFFu; i++) {
+    m.freeSessionId(i);
+  }
+
+  // fill all again
+  {
+    std::vector<bool> ids(0x100000000ull);
+    for (uint32_t i = 0; i <= 0x0000FFFFu; i++) {
+      ASSERT_EQ(m.allocSessionId(&sessionID), true);
+      ASSERT_EQ(ids[sessionID], false);
+      ids[sessionID] = true;
+    }
+    ASSERT_EQ(m.ifFull(), true);
+  }
+}
+
 TEST(StratumServer, SessionIDManager8Bits) {
   SessionIDManagerT<8> m(0x68u);
   uint32_t j, sessionID;
 
   // fill all session ids
-  for (uint32_t i = 0; i <= 0x000000FEu; i++) {
+  for (uint32_t i = 0; i <= 0x000000FFu; i++) {
     uint32_t id = (0x68u << 8) | i;
     ASSERT_EQ(m.allocSessionId(&sessionID), true);
     ASSERT_EQ(sessionID, id);
@@ -114,8 +170,8 @@ TEST(StratumServer, SessionIDManager8Bits) {
   ASSERT_EQ(sessionID, j);
   ASSERT_EQ(m.ifFull(), true);
 
-  // free the one
-  j = 0x000068FEu;
+  // free the last one
+  j = 0x000068FFu;
   m.freeSessionId(j);
   ASSERT_EQ(m.ifFull(), false);
   ASSERT_EQ(m.allocSessionId(&sessionID), true);

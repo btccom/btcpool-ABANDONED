@@ -204,7 +204,7 @@ void StratumSessionSia::handleRequest_Submit(const string &idStr, const JsonNode
     LOG(INFO) << "sia solution found";
   }
 
-  rpc2ResponseBoolean(idStr, true);
+  rpc2ResponseTrue(idStr);
   share.checkSum_ = share.checkSum();
   server->sendShare2Kafka((const uint8_t *)&share, sizeof(ShareBitcoin));
 }

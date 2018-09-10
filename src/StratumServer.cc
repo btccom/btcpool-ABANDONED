@@ -35,8 +35,9 @@ using namespace std;
 //////////////////////////////// SessionIDManagerT //////////////////////////////
 template <uint8_t IBITS>
 SessionIDManagerT<IBITS>::SessionIDManagerT(const uint8_t serverId) :
-serverId_(serverId), count_(0), allocIdx_(0)
+serverId_(serverId), count_(0), allocIdx_(0), allocInterval_(0)
 {
+  static_assert(IBITS <= 24, "IBITS cannot large than 24");
   sessionIds_.reset();
 }
 
@@ -48,10 +49,15 @@ bool SessionIDManagerT<IBITS>::ifFull() {
 
 template <uint8_t IBITS>
 bool SessionIDManagerT<IBITS>::_ifFull() {
-  if (count_ >= kFullSessionIndex) {
+  if (count_ > kSessionIdMask) {
     return true;
   }
   return false;
+}
+
+template <uint8_t IBITS>
+void SessionIDManagerT<IBITS>::setAllocInterval(uint32_t interval) {
+  allocInterval_ = interval;
 }
 
 template <uint8_t IBITS>
@@ -63,10 +69,7 @@ bool SessionIDManagerT<IBITS>::allocSessionId(uint32_t *sessionID) {
 
   // find an empty bit
   while (sessionIds_.test(allocIdx_) == true) {
-    allocIdx_++;
-    if (allocIdx_ > kMaxSessionIndex) {
-      allocIdx_ = 0;
-    }
+    allocIdx_ = (allocIdx_ + 1) & kSessionIdMask;
   }
 
   // set to true
@@ -74,6 +77,7 @@ bool SessionIDManagerT<IBITS>::allocSessionId(uint32_t *sessionID) {
   count_++;
 
   *sessionID = (((uint32_t)serverId_ << IBITS) | allocIdx_);
+  allocIdx_ = (allocIdx_ + allocInterval_) & kSessionIdMask;
   return true;
 }
 
@@ -81,7 +85,7 @@ template <uint8_t IBITS>
 void SessionIDManagerT<IBITS>::freeSessionId(uint32_t sessionId) {
   ScopeLock sl(lock_);
 
-  const uint32_t idx = (sessionId & kFullSessionIndex);
+  const uint32_t idx = (sessionId & kSessionIdMask);
   sessionIds_.set(idx, false);
   count_--;
 }

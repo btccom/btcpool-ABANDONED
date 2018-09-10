@@ -371,6 +371,12 @@ bool ServerEth::setupInternal(StratumServer* sserver) {
     // searching space of a miner will be 2^40 (= 2^64 - 2^24).
     delete sessionIDManager_;
     sessionIDManager_ = new SessionIDManagerT<16>(serverId_);
+    // NiceHash only accepts 2 bytes or shorter of extraNonce (startNonce) in protocol NICEHASH_STRATUM.
+    // However we use a 3 bytes of extraNonce. Also, the sessionID is pre-allocated, and we can't allocate
+    // more space for a worker after detecting that it is from NiceHash.
+    // So we changed the default setting to a large allocation interval.
+    // This can minimize the impact of mining space overlap on NiceHash miners.
+    sessionIDManager_->setAllocInterval(256);
   #endif
 
   return true;

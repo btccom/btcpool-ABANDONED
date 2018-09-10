@@ -58,6 +58,12 @@ class SessionIDManager {
 public:
   virtual ~SessionIDManager() {}
   virtual bool ifFull() = 0;
+  // The default value is 0: no interval, the session id will be allocated continuously.
+  // If the value is N, then id2 = id1 + N.
+  // Skipped ids are not assigned to other sessions unless the allocator reaches
+  // the maximum and rolls back to the beginning.
+  // This setting can be used to reserve more mining space for workers and there is no DoS risk.
+  virtual void setAllocInterval(uint32_t interval) = 0;
   virtual bool allocSessionId(uint32_t *sessionID) = 0;
   virtual void freeSessionId(uint32_t sessionId) = 0;
 };
@@ -72,17 +78,17 @@ class SessionIDManagerT : public SessionIDManager {
   //  0 bit or longer       8bit            24 bit or shorter
   // -----------------    ---------    ----------------------------
   // leading zero bits    server ID             session id
-  //     [000...]          [1, 255]    range: [0, kMaxSessionIndex]
+  //     [000...]          [1, 255]    range: [0, kSessionIdMask]
   //
 
-  const static uint32_t kFullSessionIndex = (1 << IBITS) - 1;      // example: 0x00FFFFFF;
-  const static uint32_t kMaxSessionIndex = kFullSessionIndex - 1; // example: 0x00FFFFFE;
+  const static uint32_t kSessionIdMask = (1 << IBITS) - 1;      // example: 0x00FFFFFF;
 
   uint8_t serverId_;
-  std::bitset<kFullSessionIndex> sessionIds_;
+  std::bitset<kSessionIdMask + 1> sessionIds_;
 
   uint32_t count_;  // how many ids are used now
   uint32_t allocIdx_;
+  uint32_t allocInterval_;
   mutex lock_;
 
   bool _ifFull();
@@ -91,6 +97,7 @@ public:
   SessionIDManagerT(const uint8_t serverId);
 
   bool ifFull() override;
+  void setAllocInterval(uint32_t interval) override;
   bool allocSessionId(uint32_t *sessionID) override;
   void freeSessionId(uint32_t sessionId) override;
 };

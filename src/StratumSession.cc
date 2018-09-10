@@ -180,6 +180,27 @@ void StratumSession::handleLine(const string &line) {
   responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
 }
 
+/**
+ * JSON-RPC 1.0 Specification
+ * <https://www.jsonrpc.org/specification_v1>
+ * 
+ * 1.2 Response
+ * When the method invocation completes, the service must reply with a response.
+ * The response is a single object serialized using JSON.
+ * 
+ * It has three properties:
+ *    result - The Object that was returned by the invoked method.
+ *             This must be null in case there was an error invoking the method.
+ *    error - An Error object if there was an error invoking the method.
+ *            It must be null if there was no error.
+ *    id - This must be the same id as the request it is responding to. 
+ */
+
+void StratumSession::responseTrue(const string &idStr) {
+  const string s = "{\"id\":" + idStr + ",\"result\":true,\"error\":null}\n";
+  sendData(s);
+}
+
 void StratumSession::responseError(const string &idStr, int errCode) {
   //
   // {"id": 10, "result": null, "error":[21, "Job not found", null]}
@@ -192,23 +213,61 @@ void StratumSession::responseError(const string &idStr, int errCode) {
   sendData(buf, len);
 }
 
-void StratumSession::responseTrue(const string &idStr) {
-  const string s = "{\"id\":" + idStr + ",\"result\":true,\"error\":null}\n";
+/**
+ * JSON-RPC 2.0 Specification
+ * <https://www.jsonrpc.org/specification>
+ * 
+ * 5 Response object
+ * When a rpc call is made, the Server MUST reply with a Response, except for in the case of Notifications.
+ * The Response is expressed as a single JSON Object, with the following members:
+ * jsonrpc
+ *   A String specifying the version of the JSON-RPC protocol. MUST be exactly "2.0".
+ * result
+ *   This member is REQUIRED on success.
+ *   This member MUST NOT exist if there was an error invoking the method.
+ *   The value of this member is determined by the method invoked on the Server.
+ * error
+ *   This member is REQUIRED on error.
+ *   This member MUST NOT exist if there was no error triggered during invocation.
+ *   The value for this member MUST be an Object as defined in section 5.1.
+ * id
+ *   This member is REQUIRED.
+ *   It MUST be the same as the value of the id member in the Request Object.
+ *   If there was an error in detecting the id in the Request object (e.g. Parse error/Invalid Request), it MUST be Null.
+ *
+ * Either the result member or error member MUST be included, but both members MUST NOT be included.
+ */
+
+void StratumSession::rpc2ResponseTrue(const string &idStr) {
+  const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":true}\n", idStr.c_str());
   sendData(s);
 }
 
-void StratumSession::rpc2ResponseBoolean(const string &idStr, bool result) {
-  const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":%s}\n", idStr.c_str(), result ? "true" : "false");
-  sendData(s);
-}
+/**
+ * JSON-RPC 2.0 Specification
+ * <https://www.jsonrpc.org/specification>
+ * 
+ * 5.1 Error object
+ *
+ * When a rpc call encounters an error, the Response Object MUST contain the error member
+ * with a value that is a Object with the following members:
+ * 
+ * code
+ *     A Number that indicates the error type that occurred.
+ *     This MUST be an integer.
+ * message
+ *     A String providing a short description of the error.
+ *     The message SHOULD be limited to a concise single sentence.
+ * data
+ *     A Primitive or Structured value that contains additional information about the error.
+ *     This may be omitted.
+ *     The value of this member is defined by the Server (e.g. detailed error information, nested errors etc.). 
+ */
 
 void StratumSession::rpc2ResponseError(const string &idStr, int errCode) {
-  //
-  // {"id": 10, "result": null, "error":[21, "Job not found", null]}
-  //
   char buf[1024];
   int len = snprintf(buf, sizeof(buf),
-                     "{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":null,\"error\":[%d,\"%s\",null]}\n",
+                     "{\"id\":%s,\"jsonrpc\":\"2.0\",\"error\":{\"code\":%d,\"message\":\"%s\"}}\n",
                      idStr.empty() ? "null" : idStr.c_str(),
                      errCode, StratumStatus::toString(errCode));                  
   sendData(buf, len);

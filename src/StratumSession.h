@@ -157,7 +157,7 @@ protected:
 
   virtual void responseError(const string &idStr, int code);
   virtual void responseTrue(const string &idStr);
-  void rpc2ResponseBoolean(const string &idStr, bool result);
+  void rpc2ResponseTrue(const string &idStr);
   void rpc2ResponseError(const string &idStr, int errCode);
 
   bool tryReadLine(string &line);

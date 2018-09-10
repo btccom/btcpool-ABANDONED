@@ -139,4 +139,7 @@ string getStatsFilePath(const char *chainType, const string &dataDir, time_t ts)
 // so max significand is 9 if you convert the rank as double.
 uint64_t getAlphaNumRank(const string &str, size_t significand = 9);
 
+// Check if a worker is a NiceHash client.
+bool isNiceHashAgent(const string &clientAgent);
+
 #endif
