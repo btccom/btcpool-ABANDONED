@@ -1,0 +1,6 @@
+/root/.dcrd/logs/*/*.* {
+    daily
+    rotate 3
+    missingok
+    copytruncate
+}
