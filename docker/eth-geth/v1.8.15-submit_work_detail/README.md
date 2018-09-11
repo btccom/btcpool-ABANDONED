@@ -66,14 +66,15 @@ geth \
 Tips:
 * It's a shell script for running `geth`.
 * Suggested format:
-* * The first line is the program name `geth`.
-* * One configuration per line, ending with `\`.
-* * The last line is a output redirection or a single semicolon (`;`) if you don't want a log file.
+  - The first line is the program name `geth`.
+  - One configuration per line, ending with `\`.
+  - The last line is a output redirection or a single semicolon (`;`) if you don't want a log file.
 
-**Why is it a shell script instead of a configuration file?**
+#### Why is it a shell script instead of a configuration file?
 
 @YihaoPeng wrote on September 4, 2018:
 
+<blockquote>
 At the beginning, I want to use the configuration file (`--config=xxx.toml`) of `geth`.
 
 However, [a decision](https://blog.ethereum.org/2017/04/14/geth-1-6-puppeth-master/) by `geth`'s developer made my plan unsuccessful:
@@ -92,6 +93,7 @@ can be written directly, and can controls all the features you want to control.
 However, I still hope to have a regular and convenient configuration file.
 
 ![](https://cloud.githubusercontent.com/assets/824194/20584597/69ca597c-b1b1-11e6-9461-4bbd1f88a211.jpeg)
+</blockquote>
 
 ### Static Nodes
 
