@@ -70,7 +70,7 @@ using GetWorkDecredMap = boost::multi_index_container<
     >,
     boost::multi_index::ordered_non_unique<
       boost::multi_index::tag<ByCreationTimeDecred>,
-      boost::multi_index::member<GetWorkDecred, string, &GetWorkDecred::data>
+      boost::multi_index::member<GetWorkDecred, uint32_t, &GetWorkDecred::createdAt>
     >,
     boost::multi_index::hashed_unique<
       boost::multi_index::tag<ByDataDecred>,
