@@ -78,5 +78,5 @@ file(GLOB SOURCES
     *.cc
 )
 
-add_executable(kafka_repeater ${SOURCES})
-target_link_libraries(kafka_repeater ${THIRD_LIBRARIES})
+add_executable(share_convertor ${SOURCES})
+target_link_libraries(share_convertor ${THIRD_LIBRARIES})

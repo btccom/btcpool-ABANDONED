@@ -60,7 +60,7 @@ std::string StringFormat(const char * fmt, ...) {
   return dest;
 }
 
-void BitsToDifficulty(uint32 bits, double *difficulty) {
+void BitsToDifficulty(uint32_t bits, double *difficulty) {
   int nShift = (bits >> 24) & 0xff;
   double dDiff = (double)0x0000ffff / (double)(bits & 0x00ffffff);
   while (nShift < 29) {
@@ -74,8 +74,8 @@ void BitsToDifficulty(uint32 bits, double *difficulty) {
   *difficulty = dDiff;
 }
 
-void BitsToDifficulty(uint32 bits, uint64 *difficulty) {
+void BitsToDifficulty(uint32_t bits, uint64_t *difficulty) {
   double diff;
   BitsToDifficulty(bits, &diff);
-  *difficulty = (uint64)diff;
+  *difficulty = (uint64_t)diff;
 }

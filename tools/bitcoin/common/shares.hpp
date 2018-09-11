@@ -26,8 +26,12 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#include <string>
+
 #include "Network.h"
 #include "utils.hpp"
+
+using std::string;
 
 
 struct ShareBitcoinV1 {
