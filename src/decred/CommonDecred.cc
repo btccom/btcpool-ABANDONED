@@ -43,7 +43,7 @@ uint256 BlockHeaderDecred::getHash() const
 const NetworkParamsDecred& NetworkParamsDecred::get(NetworkDecred network)
 {
   static NetworkParamsDecred mainnetParams{
-    arith_uint256{"000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"},
+    arith_uint256{}.SetCompact(0x1d00ffff),
     3119582664,
     100,
     101,
@@ -55,7 +55,7 @@ const NetworkParamsDecred& NetworkParamsDecred::get(NetworkDecred network)
     5,
   };
   static NetworkParamsDecred testnetParams{
-    arith_uint256{"0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"},
+    arith_uint256{}.SetCompact(0x1e00ffff),
     2500000000,
     100,
     101,
@@ -67,7 +67,7 @@ const NetworkParamsDecred& NetworkParamsDecred::get(NetworkDecred network)
     5,
   };
   static NetworkParamsDecred simnetParams{
-    arith_uint256{"7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"},
+    arith_uint256{}.SetCompact(0x207fffff),
     50000000000,
     100,
     101,
