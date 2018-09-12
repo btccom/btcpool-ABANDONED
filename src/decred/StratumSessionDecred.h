@@ -31,6 +31,7 @@ class ServerDecred;
 
 class StratumSessionDecred : public StratumSessionBase<ServerDecred> {
 public:
+  using StratumSession::kExtraNonce2Size_;
   StratumSessionDecred(evutil_socket_t fd, bufferevent *bev,
                        ServerDecred *server, sockaddr *saddr,
                        int32_t shareAvgSeconds, uint32_t extraNonce1);

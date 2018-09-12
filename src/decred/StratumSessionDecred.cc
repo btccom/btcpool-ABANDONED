@@ -154,12 +154,15 @@ void StratumSessionDecred::handleRequest_Subscribe(const string &idStr, const Js
 
   //  result[0] = 2-tuple with name of subscribed notification and subscription ID.
   //              Theoretically it may be used for unsubscribing, but obviously miners won't use it.
-  //  result[1] = ExtraNonce1, used for building the coinbase.
+  //  result[1] = ExtraNonce1, used for building the coinbase. There are 2 variants of miners known
+  //              to us: one will take first 4 bytes and another will take last four bytes so we put
+  //              the value on both places.
   //  result[2] = ExtraNonce2_size, the number of bytes that the miner users for its ExtraNonce2 counter
   assert(kExtraNonce2Size_ == 8);
+  auto extraNonce1Reversed = boost::endian::endian_reverse(extraNonce1_);
   const string s = Strings::Format("{\"id\":%s,\"result\":[[[\"mining.set_difficulty\",\"1\"]"
-                                   ",[\"mining.notify\",\"%08x\"]],\"0000000000000000%s\",%d],\"error\":null}\n",
-                                   idStr.c_str(), extraNonce1_, HexStr(BEGIN(extraNonce1_), END(extraNonce1_)).c_str(), kExtraNonce2Size_);
+                                   ",[\"mining.notify\",\"%08x\"]],\"%08x00000000%08x\",%d],\"error\":null}\n",
+                                   idStr.c_str(), extraNonce1_, extraNonce1Reversed, extraNonce1Reversed, kExtraNonce2Size_);
   sendData(s);
 }
 
@@ -211,13 +214,21 @@ void StratumSessionDecred::handleRequest_Submit(const string &idStr, const JsonN
   //  params[2] = ExtraNonce 2
   //  params[3] = nTime
   //  params[4] = nonce
-  if (jparams.children()->size() < 5) {
+  if (jparams.children()->size() < 5 ||
+      std::any_of(std::next(jparams.children()->begin()), jparams.children()->end(),
+                  [](const JsonNode& n){ return n.type() != Utilities::JS::type::Str || !IsHex(n.str()); })) {
     responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
     return;
   }
 
-  auto shortJobId = static_cast<uint8_t>(jparams.children()->at(1).uint32());
   auto extraNonce2 = ParseHex(jparams.children()->at(2).str());
+  if (extraNonce2.size() != kExtraNonce2Size_ &&
+      extraNonce2.size() != 12) { // Extra nonce size
+    responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
+    return;
+  }
+
+  auto shortJobId = static_cast<uint8_t>(jparams.children()->at(1).uint32_hex());
   auto ntime = jparams.children()->at(3).uint32_hex();
   auto nonce = jparams.children()->at(4).uint32_hex();
 
