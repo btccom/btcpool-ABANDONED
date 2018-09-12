@@ -10,7 +10,7 @@ SROOT=$(cd $(dirname "$0"); pwd)
 cd $SROOT
 
 # the name of https://app.opsgenie.com/heartbeat
-SERVICE="bcc-bitcoind.1"
+SERVICE="bch-bitcoind.1"
 # api key of opsgenie
 API_KEY="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 # api endpoint

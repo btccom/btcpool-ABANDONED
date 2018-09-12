@@ -83,7 +83,7 @@ if (CHAIN_TYPE STREQUAL "BTC")
 elseif(CHAIN_TYPE STREQUAL "BCH")
   set(CHAIN_NAME "Bitcoin ABC")
   set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-bitcoincash")
-  set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.bcc") # for compatibility with old deployments, use bcc instead of bch.
+  set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.bch")
 
   add_definitions(-DCHAIN_TYPE_BCH)
   add_definitions(-DKAFKA_TOPIC_PREFIX="") # for compatibility with old deployments, let it empty.
