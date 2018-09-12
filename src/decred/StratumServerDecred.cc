@@ -116,9 +116,22 @@ int ServerDecred::checkShare(ShareDecred &share, shared_ptr<StratumJobEx> exJobP
   }
 
   FoundBlockDecred foundBlock(share.jobId_, share.workerHashId_, share.userId_, workerFullName, sjob->header_, sjob->network_);
-  foundBlock.header_.timestamp = ntime;
-  foundBlock.header_.nonce = nonce;
-  std::copy_n(extraNonce2.begin(), std::min(sizeof(foundBlock.header_.extraData), extraNonce2.size()), foundBlock.header_.extraData.begin());
+  auto& header = foundBlock.header_;
+  header.timestamp = ntime;
+  header.nonce = nonce;
+  if (extraNonce2.size() == StratumSessionDecred::kExtraNonce2Size_) {
+    // cgminer/sgminer protocol
+    // mining.notify: extra nonce 2 size is the actual extra nonce 2 size, extra nonce 1 is the actual extra nonce 1
+    // mining.submit: extra nonce 2 is the actual extra nonce 2
+    *reinterpret_cast<boost::endian::little_uint32_buf_t *>(header.extraData.begin()) = share.sessionId_; // Extra Nonce 1
+    std::copy(extraNonce2.begin(), extraNonce2.end(), foundBlock.header_.extraData.begin() + 4);
+  } else {
+    // ccminer protocol
+    // mining.notify: extra nonce 2 size is not used, extra nonce 1 is considered as the whole extra nonce, bits higher than 32 to be rolled
+    // mining.submit: extra nonce 2 is considered as the whole rolled extra nonce
+    assert(extraNonce2.size() == 12);
+    std::copy(extraNonce2.begin(), extraNonce2.end(), foundBlock.header_.extraData.begin());
+  }
 
   uint256 blkHash = foundBlock.header_.getHash();
   auto bnBlockHash = UintToArith256(blkHash);
@@ -149,12 +162,12 @@ int ServerDecred::checkShare(ShareDecred &share, shared_ptr<StratumJobEx> exJobP
   // check share diff
   auto jobTarget = NetworkParamsDecred::get(sjob->network_).powLimit / share.shareDiff_;
 
+  DLOG(INFO) << "blkHash: " << blkHash.ToString() << ", jobTarget: "
+  << jobTarget.ToString() << ", networkTarget: " << sjob->target_.ToString();
+
   if (isEnableSimulator_ == false && bnBlockHash > jobTarget) {
     return StratumStatus::LOW_DIFFICULTY;
   }
-
-  DLOG(INFO) << "blkHash: " << blkHash.ToString() << ", jobTarget: "
-  << jobTarget.ToString() << ", networkTarget: " << sjob->target_.ToString();
 
   // reach here means an valid share
   return StratumStatus::ACCEPT;
