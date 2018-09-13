@@ -224,8 +224,8 @@ int main(int argc, char **argv)
     // bitcoin only
     // TODO: refactor it.
     string auxPowSolvedShareTopic, rskSolvedShareTopic;
-    cfg.lookupValue("kafka.auxpow_solved_share_topic", auxPowSolvedShareTopic);
-    cfg.lookupValue("kafka.rsk_solved_share_topic", rskSolvedShareTopic);
+    cfg.lookupValue("sserver.auxpow_solved_share_topic", auxPowSolvedShareTopic);
+    cfg.lookupValue("sserver.rsk_solved_share_topic", rskSolvedShareTopic);
 
     if (!gStratumServer->createServer(cfg.lookup("sserver.type"), shareAvgSeconds, auxPowSolvedShareTopic, rskSolvedShareTopic))
     {
