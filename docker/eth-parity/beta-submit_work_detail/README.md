@@ -3,7 +3,7 @@ Docker for Parity Ethereum Node
 
 * OS: `Ubuntu 16.04 LTS`
 * Docker image: build by yourself
-* Parity version: 2.0.1-beta with eth_submitWorkDetail
+* Parity version: 2.0.4-beta with eth_submitWorkDetail
 
 ## Install Docker CE
 
@@ -38,7 +38,7 @@ service docker restart
 ```
 git clone -b docker https://github.com/btccom/parity-ethereum.git
 cd parity-ethereum
-docker build -t parity:2.0.1-submit_work_detail -f docker/ubuntu/Dockerfile --tag btccom/parity-ethereum:submit_work_detail .
+docker build -t parity:2.0.4-submit_work_detail -f docker/ubuntu/Dockerfile --tag btccom/parity-ethereum:v2.0.4_submit_work_detail .
 ```
 
 ## Create Config Files
@@ -131,7 +131,7 @@ log_file = "/root/.local/share/io.parity.ethereum/parity.log"
 
 ```
 # start docker
-docker run -it -v /work/ethereum/eth-parity/:/root/.local/share/io.parity.ethereum/ -p 8545:8545 -p 30303:30303 --name eth-parity --restart always -d parity:2.0.1-submit_work_detail
+docker run -it -v /work/ethereum/eth-parity/:/root/.local/share/io.parity.ethereum/ -p 8545:8545 -p 30303:30303 --name eth-parity --restart always -d parity:2.0.4-submit_work_detail
 
 # see the log
 tail -f /work/ethereum/eth-parity/parity.log
@@ -144,7 +144,7 @@ docker exec -it eth-parity /bin/bash
 
 ```
 # start docker
-docker run -it -v /work/ethereum/etc-parity/:/root/.local/share/io.parity.ethereum/ -p 8555:8545 -p 30403:30303 --name etc-parity --restart always -d parity:2.0.1-submit_work_detail
+docker run -it -v /work/ethereum/etc-parity/:/root/.local/share/io.parity.ethereum/ -p 8555:8545 -p 30403:30303 --name etc-parity --restart always -d parity:2.0.4-submit_work_detail
 
 # see the log
 tail -f /work/ethereum/etc-parity/parity.log
