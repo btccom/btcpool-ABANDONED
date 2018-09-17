@@ -160,6 +160,7 @@ public:
     c += (uint64_t) nonce_;
     c += (uint64_t) sessionId_;
     c += (uint64_t) network_;
+    c += (uint64_t) voters_;
 
     return ((uint32_t) c) + ((uint32_t) (c >> 32));
   }
