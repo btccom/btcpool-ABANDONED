@@ -235,6 +235,9 @@ StratumClientWrapper::~StratumClientWrapper() {
   if (threadSubmitShares_.joinable())
     threadSubmitShares_.join();
 
+  // It has to be cleared here to free client events before event base
+  connections_.clear();
+
   event_base_free(base_);
 }
 
