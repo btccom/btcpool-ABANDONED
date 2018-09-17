@@ -39,6 +39,7 @@
 
 #include "Utils.h"
 #include "StratumClient.h"
+#include "eth/StratumClientEth.h"
 
 using namespace std;
 using namespace libconfig;
@@ -123,6 +124,11 @@ int main(int argc, char **argv) {
     cfg.lookupValue("simulator.number_clients", numConns);
 
     evthread_use_pthreads();
+
+    // register stratum client factories
+    StratumClient::registerFactory<StratumClient>("BTC");
+    StratumClient::registerFactory<StratumClient>("DCR");
+    StratumClient::registerFactory<StratumClientEth>("ETH");
 
     // new StratumClientWrapper
     gWrapper = new StratumClientWrapper(cfg.lookup("simulator.ss_ip").c_str(),
