@@ -189,7 +189,8 @@ public:
     INVALID_USERNAME = 29,
     INTERNAL_ERROR   = 30,
     TIME_TOO_OLD     = 31,
-    TIME_TOO_NEW     = 32
+    TIME_TOO_NEW     = 32,
+    ILLEGAL_VERMASK  = 33
   };
   static const char * toString(int err);
 };

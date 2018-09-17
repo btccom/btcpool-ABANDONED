@@ -229,6 +229,7 @@ public:
                            const uint256 &hashPrevBlock,
                            const uint32_t nBits, const int32_t nVersion,
                            const uint32_t nTime, const uint32_t nonce,
+                           const uint32_t versionMask,
                            string *userCoinbaseInfo = nullptr);
 };
 
@@ -249,6 +250,8 @@ class Server {
   KafkaProducer *kafkaProducerNamecoinSolvedShare_;
   KafkaProducer *kafkaProducerCommonEvents_;
   KafkaProducer *kafkaProducerRskSolvedShare_;
+
+  const uint32_t versionMask_;
 
   //
   // WARNING: if enable simulator, all share will be accepted. only for test.
@@ -280,7 +283,7 @@ public:
   UserInfo *userInfo_;
 
 public:
-  Server(const int32_t shareAvgSeconds);
+  Server(const int32_t shareAvgSeconds, const uint32_t versionMask);
   ~Server();
 
   bool setup(const char *ip, const unsigned short port, const char *kafkaBrokers,
@@ -292,6 +295,8 @@ public:
              float minerDifficulty);
   void run();
   void stop();
+
+  uint32_t getVersionMask() const;
 
   void sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr);
 
@@ -308,9 +313,9 @@ public:
   int checkShare(const Share &share,
                  const uint32 extraNonce1, const string &extraNonce2Hex,
                  const uint32_t nTime, const uint32_t nonce,
+                 const uint32_t versionMask,
                  const uint256 &jobTarget, const string &workFullName,
                  string *userCoinbaseInfo = nullptr);
-
   void sendShare2Kafka      (const uint8_t *data, size_t len);
   void sendSolvedShare2Kafka(const FoundBlock *foundBlock,
                              const std::vector<char> &coinbaseBin);
@@ -348,7 +353,8 @@ public:
   StratumServer(const char *ip, const unsigned short port,
                 const char *kafkaBrokers,
                 const string &userAPIUrl,
-                const uint8_t serverId, const string &fileLastNotifyTime,
+                const uint8_t serverId, const uint32_t versionMask,
+                const string &fileLastNotifyTime,
                 bool isEnableSimulator,
                 bool isSubmitInvalidBlock,
                 bool isDevModeEnable,
