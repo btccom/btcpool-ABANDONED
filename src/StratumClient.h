@@ -97,17 +97,19 @@ public:
 
 ////////////////////////////// StratumClientWrapper ////////////////////////////
 class StratumClientWrapper {
-  atomic<bool> running_;
+  bool running_;
   struct event_base *base_;
   struct sockaddr_in sin_;
+  struct event *timer_;
+  struct event *sigterm_;
+  struct event *sigint_;
   uint32_t numConnections_;
   string userName_;   // miner usename
   string minerNamePrefix_;
   string type_;
   std::set<unique_ptr<StratumClient>> connections_;
 
-  thread threadSubmitShares_;
-  void runThreadSubmitShares();
+  void submitShares();
 
 public:
   StratumClientWrapper(const char *host, const uint32_t port,
@@ -118,11 +120,11 @@ public:
 
   static void readCallback (struct bufferevent* bev, void *connection);
   static void eventCallback(struct bufferevent *bev, short events, void *ptr);
+  static void timerCallback(evutil_socket_t fd, short event, void *ptr);
+  static void signalCallback(evutil_socket_t fd, short event, void *ptr);
 
   void stop();
   void run();
-
-  void submitShares();
 
   unique_ptr<StratumClient> createClient(struct event_base *base, const string &workerFullName);
 };
