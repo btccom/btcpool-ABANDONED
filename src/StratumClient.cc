@@ -203,9 +203,7 @@ void StratumClient::submitShare()
 
 void StratumClient::sendData(const char *data, size_t len) {
   // add data to a bufferevent’s output buffer
-  bufferevent_lock(bev_);
   bufferevent_write(bev_, data, len);
-  bufferevent_unlock(bev_);
   DLOG(INFO) << "send(" << len << "): " << data;
 }
 
@@ -232,8 +230,9 @@ StratumClientWrapper::StratumClientWrapper(const char *host,
 StratumClientWrapper::~StratumClientWrapper() {
   stop();
 
-  if (threadSubmitShares_.joinable())
-    threadSubmitShares_.join();
+  event_free(sigint_);
+  event_free(sigterm_);
+  event_free(timer_);
 
   // It has to be cleared here to free client events before event base
   connections_.clear();
@@ -272,6 +271,16 @@ void StratumClientWrapper::readCallback(struct bufferevent* bev, void *connectio
   client->readBuf(bufferevent_get_input(bev));
 }
 
+void StratumClientWrapper::timerCallback(evutil_socket_t fd, short event, void *ptr) {
+  auto wrapper = static_cast<StratumClientWrapper *>(ptr);
+  wrapper->submitShares();
+}
+
+void StratumClientWrapper::signalCallback(evutil_socket_t fd, short event, void *ptr) {
+  auto wrapper = static_cast<StratumClientWrapper *>(ptr);
+  wrapper->stop();
+}
+
 void StratumClientWrapper::run() {
   //
   // create clients
@@ -290,7 +299,17 @@ void StratumClientWrapper::run() {
     connections_.insert(move(client));
   }
 
-  threadSubmitShares_ = thread(&StratumClientWrapper::runThreadSubmitShares, this);
+  // create timer
+  timer_ = event_new(base_, -1, EV_PERSIST, StratumClientWrapper::timerCallback, this);
+  int sleepTime = 10000000 / connections_.size();
+  struct timeval interval{sleepTime / 1000000, sleepTime % 1000000};
+  event_add(timer_, &interval);
+
+  // create signals
+  sigterm_ = event_new(base_, SIGTERM, EV_SIGNAL | EV_PERSIST, StratumClientWrapper::signalCallback, this);
+  event_add(sigterm_, nullptr);
+  sigint_ = event_new(base_, SIGINT, EV_SIGNAL | EV_PERSIST, StratumClientWrapper::signalCallback, this);
+  event_add(sigint_, nullptr);
 
   // event loop
   event_base_dispatch(base_);
@@ -298,35 +317,11 @@ void StratumClientWrapper::run() {
   LOG(INFO) << "StratumClientWrapper::run() stop";
 }
 
-void StratumClientWrapper::runThreadSubmitShares() {
-  /*time_t lastSendTime = 0;
-
-  while (running_) {
-    if (lastSendTime + 10 > time(nullptr)) {
-      sleep(1);
-      continue;
-    }
-
-    submitShares();
-    lastSendTime = time(nullptr);
-  }*/
-
-  size_t connNum = connections_.size();
-  size_t sleepTime = 10000000 / connNum; // 10s for each connection, uniform distribution
-
-  while (running_) {
-    for (auto &conn : connections_) {
-      conn->submitShare();
-      usleep(sleepTime);
-    }
-  }
-}
-
-/*void StratumClientWrapper::submitShares() {
+void StratumClientWrapper::submitShares() {
   for (auto &conn : connections_) {
     conn->submitShare();
   }
-}*/
+}
 
 unique_ptr<StratumClient> StratumClientWrapper::createClient(struct event_base *base, const string &workerFullName)
 {

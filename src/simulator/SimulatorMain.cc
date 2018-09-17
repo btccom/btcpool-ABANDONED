@@ -44,14 +44,6 @@
 using namespace std;
 using namespace libconfig;
 
-StratumClientWrapper *gWrapper = nullptr;
-
-void handler(int sig) {
-  if (gWrapper) {
-    gWrapper->stop();
-  }
-}
-
 void usage() {
   fprintf(stderr, "Usage:\n\tsimulator -c \"simulator.cfg\" -l \"log_dir\"\n");
 }
@@ -111,8 +103,6 @@ int main(int argc, char **argv) {
     return(EXIT_FAILURE);
   }
 
-  signal(SIGTERM, handler);
-  signal(SIGINT,  handler);
   // ignore SIGPIPE, avoiding process be killed
   signal(SIGPIPE,  SIG_IGN);
 
@@ -131,14 +121,12 @@ int main(int argc, char **argv) {
     StratumClient::registerFactory<StratumClientEth>("ETH");
 
     // new StratumClientWrapper
-    gWrapper = new StratumClientWrapper(cfg.lookup("simulator.ss_ip").c_str(),
-                                        (unsigned short)port, numConns,
-                                        cfg.lookup("simulator.username"),
-                                        cfg.lookup("simulator.minername_prefix"),
-                                        cfg.lookup("simulator.type"));
-    gWrapper->run();
-
-    delete gWrapper;
+    auto wrapper = boost::make_unique<StratumClientWrapper>(cfg.lookup("simulator.ss_ip").c_str(),
+                                                            (unsigned short)port, numConns,
+                                                            cfg.lookup("simulator.username"),
+                                                            cfg.lookup("simulator.minername_prefix"),
+                                                            cfg.lookup("simulator.type"));
+    wrapper->run();
   }
   catch (std::exception & e) {
     LOG(FATAL) << "exception: " << e.what();
