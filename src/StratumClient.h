@@ -39,6 +39,8 @@
 #include <uint256.h>
 #include "utilities_js.hpp"
 
+#include <boost/make_unique.hpp>
+#include <type_traits>
 
 ///////////////////////////////// StratumClient ////////////////////////////////
 class StratumClient {
@@ -67,6 +69,16 @@ public:
   };
   atomic<State> state_;
 
+  using Factory = function<unique_ptr<StratumClient> (struct event_base *, const string &)>;
+  static bool registerFactory(const string &chainType, Factory factory);
+  template<typename T>
+  static bool registerFactory(const string &chainType) {
+    static_assert(std::is_base_of<StratumClient, T>::value, "Factory is not constructing the correct type");
+    return registerFactory(chainType, [](struct event_base *base, const string &workerFullName) {
+      return boost::make_unique<T>(base, workerFullName);
+    });
+  }
+
 public:
   StratumClient(struct event_base *base, const string &workerFullName);
   virtual ~StratumClient();
@@ -83,17 +95,6 @@ public:
   virtual string constructShare();
 };
 
-class StratumClientEth : public StratumClient 
-{
-public:
-  StratumClientEth(struct event_base *base, const string &workerFullName);
-  virtual string constructShare();
-  arith_uint256 header_;
-
-protected:
-  virtual void handleLine(const string &line);  
-};
-
 ////////////////////////////// StratumClientWrapper ////////////////////////////
 class StratumClientWrapper {
   atomic<bool> running_;
@@ -103,7 +104,7 @@ class StratumClientWrapper {
   string userName_;   // miner usename
   string minerNamePrefix_;
   string type_;
-  std::set<StratumClient *> connections_;
+  std::set<unique_ptr<StratumClient>> connections_;
 
   thread threadSubmitShares_;
   void runThreadSubmitShares();
@@ -123,7 +124,7 @@ public:
 
   void submitShares();
 
-  StratumClient* createClient(struct event_base *base, const string &workerFullName);
+  unique_ptr<StratumClient> createClient(struct event_base *base, const string &workerFullName);
 };
 
 
