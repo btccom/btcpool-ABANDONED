@@ -183,7 +183,7 @@ public:
   StratumJobEth();
   string serializeToJson() const override;
   bool unserializeFromJson(const char *s, size_t len) override;
-  bool initFromGw(const RskWorkEth &latestRskBlockJson, EthConsensus::Chain chain);
+  bool initFromGw(const RskWorkEth &latestRskBlockJson, EthConsensus::Chain chain, uint8_t serverId);
 
   int32_t height_;
   int32_t nVersion_;
