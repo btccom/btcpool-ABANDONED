@@ -38,7 +38,7 @@ StratumJobEth::StratumJobEth()
 
 }
 
-bool StratumJobEth::initFromGw(const RskWorkEth &latestRskBlockJson, EthConsensus::Chain chain)
+bool StratumJobEth::initFromGw(const RskWorkEth &latestRskBlockJson, EthConsensus::Chain chain, uint8_t serverId)
 {
   if (latestRskBlockJson.isInitialized())
   {
@@ -54,16 +54,8 @@ bool StratumJobEth::initFromGw(const RskWorkEth &latestRskBlockJson, EthConsensu
 
     // generate job id
     string header = blockHashForMergedMining_.substr(2, 64);
-    uint32 h = djb2(header.c_str());
-    DLOG(INFO) << "djb2=" << std::hex << h << " for header " << header;
-    // jobId: timestamp + hash of header
-    const string jobIdStr = Strings::Format("%08x%08x",
-                                            (uint32_t)time(nullptr),
-                                            h);
-    DLOG(INFO) << "job id string: " << jobIdStr;
-    assert(jobIdStr.length() == 16);
-    
-    jobId_ = stoull(jobIdStr, nullptr, 16 /* hex */);
+    // jobId: timestamp + hash of header + server id
+    jobId_ = (static_cast<uint64_t>(time(nullptr)) << 32) | (djb2(header.c_str()) & 0xFFFFFF00) | serverId;
   }
   return seedHash_.size() && blockHashForMergedMining_.size();
 }

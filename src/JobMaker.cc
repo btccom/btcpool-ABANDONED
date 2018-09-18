@@ -71,7 +71,11 @@ bool JobMaker::init() {
       LOG(ERROR) << "zookeeper lock path is empty!";
       return false;
     }
-    zkLocker_.getLock(handler_->def()->zookeeperLockPath_.c_str());
+    // Lock the path + server id so that we can start job makers with different
+    // server id (up to 8 bits as only 8 bits are embedded in job id)
+    zkLocker_.getLock(Strings::Format("%s/%" PRIu8,
+                                      handler_->def()->zookeeperLockPath_.c_str(),
+                                      static_cast<uint8_t>(handler_->def()->serverId_)).c_str());
   } catch(const ZookeeperException &zooex) {
     LOG(ERROR) << zooex.what();
     return false;
@@ -226,6 +230,11 @@ JobMakerConsumerHandler JobMakerHandler::createConsumerHandler(const string &kaf
   }
 
   return result;
+}
+
+uint64_t JobMakerHandler::generateJobId(uint32_t hash) const
+{
+  return (static_cast<uint64_t>(time(nullptr)) << 32) | (hash & 0xFFFFFF00) | (def_->serverId_ & 0xFF);
 }
 
 ////////////////////////////////GwJobMakerHandler//////////////////////////////////

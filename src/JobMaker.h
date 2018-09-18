@@ -109,6 +109,8 @@ public:
   JobMakerConsumerHandler createConsumerHandler(const string &kafkaBrokers, const string &topic, int64_t offset
     , vector<pair<string, string>> consumerOptions, JobMakerMessageProcessor messageProcessor);
 
+  uint64_t generateJobId(uint32_t hash) const;
+
 protected:
   shared_ptr<JobMakerDefinition> def_;
 };

@@ -36,6 +36,7 @@
 #include "Utils.h"
 #include <glog/logging.h>
 
+#include <boost/endian/buffers.hpp>
 
 static
 void makeMerkleBranch(const vector<uint256> &vtxhashs, vector<uint256> &steps) {
@@ -262,11 +263,8 @@ bool StratumJobBitcoin::initFromGbt(const char *gbt, const string &poolCoinbaseI
 
   // jobId: timestamp + gbtHash, we need to make sure jobId is unique in a some time
   // jobId can convert to uint64_t
-  const string jobIdStr = Strings::Format("%08x%s%02x", (uint32_t)time(nullptr),
-                                                        gbtHash.ToString().substr(0, 6).c_str(),
-                                                        serverId);
-  assert(jobIdStr.length() == 16);
-  jobId_ = strtoull(jobIdStr.c_str(), nullptr, 16/* hex */);
+  auto hash = reinterpret_cast<boost::endian::little_uint32_buf_t *>(gbtHash.begin());
+  jobId_ = (static_cast<uint64_t>(time(nullptr)) << 32) | (hash->value() & 0xFFFFFF00) | serverId;
 
   gbtHash_ = gbtHash.ToString();
 

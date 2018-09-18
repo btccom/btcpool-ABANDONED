@@ -101,7 +101,7 @@ string JobMakerHandlerEth::makeStratumJobMsg()
   shared_ptr<RskWorkEth> work = workMap_.rbegin()->second;
   StratumJobEth sjob;
 
-  if (!sjob.initFromGw(*work, def()->chain_)) {
+  if (!sjob.initFromGw(*work, def()->chain_, def()->serverId_)) {
     LOG(ERROR) << "init stratum job from work fail";
     return "";
   }

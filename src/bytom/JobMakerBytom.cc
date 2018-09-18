@@ -78,15 +78,9 @@ string JobMakerHandlerBytom::makeStratumJobMsg()
       0 == seed_.size())
     return "";
 
-
-  const string jobIdStr = Strings::Format("%08x%08x", (uint32_t)time(nullptr), djb2(header_.c_str()));
-  assert(jobIdStr.length() == 16);
-  size_t pos;
-  uint64 jobId = stoull(jobIdStr, &pos, 16);
-
   StratumJobBytom job;
   job.nTime_ = time_;
-  job.jobId_ = jobId;
+  job.jobId_ = generateJobId(djb2(header_.c_str()));
   job.seed_ = seed_;
   job.hHash_ = header_;
   return job.serializeToJson();
