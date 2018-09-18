@@ -27,6 +27,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <signal.h>
 
 static map<string, StratumClient::Factory> gStratumClientFactories;
 bool StratumClient::registerFactory(const string &chainType, Factory factory)
