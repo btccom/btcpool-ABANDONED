@@ -92,7 +92,7 @@ bool JobMaker::init() {
   return true;
 }
 
-void JobMaker::consumeKafkaMsg(rd_kafka_message_t *rkmessage, JobMakerConsumerHandler &consumerHandler)
+bool JobMaker::consumeKafkaMsg(rd_kafka_message_t *rkmessage, JobMakerConsumerHandler &consumerHandler)
 {
   // check error
   string topic = rd_kafka_topic_name(rkmessage->rkt);
@@ -101,7 +101,7 @@ void JobMaker::consumeKafkaMsg(rd_kafka_message_t *rkmessage, JobMakerConsumerHa
     if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF)
     {
       // Reached the end of the topic+partition queue on the broker.
-      return;
+      return false;
     }
 
     LOG(ERROR) << "consume error for topic " << topic.c_str()
@@ -114,7 +114,7 @@ void JobMaker::consumeKafkaMsg(rd_kafka_message_t *rkmessage, JobMakerConsumerHa
       LOG(FATAL) << "consume fatal";
       stop();
     }
-    return;
+    return false;
   }
 
   // set json string
@@ -125,8 +125,10 @@ void JobMaker::consumeKafkaMsg(rd_kafka_message_t *rkmessage, JobMakerConsumerHa
   if (consumerHandler.messageProcessor_(msg)) {
     LOG(INFO) << "handleMsg returns true, new stratum job";
     produceStratumJob();
+    return true;
+  } else {
+    return false;
   }
-
 }
 
 void JobMaker::produceStratumJob() {
@@ -147,30 +149,36 @@ void JobMaker::produceStratumJob() {
 }
 
 void JobMaker::runThreadKafkaConsume(JobMakerConsumerHandler &consumerHandler) {
-  const int32_t timeoutMs = 1000;
+  int32_t timeoutMs = handler_->def()->jobInterval_ * 1000;
+  bool jobUpdated = false;
 
   while (running_) {
-    rd_kafka_message_t *rkmessage;
-    rkmessage = consumerHandler.kafkaConsumer_->consumer(timeoutMs);
-    if (rkmessage == nullptr) /* timeout */ {
-      continue;
+    rd_kafka_message_t *rkmessage = consumerHandler.kafkaConsumer_->consumer(timeoutMs);
+    if (rkmessage) {
+      jobUpdated = consumeKafkaMsg(rkmessage, consumerHandler);
+
+      /* Return message to rdkafka */
+      rd_kafka_message_destroy(rkmessage);
+
+      // Don't add any sleep() here.
+      // Kafka will not skip any message during your sleep(), you will received
+      // all messages from your beginning offset to the latest in any case.
+      // So sleep() will cause unexpected delay before consumer a new message.
+      // If the producer's speed is faster than the sleep() here, the consumption
+      // will be delayed permanently and the latest message will never be received.
+
+      // At the same time, there is not a busy waiting.
+      // KafkaConsumer::consumer(timeoutMs) will return after `timeoutMs` millisecond
+      // if no new messages. You can increase `timeoutMs` if you want.
     }
 
-    consumeKafkaMsg(rkmessage, consumerHandler);
+    int32_t timeDiff;
+    if (rkmessage == nullptr || (!jobUpdated && (timeDiff = time(nullptr) - lastJobTime_) > handler_->def()->jobInterval_)) {
+      produceStratumJob();
+      jobUpdated = true;
+    }
 
-    /* Return message to rdkafka */
-    rd_kafka_message_destroy(rkmessage);
-
-    // Don't add any sleep() here.
-    // Kafka will not skip any message during your sleep(), you will received
-    // all messages from your beginning offset to the latest in any case.
-    // So sleep() will cause unexpected delay before consumer a new message.
-    // If the producer's speed is faster than the sleep() here, the consumption
-    // will be delayed permanently and the latest message will never be received.
-
-    // At the same time, there is not a busy waiting.
-    // KafkaConsumer::consumer(timeoutMs) will return after `timeoutMs` millisecond
-    // if no new messages. You can increase `timeoutMs` if you want.
+    timeoutMs = (handler_->def()->jobInterval_ - (jobUpdated ? 0 : timeDiff)) * 1000;
   }
 }
 
@@ -180,16 +188,6 @@ void JobMaker::run() {
   for (JobMakerConsumerHandler &consumerhandler : kafkaConsumerHandlers_)
   {
     kafkaConsumerWorkers_.push_back(std::make_shared<thread>(std::bind(&JobMaker::runThreadKafkaConsume, this, consumerhandler)));
-  }
-
-  // produce stratum job regularly
-  // the stratum job producing will also be triggered by consumer threads
-  while (running_) {
-    sleep(1);
-
-    if (time(nullptr) - lastJobTime_ > handler_->def()->jobInterval_) {
-      produceStratumJob();
-    }
   }
 
   // wait consumer threads exit

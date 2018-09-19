@@ -92,7 +92,6 @@ private:
   void clearTimeoutWorks();
 
   GetWorkDecredMap works_;
-  mutex lock_;
 };
 
 #endif

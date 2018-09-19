@@ -68,7 +68,6 @@ bool JobMakerHandlerDecred::processMsg(const string &msg)
 
 string JobMakerHandlerDecred::makeStratumJobMsg()
 {
-  ScopeLock sl(lock_);
   if (works_.empty()) return string{};
 
   auto& work = *works_.get<ByBestBlockDecred>().rbegin();
@@ -99,7 +98,6 @@ string JobMakerHandlerDecred::makeStratumJobMsg()
 
 bool JobMakerHandlerDecred::processMsg(JsonNode &j)
 {
-  ScopeLock sl(lock_);
   auto data = j["data"].str();
   auto target = j["target"].str();
   auto createdAt = j["created_at_ts"].uint32();
@@ -179,8 +177,6 @@ bool JobMakerHandlerDecred::validate(JsonNode &j)
 
 void JobMakerHandlerDecred::clearTimeoutWorks()
 {
-  ScopeLock sl(lock_);
-
   // Ensure that we has at least one work, even if it expires.
   // So jobmaker can always generate jobs even if blockchain node does not
   // update the response of getwork for a long time when there is no new transaction.
