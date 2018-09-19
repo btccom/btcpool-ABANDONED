@@ -8,6 +8,7 @@
 class DataHandlerLoadOperationBase
 {
 public:
+    virtual ~DataHandlerLoadOperationBase() = default;
     virtual std::string Id() const = 0;
     virtual bool DoLoad(std::vector<char>& outData) = 0;
 };
@@ -50,6 +51,7 @@ private:
 class DataOperationManagerBase
 {
 public:
+    virtual ~DataOperationManagerBase() = default;
     virtual std::unique_ptr<DataHandler> GetDataHandler(std::string id) const = 0;
     virtual bool GetDataList(std::vector<std::string>& out, std::regex regex = std::regex(".*"), bool checkNotation = false) = 0;
     virtual std::unique_ptr<DataHandler> StoreData(std::string id, std::vector<char>&& data, bool forceOverwrite = false)= 0;
