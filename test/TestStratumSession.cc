@@ -298,9 +298,9 @@ TEST(StratumSession, AgentSessions_SubmitShare) {
   AgentSessions agent(10, nullptr);
 
   //
-  // CMD_SUBMIT_SHARE / CMD_SUBMIT_SHARE_WITH_TIME:
+  // CMD_SUBMIT_SHARE:
   // | magic_number(1) | cmd(1) | len (2) | jobId (uint8_t) | session_id (uint16_t) |
-  // | extra_nonce2 (uint32_t) | nNonce (uint32_t) | [nTime (uint32_t) |]
+  // | extra_nonce2 (uint32_t) | nNonce (uint32_t) |
   //
   const string jobId = "9";
   const uint16_t sessionId = AGENT_MAX_SESSION_ID;
@@ -330,7 +330,7 @@ TEST(StratumSession, AgentSessions_SubmitShare) {
 
   ASSERT_EQ((size_t)(p - (uint8_t *)exMessage.data()), exMessage.size());
 
-  agent.handleExMessage_SubmitShare(&exMessage, false);
+  agent.handleExMessage_SubmitShare(&exMessage, false, false);
   // please check ouput log
 }
 
@@ -338,9 +338,9 @@ TEST(StratumSession, AgentSessions_SubmitShare_with_time) {
   AgentSessions agent(10, nullptr);
 
   //
-  // CMD_SUBMIT_SHARE / CMD_SUBMIT_SHARE_WITH_TIME:
+  // CMD_SUBMIT_SHARE_WITH_TIME:
   // | magic_number(1) | cmd(1) | len (2) | jobId (uint8_t) | session_id (uint16_t) |
-  // | extra_nonce2 (uint32_t) | nNonce (uint32_t) | [nTime (uint32_t) |]
+  // | extra_nonce2 (uint32_t) | nNonce (uint32_t) | nTime (uint32_t) |
   //
   const string jobId = "9";
   const uint16_t sessionId = AGENT_MAX_SESSION_ID;
@@ -373,7 +373,96 @@ TEST(StratumSession, AgentSessions_SubmitShare_with_time) {
 
   ASSERT_EQ((size_t)(p - (uint8_t *)exMessage.data()), exMessage.size());
 
-  agent.handleExMessage_SubmitShare(&exMessage, true);
+  agent.handleExMessage_SubmitShare(&exMessage, true, false);
+  // please check ouput log
+}
+
+TEST(StratumSession, AgentSessions_SubmitShare_with_ver) {
+  AgentSessions agent(10, nullptr);
+
+  //
+  // CMD_SUBMIT_SHARE_WITH_VER:
+  // | magic_number(1) | cmd(1) | len (2) | jobId (uint8_t) | session_id (uint16_t) |
+  // | extra_nonce2 (uint32_t) | nNonce (uint32_t) | nVersionMask (uint32_t) |
+  //
+  const string jobId = "9";
+  const uint16_t sessionId = AGENT_MAX_SESSION_ID;
+
+  string exMessage;
+  exMessage.resize(1+1+2+1+2+4+4+4, 0);
+
+  uint8_t *p = (uint8_t *)exMessage.data();
+
+  // cmd
+  *p++ = CMD_MAGIC_NUMBER;
+  *p++ = CMD_SUBMIT_SHARE_WITH_VER;
+  // len
+  *(uint16_t *)p = (uint16_t)exMessage.size();
+  p += 2;
+  // jobId
+  *p++ = *jobId.c_str();
+  // session Id
+  *(uint16_t *)p = sessionId;
+  p += 2;
+  // extra_nonce2
+  *(uint32_t *)p = 0x12345678u;  // 305419896
+  p += 4;
+  // nonce
+  *(uint32_t *)p = 0xFFabcdefu;  // 4289449455
+  p += 4;
+  // version
+  *(uint32_t *)p = 0xcdef90abu;  // 3455029419
+  p += 4;
+
+  ASSERT_EQ((size_t)(p - (uint8_t *)exMessage.data()), exMessage.size());
+
+  agent.handleExMessage_SubmitShare(&exMessage, false, true);
+  // please check ouput log
+}
+
+TEST(StratumSession, AgentSessions_SubmitShare_with_time_ver) {
+  AgentSessions agent(10, nullptr);
+
+  //
+  // CMD_SUBMIT_SHARE_WITH_TIME_ver:
+  // | magic_number(1) | cmd(1) | len (2) | jobId (uint8_t) | session_id (uint16_t) |
+  // | extra_nonce2 (uint32_t) | nNonce (uint32_t) | nTime (uint32_t) | nVersionMask (uint32_t) |
+  //
+  const string jobId = "9";
+  const uint16_t sessionId = AGENT_MAX_SESSION_ID;
+
+  string exMessage;
+  exMessage.resize(1+1+2+1+2+4+4+4+4, 0);
+
+  uint8_t *p = (uint8_t *)exMessage.data();
+
+  // cmd
+  *p++ = CMD_MAGIC_NUMBER;
+  *p++ = CMD_SUBMIT_SHARE_WITH_TIME_VER;
+  // len
+  *(uint16_t *)p = (uint16_t)exMessage.size();
+  p += 2;
+  // jobId
+  *p++ = *jobId.c_str();
+  // session Id
+  *(uint16_t *)p = sessionId;
+  p += 2;
+  // extra_nonce2
+  *(uint32_t *)p = 0x12345678u;  // 305419896
+  p += 4;
+  // nonce
+  *(uint32_t *)p = 0xFFabcdefu;  // 4289449455
+  p += 4;
+  // time
+  *(uint32_t *)p = 0xcdef90abu;  // 3455029419
+  p += 4;
+  // version
+  *(uint32_t *)p = 0x01010101u;  // 266305
+  p += 4;
+
+  ASSERT_EQ((size_t)(p - (uint8_t *)exMessage.data()), exMessage.size());
+
+  agent.handleExMessage_SubmitShare(&exMessage, true, true);
   // please check ouput log
 }
 
