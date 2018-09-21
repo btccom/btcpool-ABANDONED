@@ -38,8 +38,7 @@ public:
                                      const char *consumerTopic,     
                                      const string &fileLastNotifyTime) override;
 
-  StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
-                               struct sockaddr *saddr, const uint32_t sessionID) override;
+  unique_ptr<StratumSession> createConnection(struct bufferevent *bev, struct sockaddr *saddr, const uint32_t sessionID) override;
   void sendSolvedShare2Kafka(uint64_t nonce, const string &strHeader,
                                       uint64_t height, uint64_t networkDiff, const StratumWorker &worker);
 };

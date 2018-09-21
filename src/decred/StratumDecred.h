@@ -219,4 +219,20 @@ public:
   virtual void setExtraNonces(BlockHeaderDecred &header, uint32_t extraNonce1, const vector<uint8_t> &extraNonce2) = 0;
 };
 
+class ServerDecred;
+class StratumSessionDecred;
+
+struct StratumTraitsDecred {
+  using ServerType = ServerDecred;
+  using SessionType = StratumSessionDecred;
+  using JobDiffType = uint64_t;
+  struct LocalJobType : public LocalJob {
+    LocalJobType(uint64_t jobId, uint8_t shortJobId, uint32_t blkBits)
+        : LocalJob(jobId), shortJobId_(shortJobId), blkBits_(blkBits) {}
+    bool operator==(uint8_t shortJobId) const { return shortJobId_ == shortJobId; }
+    uint8_t shortJobId_;
+    uint32_t blkBits_;
+  };
+};
+
 #endif

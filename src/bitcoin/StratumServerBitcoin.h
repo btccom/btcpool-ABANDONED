@@ -44,8 +44,7 @@ public:
 
   bool setupInternal(StratumServer* sserver) override;
 
-  StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
-                               struct sockaddr *saddr, const uint32_t sessionID) override;
+  unique_ptr<StratumSession> createConnection(struct bufferevent *bev, struct sockaddr *saddr, uint32_t sessionID) override;
   void sendSolvedShare2Kafka(const FoundBlock *foundBlock,
                              const std::vector<char> &coinbaseBin);
 

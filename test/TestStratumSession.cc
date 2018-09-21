@@ -22,86 +22,121 @@
  THE SOFTWARE.
  */
 
-#include "gtest/gtest.h"
+#include "gmock/gmock.h"
 #include "Common.h"
 #include "Utils.h"
 
 #include <boost/algorithm/string.hpp>
 
-#include "bitcoin/StratumSessionBitcoin.h"
+#include "StratumSession.h"
+#include "StratumMessageDispatcher.h"
+#include "StratumMiner.h"
+#include "DiffController.h"
+
+using namespace std;
+using namespace testing;
 
 TEST(StratumSession, LocalShare) {
-  StratumSession::LocalShare ls1(0xFFFFFFFFFFFFFFFFULL,
-                                 0xFFFFFFFFU, 0xFFFFFFFFU);
+  LocalShare ls1(0xFFFFFFFFFFFFFFFFULL,
+                 0xFFFFFFFFU, 0xFFFFFFFFU);
 
   {
-    StratumSession::LocalShare ls2(0xFFFFFFFFFFFFFFFEULL,
-                                   0xFFFFFFFFU, 0xFFFFFFFFU);
+    LocalShare ls2(0xFFFFFFFFFFFFFFFEULL,
+                   0xFFFFFFFFU, 0xFFFFFFFFU);
     ASSERT_EQ(ls2 < ls1, true);
   }
   {
-    StratumSession::LocalShare ls2(0xFFFFFFFFFFFFFFFFULL,
-                                   0xFFFFFFFEU, 0xFFFFFFFFU);
+    LocalShare ls2(0xFFFFFFFFFFFFFFFFULL,
+                   0xFFFFFFFEU, 0xFFFFFFFFU);
     ASSERT_EQ(ls2 < ls1, true);
   }
   {
-    StratumSession::LocalShare ls2(0xFFFFFFFFFFFFFFFFULL,
-                                   0xFFFFFFFFU, 0xFFFFFFFEU);
+    LocalShare ls2(0xFFFFFFFFFFFFFFFFULL,
+                   0xFFFFFFFFU, 0xFFFFFFFEU);
     ASSERT_EQ(ls2 < ls1, true);
   }
   {
-    StratumSession::LocalShare ls2(0xFFFFFFFFFFFFFFFFULL,
-                                   0xFFFFFFFFU, 0xFFFFFFFFU);
+    LocalShare ls2(0xFFFFFFFFFFFFFFFFULL,
+                   0xFFFFFFFFU, 0xFFFFFFFFU);
     ASSERT_EQ(ls2 < ls1, false);
     ASSERT_EQ(ls2 < ls2, false);
   }
   {
-    StratumSession::LocalShare ls2(0x0ULL, 0x0U, 0x0U);
+    LocalShare ls2(0x0ULL, 0x0U, 0x0U);
     ls2 = ls1;
     ASSERT_EQ(ls2 < ls1, false);
     ASSERT_EQ(ls2 < ls2, false);
   }
 }
 
-
 TEST(StratumSession, LocalJob) {
-  StratumSession::LocalJob lj;
+  LocalJob lj(0);
 
   {
-    StratumSession::LocalShare ls1(0xFFFFFFFFFFFFFFFFULL,
-                                   0xFFFFFFFFU, 0xFFFFFFFFU);
+    LocalShare ls1(0xFFFFFFFFFFFFFFFFULL,
+                   0xFFFFFFFFU, 0xFFFFFFFFU);
     ASSERT_EQ(lj.addLocalShare(ls1), true);
   }
   {
-    StratumSession::LocalShare ls1(0xFFFFFFFFFFFFFFFFULL,
-                                   0xFFFFFFFFU, 0xFFFFFFFFU);
+    LocalShare ls1(0xFFFFFFFFFFFFFFFFULL,
+                   0xFFFFFFFFU, 0xFFFFFFFFU);
     ASSERT_EQ(lj.addLocalShare(ls1), false);
   }
   {
-    StratumSession::LocalShare ls2(0x0ULL, 0x0U, 0x0U);
+    LocalShare ls2(0x0ULL, 0x0U, 0x0U);
     ASSERT_EQ(lj.addLocalShare(ls2), true);
   }
   {
-    StratumSession::LocalShare ls2(0x0ULL, 0x0U, 0x0U);
+    LocalShare ls2(0x0ULL, 0x0U, 0x0U);
     ASSERT_EQ(lj.addLocalShare(ls2), false);
   }
 }
 
-TEST(StratumSession, AgentSessions_RegisterWorker) {
-  AgentSessions agent(10, nullptr);
+class StratumSessionMock : public IStratumSession {
+public:
+  MOCK_METHOD3(addWorker, void (const string &, const string &, int64_t));
+  MOCK_METHOD3(createMiner, unique_ptr<StratumMiner> (const string &, const string &, int64_t));
+  MOCK_CONST_METHOD1(decodeSessionId, uint16_t (const string &));
+  MOCK_METHOD0(getDispatcher, StratumMessageDispatcher &());
+  MOCK_METHOD1(responseTrue, void (const string &));
+  MOCK_METHOD2(responseError, void (const string &, int));
+  MOCK_METHOD2(sendData, void(const char *, size_t));
+  MOCK_METHOD1(sendData, void(const string &));
+  MOCK_METHOD2(sendSetDifficulty, void (LocalJob &, uint64_t));
+};
+
+class StratumMinerMock : public StratumMiner {
+public:
+  StratumMinerMock(IStratumSession &session,
+                   const DiffController &diffController,
+                   const string &clientAgent,
+                   const string &workerName,
+                   int64_t workerId)
+      : StratumMiner(session, diffController, clientAgent, workerName, workerId) {
+  }
+
+  MOCK_METHOD4(handleRequest, void (const string &, const string &, const JsonNode &, const JsonNode &));
+  MOCK_METHOD1(handleExMessage, void (const string &));
+  MOCK_METHOD1(addLocalJob, uint64_t (const LocalJob &));
+  MOCK_METHOD1(removeLocalJob, void (const LocalJob &));
+};
+
+TEST(StratumSession, StratumClientAgentHandler_RegisterWorker) {
+  StratumSessionMock connection;
+  StratumMessageAgentDispatcher agent(connection);
 
   // | magic_number(1) | cmd(1) | len (2) | session_id(2) | clientAgent | worker_name |
   string exMessage;
   const string clientAgent = "cgminer\"1'";
   const string workerName  = "bitkevin.testcase";
-  const uint16_t sessionId = AGENT_MAX_SESSION_ID;
+  const uint16_t sessionId = StratumMessageEx::AGENT_MAX_SESSION_ID;
   exMessage.resize(1+1+2+2 + clientAgent.length() + 1 + workerName.length() + 1);
 
   uint8_t *p = (uint8_t *)exMessage.data();
 
   // cmd
-  *p++ = CMD_MAGIC_NUMBER;
-  *p++ = CMD_REGISTER_WORKER;
+  *p++ = StratumMessageEx::CMD_MAGIC_NUMBER;
+  *p++ = static_cast<uint8_t>(StratumCommandEx::CMD_REGISTER_WORKER);
 
   // len
   *(uint16_t *)p = (uint16_t)exMessage.size();
@@ -121,12 +156,16 @@ TEST(StratumSession, AgentSessions_RegisterWorker) {
 
   ASSERT_EQ((size_t)(p - (uint8_t *)exMessage.data()), exMessage.size());
 
-  agent.handleExMessage_RegisterWorker(&exMessage);
+  InSequence s;
+  EXPECT_CALL(connection, createMiner("cgminer1", workerName, _)).Times(1);
+  EXPECT_CALL(connection, addWorker("cgminer1", workerName, _)).Times(1);
+  agent.handleExMessage(exMessage);
   // please check ouput log
 }
 
-TEST(StratumSession, AgentSessions_RegisterWorker2) {
-  AgentSessions agent(10, nullptr);
+TEST(StratumSession, StratumClientAgentHandler_RegisterWorker2) {
+  StratumSessionMock connection;
+  StratumMessageAgentDispatcher agent(connection);
 
   // | magic_number(1) | cmd(1) | len (2) | session_id(2) | clientAgent | worker_name |
   string exMessage;
@@ -138,8 +177,8 @@ TEST(StratumSession, AgentSessions_RegisterWorker2) {
   uint8_t *p = (uint8_t *)exMessage.data();
 
   // cmd
-  *p++ = CMD_MAGIC_NUMBER;
-  *p++ = CMD_REGISTER_WORKER;
+  *p++ = StratumMessageEx::CMD_MAGIC_NUMBER;
+  *p++ = static_cast<uint8_t>(StratumCommandEx::CMD_REGISTER_WORKER);
 
   // len
   *(uint16_t *)p = (uint16_t)exMessage.size();
@@ -159,12 +198,16 @@ TEST(StratumSession, AgentSessions_RegisterWorker2) {
 
   ASSERT_EQ((size_t)(p - (uint8_t *)exMessage.data()), exMessage.size());
 
-  agent.handleExMessage_RegisterWorker(&exMessage);
+  InSequence s;
+  EXPECT_CALL(connection, createMiner("", workerName, _)).Times(1);
+  EXPECT_CALL(connection, addWorker("", workerName, _)).Times(1);
+  agent.handleExMessage(exMessage);
   // please check ouput log
 }
 
-TEST(StratumSession, AgentSessions_RegisterWorker3) {
-  AgentSessions agent(10, nullptr);
+TEST(StratumSession, StratumClientAgentHandler_RegisterWorker3) {
+  StratumSessionMock connection;
+  StratumMessageAgentDispatcher agent(connection);
 
   // | magic_number(1) | cmd(1) | len (2) | session_id(2) | clientAgent | worker_name |
   string exMessage;
@@ -176,8 +219,8 @@ TEST(StratumSession, AgentSessions_RegisterWorker3) {
   uint8_t *p = (uint8_t *)exMessage.data();
 
   // cmd
-  *p++ = CMD_MAGIC_NUMBER;
-  *p++ = CMD_REGISTER_WORKER;
+  *p++ = StratumMessageEx::CMD_MAGIC_NUMBER;
+  *p++ = static_cast<uint8_t>(StratumCommandEx::CMD_REGISTER_WORKER);
 
   // len
   *(uint16_t *)p = (uint16_t)exMessage.size();
@@ -197,23 +240,27 @@ TEST(StratumSession, AgentSessions_RegisterWorker3) {
 
   ASSERT_EQ((size_t)(p - (uint8_t *)exMessage.data()), exMessage.size());
 
-  agent.handleExMessage_RegisterWorker(&exMessage);
+  InSequence s;
+  EXPECT_CALL(connection, createMiner("", "__default__", _)).Times(1);
+  EXPECT_CALL(connection, addWorker("", "__default__", _)).Times(1);
+  agent.handleExMessage(exMessage);
   // please check ouput log
 }
 
-TEST(StratumSession, AgentSessions_RegisterWorker4) {
-  AgentSessions agent(10, nullptr);
+TEST(StratumSession, StratumClientAgentHandler_RegisterWorker4) {
+  StratumSessionMock session;
+  StratumMessageAgentDispatcher agent(session);
 
   // | magic_number(1) | cmd(1) | len (2) | session_id(2) | clientAgent | worker_name |
   string exMessage;
-  const uint16_t sessionId = AGENT_MAX_SESSION_ID;
+  const uint16_t sessionId = StratumMessageEx::AGENT_MAX_SESSION_ID;
   exMessage.resize(1+1+2+2 + 1 + 1, 0);
 
   uint8_t *p = (uint8_t *)exMessage.data();
 
   // cmd
-  *p++ = CMD_MAGIC_NUMBER;
-  *p++ = CMD_REGISTER_WORKER;
+  *p++ = StratumMessageEx::CMD_MAGIC_NUMBER;
+  *p++ = static_cast<uint8_t>(StratumCommandEx::CMD_REGISTER_WORKER);
 
   // len
   *(uint16_t *)p = (uint16_t)exMessage.size();
@@ -230,11 +277,15 @@ TEST(StratumSession, AgentSessions_RegisterWorker4) {
   p++;
 
   ASSERT_EQ((size_t)(p - (uint8_t *)exMessage.data()), exMessage.size());
+  InSequence s;
 
   //
   // empty agent and name
   //
-  agent.handleExMessage_RegisterWorker(&exMessage);
+  EXPECT_CALL(session, createMiner("", "__default__", _)).Times(1);
+  EXPECT_CALL(session, addWorker("", "__default__", _)).Times(1);
+  agent.handleExMessage(exMessage);
+  Mock::VerifyAndClearExpectations(&session);
   // please check ouput log
   //   clientAgent: , workerName: default
 
@@ -243,7 +294,9 @@ TEST(StratumSession, AgentSessions_RegisterWorker4) {
   //
   exMessage[exMessage.size() - 1] = 'n';
   exMessage[exMessage.size() - 2] = 'a';
-  agent.handleExMessage_RegisterWorker(&exMessage);
+  EXPECT_CALL(session, createMiner("a", "__default__", _)).Times(1);
+  EXPECT_CALL(session, addWorker("a", "__default__", _)).Times(1);
+  agent.handleExMessage(exMessage);
   // please check ouput log
   //   clientAgent: a, workerName: default
 
@@ -252,7 +305,10 @@ TEST(StratumSession, AgentSessions_RegisterWorker4) {
   //
   exMessage[exMessage.size() - 1] = '\0';
   exMessage[exMessage.size() - 2] = 'a';
-  agent.handleExMessage_RegisterWorker(&exMessage);
+  EXPECT_CALL(session, createMiner("a", "__default__", _)).Times(1);
+  EXPECT_CALL(session, addWorker("a", "__default__", _)).Times(1);
+  agent.handleExMessage(exMessage);
+  Mock::VerifyAndClearExpectations(&session);
   // please check ouput log
   //   clientAgent: a, workerName: default
 
@@ -261,7 +317,10 @@ TEST(StratumSession, AgentSessions_RegisterWorker4) {
   //
   exMessage[exMessage.size() - 1] = 'n';
   exMessage[exMessage.size() - 2] = '\0';
-  agent.handleExMessage_RegisterWorker(&exMessage);
+  EXPECT_CALL(session, createMiner("", "__default__", _)).Times(1);
+  EXPECT_CALL(session, addWorker("", "__default__", _)).Times(1);
+  agent.handleExMessage(exMessage);
+  Mock::VerifyAndClearExpectations(&session);
   // please check ouput log
   //   clientAgent: , workerName: default
 
@@ -274,7 +333,10 @@ TEST(StratumSession, AgentSessions_RegisterWorker4) {
   exMessage[exMessage.size() - 1] = 'n';
   exMessage[exMessage.size() - 2] = '\0';
   exMessage[exMessage.size() - 3] = '\0';
-  agent.handleExMessage_RegisterWorker(&exMessage);
+  EXPECT_CALL(session, createMiner("", "__default__", _)).Times(1);
+  EXPECT_CALL(session, addWorker("", "__default__", _)).Times(1);
+  agent.handleExMessage(exMessage);
+  Mock::VerifyAndClearExpectations(&session);
   // please check ouput log
   //   clientAgent: , workerName: default
 
@@ -284,13 +346,17 @@ TEST(StratumSession, AgentSessions_RegisterWorker4) {
   exMessage[exMessage.size() - 1] = '\0';
   exMessage[exMessage.size() - 2] = 'n';
   exMessage[exMessage.size() - 3] = '\0';
-  agent.handleExMessage_RegisterWorker(&exMessage);
+  EXPECT_CALL(session, createMiner("", "n", _)).Times(1);
+  EXPECT_CALL(session, addWorker("", "n", _)).Times(1);
+  agent.handleExMessage(exMessage);
+  Mock::VerifyAndClearExpectations(&session);
   // please check ouput log
   //   clientAgent: , workerName: n
 }
 
-TEST(StratumSession, AgentSessions_SubmitShare) {
-  AgentSessions agent(10, nullptr);
+TEST(StratumSession, StratumClientAgentHandler_SubmitShare) {
+  StratumSessionMock connection;
+  StratumMessageAgentDispatcher agent(connection);
 
   //
   // CMD_SUBMIT_SHARE / CMD_SUBMIT_SHARE_WITH_TIME:
@@ -298,7 +364,7 @@ TEST(StratumSession, AgentSessions_SubmitShare) {
   // | extra_nonce2 (uint32_t) | nNonce (uint32_t) | [nTime (uint32_t) |]
   //
   const string jobId = "9";
-  const uint16_t sessionId = AGENT_MAX_SESSION_ID;
+  const uint16_t sessionId = StratumMessageEx::AGENT_MAX_SESSION_ID;
 
   string exMessage;
   exMessage.resize(1+1+2+1+2+4+4, 0);
@@ -306,8 +372,8 @@ TEST(StratumSession, AgentSessions_SubmitShare) {
   uint8_t *p = (uint8_t *)exMessage.data();
 
   // cmd
-  *p++ = CMD_MAGIC_NUMBER;
-  *p++ = CMD_SUBMIT_SHARE;
+  *p++ = StratumMessageEx::CMD_MAGIC_NUMBER;
+  *p++ = static_cast<uint8_t>(StratumCommandEx::CMD_SUBMIT_SHARE);
   // len
   *(uint16_t *)p = (uint16_t)exMessage.size();
   p += 2;
@@ -325,12 +391,23 @@ TEST(StratumSession, AgentSessions_SubmitShare) {
 
   ASSERT_EQ((size_t)(p - (uint8_t *)exMessage.data()), exMessage.size());
 
-  agent.handleExMessage_SubmitShare(&exMessage, false);
+  InSequence s;
+  DiffController dc(DiffController::kDefaultDiff_, 4000000000000000, 2, 10, 900);
+  string workerName = "__default__";
+  auto workerId = StratumWorker::calcWorkerId(workerName);
+  auto session = new StratumMinerMock(connection, dc, "", workerName, workerId);
+  EXPECT_CALL(connection, createMiner("", workerName, workerId)).WillOnce(Return(ByMove(unique_ptr<StratumMiner>(session))));
+  EXPECT_CALL(connection, addWorker("", workerName, workerId)).Times(1);
+  EXPECT_CALL(connection, decodeSessionId(exMessage)).WillOnce(Return(sessionId));
+  EXPECT_CALL(*session, handleExMessage(exMessage)).Times(1);
+  agent.registerWorker(sessionId, "", "__default__", StratumWorker::calcWorkerId("__default__"));
+  agent.handleExMessage(exMessage);
   // please check ouput log
 }
 
-TEST(StratumSession, AgentSessions_SubmitShare_with_time) {
-  AgentSessions agent(10, nullptr);
+TEST(StratumSession, StratumClientAgentHandler_SubmitShare_with_time) {
+  StratumSessionMock connection;
+  StratumMessageAgentDispatcher agent(connection);
 
   //
   // CMD_SUBMIT_SHARE / CMD_SUBMIT_SHARE_WITH_TIME:
@@ -338,7 +415,7 @@ TEST(StratumSession, AgentSessions_SubmitShare_with_time) {
   // | extra_nonce2 (uint32_t) | nNonce (uint32_t) | [nTime (uint32_t) |]
   //
   const string jobId = "9";
-  const uint16_t sessionId = AGENT_MAX_SESSION_ID;
+  const uint16_t sessionId = StratumMessageEx::AGENT_MAX_SESSION_ID;
 
   string exMessage;
   exMessage.resize(1+1+2+1+2+4+4+4, 0);
@@ -346,8 +423,8 @@ TEST(StratumSession, AgentSessions_SubmitShare_with_time) {
   uint8_t *p = (uint8_t *)exMessage.data();
 
   // cmd
-  *p++ = CMD_MAGIC_NUMBER;
-  *p++ = CMD_SUBMIT_SHARE_WITH_TIME;
+  *p++ = StratumMessageEx::CMD_MAGIC_NUMBER;
+  *p++ = static_cast<uint8_t>(StratumCommandEx::CMD_SUBMIT_SHARE_WITH_TIME);
   // len
   *(uint16_t *)p = (uint16_t)exMessage.size();
   p += 2;
@@ -368,25 +445,36 @@ TEST(StratumSession, AgentSessions_SubmitShare_with_time) {
 
   ASSERT_EQ((size_t)(p - (uint8_t *)exMessage.data()), exMessage.size());
 
-  agent.handleExMessage_SubmitShare(&exMessage, true);
+  InSequence s;
+  DiffController dc(DiffController::kDefaultDiff_, 4000000000000000, 2, 10, 900);
+  string workerName = "__default__";
+  auto workerId = StratumWorker::calcWorkerId(workerName);
+  auto session = new StratumMinerMock(connection, dc, "", workerName, workerId);
+  EXPECT_CALL(connection, createMiner("", workerName, workerId)).WillOnce(Return(ByMove(unique_ptr<StratumMiner>(session))));
+  EXPECT_CALL(connection, addWorker("", workerName, workerId)).Times(1);
+  EXPECT_CALL(connection, decodeSessionId(exMessage)).WillOnce(Return(sessionId));
+  EXPECT_CALL(*session, handleExMessage(exMessage)).Times(1);
+  agent.registerWorker(sessionId, "", "__default__", StratumWorker::calcWorkerId("__default__"));
+  agent.handleExMessage(exMessage);
   // please check ouput log
 }
 
-TEST(StratumSession, AgentSessions_UNREGISTER_WORKER) {
-  AgentSessions agent(10, nullptr);
+TEST(StratumSession, StratumClientAgentHandler_UNREGISTER_WORKER) {
+  StratumSessionMock connection;
+  StratumMessageAgentDispatcher agent(connection);
   //
   // CMD_UNREGISTER_WORKER:
   // | magic_number(1) | cmd(1) | len(2) | session_id(2) |
   //
   string exMessage;
   exMessage.resize(6, 0);
-  const uint16_t sessionId = AGENT_MAX_SESSION_ID;
+  const uint16_t sessionId = StratumMessageEx::AGENT_MAX_SESSION_ID;
 
   uint8_t *p = (uint8_t *)exMessage.data();
 
   // cmd
-  *p++ = CMD_MAGIC_NUMBER;
-  *p++ = CMD_UNREGISTER_WORKER;
+  *p++ = StratumMessageEx::CMD_MAGIC_NUMBER;
+  *p++ = static_cast<uint8_t>(StratumCommandEx::CMD_UNREGISTER_WORKER);
   // len
   *(uint16_t *)p = (uint16_t)exMessage.size();
   p += 2;
@@ -394,12 +482,21 @@ TEST(StratumSession, AgentSessions_UNREGISTER_WORKER) {
   *(uint16_t *)p = sessionId;
   p += 2;
 
-  agent.handleExMessage_UnRegisterWorker(&exMessage);
+  InSequence s;
+  DiffController dc(DiffController::kDefaultDiff_, 4000000000000000, 2, 10, 900);
+  string workerName = "__default__";
+  auto workerId = StratumWorker::calcWorkerId(workerName);
+  auto session = new StratumMinerMock(connection, dc, "", workerName, workerId);
+  EXPECT_CALL(connection, createMiner("", workerName, workerId)).WillOnce(Return(ByMove(unique_ptr<StratumMiner>(session))));
+  EXPECT_CALL(connection, addWorker("", workerName, workerId)).Times(1);
+  agent.registerWorker(sessionId, "", "__default__", StratumWorker::calcWorkerId("__default__"));
+  agent.handleExMessage(exMessage);
   // please check ouput log
 }
 
-TEST(StratumSession, AgentSessions) {
-  AgentSessions agent(10, nullptr);
+TEST(StratumSession, StratumClientAgentHandler) {
+  StratumSessionMock connection;
+  StratumMessageAgentDispatcher agent(connection);
 
   map<uint8_t, vector<uint16_t> > diffSessionIds;
   string data;
@@ -438,9 +535,9 @@ TEST(StratumSession, AgentSessions) {
     ASSERT_EQ(data.length(), l1 + l2 + l3);
 
     uint8_t *p = (uint8_t *)data.data();
-    ASSERT_EQ(*p,         CMD_MAGIC_NUMBER);
-    ASSERT_EQ(*(p+l1),    CMD_MAGIC_NUMBER);
-    ASSERT_EQ(*(p+l1+l2), CMD_MAGIC_NUMBER);
+    ASSERT_EQ(*p,         StratumMessageEx::CMD_MAGIC_NUMBER);
+    ASSERT_EQ(*(p+l1),    StratumMessageEx::CMD_MAGIC_NUMBER);
+    ASSERT_EQ(*(p+l1+l2), StratumMessageEx::CMD_MAGIC_NUMBER);
 
     // check length
     ASSERT_EQ(*(uint16_t *)(p+2),       l1);

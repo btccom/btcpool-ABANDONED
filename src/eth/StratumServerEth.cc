@@ -22,10 +22,12 @@
  THE SOFTWARE.
  */
 #include "StratumServerEth.h"
+
 #include "StratumSessionEth.h"
 #include "DiffController.h"
 
 #include <boost/thread.hpp>
+#include <boost/make_unique.hpp>
 
 #include <fstream>
 
@@ -498,11 +500,9 @@ void ServerEth::sendSolvedShare2Kafka(const string &strNonce, const string &strH
   kafkaProducerSolvedShare_->produce(msg.c_str(), msg.length());
 }
 
-StratumSession *ServerEth::createSession(evutil_socket_t fd, struct bufferevent *bev,
-                                         struct sockaddr *saddr, const uint32_t sessionID)
+unique_ptr<StratumSession> ServerEth::createConnection(struct bufferevent *bev, struct sockaddr *saddr, uint32_t sessionID)
 {
-  return new StratumSessionEth(fd, bev, this, saddr,
-                        kShareAvgSeconds_, sessionID);
+  return boost::make_unique<StratumSessionEth>(*this, bev, saddr, sessionID);
 }
 
 JobRepository *ServerEth::createJobRepository(const char *kafkaBrokers,

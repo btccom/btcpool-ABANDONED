@@ -21,53 +21,65 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
+
 #ifndef STRATUM_SESSION_H_
 #define STRATUM_SESSION_H_
 
-#include "Common.h"
-
-#include "utilities_js.hpp"
+#include "StratumMessageDispatcher.h"
 #include "Stratum.h"
-#include "Statistics.h"
+#include "utilities_js.hpp"
 
 #include <boost/endian/buffers.hpp>
-#include <deque>
 
 #include <event2/bufferevent.h>
 
-#include <glog/logging.h>
+#include <functional>
+#include <map>
+#include <memory>
+#include <set>
+#include <string>
 
-
-#define CMD_MAGIC_NUMBER      0x7Fu
-// types
-#define CMD_REGISTER_WORKER   0x01u             // Agent -> Pool
-#define CMD_SUBMIT_SHARE      0x02u             // Agent -> Pool, without block time
-#define CMD_SUBMIT_SHARE_WITH_TIME  0x03u       // Agent -> Pool
-#define CMD_UNREGISTER_WORKER 0x04u             // Agent -> Pool
-#define CMD_MINING_SET_DIFF   0x05u             // Pool  -> Agent
-
-// agent
-#define AGENT_MAX_SESSION_ID   0xFFFEu  // 0xFFFEu = 65534
-
-#define BTCCOM_MINER_AGENT_PREFIX "btccom-agent/"
-
-// invalid share sliding window size
-#define INVALID_SHARE_SLIDING_WINDOWS_SIZE       60  // unit: seconds
-#define INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT  20  // max number
-
+class DiffController;
 class Server;
 class StratumJobEx;
-class DiffController;
-class StratumSession;
+
+enum class StratumCommandEx : uint8_t {
+  CMD_REGISTER_WORKER = 1,
+  CMD_SUBMIT_SHARE = 2,
+  CMD_SUBMIT_SHARE_WITH_TIME = 3,
+  CMD_UNREGISTER_WORKER = 4,
+  MINING_SET_DIFF = 5,
+};
 
 struct StratumMessageEx {
+  // Hack to prevent linkage errors
+  enum {
+    CMD_MAGIC_NUMBER = 0x7F,
+    AGENT_MAX_SESSION_ID = 0xFFFE,
+  };
+
   boost::endian::little_uint8_buf_t magic;
   boost::endian::little_uint8_buf_t command;
   boost::endian::little_uint16_buf_t length;
 };
 
-//////////////////////////////// StratumSession ////////////////////////////////
-class StratumSession {
+class IStratumSession {
+public:
+  virtual ~IStratumSession() = default;
+  virtual void addWorker(const std::string &clientAgent, const std::string &workerName, int64_t workerId) = 0;
+  virtual std::unique_ptr<StratumMiner> createMiner(const std::string &clientAgent,
+                                                    const std::string &workerName,
+                                                    int64_t workerId) = 0;
+  virtual uint16_t decodeSessionId(const std::string &exMessage) const = 0;
+  virtual StratumMessageDispatcher &getDispatcher() = 0;
+  virtual void responseTrue(const std::string &idStr) = 0;
+  virtual void responseError(const std::string &idStr, int code) = 0;
+  virtual void sendData(const char *data, size_t len) = 0;
+  virtual void sendData(const std::string &str) = 0;
+  virtual void sendSetDifficulty(LocalJob &localJob, uint64_t difficulty) = 0;
+};
+
+class StratumSession : public IStratumSession {
 public:
   // mining state
   enum State {
@@ -75,174 +87,122 @@ public:
     SUBSCRIBED    = 1,
     AUTHENTICATED = 2
   };
-
-  // shares submitted by this session, for duplicate share check
-  struct LocalShare {
-    uint64_t exNonce2_;  // extra nonce2 fixed 8 bytes
-    uint32_t nonce_;     // nonce in block header
-    uint32_t time_;      // nTime in block header
-
-    LocalShare(uint64_t exNonce2, uint32_t nonce, uint32_t time):
-    exNonce2_(exNonce2), nonce_(nonce), time_(time) {}
-
-    LocalShare & operator=(const LocalShare &other) {
-      exNonce2_ = other.exNonce2_;
-      nonce_    = other.nonce_;
-      time_     = other.time_;
-      return *this;
-    }
-
-    bool operator<(const LocalShare &r) const {
-      if (exNonce2_ < r.exNonce2_ ||
-          (exNonce2_ == r.exNonce2_ && nonce_ < r.nonce_) ||
-          (exNonce2_ == r.exNonce2_ && nonce_ == r.nonce_ && time_ < r.time_)) {
-        return true;
-      }
-      return false;
-    }
-  };
-
-  // latest stratum jobs of this session
-  struct LocalJob {
-    uint64_t jobId_;
-    uint64_t jobDifficulty_;     // difficulty of this job
-    uint32_t blkBits_;
-    uint8_t  shortJobId_;
-#ifdef USER_DEFINED_COINBASE
-    string   userCoinbaseInfo_;
-#endif
-    std::set<LocalShare> submitShares_;
-    std::vector<uint8_t> agentSessionsDiff2Exp_;
-
-    LocalJob(): jobId_(0), jobDifficulty_(0), blkBits_(0), shortJobId_(0) {}
-
-    bool addLocalShare(const LocalShare &localShare) {
-      auto itr = submitShares_.find(localShare);
-      if (itr != submitShares_.end()) {
-        return false;  // already exist
-      }
-      submitShares_.insert(localShare);
-      return true;
-    }
-  };
-
-  //----------------------
 protected:
-  int32_t shareAvgSeconds_;
-  shared_ptr<DiffController> diffController_;
+  Server &server_;
+  struct bufferevent *bev_;
+  uint32_t extraNonce1_;
+  struct evbuffer *buffer_;
+
+  uint32_t clientIpInt_;
+  std::string clientIp_;
+
+  std::string clientAgent_;  // eg. bfgminer/4.4.0-32-gac4e9b3
+  bool isAgentClient_;
+  bool isNiceHashClient_;
+  std::unique_ptr<StratumMessageDispatcher> dispatcher_;
+
   State state_;
   StratumWorker worker_;
-  string   clientAgent_;  // eg. bfgminer/4.4.0-32-gac4e9b3
-  string   clientIp_;
-  uint32_t clientIpInt_;
-
-  uint32_t extraNonce1_;   // MUST be unique across all servers. TODO: rename it to "sessionId_"
-  static const int kExtraNonce2Size_ = 8;  // extraNonce2 size is always 8 bytes
-
-  uint64_t currDiff_;
-  std::deque<LocalJob> localJobs_;
-  size_t kMaxNumLocalJobs_;
-
-  struct evbuffer *inBuf_;
-  bool   isLongTimeout_;
-  uint8_t shortJobIdIdx_;
-
-  // nicehash has can't use short JobID
-  bool isNiceHashClient_;
-
-  atomic<bool> isDead_;
-
-  // invalid share counter
-  StatsWindow<int64_t> invalidSharesCounter_;
-
-  uint8_t allocShortJobId();
+  std::atomic<bool> isDead_;
+  bool isLongTimeout_;
 
   void setup();
-  void setReadTimeout(const int32_t timeout);
+  void setReadTimeout(int32_t readTimeout);
 
-  virtual bool handleMessage();  // handle all messages: ex-message and stratum message
-
-  virtual void responseError(const string &idStr, int code);
-  virtual void responseTrue(const string &idStr);
-  void rpc2ResponseTrue(const string &idStr);
-  void rpc2ResponseError(const string &idStr, int errCode);
-
-  bool tryReadLine(string &line);
-  void handleLine(const string &line);
-  void handleRequest(const string &idStr, const string &method, const JsonNode &jparams, const JsonNode &jroot);
-
-  void handleRequest_SuggestDifficulty(const string &idStr, const JsonNode &jparams);
-  void handleRequest_MultiVersion     (const string &idStr, const JsonNode &jparams);
-  void _handleRequest_SetDifficulty(uint64_t suggestDiff);
-  void _handleRequest_AuthorizePassword(const string &password);
-
-  LocalJob *findLocalJob(uint8_t shortJobId);
-  void clearLocalJobs();
-
+  bool handleMessage();  // handle all messages: ex-message and stratum message
+  bool tryReadLine(std::string &line);
+  void handleLine(const std::string &line);
+  void handleRequest(const std::string &idStr, const std::string &method, const JsonNode &jparams, const JsonNode &jroot);
   void checkUserAndPwd(const string &idStr, const string &fullName, const string &password);
+  void _handleRequest_AuthorizePassword(const string &password);
+  void setClientAgent(const string &clientAgent);
 
-  virtual void handleRequest_Subscribe        (const string &idStr, const JsonNode &jparams) = 0;
-  virtual void handleRequest_Authorize        (const string &idStr, const JsonNode &jparams, const JsonNode &jroot) = 0;
-  virtual void handleRequest_Submit           (const string &idStr, const JsonNode &jparams) = 0;
-  virtual void handleRequest_GetWork(const string &idStr, const JsonNode &jparams) {};          //  Gani#TODO: non standard? move to derived class?
-  virtual void handleRequest_SubmitHashrate(const string &idStr, const JsonNode &jparams) {};   //  Gani#TODO: non standard? move to derived class?
-  //return true if request is handled
-  virtual bool handleRequest_Specific(const string &idStr, const string &method,
-                                      const JsonNode &jparams, const JsonNode &jroot) { return false; }
-  virtual bool needToSendLoginResponse() const {return true;}
+  virtual bool validate(const JsonNode &jmethod, const JsonNode &jparams);
+  virtual bool isSubscribe(const std::string &method) const = 0;
+  virtual bool isAuthorize(const std::string &method) const = 0;
+  virtual void handleRequest_Subscribe(const std::string &idStr, const JsonNode &jparams, const JsonNode &jroot) = 0;
+  virtual bool handleRequest_Authorize(const std::string &idStr, const JsonNode &jparams, const JsonNode &jroot, std::string &fullName, std::string &password) = 0;
+  virtual std::unique_ptr<StratumMessageDispatcher> createDispatcher();
 
-  virtual void handleExMessage_RegisterWorker     (const string *exMessage) {}
-  virtual void handleExMessage_UnRegisterWorker   (const string *exMessage) {}
-  virtual void handleExMessage_SubmitShare        (const string *exMessage) {}
-  virtual void handleExMessage_SubmitShareWithTime(const string *exMessage) {}
+  StratumSession(Server &server, struct bufferevent *bev, struct sockaddr *saddr, uint32_t extraNonce1);
 
-public:
-  struct bufferevent* bev_;
-  evutil_socket_t fd_;
-  Server *server_;
-protected:
-  StratumSession(evutil_socket_t fd, struct bufferevent *bev,
-                 Server *server, struct sockaddr *saddr,
-                 const int32_t shareAvgSeconds, const uint32_t extraNonce1);
 public:
   virtual ~StratumSession();
-  virtual bool initialize();
-  virtual void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false) = 0;
-  virtual bool validate(const JsonNode &jmethod, const JsonNode &jparams);
+  virtual bool initialize() { return true; }
+  uint16_t decodeSessionId(const std::string &exMessage) const override { return StratumMessageEx::AGENT_MAX_SESSION_ID; };
 
+  Server &getServer() { return server_; }
+  StratumWorker &getWorker() { return worker_; }
+  StratumMessageDispatcher &getDispatcher() override { return *dispatcher_; }
+  uint32_t getClientIp() const { return clientIpInt_; };
+  uint32_t getSessionId() const { return extraNonce1_; }
+  State getState() const { return state_; }
+  bool isDead() const;
   void markAsDead();
-  bool isDead();
+  void addWorker(const std::string &clientAgent, const std::string &workerName, int64_t workerId) override;
 
-  void sendSetDifficulty(const uint64_t difficulty);
-  void sendData(const char *data, size_t len);
-  inline void sendData(const string &str) {
-    sendData(str.data(), str.size());
-  }
+  void sendData(const char *data, size_t len) override;
+  void sendData(const std::string &str) override { sendData(str.data(), str.size()); }
   void readBuf(struct evbuffer *buf);
 
-  uint32_t getSessionId() const;
+  void responseTrue(const std::string &idStr) override;
+  void responseError(const std::string &idStr, int code) override;
+  virtual void responseAuthorized(const std::string &idStr);
+  void rpc2ResponseTrue(const string &idStr);
+  void rpc2ResponseError(const string &idStr, int errCode);
+  void sendSetDifficulty(LocalJob &localJob, uint64_t difficulty) override;
+  virtual void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false) = 0;
 };
 
 //  This base class is to help type safety of accessing server_ member variable. Avoid manual casting.
 //  And by templating a minimum class declaration, we avoid bloating the code too much.
-template<typename ServerType>
+template<typename StratumTraits>
 class StratumSessionBase : public StratumSession
 {
 protected:
-  StratumSessionBase(evutil_socket_t fd, struct bufferevent *bev,
-                 ServerType *server, struct sockaddr *saddr,
-                 const int32_t shareAvgSeconds, const uint32_t extraNonce1)
-    : StratumSession(fd, bev, server, saddr, shareAvgSeconds, extraNonce1)
+  using ServerType = typename StratumTraits::ServerType;
+  StratumSessionBase(ServerType &server, struct bufferevent *bev, struct sockaddr *saddr, uint32_t extraNonce1)
+      : StratumSession(server, bev, saddr, extraNonce1)
+      , kMaxNumLocalJobs_(10)
   {
+    // usually stratum job interval is 30~60 seconds, 10 is enough for miners
+    // should <= 10, we use short_job_id,  range: [0 ~ 9]. do NOT change it.
+    assert(kMaxNumLocalJobs_ <= 10);
+  }
 
-  }
+  using LocalJobType = typename StratumTraits::LocalJobType;
+  static_assert(std::is_base_of<LocalJob, LocalJobType>::value, "Local job type is not derived from LocalJob");
+  std::deque<LocalJobType> localJobs_;
+  size_t kMaxNumLocalJobs_;
+
 public:
-  inline ServerType* GetServer() const
+  template<typename Key>
+  LocalJobType *findLocalJob(const Key& key)
   {
-    return static_cast<ServerType*>(server_);
+    for (auto &localJob : localJobs_) {
+      if (localJob == key) return &localJob;
+    }
+    return nullptr;
   }
-private:
-  using StratumSession::server_; //  hide the server_ member variable
+
+  template<typename ... Args>
+  LocalJobType &addLocalJob(uint64_t jobId, Args&&... args) {
+    localJobs_.emplace_back(jobId, std::forward<Args>(args)...);
+    auto &localJob = localJobs_.back();
+    dispatcher_->addLocalJob(localJob);
+    return localJob;
+  }
+
+  void clearLocalJobs() {
+    while (localJobs_.size() >= kMaxNumLocalJobs_) {
+      dispatcher_->removeLocalJob(localJobs_.front());
+      localJobs_.pop_front();
+    }
+  }
+  inline ServerType &getServer() const
+  {
+    return static_cast<ServerType &>(server_);
+  }
 };
 
-#endif
+#endif // #ifndef STRATUM_SESSION_H_

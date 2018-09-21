@@ -21,27 +21,40 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
+
 #ifndef STRATUM_SESSION_SIA_H_
 #define STRATUM_SESSION_SIA_H_
 
 #include "StratumSession.h"
 #include "StratumServerSia.h"
 
-
-class StratumSessionSia : public StratumSessionBase<ServerSia>
-{
+class StratumSessionSia : public StratumSessionBase<StratumTraitsSia> {
 public:
-  StratumSessionSia(evutil_socket_t fd, struct bufferevent *bev,
-                    ServerSia *server, struct sockaddr *saddr,
-                    const int32_t shareAvgSeconds, const uint32_t extraNonce1);
-  //virtual bool initialize();
-  void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false) override;  
-  void handleRequest_Authorize(const string &idStr, const JsonNode &jparams, const JsonNode &jroot) override{ } //  no implementation yet
-  void handleRequest_Subscribe   (const string &idStr, const JsonNode &jparams) override;        
-  void handleRequest_Submit (const string &idStr, const JsonNode &jparams) override;  
+  StratumSessionSia(ServerSia &server,
+                    struct bufferevent *bev,
+                    struct sockaddr *saddr,
+                    uint32_t extraNonce1);
+  void sendSetDifficulty(LocalJob &localJob, uint64_t difficulty) override;
+  void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) override;
+
+protected:
+  bool isSubscribe(const std::string &method) const override { return method == "mining.subscribe"; }
+  bool isAuthorize(const std::string &method) const override { return method == "mining.authorize"; }
+  void handleRequest_Subscribe(const std::string &idStr,
+                               const JsonNode &jparams,
+                               const JsonNode &jroot) override;
+  bool handleRequest_Authorize(const std::string &idStr,
+                               const JsonNode &jparams,
+                               const JsonNode &jroot,
+                               std::string &fullName,
+                               std::string &password) override { return false; } // TODO: implement this...
+public:
+  std::unique_ptr<StratumMiner> createMiner(const std::string &clientAgent,
+                                            const std::string &workerName,
+                                            int64_t workerId) override;
 
 private:
   uint8 shortJobId_;    //Claymore jobId starts from 0
 };
 
-#endif
+#endif  // #ifndef STRATUM_SESSION_SIA_H_
