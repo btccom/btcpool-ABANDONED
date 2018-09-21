@@ -40,16 +40,15 @@ public:
                  const int32_t shareAvgSeconds, const uint32_t extraNonce1);
   ~StratumSessionBitcoin();
 protected:
-  bool handleMessage() override;
   void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false) override;  
   void handleRequest_Authorize(const string &idStr, const JsonNode &jparams, const JsonNode &jroot) override;
   void handleRequest_Subscribe(const string &idStr, const JsonNode &jparams) override;
   void handleRequest_Submit(const string &idStr, const JsonNode &jparams) override;
 
-  void handleExMessage_RegisterWorker     (const string *exMessage);
-  void handleExMessage_UnRegisterWorker   (const string *exMessage);
-  void handleExMessage_SubmitShare        (const string *exMessage);
-  void handleExMessage_SubmitShareWithTime(const string *exMessage);
+  void handleExMessage_RegisterWorker     (const string *exMessage) override;
+  void handleExMessage_UnRegisterWorker   (const string *exMessage) override;
+  void handleExMessage_SubmitShare        (const string *exMessage) override;
+  void handleExMessage_SubmitShareWithTime(const string *exMessage) override;
 
   bool handleRequest_Specific(const string &idStr, const string &method
                               , const JsonNode &jparams, const JsonNode &jroot) override;

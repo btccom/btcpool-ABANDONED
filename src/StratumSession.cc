@@ -513,6 +513,67 @@ void StratumSession::sendData(const char *data, size_t len) {
 // otherwise return false.
 bool StratumSession::handleMessage() {
   //
+  // handle ex-message
+  //
+  const size_t evBufLen = evbuffer_get_length(inBuf_);
+
+  // no matter what kind of messages, length should at least 4 bytes
+  if (evBufLen < sizeof(StratumMessageEx))
+    return false;
+
+  StratumMessageEx exMessageHeader;
+  evbuffer_copyout(inBuf_, &exMessageHeader, sizeof(StratumMessageEx));
+
+  // handle ex-message
+  if (exMessageHeader.magic.value() == CMD_MAGIC_NUMBER) {
+    const uint16_t exMessageLen = exMessageHeader.length.value();
+    const uint16_t exMessageCmd = exMessageHeader.command.value();
+
+    //
+    // It is not a valid message if exMessageLen < 4, because the length of
+    // message header (1 byte magic_number + 1 byte type/cmd + 2 bytes length)
+    // is 4. The header length is included in exMessageLen.
+    //
+    // Without the checking at below, send "\x0f\xff\x00\x00" to the sserver,
+    // and it will fall into infinite loop with handleMessage() calling.
+    //
+    if (exMessageLen < 4) {
+      LOG(ERROR) << "received invalid ex-message, type: " << std::hex << exMessageCmd
+        << ", len: " << exMessageLen;
+      return false;
+    }
+
+    if (evBufLen < exMessageLen)  // didn't received the whole message yet
+      return false;
+
+    // copies and removes the first datlen bytes from the front of buf
+    // into the memory at data
+    string exMessage;
+    exMessage.resize(exMessageLen);
+    evbuffer_remove(inBuf_, (uint8_t *)exMessage.data(), exMessage.size());
+
+    switch (exMessageCmd) {
+      case CMD_SUBMIT_SHARE:
+        handleExMessage_SubmitShare(&exMessage);
+        break;
+      case CMD_SUBMIT_SHARE_WITH_TIME:
+        handleExMessage_SubmitShareWithTime(&exMessage);
+        break;
+      case CMD_REGISTER_WORKER:
+        handleExMessage_RegisterWorker(&exMessage);
+        break;
+      case CMD_UNREGISTER_WORKER:
+        handleExMessage_UnRegisterWorker(&exMessage);
+        break;
+
+      default:
+        LOG(ERROR) << "received unknown ex-message, type: " << std::hex << exMessageCmd<< ", len: " << exMessageLen;
+        break;
+    }
+    return true;  // read message success, return true
+  }
+
+  //
   // handle stratum message
   //
   string line;

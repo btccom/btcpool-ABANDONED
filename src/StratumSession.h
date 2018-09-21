@@ -30,6 +30,7 @@
 #include "Stratum.h"
 #include "Statistics.h"
 
+#include <boost/endian/buffers.hpp>
 #include <deque>
 
 #include <event2/bufferevent.h>
@@ -58,6 +59,12 @@ class Server;
 class StratumJobEx;
 class DiffController;
 class StratumSession;
+
+struct StratumMessageEx {
+  boost::endian::little_uint8_buf_t magic;
+  boost::endian::little_uint8_buf_t command;
+  boost::endian::little_uint16_buf_t length;
+};
 
 //////////////////////////////// StratumSession ////////////////////////////////
 class StratumSession {
@@ -183,6 +190,12 @@ protected:
   virtual bool handleRequest_Specific(const string &idStr, const string &method,
                                       const JsonNode &jparams, const JsonNode &jroot) { return false; }
   virtual bool needToSendLoginResponse() const {return true;}
+
+  virtual void handleExMessage_RegisterWorker     (const string *exMessage) {}
+  virtual void handleExMessage_UnRegisterWorker   (const string *exMessage) {}
+  virtual void handleExMessage_SubmitShare        (const string *exMessage) {}
+  virtual void handleExMessage_SubmitShareWithTime(const string *exMessage) {}
+
 public:
   struct bufferevent* bev_;
   evutil_socket_t fd_;
