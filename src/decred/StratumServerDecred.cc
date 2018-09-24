@@ -27,6 +27,8 @@
 #include "StratumSessionDecred.h"
 #include "CommonDecred.h"
 #include "arith_uint256.h"
+#include <boost/algorithm/string.hpp>
+#include <boost/make_unique.hpp>
 #include <iostream>
 
 using std::ostream;
@@ -86,14 +88,53 @@ void JobRepositoryDecred::broadcastStratumJob(StratumJob *sjob)
   }
 }
 
-ServerDecred::ServerDecred(int32_t shareAvgSeconds)
+// gominer protocol
+// mining.notify: extra nonce 2 size is the actual extra nonce 2 size, extra nonce 1 is the actual extra nonce 1
+// mining.submit: extra nonce 2 is the actual extra nonce 2
+class StratumProtocolDecredGoMiner : public StratumProtocolDecred {
+public:
+  string getExtraNonce1String(uint32_t extraNonce1) const override {
+    return Strings::Format("%08" PRIx32, boost::endian::endian_reverse(extraNonce1));
+  }
+
+  void setExtraNonces(BlockHeaderDecred &header, uint32_t extraNonce1, const vector<uint8_t> &extraNonce2) override {
+    *reinterpret_cast<boost::endian::little_uint32_buf_t *>(header.extraData.begin()) = extraNonce1;
+    std::copy(extraNonce2.begin(), extraNonce2.end(), header.extraData.begin() + 4);
+  }
+};
+
+// tpruvot protocol
+// mining.notify: extra nonce 2 size is not used, extra nonce 1 is considered as the whole extra nonce, bits higher than 32 to be rolled
+// mining.submit: extra nonce 2 is considered as the whole rolled extra nonce
+class StratumProtocolDecredTPruvot : public StratumProtocolDecred {
+public:
+  string getExtraNonce1String(uint32_t extraNonce1) const override {
+    return Strings::Format("%024" PRIx32, boost::endian::endian_reverse(extraNonce1));
+  }
+
+  void setExtraNonces(BlockHeaderDecred &header, uint32_t extraNonce1, const vector<uint8_t> &extraNonce2) override {
+    std::copy(extraNonce2.begin(), extraNonce2.end(), header.extraData.begin());
+  }
+};
+
+ServerDecred::ServerDecred(int32_t shareAvgSeconds, const libconfig::Config &config)
   : ServerBase<JobRepositoryDecred>(shareAvgSeconds)
 {
+  string protocol;
+  config.lookupValue("sserver.protocol", protocol);
+  boost::algorithm::to_lower(protocol);
+  if (protocol == "gominer") {
+    LOG(INFO) << "Using gominer stratum protocol";
+    protocol_ = boost::make_unique<StratumProtocolDecredGoMiner>();
+  } else {
+    LOG(INFO) << "Using tpruvot stratum protocol";
+    protocol_ = boost::make_unique<StratumProtocolDecredTPruvot>();
+  }
 }
 
 StratumSession* ServerDecred::createSession(evutil_socket_t fd, bufferevent *bev, sockaddr *saddr, const uint32_t sessionID)
 {
-  return new StratumSessionDecred(fd, bev, this, saddr, kShareAvgSeconds_, sessionID);
+  return new StratumSessionDecred(fd, bev, this, saddr, kShareAvgSeconds_, sessionID, *protocol_);
 }
 
 JobRepository* ServerDecred::createJobRepository(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime)
@@ -119,21 +160,9 @@ int ServerDecred::checkShare(ShareDecred &share, shared_ptr<StratumJobEx> exJobP
   auto& header = foundBlock.header_;
   header.timestamp = ntime;
   header.nonce = nonce;
-  if (extraNonce2.size() == StratumSessionDecred::kExtraNonce2Size_) {
-    // cgminer/sgminer protocol
-    // mining.notify: extra nonce 2 size is the actual extra nonce 2 size, extra nonce 1 is the actual extra nonce 1
-    // mining.submit: extra nonce 2 is the actual extra nonce 2
-    *reinterpret_cast<boost::endian::little_uint32_buf_t *>(header.extraData.begin()) = share.sessionId_; // Extra Nonce 1
-    std::copy(extraNonce2.begin(), extraNonce2.end(), foundBlock.header_.extraData.begin() + 4);
-  } else {
-    // ccminer protocol
-    // mining.notify: extra nonce 2 size is not used, extra nonce 1 is considered as the whole extra nonce, bits higher than 32 to be rolled
-    // mining.submit: extra nonce 2 is considered as the whole rolled extra nonce
-    assert(extraNonce2.size() == 12);
-    std::copy(extraNonce2.begin(), extraNonce2.end(), foundBlock.header_.extraData.begin());
-  }
+  protocol_->setExtraNonces(header, share.sessionId_, extraNonce2);
 
-  uint256 blkHash = foundBlock.header_.getHash();
+  uint256 blkHash = header.getHash();
   auto bnBlockHash = UintToArith256(blkHash);
   auto bnNetworkTarget = UintToArith256(sjob->target_);
 
