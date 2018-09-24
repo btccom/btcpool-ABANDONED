@@ -147,7 +147,7 @@ protected:
   time_t lastJobTime_;
   
 protected:
-  void consumeKafkaMsg(rd_kafka_message_t *rkmessage, JobMakerConsumerHandler &consumerHandler);
+  bool consumeKafkaMsg(rd_kafka_message_t *rkmessage, JobMakerConsumerHandler &consumerHandler);
 
 public:
   void produceStratumJob();
