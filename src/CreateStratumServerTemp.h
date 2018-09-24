@@ -3,10 +3,12 @@
 
 #include <string>
 
+namespace libconfig {
+class Config;
+}
+
 class Server;
 
-Server* createStratumServer(const std::string &type, const int32_t shareAvgSeconds,
-                            const std::string &auxPowSolvedShareTopic, /*bitcoin only. TODO: refactor this*/
-                            const std::string &rskSolvedShareTopic     /*bitcoin only. TODO: refactor this*/);
+Server* createStratumServer(const std::string &type, const int32_t shareAvgSeconds, const libconfig::Config &config);
 
 #endif

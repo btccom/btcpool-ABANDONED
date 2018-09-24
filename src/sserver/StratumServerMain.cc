@@ -220,14 +220,8 @@ int main(int argc, char **argv)
                                        cfg.lookup("sserver.solved_share_topic"),
                                        cfg.lookup("sserver.share_topic"),
                                        cfg.lookup("sserver.common_events_topic"));
-    
-    // bitcoin only
-    // TODO: refactor it.
-    string auxPowSolvedShareTopic, rskSolvedShareTopic;
-    cfg.lookupValue("sserver.auxpow_solved_share_topic", auxPowSolvedShareTopic);
-    cfg.lookupValue("sserver.rsk_solved_share_topic", rskSolvedShareTopic);
 
-    if (!gStratumServer->createServer(cfg.lookup("sserver.type"), shareAvgSeconds, auxPowSolvedShareTopic, rskSolvedShareTopic))
+    if (!gStratumServer->createServer(cfg.lookup("sserver.type"), shareAvgSeconds, cfg))
     {
       LOG(FATAL) << "createServer failed";
       return 1;

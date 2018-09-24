@@ -7,9 +7,7 @@
 #include "sia/StratumServerSia.h"
 #include "decred/StratumServerDecred.h"
 
-Server* createStratumServer(const std::string &type, const int32_t shareAvgSeconds,
-                            const std::string &auxPowSolvedShareTopic, /*bitcoin only. TODO: refactor this*/
-                            const std::string &rskSolvedShareTopic     /*bitcoin only. TODO: refactor this*/) {
+Server* createStratumServer(const std::string &type, const int32_t shareAvgSeconds, const libconfig::Config& config) {
   LOG(INFO) << "createServer type: " << type << ", shareAvgSeconds: " << shareAvgSeconds;
 #if defined(CHAIN_TYPE_BTC)
   if ("BTC" == type)
@@ -22,7 +20,7 @@ Server* createStratumServer(const std::string &type, const int32_t shareAvgSecon
 #else 
   if (false)
 #endif
-    return new ServerBitcoin(shareAvgSeconds, auxPowSolvedShareTopic, rskSolvedShareTopic);
+    return new ServerBitcoin(shareAvgSeconds, config);
   else if ("ETH" == type)
     return new ServerEth(shareAvgSeconds);
   else if ("SIA" == type)

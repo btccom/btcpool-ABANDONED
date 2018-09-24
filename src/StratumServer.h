@@ -37,6 +37,9 @@
 
 #include <glog/logging.h>
 
+namespace libconfig {
+class Config;
+}
 
 class Server;
 class StratumJobEx;
@@ -402,9 +405,7 @@ public:
                 const string& shareTopic,
                 const string& commonEventsTopic);
   ~StratumServer();
-  bool createServer(const string &type, const int32_t shareAvgSeconds,
-                    const string& auxPowSolvedShareTopic, /*bitcoin only. TODO: refactor this*/
-                    const string& rskSolvedShareTopic     /*bitcoin only. TODO: refactor this*/);
+  bool createServer(const string &type, const int32_t shareAvgSeconds, const libconfig::Config &config);
   bool init();
   void stop();
   void run();
