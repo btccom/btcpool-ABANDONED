@@ -227,16 +227,14 @@ void StratumJobExBitcoin::generateBlockHeader(CBlockHeader *header,
   }
 }
 ////////////////////////////////// ServerBitcoin ///////////////////////////////
-ServerBitcoin::ServerBitcoin(const int32_t shareAvgSeconds,
-                             const string& auxPowSolvedShareTopic,
-                             const string& rskSolvedShareTopic)
+ServerBitcoin::ServerBitcoin(const int32_t shareAvgSeconds, const libconfig::Config &config)
   : ServerBase(shareAvgSeconds)
-  , auxPowSolvedShareTopic_(auxPowSolvedShareTopic)
-  , rskSolvedShareTopic_(rskSolvedShareTopic)
   , kafkaProducerNamecoinSolvedShare_(nullptr)
   , kafkaProducerRskSolvedShare_(nullptr)
 {
-
+  // TODO: Shall we throw an error here if the relvant value does not exist?
+  config.lookupValue("sserver.auxpow_solved_share_topic", auxPowSolvedShareTopic_);
+  config.lookupValue("sserver.rsk_solved_share_topic", rskSolvedShareTopic_);
 }
 
 ServerBitcoin::~ServerBitcoin()

@@ -39,9 +39,7 @@ private:
   KafkaProducer *kafkaProducerRskSolvedShare_;
 
 public:
-  ServerBitcoin(const int32_t shareAvgSeconds,
-                const string& auxPowSolvedShareTopic,
-                const string& rskSolvedShareTopic);
+  ServerBitcoin(const int32_t shareAvgSeconds, const libconfig::Config &config);
   virtual ~ServerBitcoin();
 
   bool setupInternal(StratumServer* sserver) override;

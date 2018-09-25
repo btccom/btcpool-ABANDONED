@@ -43,7 +43,7 @@ private:
 
 class ServerDecred : public ServerBase<JobRepositoryDecred> {
 public:
-  explicit ServerDecred(int32_t shareAvgSeconds);
+  explicit ServerDecred(int32_t shareAvgSeconds, const libconfig::Config &config);
   StratumSession* createSession(evutil_socket_t fd, bufferevent *bev, sockaddr *saddr, const uint32_t sessionID) override;
 
   int checkShare(ShareDecred &share, shared_ptr<StratumJobEx> exJobPtr, const vector<uint8_t> &extraNonce2,
@@ -54,6 +54,8 @@ protected:
 
 private:
   void sendSolvedShare2Kafka(const FoundBlockDecred &foundBlock);
+  
+  unique_ptr<StratumProtocolDecred> protocol_;
 };
 
 #endif

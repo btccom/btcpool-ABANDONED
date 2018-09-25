@@ -30,8 +30,10 @@
 
 StratumSessionDecred::StratumSessionDecred(evutil_socket_t fd, bufferevent *bev,
                                            ServerDecred *server, sockaddr *saddr,
-                                           int32_t shareAvgSeconds, uint32_t extraNonce1)
+                                           int32_t shareAvgSeconds, uint32_t extraNonce1,
+                                           const StratumProtocolDecred &protocol)
   : StratumSessionBase<ServerDecred>(fd, bev, server, saddr, shareAvgSeconds, extraNonce1)
+  , protocol_(protocol)
 {
 }
 
@@ -159,10 +161,10 @@ void StratumSessionDecred::handleRequest_Subscribe(const string &idStr, const Js
   //              the value on both places.
   //  result[2] = ExtraNonce2_size, the number of bytes that the miner users for its ExtraNonce2 counter
   assert(kExtraNonce2Size_ == 8);
-  auto extraNonce1Reversed = boost::endian::endian_reverse(extraNonce1_);
+  auto extraNonce1Str = protocol_.getExtraNonce1String(extraNonce1_);
   const string s = Strings::Format("{\"id\":%s,\"result\":[[[\"mining.set_difficulty\",\"1\"]"
-                                   ",[\"mining.notify\",\"%08x\"]],\"%08x00000000%08x\",%d],\"error\":null}\n",
-                                   idStr.c_str(), extraNonce1_, extraNonce1Reversed, extraNonce1Reversed, kExtraNonce2Size_);
+                                   ",[\"mining.notify\",\"%08x\"]],\"%s\",%d],\"error\":null}\n",
+                                   idStr.c_str(), extraNonce1_, extraNonce1Str.c_str(), kExtraNonce2Size_);
   sendData(s);
 }
 

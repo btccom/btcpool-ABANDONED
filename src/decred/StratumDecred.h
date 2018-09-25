@@ -212,4 +212,11 @@ public:
   string getCoinBase1() const;
 };
 
+class StratumProtocolDecred {
+public:
+  virtual ~StratumProtocolDecred() = default;
+  virtual string getExtraNonce1String(uint32_t extraNonce1) const = 0;
+  virtual void setExtraNonces(BlockHeaderDecred &header, uint32_t extraNonce1, const vector<uint8_t> &extraNonce2) = 0;
+};
+
 #endif

@@ -28,13 +28,15 @@
 #include "StratumSession.h"
 
 class ServerDecred;
+class StratumProtocolDecred;
 
 class StratumSessionDecred : public StratumSessionBase<ServerDecred> {
 public:
   using StratumSession::kExtraNonce2Size_;
   StratumSessionDecred(evutil_socket_t fd, bufferevent *bev,
                        ServerDecred *server, sockaddr *saddr,
-                       int32_t shareAvgSeconds, uint32_t extraNonce1);
+                       int32_t shareAvgSeconds, uint32_t extraNonce1,
+                       const StratumProtocolDecred &protocol);
 
   void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) override;
 
@@ -42,6 +44,9 @@ protected:
   void handleRequest_Subscribe(const string &idStr, const JsonNode &jparams) override;
   void handleRequest_Authorize(const string &idStr, const JsonNode &jparams, const JsonNode &jroot) override;
   void handleRequest_Submit(const string &idStr, const JsonNode &jparams) override;
+  
+private:
+  const StratumProtocolDecred &protocol_;
 };
 
 #endif
