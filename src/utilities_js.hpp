@@ -332,7 +332,9 @@ class Node{
     std::string str() const { return std::string(start_,end_); }
     bool boolean() const { return (*start_ == 't' ) ? true : false; }
 
+    const std::vector<Node>& obj() const { return *children_; }
     std::vector<Node>& obj() { return *children_; }
+    const std::vector<Node>& array() const { return *children_; }
     std::vector<Node>& array() { return *children_; }
 
   private:
