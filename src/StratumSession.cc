@@ -1069,10 +1069,16 @@ bool StratumSession::handleMessage() {
 
     switch (buf[1]) {
       case CMD_SUBMIT_SHARE:
-        handleExMessage_SubmitShare(&exMessage);
+        handleExMessage_SubmitShare(&exMessage, false, false);
         break;
       case CMD_SUBMIT_SHARE_WITH_TIME:
-        handleExMessage_SubmitShareWithTime(&exMessage);
+        handleExMessage_SubmitShare(&exMessage, true, false);
+        break;
+      case CMD_SUBMIT_SHARE_WITH_VER:
+        handleExMessage_SubmitShare(&exMessage, false, true);
+        break;
+      case CMD_SUBMIT_SHARE_WITH_TIME_VER:
+        handleExMessage_SubmitShare(&exMessage, true, true);
         break;
       case CMD_REGISTER_WORKER:
         handleExMessage_RegisterWorker(&exMessage);
@@ -1116,20 +1122,13 @@ void StratumSession::handleExMessage_RegisterWorker(const string *exMessage) {
   agentSessions_->handleExMessage_RegisterWorker(exMessage);
 }
 
-void StratumSession::handleExMessage_SubmitShare(const string *exMessage) {
+void StratumSession::handleExMessage_SubmitShare(const string *exMessage,
+                                                 const bool isWithTime,
+                                                 const bool isWithVersion) {
   if (agentSessions_ == nullptr) {
     return;
   }
-  // without timestamp
-  agentSessions_->handleExMessage_SubmitShare(exMessage, false);
-}
-
-void StratumSession::handleExMessage_SubmitShareWithTime(const string *exMessage) {
-  if (agentSessions_ == nullptr) {
-    return;
-  }
-  // with timestamp
-  agentSessions_->handleExMessage_SubmitShare(exMessage, true);
+  agentSessions_->handleExMessage_SubmitShare(exMessage, isWithTime, isWithVersion);
 }
 
 void StratumSession::handleExMessage_UnRegisterWorker(const string *exMessage) {
@@ -1230,40 +1229,49 @@ void AgentSessions::handleExMessage_RegisterWorker(const string *exMessage) {
 }
 
 void AgentSessions::handleExMessage_SubmitShare(const string *exMessage,
-                                                const bool isWithTime) {
+                                                const bool isWithTime,
+                                                const bool isWithVersion) {
   //
-  // CMD_SUBMIT_SHARE / CMD_SUBMIT_SHARE_WITH_TIME:
+  // CMD_SUBMIT_SHARE | CMD_SUBMIT_SHARE_WITH_TIME | CMD_SUBMIT_SHARE_WITH_VER | CMD_SUBMIT_SHARE_WITH_TIME_VER:
   // | magic_number(1) | cmd(1) | len (2) | jobId (uint8_t) | session_id (uint16_t) |
-  // | extra_nonce2 (uint32_t) | nNonce (uint32_t) | [nTime (uint32_t) |]
+  // | extra_nonce2 (uint32_t) | nNonce (uint32_t) | [nTime (uint32_t) ] | [nVersionMask (uint32_t)] |
   //
-  if (exMessage->size() != (isWithTime ? 19 : 15))
+  size_t msgSize = 15;
+  if (isWithTime) {
+    msgSize += 4;
+  }
+  if (isWithVersion) {
+    msgSize += 4;
+  }
+  if (exMessage->size() != msgSize) {
     return;
+  }
 
   const uint8_t *p = (uint8_t *)exMessage->data();
   const uint8_t shortJobId = *(uint8_t  *)(p +  4);
   const uint16_t sessionId = *(uint16_t *)(p +  5);
-  if (sessionId > AGENT_MAX_SESSION_ID)
+  if (sessionId > AGENT_MAX_SESSION_ID) {
     return;
-
-  const uint32_t  exNonce2 = *(uint32_t *)(p +  7);
-  const uint32_t     nonce = *(uint32_t *)(p + 11);
-  const uint32_t time = (isWithTime == false ? 0 : *(uint32_t *)(p + 15));
+  }
+  const uint32_t exNonce2    = *(uint32_t *)(p +  7);
+  const uint32_t nonce       = *(uint32_t *)(p + 11);
+  const uint32_t time        = (isWithTime    == false ? 0 : *(uint32_t *)(p + 15));
+  const uint32_t versionMask = (isWithVersion == false ? 0 : *(uint32_t *)(p + msgSize - 4));
 
   const uint64_t fullExtraNonce2 = ((uint64_t)sessionId << 32) | (uint64_t)exNonce2;
 
   // debug
-  string logLine = Strings::Format("[agent] shortJobId: %02x, sessionId: %08x"
-                                   ", exNonce2: %016llx, nonce: %08x, time: %08x",
-                                   shortJobId, (uint32_t)sessionId,
-                                   fullExtraNonce2, nonce, time);
-  DLOG(INFO) << logLine;
+  DLOG(INFO) << Strings::Format("[agent] shortJobId: %02x, sessionId: %08x, "
+                                "exNonce2: %016llx, nonce: %08x, time: %08x, versionMask: %08x",
+                                shortJobId, (uint32_t)sessionId,
+                                fullExtraNonce2, nonce, time, versionMask);
 
   if (stratumSession_ != nullptr)
     stratumSession_->handleRequest_Submit("null", shortJobId,
                                           fullExtraNonce2, nonce, time,
                                           true /* submit by agent's miner */,
                                           diffControllers_[sessionId],
-                                          0u /* version mask */);
+                                          versionMask);
 }
 
 void AgentSessions::handleExMessage_UnRegisterWorker(const string *exMessage) {

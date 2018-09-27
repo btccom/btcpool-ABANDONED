@@ -41,13 +41,15 @@
 #include "Statistics.h"
 
 
-#define CMD_MAGIC_NUMBER      0x7Fu
+#define CMD_MAGIC_NUMBER  0x7Fu
 // types
-#define CMD_REGISTER_WORKER   0x01u             // Agent -> Pool
-#define CMD_SUBMIT_SHARE      0x02u             // Agent -> Pool, without block time
-#define CMD_SUBMIT_SHARE_WITH_TIME  0x03u       // Agent -> Pool
-#define CMD_UNREGISTER_WORKER 0x04u             // Agent -> Pool
-#define CMD_MINING_SET_DIFF   0x05u             // Pool  -> Agent
+#define CMD_REGISTER_WORKER               0x01u    // Agent -> Pool
+#define CMD_SUBMIT_SHARE                  0x02u    // Agent -> Pool,  mining.submit(...)
+#define CMD_SUBMIT_SHARE_WITH_TIME        0x03u    // Agent -> Pool,  mining.submit(..., nTime)
+#define CMD_UNREGISTER_WORKER             0x04u    // Agent -> Pool
+#define CMD_MINING_SET_DIFF               0x05u    // Pool  -> Agent, mining.set_difficulty(diff)
+#define CMD_SUBMIT_SHARE_WITH_VER         0x12u    // Agent -> Pool,  mining.submit(..., nVersionMask)
+#define CMD_SUBMIT_SHARE_WITH_TIME_VER    0x13u    // Agent -> Pool,  mining.submit(..., nTime, nVersionMask)
 
 // agent
 #define AGENT_MAX_SESSION_ID   0xFFFEu  // 0xFFFEu = 65534
@@ -258,8 +260,9 @@ private:
 
   void handleExMessage_RegisterWorker     (const string *exMessage);
   void handleExMessage_UnRegisterWorker   (const string *exMessage);
-  void handleExMessage_SubmitShare        (const string *exMessage);
-  void handleExMessage_SubmitShareWithTime(const string *exMessage);
+  void handleExMessage_SubmitShare        (const string *exMessage,
+                                           const bool isWithTime,
+                                           const bool isWithVersion);
 
 public:
   struct bufferevent* bev_;
@@ -316,7 +319,7 @@ public:
 
   int64_t getWorkerId(const uint16_t sessionId);
 
-  void handleExMessage_SubmitShare     (const string *exMessage, const bool isWithTime);
+  void handleExMessage_SubmitShare     (const string *exMessage, const bool isWithTime, const bool isWithVersion);
   void handleExMessage_RegisterWorker  (const string *exMessage);
   void handleExMessage_UnRegisterWorker(const string *exMessage);
 
