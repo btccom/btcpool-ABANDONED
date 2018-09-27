@@ -273,12 +273,14 @@ void StratumSession::markAsDead() {
                                 "\"content\":{"
                                 "\"user_id\":%d,\"user_name\":\"%s\","
                                 "\"worker_name\":\"%s\","
-                                "\"client_agent\":\"%s\",\"ip\":\"%s\""
+                                "\"client_agent\":\"%s\",\"ip\":\"%s\","
+                                "\"session_id\":\"%08x\""
                                 "}}",
                                 date("%F %T").c_str(),
                                 worker_.userId_, worker_.userName_.c_str(),
                                 worker_.workerName_.c_str(),
-                                clientAgent_.c_str(), clientIp_.c_str());
+                                clientAgent_.c_str(), clientIp_.c_str(),
+                                extraNonce1_);
     server_->sendCommonEvents2Kafka(eventJson);
   }
 }
@@ -654,12 +656,14 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
                                 "\"content\":{"
                                 "\"user_id\":%d,\"user_name\":\"%s\","
                                 "\"worker_name\":\"%s\","
-                                "\"client_agent\":\"%s\",\"ip\":\"%s\""
+                                "\"client_agent\":\"%s\",\"ip\":\"%s\","
+                                "\"session_id\":\"%08x\""
                                 "}}",
                                 date("%F %T").c_str(),
                                 worker_.userId_, worker_.userName_.c_str(),
                                 worker_.workerName_.c_str(),
-                                clientAgent_.c_str(), clientIp_.c_str());
+                                clientAgent_.c_str(), clientIp_.c_str(),
+                                extraNonce1_);
     server_->sendCommonEvents2Kafka(eventJson);
   }
 }
