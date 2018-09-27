@@ -244,8 +244,6 @@ bev_(bev), fd_(fd), server_(server)
   setup();
 
   LOG(INFO) << "client connect, ip: " << clientIp_;
-
-  versionMask_ = server_->getVersionMask();
 }
 
 StratumSession::~StratumSession() {
@@ -431,14 +429,14 @@ void StratumSession::handleRequest_MiningConfigure(const string &idStr,
     //
     s = Strings::Format("{\"id\":%s,\"result\":{\"version-rolling\":true,"
                         "\"version-rolling.mask\":\"%08x\"},\"error\":null}\n",
-                        idStr.c_str(), versionMask_);
+                        idStr.c_str(), server_->getVersionMask());
     sendData(s);
 
     //
     // mining.set_version_mask
     //
     s = Strings::Format("{\"id\":null,\"method\":\"mining.set_version_mask\",\"params\":[\"%08x\"]}\n",
-                        versionMask_);
+                        server_->getVersionMask());
     sendData(s);
   }
 }
@@ -759,14 +757,6 @@ void StratumSession::handleRequest_Submit(const string &idStr,
   //
   if (isAgentSession == true && agentSessions_ == nullptr) {
     LOG(ERROR) << "can't find agentSession, worker: " << worker_.fullName_;
-    return;
-  }
-
-  // check version mask
-  if (versionMask != 0 && ((~versionMask_) & versionMask) != 0) {
-    if (isAgentSession == false) {
-      responseError(idStr, StratumError::ILLEGAL_VERMASK);
-    }
     return;
   }
 

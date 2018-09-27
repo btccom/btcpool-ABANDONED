@@ -1178,6 +1178,12 @@ int Server::checkShare(const Share &share,
     return StratumError::TIME_TOO_NEW;
   }
 
+  // check version mask
+  if (versionMask != 0 && ((~versionMask_) & versionMask) != 0) {
+    return StratumError::ILLEGAL_VERMASK;
+  }
+
+
   CBlockHeader header;
   std::vector<char> coinbaseBin;
   exJobPtr->generateBlockHeader(&header, &coinbaseBin,

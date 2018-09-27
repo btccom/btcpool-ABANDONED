@@ -268,7 +268,6 @@ public:
   struct bufferevent* bev_;
   evutil_socket_t fd_;
   Server *server_;
-  uint32_t versionMask_;
 
 public:
   StratumSession(evutil_socket_t fd, struct bufferevent *bev,
