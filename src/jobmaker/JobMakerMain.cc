@@ -183,7 +183,9 @@ shared_ptr<GbtJobMakerDefinition> createGbtJobMakerDefinition(const Setting &set
   readFromSetting(setting, "max_job_delay",       def->maxJobDelay_);
   readFromSetting(setting, "gbt_life_time",       def->gbtLifeTime_);
   readFromSetting(setting, "empty_gbt_life_time", def->emptyGbtLifeTime_);
-  readFromSetting(setting, "merged_mining_notify",   def->mergedMiningNotifyPolicy_);
+
+  def->mergedMiningNotifyPolicy_ = 1;
+  readFromSetting(setting, "merged_mining_notify",   def->mergedMiningNotifyPolicy_, true);
 
   readFromSetting(setting, "zookeeper_lock_path", def->zookeeperLockPath_);
   readFromSetting(setting, "file_last_job_time",  def->fileLastJobTime_, true);
