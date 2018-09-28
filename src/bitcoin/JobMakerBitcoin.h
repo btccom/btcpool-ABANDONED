@@ -54,7 +54,7 @@ class JobMakerHandlerBitcoin : public JobMakerHandler
   // merged mining for RSK
   RskWork *previousRskWork_;
   RskWork *currentRskWork_;
-  bool isRskUpdate_; // a flag to mark RSK has an update
+  bool isMergedMiningUpdate_; // a flag to mark RSK has an update
 
   bool addRawGbt(const string &msg);
   void clearTimeoutGbt();
