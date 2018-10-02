@@ -141,8 +141,6 @@ class GwMaker {
   atomic<bool> running_;
 
 private:
-  uint32_t kRpcCallInterval_;
-
   string kafkaBrokers_;
   KafkaProducer kafkaProducer_;
 

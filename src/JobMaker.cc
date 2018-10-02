@@ -172,7 +172,7 @@ void JobMaker::runThreadKafkaConsume(JobMakerConsumerHandler &consumerHandler) {
       // if no new messages. You can increase `timeoutMs` if you want.
     }
 
-    int32_t timeDiff;
+    uint32_t timeDiff;
     if (rkmessage == nullptr || (!jobUpdated && (timeDiff = time(nullptr) - lastJobTime_) > handler_->def()->jobInterval_)) {
       produceStratumJob();
       jobUpdated = true;

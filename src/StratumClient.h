@@ -134,7 +134,6 @@ public:
 //////////////////////////////// TCPClientWrapper //////////////////////////////
 // simple tcp wrapper, use for test
 class TCPClientWrapper {
-  struct sockaddr_in servAddr_;  // server addr
   int sockfd_;
   struct evbuffer *inBuf_;
 
