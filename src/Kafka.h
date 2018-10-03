@@ -44,7 +44,8 @@
 
 // Maximum number of kilobytes per topic+partition in the local consumer
 // queue. This value may be overshot by fetch.message.max.bytes.
-#define RDKAFKA_QUEUED_MAX_MESSAGES_KBYTES   "60000000"
+// Tips: the unit is **kBytes**, not Bytes. (60000 means 60 MB)
+#define RDKAFKA_QUEUED_MAX_MESSAGES_KBYTES   "60000"
 
 // compression codec to use for compressing message sets
 #define RDKAFKA_COMPRESSION_CODEC            "snappy"

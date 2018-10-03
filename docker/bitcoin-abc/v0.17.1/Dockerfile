@@ -22,7 +22,7 @@ RUN apt-get install -y libboost-all-dev libzmq3-dev curl wget
 
 # build bitcoind
 RUN mkdir ~/source
-RUN cd ~/source && wget -O v0.17.1.tar.gz http://oeyz1bxso.bkt.clouddn.com/file-hash-gz-70258a63632cdc5b2613e231c8f118d65615771.gz
+RUN cd ~/source && wget -O v0.17.1.tar.gz https://github.com/Bitcoin-ABC/bitcoin-abc/archive/v0.17.1.tar.gz
 RUN cd ~/source \
   && tar zxf v0.17.1.tar.gz && cd bitcoin-abc-0.17.1 \
   && ./autogen.sh \

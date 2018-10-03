@@ -53,7 +53,7 @@ JobMakerHandlerBitcoin::JobMakerHandlerBitcoin()
   , latestNmcAuxBlockHeight_(0)
   , previousRskWork_(nullptr)
   , currentRskWork_(nullptr)
-  , isRskUpdate_(false)
+  , isMergedMiningUpdate_(false)
 {
 }
 
@@ -403,8 +403,8 @@ bool JobMakerHandlerBitcoin::triggerRskUpdate() {
     previousRskWork = *previousRskWork_;
   }
 
-  bool notifyFlagUpdate = def()->rskNotifyPolicy_ == 1 && currentRskWork.getNotifyFlag();
-  bool differentHashUpdate = def()->rskNotifyPolicy_ == 2 && 
+  bool notifyFlagUpdate = def()->mergedMiningNotifyPolicy_ == 1 && currentRskWork.getNotifyFlag();
+  bool differentHashUpdate = def()->mergedMiningNotifyPolicy_ == 2 && 
                                       (currentRskWork.getBlockHash() != previousRskWork.getBlockHash());
 
   return notifyFlagUpdate || differentHashUpdate;
@@ -454,11 +454,11 @@ bool JobMakerHandlerBitcoin::processAuxPowMsg(const string &msg)
     DLOG(INFO) << "latestAuxPowJson: " << latestNmcAuxBlockJson_;
   }
 
-  bool higherHeightUpdate  = def()->rskNotifyPolicy_ == 1 && currentNmcBlockHeight > latestNmcAuxBlockHeight;
-  bool differentHashUpdate = def()->rskNotifyPolicy_ == 2 && currentNmcBlockHash != latestNmcAuxBlockHash;
+  bool higherHeightUpdate  = def()->mergedMiningNotifyPolicy_ == 1 && currentNmcBlockHeight > latestNmcAuxBlockHeight;
+  bool differentHashUpdate = def()->mergedMiningNotifyPolicy_ == 2 && currentNmcBlockHash != latestNmcAuxBlockHash;
 
-  isRskUpdate_ = higherHeightUpdate || differentHashUpdate;
-  return isRskUpdate_;
+  isMergedMiningUpdate_ = higherHeightUpdate || differentHashUpdate;
+  return isMergedMiningUpdate_;
 }
 
 bool JobMakerHandlerBitcoin::processRskGwMsg(const string &rawGetWork) {
@@ -483,8 +483,8 @@ bool JobMakerHandlerBitcoin::processRskGwMsg(const string &rawGetWork) {
     }
   }
 
-  isRskUpdate_ = triggerRskUpdate();
-  return isRskUpdate_;
+  isMergedMiningUpdate_ = triggerRskUpdate();
+  return isMergedMiningUpdate_;
 }
 
 string JobMakerHandlerBitcoin::makeStratumJob(const string &gbt) {
@@ -503,7 +503,7 @@ string JobMakerHandlerBitcoin::makeStratumJob(const string &gbt) {
     }
   }
 
-  bool mergeMiningUpdate = def()->rskNotifyPolicy_ != 0;
+  bool mergeMiningUpdate = def()->mergedMiningNotifyPolicy_ != 0;
   StratumJobBitcoin sjob;
   if (!sjob.initFromGbt(gbt.c_str(), def()->coinbaseInfo_,
                                      poolPayoutAddr_,
@@ -534,10 +534,10 @@ string JobMakerHandlerBitcoin::makeStratumJob(const string &gbt) {
 
 string JobMakerHandlerBitcoin::makeStratumJobMsg() {
   string bestRawGbt;
-  if (!findBestRawGbt(isRskUpdate_, bestRawGbt)) {
+  if (!findBestRawGbt(isMergedMiningUpdate_, bestRawGbt)) {
     return "";
   }
-  isRskUpdate_ = false;
+  isMergedMiningUpdate_ = false;
 
   return makeStratumJob(bestRawGbt);
 }

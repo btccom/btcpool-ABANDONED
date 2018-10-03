@@ -1,0 +1,12 @@
+#! /bin/bash
+#
+# run shell for namecoind
+#
+# @copyright btc.com
+# @author zhibiao.pan@bitmain.com
+#
+export LC_ALL=C
+SROOT=$(cd $(dirname "$0"); pwd)
+cd $SROOT
+
+namecoind -conf="/root/.namecoin/namecoin.conf" -datadir="/root/.namecoin"

@@ -123,6 +123,9 @@ cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=BTC -DCHAIN_SRC_ROOT=/work/bitcoin-0
 make
 
 # Build a special version of pool's stratum server, so you can run it with a stratum switcher:
+# Important: This version of sserver CANNOT run independently, `Illegal params` will throw
+# if you try to connect it directly without using StratumSwitcher.
+# Don't use `-DPOOL__WORK_WITH_STRATUM_SWITCHER=ON` if you don't know what StratumSwitcher is.
 cmake -DJOBS=4 -DCHAIN_TYPE=BTC -DCHAIN_SRC_ROOT=/work/bitcoin-0.16.0 -DPOOL__WORK_WITH_STRATUM_SWITCHER=ON ..
 make -j4
 ```
@@ -153,6 +156,9 @@ cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=BCH -DCHAIN_SRC_ROOT=/work/bitcoin-a
 make
 
 # Build a special version of pool's stratum server, so you can run it with a stratum switcher:
+# Important: This version of sserver CANNOT run independently, `Illegal params` will throw
+# if you try to connect it directly without using StratumSwitcher.
+# Don't use `-DPOOL__WORK_WITH_STRATUM_SWITCHER=ON` if you don't know what StratumSwitcher is.
 cmake -DJOBS=4 -DCHAIN_TYPE=BCH -DCHAIN_SRC_ROOT=/work/bitcoin-abc-0.17.1 -DPOOL__WORK_WITH_STRATUM_SWITCHER=ON ..
 make -j4
 ```
@@ -162,8 +168,8 @@ make -j4
 ```bash
 mkdir /work
 cd /work
-wget -O UnitedBitcoin-1.1.0.0.tar.gz https://github.com/UnitedBitcoin/UnitedBitcoin/archive/v1.1.0.0.tar.gz
-tar zxf UnitedBitcoin-1.1.0.0.tar.gz
+wget -O UnitedBitcoin-2.2.0.3.tar.gz https://github.com/UnitedBitcoin/UnitedBitcoin/archive/v2.2.0.3.tar.gz
+tar zxf UnitedBitcoin-2.2.0.3.tar.gz
 
 # install libdb that UnitedBitcoin's wallet required
 apt-get install -y software-properties-common
@@ -172,7 +178,7 @@ apt-get -y update
 apt-get install -y libdb4.8-dev libdb4.8++-dev
 
 # UnitedBitcoin will build failed with `--disable-wallet`, so we have to build it manually with wallet
-cd UnitedBitcoin-1.1.0.0
+cd UnitedBitcoin-2.2.0.3
 ./autogen.sh
 ./configure --disable-bench --disable-tests
 make -j4
@@ -184,23 +190,32 @@ mkdir build
 cd build
 
 # Release build with 4 jobs:
-cmake -DJOBS=4 -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-1.1.0.0 ..
+cmake -DJOBS=4 -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-2.2.0.3 ..
 make -j4
 
 # Release build at macOS:
-cmake -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-1.1.0.0 -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl ..
+cmake -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-2.2.0.3 -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl ..
 make
 
 # Debug build:
-cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-1.1.0.0 ..
+cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-2.2.0.3 ..
 make
 
 # Build a special version of pool's stratum server, so you can run it with a stratum switcher:
-cmake -DJOBS=4 -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-1.1.0.0 -DPOOL__WORK_WITH_STRATUM_SWITCHER=ON ..
+# Important: This version of sserver CANNOT run independently, `Illegal params` will throw
+# if you try to connect it directly without using StratumSwitcher.
+# Don't use `-DPOOL__WORK_WITH_STRATUM_SWITCHER=ON` if you don't know what StratumSwitcher is.
+cmake -DJOBS=4 -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-2.2.0.3 -DPOOL__WORK_WITH_STRATUM_SWITCHER=ON ..
 make -j4
 ```
 
 **build BTCPool that linking to SuperBitcoin**
+
+**Warning**: Support for SuperBitcoin is **outdated** and lacks maintenance.
+Existing code may **not be compatible** with the current SuperBitcoin blockchain.
+
+In addition, if you have a plan to maintain the SuperBitcoin supporting,
+you are welcome to make a pull request.
 
 ```bash
 mkdir /work
@@ -226,6 +241,9 @@ cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=SBTC -DCHAIN_SRC_ROOT=/work/SuperBit
 make
 
 # Build a special version of pool's stratum server, so you can run it with a stratum switcher:
+# Important: This version of sserver CANNOT run independently, `Illegal params` will throw
+# if you try to connect it directly without using StratumSwitcher.
+# Don't use `-DPOOL__WORK_WITH_STRATUM_SWITCHER=ON` if you don't know what StratumSwitcher is.
 cmake -DJOBS=4 -DCHAIN_TYPE=SBTC -DCHAIN_SRC_ROOT=/work/SuperBitcoin-0.17.1 -DPOOL__WORK_WITH_STRATUM_SWITCHER=ON ..
 make -j4
 ```
@@ -356,7 +374,7 @@ Also start Rsk node or Namecoin node if merged mining for any of those chains.
 The following are the full-nodes that we recommend:
 * Bitcoin: [docker for Bitcoin Core](../docker/bitcoind/v0.15.1)
 * BitcoinCash: [docker for Bitcoin ABC](../docker/bitcoin-abc/v0.16.1)
-* UnitedBitcoin: [docker for UnitedBitcoin](../docker/united-bitcoin/v1.1.0.0)
+* UnitedBitcoin: [docker for UnitedBitcoin](../docker/united-bitcoin/v2.2.0.3)
 * SuperBitcoin: [docker for SuperBitcoin](../docker/super-bitcoin/v0.17.1)
 * RSK: [docker for RSKJ](https://github.com/rsksmart/rskj/wiki/install-rskj-using-docker)
 

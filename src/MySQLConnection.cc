@@ -136,6 +136,13 @@ bool MySQLConnection::ping() {
   return false;
 }
 
+bool MySQLConnection::reconnect() {
+  LOG(INFO) << "reconnect to mysql DB";
+  close();
+  open();
+  return ping();
+}
+
 bool MySQLConnection::execute(const char * sql) {
   uint32_t error_no;
   int queryTimes = 0;

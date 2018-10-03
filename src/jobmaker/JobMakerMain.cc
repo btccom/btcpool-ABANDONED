@@ -36,6 +36,7 @@
 
 #include "zmq.hpp"
 
+#include "config/bpool-version.h"
 #include "Utils.h"
 #include "JobMaker.h"
 #include "Zookeeper.h"
@@ -61,7 +62,8 @@ void handler(int sig) {
 }
 
 void usage() {
-  fprintf(stderr, "Usage:\n\tjobmaker -c \"jobmaker.cfg\" -l \"log_dir\"\n");
+  fprintf(stderr, BIN_VERSION_STRING("jobmaker"));
+  fprintf(stderr, "Usage:\tjobmaker -c \"jobmaker.cfg\" [-l <log_dir|stderr>]\n");
 }
 
 bool isGwChain(const string &chainType)
@@ -181,7 +183,9 @@ shared_ptr<GbtJobMakerDefinition> createGbtJobMakerDefinition(const Setting &set
   readFromSetting(setting, "max_job_delay",       def->maxJobDelay_);
   readFromSetting(setting, "gbt_life_time",       def->gbtLifeTime_);
   readFromSetting(setting, "empty_gbt_life_time", def->emptyGbtLifeTime_);
-  readFromSetting(setting, "rsk_notify_policy",   def->rskNotifyPolicy_);
+
+  def->mergedMiningNotifyPolicy_ = 1;
+  readFromSetting(setting, "merged_mining_notify",   def->mergedMiningNotifyPolicy_, true);
 
   readFromSetting(setting, "zookeeper_lock_path", def->zookeeperLockPath_);
   readFromSetting(setting, "file_last_job_time",  def->fileLastJobTime_, true);
@@ -267,13 +271,19 @@ int main(int argc, char **argv) {
 
   // Initialize Google's logging library.
   google::InitGoogleLogging(argv[0]);
-  FLAGS_log_dir         = string(optLogDir);
+  if (optLogDir == NULL || strcmp(optLogDir, "stderr") == 0) {
+    FLAGS_logtostderr = 1;
+  } else {
+    FLAGS_log_dir = string(optLogDir);
+  }
   // Log messages at a level >= this flag are automatically sent to
   // stderr in addition to log files.
   FLAGS_stderrthreshold = 3;    // 3: FATAL
   FLAGS_max_log_size    = 100;  // max log file size 100 MB
   FLAGS_logbuflevel     = -1;   // don't buffer logs
   FLAGS_stop_logging_if_full_disk = true;
+
+  LOG(INFO) << BIN_VERSION_STRING("jobmaker");
 
   // Read the file. If there is an error, report it and exit.
   libconfig::Config cfg;

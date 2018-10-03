@@ -25,6 +25,7 @@
 #include <execinfo.h>
 #include <string>
 #include "gtest/gtest.h"
+#include "config/bpool-version.h"
 
 #include <glog/logging.h>
 
@@ -65,6 +66,8 @@ int main(int argc, char **argv) {
   FLAGS_logbuflevel = -1;
   FLAGS_logtostderr = true;
   FLAGS_colorlogtostderr = true;
+
+  LOG(INFO) << BIN_VERSION_STRING("unittest");
   
   CString * newArgv = new CString [argc];
   memcpy(newArgv, argv, argc * sizeof(CString));

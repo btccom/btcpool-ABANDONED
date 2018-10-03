@@ -36,6 +36,7 @@
 
 #include "zmq.hpp"
 
+#include "config/bpool-version.h"
 #include "Utils.h"
 #include "StatsHttpd.h"
 #include "RedisConnection.h"
@@ -63,7 +64,8 @@ void handler(int sig) {
 }
 
 void usage() {
-  fprintf(stderr, "Usage:\n\tstatshttpd -c \"statshttpd.cfg\" -l \"log_dir\"\n");
+  fprintf(stderr, BIN_VERSION_STRING("statshttpd"));
+  fprintf(stderr, "Usage:\tstatshttpd -c \"statshttpd.cfg\" [-l <log_dir|stderr>]\n");
 }
 
 std::shared_ptr<StatsServer> newStatsServer(const string &chainType, const char *kafkaBrokers,
@@ -147,13 +149,19 @@ int main(int argc, char **argv) {
 
   // Initialize Google's logging library.
   google::InitGoogleLogging(argv[0]);
-  FLAGS_log_dir         = string(optLogDir);
+  if (optLogDir == NULL || strcmp(optLogDir, "stderr") == 0) {
+    FLAGS_logtostderr = 1;
+  } else {
+    FLAGS_log_dir = string(optLogDir);
+  }
   // Log messages at a level >= this flag are automatically sent to
   // stderr in addition to log files.
   FLAGS_stderrthreshold = 3;    // 3: FATAL
   FLAGS_max_log_size    = 100;  // max log file size 100 MB
   FLAGS_logbuflevel     = -1;   // don't buffer logs
   FLAGS_stop_logging_if_full_disk = true;
+
+  LOG(INFO) << BIN_VERSION_STRING("statshttpd");
 
   // Read the file. If there is an error, report it and exit.
   libconfig::Config cfg;

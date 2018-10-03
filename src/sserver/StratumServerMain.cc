@@ -37,6 +37,7 @@
 
 #include "zmq.hpp"
 
+#include "config/bpool-version.h"
 #include "Utils.h"
 #include "StratumServer.h"
 #include "DiffController.h"
@@ -56,9 +57,9 @@ void handler(int sig)
   }
 }
 
-void usage()
-{
-  fprintf(stderr, "Usage:\n\tsserver -c \"sserver.cfg\" -l \"log_dir\"\n");
+void usage() {
+  fprintf(stderr, BIN_VERSION_STRING("sserver"));
+  fprintf(stderr, "Usage:\tsserver -c \"sserver.cfg\" [-l <log_dir|stderr>]\n");
 }
 
 int main(int argc, char **argv)
@@ -91,13 +92,19 @@ int main(int argc, char **argv)
 
   // Initialize Google's logging library.
   google::InitGoogleLogging(argv[0]);
-  FLAGS_log_dir = string(optLogDir);
+  if (optLogDir == NULL || strcmp(optLogDir, "stderr") == 0) {
+    FLAGS_logtostderr = 1;
+  } else {
+    FLAGS_log_dir = string(optLogDir);
+  }
   // Log messages at a level >= this flag are automatically sent to
   // stderr in addition to log files.
   FLAGS_stderrthreshold = 3; // 3: FATAL
   FLAGS_max_log_size = 100;  // max log file size 100 MB
   FLAGS_logbuflevel = -1;    // don't buffer logs
   FLAGS_stop_logging_if_full_disk = true;
+
+  LOG(INFO) << BIN_VERSION_STRING("sserver");
 
   // Read the file. If there is an error, report it and exit.
   libconfig::Config cfg;

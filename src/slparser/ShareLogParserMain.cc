@@ -36,6 +36,7 @@
 
 #include "zmq.hpp"
 
+#include "config/bpool-version.h"
 #include "Utils.h"
 #include "ShareLogParser.h"
 
@@ -65,6 +66,7 @@ void handler(int sig) {
 }
 
 void usage() {
+  fprintf(stderr, BIN_VERSION_STRING("slparser"));
   fprintf(stderr, "Usage:\n\tslparser -c \"slparser.cfg\" -l \"log_dir\"\n");
   fprintf(stderr, "\tslparser -c \"slparser.cfg\" -l \"log_dir2\" -d \"20160830\"\n");
   fprintf(stderr, "\tslparser -c \"slparser.cfg\" -l \"log_dir3\" -d \"20160830\" -u \"puid(0: dump all, >0: someone's)\"\n");
@@ -215,13 +217,19 @@ int main(int argc, char **argv) {
 
   // Initialize Google's logging library.
   google::InitGoogleLogging(argv[0]);
-  FLAGS_log_dir         = string(optLogDir);
+  if (optLogDir == NULL || strcmp(optLogDir, "stderr") == 0) {
+    FLAGS_logtostderr = 1;
+  } else {
+    FLAGS_log_dir = string(optLogDir);
+  }
   // Log messages at a level >= this flag are automatically sent to
   // stderr in addition to log files.
   FLAGS_stderrthreshold = 3;    // 3: FATAL
   FLAGS_max_log_size    = 100;  // max log file size 100 MB
   FLAGS_logbuflevel     = -1;   // don't buffer logs
   FLAGS_stop_logging_if_full_disk = true;
+
+  LOG(INFO) << BIN_VERSION_STRING("slparser");
 
   // Read the file. If there is an error, report it and exit.
   libconfig::Config cfg;
