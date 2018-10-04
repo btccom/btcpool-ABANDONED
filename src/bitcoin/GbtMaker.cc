@@ -60,6 +60,9 @@ kafkaBrokers_(kafkaBrokers), kafkaRawGbtTopic_(kafkaRawGbtTopic),
 kafkaProducer_(kafkaBrokers_.c_str(), kafkaRawGbtTopic_.c_str(), 0/* partition */),
 isCheckZmq_(isCheckZmq)
 {
+#ifdef CHAIN_TYPE_BCH
+  lastGbtLightMakeTime_ = 0;
+#endif
 }
 
 GbtMaker::~GbtMaker() {}
