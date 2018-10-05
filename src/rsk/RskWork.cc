@@ -165,6 +165,5 @@ void RskWorkEth::initialize(JsonNode &work)
   uncles_ = work["uncles"].uint32();
   transactions_ = work["transactions"].uint32();
   gasUsedPercent_ = work["gasUsedPercent"].real();
-  DLOG(INFO) << "address " << rpcAddress_;
   initialized_ = true;
 }

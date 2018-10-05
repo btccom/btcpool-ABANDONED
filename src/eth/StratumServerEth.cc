@@ -63,7 +63,7 @@ void JobRepositoryEth::broadcastStratumJob(StratumJob *sjob) {
     lastHeight_ = sjobEth->height_;
 
     LOG(INFO) << "received new height stratum job, height: " << sjobEth->height_
-              << ", headerHash: " << sjobEth->blockHashForMergedMining_;
+              << ", headerHash: " << sjobEth->headerHash_;
   }
   
   shared_ptr<StratumJobEx> exJob(createStratumJobEx(sjobEth, isClean));
@@ -441,21 +441,21 @@ int ServerEth::checkShareAndUpdateDiff(ShareEth &share,
   
   //can not compare two uint256 directly because uint256 is little endian and uses memcmp
   arith_uint256 bnShareTarget = UintToArith256(shareTarget);
-  arith_uint256 bnNetworkTarget = UintToArith256(sjob->rskNetworkTarget_);
+  arith_uint256 bnNetworkTarget = UintToArith256(sjob->networkTarget_);
   
   DLOG(INFO) << "comapre share target: " << shareTarget.GetHex()
-             << ", network target: " << sjob->rskNetworkTarget_.GetHex();
+             << ", network target: " << sjob->networkTarget_.GetHex();
   
   // print out high diff share, 2^10 = 1024
   if ((bnShareTarget >> 10) <= bnNetworkTarget) {
     LOG(INFO) << "high diff share, share target: " << shareTarget.GetHex()
-              << ", network target: " << sjob->rskNetworkTarget_.GetHex()
+              << ", network target: " << sjob->networkTarget_.GetHex()
               << ", worker: " << workFullName;
   }
 
   if (isSubmitInvalidBlock_ || bnShareTarget <= bnNetworkTarget) {
     LOG(INFO) << "solution found, share target: " << shareTarget.GetHex()
-              << ", network target: " << sjob->rskNetworkTarget_.GetHex()
+              << ", network target: " << sjob->networkTarget_.GetHex()
               << ", worker: " << workFullName;
 
     if (exJobPtr->isStale()) {

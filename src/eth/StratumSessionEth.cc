@@ -115,7 +115,7 @@ void StratumSessionEth::sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr
     return;
   }
   
-  string header = ethJob->blockHashForMergedMining_;
+  string header = ethJob->headerHash_;
   string seed = ethJob->seedHash_;
 
   // strip prefix "0x"
@@ -517,7 +517,7 @@ void StratumSessionEth::handleRequest_Submit(const string &idStr, const JsonNode
   
   uint64_t nonce = stoull(sNonce, nullptr, 16);
   uint32_t height = sjob->height_;
-  uint64_t networkDiff = Eth_TargetToDifficulty(sjob->rskNetworkTarget_.GetHex());
+  uint64_t networkDiff = Eth_TargetToDifficulty(sjob->networkTarget_.GetHex());
   // Used to prevent duplicate shares. (sHeader has a prefix "0x")
   uint64_t headerPrefix = stoull(sHeader.substr(2, 16), nullptr, 16);
   EthConsensus::Chain chain = sjob->chain_;
