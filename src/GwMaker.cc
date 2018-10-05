@@ -249,7 +249,7 @@ bool GwMakerHandlerEth::checkFieldsPendingBlock(JsonNode &r)
       "totalDifficulty": null,
       "transactions": [...],
       "transactionsRoot": "0x8bbba93b1b39a96308aac8914b7f407d0ff46bc7456241f9b540874b2e1a4502",
-      "uncles": []
+      "uncles": [...]
     }
   }
   */
@@ -276,10 +276,11 @@ bool GwMakerHandlerEth::checkFieldsPendingBlock(JsonNode &r)
   if (result["parentHash"].type() != Utilities::JS::type::Str ||
       result["gasLimit"].type() != Utilities::JS::type::Str ||
       result["gasUsed"].type() != Utilities::JS::type::Str ||
-      result["number"].type() != Utilities::JS::type::Str ||
+      // number will be null in some versions of Parity
+      //result["number"].type() != Utilities::JS::type::Str ||
       result["transactions"].type() != Utilities::JS::type::Array ||
       result["uncles"].type() != Utilities::JS::type::Array) {
-    LOG(ERROR) << "result of getBlockByNumber(penging): missing inputs";
+    LOG(ERROR) << "result of getBlockByNumber(penging): missing fields";
   }
 
   return true;
@@ -338,12 +339,17 @@ string GwMakerHandlerEth::constructRawMsg(JsonNode &r) {
   auto block = responses[0]["result"];
   auto work = responses[1]["result"].array();
 
-  string heightStr = block["number"].str();
+  string heightStr = "null";
+  
+  // number will be null in some versions of Parity
+  if (block["number"].type() == Utilities::JS::type::Str) {
+    heightStr = block["number"].str();
+  }
 
   // height/block-number in eth_getWork.
   // Parity will response this field.
   if (work.size() >= 4 && work[3].type() == Utilities::JS::type::Str) {
-    if (heightStr != work[3].str()) {
+    if (heightStr != "null" && heightStr != work[3].str()) {
       LOG(WARNING) << "block height mis-matched between getBlockByNumber(pending) "
                    << heightStr <<" and getWork() " << work[3].str();
     }
