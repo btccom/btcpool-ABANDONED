@@ -362,9 +362,9 @@ string GwMakerHandlerEth::constructRawMsg(JsonNode &r) {
     return "";
   }
 
-  double gasLimit = (double)strtoll(block["gasLimit"].str().c_str(), nullptr, 16);
-  double gasUsed = (double)strtoll(block["gasUsed"].str().c_str(), nullptr, 16);
-  double gasUsedPercent = gasUsed / gasLimit * 100;
+  float gasLimit = (float)strtoll(block["gasLimit"].str().c_str(), nullptr, 16);
+  float gasUsed  = (float)strtoll(block["gasUsed"].str().c_str(), nullptr, 16);
+  float gasUsedPercent = gasUsed / gasLimit * 100;
 
   size_t uncles = block["uncles"].array().size();
   size_t transactions = block["transactions"].array().size();
@@ -392,7 +392,7 @@ string GwMakerHandlerEth::constructRawMsg(JsonNode &r) {
                          "\"height\":%ld,"
                          "\"uncles\":%lu,"
                          "\"transactions\":%lu,"
-                         "\"gasUsedPercent\":%lf"
+                         "\"gasUsedPercent\":%f"
                          "}",
                          (uint32_t)time(nullptr),
                          def_.chainType_.c_str(),

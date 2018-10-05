@@ -74,13 +74,20 @@ class RskWorkEth : public RskWork {
   virtual bool validate(JsonNode &work);
   virtual void initialize(JsonNode &work);
   
-  //string currBlkHeaderPOWHash_;
   string seedHash_;
+  string parent_;
   uint32_t height_;
+  uint32_t uncles_;
+  uint32_t transactions_;
+  float gasUsedPercent_;
 
 public:
   string getSeedHash() const { return seedHash_; }
+  string getParent() const { return parent_; }
   uint32_t getHeight() const { return height_; }
+  uint32_t getUncles() const { return uncles_; }
+  uint32_t getTransactions() const { return transactions_; }
+  float getGasUsedPercent() const { return gasUsedPercent_; }
 };
 
 #endif

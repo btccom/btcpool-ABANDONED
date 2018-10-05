@@ -129,10 +129,14 @@ bool RskWorkEth::validate(JsonNode &work)
   if (work["created_at_ts"].type() != Utilities::JS::type::Int ||
       work["rpcAddress"].type() != Utilities::JS::type::Str ||
       work["rpcUserPwd"].type() != Utilities::JS::type::Str ||
+      work["parent"].type() != Utilities::JS::type::Str ||
+      work["target"].type() != Utilities::JS::type::Str ||
       work["hHash"].type() != Utilities::JS::type::Str ||
       work["sHash"].type() != Utilities::JS::type::Str ||
-      work["target"].type() != Utilities::JS::type::Str ||
-      work["height"].type() != Utilities::JS::type::Int)
+      work["height"].type() != Utilities::JS::type::Int ||
+      work["uncles"].type() != Utilities::JS::type::Int ||
+      work["transactions"].type() != Utilities::JS::type::Int ||
+      work["gasUsedPercent"].type() != Utilities::JS::type::Real)
   {
     LOG(ERROR) << "getwork fields failure";
     return false;
@@ -153,10 +157,14 @@ void RskWorkEth::initialize(JsonNode &work)
   created_at = work["created_at_ts"].uint32();
   rpcAddress_ = work["rpcAddress"].str(); 
   rpcUserPwd_ = work["rpcUserPwd"].str();
+  parent_ = work["parent"].str();
+  target_ = work["target"].str();
   blockHash_ = work["hHash"].str();
   seedHash_ = work["sHash"].str();
-  target_ = work["target"].str();
   height_ = work["height"].uint32();
+  uncles_ = work["uncles"].uint32();
+  transactions_ = work["transactions"].uint32();
+  gasUsedPercent_ = work["gasUsedPercent"].real();
   DLOG(INFO) << "address " << rpcAddress_;
   initialized_ = true;
 }

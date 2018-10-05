@@ -31,8 +31,6 @@
 ////////////////////////////////JobMakerHandlerEth//////////////////////////////////
 bool JobMakerHandlerEth::processMsg(const string &msg)
 {
-  static uint32_t lastHeight = 0;
-
   shared_ptr<RskWorkEth> work = make_shared<RskWorkEth>();
   if (!work->initFromGw(msg))
   {
@@ -50,15 +48,33 @@ bool JobMakerHandlerEth::processMsg(const string &msg)
 
   clearTimeoutMsg();
 
-  if (work->getHeight() < lastHeight) {
-    LOG(WARNING) << "low height work. lastHeight:" << lastHeight << ", workHeight: " << work->getHeight();
-  }
-  // The job update is triggered only the block height increases.
-  if (work->getHeight() <= lastHeight) {
+  if (work->getHeight() < lastReceivedHeight_) {
+    LOG(WARNING) << "low height work. lastHeight:" << lastReceivedHeight_ << ", workHeight: " << work->getHeight();
     return false;
   }
 
-  lastHeight = work->getHeight();
+  if (work->getHeight() == lastReceivedHeight_) {
+    if (!workOfLastJob_) {
+      LOG(WARNING) << "work of last job is empty! lastHeight: " << lastReceivedHeight_;
+      return true;
+    }
+
+    // job update triggered by more uncles
+    if (workOfLastJob_->getUncles() < work->getUncles()) {
+      return true;
+    }
+
+    // job update triggered by more gas used
+    if (workOfLastJob_->getGasUsedPercent() < 10.0 &&
+        workOfLastJob_->getGasUsedPercent() < work->getGasUsedPercent()) {
+      return true;
+    }
+
+    return false;
+  }
+
+  // job update triggered by the block height increases.
+  lastReceivedHeight_ = work->getHeight();
   return true;
 }
 
@@ -106,6 +122,7 @@ string JobMakerHandlerEth::makeStratumJobMsg()
     return "";
   }
 
+  workOfLastJob_ = work;
   return sjob.serializeToJson();
 }
 
@@ -113,9 +130,10 @@ uint64_t JobMakerHandlerEth::makeWorkKey(const RskWorkEth &work) {
   const string &blockHash = work.getBlockHash();
   uint64_t blockHashSuffix = strtoull(blockHash.substr(blockHash.size() - 4).c_str(), nullptr, 16);
 
-  // key = | 32bits height | 16bit time | 16bit hashSuffix |
+  // key = | 32bits height | 8bits uncles | 8bits gasUsedPercent | 16bit hashSuffix |
   uint64_t key = ((uint64_t)work.getHeight()) << 32;
-  key += (((uint64_t)work.getCreatedAt()) & 0xFFFFull) << 16;
+  key += (((uint64_t)work.getUncles()) & 0xFFu)  << 24; // No overflow, the largest number of uncles in Ethereum is 2.
+  key += (((uint64_t)work.getGasUsedPercent()) & 0xFFu)  << 16; // No overflow, the largest number should be 100 (100%).
   key += blockHashSuffix;
 
   return key;
