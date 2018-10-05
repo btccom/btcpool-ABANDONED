@@ -106,8 +106,13 @@ class GwMakerHandlerRsk : public GwMakerHandlerJson
 class GwMakerHandlerEth : public GwMakerHandlerJson
 {
   bool checkFields(JsonNode &r) override;
+  bool checkFieldsPendingBlock(JsonNode &r);
+  bool checkFieldsGetwork(JsonNode &r);
   string constructRawMsg(JsonNode &r) override;
-  string getRequestData() override { return "{\"jsonrpc\": \"2.0\", \"method\": \"eth_getWork\", \"params\": [], \"id\": 1}"; }
+  string getRequestData() override {
+    return "[{\"jsonrpc\": \"2.0\", \"method\": \"eth_getBlockByNumber\", \"params\": [\"pending\", false], \"id\": 1}"
+           ",{\"jsonrpc\": \"2.0\", \"method\": \"eth_getWork\", \"params\": [], \"id\": 1}]";
+  }
   string getBlockHeight();
 };
 
