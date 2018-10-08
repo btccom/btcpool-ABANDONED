@@ -122,7 +122,7 @@ string GwMakerHandler::makeRawGwMsg() {
   if (!callRpcGw(gw)) {
     return "";
   }
-  LOG(INFO) << "getwork len=" << gw.length() << ", msg: " << gw;
+  LOG(INFO) << "getwork len=" << gw.length() << ", msg: " << gw.substr(0, 500) << (gw.size() > 500 ? "..." : "");
   return processRawGw(gw);
 }
 
@@ -398,7 +398,7 @@ string GwMakerHandlerEth::constructRawMsg(JsonNode &r) {
                          def_.chainType_.c_str(),
                          def_.rpcAddr_.c_str(), 
                          def_.rpcUserPwd_.c_str(),
-                         block["parentHash"].str(),
+                         block["parentHash"].str().c_str(),
                          work[2].str().c_str(),
                          work[0].str().c_str(), 
                          work[1].str().c_str(),

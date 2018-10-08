@@ -91,7 +91,7 @@ string StratumJobEth::serializeToJson() const {
 
                          EthConsensus::getChainStr(chain_).c_str(),
                          height_,
-                         parent_,
+                         parent_.c_str(),
 
                          networkTarget_.GetHex().c_str(),
                          headerHash_.c_str(),
