@@ -52,7 +52,6 @@ class ClientContainer {
 
   // libevent2
   struct event_base *base_;
-  struct event *signal_event_;
 
   string kafkaBrokers_;
 

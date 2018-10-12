@@ -2,7 +2,7 @@
 #define _MYSQL_OPERATIONS_H_
 
 #include "dataoperation_base.h"
-#include <mysql/mysql.h>
+#include <mysql.h>
 
 struct StatementCloser
 {
