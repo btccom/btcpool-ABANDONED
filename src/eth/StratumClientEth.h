@@ -32,7 +32,9 @@ class StratumClientEth : public StratumClient
 public:
   StratumClientEth(struct event_base *base, const string &workerFullName, const string &workerPasswd);
   virtual string constructShare();
-  arith_uint256 header_;
+  string headerHash_;
+  string mixHash_;
+  string target_;
 
 protected:
   virtual void handleLine(const string &line);

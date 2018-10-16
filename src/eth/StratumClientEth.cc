@@ -27,29 +27,28 @@
 
 ////////////////////////////// StratumClientEth ////////////////////////////
 StratumClientEth::StratumClientEth(struct event_base *base, const string &workerFullName, const string &workerPasswd) :
-StratumClient(base, workerFullName, workerPasswd),
-header_(rand())
+StratumClient(base, workerFullName, workerPasswd)
 {
 }
 
 string StratumClientEth::constructShare()
 {
+  //etherminer (STRATUM)
   // {"id": 4, "method": "mining.submit",
   // "params": ["0x7b9d694c26a210b9f0d35bb9bfdd70a413351111.fatrat1117",
   // "ae778d304393d441bf8e1c47237261675caa3827997f671d8e5ec3bd5d862503",
-  // "0x4cc7c01bfbe51c67","0xae778d304393d441bf8e1c47237261675caa3827997f671d8e5ec3bd5d862503",
+  // "0x4cc7c01bfbe51c67",
+  // "0xae778d304393d441bf8e1c47237261675caa3827997f671d8e5ec3bd5d862503",
   // "0x52fdd9e9a796903c6b88af4192717e77d9a9c6fa6a1366540b65e6bcfa9069aa"]}
   string s = Strings::Format("{\"id\": 4, \"method\": \"mining.submit\", "
-                      "\"params\": [\"%s\",\"%s\",\"0x%08x%08x\",\"0x%s\",\"0x%s\"]}\n",
-                      "ccc",
-                      header_.GetHex().c_str(),
-                      extraNonce2_ >> 32,
+                      "\"params\": [\"%s\",\"%s\",\"0x%016llx\",\"%s\",\"%s\"]}\n",
+                      workerFullName_.c_str(),
+                      latestJobId_.c_str(),
                       extraNonce2_,
-                      header_.GetHex().c_str(),
-                      header_.GetHex().c_str());
+                      headerHash_.c_str(),
+                      mixHash_.c_str());
 
   extraNonce2_++;
-  header_++;
   return s;
 }
 
@@ -69,9 +68,19 @@ void StratumClientEth::handleLine(const string &line) {
     JsonNode jparams  = jnode["params"];
     auto jparamsArr = jparams.array();
 
+    //Etherminer mining.notify
+    //{"id":6,"method":"mining.notify","params":
+    //["dd159c7ec5b056ad9e95e7c997829f667bc8e34c6d43fcb9e0c440ed94a85d80",
+    //"dd159c7ec5b056ad9e95e7c997829f667bc8e34c6d43fcb9e0c440ed94a85d80",
+    //"a8784097a4d03c2d2ac6a3a2beebd0606aa30a8536a700446b40800841c0162c",
+    //"0000000112e0be826d694b2e62d01511f12a6061fbaec8bc02357593e70e52ba",false]}
     if (jmethod.str() == "mining.notify") {
       latestJobId_ = jparamsArr[0].str();
-      DLOG(INFO) << "latestJobId_: " << latestJobId_;
+      headerHash_ = jparamsArr[1].str();
+      mixHash_ = jparamsArr[2].str();
+      target_ = jparamsArr[3].str();
+
+      DLOG(INFO) << "job id: " << latestJobId_ << ", header hash: " << headerHash_ << ", mix: " << mixHash_ << ", target: " << target_;
     }
     else if (jmethod.str() == "mining.set_difficulty") {
       latestDiff_ = jparamsArr[0].uint64();
