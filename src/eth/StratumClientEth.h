@@ -30,7 +30,7 @@
 class StratumClientEth : public StratumClient
 {
 public:
-  StratumClientEth(struct event_base *base, const string &workerFullName);
+  StratumClientEth(struct event_base *base, const string &workerFullName, const string &workerPasswd);
   virtual string constructShare();
   arith_uint256 header_;
 

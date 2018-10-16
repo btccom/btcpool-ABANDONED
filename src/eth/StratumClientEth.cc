@@ -26,8 +26,8 @@
 #include "Utils.h"
 
 ////////////////////////////// StratumClientEth ////////////////////////////
-StratumClientEth::StratumClientEth(struct event_base *base, const string &workerFullName) :
-StratumClient(base, workerFullName),
+StratumClientEth::StratumClientEth(struct event_base *base, const string &workerFullName, const string &workerPasswd) :
+StratumClient(base, workerFullName, workerPasswd),
 header_(rand())
 {
 }
@@ -100,8 +100,8 @@ void StratumClientEth::handleLine(const string &line) {
     // mining.authorize
     state_ = SUBSCRIBED;
     string s = Strings::Format("{\"id\": 1, \"method\": \"mining.authorize\","
-                               "\"params\": [\"\%s\", \"\"]}\n",
-                               workerFullName_.c_str());
+                               "\"params\": [\"\%s\", \"%s\"]}\n",
+                               workerFullName_.c_str(), workerPasswd_.c_str());
     sendData(s);
     return;
   }

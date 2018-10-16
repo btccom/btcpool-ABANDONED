@@ -37,8 +37,9 @@ bool StratumClient::registerFactory(const string &chainType, Factory factory)
 
 ///////////////////////////////// StratumClient ////////////////////////////////
 StratumClient::StratumClient(struct event_base* base,
-                             const string &workerFullName)
-: workerFullName_(workerFullName), isMining_(false)
+                             const string &workerFullName,
+                             const string &workerPasswd)
+: workerFullName_(workerFullName), workerPasswd_(workerPasswd), isMining_(false)
 {
   inBuf_ = evbuffer_new();
   bev_ = bufferevent_socket_new(base, -1, BEV_OPT_CLOSE_ON_FREE|BEV_OPT_THREADSAFE);
@@ -164,8 +165,8 @@ void StratumClient::handleLine(const string &line) {
     // mining.authorize
     state_ = SUBSCRIBED;
     string s = Strings::Format("{\"id\": 1, \"method\": \"mining.authorize\","
-                               "\"params\": [\"\%s\", \"\"]}\n",
-                               workerFullName_.c_str());
+                               "\"params\": [\"\%s\", \"%s\"]}\n",
+                               workerFullName_.c_str(), workerPasswd_.c_str());
     sendData(s);
     return;
   }
@@ -215,9 +216,10 @@ StratumClientWrapper::StratumClientWrapper(const char *host,
                                            const uint32_t numConnections,
                                            const string &userName,
                                            const string &minerNamePrefix,
+                                           const string &passwd,
                                            const string &type)
     : running_(true), base_(event_base_new()), numConnections_(numConnections),
-      userName_(userName), minerNamePrefix_(minerNamePrefix), type_(type)
+      userName_(userName), minerNamePrefix_(minerNamePrefix), passwd_(passwd), type_(type)
 {
   memset(&sin_, 0, sizeof(sin_));
   sin_.sin_family = AF_INET;
@@ -291,7 +293,7 @@ void StratumClientWrapper::run() {
                                                   userName_.c_str(),
                                                   minerNamePrefix_.c_str(),
                                                   i);
-    auto client = createClient(base_, workerFullName);
+    auto client = createClient(base_, workerFullName, passwd_);
 
     if (!client->connect(sin_)) {
       LOG(ERROR) << "client connnect failure: " << workerFullName;
@@ -324,11 +326,11 @@ void StratumClientWrapper::submitShares() {
   }
 }
 
-unique_ptr<StratumClient> StratumClientWrapper::createClient(struct event_base *base, const string &workerFullName)
+unique_ptr<StratumClient> StratumClientWrapper::createClient(struct event_base *base, const string &workerFullName, const string &workerPasswd)
 {
   auto iter = gStratumClientFactories.find(type_);
   if (iter != gStratumClientFactories.end() && iter->second) {
-    return iter->second(base, workerFullName);
+    return iter->second(base, workerFullName, workerPasswd);
   } else {
     return nullptr;
   }

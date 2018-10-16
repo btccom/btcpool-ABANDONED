@@ -121,6 +121,9 @@ int main(int argc, char **argv) {
     int32_t numConns = 3333;
     cfg.lookupValue("simulator.number_clients", numConns);
 
+    string passwd;
+    cfg.lookupValue("simulator.passwd", passwd);
+
     evthread_use_pthreads();
 
     // register stratum client factories
@@ -133,6 +136,7 @@ int main(int argc, char **argv) {
                                                             (unsigned short)port, numConns,
                                                             cfg.lookup("simulator.username"),
                                                             cfg.lookup("simulator.minername_prefix"),
+                                                            passwd,
                                                             cfg.lookup("simulator.type"));
     wrapper->run();
   }

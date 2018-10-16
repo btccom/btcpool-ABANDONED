@@ -52,6 +52,7 @@ class StratumClient {
   int32_t  extraNonce2Size_;
   uint64_t extraNonce2_;
   string workerFullName_;
+  string workerPasswd_;
   bool isMining_;
   string   latestJobId_;
   uint64_t latestDiff_;
@@ -69,18 +70,18 @@ public:
   };
   atomic<State> state_;
 
-  using Factory = function<unique_ptr<StratumClient> (struct event_base *, const string &)>;
+  using Factory = function<unique_ptr<StratumClient> (struct event_base *, const string &, const string &)>;
   static bool registerFactory(const string &chainType, Factory factory);
   template<typename T>
   static bool registerFactory(const string &chainType) {
     static_assert(std::is_base_of<StratumClient, T>::value, "Factory is not constructing the correct type");
-    return registerFactory(chainType, [](struct event_base *base, const string &workerFullName) {
-      return boost::make_unique<T>(base, workerFullName);
+    return registerFactory(chainType, [](struct event_base *base, const string &workerFullName, const string &workerPasswd) {
+      return boost::make_unique<T>(base, workerFullName, workerPasswd);
     });
   }
 
 public:
-  StratumClient(struct event_base *base, const string &workerFullName);
+  StratumClient(struct event_base *base, const string &workerFullName, const string &workerPasswd);
   virtual ~StratumClient();
 
   bool connect(struct sockaddr_in &sin);
@@ -106,6 +107,7 @@ class StratumClientWrapper {
   uint32_t numConnections_;
   string userName_;   // miner usename
   string minerNamePrefix_;
+  string passwd_; // miner password, used to set difficulty
   string type_;
   std::set<unique_ptr<StratumClient>> connections_;
 
@@ -115,6 +117,7 @@ public:
   StratumClientWrapper(const char *host, const uint32_t port,
                        const uint32_t numConnections,
                        const string &userName, const string &minerNamePrefix,
+                       const string &passwd,
                        const string &type);
   ~StratumClientWrapper();
 
@@ -126,7 +129,7 @@ public:
   void stop();
   void run();
 
-  unique_ptr<StratumClient> createClient(struct event_base *base, const string &workerFullName);
+  unique_ptr<StratumClient> createClient(struct event_base *base, const string &workerFullName, const string &workerPasswd);
 };
 
 
