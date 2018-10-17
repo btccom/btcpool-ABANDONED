@@ -1,0 +1,29 @@
+version: 2
+jobs:
+  bch:
+    machine: true
+    steps:
+      - checkout
+      - run:
+          name: Build docker image
+          command: docker build --rm -t btcpool_bch --build-arg BUILD_TYPE=Debug --build-arg BUILD_JOBS=2 --build-arg CHAIN_TYPE=BCH --build-arg CHAIN_URL=https://github.com/btccom/bitcoin-abc-1 --build-arg CHAIN_TAG=v0.17.1 .
+      - run:
+          name: Run unit tests
+          command: docker run --rm btcpool_bch /work/btcpool/build/unittest
+  bch_lightgbt:
+    machine: true
+    steps:
+      - checkout
+      - run:
+          name: Build docker image
+          command: docker build --rm -t btcpool_bch_lightgbt --build-arg BUILD_TYPE=Debug --build-arg BUILD_JOBS=2 --build-arg CHAIN_TYPE=BCH --build-arg CHAIN_URL=https://github.com/btccom/bitcoin-abc-1 --build-arg CHAIN_TAG=v0.17.1_lightgbt .
+      - run:
+          name: Run unit tests
+          command: docker run --rm btcpool_bch_lightgbt /work/btcpool/build/unittest
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - bch
+      - bch_lightgbt
+
