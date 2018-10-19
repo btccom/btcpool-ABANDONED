@@ -29,6 +29,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <deque>
+#include <vector>
 
 #include <event2/event.h>
 #include <event2/buffer.h>
@@ -109,7 +110,7 @@ class StratumClientWrapper {
   string minerNamePrefix_;
   string passwd_; // miner password, used to set difficulty
   string type_;
-  std::set<unique_ptr<StratumClient>> connections_;
+  std::vector<unique_ptr<StratumClient>> connections_;
 
   void submitShares();
 
