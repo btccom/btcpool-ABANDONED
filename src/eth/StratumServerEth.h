@@ -106,6 +106,6 @@ private:
   mutex lightLock_;
   mutex nextLightLock_;
 
-  int32_t lastHeight_;
+  uint32_t lastHeight_;
 };
 #endif // STRATUM_SERVER_ETH_H_

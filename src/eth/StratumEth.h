@@ -185,20 +185,20 @@ public:
   bool unserializeFromJson(const char *s, size_t len) override;
   bool initFromGw(const RskWorkEth &latestRskBlockJson, EthConsensus::Chain chain, uint8_t serverId);
 
-  int32_t height_;
-  int32_t nVersion_;
-  uint32_t nTime_;
+  EthConsensus::Chain chain_ = EthConsensus::Chain::UNKNOWN;
+  uint32_t height_ = 0;
+  string parent_;
 
-  // rsk merged mining
-  string blockHashForMergedMining_;
-  uint256 rskNetworkTarget_;
-  string rskdRpcAddress_;
-  string rskdRpcUserPwd_;
-  string feesForMiner_;
-  bool isMergedMiningCleanJob_;
-
-  EthConsensus::Chain chain_;
+  uint256 networkTarget_;
+  string headerHash_;
   string seedHash_;
+
+  uint32_t uncles_ = 0;
+  uint32_t transactions_ = 0;
+  float gasUsedPercent_ = 0.0;
+
+  string rpcAddress_;
+  string rpcUserPwd_;
 };
 
 #endif
