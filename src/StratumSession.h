@@ -56,6 +56,12 @@
 
 #define BTCCOM_MINER_AGENT_PREFIX "btccom-agent/"
 
+// Supported BTCAgent features / capabilities, a JSON array.
+// Sent within mining.subscribe for protocol negotiation.
+// Known capabilities:
+//     verrol: version rolling (shares with a version mask can be submitted through a BTCAgent session).
+#define BTCAGENT_PROTOCOL_CAPABILITIES "[\"verrol\"]"
+
 // invalid share sliding window size
 #define INVALID_SHARE_SLIDING_WINDOWS_SIZE       60  // unit: seconds
 #define INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT  20  // max number
@@ -255,6 +261,9 @@ private:
   void handleRequest_MiningConfigure  (const string &idStr, const JsonNode &jparams);
   void _handleRequest_SetDifficulty(uint64_t suggestDiff);
   void _handleRequest_AuthorizePassword(const string &password);
+
+  // request from BTCAgent
+  void handleRequest_AgentGetCapabilities(const string &idStr, const JsonNode &jparams);
 
   LocalJob *findLocalJob(uint8_t shortJobId);
 
