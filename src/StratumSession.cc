@@ -391,6 +391,9 @@ void StratumSession::handleRequest(const string &idStr, const string &method,
   }
   else if (method == "mining.suggest_difficulty") {
     handleRequest_SuggestDifficulty(idStr, jparams);
+  }
+  else if (method == "agent.get_capabilities") {
+    handleRequest_AgentGetCapabilities(idStr, jparams);
   } else {
     // unrecognised method, just ignore it
     LOG(WARNING) << "unrecognised method: \"" << method << "\""
@@ -1144,6 +1147,12 @@ void StratumSession::handleExMessage_UnRegisterWorker(const string *exMessage) {
 
 uint32_t StratumSession::getSessionId() const {
   return extraNonce1_;
+}
+
+void StratumSession::handleRequest_AgentGetCapabilities(const string &idStr,
+                                                const JsonNode &jparams) {
+  string s = Strings::Format("{\"id\":%s,\"result\":{\"capabilities\":" BTCAGENT_PROTOCOL_CAPABILITIES "}}\n", idStr.c_str());
+  sendData(s);
 }
 
 
