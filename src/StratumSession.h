@@ -57,7 +57,7 @@
 #define BTCCOM_MINER_AGENT_PREFIX "btccom-agent/"
 
 // Supported BTCAgent features / capabilities, a JSON array.
-// Sent within mining.subscribe for protocol negotiation.
+// Sent within the request / response of agent.get_capabilities for protocol negotiation.
 // Known capabilities:
 //     verrol: version rolling (shares with a version mask can be submitted through a BTCAgent session).
 #define BTCAGENT_PROTOCOL_CAPABILITIES "[\"verrol\"]"
