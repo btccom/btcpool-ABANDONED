@@ -142,6 +142,9 @@ public:
   bool setup(const std::map<string, string> *options=nullptr);
   bool checkAlive();
   void produce(const void *payload, size_t len);
+  // Although the kafka producer is non-blocking, it will fail immediately in some cases,
+  // such as the local queue is full. In this case, the sender can choose to try again later.
+  bool tryProduce(const void *payload, size_t len);
 };
 
 #endif

@@ -464,3 +464,22 @@ void KafkaProducer::produce(const void *payload, size_t len) {
     << "]: " << rd_kafka_err2str(rd_kafka_last_error());
   }
 }
+
+// Although the kafka producer is non-blocking, it will fail immediately in some cases,
+// such as the local queue is full. In this case, the sender can choose to try again later.
+bool KafkaProducer::tryProduce(const void *payload, size_t len) {
+  // rd_kafka_produce() is non-blocking
+  // Returns 0 on success or -1 on error
+  int res = rd_kafka_produce(topic_, partition_, RD_KAFKA_MSG_F_COPY,
+                             (void *)payload, len,
+                             NULL, 0,  /* Optional key and its length */
+                             /* Message opaque, provided in delivery report
+                              * callback as msg_opaque. */
+                             NULL);
+  if (res == -1) {
+    LOG(ERROR) << "produce to topic [ " << rd_kafka_topic_name(topic_)
+    << "]: " << rd_kafka_err2str(rd_kafka_last_error());
+  }
+
+  return res == 0;
+}
