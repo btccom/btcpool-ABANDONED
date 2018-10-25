@@ -35,6 +35,7 @@
 #include <libconfig.h++>
 
 #include "ShareConvertor.hpp"
+#include "ShareDiffChanger.hpp"
 
 using namespace std;
 using namespace libconfig;
@@ -126,17 +127,34 @@ int main(int argc, char **argv) {
   signal(SIGINT,  handler);
 
   try {
-    bool enableSConvBtcV2ToV1 = false;
+    bool enableShareConvBtcV2ToV1 = false;
+    bool enableShareDiffChangerBtcV1 = false;
     int repeatedNumberDisplayInterval = 10;
-    readFromSetting(cfg, "share_convertor.bitcoin_v2_to_v1", enableSConvBtcV2ToV1, true);
+
+    readFromSetting(cfg, "share_convertor.bitcoin_v2_to_v1", enableShareConvBtcV2ToV1, true);
+    readFromSetting(cfg, "share_diff_changer.bitcoin_v1", enableShareDiffChangerBtcV1, true);
     readFromSetting(cfg, "log.repeated_number_display_interval", repeatedNumberDisplayInterval, true);
 
 
-    if (enableSConvBtcV2ToV1) {
+    if (enableShareConvBtcV2ToV1) {
       gKafkaRepeater = new ShareConvertorBitcoinV2ToV1(
         cfg.lookup("kafka.in_brokers"), cfg.lookup("kafka.in_topic"), cfg.lookup("kafka.in_group_id"),
         cfg.lookup("kafka.out_brokers"), cfg.lookup("kafka.out_topic")
       );
+    }
+    else if (enableShareDiffChangerBtcV1) {
+      gKafkaRepeater = new ShareDiffChangerBitcoinV1(
+        cfg.lookup("kafka.in_brokers"), cfg.lookup("kafka.in_topic"), cfg.lookup("kafka.in_group_id"),
+        cfg.lookup("kafka.out_brokers"), cfg.lookup("kafka.out_topic")
+      );
+
+      if (!dynamic_cast<ShareDiffChangerBitcoinV1*>(gKafkaRepeater)->initStratumJobConsumer(
+        cfg.lookup("share_diff_changer.job_brokers"), cfg.lookup("share_diff_changer.job_topic"),
+        cfg.lookup("share_diff_changer.job_group_id")
+      )) {
+        LOG(FATAL) << "kafka repeater init failed";
+        return 1;
+      }
     }
     else {
       LOG(INFO) << "no repeater enabled";

@@ -163,7 +163,10 @@ public:
     }
 
 protected:
-    virtual bool repeatMessage(rd_kafka_message_t *rkmessage) = 0;
+    virtual bool repeatMessage(rd_kafka_message_t *rkmessage) {
+        sendToKafka(rkmessage->payload, rkmessage->len);
+        return true;
+    }
 
     virtual void displayMessageNumber(size_t messageNumber, time_t time) {
         LOG(INFO) << "Repeated " << messageNumber << " messages in " << time << " seconds";
