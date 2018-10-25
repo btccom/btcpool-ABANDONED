@@ -1,9 +1,9 @@
-Docker for BTCPool's sserver
+Docker for BCHPool's sserver
 ============================
 
 * Docker Image OS: `Ubuntu 18.04 LTS`
-* BTCPool Branch: `master`
-* Linked Chain: `BTC` `(bitcoin core 0.16.0)`
+* BCHPool Branch: `master`
+* Linked Chain: `BCH` `(bitcoin abc 0.17.1)`
 * CMake Options: `POOL__WORK_WITH_STRATUM_SWITCHER=ON`
 
 ## Install Docker
@@ -22,35 +22,35 @@ curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
 cd /work
 
 git clone https://github.com/btccom/btcpool.git
-cd btcpool/docker/btcpool/sserver-btc-withswitcher
+cd btcpool/docker/btcpool/sserver-bch-withswitcher
 
 # build
-docker build -t sserver-btc-withswitcher --build-arg JOBS=4 .
-# docker build --no-cache -t sserver-btc-withswitcher --build-arg JOBS=4 .
+docker build -t sserver-bch-withswitcher --build-arg JOBS=4 .
+# docker build --no-cache -t sserver-bch-withswitcher --build-arg JOBS=4 .
 ```
 
 ## Export and Import the Image
 ```
 # export
-docker save sserver-btc-withswitcher | gzip > sserver-btc-withswitcher.img.gz
+docker save sserver-bch-withswitcher | gzip > sserver-bch-withswitcher.img.gz
 
 # import
-docker load -i sserver-btc-withswitcher.img.gz
+docker load -i sserver-bch-withswitcher.img.gz
 ```
 
 ## Create Runtime Dirs and Config file
 
 ```
 # mkdir for sserver
-mkdir -p /work/btcpool.btc/build/run_sserver/log_sserver
+mkdir -p /work/btcpool.bcc/build/run_sserver/log_sserver
 
 # sserver.cfg
-vim /work/btcpool.btc/build/run_sserver/sserver.cfg
+vim /work/btcpool.bcc/build/run_sserver/sserver.cfg
 ```
 
 If you have an old sserver.cfg, you may want this:
 ```
-sed -i s@/btcpool.btc/@/btcpool/@g /work/btcpool.btc/build/run_sserver/sserver.cfg
+sed -i s@/btcpool.bcc/@/btcpool/@g /work/btcpool.bcc/build/run_sserver/sserver.cfg
 ```
 
 You are free to choose the path of your config/log dir.
@@ -122,8 +122,8 @@ users = {
 
 ```
 # start docker
-docker run -it -v /work/btcpool.btc/build/run_sserver:/work/btcpool/build/run_sserver --name btc-sserver --network host --restart always -d sserver-btc-withswitcher
+docker run -it -v /work/btcpool.bcc/build/run_sserver:/work/btcpool/build/run_sserver --name bch-sserver --network host --restart always -d sserver-bch-withswitcher
 
 # login
-docker exec -it btc-sserver /bin/bash
+docker exec -it bch-sserver /bin/bash
 ```
