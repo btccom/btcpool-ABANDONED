@@ -151,9 +151,12 @@ int main(int argc, char **argv) {
         cfg.lookup("kafka.out_brokers"), cfg.lookup("kafka.out_topic")
       );
 
+      int jobTimeOffset = 30;
+      readFromSetting(cfg, "share_diff_changer.job_time_offset", jobTimeOffset, true);
+
       if (!dynamic_cast<ShareDiffChangerBitcoinV1*>(gKafkaRepeater)->initStratumJobConsumer(
         cfg.lookup("share_diff_changer.job_brokers"), cfg.lookup("share_diff_changer.job_topic"),
-        cfg.lookup("share_diff_changer.job_group_id")
+        cfg.lookup("share_diff_changer.job_group_id"), jobTimeOffset
       )) {
         LOG(FATAL) << "kafka repeater init failed";
         return 1;

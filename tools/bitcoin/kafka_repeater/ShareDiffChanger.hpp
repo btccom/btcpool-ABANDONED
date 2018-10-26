@@ -34,8 +34,9 @@ public:
     // Inherit the constructor of the parent class
     using KafkaRepeater::KafkaRepeater;
 
-    bool initStratumJobConsumer(const string &jobBrocker, const string &jobTopic, const string &jobGroupId) {
+    bool initStratumJobConsumer(const string &jobBrocker, const string &jobTopic, const string &jobGroupId, int64_t jobTimeOffset) {
         jobConsumer_ = new KafkaHighLevelConsumer(jobBrocker.c_str(), jobTopic.c_str(), 0/* patition */, jobGroupId.c_str());
+        jobTimeOffset_ = jobTimeOffset;
 
         LOG(INFO) << "setup kafka consumer of stratum job...";
         if (!jobConsumer_->setup()) {
@@ -134,11 +135,13 @@ protected:
         uint64_t nTime = j["nTime"].uint64();
 
         if (nBits != bits) {
-            LOG(INFO) << "network diff changed, old bits: " << bits << ", new bits: " << nBits << ", time: " << nTime;
+            LOG(INFO) << "network diff changed, old bits: " << StringFormat("%08x", bits)
+                      << ", new bits: " << StringFormat("%08x", nBits) << ", time: " << date("%F %T", nTime)
+                      << std::endl; // you must add an endl or the log in runMessageNumberDisplayThread() may not displayed. I don't know the reason.
         }
 
         bits = nBits;
-        time = nTime;
+        time = nTime + jobTimeOffset_;
         return true;
     }
 
@@ -161,4 +164,5 @@ protected:
     
     uint64_t currentTime_ = 0;
     uint32_t currentBits_ = 0;
+    int64_t jobTimeOffset_ = 0;
 };
