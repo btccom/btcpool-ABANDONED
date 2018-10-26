@@ -1,20 +1,37 @@
-BTCPool for BTC, BCH, UBTC & SBTC
+BTCPool for Bitcoin, Ethereum, Decred, Bytom, ...
 ==================
 
 BTCPool is backend system of [https://pool.btc.com](https://pool.btc.com).
 
-> This is a version of BTCPool that supports more SHA256 blockchains. Check the **single-blockchain** version at [legacy](https://github.com/btccom/btcpool/tree/legacy) branch.
+> This is a version of BTCPool that supports more blockchains. Check the **SHA256-only** version at [master](https://github.com/btccom/btcpool/tree/master) branch.
 
-The pool backend support 4 blockchains at current:
-* [Bitcoin](https://bitcoin.org/)
-* [BitcoinCash](https://bitcoincash.org/)
-* [UnitedBitcoin](https://ub.com/)
-* [SuperBitcoin](http://supersmartbitcoin.com/)
+The pool backend support these blockchains at current:
+* SHA256
+   * [Bitcoin](https://bitcoin.org/)
+   * [BitcoinCash](https://bitcoincash.org/)
+   * [UnitedBitcoin](https://ub.com/)
+   * ~~[SuperBitcoin](http://supersmartbitcoin.com/)~~ (outdated and unmaintained)
+* ETHash / Daggerhashimoto
+   * [Ethereum](https://www.ethereum.org/)
+   * [Ethereum Classic](https://ethereumclassic.org/)
+* Others
+   * [Decred](https://www.decred.org/)
+   * [Bytom](https://bytom.io/)
+   * ~~[Siacoin](https://www.sia.tech/)~~ (not finished and need test)
+
+It also support these merged mining blockchains of SHA256 blockchains:
+* SHA256 merged mining
+   * [Namecoin](https://www.namecoin.org/)
+   * [RSK](https://www.rsk.co/)
+   * [ElastOS](https://elastos.org/)
+   * Other blockchains that compatible with [Bitcoin merged mining specification](https://en.bitcoin.it/wiki/Merged_mining_specification)
+   
+If you want merged mine more than one chains that compatible with [Bitcoin merged mining specification](https://en.bitcoin.it/wiki/Merged_mining_specification), use [merged mining proxy](https://github.com/btccom/btcpool-go-modules/tree/master/mergedMiningProxy).
 
 Note: The project is still a testbed and work in progress, all things could be changed.
 
 See Also:
-* [BTCPool's modules that writed by golang](https://github.com/btccom/btcpool-go-modules)
+* [BTCPool's golang modules](https://github.com/btccom/btcpool-go-modules)
 
 ## Architecture (need update)
 
@@ -29,7 +46,7 @@ See Also:
 3. Install `Bitcoind`, need to enable ZMQ
 4. Install `BTCPool`, see [INSTALL-BTCPool.md](docs/INSTALL-BTCPool.md)
 
-## Benchmark
+## Benchmark (outdated)
 
 We have test 100,000 miners online Benchmark. see [Benchmark-100000.md](docs/Benchmark-100000.md)
 
