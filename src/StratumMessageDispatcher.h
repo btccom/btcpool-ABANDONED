@@ -73,7 +73,7 @@ protected:
 
 class StratumMessageAgentDispatcher : public StratumMessageDispatcher {
 public:
-  explicit StratumMessageAgentDispatcher(IStratumSession &session);
+  explicit StratumMessageAgentDispatcher(IStratumSession &session, const DiffController &diffController);
 
   void handleRequest(const std::string &idStr, const std::string &method, const JsonNode &jparams, const JsonNode &jroot) override;
   void handleExMessage(const std::string &exMessage) override;
@@ -97,6 +97,8 @@ public:
 
 protected:
   IStratumSession &session_;
+  std::unique_ptr<DiffController> diffController_;
+  uint64_t curDiff_;
   std::map<uint16_t, std::unique_ptr<StratumMiner>> miners_;
 };
 

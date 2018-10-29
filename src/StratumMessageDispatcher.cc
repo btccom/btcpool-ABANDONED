@@ -92,7 +92,9 @@ struct StratumMessageExMiningSetDiff {
   boost::endian::little_uint16_buf_t count;
 };
 
-StratumMessageAgentDispatcher::StratumMessageAgentDispatcher(IStratumSession &session) : session_(session) {
+StratumMessageAgentDispatcher::StratumMessageAgentDispatcher(IStratumSession &session,
+                                                             const DiffController &diffController)
+    : session_(session), diffController_(new DiffController(diffController)), curDiff_(0) {
 }
 
 void StratumMessageAgentDispatcher::handleRequest(const string &idStr,
@@ -136,27 +138,36 @@ void StratumMessageAgentDispatcher::resetCurDiff(uint64_t curDiff) {
 }
 
 void StratumMessageAgentDispatcher::addLocalJob(LocalJob &localJob) {
+  uint64_t agentDiff = diffController_->calcCurDiff();
+  if (agentDiff != curDiff_) {
+    session_.sendSetDifficulty(localJob, agentDiff);
+    curDiff_ = agentDiff;
+  }
+
   map<uint8_t, vector<uint16_t>> newDiffs;
   for (auto &p : miners_) {
-    uint8_t oldDiff = log2(p.second->getCurDiff());
+    uint64_t curDiff = p.second->getCurDiff();
+    uint8_t oldDiff = curDiff ? log2(curDiff) : 0;
     uint8_t newDiff = log2(p.second->addLocalJob(localJob));
     if (newDiff != oldDiff) {
       newDiffs[newDiff].push_back(p.first);
     }
   }
 
-  //
-  // CMD_MINING_SET_DIFF:
-  // | magic_number(1) | cmd(1) | len (2) | diff_2_exp(1) | count(2) | session_id (2) ... |
-  //
-  //
-  // max session id count is 32,764, each message's max length is UINT16_MAX.
-  //     65535 -1-1-2-1-2 = 65,528
-  //     65,528 / 2 = 32,764
-  //
-  string data;
-  getSetDiffCommand(newDiffs, data);
-  session_.sendData(data);
+  if (!newDiffs.empty()) {
+    //
+    // CMD_MINING_SET_DIFF:
+    // | magic_number(1) | cmd(1) | len (2) | diff_2_exp(1) | count(2) | session_id (2) ... |
+    //
+    //
+    // max session id count is 32,764, each message's max length is UINT16_MAX.
+    //     65535 -1-1-2-1-2 = 65,528
+    //     65,528 / 2 = 32,764
+    //
+    string data;
+    getSetDiffCommand(newDiffs, data);
+    session_.sendData(data);
+  }
 }
 
 void StratumMessageAgentDispatcher::removeLocalJob(LocalJob &localJob) {

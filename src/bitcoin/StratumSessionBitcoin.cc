@@ -218,7 +218,7 @@ bool StratumSessionBitcoin::handleRequest_Authorize(const string &idStr,
 
 unique_ptr<StratumMessageDispatcher> StratumSessionBitcoin::createDispatcher() {
   if (isAgentClient_) {
-    return boost::make_unique<StratumMessageAgentDispatcher>(*this);
+    return boost::make_unique<StratumMessageAgentDispatcher>(*this, *getServer().defaultDifficultyController_);
   } else {
     return boost::make_unique<StratumMessageMinerDispatcher>(*this,
                                                              createMiner(clientAgent_,

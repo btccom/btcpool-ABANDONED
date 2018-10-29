@@ -38,9 +38,9 @@ StratumMiner::StratumMiner(IStratumSession &session,
                            const string &clientAgent,
                            const string &workerName,
                            int64_t workerId)
-    : session_(session), diffController_(new DiffController(diffController)), clientAgent_(clientAgent),
-      isNiceHashClient_(isNiceHashAgent(clientAgent)), workerName_(workerName), workerId_(workerId),
-      invalidSharesCounter_(INVALID_SHARE_SLIDING_WINDOWS_SIZE) {
+    : session_(session), diffController_(new DiffController(diffController)), curDiff_(0), clientAgent_(clientAgent)
+    , isNiceHashClient_(isNiceHashAgent(clientAgent)), workerName_(workerName), workerId_(workerId)
+    , invalidSharesCounter_(INVALID_SHARE_SLIDING_WINDOWS_SIZE) {
 }
 
 void StratumMiner::setMinDiff(uint64_t minDiff) {

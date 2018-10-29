@@ -121,9 +121,11 @@ public:
   MOCK_METHOD1(removeLocalJob, void (const LocalJob &));
 };
 
+static DiffController diffController(0x4000, 0x4000000000000000, 0x2, 10, 3000);
+
 TEST(StratumSession, StratumClientAgentHandler_RegisterWorker) {
   StratumSessionMock connection;
-  StratumMessageAgentDispatcher agent(connection);
+  StratumMessageAgentDispatcher agent(connection, diffController);
 
   // | magic_number(1) | cmd(1) | len (2) | session_id(2) | clientAgent | worker_name |
   string exMessage;
@@ -165,7 +167,7 @@ TEST(StratumSession, StratumClientAgentHandler_RegisterWorker) {
 
 TEST(StratumSession, StratumClientAgentHandler_RegisterWorker2) {
   StratumSessionMock connection;
-  StratumMessageAgentDispatcher agent(connection);
+  StratumMessageAgentDispatcher agent(connection, diffController);
 
   // | magic_number(1) | cmd(1) | len (2) | session_id(2) | clientAgent | worker_name |
   string exMessage;
@@ -207,7 +209,7 @@ TEST(StratumSession, StratumClientAgentHandler_RegisterWorker2) {
 
 TEST(StratumSession, StratumClientAgentHandler_RegisterWorker3) {
   StratumSessionMock connection;
-  StratumMessageAgentDispatcher agent(connection);
+  StratumMessageAgentDispatcher agent(connection, diffController);
 
   // | magic_number(1) | cmd(1) | len (2) | session_id(2) | clientAgent | worker_name |
   string exMessage;
@@ -249,7 +251,7 @@ TEST(StratumSession, StratumClientAgentHandler_RegisterWorker3) {
 
 TEST(StratumSession, StratumClientAgentHandler_RegisterWorker4) {
   StratumSessionMock session;
-  StratumMessageAgentDispatcher agent(session);
+  StratumMessageAgentDispatcher agent(session, diffController);
 
   // | magic_number(1) | cmd(1) | len (2) | session_id(2) | clientAgent | worker_name |
   string exMessage;
@@ -356,7 +358,7 @@ TEST(StratumSession, StratumClientAgentHandler_RegisterWorker4) {
 
 TEST(StratumSession, StratumClientAgentHandler_SubmitShare) {
   StratumSessionMock connection;
-  StratumMessageAgentDispatcher agent(connection);
+  StratumMessageAgentDispatcher agent(connection, diffController);
 
   //
   // CMD_SUBMIT_SHARE / CMD_SUBMIT_SHARE_WITH_TIME:
@@ -407,7 +409,7 @@ TEST(StratumSession, StratumClientAgentHandler_SubmitShare) {
 
 TEST(StratumSession, StratumClientAgentHandler_SubmitShare_with_time) {
   StratumSessionMock connection;
-  StratumMessageAgentDispatcher agent(connection);
+  StratumMessageAgentDispatcher agent(connection, diffController);
 
   //
   // CMD_SUBMIT_SHARE / CMD_SUBMIT_SHARE_WITH_TIME:
@@ -461,7 +463,7 @@ TEST(StratumSession, StratumClientAgentHandler_SubmitShare_with_time) {
 
 TEST(StratumSession, StratumClientAgentHandler_UNREGISTER_WORKER) {
   StratumSessionMock connection;
-  StratumMessageAgentDispatcher agent(connection);
+  StratumMessageAgentDispatcher agent(connection, diffController);
   //
   // CMD_UNREGISTER_WORKER:
   // | magic_number(1) | cmd(1) | len(2) | session_id(2) |
@@ -496,7 +498,7 @@ TEST(StratumSession, StratumClientAgentHandler_UNREGISTER_WORKER) {
 
 TEST(StratumSession, StratumClientAgentHandler) {
   StratumSessionMock connection;
-  StratumMessageAgentDispatcher agent(connection);
+  StratumMessageAgentDispatcher agent(connection, diffController);
 
   map<uint8_t, vector<uint16_t> > diffSessionIds;
   string data;
