@@ -40,7 +40,8 @@ static ostream& operator<<(ostream& os, const GetWorkDecred& work)
 {
   os << "data = " << work.data << ", target = " << work.target
      << ", created at = " << work.createdAt << ", height = " << work.height
-     << ", network = " << static_cast<uint32_t>(work.network);
+     << ", network = " << static_cast<uint32_t>(work.network) << ", voters = " << work.voters
+     << ", size = " << work.size;
   return os;
 }
 
@@ -102,20 +103,28 @@ bool JobMakerHandlerDecred::processMsg(JsonNode &j)
   auto target = j["target"].str();
   auto createdAt = j["created_at_ts"].uint32();
   auto network = static_cast<NetworkDecred>(j["network"].uint32());
+  auto votersString = data.substr(OFFSET_AND_SIZE_DECRED(voters));
+  auto voters = boost::endian::little_to_native(static_cast<uint16_t>(strtoul(votersString.c_str(), nullptr, 16)));
+  auto sizeString = data.substr(OFFSET_AND_SIZE_DECRED(size));
+  auto size = boost::endian::little_to_native(static_cast<uint32_t>(strtoul(sizeString.c_str(), nullptr, 16)));
   auto heightString = data.substr(OFFSET_AND_SIZE_DECRED(height));
   auto height = boost::endian::little_to_native(static_cast<uint32_t>(strtoul(heightString.c_str(), nullptr, 16)));
-  if (height == 0) {
-    LOG(ERROR) << "current work has a zero block height: data = " << data << ", target = " << target << ", created at = " << createdAt;
+  if (voters == 0 || size == 0 || height == 0) {
+    LOG(ERROR) << "current work is invalid: data = " << data << ", target = " << target << ", created at = " << createdAt;
     return false;
   }
 
-  // The rightmost element with the equivalent network has the highest height due to the nature of composite key
+  // The rightmost element with the equivalent network has the highest height/voters/size due to the nature of composite key
   uint32_t bestHeight = 0;
+  uint16_t bestVoters = 0;
+  uint32_t bestSize = 0;
   auto &works = works_.get<ByBestBlockDecred>();
   auto r = works.equal_range(network);
   if (r.first != works.end()) {
     auto &bestWork = *(--r.second);
     bestHeight = bestWork.height;
+    bestVoters = bestWork.voters;
+    bestSize = bestWork.size;
     auto bestTime = bestWork.createdAt;
 
     // To prevent the job's block height ups and downs
@@ -129,21 +138,27 @@ bool JobMakerHandlerDecred::processMsg(JsonNode &j)
     }
   }
 
-  auto p = works_.emplace(data, target, createdAt, height, network);
+  auto p = works_.emplace(data, target, createdAt, height, network, size, voters);
   auto& work = *p.first;
   if (!p.second) {
     LOG(ERROR) << "current work is duplicated with a previous work: " << work << ", current created at = " << createdAt;
     return false;
   }
 
-  if (height <= bestHeight) {
-    if (height < bestHeight) {
-      LOG(WARNING) << "current work has a lower height: " << work << ", best height = " << bestHeight;
+  if (height < bestHeight) {
+    LOG(WARNING) << "current work has a lower height: " << work << ", best height = " << bestHeight;
+    return false;
+  }
+
+  if (height == bestHeight) {
+    if (voters > bestVoters || (voters == bestVoters && size > bestSize)) {
+      LOG(INFO) << "current work is triggering a new job: " << work;
+      return true;
     }
     return false;
   }
 
-  LOG(INFO) << "current work is added: " << work;
+  LOG(INFO) << "current work is triggering a new job: " << work;
   return true;
 }
 
@@ -188,7 +203,7 @@ void JobMakerHandlerDecred::clearTimeoutWorks()
   auto iend = works.end();
   while (iter != iend) {
     if (iter->createdAt + def()->workLifeTime_ < tsNow) {
-      LOG(INFO) << "remove an expired work: " << *iter;
+      DLOG(INFO) << "remove an expired work: " << *iter;
       works.erase(iter++);
     } else {
       // There is no need to continue as this index is ordered by creation time

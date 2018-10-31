@@ -36,8 +36,14 @@
 #include <boost/multi_index/tag.hpp>
 
 struct GetWorkDecred {
-  GetWorkDecred(const string& data, const string& target, uint32_t createdAt, uint32_t height, NetworkDecred network)
-    : data(data), target(target), createdAt(createdAt), height(height), network(network)
+  GetWorkDecred(const string &data,
+                const string &target,
+                uint32_t createdAt,
+                uint32_t height,
+                NetworkDecred network,
+                uint32_t size,
+                uint16_t voters)
+    : data(data), target(target), createdAt(createdAt), height(height), network(network), size(size), voters(voters)
   {
   }
 
@@ -46,6 +52,8 @@ struct GetWorkDecred {
   uint32_t createdAt;
   uint32_t height;
   NetworkDecred network;
+  uint32_t size;
+  uint16_t voters;
 };
 
 struct ByBestBlockDecred {};
@@ -53,7 +61,7 @@ struct ByCreationTimeDecred {};
 struct ByDataDecred {};
 
 // The getwork job dimensions
-// - Height + creation time: ordered non-unique for best block retrieval
+// - Height + voters + size + creation time: ordered non-unique for best block retrieval
 // - Creation time: ordered non-unique for timeout handling
 // - Data: hashed unique for duplication checks
 using GetWorkDecredMap = boost::multi_index_container<
@@ -65,6 +73,8 @@ using GetWorkDecredMap = boost::multi_index_container<
         GetWorkDecred,
         boost::multi_index::member<GetWorkDecred, NetworkDecred, &GetWorkDecred::network>,
         boost::multi_index::member<GetWorkDecred, uint32_t, &GetWorkDecred::height>,
+        boost::multi_index::member<GetWorkDecred, uint16_t, &GetWorkDecred::voters>,
+        boost::multi_index::member<GetWorkDecred, uint32_t, &GetWorkDecred::size>,
         boost::multi_index::member<GetWorkDecred, uint32_t, &GetWorkDecred::createdAt>
       >
     >,
