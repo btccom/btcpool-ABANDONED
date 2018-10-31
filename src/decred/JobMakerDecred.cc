@@ -104,11 +104,11 @@ bool JobMakerHandlerDecred::processMsg(JsonNode &j)
   auto createdAt = j["created_at_ts"].uint32();
   auto network = static_cast<NetworkDecred>(j["network"].uint32());
   auto votersString = data.substr(OFFSET_AND_SIZE_DECRED(voters));
-  auto voters = boost::endian::little_to_native(static_cast<uint16_t>(strtoul(votersString.c_str(), nullptr, 16)));
+  auto voters = boost::endian::big_to_native(static_cast<uint16_t>(strtoul(votersString.c_str(), nullptr, 16)));
   auto sizeString = data.substr(OFFSET_AND_SIZE_DECRED(size));
-  auto size = boost::endian::little_to_native(static_cast<uint32_t>(strtoul(sizeString.c_str(), nullptr, 16)));
+  auto size = boost::endian::big_to_native(static_cast<uint32_t>(strtoul(sizeString.c_str(), nullptr, 16)));
   auto heightString = data.substr(OFFSET_AND_SIZE_DECRED(height));
-  auto height = boost::endian::little_to_native(static_cast<uint32_t>(strtoul(heightString.c_str(), nullptr, 16)));
+  auto height = boost::endian::big_to_native(static_cast<uint32_t>(strtoul(heightString.c_str(), nullptr, 16)));
   if (size == 0 || height == 0) {
     LOG(ERROR) << "current work is invalid: data = " << data << ", target = " << target << ", created at = " << createdAt;
     return false;
