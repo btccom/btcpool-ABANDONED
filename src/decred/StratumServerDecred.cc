@@ -42,6 +42,7 @@ static ostream& operator<<(ostream& os, const StratumJobDecred& job)
 JobRepositoryDecred::JobRepositoryDecred(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerDecred *server)
   : JobRepositoryBase<ServerDecred>(kafkaBrokers, consumerTopic, fileLastNotifyTime, server)
   , lastHeight_(0)
+  , lastVoters_(0)
 {
 }
 
@@ -67,6 +68,9 @@ void JobRepositoryDecred::broadcastStratumJob(StratumJob *sjob)
     lastHeight_ = height;
   }
 
+  auto voters = jobDecred->header_.voters.value();
+  bool moreVoters = voters > lastVoters_;
+
   shared_ptr<StratumJobEx> jobEx(createStratumJobEx(jobDecred, isClean));
   {
     ScopeLock sl(lock_);
@@ -83,7 +87,9 @@ void JobRepositoryDecred::broadcastStratumJob(StratumJob *sjob)
     exJobs_[jobDecred->jobId_] = jobEx;
   }
 
-  if (isClean) {
+  // We want to update jobs immediately if there are more voters for the same height block
+  if (isClean || moreVoters) {
+    lastVoters_ = voters;
     sendMiningNotify(jobEx);
   }
 }

@@ -39,6 +39,7 @@ public:
 
 private:
   uint32_t lastHeight_;
+  uint16_t lastVoters_;
 };
 
 class ServerDecred : public ServerBase<JobRepositoryDecred> {
