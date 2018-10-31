@@ -109,7 +109,7 @@ bool JobMakerHandlerDecred::processMsg(JsonNode &j)
   auto size = boost::endian::little_to_native(static_cast<uint32_t>(strtoul(sizeString.c_str(), nullptr, 16)));
   auto heightString = data.substr(OFFSET_AND_SIZE_DECRED(height));
   auto height = boost::endian::little_to_native(static_cast<uint32_t>(strtoul(heightString.c_str(), nullptr, 16)));
-  if (voters == 0 || size == 0 || height == 0) {
+  if (size == 0 || height == 0) {
     LOG(ERROR) << "current work is invalid: data = " << data << ", target = " << target << ", created at = " << createdAt;
     return false;
   }
