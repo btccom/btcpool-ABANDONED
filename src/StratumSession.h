@@ -175,9 +175,11 @@ public:
     }
 
     bool operator<(const LocalShare &r) const {
-      int n = memcmp((const uint8_t *)&exNonce2_, (const uint8_t *)&(r.exNonce2_), sizeof(struct LocalShare));
-      if (n < 0) {
-          return true;
+      if (exNonce2_ < r.exNonce2_ ||
+          (exNonce2_ == r.exNonce2_ && nonce_ < r.nonce_) ||
+          (exNonce2_ == r.exNonce2_ && nonce_ == r.nonce_ && time_ < r.time_) ||
+          (exNonce2_ == r.exNonce2_ && nonce_ == r.nonce_ && time_ == r.time_ && versionMask_ < r.versionMask_)) {
+        return true;
       }
       return false;
     }
