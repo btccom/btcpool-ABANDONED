@@ -57,8 +57,8 @@ public:
   void resetCurDiff(uint64_t curDiff);
   uint64_t getCurDiff() const { return curDiff_; };
   uint64_t calcCurDiff();
-  virtual uint64_t addLocalJob(const LocalJob &localJob) = 0;
-  virtual void removeLocalJob(const LocalJob &localJob) = 0;
+  virtual uint64_t addLocalJob(LocalJob &localJob) = 0;
+  virtual void removeLocalJob( LocalJob &localJob) = 0;
 
 protected:
   bool handleShare(const std::string &idStr, int32_t status, uint64_t shareDiff);
@@ -85,6 +85,9 @@ protected:
                    const std::string &workerName,
                    int64_t workerId)
       : StratumMiner(session, diffController, clientAgent, workerName, workerId) {
+    for (auto &localJob : session.getLocalJobs()) {
+      addLocalJob(localJob);
+    }
   }
 
 public:
@@ -92,14 +95,14 @@ public:
     return static_cast<SessionType &>(session_);
   }
 
-  uint64_t addLocalJob(const LocalJob &localJob) override {
+  uint64_t addLocalJob(LocalJob &localJob) override {
     uint64_t curDiff = calcCurDiff();
     // Overload the assignment operator of JobDiffType to add customizations
     jobDiffs_[&localJob] = curDiff;
     return curDiff;
   }
 
-  void removeLocalJob(const LocalJob &localJob) override {
+  void removeLocalJob(LocalJob &localJob) override {
     jobDiffs_.erase(&localJob);
   }
 

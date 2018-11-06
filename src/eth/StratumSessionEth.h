@@ -60,6 +60,7 @@ private:
   StratumProtocolEth ethProtocol_;
   // Record the difficulty of the last time sent to the miner in NICEHASH_STRATUM protocol.
   uint64_t nicehashLastSentDiff_;
+  uint64_t currentJobDiff_;
 };
 
 #endif  // #ifndef STRATUM_SESSION_ETH_H_

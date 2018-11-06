@@ -46,13 +46,15 @@ StratumSessionEth::StratumSessionEth(ServerEth &server,
                                      struct bufferevent *bev,
                                      struct sockaddr *saddr,
                                      uint32_t extraNonce1)
-    : StratumSessionBase(server, bev, saddr, extraNonce1), ethProtocol_(StratumProtocolEth::ETHPROXY),
-      nicehashLastSentDiff_(0) {
+    : StratumSessionBase(server, bev, saddr, extraNonce1)
+    , ethProtocol_(StratumProtocolEth::ETHPROXY)
+    , nicehashLastSentDiff_(0)
+    , currentJobDiff_(0){
 }
 
 void StratumSessionEth::sendSetDifficulty(LocalJob &localJob, uint64_t difficulty) {
   // Some ETH stratum variants have no set difficulty method, but change the target directly
-  static_cast<StratumTraitsEth::LocalJobType &>(localJob).currentJobDiff_ = difficulty;
+  currentJobDiff_ = difficulty;
 }
 
 void StratumSessionEth::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
@@ -91,16 +93,11 @@ void StratumSessionEth::sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr
   // create a new LocalJobEth if not exists
   if (ljob == nullptr) {
     ljob = &addLocalJob(ethJob->jobId_, header);
+  } else {
+    dispatcher_->addLocalJob(*ljob);
   }
 
-  string strShareTarget;
-  if (ljob->currentJobDiff_ == 0) {
-    // When we are using agent, the job difficulty shall remain the network target
-    ljob->currentJobDiff_ = Eth_TargetToDifficulty(ethJob->networkTarget_);
-    strShareTarget = ethJob->networkTarget_.GetHex();
-  } else {
-    strShareTarget = Eth_DifficultyToTarget(ljob->currentJobDiff_);
-  }
+  string strShareTarget = Eth_DifficultyToTarget(currentJobDiff_);
 
   // extraNonce1_ == Session ID, 24 bits.
   // Miners will fills 0 after the prefix to 64 bits.
@@ -109,7 +106,7 @@ void StratumSessionEth::sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr
   // Tips: NICEHASH_STRATUM use an extrNnonce, it is really an extraNonce (not startNonce)
   // and is sent at the subscribe of the session.
 
-  DLOG(INFO) << "new eth stratum job mining.notify: share difficulty=" << std::hex << ljob->currentJobDiff_
+  DLOG(INFO) << "new eth stratum job mining.notify: share difficulty=" << std::hex << currentJobDiff_
              << ", share target=" << strShareTarget << ", protocol=" << getProtocolString(ethProtocol_);
   string strNotify;
 
@@ -156,15 +153,15 @@ void StratumSessionEth::sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr
     break;
   case StratumProtocolEth::NICEHASH_STRATUM: {
     // send new difficulty
-    if (ljob->currentJobDiff_ != nicehashLastSentDiff_) {
+    if (currentJobDiff_ != nicehashLastSentDiff_) {
       // NICEHASH_STRATUM mining.set_difficulty
       // {"id": null,
       //  "method": "mining.set_difficulty",
       //  "params": [ 0.5 ]
       // }
       strNotify += Strings::Format("{\"id\":%s,\"method\":\"mining.set_difficulty\","
-                                   "\"params\":[%lf]}\n", idStr.c_str(), Eth_DiffToNicehashDiff(ljob->currentJobDiff_));
-      nicehashLastSentDiff_ = ljob->currentJobDiff_;
+                                   "\"params\":[%lf]}\n", idStr.c_str(), Eth_DiffToNicehashDiff(currentJobDiff_));
+      nicehashLastSentDiff_ = currentJobDiff_;
     }
 
     // NICEHASH_STRATUM mining.notify

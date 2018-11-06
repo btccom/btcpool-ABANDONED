@@ -117,8 +117,8 @@ public:
 
   MOCK_METHOD4(handleRequest, void (const string &, const string &, const JsonNode &, const JsonNode &));
   MOCK_METHOD1(handleExMessage, void (const string &));
-  MOCK_METHOD1(addLocalJob, uint64_t (const LocalJob &));
-  MOCK_METHOD1(removeLocalJob, void (const LocalJob &));
+  MOCK_METHOD1(addLocalJob, uint64_t (LocalJob &));
+  MOCK_METHOD1(removeLocalJob, void (LocalJob &));
 };
 
 static DiffController diffController(0x4000, 0x4000000000000000, 0x2, 10, 3000);

@@ -199,6 +199,9 @@ public:
       localJobs_.pop_front();
     }
   }
+
+  std::deque<LocalJobType> &getLocalJobs() { return localJobs_; }
+
   inline ServerType &getServer() const
   {
     return static_cast<ServerType &>(server_);
