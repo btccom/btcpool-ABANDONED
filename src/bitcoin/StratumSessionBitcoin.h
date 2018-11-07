@@ -54,6 +54,9 @@ private:
   uint8_t allocShortJobId();
 
   uint8_t shortJobIdIdx_;
+  
+  uint32_t versionMask_; // version mask that the miner wants
+  uint64_t suggestedMinDiff_; // min difficulty that the miner wants
 };
 
 #endif  // #ifndef STRATUM_SESSION_BITCOIN_H_

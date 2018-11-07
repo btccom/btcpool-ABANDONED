@@ -115,7 +115,7 @@ void StratumMinerBitcoin::handleRequest_SuggestTarget(const string &idStr,
     session.responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
     return;
   }
-  resetCurDiff(TargetToDiff(jparams.children()->at(0).str()));
+  resetCurDiff(formatDifficulty(TargetToDiff(jparams.children()->at(0).str())));
 }
 
 void StratumMinerBitcoin::handleExMessage_SubmitShare(const std::string &exMessage, bool isWithTime) {
