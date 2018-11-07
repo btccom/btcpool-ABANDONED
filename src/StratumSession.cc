@@ -222,6 +222,7 @@ bev_(bev), fd_(fd), server_(server)
 {
   state_ = CONNECTED;
   currDiff_    = 0U;
+  versionMask_ = 0U;
   extraNonce1_ = extraNonce1;
 
   // usually stratum job interval is 30~60 seconds, 10 is enough for miners
@@ -274,13 +275,13 @@ void StratumSession::markAsDead() {
                                 "\"user_id\":%d,\"user_name\":\"%s\","
                                 "\"worker_name\":\"%s\","
                                 "\"client_agent\":\"%s\",\"ip\":\"%s\","
-                                "\"session_id\":\"%08x\""
+                                "\"session_id\":\"%08x\",\"version_mask\":\"%08x\""
                                 "}}",
                                 date("%F %T").c_str(),
                                 worker_.userId_, worker_.userName_.c_str(),
                                 worker_.workerName_.c_str(),
                                 clientAgent_.c_str(), clientIp_.c_str(),
-                                extraNonce1_);
+                                extraNonce1_, versionMask_);
     server_->sendCommonEvents2Kafka(eventJson);
   }
 }
@@ -411,37 +412,111 @@ void StratumSession::handleRequest_MultiVersion(const string &idStr,
 
 void StratumSession::handleRequest_MiningConfigure(const string &idStr,
                                                    const JsonNode &jparams) {
-  if (jparams.children()->size() < 1) {
+  if (jparams.children()->size() < 2 ||
+      jparams.children()->at(0).type() != Utilities::JS::type::Array ||
+      jparams.children()->at(1).type() != Utilities::JS::type::Obj) {
     responseError(idStr, StratumError::ILLEGAL_PARARMS);
     return;
   }
 
   //
-  // {"id": 1, "method": "mining.configure",
-  //  "params": [
-  //              ["version-rolling"],
-  //              {"version-rolling.bit-count": 2, "version-rolling.mask": "ffffffff" }
-  //            ]
+  // {
+  //   "method": "mining.configure",
+  //   "id": 1,
+  //   "params":
+  //     [
+  //       ["minimum-difficulty", "version-rolling"],
+  //       {
+  //         "minimum-difficulty.value": 2048,
+  //         "version-rolling.mask": "1fffe000",
+  //         "version-rolling.min-bit-count": 2
+  //       }
+  //     ]
   // }
   //
-  auto params0 = jparams.children()->at(0);
-  if (params0.type()                  == Utilities::JS::type::Array &&
-      params0.children()->size()      >= 1 &&
-      params0.children()->at(0).str() == "version-rolling") {
-    string s;
-    //
-    // send true: "version-rolling\":true
-    //
-    s = Strings::Format("{\"id\":%s,\"result\":{\"version-rolling\":true,"
-                        "\"version-rolling.mask\":\"%08x\"},\"error\":null}\n",
-                        idStr.c_str(), server_->getVersionMask());
-    sendData(s);
+  // {
+  //   "error": null,
+  //   "id": 1,
+  // 	 "result":
+  //     {
+  // 		  "version-rolling": true,
+  // 		  "version-rolling.mask": "18000000",
+  // 		  "minimum-difficulty": true
+  // 	   }
+  // }
+  // 
+  auto extensions = jparams.children()->at(0).array();
+  JsonNode options = jparams.children()->at(1);
+  std::map<string, string> results;
 
-    //
-    // mining.set_version_mask
-    //
+  for (const auto &ext : extensions) {
+    if (ext.type() != Utilities::JS::type::Str) {
+      continue;
+    }
+    const string name = ext.str();
+    
+    //------------------------------------------------------------
+    if (name == "minimum-difficulty") {
+      auto diffNode = options["minimum-difficulty.value"];
+      if (diffNode.type() != Utilities::JS::type::Int) {
+        results["minimum-difficulty"] = "false";
+        continue;
+      }
+
+      uint64_t md = formatDifficulty(diffNode.uint64());
+      if (md < DiffController::kMinDiff_) {
+        results["minimum-difficulty"] = "false";
+        continue;
+      }
+
+      // set min diff
+      diffController_.setMinDiff(md);
+      results["minimum-difficulty"] = "true";
+
+    } //----------------------------------------------------------
+    else if (name == "version-rolling") {
+      auto maskNode = options["version-rolling.mask"];
+      if (maskNode.type() != Utilities::JS::type::Str) {
+        results["version-rolling"] = "false";
+        continue;
+      }
+      
+      versionMask_ = maskNode.uint32_hex();
+      results["version-rolling"] = "true";
+      results["version-rolling.mask"] = Strings::Format("\"%08x\"", versionMask_ & server_->getVersionMask());
+
+    } //----------------------------------------------------------
+    else {
+      results[name] = "false";
+    }
+    //------------------------------------------------------------
+  }
+
+  string resultStr;
+
+  // c++ map to json object
+  if (!results.empty()) {
+    auto itr=results.begin();
+    resultStr += "\"" + itr->first + "\":" + itr->second;
+    
+    while (++itr != results.end()) {
+      resultStr += ",\"" + itr->first + "\":" + itr->second;
+    }
+  }
+  
+  //
+  // send result of mining.configure
+  //
+  string s = Strings::Format("{\"id\":%s,\"result\":{%s},\"error\":null}\n",
+                             idStr.c_str(), resultStr.c_str());
+  sendData(s);
+
+  //
+  // mining.set_version_mask
+  //
+  if (versionMask_ != 0) {
     s = Strings::Format("{\"id\":null,\"method\":\"mining.set_version_mask\",\"params\":[\"%08x\"]}\n",
-                        server_->getVersionMask());
+                        versionMask_ & server_->getVersionMask());
     sendData(s);
   }
 }
@@ -641,8 +716,10 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
   worker_.setUserIDAndNames(userId, fullName);
   server_->userInfo_->addWorker(worker_.userId_, worker_.workerHashId_,
                                 worker_.workerName_, clientAgent_);
-  DLOG(INFO) << "userId: " << worker_.userId_
-  << ", wokerHashId: " << worker_.workerHashId_ << ", workerName:" << worker_.workerName_;
+
+  LOG(INFO) << "authorize success: userId: " << worker_.userId_ << ", wokerHashId: " << worker_.workerHashId_
+            << ", workerName:" << worker_.fullName_ << ", versionMask: " << Strings::Format("%08x", versionMask_)
+            << ", clientAgent: " << clientAgent_ << ", clientIp: " << clientIp_;
 
   // set read timeout to 10 mins, it's enought for most miners even usb miner.
   // if it's a pool watcher, set timeout to a week
@@ -660,13 +737,13 @@ void StratumSession::handleRequest_Authorize(const string &idStr,
                                 "\"user_id\":%d,\"user_name\":\"%s\","
                                 "\"worker_name\":\"%s\","
                                 "\"client_agent\":\"%s\",\"ip\":\"%s\","
-                                "\"session_id\":\"%08x\""
+                                "\"session_id\":\"%08x\",\"version_mask\":\"%08x\""
                                 "}}",
                                 date("%F %T").c_str(),
                                 worker_.userId_, worker_.userName_.c_str(),
                                 worker_.workerName_.c_str(),
                                 clientAgent_.c_str(), clientIp_.c_str(),
-                                extraNonce1_);
+                                extraNonce1_, versionMask_);
     server_->sendCommonEvents2Kafka(eventJson);
   }
 }
