@@ -97,6 +97,12 @@ StratumMessageAgentDispatcher::StratumMessageAgentDispatcher(IStratumSession &se
     : session_(session), diffController_(new DiffController(diffController)), curDiff_(0) {
 }
 
+StratumMessageAgentDispatcher::~StratumMessageAgentDispatcher() {
+  while (!miners_.empty()) {
+    unregisterWorker(miners_.begin()->first);
+  }
+}
+
 void StratumMessageAgentDispatcher::handleRequest(const string &idStr,
                                                   const string &method,
                                                   const JsonNode &jparams,

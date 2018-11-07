@@ -74,6 +74,7 @@ protected:
 class StratumMessageAgentDispatcher : public StratumMessageDispatcher {
 public:
   explicit StratumMessageAgentDispatcher(IStratumSession &session, const DiffController &diffController);
+  ~StratumMessageAgentDispatcher();
 
   void handleRequest(const std::string &idStr, const std::string &method, const JsonNode &jparams, const JsonNode &jroot) override;
   void handleExMessage(const std::string &exMessage) override;
