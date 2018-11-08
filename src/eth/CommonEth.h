@@ -34,6 +34,7 @@
 ////////////////////////////// for Eth //////////////////////////////
 string Eth_DifficultyToTarget(uint64 diff);
 uint64 Eth_TargetToDifficulty(string target);
+uint64 Eth_TargetToDifficulty(const uint256 &target);
 void Hex256ToEthash256(const string &strHex, ethash_h256_t &ethashHeader);
 void Uint256ToEthash256(const uint256 hash, ethash_h256_t &ethashHeader);
 uint256 Ethash256ToUint256(const ethash_h256_t &ethashHeader);

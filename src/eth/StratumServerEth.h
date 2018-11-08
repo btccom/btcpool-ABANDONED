@@ -52,8 +52,7 @@ public:
                                     const char *consumerTopic,
                                      const string &fileLastNotifyTime) override;
 
-  StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
-                               struct sockaddr *saddr, const uint32_t sessionID) override;
+  unique_ptr<StratumSession> createConnection(struct bufferevent *bev, struct sockaddr *saddr, const uint32_t sessionID) override;
 };
 
 class JobRepositoryEth : public JobRepositoryBase<ServerEth>

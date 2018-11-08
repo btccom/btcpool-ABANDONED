@@ -21,40 +21,27 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-#ifndef STRATUM_SIA_H_
-#define STRATUM_SIA_H_
+#ifndef STRATUM_MINER_SIA_H_
+#define STRATUM_MINER_SIA_H_
 
-#include "Stratum.h"
-#include <uint256.h>
+#include "StratumMiner.h"
+#include "StratumServerSia.h"
 
-class StratumJobSia : public StratumJob
-{
+class StratumMinerSia : public StratumMinerBase<StratumTraitsSia> {
 public:
-  uint32_t nTime_;
-  string blockHashForMergedMining_;
-  uint256 networkTarget_;
+  StratumMinerSia(StratumSessionSia &session,
+                  const DiffController &diffController,
+                  const std::string &clientAgent,
+                  const std::string &workerName,
+                  int64_t workerId);
 
-public:
-  StratumJobSia();
-  ~StratumJobSia();
-  string serializeToJson() const override;
-  bool unserializeFromJson(const char *s, size_t len) override;
-  uint32 jobTime() const override { return nTime_; }
+  void handleRequest(const std::string &idStr,
+                     const std::string &method,
+                     const JsonNode &jparams,
+                     const JsonNode &jroot) override;
+
+private:
+  void handleRequest_Submit(const string &idStr, const JsonNode &jparams);
 };
 
-class ServerSia;
-class StratumSessionSia;
-
-struct StratumTraitsSia {
-  using ServerType = ServerSia;
-  using SessionType = StratumSessionSia;
-  using JobDiffType = uint64_t;
-  struct LocalJobType : public LocalJob {
-    LocalJobType(uint64_t jobId, uint8_t shortJobId)
-        : LocalJob(jobId), shortJobId_(shortJobId), jobDifficulty_(0) {}
-    bool operator==(uint8_t shortJobId) const { return shortJobId_ == shortJobId; }
-    uint8_t shortJobId_;
-    uint64_t jobDifficulty_;
-  };
-};
-#endif
+#endif // #ifndef STRATUM_MINER_SIA_H_

@@ -265,7 +265,7 @@ class Server {
   struct event_base* base_;
   struct event* signal_event_;
   struct evconnlistener* listener_;
-  std::map<evutil_socket_t, StratumSession *> connections_;
+  std::set<unique_ptr<StratumSession>> connections_;
   mutex connsLock_;
 
 public:
@@ -318,8 +318,8 @@ public:
 
   void sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr);
 
-  void addConnection   (StratumSession *connection);
-  void removeConnection(StratumSession *connection);
+  void addConnection(unique_ptr<StratumSession> connection);
+  void removeConnection(StratumSession &connection);
 
   static void listenerCallback(struct evconnlistener* listener,
                                evutil_socket_t socket,
@@ -331,10 +331,7 @@ public:
   void sendShare2Kafka      (const uint8_t *data, size_t len);
   void sendCommonEvents2Kafka(const string &message);
 
-  void addSessionConnection();
-
-  virtual StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
-                               struct sockaddr *saddr, const uint32_t sessionID) = 0;
+  virtual unique_ptr<StratumSession> createConnection(struct bufferevent *bev, struct sockaddr *saddr, uint32_t sessionID) = 0;
 
 protected:
   virtual JobRepository* createJobRepository(const char *kafkaBrokers,

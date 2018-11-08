@@ -21,33 +21,44 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
+
 #ifndef STRATUM_SESSION_BYTOM_H_
 #define STRATUM_SESSION_BYTOM_H_
 
 #include "StratumSession.h"
 #include "StratumServerBytom.h"
 
-class StratumSessionBytom : public StratumSessionBase<ServerBytom>
-{
+class StratumSessionBytom : public StratumSessionBase<StratumTraitsBytom> {
 public:
-  StratumSessionBytom(evutil_socket_t fd, struct bufferevent *bev,
-                    ServerBytom *server, struct sockaddr *saddr,
-                    const int32_t shareAvgSeconds, const uint32_t extraNonce1);
-  void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false) override;  
-  bool validate(const JsonNode &jmethod, const JsonNode &jparams) override;
-  bool needToSendLoginResponse() const override {return false;}
+  StratumSessionBytom(ServerBytom &server,
+                      struct bufferevent *bev,
+                      struct sockaddr *saddr,
+                      uint32_t extraNonce1);
 
+  void rpc2ResponseBoolean(const string &idStr, bool result, const string& failMessage = "");
+  void sendSetDifficulty(LocalJob &localJob, uint64_t difficulty) override;
+  void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) override;
+  void responseTrue(const string &idStr) override { return rpc2ResponseBoolean(idStr, true); };
 
 protected:
-  void handleRequest_Authorize(const string &idStr, const JsonNode &jparams, const JsonNode &jroot) override;
-  void handleRequest_Subscribe(const string &idStr, const JsonNode &jparams) override { }
-  void handleRequest_GetWork(const string &idStr, const JsonNode &jparams) override; 
-  void handleRequest_Submit   (const string &idStr, const JsonNode &jparams) override;   
-  
-private:
-  void Bytom_rpc2ResponseBoolean(const string &idStr, bool result, const string& failMessage = "");
+  bool validate(const JsonNode &jmethod, const JsonNode &jparams) override;
+  bool isSubscribe(const std::string &method) const override { return false; } // Bytom has no subscribe...yet
+  bool isAuthorize(const std::string &method) const override { return method == "login"; }
+  void handleRequest_Subscribe(const std::string &idStr,
+                               const JsonNode &jparams,
+                               const JsonNode &jroot) override {}
+  bool handleRequest_Authorize(const std::string &idStr,
+                               const JsonNode &jparams,
+                               const JsonNode &jroot,
+                               std::string &fullName,
+                               std::string &password) override;
+public:
+  std::unique_ptr<StratumMiner> createMiner(const std::string &clientAgent,
+                                            const std::string &workerName,
+                                            int64_t workerId) override;
 
-  uint8 shortJobId_;    //jobId starts from 1
+private:
+  uint8_t shortJobId_;    //jobId starts from 1
 };
 
-#endif  // STRATUM_SESSION_BYTOM_H_
+#endif  // #ifndef STRATUM_SESSION_BYTOM_H_

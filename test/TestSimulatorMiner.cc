@@ -26,7 +26,7 @@
 #include "Common.h"
 #include "Utils.h"
 
-#include "StratumSession.h"
+#include "StratumMiner.h"
 #include "StratumClient.h"
 
 #include "utilities_js.hpp"

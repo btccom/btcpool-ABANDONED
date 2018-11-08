@@ -228,4 +228,20 @@ public:
 
 };
 
+class ServerBitcoin;
+class StratumSessionBitcoin;
+
+struct StratumTraitsBitcoin {
+  using ServerType = ServerBitcoin;
+  using SessionType = StratumSessionBitcoin;
+  using JobDiffType = uint64_t;
+  struct LocalJobType : public LocalJob {
+    LocalJobType(uint64_t jobId, uint8_t shortJobId, uint32_t blkBits)
+        : LocalJob(jobId), shortJobId_(shortJobId), blkBits_(blkBits) {}
+    bool operator==(uint8_t shortJobId) const { return shortJobId_ == shortJobId; }
+    uint8_t shortJobId_;
+    uint32_t blkBits_;
+  };
+};
+
 #endif

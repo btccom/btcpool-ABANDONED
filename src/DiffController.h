@@ -107,17 +107,18 @@ public:
     }
   }
 
-  DiffController(DiffController* other): startTime_(0),
-                                              kMinDiff_(other->kMinDiff_),
-                                              minDiff_(other->minDiff_),
-                                              kMaxDiff_(other->kMaxDiff_),
-                                              curDiff_(other->curDiff_),
-                                              curHashRateLevel_(other->curHashRateLevel_),
-                                              kRecordSeconds_(other->kRecordSeconds_),
-                                              shareAvgSeconds_(other->shareAvgSeconds_),
-                                              kDiffWindow_(other->kDiffWindow_),
-                                              sharesNum_(other->kDiffWindow_ / other->kRecordSeconds_), /* every N seconds as a record */
-                                              shares_(other->kDiffWindow_  / other->kRecordSeconds_) {
+  DiffController(const DiffController& other)
+    : startTime_(0)
+    , kMinDiff_(other.kMinDiff_)
+    , minDiff_(other.minDiff_)
+    , kMaxDiff_(other.kMaxDiff_)
+    , curDiff_(other.curDiff_)
+    , curHashRateLevel_(other.curHashRateLevel_)
+    , kRecordSeconds_(other.kRecordSeconds_)
+    , shareAvgSeconds_(other.shareAvgSeconds_)
+    , kDiffWindow_(other.kDiffWindow_)
+    , sharesNum_(other.kDiffWindow_ / other.kRecordSeconds_) /* every N seconds as a record */
+    , shares_(other.kDiffWindow_  / other.kRecordSeconds_) {
   }
 
   virtual ~DiffController() {}

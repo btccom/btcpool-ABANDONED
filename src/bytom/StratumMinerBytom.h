@@ -21,39 +21,29 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-#ifndef STRATUM_SERVER_SIA_H_
-#define STRATUM_SERVER_SIA_H_
+#ifndef STRATUM_MINER_BYTOM_H_
+#define STRATUM_MINER_BYTOM_H_
 
-#include "StratumServer.h"
-#include "StratumSia.h"
+#include "StratumMiner.h"
+#include "StratumServerBytom.h"
 
-class JobRepositorySia;
-
-class ServerSia : public ServerBase<JobRepositorySia>
+class StratumMinerBytom : public StratumMinerBase<StratumTraitsBytom>
 {
 public:
-  ServerSia(const int32_t shareAvgSeconds) : ServerBase(shareAvgSeconds) {}
-  virtual ~ServerSia();
+  StratumMinerBytom(StratumSessionBytom &session,
+                    const DiffController &diffController,
+                    const std::string &clientAgent,
+                    const std::string &workerName,
+                    int64_t workerId);
 
+  void handleRequest(const std::string &idStr,
+                     const std::string &method,
+                     const JsonNode &jparams,
+                     const JsonNode &jroot) override;
 
-  unique_ptr<StratumSession> createConnection(struct bufferevent *bev, struct sockaddr *saddr, const uint32_t sessionID) override;
-  
-  void sendSolvedShare2Kafka(uint8* buf, int len);
 private:
-  JobRepository* createJobRepository(const char *kafkaBrokers,
-                                     const char *consumerTopic,     
-                                     const string &fileLastNotifyTime) override;
-
+  void handleRequest_GetWork(const string &idStr, const JsonNode &jparams);
+  void handleRequest_Submit(const string &idStr, const JsonNode &jparams);
 };
 
-class JobRepositorySia : public JobRepositoryBase<ServerSia>
-{
-public:
-  JobRepositorySia(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerSia *server);
-  ~JobRepositorySia();
-  StratumJob *createStratumJob() override {return new StratumJobSia();}
-  StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
-  void broadcastStratumJob(StratumJob *sjob) override;
-};
-
-#endif
+#endif  // #ifndef STRATUM_MINER_BYTOM_H_

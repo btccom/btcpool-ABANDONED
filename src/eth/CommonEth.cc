@@ -47,6 +47,18 @@ uint64 Eth_TargetToDifficulty(string targetHex) {
   return diff.GetLow64();
 }
 
+uint64 Eth_TargetToDifficulty(const uint256 &targetBin)
+{
+  arith_uint256 target = UintToArith256(targetBin);
+
+  if (target == 0) {
+    return kMaxUint64;
+  }
+
+  arith_uint256 diff = kMaxUint256 / target;
+  return diff.GetLow64();
+}
+
 void Hex256ToEthash256(const string &strHex, ethash_h256_t &ethashHeader)
 {
   if (strHex.size() != 64)

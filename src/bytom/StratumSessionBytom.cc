@@ -21,37 +21,43 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
+
 #include "StratumSessionBytom.h"
-#include "StratumServerBytom.h"
+
+#include "StratumMessageDispatcher.h"
+#include "StratumMinerBytom.h"
 #include "DiffController.h"
 
-#include "bytom/bh_shared.h"
+#include <boost/make_unique.hpp>
 
-#ifndef NO_CUDA
-#include "cutil/src/GpuTs.h"
-#endif  //NO_CUDA
-
-/////////////////////////////StratumSessionBytom////////////////////////////
-StratumSessionBytom::StratumSessionBytom(evutil_socket_t fd, struct bufferevent *bev,
-                                         ServerBytom *server, struct sockaddr *saddr,
-                                         const int32_t shareAvgSeconds, const uint32_t extraNonce1) 
-  : StratumSessionBase(fd, bev, server, saddr, shareAvgSeconds, extraNonce1)
-  , shortJobId_(1)
-{
+StratumSessionBytom::StratumSessionBytom(ServerBytom &server,
+                                         struct bufferevent *bev,
+                                         struct sockaddr *saddr,
+                                         uint32_t extraNonce1)
+    : StratumSessionBase(server, bev, saddr, extraNonce1), shortJobId_(1) {
 }
 
-void StratumSessionBytom::handleRequest_Authorize(const string &idStr, const JsonNode &jparams, const JsonNode &/*jroot*/)
-{
-  state_ = SUBSCRIBED;
-  auto params = const_cast<JsonNode&> (jparams);
-  string fullName = params["login"].str();
-  string pwd = params["pass"].str();
-  checkUserAndPwd(idStr, fullName, pwd);
+void StratumSessionBytom::rpc2ResponseBoolean(const string &idStr, bool result, const string &failMessage) {
+  if (result) {
+    const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":{\"status\":\"OK\"},\"error\":null}\n",
+                                     idStr.c_str());
+    sendData(s);
+  } else {
+    const string s = Strings::Format(
+        "{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":null,\"error\":{\"code\":-1, \"message\":\"%s\"}}\n",
+        idStr.c_str(),
+        failMessage.c_str());
+    sendData(s);
+  }
 }
 
-void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob)
-{
-  ServerBytom* server = GetServer();
+void StratumSessionBytom::sendSetDifficulty(LocalJob &localJob, uint64_t difficulty) {
+  // Bytom has no set difficulty method, but will change the target directly
+  static_cast<StratumTraitsBytom::LocalJobType &>(localJob).jobDifficulty_ = difficulty;
+}
+
+void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
+  auto &server = getServer();
   /*
     Bytom difficulty logic (based on B3-Mimic repo)
     - constants
@@ -61,10 +67,9 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
       Pool target is based from Diff1 and difficulty. target = Diff1 / difficulty
     Miner difficulty logic:
     - use target
-    Pool check submit (see StratumSessionBytom::handleRequest_Submit)
+    Pool check submit (see StratumMinerBytom::handleRequest_Submit)
   */
-  if (state_ < AUTHENTICATED || nullptr == exJobPtr)
-  {
+  if (state_ < AUTHENTICATED || nullptr == exJobPtr) {
     LOG(ERROR) << "bytom sendMiningNotify failed, state: " << state_;
     return;
   }
@@ -73,77 +78,64 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
   if (nullptr == sJob)
     return;
 
-  localJobs_.push_back(LocalJob());
-  LocalJob &ljob = *(localJobs_.rbegin());
-  ljob.jobId_ = sJob->jobId_;
-  ljob.shortJobId_ = shortJobId_++;
+  auto &ljob = addLocalJob(sJob->jobId_, shortJobId_++);
+  uint64_t jobDifficulty = server.isDevModeEnable_ ? server.minerDifficulty_ : ljob.jobDifficulty_;
+  if (jobDifficulty == 0)
+    jobDifficulty = server.isDevModeEnable_ ? 1 : Bytom_TargetCompactToDifficulty(sJob->blockHeader_.bits);
 
-  if (server->isDevModeEnable_)
-  {
-    ljob.jobDifficulty_ = server->minerDifficulty_;
-  }
-  else
-  {
-    ljob.jobDifficulty_ = diffController_->calcCurDiff();
-  }
-
-
-  uint64 nonce = (((uint64)extraNonce1_) << 32);
+  uint64 nonce = (((uint64) extraNonce1_) << 32);
   string notifyStr, nonceStr, versionStr, heightStr, timestampStr, bitsStr;
-  Bin2HexR((uint8 *)&nonce, 8, nonceStr);
-  Bin2Hex((uint8 *)&sJob->blockHeader_.version, 8, versionStr);
-  Bin2Hex((uint8 *)&sJob->blockHeader_.height, 8, heightStr);
-  Bin2Hex((uint8 *)&sJob->blockHeader_.timestamp, 8, timestampStr);
-  Bin2Hex((uint8 *)&sJob->blockHeader_.bits, 8, bitsStr);
+  Bin2HexR((uint8 *) &nonce, 8, nonceStr);
+  Bin2Hex((uint8 *) &sJob->blockHeader_.version, 8, versionStr);
+  Bin2Hex((uint8 *) &sJob->blockHeader_.height, 8, heightStr);
+  Bin2Hex((uint8 *) &sJob->blockHeader_.timestamp, 8, timestampStr);
+  Bin2Hex((uint8 *) &sJob->blockHeader_.bits, 8, bitsStr);
 
   string targetStr;
   {
     vector<uint8_t> targetBin;
-    Bytom_DifficultyToTargetBinary(ljob.jobDifficulty_, targetBin);
+    Bytom_DifficultyToTargetBinary(jobDifficulty, targetBin);
     //  trim the zeroes to reduce bandwidth
     unsigned int endIdx = targetBin.size() - 1;
-    for(; endIdx > 0; --endIdx)  //  > 0 (not >=0) because need to print at least 1 byte
+    for (; endIdx > 0; --endIdx)  //  > 0 (not >=0) because need to print at least 1 byte
     {
-      if(targetBin[endIdx] != 0)
+      if (targetBin[endIdx] != 0)
         break;
     }
     //  reversed based on logic seen in B3-Mimic. Miner expect reversed hex
-    Bin2HexR(targetBin.data(), endIdx + 1, targetStr);  
+    Bin2HexR(targetBin.data(), endIdx + 1, targetStr);
   }
 
   string jobString = Strings::Format(
-    "{\"version\": \"%s\","
-        "\"height\": \"%s\","
-        "\"previous_block_hash\": \"%s\","
-        "\"timestamp\": \"%s\","
-        "\"transactions_merkle_root\": \"%s\","
-        "\"transaction_status_hash\": \"%s\","
-        "\"nonce\": \"%s\","
-        "\"bits\": \"%s\","
-        "\"job_id\": \"%d\","
-        "\"seed\": \"%s\","
-        "\"target\": \"%s\"}",
-        versionStr.c_str(),
-        heightStr.c_str(),
-        sJob->blockHeader_.previousBlockHash.c_str(),
-        timestampStr.c_str(),
-        sJob->blockHeader_.transactionsMerkleRoot.c_str(),
-        sJob->blockHeader_.transactionStatusHash.c_str(),
-        nonceStr.c_str(),
-        bitsStr.c_str(),
-        ljob.shortJobId_,
-        sJob->seed_.c_str(),
-        targetStr.c_str());   
-  
-  if (isFirstJob)
-  {
+      "{\"version\": \"%s\","
+      "\"height\": \"%s\","
+      "\"previous_block_hash\": \"%s\","
+      "\"timestamp\": \"%s\","
+      "\"transactions_merkle_root\": \"%s\","
+      "\"transaction_status_hash\": \"%s\","
+      "\"nonce\": \"%s\","
+      "\"bits\": \"%s\","
+      "\"job_id\": \"%d\","
+      "\"seed\": \"%s\","
+      "\"target\": \"%s\"}",
+      versionStr.c_str(),
+      heightStr.c_str(),
+      sJob->blockHeader_.previousBlockHash.c_str(),
+      timestampStr.c_str(),
+      sJob->blockHeader_.transactionsMerkleRoot.c_str(),
+      sJob->blockHeader_.transactionStatusHash.c_str(),
+      nonceStr.c_str(),
+      bitsStr.c_str(),
+      ljob.shortJobId_,
+      sJob->seed_.c_str(),
+      targetStr.c_str());
+
+  if (isFirstJob) {
     notifyStr = Strings::Format(
         "{\"id\": 1, \"jsonrpc\": \"2.0\", \"result\": {\"id\": \"%s\", \"job\": %s, \"status\": \"OK\"}, \"error\": null}",
-        server->isDevModeEnable_ ? "antminer_1" : worker_.fullName_.c_str(),
+        server.isDevModeEnable_ ? "antminer_1" : worker_.fullName_.c_str(),
         jobString.c_str());
-  }
-  else
-  {
+  } else {
     notifyStr = Strings::Format(
         "{\"jsonrpc\": \"2.0\", \"method\":\"job\", \"params\": %s}",
         jobString.c_str());
@@ -152,250 +144,36 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
   sendData(notifyStr);
 }
 
-void StratumSessionBytom::handleRequest_GetWork(const string &idStr, const JsonNode &jparams) {
-    sendMiningNotify(GetServer()->GetJobRepository()->getLatestStratumJobEx(), false);
-}
+bool StratumSessionBytom::validate(const JsonNode &jmethod, const JsonNode &jparams) {
 
-namespace BytomUtils
-{
-
-int checkProofOfWork(EncodeBlockHeader_return encoded, StratumJobBytom *sJob, StratumSession::LocalJob *localJob)
-{
-  DLOG(INFO) << "verify blockheader hash=" << encoded.r1 << ", seed=" << sJob->seed_;
-  vector<char> vHeader, vSeed;
-  Hex2Bin(encoded.r1, vHeader);
-  Hex2Bin(sJob->seed_.c_str(), sJob->seed_.length(), vSeed);
-
-#ifndef NO_CUDA
-  uint8_t *pTarget = GpuTs((uint8_t*)vHeader.data(), (uint8_t*)vSeed.data());
-#else    
-  GoSlice hSlice = {(void *)vHeader.data(), (int)vHeader.size(), (int)vHeader.size()};
-  GoSlice sSlice = {(void *)vSeed.data(), (int)vSeed.size(), (int)vSeed.size()};
-  uint8_t pTarget[32];
-  GoSlice hOut = {(void *)pTarget, 32, 32};
-  ProofOfWorkHashCPU(hSlice, sSlice, hOut);
-#endif
-
-  //  first job target first before checking solved share
-  string targetStr;
-  Bin2Hex(pTarget, 32, targetStr);
-  GoSlice text = {(void *)pTarget, 32, 32};
-  uint64 localJobBits = Bytom_JobDifficultyToTargetCompact(localJob->jobDifficulty_);  
-
-  bool powResultLocalJob = CheckProofOfWork(text, localJobBits);
-  if(powResultLocalJob)
-  {
-    //  passed job target, now check the blockheader target
-    bool powResultBlock = CheckProofOfWork(text, sJob->blockHeader_.bits);
-    if(powResultBlock)
-    {
-      return StratumStatus::SOLVED;
-    }
-    return StratumStatus::ACCEPT;
-  }
-  else
-  {
-    return StratumStatus::LOW_DIFFICULTY;
-  }
-
-  return StratumStatus::REJECT_NO_REASON;
-}
-
-}
-
-void StratumSessionBytom::Bytom_rpc2ResponseBoolean(const string &idStr, bool result, const string& failMessage) {
-  if(result)
-  {
-    const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":{\"status\":\"OK\"},\"error\":null}\n", idStr.c_str());
-    sendData(s);
-  }
-  else
-  {
-    const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":null,\"error\":{\"code\":-1, \"message\":\"%s\"}}\n", idStr.c_str(), failMessage.c_str());
-    sendData(s);
-  }
-}
-
-void StratumSessionBytom::handleRequest_Submit(const string &idStr, const JsonNode &jparams)
-{
-  ServerBytom* server = GetServer();
-  /*
-    Calculating difficulty
-    - Nonce. B3-Mimic send hex value.
-
-    - Job PoW bits. Bits to check proof of work of job (not block)
-      see CalculateTargetCompactByDifficulty (bh_shared.go). 
-
-    - Block PoW bits. Use BlockHeader.Bits
-  */
-  LOG(INFO) << idStr.c_str() << ": bytom handle request submit";
-  JsonNode &params = const_cast<JsonNode &>(jparams);
-
-  uint8 shortJobId = (uint8)params["job_id"].uint32();
-
-  LocalJob *localJob= findLocalJob(shortJobId);
-  if (nullptr == localJob)
-  {
-    Bytom_rpc2ResponseBoolean(idStr, false, "Block expired");
-    LOG(ERROR) << "can not find local bytom job id=" << (int)shortJobId;
-    return;
-  }
-
-  shared_ptr<StratumJobEx> exjob;
-  exjob = server->GetJobRepository()->getStratumJobEx(localJob->jobId_);
-  if (nullptr == exjob || nullptr == exjob->sjob_)
-  {
-    Bytom_rpc2ResponseBoolean(idStr, false, "Block expired");
-    LOG(ERROR) << "bytom local job not found " << std::hex << localJob->jobId_;
-    return;
-  }
-
-  StratumJobBytom *sJob = dynamic_cast<StratumJobBytom *>(exjob->sjob_);
-  if (nullptr == sJob)
-  {
-    Bytom_rpc2ResponseBoolean(idStr, false, "Unknown reason");
-    LOG(FATAL) << "Code error, casting stratum job bytom failed for job id=" << std::hex << localJob->jobId_;
-    return;
-  }
-
-  //get header submission string and header hash string
-  //  nonce in bytom B3Poisoned is using hex not decimal
-  uint64 nonce = 0;
-  {
-    string nonceHex = params["nonce"].str();
-    vector<char> nonceBinBuf;
-    Hex2BinReverse(nonceHex.c_str(), nonceHex.length(), nonceBinBuf);
-    nonce = *(uint64*)nonceBinBuf.data();
-    LOG(INFO) << idStr.c_str() << ": bytom handle request submit jobId " << (int)shortJobId
-              << " with nonce: " << nonce << " - noncehex: " << nonceHex.c_str();
-  }
-
-  //  Check share duplication
-  LocalShare localShare(nonce, 0, 0);
-  if (!server->isEnableSimulator_ && !localJob->addLocalShare(localShare))
-  {
-    responseError(idStr, StratumStatus::DUPLICATE_SHARE);
-    // add invalid share to counter
-    invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
-    return;
-  }
-
-  //Check share
-  ShareBytom share;
-  //  ShareBase portion
-  share.version_ = ShareBytom::CURRENT_VERSION;
-  //  TODO: not set: share.checkSum_
-  share.workerHashId_ = worker_.workerHashId_;
-  share.userId_ = worker_.userId_;
-  share.status_ = StratumStatus::REJECT_NO_REASON;
-  share.timestamp_ = (uint32_t)time(nullptr);
-  share.ip_.fromIpv4Int(clientIpInt_);
-
-  //  ShareBytom portion
-  share.jobId_ = localJob->jobId_;
-  share.shareDiff_ = localJob->jobDifficulty_;
-  share.blkBits_ = sJob->blockHeader_.bits;
-  share.height_ = sJob->blockHeader_.height;
-  
-  auto StringToCheapHash = [](const std::string& str) -> uint64
-  {
-    // int merkleRootLen = std::min(32, (int)str.length());
-    auto merkleRootBegin = (uint8_t*)&str[0];
-    // auto merkleRootEnd = merkleRootBegin + merkleRootLen;
-
-    uint64 res;
-    memcpy(&res, merkleRootBegin, std::min(8, (int)str.length()));
-    return res;    
-
-    // vector<uint8_t> merkleRootBin(merkleRootBegin, merkleRootEnd);
-    // return uint256(merkleRootBin).GetCheapHash();
-  };
-
-  share.combinedHeader_.blockCommitmentMerkleRootCheapHash_ = StringToCheapHash(sJob->blockHeader_.transactionsMerkleRoot);
-  share.combinedHeader_.blockCommitmentStatusHashCheapHash_ = StringToCheapHash(sJob->blockHeader_.transactionStatusHash);
-  share.combinedHeader_.timestamp_ = sJob->blockHeader_.timestamp;
-  share.combinedHeader_.nonce_ = nonce;
-  if(exjob->isStale())
-  {
-    share.status_ = StratumStatus::JOB_NOT_FOUND;
-    Bytom_rpc2ResponseBoolean(idStr, false, "Block expired");
-  }
-  else
-  {
-    EncodeBlockHeader_return encoded = EncodeBlockHeader(sJob->blockHeader_.version, sJob->blockHeader_.height, (char *)sJob->blockHeader_.previousBlockHash.c_str(), sJob->blockHeader_.timestamp,
-                                    nonce, sJob->blockHeader_.bits, (char *)sJob->blockHeader_.transactionStatusHash.c_str(), (char *)sJob->blockHeader_.transactionsMerkleRoot.c_str());
-    int powResult = BytomUtils::checkProofOfWork(encoded, sJob, localJob);
-    share.status_ = powResult;
-    if(powResult == StratumStatus::SOLVED)
-    {
-      std::cout << "share solved\n";
-      LOG(INFO) << "share solved";
-      server->sendSolvedShare2Kafka(nonce, encoded.r0, share.height_, Bytom_TargetCompactToDifficulty(sJob->blockHeader_.bits), worker_);
-      server->GetJobRepository()->markAllJobsAsStale();      
-      diffController_->addAcceptedShare(share.shareDiff_);
-      Bytom_rpc2ResponseBoolean(idStr, true);
-    }
-    else if(powResult == StratumStatus::ACCEPT)
-    {
-      diffController_->addAcceptedShare(share.shareDiff_);
-      Bytom_rpc2ResponseBoolean(idStr, true);
-    }
-    else
-    {
-      std::string failMessage = "Unknown reason";
-      switch(share.status_)
-      {
-        case StratumStatus::LOW_DIFFICULTY:
-          failMessage = "Low difficulty share";
-        break;        
-      }
-      Bytom_rpc2ResponseBoolean(idStr, false, failMessage);
-    }
-    free(encoded.r0);
-    free(encoded.r1);
-  }
-
-
-  bool isSendShareToKafka = true;
-  DLOG(INFO) << share.toString();
-  // check if thers is invalid share spamming
-  if (!StratumStatus::isAccepted(share.status_))
-  {
-    int64_t invalidSharesNum = invalidSharesCounter_.sum(time(nullptr), INVALID_SHARE_SLIDING_WINDOWS_SIZE);
-    // too much invalid shares, don't send them to kafka
-    if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT)
-    {
-      isSendShareToKafka = false;
-      LOG(WARNING) << "invalid share spamming, diff: "
-                   << share.shareDiff_ << ", uid: " << worker_.userId_
-                   << ", uname: \"" << worker_.userName_ << "\", ip: " << clientIp_
-                   << "checkshare result: " << share.status_;
-    }
-  }
-
-  if (isSendShareToKafka)
-  {
-    share.checkSum_ = share.checkSum();
-    server->sendShare2Kafka((const uint8_t *)&share, sizeof(ShareBytom));
-
-    string shareInHex;
-    Bin2Hex((uint8_t*)&share, sizeof(ShareBytom), shareInHex);
-    LOG(INFO) << "\nsendShare2Kafka ShareBytom:\n" 
-              << "- size: " << sizeof(ShareBytom) << " bytes\n"
-              << "- hexvalue: " << shareInHex.c_str() << "\n";
-
-  }
-  
-}
-
-bool StratumSessionBytom::validate(const JsonNode &jmethod, const JsonNode &jparams)
-{
   if (jmethod.type() == Utilities::JS::type::Str &&
       jmethod.size() != 0 &&
-      jparams.type() == Utilities::JS::type::Obj)
-  {
+      jparams.type() == Utilities::JS::type::Obj) {
     return true;
   }
 
   return false;
+}
+
+bool StratumSessionBytom::handleRequest_Authorize(const string &idStr,
+                                                  const JsonNode &jparams,
+                                                  const JsonNode &jroot,
+                                                  string &fullName,
+                                                  string &password) {
+
+  state_ = SUBSCRIBED;
+  auto params = const_cast<JsonNode &> (jparams);
+  fullName = params["login"].str();
+  password = params["pass"].str();
+  return true;
+}
+
+unique_ptr<StratumMiner> StratumSessionBytom::createMiner(const std::string &clientAgent,
+                                                          const std::string &workerName,
+                                                          int64_t workerId) {
+  return boost::make_unique<StratumMinerBytom>(*this,
+                                               *getServer().defaultDifficultyController_,
+                                               clientAgent,
+                                               workerName,
+                                               workerId);
 }

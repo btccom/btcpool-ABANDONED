@@ -166,4 +166,44 @@ public:
 
 };
 
+// shares submitted by this session, for duplicate share check
+struct LocalShare {
+  uint64_t exNonce2_;  // extra nonce2 fixed 8 bytes
+  uint32_t nonce_;     // nonce in block header
+  uint32_t time_;      // nTime in block header
+
+  LocalShare(uint64_t exNonce2, uint32_t nonce, uint32_t time):
+      exNonce2_(exNonce2), nonce_(nonce), time_(time) {}
+
+  LocalShare & operator=(const LocalShare &other) {
+    exNonce2_ = other.exNonce2_;
+    nonce_    = other.nonce_;
+    time_     = other.time_;
+    return *this;
+  }
+
+  bool operator<(const LocalShare &r) const {
+    if (exNonce2_ < r.exNonce2_ ||
+        (exNonce2_ == r.exNonce2_ && nonce_ < r.nonce_) ||
+        (exNonce2_ == r.exNonce2_ && nonce_ == r.nonce_ && time_ < r.time_)) {
+      return true;
+    }
+    return false;
+  }
+};
+
+struct LocalJob {
+  uint64_t jobId_;
+  std::set<LocalShare> submitShares_;
+
+  LocalJob(uint64_t jobId)
+      : jobId_(jobId)
+  {
+  }
+
+  bool addLocalShare(const LocalShare &localShare) {
+    return submitShares_.insert(localShare).second;
+  }
+};
+
 #endif

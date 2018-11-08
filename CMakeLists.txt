@@ -462,6 +462,8 @@ set(LIB_SOURCES_DECRED
   src/decred/StatsHttpdDecred.h
   src/decred/StratumDecred.cc
   src/decred/StratumDecred.h
+  src/decred/StratumMinerDecred.cc
+  src/decred/StratumMinerDecred.h
   src/decred/StratumServerDecred.cc
   src/decred/StratumServerDecred.h
   src/decred/StratumSessionDecred.cc
