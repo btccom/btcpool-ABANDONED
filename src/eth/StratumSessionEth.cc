@@ -282,7 +282,7 @@ void StratumSessionEth::handleRequest_Subscribe(const string &idStr,
     // required for stratum switcher
     // Because ethproxy has no subscribe phase, switcher has no chance to set session id.
     // So deliberately added a subscribe phase of ethproxy here.
-    ethProtocol_ = StratumProtocol::ETHPROXY;
+    ethProtocol_ = StratumProtocolEth::ETHPROXY;
     responseTrue(idStr);
   }
 #endif // WORK_WITH_STRATUM_SWITCHER

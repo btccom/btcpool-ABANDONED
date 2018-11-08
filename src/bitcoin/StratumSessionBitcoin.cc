@@ -136,7 +136,7 @@ void StratumSessionBitcoin::handleRequest_Subscribe(const string &idStr,
 
   if (jparams.children()->size() < 2) {
     responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
-    return false;
+    return;
   }
 
   state_ = SUBSCRIBED;
