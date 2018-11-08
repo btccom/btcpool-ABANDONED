@@ -188,8 +188,10 @@ int main(int argc, char **argv) {
       );
     }
     else {
-      LOG(INFO) << "no repeater enabled";
-      return 0;
+      gKafkaRepeater = new KafkaRepeater(
+        cfg.lookup("kafka.in_brokers"), cfg.lookup("kafka.in_topic"), cfg.lookup("kafka.in_group_id"),
+        cfg.lookup("kafka.out_brokers"), cfg.lookup("kafka.out_topic")
+      );
     }
 
     
