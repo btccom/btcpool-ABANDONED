@@ -130,11 +130,13 @@ int main(int argc, char **argv) {
   try {
     bool enableShareConvBtcV2ToV1 = false;
     bool enableShareDiffChangerBtcV1 = false;
+    bool enableShareDiffChangerBtcV2ToV1 = false;
     bool enableSharePrinterBtcV1 = false;
     int repeatedNumberDisplayInterval = 10;
 
     readFromSetting(cfg, "share_convertor.bitcoin_v2_to_v1", enableShareConvBtcV2ToV1, true);
     readFromSetting(cfg, "share_diff_changer.bitcoin_v1", enableShareDiffChangerBtcV1, true);
+    readFromSetting(cfg, "share_diff_changer.bitcoin_v2_to_v1", enableShareDiffChangerBtcV2ToV1, true);
     readFromSetting(cfg, "share_printer.bitcoin_v1", enableSharePrinterBtcV1, true);
     readFromSetting(cfg, "log.repeated_number_display_interval", repeatedNumberDisplayInterval, true);
 
@@ -155,6 +157,23 @@ int main(int argc, char **argv) {
       readFromSetting(cfg, "share_diff_changer.job_time_offset", jobTimeOffset, true);
 
       if (!dynamic_cast<ShareDiffChangerBitcoinV1*>(gKafkaRepeater)->initStratumJobConsumer(
+        cfg.lookup("share_diff_changer.job_brokers"), cfg.lookup("share_diff_changer.job_topic"),
+        cfg.lookup("share_diff_changer.job_group_id"), jobTimeOffset
+      )) {
+        LOG(FATAL) << "kafka repeater init failed";
+        return 1;
+      }
+    }
+    else if (enableShareDiffChangerBtcV2ToV1) {
+      gKafkaRepeater = new ShareDiffChangerBitcoinV2ToV1(
+        cfg.lookup("kafka.in_brokers"), cfg.lookup("kafka.in_topic"), cfg.lookup("kafka.in_group_id"),
+        cfg.lookup("kafka.out_brokers"), cfg.lookup("kafka.out_topic")
+      );
+
+      int jobTimeOffset = 30;
+      readFromSetting(cfg, "share_diff_changer.job_time_offset", jobTimeOffset, true);
+
+      if (!dynamic_cast<ShareDiffChangerBitcoinV2ToV1*>(gKafkaRepeater)->initStratumJobConsumer(
         cfg.lookup("share_diff_changer.job_brokers"), cfg.lookup("share_diff_changer.job_topic"),
         cfg.lookup("share_diff_changer.job_group_id"), jobTimeOffset
       )) {

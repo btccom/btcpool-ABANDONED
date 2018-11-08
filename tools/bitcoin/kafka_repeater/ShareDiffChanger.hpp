@@ -29,7 +29,7 @@
 #include "utilities_js.hpp"
 
 
-class ShareDiffChangerBitcoinV1 : public KafkaRepeater {
+class ShareDiffChangerBitcoin : public KafkaRepeater {
 public:
     // Inherit the constructor of the parent class
     using KafkaRepeater::KafkaRepeater;
@@ -145,6 +145,17 @@ protected:
         return true;
     }
 
+    KafkaHighLevelConsumer *jobConsumer_ = nullptr;
+    
+    uint64_t currentTime_ = 0;
+    uint32_t currentBits_ = 0;
+    int64_t jobTimeOffset_ = 0;
+};
+
+class ShareDiffChangerBitcoinV1 : public ShareDiffChangerBitcoin {
+    // Inherit the constructor of the parent class
+    using ShareDiffChangerBitcoin::ShareDiffChangerBitcoin;
+
     bool repeatMessage(rd_kafka_message_t *rkmessage) override {
         if (rkmessage->len != sizeof(ShareBitcoinV1)) {
             LOG(WARNING) << "Wrong ShareBitcoinV1 size: " << rkmessage->len << ", should be " << sizeof(ShareBitcoinV1);
@@ -159,10 +170,29 @@ protected:
         sendToKafka(shareV1);
         return true;
     }
+};
 
-    KafkaHighLevelConsumer *jobConsumer_ = nullptr;
+class ShareDiffChangerBitcoinV2ToV1 : public ShareDiffChangerBitcoin {
+    // Inherit the constructor of the parent class
+    using ShareDiffChangerBitcoin::ShareDiffChangerBitcoin;
+
+    bool repeatMessage(rd_kafka_message_t *rkmessage) override {
+        if (rkmessage->len != sizeof(ShareBitcoinV2)) {
+            LOG(WARNING) << "Wrong ShareBitcoinV2 size: " << rkmessage->len << ", should be " << sizeof(ShareBitcoinV2);
+            return false;
+        }
+
+        ShareBitcoinV2 shareV2;
+        memcpy((uint8_t *)&shareV2, (const uint8_t *)rkmessage->payload, rkmessage->len);
+
+        ShareBitcoinV1 shareV1;
+        if (!shareV2.toShareBitcoinV1(shareV1)) {
+          return false;
+        }
+
+        shareV1.blkBits_ = getBitsByTime(shareV1.timestamp_);
     
-    uint64_t currentTime_ = 0;
-    uint32_t currentBits_ = 0;
-    int64_t jobTimeOffset_ = 0;
+        sendToKafka(shareV1);
+        return true;
+    }
 };
