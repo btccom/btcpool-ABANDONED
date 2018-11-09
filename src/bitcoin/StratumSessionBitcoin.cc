@@ -116,20 +116,66 @@ void StratumSessionBitcoin::handleRequest(const std::string &idStr,
                                       const std::string &method,
                                       const JsonNode &jparams,
                                       const JsonNode &jroot) {
+  // Note: "mining.suggest_target" may be called before "mining.subscribe",
+  // and most miners will call "mining.configure" in its first request.
+  // So, don't assume that any future requests will appear after
+  // subscription or authentication.
+
   if (method == "mining.subscribe") {
-    handleRequest_Subscribe(idStr, jparams, jroot);
+    handleRequest_Subscribe(idStr, jparams);
   }
   else if (method == "mining.authorize") {
-    handleRequest_Authorize(idStr, jparams, jroot);
+    handleRequest_Authorize(idStr, jparams);
+  }
+  else if (method == "mining.configure") {
+    handleRequest_MiningConfigure(idStr, jparams);
   }
   else if (dispatcher_) {
     dispatcher_->handleRequest(idStr, method, jparams, jroot);
   }
 }
 
+void StratumSessionBitcoin::handleRequest_MiningConfigure(const string &idStr,
+                                                        const JsonNode &jparams) {
+  uint32_t versionMask = getServer().getVersionMask();
+
+  if (jparams.children()->size() < 1) {
+    responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
+    return;
+  }
+
+  //
+  // {"id": 1, "method": "mining.configure",
+  //  "params": [
+  //              ["version-rolling"],
+  //              {"version-rolling.bit-count": 2, "version-rolling.mask": "ffffffff" }
+  //            ]
+  // }
+  //
+  auto params0 = jparams.children()->at(0);
+  if (params0.type()                  == Utilities::JS::type::Array &&
+      params0.children()->size()      >= 1 &&
+      params0.children()->at(0).str() == "version-rolling") {
+    string s;
+    //
+    // send true: "version-rolling\":true
+    //
+    s = Strings::Format("{\"id\":%s,\"result\":{\"version-rolling\":true,"
+                        "\"version-rolling.mask\":\"%08x\"},\"error\":null}\n",
+                        idStr.c_str(), versionMask);
+    sendData(s);
+
+    //
+    // mining.set_version_mask
+    //
+    s = Strings::Format("{\"id\":null,\"method\":\"mining.set_version_mask\",\"params\":[\"%08x\"]}\n",
+                        versionMask);
+    sendData(s);
+  }
+}
+
 void StratumSessionBitcoin::handleRequest_Subscribe(const string &idStr,
-                                                    const JsonNode &jparams,
-                                                    const JsonNode &jroot) {
+                                                    const JsonNode &jparams) {
   if (state_ != CONNECTED) {
     responseError(idStr, StratumStatus::UNKNOWN);
     return;
@@ -203,8 +249,7 @@ void StratumSessionBitcoin::handleRequest_Subscribe(const string &idStr,
 }
 
 void StratumSessionBitcoin::handleRequest_Authorize(const string &idStr,
-                                                    const JsonNode &jparams,
-                                                    const JsonNode &jroot) {
+                                                    const JsonNode &jparams) {
   if (state_ != SUBSCRIBED) {
     responseError(idStr, StratumStatus::NOT_SUBSCRIBED);
     return;

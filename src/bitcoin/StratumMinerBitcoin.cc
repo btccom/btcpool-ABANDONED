@@ -47,8 +47,6 @@ void StratumMinerBitcoin::handleRequest(const string &idStr,
     handleRequest_Submit(idStr, jparams);
   } else if (method == "mining.suggest_target") {
     handleRequest_SuggestTarget(idStr, jparams);
-  } else if (method == "mining.configure") {
-    handleRequest_MiningConfigure(idStr, jparams);
   }
 }
 
@@ -118,46 +116,6 @@ void StratumMinerBitcoin::handleRequest_SuggestTarget(const string &idStr,
     return;
   }
   resetCurDiff(TargetToDiff(jparams.children()->at(0).str()));
-}
-
-void StratumMinerBitcoin::handleRequest_MiningConfigure(const string &idStr,
-                                                        const JsonNode &jparams) {
-  auto &session = getSession();
-  auto &server = session.getServer();
-
-  if (jparams.children()->size() < 1) {
-    session.responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
-    return;
-  }
-
-  //
-  // {"id": 1, "method": "mining.configure",
-  //  "params": [
-  //              ["version-rolling"],
-  //              {"version-rolling.bit-count": 2, "version-rolling.mask": "ffffffff" }
-  //            ]
-  // }
-  //
-  auto params0 = jparams.children()->at(0);
-  if (params0.type()                  == Utilities::JS::type::Array &&
-      params0.children()->size()      >= 1 &&
-      params0.children()->at(0).str() == "version-rolling") {
-    string s;
-    //
-    // send true: "version-rolling\":true
-    //
-    s = Strings::Format("{\"id\":%s,\"result\":{\"version-rolling\":true,"
-                        "\"version-rolling.mask\":\"%08x\"},\"error\":null}\n",
-                        idStr.c_str(), server.getVersionMask());
-    session.sendData(s);
-
-    //
-    // mining.set_version_mask
-    //
-    s = Strings::Format("{\"id\":null,\"method\":\"mining.set_version_mask\",\"params\":[\"%08x\"]}\n",
-                        server.getVersionMask());
-    session.sendData(s);
-  }
 }
 
 void StratumMinerBitcoin::handleExMessage_SubmitShare(const std::string &exMessage, bool isWithTime) {

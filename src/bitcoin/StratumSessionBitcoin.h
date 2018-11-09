@@ -41,12 +41,9 @@ public:
 protected:
   void handleRequest(const std::string &idStr, const std::string &method,
                      const JsonNode &jparams, const JsonNode &jroot) override;
-  void handleRequest_Subscribe(const std::string &idStr,
-                               const JsonNode &jparams,
-                               const JsonNode &jroot);
-  void handleRequest_Authorize(const std::string &idStr,
-                               const JsonNode &jparams,
-                               const JsonNode &jroot);
+  void handleRequest_MiningConfigure(const string &idStr, const JsonNode &jparams);
+  void handleRequest_Subscribe(const std::string &idStr, const JsonNode &jparams);
+  void handleRequest_Authorize(const std::string &idStr, const JsonNode &jparams);
   std::unique_ptr<StratumMessageDispatcher> createDispatcher() override;
 public:
   std::unique_ptr<StratumMiner> createMiner(const std::string &clientAgent,
