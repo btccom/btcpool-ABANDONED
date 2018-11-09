@@ -414,6 +414,8 @@ set(LIB_SATOSHI_SOURCES
     src/satoshi/compat/byteswap.h
     src/satoshi/compat/endian.h
     src/satoshi/crypto/common.h
+    src/satoshi/crypto/ripemd160.cpp
+    src/satoshi/crypto/ripemd160.h
     src/satoshi/crypto/sha256.cpp
     src/satoshi/crypto/sha256.h
     src/satoshi/util/strencodings.cpp
