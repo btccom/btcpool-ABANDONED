@@ -219,6 +219,7 @@ private:
   string   clientIp_;
   uint32_t clientIpInt_;
 
+  uint32_t versionMask_; // version mask that the miner wants
   uint32_t extraNonce1_;   // MUST be unique across all servers
   static const int kExtraNonce2Size_ = 8;  // extraNonce2 size is always 8 bytes
 
