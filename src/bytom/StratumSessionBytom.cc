@@ -155,17 +155,29 @@ bool StratumSessionBytom::validate(const JsonNode &jmethod, const JsonNode &jpar
   return false;
 }
 
-bool StratumSessionBytom::handleRequest_Authorize(const string &idStr,
+void StratumSessionBytom::handleRequest(const std::string &idStr,
+                                      const std::string &method,
+                                      const JsonNode &jparams,
+                                      const JsonNode &jroot) {
+  if (method == "login") {
+    handleRequest_Authorize(idStr, jparams, jroot);
+  }
+  else if (dispatcher_) {
+    dispatcher_->handleRequest(idStr, method, jparams, jroot);
+  }
+}
+
+void StratumSessionBytom::handleRequest_Authorize(const string &idStr,
                                                   const JsonNode &jparams,
-                                                  const JsonNode &jroot,
-                                                  string &fullName,
-                                                  string &password) {
+                                                  const JsonNode &jroot) {
 
   state_ = SUBSCRIBED;
   auto params = const_cast<JsonNode &> (jparams);
-  fullName = params["login"].str();
-  password = params["pass"].str();
-  return true;
+  string fullName = params["login"].str();
+  string password = params["pass"].str();
+
+  checkUserAndPwd(idStr, fullName, password);
+  return;
 }
 
 unique_ptr<StratumMiner> StratumSessionBytom::createMiner(const std::string &clientAgent,

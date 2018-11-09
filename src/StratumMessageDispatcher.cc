@@ -112,8 +112,7 @@ void StratumMessageAgentDispatcher::handleRequest(const string &idStr,
 
 void StratumMessageAgentDispatcher::handleExMessage(const string &exMessage) {
   auto header = reinterpret_cast<const StratumMessageEx *>(exMessage.data());
-  auto length = header->length.value();
-  assert(exMessage.size() == length);
+  assert(exMessage.size() == header->length.value());
   auto command = static_cast<StratumCommandEx>(header->command.value());
   switch (command) {
   case StratumCommandEx::CMD_REGISTER_WORKER:

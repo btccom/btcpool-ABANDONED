@@ -197,6 +197,21 @@ void StratumSessionEth::sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr
   clearLocalJobs();
 }
 
+void StratumSessionEth::handleRequest(const std::string &idStr,
+                                      const std::string &method,
+                                      const JsonNode &jparams,
+                                      const JsonNode &jroot) {
+  if (method == "mining.subscribe") {
+    handleRequest_Subscribe(idStr, jparams, jroot);
+  }
+  else if (method == "mining.authorize" || method == "eth_submitLogin") {
+    handleRequest_Authorize(idStr, jparams, jroot);
+  }
+  else if (dispatcher_) {
+    dispatcher_->handleRequest(idStr, method, jparams, jroot);
+  }
+}
+
 void StratumSessionEth::handleRequest_Subscribe(const string &idStr,
                                                 const JsonNode &jparams,
                                                 const JsonNode &jroot) {
@@ -294,11 +309,9 @@ void StratumSessionEth::handleRequest_Subscribe(const string &idStr,
   state_ = SUBSCRIBED;
 }
 
-bool StratumSessionEth::handleRequest_Authorize(const string &idStr,
+void StratumSessionEth::handleRequest_Authorize(const string &idStr,
                                                 const JsonNode &jparams,
-                                                const JsonNode &jroot,
-                                                string &fullName,
-                                                string &password) {
+                                                const JsonNode &jroot) {
   // const type cannot access string indexed object member
   JsonNode &jsonRoot = const_cast<JsonNode &>(jroot);
 
@@ -312,7 +325,7 @@ bool StratumSessionEth::handleRequest_Authorize(const string &idStr,
 
   if (state_ != SUBSCRIBED) {
     responseError(idStr, StratumStatus::NOT_SUBSCRIBED);
-    return false;
+    return;
   }
 
   // STRATUM / NICEHASH_STRATUM:        {"id":3, "method":"mining.authorize", "params":["test.aaa", "x"]}
@@ -322,8 +335,10 @@ bool StratumSessionEth::handleRequest_Authorize(const string &idStr,
 
   if (jparams.children()->size() < 1) {
     responseError(idStr, StratumStatus::INVALID_USERNAME);
-    return false;
+    return;
   }
+
+  string fullName, password;
 
   fullName = jparams.children()->at(0).str();
   if (jsonRoot["worker"].type() == Utilities::JS::type::Str) {
@@ -335,7 +350,9 @@ bool StratumSessionEth::handleRequest_Authorize(const string &idStr,
   if (jparams.children()->size() > 1) {
     password = jparams.children()->at(1).str();
   }
-  return true;
+  
+  checkUserAndPwd(idStr, fullName, password);
+  return;
 }
 
 unique_ptr<StratumMiner> StratumSessionEth::createMiner(const std::string &clientAgent,

@@ -112,16 +112,12 @@ protected:
   bool handleMessage();  // handle all messages: ex-message and stratum message
   bool tryReadLine(std::string &line);
   void handleLine(const std::string &line);
-  void handleRequest(const std::string &idStr, const std::string &method, const JsonNode &jparams, const JsonNode &jroot);
+  virtual void handleRequest(const std::string &idStr, const std::string &method, const JsonNode &jparams, const JsonNode &jroot) = 0;
   void checkUserAndPwd(const string &idStr, const string &fullName, const string &password);
-  void _handleRequest_AuthorizePassword(const string &password);
+  void setDefaultDifficultyFromPassword(const string &password);
   void setClientAgent(const string &clientAgent);
 
   virtual bool validate(const JsonNode &jmethod, const JsonNode &jparams);
-  virtual bool isSubscribe(const std::string &method) const = 0;
-  virtual bool isAuthorize(const std::string &method) const = 0;
-  virtual void handleRequest_Subscribe(const std::string &idStr, const JsonNode &jparams, const JsonNode &jroot) = 0;
-  virtual bool handleRequest_Authorize(const std::string &idStr, const JsonNode &jparams, const JsonNode &jroot, std::string &fullName, std::string &password) = 0;
   virtual std::unique_ptr<StratumMessageDispatcher> createDispatcher();
 
   StratumSession(Server &server, struct bufferevent *bev, struct sockaddr *saddr, uint32_t extraNonce1);

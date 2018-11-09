@@ -83,6 +83,21 @@ void StratumSessionDecred::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, b
   clearLocalJobs();
 }
 
+void StratumSessionDecred::handleRequest(const std::string &idStr,
+                                      const std::string &method,
+                                      const JsonNode &jparams,
+                                      const JsonNode &jroot) {
+  if (method == "mining.subscribe") {
+    handleRequest_Subscribe(idStr, jparams, jroot);
+  }
+  else if (method == "mining.authorize") {
+    handleRequest_Authorize(idStr, jparams, jroot);
+  }
+  else if (dispatcher_) {
+    dispatcher_->handleRequest(idStr, method, jparams, jroot);
+  }
+}
+
 void StratumSessionDecred::handleRequest_Subscribe(const string &idStr,
                                                       const JsonNode &jparams,
                                                       const JsonNode &jroot) {
@@ -116,16 +131,14 @@ void StratumSessionDecred::handleRequest_Subscribe(const string &idStr,
   sendData(s);
 }
 
-bool StratumSessionDecred::handleRequest_Authorize(const string &idStr,
-                                                      const JsonNode &jparams,
-                                                      const JsonNode &jroot,
-                                                      string &fullName,
-                                                      string &password)
+void StratumSessionDecred::handleRequest_Authorize(const string &idStr,
+                                                   const JsonNode &jparams,
+                                                   const JsonNode &jroot)
 {
   if (state_ != SUBSCRIBED)
   {
     responseError(idStr, StratumStatus::NOT_SUBSCRIBED);
-    return false;
+    return;
   }
 
   //
@@ -138,15 +151,19 @@ bool StratumSessionDecred::handleRequest_Authorize(const string &idStr,
   if (jparams.children()->size() < 1)
   {
     responseError(idStr, StratumStatus::INVALID_USERNAME);
-    return false;
+    return;
   }
+
+  string fullName, password;
 
   fullName = jparams.children()->at(0).str();
   if (jparams.children()->size() > 1)
   {
     password = jparams.children()->at(1).str();
   }
-  return true;
+
+  checkUserAndPwd(idStr, fullName, password);
+  return;
 }
 
 unique_ptr<StratumMiner> StratumSessionDecred::createMiner(const std::string &clientAgent,

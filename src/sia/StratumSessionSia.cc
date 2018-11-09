@@ -84,6 +84,22 @@ void StratumSessionSia::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool
   clearLocalJobs();
 }
 
+void StratumSessionSia::handleRequest(const std::string &idStr,
+                                      const std::string &method,
+                                      const JsonNode &jparams,
+                                      const JsonNode &jroot) {
+  if (method == "mining.subscribe") {
+    handleRequest_Subscribe(idStr, jparams, jroot);
+  }
+  else if (method == "mining.authorize") {
+    // TODO: implement this...
+    //handleRequest_Authorize(idStr, jparams, jroot);
+  }
+  else if (dispatcher_) {
+    dispatcher_->handleRequest(idStr, method, jparams, jroot);
+  }
+}
+
 void StratumSessionSia::handleRequest_Subscribe(const string &idStr,
                                                 const JsonNode &jparams,
                                                 const JsonNode &jroot) {

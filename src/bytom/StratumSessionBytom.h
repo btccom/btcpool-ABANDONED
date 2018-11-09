@@ -42,16 +42,11 @@ public:
 
 protected:
   bool validate(const JsonNode &jmethod, const JsonNode &jparams) override;
-  bool isSubscribe(const std::string &method) const override { return false; } // Bytom has no subscribe...yet
-  bool isAuthorize(const std::string &method) const override { return method == "login"; }
-  void handleRequest_Subscribe(const std::string &idStr,
+  void handleRequest(const std::string &idStr, const std::string &method,
+                     const JsonNode &jparams, const JsonNode &jroot) override;
+  void handleRequest_Authorize(const std::string &idStr,
                                const JsonNode &jparams,
-                               const JsonNode &jroot) override {}
-  bool handleRequest_Authorize(const std::string &idStr,
-                               const JsonNode &jparams,
-                               const JsonNode &jroot,
-                               std::string &fullName,
-                               std::string &password) override;
+                               const JsonNode &jroot);
 public:
   std::unique_ptr<StratumMiner> createMiner(const std::string &clientAgent,
                                             const std::string &workerName,

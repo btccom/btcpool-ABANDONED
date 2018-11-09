@@ -39,16 +39,14 @@ public:
   void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) override;
 
 protected:
-  bool isSubscribe(const std::string &method) const override { return method == "mining.subscribe"; }
-  bool isAuthorize(const std::string &method) const override { return method == "mining.authorize"; }
+  void handleRequest(const std::string &idStr, const std::string &method,
+                     const JsonNode &jparams, const JsonNode &jroot) override;
   void handleRequest_Subscribe(const std::string &idStr,
                                const JsonNode &jparams,
-                               const JsonNode &jroot) override;
-  bool handleRequest_Authorize(const std::string &idStr,
+                               const JsonNode &jroot);
+  void handleRequest_Authorize(const std::string &idStr,
                                const JsonNode &jparams,
-                               const JsonNode &jroot,
-                               std::string &fullName,
-                               std::string &password) override;
+                               const JsonNode &jroot);
   std::unique_ptr<StratumMessageDispatcher> createDispatcher() override;
 public:
   std::unique_ptr<StratumMiner> createMiner(const std::string &clientAgent,

@@ -174,30 +174,11 @@ void StratumSession::handleLine(const std::string &line) {
   }
 }
 
-void StratumSession::handleRequest(const std::string &idStr,
-                                      const std::string &method,
-                                      const JsonNode &jparams,
-                                      const JsonNode &jroot) {
-  if (isSubscribe(method)) {
-    handleRequest_Subscribe(idStr, jparams, jroot);
-  } else if (isAuthorize(method)) {
-    string fullName;
-    string password;
-    if (handleRequest_Authorize(idStr, jparams, jroot, fullName, password)) {
-      checkUserAndPwd(idStr, fullName, password);
-    }
-  }
-
-  if (dispatcher_) {
-    dispatcher_->handleRequest(idStr, method, jparams, jroot);
-  }
-}
-
 void StratumSession::checkUserAndPwd(const string &idStr, const string &fullName, const string &password)
 {
   if (!password.empty())
   {
-    _handleRequest_AuthorizePassword(password);
+    setDefaultDifficultyFromPassword(password);
   }
 
   const string userName = worker_.getUserName(fullName);
@@ -247,7 +228,7 @@ void StratumSession::checkUserAndPwd(const string &idStr, const string &fullName
   }
 }
 
-void StratumSession::_handleRequest_AuthorizePassword(const string &password) {
+void StratumSession::setDefaultDifficultyFromPassword(const string &password) {
   // testcase: TEST(StratumSession, SetDiff)
   using namespace boost::algorithm;
 
