@@ -47,6 +47,10 @@ JobRepositoryBitcoin::~JobRepositoryBitcoin()
 
 }
 
+StratumJob* JobRepositoryBitcoin::createStratumJob() {
+  return new StratumJobBitcoin();
+}
+
 StratumJobEx* JobRepositoryBitcoin::createStratumJobEx(StratumJob *sjob, bool isClean)
 {
   return new StratumJobExBitcoin(sjob, isClean);

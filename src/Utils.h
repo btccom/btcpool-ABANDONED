@@ -30,7 +30,7 @@
 
 // #include <base58.h>
 // #include <util.h>
-#include <utilstrencodings.h>
+#include <util/strencodings.h>
 // #include <streams.h>
 
 #include <libconfig.h++>

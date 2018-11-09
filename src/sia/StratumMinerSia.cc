@@ -27,7 +27,7 @@
 #include "StratumMessageDispatcher.h"
 #include "DiffController.h"
 
-#include "bitcoin/StratumBitcoin.h"
+#include "StratumSia.h"
 #include "libblake2/blake2.h"
 
 #include <arith_uint256.h>
@@ -144,7 +144,7 @@ void StratumMinerSia::handleRequest_Submit(const string &idStr, const JsonNode &
   auto difficulty = iter->second;
   auto clientIp = session.getClientIp();
 
-  ShareBitcoin share;
+  ShareSia share;
   share.jobId_ = localJob->jobId_;
   share.workerHashId_ = workerId_;
   share.ip_ = clientIp;
@@ -166,5 +166,5 @@ void StratumMinerSia::handleRequest_Submit(const string &idStr, const JsonNode &
 
   session.rpc2ResponseTrue(idStr);
   share.checkSum_ = share.checkSum();
-  server.sendShare2Kafka((const uint8_t *) &share, sizeof(ShareBitcoin));
+  server.sendShare2Kafka((const uint8_t *) &share, sizeof(ShareSia));
 }

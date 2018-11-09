@@ -378,32 +378,7 @@ if(NOT CMAKE_OBJCOPY)
   mark_as_advanced(CMAKE_OBJCOPY)
 endif()
 
-
-########################## Generate configuration files #############################
-
-SET(BPOOL_VERSION_MAJOR "2")
-SET(BPOOL_VERSION_MINOR "1")
-SET(BPOOL_VERSION_PATCH "0")
-
-# Get the current abbreviated commit hash of the working branch
-if(EXISTS "${CMAKE_SOURCE_DIR}/.git")
-  execute_process(
-    COMMAND git log -1 --format=%h
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE BPOOL_GIT_COMMIT_HASH
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-  )
-endif()
-
-if(BPOOL_GIT_COMMIT_HASH)
-  set(BPOOL_VERSION_PATCH "${BPOOL_VERSION_PATCH}-${BPOOL_GIT_COMMIT_HASH}")
-endif()
-
-set(BPOOL_VERSION_STR "${BPOOL_VERSION_MAJOR}.${BPOOL_VERSION_MINOR}.${BPOOL_VERSION_PATCH}")
-
-message("-- version string: ${BPOOL_VERSION_STR}")
-
-configure_file(${CMAKE_SOURCE_DIR}/src/config/bpool-version.h.in ${CMAKE_SOURCE_DIR}/src/config/bpool-version.h)
+add_subdirectory(src/config)
 
 ###################################### Targets ######################################
 
@@ -426,7 +401,7 @@ else()
   add_definitions(-DNO_CUDA)
 endif(USE_CUDA)
 
-include_directories(src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config ${CHAIN_SRC_ROOT}/src/secp256k1/include
+include_directories(src/satoshi src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config ${CHAIN_SRC_ROOT}/src/secp256k1/include
                     ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS}
                     ${LIBEVENT_INCLUDE_DIR} ${USE_CUDA_INCLUDE_DIRECTORY} ${BH_SHARED_INCLUDE_DIR} ${MYSQL_INCLUDE_DIR})
 
@@ -434,6 +409,22 @@ set(THIRD_LIBRARIES ethash blake2 sph ${BH_SHARED_LIBRARY} ${USE_CUDA_LIBRARIES}
                     ${BITCOIN_LIBRARIES} ${secp256k1_LIBRARIES} ${GLOG_LIBRARIES} ${KAFKA_LIBRARIES} ${ZLIB_LIBRARIES} ${ZOOKEEPER_LIBRARIES}
                     ${MYSQL_LIBRARIES} ${LIBZMQ_LIBRARIES} ${Hiredis_LIBRARIES} ${CURL_LIBRARIES} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY}
                     ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB} ${GMP_LIBRARIES} ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} ${PTHREAD_LIBRARIES})
+
+set(LIB_SATOSHI_SOURCES
+    src/satoshi/compat/byteswap.h
+    src/satoshi/compat/endian.h
+    src/satoshi/crypto/common.h
+    src/satoshi/crypto/sha256.cpp
+    src/satoshi/crypto/sha256.h
+    src/satoshi/util/strencodings.cpp
+    src/satoshi/util/strencodings.h
+    src/satoshi/arith_uint256.cpp
+    src/satoshi/arith_uint256.h
+    src/satoshi/hash.h
+    src/satoshi/tinyformat.h
+    src/satoshi/uint256.cpp
+    src/satoshi/uint256.h
+    )
 
 file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc src/gbtsync/*.cpp)
 file(GLOB LIB_SOURCES_CHAINS
@@ -470,7 +461,7 @@ set(LIB_SOURCES_DECRED
   src/decred/StratumSessionDecred.h
 )
 
-add_library(btcpool STATIC ${LIB_SOURCES} ${LIB_SOURCES_CHAINS} ${LIB_SOURCES_DECRED})
+add_library(btcpool STATIC ${LIB_SATOSHI_SOURCES} ${LIB_SOURCES} ${LIB_SOURCES_CHAINS} ${LIB_SOURCES_DECRED})
 
 file(GLOB_RECURSE TEST_SOURCES test/*.cc test/*.cpp)
 add_executable(unittest ${TEST_SOURCES})
@@ -493,7 +484,6 @@ add_executable(jobmaker ${JOBMAKER_SOURCES})
 target_link_libraries(jobmaker btcpool ${THIRD_LIBRARIES})
 
 add_executable(sserver src/sserver/StratumServerMain.cc)
-# add_dependencies(sserver build_bythom_shared)
 target_link_libraries(sserver btcpool ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE STATSHTTPD_SOURCES src/statshttpd/*.cc)

@@ -25,10 +25,12 @@
 #define STRATUM_SERVER_BITCOIN_H_
 
 #include "StratumServer.h"
-#include "StratumBitcoin.h"
+#include <uint256.h>
 
 class CBlockHeader;
+class FoundBlock;
 class JobRepositoryBitcoin;
+class ShareBitcoin;
 
 class ServerBitcoin : public ServerBase<JobRepositoryBitcoin>
 {
@@ -67,7 +69,7 @@ private:
 public:
   JobRepositoryBitcoin(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerBitcoin *server);
   virtual ~JobRepositoryBitcoin();
-  virtual StratumJob* createStratumJob() override {return new StratumJobBitcoin();}
+  virtual StratumJob* createStratumJob() override;
   StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
   void broadcastStratumJob(StratumJob *sjob) override;
 
