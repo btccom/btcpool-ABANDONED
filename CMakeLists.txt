@@ -428,7 +428,7 @@ set(LIB_SATOSHI_SOURCES
     src/satoshi/uint256.h
     )
 
-file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc src/gbtsync/*.cpp)
+file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc)
 file(GLOB LIB_SOURCES_CHAINS
         src/eth/*.cc
         src/bytom/*.cc 
@@ -512,11 +512,6 @@ file(GLOB_RECURSE POOLWATCHER_SOURCES src/poolwatcher/*.cc)
 add_executable(poolwatcher ${POOLWATCHER_SOURCES})
 target_link_libraries(poolwatcher btcpool ${THIRD_LIBRARIES})
 
-file(GLOB_RECURSE GBTSYNC_SOURCES src/gbtsync/*.cpp)
-add_executable(gbtsync ${GBTSYNC_SOURCES})
-target_link_libraries(gbtsync btcpool ${THIRD_LIBRARIES})
-
-file(COPY "test/TestGbtSync/testdata/" DESTINATION testdata)
 ###################################### Install & Package ######################################
 message("") # empty line
 message("------------------------------- Install & Package -------------------------------")

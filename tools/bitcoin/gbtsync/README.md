@@ -18,22 +18,18 @@ max_allowed_packet=32M
 create mysql table based on [create_table.sql](create_table.sql)
 
 
-Build with BTCPool
---------------------------
-See [docs/INSTALL-BTCPool.md](../../docs/INSTALL-BTCPool.md)
-
-
-Build Standalone
+Build
 --------------------------
 
 ```
 git clone https://github.com/btccom/btcpool.git
 cd btcpool
 
-mkdir build.gbtsync
-cd build.gbtsync
+cd tools/bitcoin/gbtsync
+mkdir build
+cd build
 
-cmake ../src/gbtsync
+cmake ..
 make
 
 ./gbtsynctest
@@ -43,4 +39,4 @@ make
 
 Build a docker image
 --------------------------
-See [docker/gbtsync/v0.1](../../docker/gbtsync/v0.1)
+See [docker/gbtsync/v0.1](../../../docker/gbtsync)
