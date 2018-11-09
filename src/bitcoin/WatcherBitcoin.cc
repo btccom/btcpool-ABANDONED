@@ -28,7 +28,6 @@
 #include "utilities_js.hpp"
 
 #include <chainparams.h>
-#include <utilstrencodings.h>
 #include <hash.h>
 
 

@@ -27,6 +27,7 @@
 
 #include "StratumSession.h"
 #include "StratumServerBitcoin.h"
+#include "StratumBitcoin.h"
 
 class StratumSessionBitcoin : public StratumSessionBase<StratumTraitsBitcoin> {
 public:

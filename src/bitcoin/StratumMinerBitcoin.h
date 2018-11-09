@@ -25,6 +25,7 @@
 #define STRATUM_MINER_BITCOIN_H_
 
 #include "StratumServerBitcoin.h"
+#include "StratumBitcoin.h"
 #include "StratumMiner.h"
 
 class StratumMinerBitcoin : public StratumMinerBase<StratumTraitsBitcoin> {

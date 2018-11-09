@@ -30,7 +30,6 @@
 // #include <streams.h>
 #include <amount.h>
 #include <chainparams.h>
-#include <utilstrencodings.h>
 #include <base58.h>
 
 #include "CommonBitcoin.h"
