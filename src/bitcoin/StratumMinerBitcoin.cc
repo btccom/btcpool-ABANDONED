@@ -202,12 +202,6 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
   auto &worker = session.getWorker();
   auto jobRepo = server.GetJobRepository();
 
-  // check version mask
-  if (versionMask != 0 && ((~server.getVersionMask()) & versionMask) != 0) {
-    session.responseError(idStr, StratumStatus::ILLEGAL_VERMASK);
-    return;
-  }
-
   const string extraNonce2Hex = Strings::Format("%016llx", extraNonce2);
   assert(extraNonce2Hex.length() / 2 == kExtraNonce2Size_);
 
@@ -217,7 +211,9 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
     handleShare(idStr, StratumStatus::JOB_NOT_FOUND, 0);
 
     LOG(INFO) << "rejected share: " << StratumStatus::toString(StratumStatus::JOB_NOT_FOUND)
-              << ", worker: " << worker.fullName_ << ", Share(id: " << idStr << ", shortJobId: "
+              << ", worker: " << worker.fullName_
+              << ", versionMask: " << Strings::Format("%08x", versionMask)
+              << ", Share(id: " << idStr << ", shortJobId: "
               << (int) shortJobId << ", nTime: " << nTime << "/" << date("%F %T", nTime) << ")";
     return;
   }
@@ -293,7 +289,9 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
 
     // log all rejected share to answer "Why the rejection rate of my miner increased?"
     LOG(INFO) << "rejected share: " << StratumStatus::toString(share.status_)
-              << ", worker: " << worker.fullName_ << ", " << share.toString();
+              << ", worker: " << worker.fullName_
+              << ", versionMask: " << Strings::Format("%08x", versionMask)
+              << share.toString();
 
     // check if thers is invalid share spamming
     int64_t invalidSharesNum = invalidSharesCounter_.sum(time(nullptr),
