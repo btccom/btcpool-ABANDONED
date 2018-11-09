@@ -44,6 +44,8 @@ protected:
   void handleRequest_MiningConfigure(const string &idStr, const JsonNode &jparams);
   void handleRequest_Subscribe(const std::string &idStr, const JsonNode &jparams);
   void handleRequest_Authorize(const std::string &idStr, const JsonNode &jparams);
+  // request from BTCAgent
+  void handleRequest_AgentGetCapabilities(const string &idStr, const JsonNode &jparams);
 
   void logAuthorizeResult(bool success) override;
   string getMinerInfoJson(const string &type) override;

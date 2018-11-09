@@ -52,15 +52,19 @@ void StratumMinerBitcoin::handleRequest(const string &idStr,
 
 void StratumMinerBitcoin::handleExMessage(const std::string &exMessage) {
   //
-  // CMD_SUBMIT_SHARE / CMD_SUBMIT_SHARE_WITH_TIME:
+  // SUBMIT_SHARE | SUBMIT_SHARE_WITH_TIME | SUBMIT_SHARE_WITH_VER | SUBMIT_SHARE_WITH_TIME_VER:
   // | magic_number(1) | cmd(1) | len (2) | jobId (uint8_t) | session_id (uint16_t) |
-  // | extra_nonce2 (uint32_t) | nNonce (uint32_t) | [nTime (uint32_t) |]
+  // | extra_nonce2 (uint32_t) | nNonce (uint32_t) | [nTime (uint32_t) ] | [nVersionMask (uint32_t)] |
   //
   auto command = static_cast<StratumCommandEx>(exMessage[1]);
-  if (command == StratumCommandEx::CMD_SUBMIT_SHARE) {
-    handleExMessage_SubmitShare(exMessage, false);
-  } else if (command == StratumCommandEx::CMD_SUBMIT_SHARE_WITH_TIME) {
-    handleExMessage_SubmitShare(exMessage, true);
+  if (command == StratumCommandEx::SUBMIT_SHARE) {
+    handleExMessage_SubmitShare(exMessage, false, false);
+  } else if (command == StratumCommandEx::SUBMIT_SHARE_WITH_TIME) {
+    handleExMessage_SubmitShare(exMessage, true, false);
+  } else if (command == StratumCommandEx::SUBMIT_SHARE_WITH_VER) {
+    handleExMessage_SubmitShare(exMessage, false, true);
+  } else if (command == StratumCommandEx::SUBMIT_SHARE_WITH_TIME_VER) {
+    handleExMessage_SubmitShare(exMessage, true, true);
   }
 }
 
@@ -118,35 +122,45 @@ void StratumMinerBitcoin::handleRequest_SuggestTarget(const string &idStr,
   resetCurDiff(formatDifficulty(TargetToDiff(jparams.children()->at(0).str())));
 }
 
-void StratumMinerBitcoin::handleExMessage_SubmitShare(const std::string &exMessage, bool isWithTime) {
+void StratumMinerBitcoin::handleExMessage_SubmitShare(const std::string &exMessage,
+                                                      const bool isWithTime,
+                                                      const bool isWithVersion) {
   //
-  // CMD_SUBMIT_SHARE / CMD_SUBMIT_SHARE_WITH_TIME:
+  // SUBMIT_SHARE | SUBMIT_SHARE_WITH_TIME | SUBMIT_SHARE_WITH_VER | SUBMIT_SHARE_WITH_TIME_VER:
   // | magic_number(1) | cmd(1) | len (2) | jobId (uint8_t) | session_id (uint16_t) |
-  // | extra_nonce2 (uint32_t) | nNonce (uint32_t) | [nTime (uint32_t) |]
+  // | extra_nonce2 (uint32_t) | nNonce (uint32_t) | [nTime (uint32_t) ] | [nVersionMask (uint32_t)] |
   //
-  if (exMessage.size() != (isWithTime ? 19 : 15))
+  size_t msgSize = 15;
+  if (isWithTime) {
+    msgSize += 4;
+  }
+  if (isWithVersion) {
+    msgSize += 4;
+  }
+  if (exMessage.size() != msgSize) {
     return;
+  }
 
-  const uint8_t *p = (uint8_t *) exMessage.data();
-  const uint8_t shortJobId = *(uint8_t *) (p + 4);
-  const uint16_t sessionId = *(uint16_t *) (p + 5);
-  if (sessionId > StratumMessageEx::AGENT_MAX_SESSION_ID)
+  const uint8_t *p = (uint8_t *)exMessage.data();
+  const uint8_t shortJobId = *(uint8_t  *)(p +  4);
+  const uint16_t sessionId = *(uint16_t *)(p +  5);
+  if (sessionId > StratumMessageEx::AGENT_MAX_SESSION_ID) {
     return;
+  }
+  const uint32_t exNonce2    = *(uint32_t *)(p +  7);
+  const uint32_t nonce       = *(uint32_t *)(p + 11);
+  const uint32_t timestamp   = (isWithTime    == false ? 0 : *(uint32_t *)(p + 15));
+  const uint32_t versionMask = (isWithVersion == false ? 0 : *(uint32_t *)(p + msgSize - 4));
 
-  const uint32_t exNonce2 = *(uint32_t *) (p + 7);
-  const uint32_t nonce = *(uint32_t *) (p + 11);
-  const uint32_t timestamp = (isWithTime == false ? 0 : *(uint32_t *) (p + 15));
-
-  const uint64_t fullExtraNonce2 = ((uint64_t) sessionId << 32) | (uint64_t) exNonce2;
+  const uint64_t fullExtraNonce2 = ((uint64_t)sessionId << 32) | (uint64_t)exNonce2;
 
   // debug
-  string logLine = Strings::Format("[agent] shortJobId: %02x, sessionId: %08x"
-                                   ", exNonce2: %016llx, nonce: %08x, time: %08x",
-                                   shortJobId, (uint32_t) sessionId,
-                                   fullExtraNonce2, nonce, time);
-  DLOG(INFO) << logLine;
+  DLOG(INFO) << Strings::Format("[agent] shortJobId: %02x, sessionId: %08x, "
+                                "exNonce2: %016llx, nonce: %08x, time: %08x, versionMask: %08x",
+                                shortJobId, (uint32_t)sessionId,
+                                fullExtraNonce2, nonce, timestamp, versionMask);
 
-  handleRequest_Submit("null", shortJobId, fullExtraNonce2, nonce, timestamp, 0u /* version mask */);
+  handleRequest_Submit("null", shortJobId, fullExtraNonce2, nonce, timestamp, versionMask);
 }
 
 void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,

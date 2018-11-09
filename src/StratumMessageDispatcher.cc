@@ -115,14 +115,16 @@ void StratumMessageAgentDispatcher::handleExMessage(const string &exMessage) {
   assert(exMessage.size() == header->length.value());
   auto command = static_cast<StratumCommandEx>(header->command.value());
   switch (command) {
-  case StratumCommandEx::CMD_REGISTER_WORKER:
+  case StratumCommandEx::REGISTER_WORKER:
     handleExMessage_RegisterWorker(exMessage);
     break;
-  case StratumCommandEx::CMD_UNREGISTER_WORKER:
+  case StratumCommandEx::UNREGISTER_WORKER:
     handleExMessage_UnregisterWorker(exMessage);
     break;
-  case StratumCommandEx::CMD_SUBMIT_SHARE:
-  case StratumCommandEx::CMD_SUBMIT_SHARE_WITH_TIME:
+  case StratumCommandEx::SUBMIT_SHARE:
+  case StratumCommandEx::SUBMIT_SHARE_WITH_TIME:
+  case StratumCommandEx::SUBMIT_SHARE_WITH_VER:
+  case StratumCommandEx::SUBMIT_SHARE_WITH_TIME_VER:
     handleExMessage_SessionSpecific(exMessage);
     break;
   default:
@@ -183,7 +185,7 @@ void StratumMessageAgentDispatcher::removeLocalJob(LocalJob &localJob) {
 
 void StratumMessageAgentDispatcher::handleExMessage_RegisterWorker(const string &exMessage) {
   //
-  // CMD_REGISTER_WORKER:
+  // REGISTER_WORKER:
   // | magic_number(1) | cmd(1) | len (2) | session_id(2) | clientAgent | worker_name |
   //
   if (exMessage.size() < 8 || exMessage.size() > 100 /* 100 bytes is big enough */)
@@ -218,7 +220,7 @@ void StratumMessageAgentDispatcher::handleExMessage_RegisterWorker(const string 
 
 void StratumMessageAgentDispatcher::handleExMessage_UnregisterWorker(const string &exMessage) {
   //
-  // CMD_UNREGISTER_WORKER:
+  // UNREGISTER_WORKER:
   // | magic_number(1) | cmd(1) | len (2) | session_id(2) |
   //
   if (exMessage.size() != 6) return;
@@ -230,7 +232,7 @@ void StratumMessageAgentDispatcher::handleExMessage_UnregisterWorker(const strin
 void StratumMessageAgentDispatcher::handleExMessage_SessionSpecific(const string &exMessage) {
   //
   // Session specific messages
-  // | magic_number(1) | cmd(1) | len (2) | session_id(2) | ...
+  // | magic_number(1) | cmd(1) | len (2) | ... | session_id(2) | ...
   //
   auto sessionId = session_.decodeSessionId(exMessage);
   auto iter = miners_.find(sessionId);

@@ -43,12 +43,20 @@ class DiffController;
 class Server;
 class StratumJobEx;
 
+// Supported BTCAgent features / capabilities, a JSON array.
+// Sent within the request / response of agent.get_capabilities for protocol negotiation.
+// Known capabilities:
+//     verrol: version rolling (shares with a version mask can be submitted through a BTCAgent session).
+#define BTCAGENT_PROTOCOL_CAPABILITIES "[\"verrol\"]"
+
 enum class StratumCommandEx : uint8_t {
-  CMD_REGISTER_WORKER = 1,
-  CMD_SUBMIT_SHARE = 2,
-  CMD_SUBMIT_SHARE_WITH_TIME = 3,
-  CMD_UNREGISTER_WORKER = 4,
-  MINING_SET_DIFF = 5,
+  REGISTER_WORKER            = 0x01u, // Agent -> Pool
+  SUBMIT_SHARE               = 0x02u, // Agent -> Pool,  mining.submit(...)
+  SUBMIT_SHARE_WITH_TIME     = 0x03u, // Agent -> Pool,  mining.submit(..., nTime)
+  UNREGISTER_WORKER          = 0x04u, // Agent -> Pool
+  MINING_SET_DIFF            = 0x05u, // Pool  -> Agent, mining.set_difficulty(diff)
+  SUBMIT_SHARE_WITH_VER      = 0x12u, // Agent -> Pool,  mining.submit(..., nVersionMask)
+  SUBMIT_SHARE_WITH_TIME_VER = 0x13u, // Agent -> Pool,  mining.submit(..., nTime, nVersionMask)
 };
 
 struct StratumMessageEx {

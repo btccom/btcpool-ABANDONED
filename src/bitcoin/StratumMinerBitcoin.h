@@ -45,7 +45,9 @@ public:
 private:
   void handleRequest_Submit(const std::string &idStr, const JsonNode &jparams);
   void handleRequest_SuggestTarget(const std::string &idStr, const JsonNode &jparams);
-  void handleExMessage_SubmitShare(const std::string &exMessage, bool isWithTime);
+  void handleExMessage_SubmitShare(const std::string &exMessage,
+                                   const bool isWithTime,
+                                   const bool isWithVersion);
   void handleRequest_Submit(const std::string &idStr,
                             uint8_t shortJobId,
                             uint64_t extraNonce2,

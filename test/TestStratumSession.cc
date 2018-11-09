@@ -143,7 +143,7 @@ TEST(StratumSession, StratumClientAgentHandler_RegisterWorker) {
 
   // cmd
   *p++ = StratumMessageEx::CMD_MAGIC_NUMBER;
-  *p++ = static_cast<uint8_t>(StratumCommandEx::CMD_REGISTER_WORKER);
+  *p++ = static_cast<uint8_t>(StratumCommandEx::REGISTER_WORKER);
 
   // len
   *(uint16_t *)p = (uint16_t)exMessage.size();
@@ -185,7 +185,7 @@ TEST(StratumSession, StratumClientAgentHandler_RegisterWorker2) {
 
   // cmd
   *p++ = StratumMessageEx::CMD_MAGIC_NUMBER;
-  *p++ = static_cast<uint8_t>(StratumCommandEx::CMD_REGISTER_WORKER);
+  *p++ = static_cast<uint8_t>(StratumCommandEx::REGISTER_WORKER);
 
   // len
   *(uint16_t *)p = (uint16_t)exMessage.size();
@@ -227,7 +227,7 @@ TEST(StratumSession, StratumClientAgentHandler_RegisterWorker3) {
 
   // cmd
   *p++ = StratumMessageEx::CMD_MAGIC_NUMBER;
-  *p++ = static_cast<uint8_t>(StratumCommandEx::CMD_REGISTER_WORKER);
+  *p++ = static_cast<uint8_t>(StratumCommandEx::REGISTER_WORKER);
 
   // len
   *(uint16_t *)p = (uint16_t)exMessage.size();
@@ -267,7 +267,7 @@ TEST(StratumSession, StratumClientAgentHandler_RegisterWorker4) {
 
   // cmd
   *p++ = StratumMessageEx::CMD_MAGIC_NUMBER;
-  *p++ = static_cast<uint8_t>(StratumCommandEx::CMD_REGISTER_WORKER);
+  *p++ = static_cast<uint8_t>(StratumCommandEx::REGISTER_WORKER);
 
   // len
   *(uint16_t *)p = (uint16_t)exMessage.size();
@@ -366,7 +366,7 @@ TEST(StratumSession, StratumClientAgentHandler_SubmitShare) {
   StratumMessageAgentDispatcher agent(connection, diffController);
 
   //
-  // CMD_SUBMIT_SHARE / CMD_SUBMIT_SHARE_WITH_TIME:
+  // SUBMIT_SHARE / SUBMIT_SHARE_WITH_TIME:
   // | magic_number(1) | cmd(1) | len (2) | jobId (uint8_t) | session_id (uint16_t) |
   // | extra_nonce2 (uint32_t) | nNonce (uint32_t) | [nTime (uint32_t) |]
   //
@@ -380,7 +380,7 @@ TEST(StratumSession, StratumClientAgentHandler_SubmitShare) {
 
   // cmd
   *p++ = StratumMessageEx::CMD_MAGIC_NUMBER;
-  *p++ = static_cast<uint8_t>(StratumCommandEx::CMD_SUBMIT_SHARE);
+  *p++ = static_cast<uint8_t>(StratumCommandEx::SUBMIT_SHARE);
   // len
   *(uint16_t *)p = (uint16_t)exMessage.size();
   p += 2;
@@ -417,7 +417,7 @@ TEST(StratumSession, StratumClientAgentHandler_SubmitShare_with_time) {
   StratumMessageAgentDispatcher agent(connection, diffController);
 
   //
-  // CMD_SUBMIT_SHARE / CMD_SUBMIT_SHARE_WITH_TIME:
+  // SUBMIT_SHARE / SUBMIT_SHARE_WITH_TIME:
   // | magic_number(1) | cmd(1) | len (2) | jobId (uint8_t) | session_id (uint16_t) |
   // | extra_nonce2 (uint32_t) | nNonce (uint32_t) | [nTime (uint32_t) |]
   //
@@ -431,7 +431,7 @@ TEST(StratumSession, StratumClientAgentHandler_SubmitShare_with_time) {
 
   // cmd
   *p++ = StratumMessageEx::CMD_MAGIC_NUMBER;
-  *p++ = static_cast<uint8_t>(StratumCommandEx::CMD_SUBMIT_SHARE_WITH_TIME);
+  *p++ = static_cast<uint8_t>(StratumCommandEx::SUBMIT_SHARE_WITH_TIME);
   // len
   *(uint16_t *)p = (uint16_t)exMessage.size();
   p += 2;
@@ -470,7 +470,7 @@ TEST(StratumSession, StratumClientAgentHandler_UNREGISTER_WORKER) {
   StratumSessionMock connection;
   StratumMessageAgentDispatcher agent(connection, diffController);
   //
-  // CMD_UNREGISTER_WORKER:
+  // UNREGISTER_WORKER:
   // | magic_number(1) | cmd(1) | len(2) | session_id(2) |
   //
   string exMessage;
@@ -481,7 +481,7 @@ TEST(StratumSession, StratumClientAgentHandler_UNREGISTER_WORKER) {
 
   // cmd
   *p++ = StratumMessageEx::CMD_MAGIC_NUMBER;
-  *p++ = static_cast<uint8_t>(StratumCommandEx::CMD_UNREGISTER_WORKER);
+  *p++ = static_cast<uint8_t>(StratumCommandEx::UNREGISTER_WORKER);
   // len
   *(uint16_t *)p = (uint16_t)exMessage.size();
   p += 2;

@@ -133,13 +133,23 @@ void StratumSessionBitcoin::handleRequest(const std::string &idStr,
   else if (method == "mining.configure") {
     handleRequest_MiningConfigure(idStr, jparams);
   }
+  else if (method == "agent.get_capabilities") {
+    handleRequest_AgentGetCapabilities(idStr, jparams);
+  }
   else if (dispatcher_) {
     dispatcher_->handleRequest(idStr, method, jparams, jroot);
   }
 }
 
+void StratumSessionBitcoin::handleRequest_AgentGetCapabilities(const string &idStr,
+                                                               const JsonNode &jparams) {
+  string s = Strings::Format("{\"id\":%s,\"result\":{\"capabilities\":" BTCAGENT_PROTOCOL_CAPABILITIES "}}\n",
+                             idStr.c_str());
+  sendData(s);
+}
+
 void StratumSessionBitcoin::handleRequest_MiningConfigure(const string &idStr,
-                                                        const JsonNode &jparams) {
+                                                          const JsonNode &jparams) {
   uint32_t allowedVersionMask = getServer().getVersionMask();
 
   if (jparams.children()->size() < 2 ||
