@@ -94,7 +94,7 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/bpool-config.h.in ${CMAKE_CURRENT_SOU
 ########################## Generate version number #############################
 
 SET(BPOOL_VERSION_MAJOR "2")
-SET(BPOOL_VERSION_MINOR "1")
+SET(BPOOL_VERSION_MINOR "2")
 SET(BPOOL_VERSION_PATCH "0")
 
 # Get the current abbreviated commit hash of the working branch
@@ -116,3 +116,9 @@ set(BPOOL_VERSION_STR "${BPOOL_VERSION_MAJOR}.${BPOOL_VERSION_MINOR}.${BPOOL_VER
 message("-- version string: ${BPOOL_VERSION_STR}")
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/bpool-version.h.in ${CMAKE_CURRENT_SOURCE_DIR}/bpool-version.h)
+
+
+# package version of cpack
+SET(CPACK_PACKAGE_VERSION_MAJOR "${BPOOL_VERSION_MAJOR}" PARENT_SCOPE)
+SET(CPACK_PACKAGE_VERSION_MINOR "${BPOOL_VERSION_MINOR}" PARENT_SCOPE)
+SET(CPACK_PACKAGE_VERSION_PATCH "${BPOOL_VERSION_PATCH}" PARENT_SCOPE)
