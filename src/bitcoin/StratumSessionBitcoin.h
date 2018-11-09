@@ -44,6 +44,10 @@ protected:
   void handleRequest_MiningConfigure(const string &idStr, const JsonNode &jparams);
   void handleRequest_Subscribe(const std::string &idStr, const JsonNode &jparams);
   void handleRequest_Authorize(const std::string &idStr, const JsonNode &jparams);
+
+  void logAuthorizeResult(bool success) override;
+  string getMinerInfoJson(const string &type) override;
+
   std::unique_ptr<StratumMessageDispatcher> createDispatcher() override;
 public:
   std::unique_ptr<StratumMiner> createMiner(const std::string &clientAgent,

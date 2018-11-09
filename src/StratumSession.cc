@@ -52,6 +52,8 @@ StratumSession::StratumSession(Server &server, struct bufferevent *bev, struct s
   clientIpInt_ = ipv4->sin_addr.s_addr;
   clientIp_.resize(INET_ADDRSTRLEN);
   evutil_inet_ntop(AF_INET, &ipv4->sin_addr, &clientIp_.front(), INET_ADDRSTRLEN);
+  // remove the padding bytes
+  clientIp_ = clientIp_.c_str();
 
   setup();
   LOG(INFO) << "client connect, ip: " << clientIp_;
@@ -174,6 +176,38 @@ void StratumSession::handleLine(const std::string &line) {
   }
 }
 
+void StratumSession::logAuthorizeResult(bool success) {
+  if (success) {
+    LOG(INFO) << "authorize success, userId: " << worker_.userId_
+              << ", wokerHashId: " << worker_.workerHashId_
+              << ", workerName:" << worker_.fullName_
+              << ", clientAgent: " << clientAgent_
+              << ", clientIp: " << clientIp_;
+  }
+  else {
+    LOG(WARNING) << "authorize failed, workerName:" << worker_.fullName_
+                 << ", clientAgent: " << clientAgent_
+                 << ", clientIp: " << clientIp_;
+  }
+}
+
+string StratumSession::getMinerInfoJson(const string &type) {
+  return Strings::Format("{\"created_at\":\"%s\","
+                          "\"type\":\"%s\","
+                          "\"content\":{"
+                          "\"user_id\":%d,\"user_name\":\"%s\","
+                          "\"worker_id\":%" PRId64 ",\"worker_name\":\"%s\","
+                          "\"client_agent\":\"%s\",\"ip\":\"%s\","
+                          "\"session_id\":\"%08x\""
+                          "}}",
+                          date("%F %T").c_str(),
+                          type.c_str(),
+                          worker_.userId_, worker_.userName_.c_str(),
+                          worker_.workerHashId_, worker_.workerName_.c_str(),
+                          clientAgent_.c_str(), clientIp_.c_str(),
+                          extraNonce1_);
+}
+
 void StratumSession::checkUserAndPwd(const string &idStr, const string &fullName, const string &password)
 {
   if (!password.empty())
@@ -185,7 +219,7 @@ void StratumSession::checkUserAndPwd(const string &idStr, const string &fullName
   const int32_t userId = server_.userInfo_->getUserId(userName);
   if (userId <= 0)
   {
-    LOG(ERROR) << "invalid username=" << userName << ", userId=" << userId;
+    logAuthorizeResult(false);
     responseError(idStr, StratumStatus::INVALID_USERNAME);
     return;
   }
@@ -198,8 +232,7 @@ void StratumSession::checkUserAndPwd(const string &idStr, const string &fullName
   worker_.setUserIDAndNames(userId, fullName);
   server_.userInfo_->addWorker(worker_.userId_, worker_.workerHashId_, worker_.workerName_, clientAgent_);
   dispatcher_ = createDispatcher();
-  DLOG(INFO) << "userId: " << worker_.userId_
-             << ", wokerHashId: " << worker_.workerHashId_ << ", workerName:" << worker_.workerName_;
+  logAuthorizeResult(true);
 
   // set read timeout to 10 mins, it's enought for most miners even usb miner.
   // if it's a pool watcher, set timeout to a week
@@ -209,23 +242,7 @@ void StratumSession::checkUserAndPwd(const string &idStr, const string &fullName
   sendMiningNotify(server_.jobRepository_->getLatestStratumJobEx(), true /* is first job */);
 
   // sent events to kafka: miner_connect
-  {
-    string eventJson;
-    eventJson = Strings::Format("{\"created_at\":\"%s\","
-                                "\"type\":\"miner_connect\","
-                                "\"content\":{"
-                                "\"user_id\":%d,\"user_name\":\"%s\","
-                                "\"worker_name\":\"%s\","
-                                "\"client_agent\":\"%s\",\"ip\":\"%s\","
-                                "\"session_id\":\"%08x\""
-                                "}}",
-                                date("%F %T").c_str(),
-                                worker_.userId_, worker_.userName_.c_str(),
-                                worker_.workerName_.c_str(),
-                                clientAgent_.c_str(), clientIp_.c_str(),
-                                extraNonce1_);
-    server_.sendCommonEvents2Kafka(eventJson);
-  }
+  server_.sendCommonEvents2Kafka(getMinerInfoJson("miner_connect"));
 }
 
 void StratumSession::setDefaultDifficultyFromPassword(const string &password) {
@@ -313,21 +330,7 @@ void StratumSession::markAsDead() {
 
   // sent event to kafka: miner_dead
   if (worker_.userId_ > 0) {
-    string eventJson;
-    eventJson = Strings::Format("{\"created_at\":\"%s\","
-                                "\"type\":\"miner_dead\","
-                                "\"content\":{"
-                                "\"user_id\":%d,\"user_name\":\"%s\","
-                                "\"worker_name\":\"%s\","
-                                "\"client_agent\":\"%s\",\"ip\":\"%s\","
-                                "\"session_id\":\"%08x\""
-                                "}}",
-                                date("%F %T").c_str(),
-                                worker_.userId_, worker_.userName_.c_str(),
-                                worker_.workerName_.c_str(),
-                                clientAgent_.c_str(), clientIp_.c_str(),
-                                extraNonce1_);
-    server_.sendCommonEvents2Kafka(eventJson);
+    server_.sendCommonEvents2Kafka(getMinerInfoJson("miner_dead"));
   }
 }
 

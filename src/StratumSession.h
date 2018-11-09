@@ -117,6 +117,9 @@ protected:
   void setDefaultDifficultyFromPassword(const string &password);
   void setClientAgent(const string &clientAgent);
 
+  virtual void logAuthorizeResult(bool success);
+  virtual string getMinerInfoJson(const string &type);
+
   virtual bool validate(const JsonNode &jmethod, const JsonNode &jparams);
   virtual std::unique_ptr<StratumMessageDispatcher> createDispatcher();
 

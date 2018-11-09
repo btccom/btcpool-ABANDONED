@@ -348,6 +348,40 @@ void StratumSessionBitcoin::handleRequest_Authorize(const string &idStr,
   return;
 }
 
+void StratumSessionBitcoin::logAuthorizeResult(bool success) {
+  if (success) {
+    LOG(INFO) << "authorize success, userId: " << worker_.userId_
+              << ", wokerHashId: " << worker_.workerHashId_
+              << ", workerName:" << worker_.fullName_
+              << ", versionMask: " << Strings::Format("%08x", versionMask_)
+              << ", clientAgent: " << clientAgent_
+              << ", clientIp: " << clientIp_;
+  }
+  else {
+    LOG(WARNING) << "authorize failed, workerName:" << worker_.fullName_
+                 << ", versionMask: " << Strings::Format("%08x", versionMask_)
+                 << ", clientAgent: " << clientAgent_
+                 << ", clientIp: " << clientIp_;
+  }
+}
+
+string StratumSessionBitcoin::getMinerInfoJson(const string &type) {
+  return Strings::Format("{\"created_at\":\"%s\","
+                          "\"type\":\"%s\","
+                          "\"content\":{"
+                          "\"user_id\":%d,\"user_name\":\"%s\","
+                          "\"worker_id\":%" PRId64 ",\"worker_name\":\"%s\","
+                          "\"client_agent\":\"%s\",\"ip\":\"%s\","
+                          "\"session_id\":\"%08x\",\"version_mask\":\"%08x\""
+                          "}}",
+                          date("%F %T").c_str(),
+                          type.c_str(),
+                          worker_.userId_, worker_.userName_.c_str(),
+                          worker_.workerHashId_, worker_.workerName_.c_str(),
+                          clientAgent_.c_str(), clientIp_.c_str(),
+                          extraNonce1_, versionMask_);
+}
+
 unique_ptr<StratumMessageDispatcher> StratumSessionBitcoin::createDispatcher() {
   if (isAgentClient_) {
     return boost::make_unique<StratumMessageAgentDispatcher>(
