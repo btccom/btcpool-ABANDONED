@@ -555,12 +555,18 @@ void PoolWatchClient::handleStratumMessage(const string &line) {
             return;
           }
 
+#ifndef CHAIN_TYPE_BCH
           if (nBits != poolStratumJob->nBits_) {
             LOG(WARNING) << "<" << poolName_ << "> discard the job: nBits different from pool job."
                                       << " pool nBits: " << poolStratumJob->nBits_
                                       << ", the job nBits: " << nBits;
             return;
           }
+#else
+          LOG(INFO) << "<" << poolName_ << "> temporary skip difficulty check of BCH."
+                    << " pool nBits: " << poolStratumJob->nBits_
+                    << ", the job nBits: " << nBits;
+#endif
 
           // the block time from other pool may have a deviation with the current time.
           // so replaced it by current system time.
