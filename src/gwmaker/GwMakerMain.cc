@@ -38,7 +38,13 @@
 
 #include "config/bpool-version.h"
 #include "Utils.h"
+
 #include "GwMaker.h"
+#include "bytom/GwMakerBytom.h"
+#include "decred/GwMakerDecred.h"
+#include "eth/GwMakerEth.h"
+#include "rsk/GwMakerRsk.h"
+#include "sia/GwMakerSia.h"
 
 using namespace std;
 using namespace libconfig;

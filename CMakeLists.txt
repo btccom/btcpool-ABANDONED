@@ -410,58 +410,21 @@ set(THIRD_LIBRARIES ethash blake2 sph ${BH_SHARED_LIBRARY} ${USE_CUDA_LIBRARIES}
                     ${MYSQL_LIBRARIES} ${LIBZMQ_LIBRARIES} ${Hiredis_LIBRARIES} ${CURL_LIBRARIES} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY}
                     ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB} ${GMP_LIBRARIES} ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} ${PTHREAD_LIBRARIES})
 
-set(LIB_SATOSHI_SOURCES
-    src/satoshi/compat/byteswap.h
-    src/satoshi/compat/endian.h
-    src/satoshi/crypto/common.h
-    src/satoshi/crypto/ripemd160.cpp
-    src/satoshi/crypto/ripemd160.h
-    src/satoshi/crypto/sha256.cpp
-    src/satoshi/crypto/sha256.h
-    src/satoshi/util/strencodings.cpp
-    src/satoshi/util/strencodings.h
-    src/satoshi/arith_uint256.cpp
-    src/satoshi/arith_uint256.h
-    src/satoshi/hash.h
-    src/satoshi/tinyformat.h
-    src/satoshi/uint256.cpp
-    src/satoshi/uint256.h
+file(GLOB_RECURSE LIB_SATOSHI_SOURCES
+        src/satoshi/*.cpp
     )
 
-file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc)
+file(GLOB LIB_SOURCES
+        src/*.cc
+        src/rsk/*.cc
+    )
 file(GLOB LIB_SOURCES_CHAINS
         src/eth/*.cc
         src/bytom/*.cc 
         src/bitcoin/*.cc 
         src/sia/*.cc
+        src/decred/*.cc
     )
-
-set(LIB_SOURCES_DECRED
-  src/decred/BlockMakerDecred.cc
-  src/decred/BlockMakerDecred.h
-  src/decred/CommonDecred.cc
-  src/decred/CommonDecred.h
-  src/decred/DecredUtils.cc
-  src/decred/DecredUtils.h
-  src/decred/JobMakerDecred.cc
-  src/decred/JobMakerDecred.h
-  src/decred/ShareLoggerDecred.cc
-  src/decred/ShareLoggerDecred.h
-  src/decred/ShareLogParserDecred.cc
-  src/decred/ShareLogParserDecred.h
-  src/decred/StatisticsDecred.cc
-  src/decred/StatisticsDecred.h
-  src/decred/StatsHttpdDecred.cc
-  src/decred/StatsHttpdDecred.h
-  src/decred/StratumDecred.cc
-  src/decred/StratumDecred.h
-  src/decred/StratumMinerDecred.cc
-  src/decred/StratumMinerDecred.h
-  src/decred/StratumServerDecred.cc
-  src/decred/StratumServerDecred.h
-  src/decred/StratumSessionDecred.cc
-  src/decred/StratumSessionDecred.h
-)
 
 add_library(btcpool STATIC ${LIB_SATOSHI_SOURCES} ${LIB_SOURCES} ${LIB_SOURCES_CHAINS} ${LIB_SOURCES_DECRED})
 
