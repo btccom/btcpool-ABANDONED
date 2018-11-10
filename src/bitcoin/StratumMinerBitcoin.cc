@@ -263,7 +263,7 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
     LOG(INFO) << "rejected share: " << StratumStatus::toString(share.status_)
               << ", worker: " << worker.fullName_
               << ", versionMask: " << Strings::Format("%08x", versionMask)
-              << share.toString();
+              << ", " << share.toString();
 
     // check if thers is invalid share spamming
     int64_t invalidSharesNum = invalidSharesCounter_.sum(time(nullptr),
