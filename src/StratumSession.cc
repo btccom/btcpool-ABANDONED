@@ -210,11 +210,6 @@ string StratumSession::getMinerInfoJson(const string &type) {
 
 void StratumSession::checkUserAndPwd(const string &idStr, const string &fullName, const string &password)
 {
-  if (!password.empty())
-  {
-    setDefaultDifficultyFromPassword(password);
-  }
-
   const string userName = worker_.getUserName(fullName);
   const int32_t userId = server_.userInfo_->getUserId(userName);
   if (userId <= 0)
@@ -234,6 +229,11 @@ void StratumSession::checkUserAndPwd(const string &idStr, const string &fullName
   dispatcher_ = createDispatcher();
   logAuthorizeResult(true);
 
+  if (!password.empty())
+  {
+    setDefaultDifficultyFromPassword(password);
+  }
+
   // set read timeout to 10 mins, it's enought for most miners even usb miner.
   // if it's a pool watcher, set timeout to a week
   setReadTimeout(isLongTimeout_ ? 86400 * 7 : 60 * 10);
@@ -248,6 +248,12 @@ void StratumSession::checkUserAndPwd(const string &idStr, const string &fullName
 void StratumSession::setDefaultDifficultyFromPassword(const string &password) {
   // testcase: TEST(StratumSession, SetDiff)
   using namespace boost::algorithm;
+
+  if (!dispatcher_) {
+    LOG(ERROR) << "StratumSession::setDefaultDifficultyFromPassword: ignore password "
+               << password << ", dispatcher_ is empty!";
+    return;
+  }
 
   uint64_t d = 0u, md = 0u;
   vector<string> arr;  // key=value,key=value
