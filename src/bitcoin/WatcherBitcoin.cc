@@ -259,17 +259,29 @@ void PoolWatchClientBitcoin::handleStratumMessage(const string &line) {
             return;
           }
 
-#ifndef CHAIN_TYPE_BCH
-          if (nBits != poolStratumJob->nBits_) {
-            LOG(WARNING) << "<" << poolName_ << "> discard the job: nBits different from pool job."
-                                      << " pool nBits: " << poolStratumJob->nBits_
-                                      << ", the job nBits: " << nBits;
+#ifdef CHAIN_TYPE_BCH
+          // BCH adjusts the difficulty in each block,
+          // its DAA algorithm will produce a difficulty change between 0.5 and 2 times.
+          // @see <https://www.bitcoinabc.org/2017-11-01-DAA/>
+          double poolDiff, jobDiff;
+          BitsToDifficulty(poolStratumJob->nBits_, &poolDiff);
+          BitsToDifficulty(nBits, &jobDiff);
+          double multiple = jobDiff / poolDiff;
+          if (multiple < 0.5 || multiple > 2.0) {
+            LOG(WARNING) << "<" << poolName_ << "> discard the job: difficulty changes too much."
+                         << " pool diff: " << poolDiff << " (" << poolStratumJob->nBits_ << ")"
+                         << ", the job diff: " << jobDiff << " (" << nBits
+                         << ", = " << multiple << "x pool diff)";
             return;
           }
 #else
-          LOG(INFO) << "<" << poolName_ << "> temporary skip difficulty check of BCH."
-                    << " pool nBits: " << poolStratumJob->nBits_
-                    << ", the job nBits: " << nBits;
+          // Except for BCH, other blockchains do not adjust the difficulty in each block.
+          if (nBits != poolStratumJob->nBits_) {
+            LOG(WARNING) << "<" << poolName_ << "> discard the job: nBits different from pool job."
+                         << " pool nBits: " << poolStratumJob->nBits_
+                         << ", the job nBits: " << nBits;
+            return;
+          }
 #endif
 
           // the block time from other pool may have a deviation with the current time.
