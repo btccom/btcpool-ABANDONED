@@ -57,7 +57,13 @@ StratumClient::StratumClient(struct event_base* base,
 
   extraNonce1_ = 0u;
   extraNonce2Size_ = 8;
-  extraNonce2_ = 0u;
+
+  // use random extraNonce2_
+  // It will help Ethereum and other getwork chains to avoid duplicate shares
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<uint64_t> dis(0, 0xFFFFFFFFFFFFFFFFu);
+  extraNonce2_ = dis(gen);
 }
 
 StratumClient::~StratumClient() {
@@ -328,7 +334,7 @@ void StratumClientWrapper::submitShares() {
   // randomly select a connection to submit a share.
   static std::random_device rd;
   static std::mt19937 gen(rd());
-  static std::uniform_int_distribution<> dis(0, connections_.size()-1);
+  static std::uniform_int_distribution<size_t> dis(0, connections_.size()-1);
 
   size_t i = dis(gen);
   connections_[i]->submitShare();
