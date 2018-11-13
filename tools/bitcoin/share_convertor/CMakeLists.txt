@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 2.6)
+cmake_minimum_required (VERSION 3.5)
 
 project (btcpool_tools_kafka_repeater)
 set(PROJECT_ROOT "${CMAKE_SOURCE_DIR}/../../..")
