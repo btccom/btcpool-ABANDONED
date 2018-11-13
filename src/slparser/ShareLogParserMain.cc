@@ -75,14 +75,8 @@ void usage() {
 std::shared_ptr<ShareLogDumper> newShareLogDumper(const string &chainType, const string &dataDir,
                                                   time_t timestamp, const std::set<int32_t> &uids)
 {
-#if defined(CHAIN_TYPE_BTC)
-  if ("BTC" == chainType)
-#elif defined(CHAIN_TYPE_BCH)
-  if ("BCH" == chainType)
-#elif defined(CHAIN_TYPE_UBTC)
-  if ("UBTC" == chainType)
-#elif defined(CHAIN_TYPE_SBTC)
-  if ("SBTC" == chainType)
+#if defined(CHAIN_TYPE_STR)
+  if (CHAIN_TYPE_STR == chainType)
 #else 
   if (false)
 #endif
@@ -108,14 +102,8 @@ std::shared_ptr<ShareLogParser> newShareLogParser(const string &chainType, const
                                                   time_t timestamp, const MysqlConnectInfo &poolDBInfo,
                                                   const int dupShareTrackingHeight)
 {
-#if defined(CHAIN_TYPE_BTC)
-  if ("BTC" == chainType)
-#elif defined(CHAIN_TYPE_BCH)
-  if ("BCH" == chainType)
-#elif defined(CHAIN_TYPE_UBTC)
-  if ("UBTC" == chainType)
-#elif defined(CHAIN_TYPE_SBTC)
-  if ("SBTC" == chainType)
+#if defined(CHAIN_TYPE_STR)
+  if (CHAIN_TYPE_STR == chainType)
 #else 
   if (false)
 #endif  
@@ -145,14 +133,8 @@ std::shared_ptr<ShareLogParserServer> newShareLogParserServer(const string &chai
                                                         const uint32_t kFlushDBInterval,
                                                         const int dupShareTrackingHeight)
 {
-#if defined(CHAIN_TYPE_BTC)
-  if ("BTC" == chainType)
-#elif defined(CHAIN_TYPE_BCH)
-  if ("BCH" == chainType)
-#elif defined(CHAIN_TYPE_UBTC)
-  if ("UBTC" == chainType)
-#elif defined(CHAIN_TYPE_SBTC)
-  if ("SBTC" == chainType)
+#if defined(CHAIN_TYPE_STR)
+  if (CHAIN_TYPE_STR == chainType)
 #else 
   if (false)
 #endif  
