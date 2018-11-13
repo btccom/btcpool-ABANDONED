@@ -42,7 +42,8 @@ protected:
                 const int16_t poolPort, const string &workerName) override;
 
 public:
-  ClientContainerBitcoin(const string &kafkaBrokers, const string &jobTopic, const string &gbtTopic);
+  ClientContainerBitcoin(const string &kafkaBrokers, const string &jobTopic, const string &gbtTopic,
+                         bool disableChecking);
   ~ClientContainerBitcoin();
 
   bool sendEmptyGBT(int32_t blockHeight, uint32_t nBits,
@@ -57,7 +58,6 @@ public:
 ///////////////////////////////// PoolWatchClient //////////////////////////////
 class PoolWatchClientBitcoin : public PoolWatchClient
 {
-
   uint32_t extraNonce1_;
   uint32_t extraNonce2Size_;
 
@@ -67,6 +67,7 @@ class PoolWatchClientBitcoin : public PoolWatchClient
 
 public:
   PoolWatchClientBitcoin(struct event_base *base, ClientContainerBitcoin *container,
+                  bool disableChecking,
                   const string &poolName,
                   const string &poolHost, const int16_t poolPort,
                   const string &workerName);

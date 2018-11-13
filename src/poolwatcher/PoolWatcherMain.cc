@@ -132,9 +132,13 @@ int main(int argc, char **argv) {
     SelectParams(CBaseChainParams::MAIN);
   }
 
+  bool disableChecking = false;
+  cfg.lookupValue("poolwatcher.disable_checking", disableChecking);
+
   gClientContainer = new ClientContainerBitcoin(cfg.lookup("kafka.brokers"),
                                                 cfg.lookup("poolwatcher.job_topic"),
-                                                cfg.lookup("poolwatcher.rawgbt_topic"));
+                                                cfg.lookup("poolwatcher.rawgbt_topic"),
+                                                disableChecking);
 
   // add pools
   {
