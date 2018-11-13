@@ -46,7 +46,8 @@ public:
                          bool disableChecking);
   ~ClientContainerBitcoin();
 
-  bool sendEmptyGBT(int32_t blockHeight, uint32_t nBits,
+  bool sendEmptyGBT(const string &poolName,
+                    int32_t blockHeight, uint32_t nBits,
                     const string &blockPrevHash,
                     uint32_t blockTime, uint32_t blockVersion);
 

@@ -118,9 +118,10 @@ void ClientContainerBitcoin::consumeStratumJobInternal(const string& str)
     }
 }
 
-bool ClientContainerBitcoin::sendEmptyGBT(int32_t blockHeight, uint32_t nBits,
-                                   const string &blockPrevHash,
-                                   uint32_t blockTime, uint32_t blockVersion) {
+bool ClientContainerBitcoin::sendEmptyGBT(const string &poolName,
+                                          int32_t blockHeight, uint32_t nBits,
+                                          const string &blockPrevHash,
+                                          uint32_t blockTime, uint32_t blockVersion) {
 
   // generate empty GBT
   string gbt;
@@ -144,10 +145,12 @@ bool ClientContainerBitcoin::sendEmptyGBT(int32_t blockHeight, uint32_t nBits,
 
   string sjob = Strings::Format("{\"created_at_ts\":%u,"
                                 "\"block_template_base64\":\"%s\","
-                                "\"gbthash\":\"%s\"}",
+                                "\"gbthash\":\"%s\","
+                                "\"from_pool\":\"%s\"}",
                                 (uint32_t)time(nullptr),
                                 EncodeBase64(gbt).c_str(),
-                                gbtHash.ToString().c_str());
+                                gbtHash.ToString().c_str(),
+                                poolName.c_str());
 
   // submit to Kafka
   kafkaProducer_.produce(sjob.c_str(), sjob.length());
@@ -294,7 +297,7 @@ void PoolWatchClientBitcoin::handleStratumMessage(const string &line) {
           nVersion = poolStratumJob->nVersion_;
         }
 
-        containerBitcoin->sendEmptyGBT(blockHeight, nBits, prevHash, blockTime, nVersion);
+        containerBitcoin->sendEmptyGBT(poolName_, blockHeight, nBits, prevHash, blockTime, nVersion);
 
       }
     }
