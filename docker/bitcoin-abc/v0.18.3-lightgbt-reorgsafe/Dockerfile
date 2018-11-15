@@ -24,7 +24,7 @@ RUN apt-get install -y libboost-all-dev libzmq3-dev curl wget unzip
 RUN mkdir ~/source
 RUN cd ~/source && wget -O v0.18.3_lightgbt_reorgsafe.tar.gz https://github.com/btccom/bitcoin-abc-1/archive/v0.18.3_lightgbt_reorgsafe.tar.gz
 RUN cd ~/source \
-  && tar zxf v0.18.3_lightgbt_reorgsafe.tar.gz && cd bitcoin-abc-1-0.18.3-lightgbt-reorgsafe \
+  && tar zxf v0.18.3_lightgbt_reorgsafe.tar.gz && cd bitcoin-abc-1-0.18.3_lightgbt_reorgsafe \
   && ./autogen.sh \
   && ./configure --disable-wallet --disable-tests \
   #&& make && make install
