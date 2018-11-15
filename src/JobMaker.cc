@@ -568,7 +568,7 @@ void JobMaker::clearTimeoutGbt() {
 }
 
 void JobMaker::sendStratumJob(const char *gbt) {
-  LOG(INFO) << "SendStratumJob: " << gbt;
+  DLOG(INFO) << "Received GBT: " << gbt;
 
   string latestNmcAuxBlockJson;
   {
