@@ -289,11 +289,11 @@ Topics for Bitcoin or BitcoinCash
 ./bin/kafka-topics.sh --create --topic RskSolvedShare --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
 
 # do not keep 'RawGbt' message more than 6 hours
-./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name RawGbt       --config retention.ms=21600000
+./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name RawGbt       --add-config retention.ms=21600000
 # 'CommonEvents': 12 hours
-./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name CommonEvents --config retention.ms=43200000
+./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name CommonEvents --add-config retention.ms=43200000
 # 'RawGw': 6 hours
-./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name RawGw --config retention.ms=21600000
+./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name RawGw --add-config retention.ms=21600000
 ```
 
 Topics for UnitedBitcoin
@@ -313,11 +313,11 @@ Topics for UnitedBitcoin
 ./bin/kafka-topics.sh --create --topic UBTC_RskSolvedShare --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
 
 # do not keep 'RawGbt' message more than 6 hours
-./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name UBTC_RawGbt       --config retention.ms=21600000
+./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name UBTC_RawGbt       --add-config retention.ms=21600000
 # 'CommonEvents': 12 hours
-./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name UBTC_CommonEvents --config retention.ms=43200000
+./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name UBTC_CommonEvents --add-config retention.ms=43200000
 # 'RawGw': 6 hours
-./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name UBTC_RawGw --config retention.ms=21600000
+./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name UBTC_RawGw --add-config retention.ms=21600000
 ```
 
 Topics for SuperBitcoin
@@ -337,11 +337,11 @@ Topics for SuperBitcoin
 ./bin/kafka-topics.sh --create --topic SBTC_RskSolvedShare --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
 
 # do not keep 'RawGbt' message more than 6 hours
-./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name SBTC_RawGbt       --config retention.ms=21600000
+./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name SBTC_RawGbt       --add-config retention.ms=21600000
 # 'CommonEvents': 12 hours
-./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name SBTC_CommonEvents --config retention.ms=43200000
+./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name SBTC_CommonEvents --add-config retention.ms=43200000
 # 'RawGw': 6 hours
-./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name SBTC_RawGw --config retention.ms=21600000
+./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name SBTC_RawGw --add-config retention.ms=21600000
 ```
 
 Check kafka topics status:
