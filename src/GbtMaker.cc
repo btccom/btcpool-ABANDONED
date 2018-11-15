@@ -290,7 +290,7 @@ void GbtMaker::submitRawGbtMsg(bool checkTime) {
     LOG(ERROR) << "get rawgbt failure";
     return;
   }
-  LOG(INFO) << "rawGbt message: " << rawGbtMsg.c_str(); 
+  DLOG(INFO) << "rawGbt message: " << rawGbtMsg.c_str(); 
   lastGbtMakeTime_ = (uint32_t)time(nullptr);
 
   // submit to Kafka
