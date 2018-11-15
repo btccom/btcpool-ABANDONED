@@ -116,6 +116,8 @@ int main(int argc, char **argv) {
   cfg.lookupValue("gbtmaker.is_check_zmq", isCheckZmq);
   int32_t rpcCallInterval = 5;
   cfg.lookupValue("gbtmaker.rpcinterval", rpcCallInterval);
+  bool isLigbtGbt = false;
+  cfg.lookupValue("gbtmaker.lightgbt", isLigbtGbt);
   gGbtMaker = new GbtMaker(cfg.lookup("bitcoind.zmq_addr"),
                            cfg.lookup("bitcoind.rpc_addr"),
                            cfg.lookup("bitcoind.rpc_userpwd"),
@@ -126,7 +128,7 @@ int main(int argc, char **argv) {
     if (!gGbtMaker->init()) {
       LOG(FATAL) << "gbtmaker init failure";
     } else {
-      gGbtMaker->run(false, true);
+      gGbtMaker->run(!isLigbtGbt, isLigbtGbt);
     }
     delete gGbtMaker;
   } catch (std::exception & e) {
