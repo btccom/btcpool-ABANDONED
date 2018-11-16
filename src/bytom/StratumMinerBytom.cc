@@ -80,7 +80,7 @@ int checkProofOfWork(EncodeBlockHeader_return encoded, StratumJobBytom *sJob, ui
   string targetStr;
   Bin2Hex(pTarget, 32, targetStr);
   GoSlice text = {(void *) pTarget, 32, 32};
-  uint64 localJobBits = Bytom_JobDifficultyToTargetCompact(difficulty);
+  uint64_t localJobBits = Bytom_JobDifficultyToTargetCompact(difficulty);
 
   bool powResultLocalJob = CheckProofOfWork(text, localJobBits);
   if (powResultLocalJob) {
@@ -114,7 +114,7 @@ void StratumMinerBytom::handleRequest_Submit(const string &idStr, const JsonNode
   LOG(INFO) << idStr.c_str() << ": bytom handle request submit";
   JsonNode &params = const_cast<JsonNode &>(jparams);
 
-  uint8 shortJobId = (uint8) params["job_id"].uint32();
+  uint8_t shortJobId = (uint8_t) params["job_id"].uint32();
 
   LocalJob *localJob = session.findLocalJob(shortJobId);
   if (nullptr == localJob) {
@@ -140,12 +140,12 @@ void StratumMinerBytom::handleRequest_Submit(const string &idStr, const JsonNode
 
   //get header submission string and header hash string
   //  nonce in bytom B3Poisoned is using hex not decimal
-  uint64 nonce = 0;
+  uint64_t nonce = 0;
   {
     string nonceHex = params["nonce"].str();
     vector<char> nonceBinBuf;
     Hex2BinReverse(nonceHex.c_str(), nonceHex.length(), nonceBinBuf);
-    nonce = *(uint64 *) nonceBinBuf.data();
+    nonce = *(uint64_t *) nonceBinBuf.data();
     LOG(INFO) << idStr.c_str() << ": bytom handle request submit jobId " << (int) shortJobId
               << " with nonce: " << nonce << " - noncehex: " << nonceHex.c_str();
   }
@@ -185,12 +185,12 @@ void StratumMinerBytom::handleRequest_Submit(const string &idStr, const JsonNode
   share.blkBits_ = sJob->blockHeader_.bits;
   share.height_ = sJob->blockHeader_.height;
 
-  auto StringToCheapHash = [](const std::string &str) -> uint64 {
+  auto StringToCheapHash = [](const std::string &str) -> uint64_t {
     // int merkleRootLen = std::min(32, (int)str.length());
     auto merkleRootBegin = (uint8_t *) &str[0];
     // auto merkleRootEnd = merkleRootBegin + merkleRootLen;
 
-    uint64 res;
+    uint64_t res;
     memcpy(&res, merkleRootBegin, std::min(8, (int) str.length()));
     return res;
 

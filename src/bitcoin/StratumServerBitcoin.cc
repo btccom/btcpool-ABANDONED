@@ -339,7 +339,7 @@ void ServerBitcoin::sendSolvedShare2Kafka(const FoundBlock *foundBlock,
 }
 
 int ServerBitcoin::checkShare(const ShareBitcoin &share,
-                       const uint32 extraNonce1, const string &extraNonce2Hex,
+                       const uint32_t extraNonce1, const string &extraNonce2Hex,
                        const uint32_t nTime, const uint32_t nonce,
                        const uint32_t versionMask,
                        const uint256 &jobTarget, const string &workFullName,

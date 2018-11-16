@@ -57,8 +57,8 @@ struct JobMakerDefinition
   bool enabled_;
 
   string jobTopic_;
-  uint32 jobInterval_;
-  uint32 serverId_;
+  uint32_t jobInterval_;
+  uint32_t serverId_;
 
   string zookeeperLockPath_;
   string fileLastJobTime_;
@@ -69,8 +69,8 @@ struct GwJobMakerDefinition : public JobMakerDefinition
   virtual ~GwJobMakerDefinition() {}
 
   string rawGwTopic_;
-  uint32 maxJobDelay_;
-  uint32 workLifeTime_;
+  uint32_t maxJobDelay_;
+  uint32_t workLifeTime_;
 };
 
 struct GbtJobMakerDefinition : public JobMakerDefinition
@@ -81,17 +81,17 @@ struct GbtJobMakerDefinition : public JobMakerDefinition
   
   string payoutAddr_;
   string coinbaseInfo_;
-  uint32 blockVersion_;
+  uint32_t blockVersion_;
   
   string rawGbtTopic_;
   string auxPowGwTopic_;
   string rskRawGwTopic_;
 
-  uint32 maxJobDelay_;
-  uint32 gbtLifeTime_;
-  uint32 emptyGbtLifeTime_;
+  uint32_t maxJobDelay_;
+  uint32_t gbtLifeTime_;
+  uint32_t emptyGbtLifeTime_;
 
-  uint32 mergedMiningNotifyPolicy_;
+  uint32_t mergedMiningNotifyPolicy_;
 };
 
 class JobMakerHandler

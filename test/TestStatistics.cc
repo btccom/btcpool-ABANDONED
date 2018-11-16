@@ -37,10 +37,10 @@ TEST(StatsWindow, clear) {
   int windowSize = 60;
 
   for (int j = 0; j < 10; j++) {
-    StatsWindow<int64> sw(windowSize);
+    StatsWindow<int64_t> sw(windowSize);
     ASSERT_EQ(sw.sum(windowSize - 1, windowSize), 0);
 
-    int64 val = 3;
+    int64_t val = 3;
     for (int i = 0; i < windowSize; i++) {
       sw.insert(i, val);
     }
@@ -54,8 +54,8 @@ TEST(StatsWindow, clear) {
 
 TEST(StatsWindow, sum01) {
   int windowSize = 60;
-  StatsWindow<int64> sw(windowSize);
-  int64 val = 5;
+  StatsWindow<int64_t> sw(windowSize);
+  int64_t val = 5;
 
   for (int i = 0; i < windowSize; i++) {
     sw.insert(i, val);
@@ -82,8 +82,8 @@ TEST(StatsWindow, sum01) {
 
 TEST(StatsWindow, sum02) {
   int windowSize = 60;
-  StatsWindow<int64> sw(windowSize);
-  int64 val = 5;
+  StatsWindow<int64_t> sw(windowSize);
+  int64_t val = 5;
 
   for (int i = windowSize - 1; i >= 0; i--) {
     sw.insert(i, val);
@@ -110,7 +110,7 @@ TEST(StatsWindow, sum02) {
 
 
 TEST(StatsWindow, sum03) {
-  StatsWindow<int64> sw(5);
+  StatsWindow<int64_t> sw(5);
   sw.insert(0, 1);
   ASSERT_EQ(sw.sum(0, 1), 1);
   sw.clear();
@@ -146,19 +146,19 @@ TEST(StatsWindow, sum03) {
 
 TEST(StatsWindow, map) {
   int windowSize = 10;
-  StatsWindow<int64> sw(windowSize);
+  StatsWindow<int64_t> sw(windowSize);
   for (int i = 0; i < windowSize; i++) {
     sw.insert(i, i * 2);
   }
   ASSERT_EQ(sw.sum(windowSize-1), sw.sum(windowSize-1, windowSize));
 
-  int64 sum = sw.sum(windowSize-1, windowSize);
+  int64_t sum = sw.sum(windowSize-1, windowSize);
   sw.mapDivide(2);
-  int64 sum2 = sw.sum(windowSize-1, windowSize);
+  int64_t sum2 = sw.sum(windowSize-1, windowSize);
   ASSERT_EQ(sum/2, sum2);
 
   sw.mapMultiply(2);
-  int64 sum3 = sw.sum(windowSize-1, windowSize);
+  int64_t sum3 = sw.sum(windowSize-1, windowSize);
   ASSERT_EQ(sum, sum3);
 }
 

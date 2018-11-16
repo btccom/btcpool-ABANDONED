@@ -65,10 +65,10 @@ void makeMerkleBranch(const vector<uint256> &vtxhashs, vector<uint256> &steps) {
 }
 
 static
-int64 findExtraNonceStart(const vector<char> &coinbaseOriTpl,
+int64_t findExtraNonceStart(const vector<char> &coinbaseOriTpl,
                           const vector<char> &placeHolder) {
   // find for the end
-  for (int64 i = coinbaseOriTpl.size() - placeHolder.size(); i >= 0; i--) {
+  for (int64_t i = coinbaseOriTpl.size() - placeHolder.size(); i >= 0; i--) {
     if (memcmp(&coinbaseOriTpl[i], &placeHolder[0], placeHolder.size()) == 0) {
       return i;
     }
@@ -304,7 +304,7 @@ bool StratumJobBitcoin::initFromGbt(const char *gbt, const string &poolCoinbaseI
   // 00000000000000000328e9fea9914ad83b7404a838aa66aefb970e5689c2f63d
   // 89c2f63dfb970e5638aa66ae3b7404a8a9914ad80328e9fe0000000000000000
   for (int i = 0; i < 8; i++) {
-    uint32 a = *(uint32 *)(BEGIN(prevHash_) + i * 4);
+    uint32_t a = *(uint32_t *)(BEGIN(prevHash_) + i * 4);
     a = HToBe(a);
     prevHashBeStr_ += HexStr(BEGIN(a), END(a));
   }
@@ -558,7 +558,7 @@ bool StratumJobBitcoin::initFromGbt(const char *gbt, const string &poolCoinbaseI
       return false;
     }
 
-    const int64 extraNonceStart = findExtraNonceStart(coinbaseTpl, placeHolder);
+    const int64_t extraNonceStart = findExtraNonceStart(coinbaseTpl, placeHolder);
     coinbase1_ = HexStr(&coinbaseTpl[0], &coinbaseTpl[extraNonceStart]);
     coinbase2_ = HexStr(&coinbaseTpl[extraNonceStart + placeHolder.size()],
                         &coinbaseTpl[coinbaseTpl.size()]);

@@ -48,10 +48,10 @@ struct GwMakerDefinition
 
   string rpcAddr_;
   string rpcUserPwd_;
-  uint32 rpcInterval_;
+  uint32_t rpcInterval_;
 
   string notifyHost_;
-  uint32 notifyPort_;
+  uint32_t notifyPort_;
 
   string rawGwTopic_;
 };

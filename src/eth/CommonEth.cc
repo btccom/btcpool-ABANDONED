@@ -27,7 +27,7 @@
 static arith_uint256 kMaxUint256("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 static uint64_t kMaxUint64 = 0xffffffffffffffffull;
 
-string Eth_DifficultyToTarget(uint64 diff)  {
+string Eth_DifficultyToTarget(uint64_t diff)  {
   if (0 == diff) {
     return kMaxUint256.GetHex();
   }
@@ -36,7 +36,7 @@ string Eth_DifficultyToTarget(uint64 diff)  {
   return target.GetHex();
 }
 
-uint64 Eth_TargetToDifficulty(string targetHex) {
+uint64_t Eth_TargetToDifficulty(string targetHex) {
   arith_uint256 target(targetHex);
 
   if (target == 0) {
@@ -47,7 +47,7 @@ uint64 Eth_TargetToDifficulty(string targetHex) {
   return diff.GetLow64();
 }
 
-uint64 Eth_TargetToDifficulty(const uint256 &targetBin)
+uint64_t Eth_TargetToDifficulty(const uint256 &targetBin)
 {
   arith_uint256 target = UintToArith256(targetBin);
 

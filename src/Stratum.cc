@@ -152,7 +152,7 @@ int64_t StratumWorker::calcWorkerId(const string &workerName) {
   // https://en.wikipedia.org/wiki/Birthday_attack
   const uint256 workerNameHash = Hash(workerName.begin(), workerName.end());
 
-  // need to convert to uint64 first than copy memory
+  // need to convert to uint64_t first than copy memory
   const uint64_t tmpId = strtoull(workerNameHash.ToString().substr(0, 16).c_str(),
                                   nullptr, 16);
   memcpy((uint8_t *)&workerHashId, (uint8_t *)&tmpId, 8);

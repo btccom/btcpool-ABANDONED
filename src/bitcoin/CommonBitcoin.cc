@@ -25,34 +25,34 @@
 #include "CommonBitcoin.h"
 #include <arith_uint256.h>
 
-uint64 TargetToDiff(uint256 &target) {
+uint64_t TargetToDiff(uint256 &target) {
   arith_uint256 t = UintToArith256(target);
   uint64_t difficulty;
   BitsToDifficulty(t.GetCompact(), &difficulty);
   return difficulty;
 }
 
-uint64 TargetToDiff(const string &str) {
+uint64_t TargetToDiff(const string &str) {
   uint256 t = uint256S(str);
   return TargetToDiff(t);
 }
 
-void BitsToTarget(uint32 bits, uint256 & target) {
+void BitsToTarget(uint32_t bits, uint256 & target) {
   target = ArithToUint256(arith_uint256().SetCompact(bits));
 }
 
 #ifdef CHAIN_TYPE_LTC
-static const uint32 BITS_DIFF1 = 0x1f00ffff;
+static const uint32_t BITS_DIFF1 = 0x1f00ffff;
 #else
-static const uint32 BITS_DIFF1 = 0x1d00ffff;
+static const uint32_t BITS_DIFF1 = 0x1d00ffff;
 #endif
 
-static const uint32 SHIFTS_DIFF1 = (BITS_DIFF1 >> 24) & 0xff;
+static const uint32_t SHIFTS_DIFF1 = (BITS_DIFF1 >> 24) & 0xff;
 static const auto TARGET_DIFF1 = arith_uint256().SetCompact(BITS_DIFF1);
 
-static uint32 _DiffToBits(uint64 diff) {
-  uint64 nbytes = (BITS_DIFF1 >> 24) & 0xff;
-  uint64 value  = BITS_DIFF1 & 0xffffffULL;
+static uint32_t _DiffToBits(uint64_t diff) {
+  uint64_t nbytes = (BITS_DIFF1 >> 24) & 0xff;
+  uint64_t value  = BITS_DIFF1 & 0xffffffULL;
 
   if (diff == 0) {
     return 1;
@@ -78,7 +78,7 @@ static uint32 _DiffToBits(uint64 diff) {
   if (value > 0x00ffffffULL) {
     return 1;  // overflow... should not happen
   }
-  return (uint32)(value | (nbytes << 24));
+  return (uint32_t)(value | (nbytes << 24));
 }
 
 static std::array<uint256, 64> GenerateDiff2TargetTable() {
@@ -92,7 +92,7 @@ static std::array<uint256, 64> GenerateDiff2TargetTable() {
 
 static const auto kDiff2TargetTable = GenerateDiff2TargetTable();
 
-void DiffToTarget(uint64 diff, uint256 &target, bool useTable) {
+void DiffToTarget(uint64_t diff, uint256 &target, bool useTable) {
   if (useTable) {
     // try to find by table
     const uint64_t p = (uint64_t)log2(diff);
@@ -107,8 +107,8 @@ void DiffToTarget(uint64 diff, uint256 &target, bool useTable) {
   BitsToTarget(_DiffToBits(diff), target);
 }
 
-void BitsToDifficulty(uint32 bits, double *difficulty) {
-  uint32 nShift = (bits >> 24) & 0xff;
+void BitsToDifficulty(uint32_t bits, double *difficulty) {
+  uint32_t nShift = (bits >> 24) & 0xff;
   double dDiff = (double)0x0000ffff / (double)(bits & 0x00ffffff);
   while (nShift < SHIFTS_DIFF1) {
     dDiff *= 256.0;
@@ -121,8 +121,8 @@ void BitsToDifficulty(uint32 bits, double *difficulty) {
   *difficulty = dDiff;
 }
 
-void BitsToDifficulty(uint32 bits, uint64 *difficulty) {
+void BitsToDifficulty(uint32_t bits, uint64_t *difficulty) {
   double diff;
   BitsToDifficulty(bits, &diff);
-  *difficulty = (uint64)diff;
+  *difficulty = (uint64_t)diff;
 }

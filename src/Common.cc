@@ -23,11 +23,11 @@
  */
 #include "Common.h"
 
-uint32 djb2(const char *s)
+uint32_t djb2(const char *s)
 {
-  uint32 hash = 5381;
+  uint32_t hash = 5381;
   int c;
-  uint8* str = (uint8*) s;
+  uint8_t* str = (uint8_t*) s;
   while ((c = *str++))
     hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
 

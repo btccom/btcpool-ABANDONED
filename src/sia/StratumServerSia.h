@@ -38,7 +38,7 @@ public:
 
   unique_ptr<StratumSession> createConnection(struct bufferevent *bev, struct sockaddr *saddr, const uint32_t sessionID) override;
   
-  void sendSolvedShare2Kafka(uint8* buf, int len);
+  void sendSolvedShare2Kafka(uint8_t *buf, int len);
 private:
   JobRepository* createJobRepository(const char *kafkaBrokers,
                                      const char *consumerTopic,     

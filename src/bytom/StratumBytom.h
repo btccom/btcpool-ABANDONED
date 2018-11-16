@@ -143,11 +143,11 @@ public:
 
 struct BlockHeaderBytom
 {
-  uint64 version;           // The version of the block.
-  uint64 height;            // The height of the block.
+  uint64_t version;           // The version of the block.
+  uint64_t height;            // The height of the block.
   string previousBlockHash; // The hash of the previous block.
-  uint64 timestamp;         // The time of the block in seconds.
-  uint64 bits;              // Difficulty target for the block.
+  uint64_t timestamp;         // The time of the block in seconds.
+  uint64_t bits;              // Difficulty target for the block.
   string transactionsMerkleRoot;
   string transactionStatusHash;
   string serializeToJson() const;

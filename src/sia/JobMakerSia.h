@@ -40,7 +40,7 @@ public:
 protected:
   string target_;
   string header_;
-  uint32 time_;
+  uint32_t time_;
   bool validate(JsonNode &j);
 
 };
