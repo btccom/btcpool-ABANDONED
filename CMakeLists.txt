@@ -401,7 +401,7 @@ else()
   add_definitions(-DNO_CUDA)
 endif(USE_CUDA)
 
-include_directories(src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config ${CHAIN_SRC_ROOT}/src/secp256k1/include
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/src src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config ${CHAIN_SRC_ROOT}/src/secp256k1/include
                     ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS} ${KAFKA_INCLUDE_DIR} ${ZLIB_INCLUDE_DIRS}
                     ${LIBEVENT_INCLUDE_DIR} ${USE_CUDA_INCLUDE_DIRECTORY} ${BH_SHARED_INCLUDE_DIR} ${MYSQL_INCLUDE_DIR})
 
