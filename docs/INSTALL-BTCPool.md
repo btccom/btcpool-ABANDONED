@@ -83,7 +83,6 @@ brew install cmake openssl libconfig boost mysql zmq gmp libevent zookeeper libr
 * glog-v0.3.4
 
 ```
-mkdir -p /root/source && cd /root/source
 wget https://github.com/google/glog/archive/v0.3.4.tar.gz
 tar zxvf v0.3.4.tar.gz
 cd glog-0.3.4
