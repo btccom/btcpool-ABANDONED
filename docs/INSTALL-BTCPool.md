@@ -31,7 +31,8 @@ apt-get install -y build-essential autotools-dev libtool autoconf automake pkg-c
                    libzmq3-dev libgoogle-glog-dev libhiredis-dev zlib1g zlib1g-dev
 ```
 
-Notice: It is no longer recommended to install `libevent-dev` from the software source. **The release of libevent will cause a dead lock bug in sserver** ([issue #75](https://github.com/btccom/btcpool/issues/75)).
+Notice: It is no longer recommended to install `libevent-dev` from the software source.
+**The release and stable version of libevent will cause a dead lock bug in sserver** ([issue #75](https://github.com/btccom/btcpool/issues/75)).
 It is recommended that you manually build the libevent from its master branch with commands at below.
 
 Sometimes one or two packages will fail due to dependency problems, and you can try `aptitude`.
@@ -50,7 +51,7 @@ aptitude install build-essential autotools-dev libtool autoconf automake pkg-con
 
 * build libevent from its master branch
 
-Notice: **the release of libevent will cause a dead lock bug in sserver** ([issue #75](https://github.com/btccom/btcpool/issues/75)), so use the code from the master branch. 
+Notice: **the release and stable version of libevent will cause a dead lock bug in sserver** ([issue #75](https://github.com/btccom/btcpool/issues/75)), so use the code from the master branch. 
 ```
 git clone https://github.com/libevent/libevent.git
 cd libevent
