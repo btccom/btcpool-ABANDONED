@@ -28,8 +28,11 @@ apt-get update
 apt-get install -y build-essential autotools-dev libtool autoconf automake pkg-config cmake \
                    openssl libssl-dev libcurl4-openssl-dev libconfig++-dev \
                    libboost-all-dev libgmp-dev libmysqlclient-dev libzookeeper-mt-dev \
-                   libzmq3-dev libgoogle-glog-dev libevent-dev libhiredis-dev
+                   libzmq3-dev libgoogle-glog-dev libhiredis-dev zlib1g zlib1g-dev
 ```
+
+Notice: It is no longer recommended to install `libevent-dev` from the software source. **The release of libevent will cause a dead lock bug in sserver** ([issue #75](https://github.com/btccom/btcpool/issues/75)).
+It is recommended that you manually build the libevent from its master branch with commands at below.
 
 Sometimes one or two packages will fail due to dependency problems, and you can try `aptitude`.
 ```bash
@@ -39,21 +42,33 @@ apt-get install -y aptitude
 aptitude install build-essential autotools-dev libtool autoconf automake pkg-config cmake \
                    openssl libssl-dev libcurl4-openssl-dev libconfig++-dev \
                    libboost-all-dev libgmp-dev libmysqlclient-dev libzookeeper-mt-dev \
-                   libzmq3-dev libgoogle-glog-dev libevent-dev libhiredis-dev
+                   libzmq3-dev libgoogle-glog-dev libhiredis-dev zlib1g zlib1g-dev
 
 # Input `n` if the solution is `NOT INSTALL` some package.
 # Eventually aptitude will give a solution that downgrade some packages to allow all packages to be installed.
 ```
 
-* librdkafka-v0.9.1
+* build libevent from its master branch
+
+Notice: **the release of libevent will cause a dead lock bug in sserver** ([issue #75](https://github.com/btccom/btcpool/issues/75)), so use the code from the master branch. 
+```
+git clone https://github.com/libevent/libevent.git
+cd libevent
+./autogen.sh
+./configure --disable-shared
+make && make install
+```
+
+* build librdkafka-v0.9.1
 
 ```bash
-apt-get install -y zlib1g zlib1g-dev
-mkdir -p /root/source && cd /root/source
 wget https://github.com/edenhill/librdkafka/archive/0.9.1.tar.gz
 tar zxvf 0.9.1.tar.gz
 cd librdkafka-0.9.1
 ./configure && make && make install
+
+# if you want to keep static libraries only
+rm -v /usr/local/lib/librdkafka*.so /usr/local/lib/librdkafka*.so.*
 ```
 
 #### macOS
