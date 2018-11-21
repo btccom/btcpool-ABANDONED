@@ -18,13 +18,13 @@ ADD sources-aliyun.com.list /etc/apt/sources.list
 
 RUN apt-get update
 RUN apt-get install -y build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils yasm
-RUN apt-get install -y libboost-all-dev libzmq3-dev curl wget unzip
+RUN apt-get install -y libboost-all-dev libzmq3-dev curl wget unzip git
 
 # build bitcoind
 RUN mkdir ~/source
-RUN cd ~/source && wget -O v0.18.3_lightgbt_reorgsafe.tar.gz https://github.com/btccom/bitcoin-abc-1/archive/v0.18.3_lightgbt_reorgsafe.tar.gz
+RUN cd ~/source && git clone -b v0.18.4-reorgsafe --depth 1 https://github.com/btccom/bitcoin-abc-1.git
 RUN cd ~/source \
-  && tar zxf v0.18.3_lightgbt_reorgsafe.tar.gz && cd bitcoin-abc-1-0.18.3_lightgbt_reorgsafe \
+  && cd bitcoin-abc-1 \
   && ./autogen.sh \
   && ./configure --disable-wallet --disable-tests \
   #&& make && make install
