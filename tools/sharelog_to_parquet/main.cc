@@ -31,7 +31,6 @@
 #include <iostream>
 #include <fstream>
 
-#include <boost/interprocess/sync/file_lock.hpp>
 #include <glog/logging.h>
 #include <libconfig.h++>
 #include <arrow/io/file.h>
