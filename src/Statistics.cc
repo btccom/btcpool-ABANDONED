@@ -1110,7 +1110,10 @@ void StatsServer::runThreadConsume() {
       break;
     }
 
-    LOG(INFO) << "consuming history shares: " << date("%F %T", lastShareTime_);
+    if (lastFlushDBTime + kFlushDBInterval_ < time(nullptr)) {
+      LOG(INFO) << "consuming history shares: " << date("%F %T", lastShareTime_);
+      lastFlushDBTime = time(nullptr);
+    }
   }
 
   // flush db and consume subsequent shares
