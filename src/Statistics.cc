@@ -1082,70 +1082,74 @@ void StatsServer::runThreadConsume() {
 
   const time_t kExpiredCleanInterval = 60*30;
   const int32_t kTimeoutMs = 1000;  // consumer timeout
+  const int32_t kTimeoutMsInit = 30000;  // consumer timeout in init
 
+  // consume history messages
   while (running_) {
-    bool noNewShares = false;
+    rd_kafka_message_t *rkmessage;
+    rkmessage = kafkaConsumer_.consumer(kTimeoutMsInit);
 
+    // rkmessage == nullptr means timeout.
+    // Most of time it's not nullptr and set an error:
+    //     rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF
+    if (rkmessage == nullptr) {
+      LOG(INFO) << "no share received in " << (kTimeoutMsInit / 1000) << " s";
+
+      isInitializing_ = false;
+      break;
+    }
+
+    // consume share log (lastShareTime_ will be updated)
+    consumeShareLog(rkmessage);
+    rd_kafka_message_destroy(rkmessage);  /* Return message to rdkafka */
+
+    // the initialization state ends after consuming a share that generated in the last minute.
+    // If no shares received at the first consumption (lastShareTime_ == 0), the initialization state ends too.
+    if (lastShareTime_ + kFlushDBInterval_ >= time(nullptr)) {
+      isInitializing_ = false;
+      break;
+    }
+
+    LOG(INFO) << "consuming history shares: " << date("%F %T", lastShareTime_);
+  }
+
+  // flush db and consume subsequent shares
+  while (running_) {
+    // try to remove expired workers
+    if (lastCleanTime + kExpiredCleanInterval < time(nullptr)) {
+      removeExpiredWorkers();
+      lastCleanTime = time(nullptr);
+    }
+
+    // flush workers to table.mining_workers
+    if (lastFlushDBTime + kFlushDBInterval_ < time(nullptr)) {
+      // will use thread to flush data to DB.
+      // it's very fast because we use insert statement with multiple values
+      // and merge table when flush data to DB.
+      if (poolDB_ != nullptr) {
+        flushWorkersAndUsersToDB();
+      }
+      if (redisGroup_.size() > 0) {
+        flushWorkersAndUsersToRedis();
+      }
+      lastFlushDBTime = time(nullptr);
+    }
+    
+    // consume the next message
     {
-      //
-      // consume message
-      //
       rd_kafka_message_t *rkmessage;
       rkmessage = kafkaConsumer_.consumer(kTimeoutMs);
 
-      // timeout, most of time it's not nullptr and set an error:
-      //          rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF
       if (rkmessage != nullptr) {
         // consume share log (lastShareTime_ will be updated)
         consumeShareLog(rkmessage);
         rd_kafka_message_destroy(rkmessage);  /* Return message to rdkafka */
-      } else {
-        noNewShares = true;
       }
     }
 
-    // don't flush database while consuming history shares.
-    // otherwise, users' hashrate will be updated to 0 when statshttpd restarted.
-    if (isInitializing_) {
-      if (lastFlushDBTime + kFlushDBInterval_ < time(nullptr)) {
-        // the initialization state ends after consuming a share that generated in the last minute.
-        // If no shares received at the first consumption (lastShareTime_ == 0), the initialization state ends too.
-        if (!noNewShares && lastShareTime_ + 60 < time(nullptr)) {
-          LOG(INFO) << "consuming history shares: " << date("%F %T", lastShareTime_);
-          lastFlushDBTime = time(nullptr);
-        } else {
-          isInitializing_ = false;
-        }
-      }
-    } else {
-      //
-      // try to remove expired workers
-      //
-      if (lastCleanTime + kExpiredCleanInterval < time(nullptr)) {
-        removeExpiredWorkers();
-        lastCleanTime = time(nullptr);
-      }
+  } // while
 
-      //
-      // flush workers to table.mining_workers
-      //
-      if (lastFlushDBTime + kFlushDBInterval_ < time(nullptr)) {
-        // will use thread to flush data to DB.
-        // it's very fast because we use insert statement with multiple values
-        // and merge table when flush data to DB.
-        if (poolDB_ != nullptr) {
-          flushWorkersAndUsersToDB();
-        }
-        if (redisGroup_.size() > 0) {
-          flushWorkersAndUsersToRedis();
-        }
-        lastFlushDBTime = time(nullptr);
-      }
-    }
-
-  }
   LOG(INFO) << "stop sharelog consume thread";
-
   stop();  // if thread exit, we must call server to stop
 }
 
