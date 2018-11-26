@@ -155,13 +155,13 @@ protected:
   std::shared_ptr<GroupNode> setupSchema() {
     parquet::schema::NodeVector fields;
 
-    fields.push_back(PrimitiveNode::Make("job_id",     Repetition::REQUIRED, Type::INT64, LogicalType::UINT_64));
+    fields.push_back(PrimitiveNode::Make("job_id",     Repetition::REQUIRED, Type::INT64, LogicalType::INT_64));
     fields.push_back(PrimitiveNode::Make("worker_id",  Repetition::REQUIRED, Type::INT64, LogicalType::INT_64));
-    fields.push_back(PrimitiveNode::Make("ip_long",    Repetition::REQUIRED, Type::INT32, LogicalType::UINT_32));
+    fields.push_back(PrimitiveNode::Make("ip_long",    Repetition::REQUIRED, Type::INT32, LogicalType::INT_32));
     fields.push_back(PrimitiveNode::Make("user_id",    Repetition::REQUIRED, Type::INT32, LogicalType::INT_32));
-    fields.push_back(PrimitiveNode::Make("share_diff", Repetition::REQUIRED, Type::INT64, LogicalType::UINT_64));
+    fields.push_back(PrimitiveNode::Make("share_diff", Repetition::REQUIRED, Type::INT64, LogicalType::INT_64));
     fields.push_back(PrimitiveNode::Make("timestamp",  Repetition::REQUIRED, Type::INT64, LogicalType::TIMESTAMP_MILLIS));
-    fields.push_back(PrimitiveNode::Make("block_bits", Repetition::REQUIRED, Type::INT32, LogicalType::UINT_32));
+    fields.push_back(PrimitiveNode::Make("block_bits", Repetition::REQUIRED, Type::INT32, LogicalType::INT_32));
     fields.push_back(PrimitiveNode::Make("result",     Repetition::REQUIRED, Type::INT32, LogicalType::INT_32));
 
     // Create a GroupNode named 'share_bitcoin_v1' using the primitive nodes defined above
