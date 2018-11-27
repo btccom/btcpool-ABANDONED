@@ -855,8 +855,8 @@ void StratumSession::handleRequest_Submit(const string &idStr,
     }
     
     LOG(INFO) << "rejected share: " << StratumError::toString(StratumError::JOB_NOT_FOUND)
-    << ", worker: " << worker_.fullName_ << ", Share(id: " << idStr << ", shortJobId: "
-    << (int)shortJobId << ", nTime: " << nTime << "/" << date("%F %T", nTime) << ")";
+              << ", worker: " << worker_.fullName_ << ", Share(id: " << idStr << ", shortJobId: "
+              << (int)shortJobId << ", nTime: " << nTime << "/" << date("%F %T", nTime) << ")";
     return;
   }
 
@@ -965,7 +965,13 @@ finish:
     
     // log all rejected share to answer "Why the rejection rate of my miner increased?"
     LOG(INFO) << "rejected share: " << StratumError::toString(submitResult)
-    << ", worker: " << worker_.fullName_ << ", " << share.toString();
+              << ", worker: " << worker_.fullName_
+              << ", nonce: " << Strings::Format("%08x", nonce)
+              << ", extraNonce1: " << Strings::Format("%08x", extraNonce1_)
+              << ", extraNonce2: " << Strings::Format("%016" PRIx64, extraNonce2)
+              << ", time: " << Strings::Format("%08x", nTime)
+              << ", versionMask: " << Strings::Format("%08x", versionMask)
+              << ", " << share.toString();
 
     // check if thers is invalid share spamming
     int64_t invalidSharesNum = invalidSharesCounter_.sum(time(nullptr),
