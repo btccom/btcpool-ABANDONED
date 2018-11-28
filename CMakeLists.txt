@@ -133,7 +133,7 @@ elseif(CHAIN_TYPE STREQUAL "LTC")
 # Unknown
 else()
   message("Unknown chain type! (-DCHAIN_TYPE=${CHAIN_TYPE})")
-  message(FATAL_ERROR "Supported chain type: BTC|BCH|UBTC|SBTC")
+  message(FATAL_ERROR "Supported chain type: BTC|BCH|UBTC|SBTC|LTC")
 endif()
 
 option(CHAIN_ENABLE_WALLET "Enable chain wallet feature" OFF)
