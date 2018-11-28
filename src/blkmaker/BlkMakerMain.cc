@@ -75,16 +75,8 @@ void usage() {
 
 BlockMaker* createBlockMaker(shared_ptr<BlockMakerDefinition> def, const string& broker, MysqlConnectInfo* poolDBInfo) {
   BlockMaker *maker = nullptr;
-#if defined(CHAIN_TYPE_BTC)
-  if ("BTC" == def->chainType_)
-#elif defined(CHAIN_TYPE_BCH)
-  if ("BCH" == def->chainType_)
-#elif defined(CHAIN_TYPE_UBTC)
-  if ("UBTC" == def->chainType_)
-#elif defined(CHAIN_TYPE_SBTC)
-  if ("SBTC" == def->chainType_)
-#elif defined(CHAIN_TYPE_LTC)
-  if ("LTC" == def->chainType_)
+#if defined(CHAIN_TYPE_STR)
+  if (CHAIN_TYPE_STR == def->chainType_)
 #else 
   if (false)
 #endif  
@@ -108,16 +100,8 @@ shared_ptr<BlockMakerDefinition> createDefinition(const Setting &setting)
 
   readFromSetting(setting, "chain_type",  chainType);
   
-#if defined(CHAIN_TYPE_BTC)
-  if ("BTC" == chainType)
-#elif defined(CHAIN_TYPE_BCH)
-  if ("BCH" == chainType)
-#elif defined(CHAIN_TYPE_UBTC)
-  if ("UBTC" == chainType)
-#elif defined(CHAIN_TYPE_SBTC)
-  if ("SBTC" == chainType)
-#elif defined(CHAIN_TYPE_LTC)
-  if ("LTC" == chainType)
+#if defined(CHAIN_TYPE_STR)
+  if (CHAIN_TYPE_STR == chainType)
 #else 
   if (false)
 #endif

@@ -9,16 +9,8 @@
 
 Server* createStratumServer(const std::string &type, const int32_t shareAvgSeconds, const libconfig::Config& config) {
   LOG(INFO) << "createServer type: " << type << ", shareAvgSeconds: " << shareAvgSeconds;
-#if defined(CHAIN_TYPE_BTC)
-  if ("BTC" == type)
-#elif defined(CHAIN_TYPE_BCH)
-  if ("BCH" == type)
-#elif defined(CHAIN_TYPE_UBTC)
-  if ("UBTC" == type)
-#elif defined(CHAIN_TYPE_SBTC)
-  if ("SBTC" == type)
-#elif defined(CHAIN_TYPE_LTC)
-  if ("LTC" == type)
+#if defined(CHAIN_TYPE_STR)
+  if (CHAIN_TYPE_STR == type)
 #else 
   if (false)
 #endif

@@ -96,23 +96,7 @@ shared_ptr<JobMakerHandler> createGwJobMakerHandler(shared_ptr<GwJobMakerDefinit
 shared_ptr<JobMakerHandler> createGbtJobMakerHandler(shared_ptr<GbtJobMakerDefinition> def) {
   shared_ptr<JobMakerHandlerBitcoin> handler;
 
-  #ifdef CHAIN_TYPE_BTC
-    const char *chain = "BTC";
-  #endif
-  #ifdef CHAIN_TYPE_BCH
-    const char *chain = "BCH";
-  #endif
-  #ifdef CHAIN_TYPE_UBTC
-    const char *chain = "UBTC";
-  #endif
-  #ifdef CHAIN_TYPE_SBTC
-    const char *chain = "SBTC";
-  #endif
-  #ifdef CHAIN_TYPE_LTC
-    const char *chain = "LTC";
-  #endif
-
-  if (def->chainType_ == chain)
+  if (def->chainType_ == CHAIN_TYPE_STR)
     handler = make_shared<JobMakerHandlerBitcoin>();
   else
     LOG(FATAL) << "unknown chain type: " << def->chainType_;

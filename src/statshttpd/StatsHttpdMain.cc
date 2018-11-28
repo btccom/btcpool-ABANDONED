@@ -77,17 +77,9 @@ std::shared_ptr<StatsServer> newStatsServer(const string &chainType, const char 
                                             const time_t kFlushDBInterval, const string &fileLastFlushTime,
                                             const int dupShareTrackingHeight)
 {
-#if defined(CHAIN_TYPE_BTC)
-  if ("BTC" == chainType)
-#elif defined(CHAIN_TYPE_BCH)
-  if ("BCH" == chainType)
-#elif defined(CHAIN_TYPE_UBTC)
-  if ("UBTC" == chainType)
-#elif defined(CHAIN_TYPE_SBTC)
-  if ("SBTC" == chainType) 
-#elif defined(CHAIN_TYPE_LTC)
-    if ("LTC" == chainType)
-#else
+#if defined(CHAIN_TYPE_STR)
+  if (CHAIN_TYPE_STR == chainType)
+#else 
   if (false)
 #endif  
   {
