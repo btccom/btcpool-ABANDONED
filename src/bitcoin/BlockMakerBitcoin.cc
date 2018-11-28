@@ -560,6 +560,9 @@ void BlockMakerBitcoin::processSolvedShare(rd_kafka_message_t *rkmessage) {
   else
 #endif  // CHAIN_TYPE_BCH
   {
+#ifdef CHAIN_TYPE_LTC
+    LOG(INFO) << "submit block pow: " << newblk.GetPoWHash().ToString();
+#endif
     LOG(INFO) << "submit block: " << newblk.GetHash().ToString();
     submitBlockNonBlocking(blockHex);  // using thread
   }

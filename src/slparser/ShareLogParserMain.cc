@@ -83,6 +83,8 @@ std::shared_ptr<ShareLogDumper> newShareLogDumper(const string &chainType, const
   if ("UBTC" == chainType)
 #elif defined(CHAIN_TYPE_SBTC)
   if ("SBTC" == chainType)
+#elif defined(CHAIN_TYPE_LTC)
+  if ("LTC" == chainType)
 #else 
   if (false)
 #endif
@@ -116,6 +118,8 @@ std::shared_ptr<ShareLogParser> newShareLogParser(const string &chainType, const
   if ("UBTC" == chainType)
 #elif defined(CHAIN_TYPE_SBTC)
   if ("SBTC" == chainType)
+#elif defined(CHAIN_TYPE_LTC)
+  if ("LTC" == chainType)
 #else 
   if (false)
 #endif  
@@ -153,6 +157,8 @@ std::shared_ptr<ShareLogParserServer> newShareLogParserServer(const string &chai
   if ("UBTC" == chainType)
 #elif defined(CHAIN_TYPE_SBTC)
   if ("SBTC" == chainType)
+#elif defined(CHAIN_TYPE_LTC)
+  if ("LTC" == chainType)
 #else 
   if (false)
 #endif  

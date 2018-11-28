@@ -84,8 +84,10 @@ std::shared_ptr<StatsServer> newStatsServer(const string &chainType, const char 
 #elif defined(CHAIN_TYPE_UBTC)
   if ("UBTC" == chainType)
 #elif defined(CHAIN_TYPE_SBTC)
-  if ("SBTC" == chainType)
-#else 
+  if ("SBTC" == chainType) 
+#elif defined(CHAIN_TYPE_LTC)
+    if ("LTC" == chainType)
+#else
   if (false)
 #endif  
   {

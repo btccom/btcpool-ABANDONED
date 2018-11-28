@@ -770,7 +770,8 @@ bool Server::setup(StratumServer* sserver) {
                                                  RD_KAFKA_PARTITION_UA);
 
   // job repository
-  jobRepository_ = createJobRepository(sserver->kafkaBrokers_.c_str(), sserver->consumerTopic_.c_str(), sserver->fileLastNotifyTime_);
+  jobRepository_ = createJobRepository(sserver->kafkaBrokers_.c_str(), sserver->consumerTopic_.c_str(), \
+                                       sserver->fileLastNotifyTime_);
   jobRepository_->setMaxJobDelay(sserver->maxJobDelay_);
   if (!jobRepository_->setupThreadConsume()) {
     return false;

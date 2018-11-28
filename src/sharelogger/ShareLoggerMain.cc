@@ -86,6 +86,8 @@ std::shared_ptr<ShareLogWriter> newShareLogWriter(const string &kafkaBrokers, co
   if ("UBTC" == chainType)
 #elif defined(CHAIN_TYPE_SBTC)
   if ("SBTC" == chainType)
+#elif defined(CHAIN_TYPE_LTC)
+  if ("LTC" == chainType)
 #else 
   if (false)
 #endif

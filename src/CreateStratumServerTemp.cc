@@ -17,6 +17,8 @@ Server* createStratumServer(const std::string &type, const int32_t shareAvgSecon
   if ("UBTC" == type)
 #elif defined(CHAIN_TYPE_SBTC)
   if ("SBTC" == type)
+#elif defined(CHAIN_TYPE_LTC)
+  if ("LTC" == type)
 #else 
   if (false)
 #endif

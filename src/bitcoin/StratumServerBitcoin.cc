@@ -374,8 +374,12 @@ int ServerBitcoin::checkShare(const ShareBitcoin &share,
                                 sjob->nBits_, sjob->nVersion_, nTime, nonce,
                                 versionMask,
                                 userCoinbaseInfo);
-  uint256 blkHash = header.GetHash();
 
+#ifdef CHAIN_TYPE_LTC
+    uint256 blkHash = header.GetPoWHash();
+#else
+  uint256 blkHash = header.GetHash();
+#endif
   arith_uint256 bnBlockHash     = UintToArith256(blkHash);
   arith_uint256 bnNetworkTarget = UintToArith256(sjob->networkTarget_);
 

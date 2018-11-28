@@ -108,6 +108,9 @@ shared_ptr<JobMakerHandler> createGbtJobMakerHandler(shared_ptr<GbtJobMakerDefin
   #ifdef CHAIN_TYPE_SBTC
     const char *chain = "SBTC";
   #endif
+  #ifdef CHAIN_TYPE_LTC
+    const char *chain = "LTC";
+  #endif
 
   if (def->chainType_ == chain)
     handler = make_shared<JobMakerHandlerBitcoin>();

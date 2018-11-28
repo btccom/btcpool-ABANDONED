@@ -83,6 +83,8 @@ BlockMaker* createBlockMaker(shared_ptr<BlockMakerDefinition> def, const string&
   if ("UBTC" == def->chainType_)
 #elif defined(CHAIN_TYPE_SBTC)
   if ("SBTC" == def->chainType_)
+#elif defined(CHAIN_TYPE_LTC)
+  if ("LTC" == def->chainType_)
 #else 
   if (false)
 #endif  
@@ -114,6 +116,8 @@ shared_ptr<BlockMakerDefinition> createDefinition(const Setting &setting)
   if ("UBTC" == chainType)
 #elif defined(CHAIN_TYPE_SBTC)
   if ("SBTC" == chainType)
+#elif defined(CHAIN_TYPE_LTC)
+  if ("LTC" == chainType)
 #else 
   if (false)
 #endif
