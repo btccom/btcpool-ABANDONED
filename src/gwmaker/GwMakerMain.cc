@@ -38,7 +38,13 @@
 
 #include "config/bpool-version.h"
 #include "Utils.h"
+
 #include "GwMaker.h"
+#include "bytom/GwMakerBytom.h"
+#include "decred/GwMakerDecred.h"
+#include "eth/GwMakerEth.h"
+#include "rsk/GwMakerRsk.h"
+#include "sia/GwMakerSia.h"
 
 using namespace std;
 using namespace libconfig;
@@ -178,11 +184,11 @@ int main(int argc, char **argv) {
 
   // lock cfg file:
   // you can't run more than one process with the same config file
-  boost::interprocess::file_lock pidFileLock(optConf);
+  /*boost::interprocess::file_lock pidFileLock(optConf);
   if (pidFileLock.try_lock() == false) {
     LOG(FATAL) << "lock cfg file fail";
     return(EXIT_FAILURE);
-  }
+  }*/
 
   signal(SIGTERM, handler);
   signal(SIGINT,  handler);

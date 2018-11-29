@@ -39,12 +39,13 @@ public:
 
 private:
   uint32_t lastHeight_;
+  uint16_t lastVoters_;
 };
 
 class ServerDecred : public ServerBase<JobRepositoryDecred> {
 public:
   explicit ServerDecred(int32_t shareAvgSeconds, const libconfig::Config &config);
-  StratumSession* createSession(evutil_socket_t fd, bufferevent *bev, sockaddr *saddr, const uint32_t sessionID) override;
+  unique_ptr<StratumSession> createConnection(bufferevent *bev, sockaddr *saddr, uint32_t sessionID) override;
 
   int checkShare(ShareDecred &share, shared_ptr<StratumJobEx> exJobPtr, const vector<uint8_t> &extraNonce2,
                  uint32_t ntime, uint32_t nonce, const string &workerFullName);

@@ -96,20 +96,7 @@ shared_ptr<JobMakerHandler> createGwJobMakerHandler(shared_ptr<GwJobMakerDefinit
 shared_ptr<JobMakerHandler> createGbtJobMakerHandler(shared_ptr<GbtJobMakerDefinition> def) {
   shared_ptr<JobMakerHandlerBitcoin> handler;
 
-  #ifdef CHAIN_TYPE_BTC
-    const char *chain = "BTC";
-  #endif
-  #ifdef CHAIN_TYPE_BCH
-    const char *chain = "BCH";
-  #endif
-  #ifdef CHAIN_TYPE_UBTC
-    const char *chain = "UBTC";
-  #endif
-  #ifdef CHAIN_TYPE_SBTC
-    const char *chain = "SBTC";
-  #endif
-
-  if (def->chainType_ == chain)
+  if (def->chainType_ == CHAIN_TYPE_STR)
     handler = make_shared<JobMakerHandlerBitcoin>();
   else
     LOG(FATAL) << "unknown chain type: " << def->chainType_;
@@ -301,11 +288,11 @@ int main(int argc, char **argv) {
 
   // lock cfg file:
   //    you can't run more than one process with the same config file
-  boost::interprocess::file_lock pidFileLock(optConf);
+  /*boost::interprocess::file_lock pidFileLock(optConf);
   if (pidFileLock.try_lock() == false) {
     LOG(FATAL) << "lock cfg file fail";
     return(EXIT_FAILURE);
-  }
+  }*/
 
   signal(SIGTERM, handler);
   signal(SIGINT,  handler);

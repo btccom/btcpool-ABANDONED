@@ -1,7 +1,7 @@
-cmake_minimum_required (VERSION 2.6)
+cmake_minimum_required (VERSION 3.5)
 
 project (btcpool_tools_kafka_repeater)
-set(PROJECT_ROOT "${CMAKE_SOURCE_DIR}/../../..")
+set(PROJECT_ROOT "${CMAKE_SOURCE_DIR}/../..")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_ROOT}/cmake/Modules/")
 
 # set C++ standard
@@ -68,7 +68,7 @@ endif()
 
 include_directories(${GLOG_INCLUDE_DIRS} ${KAFKA_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS}
                     ${LIBCONFIGPP_INCLUDE_DIR} ${PTHREAD_INCLUDE_DIRS} ${OPENSSL_INCLUDE_DIR}
-                    ${PROJECT_ROOT}/src ${PROJECT_ROOT}/tools/bitcoin/common)
+                    ${PROJECT_ROOT}/src ${PROJECT_ROOT}/tools/common)
 
 set(THIRD_LIBRARIES ${GLOG_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${Boost_LIBRARIES} 
                     ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} ${PTHREAD_LIBRARIES} ${ZLIB_LIBRARIES})

@@ -185,20 +185,68 @@ public:
   bool unserializeFromJson(const char *s, size_t len) override;
   bool initFromGw(const RskWorkEth &latestRskBlockJson, EthConsensus::Chain chain, uint8_t serverId);
 
-  int32_t height_;
-  int32_t nVersion_;
-  uint32_t nTime_;
+  EthConsensus::Chain chain_ = EthConsensus::Chain::UNKNOWN;
+  uint32_t height_ = 0;
+  string parent_;
 
-  // rsk merged mining
-  string blockHashForMergedMining_;
-  uint256 rskNetworkTarget_;
-  string rskdRpcAddress_;
-  string rskdRpcUserPwd_;
-  string feesForMiner_;
-  bool isMergedMiningCleanJob_;
-
-  EthConsensus::Chain chain_;
+  uint256 networkTarget_;
+  string headerHash_;
   string seedHash_;
+
+  uint32_t uncles_ = 0;
+  uint32_t transactions_ = 0;
+  float gasUsedPercent_ = 0.0;
+
+  string rpcAddress_;
+  string rpcUserPwd_;
 };
+
+class ServerEth;
+class StratumSessionEth;
+
+struct StratumTraitsEth {
+  using ServerType = ServerEth;
+  using SessionType = StratumSessionEth;
+  struct JobDiffType {
+    // difficulty of this job (due to difficulty adjustment,
+    // there can be multiple diffs in the same job)
+    uint64_t currentJobDiff_;
+    std::set<uint64_t> jobDiffs_;
+
+    JobDiffType &operator=(uint64_t diff) {
+      jobDiffs_.insert(diff);
+      currentJobDiff_ = diff;
+      return *this;
+    }
+  };
+  struct LocalJobType : public LocalJob {
+    LocalJobType(uint64_t jobId, const std::string &headerHash)
+        : LocalJob(jobId), headerHash_(headerHash) {
+    }
+    bool operator==(const std::string &headerHash) const { return headerHash_ == headerHash; }
+
+    std::string headerHash_;
+  };
+};
+
+enum class StratumProtocolEth {
+  ETHPROXY,
+  STRATUM,
+  // @see https://www.nicehash.com/sw/Ethereum_specification_R1.txt
+  NICEHASH_STRATUM,
+};
+
+inline const char* getProtocolString(StratumProtocolEth protocol) {
+  switch(protocol) {
+  case StratumProtocolEth::ETHPROXY:
+    return "ETHPROXY";
+  case StratumProtocolEth::STRATUM:
+    return "STRATUM";
+  case StratumProtocolEth::NICEHASH_STRATUM:
+    return "NICEHASH_STRATUM";
+  }
+  // should not be here
+  return "UNKNOWN";
+}
 
 #endif

@@ -29,6 +29,8 @@
 #include <netinet/in.h>
 #include <signal.h>
 
+#include <random>
+
 static map<string, StratumClient::Factory> gStratumClientFactories;
 bool StratumClient::registerFactory(const string &chainType, Factory factory)
 {
@@ -55,7 +57,13 @@ StratumClient::StratumClient(struct event_base* base,
 
   extraNonce1_ = 0u;
   extraNonce2Size_ = 8;
-  extraNonce2_ = 0u;
+
+  // use random extraNonce2_
+  // It will help Ethereum and other getwork chains to avoid duplicate shares
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<uint64_t> dis(0, 0xFFFFFFFFFFFFFFFFu);
+  extraNonce2_ = dis(gen);
 }
 
 StratumClient::~StratumClient() {
@@ -299,12 +307,14 @@ void StratumClientWrapper::run() {
       LOG(ERROR) << "client connnect failure: " << workerFullName;
       return;
     }
-    connections_.insert(move(client));
+    connections_.push_back(move(client));
   }
 
   // create timer
   timer_ = event_new(base_, -1, EV_PERSIST, StratumClientWrapper::timerCallback, this);
-  int sleepTime = 10000000 / connections_.size();
+  // Submit a share every 15 seconds (in probability) for each connection.
+  // After the timer is triggered, a connection will be randomly selected to submit a share.
+  int sleepTime = 15000000 / connections_.size();
   struct timeval interval{sleepTime / 1000000, sleepTime % 1000000};
   event_add(timer_, &interval);
 
@@ -321,9 +331,13 @@ void StratumClientWrapper::run() {
 }
 
 void StratumClientWrapper::submitShares() {
-  for (auto &conn : connections_) {
-    conn->submitShare();
-  }
+  // randomly select a connection to submit a share.
+  static std::random_device rd;
+  static std::mt19937 gen(rd());
+  static std::uniform_int_distribution<size_t> dis(0, connections_.size()-1);
+
+  size_t i = dis(gen);
+  connections_[i]->submitShare();
 }
 
 unique_ptr<StratumClient> StratumClientWrapper::createClient(struct event_base *base, const string &workerFullName, const string &workerPasswd)

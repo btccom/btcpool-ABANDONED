@@ -77,14 +77,8 @@ std::shared_ptr<StatsServer> newStatsServer(const string &chainType, const char 
                                             const time_t kFlushDBInterval, const string &fileLastFlushTime,
                                             const int dupShareTrackingHeight)
 {
-#if defined(CHAIN_TYPE_BTC)
-  if ("BTC" == chainType)
-#elif defined(CHAIN_TYPE_BCH)
-  if ("BCH" == chainType)
-#elif defined(CHAIN_TYPE_UBTC)
-  if ("UBTC" == chainType)
-#elif defined(CHAIN_TYPE_SBTC)
-  if ("SBTC" == chainType)
+#if defined(CHAIN_TYPE_STR)
+  if (CHAIN_TYPE_STR == chainType)
 #else 
   if (false)
 #endif  
@@ -179,11 +173,11 @@ int main(int argc, char **argv) {
 
   // lock cfg file:
   //    you can't run more than one process with the same config file
-  boost::interprocess::file_lock pidFileLock(optConf);
+  /*boost::interprocess::file_lock pidFileLock(optConf);
   if (pidFileLock.try_lock() == false) {
     LOG(FATAL) << "lock cfg file fail";
     return(EXIT_FAILURE);
-  }
+  }*/
 
   signal(SIGTERM, handler);
   signal(SIGINT,  handler);

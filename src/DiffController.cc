@@ -45,10 +45,6 @@ void DiffController::setCurDiff(uint64 curDiff) {
 }
 
 void DiffController::resetCurDiff(uint64 curDiff) {
-  if (curDiff < kMinDiff_) {
-    curDiff = kMinDiff_;
-  }
-
   setCurDiff(curDiff);
 
   // set to zero

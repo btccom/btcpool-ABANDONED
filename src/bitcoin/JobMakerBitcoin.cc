@@ -36,7 +36,6 @@
 #include <script/script.h>
 #include <uint256.h>
 #include <util.h>
-#include <utilstrencodings.h>
 
 #ifdef INCLUDE_BTC_KEY_IO_H //  
 #include <key_io.h> //  IsValidDestinationString for bch is not in this file.

@@ -163,19 +163,24 @@ public:
     }
 
 protected:
-    virtual bool repeatMessage(rd_kafka_message_t *rkmessage) = 0;
+    virtual bool repeatMessage(rd_kafka_message_t *rkmessage) {
+        sendToKafka(rkmessage->payload, rkmessage->len);
+        return true;
+    }
 
     virtual void displayMessageNumber(size_t messageNumber, time_t time) {
         LOG(INFO) << "Repeated " << messageNumber << " messages in " << time << " seconds";
     }
 
     void sendToKafka(const void *data, size_t len) {
-        producer_.produce(data, len);
+        while (!producer_.tryProduce(data, len)) {
+            sleep(1);
+        }
     }
 
     template <typename T>
     void sendToKafka(const T &data) {
-        producer_.produce(&data, sizeof(T));
+        sendToKafka(&data, sizeof(T));
     }
 
     std::atomic<bool> running_;

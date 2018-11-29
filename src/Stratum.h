@@ -83,6 +83,7 @@ public:
     INTERNAL_ERROR = 30,
     TIME_TOO_OLD = 31,
     TIME_TOO_NEW = 32,
+    ILLEGAL_VERMASK = 33,
 
     UNKNOWN = 2147483647 // bin(01111111 11111111 11111111 11111111)
   };
@@ -164,6 +165,53 @@ public:
   virtual bool unserializeFromJson(const char *s, size_t len) = 0;
   virtual uint32 jobTime() const { return jobId2Time(jobId_); }
 
+};
+
+// shares submitted by this session, for duplicate share check
+// TODO: Move bitcoin-specific fields to the subclass
+struct LocalShare {
+  uint64_t exNonce2_;  // extra nonce2 fixed 8 bytes
+  uint32_t nonce_;     // nonce in block header
+  uint32_t time_;      // nTime in block header
+  uint32_t versionMask_;  // block version mask
+
+  LocalShare(uint64_t exNonce2, uint32_t nonce, uint32_t time, uint32_t versionMask):
+      exNonce2_(exNonce2), nonce_(nonce), time_(time), versionMask_(versionMask) {}
+  
+  LocalShare(uint64_t exNonce2, uint32_t nonce, uint32_t time):
+      exNonce2_(exNonce2), nonce_(nonce), time_(time), versionMask_(0) {}
+
+  LocalShare & operator=(const LocalShare &other) {
+    exNonce2_ = other.exNonce2_;
+    nonce_    = other.nonce_;
+    time_     = other.time_;
+    versionMask_ = other.versionMask_;
+    return *this;
+  }
+
+  bool operator<(const LocalShare &r) const {
+    if (exNonce2_  < r.exNonce2_ ||
+       (exNonce2_ == r.exNonce2_ && nonce_  < r.nonce_) ||
+       (exNonce2_ == r.exNonce2_ && nonce_ == r.nonce_ && time_  < r.time_) ||
+       (exNonce2_ == r.exNonce2_ && nonce_ == r.nonce_ && time_ == r.time_ && versionMask_ < r.versionMask_)) {
+      return true;
+    }
+    return false;
+  }
+};
+
+struct LocalJob {
+  uint64_t jobId_;
+  std::set<LocalShare> submitShares_;
+
+  LocalJob(uint64_t jobId)
+      : jobId_(jobId)
+  {
+  }
+
+  bool addLocalShare(const LocalShare &localShare) {
+    return submitShares_.insert(localShare).second;
+  }
 };
 
 #endif

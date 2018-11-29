@@ -30,57 +30,84 @@
 
 ///////////////////////////////StratumJobEth///////////////////////////
 StratumJobEth::StratumJobEth()
-  : height_(0)
-  , nVersion_(0)
-  , nTime_(0U)
-  , isMergedMiningCleanJob_(false)
 {
-
 }
 
-bool StratumJobEth::initFromGw(const RskWorkEth &latestRskBlockJson, EthConsensus::Chain chain, uint8_t serverId)
+bool StratumJobEth::initFromGw(const RskWorkEth &work, EthConsensus::Chain chain, uint8_t serverId)
 {
-  if (latestRskBlockJson.isInitialized())
+  if (work.isInitialized())
   {
     chain_ = chain;
-    blockHashForMergedMining_ = latestRskBlockJson.getBlockHash();
-    rskNetworkTarget_ = uint256S(latestRskBlockJson.getTarget());
-    feesForMiner_ = latestRskBlockJson.getFees();
-    rskdRpcAddress_ = latestRskBlockJson.getRpcAddress();
-    rskdRpcUserPwd_ = latestRskBlockJson.getRpcUserPwd();
-    isMergedMiningCleanJob_ = false;
-    seedHash_ = latestRskBlockJson.getSeedHash();
-    height_ = latestRskBlockJson.getHeight();
+
+    height_ = work.getHeight();
+    parent_ = work.getParent();
+    networkTarget_ = uint256S(work.getTarget());
+
+    headerHash_ = work.getBlockHash();
+    seedHash_ = work.getSeedHash();
+
+    uncles_ = work.getUncles();
+    transactions_ = work.getTransactions();
+    gasUsedPercent_ = work.getGasUsedPercent();
+
+    rpcAddress_ = work.getRpcAddress();
+    rpcUserPwd_ = work.getRpcUserPwd();
 
     // generate job id
-    string header = blockHashForMergedMining_.substr(2, 64);
+    string header = headerHash_.substr(2, 64);
     // jobId: timestamp + hash of header + server id
     jobId_ = (static_cast<uint64_t>(time(nullptr)) << 32) | (djb2(header.c_str()) & 0xFFFFFF00) | serverId;
   }
-  return seedHash_.size() && blockHashForMergedMining_.size();
+  return seedHash_.size() && headerHash_.size();
 }
 
 string StratumJobEth::serializeToJson() const {
   return Strings::Format("{\"jobId\":%" PRIu64""
+
                          ",\"chain\":\"%s\""
-                         ",\"height\":%" PRIu64""
+                         ",\"height\":%u"
+                         ",\"parent\":\"%s\""
+
+                         ",\"networkTarget\":\"0x%s\""
+                         ",\"headerHash\":\"%s\""
                          ",\"sHash\":\"%s\""
-                         ",\"rskBlockHashForMergedMining\":\"%s\",\"rskNetworkTarget\":\"0x%s\""
-                         ",\"rskFeesForMiner\":\"%s\""
-                         ",\"rskdRpcAddress\":\"%s\",\"rskdRpcUserPwd\":\"%s\""
-                         ",\"isRskCleanJob\":%s"
+
+                         ",\"uncles\":\"%u\""
+                         ",\"transactions\":\"%u\""
+                         ",\"gasUsedPercent\":\"%f\""
+
+                         ",\"rpcAddress\":\"%s\""
+                         ",\"rpcUserPwd\":\"%s\""
+
+                         // backward compatible
+                         ",\"rskNetworkTarget\":\"0x%s\""
+                         ",\"rskBlockHashForMergedMining\":\"%s\""
+                         ",\"rskFeesForMiner\":\"\""
+                         ",\"rskdRpcAddress\":\"\""
+                         ",\"rskdRpcUserPwd\":\"\""
+                         ",\"isRskCleanJob\":false"
                          "}",
                          jobId_,
+
                          EthConsensus::getChainStr(chain_).c_str(),
                          height_,
-                         // rsk
+                         parent_.c_str(),
+
+                         networkTarget_.GetHex().c_str(),
+                         headerHash_.c_str(),
                          seedHash_.c_str(),
-                         blockHashForMergedMining_.size() ? blockHashForMergedMining_.c_str() : "",
-                         rskNetworkTarget_.GetHex().c_str(),
-                         feesForMiner_.size()             ? feesForMiner_.c_str()             : "",
-                         rskdRpcAddress_.size()           ? rskdRpcAddress_.c_str()           : "",
-                         rskdRpcUserPwd_.c_str()          ? rskdRpcUserPwd_.c_str()           : "",
-                         isMergedMiningCleanJob_ ? "true" : "false");
+                         
+                         uncles_,
+                         transactions_,
+                         gasUsedPercent_,
+
+                         rpcAddress_.c_str(),
+                         rpcUserPwd_.c_str(),
+
+                         // backward compatible
+                         networkTarget_.GetHex().c_str(),
+                         headerHash_.c_str()
+                         );
 }
 
 bool StratumJobEth::unserializeFromJson(const char *s, size_t len)
@@ -90,9 +117,12 @@ bool StratumJobEth::unserializeFromJson(const char *s, size_t len)
   {
     return false;
   }
+
   if (j["jobId"].type() != Utilities::JS::type::Int ||
       j["chain"].type() != Utilities::JS::type::Str ||
       j["height"].type() != Utilities::JS::type::Int ||
+      j["networkTarget"].type() != Utilities::JS::type::Str ||
+      j["headerHash"].type() != Utilities::JS::type::Str ||
       j["sHash"].type() != Utilities::JS::type::Str)
   {
     LOG(ERROR) << "parse eth stratum job failure: " << s;
@@ -102,24 +132,27 @@ bool StratumJobEth::unserializeFromJson(const char *s, size_t len)
   jobId_ = j["jobId"].uint64();
   chain_ = EthConsensus::getChain(j["chain"].str());
   height_ = j["height"].uint64();
+  networkTarget_ = uint256S(j["networkTarget"].str());
+  headerHash_ = j["headerHash"].str();
   seedHash_ = j["sHash"].str();
 
-  if (j["rskBlockHashForMergedMining"].type() == Utilities::JS::type::Str &&
-      j["rskNetworkTarget"].type() == Utilities::JS::type::Str &&
-      j["rskFeesForMiner"].type() == Utilities::JS::type::Str &&
-      j["rskdRpcAddress"].type() == Utilities::JS::type::Str &&
-      j["rskdRpcUserPwd"].type() == Utilities::JS::type::Str &&
-      j["isRskCleanJob"].type() == Utilities::JS::type::Bool)
+  if (j["parent"].type() == Utilities::JS::type::Str &&
+      j["uncles"].type() == Utilities::JS::type::Int &&
+      j["transactions"].type() == Utilities::JS::type::Int &&
+      j["gasUsedPercent"].type() == Utilities::JS::type::Real)
   {
-    blockHashForMergedMining_ = j["rskBlockHashForMergedMining"].str();
-    rskNetworkTarget_ = uint256S(j["rskNetworkTarget"].str());
-    feesForMiner_ = j["rskFeesForMiner"].str();
-    rskdRpcAddress_ = j["rskdRpcAddress"].str();
-    rskdRpcUserPwd_ = j["rskdRpcUserPwd"].str();
-    isMergedMiningCleanJob_ = j["isRskCleanJob"].boolean();
+    parent_ = j["parent"].str();
+    uncles_ = j["uncles"].uint32();
+    transactions_ = j["transactions"].uint32();
+    gasUsedPercent_ = j["gasUsedPercent"].real();
   }
 
-  // BitsToTarget(nBits_, networkTarget_); //  Gani#Question: Does eth require this call?
+  if (j["rpcAddress"].type() == Utilities::JS::type::Str &&
+      j["rpcUserPwd"].type() == Utilities::JS::type::Str)
+  {
+    rpcAddress_ = j["rpcAddress"].str();
+    rpcUserPwd_ = j["rpcUserPwd"].str();
+  }
 
   return true;
 }

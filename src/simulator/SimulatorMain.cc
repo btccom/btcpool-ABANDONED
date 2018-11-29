@@ -105,11 +105,11 @@ int main(int argc, char **argv) {
 
   // lock cfg file:
   //    you can't run more than one process with the same config file
-  boost::interprocess::file_lock pidFileLock(optConf);
+  /*boost::interprocess::file_lock pidFileLock(optConf);
   if (pidFileLock.try_lock() == false) {
     LOG(FATAL) << "lock cfg file fail";
     return(EXIT_FAILURE);
-  }
+  }*/
 
   // ignore SIGPIPE, avoiding process be killed
   signal(SIGPIPE,  SIG_IGN);

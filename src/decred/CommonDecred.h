@@ -57,7 +57,7 @@ struct BlockHeaderDecred {
 
 static_assert(sizeof(BlockHeaderDecred) == 180, "Decred block header type is invalid");
 
-// Magic number from the network type
+// CMD_MAGIC_NUMBER number from the network type
 enum class NetworkDecred : uint32_t {
   MainNet = 0xd9b400f9,
   TestNet = 0xb194aa75,

@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 2.6)
+cmake_minimum_required (VERSION 3.5)
 
 project (BTCPOOL)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
@@ -378,32 +378,7 @@ if(NOT CMAKE_OBJCOPY)
   mark_as_advanced(CMAKE_OBJCOPY)
 endif()
 
-
-########################## Generate configuration files #############################
-
-SET(BPOOL_VERSION_MAJOR "2")
-SET(BPOOL_VERSION_MINOR "1")
-SET(BPOOL_VERSION_PATCH "0")
-
-# Get the current abbreviated commit hash of the working branch
-if(EXISTS "${CMAKE_SOURCE_DIR}/.git")
-  execute_process(
-    COMMAND git log -1 --format=%h
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE BPOOL_GIT_COMMIT_HASH
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-  )
-endif()
-
-if(BPOOL_GIT_COMMIT_HASH)
-  set(BPOOL_VERSION_PATCH "${BPOOL_VERSION_PATCH}-${BPOOL_GIT_COMMIT_HASH}")
-endif()
-
-set(BPOOL_VERSION_STR "${BPOOL_VERSION_MAJOR}.${BPOOL_VERSION_MINOR}.${BPOOL_VERSION_PATCH}")
-
-message("-- version string: ${BPOOL_VERSION_STR}")
-
-configure_file(${CMAKE_SOURCE_DIR}/src/config/bpool-version.h.in ${CMAKE_SOURCE_DIR}/src/config/bpool-version.h)
+add_subdirectory(src/config)
 
 ###################################### Targets ######################################
 
@@ -426,8 +401,8 @@ else()
   add_definitions(-DNO_CUDA)
 endif(USE_CUDA)
 
-include_directories(src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config ${CHAIN_SRC_ROOT}/src/secp256k1/include
-                    ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS}
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/src src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config ${CHAIN_SRC_ROOT}/src/secp256k1/include
+	${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS} ${KAFKA_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS}
                     ${LIBEVENT_INCLUDE_DIR} ${USE_CUDA_INCLUDE_DIRECTORY} ${BH_SHARED_INCLUDE_DIR} ${MYSQL_INCLUDE_DIR})
 
 set(THIRD_LIBRARIES ethash blake2 sph ${BH_SHARED_LIBRARY} ${USE_CUDA_LIBRARIES}
@@ -435,38 +410,17 @@ set(THIRD_LIBRARIES ethash blake2 sph ${BH_SHARED_LIBRARY} ${USE_CUDA_LIBRARIES}
                     ${MYSQL_LIBRARIES} ${LIBZMQ_LIBRARIES} ${Hiredis_LIBRARIES} ${CURL_LIBRARIES} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY}
                     ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB} ${GMP_LIBRARIES} ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} ${PTHREAD_LIBRARIES})
 
-file(GLOB LIB_SOURCES src/*.cc src/rsk/*.cc src/gbtsync/*.cpp)
+file(GLOB LIB_SOURCES
+        src/*.cc
+        src/rsk/*.cc
+    )
 file(GLOB LIB_SOURCES_CHAINS
         src/eth/*.cc
         src/bytom/*.cc 
         src/bitcoin/*.cc 
         src/sia/*.cc
+        src/decred/*.cc
     )
-
-set(LIB_SOURCES_DECRED
-  src/decred/BlockMakerDecred.cc
-  src/decred/BlockMakerDecred.h
-  src/decred/CommonDecred.cc
-  src/decred/CommonDecred.h
-  src/decred/DecredUtils.cc
-  src/decred/DecredUtils.h
-  src/decred/JobMakerDecred.cc
-  src/decred/JobMakerDecred.h
-  src/decred/ShareLoggerDecred.cc
-  src/decred/ShareLoggerDecred.h
-  src/decred/ShareLogParserDecred.cc
-  src/decred/ShareLogParserDecred.h
-  src/decred/StatisticsDecred.cc
-  src/decred/StatisticsDecred.h
-  src/decred/StatsHttpdDecred.cc
-  src/decred/StatsHttpdDecred.h
-  src/decred/StratumDecred.cc
-  src/decred/StratumDecred.h
-  src/decred/StratumServerDecred.cc
-  src/decred/StratumServerDecred.h
-  src/decred/StratumSessionDecred.cc
-  src/decred/StratumSessionDecred.h
-)
 
 add_library(btcpool STATIC ${LIB_SOURCES} ${LIB_SOURCES_CHAINS} ${LIB_SOURCES_DECRED})
 
@@ -491,7 +445,6 @@ add_executable(jobmaker ${JOBMAKER_SOURCES})
 target_link_libraries(jobmaker btcpool ${THIRD_LIBRARIES})
 
 add_executable(sserver src/sserver/StratumServerMain.cc)
-# add_dependencies(sserver build_bythom_shared)
 target_link_libraries(sserver btcpool ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE STATSHTTPD_SOURCES src/statshttpd/*.cc)
@@ -518,11 +471,6 @@ file(GLOB_RECURSE POOLWATCHER_SOURCES src/poolwatcher/*.cc)
 add_executable(poolwatcher ${POOLWATCHER_SOURCES})
 target_link_libraries(poolwatcher btcpool ${THIRD_LIBRARIES})
 
-file(GLOB_RECURSE GBTSYNC_SOURCES src/gbtsync/*.cpp)
-add_executable(gbtsync ${GBTSYNC_SOURCES})
-target_link_libraries(gbtsync btcpool ${THIRD_LIBRARIES})
-
-file(COPY "test/TestGbtSync/testdata/" DESTINATION testdata)
 ###################################### Install & Package ######################################
 message("") # empty line
 message("------------------------------- Install & Package -------------------------------")
@@ -623,11 +571,6 @@ if(POOL__GENERATE_DEB_PACKAGE)
   set(CPACK_DEBIAN_PACKAGE_MAINTAINER "YihaoPeng yihao.peng@bitmain.com")
 
   message("-- Package Name: ${CPACK_PACKAGE_NAME}")
-
-  # version
-  SET(CPACK_PACKAGE_VERSION_MAJOR "${BPOOL_VERSION_MAJOR}")
-  SET(CPACK_PACKAGE_VERSION_MINOR "${BPOOL_VERSION_MINOR}")
-  SET(CPACK_PACKAGE_VERSION_PATCH "${BPOOL_VERSION_PATCH}")
 
   # components
   set(CPACK_DEB_COMPONENT_INSTALL ON)

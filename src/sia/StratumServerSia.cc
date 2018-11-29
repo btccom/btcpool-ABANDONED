@@ -23,8 +23,11 @@
  */
 
 #include "StratumServerSia.h"
+
 #include "StratumSessionSia.h"
 #include "DiffController.h"
+
+#include <boost/make_unique.hpp>
 
 using namespace std;
 
@@ -66,11 +69,10 @@ ServerSia::~ServerSia()
 
 }
 
-StratumSession *ServerSia::createSession(evutil_socket_t fd, struct bufferevent *bev,
-                                         struct sockaddr *saddr, const uint32_t sessionID)
-{
-  return new StratumSessionSia(fd, bev, this, saddr,
-                        kShareAvgSeconds_, sessionID);
+unique_ptr<StratumSession> ServerSia::createConnection(struct bufferevent *bev,
+                                                             struct sockaddr *saddr,
+                                                             const uint32_t sessionID) {
+  return boost::make_unique<StratumSessionSia>(*this, bev, saddr, sessionID);
 }
 
 JobRepository *ServerSia::createJobRepository(const char *kafkaBrokers,

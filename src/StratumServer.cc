@@ -182,10 +182,20 @@ void JobRepository::runThreadConsume() {
     }
 
     // consume stratum job
+    //
+    // It will create a StratumJob and try to broadcast it immediately with broadcastStratumJob(StratumJob *).
+    // A derived class needs to implement the abstract method broadcastStratumJob(StratumJob *) to decide
+    // whether to add the StratumJob to the map exJobs_ and whether to send the job to miners immediately.
+    // Derived classes do not need to implement a scheduled sending mechanism, checkAndSendMiningNotify() will
+    // provide a default implementation.
     consumeStratumJob(rkmessage);
-    rd_kafka_message_destroy(rkmessage);  /* Return message to rdkafka */
+    
+    // Return message to rdkafka
+    rd_kafka_message_destroy(rkmessage);  
 
     // check if we need to send mining notify
+    // It's a default implementation of scheduled sending / regular updating of stratum jobs.
+    // If no job is sent for a long time via broadcastStratumJob(), a job will be sent via this method.
     checkAndSendMiningNotify();
 
     tryCleanExpiredJobs();
@@ -570,7 +580,7 @@ int32_t UserInfo::insertWorkerName() {
                                  "\"type\":\"worker_update\","
                                  "\"content\":{"
                                      "\"user_id\":%d,"
-                                     "\"worker_id\":%ld,"
+                                     "\"worker_id\":%" PRId64 ","
                                      "\"worker_name\":\"%s\","
                                      "\"miner_agent\":\"%s\""
                                 "}}",
@@ -884,37 +894,32 @@ void Server::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {
   //
 
   ScopeLock sl(connsLock_);
-  std::map<evutil_socket_t, StratumSession *>::iterator itr = connections_.begin();
+  auto itr = connections_.begin();
   while (itr != connections_.end()) {
-    StratumSession *conn = itr->second;  // alias
-
+    auto &conn = *itr;
     if (conn->isDead()) {
 #ifndef WORK_WITH_STRATUM_SWITCHER
       sessionIDManager_->freeSessionId(conn->getSessionId());
 #endif
-
-      delete conn;
       itr = connections_.erase(itr);
     } else {
-
       conn->sendMiningNotify(exJobPtr);
       ++itr;
     }
   }
 }
 
-void Server::addConnection(StratumSession *connection) {
+void Server::addConnection(unique_ptr<StratumSession> connection) {
   ScopeLock sl(connsLock_);
-  evutil_socket_t fd = connection->fd_;
-  connections_.insert(std::pair<evutil_socket_t, StratumSession *>(fd, connection));
+  connections_.insert(move(connection));
 }
 
-void Server::removeConnection(StratumSession *connection) {
+void Server::removeConnection(StratumSession &connection) {
   //
   // if we are here, means the related evbuffer has already been locked.
   // don't lock connsLock_ in this function, it will cause deadlock.
   //
-  connection->markAsDead();
+  connection.markAsDead();
 }
 
 void Server::listenerCallback(struct evconnlistener* listener,
@@ -943,31 +948,29 @@ void Server::listenerCallback(struct evconnlistener* listener,
   }
 
   // create stratum session
-  StratumSession *conn = server->createSession(fd, bev, saddr, sessionID);
+  auto conn = server->createConnection(bev, saddr, sessionID);
   if (!conn->initialize())
   {
-    delete conn;
     return;
   }
   // set callback functions
   bufferevent_setcb(bev,
                     Server::readCallback, nullptr,
-                    Server::eventCallback, (void*)conn);
+                    Server::eventCallback, conn.get());
   // By default, a newly created bufferevent has writing enabled.
   bufferevent_enable(bev, EV_READ|EV_WRITE);
 
-  server->addConnection(conn);
+  server->addConnection(move(conn));
 }
 
 void Server::readCallback(struct bufferevent* bev, void *connection) {
-  StratumSession *conn = static_cast<StratumSession *>(connection);
+  auto conn = static_cast<StratumSession *>(connection);
   conn->readBuf(bufferevent_get_input(bev));
 }
 
 void Server::eventCallback(struct bufferevent* bev, short events,
                               void *connection) {
-  StratumSession *conn = static_cast<StratumSession *>(connection);
-  Server       *server = static_cast<Server *>(conn->server_);
+  auto conn = static_cast<StratumSession *>(connection);
 
   // should not be 'BEV_EVENT_CONNECTED'
   assert((events & BEV_EVENT_CONNECTED) != BEV_EVENT_CONNECTED);
@@ -985,7 +988,7 @@ void Server::eventCallback(struct bufferevent* bev, short events,
   else {
     LOG(ERROR) << "unhandled socket events: " << events;
   }
-  server->removeConnection(conn);
+  conn->getServer().removeConnection(*conn);
 }
 
 

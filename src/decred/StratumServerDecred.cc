@@ -23,10 +23,13 @@
  */
 
 #include "StratumServerDecred.h"
-#include "StratumDecred.h"
+
 #include "StratumSessionDecred.h"
+#include "StratumDecred.h"
 #include "CommonDecred.h"
+
 #include "arith_uint256.h"
+
 #include <boost/algorithm/string.hpp>
 #include <boost/make_unique.hpp>
 #include <iostream>
@@ -42,6 +45,7 @@ static ostream& operator<<(ostream& os, const StratumJobDecred& job)
 JobRepositoryDecred::JobRepositoryDecred(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerDecred *server)
   : JobRepositoryBase<ServerDecred>(kafkaBrokers, consumerTopic, fileLastNotifyTime, server)
   , lastHeight_(0)
+  , lastVoters_(0)
 {
 }
 
@@ -67,6 +71,9 @@ void JobRepositoryDecred::broadcastStratumJob(StratumJob *sjob)
     lastHeight_ = height;
   }
 
+  auto voters = jobDecred->header_.voters.value();
+  bool moreVoters = voters > lastVoters_;
+
   shared_ptr<StratumJobEx> jobEx(createStratumJobEx(jobDecred, isClean));
   {
     ScopeLock sl(lock_);
@@ -83,7 +90,9 @@ void JobRepositoryDecred::broadcastStratumJob(StratumJob *sjob)
     exJobs_[jobDecred->jobId_] = jobEx;
   }
 
-  if (isClean) {
+  // We want to update jobs immediately if there are more voters for the same height block
+  if (isClean || moreVoters) {
+    lastVoters_ = voters;
     sendMiningNotify(jobEx);
   }
 }
@@ -132,9 +141,9 @@ ServerDecred::ServerDecred(int32_t shareAvgSeconds, const libconfig::Config &con
   }
 }
 
-StratumSession* ServerDecred::createSession(evutil_socket_t fd, bufferevent *bev, sockaddr *saddr, const uint32_t sessionID)
+unique_ptr<StratumSession> ServerDecred::createConnection(bufferevent *bev, sockaddr *saddr, uint32_t sessionID)
 {
-  return new StratumSessionDecred(fd, bev, this, saddr, kShareAvgSeconds_, sessionID, *protocol_);
+  return boost::make_unique<StratumSessionDecred>(*this, bev, saddr, sessionID, *protocol_);
 }
 
 JobRepository* ServerDecred::createJobRepository(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime)

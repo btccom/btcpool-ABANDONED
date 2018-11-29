@@ -99,6 +99,7 @@ class GwMakerHandlerJson : public GwMakerHandler
   string processRawGw(const string &gw) override;
 };
 
+
 class GwMakerHandlerRsk : public GwMakerHandlerJson 
 {
   bool checkFields(JsonNode &r) override;

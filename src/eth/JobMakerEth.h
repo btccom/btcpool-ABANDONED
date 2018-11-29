@@ -51,7 +51,9 @@ private:
   void clearTimeoutMsg();
   inline uint64_t makeWorkKey(const RskWorkEth &work);
 
-  std::map<uint64_t/* @see makeWorkKey() */, shared_ptr<RskWorkEth>> workMap_;  // sorting works by height + time + hash
+  std::map<uint64_t/* @see makeWorkKey() */, shared_ptr<RskWorkEth>> workMap_;  // sorting works by height + uncles + gasUsedPercent + hash
+  shared_ptr<RskWorkEth> workOfLastJob_; // for quickly updating jobs that with low gas used and low uncles
+  uint32_t lastReceivedHeight_ = 0; // used for rejecting low height works
 };
 
 #endif

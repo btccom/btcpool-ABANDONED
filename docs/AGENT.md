@@ -61,7 +61,7 @@ Name | Type | Description
 Message(hex): 0x7F 01 2000 2211 63676d696e657200 733130393900
 ```
 
-### CMD\_SUBMIT\_SHARE | CMD\_SUBMIT\_SHARE\_WITH\_TIME
+### CMD\_SUBMIT\_SHARE | CMD\_SUBMIT\_SHARE\_WITH\_TIME | CMD\_SUBMIT\_SHARE\_WITH\_VER | CMD\_SUBMIT\_SHARE\_WITH\_TIME\_VER
 
 When Miner's found a share and submit to Agent, Agent will convert it's format and than submit to Pool.
 
@@ -69,7 +69,7 @@ When Miner's found a share and submit to Agent, Agent will convert it's format a
 
 ```
 | magic_number(1) | cmd(1) | len(2) | job_id(1) | session_id(2)
-  | extra_nonce2(4) | nNonce(4) | nTime(4)(optional) |
+  | extra_nonce2(4) | nNonce(4) | nTime(4)(optional) | nVersionMask(4)(optional) |
 ```
 
 Name | Type | Description
@@ -78,7 +78,8 @@ Name | Type | Description
 `session_id ` | uint16_t | session ID
 `extra_nonce2 ` | uint32_t | 
 `nNonce` | uint32_t | 
-`nTime` | uint32_t, optional | if miner doesn't change the block time, no need to submit it
+`nTime` | uint32_t, optional | the field is included when the miner changes the block time
+`nVersionMask` | uint32_t, optional | the field is included when the miner uses the `Version Rolling` (aka `Asic Boost`) mining
 
 
 **Example**
@@ -97,6 +98,20 @@ Message(hex): 0x7f 02 0f00 a9 2211 44332211 ddccbbaa
 | 0x7F | 0x03 | 0x0013 | 0xa9 | 0x1122 | 0x11223344 | 0xaabbccdd | 0x57BD2AD0 |
 
 Message(hex): 0x7f 03 1300 a9 2211 44332211 ddccbbaa d02abd57
+
+#
+# CMD_SUBMIT_SHARE_WITH_VER
+#
+| 0x7F | 0x12 | 0x000f | 0xa9 | 0x1122 | 0x11223344 | 0xaabbccdd | 0x00120000 |
+
+Message(hex): 0x7f 12 0f00 a9 2211 44332211 ddccbbaa 00120000
+
+#
+# CMD_SUBMIT_SHARE_WITH_TIME_VER
+#
+| 0x7F | 0x13 | 0x0013 | 0xa9 | 0x1122 | 0x11223344 | 0xaabbccdd | 0x57BD2AD0 | 0x00120000 |
+
+Message(hex): 0x7f 13 1300 a9 2211 44332211 ddccbbaa d02abd57 00120000
 ```
 
 ### CMD\_UNREGISTER\_WORKER

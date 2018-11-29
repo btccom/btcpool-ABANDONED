@@ -25,10 +25,12 @@
 #define STRATUM_SERVER_BITCOIN_H_
 
 #include "StratumServer.h"
-#include "StratumBitcoin.h"
+#include <uint256.h>
 
 class CBlockHeader;
+class FoundBlock;
 class JobRepositoryBitcoin;
+class ShareBitcoin;
 
 class ServerBitcoin : public ServerBase<JobRepositoryBitcoin>
 {
@@ -38,20 +40,24 @@ private:
   KafkaProducer *kafkaProducerNamecoinSolvedShare_;
   KafkaProducer *kafkaProducerRskSolvedShare_;
 
+  uint32_t versionMask_;
+
 public:
   ServerBitcoin(const int32_t shareAvgSeconds, const libconfig::Config &config);
   virtual ~ServerBitcoin();
 
+  uint32_t getVersionMask() const;
+
   bool setupInternal(StratumServer* sserver) override;
 
-  StratumSession* createSession(evutil_socket_t fd, struct bufferevent *bev,
-                               struct sockaddr *saddr, const uint32_t sessionID) override;
+  unique_ptr<StratumSession> createConnection(struct bufferevent *bev, struct sockaddr *saddr, uint32_t sessionID) override;
   void sendSolvedShare2Kafka(const FoundBlock *foundBlock,
                              const std::vector<char> &coinbaseBin);
 
   int checkShare(const ShareBitcoin &share,
                  const uint32 extraNonce1, const string &extraNonce2Hex,
                  const uint32_t nTime, const uint32_t nonce,
+                 const uint32_t versionMask,
                  const uint256 &jobTarget, const string &workFullName,
                  string *userCoinbaseInfo = nullptr);
 private:
@@ -68,7 +74,7 @@ private:
 public:
   JobRepositoryBitcoin(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerBitcoin *server);
   virtual ~JobRepositoryBitcoin();
-  virtual StratumJob* createStratumJob() override {return new StratumJobBitcoin();}
+  virtual StratumJob* createStratumJob() override;
   StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
   void broadcastStratumJob(StratumJob *sjob) override;
 
@@ -100,6 +106,7 @@ public:
                            const uint256 &hashPrevBlock,
                            const uint32_t nBits, const int32_t nVersion,
                            const uint32_t nTime, const uint32_t nonce,
+                           const uint32_t versionMask,
                            string *userCoinbaseInfo = nullptr);
   void init();
 

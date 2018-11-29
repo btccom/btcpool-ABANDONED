@@ -31,6 +31,8 @@
 #include "hash.h"
 #include "primitives/block.h"
 
+#include <boost/make_unique.hpp>
+
 using namespace std;
 
 //////////////////////////////////// JobRepositoryBitcoin /////////////////////////////////
@@ -43,6 +45,10 @@ JobRepositoryBitcoin::JobRepositoryBitcoin(const char *kafkaBrokers, const char 
 JobRepositoryBitcoin::~JobRepositoryBitcoin()
 {
 
+}
+
+StratumJob* JobRepositoryBitcoin::createStratumJob() {
+  return new StratumJobBitcoin();
 }
 
 StratumJobEx* JobRepositoryBitcoin::createStratumJobEx(StratumJob *sjob, bool isClean)
@@ -207,11 +213,12 @@ void StratumJobExBitcoin::generateBlockHeader(CBlockHeader *header,
                                        const uint256 &hashPrevBlock,
                                        const uint32_t nBits, const int32_t nVersion,
                                        const uint32_t nTime, const uint32_t nonce,
+                                       const uint32_t versionMask,
                                        string *userCoinbaseInfo) {
   generateCoinbaseTx(coinbaseBin, extraNonce1, extraNonce2Hex, userCoinbaseInfo);
 
   header->hashPrevBlock = hashPrevBlock;
-  header->nVersion      = nVersion;
+  header->nVersion      = (nVersion ^ versionMask);
   header->nBits         = nBits;
   header->nTime         = nTime;
   header->nNonce        = nonce;
@@ -235,6 +242,12 @@ ServerBitcoin::ServerBitcoin(const int32_t shareAvgSeconds, const libconfig::Con
   // TODO: Shall we throw an error here if the relvant value does not exist?
   config.lookupValue("sserver.auxpow_solved_share_topic", auxPowSolvedShareTopic_);
   config.lookupValue("sserver.rsk_solved_share_topic", rskSolvedShareTopic_);
+
+  versionMask_ = 0u;  // block version mask
+  if (config.exists("sserver.version_mask"))
+  {
+    config.lookupValue("sserver.version_mask", versionMask_);
+  }
 }
 
 ServerBitcoin::~ServerBitcoin()
@@ -245,6 +258,10 @@ ServerBitcoin::~ServerBitcoin()
   if (kafkaProducerRskSolvedShare_ != nullptr) {
     delete kafkaProducerRskSolvedShare_;
   }
+}
+
+uint32_t ServerBitcoin::getVersionMask() const {
+  return versionMask_;
 }
 
 bool ServerBitcoin::setupInternal(StratumServer* sserver)
@@ -297,11 +314,9 @@ JobRepository *ServerBitcoin::createJobRepository(const char *kafkaBrokers,
   return new JobRepositoryBitcoin(kafkaBrokers, consumerTopic, fileLastNotifyTime, this);
 }
 
-StratumSession *ServerBitcoin::createSession(evutil_socket_t fd, struct bufferevent *bev,
-                                      struct sockaddr *saddr, const uint32_t sessionID)
+unique_ptr<StratumSession> ServerBitcoin::createConnection(struct bufferevent *bev, struct sockaddr *saddr, uint32_t sessionID)
 {
-  return new StratumSessionBitcoin(fd, bev, this, saddr,
-                     kShareAvgSeconds_, sessionID);
+  return boost::make_unique<StratumSessionBitcoin>(*this, bev, saddr, sessionID);
 }
 
 void ServerBitcoin::sendSolvedShare2Kafka(const FoundBlock *foundBlock,
@@ -326,6 +341,7 @@ void ServerBitcoin::sendSolvedShare2Kafka(const FoundBlock *foundBlock,
 int ServerBitcoin::checkShare(const ShareBitcoin &share,
                        const uint32 extraNonce1, const string &extraNonce2Hex,
                        const uint32_t nTime, const uint32_t nonce,
+                       const uint32_t versionMask,
                        const uint256 &jobTarget, const string &workFullName,
                        string *userCoinbaseInfo) {
   shared_ptr<StratumJobEx> exJobPtrShared = GetJobRepository()->getStratumJobEx(share.jobId_);
@@ -345,12 +361,18 @@ int ServerBitcoin::checkShare(const ShareBitcoin &share,
     return StratumStatus::TIME_TOO_NEW;
   }
 
+  // check version mask
+  if (versionMask != 0 && ((~versionMask_) & versionMask) != 0) {
+    return StratumStatus::ILLEGAL_VERMASK;
+  }
+
   CBlockHeader header;
   std::vector<char> coinbaseBin;
   exJobPtr->generateBlockHeader(&header, &coinbaseBin,
                                 extraNonce1, extraNonce2Hex,
                                 sjob->merkleBranch_, sjob->prevHash_,
                                 sjob->nBits_, sjob->nVersion_, nTime, nonce,
+                                versionMask,
                                 userCoinbaseInfo);
   uint256 blkHash = header.GetHash();
 
