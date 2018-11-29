@@ -1,4 +1,4 @@
-#if 1   //  set this code to a valid mysql server connection first before activating it.
+#if 0   //  set this code to a valid mysql server connection first before activating it.
 
 #include "gtest/gtest.h"
 #include "gbtsync/gbtsync.h"
