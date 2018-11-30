@@ -8,25 +8,20 @@
 #
 
 ######### Build image #########
-FROM btccom/btcpool_build as build
+ARG BUILD_ENV_TAG
+FROM btccom/btcpool_build:${BUILD_ENV_TAG} as build
 LABEL maintainer="Hanjiang Yu <hanjiang.yu@bitmain.com>"
 
 ARG BUILD_JOBS=1
 ARG BUILD_TYPE
-ARG CHAIN_TYPE
-ARG CHAIN_URL
-ARG CHAIN_TAG
 ARG USER_DEFINED_COINBASE
 ARG USER_DEFINED_COINBASE_SIZE
 ARG WORK_WITH_STRATUM_SWITCHER
 
-# Checkout blockchain source (if exists)
-RUN [ -z ${CHAIN_URL} ] || git clone --branch ${CHAIN_TAG} --depth 1 ${CHAIN_URL} /tmp/bitcoin
-
 # Copy & build btcpool
 COPY . /tmp/btcpool
 RUN mkdir -p /tmp/build && cd /tmp/build && cmake \
-    -DCHAIN_SRC_ROOT=/tmp/bitcoin \
+    -DCHAIN_SRC_ROOT=${CHAIN_SRC_ROOT} \
     -DCHAIN_TYPE=${CHAIN_TYPE} \
     -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
     -DJOBS=${BUILD_JOBS} \
