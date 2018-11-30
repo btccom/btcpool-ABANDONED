@@ -250,8 +250,18 @@ message("------------------------------- Libs -------------------------------")
 set(BITCOIN_LIBRARIES
   "${CHAIN_SRC_ROOT}/src/libbitcoin_common.a"
   "${CHAIN_SRC_ROOT}/src/libbitcoin_consensus.a"
-  "${CHAIN_SRC_ROOT}/src/libbitcoin_util.a"
+  "${CHAIN_SRC_ROOT}/src/libbitcoin_util.a")
+
+if(CHAIN_TYPE STREQUAL "BCH")
+set(BITCOIN_LIBRARIES ${BITCOIN_LIBRARIES}
+  "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto_base.a"
+  "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto_shani.a"
+  "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto_avx2.a"
+  "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto_sse41.a")
+else()
+set(BITCOIN_LIBRARIES ${BITCOIN_LIBRARIES}
   "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto.a")
+endif()
 
 list(GET BITCOIN_LIBRARIES 0 BITCOIN_LIBRARIE)
 if (NOT EXISTS ${BITCOIN_LIBRARIE})
