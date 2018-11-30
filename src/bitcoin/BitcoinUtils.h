@@ -41,6 +41,9 @@
   #define AMOUNT_TYPE(x) Amount(x * SATOSHI)
   #define COIN_TO_SATOSHIS (COIN / SATOSHI)
   #define AMOUNT_SATOSHIS(amt) (amt / SATOSHI)
+
+  std::vector<uint256> ComputeMerkleBranch(const std::vector<uint256> &leaves, uint32_t position);
+  std::vector<uint256> BlockMerkleBranch(const CBlock &block, uint32_t position);
 #else
   #define AMOUNT_TYPE Amount
   #define COIN_TO_SATOSHIS COIN.GetSatoshis()
