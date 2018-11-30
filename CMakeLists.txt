@@ -33,8 +33,8 @@ ELSE()
 ENDIF()
 
 # compiler options
-#set(CMAKE_CXX_COMPILER "g++")
-#set(CMAKE_C_COMPILER "gcc")
+set(CMAKE_CXX_COMPILER "g++")
+set(CMAKE_C_COMPILER "gcc")
 # set C++ standard
 set(CMAKE_CXX_STANDARD 11)
 # stop building after the first error
