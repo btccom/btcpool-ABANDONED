@@ -478,11 +478,7 @@ bool StratumJobBitcoin::initFromGbt(const char *gbt, const string &poolCoinbaseI
       CTxOut paymentTxOut;
       paymentTxOut.scriptPubKey = GetScriptForDestination(poolPayoutAddr);
 
-    #ifdef CHAIN_TYPE_BCH
-      paymentTxOut.nValue = Amount(coinbaseValue_);
-    #else
-      paymentTxOut.nValue = coinbaseValue_;
-    #endif
+      paymentTxOut.nValue = AMOUNT_TYPE(coinbaseValue_);
 
       cbOut.push_back(paymentTxOut);
     }
@@ -498,11 +494,7 @@ bool StratumJobBitcoin::initFromGbt(const char *gbt, const string &poolCoinbaseI
       CTxOut witnessTxOut;
       witnessTxOut.scriptPubKey = CScript((unsigned char*)binBuf.data(),
                                       (unsigned char*)binBuf.data() + binBuf.size());
-    #ifdef CHAIN_TYPE_BCH
-      witnessTxOut.nValue = Amount(0);
-    #else
-      witnessTxOut.nValue = 0;
-    #endif
+      witnessTxOut.nValue = AMOUNT_TYPE(0);
 
       cbOut.push_back(witnessTxOut);
     }
@@ -541,11 +533,7 @@ bool StratumJobBitcoin::initFromGbt(const char *gbt, const string &poolCoinbaseI
       CTxOut rskTxOut;
       rskTxOut.scriptPubKey = CScript((unsigned char*)rskTag.data(),
                                       (unsigned char*)rskTag.data() + rskTag.size());
-    #ifdef CHAIN_TYPE_BCH
-      rskTxOut.nValue = Amount(0);
-    #else
-      rskTxOut.nValue = 0;
-    #endif
+      rskTxOut.nValue = AMOUNT_TYPE(0);
 
       cbOut.push_back(rskTxOut);
     }

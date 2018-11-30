@@ -84,13 +84,13 @@ if (CHAIN_TYPE STREQUAL "BTC")
   add_definitions(-DZOOKEEPER_NODE_POSTFIX="") # for compatibility with old deployments, let it empty.
 
 # BitcoinCash
-elseif(CHAIN_TYPE STREQUAL "BCH")
+elseif(CHAIN_TYPE STREQUAL "BCH" OR CHAIN_TYPE STREQUAL "BSV")
   set(CHAIN_NAME "Bitcoin ABC")
   set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-bitcoincash")
   set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.bch")
 
-  add_definitions(-DCHAIN_TYPE_BCH)
-  add_definitions(-DCHAIN_TYPE_STR="BCH")
+  add_definitions(-DCHAIN_TYPE_${CHAIN_TYPE})
+  add_definitions(-DCHAIN_TYPE_STR="${CHAIN_TYPE}")
   add_definitions(-DKAFKA_TOPIC_PREFIX="") # for compatibility with old deployments, let it empty.
   add_definitions(-DZOOKEEPER_NODE_POSTFIX="") # for compatibility with old deployments, let it empty.
 
@@ -392,6 +392,9 @@ endif()
 add_subdirectory(src/libethash)
 add_subdirectory(src/libblake2)
 add_subdirectory(src/libsph)
+if(CHAIN_TYPE STREQUAL "BCH" OR CHAIN_TYPE STREQUAL "BSV")
+  add_subdirectory(tools/bitcoin/gbtsync)
+endif()
 
 if(USE_CUDA)
   set(USE_CUDA_INCLUDE_DIRECTORY ${CUDA_INCLUDE_DIRECTORIES})
@@ -583,5 +586,3 @@ if(POOL__GENERATE_DEB_PACKAGE)
 
   include(CPack)
 endif()
-
-add_subdirectory(tools/bitcoin/gbtsync)
