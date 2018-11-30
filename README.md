@@ -1,6 +1,8 @@
 BTCPool for Bitcoin, Ethereum, Decred, Bytom, ...
 ==================
 
+[![CircleCI](https://circleci.com/gh/btccom/btcpool.svg?style=shield)](https://circleci.com/gh/btccom/btcpool)
+
 BTCPool is backend system of [https://pool.btc.com](https://pool.btc.com).
 
 > This is a version of BTCPool that supports more blockchains. Check the **SHA256-only** version at [master](https://github.com/btccom/btcpool/tree/master) branch.
