@@ -3,6 +3,9 @@ cmake_minimum_required (VERSION 2.6)
 project (BTCPOOL)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
+include(CTest)
+include(GoogleTest)
+
 ###################################### Options ######################################
 message("") # empty line
 message("------------------------------- Options -------------------------------")
@@ -416,6 +419,8 @@ set(INSTALL_TARGETS
 # testcase
 set(INSTALL_TEST_TARGETS
         unittest)
+
+gtest_discover_tests(unittest)
 
 # tmp dir for install & packet
 set(PACKAGE_TMP_DIR ${CMAKE_BINARY_DIR}/package_tmp)

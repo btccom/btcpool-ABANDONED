@@ -1,6 +1,8 @@
 BTCPool for BTC, BCH, UBTC & SBTC
 ==================
 
+[![CircleCI](https://circleci.com/gh/btccom/btcpool.svg?style=shield)](https://circleci.com/gh/btccom/btcpool)
+
 BTCPool is backend system of [https://pool.btc.com](https://pool.btc.com).
 
 > This is a version of BTCPool that supports more SHA256 blockchains. Check the **single-blockchain** version at [legacy](https://github.com/btccom/btcpool/tree/legacy) branch.
