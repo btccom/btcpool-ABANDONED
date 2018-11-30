@@ -99,52 +99,6 @@ class GwMakerHandlerJson : public GwMakerHandler
   string processRawGw(const string &gw) override;
 };
 
-
-class GwMakerHandlerRsk : public GwMakerHandlerJson 
-{
-  bool checkFields(JsonNode &r) override;
-  string constructRawMsg(JsonNode &r) override;
-  string getRequestData() override { return "{\"jsonrpc\": \"2.0\", \"method\": \"mnr_getWork\", \"params\": [], \"id\": 1}"; }
-};
-
-class GwMakerHandlerEth : public GwMakerHandlerJson
-{
-  bool checkFields(JsonNode &r) override;
-  bool checkFieldsPendingBlock(JsonNode &r);
-  bool checkFieldsGetwork(JsonNode &r);
-  string constructRawMsg(JsonNode &r) override;
-  string getRequestData() override {
-    return "[{\"jsonrpc\": \"2.0\", \"method\": \"eth_getBlockByNumber\", \"params\": [\"pending\", false], \"id\": 1}"
-           ",{\"jsonrpc\": \"2.0\", \"method\": \"eth_getWork\", \"params\": [], \"id\": 1}]";
-  }
-  string getBlockHeight();
-};
-
-class GwMakerHandlerBytom : public GwMakerHandlerJson
-{
-  bool checkFields(JsonNode &r) override;
-  string constructRawMsg(JsonNode &r) override;
-  string getRequestData() override { return "{}"; }
-};
-
-class GwMakerHandlerSia : public GwMakerHandler 
-{
-  string processRawGw(const string &gw) override;
-  string getRequestData() override { return ""; }
-  string getUserAgent() override { return "Sia-Agent"; }
-};
-
-class GwMakerHandlerDecred : public GwMakerHandlerJson 
-{
-  bool checkFields(JsonNode &r) override;
-  string constructRawMsg(JsonNode &r) override;
-  string getRequestData() override
-  {
-    return "[{\"jsonrpc\": \"2.0\", \"method\": \"getcurrentnet\", \"params\": [], \"id\": 0}"
-           ",{\"jsonrpc\": \"2.0\", \"method\": \"getwork\", \"params\": [], \"id\": 1}]";
-  }
-};
-
 class GwNotification {
   shared_ptr<GwMakerHandler> handler_;
 
