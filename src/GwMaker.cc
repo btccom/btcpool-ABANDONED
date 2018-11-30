@@ -23,15 +23,15 @@
  */
 #include "GwMaker.h"
 #include "Utils.h"
-#include <glog/logging.h>
-#include <limits.h>
 
+#include <limits.h>
+#include <glog/logging.h>
 #include <boost/thread.hpp>
 
 #include <event2/http.h>
-
+#include <event2/http_struct.h>
 #include <event2/buffer.h>
-
+#include <event2/buffer_compat.h>
 #include <event2/keyvalq_struct.h>
 
 ///////////////////////////////GwMaker////////////////////////////////////
@@ -131,8 +131,10 @@ void GwNotification::httpdNotification(struct evhttp_request *req, void *arg)
   evbuffer_add_printf(evb, "{\"err_no\":0,\"err_msg\":\"notify success\"}");
   evhttp_send_reply(req, HTTP_OK, "OK", evb);
   evbuffer_free(evb);
+  
+  string postData = string((char *)EVBUFFER_DATA(req->input_buffer), EVBUFFER_LENGTH(req->input_buffer));
+  LOG(INFO) << "GwNotification: makeRawGwMsg for notify " << postData;
 
-  DLOG(INFO) << "GwNotification : Once new work package becomes available, Parity will make a HTTP POST request on the provided url. Body will contain JSON-serialized array of work package data.";
   GwNotification *notification = (GwNotification *)arg;
   notification->handler_->makeRawGwMsg();
 }
