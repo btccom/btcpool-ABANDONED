@@ -39,7 +39,7 @@
 #include "Common.h"
 #include "Kafka.h"
 #include "utilities_js.hpp"
-
+#include <event2/event.h>
 
 struct GwMakerDefinition
 {
@@ -49,6 +49,9 @@ struct GwMakerDefinition
   string rpcAddr_;
   string rpcUserPwd_;
   uint32 rpcInterval_;
+
+  string notifyHost_;
+  uint32 notifyPort_;
 
   string rawGwTopic_;
 };
@@ -96,6 +99,72 @@ class GwMakerHandlerJson : public GwMakerHandler
   string processRawGw(const string &gw) override;
 };
 
+
+class GwMakerHandlerRsk : public GwMakerHandlerJson 
+{
+  bool checkFields(JsonNode &r) override;
+  string constructRawMsg(JsonNode &r) override;
+  string getRequestData() override { return "{\"jsonrpc\": \"2.0\", \"method\": \"mnr_getWork\", \"params\": [], \"id\": 1}"; }
+};
+
+class GwMakerHandlerEth : public GwMakerHandlerJson
+{
+  bool checkFields(JsonNode &r) override;
+  bool checkFieldsPendingBlock(JsonNode &r);
+  bool checkFieldsGetwork(JsonNode &r);
+  string constructRawMsg(JsonNode &r) override;
+  string getRequestData() override {
+    return "[{\"jsonrpc\": \"2.0\", \"method\": \"eth_getBlockByNumber\", \"params\": [\"pending\", false], \"id\": 1}"
+           ",{\"jsonrpc\": \"2.0\", \"method\": \"eth_getWork\", \"params\": [], \"id\": 1}]";
+  }
+  string getBlockHeight();
+};
+
+class GwMakerHandlerBytom : public GwMakerHandlerJson
+{
+  bool checkFields(JsonNode &r) override;
+  string constructRawMsg(JsonNode &r) override;
+  string getRequestData() override { return "{}"; }
+};
+
+class GwMakerHandlerSia : public GwMakerHandler 
+{
+  string processRawGw(const string &gw) override;
+  string getRequestData() override { return ""; }
+  string getUserAgent() override { return "Sia-Agent"; }
+};
+
+class GwMakerHandlerDecred : public GwMakerHandlerJson 
+{
+  bool checkFields(JsonNode &r) override;
+  string constructRawMsg(JsonNode &r) override;
+  string getRequestData() override
+  {
+    return "[{\"jsonrpc\": \"2.0\", \"method\": \"getcurrentnet\", \"params\": [], \"id\": 0}"
+           ",{\"jsonrpc\": \"2.0\", \"method\": \"getwork\", \"params\": [], \"id\": 1}]";
+  }
+};
+
+class GwNotification {
+  shared_ptr<GwMakerHandler> handler_;
+
+public:
+  GwNotification(shared_ptr<GwMakerHandler> handle, const string &httpdHost, unsigned short httpdPort);
+  ~GwNotification();
+
+  //httpd
+  struct event_base *base_;
+  string httpdHost_;
+  unsigned short httpdPort_;
+
+  static void httpdNotification(struct evhttp_request *req, void *arg);
+
+  void setupHttpd();
+  void runHttpd();
+  void stop();
+};
+
+
 class GwMaker {
   shared_ptr<GwMakerHandler> handler_;
   atomic<bool> running_;
@@ -103,6 +172,7 @@ class GwMaker {
 private:
   string kafkaBrokers_;
   KafkaProducer kafkaProducer_;
+  shared_ptr<GwNotification> notification_;
 
   string makeRawGwMsg();
   void submitRawGwMsg();
