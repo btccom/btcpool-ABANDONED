@@ -145,13 +145,13 @@ cmake -DJOBS=4 -DCHAIN_TYPE=BTC -DCHAIN_SRC_ROOT=/work/bitcoin-0.16.0 -DPOOL__WO
 make -j4
 ```
 
-**build BTCPool that linking to BitcoinCash**
+**build BTCPool that linking to BitcoinCash ABC**
 
 ```bash
 mkdir /work
 cd /work
-wget -O bitcoin-abc-0.17.1.tar.gz https://github.com/Bitcoin-ABC/bitcoin-abc/archive/v0.17.1.tar.gz
-tar zxf bitcoin-abc-0.17.1.tar.gz
+wget -O bitcoin-abc-0.18.5.tar.gz https://github.com/Bitcoin-ABC/bitcoin-abc/archive/v0.18.5.tar.gz
+tar zxf bitcoin-abc-0.18.5.tar.gz
 
 git clone https://github.com/btccom/btcpool.git
 cd btcpool
@@ -159,22 +159,58 @@ mkdir build
 cd build
 
 # Release build with 4 jobs:
-cmake -DJOBS=4 -DCHAIN_TYPE=BCH -DCHAIN_SRC_ROOT=/work/bitcoin-abc-0.17.1 ..
+cmake -DJOBS=4 -DCHAIN_TYPE=BCH -DCHAIN_SRC_ROOT=/work/bitcoin-abc-0.18.5 ..
 make -j4
 
 # Release build at macOS:
-cmake -DCHAIN_TYPE=BCH -DCHAIN_SRC_ROOT=/work/bitcoin-abc-0.17.1 -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl ..
+cmake -DCHAIN_TYPE=BCH -DCHAIN_SRC_ROOT=/work/bitcoin-abc-0.18.5 -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl ..
 make
 
 # Debug build:
-cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=BCH -DCHAIN_SRC_ROOT=/work/bitcoin-abc-0.17.1 ..
+cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=BCH -DCHAIN_SRC_ROOT=/work/bitcoin-abc-0.18.5 ..
 make
 
 # Build a special version of pool's stratum server, so you can run it with a stratum switcher:
 # Important: This version of sserver CANNOT run independently, `Illegal params` will throw
 # if you try to connect it directly without using StratumSwitcher.
 # Don't use `-DPOOL__WORK_WITH_STRATUM_SWITCHER=ON` if you don't know what StratumSwitcher is.
-cmake -DJOBS=4 -DCHAIN_TYPE=BCH -DCHAIN_SRC_ROOT=/work/bitcoin-abc-0.17.1 -DPOOL__WORK_WITH_STRATUM_SWITCHER=ON ..
+cmake -DJOBS=4 -DCHAIN_TYPE=BCH -DCHAIN_SRC_ROOT=/work/bitcoin-abc-0.18.5 -DPOOL__WORK_WITH_STRATUM_SWITCHER=ON ..
+make -j4
+```
+
+Note: `bitcoin-abc-0.17.1` and earlier are incompatible with current BTCPool, you will meet this error:
+> /work/bitcoin-abc-0.17.1/src/crypto/libbitcoin_crypto_base.a not exists!
+
+**build BTCPool that linking to Bitcoin SV**
+
+```bash
+mkdir /work
+cd /work
+wget -O bitcoin-sv-0.1.0.tar.gz https://github.com/bitcoin-sv/bitcoin-sv/archive/v0.1.0.tar.gz
+tar zxf bitcoin-sv-0.1.0.tar.gz
+
+git clone https://github.com/btccom/btcpool.git
+cd btcpool
+mkdir build
+cd build
+
+# Release build with 4 jobs:
+cmake -DJOBS=4 -DCHAIN_TYPE=BSV -DCHAIN_SRC_ROOT=/work/bitcoin-sv-0.1.0 ..
+make -j4
+
+# Release build at macOS:
+cmake -DCHAIN_TYPE=BSV -DCHAIN_SRC_ROOT=/work/bitcoin-sv-0.1.0 -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl ..
+make
+
+# Debug build:
+cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=BSV -DCHAIN_SRC_ROOT=/work/bitcoin-sv-0.1.0 ..
+make
+
+# Build a special version of pool's stratum server, so you can run it with a stratum switcher:
+# Important: This version of sserver CANNOT run independently, `Illegal params` will throw
+# if you try to connect it directly without using StratumSwitcher.
+# Don't use `-DPOOL__WORK_WITH_STRATUM_SWITCHER=ON` if you don't know what StratumSwitcher is.
+cmake -DJOBS=4 -DCHAIN_TYPE=BSV -DCHAIN_SRC_ROOT=/work/bitcoin-sv-0.1.0 -DPOOL__WORK_WITH_STRATUM_SWITCHER=ON ..
 make -j4
 ```
 
