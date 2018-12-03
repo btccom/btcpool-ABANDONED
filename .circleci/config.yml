@@ -30,8 +30,26 @@ jobs:
       - image: btccom/btcpool_build:bch-0.18.5
     steps:
       - build_and_run_unit_tests_single_chain
+  build_and_run_unit_tests_btc:
+    docker:
+      - image: btccom/btcpool_build:btc-0.16.3
+    steps:
+      - build_and_run_unit_tests_single_chain
+  build_and_run_unit_tests_sbtc:
+    docker:
+      - image: btccom/btcpool_build:sbtc-0.16.2
+    steps:
+      - build_and_run_unit_tests_single_chain
+  build_and_run_unit_tests_ubtc:
+    docker:
+      - image: btccom/btcpool_build:ubtc-2.3.0.1
+    steps:
+      - build_and_run_unit_tests_single_chain
 
 workflows:
   build_and_run_unit_tests_all_chains:
     jobs:
       - build_and_run_unit_tests_bch
+      - build_and_run_unit_tests_btc
+      - build_and_run_unit_tests_sbtc
+      - build_and_run_unit_tests_ubtc
