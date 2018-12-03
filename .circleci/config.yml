@@ -1,22 +1,28 @@
 version: 2
 jobs:
   bch:
-    machine: true
+    docker:
+      - image: btccom/btcpool_build:bch-0.17.2
     steps:
       - checkout
       - run:
-          name: Build docker image
-          command: docker build --rm -t btcpool_bch --build-arg BUILD_ENV_TAG=bch-0.17.2 --build-arg BUILD_TYPE=Debug --build-arg BUILD_JOBS=2 --build-arg WORK_WITH_STRATUM_SWITCHER=OFF .
+          name: Run CMake
+          command: |
+            mkdir build && cd build && \
+            cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_SRC_ROOT=/work/bitcoin -DCHAIN_TYPE=$CHAIN_TYPE -DJOBS=2  ..
+      - run:
+          name: Build btcpool
+          command: cd build && make -j2
       - run:
           name: Run unit tests
-          command: docker run --rm btcpool_bch /work/btcpool/build/unittest
+          command: cd build && make test
       - run:
           name: Send failure notification
-          command: curl --tlsv1.2 $BEARYCHAT_WEBHOOK -H 'Content-Type:application/json' -d "{\"text\":\"[$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/$CIRCLE_JOB/$CIRCLE_BUILD_NUM]($CIRCLE_BUILD_URL) failed\"}"
+          command: curl $BEARYCHAT_WEBHOOK -H 'Content-Type:application/json' -d "{\"text\":\"[$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/$CIRCLE_JOB/$CIRCLE_BUILD_NUM]($CIRCLE_BUILD_URL) failed\"}"
           when: on_fail
       - run:
           name: Send success notification
-          command: curl --tlsv1.2 $BEARYCHAT_WEBHOOK -H 'Content-Type:application/json' -d "{\"text\":\"[$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/$CIRCLE_JOB/$CIRCLE_BUILD_NUM]($CIRCLE_BUILD_URL) succeeded\"}"
+          command: curl $BEARYCHAT_WEBHOOK -H 'Content-Type:application/json' -d "{\"text\":\"[$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/$CIRCLE_JOB/$CIRCLE_BUILD_NUM]($CIRCLE_BUILD_URL) succeeded\"}"
           when: on_success
 workflows:
   version: 2
