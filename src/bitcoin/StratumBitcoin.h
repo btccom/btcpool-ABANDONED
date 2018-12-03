@@ -31,6 +31,7 @@
 // #include <base58.h>
 #include "rsk/RskWork.h"
 #include "script/standard.h"
+#include "share.pro.pb.h"
 
 
 //
@@ -58,117 +59,119 @@ public:
 };
 
 
-class ShareBitcoin
-{
+
+class ShareBitcoin  : public sharebase::BitcoinMsg  {
+public:
+    ShareBitcoin() {
+      set_version(CURRENT_VERSION);
+      set_workerhashid(0);
+      set_userid(0);
+      set_status(0);
+      set_timestamp(0);
+      set_ip("0.0.0.0");
+      set_jobid(0);
+      set_sharediff(0);
+      set_blkbits(0);
+      set_height(0);
+      set_nonce(0);
+      set_sessionid(0);
+    }
+
+    ShareBitcoin(const ShareBitcoin &r) = default;
+    ShareBitcoin&operator=(const ShareBitcoin &r) = default;
+
+    double score() const {
+
+        if (sharediff() == 0 || blkbits() == 0)
+        {
+            return 0.0;
+        }
+
+        double networkDifficulty = 1.0;//0.0;
+        BitsToDifficulty(blkbits(), &networkDifficulty);
+
+        if (networkDifficulty < (double)sharediff())
+        {
+            return 1.0;
+        }
+
+        return (double)sharediff() / networkDifficulty;
+    }
+
+
+    bool isValid() const {
+
+        if (version() != CURRENT_VERSION) {
+            DLOG(INFO) << "share  version " << version();
+            return false;
+        }
+
+        if (jobid() == 0 || userid() == 0 || workerhashid() == 0 ||
+            height() == 0 || blkbits() == 0 || sharediff() == 0)
+        {
+             DLOG(INFO) << "share  jobid : " << jobid() << "\n"
+                        << "share  userid : " << userid() << "\n"
+                        << "share  workerhashid : " << workerhashid() << "\n"
+                        << "share  height : " << height() << "\n"
+                        << "share  blkbits : " << blkbits() << "\n"
+                        << "share  sharediff : " << sharediff() << "\n" ;
+            return false;
+        }
+
+        return true;
+    }
+
+    std::string toString() const {
+
+      double networkDifficulty = 0.0;
+      BitsToDifficulty(blkbits(), &networkDifficulty);
+
+      return  Strings::Format("share(jobId: %" PRIu64 ", ip: %s, userId: %d, "
+                             "workerId: %" PRId64 ", time: %u/%s, height: %u, "
+                             "blkBits: %08x/%lf, shareDiff: %" PRIu64 ", "
+                             "status: %d/%s)",
+                             jobid(), ip().c_str(), userid(),
+                             workerhashid(), timestamp(), date("%F %T", timestamp()).c_str(), height(),
+                             blkbits(), networkDifficulty, sharediff(),
+                             status(), StratumStatus::toString(status()));
+    }
+
+    bool SerializeToBuffer(string& data, uint32_t& size) const {
+      size = ByteSize();
+      data.resize(size);
+        if (!SerializeToArray((uint8_t *)data.data(), size)) {
+          DLOG(INFO) << "base.SerializeToArray failed!";
+          return false;
+        }
+      return true;
+    }
+
+    bool SerializeToArrayWithLength(string& data, uint32_t& size) const {
+      size = ByteSize();
+      data.resize(size + sizeof(uint32_t));
+
+      *((uint32_t*)data.data()) = size;
+      uint8_t * payload = (uint8_t *)data.data();
+
+      if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
+        DLOG(INFO) << "base.SerializeToArray failed!";
+        return false;
+      }
+
+      size += sizeof(uint32_t);
+      return true;
+    }
+
+    size_t getsharelength() {
+      return IsInitialized() ? ByteSize() : 0;
+    }
+
+
 public:
 
-  const static uint32_t CURRENT_VERSION = 0x00010003u; // first 0001: bitcoin, second 0003: version 3.
-
-  // Please pay attention to memory alignment when adding / removing fields.
-  // Please note that changing the Share structure will be incompatible with the old deployment.
-  // Also, think carefully when removing fields. Some fields are not used by BTCPool itself,
-  // but are important to external statistics programs.
-
-  // TODO: Change to a data structure that is easier to upgrade, such as ProtoBuf.
-
-  uint32_t  version_      = CURRENT_VERSION;
-  uint32_t  checkSum_     = 0;
-
-  int64_t   workerHashId_ = 0;
-  int32_t   userId_       = 0;
-  int32_t   status_       = 0;
-  int64_t   timestamp_    = 0;
-  IpAddress ip_           = 0;
-
-  uint64_t jobId_     = 0;
-  uint64_t shareDiff_ = 0;
-  uint32_t blkBits_   = 0;
-  uint32_t height_    = 0;
-  uint32_t nonce_     = 0;
-  uint32_t sessionId_ = 0;
-
-  ShareBitcoin() = default;
-  ShareBitcoin(const ShareBitcoin &r) = default;
-  ShareBitcoin &operator=(const ShareBitcoin &r) = default;
-
-  double score() const
-  {
-    if (shareDiff_ == 0 || blkBits_ == 0)
-    {
-      return 0.0;
-    }
-
-    double networkDifficulty = 0.0;
-    BitsToDifficulty(blkBits_, &networkDifficulty);
-
-    // Network diff may less than share diff on testnet or regression test network.
-    // On regression test network, the network diff may be zero.
-    // But no matter how low the network diff is, you can only dig one block at a time.
-    if (networkDifficulty < (double)shareDiff_)
-    {
-      return 1.0;
-    }
-
-    return (double)shareDiff_ / networkDifficulty;
-  }
-
-  uint32_t checkSum() const {
-    uint64_t c = 0;
-
-    c += (uint64_t) version_;
-    c += (uint64_t) workerHashId_;
-    c += (uint64_t) userId_;
-    c += (uint64_t) status_;
-    c += (uint64_t) timestamp_;
-    c += (uint64_t) ip_.addrUint64[0];
-    c += (uint64_t) ip_.addrUint64[1];
-    c += (uint64_t) jobId_;
-    c += (uint64_t) shareDiff_;
-    c += (uint64_t) blkBits_;
-    c += (uint64_t) height_;
-    c += (uint64_t) nonce_;
-    c += (uint64_t) sessionId_;
-
-    return ((uint32_t) c) + ((uint32_t) (c >> 32));
-  }
-
-  bool isValid() const
-  {
-    if (version_ != CURRENT_VERSION) {
-      return false;
-    }
-
-    if (checkSum_ != checkSum()) {
-      DLOG(INFO) << "checkSum mismatched! checkSum_: " << checkSum_ << ", checkSum(): " << checkSum();
-      return false;
-    }
-
-    if (jobId_ == 0 || userId_ == 0 || workerHashId_ == 0 ||
-        height_ == 0 || blkBits_ == 0 || shareDiff_ == 0)
-    {
-      return false;
-    }
-    
-    return true;
-  }
-
-  string toString() const
-  {
-    double networkDifficulty = 0.0;
-    BitsToDifficulty(blkBits_, &networkDifficulty);
-
-    return Strings::Format("share(jobId: %" PRIu64 ", ip: %s, userId: %d, "
-                           "workerId: %" PRId64 ", time: %u/%s, height: %u, "
-                           "blkBits: %08x/%lf, shareDiff: %" PRIu64 ", "
-                           "status: %d/%s)",
-                           jobId_, ip_.toString().c_str(), userId_,
-                           workerHashId_, timestamp_, date("%F %T", timestamp_).c_str(), height_,
-                           blkBits_, networkDifficulty, shareDiff_,
-                           status_, StratumStatus::toString(status_));
-  }
+  const static uint32_t CURRENT_VERSION = 0x00010003u;
 };
 
-static_assert(sizeof(ShareBitcoin) == 80, "ShareBitcoin should be 80 bytes");
 
 class StratumJobBitcoin : public StratumJob
 {

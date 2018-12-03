@@ -346,6 +346,11 @@ if(NOT LibEvent_FOUND)
   message(FATAL_ERROR "libevent2 not found!")
 endif()
 
+find_package(Protobuf)
+if(NOT Protobuf_FOUND)
+  message(FATAL_ERROR "libprotobuf not found!")
+endif()
+
 find_package(Boost 1.47.0 COMPONENTS thread filesystem system regex program_options chrono)
 if(NOT Boost_FOUND)
   message(FATAL_ERROR "Boost not found!")
@@ -432,7 +437,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/src src test ${CHAIN_SRC_ROOT}/s
 set(THIRD_LIBRARIES ethash blake2 sph ${BH_SHARED_LIBRARY} ${USE_CUDA_LIBRARIES}
                     ${BITCOIN_LIBRARIES} ${secp256k1_LIBRARIES} ${GLOG_LIBRARIES} ${KAFKA_LIBRARIES} ${ZLIB_LIBRARIES} ${ZOOKEEPER_LIBRARIES}
                     ${MYSQL_LIBRARIES} ${LIBZMQ_LIBRARIES} ${Hiredis_LIBRARIES} ${CURL_LIBRARIES} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY}
-                    ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB} ${GMP_LIBRARIES} ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} ${PTHREAD_LIBRARIES})
+                    ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB} ${GMP_LIBRARIES} ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} ${PTHREAD_LIBRARIES} ${PROTOBUF_LIBRARIES})
 
 file(GLOB LIB_SOURCES
         src/*.cc

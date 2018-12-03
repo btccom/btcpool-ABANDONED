@@ -108,19 +108,31 @@ void ShareLogWriterT<SHARE>::consumeShareLog(rd_kafka_message_t *rkmessage) {
     return;
   }
 
-  if (rkmessage->len != sizeof(SHARE)) {
-    LOG(ERROR) << "sharelog message size(" << rkmessage->len << ") is not: " << sizeof(SHARE);
+  if (rkmessage->len < sizeof(uint32_t)) {
+    LOG(ERROR) << "invalid share , share size : "<< rkmessage->len ;
+    return ;
+  }
+
+  SHARE share;
+  uint8_t * payload = reinterpret_cast<uint8_t *> (rkmessage->payload);
+  uint32_t headlength  = *((uint32_t*)payload);
+
+  if (rkmessage->len < sizeof(uint32_t) + headlength) {
+    LOG(ERROR) << "invalid share , kafka message size : "<< rkmessage->len  << " <  complete share size " <<
+               headlength + sizeof(uint32_t);
     return;
   }
 
-  shares_.push_back(SHARE());
-  SHARE *share = &(*shares_.rbegin());
+  if (!share.ParseFromArray((const uint8_t *)(payload + sizeof(uint32_t)), headlength)) {
+    LOG(ERROR) << "parse share from kafka message failed rkmessage->len = "<< rkmessage->len ;
+    return;
+  }
+  shares_.push_back(share);
 
-  memcpy((uint8_t *)share, (const uint8_t *)rkmessage->payload, rkmessage->len);
-
-  DLOG(INFO) << share->toString();
-  if (!share->isValid()) {
-    LOG(ERROR) << "invalid share: " << share->toString();
+  DLOG(INFO) << share.toString();
+  // LOG(INFO) << share.toString();
+  if (!share.isValid()) {
+    LOG(ERROR) << "invalid share";
     shares_.pop_back();
     return;
   }
@@ -150,13 +162,21 @@ bool ShareLogWriterT<SHARE>::flushToDisk() {
 
     DLOG(INFO) << "flushToDisk shares count: " << shares_.size();
     for (const auto& share : shares_) {
-      const uint32_t ts = share.timestamp_ - (share.timestamp_ % 86400);
+      const uint32_t ts = share.timestamp() - (share.timestamp()% 86400);
       zstr::ofstream *f = getFileHandler(ts);
       if (f == nullptr)
         return false;
 
       usedHandlers.insert(f);
-      f->write((char *)&share, sizeof(SHARE));
+
+      string message;
+      uint32_t size = 0;
+      if(!share.SerializeToBuffer(message, size)) {
+        DLOG(INFO) << "base.SerializeToArray failed!" << std::endl;
+        continue;
+      }
+      f->write((char*)&size, sizeof(uint32_t));
+      f->write((char*)message.data(), size);
     }
 
     shares_.clear();

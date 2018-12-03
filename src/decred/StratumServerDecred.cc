@@ -162,17 +162,17 @@ int ServerDecred::checkShare(ShareDecred &share, shared_ptr<StratumJobEx> exJobP
   }
 
   auto sjob = dynamic_cast<StratumJobDecred*>(exJobPtr->sjob_);
-  share.network_ = sjob->network_;
-  share.voters_ = sjob->header_.voters.value();
+  share.set_network((uint32_t)sjob->network_);
+  share.set_voters(sjob->header_.voters.value());
   if (ntime > sjob->header_.timestamp.value() + 600) {
     return StratumStatus::TIME_TOO_NEW;
   }
 
-  FoundBlockDecred foundBlock(share.jobId_, share.workerHashId_, share.userId_, workerFullName, sjob->header_, sjob->network_);
+  FoundBlockDecred foundBlock(share.jobid(), share.workerhashid(), share.userid(), workerFullName, sjob->header_, sjob->network_);
   auto& header = foundBlock.header_;
   header.timestamp = ntime;
   header.nonce = nonce;
-  protocol_->setExtraNonces(header, share.sessionId_, extraNonce2);
+  protocol_->setExtraNonces(header, share.sessionid(), extraNonce2);
 
   uint256 blkHash = header.getHash();
   auto bnBlockHash = UintToArith256(blkHash);
@@ -189,7 +189,7 @@ int ServerDecred::checkShare(ShareDecred &share, shared_ptr<StratumJobEx> exJobP
     GetJobRepository()->markAllJobsAsStale();
 
     LOG(INFO) << ">>>> found a new block: " << blkHash.ToString()
-    << ", jobId: " << share.jobId_ << ", userId: " << share.userId_
+    << ", jobId: " << share.jobid() << ", userId: " << share.userid()
     << ", by: " << workerFullName << " <<<<";
   }
 
@@ -201,7 +201,7 @@ int ServerDecred::checkShare(ShareDecred &share, shared_ptr<StratumJobEx> exJobP
   }
 
   // check share diff
-  auto jobTarget = NetworkParamsDecred::get(sjob->network_).powLimit / share.shareDiff_;
+  auto jobTarget = NetworkParamsDecred::get(sjob->network_).powLimit / share.sharediff();
 
   DLOG(INFO) << "blkHash: " << blkHash.ToString() << ", jobTarget: "
   << jobTarget.ToString() << ", networkTarget: " << sjob->target_.ToString();

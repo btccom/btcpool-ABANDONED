@@ -67,8 +67,10 @@ TEST(Stratum, Share) {
   ASSERT_EQ(s.toString(), "share(jobId: 0, ip: 0.0.0.0, userId: 0, workerId: 0, "
                           "time: 0/1970-01-01 00:00:00, height: 0, blkBits: 00000000/inf, "
                           "shareDiff: 0, status: 0/Share rejected)");
+  IpAddress ip;
+  ip.fromIpv4Int(htonl(167772161));
 
-  s.ip_.fromIpv4Int(htonl(167772161));  // 167772161 : 10.0.0.1
+  s.set_ip(ip.toString());  // 167772161 : 10.0.0.1
   ASSERT_EQ(s.toString(), "share(jobId: 0, ip: 10.0.0.1, userId: 0, workerId: 0, "
                           "time: 0/1970-01-01 00:00:00, height: 0, blkBits: 00000000/inf, "
                           "shareDiff: 0, status: 0/Share rejected)");
@@ -77,12 +79,12 @@ TEST(Stratum, Share) {
 TEST(Stratum, Share2) {
   ShareBitcoin s;
 
-  s.blkBits_ = 0x1d00ffffu;
-  s.shareDiff_ = 1ll;
+  s.set_blkbits(0x1d00ffffu);
+  s.set_sharediff(1ll);
   ASSERT_EQ(s.score(), 1ll);
 
-  s.blkBits_ = 0x18050edcu;
-  s.shareDiff_ = UINT32_MAX;
+  s.set_blkbits(0x18050edcu);
+  s.set_sharediff(UINT32_MAX);
   // double will be: 0.0197583
   ASSERT_EQ(score2Str(s.score()), "0.0197582875516673");
 }

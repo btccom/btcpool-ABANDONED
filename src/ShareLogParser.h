@@ -95,6 +95,7 @@ class ShareLogParserT : public ShareLogParser {
   // 48 * 1000000 = 48,000,000 ~ 48 MB
   static const size_t kMaxElementsNum_ = 1000000;  // num of shares
   size_t incompleteShareSize_;
+  uint32_t bufferlength_ ;
 
   MySQLConnection  poolDB_;  // save stats data
   

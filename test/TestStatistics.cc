@@ -173,26 +173,26 @@ TEST(ShareStatsDay, ShareStatsDay) {
     ShareStatsDay<ShareBitcoin> stats;
     ShareBitcoin share;
 
-    share.height_ = 527259;
-    share.status_ = StratumStatus::ACCEPT;
+    share.set_height(527259);
+    share.set_status(StratumStatus::ACCEPT);
     uint64_t shareValue = 1ll;
 
-    auto reward = GetBlockReward(share.height_, Params().GetConsensus());
+    auto reward = GetBlockReward(share.height(), Params().GetConsensus());
 
     // share -> socre = 1 : 1
     // https://btc.com/000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f
-    share.blkBits_ = 0x1d00ffffu;
+    share.set_blkbits(0x1d00ffffu);
 
     // accept
     for (uint32_t i = 0; i < 24; i++) {  // hour idx range: [0, 23]
-      share.shareDiff_ = shareValue;
+      share.set_sharediff(shareValue);
       stats.processShare(i, share);
     }
 
     // reject
-    share.status_ = StratumStatus::REJECT_NO_REASON;
+    share.set_status(StratumStatus::REJECT_NO_REASON);
     for (uint32_t i = 0; i < 24; i++) {
-      share.shareDiff_ = shareValue;
+      share.set_sharediff(shareValue);
       stats.processShare(i, share);
     }
 
@@ -214,25 +214,25 @@ TEST(ShareStatsDay, ShareStatsDay) {
     ShareStatsDay<ShareBitcoin> stats;
     ShareBitcoin share;
 
-    share.height_ = 527259;
-    share.status_  = StratumStatus::ACCEPT;
+    share.set_height(527259);
+    share.set_status(StratumStatus::ACCEPT);
     uint64_t shareValue = UINT32_MAX;
 
     // share -> socre = UINT32_MAX : 0.0197582875516673
     // https://btc.com/00000000000000000015f613f161b431acc6bbcb34533d2ca47d3cde4ec58b76
-    share.blkBits_ = 0x18050edcu;
+    share.set_blkbits(0x18050edcu);
 
     // accept
     for (uint32_t i = 0; i < 24; i++) {  // hour idx range: [0, 23]
-      share.shareDiff_ = shareValue;
+      share.set_sharediff(shareValue);
       stats.processShare(i, share);
 //      LOG(INFO) << score2Str(share.score());
     }
 
     // reject
-    share.status_ = StratumStatus::REJECT_NO_REASON;
+    share.set_status(StratumStatus::REJECT_NO_REASON);
     for (uint32_t i = 0; i < 24; i++) {
-      share.shareDiff_ = shareValue;
+      share.set_sharediff(shareValue);
       stats.processShare(i, share);
     }
 
@@ -262,16 +262,16 @@ TEST(ShareStatsDay, ShareStatsDay) {
 ////////////////////////////////  GlobalShare  ///////////////////////////////
 TEST(GlobalShare, GlobalShareEth) {
     ShareEth share1;
-    share1.headerHash_ = 0x12345678;
-    share1.nonce_ = 0x87654321;
+    share1.set_headerhash(0x12345678);
+    share1.set_nonce(0x87654321);
 
     ShareEth share2;
-    share2.headerHash_ = 0x12345678;
-    share2.nonce_ = 0x33333333;
+    share2.set_headerhash(0x12345678);
+    share2.set_nonce(0x33333333);
 
     ShareEth share3;
-    share3.headerHash_ = 0x33333333;
-    share3.nonce_ = 0x55555555;
+    share3.set_headerhash(0x33333333);
+    share3.set_nonce(0x55555555);
 
     GlobalShareEth a(share1);
     GlobalShareEth b(share2);
@@ -300,9 +300,9 @@ TEST(DuplicateShareChecker, DuplicateShareCheckerEth) {
     DuplicateShareCheckerEth dsc(3);
 
     ShareEth share;
-    share.height_ = 12345;
-    share.headerHash_ = 0x12345678;
-    share.nonce_ = 0x87654321;
+    share.set_height(12345);
+    share.set_headerhash(0x12345678);
+    share.set_nonce(0x87654321);
 
     ASSERT_EQ(dsc.addShare(share), true);
     ASSERT_EQ(dsc.addShare(share), false);
@@ -314,28 +314,28 @@ TEST(DuplicateShareChecker, DuplicateShareCheckerEth) {
     DuplicateShareCheckerEth dsc(3);
 
     ShareEth share;
-    share.height_ = 12345;
-    share.headerHash_ = 0x12345678;
-    share.nonce_ = 0x87654321;
+    share.set_height(12345);
+    share.set_headerhash(0x12345678);
+    share.set_nonce(0x87654321);
 
     ASSERT_EQ(dsc.addShare(share), true);
 
-    share.height_ = 12346;
+    share.set_height(12346);
     ASSERT_EQ(dsc.addShare(share), true);
 
-    share.height_ = 12347;
+    share.set_height(12347);
     ASSERT_EQ(dsc.addShare(share), true);
 
-    share.height_ = 12348;
+    share.set_height(12348);
     ASSERT_EQ(dsc.addShare(share), true);
 
-    share.height_ = 12347;
+    share.set_height(12347);
     ASSERT_EQ(dsc.addShare(share), false);
 
-    share.height_ = 12346;
+    share.set_height(12346);
     ASSERT_EQ(dsc.addShare(share), false);
 
-    share.height_ = 12349;
+    share.set_height(12349);
     ASSERT_EQ(dsc.addShare(share), true);
 
     ASSERT_EQ(dsc.gshareSetMapSize(), 3ull);
@@ -346,28 +346,28 @@ TEST(DuplicateShareChecker, DuplicateShareCheckerEth) {
     DuplicateShareCheckerEth dsc(3);
 
     ShareEth share;
-    share.height_ = 12345;
-    share.headerHash_ = 0x12345678;
-    share.nonce_ = 0x87654321;
+    share.set_height(12345);
+    share.set_headerhash(0x12345678);
+    share.set_nonce(0x87654321);
 
     ASSERT_EQ(dsc.addShare(share), true);
 
-    share.headerHash_ = 0x123;
+    share.set_headerhash(0x123);
     ASSERT_EQ(dsc.addShare(share), true);
 
-    share.headerHash_ = 0x456;
+    share.set_headerhash(0x456);
     ASSERT_EQ(dsc.addShare(share), true);
 
-    share.headerHash_ = 0x123;
+    share.set_headerhash(0x123);
     ASSERT_EQ(dsc.addShare(share), false);
 
-    share.headerHash_ = 0x456;
+    share.set_headerhash(0x456);
     ASSERT_EQ(dsc.addShare(share), false);
 
-    share.headerHash_ = 0x12345678;
+    share.set_headerhash(0x12345678);
     ASSERT_EQ(dsc.addShare(share), false);
 
-    share.headerHash_ = 0x87654321;
+    share.set_headerhash(0x87654321);
     ASSERT_EQ(dsc.addShare(share), true);
   }
 
@@ -376,28 +376,28 @@ TEST(DuplicateShareChecker, DuplicateShareCheckerEth) {
     DuplicateShareCheckerEth dsc(3);
 
     ShareEth share;
-    share.height_ = 12345;
-    share.headerHash_ = 0x12345678;
-    share.nonce_ = 0x87654321;
+    share.set_height(12345);
+    share.set_headerhash(0x12345678);
+    share.set_nonce(0x87654321);
 
     ASSERT_EQ(dsc.addShare(share), true);
 
-    share.nonce_ = 0x123;
+    share.set_nonce(0x123);
     ASSERT_EQ(dsc.addShare(share), true);
 
-    share.nonce_ = 0x456;
+    share.set_nonce(0x456);
     ASSERT_EQ(dsc.addShare(share), true);
 
-    share.nonce_ = 0x123;
+    share.set_nonce(0x123);
     ASSERT_EQ(dsc.addShare(share), false);
 
-    share.nonce_ = 0x456;
+    share.set_nonce(0x456);
     ASSERT_EQ(dsc.addShare(share), false);
 
-    share.nonce_ = 0x12345678;
+    share.set_nonce(0x12345678);
     ASSERT_EQ(dsc.addShare(share), true);
 
-    share.nonce_ = 0x87654321;
+    share.set_nonce(0x87654321);
     ASSERT_EQ(dsc.addShare(share), false);
   }
 }

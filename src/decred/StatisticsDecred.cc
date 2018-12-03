@@ -30,12 +30,12 @@ template <>
 void ShareStatsDay<ShareDecred>::processShare(uint32_t hourIdx, const ShareDecred &share) {
   ScopeLock sl(lock_);
 
-  if (StratumStatus::isAccepted(share.status_)) {
-    shareAccept1h_[hourIdx] += share.shareDiff_;
-    shareAccept1d_          += share.shareDiff_;
+  if (StratumStatus::isAccepted(share.status())) {
+    shareAccept1h_[hourIdx] += share.sharediff();
+    shareAccept1d_          += share.sharediff();
 
     double score = share.score();
-    double reward = GetBlockRewardDecredShare(share.height_, NetworkParamsDecred::get(share.network_));
+    double reward = GetBlockRewardDecredShare(share.height(), NetworkParamsDecred::get((NetworkDecred)share.network()));
     double earn = score * reward;
 
     score1h_[hourIdx] += score;
@@ -44,8 +44,8 @@ void ShareStatsDay<ShareDecred>::processShare(uint32_t hourIdx, const ShareDecre
     earn1d_           += earn;
 
   } else {
-    shareReject1h_[hourIdx] += share.shareDiff_;
-    shareReject1d_          += share.shareDiff_;
+    shareReject1h_[hourIdx] += share.sharediff();
+    shareReject1d_          += share.sharediff();
   }
   modifyHoursFlag_ |= (0x01u << hourIdx);
 }
