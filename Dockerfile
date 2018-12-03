@@ -21,7 +21,7 @@ ARG WORK_WITH_STRATUM_SWITCHER
 # Copy & build btcpool
 COPY . /tmp/btcpool
 RUN mkdir -p /tmp/build && cd /tmp/build && cmake \
-    -DCHAIN_SRC_ROOT=${CHAIN_SRC_ROOT} \
+    -DCHAIN_SRC_ROOT=/work/bitcoin \
     -DCHAIN_TYPE=${CHAIN_TYPE} \
     -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
     -DJOBS=${BUILD_JOBS} \
