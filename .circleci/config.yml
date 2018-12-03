@@ -10,6 +10,14 @@ jobs:
       - run:
           name: Run unit tests
           command: docker run --rm btcpool_bch /work/btcpool/build/unittest
+      - run:
+          name: Send failure notification
+          command: curl --tlsv1.2 $BEARYCHAT_WEBHOOK -H 'Content-Type:application/json' -d "{\"text\":\"[$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/$CIRCLE_JOB/$CIRCLE_BUILD_NUM]($CIRCLE_BUILD_URL) failed\"}"
+          when: on_fail
+      - run:
+          name: Send success notification
+          command: curl --tlsv1.2 $BEARYCHAT_WEBHOOK -H 'Content-Type:application/json' -d "{\"text\":\"[$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/$CIRCLE_JOB/$CIRCLE_BUILD_NUM]($CIRCLE_BUILD_URL) succeeded\"}"
+          when: on_success
 workflows:
   version: 2
   build_and_test:
