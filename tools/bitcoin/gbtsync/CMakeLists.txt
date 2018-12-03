@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 3.5)
 
+project (BTCPOOL-GBTSYNC)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/../../../cmake/Modules/")
-
 
 ################### options ###################
 
@@ -63,7 +63,9 @@ endif()
 
 ################### targets ###################
 
-# add_subdirectory(../../../src/config config)
+add_definitions(-DCHAIN_TYPE_BCH)
+add_definitions(-DCHAIN_TYPE_STR="BCH")
+add_subdirectory(../../../src/config config)
 
 include_directories(./)
 include_directories(../)
@@ -73,7 +75,6 @@ include_directories(${GLOG_INCLUDE_DIRS})
 include_directories(${MYSQL_INCLUDE_DIR})
 include_directories(${PTHREAD_INCLUDE_DIR})
 include_directories(${LIBCONFIGPP_INCLUDE_DIR})
-include_directories(${PROJECT_BINARY_DIR}/src)
 
 file(GLOB LIB_SOURCES *.cpp)
 file(GLOB MAIN_SOURCES main/*.cpp)
@@ -91,4 +92,4 @@ target_link_libraries(gbtsynctest ${MYSQL_LIBRARIES} ${PTHREAD_LIBRARIES} ${GLOG
 file(COPY "./TestGbtSync/testdata/" DESTINATION testdata)
 
 install(TARGETS gbtsync
-        DESTINATION bin)
+DESTINATION bin)
