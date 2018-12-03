@@ -1,8 +1,7 @@
-version: 2
-jobs:
-  bch:
-    docker:
-      - image: btccom/btcpool_build:bch-0.17.2
+version: 2.1
+
+commands:
+  build_and_run_unit_tests_single_chain:
     steps:
       - checkout
       - run:
@@ -24,8 +23,15 @@ jobs:
           name: Send success notification
           command: curl $BEARYCHAT_WEBHOOK -H 'Content-Type:application/json' -d "{\"text\":\"[$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/$CIRCLE_JOB/$CIRCLE_BUILD_NUM]($CIRCLE_BUILD_URL) succeeded\"}"
           when: on_success
+
+jobs:
+  build_and_run_unit_tests_bch:
+    docker:
+      - image: btccom/btcpool_build:bch-0.17.2
+    steps:
+      - build_and_run_unit_tests_single_chain
+
 workflows:
-  version: 2
-  build_and_test:
+  build_and_run_unit_tests_all_chains:
     jobs:
-      - bch
+      - build_and_run_unit_tests_bch
