@@ -48,8 +48,9 @@ string convertPrevHash(const string &prevHash) {
 
 
 ///////////////////////////////// ClientContainer //////////////////////////////
-ClientContainerBitcoin::ClientContainerBitcoin(const string &kafkaBrokers, const string &jobTopic, const string &gbtTopic)
-  : ClientContainer(kafkaBrokers, jobTopic, gbtTopic)
+ClientContainerBitcoin::ClientContainerBitcoin(const string &kafkaBrokers, const string &jobTopic, const string &gbtTopic,
+                                               bool disableChecking)
+  : ClientContainer(kafkaBrokers, jobTopic, gbtTopic, disableChecking)
   , poolStratumJob_(nullptr)
 {
 }
@@ -70,7 +71,7 @@ PoolWatchClient* ClientContainerBitcoin::createPoolWatchClient(
                 struct event_base *base, const string &poolName, const string &poolHost,
                 const int16_t poolPort, const string &workerName)
 {
-  return new PoolWatchClientBitcoin(base, this,
+  return new PoolWatchClientBitcoin(base, this, disableChecking_,
                                  poolName, poolHost, poolPort, workerName);
 }
 
@@ -117,9 +118,10 @@ void ClientContainerBitcoin::consumeStratumJobInternal(const string& str)
     }
 }
 
-bool ClientContainerBitcoin::sendEmptyGBT(int32_t blockHeight, uint32_t nBits,
-                                   const string &blockPrevHash,
-                                   uint32_t blockTime, uint32_t blockVersion) {
+bool ClientContainerBitcoin::sendEmptyGBT(const string &poolName,
+                                          int32_t blockHeight, uint32_t nBits,
+                                          const string &blockPrevHash,
+                                          uint32_t blockTime, uint32_t blockVersion) {
 
   // generate empty GBT
   string gbt;
@@ -143,10 +145,12 @@ bool ClientContainerBitcoin::sendEmptyGBT(int32_t blockHeight, uint32_t nBits,
 
   string sjob = Strings::Format("{\"created_at_ts\":%u,"
                                 "\"block_template_base64\":\"%s\","
-                                "\"gbthash\":\"%s\"}",
+                                "\"gbthash\":\"%s\","
+                                "\"from_pool\":\"%s\"}",
                                 (uint32_t)time(nullptr),
                                 EncodeBase64(gbt).c_str(),
-                                gbtHash.ToString().c_str());
+                                gbtHash.ToString().c_str(),
+                                poolName.c_str());
 
   // submit to Kafka
   kafkaProducer_.produce(sjob.c_str(), sjob.length());
@@ -166,13 +170,13 @@ string ClientContainerBitcoin::createOnConnectedReplyString() const
 
 ///////////////////////////////// PoolWatchClient //////////////////////////////
 PoolWatchClientBitcoin::PoolWatchClientBitcoin(struct event_base *base, ClientContainerBitcoin *container,
+                                 bool disableChecking,
                                  const string &poolName,
                                  const string &poolHost, const int16_t poolPort,
                                  const string &workerName)
-  : PoolWatchClient(base, container, poolName, poolHost, poolPort, workerName) 
+  : PoolWatchClient(base, container, disableChecking, poolName, poolHost, poolPort, workerName)
   , extraNonce1_(0), extraNonce2Size_(0)
 {
-
 }
 
 PoolWatchClientBitcoin::~PoolWatchClientBitcoin() 
@@ -234,7 +238,7 @@ void PoolWatchClientBitcoin::handleStratumMessage(const string &line) {
         // stratum server, because the stratum server is automatic switched
         // between Bitcoin and Bitcoin Cash depending on profit.
         //////////////////////////////////////////////////////////////////////////
-        {
+        if (!disableChecking_) {
           // get a read lock before lookup this->poolStratumJob_
           // it will unlock by itself in destructor.
           auto readLock = containerBitcoin->getPoolStratumJobReadLock();
@@ -293,13 +297,11 @@ void PoolWatchClientBitcoin::handleStratumMessage(const string &line) {
           nVersion = poolStratumJob->nVersion_;
         }
 
-        containerBitcoin->sendEmptyGBT(blockHeight, nBits, prevHash, blockTime, nVersion);
+        containerBitcoin->sendEmptyGBT(poolName_, blockHeight, nBits, prevHash, blockTime, nVersion);
 
       }
     }
-    else {
-      // ignore other messages
-    }
+
     return;
   }
 
