@@ -6,7 +6,7 @@ jobs:
       - checkout
       - run:
           name: Build docker image
-          command: docker build --rm -t btcpool_bch --build-arg BUILD_ENV_TAG=bch --build-arg BUILD_TYPE=Debug --build-arg BUILD_JOBS=2 --build-arg WORK_WITH_STRATUM_SWITCHER=OFF .
+          command: docker build --rm -t btcpool_bch --build-arg BUILD_ENV_TAG=bch-0.17.2 --build-arg BUILD_TYPE=Debug --build-arg BUILD_JOBS=2 --build-arg WORK_WITH_STRATUM_SWITCHER=OFF .
       - run:
           name: Run unit tests
           command: docker run --rm btcpool_bch /work/btcpool/build/unittest
