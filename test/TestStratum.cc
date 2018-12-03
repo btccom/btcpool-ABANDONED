@@ -77,12 +77,12 @@ TEST(Stratum, Share) {
 TEST(Stratum, Share2) {
   ShareBitcoin s;
 
-  s.blkBits_ = 0x1d00ffffu;
-  s.shareDiff_ = 1ll;
+  s.blkbits_ = 0x1d00ffffu;
+  s.sharediff_ = 1ll;
   ASSERT_EQ(s.score(), 1ll);
 
-  s.blkBits_ = 0x18050edcu;
-  s.shareDiff_ = UINT32_MAX;
+  s.blkbits_ = 0x18050edcu;
+  s.sharediff_ = UINT32_MAX;
   // double will be: 0.0197583
   ASSERT_EQ(score2Str(s.score()), "0.0197582875516673");
 }

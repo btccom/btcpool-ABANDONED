@@ -29,8 +29,8 @@ void ShareStatsDay<ShareEth>::processShare(uint32_t hourIdx, const ShareEth &sha
   ScopeLock sl(lock_);
 
   if (StratumStatus::isAccepted(share.status_)) {
-    shareAccept1h_[hourIdx] += share.shareDiff_;
-    shareAccept1d_          += share.shareDiff_;
+    shareAccept1h_[hourIdx] += share.sharediff_;
+    shareAccept1d_          += share.sharediff_;
 
     double score = share.score();
     double reward = EthConsensus::getStaticBlockReward(share.height_, share.getChain());
@@ -42,8 +42,8 @@ void ShareStatsDay<ShareEth>::processShare(uint32_t hourIdx, const ShareEth &sha
     earn1d_           += earn;
 
   } else {
-    shareReject1h_[hourIdx] += share.shareDiff_;
-    shareReject1d_          += share.shareDiff_;
+    shareReject1h_[hourIdx] += share.sharediff_;
+    shareReject1d_          += share.sharediff_;
   }
   modifyHoursFlag_ |= (0x01u << hourIdx);
 }

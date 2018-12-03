@@ -173,16 +173,16 @@ void StratumMinerBytom::handleRequest_Submit(const string &idStr, const JsonNode
   //  ShareBase portion
   share.version_ = ShareBytom::CURRENT_VERSION;
   //  TODO: not set: share.checkSum_
-  share.workerHashId_ = workerId_;
-  share.userId_ = worker.userId_;
+  share.workerhashid_ = workerId_;
+  share.userid_ = worker.userId_;
   share.status_ = StratumStatus::REJECT_NO_REASON;
   share.timestamp_ = (uint32_t) time(nullptr);
   share.ip_.fromIpv4Int(clientIp);
 
   //  ShareBytom portion
-  share.jobId_ = localJob->jobId_;
-  share.shareDiff_ = difficulty;
-  share.blkBits_ = sJob->blockHeader_.bits;
+  share.jobid_ = localJob->jobId_;
+  share.sharediff_ = difficulty;
+  share.blkbits_ = sJob->blockHeader_.bits;
   share.height_ = sJob->blockHeader_.height;
 
   auto StringToCheapHash = [](const std::string &str) -> uint64 {
@@ -198,12 +198,12 @@ void StratumMinerBytom::handleRequest_Submit(const string &idStr, const JsonNode
     // return uint256(merkleRootBin).GetCheapHash();
   };
 
-  share.combinedHeader_.blockCommitmentMerkleRootCheapHash_ =
+  share.combinedheader_.blockCommitmentMerkleRootCheapHash_ =
       StringToCheapHash(sJob->blockHeader_.transactionsMerkleRoot);
-  share.combinedHeader_.blockCommitmentStatusHashCheapHash_ =
+  share.combinedheader_.blockCommitmentStatusHashCheapHash_ =
       StringToCheapHash(sJob->blockHeader_.transactionStatusHash);
-  share.combinedHeader_.timestamp_ = sJob->blockHeader_.timestamp;
-  share.combinedHeader_.nonce_ = nonce;
+  share.combinedheader_.timestamp_ = sJob->blockHeader_.timestamp;
+  share.combinedheader_.nonce_ = nonce;
   if (exjob->isStale()) {
     share.status_ = StratumStatus::JOB_NOT_FOUND;
     session.rpc2ResponseBoolean(idStr, false, "Block expired");
@@ -227,9 +227,9 @@ void StratumMinerBytom::handleRequest_Submit(const string &idStr, const JsonNode
                                    Bytom_TargetCompactToDifficulty(sJob->blockHeader_.bits),
                                    worker);
       server.GetJobRepository()->markAllJobsAsStale();
-      handleShare(idStr, share.status_, share.shareDiff_);
+      handleShare(idStr, share.status_, share.sharediff_);
     } else if (powResult == StratumStatus::ACCEPT) {
-      handleShare(idStr, share.status_, share.shareDiff_);
+      handleShare(idStr, share.status_, share.sharediff_);
     } else {
       std::string failMessage = "Unknown reason";
       switch (share.status_) {
@@ -251,14 +251,14 @@ void StratumMinerBytom::handleRequest_Submit(const string &idStr, const JsonNode
     if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT) {
       isSendShareToKafka = false;
       LOG(WARNING) << "invalid share spamming, diff: "
-                   << share.shareDiff_ << ", uid: " << worker.userId_
+                   << share.sharediff_ << ", uid: " << worker.userId_
                    << ", uname: \"" << worker.userName_ << "\", ip: " << clientIp
                    << "checkshare result: " << share.status_;
     }
   }
 
   if (isSendShareToKafka) {
-    share.checkSum_ = share.checkSum();
+    share.checksum_ = share.checkSum();
     server.sendShare2Kafka((const uint8_t *) &share, sizeof(ShareBytom));
 
     string shareInHex;

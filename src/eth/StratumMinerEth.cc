@@ -180,16 +180,16 @@ void StratumMinerEth::handleRequest_Submit(const string &idStr, const JsonNode &
 
   ShareEth share;
   share.version_ = ShareEth::getVersion(chain);
-  share.headerHash_ = headerPrefix;
-  share.workerHashId_ = workerId_;
-  share.userId_ = worker.userId_;
-  share.shareDiff_ = jobDiff.currentJobDiff_;
-  share.networkDiff_ = networkDiff;
+  share.headerhash_ = headerPrefix;
+  share.workerhashid_ = workerId_;
+  share.userid_ = worker.userId_;
+  share.sharediff_ = jobDiff.currentJobDiff_;
+  share.networkdiff_ = networkDiff;
   share.timestamp_ = (uint64_t) time(nullptr);
   share.status_ = StratumStatus::REJECT_NO_REASON;
   share.height_ = height;
   share.nonce_ = nonce;
-  share.sessionId_ = extraNonce1; // TODO: fix it, set as real session id.
+  share.sessionid_ = extraNonce1; // TODO: fix it, set as real session id.
   share.ip_.fromIpv4Int(clientIp);
 
   LocalShare localShare(nonce, 0, 0);
@@ -212,14 +212,14 @@ void StratumMinerEth::handleRequest_Submit(const string &idStr, const JsonNode &
                                                  jobDiff.jobDiffs_, shareMixHash, worker.fullName_);
 
   if (StratumStatus::isAccepted(share.status_)) {
-    DLOG(INFO) << "share reached the diff: " << share.shareDiff_;
+    DLOG(INFO) << "share reached the diff: " << share.sharediff_;
   } else {
-    DLOG(INFO) << "share not reached the diff: " << share.shareDiff_;
+    DLOG(INFO) << "share not reached the diff: " << share.sharediff_;
   }
 
   // we send share to kafka by default, but if there are lots of invalid
   // shares in a short time, we just drop them.
-  if (handleShare(idStr, share.status_, share.shareDiff_)) {
+  if (handleShare(idStr, share.status_, share.sharediff_)) {
     if (StratumStatus::isSolved(share.status_)) {
       server.sendSolvedShare2Kafka(sNonce, sHeader, shareMixHash.GetHex(), height, networkDiff, worker, chain);
     }
@@ -229,7 +229,7 @@ void StratumMinerEth::handleRequest_Submit(const string &idStr, const JsonNode &
     // too much invalid shares, don't send them to kafka
     if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT) {
       LOG(WARNING) << "invalid share spamming, diff: "
-                   << share.shareDiff_ << ", uid: " << worker.userId_
+                   << share.sharediff_ << ", uid: " << worker.userId_
                    << ", uname: \"" << worker.userName_ << "\", ip: " << clientIp
                    << "checkshare result: " << share.status_;
       return;
@@ -238,7 +238,7 @@ void StratumMinerEth::handleRequest_Submit(const string &idStr, const JsonNode &
 
   DLOG(INFO) << share.toString();
 
-  share.checkSum_ = share.checkSum();
+  share.checksum_ = share.checkSum();
   server.sendShare2Kafka((const uint8_t *) &share, sizeof(ShareEth));
 }
 

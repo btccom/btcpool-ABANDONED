@@ -52,9 +52,9 @@ void WorkerShares<SHARE>::processShare(const SHARE &share) {
 
   if (StratumStatus::isAccepted(share.status_)) {
     acceptCount_++;
-    acceptShareSec_.insert(share.timestamp_,    share.shareDiff_);
+    acceptShareSec_.insert(share.timestamp_,    share.sharediff_);
   } else {
-    rejectShareMin_.insert(share.timestamp_/60, share.shareDiff_);
+    rejectShareMin_.insert(share.timestamp_/60, share.sharediff_);
   }
 
   lastShareIP_   = share.ip_;
@@ -276,7 +276,7 @@ void StatsServerT<SHARE>::processShare(const SHARE &share) {
   }
   poolWorker_.processShare(share);
 
-  WorkerKey key(share.userId_, share.workerHashId_);
+  WorkerKey key(share.userid_, share.workerhashid_);
   _processShare(key, share);
 }
 
@@ -294,14 +294,14 @@ void StatsServerT<SHARE>::_processShare(WorkerKey &key, const SHARE &share) {
   if (workerItr != workerSet_.end()) {
     workerItr->second->processShare(share);
   } else {
-    workerShare = make_shared<WorkerShares<SHARE>>(share.workerHashId_, share.userId_);
+    workerShare = make_shared<WorkerShares<SHARE>>(share.workerhashid_, share.userid_);
     workerShare->processShare(share);
   }
 
   if (userItr != userSet_.end()) {
     userItr->second->processShare(share);
   } else {
-    userShare = make_shared<WorkerShares<SHARE>>(share.workerHashId_, share.userId_);
+    userShare = make_shared<WorkerShares<SHARE>>(share.workerhashid_, share.userid_);
     userShare->processShare(share);
   }
 

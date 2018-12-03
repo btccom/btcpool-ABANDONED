@@ -60,36 +60,36 @@ public:
   const static uint32_t CURRENT_VERSION = 0x00200001u; // first 0020: DCR, second 0001: version 1
 
   uint32_t  version_;
-  uint32_t  checkSum_;
+  uint32_t  checksum_;
 
-  int64_t   workerHashId_;
-  int32_t   userId_;
+  int64_t   workerhashid_;
+  int32_t   userid_;
   int32_t   status_;
   int64_t   timestamp_;
   IpAddress ip_;
 
-  uint64_t jobId_;
-  uint64_t shareDiff_;
-  uint32_t blkBits_;
+  uint64_t jobid_;
+  uint64_t sharediff_;
+  uint32_t blkbits_;
   uint32_t height_;
   uint32_t nonce_;
-  uint32_t sessionId_;
+  uint32_t sessionid_;
   NetworkDecred network_;
   uint16_t voters_;
 
   ShareDecred()
     : version_(ShareDecred::CURRENT_VERSION)
-    , checkSum_(0)
-    , workerHashId_(0)
-    , userId_(0)
+    , checksum_(0)
+    , workerhashid_(0)
+    , userid_(0)
     , status_(StratumStatus::REJECT_NO_REASON)
     , timestamp_(0)
-    , jobId_(0)
-    , shareDiff_(0)
-    , blkBits_(0)
+    , jobid_(0)
+    , sharediff_(0)
+    , blkbits_(0)
     , height_(0)
     , nonce_(0)
-    , sessionId_(0)
+    , sessionid_(0)
     , network_(NetworkDecred::MainNet)
     , voters_(0)
   {
@@ -106,17 +106,17 @@ public:
       uint32_t nonce,
       uint32_t extraNonce1)
     : version_(ShareDecred::CURRENT_VERSION)
-    , checkSum_(0)
-    , workerHashId_(workerHashId)
-    , userId_(userId)
+    , checksum_(0)
+    , workerhashid_(workerHashId)
+    , userid_(userId)
     , status_(StratumStatus::REJECT_NO_REASON)
     , timestamp_(time(nullptr))
-    , jobId_(jobId)
-    , shareDiff_(jobDifficulty)
-    , blkBits_(blkBits)
+    , jobid_(jobId)
+    , sharediff_(jobDifficulty)
+    , blkbits_(blkBits)
     , height_(height)
     , nonce_(nonce)
-    , sessionId_(extraNonce1)
+    , sessionid_(extraNonce1)
     , network_(NetworkDecred::MainNet)
     , voters_(0)
   {
@@ -125,40 +125,40 @@ public:
 
   double score() const
   {
-    if (shareDiff_ == 0 || blkBits_ == 0)
+    if (sharediff_ == 0 || blkbits_ == 0)
     {
       return 0.0;
     }
 
-    double networkDifficulty = NetworkParamsDecred::get(network_).powLimit.getdouble() / arith_uint256().SetCompact(blkBits_).getdouble();
+    double networkDifficulty = NetworkParamsDecred::get(network_).powLimit.getdouble() / arith_uint256().SetCompact(blkbits_).getdouble();
 
     // Network diff may less than share diff on testnet or regression test network.
     // On regression test network, the network diff may be zero.
     // But no matter how low the network diff is, you can only dig one block at a time.
-    if (networkDifficulty < shareDiff_)
+    if (networkDifficulty < sharediff_)
     {
       return 1.0;
     }
 
-    return shareDiff_ / networkDifficulty;
+    return sharediff_ / networkDifficulty;
   }
 
   uint32_t checkSum() const {
     uint64_t c = 0;
 
     c += (uint64_t) version_;
-    c += (uint64_t) workerHashId_;
-    c += (uint64_t) userId_;
+    c += (uint64_t) workerhashid_;
+    c += (uint64_t) userid_;
     c += (uint64_t) status_;
     c += (uint64_t) timestamp_;
     c += (uint64_t) ip_.addrUint64[0];
     c += (uint64_t) ip_.addrUint64[1];
-    c += (uint64_t) jobId_;
-    c += (uint64_t) shareDiff_;
-    c += (uint64_t) blkBits_;
+    c += (uint64_t) jobid_;
+    c += (uint64_t) sharediff_;
+    c += (uint64_t) blkbits_;
     c += (uint64_t) height_;
     c += (uint64_t) nonce_;
-    c += (uint64_t) sessionId_;
+    c += (uint64_t) sessionid_;
     c += (uint64_t) network_;
     c += (uint64_t) voters_;
 
@@ -171,13 +171,13 @@ public:
       return false;
     }
 
-    if (checkSum_ != checkSum()) {
-      DLOG(INFO) << "checkSum mismatched! checkSum_: " << checkSum_ << ", checkSum(): " << checkSum();
+    if (checksum_ != checkSum()) {
+      DLOG(INFO) << "checkSum mismatched! checkSum_: " << checksum_ << ", checkSum(): " << checkSum();
       return false;
     }
 
-    if (jobId_ == 0 || userId_ == 0 || workerHashId_ == 0 ||
-        height_ == 0 || blkBits_ == 0 || shareDiff_ == 0)
+    if (jobid_ == 0 || userid_ == 0 || workerhashid_ == 0 ||
+        height_ == 0 || blkbits_ == 0 || sharediff_ == 0)
     {
       return false;
     }
@@ -187,13 +187,13 @@ public:
 
   string toString() const
   {
-    double networkDifficulty = NetworkParamsDecred::get(network_).powLimit.getdouble() / arith_uint256().SetCompact(blkBits_).getdouble();
+    double networkDifficulty = NetworkParamsDecred::get(network_).powLimit.getdouble() / arith_uint256().SetCompact(blkbits_).getdouble();
     return Strings::Format("share(jobId: %" PRIu64 ", ip: %s, userId: %d, "
                            "workerId: %" PRId64 ", time: %u/%s, height: %u, "
                            "blkBits: %08x/%lf, shareDiff: %" PRIu64 ", status: %d/%s)",
-                           jobId_, ip_.toString().c_str(), userId_,
-                           workerHashId_, timestamp_, date("%F %T", timestamp_).c_str(), height_,
-                           blkBits_, networkDifficulty, shareDiff_, status_, StratumStatus::toString(status_));
+                           jobid_, ip_.toString().c_str(), userid_,
+                           workerhashid_, timestamp_, date("%F %T", timestamp_).c_str(), height_,
+                           blkbits_, networkDifficulty, sharediff_, status_, StratumStatus::toString(status_));
   }
 };
 

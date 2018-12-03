@@ -145,11 +145,11 @@ void StratumMinerSia::handleRequest_Submit(const string &idStr, const JsonNode &
   auto clientIp = session.getClientIp();
 
   ShareSia share;
-  share.jobId_ = localJob->jobId_;
-  share.workerHashId_ = workerId_;
+  share.jobid_ = localJob->jobId_;
+  share.workerhashid_ = workerId_;
   share.ip_ = clientIp;
-  share.userId_ = worker.userId_;
-  share.shareDiff_ = difficulty;
+  share.userid_ = worker.userId_;
+  share.sharediff_ = difficulty;
   share.timestamp_ = (uint32_t) time(nullptr);
   share.status_ = StratumStatus::REJECT_NO_REASON;
 
@@ -160,11 +160,11 @@ void StratumMinerSia::handleRequest_Submit(const string &idStr, const JsonNode &
     //valid share
     //submit share
     server.sendSolvedShare2Kafka(bHeader, 80);
-    diffController_->addAcceptedShare(share.shareDiff_);
+    diffController_->addAcceptedShare(share.sharediff_);
     LOG(INFO) << "sia solution found";
   }
 
   session.rpc2ResponseTrue(idStr);
-  share.checkSum_ = share.checkSum();
+  share.checksum_ = share.checkSum();
   server.sendShare2Kafka((const uint8_t *) &share, sizeof(ShareSia));
 }

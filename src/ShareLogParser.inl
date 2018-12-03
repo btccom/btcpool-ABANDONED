@@ -105,7 +105,7 @@ void ShareLogDumperT<SHARE>::parseShare(const SHARE *share) {
     return;
   }
 
-  if (isDumpAll_ || uids_.find(share->userId_) != uids_.end()) {
+  if (isDumpAll_ || uids_.find(share->userid_) != uids_.end()) {
     // print to stdout
     std::cout << share->toString() << std::endl;
   }
@@ -175,8 +175,8 @@ void ShareLogParserT<SHARE>::parseShare(const SHARE *share) {
     return;
   }
 
-  WorkerKey wkey(share->userId_, share->workerHashId_);
-  WorkerKey ukey(share->userId_, 0);
+  WorkerKey wkey(share->userid_, share->workerhashid_);
+  WorkerKey ukey(share->userid_, 0);
   WorkerKey pkey(0, 0);
 
   pthread_rwlock_wrlock(&rwlock_);

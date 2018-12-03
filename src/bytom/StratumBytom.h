@@ -46,18 +46,18 @@ public:
   const static uint32_t CURRENT_VERSION = 0x00030001u; // first 0003: bytom, second 0002: version 1.
 
   uint32_t  version_      = CURRENT_VERSION;
-  uint32_t  checkSum_     = 0;
+  uint32_t  checksum_     = 0;
 
-  uint64_t  jobId_        = 0;
-  int64_t   workerHashId_ = 0;
+  uint64_t  jobid_        = 0;
+  int64_t   workerhashid_ = 0;
   int64_t   timestamp_    = 0;
-  uint64_t  shareDiff_    = 0;
-  uint64_t  blkBits_      = 0;
+  uint64_t  sharediff_    = 0;
+  uint64_t  blkbits_      = 0;
   uint64_t  height_       = 0;
   IpAddress ip_;
-  BytomCombinedHeader combinedHeader_;
+  BytomCombinedHeader combinedheader_;
 
-  int32_t   userId_       = 0;
+  int32_t   userid_       = 0;
   int32_t   status_       = 0;
 
   ShareBytom() = default;
@@ -66,42 +66,42 @@ public:
 
   double score() const
   {
-    if (shareDiff_ == 0 || blkBits_ == 0)
+    if (sharediff_ == 0 || blkbits_ == 0)
     {
       return 0.0;
     }
 
-    uint64_t difficulty = Bytom_TargetCompactToDifficulty(blkBits_);
+    uint64_t difficulty = Bytom_TargetCompactToDifficulty(blkbits_);
 
     // Network diff may less than share diff on testnet or regression test network.
     // On regression test network, the network diff may be zero.
     // But no matter how low the network diff is, you can only dig one block at a time.
-    if (difficulty < shareDiff_)
+    if (difficulty < sharediff_)
     {
       return 1.0;
     }
 
-    return (double)shareDiff_ / (double)difficulty;
+    return (double)sharediff_ / (double)difficulty;
   }
 
   uint32_t checkSum() const {
     uint64_t c = 0;
 
     c += (uint64_t) version_;
-    c += (uint64_t) workerHashId_;
-    c += (uint64_t) userId_;
+    c += (uint64_t) workerhashid_;
+    c += (uint64_t) userid_;
     c += (uint64_t) status_;
     c += (uint64_t) timestamp_;
     c += (uint64_t) ip_.addrUint64[0];
     c += (uint64_t) ip_.addrUint64[1];
-    c += (uint64_t) jobId_;
-    c += (uint64_t) shareDiff_;
-    c += (uint64_t) blkBits_;
+    c += (uint64_t) jobid_;
+    c += (uint64_t) sharediff_;
+    c += (uint64_t) blkbits_;
     c += (uint64_t) height_;
-    c += (uint64_t) combinedHeader_.blockCommitmentMerkleRootCheapHash_;
-    c += (uint64_t) combinedHeader_.blockCommitmentStatusHashCheapHash_;
-    c += (uint64_t) combinedHeader_.timestamp_;
-    c += (uint64_t) combinedHeader_.nonce_;
+    c += (uint64_t) combinedheader_.blockCommitmentMerkleRootCheapHash_;
+    c += (uint64_t) combinedheader_.blockCommitmentStatusHashCheapHash_;
+    c += (uint64_t) combinedheader_.timestamp_;
+    c += (uint64_t) combinedheader_.nonce_;
 
     return ((uint32_t) c) + ((uint32_t) (c >> 32));
   }
@@ -112,13 +112,13 @@ public:
       return false;
     }
 
-    if (checkSum_ != checkSum()) {
-      DLOG(INFO) << "checkSum mismatched! checkSum_: " << checkSum_ << ", checkSum(): " << checkSum();
+    if (checksum_ != checkSum()) {
+      DLOG(INFO) << "checkSum mismatched! checkSum_: " << checksum_ << ", checkSum(): " << checkSum();
       return false;
     }
 
-    if (jobId_ == 0 || userId_ == 0 || workerHashId_ == 0 ||
-        height_ == 0 || blkBits_ == 0 || shareDiff_ == 0)
+    if (jobid_ == 0 || userid_ == 0 || workerhashid_ == 0 ||
+        height_ == 0 || blkbits_ == 0 || sharediff_ == 0)
     {
       return false;
     }
@@ -128,15 +128,15 @@ public:
 
   string toString() const
   {
-    uint64_t networkDifficulty = Bytom_TargetCompactToDifficulty(blkBits_);
+    uint64_t networkDifficulty = Bytom_TargetCompactToDifficulty(blkbits_);
 
     return Strings::Format("share(jobId: %" PRIu64 ", ip: %s, userId: %d, "
                            "workerId: %" PRId64 ", time: %u/%s, height: %u, "
                            "blkBits: %08x/%" PRId64 ", nonce: %08x, shareDiff: %" PRIu64 ", "
                            "status: %d/%s)",
-                           jobId_, ip_.toString().c_str(), userId_,
-                           workerHashId_, timestamp_, date("%F %T", timestamp_).c_str(), height_,
-                           blkBits_, networkDifficulty, combinedHeader_.nonce_, shareDiff_,
+                           jobid_, ip_.toString().c_str(), userid_,
+                           workerhashid_, timestamp_, date("%F %T", timestamp_).c_str(), height_,
+                           blkbits_, networkDifficulty, combinedheader_.nonce_, sharediff_,
                            status_, StratumStatus::toString(status_));
   }
 };

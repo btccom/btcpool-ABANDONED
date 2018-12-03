@@ -141,7 +141,7 @@ void StratumMinerDecred::handleRequest_Submit(const string &idStr, const JsonNod
     share.status_ = server.checkShare(share, exjob, extraNonce2, ntime, nonce, worker.fullName_);
   }
 
-  if (!handleShare(idStr, share.status_, share.shareDiff_)) {
+  if (!handleShare(idStr, share.status_, share.sharediff_)) {
     // add invalid share to counter
     invalidSharesCounter_.insert(static_cast<int64_t>(time(nullptr)), 1);
   }
@@ -160,13 +160,13 @@ void StratumMinerDecred::handleRequest_Submit(const string &idStr, const JsonNod
     if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT) {
       isSendShareToKafka = false;
 
-      LOG(INFO) << "invalid share spamming, diff: " << share.shareDiff_ << ", worker: "
+      LOG(INFO) << "invalid share spamming, diff: " << share.sharediff_ << ", worker: "
                 << worker.fullName_ << ", agent: " << clientAgent_ << ", ip: " << clientIp;
     }
   }
 
   if (isSendShareToKafka) {
-    share.checkSum_ = share.checkSum();
+    share.checksum_ = share.checkSum();
     server.sendShare2Kafka(reinterpret_cast<const uint8_t *>(&share), sizeof(ShareDecred));
   }
   return;

@@ -165,11 +165,11 @@ int ServerDecred::checkShare(ShareDecred &share, shared_ptr<StratumJobEx> exJobP
     return StratumStatus::TIME_TOO_NEW;
   }
 
-  FoundBlockDecred foundBlock(share.jobId_, share.workerHashId_, share.userId_, workerFullName, sjob->header_, sjob->network_);
+  FoundBlockDecred foundBlock(share.jobid_, share.workerhashid_, share.userid_, workerFullName, sjob->header_, sjob->network_);
   auto& header = foundBlock.header_;
   header.timestamp = ntime;
   header.nonce = nonce;
-  protocol_->setExtraNonces(header, share.sessionId_, extraNonce2);
+  protocol_->setExtraNonces(header, share.sessionid_, extraNonce2);
 
   uint256 blkHash = header.getHash();
   auto bnBlockHash = UintToArith256(blkHash);
@@ -186,7 +186,7 @@ int ServerDecred::checkShare(ShareDecred &share, shared_ptr<StratumJobEx> exJobP
     GetJobRepository()->markAllJobsAsStale();
 
     LOG(INFO) << ">>>> found a new block: " << blkHash.ToString()
-    << ", jobId: " << share.jobId_ << ", userId: " << share.userId_
+    << ", jobId: " << share.jobid_ << ", userId: " << share.userid_
     << ", by: " << workerFullName << " <<<<";
   }
 
@@ -198,7 +198,7 @@ int ServerDecred::checkShare(ShareDecred &share, shared_ptr<StratumJobEx> exJobP
   }
 
   // check share diff
-  auto jobTarget = NetworkParamsDecred::get(sjob->network_).powLimit / share.shareDiff_;
+  auto jobTarget = NetworkParamsDecred::get(sjob->network_).powLimit / share.sharediff_;
 
   DLOG(INFO) << "blkHash: " << blkHash.ToString() << ", jobTarget: "
   << jobTarget.ToString() << ", networkTarget: " << sjob->target_.ToString();

@@ -213,21 +213,21 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
 
   ShareBitcoin share;
   share.version_ = ShareBitcoin::CURRENT_VERSION;
-  share.jobId_ = localJob->jobId_;
-  share.workerHashId_ = workerId_;
-  share.userId_ = worker.userId_;
-  share.shareDiff_ = iter->second;
-  share.blkBits_ = localJob->blkBits_;
+  share.jobid_ = localJob->jobId_;
+  share.workerhashid_ = workerId_;
+  share.userid_ = worker.userId_;
+  share.sharediff_ = iter->second;
+  share.blkbits_ = localJob->blkBits_;
   share.timestamp_ = (uint64_t) time(nullptr);
   share.height_ = height;
   share.nonce_ = nonce;
-  share.sessionId_ = session.getSessionId();
+  share.sessionid_ = session.getSessionId();
   share.status_ = StratumStatus::REJECT_NO_REASON;
   share.ip_.fromIpv4Int(session.getClientIp());
 
   // calc jobTarget
   uint256 jobTarget;
-  DiffToTarget(share.shareDiff_, jobTarget);
+  DiffToTarget(share.sharediff_, jobTarget);
 
   // we send share to kafka by default, but if there are lots of invalid
   // shares in a short time, we just drop them.
@@ -247,7 +247,7 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
                                        &localJob->userCoinbaseInfo_);
 #else
     // check block header
-    share.status_ = server.checkShare(share, share.sessionId_, extraNonce2Hex,
+    share.status_ = server.checkShare(share, share.sessionid_, extraNonce2Hex,
                                       nTime, nonce, versionMask, jobTarget,
                                       worker.fullName_);
 #endif
@@ -255,7 +255,7 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
 
   DLOG(INFO) << share.toString();
 
-  if (!handleShare(idStr, share.status_, share.shareDiff_)) {
+  if (!handleShare(idStr, share.status_, share.sharediff_)) {
     // add invalid share to counter
     invalidSharesCounter_.insert((int64_t) time(nullptr), 1);
 
@@ -273,13 +273,13 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
       isSendShareToKafka = false;
 
       LOG(INFO) << "invalid share spamming, diff: "
-                << share.shareDiff_ << ", worker: " << worker.fullName_ << ", agent: "
+                << share.sharediff_ << ", worker: " << worker.fullName_ << ", agent: "
                 << clientAgent_ << ", ip: " << session.getClientIp();
     }
   }
 
   if (isSendShareToKafka) {
-    share.checkSum_ = share.checkSum();
+    share.checksum_ = share.checkSum();
     server.sendShare2Kafka((const uint8_t *) &share, sizeof(ShareBitcoin));
   }
 }

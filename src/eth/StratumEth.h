@@ -47,19 +47,19 @@ public:
   const static uint32_t CURRENT_VERSION_CLASSIC    = 0x00160002u; // first 0016: ETC, second 0002: version 2
 
   uint32_t  version_      = 0;
-  uint32_t  checkSum_     = 0;
+  uint32_t  checksum_     = 0;
 
-  int64_t   workerHashId_ = 0;
-  int32_t   userId_       = 0;
+  int64_t   workerhashid_ = 0;
+  int32_t   userid_       = 0;
   int32_t   status_       = 0;
   int64_t   timestamp_    = 0;
   IpAddress ip_           = 0;
 
-  uint64_t headerHash_  = 0;
-  uint64_t shareDiff_   = 0;
-  uint64_t networkDiff_ = 0;
+  uint64_t headerhash_  = 0;
+  uint64_t sharediff_   = 0;
+  uint64_t networkdiff_ = 0;
   uint64_t nonce_       = 0;
-  uint32_t sessionId_   = 0;
+  uint32_t sessionid_   = 0;
   uint32_t height_      = 0;
 
   ShareEth() = default;
@@ -98,7 +98,7 @@ public:
 
   double score() const
   {
-    if (!StratumStatus::isAccepted(status_) || shareDiff_ == 0 || networkDiff_ == 0) {
+    if (!StratumStatus::isAccepted(status_) || sharediff_ == 0 || networkdiff_ == 0) {
       return 0.0;
     }
 
@@ -107,11 +107,11 @@ public:
     // Network diff may less than share diff on testnet or regression test network.
     // On regression test network, the network diff may be zero.
     // But no matter how low the network diff is, you can only dig one block at a time.
-    if (networkDiff_ < shareDiff_) {
+    if (networkdiff_ < sharediff_) {
       result = 1.0;
     }
     else {
-      result = (double)shareDiff_ / (double)networkDiff_;
+      result = (double)sharediff_ / (double)networkdiff_;
     }
 
     // Share of the uncle block has a lower reward.
@@ -126,17 +126,17 @@ public:
     uint64_t c = 0;
 
     c += (uint64_t) version_;
-    c += (uint64_t) workerHashId_;
-    c += (uint64_t) userId_;
+    c += (uint64_t) workerhashid_;
+    c += (uint64_t) userid_;
     c += (uint64_t) status_;
     c += (uint64_t) timestamp_;
     c += (uint64_t) ip_.addrUint64[0];
     c += (uint64_t) ip_.addrUint64[1];
-    c += (uint64_t) headerHash_;
-    c += (uint64_t) shareDiff_;
-    c += (uint64_t) networkDiff_;
+    c += (uint64_t) headerhash_;
+    c += (uint64_t) sharediff_;
+    c += (uint64_t) networkdiff_;
     c += (uint64_t) nonce_;
-    c += (uint64_t) sessionId_;
+    c += (uint64_t) sessionid_;
     c += (uint64_t) height_;
 
     return ((uint32_t) c) + ((uint32_t) (c >> 32));
@@ -148,13 +148,13 @@ public:
       return false;
     }
 
-    if (checkSum_ != checkSum()) {
-      DLOG(INFO) << "checkSum mismatched! checkSum_: " << checkSum_ << ", checkSum(): " << checkSum();
+    if (checksum_ != checkSum()) {
+      DLOG(INFO) << "checkSum mismatched! checkSum_: " << checksum_ << ", checkSum(): " << checkSum();
       return false;
     }
 
-    if (userId_ == 0 || workerHashId_ == 0 || height_ == 0 ||
-        networkDiff_ == 0 || shareDiff_ == 0)
+    if (userid_ == 0 || workerhashid_ == 0 || height_ == 0 ||
+        networkdiff_ == 0 || sharediff_ == 0)
     {
       return false;
     }
@@ -168,10 +168,10 @@ public:
                            "workerId: %" PRId64 ", time: %u/%s, "
                            "shareDiff: %" PRIu64 ", networkDiff: %" PRIu64 ", nonce: %016" PRIx64 ", "
                            "sessionId: %08x, status: %d/%s)",
-                           height_, headerHash_, ip_.toString().c_str(), userId_,
-                           workerHashId_, timestamp_, date("%F %T", timestamp_).c_str(),
-                           shareDiff_, networkDiff_, nonce_,
-                           sessionId_, status_, StratumStatus::toString(status_));
+                           height_, headerhash_, ip_.toString().c_str(), userid_,
+                           workerhashid_, timestamp_, date("%F %T", timestamp_).c_str(),
+                           sharediff_, networkdiff_, nonce_,
+                           sessionid_, status_, StratumStatus::toString(status_));
   }
 };
 

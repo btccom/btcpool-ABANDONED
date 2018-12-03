@@ -38,7 +38,7 @@ struct GlobalShareEth {
   GlobalShareEth() = default;
 
   GlobalShareEth(const ShareEth &share)
-    : headerHash_(share.headerHash_)
+    : headerHash_(share.headerhash_)
     , nonce_(share.nonce_)
   {}
 
