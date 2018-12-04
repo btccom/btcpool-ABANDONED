@@ -1,17 +1,55 @@
-version: 2
-jobs:
-  bch:
-    machine: true
+version: 2.1
+
+commands:
+  build_and_run_unit_tests_single_chain:
     steps:
       - checkout
       - run:
-          name: Build docker image
-          command: docker build --rm -t btcpool_bch --build-arg BUILD_ENV_TAG=bch-0.17.2 --build-arg BUILD_TYPE=Debug --build-arg BUILD_JOBS=2 --build-arg WORK_WITH_STRATUM_SWITCHER=OFF .
+          name: Run CMake
+          command: |
+            mkdir build && cd build && \
+            cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_SRC_ROOT=/work/bitcoin -DCHAIN_TYPE=$CHAIN_TYPE -DJOBS=2  ..
+      - run:
+          name: Build btcpool
+          command: cd build && make -j2
       - run:
           name: Run unit tests
-          command: docker run --rm btcpool_bch /work/btcpool/build/unittest
+          command: cd build && make test
+      - run:
+          name: Send failure notification
+          command: curl $BEARYCHAT_WEBHOOK -H 'Content-Type:application/json' -d "{\"text\":\"[$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/$CIRCLE_JOB/$CIRCLE_BUILD_NUM]($CIRCLE_BUILD_URL) failed\"}"
+          when: on_fail
+      - run:
+          name: Send success notification
+          command: curl $BEARYCHAT_WEBHOOK -H 'Content-Type:application/json' -d "{\"text\":\"[$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/$CIRCLE_JOB/$CIRCLE_BUILD_NUM]($CIRCLE_BUILD_URL) succeeded\"}"
+          when: on_success
+
+jobs:
+  build_and_run_unit_tests_bch:
+    docker:
+      - image: btccom/btcpool_build:bch-0.17.2
+    steps:
+      - build_and_run_unit_tests_single_chain
+  build_and_run_unit_tests_btc:
+    docker:
+      - image: btccom/btcpool_build:btc-0.16.3
+    steps:
+      - build_and_run_unit_tests_single_chain
+  build_and_run_unit_tests_sbtc:
+    docker:
+      - image: btccom/btcpool_build:sbtc-0.16.2
+    steps:
+      - build_and_run_unit_tests_single_chain
+  build_and_run_unit_tests_ubtc:
+    docker:
+      - image: btccom/btcpool_build:ubtc-2.3.0.1
+    steps:
+      - build_and_run_unit_tests_single_chain
+
 workflows:
-  version: 2
-  build_and_test:
+  build_and_run_unit_tests_all_chains:
     jobs:
-      - bch
+      - build_and_run_unit_tests_bch
+      - build_and_run_unit_tests_btc
+      - build_and_run_unit_tests_sbtc
+      - build_and_run_unit_tests_ubtc
