@@ -84,13 +84,13 @@ if (CHAIN_TYPE STREQUAL "BTC")
   add_definitions(-DZOOKEEPER_NODE_POSTFIX="") # for compatibility with old deployments, let it empty.
 
 # BitcoinCash
-elseif(CHAIN_TYPE STREQUAL "BCH")
+elseif(CHAIN_TYPE STREQUAL "BCH" OR CHAIN_TYPE STREQUAL "BSV")
   set(CHAIN_NAME "Bitcoin ABC")
   set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-bitcoincash")
   set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.bch")
 
-  add_definitions(-DCHAIN_TYPE_BCH)
-  add_definitions(-DCHAIN_TYPE_STR="BCH")
+  add_definitions(-DCHAIN_TYPE_${CHAIN_TYPE})
+  add_definitions(-DCHAIN_TYPE_STR="${CHAIN_TYPE}")
   add_definitions(-DKAFKA_TOPIC_PREFIX="") # for compatibility with old deployments, let it empty.
   add_definitions(-DZOOKEEPER_NODE_POSTFIX="") # for compatibility with old deployments, let it empty.
 
@@ -264,8 +264,18 @@ message("------------------------------- Libs -------------------------------")
 set(BITCOIN_LIBRARIES
   "${CHAIN_SRC_ROOT}/src/libbitcoin_common.a"
   "${CHAIN_SRC_ROOT}/src/libbitcoin_consensus.a"
-  "${CHAIN_SRC_ROOT}/src/libbitcoin_util.a"
+  "${CHAIN_SRC_ROOT}/src/libbitcoin_util.a")
+
+if(CHAIN_TYPE STREQUAL "BCH")
+set(BITCOIN_LIBRARIES ${BITCOIN_LIBRARIES}
+  "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto_base.a"
+  "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto_shani.a"
+  "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto_avx2.a"
+  "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto_sse41.a")
+else()
+set(BITCOIN_LIBRARIES ${BITCOIN_LIBRARIES}
   "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto.a")
+endif()
 
 list(GET BITCOIN_LIBRARIES 0 BITCOIN_LIBRARIE)
 if (NOT EXISTS ${BITCOIN_LIBRARIE})

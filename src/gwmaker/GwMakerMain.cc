@@ -94,6 +94,8 @@ GwMakerDefinition createGwMakerDefinition(const Setting &setting)
   readFromSetting(setting, "rpc_userpwd", def.rpcUserPwd_);
   readFromSetting(setting, "rawgw_topic", def.rawGwTopic_);
   readFromSetting(setting, "rpc_interval", def.rpcInterval_);
+  readFromSetting(setting, "parity_notify_host", def.notifyHost_, true);
+  readFromSetting(setting, "parity_notify_port", def.notifyPort_, true);
 
   def.enabled_ = false;
   readFromSetting(setting, "enabled", def.enabled_, true);

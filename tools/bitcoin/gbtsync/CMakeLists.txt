@@ -63,6 +63,7 @@ endif()
 
 ################### targets ###################
 
+add_definitions(-DCHAIN_TYPE_BCH)
 add_definitions(-DCHAIN_TYPE_STR="BCH")
 add_subdirectory(../../../src/config config)
 
@@ -91,4 +92,4 @@ target_link_libraries(gbtsynctest ${MYSQL_LIBRARIES} ${PTHREAD_LIBRARIES} ${GLOG
 file(COPY "./TestGbtSync/testdata/" DESTINATION testdata)
 
 install(TARGETS gbtsync
-        DESTINATION bin)
+DESTINATION bin)

@@ -23,8 +23,16 @@
  */
 #include "GwMaker.h"
 #include "Utils.h"
-#include <glog/logging.h>
+
 #include <limits.h>
+#include <glog/logging.h>
+#include <boost/thread.hpp>
+
+#include <event2/http.h>
+#include <event2/http_struct.h>
+#include <event2/buffer.h>
+#include <event2/buffer_compat.h>
+#include <event2/keyvalq_struct.h>
 
 ///////////////////////////////GwMaker////////////////////////////////////
 GwMaker::GwMaker(shared_ptr<GwMakerHandler> handler,
@@ -51,6 +59,11 @@ bool GwMaker::init() {
   if (!kafkaProducer_.checkAlive()) {
     LOG(ERROR) << "kafka is NOT alive";
     return false;
+  }
+
+  if (handler_->def().notifyHost_.length() > 0) {
+    notification_ = make_shared<GwNotification>(handler_, handler_->def().notifyHost_, handler_->def().notifyPort_);
+    notification_->setupHttpd();
   }
 
   // TODO: check rskd is alive in a similar way as done for btcd
@@ -95,6 +108,69 @@ void GwMaker::run() {
   }
 
   LOG(INFO) << "GwMaker " << handler_->def().chainType_ << ", topic: " << handler_->def().rawGwTopic_ << " stopped";
+}
+
+///////////////////////////////GwNotification////////////////////////////////////
+/*
+ * https://wiki.parity.io/Mining.html
+ * Parity HTTP Notification
+ */
+GwNotification::GwNotification(shared_ptr<GwMakerHandler> handler, const string &httpdHost, unsigned short httpdPort)
+:handler_(handler), base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort)
+{
+}
+
+GwNotification::~GwNotification()
+{
+    stop();
+}
+
+void GwNotification::httpdNotification(struct evhttp_request *req, void *arg) 
+{
+  struct evbuffer *evb = evbuffer_new();
+  evbuffer_add_printf(evb, "{\"err_no\":0,\"err_msg\":\"notify success\"}");
+  evhttp_send_reply(req, HTTP_OK, "OK", evb);
+  evbuffer_free(evb);
+  
+  string postData = string((char *)EVBUFFER_DATA(req->input_buffer), EVBUFFER_LENGTH(req->input_buffer));
+  LOG(INFO) << "GwNotification: makeRawGwMsg for notify " << postData;
+
+  GwNotification *notification = (GwNotification *)arg;
+  notification->handler_->makeRawGwMsg();
+}
+
+void GwNotification::setupHttpd()
+{
+  boost::thread t(boost::bind(&GwNotification::runHttpd, this));
+  t.detach();
+}
+
+void GwNotification::runHttpd()
+{
+  struct evhttp_bound_socket *handle;
+  struct evhttp *httpd;
+
+  base_ = event_base_new();
+  httpd = evhttp_new(base_);
+
+  evhttp_set_allowed_methods(httpd, EVHTTP_REQ_GET | EVHTTP_REQ_POST | EVHTTP_REQ_HEAD);
+  evhttp_set_timeout(httpd, 5 /* timeout in seconds */);
+
+  evhttp_set_cb(httpd, "/notify",  GwNotification::httpdNotification, this);
+
+  handle = evhttp_bind_socket_with_handle(httpd, httpdHost_.c_str(), httpdPort_);
+  if (!handle) {
+    LOG(ERROR) << "couldn't bind to port: " << httpdPort_ << ", host: " << httpdHost_ << ", exiting.";
+    return;
+  }
+  event_base_dispatch(base_);
+}
+
+void GwNotification::stop()
+{
+  LOG(INFO) << "stop Notification ...";
+
+  event_base_loopexit(base_, NULL);
 }
 
 

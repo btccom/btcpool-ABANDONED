@@ -41,7 +41,7 @@ bool tryReadLine(string &line, struct bufferevent *bufev) {
   // find eol
   struct evbuffer_ptr loc;
   loc = evbuffer_search_eol(inBuf, NULL, NULL, EVBUFFER_EOL_LF);
-  if (loc.pos == -1) {
+  if (loc.pos < 0) {
     return false;  // not found
   }
 
@@ -94,8 +94,9 @@ bool resolve(const string &host, struct	in_addr *sin_addr) {
 }
 
 ///////////////////////////////// ClientContainer //////////////////////////////
-ClientContainer::ClientContainer(const string &kafkaBrokers, const string &consumerTopic, const string &producerTopic)
-  : running_(true), kafkaBrokers_(kafkaBrokers)
+ClientContainer::ClientContainer(const string &kafkaBrokers, const string &consumerTopic, const string &producerTopic,
+                                 bool disableChecking)
+  : running_(true), disableChecking_(disableChecking), kafkaBrokers_(kafkaBrokers)
   , kafkaProducer_(kafkaBrokers_.c_str(), producerTopic.c_str(), 0/* partition */)
   , kafkaStratumJobConsumer_(kafkaBrokers_.c_str(), consumerTopic.c_str(), 0/*patition*/)
 {
@@ -212,7 +213,9 @@ bool ClientContainer::init() {
       return false;
     }
 
-    threadStratumJobConsume_ = thread(&ClientContainer::runThreadStratumJobConsume, this);
+    if (!disableChecking_) {
+      threadStratumJobConsume_ = thread(&ClientContainer::runThreadStratumJobConsume, this);
+    }
   }
 
   return true;
@@ -288,10 +291,12 @@ void ClientContainer::eventCallback(struct bufferevent *bev,
 
 ///////////////////////////////// PoolWatchClient //////////////////////////////
 PoolWatchClient::PoolWatchClient(struct event_base *base, ClientContainer *container,
+                                 bool disableChecking,
                                  const string &poolName,
                                  const string &poolHost, const int16_t poolPort,
                                  const string &workerName)
-  : container_(container)
+  : disableChecking_(disableChecking)
+  , container_(container)
   , poolName_(poolName)
   , poolHost_(poolHost)
   , poolPort_(poolPort)

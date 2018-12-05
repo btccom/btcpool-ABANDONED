@@ -97,7 +97,7 @@ bool StratumClient::tryReadLine(string &line) {
   // find eol
   struct evbuffer_ptr loc;
   loc = evbuffer_search_eol(inBuf_, nullptr, nullptr, EVBUFFER_EOL_LF);
-  if (loc.pos == -1) {
+  if (loc.pos < 0) {
     return false;  // not found
   }
 
@@ -412,7 +412,7 @@ void TCPClientWrapper::getLine(string &line) {
   // find eol
   struct evbuffer_ptr loc;
   loc = evbuffer_search_eol(inBuf_, nullptr, nullptr, EVBUFFER_EOL_LF);
-  if (loc.pos == -1) {
+  if (loc.pos < 0) {
     return;  // not found
   }
 

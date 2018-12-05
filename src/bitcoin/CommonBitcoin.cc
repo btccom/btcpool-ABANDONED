@@ -40,11 +40,13 @@ uint64 TargetToDiff(const string &str) {
 void BitsToTarget(uint32 bits, uint256 & target) {
   target = ArithToUint256(arith_uint256().SetCompact(bits));
 }
+
 #ifdef CHAIN_TYPE_LTC
 static const uint32 BITS_DIFF1 = 0x1f00ffff;
 #else
 static const uint32 BITS_DIFF1 = 0x1d00ffff;
 #endif
+
 static const uint32 SHIFTS_DIFF1 = (BITS_DIFF1 >> 24) & 0xff;
 static const auto TARGET_DIFF1 = arith_uint256().SetCompact(BITS_DIFF1);
 
