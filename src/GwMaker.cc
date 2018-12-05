@@ -62,7 +62,10 @@ bool GwMaker::init() {
   }
 
   if (handler_->def().notifyHost_.length() > 0) {
-    notification_ = make_shared<GwNotification>(handler_, handler_->def().notifyHost_, handler_->def().notifyPort_);
+    auto callback = [&]() -> void {
+        submitRawGwMsg();
+    };
+    notification_ = make_shared<GwNotification>(callback, handler_->def().notifyHost_, handler_->def().notifyPort_);
     notification_->setupHttpd();
   }
 
@@ -115,8 +118,8 @@ void GwMaker::run() {
  * https://wiki.parity.io/Mining.html
  * Parity HTTP Notification
  */
-GwNotification::GwNotification(shared_ptr<GwMakerHandler> handler, const string &httpdHost, unsigned short httpdPort)
-:handler_(handler), base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort)
+GwNotification::GwNotification(std::function<void (void)> callback, const string &httpdHost, unsigned short httpdPort)
+:callback_(callback), base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort)
 {
 }
 
@@ -131,12 +134,12 @@ void GwNotification::httpdNotification(struct evhttp_request *req, void *arg)
   evbuffer_add_printf(evb, "{\"err_no\":0,\"err_msg\":\"notify success\"}");
   evhttp_send_reply(req, HTTP_OK, "OK", evb);
   evbuffer_free(evb);
-  
+
   string postData = string((char *)EVBUFFER_DATA(req->input_buffer), EVBUFFER_LENGTH(req->input_buffer));
   LOG(INFO) << "GwNotification: makeRawGwMsg for notify " << postData;
 
   GwNotification *notification = (GwNotification *)arg;
-  notification->handler_->makeRawGwMsg();
+  notification->callback_();
 }
 
 void GwNotification::setupHttpd()
