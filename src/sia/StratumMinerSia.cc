@@ -78,11 +78,11 @@ void StratumMinerSia::handleRequest_Submit(const string &idStr, const JsonNode &
     return;
   }
 
-  uint8 bHeader[80] = {0};
+  uint8_t bHeader[80] = {0};
   for (int i = 0; i < 80; ++i)
     bHeader[i] = strtol(header.substr(i * 2, 2).c_str(), 0, 16);
-  // uint64 nonce = strtoull(header.substr(64, 16).c_str(), nullptr, 16);
-  // uint64 timestamp = strtoull(header.substr(80, 16).c_str(), nullptr, 16);
+  // uint64_t nonce = strtoull(header.substr(64, 16).c_str(), nullptr, 16);
+  // uint64_t timestamp = strtoull(header.substr(80, 16).c_str(), nullptr, 16);
   // DLOG(INFO) << "nonce=" << std::hex << nonce << ", timestamp=" << std::hex << timestamp; 
   // //memcpy(bHeader + 32, &nonce, 8);
   // memcpy(bHeader + 40, &timestamp, 8);
@@ -93,7 +93,7 @@ void StratumMinerSia::handleRequest_Submit(const string &idStr, const JsonNode &
     str += Strings::Format("%02x", bHeader[i]);
   DLOG(INFO) << str;
 
-  uint8 out[32] = {0};
+  uint8_t out[32] = {0};
   int ret = blake2b(out, 32, bHeader, 80, nullptr, 0);
   DLOG(INFO) << "blake2b return=" << ret;
   //str = "";
@@ -101,7 +101,7 @@ void StratumMinerSia::handleRequest_Submit(const string &idStr, const JsonNode &
     str += Strings::Format("%02x", out[i]);
   DLOG(INFO) << str;
 
-  uint8 shortJobId = (uint8) atoi(params[1].str());
+  uint8_t shortJobId = (uint8_t) atoi(params[1].str());
   LocalJob *localJob = session.findLocalJob(shortJobId);
   if (nullptr == localJob) {
     session.responseError(idStr, StratumStatus::JOB_NOT_FOUND);
@@ -125,7 +125,7 @@ void StratumMinerSia::handleRequest_Submit(const string &idStr, const JsonNode &
     return;
   }
 
-  uint64 nonce = *((uint64 *) (bHeader + 32));
+  uint64_t nonce = *((uint64_t *) (bHeader + 32));
   LocalShare localShare(nonce, 0, 0);
   if (!server.isEnableSimulator_ && !localJob->addLocalShare(localShare)) {
     session.responseError(idStr, StratumStatus::DUPLICATE_SHARE);

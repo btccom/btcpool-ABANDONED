@@ -115,7 +115,7 @@ bool GbtMaker::checkBitcoindZMQ() {
 
   if (type == BITCOIND_ZMQ_HASHTX) {
     string hashHex;
-    Bin2Hex((const uint8 *)content.data(), content.size(), hashHex);
+    Bin2Hex((const uint8_t *)content.data(), content.size(), hashHex);
     LOG(INFO) << "bitcoind zmq recv hashtx: " << hashHex;
     return true;
   }
@@ -327,9 +327,9 @@ void GbtMaker::threadListenBitcoind() {
     if (type == BITCOIND_ZMQ_HASHBLOCK)
     {
       string hashHex;
-      Bin2Hex((const uint8 *)content.data(), content.size(), hashHex);
+      Bin2Hex((const uint8_t *)content.data(), content.size(), hashHex);
       string sequenceHex;
-      Bin2Hex((const uint8 *)sequence.data(), sequence.size(), sequenceHex);
+      Bin2Hex((const uint8_t *)sequence.data(), sequence.size(), sequenceHex);
       LOG(INFO) << ">>>> bitcoind recv hashblock: " << hashHex << ", sequence: " << sequenceHex << " <<<<";
     }
     else
@@ -425,7 +425,7 @@ bool NMCAuxBlockMaker::checkNamecoindZMQ() {
 
   if (type == NAMECOIND_ZMQ_HASHTX) {
     string hashHex;
-    Bin2Hex((const uint8 *)content.data(), content.size(), hashHex);
+    Bin2Hex((const uint8_t *)content.data(), content.size(), hashHex);
     LOG(INFO) << "namecoind zmq recv hashtx: " << hashHex;
     return true;
   }
@@ -574,7 +574,7 @@ void NMCAuxBlockMaker::threadListenNamecoind() {
     if (type == NAMECOIND_ZMQ_HASHBLOCK)
     {
       string hashHex;
-      Bin2Hex((const uint8 *)content.data(), content.size(), hashHex);
+      Bin2Hex((const uint8_t *)content.data(), content.size(), hashHex);
       LOG(INFO) << ">>>> namecoind recv hashblock: " << hashHex << " <<<<";
       submitAuxblockMsg(false);
     }

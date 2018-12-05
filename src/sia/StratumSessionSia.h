@@ -50,7 +50,7 @@ public:
                                             int64_t workerId) override;
 
 private:
-  uint8 shortJobId_;    //Claymore jobId starts from 0
+  uint8_t shortJobId_;    //Claymore jobId starts from 0
 };
 
 #endif  // #ifndef STRATUM_SESSION_SIA_H_

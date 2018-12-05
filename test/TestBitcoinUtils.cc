@@ -118,7 +118,7 @@ TEST(BitcoinUtils, GetBlockReward) {
   #endif
 
   // The 63th halvings (in fact does not exist).
-  // Detects if the calculation method is affected by the int64 sign bit.
+  // Detects if the calculation method is affected by the int64_t sign bit.
   // If the method is affected by the sign bit, -2 may be returned.
   reward = GetBlockReward(13300000, consensus);
   #ifndef CHAIN_TYPE_UBTC

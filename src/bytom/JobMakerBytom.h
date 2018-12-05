@@ -36,7 +36,7 @@ public:
 
 protected:
   string header_;
-  uint32 time_;
+  uint32_t time_;
   string seed_;
   bool validate(JsonNode &j);
 };

@@ -24,7 +24,7 @@
 #include "DiffController.h"
 
 //////////////////////////////// DiffController ////////////////////////////////
-void DiffController::setMinDiff(uint64 minDiff) {
+void DiffController::setMinDiff(uint64_t minDiff) {
   if (minDiff < kMinDiff_) {
     minDiff = kMinDiff_;
   } else if (minDiff > kMaxDiff_) {
@@ -34,7 +34,7 @@ void DiffController::setMinDiff(uint64 minDiff) {
   minDiff_ = minDiff;
 }
 
-void DiffController::setCurDiff(uint64 curDiff) {
+void DiffController::setCurDiff(uint64_t curDiff) {
   if (curDiff < kMinDiff_) {
     curDiff = kMinDiff_;
   } else if (curDiff > kMaxDiff_) {
@@ -44,7 +44,7 @@ void DiffController::setCurDiff(uint64 curDiff) {
   curDiff_ = curDiff;
 }
 
-void DiffController::resetCurDiff(uint64 curDiff) {
+void DiffController::resetCurDiff(uint64_t curDiff) {
   setCurDiff(curDiff);
 
   // set to zero
@@ -52,8 +52,8 @@ void DiffController::resetCurDiff(uint64 curDiff) {
   shares_.mapMultiply(0);
 }
 
-void DiffController::addAcceptedShare(const uint64 share) {
-  const int64 k = time(nullptr) / kRecordSeconds_;
+void DiffController::addAcceptedShare(const uint64_t share) {
+  const int64_t k = time(nullptr) / kRecordSeconds_;
   sharesNum_.insert(k, 1.0);
   shares_.insert(k, share);
 }
@@ -134,17 +134,17 @@ double DiffController::minerCoefficient(const time_t now, const int64_t idx) {
   return c[curHashRateLevel_];
 }
 
-uint64 DiffController::calcCurDiff() {
-  uint64 diff = _calcCurDiff();
+uint64_t DiffController::calcCurDiff() {
+  uint64_t diff = _calcCurDiff();
   if (diff < minDiff_) {
     diff = minDiff_;
   }
   return diff;
 }
 
-uint64 DiffController::_calcCurDiff() {
+uint64_t DiffController::_calcCurDiff() {
   const time_t now = time(nullptr);
-  const int64 k = now / kRecordSeconds_;
+  const int64_t k = now / kRecordSeconds_;
   const double sharesCount = (double)sharesNum_.sum(k);
   if (startTime_ == 0) {  // first time, we set the start time
     startTime_ = time(nullptr);

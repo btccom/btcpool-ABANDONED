@@ -177,20 +177,20 @@ int main(int argc, char **argv)
     string fileLastMiningNotifyTime;
     cfg.lookupValue("sserver.file_last_notify_time", fileLastMiningNotifyTime);
 
-    uint32 maxJobDelay = 60;
+    uint32_t maxJobDelay = 60;
     cfg.lookupValue("sserver.max_job_delay", maxJobDelay);
 
     string defDiffStr = cfg.lookup("sserver.default_difficulty");
     size_t pos;
-    uint64 defaultDifficulty = stoull(defDiffStr, &pos, 16);
+    uint64_t defaultDifficulty = stoull(defDiffStr, &pos, 16);
 
     string maxDiffStr = cfg.lookup("sserver.max_difficulty");
-    uint64 maxDifficulty = stoull(maxDiffStr, &pos, 16);
+    uint64_t maxDifficulty = stoull(maxDiffStr, &pos, 16);
 
     string minDiffStr = cfg.lookup("sserver.min_difficulty");
-    uint64 minDifficulty = stoull(minDiffStr, &pos, 16);
+    uint64_t minDifficulty = stoull(minDiffStr, &pos, 16);
 
-    uint32 diffAdjustPeriod = 300;
+    uint32_t diffAdjustPeriod = 300;
     cfg.lookupValue("sserver.diff_adjust_period", diffAdjustPeriod);
 
     if (0 == defaultDifficulty ||

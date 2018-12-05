@@ -88,7 +88,7 @@ string JobMakerHandlerSia::makeStratumJobMsg()
       0 == target_.size())
     return "";
 
-  uint64 jobId = generateJobId(djb2(header_.c_str()));
+  uint64_t jobId = generateJobId(djb2(header_.c_str()));
 
   return Strings::Format("{\"created_at_ts\":%u"
                          ",\"jobId\":%" PRIu64 ""
