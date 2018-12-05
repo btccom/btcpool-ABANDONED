@@ -116,10 +116,24 @@ elseif(CHAIN_TYPE STREQUAL "SBTC")
   add_definitions(-DKAFKA_TOPIC_PREFIX="SBTC_")
   add_definitions(-DZOOKEEPER_NODE_POSTFIX="_sbtc")
 
+# Litecoin
+elseif(CHAIN_TYPE STREQUAL "LTC")
+    set(CHAIN_NAME "Litecoin")
+    set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-litecoin")
+    set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.ltc")
+
+#    set(CMAKE_CXX_COMPILER "c++")
+#    set(CMAKE_C_COMPILER "cc")
+
+    add_definitions(-DCHAIN_TYPE_LTC)
+    add_definitions(-DCHAIN_TYPE_STR="LTC")
+    add_definitions(-DKAFKA_TOPIC_PREFIX="LTC_")
+    add_definitions(-DZOOKEEPER_NODE_POSTFIX="_ltc")
+
 # Unknown
 else()
   message("Unknown chain type! (-DCHAIN_TYPE=${CHAIN_TYPE})")
-  message(FATAL_ERROR "Supported chain type: BTC|BCH|UBTC|SBTC")
+  message(FATAL_ERROR "Supported chain type: BTC|BCH|UBTC|SBTC|LTC")
 endif()
 
 option(CHAIN_ENABLE_WALLET "Enable chain wallet feature" OFF)

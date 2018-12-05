@@ -1,0 +1,6 @@
+/root/.litecoin/debug.log /root/.litecoin/testnet3/debug.log {
+    daily
+    rotate 3
+    missingok
+    copytruncate
+}
