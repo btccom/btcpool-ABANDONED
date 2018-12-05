@@ -17,12 +17,8 @@ commands:
           command: cd build && make test
       - run:
           name: Send failure notification
-          command: curl $BEARYCHAT_WEBHOOK -H 'Content-Type:application/json' -d "{\"text\":\"[$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/$CIRCLE_JOB/$CIRCLE_BUILD_NUM]($CIRCLE_BUILD_URL) failed\"}"
+          command: if [ -n "$BEARYCHAT_WEBHOOK" ]; then curl $BEARYCHAT_WEBHOOK -H 'Content-Type:application/json' -d "{\"text\":\"[$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/$CIRCLE_JOB/$CIRCLE_BUILD_NUM]($CIRCLE_BUILD_URL) failed\"}"; fi
           when: on_fail
-      - run:
-          name: Send success notification
-          command: curl $BEARYCHAT_WEBHOOK -H 'Content-Type:application/json' -d "{\"text\":\"[$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/$CIRCLE_JOB/$CIRCLE_BUILD_NUM]($CIRCLE_BUILD_URL) succeeded\"}"
-          when: on_success
 
 jobs:
   build_and_run_unit_tests_bch:
