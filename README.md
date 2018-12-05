@@ -1,7 +1,10 @@
 BTCPool for Bitcoin, Ethereum, Decred, Bytom, ...
 ==================
 
-[![CircleCI](https://circleci.com/gh/btccom/btcpool.svg?style=shield)](https://circleci.com/gh/btccom/btcpool)
+|Branch|Status|
+|------|------|
+|master|[![CircleCI](https://circleci.com/gh/btccom/btcpool/tree/master.svg?style=shield)](https://circleci.com/gh/btccom/btcpool/tree/master)|
+|deveth|[![CircleCI](https://circleci.com/gh/btccom/btcpool/tree/deveth.svg?style=shield)](https://circleci.com/gh/btccom/btcpool/tree/deveth)|
 
 BTCPool is backend system of [https://pool.btc.com](https://pool.btc.com).
 
