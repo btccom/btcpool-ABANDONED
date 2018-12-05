@@ -28,6 +28,8 @@
 #include "StratumDecred.h"
 #include "CommonDecred.h"
 
+#include "StratumMiner.h"
+
 #include "arith_uint256.h"
 
 #include <boost/algorithm/string.hpp>
@@ -108,13 +110,13 @@ public:
 
   void setExtraNonces(BlockHeaderDecred &header, uint32_t extraNonce1, const vector<uint8_t> &extraNonce2) override {
     *reinterpret_cast<boost::endian::little_uint32_buf_t *>(header.extraData.begin()) = extraNonce1;
-    std::copy(extraNonce2.begin(), extraNonce2.end(), header.extraData.begin() + 4);
+    std::copy_n(extraNonce2.begin(), StratumMiner::kExtraNonce2Size_, header.extraData.begin() + sizeof(extraNonce1));
   }
 };
 
 // tpruvot protocol
 // mining.notify: extra nonce 2 size is not used, extra nonce 1 is considered as the whole extra nonce, bits higher than 32 to be rolled
-// mining.submit: extra nonce 2 is considered as the whole rolled extra nonce
+// mining.submit: extra nonce 2 is considered as the whole rolled extra nonce but we only take the first 8 bytes (last 4 bytes shall be extra nonce1).
 class StratumProtocolDecredTPruvot : public StratumProtocolDecred {
 public:
   string getExtraNonce1String(uint32_t extraNonce1) const override {
@@ -122,7 +124,8 @@ public:
   }
 
   void setExtraNonces(BlockHeaderDecred &header, uint32_t extraNonce1, const vector<uint8_t> &extraNonce2) override {
-    std::copy(extraNonce2.begin(), extraNonce2.end(), header.extraData.begin());
+    *reinterpret_cast<boost::endian::little_uint32_buf_t *>(header.extraData.begin() + StratumMiner::kExtraNonce2Size_) = extraNonce1;
+    std::copy_n(extraNonce2.begin(), StratumMiner::kExtraNonce2Size_, header.extraData.begin());
   }
 };
 
