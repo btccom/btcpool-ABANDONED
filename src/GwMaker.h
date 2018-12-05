@@ -100,10 +100,10 @@ class GwMakerHandlerJson : public GwMakerHandler
 };
 
 class GwNotification {
-  shared_ptr<GwMakerHandler> handler_;
+  std::function<void (void)> callback_;
 
 public:
-  GwNotification(shared_ptr<GwMakerHandler> handle, const string &httpdHost, unsigned short httpdPort);
+  GwNotification(std::function<void (void)> callback, const string &httpdHost, unsigned short httpdPort);
   ~GwNotification();
 
   //httpd
