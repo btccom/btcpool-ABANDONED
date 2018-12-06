@@ -37,8 +37,9 @@ struct GlobalShareBytom {
   GlobalShareBytom() = delete;
 
   GlobalShareBytom(const ShareBytom &share)
-    : combinedHeader_(share.combinedheader_)
-  {}
+  {
+    memcpy(&combinedHeader_, share.combinedheader().data(), share.combinedheader().length());
+  }
 
   GlobalShareBytom& operator=(const GlobalShareBytom &r) = default;
 

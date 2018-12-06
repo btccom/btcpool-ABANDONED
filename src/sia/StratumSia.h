@@ -27,8 +27,10 @@
 #include "bitcoin/CommonBitcoin.h"
 #include "Stratum.h"
 #include <uint256.h>
+#include "share.pro.pb.h"
 
-class ShareSia
+
+class ShareSia : public sharebase::SiaMsg
 {
 public:
 
@@ -41,80 +43,43 @@ public:
 
   // TODO: Change to a data structure that is easier to upgrade, such as ProtoBuf.
 
-  uint32_t  version_      = CURRENT_VERSION;
-  uint32_t  checksum_     = 0;
 
-  int64_t   workerhashid_ = 0;
-  int32_t   userid_       = 0;
-  int32_t   status_       = 0;
-  int64_t   timestamp_    = 0;
-  IpAddress ip_           = 0;
-
-  uint64_t jobid_     = 0;
-  uint64_t sharediff_ = 0;
-  uint32_t blkbits_   = 0;
-  uint32_t height_    = 0;
-  uint32_t nonce_     = 0;
-  uint32_t sessionid_ = 0;
-
-  ShareSia() = default;
+  ShareSia() {
+    set_version(CURRENT_VERSION);
+  }
   ShareSia(const ShareSia &r) = default;
   ShareSia &operator=(const ShareSia &r) = default;
 
   double score() const
   {
-    if (sharediff_ == 0 || blkbits_ == 0)
+    if (sharediff() == 0 || blkbits() == 0)
     {
       return 0.0;
     }
 
     double networkDifficulty = 0.0;
-    BitsToDifficulty(blkbits_, &networkDifficulty);
+    BitsToDifficulty(blkbits(), &networkDifficulty);
 
     // Network diff may less than share diff on testnet or regression test network.
     // On regression test network, the network diff may be zero.
     // But no matter how low the network diff is, you can only dig one block at a time.
-    if (networkDifficulty < (double)sharediff_)
+    if (networkDifficulty < (double)sharediff())
     {
       return 1.0;
     }
 
-    return (double)sharediff_ / networkDifficulty;
+    return (double)sharediff() / networkDifficulty;
   }
 
-  uint32_t checkSum() const {
-    uint64_t c = 0;
-
-    c += (uint64_t) version_;
-    c += (uint64_t) workerhashid_;
-    c += (uint64_t) userid_;
-    c += (uint64_t) status_;
-    c += (uint64_t) timestamp_;
-    c += (uint64_t) ip_.addrUint64[0];
-    c += (uint64_t) ip_.addrUint64[1];
-    c += (uint64_t) jobid_;
-    c += (uint64_t) sharediff_;
-    c += (uint64_t) blkbits_;
-    c += (uint64_t) height_;
-    c += (uint64_t) nonce_;
-    c += (uint64_t) sessionid_;
-
-    return ((uint32_t) c) + ((uint32_t) (c >> 32));
-  }
 
   bool isValid() const
   {
-    if (version_ != CURRENT_VERSION) {
+    if (version() != CURRENT_VERSION) {
       return false;
     }
 
-    if (checksum_ != checkSum()) {
-      DLOG(INFO) << "checkSum mismatched! checkSum_: " << checksum_ << ", checkSum(): " << checkSum();
-      return false;
-    }
-
-    if (jobid_ == 0 || userid_ == 0 || workerhashid_ == 0 ||
-        height_ == 0 || blkbits_ == 0 || sharediff_ == 0)
+    if (jobid() == 0 || userid() == 0 || workerhashid() == 0 ||
+        height() == 0 || blkbits() == 0 || sharediff() == 0)
     {
       return false;
     }
@@ -125,20 +90,54 @@ public:
   string toString() const
   {
     double networkDifficulty = 0.0;
-    BitsToDifficulty(blkbits_, &networkDifficulty);
+    BitsToDifficulty(blkbits(), &networkDifficulty);
 
     return Strings::Format("share(jobId: %" PRIu64 ", ip: %s, userId: %d, "
                            "workerId: %" PRId64 ", time: %u/%s, height: %u, "
                            "blkBits: %08x/%lf, shareDiff: %" PRIu64 ", "
                            "status: %d/%s)",
-                           jobid_, ip_.toString().c_str(), userid_,
-                           workerhashid_, timestamp_, date("%F %T", timestamp_).c_str(), height_,
-                           blkbits_, networkDifficulty, sharediff_,
-                           status_, StratumStatus::toString(status_));
+                           jobid(), ip().c_str(), userid(),
+                           workerhashid(), timestamp(), date("%F %T", timestamp()).c_str(), height(),
+                           blkbits(), networkDifficulty, sharediff(),
+                           status(), StratumStatus::toString(status()));
   }
+
+
+  bool SerializeToBuffer(string& data, uint32_t& size) const{
+    size = ByteSize();
+    data.resize(size);
+    if (!SerializeToArray((uint8_t *)data.data(), size)) {
+      DLOG(INFO) << "base.SerializeToArray failed!" << std::endl;
+      return false;
+    
+    }
+    return true;
+  }
+
+  bool SerializeToArrayWithLength(string& data, uint32_t& size) const {
+    size = ByteSize();
+    data.resize(size + sizeof(uint32_t));
+
+    *((uint32_t*)data.data()) = size;
+    uint8_t * payload = (uint8_t *)data.data();
+
+    if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
+       DLOG(INFO) << "base.SerializeToArray failed!";
+      return false;
+    }
+      
+    size += sizeof(uint32_t);
+    return true;
+  }
+  
+
+  uint32_t getsharelength() {
+      return IsInitialized() ? ByteSize() : 0;
+  }
+  
 };
 
-static_assert(sizeof(ShareSia) == 80, "ShareBitcoin should be 80 bytes");
+//static_assert(sizeof(ShareSia) == 80, "ShareBitcoin should be 80 bytes");
 
 class StratumJobSia : public StratumJob
 {

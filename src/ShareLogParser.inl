@@ -38,8 +38,7 @@ ShareLogDumperT<SHARE>::ShareLogDumperT(const char *chainType, const string &dat
     isDumpAll_ = true;
 }
 
-template <class SHARE>
-ShareLogDumperT<SHARE>::~ShareLogDumperT() {
+template <class SHARE>ShareLogDumperT<SHARE>::~ShareLogDumperT() {
 }
 
 template <class SHARE>
@@ -55,33 +54,33 @@ void ShareLogDumperT<SHARE>::dump2stdout() {
     }
 
     // 2000000 * 48 = 96,000,000 Bytes
-    const uint32_t kElements = 2000000;
-    size_t readNum;
     string buf;
-    buf.resize(kElements * sizeof(SHARE));
+    buf.resize(96000000);
+    uint32_t incompleteShareSize = 0;
+    while (f.peek() != EOF) {
 
-    for (;;) {
-      f.read((char *)buf.data(), kElements * sizeof(SHARE));
-      readNum = f.gcount();
+      f.read((char *)buf.data() + incompleteShareSize, buf.size() - incompleteShareSize);
+      uint32_t readNum = f.gcount() + incompleteShareSize;
 
-      size_t readNumMod = readNum % sizeof(SHARE);
-      if (readNumMod > 0) {
-        LOG(WARNING) << "Incomplete share detected: " << readNumMod << " bytes "
-                    << "(should be " << sizeof(SHARE) << " bytes)";
-        readNum -= readNumMod;
-      }
+      uint32_t currentpos = 0;
+      while (currentpos + sizeof(uint32_t) < readNum) {
+        uint32_t sharelength = *(uint32_t*)(buf.data() + currentpos);
 
-      if (readNum == 0) {
-        if (f.eof()) {
-          LOG(INFO) << "End-of-File reached: " << filePath_;
+        if (readNum >=  currentpos + sizeof(uint32_t) + sharelength) {
+
+          parseShareLog((const uint8_t *)(buf.data() + currentpos + sizeof(uint32_t)), sharelength);
+          currentpos = currentpos + sizeof(uint32_t) + sharelength;
+        } else {
+          LOG(INFO) << "not read enough length " << sharelength << std::endl;
           break;
         }
-        LOG(INFO) << "read 0 bytes: " << filePath_;
-        continue;
       }
-
-      parseShareLog((uint8_t *)buf.data(), readNum);
-    };
+      incompleteShareSize = readNum - currentpos;
+      if (incompleteShareSize > 0) {
+          LOG(INFO) << "incompleteShareSize_ " << incompleteShareSize << std::endl;
+          memcpy((char *)buf.data(), (char *)buf.data() + currentpos, incompleteShareSize);
+        }
+    }
   
   } catch (...) {
     LOG(ERROR) << "open file fail: " << filePath_;
@@ -90,12 +89,12 @@ void ShareLogDumperT<SHARE>::dump2stdout() {
 
 template <class SHARE>
 void ShareLogDumperT<SHARE>::parseShareLog(const uint8_t *buf, size_t len) {
-  assert(len % sizeof(SHARE) == 0);
-  const size_t size = len / sizeof(SHARE);
-
-  for (size_t i = 0; i < size; i++) {
-    parseShare((SHARE *)(buf + sizeof(SHARE)*i));
+  SHARE share;
+  if (!share.ParseFromArray(buf, len)) {
+    LOG(INFO) << "parse share from base message failed! ";
+    return;
   }
+  parseShare(&share);
 }
 
 template <class SHARE>
@@ -105,7 +104,7 @@ void ShareLogDumperT<SHARE>::parseShare(const SHARE *share) {
     return;
   }
 
-  if (isDumpAll_ || uids_.find(share->userid_) != uids_.end()) {
+  if (isDumpAll_ || uids_.find(share->userid()) != uids_.end()) {
     // print to stdout
     std::cout << share->toString() << std::endl;
   }
@@ -131,7 +130,9 @@ ShareLogParserT<SHARE>::ShareLogParserT(const char *chainType, const string &dat
   filePath_ = getStatsFilePath(chainType, dataDir, timestamp);
 
   // prealloc memory
-  buf_ = (uint8_t *)malloc(kMaxElementsNum_ * sizeof(SHARE));
+  // buf_ = (uint8_t *)malloc(kMaxElementsNum_ * sizeof(SHARE));
+  bufferlength_ = kMaxElementsNum_ * 48;
+  buf_ = (uint8_t *)malloc(bufferlength_);
 }
 
 template <class SHARE>
@@ -156,12 +157,12 @@ bool ShareLogParserT<SHARE>::init() {
 
 template <class SHARE>
 void ShareLogParserT<SHARE>::parseShareLog(const uint8_t *buf, size_t len) {
-  assert(len % sizeof(SHARE) == 0);
-  const size_t size = len / sizeof(SHARE);
-
-  for (size_t i = 0; i < size; i++) {
-    parseShare((SHARE *)(buf + sizeof(SHARE)*i));
+  SHARE share;
+  if (!share.ParseFromArray(buf, len)) {
+    LOG(INFO) << "parse share from base message failed! " ;
+    return;
   }
+  parseShare(&share);
 }
 
 template <class SHARE>
@@ -175,8 +176,8 @@ void ShareLogParserT<SHARE>::parseShare(const SHARE *share) {
     return;
   }
 
-  WorkerKey wkey(share->userid_, share->workerhashid_);
-  WorkerKey ukey(share->userid_, 0);
+  WorkerKey wkey(share->userid(), share->workerhashid());
+  WorkerKey ukey(share->userid(), 0);
   WorkerKey pkey(0, 0);
 
   pthread_rwlock_wrlock(&rwlock_);
@@ -188,7 +189,7 @@ void ShareLogParserT<SHARE>::parseShare(const SHARE *share) {
   }
   pthread_rwlock_unlock(&rwlock_);
 
-  const uint32_t hourIdx = getHourIdx(share->timestamp_);
+  const uint32_t hourIdx = getHourIdx(share->timestamp());
   workersStats_[wkey]->processShare(hourIdx, *share);
   workersStats_[ukey]->processShare(hourIdx, *share);
   workersStats_[pkey]->processShare(hourIdx, *share);
@@ -207,36 +208,36 @@ bool ShareLogParserT<SHARE>::processUnchangedShareLog() {
     }
 
     // 2000000 * 48 = 96,000,000 Bytes
-    const uint32_t kElements = 2000000;
-    size_t readNum;
     string buf;
-    buf.resize(kElements * sizeof(SHARE));
+    buf.resize(96000000);
+    uint32_t incompleteShareSize = 0;
+    while (f.peek() != EOF) {
 
-    for (;;) {
-      f.read((char *)buf.data(), kElements * sizeof(SHARE));
-      readNum = f.gcount();
+      f.read((char *)buf.data()+ incompleteShareSize, buf.size() - incompleteShareSize);
+      uint32_t readNum = f.gcount() + incompleteShareSize;
 
-      size_t readNumMod = readNum % sizeof(SHARE);
-      if (readNumMod > 0) {
-        LOG(WARNING) << "Incomplete share detected: " << readNumMod << " bytes "
-                    << "(should be " << sizeof(SHARE) << " bytes)";
-        readNum -= readNumMod;
-      }
-      
-      if (readNum == 0) {
-        if (f.eof()) {
-          LOG(INFO) << "End-of-File reached: " << filePath_;
+      uint32_t currentpos = 0;
+      while (currentpos + sizeof(uint32_t) < readNum) {
+        uint32_t sharelength = *(uint32_t*)(buf.data()+ currentpos);//get shareLength
+        DLOG(INFO) << "sharelength = " << sharelength << std::endl;
+        if (readNum >=  currentpos + sizeof(uint32_t) + sharelength) {
+
+          parseShareLog((const uint8_t *)(buf.data() +
+                        currentpos + sizeof(uint32_t)), sharelength);
+
+          currentpos = currentpos + sizeof(uint32_t) + sharelength;
+        } else {
+          LOG(INFO) << "not read enough length " << sharelength << std::endl;
           break;
         }
-        LOG(INFO) << "read 0 bytes: " << filePath_;
-        continue;
       }
-
-      parseShareLog((uint8_t *)buf.data(), readNum);
-    };
-
+      incompleteShareSize = readNum - currentpos;
+      if (incompleteShareSize > 0) {
+        LOG(INFO) << "incompleteShareSize_ " << incompleteShareSize << std::endl;
+        memcpy((char *)buf.data(), (char *)buf.data() + currentpos, incompleteShareSize);
+      }
+    }
     return true;
-
   } catch (...) {
     LOG(ERROR) << "open file fail: " << filePath_;
     return false;
@@ -272,7 +273,7 @@ int64_t ShareLogParserT<SHARE>::processGrowingShareLog() {
     }
   }
 
-  size_t readNum = 0;
+  uint32_t readNum = 0;
   try {
     assert(f_ != nullptr);
 
@@ -294,30 +295,36 @@ int64_t ShareLogParserT<SHARE>::processGrowingShareLog() {
     //
 
     // If an incomplete share was found at last read, only reading the rest part of it.
-    f_->read((char *)buf_ + incompleteShareSize_, kMaxElementsNum_ * sizeof(SHARE) - incompleteShareSize_);
-    readNum = f_->gcount() + incompleteShareSize_;
 
-    incompleteShareSize_ = readNum % sizeof(SHARE);
-    if (incompleteShareSize_ > 0) {
-      LOG(WARNING) << "Incomplete share detected: " << incompleteShareSize_ << " bytes "
-                  << "(should be " << sizeof(SHARE) << " bytes)";
-      readNum -= incompleteShareSize_;
-    }
+    f_->read((char *)buf_ + incompleteShareSize_, bufferlength_ - incompleteShareSize_);
 
-    if (readNum == 0) {
+    if (f_->gcount() == 0) {
       return 0;
     }
 
-    // parse shares
-    parseShareLog(buf_, readNum);
+    readNum = f_->gcount() + incompleteShareSize_;
+    uint32_t currentpos = 0, parsedsharenum = 0;
+    while (currentpos + sizeof(uint32_t) < readNum) {
+
+      uint32_t sharelength = *(uint32_t*)(buf_ + currentpos);//get shareLength
+      if (readNum >=  currentpos + sizeof(uint32_t) + sharelength) {
+
+        parseShareLog(buf_ + currentpos + sizeof(uint32_t), sharelength);
+        currentpos = currentpos + sizeof(uint32_t) + sharelength;
+        parsedsharenum ++;
+      } else {
+        break;
+      }
+    }
+    incompleteShareSize_ = readNum - currentpos;
 
     if (incompleteShareSize_ > 0) {
       // move the incomplete share to the beginning of buf_
-      memcpy((char *)buf_, (char *)buf_ + readNum, incompleteShareSize_);
+      memcpy((char *)buf_, (char *)buf_ + currentpos, incompleteShareSize_);
     }
 
-    DLOG(INFO) << "processGrowingShareLog share count: " << readNum / sizeof(SHARE);
-    return readNum / sizeof(SHARE);
+    DLOG(INFO) << "processGrowingShareLog share count: " << parsedsharenum;
+    return parsedsharenum;
 
   } catch (...) {  
     LOG(ERROR) << "reading file fail with exception: " << filePath_;

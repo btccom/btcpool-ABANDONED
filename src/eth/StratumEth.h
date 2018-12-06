@@ -28,7 +28,7 @@
 #include "EthConsensus.h"
 
 #include "rsk/RskWork.h"
-
+#include "share.pro.pb.h"
 #include <uint256.h>
 
 // [[[[ IMPORTANT REMINDER! ]]]]
@@ -39,30 +39,30 @@
 // and the new version will coexist for a while.
 // If there is no forward compatibility, one of the versions of Share
 // will be considered invalid, resulting in loss of users' hashrate.
-class ShareEth
+
+
+class ShareEth : public sharebase::EthMsg
 {
 public:
 
   const static uint32_t CURRENT_VERSION_FOUNDATION = 0x00110002u; // first 0011: ETH, second 0002: version 2
   const static uint32_t CURRENT_VERSION_CLASSIC    = 0x00160002u; // first 0016: ETC, second 0002: version 2
 
-  uint32_t  version_      = 0;
-  uint32_t  checksum_     = 0;
 
-  int64_t   workerhashid_ = 0;
-  int32_t   userid_       = 0;
-  int32_t   status_       = 0;
-  int64_t   timestamp_    = 0;
-  IpAddress ip_           = 0;
-
-  uint64_t headerhash_  = 0;
-  uint64_t sharediff_   = 0;
-  uint64_t networkdiff_ = 0;
-  uint64_t nonce_       = 0;
-  uint32_t sessionid_   = 0;
-  uint32_t height_      = 0;
-
-  ShareEth() = default;
+  ShareEth() {
+    set_version(0);
+    set_workerhashid(0);
+    set_userid(0);
+    set_status(0);
+    set_timestamp(0);
+    set_ip("0.0.0.0");
+    set_headerhash(0);
+    set_sharediff(0);
+    set_networkdiff(0);
+    set_height(0);
+    set_nonce(0);
+    set_sessionid(0);
+  }
   ShareEth(const ShareEth &r) = default;
   ShareEth &operator=(const ShareEth &r) = default;
 
@@ -93,12 +93,24 @@ public:
   }
 
   EthConsensus::Chain getChain() const {
-    return getChain(version_);
+    if (!IsInitialized()) {
+      DLOG(INFO) << "share_ is not  Initialize" ;
+      return EthConsensus::Chain::UNKNOWN;
+    }
+
+    return getChain(version());
   }
 
   double score() const
   {
-    if (!StratumStatus::isAccepted(status_) || sharediff_ == 0 || networkdiff_ == 0) {
+
+    if (!IsInitialized()) {
+      DLOG(INFO) << "share_ is not  Initialize" ;
+      return 0.0;
+    }
+
+
+    if (!StratumStatus::isAccepted(status()) || sharediff() == 0 || networkdiff() == 0) {
       return 0.0;
     }
 
@@ -107,54 +119,31 @@ public:
     // Network diff may less than share diff on testnet or regression test network.
     // On regression test network, the network diff may be zero.
     // But no matter how low the network diff is, you can only dig one block at a time.
-    if (networkdiff_ < sharediff_) {
+    if (networkdiff() < sharediff()) {
       result = 1.0;
     }
     else {
-      result = (double)sharediff_ / (double)networkdiff_;
+      result = (double)sharediff() / (double)networkdiff();
     }
 
     // Share of the uncle block has a lower reward.
-    if (StratumStatus::isStale(status_)) {
-      result *= EthConsensus::getUncleBlockRewardRatio(height_, getChain());
+    if (StratumStatus::isStale(status())) {
+      result *= EthConsensus::getUncleBlockRewardRatio(height(), getChain());
     }
 
     return result;
   }
 
-  uint32_t checkSum() const {
-    uint64_t c = 0;
-
-    c += (uint64_t) version_;
-    c += (uint64_t) workerhashid_;
-    c += (uint64_t) userid_;
-    c += (uint64_t) status_;
-    c += (uint64_t) timestamp_;
-    c += (uint64_t) ip_.addrUint64[0];
-    c += (uint64_t) ip_.addrUint64[1];
-    c += (uint64_t) headerhash_;
-    c += (uint64_t) sharediff_;
-    c += (uint64_t) networkdiff_;
-    c += (uint64_t) nonce_;
-    c += (uint64_t) sessionid_;
-    c += (uint64_t) height_;
-
-    return ((uint32_t) c) + ((uint32_t) (c >> 32));
-  }
 
   bool isValid() const
   {
-    if (version_ != CURRENT_VERSION_FOUNDATION && version_ != CURRENT_VERSION_CLASSIC) {
+
+    if (version() != CURRENT_VERSION_FOUNDATION && version() != CURRENT_VERSION_CLASSIC) {
       return false;
     }
 
-    if (checksum_ != checkSum()) {
-      DLOG(INFO) << "checkSum mismatched! checkSum_: " << checksum_ << ", checkSum(): " << checkSum();
-      return false;
-    }
-
-    if (userid_ == 0 || workerhashid_ == 0 || height_ == 0 ||
-        networkdiff_ == 0 || sharediff_ == 0)
+    if (userid() == 0 || workerhashid() == 0 || height() == 0 ||
+        networkdiff() == 0 || sharediff() == 0)
     {
       return false;
     }
@@ -164,18 +153,52 @@ public:
 
   string toString() const
   {
+
     return Strings::Format("share(height: %u, headerHash: %016" PRIx64 "..., ip: %s, userId: %d, "
                            "workerId: %" PRId64 ", time: %u/%s, "
                            "shareDiff: %" PRIu64 ", networkDiff: %" PRIu64 ", nonce: %016" PRIx64 ", "
                            "sessionId: %08x, status: %d/%s)",
-                           height_, headerhash_, ip_.toString().c_str(), userid_,
-                           workerhashid_, timestamp_, date("%F %T", timestamp_).c_str(),
-                           sharediff_, networkdiff_, nonce_,
-                           sessionid_, status_, StratumStatus::toString(status_));
+                           height(), headerhash(), ip().c_str(), userid(),
+                           workerhashid(), timestamp(), date("%F %T", timestamp()).c_str(),
+                           sharediff(), networkdiff(), nonce(),
+                           sessionid(), status(), StratumStatus::toString(status()));
+  }
+
+
+  bool SerializeToBuffer(string& data, uint32_t& size) const{
+    size = ByteSize();
+    data.resize(size);
+
+    if (!SerializeToArray((uint8_t *)data.data(), size)) {
+        DLOG(INFO) << "base.SerializeToArray failed!" << std::endl;
+        return false;
+      }
+
+    return true;
+  }
+
+  bool SerializeToArrayWithLength(string& data, uint32_t& size) const {
+    size = ByteSize();
+    data.resize(size + sizeof(uint32_t));
+
+    *((uint32_t*)data.data()) = size;
+    uint8_t * payload = (uint8_t *)data.data();
+
+    if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
+       DLOG(INFO) << "base.SerializeToArray failed!";
+      return false;
+    }
+      
+    size += sizeof(uint32_t);
+    return true;
+  }
+
+  size_t getsharelength() {
+    return IsInitialized() ? ByteSize() : 0;
   }
 };
 
-static_assert(sizeof(ShareEth) == 88, "ShareEth should be 88 bytes");
+
 
 class StratumJobEth : public StratumJob
 {

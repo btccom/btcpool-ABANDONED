@@ -26,7 +26,7 @@
 
 #include "Stratum.h"
 #include "CommonBytom.h"
-
+#include "share.pro.pb.h"
 union BytomCombinedHeader
 {
   struct
@@ -39,86 +39,47 @@ union BytomCombinedHeader
   uint8_t bytes[32];
 };
 
-class ShareBytom
+class ShareBytom  :public sharebase::BytomMsg
 {
 public:
 
   const static uint32_t CURRENT_VERSION = 0x00030001u; // first 0003: bytom, second 0002: version 1.
 
-  uint32_t  version_      = CURRENT_VERSION;
-  uint32_t  checksum_     = 0;
 
-  uint64_t  jobid_        = 0;
-  int64_t   workerhashid_ = 0;
-  int64_t   timestamp_    = 0;
-  uint64_t  sharediff_    = 0;
-  uint64_t  blkbits_      = 0;
-  uint64_t  height_       = 0;
-  IpAddress ip_;
-  BytomCombinedHeader combinedheader_;
-
-  int32_t   userid_       = 0;
-  int32_t   status_       = 0;
-
-  ShareBytom() = default;
+  ShareBytom() {
+    set_version(CURRENT_VERSION);
+  }
   ShareBytom(const ShareBytom &r) = default;
   ShareBytom &operator=(const ShareBytom &r) = default;
 
   double score() const
   {
-    if (sharediff_ == 0 || blkbits_ == 0)
+    if (sharediff() == 0 || blkbits() == 0)
     {
       return 0.0;
     }
 
-    uint64_t difficulty = Bytom_TargetCompactToDifficulty(blkbits_);
+    uint64_t difficulty = Bytom_TargetCompactToDifficulty(blkbits());
 
     // Network diff may less than share diff on testnet or regression test network.
     // On regression test network, the network diff may be zero.
     // But no matter how low the network diff is, you can only dig one block at a time.
-    if (difficulty < sharediff_)
+    if (difficulty < sharediff())
     {
       return 1.0;
     }
 
-    return (double)sharediff_ / (double)difficulty;
-  }
-
-  uint32_t checkSum() const {
-    uint64_t c = 0;
-
-    c += (uint64_t) version_;
-    c += (uint64_t) workerhashid_;
-    c += (uint64_t) userid_;
-    c += (uint64_t) status_;
-    c += (uint64_t) timestamp_;
-    c += (uint64_t) ip_.addrUint64[0];
-    c += (uint64_t) ip_.addrUint64[1];
-    c += (uint64_t) jobid_;
-    c += (uint64_t) sharediff_;
-    c += (uint64_t) blkbits_;
-    c += (uint64_t) height_;
-    c += (uint64_t) combinedheader_.blockCommitmentMerkleRootCheapHash_;
-    c += (uint64_t) combinedheader_.blockCommitmentStatusHashCheapHash_;
-    c += (uint64_t) combinedheader_.timestamp_;
-    c += (uint64_t) combinedheader_.nonce_;
-
-    return ((uint32_t) c) + ((uint32_t) (c >> 32));
+    return (double)sharediff() / (double)difficulty;
   }
 
   bool isValid() const
   {
-    if (version_ != CURRENT_VERSION) {
+    if (version() != CURRENT_VERSION) {
       return false;
     }
 
-    if (checksum_ != checkSum()) {
-      DLOG(INFO) << "checkSum mismatched! checkSum_: " << checksum_ << ", checkSum(): " << checkSum();
-      return false;
-    }
-
-    if (jobid_ == 0 || userid_ == 0 || workerhashid_ == 0 ||
-        height_ == 0 || blkbits_ == 0 || sharediff_ == 0)
+    if (jobid() == 0 || userid() == 0 || workerhashid() == 0 ||
+        height() == 0 || blkbits() == 0 || sharediff() == 0)
     {
       return false;
     }
@@ -128,16 +89,50 @@ public:
 
   string toString() const
   {
-    uint64_t networkDifficulty = Bytom_TargetCompactToDifficulty(blkbits_);
+    uint64_t networkDifficulty = Bytom_TargetCompactToDifficulty(blkbits());
+    
+    BytomCombinedHeader combinedHeader;
+    memcpy(&combinedHeader, combinedheader().data(), sizeof(BytomCombinedHeader));
 
     return Strings::Format("share(jobId: %" PRIu64 ", ip: %s, userId: %d, "
                            "workerId: %" PRId64 ", time: %u/%s, height: %u, "
                            "blkBits: %08x/%" PRId64 ", nonce: %08x, shareDiff: %" PRIu64 ", "
                            "status: %d/%s)",
-                           jobid_, ip_.toString().c_str(), userid_,
-                           workerhashid_, timestamp_, date("%F %T", timestamp_).c_str(), height_,
-                           blkbits_, networkDifficulty, combinedheader_.nonce_, sharediff_,
-                           status_, StratumStatus::toString(status_));
+                           jobid(), ip().c_str(), userid(),
+                           workerhashid(), timestamp(), date("%F %T", timestamp()).c_str(), height(),
+                           blkbits(), networkDifficulty, combinedHeader.nonce_, sharediff(),
+                           status(), StratumStatus::toString(status()));
+  }
+
+  bool SerializeToBuffer(string& data, uint32_t& size) const{
+    size = ByteSize();
+    data.resize(size);
+    if (!SerializeToArray((uint8_t *)data.data(), size)) {
+      DLOG(INFO) << "base.SerializeToArray failed!" << std::endl;
+      return false;
+    
+    }
+    return true;
+  }
+
+  bool SerializeToArrayWithLength(string& data, uint32_t& size) const {
+    size = ByteSize();
+    data.resize(size + sizeof(uint32_t));
+
+    *((uint32_t*)data.data()) = size;
+    uint8_t * payload = (uint8_t *)data.data();
+
+    if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
+      DLOG(INFO) << "base.SerializeToArray failed!";
+      return false;
+    }
+      
+    size += sizeof(uint32_t);
+    return true;
+  }
+
+  uint32_t getsharelength() {
+      return IsInitialized() ? ByteSize() : 0;
   }
 };
 

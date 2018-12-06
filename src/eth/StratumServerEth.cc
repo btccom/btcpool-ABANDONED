@@ -477,7 +477,7 @@ int ServerEth::checkShareAndUpdateDiff(ShareEth &share,
     DLOG(INFO) << "comapre share target: " << shareTarget.GetHex() << ", job target: " << jobTarget.GetHex();
 
     if (isEnableSimulator_ || bnShareTarget <= UintToArith256(jobTarget)) {
-      share.sharediff_ = *itr;
+      share.set_sharediff(*itr);
       return exJobPtr->isStale() ? StratumStatus::ACCEPT_STALE : StratumStatus::ACCEPT;
     }
   }

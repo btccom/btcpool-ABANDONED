@@ -46,19 +46,19 @@ template <class SHARE>
 void WorkerShares<SHARE>::processShare(const SHARE &share) {
   ScopeLock sl(lock_);
   const time_t now = time(nullptr);
-  if (now > share.timestamp_ + STATS_SLIDING_WINDOW_SECONDS) {
+  if (now > share.timestamp() + STATS_SLIDING_WINDOW_SECONDS) {
     return;
   }
 
-  if (StratumStatus::isAccepted(share.status_)) {
+  if (StratumStatus::isAccepted(share.status())) {
     acceptCount_++;
-    acceptShareSec_.insert(share.timestamp_,    share.sharediff_);
+    acceptShareSec_.insert(share.timestamp(),    share.sharediff());
   } else {
-    rejectShareMin_.insert(share.timestamp_/60, share.sharediff_);
+    rejectShareMin_.insert(share.timestamp()/60, share.sharediff());
   }
 
-  lastShareIP_   = share.ip_;
-  lastShareTime_ = share.timestamp_;
+  lastShareIP_.fromString(share.ip());
+  lastShareTime_ = share.timestamp();
 }
 
 template <class SHARE>
@@ -268,15 +268,15 @@ template <class SHARE>
 void StatsServerT<SHARE>::processShare(const SHARE &share) {
   const time_t now = time(nullptr);
 
-  lastShareTime_ = share.timestamp_;
+  lastShareTime_ = share.timestamp();
 
   // ignore too old shares
-  if (now > share.timestamp_ + STATS_SLIDING_WINDOW_SECONDS) {
+  if (now > share.timestamp() + STATS_SLIDING_WINDOW_SECONDS) {
     return;
   }
   poolWorker_.processShare(share);
 
-  WorkerKey key(share.userid_, share.workerhashid_);
+  WorkerKey key(share.userid(), share.workerhashid());
   _processShare(key, share);
 }
 
@@ -294,14 +294,14 @@ void StatsServerT<SHARE>::_processShare(WorkerKey &key, const SHARE &share) {
   if (workerItr != workerSet_.end()) {
     workerItr->second->processShare(share);
   } else {
-    workerShare = make_shared<WorkerShares<SHARE>>(share.workerhashid_, share.userid_);
+    workerShare = make_shared<WorkerShares<SHARE>>(share.workerhashid(), share.userid());
     workerShare->processShare(share);
   }
 
   if (userItr != userSet_.end()) {
     userItr->second->processShare(share);
   } else {
-    userShare = make_shared<WorkerShares<SHARE>>(share.workerhashid_, share.userid_);
+    userShare = make_shared<WorkerShares<SHARE>>(share.workerhashid(), share.userid());
     userShare->processShare(share);
   }
 
@@ -998,18 +998,32 @@ void StatsServerT<SHARE>::consumeShareLog(rd_kafka_message_t *rkmessage) {
   }
 
   SHARE share;
-  if (rkmessage->len != sizeof(SHARE)) {
-    LOG(ERROR) << "sharelog message size(" << rkmessage->len << ") is not: " << sizeof(SHARE);
+
+  if (rkmessage->len < sizeof(uint32_t)) {
+    LOG(ERROR) << "invalid share , kafka message size : "<< rkmessage->len ;
+    return ;
+  }
+  
+  uint8_t *payload = reinterpret_cast<uint8_t *> (rkmessage->payload);
+  uint32_t headlength = *((uint32_t*) payload);
+
+  if (rkmessage->len < sizeof(uint32_t) + headlength) {
+    LOG(ERROR) << "invalid share , kafka message size : "<< rkmessage->len  << " <  complete share size " << 
+               headlength + sizeof(uint32_t);
     return;
   }
-  memcpy((uint8_t *)&share, (const uint8_t *)rkmessage->payload, rkmessage->len);
+
+  if (!share.ParseFromArray((const uint8_t *)(payload + sizeof(uint32_t)), headlength)) {
+    LOG(ERROR) << "parse share from kafka message failed rkmessage->len = "<< rkmessage->len ;
+    return;
+  }
 
   if (!share.isValid()) {
-    LOG(ERROR) << "invalid share: " << share.toString();
+    LOG(ERROR) << "invalid share!" ;
     return;
   }
   if (dupShareChecker_ && !dupShareChecker_->addShare(share)) {
-    LOG(INFO) << "duplicate share attack: " << share.toString();
+    LOG(INFO) << "duplicate share attack: " ;
     return;
   }
 
