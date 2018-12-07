@@ -19,3 +19,5 @@ build*/
 
 # generated configuration files
 /src/config/*.h
+/src/*.pro.pb.h
+/src/*.pro.pb.cc
