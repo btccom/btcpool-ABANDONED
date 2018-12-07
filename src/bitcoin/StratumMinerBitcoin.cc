@@ -284,8 +284,8 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
 
     std::string message;
     uint32_t size = 0;
-    if (!share.SerializeToArrayWithLength(message, size)) {
-      LOG(ERROR) << "share SerializeToArray failed!"<< share.toString();
+    if (!share.SerializeToBuffer(message, size)) {
+      LOG(ERROR) << "share SerializeToBuffer failed!"<< share.toString();
       return;
     }
 

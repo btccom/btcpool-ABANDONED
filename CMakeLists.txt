@@ -433,6 +433,9 @@ endif(USE_CUDA)
 file(GLOB ProtoFiles "${CMAKE_CURRENT_SOURCE_DIR}/src/share.pro")
 execute_process(COMMAND protoc --proto_path=${CMAKE_CURRENT_SOURCE_DIR}/src/  --cpp_out=src  ${ProtoFiles}
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/share.pro.pb.h")
+  message(FATAL_ERROR "generate share.pro.pb.h failed! please check whether the Protobuf compiler installed correctly!")
+endif()
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/src src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config ${CHAIN_SRC_ROOT}/src/secp256k1/include
 	${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS} ${KAFKA_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS}

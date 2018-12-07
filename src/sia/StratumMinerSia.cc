@@ -173,7 +173,7 @@ void StratumMinerSia::handleRequest_Submit(const string &idStr, const JsonNode &
 
   std::string message;
   uint32_t size = 0;
-  if (!share.SerializeToArrayWithLength(message, size)) {
+  if (!share.SerializeToBuffer(message, size)) {
     LOG(ERROR) << "share SerializeToArray failed!"<< share.toString();
     return;
   }

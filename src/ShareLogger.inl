@@ -103,30 +103,37 @@ void ShareLogWriterT<SHARE>::consumeShareLog(rd_kafka_message_t *rkmessage) {
 
     if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
         rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
-      LOG(FATAL) << "consume fatal";
+        LOG(FATAL) << "consume fatal";
     }
     return;
   }
 
-  if (rkmessage->len < sizeof(uint32_t)) {
-    LOG(ERROR) << "invalid share , share size : "<< rkmessage->len ;
-    return ;
-  }
-
   SHARE share;
-  uint8_t * payload = reinterpret_cast<uint8_t *> (rkmessage->payload);
-  uint32_t headlength  = *((uint32_t*)payload);
 
-  if (rkmessage->len < sizeof(uint32_t) + headlength) {
-    LOG(ERROR) << "invalid share , kafka message size : "<< rkmessage->len  << " <  complete share size " <<
-               headlength + sizeof(uint32_t);
-    return;
-  }
+  // if (rkmessage->len < sizeof(uint32_t)) {
+  //   LOG(ERROR) << "invalid share , share size : "<< rkmessage->len ;
+  //   return ;
+  // }
 
-  if (!share.ParseFromArray((const uint8_t *)(payload + sizeof(uint32_t)), headlength)) {
+  // uint8_t * payload = reinterpret_cast<uint8_t *> (rkmessage->payload);
+  // uint32_t headlength  = *((uint32_t*)payload);
+
+  // if (rkmessage->len < sizeof(uint32_t) + headlength) {
+  //   LOG(ERROR) << "invalid share , kafka message size : "<< rkmessage->len  << " <  complete share size " <<
+  //              headlength + sizeof(uint32_t);
+  //   return;
+  // }
+
+  // if (!share.ParseFromArray((const uint8_t *)(payload + sizeof(uint32_t)), headlength)) {
+  //   LOG(ERROR) << "parse share from kafka message failed rkmessage->len = "<< rkmessage->len ;
+  //   return;
+  // }
+
+  if (!share.ParseFromArray((const uint8_t *)(rkmessage->payload), rkmessage->len)) {
     LOG(ERROR) << "parse share from kafka message failed rkmessage->len = "<< rkmessage->len ;
     return;
   }
+
   shares_.push_back(share);
 
   DLOG(INFO) << share.toString();
