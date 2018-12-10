@@ -167,9 +167,9 @@ void StratumSessionDecred::handleRequest_Subscribe(const string &idStr,
   //              the value on both places.
   //  result[2] = ExtraNonce2_size, the number of bytes that the miner users for its ExtraNonce2 counter
   auto extraNonce1Str = protocol_.getExtraNonce1String(extraNonce1_);
-  const string s = Strings::Format("{\"id\":%s,\"result\":[[[\"mining.set_difficulty\",\"1\"]"
+  const string s = Strings::Format("{\"id\":%s,\"result\":[[[\"mining.set_difficulty\",\"%08x\"]"
                                    ",[\"mining.notify\",\"%08x\"]],\"%s\",%d],\"error\":null}\n",
-                                   idStr.c_str(), extraNonce1_, extraNonce1Str.c_str(), StratumMiner::kExtraNonce2Size_);
+                                   idStr.c_str(), extraNonce1_, extraNonce1_, extraNonce1Str.c_str(), StratumMiner::kExtraNonce2Size_);
   sendData(s);
 }
 
