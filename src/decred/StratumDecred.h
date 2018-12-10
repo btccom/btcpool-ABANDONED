@@ -45,6 +45,56 @@ public:
   }
 };
 
+
+
+
+class ShareDecredBytesVersion
+{
+public:
+
+  uint32_t  version_;//0
+  uint32_t  checkSum_;//4
+
+  int64_t   workerHashId_;//8
+  int32_t   userId_;//16
+  int32_t   status_;//20
+  int64_t   timestamp_;//24
+  IpAddress ip_;//32
+
+  uint64_t jobId_;//48
+  uint64_t shareDiff_;//56
+  uint32_t blkBits_;//64
+  uint32_t height_;//68
+  uint32_t nonce_;//72
+  uint32_t sessionId_;//76
+  NetworkDecred network_;//80
+  uint16_t voters_;//84
+
+  uint32_t checkSum() const {
+    uint64_t c = 0;
+
+    c += (uint64_t) version_;
+    c += (uint64_t) workerHashId_;
+    c += (uint64_t) userId_;
+    c += (uint64_t) status_;
+    c += (uint64_t) timestamp_;
+    c += (uint64_t) ip_.addrUint64[0];
+    c += (uint64_t) ip_.addrUint64[1];
+    c += (uint64_t) jobId_;
+    c += (uint64_t) shareDiff_;
+    c += (uint64_t) blkBits_;
+    c += (uint64_t) height_;
+    c += (uint64_t) nonce_;
+    c += (uint64_t) sessionId_;
+    c += (uint64_t) network_;
+    c += (uint64_t) voters_;
+
+    return ((uint32_t) c) + ((uint32_t) (c >> 32));
+  }
+
+};
+
+
 // [[[[ IMPORTANT REMINDER! ]]]]
 // Please keep the Share structure forward compatible.
 // That is: don't change it unless you add code so that
@@ -57,7 +107,8 @@ class ShareDecred : public sharebase::DecredMsg
 {
 public:
 
-  const static uint32_t CURRENT_VERSION = 0x00200001u; // first 0020: DCR, second 0001: version 1
+  const static uint32_t BYTES_VERSION = 0x00200001u; // first 0020: DCR, second 0001: version 1, the share struct is bytes array
+  const static uint32_t CURRENT_VERSION = 0x00200002u; // first 0020: DCR, second 0002: version 2
 
 
 
@@ -162,6 +213,54 @@ public:
     return true;
   }
 
+  bool UnserializeWithVersion(const uint8_t* data, uint32_t size){
+
+    if(nullptr == data || size <= 0) {
+      return false;
+    }
+
+    const uint8_t * payload = data;
+    uint32_t version = *((uint32_t*)payload);
+
+    if (version == CURRENT_VERSION) {
+
+      if (!ParseFromArray((const uint8_t *)(payload + sizeof(uint32_t)), size - sizeof(uint32_t))) {
+        DLOG(INFO) << "share ParseFromArray failed!";
+        return false;
+      }
+    } else if (version == BYTES_VERSION && size == sizeof(ShareDecredBytesVersion)) {
+
+      ShareDecredBytesVersion* share = (ShareDecredBytesVersion*) payload;
+
+      if (share->checkSum() != share->checkSum_) {
+        DLOG(INFO) << "checkSum mismatched! checkSum_: " << share->checkSum_<< ", checkSum(): " << share->checkSum();
+        return false;
+      }
+
+      set_version(CURRENT_VERSION);
+      set_workerhashid(share->workerHashId_);
+      set_userid(share->userId_);
+      set_status(share->status_);
+      set_timestamp(share->timestamp_);
+      set_ip(share->ip_.toString());
+      set_jobid(share->jobId_);
+      set_sharediff(share->shareDiff_);
+      set_blkbits(share->blkBits_);
+      set_height(share->height_);
+      set_nonce(share->nonce_);
+      set_sessionid(share->sessionId_);
+      set_network((uint32_t)share->network_);
+      set_voters(share->voters_);
+
+    } else {
+
+      DLOG(INFO) << "unknow share received! data size: " << size;
+      return false;
+    }
+
+    return true;
+  }
+
 
   bool SerializeToArrayWithLength(string& data, uint32_t& size) const {
     size = ByteSize();
@@ -172,6 +271,23 @@ public:
 
     if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
        DLOG(INFO) << "base.SerializeToArray failed!";
+      return false;
+    }
+
+    size += sizeof(uint32_t);
+    return true;
+  }
+
+
+  bool SerializeToArrayWithVersion(string& data, uint32_t& size) const {
+    size = ByteSize();
+    data.resize(size + sizeof(uint32_t));
+
+    uint8_t * payload = (uint8_t *)data.data();
+    *((uint32_t*)payload) = version();
+
+    if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
+      DLOG(INFO) << "SerializeToArray failed!";
       return false;
     }
 

@@ -59,6 +59,43 @@ public:
 };
 
 
+struct ShareBitcoinBytesVersion {
+  uint32_t  version_      = 0;
+  uint32_t  checkSum_     = 0;
+
+  int64_t   workerHashId_ = 0;
+  int32_t   userId_       = 0;
+  int32_t   status_       = 0;
+  int64_t   timestamp_    = 0;
+  IpAddress ip_           = 0;
+
+  uint64_t jobId_     = 0;
+  uint64_t shareDiff_ = 0;
+  uint32_t blkBits_   = 0;
+  uint32_t height_    = 0;
+  uint32_t nonce_     = 0;
+  uint32_t sessionId_ = 0;
+
+  uint32_t checkSum() const {
+    uint64_t c = 0;
+
+    c += (uint64_t) version_;
+    c += (uint64_t) workerHashId_;
+    c += (uint64_t) userId_;
+    c += (uint64_t) status_;
+    c += (uint64_t) timestamp_;
+    c += (uint64_t) ip_.addrUint64[0];
+    c += (uint64_t) ip_.addrUint64[1];
+    c += (uint64_t) jobId_;
+    c += (uint64_t) shareDiff_;
+    c += (uint64_t) blkBits_;
+    c += (uint64_t) height_;
+    c += (uint64_t) nonce_;
+    c += (uint64_t) sessionId_;
+
+    return ((uint32_t) c) + ((uint32_t) (c >> 32));
+  }
+};
 
 class ShareBitcoin  : public sharebase::BitcoinMsg  {
 public:
@@ -82,20 +119,20 @@ public:
 
     double score() const {
 
-        if (sharediff() == 0 || blkbits() == 0)
-        {
-            return 0.0;
-        }
+      if (sharediff() == 0 || blkbits() == 0)
+      {
+        return 0.0;
+      }
 
-        double networkDifficulty = 1.0;//0.0;
-        BitsToDifficulty(blkbits(), &networkDifficulty);
+      double networkDifficulty = 1.0;//0.0;
+      BitsToDifficulty(blkbits(), &networkDifficulty);
 
-        if (networkDifficulty < (double)sharediff())
-        {
-            return 1.0;
-        }
+      if (networkDifficulty < (double)sharediff())
+      {
+        return 1.0;
+      }
 
-        return (double)sharediff() / networkDifficulty;
+      return (double)sharediff() / networkDifficulty;
     }
 
 
@@ -140,9 +177,68 @@ public:
       size = ByteSize();
       data.resize(size);
         if (!SerializeToArray((uint8_t *)data.data(), size)) {
-          DLOG(INFO) << "base.SerializeToArray failed!";
+          DLOG(INFO) << "share SerializeToArray failed!";
           return false;
         }
+      return true;
+    }
+
+    bool UnserializeWithVersion(const uint8_t* data, uint32_t size){
+
+      if(nullptr == data || size <= 0) {
+        return false;
+      }
+
+      const uint8_t * payload = data;
+      uint32_t version = *((uint32_t*)payload);
+
+      if (version == CURRENT_VERSION) {
+        if (!ParseFromArray((const uint8_t *)(payload + sizeof(uint32_t)), size - sizeof(uint32_t))) {
+          DLOG(INFO) << "share ParseFromArray failed!";
+          return false;
+        }
+      } else if (version == BYTES_VERSION && size == sizeof(ShareBitcoinBytesVersion)){
+
+        ShareBitcoinBytesVersion* share = (ShareBitcoinBytesVersion*) payload;
+
+        if (share->checkSum() != share->checkSum_) {
+          DLOG(INFO) << "checkSum mismatched! checkSum_: " << share->checkSum_<< ", checkSum(): " << share->checkSum();
+          return false;
+        }
+
+        set_version(CURRENT_VERSION);
+        set_workerhashid(share->workerHashId_);
+        set_userid(share->userId_);
+        set_status(share->status_);
+        set_timestamp(share->timestamp_);
+        set_ip(share->ip_.toString());
+        set_jobid(share->jobId_);
+        set_sharediff(share->shareDiff_);
+        set_blkbits(share->blkBits_);
+        set_height(share->height_);
+        set_nonce(share->nonce_);
+        set_sessionid(share->sessionId_);
+      } else {
+        DLOG(INFO) << "unknow share received!";
+        return false;
+      }
+
+      return true;
+    }
+
+    bool SerializeToArrayWithVersion(string& data, uint32_t& size) const {
+      size = ByteSize();
+      data.resize(size + sizeof(uint32_t));
+
+      uint8_t * payload = (uint8_t *)data.data();
+      *((uint32_t*)payload) = version();
+
+      if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
+        DLOG(INFO) << "SerializeToArray failed!";
+        return false;
+      }
+
+      size += sizeof(uint32_t);
       return true;
     }
 
@@ -154,7 +250,7 @@ public:
       uint8_t * payload = (uint8_t *)data.data();
 
       if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
-        DLOG(INFO) << "base.SerializeToArray failed!";
+        DLOG(INFO) << "SerializeToArray failed!";
         return false;
       }
 
@@ -169,7 +265,8 @@ public:
 
 public:
 
-  const static uint32_t CURRENT_VERSION = 0x00010003u;
+  const static uint32_t BYTES_VERSION = 0x00010003u;
+  const static uint32_t CURRENT_VERSION = 0x00010004u;
 };
 
 

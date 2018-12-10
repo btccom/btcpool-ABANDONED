@@ -129,7 +129,7 @@ void ShareLogWriterT<SHARE>::consumeShareLog(rd_kafka_message_t *rkmessage) {
   //   return;
   // }
 
-  if (!share.ParseFromArray((const uint8_t *)(rkmessage->payload), rkmessage->len)) {
+  if (!share.UnserializeWithVersion((const uint8_t *)(rkmessage->payload), rkmessage->len)) {
     LOG(ERROR) << "parse share from kafka message failed rkmessage->len = "<< rkmessage->len ;
     return;
   }

@@ -41,12 +41,58 @@
 // will be considered invalid, resulting in loss of users' hashrate.
 
 
+
+class ShareEthBytesVersion
+{
+public:
+
+  uint32_t  version_      = 0;//0
+  uint32_t  checkSum_     = 0;//4
+
+  int64_t   workerHashId_ = 0;//8
+  int32_t   userId_       = 0;//16
+  int32_t   status_       = 0;//20
+  int64_t   timestamp_    = 0;//24
+  IpAddress ip_           = 0;//32
+
+  uint64_t headerHash_  = 0;//48
+  uint64_t shareDiff_   = 0;//56
+  uint64_t networkDiff_ = 0;//64
+  uint64_t nonce_       = 0;//72
+  uint32_t sessionId_   = 0;//80
+  uint32_t height_      = 0;//84
+
+  uint32_t checkSum() const {
+    uint64_t c = 0;
+
+    c += (uint64_t) version_;
+    c += (uint64_t) workerHashId_;
+    c += (uint64_t) userId_;
+    c += (uint64_t) status_;
+    c += (uint64_t) timestamp_;
+    c += (uint64_t) ip_.addrUint64[0];
+    c += (uint64_t) ip_.addrUint64[1];
+    c += (uint64_t) headerHash_;
+    c += (uint64_t) shareDiff_;
+    c += (uint64_t) networkDiff_;
+    c += (uint64_t) nonce_;
+    c += (uint64_t) sessionId_;
+    c += (uint64_t) height_;
+
+    return ((uint32_t) c) + ((uint32_t) (c >> 32));
+  }
+
+};
+
+
 class ShareEth : public sharebase::EthMsg
 {
 public:
 
-  const static uint32_t CURRENT_VERSION_FOUNDATION = 0x00110002u; // first 0011: ETH, second 0002: version 2
-  const static uint32_t CURRENT_VERSION_CLASSIC    = 0x00160002u; // first 0016: ETC, second 0002: version 2
+  const static uint32_t CURRENT_VERSION_FOUNDATION = 0x00110003u; // first 0011: ETH, second 0002: version 3
+  const static uint32_t CURRENT_VERSION_CLASSIC    = 0x00160003u; // first 0016: ETC, second 0002: version 3
+  const static uint32_t BYTES_VERSION_FOUNDATION = 0x00110002u; // first 0011: ETH, second 0002: version 3
+  const static uint32_t BYTES_VERSION_CLASSIC    = 0x00160002u; // first 0016: ETC, second 0002: version 3
 
 
   ShareEth() {
@@ -69,8 +115,10 @@ public:
   inline static EthConsensus::Chain getChain(uint32_t version) {
     switch (version) {
     case CURRENT_VERSION_FOUNDATION:
+    case BYTES_VERSION_FOUNDATION:
       return EthConsensus::Chain::FOUNDATION;
     case CURRENT_VERSION_CLASSIC:
+    case BYTES_VERSION_CLASSIC:
       return EthConsensus::Chain::CLASSIC;
     default:
       return EthConsensus::Chain::UNKNOWN;
@@ -93,22 +141,12 @@ public:
   }
 
   EthConsensus::Chain getChain() const {
-    if (!IsInitialized()) {
-      DLOG(INFO) << "share_ is not  Initialize" ;
-      return EthConsensus::Chain::UNKNOWN;
-    }
 
     return getChain(version());
   }
 
   double score() const
   {
-
-    if (!IsInitialized()) {
-      DLOG(INFO) << "share_ is not  Initialize" ;
-      return 0.0;
-    }
-
 
     if (!StratumStatus::isAccepted(status()) || sharediff() == 0 || networkdiff() == 0) {
       return 0.0;
@@ -177,6 +215,54 @@ public:
     return true;
   }
 
+
+  bool UnserializeWithVersion(const uint8_t* data, uint32_t size){
+
+    if(nullptr == data || size <= 0) {
+      return false;
+    }
+
+    const uint8_t * payload = data;
+    uint32_t version = *((uint32_t*)payload);
+
+    if (version == CURRENT_VERSION_FOUNDATION || version == CURRENT_VERSION_CLASSIC) {
+
+      if (!ParseFromArray((const uint8_t *)(payload + sizeof(uint32_t)), size - sizeof(uint32_t))) {
+        DLOG(INFO) << "share ParseFromArray failed!";
+        return false;
+      }
+    } else if ((version == BYTES_VERSION_FOUNDATION || version == BYTES_VERSION_CLASSIC) && size == sizeof(ShareEthBytesVersion)) {
+
+      ShareEthBytesVersion* share = (ShareEthBytesVersion*) payload;
+
+      if (share->checkSum() != share->checkSum_) {
+        DLOG(INFO) << "checkSum mismatched! checkSum_: " << share->checkSum_<< ", checkSum(): " << share->checkSum();
+        return false;
+      }
+
+      set_version(getVersion(getChain(share->version_)));
+      set_workerhashid(share->workerHashId_);
+      set_userid(share->userId_);
+      set_status(share->status_);
+      set_timestamp(share->timestamp_);
+      set_ip(share->ip_.toString());
+      set_headerhash(share->headerHash_);
+      set_sharediff(share->shareDiff_);
+      set_networkdiff(share->networkDiff_);
+      set_nonce(share->nonce_);
+      set_sessionid(share->sessionId_);
+      set_height(share->height_);
+
+    } else {
+
+      DLOG(INFO) << "unknow share received! data size: " << size;
+      return false;
+    }
+
+    return true;
+  }
+
+
   bool SerializeToArrayWithLength(string& data, uint32_t& size) const {
     size = ByteSize();
     data.resize(size + sizeof(uint32_t));
@@ -186,6 +272,22 @@ public:
 
     if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
        DLOG(INFO) << "base.SerializeToArray failed!";
+      return false;
+    }
+
+    size += sizeof(uint32_t);
+    return true;
+  }
+
+  bool SerializeToArrayWithVersion(string& data, uint32_t& size) const {
+    size = ByteSize();
+    data.resize(size + sizeof(uint32_t));
+
+    uint8_t * payload = (uint8_t *)data.data();
+    *((uint32_t*)payload) = version();
+
+    if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
+      DLOG(INFO) << "SerializeToArray failed!";
       return false;
     }
 

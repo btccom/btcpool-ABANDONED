@@ -39,11 +39,59 @@ union BytomCombinedHeader
   uint8_t bytes[32];
 };
 
+
+
+class ShareBytomBytesVersion
+{
+public:
+
+  uint32_t  version_      = 0;//0
+  uint32_t  checkSum_     = 0;//4
+
+  uint64_t  jobId_        = 0;//8
+  int64_t   workerHashId_ = 0;//16
+  int64_t   timestamp_    = 0;//24
+  uint64_t  shareDiff_    = 0;//32
+  uint64_t  blkBits_      = 0;//40
+  uint64_t  height_       = 0;//48
+  IpAddress ip_;              //56
+  BytomCombinedHeader combinedHeader_;//72
+
+  int32_t   userId_       = 0;//104
+  int32_t   status_       = 0;//108
+
+  uint32_t checkSum() const {
+    uint64_t c = 0;
+
+    c += (uint64_t) version_;
+    c += (uint64_t) workerHashId_;
+    c += (uint64_t) userId_;
+    c += (uint64_t) status_;
+    c += (uint64_t) timestamp_;
+    c += (uint64_t) ip_.addrUint64[0];
+    c += (uint64_t) ip_.addrUint64[1];
+    c += (uint64_t) jobId_;
+    c += (uint64_t) shareDiff_;
+    c += (uint64_t) blkBits_;
+    c += (uint64_t) height_;
+    c += (uint64_t) combinedHeader_.blockCommitmentMerkleRootCheapHash_;
+    c += (uint64_t) combinedHeader_.blockCommitmentStatusHashCheapHash_;
+    c += (uint64_t) combinedHeader_.timestamp_;
+    c += (uint64_t) combinedHeader_.nonce_;
+
+    return ((uint32_t) c) + ((uint32_t) (c >> 32));
+  }
+
+};
+
+
+
 class ShareBytom  :public sharebase::BytomMsg
 {
 public:
 
-  const static uint32_t CURRENT_VERSION = 0x00030001u; // first 0003: bytom, second 0002: version 1.
+  const static uint32_t BYTES_VERSION = 0x00030001u; // first 0003: bytom, second 0001: version 1.
+  const static uint32_t CURRENT_VERSION = 0x00030002u; // first 0003: bytom, second 0002: version 2.
 
 
   ShareBytom() {
@@ -108,7 +156,7 @@ public:
     size = ByteSize();
     data.resize(size);
     if (!SerializeToArray((uint8_t *)data.data(), size)) {
-      DLOG(INFO) << "base.SerializeToArray failed!" << std::endl;
+      DLOG(INFO) << "share SerializeToArray failed!" << std::endl;
       return false;
 
     }
@@ -123,13 +171,74 @@ public:
     uint8_t * payload = (uint8_t *)data.data();
 
     if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
-      DLOG(INFO) << "base.SerializeToArray failed!";
+      DLOG(INFO) << "share SerializeToArray failed!";
       return false;
     }
 
     size += sizeof(uint32_t);
     return true;
   }
+
+  bool UnserializeWithVersion(const uint8_t* data, uint32_t size){
+
+    if(nullptr == data || size <= 0) {
+      return false;
+    }
+
+    const uint8_t * payload = data;
+    uint32_t version = *((uint32_t*)payload);
+
+    if (version == CURRENT_VERSION) {
+
+      if (!ParseFromArray((const uint8_t *)(payload + sizeof(uint32_t)), size - sizeof(uint32_t))) {
+        DLOG(INFO) << "share ParseFromArray failed!";
+        return false;
+      }
+    } else if (version == BYTES_VERSION && size == sizeof(ShareBytomBytesVersion)) {
+
+      ShareBytomBytesVersion* share = (ShareBytomBytesVersion*) payload;
+
+      if (share->checkSum() != share->checkSum_) {
+        DLOG(INFO) << "checkSum mismatched! checkSum_: " << share->checkSum_<< ", checkSum(): " << share->checkSum();
+        return false;
+      }
+
+      set_version(CURRENT_VERSION);
+      set_jobid(share->jobId_);
+      set_workerhashid(share->workerHashId_);
+      set_timestamp(share->timestamp_);
+      set_sharediff(share->shareDiff_);
+      set_blkbits(share->blkBits_);
+      set_ip(share->ip_.toString());
+      set_combinedheader(&(share->combinedHeader_), sizeof(BytomCombinedHeader));
+      set_userid(share->userId_);
+      set_status(share->status_);
+
+    } else {
+
+      DLOG(INFO) << "unknow share received!";
+      return false;
+    }
+
+    return true;
+  }
+
+  bool SerializeToArrayWithVersion(string& data, uint32_t& size) const {
+    size = ByteSize();
+    data.resize(size + sizeof(uint32_t));
+
+    uint8_t * payload = (uint8_t *)data.data();
+    *((uint32_t*)payload) = version();
+
+    if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
+      DLOG(INFO) << "SerializeToArray failed!";
+      return false;
+    }
+
+    size += sizeof(uint32_t);
+    return true;
+  }
+
 
   uint32_t getsharelength() {
       return IsInitialized() ? ByteSize() : 0;

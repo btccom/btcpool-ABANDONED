@@ -999,26 +999,7 @@ void StatsServerT<SHARE>::consumeShareLog(rd_kafka_message_t *rkmessage) {
 
   SHARE share;
 
-  // if (rkmessage->len < sizeof(uint32_t)) {
-  //   LOG(ERROR) << "invalid share , kafka message size : "<< rkmessage->len ;
-  //   return ;
-  // }
-
-  // uint8_t *payload = reinterpret_cast<uint8_t *> (rkmessage->payload);
-  // uint32_t headlength = *((uint32_t*) payload);
-
-  // if (rkmessage->len < sizeof(uint32_t) + headlength) {
-  //   LOG(ERROR) << "invalid share , kafka message size : "<< rkmessage->len  << " <  complete share size " <<
-  //              headlength + sizeof(uint32_t);
-  //   return;
-  // }
-
-  // if (!share.ParseFromArray((const uint8_t *)(payload + sizeof(uint32_t)), headlength)) {
-  //   LOG(ERROR) << "parse share from kafka message failed rkmessage->len = "<< rkmessage->len ;
-  //   return;
-  // }
-
-  if (!share.ParseFromArray((const uint8_t *)(rkmessage->payload), rkmessage->len)) {
+  if (!share.UnserializeWithVersion((const uint8_t *)(rkmessage->payload), rkmessage->len)) {
     LOG(ERROR) << "parse share from kafka message failed rkmessage->len = "<< rkmessage->len ;
     return;
   }

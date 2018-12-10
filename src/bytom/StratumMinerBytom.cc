@@ -267,7 +267,7 @@ void StratumMinerBytom::handleRequest_Submit(const string &idStr, const JsonNode
 
     std::string message;
     uint32_t size = 0;
-    if (!share.SerializeToBuffer(message, size)) {
+    if (!share.SerializeToArrayWithVersion(message, size)) {
       LOG(ERROR) << "share SerializeToBuffer failed!"<< share.toString();
       return;
     }

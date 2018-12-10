@@ -30,11 +30,55 @@
 #include "share.pro.pb.h"
 
 
+class ShareSiaBytesVersion
+{
+public:
+
+  uint32_t  version_      = 0;
+  uint32_t  checkSum_     = 0;
+
+  int64_t   workerHashId_ = 0;//8
+  int32_t   userId_       = 0;//16
+  int32_t   status_       = 0;//20
+  int64_t   timestamp_    = 0;//24
+  IpAddress ip_           = 0;//32
+
+  uint64_t jobId_     = 0;//48
+  uint64_t shareDiff_ = 0;//56
+  uint32_t blkBits_   = 0;//64
+  uint32_t height_    = 0;//68
+  uint32_t nonce_     = 0;//72
+  uint32_t sessionId_ = 0;//76
+
+  uint32_t checkSum() const {
+    uint64_t c = 0;
+
+    c += (uint64_t) version_;
+    c += (uint64_t) workerHashId_;
+    c += (uint64_t) userId_;
+    c += (uint64_t) status_;
+    c += (uint64_t) timestamp_;
+    c += (uint64_t) ip_.addrUint64[0];
+    c += (uint64_t) ip_.addrUint64[1];
+    c += (uint64_t) jobId_;
+    c += (uint64_t) shareDiff_;
+    c += (uint64_t) blkBits_;
+    c += (uint64_t) height_;
+    c += (uint64_t) nonce_;
+    c += (uint64_t) sessionId_;
+
+    return ((uint32_t) c) + ((uint32_t) (c >> 32));
+  }
+
+};
+
+
 class ShareSia : public sharebase::SiaMsg
 {
 public:
 
-  const static uint32_t CURRENT_VERSION = 0x00010003u; // first 0001: bitcoin, second 0003: version 3.
+  const static uint32_t BYTES_VERSION = 0x00010003u; // first 0001: bitcoin, second 0003: version 3.
+  const static uint32_t CURRENT_VERSION = 0x00010004u; // first 0001: bitcoin, second 0003: version 4.
 
   // Please pay attention to memory alignment when adding / removing fields.
   // Please note that changing the Share structure will be incompatible with the old deployment.
@@ -130,6 +174,67 @@ public:
     return true;
   }
 
+  bool SerializeToArrayWithVersion(string& data, uint32_t& size) const {
+    size = ByteSize();
+    data.resize(size + sizeof(uint32_t));
+
+    uint8_t * payload = (uint8_t *)data.data();
+    *((uint32_t*)payload) = version();
+
+    if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
+      DLOG(INFO) << "SerializeToArray failed!";
+      return false;
+    }
+
+    size += sizeof(uint32_t);
+    return true;
+  }
+
+  bool UnserializeWithVersion(const uint8_t* data, uint32_t size){
+
+    if(nullptr == data || size <= 0) {
+      return false;
+    }
+
+    const uint8_t * payload = data;
+    uint32_t version = *((uint32_t*)payload);
+
+    if (version == CURRENT_VERSION) {
+
+      if (!ParseFromArray((const uint8_t *)(payload + sizeof(uint32_t)), size - sizeof(uint32_t))) {
+        DLOG(INFO) << "share ParseFromArray failed!";
+        return false;
+      }
+    } else if ((version == BYTES_VERSION) && size == sizeof(ShareSiaBytesVersion)) {
+
+      ShareSiaBytesVersion* share = (ShareSiaBytesVersion*) payload;
+
+      if (share->checkSum() != share->checkSum_) {
+        DLOG(INFO) << "checkSum mismatched! checkSum_: " << share->checkSum_<< ", checkSum(): " << share->checkSum();
+        return false;
+      }
+
+      set_version(CURRENT_VERSION);
+      set_workerhashid(share->workerHashId_);
+      set_userid(share->userId_);
+      set_status(share->status_);
+      set_timestamp(share->timestamp_);
+      set_ip(share->ip_.toString());
+      set_jobid(share->jobId_);
+      set_sharediff(share->shareDiff_);
+      set_blkbits(share->blkBits_);
+      set_height(share->height_);
+      set_nonce(share->nonce_);
+      set_sessionid(share->sessionId_);
+
+    } else {
+
+      DLOG(INFO) << "unknow share received! data size: " << size;
+      return false;
+    }
+
+    return true;
+  }
 
   uint32_t getsharelength() {
       return IsInitialized() ? ByteSize() : 0;

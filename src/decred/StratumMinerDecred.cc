@@ -169,8 +169,8 @@ void StratumMinerDecred::handleRequest_Submit(const string &idStr, const JsonNod
 
     std::string message;
     uint32_t size = 0;
-    if (!share.SerializeToBuffer(message, size)) {
-      LOG(ERROR) << "share SerializeToBuffer failed!"<< share.toString();
+    if (!share.SerializeToArrayWithVersion(message, size)) {
+      LOG(ERROR) << "share SerializeToArrayWithVersion failed!"<< share.toString();
       return;
     }
 
