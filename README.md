@@ -51,6 +51,12 @@ See Also:
 3. Install `Bitcoind`, need to enable ZMQ
 4. Install `BTCPool`, see [INSTALL-BTCPool.md](docs/INSTALL-BTCPool.md)
 
+## Upgrade
+
+Upgrading to BTCPool 2.3.0 requires additional operations on `sharelogger`, `slparser` and `statshttpd` due to incompatible sharelog format changes.
+
+See [UPGRADE-BTCPool.md](docs/UPGRADE-BTCPool.md) for more information.
+
 ## Benchmark (outdated)
 
 We have test 100,000 miners online Benchmark. see [Benchmark-100000.md](docs/Benchmark-100000.md)

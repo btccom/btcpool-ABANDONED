@@ -590,3 +590,9 @@ use `supervisorctl` to restart your services:
 $ supervisorctl
 > restart xxxx
 ```
+
+### Incompatible upgrade
+
+Upgrading to BTCPool 2.3.0 requires additional operations on `sharelogger`, `slparser` and `statshttpd` due to incompatible sharelog format changes.
+
+See [UPGRADE-BTCPool.md](./UPGRADE-BTCPool.md) for more information.

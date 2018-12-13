@@ -94,7 +94,7 @@ configure_file(bpool-config.h.in bpool-config.h)
 ########################## Generate version number #############################
 
 SET(BPOOL_VERSION_MAJOR "2")
-SET(BPOOL_VERSION_MINOR "2")
+SET(BPOOL_VERSION_MINOR "3")
 SET(BPOOL_VERSION_PATCH "0")
 
 # Get the current abbreviated commit hash of the working branch
