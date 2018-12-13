@@ -145,13 +145,18 @@ void StratumMinerSia::handleRequest_Submit(const string &idStr, const JsonNode &
   auto clientIp = session.getClientIp();
 
   ShareSia share;
-  share.jobId_ = localJob->jobId_;
-  share.workerHashId_ = workerId_;
-  share.ip_ = clientIp;
-  share.userId_ = worker.userId_;
-  share.shareDiff_ = difficulty;
-  share.timestamp_ = (uint32_t) time(nullptr);
-  share.status_ = StratumStatus::REJECT_NO_REASON;
+  share.set_jobid(localJob->jobId_);
+  share.set_workerhashid(workerId_);
+  // share.ip_ = clientIp;
+  IpAddress ip;
+  ip.fromIpv4Int(clientIp);
+  share.set_ip(ip.toString());
+
+
+  share.set_userid(worker.userId_);
+  share.set_sharediff(difficulty);
+  share.set_timestamp((uint32_t) time(nullptr));
+  share.set_status(StratumStatus::REJECT_NO_REASON);
 
   arith_uint256 shareTarget(str);
   arith_uint256 networkTarget = UintToArith256(sjob->networkTarget_);
@@ -160,11 +165,18 @@ void StratumMinerSia::handleRequest_Submit(const string &idStr, const JsonNode &
     //valid share
     //submit share
     server.sendSolvedShare2Kafka(bHeader, 80);
-    diffController_->addAcceptedShare(share.shareDiff_);
+    diffController_->addAcceptedShare(share.sharediff());
     LOG(INFO) << "sia solution found";
   }
 
   session.rpc2ResponseTrue(idStr);
-  share.checkSum_ = share.checkSum();
-  server.sendShare2Kafka((const uint8_t *) &share, sizeof(ShareSia));
+
+  std::string message;
+  uint32_t size = 0;
+  if (!share.SerializeToArrayWithVersion(message, size)) {
+    LOG(ERROR) << "share SerializeToArray failed!"<< share.toString();
+    return;
+  }
+
+  server.sendShare2Kafka((const uint8_t *) message.data(), size);
 }

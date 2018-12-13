@@ -28,7 +28,7 @@ apt-get update
 apt-get install -y build-essential autotools-dev libtool autoconf automake pkg-config cmake \
                    openssl libssl-dev libcurl4-openssl-dev libconfig++-dev \
                    libboost-all-dev libgmp-dev libmysqlclient-dev libzookeeper-mt-dev \
-                   libzmq3-dev libgoogle-glog-dev libhiredis-dev zlib1g zlib1g-dev
+                   libzmq3-dev libgoogle-glog-dev libhiredis-dev zlib1g zlib1g-dev libprotobuf-dev protobuf-compiler
 ```
 
 Notice: It is no longer recommended to install `libevent-dev` from the software source.
@@ -43,7 +43,7 @@ apt-get install -y aptitude
 aptitude install build-essential autotools-dev libtool autoconf automake pkg-config cmake \
                    openssl libssl-dev libcurl4-openssl-dev libconfig++-dev \
                    libboost-all-dev libgmp-dev libmysqlclient-dev libzookeeper-mt-dev \
-                   libzmq3-dev libgoogle-glog-dev libhiredis-dev zlib1g zlib1g-dev
+                   libzmq3-dev libgoogle-glog-dev libhiredis-dev zlib1g zlib1g-dev  libprotobuf-dev protobuf-compiler
 
 # Input `n` if the solution is `NOT INSTALL` some package.
 # Eventually aptitude will give a solution that downgrade some packages to allow all packages to be installed.
@@ -590,3 +590,9 @@ use `supervisorctl` to restart your services:
 $ supervisorctl
 > restart xxxx
 ```
+
+### Incompatible upgrade
+
+Upgrading to BTCPool 2.3.0 requires additional operations on `sharelogger`, `slparser` and `statshttpd` due to incompatible sharelog format changes.
+
+See [UPGRADE-BTCPool.md](./UPGRADE-BTCPool.md) for more information.

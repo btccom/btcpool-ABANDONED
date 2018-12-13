@@ -212,22 +212,24 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
   }
 
   ShareBitcoin share;
-  share.version_ = ShareBitcoin::CURRENT_VERSION;
-  share.jobId_ = localJob->jobId_;
-  share.workerHashId_ = workerId_;
-  share.userId_ = worker.userId_;
-  share.shareDiff_ = iter->second;
-  share.blkBits_ = localJob->blkBits_;
-  share.timestamp_ = (uint64_t) time(nullptr);
-  share.height_ = height;
-  share.nonce_ = nonce;
-  share.sessionId_ = session.getSessionId();
-  share.status_ = StratumStatus::REJECT_NO_REASON;
-  share.ip_.fromIpv4Int(session.getClientIp());
+  share.set_version(ShareBitcoin::CURRENT_VERSION);
+  share.set_jobid(localJob->jobId_);
+  share.set_workerhashid(workerId_);
+  share.set_userid(worker.userId_);
+  share.set_sharediff(iter->second);
+  share.set_blkbits(localJob->blkBits_);
+  share.set_timestamp((uint64_t) time(nullptr));
+  share.set_height(height);
+  share.set_nonce(nonce);
+  share.set_sessionid(session.getSessionId());
+  share.set_status(StratumStatus::REJECT_NO_REASON);
+  IpAddress ip;
+  ip.fromIpv4Int(session.getClientIp());
+  share.set_ip(ip.toString());
 
   // calc jobTarget
   uint256 jobTarget;
-  DiffToTarget(share.shareDiff_, jobTarget);
+  DiffToTarget(share.sharediff(), jobTarget);
 
   // we send share to kafka by default, but if there are lots of invalid
   // shares in a short time, we just drop them.
@@ -237,30 +239,30 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
 
   // can't find local share
   if (!localJob->addLocalShare(localShare)) {
-    share.status_ = StratumStatus::DUPLICATE_SHARE;
+    share.set_status(StratumStatus::DUPLICATE_SHARE);
   } else {
 #ifdef  USER_DEFINED_COINBASE
     // check block header
-    share.status_ = server->checkShare(share, extraNonce1_, extraNonce2Hex,
+    share.set_status(server->checkShare(share, extraNonce1_, extraNonce2Hex,
                                        nTime, nonce, versionMask, jobTarget,
                                        worker_.fullName_,
-                                       &localJob->userCoinbaseInfo_);
+                                       &localJob->userCoinbaseInfo_));
 #else
     // check block header
-    share.status_ = server.checkShare(share, share.sessionId_, extraNonce2Hex,
+    share.set_status(server.checkShare(share, share.sessionid(), extraNonce2Hex,
                                       nTime, nonce, versionMask, jobTarget,
-                                      worker.fullName_);
+                                      worker.fullName_));
 #endif
   }
 
   DLOG(INFO) << share.toString();
 
-  if (!handleShare(idStr, share.status_, share.shareDiff_)) {
+  if (!handleShare(idStr, share.status(), share.sharediff())) {
     // add invalid share to counter
     invalidSharesCounter_.insert((int64_t) time(nullptr), 1);
 
     // log all rejected share to answer "Why the rejection rate of my miner increased?"
-    LOG(INFO) << "rejected share: " << StratumStatus::toString(share.status_)
+    LOG(INFO) << "rejected share: " << StratumStatus::toString(share.status())
               << ", worker: " << worker.fullName_
               << ", versionMask: " << Strings::Format("%08x", versionMask)
               << ", " << share.toString();
@@ -273,13 +275,20 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
       isSendShareToKafka = false;
 
       LOG(INFO) << "invalid share spamming, diff: "
-                << share.shareDiff_ << ", worker: " << worker.fullName_ << ", agent: "
+                << share.sharediff() << ", worker: " << worker.fullName_ << ", agent: "
                 << clientAgent_ << ", ip: " << session.getClientIp();
     }
   }
 
   if (isSendShareToKafka) {
-    share.checkSum_ = share.checkSum();
-    server.sendShare2Kafka((const uint8_t *) &share, sizeof(ShareBitcoin));
+
+    std::string message;
+    uint32_t size = 0;
+    if (!share.SerializeToArrayWithVersion(message, size)) {
+      LOG(ERROR) << "share SerializeToBuffer failed!"<< share.toString();
+      return;
+    }
+
+    server.sendShare2Kafka((const uint8_t *) message.data(), size);
   }
 }

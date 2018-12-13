@@ -26,7 +26,7 @@
 
 #include "Stratum.h"
 #include "CommonBytom.h"
-
+#include "share.pro.pb.h"
 union BytomCombinedHeader
 {
   struct
@@ -39,50 +39,26 @@ union BytomCombinedHeader
   uint8_t bytes[32];
 };
 
-class ShareBytom
+
+
+class ShareBytomBytesVersion
 {
 public:
 
-  const static uint32_t CURRENT_VERSION = 0x00030001u; // first 0003: bytom, second 0002: version 1.
+  uint32_t  version_      = 0;//0
+  uint32_t  checkSum_     = 0;//4
 
-  uint32_t  version_      = CURRENT_VERSION;
-  uint32_t  checkSum_     = 0;
+  uint64_t  jobId_        = 0;//8
+  int64_t   workerHashId_ = 0;//16
+  int64_t   timestamp_    = 0;//24
+  uint64_t  shareDiff_    = 0;//32
+  uint64_t  blkBits_      = 0;//40
+  uint64_t  height_       = 0;//48
+  IpAddress ip_;              //56
+  BytomCombinedHeader combinedHeader_;//72
 
-  uint64_t  jobId_        = 0;
-  int64_t   workerHashId_ = 0;
-  int64_t   timestamp_    = 0;
-  uint64_t  shareDiff_    = 0;
-  uint64_t  blkBits_      = 0;
-  uint64_t  height_       = 0;
-  IpAddress ip_;
-  BytomCombinedHeader combinedHeader_;
-
-  int32_t   userId_       = 0;
-  int32_t   status_       = 0;
-
-  ShareBytom() = default;
-  ShareBytom(const ShareBytom &r) = default;
-  ShareBytom &operator=(const ShareBytom &r) = default;
-
-  double score() const
-  {
-    if (shareDiff_ == 0 || blkBits_ == 0)
-    {
-      return 0.0;
-    }
-
-    uint64_t difficulty = Bytom_TargetCompactToDifficulty(blkBits_);
-
-    // Network diff may less than share diff on testnet or regression test network.
-    // On regression test network, the network diff may be zero.
-    // But no matter how low the network diff is, you can only dig one block at a time.
-    if (difficulty < shareDiff_)
-    {
-      return 1.0;
-    }
-
-    return (double)shareDiff_ / (double)difficulty;
-  }
+  int32_t   userId_       = 0;//104
+  int32_t   status_       = 0;//108
 
   uint32_t checkSum() const {
     uint64_t c = 0;
@@ -106,19 +82,52 @@ public:
     return ((uint32_t) c) + ((uint32_t) (c >> 32));
   }
 
+};
+
+
+
+class ShareBytom  :public sharebase::BytomMsg
+{
+public:
+
+  const static uint32_t BYTES_VERSION = 0x00030001u; // first 0003: bytom, second 0001: version 1.
+  const static uint32_t CURRENT_VERSION = 0x00030002u; // first 0003: bytom, second 0002: version 2.
+
+
+  ShareBytom() {
+    set_version(CURRENT_VERSION);
+  }
+  ShareBytom(const ShareBytom &r) = default;
+  ShareBytom &operator=(const ShareBytom &r) = default;
+
+  double score() const
+  {
+    if (sharediff() == 0 || blkbits() == 0)
+    {
+      return 0.0;
+    }
+
+    uint64_t difficulty = Bytom_TargetCompactToDifficulty(blkbits());
+
+    // Network diff may less than share diff on testnet or regression test network.
+    // On regression test network, the network diff may be zero.
+    // But no matter how low the network diff is, you can only dig one block at a time.
+    if (difficulty < sharediff())
+    {
+      return 1.0;
+    }
+
+    return (double)sharediff() / (double)difficulty;
+  }
+
   bool isValid() const
   {
-    if (version_ != CURRENT_VERSION) {
+    if (version() != CURRENT_VERSION) {
       return false;
     }
 
-    if (checkSum_ != checkSum()) {
-      DLOG(INFO) << "checkSum mismatched! checkSum_: " << checkSum_ << ", checkSum(): " << checkSum();
-      return false;
-    }
-
-    if (jobId_ == 0 || userId_ == 0 || workerHashId_ == 0 ||
-        height_ == 0 || blkBits_ == 0 || shareDiff_ == 0)
+    if (jobid() == 0 || userid() == 0 || workerhashid() == 0 ||
+        height() == 0 || blkbits() == 0 || sharediff() == 0)
     {
       return false;
     }
@@ -128,16 +137,111 @@ public:
 
   string toString() const
   {
-    uint64_t networkDifficulty = Bytom_TargetCompactToDifficulty(blkBits_);
+    uint64_t networkDifficulty = Bytom_TargetCompactToDifficulty(blkbits());
+
+    BytomCombinedHeader combinedHeader;
+    memcpy(&combinedHeader, combinedheader().data(), sizeof(BytomCombinedHeader));
 
     return Strings::Format("share(jobId: %" PRIu64 ", ip: %s, userId: %d, "
                            "workerId: %" PRId64 ", time: %u/%s, height: %u, "
                            "blkBits: %08x/%" PRId64 ", nonce: %08x, shareDiff: %" PRIu64 ", "
                            "status: %d/%s)",
-                           jobId_, ip_.toString().c_str(), userId_,
-                           workerHashId_, timestamp_, date("%F %T", timestamp_).c_str(), height_,
-                           blkBits_, networkDifficulty, combinedHeader_.nonce_, shareDiff_,
-                           status_, StratumStatus::toString(status_));
+                           jobid(), ip().c_str(), userid(),
+                           workerhashid(), timestamp(), date("%F %T", timestamp()).c_str(), height(),
+                           blkbits(), networkDifficulty, combinedHeader.nonce_, sharediff(),
+                           status(), StratumStatus::toString(status()));
+  }
+
+  bool SerializeToBuffer(string& data, uint32_t& size) const{
+    size = ByteSize();
+    data.resize(size);
+    if (!SerializeToArray((uint8_t *)data.data(), size)) {
+      DLOG(INFO) << "share SerializeToArray failed!" << std::endl;
+      return false;
+
+    }
+    return true;
+  }
+
+  bool SerializeToArrayWithLength(string& data, uint32_t& size) const {
+    size = ByteSize();
+    data.resize(size + sizeof(uint32_t));
+
+    *((uint32_t*)data.data()) = size;
+    uint8_t * payload = (uint8_t *)data.data();
+
+    if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
+      DLOG(INFO) << "share SerializeToArray failed!";
+      return false;
+    }
+
+    size += sizeof(uint32_t);
+    return true;
+  }
+
+  bool UnserializeWithVersion(const uint8_t* data, uint32_t size){
+
+    if(nullptr == data || size <= 0) {
+      return false;
+    }
+
+    const uint8_t * payload = data;
+    uint32_t version = *((uint32_t*)payload);
+
+    if (version == CURRENT_VERSION) {
+
+      if (!ParseFromArray((const uint8_t *)(payload + sizeof(uint32_t)), size - sizeof(uint32_t))) {
+        DLOG(INFO) << "share ParseFromArray failed!";
+        return false;
+      }
+    } else if (version == BYTES_VERSION && size == sizeof(ShareBytomBytesVersion)) {
+
+      ShareBytomBytesVersion* share = (ShareBytomBytesVersion*) payload;
+
+      if (share->checkSum() != share->checkSum_) {
+        DLOG(INFO) << "checkSum mismatched! checkSum_: " << share->checkSum_<< ", checkSum(): " << share->checkSum();
+        return false;
+      }
+
+      set_version(CURRENT_VERSION);
+      set_jobid(share->jobId_);
+      set_workerhashid(share->workerHashId_);
+      set_timestamp(share->timestamp_);
+      set_sharediff(share->shareDiff_);
+      set_blkbits(share->blkBits_);
+      set_ip(share->ip_.toString());
+      set_combinedheader(&(share->combinedHeader_), sizeof(BytomCombinedHeader));
+      set_userid(share->userId_);
+      set_status(share->status_);
+
+    } else {
+
+      DLOG(INFO) << "unknow share received!";
+      return false;
+    }
+
+    return true;
+  }
+
+  bool SerializeToArrayWithVersion(string& data, uint32_t& size) const {
+    size = ByteSize();
+    data.resize(size + sizeof(uint32_t));
+
+    uint8_t * payload = (uint8_t *)data.data();
+    *((uint32_t*)payload) = version();
+
+    if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
+      DLOG(INFO) << "SerializeToArray failed!";
+      return false;
+    }
+
+    size += sizeof(uint32_t);
+    return true;
+  }
+
+
+  uint32_t getsharelength() {
+      return IsInitialized() ? ByteSize() : 0;
   }
 };
 

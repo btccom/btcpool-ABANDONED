@@ -346,6 +346,11 @@ if(NOT LibEvent_FOUND)
   message(FATAL_ERROR "libevent2 not found!")
 endif()
 
+find_package(Protobuf)
+if(NOT Protobuf_FOUND)
+  message(FATAL_ERROR "libprotobuf not found!")
+endif()
+
 find_package(Boost 1.47.0 COMPONENTS thread filesystem system regex program_options chrono)
 if(NOT Boost_FOUND)
   message(FATAL_ERROR "Boost not found!")
@@ -425,6 +430,13 @@ else()
   add_definitions(-DNO_CUDA)
 endif(USE_CUDA)
 
+file(GLOB ProtoFiles "${CMAKE_CURRENT_SOURCE_DIR}/src/share.pro")
+execute_process(COMMAND protoc --proto_path=${CMAKE_CURRENT_SOURCE_DIR}/src/  --cpp_out=src  ${ProtoFiles}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/share.pro.pb.h")
+  message(FATAL_ERROR "generate share.pro.pb.h failed! please check whether the Protobuf compiler installed correctly!")
+endif()
+
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/src src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config ${CHAIN_SRC_ROOT}/src/secp256k1/include
 	${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS} ${KAFKA_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS}
                     ${LIBEVENT_INCLUDE_DIR} ${USE_CUDA_INCLUDE_DIRECTORY} ${BH_SHARED_INCLUDE_DIR} ${MYSQL_INCLUDE_DIR})
@@ -432,11 +444,12 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/src src test ${CHAIN_SRC_ROOT}/s
 set(THIRD_LIBRARIES ethash blake2 sph ${BH_SHARED_LIBRARY} ${USE_CUDA_LIBRARIES}
                     ${BITCOIN_LIBRARIES} ${secp256k1_LIBRARIES} ${GLOG_LIBRARIES} ${KAFKA_LIBRARIES} ${ZLIB_LIBRARIES} ${ZOOKEEPER_LIBRARIES}
                     ${MYSQL_LIBRARIES} ${LIBZMQ_LIBRARIES} ${Hiredis_LIBRARIES} ${CURL_LIBRARIES} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY}
-                    ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB} ${GMP_LIBRARIES} ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} ${PTHREAD_LIBRARIES})
+                    ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB} ${GMP_LIBRARIES} ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} ${PTHREAD_LIBRARIES} ${PROTOBUF_LIBRARIES})
 
 file(GLOB LIB_SOURCES
         src/*.cc
         src/rsk/*.cc
+
     )
 file(GLOB LIB_SOURCES_CHAINS
         src/eth/*.cc

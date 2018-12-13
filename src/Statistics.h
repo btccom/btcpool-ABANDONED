@@ -178,7 +178,7 @@ public:
   }
 
   bool addShare(const SHARE &share) {
-    return addGShare(share.height_, GSHARE(share));
+    return addGShare(share.height(), GSHARE(share));
   }
 
   size_t gshareSetMapSize() {

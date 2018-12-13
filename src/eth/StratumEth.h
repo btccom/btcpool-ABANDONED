@@ -28,7 +28,7 @@
 #include "EthConsensus.h"
 
 #include "rsk/RskWork.h"
-
+#include "share.pro.pb.h"
 #include <uint256.h>
 
 // [[[[ IMPORTANT REMINDER! ]]]]
@@ -39,38 +39,86 @@
 // and the new version will coexist for a while.
 // If there is no forward compatibility, one of the versions of Share
 // will be considered invalid, resulting in loss of users' hashrate.
-class ShareEth
+
+
+
+class ShareEthBytesVersion
 {
 public:
 
-  const static uint32_t CURRENT_VERSION_FOUNDATION = 0x00110002u; // first 0011: ETH, second 0002: version 2
-  const static uint32_t CURRENT_VERSION_CLASSIC    = 0x00160002u; // first 0016: ETC, second 0002: version 2
+  uint32_t  version_      = 0;//0
+  uint32_t  checkSum_     = 0;//4
 
-  uint32_t  version_      = 0;
-  uint32_t  checkSum_     = 0;
+  int64_t   workerHashId_ = 0;//8
+  int32_t   userId_       = 0;//16
+  int32_t   status_       = 0;//20
+  int64_t   timestamp_    = 0;//24
+  IpAddress ip_           = 0;//32
 
-  int64_t   workerHashId_ = 0;
-  int32_t   userId_       = 0;
-  int32_t   status_       = 0;
-  int64_t   timestamp_    = 0;
-  IpAddress ip_           = 0;
+  uint64_t headerHash_  = 0;//48
+  uint64_t shareDiff_   = 0;//56
+  uint64_t networkDiff_ = 0;//64
+  uint64_t nonce_       = 0;//72
+  uint32_t sessionId_   = 0;//80
+  uint32_t height_      = 0;//84
 
-  uint64_t headerHash_  = 0;
-  uint64_t shareDiff_   = 0;
-  uint64_t networkDiff_ = 0;
-  uint64_t nonce_       = 0;
-  uint32_t sessionId_   = 0;
-  uint32_t height_      = 0;
+  uint32_t checkSum() const {
+    uint64_t c = 0;
 
-  ShareEth() = default;
+    c += (uint64_t) version_;
+    c += (uint64_t) workerHashId_;
+    c += (uint64_t) userId_;
+    c += (uint64_t) status_;
+    c += (uint64_t) timestamp_;
+    c += (uint64_t) ip_.addrUint64[0];
+    c += (uint64_t) ip_.addrUint64[1];
+    c += (uint64_t) headerHash_;
+    c += (uint64_t) shareDiff_;
+    c += (uint64_t) networkDiff_;
+    c += (uint64_t) nonce_;
+    c += (uint64_t) sessionId_;
+    c += (uint64_t) height_;
+
+    return ((uint32_t) c) + ((uint32_t) (c >> 32));
+  }
+
+};
+
+
+class ShareEth : public sharebase::EthMsg
+{
+public:
+
+  const static uint32_t CURRENT_VERSION_FOUNDATION = 0x00110003u; // first 0011: ETH, second 0002: version 3
+  const static uint32_t CURRENT_VERSION_CLASSIC    = 0x00160003u; // first 0016: ETC, second 0002: version 3
+  const static uint32_t BYTES_VERSION_FOUNDATION = 0x00110002u; // first 0011: ETH, second 0002: version 3
+  const static uint32_t BYTES_VERSION_CLASSIC    = 0x00160002u; // first 0016: ETC, second 0002: version 3
+
+
+  ShareEth() {
+    set_version(0);
+    set_workerhashid(0);
+    set_userid(0);
+    set_status(0);
+    set_timestamp(0);
+    set_ip("0.0.0.0");
+    set_headerhash(0);
+    set_sharediff(0);
+    set_networkdiff(0);
+    set_height(0);
+    set_nonce(0);
+    set_sessionid(0);
+  }
   ShareEth(const ShareEth &r) = default;
   ShareEth &operator=(const ShareEth &r) = default;
 
   inline static EthConsensus::Chain getChain(uint32_t version) {
     switch (version) {
     case CURRENT_VERSION_FOUNDATION:
+    case BYTES_VERSION_FOUNDATION:
       return EthConsensus::Chain::FOUNDATION;
     case CURRENT_VERSION_CLASSIC:
+    case BYTES_VERSION_CLASSIC:
       return EthConsensus::Chain::CLASSIC;
     default:
       return EthConsensus::Chain::UNKNOWN;
@@ -93,12 +141,14 @@ public:
   }
 
   EthConsensus::Chain getChain() const {
-    return getChain(version_);
+
+    return getChain(version());
   }
 
   double score() const
   {
-    if (!StratumStatus::isAccepted(status_) || shareDiff_ == 0 || networkDiff_ == 0) {
+
+    if (!StratumStatus::isAccepted(status()) || sharediff() == 0 || networkdiff() == 0) {
       return 0.0;
     }
 
@@ -107,54 +157,31 @@ public:
     // Network diff may less than share diff on testnet or regression test network.
     // On regression test network, the network diff may be zero.
     // But no matter how low the network diff is, you can only dig one block at a time.
-    if (networkDiff_ < shareDiff_) {
+    if (networkdiff() < sharediff()) {
       result = 1.0;
     }
     else {
-      result = (double)shareDiff_ / (double)networkDiff_;
+      result = (double)sharediff() / (double)networkdiff();
     }
 
     // Share of the uncle block has a lower reward.
-    if (StratumStatus::isStale(status_)) {
-      result *= EthConsensus::getUncleBlockRewardRatio(height_, getChain());
+    if (StratumStatus::isStale(status())) {
+      result *= EthConsensus::getUncleBlockRewardRatio(height(), getChain());
     }
 
     return result;
   }
 
-  uint32_t checkSum() const {
-    uint64_t c = 0;
-
-    c += (uint64_t) version_;
-    c += (uint64_t) workerHashId_;
-    c += (uint64_t) userId_;
-    c += (uint64_t) status_;
-    c += (uint64_t) timestamp_;
-    c += (uint64_t) ip_.addrUint64[0];
-    c += (uint64_t) ip_.addrUint64[1];
-    c += (uint64_t) headerHash_;
-    c += (uint64_t) shareDiff_;
-    c += (uint64_t) networkDiff_;
-    c += (uint64_t) nonce_;
-    c += (uint64_t) sessionId_;
-    c += (uint64_t) height_;
-
-    return ((uint32_t) c) + ((uint32_t) (c >> 32));
-  }
 
   bool isValid() const
   {
-    if (version_ != CURRENT_VERSION_FOUNDATION && version_ != CURRENT_VERSION_CLASSIC) {
+
+    if (version() != CURRENT_VERSION_FOUNDATION && version() != CURRENT_VERSION_CLASSIC) {
       return false;
     }
 
-    if (checkSum_ != checkSum()) {
-      DLOG(INFO) << "checkSum mismatched! checkSum_: " << checkSum_ << ", checkSum(): " << checkSum();
-      return false;
-    }
-
-    if (userId_ == 0 || workerHashId_ == 0 || height_ == 0 ||
-        networkDiff_ == 0 || shareDiff_ == 0)
+    if (userid() == 0 || workerhashid() == 0 || height() == 0 ||
+        networkdiff() == 0 || sharediff() == 0)
     {
       return false;
     }
@@ -164,18 +191,116 @@ public:
 
   string toString() const
   {
+
     return Strings::Format("share(height: %u, headerHash: %016" PRIx64 "..., ip: %s, userId: %d, "
                            "workerId: %" PRId64 ", time: %u/%s, "
                            "shareDiff: %" PRIu64 ", networkDiff: %" PRIu64 ", nonce: %016" PRIx64 ", "
                            "sessionId: %08x, status: %d/%s)",
-                           height_, headerHash_, ip_.toString().c_str(), userId_,
-                           workerHashId_, timestamp_, date("%F %T", timestamp_).c_str(),
-                           shareDiff_, networkDiff_, nonce_,
-                           sessionId_, status_, StratumStatus::toString(status_));
+                           height(), headerhash(), ip().c_str(), userid(),
+                           workerhashid(), timestamp(), date("%F %T", timestamp()).c_str(),
+                           sharediff(), networkdiff(), nonce(),
+                           sessionid(), status(), StratumStatus::toString(status()));
+  }
+
+
+  bool SerializeToBuffer(string& data, uint32_t& size) const{
+    size = ByteSize();
+    data.resize(size);
+
+    if (!SerializeToArray((uint8_t *)data.data(), size)) {
+        DLOG(INFO) << "base.SerializeToArray failed!" << std::endl;
+        return false;
+      }
+
+    return true;
+  }
+
+
+  bool UnserializeWithVersion(const uint8_t* data, uint32_t size){
+
+    if(nullptr == data || size <= 0) {
+      return false;
+    }
+
+    const uint8_t * payload = data;
+    uint32_t version = *((uint32_t*)payload);
+
+    if (version == CURRENT_VERSION_FOUNDATION || version == CURRENT_VERSION_CLASSIC) {
+
+      if (!ParseFromArray((const uint8_t *)(payload + sizeof(uint32_t)), size - sizeof(uint32_t))) {
+        DLOG(INFO) << "share ParseFromArray failed!";
+        return false;
+      }
+    } else if ((version == BYTES_VERSION_FOUNDATION || version == BYTES_VERSION_CLASSIC) && size == sizeof(ShareEthBytesVersion)) {
+
+      ShareEthBytesVersion* share = (ShareEthBytesVersion*) payload;
+
+      if (share->checkSum() != share->checkSum_) {
+        DLOG(INFO) << "checkSum mismatched! checkSum_: " << share->checkSum_<< ", checkSum(): " << share->checkSum();
+        return false;
+      }
+
+      set_version(getVersion(getChain(share->version_)));
+      set_workerhashid(share->workerHashId_);
+      set_userid(share->userId_);
+      set_status(share->status_);
+      set_timestamp(share->timestamp_);
+      set_ip(share->ip_.toString());
+      set_headerhash(share->headerHash_);
+      set_sharediff(share->shareDiff_);
+      set_networkdiff(share->networkDiff_);
+      set_nonce(share->nonce_);
+      set_sessionid(share->sessionId_);
+      set_height(share->height_);
+
+    } else {
+
+      DLOG(INFO) << "unknow share received! data size: " << size;
+      return false;
+    }
+
+    return true;
+  }
+
+
+  bool SerializeToArrayWithLength(string& data, uint32_t& size) const {
+    size = ByteSize();
+    data.resize(size + sizeof(uint32_t));
+
+    *((uint32_t*)data.data()) = size;
+    uint8_t * payload = (uint8_t *)data.data();
+
+    if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
+       DLOG(INFO) << "base.SerializeToArray failed!";
+      return false;
+    }
+
+    size += sizeof(uint32_t);
+    return true;
+  }
+
+  bool SerializeToArrayWithVersion(string& data, uint32_t& size) const {
+    size = ByteSize();
+    data.resize(size + sizeof(uint32_t));
+
+    uint8_t * payload = (uint8_t *)data.data();
+    *((uint32_t*)payload) = version();
+
+    if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
+      DLOG(INFO) << "SerializeToArray failed!";
+      return false;
+    }
+
+    size += sizeof(uint32_t);
+    return true;
+  }
+
+  size_t getsharelength() {
+    return IsInitialized() ? ByteSize() : 0;
   }
 };
 
-static_assert(sizeof(ShareEth) == 88, "ShareEth should be 88 bytes");
+
 
 class StratumJobEth : public StratumJob
 {
