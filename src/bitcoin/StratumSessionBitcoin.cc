@@ -276,7 +276,9 @@ void StratumSessionBitcoin::handleRequest_Subscribe(const string &idStr,
   //
 
   if (jparams.children()->size() < 2) {
-    responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
+    responseError(idStr, StratumStatus::CLIENT_IS_NOT_SWITCHER);
+    LOG(ERROR) << "A non-switcher subscribe request is detected and rejected.";
+    LOG(ERROR) << "Cmake option POOL__WORK_WITH_STRATUM_SWITCHER enabled, you can only connect to the sserver via a stratum switcher.";
     return;
   }
 

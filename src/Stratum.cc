@@ -92,6 +92,11 @@ const char * StratumStatus::toString(int err) {
     case ILLEGAL_VERMASK:
       return "Invalid version mask";
 
+#ifdef WORK_WITH_STRATUM_SWITCHER
+    case CLIENT_IS_NOT_SWITCHER:
+      return "Client is not a stratum switcher";
+#endif
+
     case UNKNOWN: default:
       return "Unknown";
   }
