@@ -77,7 +77,7 @@ rm -v /usr/local/lib/librdkafka*.so /usr/local/lib/librdkafka*.so.*
 Please install [brew](https://brew.sh/) first.
 
 ```bash
-brew install cmake openssl libconfig boost mysql zmq gmp libevent zookeeper librdkafka libhiredis
+brew install cmake openssl libconfig boost mysql zmq gmp libevent zookeeper librdkafka hiredis
 ```
 
 * glog-v0.3.4
