@@ -102,11 +102,11 @@ void JobRepositoryDecred::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
   }
 }
 
-// gominer protocol
+// nicehash protocol
 // mining.notify: extra nonce 2 size is the actual extra nonce 2 size, extra
 // nonce 1 is the actual extra nonce 1 mining.submit: extra nonce 2 is the
 // actual extra nonce 2
-class StratumProtocolDecredGoMiner : public StratumProtocolDecred {
+class StratumProtocolDecredNiceHash : public StratumProtocolDecred {
 public:
   string getExtraNonce1String(uint32_t extraNonce1) const override {
     return Strings::Format("%08x", boost::endian::endian_reverse(extraNonce1));
@@ -152,12 +152,15 @@ public:
 
 bool ServerDecred::setupInternal(const libconfig::Config &config) {
   string protocol;
-  config.lookupValue("sserver.protocol", protocol);
-  boost::algorithm::to_lower(protocol);
-
+  if (config.lookupValue("sserver.protocol", protocol)) {
+    boost::algorithm::to_lower(protocol);
+  }
   if (protocol == "gominer") {
-    LOG(INFO) << "Using gominer stratum protocol";
-    protocol_ = std::make_unique<StratumProtocolDecredGoMiner>();
+    LOG(FATAL) << "It is no longer valid to use gominer as sserver.protocol, "
+                  "please use nicehash instead.";
+  } else if (protocol == "nicehash") {
+    LOG(INFO) << "Using nicehash stratum protocol";
+    protocol_ = std::make_unique<StratumProtocolDecredNiceHash>();
   } else {
     LOG(INFO) << "Using tpruvot stratum protocol";
     protocol_ = std::make_unique<StratumProtocolDecredTPruvot>();
