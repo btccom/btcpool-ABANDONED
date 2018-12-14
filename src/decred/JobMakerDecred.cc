@@ -41,7 +41,6 @@ using std::ostream;
 static ostream &operator<<(ostream &os, const GetWorkDecred &work) {
   os << "data = " << work.data << ", target = " << work.target
      << ", created at = " << work.createdAt << ", height = " << work.height
-     << ", network = " << static_cast<uint32_t>(work.network)
      << ", voters = " << work.voters << ", size = " << work.size;
   return os;
 }
@@ -86,22 +85,19 @@ string JobMakerHandlerDecred::makeStratumJobMsg() {
       ",\"coinBase1\":\"%s\""
       ",\"coinBase2\":\"%s\""
       ",\"version\":\"%s\""
-      ",\"target\":\"%s\""
-      ",\"network\":%" PRIu32 "}",
+      ",\"target\":\"%s\"}",
       jobId,
       prevHash.c_str(),
       coinBase1.c_str(),
       coinBase2.c_str(),
       version.c_str(),
-      work.target.c_str(),
-      static_cast<uint32_t>(work.network));
+      work.target.c_str());
 }
 
 bool JobMakerHandlerDecred::processMsg(JsonNode &j) {
   auto data = j["data"].str();
   auto target = j["target"].str();
   auto createdAt = j["created_at_ts"].uint32();
-  auto network = static_cast<NetworkDecred>(j["network"].uint32());
   auto votersString = data.substr(OFFSET_AND_SIZE_DECRED(voters));
   auto voters = boost::endian::big_to_native(
       static_cast<uint16_t>(strtoul(votersString.c_str(), nullptr, 16)));
@@ -123,9 +119,8 @@ bool JobMakerHandlerDecred::processMsg(JsonNode &j) {
   uint16_t bestVoters = 0;
   uint32_t bestSize = 0;
   auto &works = works_.get<ByBestBlockDecred>();
-  auto r = works.equal_range(network);
-  if (r.first != works.end()) {
-    auto &bestWork = *(--r.second);
+  if (!works.empty()) {
+    auto &bestWork = *works.rbegin();
     bestHeight = bestWork.height;
     bestVoters = bestWork.voters;
     bestSize = bestWork.size;
@@ -145,8 +140,7 @@ bool JobMakerHandlerDecred::processMsg(JsonNode &j) {
     }
   }
 
-  auto p =
-      works_.emplace(data, target, createdAt, height, network, size, voters);
+  auto p = works_.emplace(data, target, createdAt, height, size, voters);
   auto &work = *p.first;
   if (!p.second) {
     LOG(ERROR) << "current work is duplicated with a previous work: " << work
@@ -181,8 +175,7 @@ bool JobMakerHandlerDecred::validate(JsonNode &j) {
       j["data"].type() != Utilities::JS::type::Str || j["data"].size() != 384 ||
       !IsHex(j["data"].str()) ||
       j["target"].type() != Utilities::JS::type::Str ||
-      j["target"].size() != 64 || !IsHex(j["target"].str()) ||
-      j["network"].type() != Utilities::JS::type::Int) {
+      j["target"].size() != 64 || !IsHex(j["target"].str())) {
     LOG(ERROR) << "work format not expected";
     return false;
   }

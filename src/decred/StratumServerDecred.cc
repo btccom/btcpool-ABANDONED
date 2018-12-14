@@ -157,7 +157,8 @@ public:
 
 ServerDecred::ServerDecred(
     int32_t shareAvgSeconds, const libconfig::Config &config)
-  : ServerBase<JobRepositoryDecred>(shareAvgSeconds) {
+  : ServerBase<JobRepositoryDecred>(shareAvgSeconds)
+  , network_(NetworkDecred::MainNet) {
   string protocol;
   config.lookupValue("sserver.protocol", protocol);
   boost::algorithm::to_lower(protocol);
@@ -167,6 +168,21 @@ ServerDecred::ServerDecred(
   } else {
     LOG(INFO) << "Using tpruvot stratum protocol";
     protocol_ = boost::make_unique<StratumProtocolDecredTPruvot>();
+  }
+
+  string network;
+  if (config.lookupValue("sserver.network", network)) {
+    boost::algorithm::to_lower(network);
+  }
+  if (network == "testnet") {
+    LOG(INFO) << "Running testnet";
+    network_ = NetworkDecred::TestNet;
+  } else if (network == "simnet") {
+    LOG(INFO) << "Running simnet";
+    network_ = NetworkDecred::SimNet;
+  } else {
+    LOG(INFO) << "Running mainnet";
+    network_ = NetworkDecred::MainNet;
   }
 }
 
@@ -196,7 +212,7 @@ int ServerDecred::checkShare(
   }
 
   auto sjob = std::static_pointer_cast<StratumJobDecred>(exJobPtr->sjob_);
-  share.set_network((uint32_t)sjob->network_);
+  share.set_network(static_cast<uint32_t>(network_));
   share.set_voters(sjob->header_.voters.value());
   if (ntime > sjob->header_.timestamp.value() + 600) {
     return StratumStatus::TIME_TOO_NEW;
@@ -208,7 +224,7 @@ int ServerDecred::checkShare(
       share.userid(),
       workerFullName,
       sjob->header_,
-      sjob->network_);
+      network_);
   auto &header = foundBlock.header_;
   header.timestamp = ntime;
   header.nonce = nonce;
@@ -242,7 +258,7 @@ int ServerDecred::checkShare(
 
   // check share diff
   auto jobTarget =
-      NetworkParamsDecred::get(sjob->network_).powLimit / share.sharediff();
+      NetworkParamsDecred::get(network_).powLimit / share.sharediff();
 
   DLOG(INFO) << "blkHash: " << blkHash.ToString()
              << ", jobTarget: " << jobTarget.ToString()
