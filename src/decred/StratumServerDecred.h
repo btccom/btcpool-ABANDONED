@@ -70,6 +70,7 @@ protected:
 
 private:
   unique_ptr<StratumProtocolDecred> protocol_;
+  NetworkDecred network_ = NetworkDecred::MainNet;
 };
 
 #endif

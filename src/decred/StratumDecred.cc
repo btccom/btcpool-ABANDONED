@@ -39,15 +39,13 @@ string StratumJobDecred::serializeToJson() const {
       ",\"coinBase1\":\"%s\""
       ",\"coinBase2\":\"%s\""
       ",\"version\":\"%s\""
-      ",\"target\":\"%s\""
-      ",\"network\":%u}",
+      ",\"target\":\"%s\"}",
       jobId_,
-      getPrevHash(),
-      getCoinBase1(),
-      HexStr(BEGIN(header_.stakeVersion), END(header_.stakeVersion)),
-      HexStr(BEGIN(header_.version), END(header_.version)),
-      target_.ToString(),
-      static_cast<uint32_t>(network_));
+      getPrevHash().c_str(),
+      getCoinBase1().c_str(),
+      HexStr(BEGIN(header_.stakeVersion), END(header_.stakeVersion)).c_str(),
+      HexStr(BEGIN(header_.version), END(header_.version)).c_str(),
+      target_.ToString().c_str());
 }
 
 bool StratumJobDecred::unserializeFromJson(const char *s, size_t len) {
@@ -66,15 +64,13 @@ bool StratumJobDecred::unserializeFromJson(const char *s, size_t len) {
       j["version"].type() != Utilities::JS::type::Str ||
       j["version"].size() != 8 ||
       j["target"].type() != Utilities::JS::type::Str ||
-      j["target"].size() != 64 ||
-      j["network"].type() != Utilities::JS::type::Int) {
+      j["target"].size() != 64) {
     LOG(ERROR) << "parse stratum job failure: " << s;
     return false;
   }
 
   memset(&header_, 0, sizeof(BlockHeaderDecred));
   jobId_ = j["jobId"].uint64();
-  network_ = static_cast<NetworkDecred>(j["network"].uint32());
 
 #define UNSERIALIZE_SJOB_FIELD(n, d) \
   auto n##Str = j[#n].str(); \
