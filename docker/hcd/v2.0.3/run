@@ -1,0 +1,12 @@
+#! /bin/bash
+#
+# run shell for hcd
+#
+# @copyright btc.com
+# @author hanjiang.yu@bitmain.com
+#
+export LC_ALL=C
+SROOT=$(cd $(dirname "$0"); pwd)
+cd $SROOT
+
+/usr/local/bin/linux_amd64_hcd --appdata=/root/.hcd

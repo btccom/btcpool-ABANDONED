@@ -1,0 +1,6 @@
+/root/.hcd/logs/*/*.* {
+    daily
+    rotate 3
+    missingok
+    copytruncate
+}
