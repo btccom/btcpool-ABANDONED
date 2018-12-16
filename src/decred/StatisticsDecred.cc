@@ -24,15 +24,15 @@
 
 #include "StatisticsDecred.h"
 #include "StratumDecred.h"
-#include "DecredUtils.h"
 
 template <>
-double ShareStatsDay<ShareDecred>::getShareReward(const ShareDecred &share) {
-  return GetBlockRewardDecredWork(
+double ShareStatsDay<ShareDecred<NetworkTraitsDecred>>::getShareReward(
+    const ShareDecred<NetworkTraitsDecred> &share) {
+  return NetworkTraitsDecred::GetBlockRewardWork(
       share.height(),
       share.voters(),
-      NetworkParamsDecred::get((NetworkDecred)share.network()));
+      static_cast<NetworkDecred>(share.network()));
 }
 
 ///////////////  template instantiation ///////////////
-template class ShareStatsDay<ShareDecred>;
+template class ShareStatsDay<ShareDecred<NetworkTraitsDecred>>;

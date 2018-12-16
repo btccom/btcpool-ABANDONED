@@ -66,22 +66,7 @@ enum class NetworkDecred : uint32_t {
   SimNet = 0x12141c16,
 };
 
-// Priority: mainnet > testnet > simnet > others
-inline bool operator<(NetworkDecred lhs, NetworkDecred rhs) {
-  switch (rhs) {
-  case NetworkDecred::MainNet:
-    return lhs != NetworkDecred::MainNet;
-  case NetworkDecred::TestNet:
-    return lhs != NetworkDecred::MainNet && lhs != NetworkDecred::TestNet;
-  case NetworkDecred::SimNet:
-    return lhs != NetworkDecred::MainNet && lhs != NetworkDecred::TestNet &&
-        lhs != NetworkDecred::SimNet;
-  }
-  return false;
-}
-
 struct NetworkParamsDecred {
-  arith_uint256 powLimit;
   int64_t baseSubsidy;
   int64_t mulSubsidy;
   int64_t divSubsidy;
@@ -91,8 +76,13 @@ struct NetworkParamsDecred {
   int64_t blockTaxProportion;
   int64_t stakeValidationHeight;
   uint16_t ticketsPerBlock;
+};
 
-  static const NetworkParamsDecred &get(NetworkDecred network);
+struct NetworkTraitsDecred {
+  static const arith_uint256 Diff1Target;
+  static int64_t GetBlockRewardShare(uint32_t height, NetworkDecred network);
+  static int64_t
+  GetBlockRewardWork(uint32_t height, uint16_t voters, NetworkDecred network);
 };
 
 #endif

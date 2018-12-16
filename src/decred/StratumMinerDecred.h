@@ -28,11 +28,17 @@
 #include "StratumDecred.h"
 #include "StratumMiner.h"
 
-class StratumMinerDecred : public StratumMinerBase<StratumTraitsDecred> {
-public:
+template <typename NetworkTraits>
+class StratumMinerDecred
+  : public StratumMinerBase<StratumTraitsDecred<NetworkTraits>> {
+  using Base = StratumMinerBase<StratumTraitsDecred<NetworkTraits>>;
   using StratumMiner::kExtraNonce2Size_;
+  using StratumMiner::INVALID_SHARE_SLIDING_WINDOWS_SIZE;
+  using StratumMiner::INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT;
+
+public:
   StratumMinerDecred(
-      StratumSessionDecred &session,
+      StratumSessionDecred<NetworkTraits> &session,
       const DiffController &diffController,
       const std::string &clientAgent,
       const std::string &workerName,
@@ -47,5 +53,7 @@ public:
 private:
   void handleRequest_Submit(const string &idStr, const JsonNode &jparams);
 };
+
+#include "StratumMinerDecred.inl"
 
 #endif // #ifndef STRATUM_MINER_DECRED_H_

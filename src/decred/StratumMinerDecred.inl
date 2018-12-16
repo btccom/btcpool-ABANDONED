@@ -22,8 +22,6 @@
  THE SOFTWARE.
  */
 
-#include "StratumMinerDecred.h"
-
 #include "StratumSessionDecred.h"
 #include "StratumServerDecred.h"
 #include "StratumDecred.h"
@@ -32,17 +30,18 @@
 
 #include <boost/endian/conversion.hpp>
 
-StratumMinerDecred::StratumMinerDecred(
-    StratumSessionDecred &session,
+template <typename NetworkTraits>
+StratumMinerDecred<NetworkTraits>::StratumMinerDecred(
+    StratumSessionDecred<NetworkTraits> &session,
     const DiffController &diffController,
     const std::string &clientAgent,
     const std::string &workerName,
     int64_t workerId)
-  : StratumMinerBase(
-        session, diffController, clientAgent, workerName, workerId) {
+  : Base(session, diffController, clientAgent, workerName, workerId) {
 }
 
-void StratumMinerDecred::handleRequest(
+template <typename NetworkTraits>
+void StratumMinerDecred<NetworkTraits>::handleRequest(
     const std::string &idStr,
     const std::string &method,
     const JsonNode &jparams,
@@ -52,9 +51,10 @@ void StratumMinerDecred::handleRequest(
   }
 }
 
-void StratumMinerDecred::handleRequest_Submit(
+template <typename NetworkTraits>
+void StratumMinerDecred<NetworkTraits>::handleRequest_Submit(
     const string &idStr, const JsonNode &jparams) {
-  auto &session = getSession();
+  auto &session = this->getSession();
   if (session.getState() != StratumSession::AUTHENTICATED) {
     session.responseError(idStr, StratumStatus::UNAUTHORIZED);
 
@@ -109,8 +109,8 @@ void StratumMinerDecred::handleRequest_Submit(
     return;
   }
 
-  auto iter = jobDiffs_.find(localJob);
-  if (iter == jobDiffs_.end()) {
+  auto iter = this->jobDiffs_.find(localJob);
+  if (iter == this->jobDiffs_.end()) {
     LOG(ERROR) << "can't find session's diff, worker: " << worker.fullName_;
     return;
   }
@@ -128,8 +128,8 @@ void StratumMinerDecred::handleRequest_Submit(
     height = sjob->header_.height.value();
   }
 
-  ShareDecred share(
-      workerId_,
+  ShareDecred<NetworkTraits> share(
+      this->workerId_,
       worker.userId_,
       clientIp,
       localJob->jobId_,
@@ -157,9 +157,9 @@ void StratumMinerDecred::handleRequest_Submit(
         share, exjob, extraNonce2, ntime, nonce, worker.fullName_));
   }
 
-  if (!handleShare(idStr, share.status(), share.sharediff())) {
+  if (!this->handleShare(idStr, share.status(), share.sharediff())) {
     // add invalid share to counter
-    invalidSharesCounter_.insert(static_cast<int64_t>(time(nullptr)), 1);
+    this->invalidSharesCounter_.insert(static_cast<int64_t>(time(nullptr)), 1);
   }
 
   DLOG(INFO) << share.toString();
@@ -171,7 +171,7 @@ void StratumMinerDecred::handleRequest_Submit(
               << ", worker: " << worker.fullName_ << ", " << share.toString();
 
     // check if thers is invalid share spamming
-    int64_t invalidSharesNum = invalidSharesCounter_.sum(
+    int64_t invalidSharesNum = this->invalidSharesCounter_.sum(
         time(nullptr), INVALID_SHARE_SLIDING_WINDOWS_SIZE);
     // too much invalid shares, don't send them to kafka
     if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT) {
@@ -179,7 +179,7 @@ void StratumMinerDecred::handleRequest_Submit(
 
       LOG(INFO) << "invalid share spamming, diff: " << share.sharediff()
                 << ", worker: " << worker.fullName_
-                << ", agent: " << clientAgent_ << ", ip: " << clientIp;
+                << ", agent: " << this->clientAgent_ << ", ip: " << clientIp;
     }
   }
 

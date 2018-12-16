@@ -25,4 +25,4 @@
 #include "ShareLoggerDecred.h"
 
 ///////////////  template instantiation ///////////////
-template class ShareLogWriterT<ShareDecred>;
+template class ShareLogWriterT<ShareDecred<NetworkTraitsDecred>>;

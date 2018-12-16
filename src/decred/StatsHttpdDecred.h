@@ -29,6 +29,6 @@
 #include "StratumDecred.h"
 
 ////////////////////////////  Alias  ////////////////////////////
-using StatsServerDecred = StatsServerT<ShareDecred>;
+using StatsServerDecred = StatsServerT<ShareDecred<NetworkTraitsDecred>>;
 
 #endif

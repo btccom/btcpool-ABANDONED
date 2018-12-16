@@ -38,9 +38,33 @@ uint256 BlockHeaderDecred::getHash() const {
   return hash;
 }
 
-const NetworkParamsDecred &NetworkParamsDecred::get(NetworkDecred network) {
+static int64_t
+GetBlockRewardShare(int64_t reward, const NetworkParamsDecred &params) {
+  int64_t totalProportion = params.workRewardProportion +
+      params.stakeRewardProportion + params.blockTaxProportion;
+  return reward * params.workRewardProportion / totalProportion;
+}
+
+static int64_t GetBlockRewardWork(
+    int64_t reward,
+    uint32_t height,
+    uint16_t voters,
+    const NetworkParamsDecred &params) {
+  int64_t powSubsidy = GetBlockRewardShare(reward, params);
+  if (height < params.stakeValidationHeight) {
+    return powSubsidy;
+  }
+
+  // Reduce the subsidy according to the number of votes
+  return powSubsidy * voters / params.ticketsPerBlock;
+}
+
+const arith_uint256 NetworkTraitsDecred::Diff1Target =
+    arith_uint256{}.SetCompact(0x1d00ffff);
+
+static const NetworkParamsDecred &
+GetNetworkParamsDecred(NetworkDecred network) {
   static NetworkParamsDecred mainnetParams{
-      arith_uint256{}.SetCompact(0x1d00ffff),
       3119582664,
       100,
       101,
@@ -52,7 +76,6 @@ const NetworkParamsDecred &NetworkParamsDecred::get(NetworkDecred network) {
       5,
   };
   static NetworkParamsDecred testnetParams{
-      arith_uint256{}.SetCompact(0x1e00ffff),
       2500000000,
       100,
       101,
@@ -64,7 +87,6 @@ const NetworkParamsDecred &NetworkParamsDecred::get(NetworkDecred network) {
       5,
   };
   static NetworkParamsDecred simnetParams{
-      arith_uint256{}.SetCompact(0x207fffff),
       50000000000,
       100,
       101,
@@ -76,13 +98,35 @@ const NetworkParamsDecred &NetworkParamsDecred::get(NetworkDecred network) {
       5,
   };
 
-  switch (network) {
-  case NetworkDecred::MainNet:
-    return mainnetParams;
-  case NetworkDecred::TestNet:
-    return testnetParams;
-  case NetworkDecred::SimNet:
+  if (network == NetworkDecred::SimNet) {
     return simnetParams;
+  } else if (network == NetworkDecred::TestNet) {
+    return testnetParams;
+  } else {
+    return mainnetParams;
   }
-  return testnetParams;
+}
+
+static int64_t
+GetBlockRewardDecred(uint32_t height, const NetworkParamsDecred &params) {
+  int64_t iterations = height / params.subsidyReductionInterval;
+  int64_t subsidy = params.baseSubsidy;
+  for (int64_t i = 0; i < iterations; i++) {
+    subsidy *= params.mulSubsidy;
+    subsidy /= params.divSubsidy;
+  }
+  return subsidy;
+}
+
+int64_t NetworkTraitsDecred::GetBlockRewardShare(
+    uint32_t height, NetworkDecred network) {
+  auto &params = GetNetworkParamsDecred(network);
+  return ::GetBlockRewardShare(GetBlockRewardDecred(height, params), params);
+}
+
+int64_t NetworkTraitsDecred::GetBlockRewardWork(
+    uint32_t height, uint16_t voters, NetworkDecred network) {
+  auto &params = GetNetworkParamsDecred(network);
+  return ::GetBlockRewardWork(
+      GetBlockRewardDecred(height, params), height, voters, params);
 }

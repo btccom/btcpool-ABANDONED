@@ -105,6 +105,7 @@ public:
 // and the new version will coexist for a while.
 // If there is no forward compatibility, one of the versions of Share
 // will be considered invalid, resulting in loss of users' hashrate.
+template <typename NetworkTraits>
 class ShareDecred : public sharebase::DecredMsg {
 public:
   const static uint32_t BYTES_VERSION =
@@ -162,9 +163,7 @@ public:
       return 0.0;
     }
 
-    double networkDifficulty =
-        NetworkParamsDecred::get((NetworkDecred)network())
-            .powLimit.getdouble() /
+    double networkDifficulty = NetworkTraits::Diff1Target.getdouble() /
         arith_uint256().SetCompact(blkbits()).getdouble();
 
     // Network diff may less than share diff on testnet or regression test
@@ -191,9 +190,7 @@ public:
   }
 
   string toString() const {
-    double networkDifficulty =
-        NetworkParamsDecred::get((NetworkDecred)network())
-            .powLimit.getdouble() /
+    double networkDifficulty = NetworkTraits::Diff1Target.getdouble() /
         arith_uint256().SetCompact(blkbits()).getdouble();
     return Strings::Format(
         "share(jobId: %" PRIu64
@@ -340,12 +337,15 @@ public:
       const vector<uint8_t> &extraNonce2) = 0;
 };
 
+template <typename NetworkTraits>
 class ServerDecred;
+template <typename NetworkTraits>
 class StratumSessionDecred;
 
+template <typename NetworkTraits>
 struct StratumTraitsDecred {
-  using ServerType = ServerDecred;
-  using SessionType = StratumSessionDecred;
+  using ServerType = ServerDecred<NetworkTraits>;
+  using SessionType = StratumSessionDecred<NetworkTraits>;
   using JobDiffType = uint64_t;
   struct LocalJobType : public LocalJob {
     LocalJobType(uint64_t jobId, uint8_t shortJobId, uint32_t blkBits)

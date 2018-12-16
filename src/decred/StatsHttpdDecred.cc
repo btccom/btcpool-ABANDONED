@@ -25,5 +25,5 @@
 #include "StatsHttpdDecred.h"
 
 ///////////////  template instantiation ///////////////
-template class WorkerShares<ShareDecred>;
-template class StatsServerT<ShareDecred>;
+template class WorkerShares<ShareDecred<NetworkTraitsDecred>>;
+template class StatsServerT<ShareDecred<NetworkTraitsDecred>>;

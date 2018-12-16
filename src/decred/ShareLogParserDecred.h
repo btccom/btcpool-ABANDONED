@@ -29,8 +29,9 @@
 #include "ShareLogParser.h"
 
 ///////////////////////////////  Alias  ///////////////////////////////
-using ShareLogDumperDecred = ShareLogDumperT<ShareDecred>;
-using ShareLogParserDecred = ShareLogParserT<ShareDecred>;
-using ShareLogParserServerDecred = ShareLogParserServerT<ShareDecred>;
+using ShareLogDumperDecred = ShareLogDumperT<ShareDecred<NetworkTraitsDecred>>;
+using ShareLogParserDecred = ShareLogParserT<ShareDecred<NetworkTraitsDecred>>;
+using ShareLogParserServerDecred =
+    ShareLogParserServerT<ShareDecred<NetworkTraitsDecred>>;
 
 #endif

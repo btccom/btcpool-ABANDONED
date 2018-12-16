@@ -28,6 +28,6 @@
 #include "StratumDecred.h"
 #include "ShareLogger.h"
 
-using ShareLogWriterDecred = ShareLogWriterT<ShareDecred>;
+using ShareLogWriterDecred = ShareLogWriterT<ShareDecred<NetworkTraitsDecred>>;
 
 #endif

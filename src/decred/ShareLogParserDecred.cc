@@ -25,6 +25,6 @@
 #include "ShareLogParserDecred.h"
 
 ///////////////  template instantiation ///////////////
-template class ShareLogDumperT<ShareDecred>;
-template class ShareLogParserT<ShareDecred>;
-template class ShareLogParserServerT<ShareDecred>;
+template class ShareLogDumperT<ShareDecred<NetworkTraitsDecred>>;
+template class ShareLogParserT<ShareDecred<NetworkTraitsDecred>>;
+template class ShareLogParserServerT<ShareDecred<NetworkTraitsDecred>>;
