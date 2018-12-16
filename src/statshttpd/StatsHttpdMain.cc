@@ -165,6 +165,24 @@ std::shared_ptr<StatsServer> newStatsServer(
         fileLastFlushTime,
         nullptr,
         acceptStale);
+  } else if (chainType == "HC") {
+    return std::make_shared<StatsServerHcash>(
+        kafkaBrokers,
+        kafkaShareTopic,
+        kafkaCommonEventsTopic,
+        httpdHost,
+        httpdPort,
+        poolDBInfo,
+        redisInfo,
+        redisConcurrency,
+        redisKeyPrefix,
+        redisKeyExpire,
+        redisPublishPolicy,
+        redisIndexPolicy,
+        kFlushDBInterval,
+        fileLastFlushTime,
+        nullptr,
+        acceptStale);
   } else {
     LOG(FATAL) << "newStatsServer: unknown chain type " << chainType;
     return nullptr;

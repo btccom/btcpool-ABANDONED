@@ -29,6 +29,8 @@ extern "C" {
 #include "libsph/sph_blake.h"
 }
 
+#include <cmath>
+
 uint256 BlockHeaderDecred::getHash() const {
   uint256 hash;
   sph_blake256_context ctx;
@@ -129,4 +131,81 @@ int64_t NetworkTraitsDecred::GetBlockRewardWork(
   auto &params = GetNetworkParamsDecred(network);
   return ::GetBlockRewardWork(
       GetBlockRewardDecred(height, params), height, voters, params);
+}
+
+const arith_uint256 NetworkTraitsHcash::Diff1Target =
+    arith_uint256{}.SetCompact(0x1d00ffff);
+
+static const NetworkParamsDecred &GetNetworkParamsHcash(NetworkDecred network) {
+  static NetworkParamsDecred mainnetParams{
+      640000000,
+      999,
+      1000,
+      12288,
+      6,
+      3,
+      1,
+      4096,
+      5,
+  };
+  static NetworkParamsDecred testnetParams{
+      640000000,
+      999,
+      1000,
+      2048,
+      6,
+      3,
+      1,
+      775,
+      5,
+  };
+  static NetworkParamsDecred simnetParams{
+      640000000,
+      999,
+      1000,
+      128,
+      6,
+      3,
+      1,
+      16 + (64 * 2),
+      5,
+  };
+
+  if (network == NetworkDecred::SimNet) {
+    return simnetParams;
+  } else if (network == NetworkDecred::TestNet) {
+    return testnetParams;
+  } else {
+    return mainnetParams;
+  }
+}
+
+static int64_t
+GetBlockRewardHcash(uint32_t height, const NetworkParamsDecred &params) {
+  int64_t iterations = height / params.subsidyReductionInterval;
+  double q = static_cast<double>(params.mulSubsidy) / params.divSubsidy;
+  double subsidy = 0;
+
+  if (iterations < 1682) {
+    subsidy = params.baseSubsidy * (1.0 - iterations * 59363.0 / 100000000.0) *
+        pow(q, iterations);
+  } else {
+    // after 99 years
+    subsidy = 100000000.0 / params.subsidyReductionInterval *
+        pow(0.1, iterations - 1681);
+  }
+  return static_cast<int64_t>(subsidy);
+}
+
+int64_t NetworkTraitsHcash::GetBlockRewardShare(
+    uint32_t height, NetworkDecred network) {
+  auto &params = GetNetworkParamsHcash(network);
+  return ::GetBlockRewardShare(GetBlockRewardHcash(height, params), params);
+}
+
+int64_t NetworkTraitsHcash::GetBlockRewardWork(
+    uint32_t height, uint16_t voters, NetworkDecred network) {
+  auto &params = GetNetworkParamsHcash(network);
+  return ::GetBlockRewardWork(
+      GetBlockRewardHcash(height, params), height, voters, params);
 }

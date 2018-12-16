@@ -30,5 +30,6 @@
 
 ////////////////////////////  Alias  ////////////////////////////
 using StatsServerDecred = StatsServerT<ShareDecred<NetworkTraitsDecred>>;
+using StatsServerHcash = StatsServerT<ShareDecred<NetworkTraitsHcash>>;
 
 #endif

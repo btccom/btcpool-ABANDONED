@@ -113,6 +113,14 @@ newShareLogWriter(const string &kafkaBrokers, const Setting &def) {
         def.lookup("kafka_group_id").c_str(),
         def.lookup("share_topic"),
         compressionLevel);
+  } else if (chainType == "HC") {
+    return make_shared<ShareLogWriterHcash>(
+        chainType.c_str(),
+        kafkaBrokers.c_str(),
+        def.lookup("data_dir").c_str(),
+        def.lookup("kafka_group_id").c_str(),
+        def.lookup("share_topic"),
+        compressionLevel);
   } else {
     LOG(FATAL) << "Unknown chain type " << chainType;
     return nullptr;

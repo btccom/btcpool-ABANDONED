@@ -26,3 +26,4 @@
 
 ///////////////  template instantiation ///////////////
 template class ShareLogWriterT<ShareDecred<NetworkTraitsDecred>>;
+template class ShareLogWriterT<ShareDecred<NetworkTraitsHcash>>;

@@ -29,5 +29,6 @@
 #include "ShareLogger.h"
 
 using ShareLogWriterDecred = ShareLogWriterT<ShareDecred<NetworkTraitsDecred>>;
+using ShareLogWriterHcash = ShareLogWriterT<ShareDecred<NetworkTraitsHcash>>;
 
 #endif

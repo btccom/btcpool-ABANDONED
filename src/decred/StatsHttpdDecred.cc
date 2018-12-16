@@ -27,3 +27,5 @@
 ///////////////  template instantiation ///////////////
 template class WorkerShares<ShareDecred<NetworkTraitsDecred>>;
 template class StatsServerT<ShareDecred<NetworkTraitsDecred>>;
+template class WorkerShares<ShareDecred<NetworkTraitsHcash>>;
+template class StatsServerT<ShareDecred<NetworkTraitsHcash>>;

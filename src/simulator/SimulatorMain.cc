@@ -131,6 +131,7 @@ int main(int argc, char **argv) {
     StratumClient::registerFactory<StratumClient>("BTC");
     StratumClient::registerFactory<StratumClient>("DCR");
     StratumClient::registerFactory<StratumClientEth>("ETH");
+    StratumClient::registerFactory<StratumClient>("HC");
 
     // new StratumClientWrapper
     auto wrapper = boost::make_unique<StratumClientWrapper>(

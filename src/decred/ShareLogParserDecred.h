@@ -33,5 +33,9 @@ using ShareLogDumperDecred = ShareLogDumperT<ShareDecred<NetworkTraitsDecred>>;
 using ShareLogParserDecred = ShareLogParserT<ShareDecred<NetworkTraitsDecred>>;
 using ShareLogParserServerDecred =
     ShareLogParserServerT<ShareDecred<NetworkTraitsDecred>>;
+using ShareLogDumperHcash = ShareLogDumperT<ShareDecred<NetworkTraitsHcash>>;
+using ShareLogParserHcash = ShareLogParserT<ShareDecred<NetworkTraitsHcash>>;
+using ShareLogParserServerHcash =
+    ShareLogParserServerT<ShareDecred<NetworkTraitsHcash>>;
 
 #endif

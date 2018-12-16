@@ -34,5 +34,15 @@ double ShareStatsDay<ShareDecred<NetworkTraitsDecred>>::getShareReward(
       static_cast<NetworkDecred>(share.network()));
 }
 
+template <>
+double ShareStatsDay<ShareDecred<NetworkTraitsHcash>>::getShareReward(
+    const ShareDecred<NetworkTraitsHcash> &share) {
+  return NetworkTraitsHcash::GetBlockRewardWork(
+      share.height(),
+      share.voters(),
+      static_cast<NetworkDecred>(share.network()));
+}
+
 ///////////////  template instantiation ///////////////
 template class ShareStatsDay<ShareDecred<NetworkTraitsDecred>>;
+template class ShareStatsDay<ShareDecred<NetworkTraitsHcash>>;

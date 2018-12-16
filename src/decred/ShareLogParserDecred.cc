@@ -28,3 +28,6 @@
 template class ShareLogDumperT<ShareDecred<NetworkTraitsDecred>>;
 template class ShareLogParserT<ShareDecred<NetworkTraitsDecred>>;
 template class ShareLogParserServerT<ShareDecred<NetworkTraitsDecred>>;
+template class ShareLogDumperT<ShareDecred<NetworkTraitsHcash>>;
+template class ShareLogParserT<ShareDecred<NetworkTraitsHcash>>;
+template class ShareLogParserServerT<ShareDecred<NetworkTraitsHcash>>;
