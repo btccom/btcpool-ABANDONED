@@ -221,6 +221,7 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
   share.set_timestamp((uint64_t) time(nullptr));
   share.set_height(height);
   share.set_nonce(nonce);
+  share.set_versionmask(versionMask);
   share.set_sessionid(session.getSessionId());
   share.set_status(StratumStatus::REJECT_NO_REASON);
   IpAddress ip;
@@ -243,13 +244,13 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
   } else {
 #ifdef  USER_DEFINED_COINBASE
     // check block header
-    share.set_status(server->checkShare(share, extraNonce1_, extraNonce2Hex,
+    share.set_status(server->checkShare(share, session.getSessionId(), extraNonce2Hex,
                                        nTime, nonce, versionMask, jobTarget,
                                        worker_.fullName_,
                                        &localJob->userCoinbaseInfo_));
 #else
     // check block header
-    share.set_status(server.checkShare(share, share.sessionid(), extraNonce2Hex,
+    share.set_status(server.checkShare(share, session.getSessionId(), extraNonce2Hex,
                                       nTime, nonce, versionMask, jobTarget,
                                       worker.fullName_));
 #endif

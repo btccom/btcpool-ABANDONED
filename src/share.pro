@@ -14,7 +14,7 @@ message BitcoinMsg {
   optional uint32     height        = 10;
   optional uint32     nonce         = 11;
   optional uint32     sessionid     = 12;
-  optional uint32     versionMask   = 13;
+  optional uint32     versionmask   = 13;
 }
 
 
