@@ -26,7 +26,7 @@ BTCPool 2.3.0 is compatible with old deployments in these places:
 ## Recommended upgrade steps
 
 1. Run a new version of `statshttpd` and write the same database as the old version. After determining that the new version is working properly, stop the old.
-2. Run a new version of `sharelogger`, taking care to set a completely different `kafka_group_id`. It will rebuild the sharelog binary files from the first message in `share_topic`. 
+2. Run a new version of `sharelogger`, taking care to set a completely different `kafka_group_id` and a new `data_dir`. It will rebuild the sharelog binary files from the first message in `share_topic`. 
 3. After the new version of the today's sharelog file is created, run a new version of slparser to read these sharelogs.
 4. Confirm that the new version of `slparser` is working properly, then stop the old.
 5. Start deploying a new version of `sserver` or upgrading the old version with the new.
