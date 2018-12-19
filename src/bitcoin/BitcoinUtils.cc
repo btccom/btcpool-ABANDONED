@@ -248,6 +248,7 @@ static bool checkBitcoinRPCGetNetworkInfo(const string &rpcAddr, const string &r
   string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getnetworkinfo\",\"params\":[]}";
   bool res = blockchainNodeRpcCall(rpcAddr.c_str(), rpcUserpass.c_str(),
                                    request.c_str(), response);
+
   if (!res) {
     LOG(ERROR) << "rpc getnetworkinfo call failure";
     return false;
