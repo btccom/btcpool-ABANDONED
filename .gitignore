@@ -8,6 +8,9 @@
 build
 build*/
 
+# Installs runs 
+install/run_*/
+
 # datas
 /patches/
 /data/
