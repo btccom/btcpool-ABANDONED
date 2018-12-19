@@ -27,7 +27,7 @@
 
 #include "Stratum.h"
 #include "CommonDecred.h"
-
+#include "share.pro.pb.h"
 class FoundBlockDecred
 {
 public:
@@ -45,103 +45,30 @@ public:
   }
 };
 
-// [[[[ IMPORTANT REMINDER! ]]]]
-// Please keep the Share structure forward compatible.
-// That is: don't change it unless you add code so that
-// both the modified and non-modified Shares can be processed.
-// Please note that in the usual upgrade, the old version of Share
-// and the new version will coexist for a while.
-// If there is no forward compatibility, one of the versions of Share
-// will be considered invalid, resulting in loss of users' hashrate.
-class ShareDecred
+
+
+
+class ShareDecredBytesVersion
 {
 public:
 
-  const static uint32_t CURRENT_VERSION = 0x00200001u; // first 0020: DCR, second 0001: version 1
+  uint32_t  version_;//0
+  uint32_t  checkSum_;//4
 
-  uint32_t  version_;
-  uint32_t  checkSum_;
+  int64_t   workerHashId_;//8
+  int32_t   userId_;//16
+  int32_t   status_;//20
+  int64_t   timestamp_;//24
+  IpAddress ip_;//32
 
-  int64_t   workerHashId_;
-  int32_t   userId_;
-  int32_t   status_;
-  int64_t   timestamp_;
-  IpAddress ip_;
-
-  uint64_t jobId_;
-  uint64_t shareDiff_;
-  uint32_t blkBits_;
-  uint32_t height_;
-  uint32_t nonce_;
-  uint32_t sessionId_;
-  NetworkDecred network_;
-  uint16_t voters_;
-
-  ShareDecred()
-    : version_(ShareDecred::CURRENT_VERSION)
-    , checkSum_(0)
-    , workerHashId_(0)
-    , userId_(0)
-    , status_(StratumStatus::REJECT_NO_REASON)
-    , timestamp_(0)
-    , jobId_(0)
-    , shareDiff_(0)
-    , blkBits_(0)
-    , height_(0)
-    , nonce_(0)
-    , sessionId_(0)
-    , network_(NetworkDecred::MainNet)
-    , voters_(0)
-  {
-  }
-
-  ShareDecred(
-      int64_t workerHashId,
-      int32_t userId,
-      uint32_t clientIpInt,
-      uint64_t jobId,
-      uint64_t jobDifficulty,
-      uint32_t blkBits,
-      uint32_t height,
-      uint32_t nonce,
-      uint32_t extraNonce1)
-    : version_(ShareDecred::CURRENT_VERSION)
-    , checkSum_(0)
-    , workerHashId_(workerHashId)
-    , userId_(userId)
-    , status_(StratumStatus::REJECT_NO_REASON)
-    , timestamp_(time(nullptr))
-    , jobId_(jobId)
-    , shareDiff_(jobDifficulty)
-    , blkBits_(blkBits)
-    , height_(height)
-    , nonce_(nonce)
-    , sessionId_(extraNonce1)
-    , network_(NetworkDecred::MainNet)
-    , voters_(0)
-  {
-    ip_.fromIpv4Int(clientIpInt);
-  }
-
-  double score() const
-  {
-    if (shareDiff_ == 0 || blkBits_ == 0)
-    {
-      return 0.0;
-    }
-
-    double networkDifficulty = NetworkParamsDecred::get(network_).powLimit.getdouble() / arith_uint256().SetCompact(blkBits_).getdouble();
-
-    // Network diff may less than share diff on testnet or regression test network.
-    // On regression test network, the network diff may be zero.
-    // But no matter how low the network diff is, you can only dig one block at a time.
-    if (networkDifficulty < shareDiff_)
-    {
-      return 1.0;
-    }
-
-    return shareDiff_ / networkDifficulty;
-  }
+  uint64_t jobId_;//48
+  uint64_t shareDiff_;//56
+  uint32_t blkBits_;//64
+  uint32_t height_;//68
+  uint32_t nonce_;//72
+  uint32_t sessionId_;//76
+  NetworkDecred network_;//80
+  uint16_t voters_;//84
 
   uint32_t checkSum() const {
     uint64_t c = 0;
@@ -165,19 +92,98 @@ public:
     return ((uint32_t) c) + ((uint32_t) (c >> 32));
   }
 
+};
+
+
+// [[[[ IMPORTANT REMINDER! ]]]]
+// Please keep the Share structure forward compatible.
+// That is: don't change it unless you add code so that
+// both the modified and non-modified Shares can be processed.
+// Please note that in the usual upgrade, the old version of Share
+// and the new version will coexist for a while.
+// If there is no forward compatibility, one of the versions of Share
+// will be considered invalid, resulting in loss of users' hashrate.
+class ShareDecred : public sharebase::DecredMsg
+{
+public:
+
+  const static uint32_t BYTES_VERSION = 0x00200001u; // first 0020: DCR, second 0001: version 1, the share struct is bytes array
+  const static uint32_t CURRENT_VERSION = 0x00200002u; // first 0020: DCR, second 0002: version 2
+
+
+
+  ShareDecred() {
+    set_version(ShareDecred::CURRENT_VERSION);
+    set_workerhashid(0);
+    set_userid(0);
+    set_status(StratumStatus::REJECT_NO_REASON);
+    set_timestamp(0);
+    set_jobid(0);
+    set_sharediff(0);
+    set_blkbits(0);
+    set_height(0);
+    set_nonce(0);
+    set_sessionid(0);
+    set_network((uint32_t)NetworkDecred::MainNet);
+    set_voters(0);
+  }
+
+  ShareDecred(
+      int64_t workerHashId,
+      int32_t userId,
+      uint32_t clientIpInt,
+      uint64_t jobId,
+      uint64_t jobDifficulty,
+      uint32_t blkBits,
+      uint32_t height,
+      uint32_t nonce,
+      uint32_t extraNonce1) {
+    set_version(ShareDecred::CURRENT_VERSION);
+    set_workerhashid(workerHashId);
+    set_userid(userId);
+    set_status(StratumStatus::REJECT_NO_REASON);
+    set_timestamp(time(nullptr));
+    set_jobid(jobId);
+    set_sharediff(jobDifficulty);
+    set_blkbits(blkBits);
+    set_height(height);
+    set_nonce(nonce);
+    set_sessionid(extraNonce1);
+    set_network((uint32_t)NetworkDecred::MainNet);
+    set_voters(0);
+    IpAddress ip;
+    ip.fromIpv4Int(clientIpInt);
+    set_ip(ip.toString());
+  }
+
+  double score() const
+  {
+    if (sharediff() == 0 || blkbits() == 0)
+    {
+      return 0.0;
+    }
+
+    double networkDifficulty = NetworkParamsDecred::get((NetworkDecred)network()).powLimit.getdouble() / arith_uint256().SetCompact(blkbits()).getdouble();
+
+    // Network diff may less than share diff on testnet or regression test network.
+    // On regression test network, the network diff may be zero.
+    // But no matter how low the network diff is, you can only dig one block at a time.
+    if (networkDifficulty < sharediff())
+    {
+      return 1.0;
+    }
+
+    return sharediff() / networkDifficulty;
+  }
+
   bool isValid() const
   {
-    if (version_ != CURRENT_VERSION) {
+    if (version() != CURRENT_VERSION) {
       return false;
     }
 
-    if (checkSum_ != checkSum()) {
-      DLOG(INFO) << "checkSum mismatched! checkSum_: " << checkSum_ << ", checkSum(): " << checkSum();
-      return false;
-    }
-
-    if (jobId_ == 0 || userId_ == 0 || workerHashId_ == 0 ||
-        height_ == 0 || blkBits_ == 0 || shareDiff_ == 0)
+    if (jobid() == 0 || userid() == 0 || workerhashid() == 0 ||
+        height() == 0 || blkbits() == 0 || sharediff() == 0)
     {
       return false;
     }
@@ -187,13 +193,110 @@ public:
 
   string toString() const
   {
-    double networkDifficulty = NetworkParamsDecred::get(network_).powLimit.getdouble() / arith_uint256().SetCompact(blkBits_).getdouble();
+    double networkDifficulty = NetworkParamsDecred::get((NetworkDecred)network()).powLimit.getdouble() / arith_uint256().SetCompact(blkbits()).getdouble();
     return Strings::Format("share(jobId: %" PRIu64 ", ip: %s, userId: %d, "
                            "workerId: %" PRId64 ", time: %u/%s, height: %u, "
                            "blkBits: %08x/%lf, shareDiff: %" PRIu64 ", status: %d/%s)",
-                           jobId_, ip_.toString().c_str(), userId_,
-                           workerHashId_, timestamp_, date("%F %T", timestamp_).c_str(), height_,
-                           blkBits_, networkDifficulty, shareDiff_, status_, StratumStatus::toString(status_));
+                           jobid(), ip().c_str(), userid(),
+                           workerhashid(), timestamp(), date("%F %T", timestamp()).c_str(), height(),
+                           blkbits(), networkDifficulty, sharediff(), status(), StratumStatus::toString(status()));
+  }
+
+  bool SerializeToBuffer(string& data, uint32_t& size) const{
+    size = ByteSize();
+    data.resize(size);
+    if (!SerializeToArray((uint8_t *)data.data(), size)) {
+      DLOG(INFO) << "base.SerializeToArray failed!" << std::endl;
+      return false;
+
+    }
+    return true;
+  }
+
+  bool UnserializeWithVersion(const uint8_t* data, uint32_t size){
+
+    if(nullptr == data || size <= 0) {
+      return false;
+    }
+
+    const uint8_t * payload = data;
+    uint32_t version = *((uint32_t*)payload);
+
+    if (version == CURRENT_VERSION) {
+
+      if (!ParseFromArray((const uint8_t *)(payload + sizeof(uint32_t)), size - sizeof(uint32_t))) {
+        DLOG(INFO) << "share ParseFromArray failed!";
+        return false;
+      }
+    } else if (version == BYTES_VERSION && size == sizeof(ShareDecredBytesVersion)) {
+
+      ShareDecredBytesVersion* share = (ShareDecredBytesVersion*) payload;
+
+      if (share->checkSum() != share->checkSum_) {
+        DLOG(INFO) << "checkSum mismatched! checkSum_: " << share->checkSum_<< ", checkSum(): " << share->checkSum();
+        return false;
+      }
+
+      set_version(CURRENT_VERSION);
+      set_workerhashid(share->workerHashId_);
+      set_userid(share->userId_);
+      set_status(share->status_);
+      set_timestamp(share->timestamp_);
+      set_ip(share->ip_.toString());
+      set_jobid(share->jobId_);
+      set_sharediff(share->shareDiff_);
+      set_blkbits(share->blkBits_);
+      set_height(share->height_);
+      set_nonce(share->nonce_);
+      set_sessionid(share->sessionId_);
+      set_network((uint32_t)share->network_);
+      set_voters(share->voters_);
+
+    } else {
+
+      DLOG(INFO) << "unknow share received! data size: " << size;
+      return false;
+    }
+
+    return true;
+  }
+
+
+  bool SerializeToArrayWithLength(string& data, uint32_t& size) const {
+    size = ByteSize();
+    data.resize(size + sizeof(uint32_t));
+
+    *((uint32_t*)data.data()) = size;
+    uint8_t * payload = (uint8_t *)data.data();
+
+    if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
+       DLOG(INFO) << "base.SerializeToArray failed!";
+      return false;
+    }
+
+    size += sizeof(uint32_t);
+    return true;
+  }
+
+
+  bool SerializeToArrayWithVersion(string& data, uint32_t& size) const {
+    size = ByteSize();
+    data.resize(size + sizeof(uint32_t));
+
+    uint8_t * payload = (uint8_t *)data.data();
+    *((uint32_t*)payload) = version();
+
+    if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
+      DLOG(INFO) << "SerializeToArray failed!";
+      return false;
+    }
+
+    size += sizeof(uint32_t);
+    return true;
+  }
+
+  uint32_t getsharelength() {
+      return IsInitialized() ? ByteSize() : 0;
   }
 };
 

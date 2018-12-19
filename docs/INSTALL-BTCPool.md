@@ -28,8 +28,12 @@ apt-get update
 apt-get install -y build-essential autotools-dev libtool autoconf automake pkg-config cmake \
                    openssl libssl-dev libcurl4-openssl-dev libconfig++-dev \
                    libboost-all-dev libgmp-dev libmysqlclient-dev libzookeeper-mt-dev \
-                   libzmq3-dev libgoogle-glog-dev libevent-dev libhiredis-dev
+                   libzmq3-dev libgoogle-glog-dev libhiredis-dev zlib1g zlib1g-dev libprotobuf-dev protobuf-compiler
 ```
+
+Notice: It is no longer recommended to install `libevent-dev` from the software source.
+**The release and stable version of libevent will cause a dead lock bug in sserver** ([issue #75](https://github.com/btccom/btcpool/issues/75)).
+It is recommended that you manually build the libevent from its master branch with commands at below.
 
 Sometimes one or two packages will fail due to dependency problems, and you can try `aptitude`.
 ```bash
@@ -39,21 +43,33 @@ apt-get install -y aptitude
 aptitude install build-essential autotools-dev libtool autoconf automake pkg-config cmake \
                    openssl libssl-dev libcurl4-openssl-dev libconfig++-dev \
                    libboost-all-dev libgmp-dev libmysqlclient-dev libzookeeper-mt-dev \
-                   libzmq3-dev libgoogle-glog-dev libevent-dev libhiredis-dev
+                   libzmq3-dev libgoogle-glog-dev libhiredis-dev zlib1g zlib1g-dev  libprotobuf-dev protobuf-compiler
 
 # Input `n` if the solution is `NOT INSTALL` some package.
 # Eventually aptitude will give a solution that downgrade some packages to allow all packages to be installed.
 ```
 
-* librdkafka-v0.9.1
+* build libevent from its master branch
+
+Notice: **the release and stable version of libevent will cause a dead lock bug in sserver** ([issue #75](https://github.com/btccom/btcpool/issues/75)), so use the code from the master branch. 
+```
+git clone https://github.com/libevent/libevent.git
+cd libevent
+./autogen.sh
+./configure --disable-shared
+make && make install
+```
+
+* build librdkafka-v0.9.1
 
 ```bash
-apt-get install -y zlib1g zlib1g-dev
-mkdir -p /root/source && cd /root/source
 wget https://github.com/edenhill/librdkafka/archive/0.9.1.tar.gz
 tar zxvf 0.9.1.tar.gz
 cd librdkafka-0.9.1
 ./configure && make && make install
+
+# if you want to keep static libraries only
+rm -v /usr/local/lib/librdkafka*.so /usr/local/lib/librdkafka*.so.*
 ```
 
 #### macOS
@@ -61,13 +77,12 @@ cd librdkafka-0.9.1
 Please install [brew](https://brew.sh/) first.
 
 ```bash
-brew install cmake openssl libconfig boost mysql zmq gmp libevent zookeeper librdkafka libhiredis
+brew install cmake openssl libconfig boost mysql zmq gmp libevent zookeeper librdkafka hiredis
 ```
 
 * glog-v0.3.4
 
 ```
-mkdir -p /root/source && cd /root/source
 wget https://github.com/google/glog/archive/v0.3.4.tar.gz
 tar zxvf v0.3.4.tar.gz
 cd glog-0.3.4
@@ -130,13 +145,13 @@ cmake -DJOBS=4 -DCHAIN_TYPE=BTC -DCHAIN_SRC_ROOT=/work/bitcoin-0.16.0 -DPOOL__WO
 make -j4
 ```
 
-**build BTCPool that linking to BitcoinCash**
+**build BTCPool that linking to BitcoinCash ABC**
 
 ```bash
 mkdir /work
 cd /work
-wget -O bitcoin-abc-0.17.1.tar.gz https://github.com/Bitcoin-ABC/bitcoin-abc/archive/v0.17.1.tar.gz
-tar zxf bitcoin-abc-0.17.1.tar.gz
+wget -O bitcoin-abc-0.18.5.tar.gz https://github.com/Bitcoin-ABC/bitcoin-abc/archive/v0.18.5.tar.gz
+tar zxf bitcoin-abc-0.18.5.tar.gz
 
 git clone https://github.com/btccom/btcpool.git
 cd btcpool
@@ -144,22 +159,58 @@ mkdir build
 cd build
 
 # Release build with 4 jobs:
-cmake -DJOBS=4 -DCHAIN_TYPE=BCH -DCHAIN_SRC_ROOT=/work/bitcoin-abc-0.17.1 ..
+cmake -DJOBS=4 -DCHAIN_TYPE=BCH -DCHAIN_SRC_ROOT=/work/bitcoin-abc-0.18.5 ..
 make -j4
 
 # Release build at macOS:
-cmake -DCHAIN_TYPE=BCH -DCHAIN_SRC_ROOT=/work/bitcoin-abc-0.17.1 -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl ..
+cmake -DCHAIN_TYPE=BCH -DCHAIN_SRC_ROOT=/work/bitcoin-abc-0.18.5 -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl ..
 make
 
 # Debug build:
-cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=BCH -DCHAIN_SRC_ROOT=/work/bitcoin-abc-0.17.1 ..
+cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=BCH -DCHAIN_SRC_ROOT=/work/bitcoin-abc-0.18.5 ..
 make
 
 # Build a special version of pool's stratum server, so you can run it with a stratum switcher:
 # Important: This version of sserver CANNOT run independently, `Illegal params` will throw
 # if you try to connect it directly without using StratumSwitcher.
 # Don't use `-DPOOL__WORK_WITH_STRATUM_SWITCHER=ON` if you don't know what StratumSwitcher is.
-cmake -DJOBS=4 -DCHAIN_TYPE=BCH -DCHAIN_SRC_ROOT=/work/bitcoin-abc-0.17.1 -DPOOL__WORK_WITH_STRATUM_SWITCHER=ON ..
+cmake -DJOBS=4 -DCHAIN_TYPE=BCH -DCHAIN_SRC_ROOT=/work/bitcoin-abc-0.18.5 -DPOOL__WORK_WITH_STRATUM_SWITCHER=ON ..
+make -j4
+```
+
+Note: `bitcoin-abc-0.17.1` and earlier are incompatible with current BTCPool, you will meet this error:
+> /work/bitcoin-abc-0.17.1/src/crypto/libbitcoin_crypto_base.a not exists!
+
+**build BTCPool that linking to Bitcoin SV**
+
+```bash
+mkdir /work
+cd /work
+wget -O bitcoin-sv-0.1.0.tar.gz https://github.com/bitcoin-sv/bitcoin-sv/archive/v0.1.0.tar.gz
+tar zxf bitcoin-sv-0.1.0.tar.gz
+
+git clone https://github.com/btccom/btcpool.git
+cd btcpool
+mkdir build
+cd build
+
+# Release build with 4 jobs:
+cmake -DJOBS=4 -DCHAIN_TYPE=BSV -DCHAIN_SRC_ROOT=/work/bitcoin-sv-0.1.0 ..
+make -j4
+
+# Release build at macOS:
+cmake -DCHAIN_TYPE=BSV -DCHAIN_SRC_ROOT=/work/bitcoin-sv-0.1.0 -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl ..
+make
+
+# Debug build:
+cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=BSV -DCHAIN_SRC_ROOT=/work/bitcoin-sv-0.1.0 ..
+make
+
+# Build a special version of pool's stratum server, so you can run it with a stratum switcher:
+# Important: This version of sserver CANNOT run independently, `Illegal params` will throw
+# if you try to connect it directly without using StratumSwitcher.
+# Don't use `-DPOOL__WORK_WITH_STRATUM_SWITCHER=ON` if you don't know what StratumSwitcher is.
+cmake -DJOBS=4 -DCHAIN_TYPE=BSV -DCHAIN_SRC_ROOT=/work/bitcoin-sv-0.1.0 -DPOOL__WORK_WITH_STRATUM_SWITCHER=ON ..
 make -j4
 ```
 
@@ -539,3 +590,9 @@ use `supervisorctl` to restart your services:
 $ supervisorctl
 > restart xxxx
 ```
+
+### Incompatible upgrade
+
+Upgrading to BTCPool 2.3.0 requires additional operations on `sharelogger`, `slparser` and `statshttpd` due to incompatible sharelog format changes.
+
+See [UPGRADE-BTCPool.md](./UPGRADE-BTCPool.md) for more information.

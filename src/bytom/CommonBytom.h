@@ -26,8 +26,8 @@
 
 #include "Common.h"
 
-uint64 Bytom_TargetCompactToDifficulty(uint64 bits);
-void Bytom_DifficultyToTargetBinary(uint64 difficulty, vector<uint8_t>& out);
-uint64 Bytom_JobDifficultyToTargetCompact(uint64 difficulty);
+uint64_t Bytom_TargetCompactToDifficulty(uint64_t bits);
+void Bytom_DifficultyToTargetBinary(uint64_t difficulty, vector<uint8_t>& out);
+uint64_t Bytom_JobDifficultyToTargetCompact(uint64_t difficulty);
 
 #endif

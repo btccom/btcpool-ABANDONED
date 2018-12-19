@@ -38,8 +38,8 @@ struct GlobalShareEth {
   GlobalShareEth() = default;
 
   GlobalShareEth(const ShareEth &share)
-    : headerHash_(share.headerHash_)
-    , nonce_(share.nonce_)
+    : headerHash_(share.headerhash())
+    , nonce_(share.nonce())
   {}
 
   GlobalShareEth& operator=(const GlobalShareEth &r) = default;

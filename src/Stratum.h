@@ -85,6 +85,10 @@ public:
     TIME_TOO_NEW = 32,
     ILLEGAL_VERMASK = 33,
 
+#ifdef WORK_WITH_STRATUM_SWITCHER
+    CLIENT_IS_NOT_SWITCHER = 400,
+#endif
+
     UNKNOWN = 2147483647 // bin(01111111 11111111 11111111 11111111)
   };
 
@@ -163,7 +167,7 @@ public:
 
   virtual string serializeToJson() const = 0;
   virtual bool unserializeFromJson(const char *s, size_t len) = 0;
-  virtual uint32 jobTime() const { return jobId2Time(jobId_); }
+  virtual uint32_t jobTime() const { return jobId2Time(jobId_); }
 
 };
 

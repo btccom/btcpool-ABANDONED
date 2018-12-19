@@ -115,7 +115,7 @@ bool GbtMaker::checkBitcoindZMQ() {
 
   if (type == BITCOIND_ZMQ_HASHTX) {
     string hashHex;
-    Bin2Hex((const uint8 *)content.data(), content.size(), hashHex);
+    Bin2Hex((const uint8_t *)content.data(), content.size(), hashHex);
     LOG(INFO) << "bitcoind zmq recv hashtx: " << hashHex;
     return true;
   }
@@ -327,9 +327,9 @@ void GbtMaker::threadListenBitcoind() {
     if (type == BITCOIND_ZMQ_HASHBLOCK)
     {
       string hashHex;
-      Bin2Hex((const uint8 *)content.data(), content.size(), hashHex);
+      Bin2Hex((const uint8_t *)content.data(), content.size(), hashHex);
       string sequenceHex;
-      Bin2Hex((const uint8 *)sequence.data(), sequence.size(), sequenceHex);
+      Bin2Hex((const uint8_t *)sequence.data(), sequence.size(), sequenceHex);
       LOG(INFO) << ">>>> bitcoind recv hashblock: " << hashHex << ", sequence: " << sequenceHex << " <<<<";
     }
     else
@@ -425,7 +425,7 @@ bool NMCAuxBlockMaker::checkNamecoindZMQ() {
 
   if (type == NAMECOIND_ZMQ_HASHTX) {
     string hashHex;
-    Bin2Hex((const uint8 *)content.data(), content.size(), hashHex);
+    Bin2Hex((const uint8_t *)content.data(), content.size(), hashHex);
     LOG(INFO) << "namecoind zmq recv hashtx: " << hashHex;
     return true;
   }
@@ -440,9 +440,15 @@ bool NMCAuxBlockMaker::callRpcCreateAuxBlock(string &resp) {
   // -d '{"jsonrpc": "1.0", "id":"curltest", "method": "createauxblock","params": []}'
   // -H 'content-type: text/plain;' "http://127.0.0.1:8336"
   //
+#ifdef CHAIN_TYPE_LTC
+  string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getauxblock\",\"params\":[]}";
+#else
   string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"createauxblock\",\"params\":[\"";
-  request += coinbaseAddress_;
+  request += coinbaseAddress_; 
   request += "\"]}";
+
+#endif
+
   bool res = blockchainNodeRpcCall(rpcAddr_.c_str(), rpcUserpass_.c_str(),
                              request.c_str(), resp);
   if (!res) {
@@ -531,7 +537,6 @@ void NMCAuxBlockMaker::submitAuxblockMsg(bool checkTime) {
       lastCallTime_ + kRpcCallInterval_ > time(nullptr)) {
     return;
   }
-
   const string auxMsg = makeAuxBlockMsg();
   if (auxMsg.length() == 0) {
     LOG(ERROR) << "createauxblock failure";
@@ -574,7 +579,7 @@ void NMCAuxBlockMaker::threadListenNamecoind() {
     if (type == NAMECOIND_ZMQ_HASHBLOCK)
     {
       string hashHex;
-      Bin2Hex((const uint8 *)content.data(), content.size(), hashHex);
+      Bin2Hex((const uint8_t *)content.data(), content.size(), hashHex);
       LOG(INFO) << ">>>> namecoind recv hashblock: " << hashHex << " <<<<";
       submitAuxblockMsg(false);
     }
@@ -612,6 +617,7 @@ bool NMCAuxBlockMaker::init() {
     return false;
   }
 
+#ifndef CHAIN_TYPE_LTC
   // check aux mining rpc commands: createauxblock & submitauxblock
   {
     string response;
@@ -629,6 +635,7 @@ bool NMCAuxBlockMaker::init() {
       return false;
     }
   }
+#endif
 
   if (isCheckZmq_ && !checkNamecoindZMQ())
     return false;

@@ -55,7 +55,7 @@ public:
 private:
   const StratumProtocolDecred &protocol_;
 
-  uint8 shortJobId_;    // jobId starts from 0
+  uint8_t shortJobId_;    // jobId starts from 0
 };
 
 #endif  // #ifndef STRATUM_SESSION_DECRED_H_

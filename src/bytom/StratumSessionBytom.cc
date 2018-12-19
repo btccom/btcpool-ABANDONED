@@ -83,13 +83,13 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
   if (jobDifficulty == 0)
     jobDifficulty = server.isDevModeEnable_ ? 1 : Bytom_TargetCompactToDifficulty(sJob->blockHeader_.bits);
 
-  uint64 nonce = (((uint64) extraNonce1_) << 32);
+  uint64_t nonce = (((uint64_t) extraNonce1_) << 32);
   string notifyStr, nonceStr, versionStr, heightStr, timestampStr, bitsStr;
-  Bin2HexR((uint8 *) &nonce, 8, nonceStr);
-  Bin2Hex((uint8 *) &sJob->blockHeader_.version, 8, versionStr);
-  Bin2Hex((uint8 *) &sJob->blockHeader_.height, 8, heightStr);
-  Bin2Hex((uint8 *) &sJob->blockHeader_.timestamp, 8, timestampStr);
-  Bin2Hex((uint8 *) &sJob->blockHeader_.bits, 8, bitsStr);
+  Bin2HexR((uint8_t *) &nonce, 8, nonceStr);
+  Bin2Hex((uint8_t *) &sJob->blockHeader_.version, 8, versionStr);
+  Bin2Hex((uint8_t *) &sJob->blockHeader_.height, 8, heightStr);
+  Bin2Hex((uint8_t *) &sJob->blockHeader_.timestamp, 8, timestampStr);
+  Bin2Hex((uint8_t *) &sJob->blockHeader_.bits, 8, bitsStr);
 
   string targetStr;
   {

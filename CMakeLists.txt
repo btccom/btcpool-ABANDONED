@@ -84,13 +84,13 @@ if (CHAIN_TYPE STREQUAL "BTC")
   add_definitions(-DZOOKEEPER_NODE_POSTFIX="") # for compatibility with old deployments, let it empty.
 
 # BitcoinCash
-elseif(CHAIN_TYPE STREQUAL "BCH")
+elseif(CHAIN_TYPE STREQUAL "BCH" OR CHAIN_TYPE STREQUAL "BSV")
   set(CHAIN_NAME "Bitcoin ABC")
   set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-bitcoincash")
   set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.bch")
 
-  add_definitions(-DCHAIN_TYPE_BCH)
-  add_definitions(-DCHAIN_TYPE_STR="BCH")
+  add_definitions(-DCHAIN_TYPE_${CHAIN_TYPE})
+  add_definitions(-DCHAIN_TYPE_STR="${CHAIN_TYPE}")
   add_definitions(-DKAFKA_TOPIC_PREFIX="") # for compatibility with old deployments, let it empty.
   add_definitions(-DZOOKEEPER_NODE_POSTFIX="") # for compatibility with old deployments, let it empty.
 
@@ -116,10 +116,24 @@ elseif(CHAIN_TYPE STREQUAL "SBTC")
   add_definitions(-DKAFKA_TOPIC_PREFIX="SBTC_")
   add_definitions(-DZOOKEEPER_NODE_POSTFIX="_sbtc")
 
+# Litecoin
+elseif(CHAIN_TYPE STREQUAL "LTC")
+    set(CHAIN_NAME "Litecoin")
+    set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-litecoin")
+    set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.ltc")
+
+#    set(CMAKE_CXX_COMPILER "c++")
+#    set(CMAKE_C_COMPILER "cc")
+
+    add_definitions(-DCHAIN_TYPE_LTC)
+    add_definitions(-DCHAIN_TYPE_STR="LTC")
+    add_definitions(-DKAFKA_TOPIC_PREFIX="LTC_")
+    add_definitions(-DZOOKEEPER_NODE_POSTFIX="_ltc")
+
 # Unknown
 else()
   message("Unknown chain type! (-DCHAIN_TYPE=${CHAIN_TYPE})")
-  message(FATAL_ERROR "Supported chain type: BTC|BCH|UBTC|SBTC")
+  message(FATAL_ERROR "Supported chain type: BTC|BCH|UBTC|SBTC|LTC")
 endif()
 
 option(CHAIN_ENABLE_WALLET "Enable chain wallet feature" OFF)
@@ -250,8 +264,18 @@ message("------------------------------- Libs -------------------------------")
 set(BITCOIN_LIBRARIES
   "${CHAIN_SRC_ROOT}/src/libbitcoin_common.a"
   "${CHAIN_SRC_ROOT}/src/libbitcoin_consensus.a"
-  "${CHAIN_SRC_ROOT}/src/libbitcoin_util.a"
+  "${CHAIN_SRC_ROOT}/src/libbitcoin_util.a")
+
+if(CHAIN_TYPE STREQUAL "BCH")
+set(BITCOIN_LIBRARIES ${BITCOIN_LIBRARIES}
+  "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto_base.a"
+  "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto_shani.a"
+  "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto_avx2.a"
+  "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto_sse41.a")
+else()
+set(BITCOIN_LIBRARIES ${BITCOIN_LIBRARIES}
   "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto.a")
+endif()
 
 list(GET BITCOIN_LIBRARIES 0 BITCOIN_LIBRARIE)
 if (NOT EXISTS ${BITCOIN_LIBRARIE})
@@ -320,6 +344,11 @@ endif()
 find_package(LibEvent)
 if(NOT LibEvent_FOUND)
   message(FATAL_ERROR "libevent2 not found!")
+endif()
+
+find_package(Protobuf)
+if(NOT Protobuf_FOUND)
+  message(FATAL_ERROR "libprotobuf not found!")
 endif()
 
 find_package(Boost 1.47.0 COMPONENTS thread filesystem system regex program_options chrono)
@@ -401,22 +430,26 @@ else()
   add_definitions(-DNO_CUDA)
 endif(USE_CUDA)
 
-include_directories(src/satoshi src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config ${CHAIN_SRC_ROOT}/src/secp256k1/include
-                    ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS}
+file(GLOB ProtoFiles "${CMAKE_CURRENT_SOURCE_DIR}/src/share.pro")
+execute_process(COMMAND protoc --proto_path=${CMAKE_CURRENT_SOURCE_DIR}/src/  --cpp_out=src  ${ProtoFiles}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/share.pro.pb.h")
+  message(FATAL_ERROR "generate share.pro.pb.h failed! please check whether the Protobuf compiler installed correctly!")
+endif()
+
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/src src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config ${CHAIN_SRC_ROOT}/src/secp256k1/include
+	${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS} ${KAFKA_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS}
                     ${LIBEVENT_INCLUDE_DIR} ${USE_CUDA_INCLUDE_DIRECTORY} ${BH_SHARED_INCLUDE_DIR} ${MYSQL_INCLUDE_DIR})
 
 set(THIRD_LIBRARIES ethash blake2 sph ${BH_SHARED_LIBRARY} ${USE_CUDA_LIBRARIES}
                     ${BITCOIN_LIBRARIES} ${secp256k1_LIBRARIES} ${GLOG_LIBRARIES} ${KAFKA_LIBRARIES} ${ZLIB_LIBRARIES} ${ZOOKEEPER_LIBRARIES}
                     ${MYSQL_LIBRARIES} ${LIBZMQ_LIBRARIES} ${Hiredis_LIBRARIES} ${CURL_LIBRARIES} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY}
-                    ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB} ${GMP_LIBRARIES} ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} ${PTHREAD_LIBRARIES})
-
-file(GLOB_RECURSE LIB_SATOSHI_SOURCES
-        src/satoshi/*.cpp
-    )
+                    ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB} ${GMP_LIBRARIES} ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} ${PTHREAD_LIBRARIES} ${PROTOBUF_LIBRARIES})
 
 file(GLOB LIB_SOURCES
         src/*.cc
         src/rsk/*.cc
+
     )
 file(GLOB LIB_SOURCES_CHAINS
         src/eth/*.cc
@@ -426,7 +459,7 @@ file(GLOB LIB_SOURCES_CHAINS
         src/decred/*.cc
     )
 
-add_library(btcpool STATIC ${LIB_SATOSHI_SOURCES} ${LIB_SOURCES} ${LIB_SOURCES_CHAINS} ${LIB_SOURCES_DECRED})
+add_library(btcpool STATIC ${LIB_SOURCES} ${LIB_SOURCES_CHAINS} ${LIB_SOURCES_DECRED})
 
 file(GLOB_RECURSE TEST_SOURCES test/*.cc test/*.cpp)
 add_executable(unittest ${TEST_SOURCES})

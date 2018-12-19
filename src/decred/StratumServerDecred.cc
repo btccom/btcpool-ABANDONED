@@ -28,6 +28,8 @@
 #include "StratumDecred.h"
 #include "CommonDecred.h"
 
+#include "StratumMiner.h"
+
 #include "arith_uint256.h"
 
 #include <boost/algorithm/string.hpp>
@@ -108,13 +110,13 @@ public:
 
   void setExtraNonces(BlockHeaderDecred &header, uint32_t extraNonce1, const vector<uint8_t> &extraNonce2) override {
     *reinterpret_cast<boost::endian::little_uint32_buf_t *>(header.extraData.begin()) = extraNonce1;
-    std::copy(extraNonce2.begin(), extraNonce2.end(), header.extraData.begin() + 4);
+    std::copy_n(extraNonce2.begin(), StratumMiner::kExtraNonce2Size_, header.extraData.begin() + sizeof(extraNonce1));
   }
 };
 
 // tpruvot protocol
 // mining.notify: extra nonce 2 size is not used, extra nonce 1 is considered as the whole extra nonce, bits higher than 32 to be rolled
-// mining.submit: extra nonce 2 is considered as the whole rolled extra nonce
+// mining.submit: extra nonce 2 is considered as the whole rolled extra nonce but we only take the first 8 bytes (last 4 bytes shall be extra nonce1).
 class StratumProtocolDecredTPruvot : public StratumProtocolDecred {
 public:
   string getExtraNonce1String(uint32_t extraNonce1) const override {
@@ -122,7 +124,8 @@ public:
   }
 
   void setExtraNonces(BlockHeaderDecred &header, uint32_t extraNonce1, const vector<uint8_t> &extraNonce2) override {
-    std::copy(extraNonce2.begin(), extraNonce2.end(), header.extraData.begin());
+    *reinterpret_cast<boost::endian::little_uint32_buf_t *>(header.extraData.begin() + StratumMiner::kExtraNonce2Size_) = extraNonce1;
+    std::copy_n(extraNonce2.begin(), StratumMiner::kExtraNonce2Size_, header.extraData.begin());
   }
 };
 
@@ -159,17 +162,17 @@ int ServerDecred::checkShare(ShareDecred &share, shared_ptr<StratumJobEx> exJobP
   }
 
   auto sjob = dynamic_cast<StratumJobDecred*>(exJobPtr->sjob_);
-  share.network_ = sjob->network_;
-  share.voters_ = sjob->header_.voters.value();
+  share.set_network((uint32_t)sjob->network_);
+  share.set_voters(sjob->header_.voters.value());
   if (ntime > sjob->header_.timestamp.value() + 600) {
     return StratumStatus::TIME_TOO_NEW;
   }
 
-  FoundBlockDecred foundBlock(share.jobId_, share.workerHashId_, share.userId_, workerFullName, sjob->header_, sjob->network_);
+  FoundBlockDecred foundBlock(share.jobid(), share.workerhashid(), share.userid(), workerFullName, sjob->header_, sjob->network_);
   auto& header = foundBlock.header_;
   header.timestamp = ntime;
   header.nonce = nonce;
-  protocol_->setExtraNonces(header, share.sessionId_, extraNonce2);
+  protocol_->setExtraNonces(header, share.sessionid(), extraNonce2);
 
   uint256 blkHash = header.getHash();
   auto bnBlockHash = UintToArith256(blkHash);
@@ -186,7 +189,7 @@ int ServerDecred::checkShare(ShareDecred &share, shared_ptr<StratumJobEx> exJobP
     GetJobRepository()->markAllJobsAsStale();
 
     LOG(INFO) << ">>>> found a new block: " << blkHash.ToString()
-    << ", jobId: " << share.jobId_ << ", userId: " << share.userId_
+    << ", jobId: " << share.jobid() << ", userId: " << share.userid()
     << ", by: " << workerFullName << " <<<<";
   }
 
@@ -198,7 +201,7 @@ int ServerDecred::checkShare(ShareDecred &share, shared_ptr<StratumJobEx> exJobP
   }
 
   // check share diff
-  auto jobTarget = NetworkParamsDecred::get(sjob->network_).powLimit / share.shareDiff_;
+  auto jobTarget = NetworkParamsDecred::get(sjob->network_).powLimit / share.sharediff();
 
   DLOG(INFO) << "blkHash: " << blkHash.ToString() << ", jobTarget: "
   << jobTarget.ToString() << ", networkTarget: " << sjob->target_.ToString();

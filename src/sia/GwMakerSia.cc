@@ -41,7 +41,7 @@ string GwMakerHandlerSia::processRawGw(const string &msg)
   string targetStr;
   for (int i = 0; i < 32; ++i)
   {
-    uint8 val = (uint8)msg[i];
+    uint8_t val = (uint8_t)msg[i];
     targetStr += Strings::Format("%02x", val);
   }
 
@@ -51,12 +51,12 @@ string GwMakerHandlerSia::processRawGw(const string &msg)
   string headerStr;
   for (int i = 32; i < 112; ++i)
   {
-    uint8 val = (uint8)msg[i];
+    uint8_t val = (uint8_t)msg[i];
     headerStr += Strings::Format("%02x", val);
   }
 
   //time stamp
-  // uint64 timestamp = *((uint64*)&msg[72]);
+  // uint64_t timestamp = *((uint64*)&msg[72]);
   // string timestampStr = Strings::Format("%08x%08x", timestamp >> 32, timestamp & 0xFFFFFFFF);
   // DLOG(INFO) << "timestamp string=" <<  timestampStr;
 
@@ -64,7 +64,7 @@ string GwMakerHandlerSia::processRawGw(const string &msg)
 
   // for (int i = 80; i < 112; ++i)
   // {
-  //   uint8 val = (uint8)msg[i];
+  //   uint8_t val = (uint8)msg[i];
   //   headerStr += Strings::Format("%02x", val);
   // }
 

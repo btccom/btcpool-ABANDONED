@@ -79,7 +79,7 @@ TEST(Common, score2Str) {
 }
 
 TEST(Common, BitsToTarget) {
-  uint32 bits;
+  uint32_t bits;
   uint256 target;
 
   bits = 0x1b0404cb;

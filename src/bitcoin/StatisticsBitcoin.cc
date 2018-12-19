@@ -31,12 +31,12 @@ template <>
 void ShareStatsDay<ShareBitcoin>::processShare(uint32_t hourIdx, const ShareBitcoin &share) {
   ScopeLock sl(lock_);
 
-  if (StratumStatus::isAccepted(share.status_)) {
-    shareAccept1h_[hourIdx] += share.shareDiff_;
-    shareAccept1d_          += share.shareDiff_;
+  if (StratumStatus::isAccepted(share.status())) {
+    shareAccept1h_[hourIdx] += share.sharediff();
+    shareAccept1d_          += share.sharediff();
 
     double score = share.score();
-    double reward = GetBlockReward(share.height_, Params().GetConsensus());
+    double reward = GetBlockReward(share.height(), Params().GetConsensus());
     double earn = score * reward;
 
     score1h_[hourIdx] += score;
@@ -45,8 +45,8 @@ void ShareStatsDay<ShareBitcoin>::processShare(uint32_t hourIdx, const ShareBitc
     earn1d_           += earn;
 
   } else {
-    shareReject1h_[hourIdx] += share.shareDiff_;
-    shareReject1d_          += share.shareDiff_;
+    shareReject1h_[hourIdx] += share.sharediff();
+    shareReject1d_          += share.sharediff();
   }
   modifyHoursFlag_ |= (0x01u << hourIdx);
 }

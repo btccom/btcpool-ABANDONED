@@ -28,10 +28,7 @@
 #include <sstream>
 #include <vector>
 
-// #include <base58.h>
-// #include <util.h>
-#include <util/strencodings.h>
-// #include <streams.h>
+#include <utilstrencodings.h>
 
 #include <libconfig.h++>
 #include <glog/logging.h>
@@ -44,9 +41,9 @@ using libconfig::Setting;
 bool Hex2BinReverse(const char *in, size_t size, vector<char> &out);
 bool Hex2Bin(const char *in, size_t size, vector<char> &out);
 bool Hex2Bin(const char *in, vector<char> &out);
-void Bin2Hex(const uint8 *in, size_t len, string &str);
+void Bin2Hex(const uint8_t *in, size_t len, string &str);
 void Bin2Hex(const vector<char> &in, string &str);
-void Bin2HexR(const uint8 *in, size_t len, string &str);
+void Bin2HexR(const uint8_t *in, size_t len, string &str);
 void Bin2HexR(const vector<char> &in, string &str);
 
 // remove prefix 0x of a hex string

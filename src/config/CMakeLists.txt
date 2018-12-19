@@ -89,12 +89,12 @@ check_builtin_exist(__builtin_clz HAVE_DECL___BUILTIN_CLZ)
 check_builtin_exist(__builtin_clzl HAVE_DECL___BUILTIN_CLZL)
 check_builtin_exist(__builtin_clzll HAVE_DECL___BUILTIN_CLZLL)
 
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/bpool-config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/bpool-config.h)
+configure_file(bpool-config.h.in bpool-config.h)
 
 ########################## Generate version number #############################
 
 SET(BPOOL_VERSION_MAJOR "2")
-SET(BPOOL_VERSION_MINOR "2")
+SET(BPOOL_VERSION_MINOR "3")
 SET(BPOOL_VERSION_PATCH "0")
 
 # Get the current abbreviated commit hash of the working branch
@@ -115,7 +115,7 @@ set(BPOOL_VERSION_STR "${BPOOL_VERSION_MAJOR}.${BPOOL_VERSION_MINOR}.${BPOOL_VER
 
 message("-- version string: ${BPOOL_VERSION_STR}")
 
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/bpool-version.h.in ${CMAKE_CURRENT_SOURCE_DIR}/bpool-version.h)
+configure_file(bpool-version.h.in bpool-version.h)
 
 
 # package version of cpack

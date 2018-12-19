@@ -65,14 +65,6 @@ using std::unique_lock;
 using std::condition_variable;
 using std::function;
 
-typedef int8_t int8;
-typedef uint8_t uint8;
-typedef int16_t int16;
-typedef uint16_t uint16;
-typedef int32_t int32;
-typedef uint32_t uint32;
-typedef int64_t int64;
-typedef uint64_t uint64;
 typedef lock_guard<mutex> ScopeLock;
 typedef unique_lock<mutex> UniqueLock;
 typedef condition_variable Condition;
@@ -82,16 +74,16 @@ typedef condition_variable Condition;
  * byte order conversion utils
  */
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-inline uint16 HToBe(uint16 v) {
+inline uint16_t HToBe(uint16_t v) {
   return (v >> 8) | (v << 8);
 }
-inline uint32 HToBe(uint32 v) {
+inline uint32_t HToBe(uint32_t v) {
   return ((v & 0xff000000) >> 24) |
   ((v & 0x00ff0000) >> 8) |
   ((v & 0x0000ff00) << 8) |
   ((v & 0x000000ff) << 24);
 }
-inline uint64 HToBe(uint64 v) {
+inline uint64_t HToBe(uint64_t v) {
   return ((v & 0xff00000000000000ULL) >> 56) |
   ((v & 0x00ff000000000000ULL) >> 40) |
   ((v & 0x0000ff0000000000ULL) >> 24) |
@@ -102,27 +94,27 @@ inline uint64 HToBe(uint64 v) {
   ((v & 0x00000000000000ffULL) << 56);
 }
 #else
-inline uint16 HToBe(uint16 v) {
+inline uint16_t HToBe(uint16_t v) {
   return v;
 }
-inline uint32 HToBe(uint32 v) {
+inline uint32_t HToBe(uint32_t v) {
   return v;
 }
-inline uint64 HToBe(uint64 v) {
+inline uint64_t HToBe(uint64_t v) {
   return v;
 }
 #endif
-inline int16 HToBe(int16 v) {
-  return (int16)HToBe((uint16)v);
+inline int16_t HToBe(int16_t v) {
+  return (int16_t)HToBe((uint16_t)v);
 }
-inline int32 HToBe(int32 v) {
-  return (int32)HToBe((uint32)v);
+inline int32_t HToBe(int32_t v) {
+  return (int32_t)HToBe((uint32_t)v);
 }
-inline int64 HToBe(int64 v) {
-  return (int64)HToBe((uint64)v);
+inline int64_t HToBe(int64_t v) {
+  return (int64_t)HToBe((uint64_t)v);
 }
 
-uint32 djb2(const char *str);
+uint32_t djb2(const char *str);
 uint64_t formatDifficulty(const uint64_t diff);
 
 #endif

@@ -44,7 +44,7 @@ StratumMiner::StratumMiner(IStratumSession &session,
 }
 
 void StratumMiner::setMinDiff(uint64_t minDiff) {
-  diffController_->setCurDiff(minDiff);
+  diffController_->setMinDiff(minDiff);
 }
 
 void StratumMiner::resetCurDiff(uint64_t curDiff) {

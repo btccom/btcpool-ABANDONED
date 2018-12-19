@@ -1,6 +1,11 @@
 BTCPool for Bitcoin, Ethereum, Decred, Bytom, ...
 ==================
 
+|Branch|Status|
+|------|------|
+|master|[![CircleCI](https://circleci.com/gh/btccom/btcpool/tree/master.svg?style=shield)](https://circleci.com/gh/btccom/btcpool/tree/master)|
+|deveth|[![CircleCI](https://circleci.com/gh/btccom/btcpool/tree/deveth.svg?style=shield)](https://circleci.com/gh/btccom/btcpool/tree/deveth)|
+
 BTCPool is backend system of [https://pool.btc.com](https://pool.btc.com).
 
 > This is a version of BTCPool that supports more blockchains. Check the **SHA256-only** version at [master](https://github.com/btccom/btcpool/tree/master) branch.
@@ -45,6 +50,12 @@ See Also:
   * [https://kafka.apache.org/](https://kafka.apache.org/)
 3. Install `Bitcoind`, need to enable ZMQ
 4. Install `BTCPool`, see [INSTALL-BTCPool.md](docs/INSTALL-BTCPool.md)
+
+## Upgrade
+
+Upgrading to BTCPool 2.3.0 requires additional operations on `sharelogger`, `slparser` and `statshttpd` due to incompatible sharelog format changes.
+
+See [UPGRADE-BTCPool.md](docs/UPGRADE-BTCPool.md) for more information.
 
 ## Benchmark (outdated)
 

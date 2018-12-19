@@ -422,9 +422,15 @@ void BlockMakerBitcoin::_submitNamecoinBlockThread(const string &auxBlockHash,
   // request : submitauxblock <hash> <auxpow>
   //
   {
+  #ifdef CHAIN_TYPE_LTC
+     const string request = Strings::Format("{\"id\":1,\"method\":\"getauxblock\",\"params\":[\"%s\",\"%s\"]}",
+                                           auxBlockHash.c_str(),
+                                           auxPow.c_str());
+  #else
     const string request = Strings::Format("{\"id\":1,\"method\":\"submitauxblock\",\"params\":[\"%s\",\"%s\"]}",
                                            auxBlockHash.c_str(),
                                            auxPow.c_str());
+  #endif
     DLOG(INFO) << "submitauxblock request: " << request;
     // try N times
     for (size_t i = 0; i < 3; i++) {
@@ -560,6 +566,9 @@ void BlockMakerBitcoin::processSolvedShare(rd_kafka_message_t *rkmessage) {
   else
 #endif  // CHAIN_TYPE_BCH
   {
+#ifdef CHAIN_TYPE_LTC
+    LOG(INFO) << "submit block pow: " << newblk.GetPoWHash().ToString();
+#endif
     LOG(INFO) << "submit block: " << newblk.GetHash().ToString();
     submitBlockNonBlocking(blockHex);  // using thread
   }
@@ -676,6 +685,7 @@ void BlockMakerBitcoin::submitBlockLightNonBlocking(const string &blockHex, cons
 void BlockMakerBitcoin::_submitBlockLightThread(const string &rpcAddress, const string &rpcUserpass, const string& job_id, 
                         const string &blockHex)
 {
+
   string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"submitblocklight\",\"params\":[\"";
   request += blockHex + "\", \"";
   request += job_id + "\"";

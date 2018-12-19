@@ -242,7 +242,9 @@ void StratumSessionEth::handleRequest_Subscribe(const string &idStr,
     //  params[3] = miner's real IP (unit32) [optional]
 
     if (params->size() < 3) {
-      responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
+      responseError(idStr, StratumStatus::CLIENT_IS_NOT_SWITCHER);
+      LOG(ERROR) << "A non-switcher subscribe request is detected and rejected.";
+      LOG(ERROR) << "Cmake option POOL__WORK_WITH_STRATUM_SWITCHER enabled, you can only connect to the sserver via a stratum switcher.";
       return;
     }
 

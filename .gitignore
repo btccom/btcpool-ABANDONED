@@ -8,6 +8,9 @@
 build
 build*/
 
+# Installs runs 
+install/run_*/
+
 # datas
 /patches/
 /data/
@@ -19,3 +22,5 @@ build*/
 
 # generated configuration files
 /src/config/*.h
+/src/*.pro.pb.h
+/src/*.pro.pb.cc

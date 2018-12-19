@@ -106,6 +106,48 @@ void StratumSessionDecred::handleRequest_Subscribe(const string &idStr,
     return;
   }
 
+#ifdef WORK_WITH_STRATUM_SWITCHER
+
+  //
+  // For working with StratumSwitcher, the ExtraNonce1 must be provided as param 2.
+  //
+  //  params[0] = client version           [require]
+  //  params[1] = session id / ExtraNonce1 [require]
+  //  params[2] = miner's real IP (unit32) [optional]
+  //
+  //  StratumSwitcher request eg.:
+  //  {"id": 1, "method": "mining.subscribe", "params": ["StratumSwitcher/0.1", "01ad557d", 203569230]}
+  //  203569230 -> 12.34.56.78
+  //
+
+  if (jparams.children()->size() < 2) {
+    responseError(idStr, StratumStatus::CLIENT_IS_NOT_SWITCHER);
+    LOG(ERROR) << "A non-switcher subscribe request is detected and rejected.";
+    LOG(ERROR) << "Cmake option POOL__WORK_WITH_STRATUM_SWITCHER enabled, you can only connect to the sserver via a stratum switcher.";
+    return;
+  }
+
+  state_ = SUBSCRIBED;
+
+  setClientAgent(jparams.children()->at(0).str().substr(0, 30));  // 30 is max len
+
+  string extNonce1Str = jparams.children()->at(1).str().substr(0, 8);  // 8 is max len
+  sscanf(extNonce1Str.c_str(), "%x", &extraNonce1_); // convert hex to int
+
+  // receive miner's IP from stratumSwitcher
+  if (jparams.children()->size() >= 3) {
+    clientIpInt_ = htonl(jparams.children()->at(2).uint32());
+
+    // ipv4
+    clientIp_.resize(INET_ADDRSTRLEN);
+    struct in_addr addr;
+    addr.s_addr = clientIpInt_;
+    clientIp_ = inet_ntop(AF_INET, &addr, (char *)clientIp_.data(), (socklen_t)clientIp_.size());
+    LOG(INFO) << "client real IP: " << clientIp_;
+  }
+
+#else
+
   state_ = SUBSCRIBED;
 
   //
@@ -118,6 +160,8 @@ void StratumSessionDecred::handleRequest_Subscribe(const string &idStr,
     setClientAgent(jparams.children()->at(0).str().substr(0, 30));  // 30 is max len
   }
 
+#endif // WORK_WITH_STRATUM_SWITCHER
+
   //  result[0] = 2-tuple with name of subscribed notification and subscription ID.
   //              Theoretically it may be used for unsubscribing, but obviously miners won't use it.
   //  result[1] = ExtraNonce1, used for building the coinbase. There are 2 variants of miners known
@@ -125,9 +169,9 @@ void StratumSessionDecred::handleRequest_Subscribe(const string &idStr,
   //              the value on both places.
   //  result[2] = ExtraNonce2_size, the number of bytes that the miner users for its ExtraNonce2 counter
   auto extraNonce1Str = protocol_.getExtraNonce1String(extraNonce1_);
-  const string s = Strings::Format("{\"id\":%s,\"result\":[[[\"mining.set_difficulty\",\"1\"]"
+  const string s = Strings::Format("{\"id\":%s,\"result\":[[[\"mining.set_difficulty\",\"%08x\"]"
                                    ",[\"mining.notify\",\"%08x\"]],\"%s\",%d],\"error\":null}\n",
-                                   idStr.c_str(), extraNonce1_, extraNonce1Str.c_str(), StratumMiner::kExtraNonce2Size_);
+                                   idStr.c_str(), extraNonce1_, extraNonce1_, extraNonce1Str.c_str(), StratumMiner::kExtraNonce2Size_);
   sendData(s);
 }
 

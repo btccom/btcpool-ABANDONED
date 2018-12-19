@@ -136,21 +136,21 @@ void StratumMinerDecred::handleRequest_Submit(const string &idStr, const JsonNod
 
   // can't find local share
   if (!localJob->addLocalShare(localShare)) {
-    share.status_ = StratumStatus::DUPLICATE_SHARE;
+    share.set_status(StratumStatus::DUPLICATE_SHARE);
   } else {
-    share.status_ = server.checkShare(share, exjob, extraNonce2, ntime, nonce, worker.fullName_);
+    share.set_status(server.checkShare(share, exjob, extraNonce2, ntime, nonce, worker.fullName_));
   }
 
-  if (!handleShare(idStr, share.status_, share.shareDiff_)) {
+  if (!handleShare(idStr, share.status(), share.sharediff())) {
     // add invalid share to counter
     invalidSharesCounter_.insert(static_cast<int64_t>(time(nullptr)), 1);
   }
 
   DLOG(INFO) << share.toString();
 
-  if (!StratumStatus::isAccepted(share.status_)) {
+  if (!StratumStatus::isAccepted(share.status())) {
     // log all rejected share to answer "Why the rejection rate of my miner increased?"
-    LOG(INFO) << "rejected share: " << StratumStatus::toString(share.status_)
+    LOG(INFO) << "rejected share: " << StratumStatus::toString(share.status())
               << ", worker: " << worker.fullName_ << ", " << share.toString();
 
     // check if thers is invalid share spamming
@@ -160,14 +160,21 @@ void StratumMinerDecred::handleRequest_Submit(const string &idStr, const JsonNod
     if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT) {
       isSendShareToKafka = false;
 
-      LOG(INFO) << "invalid share spamming, diff: " << share.shareDiff_ << ", worker: "
+      LOG(INFO) << "invalid share spamming, diff: " << share.sharediff() << ", worker: "
                 << worker.fullName_ << ", agent: " << clientAgent_ << ", ip: " << clientIp;
     }
   }
 
   if (isSendShareToKafka) {
-    share.checkSum_ = share.checkSum();
-    server.sendShare2Kafka(reinterpret_cast<const uint8_t *>(&share), sizeof(ShareDecred));
+
+    std::string message;
+    uint32_t size = 0;
+    if (!share.SerializeToArrayWithVersion(message, size)) {
+      LOG(ERROR) << "share SerializeToArrayWithVersion failed!"<< share.toString();
+      return;
+    }
+
+    server.sendShare2Kafka((const uint8_t *) message.data(), size);
   }
   return;
 }

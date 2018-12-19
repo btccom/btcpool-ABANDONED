@@ -39,7 +39,7 @@
 #include "Common.h"
 #include "Kafka.h"
 #include "utilities_js.hpp"
-
+#include <event2/event.h>
 
 struct GwMakerDefinition
 {
@@ -48,7 +48,10 @@ struct GwMakerDefinition
 
   string rpcAddr_;
   string rpcUserPwd_;
-  uint32 rpcInterval_;
+  uint32_t rpcInterval_;
+
+  string notifyHost_;
+  uint32_t notifyPort_;
 
   string rawGwTopic_;
 };
@@ -96,6 +99,26 @@ class GwMakerHandlerJson : public GwMakerHandler
   string processRawGw(const string &gw) override;
 };
 
+class GwNotification {
+  std::function<void (void)> callback_;
+
+public:
+  GwNotification(std::function<void (void)> callback, const string &httpdHost, unsigned short httpdPort);
+  ~GwNotification();
+
+  //httpd
+  struct event_base *base_;
+  string httpdHost_;
+  unsigned short httpdPort_;
+
+  static void httpdNotification(struct evhttp_request *req, void *arg);
+
+  void setupHttpd();
+  void runHttpd();
+  void stop();
+};
+
+
 class GwMaker {
   shared_ptr<GwMakerHandler> handler_;
   atomic<bool> running_;
@@ -103,6 +126,7 @@ class GwMaker {
 private:
   string kafkaBrokers_;
   KafkaProducer kafkaProducer_;
+  shared_ptr<GwNotification> notification_;
 
   string makeRawGwMsg();
   void submitRawGwMsg();

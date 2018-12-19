@@ -635,7 +635,7 @@ StratumServer::StratumServer(const char *ip, const unsigned short port,
                              bool isEnableSimulator, bool isSubmitInvalidBlock,
                              bool isDevModeEnable, float minerDifficulty,
                              const string &consumerTopic,
-                             uint32 maxJobDelay,
+                             uint32_t maxJobDelay,
                              shared_ptr<DiffController> defaultDifficultyController,
                              const string& solvedShareTopic,
                              const string& shareTopic,
@@ -741,20 +741,27 @@ Server::~Server() {
 
 
 bool Server::setup(StratumServer* sserver) {
+#ifdef WORK_WITH_STRATUM_SWITCHER
+  LOG(INFO) << "WORK_WITH_STRATUM_SWITCHER enabled, miners can only connect to the sserver via a stratum switcher.";
+#endif
+
   if (sserver->isEnableSimulator_) {
     isEnableSimulator_ = true;
-    LOG(WARNING) << "Simulator is enabled, all share will be accepted";
+    LOG(WARNING) << "Simulator is enabled, all share will be accepted. "
+                 << "This option should not be enabled in a production environment!";
   }
 
   if (sserver->isSubmitInvalidBlock_) {
     isSubmitInvalidBlock_ = true;
-    LOG(WARNING) << "submit invalid block is enabled, all block will be submited";
+    LOG(WARNING) << "Submit invalid block is enabled, all shares will become solved shares. "
+                 << "This option should not be enabled in a production environment!";
   }
 
   if (sserver->isDevModeEnable_) {
     isDevModeEnable_ = true;
     minerDifficulty_ = sserver->minerDifficulty_;
-    LOG(INFO) << "development mode is enabled with difficulty: " << minerDifficulty_;
+    LOG(WARNING) << "Development mode is enabled with fixed difficulty: " << minerDifficulty_
+                 << ". This option should not be enabled in a production environment!";
   }
 
   defaultDifficultyController_ = sserver->defaultDifficultyController_;
@@ -770,7 +777,8 @@ bool Server::setup(StratumServer* sserver) {
                                                  RD_KAFKA_PARTITION_UA);
 
   // job repository
-  jobRepository_ = createJobRepository(sserver->kafkaBrokers_.c_str(), sserver->consumerTopic_.c_str(), sserver->fileLastNotifyTime_);
+  jobRepository_ = createJobRepository(sserver->kafkaBrokers_.c_str(), sserver->consumerTopic_.c_str(), \
+                                       sserver->fileLastNotifyTime_);
   jobRepository_->setMaxJobDelay(sserver->maxJobDelay_);
   if (!jobRepository_->setupThreadConsume()) {
     return false;

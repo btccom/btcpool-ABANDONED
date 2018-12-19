@@ -302,7 +302,7 @@ public:
   JobRepository *jobRepository_;
   UserInfo *userInfo_;
   shared_ptr<DiffController> defaultDifficultyController_;
-  uint8 serverId_;
+  uint8_t serverId_;
 
 protected:
   Server(const int32_t shareAvgSeconds);
@@ -381,7 +381,7 @@ public:
   float minerDifficulty_;
   
   string consumerTopic_;
-  uint32 maxJobDelay_;
+  uint32_t maxJobDelay_;
   shared_ptr<DiffController> defaultDifficultyController_;
   string solvedShareTopic_;
   string shareTopic_;
@@ -396,7 +396,7 @@ public:
                 bool isDevModeEnable,
                 float minerDifficulty,
                 const string &consumerTopic,
-                uint32 maxJobDelay,
+                uint32_t maxJobDelay,
                 shared_ptr<DiffController> defaultDifficultyController,
                 const string& solvedShareTopic,
                 const string& shareTopic,

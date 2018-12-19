@@ -80,7 +80,7 @@ int checkProofOfWork(EncodeBlockHeader_return encoded, StratumJobBytom *sJob, ui
   string targetStr;
   Bin2Hex(pTarget, 32, targetStr);
   GoSlice text = {(void *) pTarget, 32, 32};
-  uint64 localJobBits = Bytom_JobDifficultyToTargetCompact(difficulty);
+  uint64_t localJobBits = Bytom_JobDifficultyToTargetCompact(difficulty);
 
   bool powResultLocalJob = CheckProofOfWork(text, localJobBits);
   if (powResultLocalJob) {
@@ -114,7 +114,7 @@ void StratumMinerBytom::handleRequest_Submit(const string &idStr, const JsonNode
   LOG(INFO) << idStr.c_str() << ": bytom handle request submit";
   JsonNode &params = const_cast<JsonNode &>(jparams);
 
-  uint8 shortJobId = (uint8) params["job_id"].uint32();
+  uint8_t shortJobId = (uint8_t) params["job_id"].uint32();
 
   LocalJob *localJob = session.findLocalJob(shortJobId);
   if (nullptr == localJob) {
@@ -140,12 +140,12 @@ void StratumMinerBytom::handleRequest_Submit(const string &idStr, const JsonNode
 
   //get header submission string and header hash string
   //  nonce in bytom B3Poisoned is using hex not decimal
-  uint64 nonce = 0;
+  uint64_t nonce = 0;
   {
     string nonceHex = params["nonce"].str();
     vector<char> nonceBinBuf;
     Hex2BinReverse(nonceHex.c_str(), nonceHex.length(), nonceBinBuf);
-    nonce = *(uint64 *) nonceBinBuf.data();
+    nonce = *(uint64_t *) nonceBinBuf.data();
     LOG(INFO) << idStr.c_str() << ": bytom handle request submit jobId " << (int) shortJobId
               << " with nonce: " << nonce << " - noncehex: " << nonceHex.c_str();
   }
@@ -171,41 +171,47 @@ void StratumMinerBytom::handleRequest_Submit(const string &idStr, const JsonNode
   //Check share
   ShareBytom share;
   //  ShareBase portion
-  share.version_ = ShareBytom::CURRENT_VERSION;
+  share.set_version(ShareBytom::CURRENT_VERSION);
   //  TODO: not set: share.checkSum_
-  share.workerHashId_ = workerId_;
-  share.userId_ = worker.userId_;
-  share.status_ = StratumStatus::REJECT_NO_REASON;
-  share.timestamp_ = (uint32_t) time(nullptr);
-  share.ip_.fromIpv4Int(clientIp);
+  share.set_workerhashid(workerId_);
+  share.set_userid(worker.userId_);
+  share.set_status(StratumStatus::REJECT_NO_REASON);
+  share.set_timestamp((uint32_t) time(nullptr));
+  IpAddress ip;
+  ip.fromIpv4Int(clientIp);
+  share.set_ip(ip.toString());
 
   //  ShareBytom portion
-  share.jobId_ = localJob->jobId_;
-  share.shareDiff_ = difficulty;
-  share.blkBits_ = sJob->blockHeader_.bits;
-  share.height_ = sJob->blockHeader_.height;
+  share.set_jobid(localJob->jobId_);
+  share.set_sharediff(difficulty);
+  share.set_blkbits(sJob->blockHeader_.bits);
+  share.set_height(sJob->blockHeader_.height);
 
-  auto StringToCheapHash = [](const std::string &str) -> uint64 {
+  auto StringToCheapHash = [](const std::string &str) -> uint64_t {
     // int merkleRootLen = std::min(32, (int)str.length());
     auto merkleRootBegin = (uint8_t *) &str[0];
     // auto merkleRootEnd = merkleRootBegin + merkleRootLen;
 
-    uint64 res;
+    uint64_t res;
     memcpy(&res, merkleRootBegin, std::min(8, (int) str.length()));
     return res;
 
     // vector<uint8_t> merkleRootBin(merkleRootBegin, merkleRootEnd);
     // return uint256(merkleRootBin).GetCheapHash();
   };
+  BytomCombinedHeader combinedHeader;
 
-  share.combinedHeader_.blockCommitmentMerkleRootCheapHash_ =
+  combinedHeader.blockCommitmentMerkleRootCheapHash_ =
       StringToCheapHash(sJob->blockHeader_.transactionsMerkleRoot);
-  share.combinedHeader_.blockCommitmentStatusHashCheapHash_ =
+  combinedHeader.blockCommitmentStatusHashCheapHash_ =
       StringToCheapHash(sJob->blockHeader_.transactionStatusHash);
-  share.combinedHeader_.timestamp_ = sJob->blockHeader_.timestamp;
-  share.combinedHeader_.nonce_ = nonce;
+  combinedHeader.timestamp_ = sJob->blockHeader_.timestamp;
+  combinedHeader.nonce_ = nonce;
+
+  share.set_combinedheader(&combinedHeader, sizeof(combinedHeader));
+
   if (exjob->isStale()) {
-    share.status_ = StratumStatus::JOB_NOT_FOUND;
+    share.set_status(StratumStatus::JOB_NOT_FOUND);
     session.rpc2ResponseBoolean(idStr, false, "Block expired");
   } else {
     EncodeBlockHeader_return encoded = EncodeBlockHeader(sJob->blockHeader_.version,
@@ -217,22 +223,22 @@ void StratumMinerBytom::handleRequest_Submit(const string &idStr, const JsonNode
                                                          (char *) sJob->blockHeader_.transactionStatusHash.c_str(),
                                                          (char *) sJob->blockHeader_.transactionsMerkleRoot.c_str());
     int powResult = BytomUtils::checkProofOfWork(encoded, sJob, difficulty);
-    share.status_ = powResult;
+    share.set_status(powResult);
     if (powResult == StratumStatus::SOLVED) {
       std::cout << "share solved\n";
       LOG(INFO) << "share solved";
       server.sendSolvedShare2Kafka(nonce,
                                    encoded.r0,
-                                   share.height_,
+                                   share.height(),
                                    Bytom_TargetCompactToDifficulty(sJob->blockHeader_.bits),
                                    worker);
       server.GetJobRepository()->markAllJobsAsStale();
-      handleShare(idStr, share.status_, share.shareDiff_);
+      handleShare(idStr, share.status(), share.sharediff());
     } else if (powResult == StratumStatus::ACCEPT) {
-      handleShare(idStr, share.status_, share.shareDiff_);
+      handleShare(idStr, share.status(), share.sharediff());
     } else {
       std::string failMessage = "Unknown reason";
-      switch (share.status_) {
+      switch (share.status()) {
       case StratumStatus::LOW_DIFFICULTY:failMessage = "Low difficulty share";
         break;
       }
@@ -245,27 +251,33 @@ void StratumMinerBytom::handleRequest_Submit(const string &idStr, const JsonNode
   bool isSendShareToKafka = true;
   DLOG(INFO) << share.toString();
   // check if thers is invalid share spamming
-  if (!StratumStatus::isAccepted(share.status_)) {
+  if (!StratumStatus::isAccepted(share.status())) {
     int64_t invalidSharesNum = invalidSharesCounter_.sum(time(nullptr), INVALID_SHARE_SLIDING_WINDOWS_SIZE);
     // too much invalid shares, don't send them to kafka
     if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT) {
       isSendShareToKafka = false;
       LOG(WARNING) << "invalid share spamming, diff: "
-                   << share.shareDiff_ << ", uid: " << worker.userId_
+                   << share.sharediff() << ", uid: " << worker.userId_
                    << ", uname: \"" << worker.userName_ << "\", ip: " << clientIp
-                   << "checkshare result: " << share.status_;
+                   << "checkshare result: " << share.status();
     }
   }
 
   if (isSendShareToKafka) {
-    share.checkSum_ = share.checkSum();
-    server.sendShare2Kafka((const uint8_t *) &share, sizeof(ShareBytom));
 
-    string shareInHex;
-    Bin2Hex((uint8_t *) &share, sizeof(ShareBytom), shareInHex);
-    LOG(INFO) << "\nsendShare2Kafka ShareBytom:\n"
-              << "- size: " << sizeof(ShareBytom) << " bytes\n"
-              << "- hexvalue: " << shareInHex.c_str() << "\n";
+    std::string message;
+    uint32_t size = 0;
+    if (!share.SerializeToArrayWithVersion(message, size)) {
+      LOG(ERROR) << "share SerializeToBuffer failed!"<< share.toString();
+      return;
+    }
+    server.sendShare2Kafka((const uint8_t *) message.data(), size);
+
+    // string shareInHex;
+    // Bin2Hex((uint8_t *) &share, sizeof(ShareBytom), shareInHex);
+    // LOG(INFO) << "\nsendShare2Kafka ShareBytom:\n"
+    //           << "- size: " << sizeof(ShareBytom) << " bytes\n"
+    //           << "- hexvalue: " << shareInHex.c_str() << "\n";
 
   }
 }

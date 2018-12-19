@@ -82,7 +82,7 @@ JobRepository *ServerSia::createJobRepository(const char *kafkaBrokers,
   return new JobRepositorySia(kafkaBrokers, consumerTopic, fileLastNotifyTime, this);
 }
 
-void ServerSia::sendSolvedShare2Kafka(uint8* buf, int len) {
+void ServerSia::sendSolvedShare2Kafka(uint8_t *buf, int len) {
    kafkaProducerSolvedShare_->produce(buf, len);
 }
 

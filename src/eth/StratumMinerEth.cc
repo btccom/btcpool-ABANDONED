@@ -179,18 +179,20 @@ void StratumMinerEth::handleRequest_Submit(const string &idStr, const JsonNode &
   auto &jobDiff = iter->second;
 
   ShareEth share;
-  share.version_ = ShareEth::getVersion(chain);
-  share.headerHash_ = headerPrefix;
-  share.workerHashId_ = workerId_;
-  share.userId_ = worker.userId_;
-  share.shareDiff_ = jobDiff.currentJobDiff_;
-  share.networkDiff_ = networkDiff;
-  share.timestamp_ = (uint64_t) time(nullptr);
-  share.status_ = StratumStatus::REJECT_NO_REASON;
-  share.height_ = height;
-  share.nonce_ = nonce;
-  share.sessionId_ = extraNonce1; // TODO: fix it, set as real session id.
-  share.ip_.fromIpv4Int(clientIp);
+  share.set_version(ShareEth::getVersion(chain));
+  share.set_headerhash(headerPrefix);
+  share.set_workerhashid(workerId_);
+  share.set_userid(worker.userId_);
+  share.set_sharediff(jobDiff.currentJobDiff_);
+  share.set_networkdiff(networkDiff);
+  share.set_timestamp((uint64_t) time(nullptr));
+  share.set_status(StratumStatus::REJECT_NO_REASON);
+  share.set_height(height);
+  share.set_nonce(nonce);
+  share.set_sessionid(extraNonce1); // TODO: fix it, set as real session id.
+  IpAddress ip;
+  ip.fromIpv4Int(session.getClientIp());
+  share.set_ip(ip.toString());
 
   LocalShare localShare(nonce, 0, 0);
   // can't add local share
@@ -208,19 +210,19 @@ void StratumMinerEth::handleRequest_Submit(const string &idStr, const JsonNode &
   // SolvedShare will be accepted correctly by the ETH node if
   // the difficulty is reached in our calculations.
   uint256 shareMixHash;
-  share.status_ = server.checkShareAndUpdateDiff(share, localJob->jobId_, nonce, uint256S(sHeader),
-                                                 jobDiff.jobDiffs_, shareMixHash, worker.fullName_);
+  share.set_status(server.checkShareAndUpdateDiff(share, localJob->jobId_, nonce, uint256S(sHeader),
+                                                 jobDiff.jobDiffs_, shareMixHash, worker.fullName_));
 
-  if (StratumStatus::isAccepted(share.status_)) {
-    DLOG(INFO) << "share reached the diff: " << share.shareDiff_;
+  if (StratumStatus::isAccepted(share.status())) {
+    DLOG(INFO) << "share reached the diff: " << share.sharediff();
   } else {
-    DLOG(INFO) << "share not reached the diff: " << share.shareDiff_;
+    DLOG(INFO) << "share not reached the diff: " << share.sharediff();
   }
 
   // we send share to kafka by default, but if there are lots of invalid
   // shares in a short time, we just drop them.
-  if (handleShare(idStr, share.status_, share.shareDiff_)) {
-    if (StratumStatus::isSolved(share.status_)) {
+  if (handleShare(idStr, share.status(), share.sharediff())) {
+    if (StratumStatus::isSolved(share.status())) {
       server.sendSolvedShare2Kafka(sNonce, sHeader, shareMixHash.GetHex(), height, networkDiff, worker, chain);
     }
   } else {
@@ -229,17 +231,23 @@ void StratumMinerEth::handleRequest_Submit(const string &idStr, const JsonNode &
     // too much invalid shares, don't send them to kafka
     if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT) {
       LOG(WARNING) << "invalid share spamming, diff: "
-                   << share.shareDiff_ << ", uid: " << worker.userId_
+                   << share.sharediff() << ", uid: " << worker.userId_
                    << ", uname: \"" << worker.userName_ << "\", ip: " << clientIp
-                   << "checkshare result: " << share.status_;
+                   << "checkshare result: " << share.status();
       return;
     }
   }
 
   DLOG(INFO) << share.toString();
 
-  share.checkSum_ = share.checkSum();
-  server.sendShare2Kafka((const uint8_t *) &share, sizeof(ShareEth));
+  std::string message;
+  uint32_t size = 0;
+  if (!share.SerializeToArrayWithVersion(message, size)) {
+    LOG(ERROR) << "share SerializeToBuffer failed!"<< share.toString();
+    return;
+  }
+
+  server.sendShare2Kafka((const uint8_t *) message.data(), size);
 }
 
 void StratumMinerEth::responseError(const string &idStr, int code) {
