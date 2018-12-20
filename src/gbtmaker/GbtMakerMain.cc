@@ -136,7 +136,7 @@ int main(int argc, char **argv) {
       LOG(FATAL) << "gbtmaker init failure";
     } else {
 #ifdef CHAIN_TYPE_BCH
-      bool runLightGbt = true;
+      bool runLightGbt = false;
       cfg.lookupValue("gbtmaker.lightgbt", runLightGbt);
       if(runLightGbt)
       {

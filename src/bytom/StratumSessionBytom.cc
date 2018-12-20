@@ -79,7 +79,7 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
     return;
 
   auto &ljob = addLocalJob(sJob->jobId_, shortJobId_++);
-  uint64_t jobDifficulty = server.isDevModeEnable_ ? server.minerDifficulty_ : ljob.jobDifficulty_;
+  uint64_t jobDifficulty = server.isDevModeEnable_ ? server.devFixedDifficulty_ : ljob.jobDifficulty_;
   if (jobDifficulty == 0)
     jobDifficulty = server.isDevModeEnable_ ? 1 : Bytom_TargetCompactToDifficulty(sJob->blockHeader_.bits);
 

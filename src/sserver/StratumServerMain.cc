@@ -171,8 +171,8 @@ int main(int argc, char **argv)
 
     bool isDevModeEnabled = false;
     cfg.lookupValue("sserver.enable_dev_mode", isDevModeEnabled);
-    float minerDifficulty;
-    cfg.lookupValue("sserver.miner_difficulty", minerDifficulty);
+    float devFixedDifficulty;
+    cfg.lookupValue("sserver.dev_fixed_difficulty", devFixedDifficulty);
 
     string fileLastMiningNotifyTime;
     cfg.lookupValue("sserver.file_last_notify_time", fileLastMiningNotifyTime);
@@ -220,7 +220,7 @@ int main(int argc, char **argv)
                                        isEnableSimulator,
                                        isSubmitInvalidBlock,
                                        isDevModeEnabled,
-                                       minerDifficulty,
+                                       devFixedDifficulty,
                                        cfg.lookup("sserver.job_topic"),
                                        maxJobDelay,
                                        dc,

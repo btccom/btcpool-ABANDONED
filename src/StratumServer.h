@@ -290,14 +290,14 @@ public:
 #endif
 
   //
-  // WARNING: if enable, difficulty sent to miners is always minerDifficulty_. 
+  // WARNING: if enable, difficulty sent to miners is always devFixedDifficulty_. 
   //          for development
   //
   bool isDevModeEnable_;
   //
   // WARNING: difficulty to send to miners. for development
   //
-  float minerDifficulty_;
+  float devFixedDifficulty_;
   const int32_t kShareAvgSeconds_;
   JobRepository *jobRepository_;
   UserInfo *userInfo_;
@@ -374,11 +374,11 @@ public:
   // if enable it, will make block and submit
   bool isSubmitInvalidBlock_;
   
-  // if enable, difficulty sent to miners is always minerDifficulty_
+  // if enable, difficulty sent to miners is always devFixedDifficulty_
   bool isDevModeEnable_;
 
   // difficulty to send to miners. for development
-  float minerDifficulty_;
+  float devFixedDifficulty_;
   
   string consumerTopic_;
   uint32_t maxJobDelay_;
@@ -394,7 +394,7 @@ public:
                 bool isEnableSimulator,
                 bool isSubmitInvalidBlock,
                 bool isDevModeEnable,
-                float minerDifficulty,
+                float devFixedDifficulty,
                 const string &consumerTopic,
                 uint32_t maxJobDelay,
                 shared_ptr<DiffController> defaultDifficultyController,
