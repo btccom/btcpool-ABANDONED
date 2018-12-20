@@ -152,7 +152,7 @@ uint64_t DiffController::_calcCurDiff() {
 
   const double kRateHigh = 1.40;
   const double kRateLow  = 0.40;
-  double expectedCount = round(kDiffWindow_ / (double)shareAvgSeconds_);
+  double expectedCount = round(kDiffWindow_ / (double)kRecordSeconds_);
 
   if (isFullWindow(now)) { /* have a full window now */
     // big miner have big expected share count to make it looks more smooth.

@@ -399,7 +399,7 @@ TEST(StratumSession, StratumClientAgentHandler_SubmitShare) {
   ASSERT_EQ((size_t)(p - (uint8_t *)exMessage.data()), exMessage.size());
 
   InSequence s;
-  DiffController dc(DiffController::kDefaultDiff_, 4000000000000000, 2, 10, 900);
+  DiffController dc(16384, 4000000000000000, 2, 10, 900);
   string workerName = "__default__";
   auto workerId = StratumWorker::calcWorkerId(workerName);
   auto session = new StratumMinerMock(connection, dc, "", workerName, workerId);
@@ -453,7 +453,7 @@ TEST(StratumSession, StratumClientAgentHandler_SubmitShare_with_time) {
   ASSERT_EQ((size_t)(p - (uint8_t *)exMessage.data()), exMessage.size());
 
   InSequence s;
-  DiffController dc(DiffController::kDefaultDiff_, 4000000000000000, 2, 10, 900);
+  DiffController dc(16384, 4000000000000000, 2, 10, 900);
   string workerName = "__default__";
   auto workerId = StratumWorker::calcWorkerId(workerName);
   auto session = new StratumMinerMock(connection, dc, "", workerName, workerId);
@@ -490,7 +490,7 @@ TEST(StratumSession, StratumClientAgentHandler_UNREGISTER_WORKER) {
   p += 2;
 
   InSequence s;
-  DiffController dc(DiffController::kDefaultDiff_, 4000000000000000, 2, 10, 900);
+  DiffController dc(16384, 4000000000000000, 2, 10, 900);
   string workerName = "__default__";
   auto workerId = StratumWorker::calcWorkerId(workerName);
   auto session = new StratumMinerMock(connection, dc, "", workerName, workerId);
