@@ -43,6 +43,7 @@ struct BlockMakerDefinition
   bool enabled_;
   vector<NodeDefinition> nodes; 
   string solvedShareTopic_;
+  string foundAuxBlockTable_;
 
   virtual ~BlockMakerDefinition() {}
 };

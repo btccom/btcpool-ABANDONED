@@ -70,7 +70,6 @@ bool BlockMakerBitcoin::init() {
   {
     return false;
   }
-
   //
   // Raw Gbt
   //
@@ -455,13 +454,22 @@ void BlockMakerBitcoin::_submitNamecoinBlockThread(const string &auxBlockHash,
   {
     const string nowStr = date("%F %T");
     string sql;
-    sql = Strings::Format("INSERT INTO `found_nmc_blocks` "
+    if(def()->foundAuxBlockTable_.empty() || def()->foundAuxBlockTable_ == " ") {
+      sql = Strings::Format("INSERT INTO `found_nmc_blocks` "
                           " (`bitcoin_block_hash`,`aux_block_hash`,"
                           "  `aux_pow`,`created_at`) "
                           " VALUES (\"%s\",\"%s\",\"%s\",\"%s\"); ",
                           bitcoinBlockHash.c_str(),
                           auxBlockHash.c_str(), auxPow.c_str(), nowStr.c_str());
-
+    } else {
+      sql = Strings::Format("INSERT INTO `%s` "
+                          " (`bitcoin_block_hash`,`aux_block_hash`,"
+                          "  `aux_pow`,`created_at`) "
+                          " VALUES (\"%s\",\"%s\",\"%s\",\"%s\"); ",
+                          def()->foundAuxBlockTable_.c_str(),
+                          bitcoinBlockHash.c_str(),
+                          auxBlockHash.c_str(), auxPow.c_str(), nowStr.c_str());
+    }
     // try connect to DB
     MySQLConnection db(poolDB_);
     for (size_t i = 0; i < 3; i++) {
