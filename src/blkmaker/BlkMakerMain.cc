@@ -124,7 +124,7 @@ shared_ptr<BlockMakerDefinition> createDefinition(const Setting &setting)
   def->enabled_ = false;
   readFromSetting(setting, "enabled", def->enabled_, true);
   readFromSetting(setting, "solved_share_topic", def->solvedShareTopic_);
-  readFromSetting(setting, "found_aux_block_table", def->foundAuxBlockTable_);
+  readFromSetting(setting, "found_aux_block_table", def->foundAuxBlockTable_, true);
  
   const Setting &nodes = setting["nodes"];
   for (int i = 0; i < nodes.getLength(); ++i)
