@@ -333,7 +333,7 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(rd_kafka_message_t *rkmessage
   const string auxBlockHash   = j["aux_block_hash"].str();
   const string blockHeaderHex = j["block_header"].str();
   const string coinbaseTxHex  = j["coinbase_tx"].str();
-  const string rpcAddr        = j["P"].str();
+  const string rpcAddr        = j["rpc_addr"].str();
   const string rpcUserpass    = j["rpc_userpass"].str();
   assert(blockHeaderHex.size() == sizeof(CBlockHeader)*2);
 
