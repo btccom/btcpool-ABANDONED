@@ -196,10 +196,12 @@ public:
     double networkDifficulty = NetworkParamsDecred::get((NetworkDecred)network()).powLimit.getdouble() / arith_uint256().SetCompact(blkbits()).getdouble();
     return Strings::Format("share(jobId: %" PRIu64 ", ip: %s, userId: %d, "
                            "workerId: %" PRId64 ", time: %u/%s, height: %u, "
-                           "blkBits: %08x/%lf, shareDiff: %" PRIu64 ", status: %d/%s)",
+                           "blkBits: %08x/%lf, shareDiff: %" PRIu64 ", "
+                           "voters: %u, status: %d/%s)",
                            jobid(), ip().c_str(), userid(),
                            workerhashid(), timestamp(), date("%F %T", timestamp()).c_str(), height(),
-                           blkbits(), networkDifficulty, sharediff(), status(), StratumStatus::toString(status()));
+                           blkbits(), networkDifficulty, sharediff(),
+                           voters(), status(), StratumStatus::toString(status()));
   }
 
   bool SerializeToBuffer(string& data, uint32_t& size) const{

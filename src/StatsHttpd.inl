@@ -1007,7 +1007,7 @@ void StatsServerT<SHARE>::consumeShareLog(rd_kafka_message_t *rkmessage) {
 
 
   if (!share.isValid()) {
-    LOG(ERROR) << "invalid share!" ;
+    LOG(ERROR) << "invalid share: " << share.toString();
     return;
   }
   if (dupShareChecker_ && !dupShareChecker_->addShare(share)) {
