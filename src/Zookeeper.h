@@ -28,39 +28,81 @@
 #include <zookeeper/proto.h>
 
 #include <string>
+#include <atomic>
+#include <memory>
+#include <vector>
+#include <algorithm>
+#include <functional>
 
 using std::string;
+using std::atomic;
+using std::shared_ptr;
+using std::vector;
+using std::function;
+
+using ZookeeperWatcherCallback = void (zhandle_t *zh, int type, int state, const char *path, void *data);
+
+class Zookeeper;
+class ZookeeperLock;
+class ZookeeperException;
 
 #define ZOOKEEPER_CONNECT_TIMEOUT 10000 //(ms)
-#define ZOOKEEPER_LOCK_PATH_MAX_LEN 255
 
 class ZookeeperException : public std::runtime_error {
 public:
   explicit ZookeeperException(const string &what_arg);
 };
 
-class Zookeeper {
-  // zookeeper handle
-  zhandle_t *zh;
+class ZookeeperLock {
+protected:
+  Zookeeper *zk_;
+  atomic<bool> locked_;
+  function<void()> lockLostCallback_;
+  string parentPath_;      // example: /locks/jobmaker
+  string nodePathWithSeq_; // example: /locks/jobmaker/node0000000010
+  string nodeName_;        // example: node0000000010
+  string uuid_;            // example: d3460f9f-d364-4fa9-b41f-4c5fbafc1863
 
 public:
-  static int nodeNameCompare(const void *pname1, const void *pname2);
+  ZookeeperLock(Zookeeper *zk, string parentPath, function<void()> lockLostCallback);
+  void getLock();
+  void recoveryLock();
+  bool isLocked();
 
-  static void globalWatcher(zhandle_t *zh, int type, int state, const char *path, void *zookeeper);
+protected:
+  void createLockNode();
+  vector<string> getLockNodes();
+  int getSelfPosition(const vector<string> &nodes);
+  static void getLockWatcher(zhandle_t *zh, int type, int state, const char *path, void *pMutex);
+};
 
-  static void lockWatcher(zhandle_t *zh, int type, int state, const char *path, void *zookeeper);
+class Zookeeper {
+protected:
+  string brokers_;
+  zhandle_t *zh_; // zookeeper handle
+  atomic<bool> connected_;
 
-  Zookeeper(const char *servers);
+  vector<shared_ptr<ZookeeperLock>> locks_;
 
+public:
+  Zookeeper(const string &brokers);
   virtual ~Zookeeper();
+
+  void getLock(const string &lockPath, function<void()> lockLostCallback = nullptr);
+
+  string getValue(const string &nodePath, size_t sizeLimit);
+  vector<string> getChildren(const string &parentPath);
+  void watchNode(string path, ZookeeperWatcherCallback func, void *data);
+  void createLockNode(const string &nodePath, string &nodePathWithSeq, const string &value);
+  void createNodesRecursively(const string &nodePath);
+
+protected:
+  static void globalWatcher(zhandle_t *zh, int type, int state, const char *path, void *pZookeeper);
   
-  void getLock(const char *lockParentPath);
-
-  bool doGetLock(const char *lockParentPath, const char *lockNodePath);
-
-  void createLockNode(const char *nodeParentPath, char *newNodePath, int newNodePathMaxLen);
-
-  void createNodesRecursively(const char *nodePath);
+  void connect();
+  void disconnect();
+  void recoveryLock();
+  void recoverySession();
 };
 
 #endif // BTCPOOL_ZOOKEEPER_H_
