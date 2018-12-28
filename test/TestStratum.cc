@@ -64,16 +64,12 @@ TEST(Stratum, Share) {
 
   ASSERT_EQ(s.isValid(), false);
   ASSERT_EQ(s.score(), 0);
-  ASSERT_EQ(s.toString(), "share(jobId: 0, ip: 0.0.0.0, userId: 0, workerId: 0, "
-                          "time: 0/1970-01-01 00:00:00, height: 0, blkBits: 00000000/inf, "
-                          "shareDiff: 0, status: 0/Share rejected)");
+  ASSERT_EQ(s.toString(), "share(jobId: 0, ip: 0.0.0.0, userId: 0, workerId: 0, time: 0/1970-01-01 00:00:00, height: 0, blkBits: 00000000/inf, shareDiff: 0, nonce: 00000000, sessionId: 00000000, versionMask: 00000000, status: 0/Share rejected)");
   IpAddress ip;
   ip.fromIpv4Int(htonl(167772161));
 
   s.set_ip(ip.toString());  // 167772161 : 10.0.0.1
-  ASSERT_EQ(s.toString(), "share(jobId: 0, ip: 10.0.0.1, userId: 0, workerId: 0, "
-                          "time: 0/1970-01-01 00:00:00, height: 0, blkBits: 00000000/inf, "
-                          "shareDiff: 0, status: 0/Share rejected)");
+  ASSERT_EQ(s.toString(), "share(jobId: 0, ip: 10.0.0.1, userId: 0, workerId: 0, time: 0/1970-01-01 00:00:00, height: 0, blkBits: 00000000/inf, shareDiff: 0, nonce: 00000000, sessionId: 00000000, versionMask: 00000000, status: 0/Share rejected)");
 }
 
 TEST(Stratum, Share2) {

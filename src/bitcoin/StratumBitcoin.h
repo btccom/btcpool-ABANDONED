@@ -112,6 +112,7 @@ public:
       set_height(0);
       set_nonce(0);
       set_sessionid(0);
+      set_versionmask(0);
     }
 
     ShareBitcoin(const ShareBitcoin &r) = default;
@@ -163,13 +164,17 @@ public:
       double networkDifficulty = 0.0;
       BitsToDifficulty(blkbits(), &networkDifficulty);
 
-      return  Strings::Format("share(jobId: %" PRIu64 ", ip: %s, userId: %d, "
+      return Strings::Format("share(jobId: %" PRIu64 ", ip: %s, userId: %d, "
                              "workerId: %" PRId64 ", time: %u/%s, height: %u, "
                              "blkBits: %08x/%lf, shareDiff: %" PRIu64 ", "
+                             "nonce: %08x, sessionId: %08x, "
+                             "versionMask: %08x, "
                              "status: %d/%s)",
                              jobid(), ip().c_str(), userid(),
                              workerhashid(), timestamp(), date("%F %T", timestamp()).c_str(), height(),
                              blkbits(), networkDifficulty, sharediff(),
+                             nonce(), sessionid(),
+                             versionmask(),
                              status(), StratumStatus::toString(status()));
     }
 
