@@ -22,6 +22,8 @@
  THE SOFTWARE.
  */
 
+#include <algorithm>
+#include <bitset>
 #include <pthread.h>
 #include <unistd.h>
 #include <assert.h>
@@ -33,10 +35,19 @@
 #include <boost/uuid/uuid_generators.hpp>
 
 #include "Zookeeper.h"
+#include "Utils.h"
+
+using std::bitset;
+
+
+//------------------------------- ZookeeperException -------------------------------
 
 ZookeeperException::ZookeeperException(const string &what_arg) : std::runtime_error(what_arg) {
   // no more action than its parent
 }
+
+
+//------------------------------- ZookeeperLock -------------------------------
 
 ZookeeperLock::ZookeeperLock(Zookeeper *zk, string parentPath, function<void()> lockLostCallback)
   : zk_(zk)
@@ -120,7 +131,7 @@ void ZookeeperLock::getLock() {
 vector<string> ZookeeperLock::getLockNodes() {
   vector<string> nodes = zk_->getChildren(parentPath_);
   std::sort(nodes.begin(), nodes.end());
-  return std::move(nodes);
+  return nodes;
 }
 
 void ZookeeperLock::getLockWatcher(zhandle_t *zh, int type, int state, const char *path, void *pMutex) {
@@ -136,9 +147,9 @@ void ZookeeperLock::recoveryLock() {
   LOG(INFO) << "ZookeeperLock: recovery lock " << nodePathWithSeq_ << " (" << uuid_ << ")";
 
   try {
-    string uuid = zk_->getValue(nodePathWithSeq_, uuid_.size());
-    if (uuid == uuid_) {
-      LOG(INFO) << "ZookeeperLock: lock " << nodePathWithSeq_ << " (" << uuid << ") doesn't lose";
+    string currUuid = zk_->getValue(nodePathWithSeq_, uuid_.size());
+    if (currUuid == uuid_) {
+      LOG(INFO) << "ZookeeperLock: lock " << nodePathWithSeq_ << " (" << currUuid << ") doesn't lose";
       return;
     }
   }
@@ -162,6 +173,10 @@ void ZookeeperLock::recoveryLock() {
 
   // The first client will get the lock.
   if (selfPosition != 0) {
+    // remove the lock from zookeeper and manager
+    zk_->deleteNode(nodePathWithSeq_);
+    zk_->removeLock(shared_ptr<ZookeeperLock>(this));
+
     if (!lockLostCallback_) {
       throw ZookeeperException(string("ZookeeperLock: cannot recovery lock ") + parentPath_);
     }
@@ -174,6 +189,132 @@ void ZookeeperLock::recoveryLock() {
   locked_ = true;
   return;
 }
+
+
+//------------------------------- ZookeeperUniqIdT -------------------------------
+
+template <uint8_t IBITS>
+ZookeeperUniqIdT<IBITS>::ZookeeperUniqIdT(Zookeeper *zk, string parentPath, const string &userData, function<void()> idLostCallback)
+  : zk_(zk)
+  , assigned_(false)
+  , idLostCallback_(idLostCallback)
+  , parentPath_(parentPath)
+  , id_(0)
+{
+  auto uuidGen = boost::uuids::random_generator();
+  uuid_ = boost::uuids::to_string(uuidGen());
+
+  data_ = Strings::Format(
+    "{"
+      "\"uuid\":\"%s\","
+      "\"data\":%s"
+    "}",
+    uuid_.c_str(),
+    userData.empty() ? "null" : userData.c_str()
+  );
+}
+
+template <uint8_t IBITS>
+size_t ZookeeperUniqIdT<IBITS>::assignID() {
+  bitset<kIdUpperLimit> idSet;
+  idSet.set(0); // 0 is a invalid id
+  
+  vector<string> nodes = getIdNodes();
+  for (const string &idStr : nodes) {
+    size_t id = strtoull(idStr.c_str(), nullptr, 10);
+    idSet.set(id);
+  }
+
+  if (idSet.count() >= kIdUpperLimit) {
+    throw ZookeeperException(string("ZookeeperUniqIdT: cannot assign an ID, ID pool is full"));
+  }
+
+  id_ = 0;
+  for (size_t testedId = kIdLowerLimit + 1; testedId < kIdUpperLimit; testedId++) {
+    if (!idSet.test(testedId) && createIdNode(testedId)) {
+      id_ = testedId;
+      break;
+    }
+  }
+
+  if (id_ <= kIdLowerLimit || id_ >= kIdUpperLimit) {
+    throw ZookeeperException(string("ZookeeperUniqIdT: got a invalid id ") + std::to_string(id_) + 
+      ", but id should be " + std::to_string(kIdLowerLimit) + " < id < " + std::to_string(kIdUpperLimit));
+  }
+
+  LOG(INFO) << "ZookeeperUniqIdT: id " << nodePath_ << " (" << uuid_ << ") assigned";
+  assigned_ = true;
+  return id_;
+}
+
+template <uint8_t IBITS>
+void ZookeeperUniqIdT<IBITS>::recoveryID() {
+  if (!assigned_) {
+    return;
+  }
+
+  LOG(INFO) << "ZookeeperUniqIdT: recovery id " << nodePath_ << " (" << uuid_ << ")";
+
+  try {
+    string currData = zk_->getValue(nodePath_, data_.size());
+    if (currData == data_) {
+      LOG(INFO) << "ZookeeperUniqIdT: id " << nodePath_ << " (" << uuid_ << ") doesn't lose";
+      return;
+    }
+  }
+  catch (const ZookeeperException &ex) {
+    // ignore
+  }
+
+  LOG(WARNING) << "ZookeeperUniqIdT: id " << nodePath_ << " (" << uuid_ << ") lost, try get a new one";
+  assigned_ = false;
+
+  if (!createIdNode(id_)) {
+    zk_->removeUniqId(shared_ptr<ZookeeperUniqId>(this));
+
+    if (!idLostCallback_) {
+      throw ZookeeperException(string("ZookeeperUniqIdT: cannot recovery id ") + nodePath_);
+    }
+
+    idLostCallback_();
+    return;
+  }
+
+  LOG(INFO) << "ZookeeperUniqIdT: id " << nodePath_ << " (" << uuid_ << ") recovered";
+  assigned_ = true;
+  return;
+}
+
+template <uint8_t IBITS>
+bool ZookeeperUniqIdT<IBITS>::isAssigned() {
+  return assigned_;
+}
+
+template <uint8_t IBITS>
+vector<string> ZookeeperUniqIdT<IBITS>::getIdNodes() {
+  zk_->createNodesRecursively(parentPath_);
+  return zk_->getChildren(parentPath_);
+}
+
+template <uint8_t IBITS>
+bool ZookeeperUniqIdT<IBITS>::createIdNode(size_t id) {
+  nodePath_ = parentPath_ + "/" + std::to_string(id);
+
+  try {
+    zk_->createEphemeralNode(nodePath_, data_);
+    return true;
+  }
+  catch (const ZookeeperException &ex) {
+    LOG(WARNING) << "ZookeeperUniqIdT::createIdNode: assign id " << nodePath_ << " failed: " << ex.what();
+    return false;
+  }
+}
+
+// Class template instantiation
+template class ZookeeperUniqIdT<8>;
+
+
+//------------------------------- Zookeeper -------------------------------
 
 void Zookeeper::globalWatcher(zhandle_t *zh, int type, int state, const char *path, void *pZookeeper) {
   DLOG(INFO) << "Zookeeper::globalWatcher: type:" << type << ", state:" << state << ", path:" << path;
@@ -188,6 +329,7 @@ void Zookeeper::globalWatcher(zhandle_t *zh, int type, int state, const char *pa
     if (state == ZOO_CONNECTED_STATE) {
       LOG(INFO) << "Zookeeper: reconnected to broker.";
       zk->recoveryLock();
+      zk->recoveryUniqId();
     }
     else if (state == ZOO_CONNECTING_STATE) {
       LOG(ERROR) << "Zookeeper: lost the connection from broker.";
@@ -255,9 +397,44 @@ void Zookeeper::getLock(const string &lockPath, function<void()> lockLostCallbac
   locks_.push_back(lock);
 }
 
+uint8_t Zookeeper::getUniqIdUint8(string parentPath, const string &userData, function<void()> idLostCallback) {
+  auto zkId = shared_ptr<ZookeeperUniqId>(new ZookeeperUniqIdT<8>(this, parentPath, userData, idLostCallback));
+  uint8_t id = (uint8_t)zkId->assignID();
+  uniqIds_.push_back(zkId);
+  return id;
+}
+
+bool Zookeeper::removeLock(shared_ptr<ZookeeperLock> lock) {
+  auto itr = locks_.begin();
+  while (itr != locks_.end()) {
+    if (*itr == lock) {
+      locks_.erase(itr);
+      return true;
+    }
+  }
+  return false;
+}
+
+bool Zookeeper::removeUniqId(shared_ptr<ZookeeperUniqId> id) {
+  auto itr = uniqIds_.begin();
+  while (itr != uniqIds_.end()) {
+    if (*itr == id) {
+      uniqIds_.erase(itr);
+      return true;
+    }
+  }
+  return false;
+}
+
 void Zookeeper::recoveryLock() {
   for (auto lock : locks_) {
     lock->recoveryLock();
+  }
+}
+
+void Zookeeper::recoveryUniqId() {
+  for (auto id : uniqIds_) {
+    id->recoveryID();
   }
 }
 
@@ -265,6 +442,7 @@ void Zookeeper::recoverySession() {
   disconnect();
   connect();
   recoveryLock();
+  recoveryUniqId();
 }
 
 void Zookeeper::watchNode(string path, ZookeeperWatcherCallback func, void *data) {
@@ -289,7 +467,7 @@ string Zookeeper::getValue(const string &nodePath, size_t sizeLimit) {
   }
 
   data.resize(size);
-  return std::move(data);
+  return data;
 }
 
 vector<string> Zookeeper::getChildren(const string &parentPath) {
@@ -328,6 +506,17 @@ void Zookeeper::createLockNode(const string &nodePath, string &nodePathWithSeq, 
   nodePathWithSeq.resize(strlen(nodePathWithSeq.c_str()));
 }
 
+void Zookeeper::createEphemeralNode(const string &nodePath, const string &value) {
+  // The ZOO_EPHEMERAL node will disapper if the client offline.
+  int stat = zoo_create(zh_, nodePath.c_str(), value.c_str(), value.size(), &ZOO_READ_ACL_UNSAFE,
+    ZOO_EPHEMERAL, nullptr, 0);
+
+  if (stat != ZOK) {
+    throw ZookeeperException(string("Zookeeper::createEphemeralNode: create node ") + nodePath +
+      " failed: " + zerror(stat));
+  }
+}
+
 void Zookeeper::createNodesRecursively(const string &nodePath) {
   // make it end with "/" so the last part of path will be created in the loop
   string path = nodePath + "/";
@@ -352,5 +541,14 @@ void Zookeeper::createNodesRecursively(const string &nodePath) {
 
   if (stat != ZOK) {
     throw ZookeeperException(string("Zookeeper::createNodesRecursively: cannot create node ") + nodePath);
+  }
+}
+
+void Zookeeper::deleteNode(const string &nodePath) {
+  int stat = zoo_delete(zh_, nodePath.c_str(), -1);
+
+  if (stat != ZOK) {
+    throw ZookeeperException(string("Zookeeper::deleteNode: delete node ") + nodePath +
+      " failed: " + zerror(stat));
   }
 }

@@ -110,6 +110,7 @@ public:
     , vector<pair<string, string>> consumerOptions, JobMakerMessageProcessor messageProcessor);
 
   uint64_t generateJobId(uint32_t hash) const;
+  void setServerId(uint8_t id);
 
 protected:
   shared_ptr<JobMakerDefinition> def_;
@@ -134,9 +135,9 @@ protected:
   shared_ptr<JobMakerHandler> handler_;
   atomic<bool> running_;
 
-  // coordinate two or more jobmaker (automatic disaster
-  // preparedness and recovery) with the zookeeper locker.
-  Zookeeper zkLocker_;
+  // assign server id from zookeeper
+  shared_ptr<Zookeeper> zk_;
+  string zkBrokers_;
 
   string kafkaBrokers_;
   KafkaProducer kafkaProducer_;

@@ -30,7 +30,7 @@ JobMaker::JobMaker(shared_ptr<JobMakerHandler> handler,
                    const string &kafkaBrokers,
                    const string& zookeeperBrokers) : handler_(handler),
                                             running_(true),
-                                            zkLocker_(zookeeperBrokers.c_str()),
+                                            zkBrokers_(zookeeperBrokers),
                                             kafkaBrokers_(kafkaBrokers),
                                             kafkaProducer_(kafkaBrokers.c_str(), handler->def()->jobTopic_.c_str(), RD_KAFKA_PARTITION_UA)
 {
@@ -64,21 +64,21 @@ bool JobMaker::setupKafkaProducer()
 }
 
 bool JobMaker::init() {
+  if (handler_->def()->serverId_ == 0) {
+    // assign id from zookeeper
+    try {
+      if (handler_->def()->zookeeperLockPath_.empty()) {
+        LOG(ERROR) << "zookeeper lock path is empty!";
+        return false;
+      }
 
-  /* get lock from zookeeper */
-  try {
-    if (handler_->def()->zookeeperLockPath_.empty()) {
-      LOG(ERROR) << "zookeeper lock path is empty!";
+      zk_ = std::make_shared<Zookeeper>(zkBrokers_);
+      handler_->setServerId(zk_->getUniqIdUint8(handler_->def()->zookeeperLockPath_));
+
+    } catch(const ZookeeperException &zooex) {
+      LOG(ERROR) << zooex.what();
       return false;
     }
-    // Lock the path + server id so that we can start job makers with different
-    // server id (up to 8 bits as only 8 bits are embedded in job id)
-    zkLocker_.getLock(Strings::Format("%s/%" PRIu8,
-                                      handler_->def()->zookeeperLockPath_.c_str(),
-                                      static_cast<uint8_t>(handler_->def()->serverId_)).c_str());
-  } catch(const ZookeeperException &zooex) {
-    LOG(ERROR) << zooex.what();
-    return false;
   }
 
   if(!setupKafkaProducer())
@@ -233,6 +233,10 @@ JobMakerConsumerHandler JobMakerHandler::createConsumerHandler(const string &kaf
 uint64_t JobMakerHandler::generateJobId(uint32_t hash) const
 {
   return (static_cast<uint64_t>(time(nullptr)) << 32) | (hash & 0xFFFFFF00) | (def_->serverId_ & 0xFF);
+}
+
+void JobMakerHandler::setServerId(uint8_t id) {
+  def_->serverId_ = id;
 }
 
 ////////////////////////////////GwJobMakerHandler//////////////////////////////////

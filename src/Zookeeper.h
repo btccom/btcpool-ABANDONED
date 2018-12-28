@@ -31,7 +31,6 @@
 #include <atomic>
 #include <memory>
 #include <vector>
-#include <algorithm>
 #include <functional>
 
 using std::string;
@@ -48,11 +47,13 @@ class ZookeeperException;
 
 #define ZOOKEEPER_CONNECT_TIMEOUT 10000 //(ms)
 
+// Exception of Zookeeper
 class ZookeeperException : public std::runtime_error {
 public:
   explicit ZookeeperException(const string &what_arg);
 };
 
+// A Distributed Lock with Zookeeper
 class ZookeeperLock {
 protected:
   Zookeeper *zk_;
@@ -76,6 +77,45 @@ protected:
   static void getLockWatcher(zhandle_t *zh, int type, int state, const char *path, void *pMutex);
 };
 
+
+// A Distributed Unique ID Allocator
+class ZookeeperUniqId {
+  public:
+  virtual size_t assignID() = 0;
+  virtual void recoveryID() = 0;
+  virtual bool isAssigned() = 0;
+};
+
+// template IBITS: index bits
+template <uint8_t IBITS>
+class ZookeeperUniqIdT : public ZookeeperUniqId {
+protected:
+  // A valid id should satisfy the following conditions:
+  //     kIdLowerLimit < id < kIdUpperLimit
+  const static size_t kIdLowerLimit = 0;
+  const static size_t kIdUpperLimit = (1 << IBITS);
+
+  Zookeeper *zk_;
+  atomic<bool> assigned_;
+  function<void()> idLostCallback_;
+  string parentPath_;      // example: /ids/jobmaker
+  string nodePath_;        // example: /ids/jobmaker/23
+  size_t id_;              // example: 23
+  string uuid_;            // example: d3460f9f-d364-4fa9-b41f-4c5fbafc1863
+  string data_;            // should be a valid JSON object
+
+public:
+  ZookeeperUniqIdT(Zookeeper *zk, string parentPath, const string &userData, function<void()> idLostCallback);
+  size_t assignID() override;
+  void recoveryID() override;
+  bool isAssigned() override;
+
+protected:
+  vector<string> getIdNodes();
+  bool createIdNode(size_t id);
+};
+
+
 class Zookeeper {
 protected:
   string brokers_;
@@ -83,18 +123,25 @@ protected:
   atomic<bool> connected_;
 
   vector<shared_ptr<ZookeeperLock>> locks_;
+  vector<shared_ptr<ZookeeperUniqId>> uniqIds_;
 
 public:
   Zookeeper(const string &brokers);
   virtual ~Zookeeper();
 
   void getLock(const string &lockPath, function<void()> lockLostCallback = nullptr);
+  uint8_t getUniqIdUint8(string parentPath, const string &userData = "", function<void()> idLostCallback = nullptr);
 
   string getValue(const string &nodePath, size_t sizeLimit);
   vector<string> getChildren(const string &parentPath);
   void watchNode(string path, ZookeeperWatcherCallback func, void *data);
   void createLockNode(const string &nodePath, string &nodePathWithSeq, const string &value);
+  void createEphemeralNode(const string &nodePath, const string &value);
   void createNodesRecursively(const string &nodePath);
+  void deleteNode(const string &nodePath);
+
+  bool removeLock(shared_ptr<ZookeeperLock> lock);
+  bool removeUniqId(shared_ptr<ZookeeperUniqId> id);
 
 protected:
   static void globalWatcher(zhandle_t *zh, int type, int state, const char *path, void *pZookeeper);
@@ -102,6 +149,7 @@ protected:
   void connect();
   void disconnect();
   void recoveryLock();
+  void recoveryUniqId();
   void recoverySession();
 };
 
