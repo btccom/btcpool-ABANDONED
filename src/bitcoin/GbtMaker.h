@@ -106,6 +106,7 @@ class NMCAuxBlockMaker {
   KafkaProducer kafkaProducer_;
   bool isCheckZmq_;
   string coinbaseAddress_;  // nmc coinbase payout address
+  bool useCreateAuxBlockInterface_;
 
   bool checkNamecoindZMQ();
   bool callRpcCreateAuxBlock(string &resp);

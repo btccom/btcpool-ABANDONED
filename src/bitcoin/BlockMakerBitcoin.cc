@@ -421,15 +421,25 @@ void BlockMakerBitcoin::_submitNamecoinBlockThread(const string &auxBlockHash,
   // request : submitauxblock <hash> <auxpow>
   //
   {
-  #ifdef CHAIN_TYPE_LTC
-     const string request = Strings::Format("{\"id\":1,\"method\":\"getauxblock\",\"params\":[\"%s\",\"%s\"]}",
-                                           auxBlockHash.c_str(),
-                                           auxPow.c_str());
-  #else
-    const string request = Strings::Format("{\"id\":1,\"method\":\"submitauxblock\",\"params\":[\"%s\",\"%s\"]}",
-                                           auxBlockHash.c_str(),
-                                           auxPow.c_str());
-  #endif
+    string request = "";
+
+    bool isSupportSubmitAuxBlock = false;
+    if(isAddrSupportSubmitAux_.find(rpcAddress) != isAddrSupportSubmitAux_.end()) {
+      isSupportSubmitAuxBlock = isAddrSupportSubmitAux_.find(rpcAddress)->second;
+    } else {
+      LOG(INFO) << "can't find " << rpcAddress << " in isAddrSupportSubmitAux_ map";
+    }
+
+    if(isSupportSubmitAuxBlock) {
+      request = Strings::Format("{\"id\":1,\"method\":\"submitauxblock\",\"params\":[\"%s\",\"%s\"]}",
+                                             auxBlockHash.c_str(),
+                                             auxPow.c_str());
+    } else {
+      request = Strings::Format("{\"id\":1,\"method\":\"getauxblock\",\"params\":[\"%s\",\"%s\"]}",
+                                             auxBlockHash.c_str(),
+                                             auxPow.c_str());
+    }
+
     DLOG(INFO) << "submitauxblock request: " << request;
     // try N times
     for (size_t i = 0; i < 3; i++) {
@@ -439,7 +449,7 @@ void BlockMakerBitcoin::_submitNamecoinBlockThread(const string &auxBlockHash,
 
       // success
       if (res == true) {
-        LOG(INFO) << "rpc call success, submit block response: " << response;
+        LOG(INFO) << "rpc call success, submit auxblock response: " << response;
         break;
       }
 
@@ -756,6 +766,28 @@ void BlockMakerBitcoin::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   }
 
   LOG(INFO) << "StratumJob, jobId: " << sjob->jobId_ << ", gbtHash: " << gbtHash.ToString();
+  bool isSupportSubmitAuxBlock = false;
+  if(!sjob->nmcRpcAddr_.empty() && !sjob->nmcRpcUserpass_.empty() &&
+     isAddrSupportSubmitAux_.find(sjob->nmcRpcAddr_) == isAddrSupportSubmitAux_.end()) {
+
+    string response;
+    string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"help\",\"params\":[]}";
+    bool res = blockchainNodeRpcCall(sjob->nmcRpcAddr_.c_str(), sjob->nmcRpcUserpass_.c_str(),
+                               request.c_str(), response);
+    if (!res) {
+      LOG(INFO) << "auxcoind rpc call failure";
+    } else {
+        isSupportSubmitAuxBlock = (response.find("createauxblock") == std::string::npos ||
+        response.find("submitauxblock") == std::string::npos) ? false : true;
+        
+        LOG(INFO) << "auxcoind " << (isSupportSubmitAuxBlock ? " " : "doesn't ") 
+        << "support rpc commands: createauxblock and submitauxblock";
+
+        isAddrSupportSubmitAux_[sjob->nmcRpcAddr_] = isSupportSubmitAuxBlock;
+    }
+
+  }
+
   delete sjob;
 }
 
