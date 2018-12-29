@@ -71,13 +71,13 @@ void ShareLogDumperT<SHARE>::dump2stdout() {
           parseShareLog((const uint8_t *)(buf.data() + currentpos + sizeof(uint32_t)), sharelength);
           currentpos = currentpos + sizeof(uint32_t) + sharelength;
         } else {
-          LOG(INFO) << "not read enough length " << sharelength << std::endl;
+          DLOG(INFO) << "not read enough length " << sharelength << std::endl;
           break;
         }
       }
       incompleteShareSize = readNum - currentpos;
       if (incompleteShareSize > 0) {
-          LOG(INFO) << "incompleteShareSize_ " << incompleteShareSize << std::endl;
+          DLOG(INFO) << "incomplete share size: " << incompleteShareSize << std::endl;
           memcpy((char *)buf.data(), (char *)buf.data() + currentpos, incompleteShareSize);
         }
     }
