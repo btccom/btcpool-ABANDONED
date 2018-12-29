@@ -223,11 +223,7 @@ class UserInfo {
   int32_t incrementalUpdateUsers();
 
 public:
-  UserInfo(
-    const string &apiUrl,
-    StratumServer *server,
-    bool caseInsensitive
-  );
+  UserInfo(StratumServer *server, const libconfig::Config &config);
   ~UserInfo();
 
   void stop();

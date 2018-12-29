@@ -322,15 +322,16 @@ void JobRepository::tryCleanExpiredJobs() {
 
 
 //////////////////////////////////// UserInfo /////////////////////////////////
-UserInfo::UserInfo(
-  const string &apiUrl,
-  StratumServer *server,
-  bool caseInsensitive
-):
-running_(true), apiUrl_(apiUrl), lastMaxUserId_(0),
-caseInsensitive_(caseInsensitive),
+UserInfo::UserInfo(StratumServer *server, const libconfig::Config &config):
+running_(true), lastMaxUserId_(0),
+caseInsensitive_(true),
 server_(server)
 {
+  // optional
+  config.lookupValue("users.case_insensitive", caseInsensitive_);
+  // required (exception will be threw if inexists)
+  apiUrl_ = config.lookup("users.list_id_api_url").c_str();
+  
   pthread_rwlock_init(&rwlock_, nullptr);
 }
 
@@ -800,11 +801,7 @@ bool StratumServer::setup(const libconfig::Config &config) {
     return false;
   }
 
-  // user info
-  bool caseInsensitive = true;
-  config.lookupValue("users.case_insensitive", caseInsensitive);
-
-  userInfo_ = new UserInfo(config.lookup("users.list_id_api_url"), this, caseInsensitive);
+  userInfo_ = new UserInfo(this, config);
   if (!userInfo_->setupThreads()) {
     return false;
   }
