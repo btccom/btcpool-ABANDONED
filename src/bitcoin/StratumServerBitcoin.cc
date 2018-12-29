@@ -234,20 +234,12 @@ void StratumJobExBitcoin::generateBlockHeader(CBlockHeader *header,
   }
 }
 ////////////////////////////////// ServerBitcoin ///////////////////////////////
-ServerBitcoin::ServerBitcoin(const int32_t shareAvgSeconds, const libconfig::Config &config)
-  : ServerBase(shareAvgSeconds)
+ServerBitcoin::ServerBitcoin()
+  : ServerBase()
   , kafkaProducerNamecoinSolvedShare_(nullptr)
   , kafkaProducerRskSolvedShare_(nullptr)
+  , versionMask_(0)
 {
-  // TODO: Shall we throw an error here if the relvant value does not exist?
-  config.lookupValue("sserver.auxpow_solved_share_topic", auxPowSolvedShareTopic_);
-  config.lookupValue("sserver.rsk_solved_share_topic", rskSolvedShareTopic_);
-
-  versionMask_ = 0u;  // block version mask
-  if (config.exists("sserver.version_mask"))
-  {
-    config.lookupValue("sserver.version_mask", versionMask_);
-  }
 }
 
 ServerBitcoin::~ServerBitcoin()
@@ -264,14 +256,22 @@ uint32_t ServerBitcoin::getVersionMask() const {
   return versionMask_;
 }
 
-bool ServerBitcoin::setupInternal(StratumServer* sserver)
+bool ServerBitcoin::setupInternal(const libconfig::Config &config)
 {
-  kafkaProducerNamecoinSolvedShare_ = new KafkaProducer(sserver->kafkaBrokers_.c_str(),
-                                                        auxPowSolvedShareTopic_.c_str(),
-                                                        RD_KAFKA_PARTITION_UA);
-  kafkaProducerRskSolvedShare_ = new KafkaProducer(sserver->kafkaBrokers_.c_str(),
-                                                        rskSolvedShareTopic_.c_str(),
-                                                        RD_KAFKA_PARTITION_UA);
+  config.lookupValue("sserver.version_mask", versionMask_);
+
+  string kafkaBrokers = config.lookup("kafka.brokers");
+
+  kafkaProducerNamecoinSolvedShare_ = new KafkaProducer(
+    kafkaBrokers.c_str(),
+    config.lookup("sserver.auxpow_solved_share_topic").c_str(),
+    RD_KAFKA_PARTITION_UA
+  );
+  kafkaProducerRskSolvedShare_ = new KafkaProducer(
+    kafkaBrokers.c_str(),
+    config.lookup("sserver.rsk_solved_share_topic").c_str(),
+    RD_KAFKA_PARTITION_UA
+  );
 
   // kafkaProducerNamecoinSolvedShare_
   {
@@ -302,7 +302,6 @@ bool ServerBitcoin::setupInternal(StratumServer* sserver)
       return false;
     }
   }
-
 
   return true;
 }

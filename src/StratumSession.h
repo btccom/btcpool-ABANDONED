@@ -40,7 +40,7 @@
 #include <string>
 
 class DiffController;
-class Server;
+class StratumServer;
 class StratumJobEx;
 
 // Supported BTCAgent features / capabilities, a JSON array.
@@ -96,7 +96,7 @@ public:
     AUTHENTICATED = 2
   };
 protected:
-  Server &server_;
+  StratumServer &server_;
   struct bufferevent *bev_;
   uint32_t extraNonce1_;
   struct evbuffer *buffer_;
@@ -131,14 +131,14 @@ protected:
   virtual bool validate(const JsonNode &jmethod, const JsonNode &jparams);
   virtual std::unique_ptr<StratumMessageDispatcher> createDispatcher();
 
-  StratumSession(Server &server, struct bufferevent *bev, struct sockaddr *saddr, uint32_t extraNonce1);
+  StratumSession(StratumServer &server, struct bufferevent *bev, struct sockaddr *saddr, uint32_t extraNonce1);
 
 public:
   virtual ~StratumSession();
   virtual bool initialize() { return true; }
   uint16_t decodeSessionId(const std::string &exMessage) const override { return StratumMessageEx::AGENT_MAX_SESSION_ID; };
 
-  Server &getServer() { return server_; }
+  StratumServer &getServer() { return server_; }
   StratumWorker &getWorker() { return worker_; }
   StratumMessageDispatcher &getDispatcher() override { return *dispatcher_; }
   uint32_t getClientIp() const { return clientIpInt_; };

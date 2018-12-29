@@ -24,7 +24,6 @@
 #include "StratumServer.h"
 #include "StratumSession.h"
 #include "DiffController.h"
-#include "CreateStratumServerTemp.h"
 
 #include <boost/thread.hpp>
 
@@ -99,7 +98,7 @@ template class SessionIDManagerT<24>;
 
 
 ////////////////////////////////// JobRepository ///////////////////////////////
-JobRepository::JobRepository(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server)
+JobRepository::JobRepository(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, StratumServer *server)
   : running_(true)
   , kafkaConsumer_(kafkaBrokers, consumerTopic, 0/*patition*/)
   , server_(server), fileLastNotifyTime_(fileLastNotifyTime)
@@ -322,7 +321,7 @@ void JobRepository::tryCleanExpiredJobs() {
 
 
 //////////////////////////////////// UserInfo /////////////////////////////////
-UserInfo::UserInfo(const string &apiUrl, Server *server):
+UserInfo::UserInfo(const string &apiUrl, StratumServer *server):
 running_(true), apiUrl_(apiUrl), lastMaxUserId_(0),
 server_(server)
 {
@@ -628,85 +627,28 @@ bool StratumJobEx::isStale() {
   return (state_ == 1);
 }
 
-////////////////////////////////// StratumServer ///////////////////////////////
-StratumServer::StratumServer(const char *ip, const unsigned short port,
-                             const char *kafkaBrokers, const string &userAPIUrl,
-                             const uint8_t serverId, const string &fileLastNotifyTime,
-                             bool isEnableSimulator, bool isSubmitInvalidBlock,
-                             bool isDevModeEnable, float devFixedDifficulty,
-                             const string &consumerTopic,
-                             uint32_t maxJobDelay,
-                             shared_ptr<DiffController> defaultDifficultyController,
-                             const string& solvedShareTopic,
-                             const string& shareTopic,
-                             const string& commonEventsTopic)
-    : running_(true),
-      ip_(ip), port_(port), serverId_(serverId),
-      fileLastNotifyTime_(fileLastNotifyTime),
-      kafkaBrokers_(kafkaBrokers), userAPIUrl_(userAPIUrl),
-      isEnableSimulator_(isEnableSimulator), isSubmitInvalidBlock_(isSubmitInvalidBlock),
-      isDevModeEnable_(isDevModeEnable), devFixedDifficulty_(devFixedDifficulty),
-      consumerTopic_(consumerTopic),
-      maxJobDelay_(maxJobDelay),
-      defaultDifficultyController_(defaultDifficultyController),
-      solvedShareTopic_(solvedShareTopic),
-      shareTopic_(shareTopic),
-      commonEventsTopic_(commonEventsTopic)
-{
-}
 
-StratumServer::~StratumServer() {
-}
 
-bool StratumServer::createServer(const string &type, const int32_t shareAvgSeconds, const libconfig::Config &config) {
-  server_ = std::shared_ptr<Server>(createStratumServer(type, shareAvgSeconds, config));
-  return server_ != nullptr;
-}
-
-bool StratumServer::init()
-{
-  if (!server_->setup(this))
-  {
-    LOG(ERROR) << "fail to setup server";
-    return false;
-  }
-  return true;
-}
-
-void StratumServer::stop() {
-  if (!running_) {
-    return;
-  }
-  running_ = false;
-  server_->stop();
-  LOG(INFO) << "stop stratum server";
-}
-
-void StratumServer::run() {
-  server_->run();
-}
-
-///////////////////////////////////// Server ///////////////////////////////////
-Server::Server(const int32_t shareAvgSeconds)
+///////////////////////////////////// StratumServer ///////////////////////////////////
+StratumServer::StratumServer()
   : base_(nullptr), signal_event_(nullptr), listener_(nullptr)
   , kafkaProducerShareLog_(nullptr)
   , kafkaProducerSolvedShare_(nullptr)
   , kafkaProducerCommonEvents_(nullptr)
   , isEnableSimulator_(false)
   , isSubmitInvalidBlock_(false)
+  , isDevModeEnable_(false)
+  , devFixedDifficulty_(1.0)
 #ifndef WORK_WITH_STRATUM_SWITCHER
   , sessionIDManager_(nullptr)
 #endif
-  , isDevModeEnable_(false)
-  , devFixedDifficulty_(1.0)
-  , kShareAvgSeconds_(shareAvgSeconds)
   , jobRepository_(nullptr)
   , userInfo_(nullptr)
   , serverId_(0)
 {
 }
 
-Server::~Server() {
+StratumServer::~StratumServer() {
   if (signal_event_ != nullptr) {
     event_free(signal_event_);
   }
@@ -739,60 +681,138 @@ Server::~Server() {
 #endif
 }
 
+void StratumServer::initZookeeper(const libconfig::Config &config) {
+  if (!zk_) {
+    zk_ = std::make_shared<Zookeeper>(config.lookup("zookeeper.brokers"));
+  }
+}
 
-bool Server::setup(StratumServer* sserver) {
+bool StratumServer::setup(const libconfig::Config &config) {
 #ifdef WORK_WITH_STRATUM_SWITCHER
   LOG(INFO) << "WORK_WITH_STRATUM_SWITCHER enabled, miners can only connect to the sserver via a stratum switcher.";
 #endif
 
-  if (sserver->isEnableSimulator_) {
-    isEnableSimulator_ = true;
+  // ------------------- Development Options -------------------
+
+  config.lookupValue("sserver.enable_simulator", isEnableSimulator_);
+  if (isEnableSimulator_) {
     LOG(WARNING) << "Simulator is enabled, all share will be accepted. "
                  << "This option should not be enabled in a production environment!";
   }
 
-  if (sserver->isSubmitInvalidBlock_) {
-    isSubmitInvalidBlock_ = true;
+  config.lookupValue("sserver.enable_submit_invalid_block", isSubmitInvalidBlock_);
+  if (isSubmitInvalidBlock_) {
     LOG(WARNING) << "Submit invalid block is enabled, all shares will become solved shares. "
                  << "This option should not be enabled in a production environment!";
   }
 
-  if (sserver->isDevModeEnable_) {
-    isDevModeEnable_ = true;
-    devFixedDifficulty_ = sserver->devFixedDifficulty_;
+  config.lookupValue("sserver.enable_dev_mode", isDevModeEnable_);
+  if (isDevModeEnable_) {
+    config.lookupValue("sserver.dev_fixed_difficulty", devFixedDifficulty_);
     LOG(WARNING) << "Development mode is enabled with fixed difficulty: " << devFixedDifficulty_
                  << ". This option should not be enabled in a production environment!";
   }
 
-  defaultDifficultyController_ = sserver->defaultDifficultyController_;
+  // ------------------- Diff Controller Options -------------------
 
-  kafkaProducerSolvedShare_ = new KafkaProducer(sserver->kafkaBrokers_.c_str(),
-                                                sserver->solvedShareTopic_.c_str(),
+  string defDiffStr = config.lookup("sserver.default_difficulty");
+  uint64_t defaultDifficulty = stoull(defDiffStr, nullptr, 16);
+
+  string maxDiffStr = config.lookup("sserver.max_difficulty");
+  uint64_t maxDifficulty = stoull(maxDiffStr, nullptr, 16);
+
+  string minDiffStr = config.lookup("sserver.min_difficulty");
+  uint64_t minDifficulty = stoull(minDiffStr, nullptr, 16);
+
+  uint32_t diffAdjustPeriod = 300;
+  config.lookupValue("sserver.diff_adjust_period", diffAdjustPeriod);
+
+  uint32_t shareAvgSeconds = 10; // default share interval time 10 seconds
+  config.lookupValue("sserver.share_avg_seconds", shareAvgSeconds);
+
+  if (0 == defaultDifficulty ||
+      0 == maxDifficulty ||
+      0 == minDifficulty ||
+      0 == diffAdjustPeriod)
+  {
+    LOG(ERROR) << "difficulty settings are not expected: def=" << defaultDifficulty << ", min=" << minDifficulty << ", max=" << maxDifficulty << ", adjustPeriod=" << diffAdjustPeriod;
+    return false;
+  }
+
+  if (diffAdjustPeriod < shareAvgSeconds) {
+    LOG(ERROR) << "`diff_adjust_period` should not less than `share_avg_seconds`";
+    return false;
+  }
+
+  defaultDifficultyController_ = make_shared<DiffController>(defaultDifficulty, maxDifficulty, minDifficulty, shareAvgSeconds, diffAdjustPeriod);
+
+  // ------------------- Kafka Options -------------------
+
+  string kafkaBrokers = config.lookup("kafka.brokers");
+
+  kafkaProducerSolvedShare_ = new KafkaProducer(kafkaBrokers.c_str(),
+                                                config.lookup("sserver.solved_share_topic").c_str(),
                                                 RD_KAFKA_PARTITION_UA);
-  kafkaProducerShareLog_ = new KafkaProducer(sserver->kafkaBrokers_.c_str(),
-                                             sserver->shareTopic_.c_str(),
+  kafkaProducerShareLog_ = new KafkaProducer(kafkaBrokers.c_str(),
+                                             config.lookup("sserver.share_topic").c_str(),
                                              RD_KAFKA_PARTITION_UA);
-  kafkaProducerCommonEvents_ = new KafkaProducer(sserver->kafkaBrokers_.c_str(),
-                                                 sserver->commonEventsTopic_.c_str(),
+  kafkaProducerCommonEvents_ = new KafkaProducer(kafkaBrokers.c_str(),
+                                                 config.lookup("sserver.common_events_topic").c_str(),
                                                  RD_KAFKA_PARTITION_UA);
 
+  // ------------------- Other Options -------------------
+
+  string fileLastMiningNotifyTime;
+  config.lookupValue("sserver.file_last_notify_time", fileLastMiningNotifyTime);
+  
+  uint32_t maxJobLifetime = 60;
+  config.lookupValue("sserver.max_job_delay",    maxJobLifetime); // the old option name
+  config.lookupValue("sserver.max_job_lifetime", maxJobLifetime); // the new name, overwrite the old if exist
+
   // job repository
-  jobRepository_ = createJobRepository(sserver->kafkaBrokers_.c_str(), sserver->consumerTopic_.c_str(), \
-                                       sserver->fileLastNotifyTime_);
-  jobRepository_->setMaxJobDelay(sserver->maxJobDelay_);
+  jobRepository_ = createJobRepository(kafkaBrokers.c_str(),
+                                       config.lookup("sserver.job_topic").c_str(),
+                                       fileLastMiningNotifyTime);
+  jobRepository_->setMaxJobDelay(maxJobLifetime);
   if (!jobRepository_->setupThreadConsume()) {
     return false;
   }
 
   // user info
-  userInfo_ = new UserInfo(sserver->userAPIUrl_, this);
+  userInfo_ = new UserInfo(config.lookup("users.list_id_api_url"), this);
   if (!userInfo_->setupThreads()) {
     return false;
   }
-  serverId_ = sserver->serverId_;
+
+  // server id
+  int serverId;
+  config.lookupValue("sserver.id", serverId);
+  if (serverId > 0xFF)
+  {
+    LOG(ERROR) << "invalid server id, range: [0, 255]";
+    return false;
+  }
+
+  serverId_ = (uint8_t)serverId;
+  if (serverId_ == 0) {
+    // assign ID from zookeeper
+    initZookeeper(config);
+    serverId_ = zk_->getUniqIdUint8(config.lookup("sserver.zookeeper_lock_path"));
+  }
+
 #ifndef WORK_WITH_STRATUM_SWITCHER
   sessionIDManager_ = new SessionIDManagerT<24>(serverId_);
 #endif
+
+  // ------------------- Listen Options -------------------
+
+  string listenIP = "0.0.0.0";
+  config.lookupValue("sserver.ip", listenIP);
+
+  int32_t listenPort = 3333;
+  config.lookupValue("sserver.port", listenPort);
+
+  // ------------------- Init Kafka -------------------
 
   // kafkaProducerShareLog_
   {
@@ -847,6 +867,8 @@ bool Server::setup(StratumServer* sserver) {
     }
   }
 
+  // ------------------- TCP Listen -------------------
+
   base_ = event_base_new();
   if(!base_) {
     LOG(ERROR) << "server: cannot create base";
@@ -855,42 +877,44 @@ bool Server::setup(StratumServer* sserver) {
 
   memset(&sin_, 0, sizeof(sin_));
   sin_.sin_family = AF_INET;
-  sin_.sin_port   = htons(sserver->port_);
+  sin_.sin_port   = htons(listenPort);
   sin_.sin_addr.s_addr = htonl(INADDR_ANY);
-  const char* ip = sserver->ip_.c_str();
-  if (ip && inet_pton(AF_INET, ip, &sin_.sin_addr) == 0) {
-    LOG(ERROR) << "invalid ip: " << ip;
+  if (listenIP.empty() && inet_pton(AF_INET, listenIP.c_str(), &sin_.sin_addr) == 0) {
+    LOG(ERROR) << "invalid ip: " << listenIP;
     return false;
   }
 
   listener_ = evconnlistener_new_bind(base_,
-                                      Server::listenerCallback,
+                                      StratumServer::listenerCallback,
                                       (void*)this,
                                       LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE,
                                       -1, (struct sockaddr*)&sin_, sizeof(sin_));
   if(!listener_) {
-    LOG(ERROR) << "cannot create listener: " << ip << ":" << sserver->port_;
+    LOG(ERROR) << "cannot create listener: " << listenIP << ":" << listenPort;
     return false;
   }
-  return setupInternal(sserver);
+
+  // ------------------- Derived Class Setup -------------------
+  return setupInternal(config);
 }
 
-void Server::run() {
+void StratumServer::run() {
+  LOG(INFO) << "stratum server running";
   if(base_ != NULL) {
     //    event_base_loop(base_, EVLOOP_NONBLOCK);
     event_base_dispatch(base_);
   }
 }
 
-void Server::stop() {
-  LOG(INFO) << "stop tcp server event loop";
+void StratumServer::stop() {
+  LOG(INFO) << "stop stratum server";
   event_base_loopexit(base_, NULL);
 
   jobRepository_->stop();
   userInfo_->stop();
 }
 
-void Server::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {
+void StratumServer::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {
   //
   // http://www.sgi.com/tech/stl/Map.html
   //
@@ -917,12 +941,12 @@ void Server::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {
   }
 }
 
-void Server::addConnection(unique_ptr<StratumSession> connection) {
+void StratumServer::addConnection(unique_ptr<StratumSession> connection) {
   ScopeLock sl(connsLock_);
   connections_.insert(move(connection));
 }
 
-void Server::removeConnection(StratumSession &connection) {
+void StratumServer::removeConnection(StratumSession &connection) {
   //
   // if we are here, means the related evbuffer has already been locked.
   // don't lock connsLock_ in this function, it will cause deadlock.
@@ -930,12 +954,12 @@ void Server::removeConnection(StratumSession &connection) {
   connection.markAsDead();
 }
 
-void Server::listenerCallback(struct evconnlistener* listener,
+void StratumServer::listenerCallback(struct evconnlistener* listener,
                               evutil_socket_t fd,
                               struct sockaddr *saddr,
                               int socklen, void* data)
 {
-  Server *server = static_cast<Server *>(data);
+  StratumServer *server = static_cast<StratumServer *>(data);
   struct event_base  *base = (struct event_base*)server->base_;
   struct bufferevent *bev;
   uint32_t sessionID = 0u;
@@ -963,20 +987,20 @@ void Server::listenerCallback(struct evconnlistener* listener,
   }
   // set callback functions
   bufferevent_setcb(bev,
-                    Server::readCallback, nullptr,
-                    Server::eventCallback, conn.get());
+                    StratumServer::readCallback, nullptr,
+                    StratumServer::eventCallback, conn.get());
   // By default, a newly created bufferevent has writing enabled.
   bufferevent_enable(bev, EV_READ|EV_WRITE);
 
   server->addConnection(move(conn));
 }
 
-void Server::readCallback(struct bufferevent* bev, void *connection) {
+void StratumServer::readCallback(struct bufferevent* bev, void *connection) {
   auto conn = static_cast<StratumSession *>(connection);
   conn->readBuf(bufferevent_get_input(bev));
 }
 
-void Server::eventCallback(struct bufferevent* bev, short events,
+void StratumServer::eventCallback(struct bufferevent* bev, short events,
                               void *connection) {
   auto conn = static_cast<StratumSession *>(connection);
 
@@ -1001,11 +1025,11 @@ void Server::eventCallback(struct bufferevent* bev, short events,
 
 
 
-void Server::sendShare2Kafka(const uint8_t *data, size_t len) {
+void StratumServer::sendShare2Kafka(const uint8_t *data, size_t len) {
   kafkaProducerShareLog_->produce(data, len);
 }
 
 
-void Server::sendCommonEvents2Kafka(const string &message) {
+void StratumServer::sendCommonEvents2Kafka(const string &message) {
   kafkaProducerCommonEvents_->produce(message.data(), message.size());
 }

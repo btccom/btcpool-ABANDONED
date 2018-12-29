@@ -44,7 +44,7 @@ private:
 
 class ServerDecred : public ServerBase<JobRepositoryDecred> {
 public:
-  explicit ServerDecred(int32_t shareAvgSeconds, const libconfig::Config &config);
+  bool setupInternal(const libconfig::Config &config) override;
   unique_ptr<StratumSession> createConnection(bufferevent *bev, sockaddr *saddr, uint32_t sessionID) override;
 
   int checkShare(ShareDecred &share, shared_ptr<StratumJobEx> exJobPtr, const vector<uint8_t> &extraNonce2,

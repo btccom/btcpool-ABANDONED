@@ -35,8 +35,7 @@ class JobRepositoryEth;
 class ServerEth : public ServerBase<JobRepositoryEth>
 {
 public:
-  ServerEth(const int32_t shareAvgSeconds) : ServerBase(shareAvgSeconds) {}
-  bool setupInternal(StratumServer* sserver) override;
+  bool setupInternal(const libconfig::Config &config) override;
   int checkShareAndUpdateDiff(ShareEth &share,
                               const uint64_t jobId,
                               const uint64_t nonce,

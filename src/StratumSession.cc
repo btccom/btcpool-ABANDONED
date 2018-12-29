@@ -44,7 +44,7 @@ static const uint32_t WriteTimeout = 120;
 static const string PoolWatcherAgent = "__PoolWatcher__";
 static const string BtccomAgentPrefix = "btccom-agent/";
 
-StratumSession::StratumSession(Server &server, struct bufferevent *bev, struct sockaddr *saddr, uint32_t extraNonce1)
+StratumSession::StratumSession(StratumServer &server, struct bufferevent *bev, struct sockaddr *saddr, uint32_t extraNonce1)
     : server_(server), bev_(bev), extraNonce1_(extraNonce1), buffer_(evbuffer_new()), clientAgent_("unknown")
     , isAgentClient_(false), isNiceHashClient_(false), state_(CONNECTED), isDead_(false), isLongTimeout_(false) {
   assert(saddr->sa_family == AF_INET);
@@ -399,14 +399,14 @@ void StratumSession::responseError(const string &idStr, int errCode) {
  * <https://www.jsonrpc.org/specification>
  *
  * 5 Response object
- * When a rpc call is made, the Server MUST reply with a Response, except for in the case of Notifications.
+ * When a rpc call is made, the StratumServer MUST reply with a Response, except for in the case of Notifications.
  * The Response is expressed as a single JSON Object, with the following members:
  * jsonrpc
  *   A String specifying the version of the JSON-RPC protocol. MUST be exactly "2.0".
  * result
  *   This member is REQUIRED on success.
  *   This member MUST NOT exist if there was an error invoking the method.
- *   The value of this member is determined by the method invoked on the Server.
+ *   The value of this member is determined by the method invoked on the StratumServer.
  * error
  *   This member is REQUIRED on error.
  *   This member MUST NOT exist if there was no error triggered during invocation.
@@ -442,7 +442,7 @@ void StratumSession::rpc2ResponseTrue(const string &idStr) {
  * data
  *     A Primitive or Structured value that contains additional information about the error.
  *     This may be omitted.
- *     The value of this member is defined by the Server (e.g. detailed error information, nested errors etc.).
+ *     The value of this member is defined by the StratumServer (e.g. detailed error information, nested errors etc.).
  */
 
 void StratumSession::rpc2ResponseError(const string &idStr, int errCode) {

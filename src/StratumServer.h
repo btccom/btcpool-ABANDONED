@@ -28,6 +28,7 @@
 
 #include "Kafka.h"
 #include "Stratum.h"
+#include "Zookeeper.h"
 
 #include <bitset>
 
@@ -41,9 +42,9 @@ namespace libconfig {
 class Config;
 }
 
-class Server;
-class StratumJobEx;
 class StratumServer;
+class StratumJobEx;
+class StratumServerWrapper;
 class StratumSession;
 class DiffController;
 
@@ -117,7 +118,7 @@ protected:
   std::map<uint64_t /* jobId */, shared_ptr<StratumJobEx>> exJobs_;
 
   KafkaConsumer kafkaConsumer_; // consume topic: 'StratumJob'
-  Server *server_;              // call server to send new job
+  StratumServer *server_;              // call server to send new job
 
   string fileLastNotifyTime_;
 
@@ -135,7 +136,7 @@ private:
   void checkAndSendMiningNotify();
 
 protected:
-  JobRepository(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server);
+  JobRepository(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, StratumServer *server);
 public:
   virtual ~JobRepository();
 
@@ -209,7 +210,7 @@ class UserInfo {
   // workerName
   mutex workerNameLock_;
   std::deque<WorkerName> workerNameQ_;
-  Server *server_;
+  StratumServer *server_;
 
   thread threadInsertWorkerName_;
   void runThreadInsertWorkerName();
@@ -220,7 +221,7 @@ class UserInfo {
   int32_t incrementalUpdateUsers();
 
 public:
-  UserInfo(const string &apiUrl, Server *server);
+  UserInfo(const string &apiUrl, StratumServer *server);
   ~UserInfo();
 
   void stop();
@@ -258,8 +259,8 @@ public:
 };
 
 
-///////////////////////////////////// Server ///////////////////////////////////
-class Server {
+///////////////////////////////////// StratumServer ///////////////////////////////////
+class StratumServer {
   // NetIO
   struct sockaddr_in sin_;
   struct event_base* base_;
@@ -274,45 +275,39 @@ public:
   KafkaProducer *kafkaProducerSolvedShare_;
   KafkaProducer *kafkaProducerCommonEvents_;
 
-  //
+  // ------------------- Development Options: -------------------
   // WARNING: if enable simulator, all share will be accepted. only for test.
-  //
   bool isEnableSimulator_;
-
-  //
   // WARNING: if enable it, will make block and submit it even it's not a
   //          solved share. use to test submit block.
-  //
   bool isSubmitInvalidBlock_;
+  // WARNING: if enable, difficulty sent to miners is always devFixedDifficulty_. 
+  bool isDevModeEnable_;
+  // WARNING: difficulty to send to miners.
+  float devFixedDifficulty_;
 
 #ifndef WORK_WITH_STRATUM_SWITCHER
   SessionIDManager *sessionIDManager_;
 #endif
 
-  //
-  // WARNING: if enable, difficulty sent to miners is always devFixedDifficulty_. 
-  //          for development
-  //
-  bool isDevModeEnable_;
-  //
-  // WARNING: difficulty to send to miners. for development
-  //
-  float devFixedDifficulty_;
-  const int32_t kShareAvgSeconds_;
   JobRepository *jobRepository_;
   UserInfo *userInfo_;
   shared_ptr<DiffController> defaultDifficultyController_;
   uint8_t serverId_;
+  
+  shared_ptr<Zookeeper> zk_;
 
 protected:
-  Server(const int32_t shareAvgSeconds);
-
-  virtual bool setupInternal(StratumServer* sserver){ return true; };
+  // This class cannot be instantiated.
+  // Only subclasses of this class can be instantiated.
+  StratumServer();
+  virtual bool setupInternal(const libconfig::Config &config) { return true; };
+  void initZookeeper(const libconfig::Config &config);
 
 public:
-  virtual ~Server();
+  virtual ~StratumServer();
 
-  bool setup(StratumServer* sserver);
+  bool setup(const libconfig::Config &config);
   void run();
   void stop();
 
@@ -341,72 +336,10 @@ protected:
 };
 
 template<typename TJobRepository>
-class ServerBase : public Server
+class ServerBase : public StratumServer
 {
 public:
   TJobRepository* GetJobRepository(){ return static_cast<TJobRepository*>(jobRepository_); }
-protected:
-  ServerBase(const int32_t shareAvgSeconds) : Server(shareAvgSeconds) { }
-
-private:
-  using Server::jobRepository_;
 };
-
-////////////////////////////////// StratumServer ///////////////////////////////
-class StratumServer {
-
-public:
-  atomic<bool> running_;
-
-  shared_ptr<Server> server_;
-  string ip_;
-  unsigned short port_;
-  uint8_t serverId_;  // global unique, range: [1, 255]
-
-  string fileLastNotifyTime_;
-
-  string kafkaBrokers_;
-  string userAPIUrl_;
-
-  // if enable simulator, all share will be accepted
-  bool isEnableSimulator_;
-
-  // if enable it, will make block and submit
-  bool isSubmitInvalidBlock_;
-  
-  // if enable, difficulty sent to miners is always devFixedDifficulty_
-  bool isDevModeEnable_;
-
-  // difficulty to send to miners. for development
-  float devFixedDifficulty_;
-  
-  string consumerTopic_;
-  uint32_t maxJobDelay_;
-  shared_ptr<DiffController> defaultDifficultyController_;
-  string solvedShareTopic_;
-  string shareTopic_;
-  string commonEventsTopic_;
-
-  StratumServer(const char *ip, const unsigned short port,
-                const char *kafkaBrokers,
-                const string &userAPIUrl,
-                const uint8_t serverId, const string &fileLastNotifyTime,
-                bool isEnableSimulator,
-                bool isSubmitInvalidBlock,
-                bool isDevModeEnable,
-                float devFixedDifficulty,
-                const string &consumerTopic,
-                uint32_t maxJobDelay,
-                shared_ptr<DiffController> defaultDifficultyController,
-                const string& solvedShareTopic,
-                const string& shareTopic,
-                const string& commonEventsTopic);
-  ~StratumServer();
-  bool createServer(const string &type, const int32_t shareAvgSeconds, const libconfig::Config &config);
-  bool init();
-  void stop();
-  void run();
-};
-
 
 #endif

@@ -364,7 +364,7 @@ bool JobRepositoryEth::compute(ethash_h256_t const header, uint64_t nonce, ethas
 
 
 ////////////////////////////////// ServierEth ///////////////////////////////
-bool ServerEth::setupInternal(StratumServer* sserver) {
+bool ServerEth::setupInternal(const libconfig::Config &config) {
   // TODO: WORK_WITH_STRATUM_SWITCHER only effects Bitcoin's sserver
   #ifndef WORK_WITH_STRATUM_SWITCHER
     // Use 16 bits index of Session ID.

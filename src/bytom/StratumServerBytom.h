@@ -32,8 +32,6 @@ class JobRepositoryBytom;
 class ServerBytom : public ServerBase<JobRepositoryBytom>
 {
 public:
-  ServerBytom(const int32_t shareAvgSeconds) : ServerBase(shareAvgSeconds) {}
-
   JobRepository* createJobRepository(const char *kafkaBrokers,
                                      const char *consumerTopic,     
                                      const string &fileLastNotifyTime) override;

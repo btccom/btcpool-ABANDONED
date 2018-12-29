@@ -35,20 +35,18 @@ class ShareBitcoin;
 class ServerBitcoin : public ServerBase<JobRepositoryBitcoin>
 {
 private:
-  string auxPowSolvedShareTopic_;
-  string rskSolvedShareTopic_;
   KafkaProducer *kafkaProducerNamecoinSolvedShare_;
   KafkaProducer *kafkaProducerRskSolvedShare_;
 
   uint32_t versionMask_;
 
 public:
-  ServerBitcoin(const int32_t shareAvgSeconds, const libconfig::Config &config);
+  ServerBitcoin();
   virtual ~ServerBitcoin();
 
   uint32_t getVersionMask() const;
 
-  bool setupInternal(StratumServer* sserver) override;
+  bool setupInternal(const libconfig::Config &config) override;
 
   unique_ptr<StratumSession> createConnection(struct bufferevent *bev, struct sockaddr *saddr, uint32_t sessionID) override;
   void sendSolvedShare2Kafka(const FoundBlock *foundBlock,

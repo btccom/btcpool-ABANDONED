@@ -32,10 +32,6 @@ class JobRepositorySia;
 class ServerSia : public ServerBase<JobRepositorySia>
 {
 public:
-  ServerSia(const int32_t shareAvgSeconds) : ServerBase(shareAvgSeconds) {}
-  virtual ~ServerSia();
-
-
   unique_ptr<StratumSession> createConnection(struct bufferevent *bev, struct sockaddr *saddr, const uint32_t sessionID) override;
   
   void sendSolvedShare2Kafka(uint8_t *buf, int len);

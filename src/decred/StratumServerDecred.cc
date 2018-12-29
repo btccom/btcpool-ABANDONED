@@ -129,12 +129,12 @@ public:
   }
 };
 
-ServerDecred::ServerDecred(int32_t shareAvgSeconds, const libconfig::Config &config)
-  : ServerBase<JobRepositoryDecred>(shareAvgSeconds)
+bool ServerDecred::setupInternal(const libconfig::Config &config)
 {
   string protocol;
   config.lookupValue("sserver.protocol", protocol);
   boost::algorithm::to_lower(protocol);
+
   if (protocol == "gominer") {
     LOG(INFO) << "Using gominer stratum protocol";
     protocol_ = boost::make_unique<StratumProtocolDecredGoMiner>();
@@ -142,6 +142,8 @@ ServerDecred::ServerDecred(int32_t shareAvgSeconds, const libconfig::Config &con
     LOG(INFO) << "Using tpruvot stratum protocol";
     protocol_ = boost::make_unique<StratumProtocolDecredTPruvot>();
   }
+  
+  return true;
 }
 
 unique_ptr<StratumSession> ServerDecred::createConnection(bufferevent *bev, sockaddr *saddr, uint32_t sessionID)

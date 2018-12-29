@@ -40,7 +40,11 @@
 #include "config/bpool-version.h"
 #include "Utils.h"
 #include "StratumServer.h"
-#include "DiffController.h"
+#include "bitcoin/StratumServerBitcoin.h"
+#include "eth/StratumServerEth.h"
+#include "bytom/StratumServerBytom.h"
+#include "sia/StratumServerSia.h"
+#include "decred/StratumServerDecred.h"
 
 #include <chainparams.h>
 
@@ -60,6 +64,26 @@ void handler(int sig)
 void usage() {
   fprintf(stderr, BIN_VERSION_STRING("sserver"));
   fprintf(stderr, "Usage:\tsserver -c \"sserver.cfg\" [-l <log_dir|stderr>]\n");
+}
+
+StratumServer* createStratumServer(const libconfig::Config& config) {
+  string type = config.lookup("sserver.type");
+  LOG(INFO) << "createServer type: " << type;
+#if defined(CHAIN_TYPE_STR)
+  if (CHAIN_TYPE_STR == type)
+#else 
+  if (false)
+#endif
+    return new ServerBitcoin();
+  else if ("ETH" == type)
+    return new ServerEth();
+  else if ("SIA" == type)
+    return new ServerSia();
+  else if ("BTM" == type) 
+    return new ServerBytom ();
+  else if ("DCR" == type)
+    return new ServerDecred();
+  return nullptr;
 }
 
 int main(int argc, char **argv)
@@ -148,103 +172,19 @@ int main(int argc, char **argv)
       SelectParams(CBaseChainParams::MAIN);
     }
 
-    int32_t port = 3333;
-    uint32_t serverId = 0;
-    int32_t shareAvgSeconds = 10; // default share interval time 10 seconds
-
-    cfg.lookupValue("sserver.port", port);
-    cfg.lookupValue("sserver.id", serverId);
-    if (serverId > 0xFFu || serverId == 0)
+    gStratumServer = createStratumServer(cfg);
+    
+    if (!gStratumServer->setup(cfg))
     {
-      LOG(FATAL) << "invalid server id, range: [1, 255]";
-      return (EXIT_FAILURE);
-    }
-    if (cfg.exists("sserver.share_avg_seconds"))
-    {
-      cfg.lookupValue("sserver.share_avg_seconds", shareAvgSeconds);
-    }
-
-    bool isEnableSimulator = false;
-    cfg.lookupValue("sserver.enable_simulator", isEnableSimulator);
-    bool isSubmitInvalidBlock = false;
-    cfg.lookupValue("sserver.enable_submit_invalid_block", isSubmitInvalidBlock);
-
-    bool isDevModeEnabled = false;
-    cfg.lookupValue("sserver.enable_dev_mode", isDevModeEnabled);
-    float devFixedDifficulty;
-    cfg.lookupValue("sserver.dev_fixed_difficulty", devFixedDifficulty);
-
-    string fileLastMiningNotifyTime;
-    cfg.lookupValue("sserver.file_last_notify_time", fileLastMiningNotifyTime);
-
-    uint32_t maxJobDelay = 60;
-    cfg.lookupValue("sserver.max_job_delay", maxJobDelay);
-
-    string defDiffStr = cfg.lookup("sserver.default_difficulty");
-    size_t pos;
-    uint64_t defaultDifficulty = stoull(defDiffStr, &pos, 16);
-
-    string maxDiffStr = cfg.lookup("sserver.max_difficulty");
-    uint64_t maxDifficulty = stoull(maxDiffStr, &pos, 16);
-
-    string minDiffStr = cfg.lookup("sserver.min_difficulty");
-    uint64_t minDifficulty = stoull(minDiffStr, &pos, 16);
-
-    uint32_t diffAdjustPeriod = 300;
-    cfg.lookupValue("sserver.diff_adjust_period", diffAdjustPeriod);
-
-    if (0 == defaultDifficulty ||
-        0 == maxDifficulty ||
-        0 == minDifficulty ||
-        0 == diffAdjustPeriod)
-    {
-      LOG(FATAL) << "difficulty settings are not expected: def=" << defaultDifficulty << ", min=" << minDifficulty << ", max=" << maxDifficulty << ", adjustPeriod=" << diffAdjustPeriod;
+      LOG(FATAL) << "stratum server setup failure";
       return 1;
     }
 
-    if ((int32_t)diffAdjustPeriod < (int32_t)shareAvgSeconds) {
-      LOG(FATAL) << "`diff_adjust_period` should not less than `share_avg_seconds`";
-      return 1;
-    }
+    gStratumServer->run();
 
-    shared_ptr<DiffController> dc = make_shared<DiffController>(defaultDifficulty, maxDifficulty, minDifficulty, shareAvgSeconds, diffAdjustPeriod);
-    evthread_use_pthreads();
-
-    // new StratumServer
-    gStratumServer = new StratumServer(cfg.lookup("sserver.ip").c_str(),
-                                       (unsigned short)port,
-                                       cfg.lookup("kafka.brokers").c_str(),
-                                       cfg.lookup("users.list_id_api_url"),
-                                       serverId,
-                                       fileLastMiningNotifyTime,
-                                       isEnableSimulator,
-                                       isSubmitInvalidBlock,
-                                       isDevModeEnabled,
-                                       devFixedDifficulty,
-                                       cfg.lookup("sserver.job_topic"),
-                                       maxJobDelay,
-                                       dc,
-                                       cfg.lookup("sserver.solved_share_topic"),
-                                       cfg.lookup("sserver.share_topic"),
-                                       cfg.lookup("sserver.common_events_topic"));
-
-    if (!gStratumServer->createServer(cfg.lookup("sserver.type"), shareAvgSeconds, cfg))
-    {
-      LOG(FATAL) << "createServer failed";
-      return 1;
-    }
-
-    if (!gStratumServer->init())
-    {
-      LOG(FATAL) << "init failure";
-    }
-    else
-    {
-      gStratumServer->run();
-    }
     delete gStratumServer;
   }
-  catch (std::exception &e)
+  catch (const std::exception &e)
   {
     LOG(FATAL) << "exception: " << e.what();
     return 1;

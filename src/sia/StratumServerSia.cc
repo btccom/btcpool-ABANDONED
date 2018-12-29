@@ -64,11 +64,6 @@ void JobRepositorySia::broadcastStratumJob(StratumJob *sjob) {
 }
 
 ////////////////////////////////// ServierSia ///////////////////////////////
-ServerSia::~ServerSia()
-{
-
-}
-
 unique_ptr<StratumSession> ServerSia::createConnection(struct bufferevent *bev,
                                                              struct sockaddr *saddr,
                                                              const uint32_t sessionID) {
