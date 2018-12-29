@@ -301,6 +301,7 @@ bool ZookeeperUniqIdT<IBITS>::createIdNode(size_t id) {
   nodePath_ = parentPath_ + "/" + std::to_string(id);
 
   try {
+    zk_->createNodesRecursively(parentPath_);
     zk_->createEphemeralNode(nodePath_, data_);
     return true;
   }
@@ -317,37 +318,44 @@ template class ZookeeperUniqIdT<8>;
 //------------------------------- Zookeeper -------------------------------
 
 void Zookeeper::globalWatcher(zhandle_t *zh, int type, int state, const char *path, void *pZookeeper) {
-  DLOG(INFO) << "Zookeeper::globalWatcher: type:" << type << ", state:" << state << ", path:" << path;
+  try {
+    DLOG(INFO) << "Zookeeper::globalWatcher: type:" << type << ", state:" << state << ", path:" << path;
 
-  Zookeeper *zk = (Zookeeper *)pZookeeper;
+    Zookeeper *zk = (Zookeeper *)pZookeeper;
 
-  if (type != ZOO_SESSION_EVENT) {
-    return;
+    if (type != ZOO_SESSION_EVENT) {
+      return;
+    }
+
+    if (zk->connected_) {
+      if (state == ZOO_CONNECTED_STATE) {
+        LOG(INFO) << "Zookeeper: reconnected to broker.";
+        zk->recoveryLock();
+        zk->recoveryUniqId();
+      }
+      else if (state == ZOO_CONNECTING_STATE) {
+        LOG(ERROR) << "Zookeeper: lost the connection from broker.";
+      }
+      else if (state == ZOO_AUTH_FAILED_STATE) {
+        LOG(ERROR) << "Zookeeper: the session auth failed. Try reconnect.";
+        zk->recoverySession();
+      }
+      else if (state == ZOO_EXPIRED_SESSION_STATE) {
+        LOG(ERROR) << "Zookeeper: the session is expired. Try reconnect.";
+        zk->recoverySession();
+      }
+    }
+    else {
+      if (state == ZOO_CONNECTED_STATE) {
+        LOG(INFO) << "Zookeeper: connected to broker.";
+        zk->connected_ = true;
+        pthread_cond_signal(&zk->watchctx_.cond);
+      }
+    }
   }
-
-  if (zk->connected_) {
-    if (state == ZOO_CONNECTED_STATE) {
-      LOG(INFO) << "Zookeeper: reconnected to broker.";
-      zk->recoveryLock();
-      zk->recoveryUniqId();
-    }
-    else if (state == ZOO_CONNECTING_STATE) {
-      LOG(ERROR) << "Zookeeper: lost the connection from broker.";
-    }
-    else if (state == ZOO_AUTH_FAILED_STATE) {
-      LOG(ERROR) << "Zookeeper: the session auth failed. Try reconnect.";
-      zk->recoverySession();
-    }
-    else if (state == ZOO_EXPIRED_SESSION_STATE) {
-      LOG(ERROR) << "Zookeeper: the session is expired. Try reconnect.";
-      zk->recoverySession();
-    }
-  }
-  else {
-    if (state == ZOO_CONNECTED_STATE) {
-      LOG(INFO) << "Zookeeper: connected to broker.";
-      zk->connected_ = true;
-    }
+  catch (const std::exception &ex) {
+    LOG(FATAL) << ex.what();
+    google::ShutdownGoogleLogging();
   }
 }
 
@@ -356,25 +364,40 @@ Zookeeper::Zookeeper(const string &brokers)
   , zh_(nullptr)
   , connected_(false)
 {
+  pthread_cond_init(&watchctx_.cond, NULL);
+  pthread_mutex_init(&watchctx_.lock, NULL);
+  pthread_mutex_lock(&watchctx_.lock);
+
   connect();
 }
 
 void Zookeeper::connect() {
+  LOG(INFO) << "Zookeeper: connecting to brokers: " << brokers_;
+  
   zh_ = zookeeper_init(brokers_.c_str(), Zookeeper::globalWatcher, ZOOKEEPER_CONNECT_TIMEOUT, nullptr, this, 0);
 
   if (zh_ == nullptr) {
     throw ZookeeperException(string("Zookeeper init failed: ") + zerror(errno));
   }
   
-  for (int i=0; i<=20 && zoo_state(zh_)!=ZOO_CONNECTED_STATE; i+=5)
-  {
-    LOG(INFO) << "Zookeeper: connecting to zookeeper brokers: " << i << "s";
+  for (int i=0; i<=20 && zoo_state(zh_)!=ZOO_CONNECTED_STATE; i+=5) {
+    LOG(INFO) << "Zookeeper: connecting to brokers in " << i << "s";
 
-    sleep(5);
+    struct timeval now;
+    struct timespec outtime;
+
+    gettimeofday(&now, NULL);
+
+    outtime.tv_sec = now.tv_sec + 5;
+    outtime.tv_nsec = 0;
+
+    int waitResult = pthread_cond_timedwait(&watchctx_.cond, &watchctx_.lock, &outtime);
+    if (waitResult == 0) {
+      break;
+    }
   }
   
-  if (zoo_state(zh_)!=ZOO_CONNECTED_STATE)
-  {
+  if (zoo_state(zh_)!=ZOO_CONNECTED_STATE) {
     ZookeeperException ex("Zookeeper: connecting to zookeeper brokers failed!");
     throw ex;
   }

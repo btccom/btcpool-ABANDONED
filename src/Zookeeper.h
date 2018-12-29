@@ -24,6 +24,7 @@
 #ifndef BTCPOOL_ZOOKEEPER_H_ // <zookeeper/zookeeper.h> has defined ZOOKEEPER_H_
 #define BTCPOOL_ZOOKEEPER_H_ // add a prefix BTCPOOL_ to avoid the conflict
 
+#include <pthread.h>
 #include <zookeeper/zookeeper.h>
 #include <zookeeper/proto.h>
 
@@ -121,6 +122,12 @@ protected:
   string brokers_;
   zhandle_t *zh_; // zookeeper handle
   atomic<bool> connected_;
+
+  // Used to unlock the main thread when the connection is ready.
+  struct watchctx_t {
+        pthread_cond_t cond;
+        pthread_mutex_t lock;
+  } watchctx_;
 
   vector<shared_ptr<ZookeeperLock>> locks_;
   vector<shared_ptr<ZookeeperUniqId>> uniqIds_;
