@@ -696,20 +696,20 @@ bool StratumServer::setup(const libconfig::Config &config) {
 
   config.lookupValue("sserver.enable_simulator", isEnableSimulator_);
   if (isEnableSimulator_) {
-    LOG(WARNING) << "Simulator is enabled, all share will be accepted. "
+    LOG(WARNING) << "[Dev Option] Simulator is enabled, all share will be accepted. "
                  << "This option should not be enabled in a production environment!";
   }
 
   config.lookupValue("sserver.enable_submit_invalid_block", isSubmitInvalidBlock_);
   if (isSubmitInvalidBlock_) {
-    LOG(WARNING) << "Submit invalid block is enabled, all shares will become solved shares. "
+    LOG(WARNING) << "[Dev Option] Submit invalid block is enabled, all shares will become solved shares. "
                  << "This option should not be enabled in a production environment!";
   }
 
   config.lookupValue("sserver.enable_dev_mode", isDevModeEnable_);
   if (isDevModeEnable_) {
     config.lookupValue("sserver.dev_fixed_difficulty", devFixedDifficulty_);
-    LOG(WARNING) << "Development mode is enabled with fixed difficulty: " << devFixedDifficulty_
+    LOG(WARNING) << "[Dev Option] Development mode is enabled with fixed difficulty: " << devFixedDifficulty_
                  << ". This option should not be enabled in a production environment!";
   }
 
@@ -765,9 +765,13 @@ bool StratumServer::setup(const libconfig::Config &config) {
   string fileLastMiningNotifyTime;
   config.lookupValue("sserver.file_last_notify_time", fileLastMiningNotifyTime);
   
-  uint32_t maxJobLifetime = 60;
+  uint32_t maxJobLifetime = 300;
   config.lookupValue("sserver.max_job_delay",    maxJobLifetime); // the old option name
   config.lookupValue("sserver.max_job_lifetime", maxJobLifetime); // the new name, overwrite the old if exist
+  if (maxJobLifetime < 300) {
+    LOG(WARNING) << "[Bad Option] sserver.max_job_lifetime (" << maxJobLifetime
+                 << " seconds) is too short, recommended to be 300 seconds or longer.";
+  }
 
   // job repository
   jobRepository_ = createJobRepository(kafkaBrokers.c_str(),
