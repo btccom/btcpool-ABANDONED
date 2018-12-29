@@ -280,7 +280,12 @@ int main(int argc, char **argv) {
         LOG(INFO) << "worker exit";
       }
     }
-  } catch (std::exception & e) {
+  }
+  catch (const SettingException &e) {
+    LOG(FATAL) << "config missing: " << e.getPath();
+    return 1;
+  }
+  catch (const std::exception &e) {
     LOG(FATAL) << "exception: " << e.what();
     return 1;
   }

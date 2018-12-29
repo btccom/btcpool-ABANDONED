@@ -248,7 +248,11 @@ int main(int argc, char **argv) {
     delete[] shares;
     LOG(INFO) << "completed.";
   }
-  catch (std::exception & e) {
+  catch (const SettingException &e) {
+    LOG(FATAL) << "config missing: " << e.getPath();
+    return 1;
+  }
+  catch (const std::exception &e) {
     LOG(FATAL) << "exception: " << e.what();
     return 1;
   }
