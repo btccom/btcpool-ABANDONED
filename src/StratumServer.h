@@ -200,7 +200,8 @@ class UserInfo {
   // username -> userId
   std::unordered_map<string, int32_t> nameIds_;
   int32_t lastMaxUserId_;
-  
+  bool caseInsensitive_;
+
 #ifdef USER_DEFINED_COINBASE
   // userId -> userCoinbaseInfo
   std::unordered_map<int32_t, string> idCoinbaseInfos_;
@@ -213,6 +214,7 @@ class UserInfo {
   StratumServer *server_;
 
   thread threadInsertWorkerName_;
+
   void runThreadInsertWorkerName();
   int32_t insertWorkerName();
 
@@ -221,13 +223,18 @@ class UserInfo {
   int32_t incrementalUpdateUsers();
 
 public:
-  UserInfo(const string &apiUrl, StratumServer *server);
+  UserInfo(
+    const string &apiUrl,
+    StratumServer *server,
+    bool caseInsensitive
+  );
   ~UserInfo();
 
   void stop();
   bool setupThreads();
 
-  int32_t getUserId(const string userName);
+  void regularUserName(string &userName);
+  int32_t getUserId(string userName);
 
 #ifdef USER_DEFINED_COINBASE
   string  getCoinbaseInfo(int32_t userId);

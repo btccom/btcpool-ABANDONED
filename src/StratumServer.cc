@@ -25,6 +25,7 @@
 #include "StratumSession.h"
 #include "DiffController.h"
 
+#include <algorithm>
 #include <boost/thread.hpp>
 
 using namespace std;
@@ -321,8 +322,13 @@ void JobRepository::tryCleanExpiredJobs() {
 
 
 //////////////////////////////////// UserInfo /////////////////////////////////
-UserInfo::UserInfo(const string &apiUrl, StratumServer *server):
+UserInfo::UserInfo(
+  const string &apiUrl,
+  StratumServer *server,
+  bool caseInsensitive
+):
 running_(true), apiUrl_(apiUrl), lastMaxUserId_(0),
+caseInsensitive_(caseInsensitive),
 server_(server)
 {
   pthread_rwlock_init(&rwlock_, nullptr);
@@ -347,7 +353,15 @@ void UserInfo::stop() {
   running_ = false;
 }
 
-int32_t UserInfo::getUserId(const string userName) {
+void UserInfo::regularUserName(string &userName) {
+  if (caseInsensitive_) {
+    std::transform(userName.begin(), userName.end(), userName.begin(), ::tolower);
+  }
+}
+
+int32_t UserInfo::getUserId(string userName) {
+  regularUserName(userName);
+
   pthread_rwlock_rdlock(&rwlock_);
   auto itr = nameIds_.find(userName);
   pthread_rwlock_unlock(&rwlock_);
@@ -405,7 +419,8 @@ int32_t UserInfo::incrementalUpdateUsers() {
   pthread_rwlock_wrlock(&rwlock_);
   for (JsonNode &itr : *vUser) {
 
-    const string  userName(itr.key_start(), itr.key_end() - itr.key_start());
+    string userName(itr.key_start(), itr.key_end() - itr.key_start());
+    regularUserName(userName);
 
     if (itr.type() != Utilities::JS::type::Obj) {
       LOG(ERROR) << "invalid data, should key  - value" << std::endl;
@@ -472,11 +487,14 @@ int32_t UserInfo::incrementalUpdateUsers() {
 
   pthread_rwlock_wrlock(&rwlock_);
   for (const auto &itr : *vUser) {
-    const string  userName(itr.key_start(), itr.key_end() - itr.key_start());
+    string userName(itr.key_start(), itr.key_end() - itr.key_start());
+    regularUserName(userName);
+
     const int32_t userId   = itr.int32();
     if (userId > lastMaxUserId_) {
       lastMaxUserId_ = userId;
     }
+
     nameIds_.insert(std::make_pair(userName, userId));
   }
   pthread_rwlock_unlock(&rwlock_);
@@ -783,7 +801,10 @@ bool StratumServer::setup(const libconfig::Config &config) {
   }
 
   // user info
-  userInfo_ = new UserInfo(config.lookup("users.list_id_api_url"), this);
+  bool caseInsensitive = true;
+  config.lookupValue("users.case_insensitive", caseInsensitive);
+
+  userInfo_ = new UserInfo(config.lookup("users.list_id_api_url"), this, caseInsensitive);
   if (!userInfo_->setupThreads()) {
     return false;
   }
