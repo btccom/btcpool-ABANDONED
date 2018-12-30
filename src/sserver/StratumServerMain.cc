@@ -33,7 +33,6 @@
 #include <boost/interprocess/sync/file_lock.hpp>
 #include <glog/logging.h>
 #include <libconfig.h++>
-#include <event2/thread.h>
 
 #include "zmq.hpp"
 

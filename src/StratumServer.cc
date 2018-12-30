@@ -26,6 +26,7 @@
 #include "DiffController.h"
 
 #include <boost/thread.hpp>
+#include <event2/thread.h>
 
 using namespace std;
 
@@ -627,6 +628,10 @@ bool StratumServer::setup(const libconfig::Config &config) {
 
   // ------------------- TCP Listen -------------------
 
+  // Enable multithreading and flag BEV_OPT_THREADSAFE.
+  // Without it, bufferevent_socket_new() will return NULL with flag BEV_OPT_THREADSAFE.
+  evthread_use_pthreads();
+
   base_ = event_base_new();
   if(!base_) {
     LOG(ERROR) << "server: cannot create base";
@@ -637,7 +642,7 @@ bool StratumServer::setup(const libconfig::Config &config) {
   sin_.sin_family = AF_INET;
   sin_.sin_port   = htons(listenPort);
   sin_.sin_addr.s_addr = htonl(INADDR_ANY);
-  if (listenIP.empty() && inet_pton(AF_INET, listenIP.c_str(), &sin_.sin_addr) == 0) {
+  if (listenIP.empty() || inet_pton(AF_INET, listenIP.c_str(), &sin_.sin_addr) == 0) {
     LOG(ERROR) << "invalid ip: " << listenIP;
     return false;
   }
@@ -731,9 +736,11 @@ void StratumServer::listenerCallback(struct evconnlistener* listener,
   }
 #endif
 
+  // If it returns NULL with flag BEV_OPT_THREADSAFE,
+  // please call evthread_use_pthreads() before you call event_base_new().
   bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE|BEV_OPT_THREADSAFE);
   if(bev == nullptr) {
-    LOG(ERROR) << "error constructing bufferevent!";
+    LOG(ERROR) << "Error constructing bufferevent! Maybe you forgot call evthread_use_pthreads() before event_base_new().";
     server->stop();
     return;
   }
