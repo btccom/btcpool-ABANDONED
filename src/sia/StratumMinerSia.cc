@@ -110,7 +110,7 @@ void StratumMinerSia::handleRequest_Submit(const string &idStr, const JsonNode &
   }
 
   shared_ptr<StratumJobEx> exjob;
-  exjob = server.GetJobRepository()->getStratumJobEx(localJob->jobId_);
+  exjob = server.GetJobRepository(localJob->chainId_)->getStratumJobEx(localJob->jobId_);
 
   if (nullptr == exjob || nullptr == exjob->sjob_) {
     session.responseError(idStr, StratumStatus::JOB_NOT_FOUND);
@@ -164,7 +164,7 @@ void StratumMinerSia::handleRequest_Submit(const string &idStr, const JsonNode &
   if (shareTarget < networkTarget) {
     //valid share
     //submit share
-    server.sendSolvedShare2Kafka(bHeader, 80);
+    server.sendSolvedShare2Kafka(localJob->chainId_, (const char *)bHeader, 80);
     diffController_->addAcceptedShare(share.sharediff());
     LOG(INFO) << "sia solution found";
   }
@@ -178,5 +178,5 @@ void StratumMinerSia::handleRequest_Submit(const string &idStr, const JsonNode &
     return;
   }
 
-  server.sendShare2Kafka((const uint8_t *) message.data(), size);
+  server.sendShare2Kafka(localJob->chainId_, message.data(), size);
 }

@@ -105,8 +105,7 @@ const char * StratumStatus::toString(int err) {
 //////////////////////////////// StratumWorker ////////////////////////////////
 StratumWorker::StratumWorker(): userId_(0), workerHashId_(0) {}
 
-void StratumWorker::reset() {
-  userId_ = 0;
+void StratumWorker::resetNames() {
   workerHashId_ = 0;
 
   fullName_.clear();
@@ -122,9 +121,12 @@ string StratumWorker::getUserName(const string &fullName) const {
   return fullName.substr(0, pos);
 }
 
-void StratumWorker::setUserIDAndNames(const int32_t userId, const string &fullName) {
-  reset();
+void StratumWorker::setUserID(const int32_t userId) {
   userId_ = userId;
+}
+
+void StratumWorker::setNames(const string &fullName) {
+  resetNames();
 
   auto pos = fullName.find(".");
   if (pos == fullName.npos) {

@@ -44,8 +44,8 @@ static ostream& operator<<(ostream& os, const StratumJobDecred& job)
   return os;
 }
 
-JobRepositoryDecred::JobRepositoryDecred(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerDecred *server)
-  : JobRepositoryBase<ServerDecred>(kafkaBrokers, consumerTopic, fileLastNotifyTime, server)
+JobRepositoryDecred::JobRepositoryDecred(size_t chainId, ServerDecred *server, const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime)
+  : JobRepositoryBase<ServerDecred>(chainId, server, kafkaBrokers, consumerTopic, fileLastNotifyTime)
   , lastHeight_(0)
   , lastVoters_(0)
 {
@@ -151,9 +151,13 @@ unique_ptr<StratumSession> ServerDecred::createConnection(bufferevent *bev, sock
   return boost::make_unique<StratumSessionDecred>(*this, bev, saddr, sessionID, *protocol_);
 }
 
-JobRepository* ServerDecred::createJobRepository(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime)
-{
-  return new JobRepositoryDecred(kafkaBrokers, consumerTopic, fileLastNotifyTime, this);
+JobRepository* ServerDecred::createJobRepository(
+  size_t chainId,
+  const char *kafkaBrokers,
+  const char *consumerTopic,
+  const string &fileLastNotifyTime
+) {
+  return new JobRepositoryDecred(chainId, this, kafkaBrokers, consumerTopic, fileLastNotifyTime);
 }
 
 int ServerDecred::checkShare(ShareDecred &share, shared_ptr<StratumJobEx> exJobPtr, const vector<uint8_t> &extraNonce2,
@@ -185,10 +189,10 @@ int ServerDecred::checkShare(ShareDecred &share, shared_ptr<StratumJobEx> exJobP
   //
   if (isSubmitInvalidBlock_ == true || bnBlockHash <= bnNetworkTarget) {
     // send
-    kafkaProducerSolvedShare_->produce(&foundBlock, sizeof(FoundBlockDecred));
+    sendSolvedShare2Kafka(exJobPtr->chainId_, (const char*)&foundBlock, sizeof(foundBlock));
 
     // mark jobs as stale
-    GetJobRepository()->markAllJobsAsStale();
+    GetJobRepository(exJobPtr->chainId_)->markAllJobsAsStale();
 
     LOG(INFO) << ">>>> found a new block: " << blkHash.ToString()
     << ", jobId: " << share.jobid() << ", userId: " << share.userid()

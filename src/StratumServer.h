@@ -116,6 +116,7 @@ class JobRepository
 protected:
   atomic<bool> running_;
   mutex lock_;
+  size_t chainId_;
   std::map<uint64_t /* jobId */, shared_ptr<StratumJobEx>> exJobs_;
 
   KafkaConsumer kafkaConsumer_; // consume topic: 'StratumJob'
@@ -136,9 +137,14 @@ private:
   void tryCleanExpiredJobs();
   void checkAndSendMiningNotify();
 
-protected:
-  JobRepository(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, StratumServer *server);
 public:
+  JobRepository(
+    size_t chainId,
+    StratumServer *server,
+    const char *kafkaBrokers,
+    const char *consumerTopic,
+    const string &fileLastNotifyTime
+  );
   virtual ~JobRepository();
 
   void stop();
@@ -160,12 +166,8 @@ public:
 template<typename ServerType>
 class JobRepositoryBase : public JobRepository
 {
-protected:
-  JobRepositoryBase(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerType *server)
-    : JobRepository(kafkaBrokers, consumerTopic, fileLastNotifyTime, server)
-  {
-
-  }
+public:
+  using JobRepository::JobRepository;
 protected:
   inline ServerType* GetServer() const
   {
@@ -186,11 +188,12 @@ class StratumJobEx {
   atomic<int32_t> state_;
 
 public:
+  size_t chainId_;
   bool isClean_;
   StratumJob *sjob_;
 
 public:
-  StratumJobEx(StratumJob *sjob, bool isClean);
+  StratumJobEx(size_t chainId, StratumJob *sjob, bool isClean);
   virtual ~StratumJobEx();
 
   void markStale();
@@ -210,10 +213,16 @@ class StratumServer {
   mutex connsLock_;
 
 public:
-  // kafka producers
-  KafkaProducer *kafkaProducerShareLog_;
-  KafkaProducer *kafkaProducerSolvedShare_;
-  KafkaProducer *kafkaProducerCommonEvents_;
+  struct ChainVars {
+    string name_;
+
+    // kafka producers
+    KafkaProducer *kafkaProducerShareLog_;
+    KafkaProducer *kafkaProducerSolvedShare_;
+    KafkaProducer *kafkaProducerCommonEvents_;
+    
+    JobRepository *jobRepository_;
+  };
 
   // ------------------- Development Options: -------------------
   // WARNING: if enable simulator, all share will be accepted. only for test.
@@ -230,8 +239,8 @@ public:
   SessionIDManager *sessionIDManager_;
 #endif
 
-  JobRepository *jobRepository_;
   UserInfo *userInfo_;
+  vector<ChainVars> chains_;
   shared_ptr<DiffController> defaultDifficultyController_;
   uint8_t serverId_;
   
@@ -251,6 +260,8 @@ public:
   void run();
   void stop();
 
+  const string& chainName(size_t chainId) { return chains_[chainId].name_; }
+
   void sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr);
 
   void addConnection(unique_ptr<StratumSession> connection);
@@ -263,15 +274,19 @@ public:
   static void readCallback (struct bufferevent *, void *connection);
   static void eventCallback(struct bufferevent *, short, void *connection);
 
-  void sendShare2Kafka      (const uint8_t *data, size_t len);
-  void sendCommonEvents2Kafka(const string &message);
+  void sendShare2Kafka(size_t chainId, const char *data, size_t len);
+  void sendSolvedShare2Kafka(size_t chainId, const char *data, size_t len);
+  void sendCommonEvents2Kafka(size_t chainId, const string &message);
 
   virtual unique_ptr<StratumSession> createConnection(struct bufferevent *bev, struct sockaddr *saddr, uint32_t sessionID) = 0;
 
 protected:
-  virtual JobRepository* createJobRepository(const char *kafkaBrokers,
-                                    const char *consumerTopic,
-                                     const string &fileLastNotifyTime) = 0;
+  virtual JobRepository* createJobRepository(
+    size_t chainId,
+    const char *kafkaBrokers,
+    const char *consumerTopic,
+    const string &fileLastNotifyTime
+  ) = 0;
 
 };
 
@@ -279,7 +294,7 @@ template<typename TJobRepository>
 class ServerBase : public StratumServer
 {
 public:
-  TJobRepository* GetJobRepository(){ return static_cast<TJobRepository*>(jobRepository_); }
+  TJobRepository* GetJobRepository(size_t chainId){ return static_cast<TJobRepository*>(chains_[chainId].jobRepository_); }
 };
 
 #endif

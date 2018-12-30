@@ -31,15 +31,10 @@
 using namespace std;
 
 ///////////////////////////////////JobRepositoryBytom///////////////////////////////////
-JobRepositoryBytom::JobRepositoryBytom(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerBytom *server)
-  : JobRepositoryBase(kafkaBrokers, consumerTopic, fileLastNotifyTime, server)
-{
-
-}
 
 StratumJobEx* JobRepositoryBytom::createStratumJobEx(StratumJob *sjob, bool isClean)
 {
-  return new StratumJobEx(sjob, isClean);
+  return new StratumJobEx(chainId_, sjob, isClean);
 }
 
 void JobRepositoryBytom::broadcastStratumJob(StratumJob *sjobBase)
@@ -78,11 +73,13 @@ void JobRepositoryBytom::broadcastStratumJob(StratumJob *sjobBase)
 
 
 ///////////////////////////////ServerBytom///////////////////////////////
-JobRepository *ServerBytom::createJobRepository(const char *kafkaBrokers,
-                                                const char *consumerTopic,
-                                                const string &fileLastNotifyTime)
-{
-  return new JobRepositoryBytom(kafkaBrokers, consumerTopic, fileLastNotifyTime, this);
+JobRepository *ServerBytom::createJobRepository(
+  size_t chainId,
+  const char *kafkaBrokers,
+  const char *consumerTopic,
+  const string &fileLastNotifyTime
+) {
+  return new JobRepositoryBytom(chainId, this, kafkaBrokers, consumerTopic, fileLastNotifyTime);
 }
 
 unique_ptr<StratumSession> ServerBytom::createConnection(struct bufferevent *bev, struct sockaddr *saddr, const uint32_t sessionID)
@@ -90,8 +87,11 @@ unique_ptr<StratumSession> ServerBytom::createConnection(struct bufferevent *bev
   return boost::make_unique<StratumSessionBytom>(*this, bev, saddr, sessionID);
 }
 
-void ServerBytom::sendSolvedShare2Kafka(uint64_t nonce, const string &strHeader,
-                                      uint64_t height, uint64_t networkDiff, const StratumWorker &worker)
+void ServerBytom::sendSolvedShare2Kafka(
+  size_t chainId,
+  uint64_t nonce, const string &strHeader,
+  uint64_t height, uint64_t networkDiff,
+  const StratumWorker &worker)
 {
   string msg = Strings::Format("{\"nonce\":%lu,\"header\":\"%s\","
                                "\"height\":%lu,\"networkDiff\":%" PRIu64 ",\"userId\":%ld,"
@@ -99,5 +99,5 @@ void ServerBytom::sendSolvedShare2Kafka(uint64_t nonce, const string &strHeader,
                                nonce, strHeader.c_str(),
                                height, networkDiff, worker.userId_,
                                worker.workerHashId_, filterWorkerName(worker.fullName_).c_str());
-  kafkaProducerSolvedShare_->produce(msg.c_str(), msg.length());
+  ServerBase::sendSolvedShare2Kafka(chainId, msg.c_str(), msg.length());
 }

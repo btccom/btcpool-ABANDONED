@@ -75,7 +75,7 @@ TEST(StratumSession, LocalShare) {
 }
 
 TEST(StratumSession, LocalJob) {
-  LocalJob lj(0);
+  LocalJob lj(0, 0);
 
   {
     LocalShare ls1(0xFFFFFFFFFFFFFFFFULL,
@@ -108,6 +108,7 @@ public:
   MOCK_METHOD2(sendData, void(const char *, size_t));
   MOCK_METHOD1(sendData, void(const string &));
   MOCK_METHOD2(sendSetDifficulty, void (LocalJob &, uint64_t));
+  MOCK_METHOD1(switchChain, bool(size_t));
 };
 
 class StratumMinerMock : public StratumMiner {

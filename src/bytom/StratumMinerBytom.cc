@@ -55,7 +55,7 @@ void StratumMinerBytom::handleRequest(const std::string &idStr,
 }
 
 void StratumMinerBytom::handleRequest_GetWork(const string &idStr, const JsonNode &jparams) {
-  getSession().sendMiningNotify(getSession().getServer().GetJobRepository()->getLatestStratumJobEx(), false);
+  getSession().sendMiningNotify(getSession().getServer().GetJobRepository(getSession().getChainId())->getLatestStratumJobEx(), false);
 }
 
 namespace BytomUtils {
@@ -124,7 +124,7 @@ void StratumMinerBytom::handleRequest_Submit(const string &idStr, const JsonNode
   }
 
   shared_ptr<StratumJobEx> exjob;
-  exjob = server.GetJobRepository()->getStratumJobEx(localJob->jobId_);
+  exjob = server.GetJobRepository(localJob->chainId_)->getStratumJobEx(localJob->jobId_);
   if (nullptr == exjob || nullptr == exjob->sjob_) {
     session.rpc2ResponseBoolean(idStr, false, "Block expired");
     LOG(ERROR) << "bytom local job not found " << std::hex << localJob->jobId_;
@@ -227,12 +227,15 @@ void StratumMinerBytom::handleRequest_Submit(const string &idStr, const JsonNode
     if (powResult == StratumStatus::SOLVED) {
       std::cout << "share solved\n";
       LOG(INFO) << "share solved";
-      server.sendSolvedShare2Kafka(nonce,
-                                   encoded.r0,
-                                   share.height(),
-                                   Bytom_TargetCompactToDifficulty(sJob->blockHeader_.bits),
-                                   worker);
-      server.GetJobRepository()->markAllJobsAsStale();
+      server.sendSolvedShare2Kafka(
+        localJob->chainId_,
+        nonce,
+        encoded.r0,
+        share.height(),
+        Bytom_TargetCompactToDifficulty(sJob->blockHeader_.bits),
+        worker
+      );
+      server.GetJobRepository(localJob->chainId_)->markAllJobsAsStale();
       handleShare(idStr, share.status(), share.sharediff());
     } else if (powResult == StratumStatus::ACCEPT) {
       handleShare(idStr, share.status(), share.sharediff());
@@ -271,7 +274,7 @@ void StratumMinerBytom::handleRequest_Submit(const string &idStr, const JsonNode
       LOG(ERROR) << "share SerializeToBuffer failed!"<< share.toString();
       return;
     }
-    server.sendShare2Kafka((const uint8_t *) message.data(), size);
+    server.sendShare2Kafka(localJob->chainId_, message.data(), size);
 
     // string shareInHex;
     // Bin2Hex((uint8_t *) &share, sizeof(ShareBytom), shareInHex);

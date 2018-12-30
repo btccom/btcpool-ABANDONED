@@ -33,19 +33,21 @@ class ServerSia : public ServerBase<JobRepositorySia>
 {
 public:
   unique_ptr<StratumSession> createConnection(struct bufferevent *bev, struct sockaddr *saddr, const uint32_t sessionID) override;
-  
-  void sendSolvedShare2Kafka(uint8_t *buf, int len);
+
 private:
-  JobRepository* createJobRepository(const char *kafkaBrokers,
-                                     const char *consumerTopic,     
-                                     const string &fileLastNotifyTime) override;
+  JobRepository* createJobRepository(
+    size_t chainId,
+    const char *kafkaBrokers,
+    const char *consumerTopic,
+    const string &fileLastNotifyTime
+  ) override;
 
 };
 
 class JobRepositorySia : public JobRepositoryBase<ServerSia>
 {
 public:
-  JobRepositorySia(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerSia *server);
+  JobRepositorySia(size_t chainId, ServerSia *server, const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime);
   ~JobRepositorySia();
   StratumJob *createStratumJob() override {return new StratumJobSia();}
   StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;

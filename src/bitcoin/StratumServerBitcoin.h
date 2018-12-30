@@ -49,29 +49,38 @@ public:
   bool setupInternal(const libconfig::Config &config) override;
 
   unique_ptr<StratumSession> createConnection(struct bufferevent *bev, struct sockaddr *saddr, uint32_t sessionID) override;
-  void sendSolvedShare2Kafka(const FoundBlock *foundBlock,
-                             const std::vector<char> &coinbaseBin);
+  void sendSolvedShare2Kafka(
+    size_t chainId,
+    const FoundBlock *foundBlock,
+    const std::vector<char> &coinbaseBin
+  );
 
-  int checkShare(const ShareBitcoin &share,
-                 const uint32_t extraNonce1, const string &extraNonce2Hex,
-                 const uint32_t nTime, const uint32_t nonce,
-                 const uint32_t versionMask,
-                 const uint256 &jobTarget, const string &workFullName,
-                 string *userCoinbaseInfo = nullptr);
+  int checkShare(
+    size_t chainId,
+    const ShareBitcoin &share,
+    const uint32_t extraNonce1, const string &extraNonce2Hex,
+    const uint32_t nTime, const uint32_t nonce,
+    const uint32_t versionMask,
+    const uint256 &jobTarget, const string &workFullName,
+    string *userCoinbaseInfo = nullptr
+  );
 private:
-  JobRepository* createJobRepository(const char *kafkaBrokers,
-                                    const char *consumerTopic,
-                                     const string &fileLastNotifyTime) override;
+  JobRepository* createJobRepository(
+    size_t chainId,
+    const char *kafkaBrokers,
+    const char *consumerTopic,
+    const string &fileLastNotifyTime
+  ) override;
 
 };
 
 class JobRepositoryBitcoin : public JobRepositoryBase<ServerBitcoin>
 {
-private:
+protected:
   uint256 latestPrevBlockHash_;
+  
 public:
-  JobRepositoryBitcoin(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerBitcoin *server);
-  virtual ~JobRepositoryBitcoin();
+  using JobRepositoryBase::JobRepositoryBase;
   virtual StratumJob* createStratumJob() override;
   StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
   void broadcastStratumJob(StratumJob *sjob) override;

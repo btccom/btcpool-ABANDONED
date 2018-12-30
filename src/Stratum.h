@@ -119,11 +119,12 @@ public:
   string userName_;
   string workerName_; // workername, max is: 20
 
-  void reset();
+  void resetNames();
 
 public:
   StratumWorker();
-  void setUserIDAndNames(const int32_t userId, const string &fullName);
+  void setUserID(const int32_t userId);
+  void setNames(const string &fullName);
   string getUserName(const string &fullName) const;
 
   static int64_t calcWorkerId(const string &workerName);
@@ -205,11 +206,13 @@ struct LocalShare {
 };
 
 struct LocalJob {
+  size_t chainId_;
   uint64_t jobId_;
   std::set<LocalShare> submitShares_;
 
-  LocalJob(uint64_t jobId)
-      : jobId_(jobId)
+  LocalJob(size_t chainId, uint64_t jobId)
+      : chainId_(chainId)
+      , jobId_(jobId)
   {
   }
 

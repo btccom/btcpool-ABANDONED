@@ -98,8 +98,15 @@ template class SessionIDManagerT<24>;
 
 
 ////////////////////////////////// JobRepository ///////////////////////////////
-JobRepository::JobRepository(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, StratumServer *server)
+JobRepository::JobRepository(
+  size_t chainId,
+  StratumServer *server,
+  const char *kafkaBrokers,
+  const char *consumerTopic,
+  const string &fileLastNotifyTime
+)
   : running_(true)
+  , chainId_(chainId)
   , kafkaConsumer_(kafkaBrokers, consumerTopic, 0/*patition*/)
   , server_(server), fileLastNotifyTime_(fileLastNotifyTime)
   , kMaxJobsLifeTime_(300)
@@ -257,7 +264,7 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
 }
 
 StratumJobEx* JobRepository::createStratumJobEx(StratumJob *sjob, bool isClean){
-  return new StratumJobEx(sjob, isClean);
+  return new StratumJobEx(chainId_, sjob, isClean);
 }
 
 void JobRepository::markAllJobsAsStale() {
@@ -319,8 +326,9 @@ void JobRepository::tryCleanExpiredJobs() {
 
 
 ////////////////////////////////// StratumJobEx ////////////////////////////////
-StratumJobEx::StratumJobEx(StratumJob *sjob, bool isClean)
+StratumJobEx::StratumJobEx(size_t chainId, StratumJob *sjob, bool isClean)
   : state_(0)
+  , chainId_(chainId)
   , isClean_(isClean)
   , sjob_(sjob)
 {
@@ -349,9 +357,6 @@ bool StratumJobEx::isStale() {
 ///////////////////////////////////// StratumServer ///////////////////////////////////
 StratumServer::StratumServer()
   : base_(nullptr), signal_event_(nullptr), listener_(nullptr)
-  , kafkaProducerShareLog_(nullptr)
-  , kafkaProducerSolvedShare_(nullptr)
-  , kafkaProducerCommonEvents_(nullptr)
   , isEnableSimulator_(false)
   , isSubmitInvalidBlock_(false)
   , isDevModeEnable_(false)
@@ -359,7 +364,6 @@ StratumServer::StratumServer()
 #ifndef WORK_WITH_STRATUM_SWITCHER
   , sessionIDManager_(nullptr)
 #endif
-  , jobRepository_(nullptr)
   , userInfo_(nullptr)
   , serverId_(0)
 {
@@ -375,20 +379,22 @@ StratumServer::~StratumServer() {
   if (base_ != nullptr) {
     event_base_free(base_);
   }
-  if (kafkaProducerShareLog_ != nullptr) {
-    delete kafkaProducerShareLog_;
-  }
-  if (kafkaProducerSolvedShare_ != nullptr) {
-    delete kafkaProducerSolvedShare_;
-  }
-  if (kafkaProducerCommonEvents_ != nullptr) {
-    delete kafkaProducerCommonEvents_;
-  }
-  if (jobRepository_ != nullptr) {
-    delete jobRepository_;
-  }
   if (userInfo_ != nullptr) {
     delete userInfo_;
+  }
+  for (ChainVars &chain : chains_) {
+    if (chain.kafkaProducerShareLog_ != nullptr) {
+      delete chain.kafkaProducerShareLog_;
+    }
+    if (chain.kafkaProducerSolvedShare_ != nullptr) {
+      delete chain.kafkaProducerSolvedShare_;
+    }
+    if (chain.kafkaProducerCommonEvents_ != nullptr) {
+      delete chain.kafkaProducerCommonEvents_;
+    }
+    if (chain.jobRepository_ != nullptr) {
+      delete chain.jobRepository_;
+    }
   }
 
 #ifndef WORK_WITH_STRATUM_SWITCHER
@@ -463,20 +469,6 @@ bool StratumServer::setup(const libconfig::Config &config) {
 
   defaultDifficultyController_ = make_shared<DiffController>(defaultDifficulty, maxDifficulty, minDifficulty, shareAvgSeconds, diffAdjustPeriod);
 
-  // ------------------- Kafka Options -------------------
-
-  string kafkaBrokers = config.lookup("kafka.brokers");
-
-  kafkaProducerSolvedShare_ = new KafkaProducer(kafkaBrokers.c_str(),
-                                                config.lookup("sserver.solved_share_topic").c_str(),
-                                                RD_KAFKA_PARTITION_UA);
-  kafkaProducerShareLog_ = new KafkaProducer(kafkaBrokers.c_str(),
-                                             config.lookup("sserver.share_topic").c_str(),
-                                             RD_KAFKA_PARTITION_UA);
-  kafkaProducerCommonEvents_ = new KafkaProducer(kafkaBrokers.c_str(),
-                                                 config.lookup("sserver.common_events_topic").c_str(),
-                                                 RD_KAFKA_PARTITION_UA);
-
   // ------------------- Other Options -------------------
 
   string fileLastMiningNotifyTime;
@@ -488,20 +480,6 @@ bool StratumServer::setup(const libconfig::Config &config) {
   if (maxJobLifetime < 300) {
     LOG(WARNING) << "[Bad Option] sserver.max_job_lifetime (" << maxJobLifetime
                  << " seconds) is too short, recommended to be 300 seconds or longer.";
-  }
-
-  // job repository
-  jobRepository_ = createJobRepository(kafkaBrokers.c_str(),
-                                       config.lookup("sserver.job_topic").c_str(),
-                                       fileLastMiningNotifyTime);
-  jobRepository_->setMaxJobDelay(maxJobLifetime);
-  if (!jobRepository_->setupThreadConsume()) {
-    return false;
-  }
-
-  userInfo_ = new UserInfo(this, config);
-  if (!userInfo_->setupThreads()) {
-    return false;
   }
 
   // server id
@@ -520,6 +498,12 @@ bool StratumServer::setup(const libconfig::Config &config) {
     serverId_ = zk_->getUniqIdUint8(config.lookup("sserver.zookeeper_lock_path"));
   }
 
+  // user info
+  userInfo_ = new UserInfo(this, config);
+  if (!userInfo_->setupThreads()) {
+    return false;
+  }
+
 #ifndef WORK_WITH_STRATUM_SWITCHER
   sessionIDManager_ = new SessionIDManagerT<24>(serverId_);
 #endif
@@ -531,6 +515,53 @@ bool StratumServer::setup(const libconfig::Config &config) {
 
   int32_t listenPort = 3333;
   config.lookupValue("sserver.port", listenPort);
+
+  // ------------------- Kafka Options -------------------
+
+  auto addChainVars = [&](
+    const string &chainName,
+    const string &kafkaBrokers,
+    const string &shareTopic,
+    const string &solvedShareTopic,
+    const string &commonEventsTopic,
+    const string &jobTopic
+  ) {
+    size_t chainId = chains_.size();
+
+    chains_.push_back({
+      chainName,
+      new KafkaProducer(kafkaBrokers.c_str(), shareTopic.c_str(), RD_KAFKA_PARTITION_UA),
+      new KafkaProducer(kafkaBrokers.c_str(), solvedShareTopic.c_str(), RD_KAFKA_PARTITION_UA),
+      new KafkaProducer(kafkaBrokers.c_str(), commonEventsTopic.c_str(), RD_KAFKA_PARTITION_UA),
+      createJobRepository(chainId, kafkaBrokers.c_str(), jobTopic.c_str(), fileLastMiningNotifyTime)
+    });
+  };
+
+  bool multiChains = false;
+  config.lookupValue("sserver.multi_chains", multiChains);
+
+  if (multiChains) {
+
+  }
+  else {
+    addChainVars(
+      "default",
+      config.lookup("kafka.brokers"),
+      config.lookup("sserver.share_topic"),
+      config.lookup("sserver.solved_share_topic"),
+      config.lookup("sserver.common_events_topic"),
+      config.lookup("sserver.job_topic")
+    );
+  }
+
+  // ------------------- Init JobRepository -------------------
+  for (ChainVars &chain : chains_) {
+    chain.jobRepository_->setMaxJobDelay(maxJobLifetime);
+    if (!chain.jobRepository_->setupThreadConsume()) {
+      LOG(ERROR) << "init JobRepository for chain " << chain.name_ << " failed";
+      return false;
+    }
+  }
 
   // ------------------- Init Kafka -------------------
 
@@ -545,13 +576,15 @@ bool StratumServer::setup(const libconfig::Config &config) {
     // 10000 * sizeof(ShareBitcoin) ~= 480 KB
     options["batch.num.messages"] = "10000";
 
-    if (!kafkaProducerShareLog_->setup(&options)) {
-      LOG(ERROR) << "kafka kafkaProducerShareLog_ setup failure";
-      return false;
-    }
-    if (!kafkaProducerShareLog_->checkAlive()) {
-      LOG(ERROR) << "kafka kafkaProducerShareLog_ is NOT alive";
-      return false;
+    for (ChainVars &chain : chains_) {
+      if (!chain.kafkaProducerShareLog_->setup(&options)) {
+        LOG(ERROR) << "kafka kafkaProducerShareLog_ for chain " << chain.name_ << " setup failure";
+        return false;
+      }
+      if (!chain.kafkaProducerShareLog_->checkAlive()) {
+        LOG(ERROR) << "kafka kafkaProducerShareLog_ for chain " << chain.name_ << " is NOT alive";
+        return false;
+      }
     }
   }
 
@@ -560,13 +593,16 @@ bool StratumServer::setup(const libconfig::Config &config) {
     map<string, string> options;
     // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
     options["queue.buffering.max.ms"] = "1";
-    if (!kafkaProducerSolvedShare_->setup(&options)) {
-      LOG(ERROR) << "kafka kafkaProducerSolvedShare_ setup failure";
-      return false;
-    }
-    if (!kafkaProducerSolvedShare_->checkAlive()) {
-      LOG(ERROR) << "kafka kafkaProducerSolvedShare_ is NOT alive";
-      return false;
+
+    for (ChainVars &chain : chains_) {
+      if (!chain.kafkaProducerSolvedShare_->setup(&options)) {
+        LOG(ERROR) << "kafka kafkaProducerSolvedShare_ for chain " << chain.name_ << " setup failure";
+        return false;
+      }
+      if (!chain.kafkaProducerSolvedShare_->checkAlive()) {
+        LOG(ERROR) << "kafka kafkaProducerSolvedShare_ for chain " << chain.name_ << " is NOT alive";
+        return false;
+      }
     }
   }
 
@@ -577,13 +613,15 @@ bool StratumServer::setup(const libconfig::Config &config) {
     options["queue.buffering.max.ms"] = "1000";  // send every second
     options["batch.num.messages"]     = "10000";
 
-    if (!kafkaProducerCommonEvents_->setup(&options)) {
-      LOG(ERROR) << "kafka kafkaProducerCommonEvents_ setup failure";
-      return false;
-    }
-    if (!kafkaProducerCommonEvents_->checkAlive()) {
-      LOG(ERROR) << "kafka kafkaProducerCommonEvents_ is NOT alive";
-      return false;
+    for (ChainVars &chain : chains_) {
+      if (!chain.kafkaProducerCommonEvents_->setup(&options)) {
+        LOG(ERROR) << "kafka kafkaProducerCommonEvents_ for chain " << chain.name_ << " setup failure";
+        return false;
+      }
+      if (!chain.kafkaProducerCommonEvents_->checkAlive()) {
+        LOG(ERROR) << "kafka kafkaProducerCommonEvents_ for chain " << chain.name_ << " is NOT alive";
+        return false;
+      }
     }
   }
 
@@ -629,8 +667,9 @@ void StratumServer::run() {
 void StratumServer::stop() {
   LOG(INFO) << "stop stratum server";
   event_base_loopexit(base_, NULL);
-
-  jobRepository_->stop();
+  for (ChainVars &chain : chains_) {
+    chain.jobRepository_->stop();
+  }
   userInfo_->stop();
 }
 
@@ -743,13 +782,14 @@ void StratumServer::eventCallback(struct bufferevent* bev, short events,
   conn->getServer().removeConnection(*conn);
 }
 
-
-
-void StratumServer::sendShare2Kafka(const uint8_t *data, size_t len) {
-  kafkaProducerShareLog_->produce(data, len);
+void StratumServer::sendShare2Kafka(size_t chainId, const char *data, size_t len) {
+  chains_[chainId].kafkaProducerShareLog_->produce(data, len);
 }
 
+void StratumServer::sendSolvedShare2Kafka(size_t chainId, const char *data, size_t len) {
+  chains_[chainId].kafkaProducerSolvedShare_->produce(data, len);
+}
 
-void StratumServer::sendCommonEvents2Kafka(const string &message) {
-  kafkaProducerCommonEvents_->produce(message.data(), message.size());
+void StratumServer::sendCommonEvents2Kafka(size_t chainId, const string &message) {
+  chains_[chainId].kafkaProducerCommonEvents_->produce(message.data(), message.size());
 }

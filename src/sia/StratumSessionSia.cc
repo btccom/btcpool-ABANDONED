@@ -60,7 +60,7 @@ void StratumSessionSia::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool
     return;
   }
 
-  auto &ljob = addLocalJob(siaJob->jobId_, shortJobId_++);
+  auto &ljob = addLocalJob(exJobPtr->chainId_, siaJob->jobId_, shortJobId_++);
   uint64_t jobDifficulty = ljob.jobDifficulty_;
   uint256 shareTarget;
   if (jobDifficulty == 0) {

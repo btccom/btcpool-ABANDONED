@@ -99,7 +99,8 @@ TEST(Stratum, StratumWorker) {
   //
   // echo -n '123' |openssl dgst -sha256 -binary |openssl dgst -sha256
   //
-  w.setUserIDAndNames(INT32_MAX, "abcd.123");
+  w.setUserID(INT32_MAX);
+  w.setNames("abcd.123");
   ASSERT_EQ(w.fullName_,   "abcd.123");
   ASSERT_EQ(w.userId_,     INT32_MAX);
   ASSERT_EQ(w.userName_,   "abcd");
@@ -111,7 +112,8 @@ TEST(Stratum, StratumWorker) {
   ASSERT_EQ(w.workerHashId_, workerId);
 
 
-  w.setUserIDAndNames(0, "abcdefg");
+  w.setUserID(0);
+  w.setNames("abcdefg");
   ASSERT_EQ(w.fullName_,   "abcdefg.__default__");
   ASSERT_EQ(w.userId_,     0);
   ASSERT_EQ(w.userName_,   "abcdefg");
@@ -123,17 +125,20 @@ TEST(Stratum, StratumWorker) {
   ASSERT_EQ(w.workerHashId_, workerId);
 
   // check allow chars
-  w.setUserIDAndNames(0, "abcdefg.azAZ09-._:|^/");
+  w.setUserID(0);
+  w.setNames("abcdefg.azAZ09-._:|^/");
   ASSERT_EQ(w.workerName_, "azAZ09-._:|^/");
   ASSERT_EQ(w.fullName_,   "abcdefg.azAZ09-._:|^/");
 
   // some of them are bad chars
-  w.setUserIDAndNames(0, "abcdefg.~!@#$%^&*()+={}|[]\\<>?,./");
+  w.setUserID(0);
+  w.setNames("abcdefg.~!@#$%^&*()+={}|[]\\<>?,./");
   ASSERT_EQ(w.workerName_, "^|./");
   ASSERT_EQ(w.fullName_,   "abcdefg.^|./");
 
   // all bad chars
-  w.setUserIDAndNames(0, "abcdefg.~!@#$%&*()+={}[]\\<>?,");
+  w.setUserID(0);
+  w.setNames("abcdefg.~!@#$%&*()+={}[]\\<>?,");
   ASSERT_EQ(w.workerName_, "__default__");
   ASSERT_EQ(w.fullName_,   "abcdefg.__default__");
 }

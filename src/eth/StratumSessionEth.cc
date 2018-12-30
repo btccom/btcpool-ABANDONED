@@ -92,7 +92,7 @@ void StratumSessionEth::sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr
   auto ljob = findLocalJob(header);
   // create a new LocalJobEth if not exists
   if (ljob == nullptr) {
-    ljob = &addLocalJob(ethJob->jobId_, header);
+    ljob = &addLocalJob(exJobPtr->chainId_, ethJob->jobId_, header);
   } else {
     dispatcher_->addLocalJob(*ljob);
   }

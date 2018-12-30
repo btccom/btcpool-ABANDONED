@@ -332,8 +332,8 @@ struct StratumTraitsDecred {
   using SessionType = StratumSessionDecred;
   using JobDiffType = uint64_t;
   struct LocalJobType : public LocalJob {
-    LocalJobType(uint64_t jobId, uint8_t shortJobId, uint32_t blkBits)
-        : LocalJob(jobId), shortJobId_(shortJobId), blkBits_(blkBits) {}
+    LocalJobType(size_t chainId, uint64_t jobId, uint8_t shortJobId, uint32_t blkBits)
+        : LocalJob(chainId, jobId), shortJobId_(shortJobId), blkBits_(blkBits) {}
     bool operator==(uint8_t shortJobId) const { return shortJobId_ == shortJobId; }
     uint8_t shortJobId_;
     uint32_t blkBits_;

@@ -85,7 +85,6 @@ void StratumMinerDecred::handleRequest_Submit(const string &idStr, const JsonNod
 
   auto &server = session.getServer();
   auto &worker = session.getWorker();
-  auto jobRepo = server.GetJobRepository();
 
   auto localJob = session.findLocalJob(shortJobId);
   if (!localJob) {
@@ -106,6 +105,7 @@ void StratumMinerDecred::handleRequest_Submit(const string &idStr, const JsonNod
   auto clientIp = session.getClientIp();
 
   uint32_t height = 0;
+  auto jobRepo = server.GetJobRepository(localJob->chainId_);
   auto exjob = jobRepo->getStratumJobEx(localJob->jobId_);
   if (exjob) {
     // 0 means miner use stratum job's default block time
@@ -174,7 +174,7 @@ void StratumMinerDecred::handleRequest_Submit(const string &idStr, const JsonNod
       return;
     }
 
-    server.sendShare2Kafka((const uint8_t *) message.data(), size);
+    server.sendShare2Kafka(localJob->chainId_, message.data(), size);
   }
   return;
 }

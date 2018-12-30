@@ -23,6 +23,7 @@
  */
 #pragma once
 
+#include <memory>
 #include <algorithm>
 #include <boost/thread.hpp>
 
@@ -46,35 +47,42 @@ class UserInfo {
     }
   };
 
-  //--------------------
-  pthread_rwlock_t rwlock_;
-  atomic<bool> running_;
-  string apiUrl_;
+  struct ChainVars {
+    string apiUrl_;
 
-  // username -> userId
-  std::unordered_map<string, int32_t> nameIds_;
-  int32_t lastMaxUserId_;
-  bool caseInsensitive_;
-
+    pthread_rwlock_t *nameIdlock_;
+    // username -> userId
+    std::unordered_map<string, int32_t> nameIds_;
+    int32_t lastMaxUserId_;
 #ifdef USER_DEFINED_COINBASE
-  // userId -> userCoinbaseInfo
-  std::unordered_map<int32_t, string> idCoinbaseInfos_;
-  int64_t lastTime_;
+    // userId -> userCoinbaseInfo
+    std::unordered_map<int32_t, string> idCoinbaseInfos_;
+    int64_t lastTime_;
 #endif
 
-  // workerName
-  mutex workerNameLock_;
-  std::deque<WorkerName> workerNameQ_;
+    // workerName
+    std::mutex *workerNameLock_;
+    std::deque<WorkerName> workerNameQ_;
+
+    thread threadInsertWorkerName_;
+    thread threadUpdate_;
+  };
+
+  //--------------------
+  atomic<bool> running_;
+  bool caseInsensitive_;
+  vector<ChainVars> chains_;
   StratumServer *server_;
 
-  thread threadInsertWorkerName_;
+  pthread_rwlock_t nameChainlock_;
+  // username -> chainId
+  std::unordered_map<string, size_t> nameChains_;
 
-  void runThreadInsertWorkerName();
-  int32_t insertWorkerName();
+  void runThreadInsertWorkerName(size_t chainId);
+  int32_t insertWorkerName(size_t chainId);
 
-  thread threadUpdate_;
-  void runThreadUpdate();
-  int32_t incrementalUpdateUsers();
+  void runThreadUpdate(size_t chainId);
+  int32_t incrementalUpdateUsers(size_t chainId);
 
 public:
   UserInfo(StratumServer *server, const libconfig::Config &config);
@@ -84,12 +92,28 @@ public:
   bool setupThreads();
 
   void regularUserName(string &userName);
-  int32_t getUserId(string userName);
 
+  // Get chain id by user name.
+  // 
+  // It will first look for nameChains_ and (TODO) zookeeper nodes.
+  // 
+  // If the user is not in nameChains_, look up each chain's nameIds_ and
+  // return the first one's id that find the user.
+  bool getChainId(string userName, size_t &chainId);
+  int32_t getUserId(size_t chainId, string userName);
 #ifdef USER_DEFINED_COINBASE
-  string  getCoinbaseInfo(int32_t userId);
+  string  getCoinbaseInfo(size_t chainId, int32_t userId);
 #endif
 
-  void addWorker(const int32_t userId, const int64_t workerId,
-                 const string &workerName, const string &minerAgent);
+  void addWorker(
+    const size_t chainId,
+    const int32_t userId, const int64_t workerId,
+    const string &workerName, const string &minerAgent
+  );
+
+  void removeWorker(
+    const size_t chainId,
+    const int32_t userId,
+    const int64_t workerId
+  );
 };

@@ -172,7 +172,6 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
   auto &session = getSession();
   auto &server = session.getServer();
   auto &worker = session.getWorker();
-  auto jobRepo = server.GetJobRepository();
 
   const string extraNonce2Hex = Strings::Format("%016llx", extraNonce2);
   assert(extraNonce2Hex.length() / 2 == kExtraNonce2Size_);
@@ -191,9 +190,8 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
   }
 
   uint32_t height = 0;
-
-  shared_ptr<StratumJobEx> exjob;
-  exjob = jobRepo->getStratumJobEx(localJob->jobId_);
+  auto jobRepo = server.GetJobRepository(localJob->chainId_);
+  shared_ptr<StratumJobEx> exjob = jobRepo->getStratumJobEx(localJob->jobId_);
 
   if (exjob.get() != NULL) {
     // 0 means miner use stratum job's default block time
@@ -244,15 +242,19 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
   } else {
 #ifdef  USER_DEFINED_COINBASE
     // check block header
-    share.set_status(server->checkShare(share, session.getSessionId(), extraNonce2Hex,
-                                       nTime, nonce, versionMask, jobTarget,
-                                       worker_.fullName_,
-                                       &localJob->userCoinbaseInfo_));
+    share.set_status(server->checkShare(
+      localJob->chainId_,
+      share, session.getSessionId(), extraNonce2Hex,
+      nTime, nonce, versionMask, jobTarget,
+      worker_.fullName_,
+      &localJob->userCoinbaseInfo_));
 #else
     // check block header
-    share.set_status(server.checkShare(share, session.getSessionId(), extraNonce2Hex,
-                                      nTime, nonce, versionMask, jobTarget,
-                                      worker.fullName_));
+    share.set_status(server.checkShare(
+      localJob->chainId_,
+      share, session.getSessionId(), extraNonce2Hex,
+      nTime, nonce, versionMask, jobTarget,
+      worker.fullName_));
 #endif
   }
 
@@ -290,6 +292,6 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
       return;
     }
 
-    server.sendShare2Kafka((const uint8_t *) message.data(), size);
+    server.sendShare2Kafka(localJob->chainId_, message.data(), size);
   }
 }

@@ -56,7 +56,7 @@ void StratumSessionDecred::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, b
     return;
   }
 
-  auto &ljob = addLocalJob(jobDecred->jobId_, shortJobId_++, jobDecred->header_.nBits.value());
+  auto &ljob = addLocalJob(exJobPtr->chainId_, jobDecred->jobId_, shortJobId_++, jobDecred->header_.nBits.value());
 
   // PrevHash field is int32 reversed
   auto prevHash = reinterpret_cast<const boost::endian::little_uint32_buf_t *>(jobDecred->header_.prevBlock.begin());

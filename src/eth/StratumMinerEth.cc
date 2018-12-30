@@ -53,7 +53,7 @@ void StratumMinerEth::handleRequest(const std::string &idStr,
 }
 
 void StratumMinerEth::handleRequest_GetWork(const string &idStr, const JsonNode &jparams) {
-  getSession().sendMiningNotifyWithId(getSession().getServer().GetJobRepository()->getLatestStratumJobEx(), idStr);
+  getSession().sendMiningNotifyWithId(getSession().getServer().GetJobRepository(getSession().getChainId())->getLatestStratumJobEx(), idStr);
 }
 
 void StratumMinerEth::handleRequest_SubmitHashrate(const string &idStr, const JsonNode &jparams) {
@@ -147,7 +147,7 @@ void StratumMinerEth::handleRequest_Submit(const string &idStr, const JsonNode &
   auto &worker = session.getWorker();
   auto extraNonce1 = session.getSessionId();
   auto clientIp = session.getClientIp();
-  shared_ptr<StratumJobEx> exjob = server.GetJobRepository()->getStratumJobEx(localJob->jobId_);
+  shared_ptr<StratumJobEx> exjob = server.GetJobRepository(localJob->chainId_)->getStratumJobEx(localJob->jobId_);
   if (exjob.get() == nullptr) {
     responseFalse(idStr, StratumStatus::JOB_NOT_FOUND);
     return;
@@ -210,8 +210,11 @@ void StratumMinerEth::handleRequest_Submit(const string &idStr, const JsonNode &
   // SolvedShare will be accepted correctly by the ETH node if
   // the difficulty is reached in our calculations.
   uint256 shareMixHash;
-  share.set_status(server.checkShareAndUpdateDiff(share, localJob->jobId_, nonce, uint256S(sHeader),
-                                                 jobDiff.jobDiffs_, shareMixHash, worker.fullName_));
+  share.set_status(server.checkShareAndUpdateDiff(
+    localJob->chainId_,
+    share, localJob->jobId_, nonce, uint256S(sHeader),
+    jobDiff.jobDiffs_, shareMixHash, worker.fullName_
+  ));
 
   if (StratumStatus::isAccepted(share.status())) {
     DLOG(INFO) << "share reached the diff: " << share.sharediff();
@@ -223,7 +226,7 @@ void StratumMinerEth::handleRequest_Submit(const string &idStr, const JsonNode &
   // shares in a short time, we just drop them.
   if (handleShare(idStr, share.status(), share.sharediff())) {
     if (StratumStatus::isSolved(share.status())) {
-      server.sendSolvedShare2Kafka(sNonce, sHeader, shareMixHash.GetHex(), height, networkDiff, worker, chain);
+      server.sendSolvedShare2Kafka(localJob->chainId_, sNonce, sHeader, shareMixHash.GetHex(), height, networkDiff, worker, chain);
     }
   } else {
     // check if there is invalid share spamming
@@ -247,7 +250,7 @@ void StratumMinerEth::handleRequest_Submit(const string &idStr, const JsonNode &
     return;
   }
 
-  server.sendShare2Kafka((const uint8_t *) message.data(), size);
+  server.sendShare2Kafka(localJob->chainId_, message.data(), size);
 }
 
 void StratumMinerEth::responseError(const string &idStr, int code) {

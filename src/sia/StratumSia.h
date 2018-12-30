@@ -267,8 +267,8 @@ struct StratumTraitsSia {
   using SessionType = StratumSessionSia;
   using JobDiffType = uint64_t;
   struct LocalJobType : public LocalJob {
-    LocalJobType(uint64_t jobId, uint8_t shortJobId)
-        : LocalJob(jobId), shortJobId_(shortJobId), jobDifficulty_(0) {}
+    LocalJobType(size_t chainId, uint64_t jobId, uint8_t shortJobId)
+        : LocalJob(chainId, jobId), shortJobId_(shortJobId), jobDifficulty_(0) {}
     bool operator==(uint8_t shortJobId) const { return shortJobId_ == shortJobId; }
     uint8_t shortJobId_;
     uint64_t jobDifficulty_;

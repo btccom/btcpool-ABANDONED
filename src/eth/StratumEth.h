@@ -345,8 +345,8 @@ struct StratumTraitsEth {
     }
   };
   struct LocalJobType : public LocalJob {
-    LocalJobType(uint64_t jobId, const std::string &headerHash)
-        : LocalJob(jobId), headerHash_(headerHash) {
+    LocalJobType(size_t chainId, uint64_t jobId, const std::string &headerHash)
+        : LocalJob(chainId, jobId), headerHash_(headerHash) {
     }
     bool operator==(const std::string &headerHash) const { return headerHash_ == headerHash; }
 

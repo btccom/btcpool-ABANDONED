@@ -36,16 +36,6 @@
 using namespace std;
 
 //////////////////////////////////// JobRepositoryBitcoin /////////////////////////////////
-JobRepositoryBitcoin::JobRepositoryBitcoin(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerBitcoin *server)
-  : JobRepositoryBase(kafkaBrokers, consumerTopic, fileLastNotifyTime, server)
-{
-
-}
-
-JobRepositoryBitcoin::~JobRepositoryBitcoin()
-{
-
-}
 
 StratumJob* JobRepositoryBitcoin::createStratumJob() {
   return new StratumJobBitcoin();
@@ -126,7 +116,7 @@ void JobRepositoryBitcoin::broadcastStratumJob(StratumJob *sjobBase) {
 }
 
 StratumJobExBitcoin::StratumJobExBitcoin(StratumJob *sjob, bool isClean)
-  : StratumJobEx(sjob, isClean)
+  : StratumJobEx(chainId_, sjob, isClean)
 {
   init();
 }
@@ -306,11 +296,13 @@ bool ServerBitcoin::setupInternal(const libconfig::Config &config)
   return true;
 }
 
-JobRepository *ServerBitcoin::createJobRepository(const char *kafkaBrokers,
-                                           const char *consumerTopic,
-                                           const string &fileLastNotifyTime)
-{
-  return new JobRepositoryBitcoin(kafkaBrokers, consumerTopic, fileLastNotifyTime, this);
+JobRepository *ServerBitcoin::createJobRepository(
+  size_t chainId,
+  const char *kafkaBrokers,
+  const char *consumerTopic,
+  const string &fileLastNotifyTime
+) {
+  return new JobRepositoryBitcoin(chainId, this, kafkaBrokers, consumerTopic, fileLastNotifyTime);
 }
 
 unique_ptr<StratumSession> ServerBitcoin::createConnection(struct bufferevent *bev, struct sockaddr *saddr, uint32_t sessionID)
@@ -318,8 +310,11 @@ unique_ptr<StratumSession> ServerBitcoin::createConnection(struct bufferevent *b
   return boost::make_unique<StratumSessionBitcoin>(*this, bev, saddr, sessionID);
 }
 
-void ServerBitcoin::sendSolvedShare2Kafka(const FoundBlock *foundBlock,
-                                   const std::vector<char> &coinbaseBin) {
+void ServerBitcoin::sendSolvedShare2Kafka(
+  size_t chainId,
+  const FoundBlock *foundBlock,
+  const std::vector<char> &coinbaseBin
+) {
   //
   // solved share message:  FoundBlock + coinbase_Tx
   //
@@ -334,16 +329,19 @@ void ServerBitcoin::sendSolvedShare2Kafka(const FoundBlock *foundBlock,
   // coinbase TX
   memcpy(p, coinbaseBin.data(), coinbaseBin.size());
 
-  kafkaProducerSolvedShare_->produce(buf.data(), buf.size());
+  ServerBase::sendSolvedShare2Kafka(chainId, buf.data(), buf.size());
 }
 
-int ServerBitcoin::checkShare(const ShareBitcoin &share,
-                       const uint32_t extraNonce1, const string &extraNonce2Hex,
-                       const uint32_t nTime, const uint32_t nonce,
-                       const uint32_t versionMask,
-                       const uint256 &jobTarget, const string &workFullName,
-                       string *userCoinbaseInfo) {
-  shared_ptr<StratumJobEx> exJobPtrShared = GetJobRepository()->getStratumJobEx(share.jobid());
+int ServerBitcoin::checkShare(
+  size_t chainId,
+  const ShareBitcoin &share,
+  const uint32_t extraNonce1, const string &extraNonce2Hex,
+  const uint32_t nTime, const uint32_t nonce,
+  const uint32_t versionMask,
+  const uint256 &jobTarget, const string &workFullName,
+  string *userCoinbaseInfo
+) {
+  shared_ptr<StratumJobEx> exJobPtrShared = GetJobRepository(chainId)->getStratumJobEx(share.jobid());
   StratumJobExBitcoin* exJobPtr = static_cast<StratumJobExBitcoin*>(exJobPtrShared.get());
   if (exJobPtr == nullptr) {
     return StratumStatus::JOB_NOT_FOUND;
@@ -398,10 +396,10 @@ int ServerBitcoin::checkShare(const ShareBitcoin &share,
     snprintf(foundBlock.workerFullName_, sizeof(foundBlock.workerFullName_),
              "%s", workFullName.c_str());
     // send
-    sendSolvedShare2Kafka(&foundBlock, coinbaseBin);
+    sendSolvedShare2Kafka(chainId, &foundBlock, coinbaseBin);
 
     // mark jobs as stale
-    GetJobRepository()->markAllJobsAsStale();
+    GetJobRepository(chainId)->markAllJobsAsStale();
 
     LOG(INFO) << ">>>> found a new block: " << blkHash.ToString()
     << ", jobId: " << share.jobid() << ", userId: " << share.userid()

@@ -35,11 +35,6 @@ StratumJobBytom::StratumJobBytom()
 
 }
 
-StratumJobBytom::~StratumJobBytom()
-{
-
-}
-
 string StratumJobBytom::serializeToJson() const
 {
   return Strings::Format("{\"created_at_ts\":%u"

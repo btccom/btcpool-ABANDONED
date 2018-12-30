@@ -85,6 +85,7 @@ public:
   virtual void sendData(const char *data, size_t len) = 0;
   virtual void sendData(const std::string &str) = 0;
   virtual void sendSetDifficulty(LocalJob &localJob, uint64_t difficulty) = 0;
+  virtual bool switchChain(size_t chainId) = 0;
 };
 
 class StratumSession : public IStratumSession {
@@ -109,6 +110,7 @@ protected:
   bool isNiceHashClient_;
   std::unique_ptr<StratumMessageDispatcher> dispatcher_;
 
+  std::atomic<size_t> chainId_;
   State state_;
   StratumWorker worker_;
   std::atomic<bool> isDead_;
@@ -136,6 +138,7 @@ protected:
 public:
   virtual ~StratumSession();
   virtual bool initialize() { return true; }
+  virtual bool switchChain(size_t chainId);
   uint16_t decodeSessionId(const std::string &exMessage) const override { return StratumMessageEx::AGENT_MAX_SESSION_ID; };
 
   StratumServer &getServer() { return server_; }
@@ -143,6 +146,7 @@ public:
   StratumMessageDispatcher &getDispatcher() override { return *dispatcher_; }
   uint32_t getClientIp() const { return clientIpInt_; };
   uint32_t getSessionId() const { return extraNonce1_; }
+  size_t getChainId() const { return chainId_; }
   State getState() const { return state_; }
   bool isDead() const;
   void markAsDead();
@@ -193,8 +197,8 @@ public:
   }
 
   template<typename ... Args>
-  LocalJobType &addLocalJob(uint64_t jobId, Args&&... args) {
-    localJobs_.emplace_back(jobId, std::forward<Args>(args)...);
+  LocalJobType &addLocalJob(size_t chainId, uint64_t jobId, Args&&... args) {
+    localJobs_.emplace_back(chainId, jobId, std::forward<Args>(args)...);
     auto &localJob = localJobs_.back();
     dispatcher_->addLocalJob(localJob);
     return localJob;

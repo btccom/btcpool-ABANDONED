@@ -36,20 +36,29 @@ class ServerEth : public ServerBase<JobRepositoryEth>
 {
 public:
   bool setupInternal(const libconfig::Config &config) override;
-  int checkShareAndUpdateDiff(ShareEth &share,
-                              const uint64_t jobId,
-                              const uint64_t nonce,
-                              const uint256 &header,
-                              const std::set<uint64_t> &jobDiffs,
-                              uint256 &returnedMixHash,
-                              const string &workFullName);
-  void sendSolvedShare2Kafka(const string& strNonce, const string& strHeader, const string& strMix,
-                             const uint32_t height, const uint64_t networkDiff, const StratumWorker &worker,
-                             const EthConsensus::Chain chain);
+  int checkShareAndUpdateDiff(
+    size_t chainId,
+    ShareEth &share,
+    const uint64_t jobId,
+    const uint64_t nonce,
+    const uint256 &header,
+    const std::set<uint64_t> &jobDiffs,
+    uint256 &returnedMixHash,
+    const string &workFullName
+  );
+  void sendSolvedShare2Kafka(
+    size_t chainId,
+    const string& strNonce, const string& strHeader, const string& strMix,
+    const uint32_t height, const uint64_t networkDiff, const StratumWorker &worker,
+    const EthConsensus::Chain chain
+  );
 
-  JobRepository* createJobRepository(const char *kafkaBrokers,
-                                    const char *consumerTopic,
-                                     const string &fileLastNotifyTime) override;
+  JobRepository* createJobRepository(
+    size_t chainId,
+    const char *kafkaBrokers,
+    const char *consumerTopic,
+    const string &fileLastNotifyTime
+  ) override;
 
   unique_ptr<StratumSession> createConnection(struct bufferevent *bev, struct sockaddr *saddr, const uint32_t sessionID) override;
 };
@@ -57,7 +66,7 @@ public:
 class JobRepositoryEth : public JobRepositoryBase<ServerEth>
 {
 public:
-  JobRepositoryEth(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerEth *server);
+  JobRepositoryEth(size_t chainId, ServerEth *server, const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime);
   virtual ~JobRepositoryEth();
 
   bool compute(ethash_h256_t const header, uint64_t nonce, ethash_return_value_t& r);

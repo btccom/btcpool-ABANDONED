@@ -32,7 +32,7 @@ class ServerDecred;
 
 class JobRepositoryDecred : public JobRepositoryBase<ServerDecred> {
 public:
-  JobRepositoryDecred(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerDecred *server);
+  JobRepositoryDecred(size_t chainId, ServerDecred *server, const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime);
 
   StratumJob* createStratumJob() override;
   void broadcastStratumJob(StratumJob *sjob) override;
@@ -51,11 +51,14 @@ public:
                  uint32_t ntime, uint32_t nonce, const string &workerFullName);
 
 protected:
-  JobRepository* createJobRepository(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime) override;
+  JobRepository* createJobRepository(
+    size_t chainId,
+    const char *kafkaBrokers,
+    const char *consumerTopic,
+    const string &fileLastNotifyTime
+  ) override;
 
 private:
-  void sendSolvedShare2Kafka(const FoundBlockDecred &foundBlock);
-  
   unique_ptr<StratumProtocolDecred> protocol_;
 };
 

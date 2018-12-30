@@ -62,7 +62,7 @@ void StratumSessionBitcoin::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, 
   }
   auto sjob = dynamic_cast<StratumJobBitcoin *>(exJob->sjob_);
 
-  auto &ljob = addLocalJob(sjob->jobId_, allocShortJobId(), sjob->nBits_);
+  auto &ljob = addLocalJob(exJob->chainId_, sjob->jobId_, allocShortJobId(), sjob->nBits_);
 
 #ifdef USER_DEFINED_COINBASE
   // add the User's coinbaseInfo to the coinbase1's tail
