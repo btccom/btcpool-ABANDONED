@@ -34,10 +34,13 @@ class ShareBitcoin;
 
 class ServerBitcoin : public ServerBase<JobRepositoryBitcoin>
 {
-private:
-  KafkaProducer *kafkaProducerNamecoinSolvedShare_;
-  KafkaProducer *kafkaProducerRskSolvedShare_;
+protected:
+  struct ChainVarsBitcoin {
+    KafkaProducer *kafkaProducerAuxSolvedShare_;
+    KafkaProducer *kafkaProducerRskSolvedShare_;
+  };
 
+  vector<ChainVarsBitcoin> chainsBitcoin_;
   uint32_t versionMask_;
 
 public:
@@ -64,13 +67,17 @@ public:
     const uint256 &jobTarget, const string &workFullName,
     string *userCoinbaseInfo = nullptr
   );
-private:
+
+protected:
   JobRepository* createJobRepository(
     size_t chainId,
     const char *kafkaBrokers,
     const char *consumerTopic,
     const string &fileLastNotifyTime
   ) override;
+
+  void sendAuxSolvedShare2Kafka(size_t chainId, const char *data, size_t len);
+  void sendRskSolvedShare2Kafka(size_t chainId, const char *data, size_t len);
 
 };
 

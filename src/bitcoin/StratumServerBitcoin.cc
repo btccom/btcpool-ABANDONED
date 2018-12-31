@@ -226,19 +226,19 @@ void StratumJobExBitcoin::generateBlockHeader(CBlockHeader *header,
 ////////////////////////////////// ServerBitcoin ///////////////////////////////
 ServerBitcoin::ServerBitcoin()
   : ServerBase()
-  , kafkaProducerNamecoinSolvedShare_(nullptr)
-  , kafkaProducerRskSolvedShare_(nullptr)
   , versionMask_(0)
 {
 }
 
 ServerBitcoin::~ServerBitcoin()
 {
-  if (kafkaProducerNamecoinSolvedShare_ != nullptr) {
-    delete kafkaProducerNamecoinSolvedShare_;
-  }
-  if (kafkaProducerRskSolvedShare_ != nullptr) {
-    delete kafkaProducerRskSolvedShare_;
+  for (ChainVarsBitcoin &chain : chainsBitcoin_) {
+    if (chain.kafkaProducerAuxSolvedShare_ != nullptr) {
+      delete chain.kafkaProducerAuxSolvedShare_;
+    }
+    if (chain.kafkaProducerRskSolvedShare_ != nullptr) {
+      delete chain.kafkaProducerRskSolvedShare_;
+    }
   }
 }
 
@@ -250,31 +250,48 @@ bool ServerBitcoin::setupInternal(const libconfig::Config &config)
 {
   config.lookupValue("sserver.version_mask", versionMask_);
 
-  string kafkaBrokers = config.lookup("kafka.brokers");
+    auto addChainVars = [&](
+    const string &kafkaBrokers,
+    const string &auxSolvedShareTopic,
+    const string &rskSolvedShareTopic
+  ) {
+    size_t chainId = chains_.size();
 
-  kafkaProducerNamecoinSolvedShare_ = new KafkaProducer(
-    kafkaBrokers.c_str(),
-    config.lookup("sserver.auxpow_solved_share_topic").c_str(),
-    RD_KAFKA_PARTITION_UA
-  );
-  kafkaProducerRskSolvedShare_ = new KafkaProducer(
-    kafkaBrokers.c_str(),
-    config.lookup("sserver.rsk_solved_share_topic").c_str(),
-    RD_KAFKA_PARTITION_UA
-  );
+    chainsBitcoin_.push_back({
+      new KafkaProducer(kafkaBrokers.c_str(), auxSolvedShareTopic.c_str(), RD_KAFKA_PARTITION_UA),
+      new KafkaProducer(kafkaBrokers.c_str(), rskSolvedShareTopic.c_str(), RD_KAFKA_PARTITION_UA)
+    });
+  };
 
-  // kafkaProducerNamecoinSolvedShare_
+  bool multiChains = false;
+  config.lookupValue("sserver.multi_chains", multiChains);
+
+  if (multiChains) {
+
+  }
+  else {
+    addChainVars(
+      config.lookup("kafka.brokers"),
+      config.lookup("sserver.auxpow_solved_share_topic"),
+      config.lookup("sserver.rsk_solved_share_topic")
+    );
+  }
+
+  // kafkaProducerAuxSolvedShare_
   {
     map<string, string> options;
     // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
     options["queue.buffering.max.ms"] = "1";
-    if (!kafkaProducerNamecoinSolvedShare_->setup(&options)) {
-      LOG(ERROR) << "kafka kafkaProducerNamecoinSolvedShare_ setup failure";
-      return false;
-    }
-    if (!kafkaProducerNamecoinSolvedShare_->checkAlive()) {
-      LOG(ERROR) << "kafka kafkaProducerNamecoinSolvedShare_ is NOT alive";
-      return false;
+
+    for (ChainVarsBitcoin &chain : chainsBitcoin_) {
+      if (!chain.kafkaProducerAuxSolvedShare_->setup(&options)) {
+        LOG(ERROR) << "kafka kafkaProducerAuxSolvedShare_ setup failure";
+        return false;
+      }
+      if (!chain.kafkaProducerAuxSolvedShare_->checkAlive()) {
+        LOG(ERROR) << "kafka kafkaProducerAuxSolvedShare_ is NOT alive";
+        return false;
+      }
     }
   }
 
@@ -283,13 +300,16 @@ bool ServerBitcoin::setupInternal(const libconfig::Config &config)
     map<string, string> options;
     // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
     options["queue.buffering.max.ms"] = "1";
-    if (!kafkaProducerRskSolvedShare_->setup(&options)) {
-      LOG(ERROR) << "kafka kafkaProducerRskSolvedShare_ setup failure";
-      return false;
-    }
-    if (!kafkaProducerRskSolvedShare_->checkAlive()) {
-      LOG(ERROR) << "kafka kafkaProducerRskSolvedShare_ is NOT alive";
-      return false;
+
+    for (ChainVarsBitcoin &chain : chainsBitcoin_) {
+      if (!chain.kafkaProducerRskSolvedShare_->setup(&options)) {
+        LOG(ERROR) << "kafka kafkaProducerRskSolvedShare_ setup failure";
+        return false;
+      }
+      if (!chain.kafkaProducerRskSolvedShare_->checkAlive()) {
+        LOG(ERROR) << "kafka kafkaProducerRskSolvedShare_ is NOT alive";
+        return false;
+      }
     }
   }
 
@@ -448,7 +468,7 @@ int ServerBitcoin::checkShare(
     // coinbase TX
     memcpy(p, coinbaseBin.data(), coinbaseBin.size());
 
-    kafkaProducerRskSolvedShare_->produce(buf.data(), buf.size());
+    sendRskSolvedShare2Kafka(chainId, buf.data(), buf.size());
 
     //
     // log the finding
@@ -474,7 +494,7 @@ int ServerBitcoin::checkShare(
     Bin2Hex((const uint8_t *)coinbaseBin.data(), coinbaseBin.size(), coinbaseTxHex);
     DLOG(INFO) << "coinbaseTxHex: " << coinbaseTxHex;
 
-    const string nmcAuxSolvedShare = Strings::Format("{\"job_id\":%" PRIu64","
+    const string auxSolvedShare = Strings::Format("{\"job_id\":%" PRIu64","
                                                      " \"aux_block_hash\":\"%s\","
                                                      " \"block_header\":\"%s\","
                                                      " \"coinbase_tx\":\"%s\","
@@ -487,9 +507,8 @@ int ServerBitcoin::checkShare(
                                                      coinbaseTxHex.c_str(),
                                                      sjob->nmcRpcAddr_.size()     ? sjob->nmcRpcAddr_.c_str()     : "",
                                                      sjob->nmcRpcUserpass_.size() ? sjob->nmcRpcUserpass_.c_str() : "");
-    // send found namecoin aux block to kafka
-    kafkaProducerNamecoinSolvedShare_->produce(nmcAuxSolvedShare.data(),
-                                               nmcAuxSolvedShare.size());
+    // send found merged mining aux block to kafka
+    sendAuxSolvedShare2Kafka(chainId, auxSolvedShare.data(), auxSolvedShare.size());
 
     LOG(INFO) << ">>>> found namecoin block: " << sjob->nmcHeight_ << ", "
     << sjob->nmcAuxBlockHash_.ToString()
@@ -507,4 +526,12 @@ int ServerBitcoin::checkShare(
 
   // reach here means an valid share
   return StratumStatus::ACCEPT;
+}
+
+void ServerBitcoin::sendAuxSolvedShare2Kafka(size_t chainId, const char *data, size_t len) {
+  chainsBitcoin_[chainId].kafkaProducerAuxSolvedShare_->produce(data, len);
+}
+
+void ServerBitcoin::sendRskSolvedShare2Kafka(size_t chainId, const char *data, size_t len) {
+  chainsBitcoin_[chainId].kafkaProducerRskSolvedShare_->produce(data, len);
 }
