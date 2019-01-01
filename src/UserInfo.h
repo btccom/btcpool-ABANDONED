@@ -99,6 +99,8 @@ public:
   // 
   // If the user is not in nameChains_, look up each chain's nameIds_ and
   // return the first one's id that find the user.
+  // 
+  // If only one chain, chainId=0 and true will always be returned.
   bool getChainId(string userName, size_t &chainId);
   int32_t getUserId(size_t chainId, string userName);
 #ifdef USER_DEFINED_COINBASE

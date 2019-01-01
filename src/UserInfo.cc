@@ -96,6 +96,10 @@ void UserInfo::regularUserName(string &userName) {
 }
 
 bool UserInfo::getChainId(string userName, size_t &chainId) {
+  if (chains_.size() == 1) {
+    return 0;
+  }
+
   regularUserName(userName);
   
   // lookup name -> chain map

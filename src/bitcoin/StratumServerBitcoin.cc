@@ -255,8 +255,6 @@ bool ServerBitcoin::setupInternal(const libconfig::Config &config)
     const string &auxSolvedShareTopic,
     const string &rskSolvedShareTopic
   ) {
-    size_t chainId = chains_.size();
-
     chainsBitcoin_.push_back({
       new KafkaProducer(kafkaBrokers.c_str(), auxSolvedShareTopic.c_str(), RD_KAFKA_PARTITION_UA),
       new KafkaProducer(kafkaBrokers.c_str(), rskSolvedShareTopic.c_str(), RD_KAFKA_PARTITION_UA)
