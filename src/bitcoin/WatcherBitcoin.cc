@@ -48,9 +48,8 @@ string convertPrevHash(const string &prevHash) {
 
 
 ///////////////////////////////// ClientContainer //////////////////////////////
-ClientContainerBitcoin::ClientContainerBitcoin(const string &kafkaBrokers, const string &jobTopic, const string &gbtTopic,
-                                               bool disableChecking)
-  : ClientContainer(kafkaBrokers, jobTopic, gbtTopic, disableChecking)
+ClientContainerBitcoin::ClientContainerBitcoin(const libconfig::Config &config)
+  : ClientContainer(config)
   , poolStratumJob_(nullptr)
 {
 }
@@ -67,12 +66,8 @@ const StratumJobBitcoin * ClientContainerBitcoin::getPoolStratumJob() {
   return poolStratumJob_;
 }
 
-PoolWatchClient* ClientContainerBitcoin::createPoolWatchClient( 
-                struct event_base *base, const string &poolName, const string &poolHost,
-                const int16_t poolPort, const string &workerName)
-{
-  return new PoolWatchClientBitcoin(base, this, disableChecking_,
-                                 poolName, poolHost, poolPort, workerName);
+PoolWatchClient* ClientContainerBitcoin::createPoolWatchClient(const libconfig::Setting &config) {
+  return new PoolWatchClientBitcoin(base_, this, config);
 }
 
 void ClientContainerBitcoin::consumeStratumJobInternal(const string& str) 
@@ -169,12 +164,12 @@ string ClientContainerBitcoin::createOnConnectedReplyString() const
 }
 
 ///////////////////////////////// PoolWatchClient //////////////////////////////
-PoolWatchClientBitcoin::PoolWatchClientBitcoin(struct event_base *base, ClientContainerBitcoin *container,
-                                 bool disableChecking,
-                                 const string &poolName,
-                                 const string &poolHost, const int16_t poolPort,
-                                 const string &workerName)
-  : PoolWatchClient(base, container, disableChecking, poolName, poolHost, poolPort, workerName)
+PoolWatchClientBitcoin::PoolWatchClientBitcoin(
+  struct event_base *base,
+  ClientContainerBitcoin *container,
+  const libconfig::Setting &config
+)
+  : PoolWatchClient(base, container, config)
   , extraNonce1_(0), extraNonce2Size_(0)
 {
 }

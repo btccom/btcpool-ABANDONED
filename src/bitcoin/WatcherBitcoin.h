@@ -36,14 +36,10 @@ class ClientContainerBitcoin : public ClientContainer
 protected:
   void consumeStratumJobInternal(const string& str) override;
   string createOnConnectedReplyString() const override;
-  PoolWatchClient* createPoolWatchClient( 
-                struct event_base *base, 
-                const string &poolName, const string &poolHost,
-                const int16_t poolPort, const string &workerName) override;
+  PoolWatchClient* createPoolWatchClient(const libconfig::Setting &config) override;
 
 public:
-  ClientContainerBitcoin(const string &kafkaBrokers, const string &jobTopic, const string &gbtTopic,
-                         bool disableChecking);
+  ClientContainerBitcoin(const libconfig::Config &config);
   ~ClientContainerBitcoin();
 
   bool sendEmptyGBT(const string &poolName,
@@ -67,11 +63,11 @@ class PoolWatchClientBitcoin : public PoolWatchClient
   void handleStratumMessage(const string &line) override;
 
 public:
-  PoolWatchClientBitcoin(struct event_base *base, ClientContainerBitcoin *container,
-                  bool disableChecking,
-                  const string &poolName,
-                  const string &poolHost, const int16_t poolPort,
-                  const string &workerName);
+  PoolWatchClientBitcoin(
+    struct event_base *base,
+    ClientContainerBitcoin *container,
+    const libconfig::Setting &config
+  );
   ~PoolWatchClientBitcoin();
 
   ClientContainerBitcoin* GetContainerBitcoin(){ return static_cast<ClientContainerBitcoin*>(container_); }

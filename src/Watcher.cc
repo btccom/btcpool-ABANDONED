@@ -30,6 +30,7 @@
 #include <event2/buffer.h>
 #include <event2/bufferevent.h>
 #include <event2/listener.h>
+#include <event2/thread.h>
 #include <glog/logging.h>
 
 
@@ -94,12 +95,19 @@ bool resolve(const string &host, struct	in_addr *sin_addr) {
 }
 
 ///////////////////////////////// ClientContainer //////////////////////////////
-ClientContainer::ClientContainer(const string &kafkaBrokers, const string &consumerTopic, const string &producerTopic,
-                                 bool disableChecking)
-  : running_(true), disableChecking_(disableChecking), kafkaBrokers_(kafkaBrokers)
-  , kafkaProducer_(kafkaBrokers_.c_str(), producerTopic.c_str(), 0/* partition */)
-  , kafkaStratumJobConsumer_(kafkaBrokers_.c_str(), consumerTopic.c_str(), 0/*patition*/)
+ClientContainer::ClientContainer(const libconfig::Config &config)
+  : running_(true)
+  , disableChecking_(false)
+  , kafkaBrokers_(config.lookup("kafka.brokers").c_str())
+  , kafkaProducer_(kafkaBrokers_.c_str(), config.lookup("poolwatcher.rawgbt_topic").c_str(), 0/* partition */)
+  , kafkaStratumJobConsumer_(kafkaBrokers_.c_str(), config.lookup("poolwatcher.job_topic").c_str(), 0/*patition*/)
 {
+  config.lookupValue("poolwatcher.disable_checking", disableChecking_);
+
+  // Enable multithreading and flag BEV_OPT_THREADSAFE.
+  // Without it, bufferevent_socket_new() will return NULL with flag BEV_OPT_THREADSAFE.
+  evthread_use_pthreads();
+
   base_ = event_base_new();
   assert(base_ != nullptr);
 }
@@ -196,7 +204,7 @@ bool ClientContainer::init() {
   }
 
   /* setup threadStratumJobConsume */
-  {
+  if (!disableChecking_) {
     const int32_t kConsumeLatestN = 1;
     
     // we need to consume the latest one
@@ -212,19 +220,16 @@ bool ClientContainer::init() {
       LOG(ERROR) << "kafka brokers is not alive";
       return false;
     }
-
-    if (!disableChecking_) {
-      threadStratumJobConsume_ = thread(&ClientContainer::runThreadStratumJobConsume, this);
-    }
+      
+    threadStratumJobConsume_ = thread(&ClientContainer::runThreadStratumJobConsume, this);
   }
 
   return true;
 }
 
 // do add pools before init()
-bool ClientContainer::addPools(const string &poolName, const string &poolHost,
-                               const int16_t poolPort, const string &workerName) {
-  auto ptr = createPoolWatchClient(base_, poolName, poolHost, poolPort, workerName);
+bool ClientContainer::addPools(const libconfig::Setting &config) {
+  auto ptr = createPoolWatchClient(config);
   if (!ptr->connect()) {
     return false;
   }
@@ -236,8 +241,7 @@ bool ClientContainer::addPools(const string &poolName, const string &poolHost,
 void ClientContainer::removeAndCreateClient(PoolWatchClient *client) {
   for (size_t i = 0; i < clients_.size(); i++) {
     if (clients_[i] == client) {
-      auto ptr = createPoolWatchClient(base_, client->poolName_, client->poolHost_,
-                                     client->poolPort_, client->workerName_);
+      auto ptr = createPoolWatchClient(client->config_);
       ptr->connect();
       LOG(INFO) << "reconnect " << ptr->poolName_;
 
@@ -290,19 +294,20 @@ void ClientContainer::eventCallback(struct bufferevent *bev,
 
 
 ///////////////////////////////// PoolWatchClient //////////////////////////////
-PoolWatchClient::PoolWatchClient(struct event_base *base, ClientContainer *container,
-                                 bool disableChecking,
-                                 const string &poolName,
-                                 const string &poolHost, const int16_t poolPort,
-                                 const string &workerName)
-  : disableChecking_(disableChecking)
+PoolWatchClient::PoolWatchClient(
+  struct event_base *base,
+  ClientContainer *container,
+  const libconfig::Setting &config
+)
+  : disableChecking_(container->disableChecking())
   , container_(container)
-  , poolName_(poolName)
-  , poolHost_(poolHost)
-  , poolPort_(poolPort)
-  , workerName_(workerName)
+  , config_(config)
+  , poolName_(config.lookup("name").c_str())
+  , poolHost_(config.lookup("host").c_str())
+  , poolPort_((int)config.lookup("port"))
+  , workerName_(config.lookup("worker").c_str())
 {
-  bev_ = bufferevent_socket_new(base, -1, BEV_OPT_CLOSE_ON_FREE);
+  bev_ = bufferevent_socket_new(base, -1, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
   assert(bev_ != nullptr);
 
   bufferevent_setcb(bev_,

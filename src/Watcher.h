@@ -32,6 +32,7 @@
 #include <event2/buffer.h>
 #include <event2/bufferevent.h>
 #include <event2/listener.h>
+#include <libconfig.h++>
 
 #include <bitset>
 #include <map>
@@ -66,25 +67,21 @@ protected:
 
   virtual void consumeStratumJobInternal(const string& str) = 0;
   virtual string createOnConnectedReplyString() const = 0;
-  virtual PoolWatchClient* createPoolWatchClient( 
-                struct event_base *base, 
-                const string &poolName, const string &poolHost,
-                const int16_t poolPort, const string &workerName) = 0;
+  virtual PoolWatchClient* createPoolWatchClient(const libconfig::Setting &config) = 0;
 
-  ClientContainer(const string &kafkaBrokers, const string &consumerTopic, const string &producerTopic,
-                  bool disableChecking);
+  ClientContainer(const libconfig::Config &config);
 
 public:
   virtual ~ClientContainer();
 
-  bool addPools(const string &poolName, const string &poolHost,
-                const int16_t poolPort, const string &workerName);
+  bool addPools(const libconfig::Setting &config);
   virtual bool init();
   void run();
   void stop();
 
   void removeAndCreateClient(PoolWatchClient *client);
 
+  bool disableChecking() { return disableChecking_; }
 
   static void readCallback (struct bufferevent *bev, void *ptr);
   static void eventCallback(struct bufferevent *bev, short events, void *ptr);
@@ -111,17 +108,18 @@ public:
   State state_;
   ClientContainer *container_;
 
+  const libconfig::Setting &config_;
   string  poolName_;
   string  poolHost_;
   int16_t poolPort_;
   string  workerName_;
 
 protected:
-  PoolWatchClient(struct event_base *base, ClientContainer *container,
-                  bool disableChecking,
-                  const string &poolName,
-                  const string &poolHost, const int16_t poolPort,
-                  const string &workerName);
+  PoolWatchClient(
+    struct event_base *base,
+    ClientContainer *container,
+    const libconfig::Setting &config
+  );
 
 public:
   virtual ~PoolWatchClient();

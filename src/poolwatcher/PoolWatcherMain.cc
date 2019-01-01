@@ -132,37 +132,23 @@ int main(int argc, char **argv) {
     SelectParams(CBaseChainParams::MAIN);
   }
 
-  bool disableChecking = false;
-  cfg.lookupValue("poolwatcher.disable_checking", disableChecking);
+  try {
+    gClientContainer = new ClientContainerBitcoin(cfg);
 
-  gClientContainer = new ClientContainerBitcoin(cfg.lookup("kafka.brokers"),
-                                                cfg.lookup("poolwatcher.job_topic"),
-                                                cfg.lookup("poolwatcher.rawgbt_topic"),
-                                                disableChecking);
-
-  // add pools
-  {
+    // add pools
     const Setting &root = cfg.getRoot();
     const Setting &pools = root["pools"];
 
     for (int i = 0; i < pools.getLength(); i++) {
-      string name, host, worker;
-      int32_t port;
-      pools[i].lookupValue("name", name);
-      pools[i].lookupValue("host", host);
-      pools[i].lookupValue("port", port);
-      pools[i].lookupValue("worker", worker);
-
-      gClientContainer->addPools(name, host, (int16_t)port, worker);
+      gClientContainer->addPools(pools[i]);
     }
-  }
 
-  try {
     if (gClientContainer->init() == false) {
       LOG(ERROR) << "init failure";
     } else {
       gClientContainer->run();
     }
+    
     delete gClientContainer;
   }
   catch (const SettingException &e) {
