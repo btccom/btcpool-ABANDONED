@@ -354,7 +354,7 @@ int ServerBitcoin::checkShare(const ShareBitcoin &share,
   if (exJobPtr->isStale()) {
     return StratumStatus::JOB_NOT_FOUND;
   }
-  if (nTime <= sjob->minTime_) {
+  if (nTime < sjob->minTime_) {
     return StratumStatus::TIME_TOO_OLD;
   }
   if (nTime > sjob->nTime_ + 600) {
