@@ -31,11 +31,19 @@
 ///////////////////////////////// ClientContainer //////////////////////////////
 class ClientContainerBitcoin : public ClientContainer
 {
+  bool disableChecking_;
+  KafkaConsumer kafkaStratumJobConsumer_;  // consume topic: 'StratumJob'
+  thread threadStratumJobConsume_;
+
   boost::shared_mutex stratumJobMutex_;
   StratumJobBitcoin *poolStratumJob_; // the last stratum job from the pool itself
+
 protected:
-  void consumeStratumJobInternal(const string& str) override;
-  string createOnConnectedReplyString() const override;
+  bool initInternal() override;
+  void runThreadStratumJobConsume();
+  void consumeStratumJob(rd_kafka_message_t *rkmessage);
+  void handleNewStratumJob(const string& str);
+
   PoolWatchClient* createPoolWatchClient(const libconfig::Setting &config) override;
 
 public:
@@ -49,6 +57,7 @@ public:
 
   const StratumJobBitcoin * getPoolStratumJob();
   boost::shared_lock<boost::shared_mutex> getPoolStratumJobReadLock();
+  bool disableChecking() { return disableChecking_; }
 };
 
 
@@ -59,6 +68,7 @@ class PoolWatchClientBitcoin : public PoolWatchClient
   uint32_t extraNonce2Size_;
 
   string lastPrevBlockHash_;
+  bool disableChecking_;
 
   void handleStratumMessage(const string &line) override;
 
@@ -70,7 +80,9 @@ public:
   );
   ~PoolWatchClientBitcoin();
 
-  ClientContainerBitcoin* GetContainerBitcoin(){ return static_cast<ClientContainerBitcoin*>(container_); }
+  void onConnected() override;
+
+  ClientContainerBitcoin* GetContainerBitcoin() { return static_cast<ClientContainerBitcoin*>(container_); }
 };
 
 #endif

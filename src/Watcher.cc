@@ -97,13 +97,9 @@ bool resolve(const string &host, struct	in_addr *sin_addr) {
 ///////////////////////////////// ClientContainer //////////////////////////////
 ClientContainer::ClientContainer(const libconfig::Config &config)
   : running_(true)
-  , disableChecking_(false)
   , kafkaBrokers_(config.lookup("kafka.brokers").c_str())
   , kafkaProducer_(kafkaBrokers_.c_str(), config.lookup("poolwatcher.rawgbt_topic").c_str(), 0/* partition */)
-  , kafkaStratumJobConsumer_(kafkaBrokers_.c_str(), config.lookup("poolwatcher.job_topic").c_str(), 0/*patition*/)
 {
-  config.lookupValue("poolwatcher.disable_checking", disableChecking_);
-
   // Enable multithreading and flag BEV_OPT_THREADSAFE.
   // Without it, bufferevent_socket_new() will return NULL with flag BEV_OPT_THREADSAFE.
   evthread_use_pthreads();
@@ -114,58 +110,6 @@ ClientContainer::ClientContainer(const libconfig::Config &config)
 
 ClientContainer::~ClientContainer() {
   event_base_free(base_);
-}
-
-void ClientContainer::runThreadStratumJobConsume() {
-  LOG(INFO) << "start stratum job consume thread";
-  
-  const int32_t kTimeoutMs = 1000;
-
-  while (running_) {
-    rd_kafka_message_t *rkmessage;
-    rkmessage = kafkaStratumJobConsumer_.consumer(kTimeoutMs);
-
-    // timeout, most of time it's not nullptr and set an error:
-    //          rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF
-    if (rkmessage == nullptr) {
-      continue;
-    }
-
-    consumeStratumJob(rkmessage);
-
-    /* Return message to rdkafka */
-    rd_kafka_message_destroy(rkmessage);
-  }
-
-  LOG(INFO) << "stop jstratum job consume thread";
-}
-
-void ClientContainer::consumeStratumJob(rd_kafka_message_t *rkmessage) {
-  // check error
-  if (rkmessage->err) {
-    if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
-      // Reached the end of the topic+partition queue on the broker.
-      // Not really an error.
-      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
-      //      << "[" << rkmessage->partition << "] "
-      //      << " message queue at offset " << rkmessage->offset;
-      // acturlly
-      return;
-    }
-  
-    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
-    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
-    << ": " << rd_kafka_message_errstr(rkmessage);
-  
-    if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
-        rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
-      LOG(FATAL) << "consume fatal";
-    }
-    return;
-  }
-
-  string str((const char*)rkmessage->payload, rkmessage->len);
-  consumeStratumJobInternal(str);
 }
 
 void ClientContainer::run() {
@@ -203,28 +147,7 @@ bool ClientContainer::init() {
     }
   }
 
-  /* setup threadStratumJobConsume */
-  if (!disableChecking_) {
-    const int32_t kConsumeLatestN = 1;
-    
-    // we need to consume the latest one
-    map<string, string> consumerOptions;
-    consumerOptions["fetch.wait.max.ms"] = "10";
-    if (kafkaStratumJobConsumer_.setup(RD_KAFKA_OFFSET_TAIL(kConsumeLatestN),
-        &consumerOptions) == false) {
-      LOG(INFO) << "setup stratumJobConsume fail";
-      return false;
-    }
-  
-    if (!kafkaStratumJobConsumer_.checkAlive()) {
-      LOG(ERROR) << "kafka brokers is not alive";
-      return false;
-    }
-      
-    threadStratumJobConsume_ = thread(&ClientContainer::runThreadStratumJobConsume, this);
-  }
-
-  return true;
+  return initInternal();
 }
 
 // do add pools before init()
@@ -267,10 +190,7 @@ void ClientContainer::eventCallback(struct bufferevent *bev,
 
   if (events & BEV_EVENT_CONNECTED) {
     client->state_ = PoolWatchClient::State::CONNECTED;
-
-    // do subscribe
-    string s = container->createOnConnectedReplyString();
-    client->sendData(s);
+    client->onConnected();
     return;
   }
 
@@ -299,8 +219,7 @@ PoolWatchClient::PoolWatchClient(
   ClientContainer *container,
   const libconfig::Setting &config
 )
-  : disableChecking_(container->disableChecking())
-  , container_(container)
+  : container_(container)
   , config_(config)
   , poolName_(config.lookup("name").c_str())
   , poolHost_(config.lookup("host").c_str())

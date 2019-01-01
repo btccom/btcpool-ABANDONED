@@ -50,38 +50,27 @@ class ClientContainer;
 class ClientContainer {
 protected:
   atomic<bool> running_;
-  bool disableChecking_;
   vector<PoolWatchClient *> clients_;
 
   // libevent2
   struct event_base *base_;
 
   string kafkaBrokers_;
-
-  thread threadStratumJobConsume_;
-
-  void runThreadStratumJobConsume();
-  void consumeStratumJob(rd_kafka_message_t *rkmessage);
   KafkaProducer kafkaProducer_;  // produce GBT message
-  KafkaConsumer kafkaStratumJobConsumer_;  // consume topic: 'StratumJob'
 
-  virtual void consumeStratumJobInternal(const string& str) = 0;
-  virtual string createOnConnectedReplyString() const = 0;
   virtual PoolWatchClient* createPoolWatchClient(const libconfig::Setting &config) = 0;
-
-  ClientContainer(const libconfig::Config &config);
+  virtual bool initInternal() = 0;
 
 public:
+  ClientContainer(const libconfig::Config &config);
   virtual ~ClientContainer();
 
   bool addPools(const libconfig::Setting &config);
-  virtual bool init();
+  bool init();
   void run();
   void stop();
 
   void removeAndCreateClient(PoolWatchClient *client);
-
-  bool disableChecking() { return disableChecking_; }
 
   static void readCallback (struct bufferevent *bev, void *ptr);
   static void eventCallback(struct bufferevent *bev, short events, void *ptr);
@@ -92,7 +81,6 @@ public:
 ///////////////////////////////// PoolWatchClient //////////////////////////////
 class PoolWatchClient {
 protected:
-  bool disableChecking_;
   struct bufferevent *bev_;
 
   bool handleMessage();
@@ -105,6 +93,7 @@ public:
     SUBSCRIBED    = 2,
     AUTHENTICATED = 3
   };
+
   State state_;
   ClientContainer *container_;
 
@@ -125,6 +114,7 @@ public:
   virtual ~PoolWatchClient();
 
   bool connect();
+  virtual void onConnected() = 0;
 
   void recvData();
   void sendData(const char *data, size_t len);
