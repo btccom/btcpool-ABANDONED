@@ -69,7 +69,7 @@ void StratumSessionBeam::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, boo
              << ", share target=" << Beam_DiffToTarget(currentJobDiff_).ToString();
   string strNotify = Strings::Format(
     "{"
-      "\"id\":\"%08x\","
+      "\"id\":%u,"
       "\"jsonrpc\":\"2.0\","
       "\"method\":\"job\","
       "\"difficulty\":%u,"
