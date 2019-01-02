@@ -237,7 +237,7 @@ void StratumSession::checkUserAndPwd(const string &idStr, const string &fullName
   }
 
   logAuthorizeResult(true);
-  responseAuthorized(idStr);
+  responseAuthorizeSuccess(idStr);
 
   state_ = AUTHENTICATED;
   dispatcher_ = createDispatcher();
@@ -384,6 +384,14 @@ void StratumSession::readBuf(struct evbuffer *buf) {
   }
 }
 
+void StratumSession::responseTrue(const string &idStr) {
+  rpc1ResponseTrue(idStr);
+}
+
+void StratumSession::responseError(const string &idStr, int errCode) {
+  rpc1ResponseError(idStr, errCode);
+}
+
 /**
  * JSON-RPC 1.0 Specification
  * <https://www.jsonrpc.org/specification_v1>
@@ -400,12 +408,12 @@ void StratumSession::readBuf(struct evbuffer *buf) {
  *    id - This must be the same id as the request it is responding to.
  */
 
-void StratumSession::responseTrue(const string &idStr) {
+void StratumSession::rpc1ResponseTrue(const string &idStr) {
   const string s = "{\"id\":" + idStr + ",\"result\":true,\"error\":null}\n";
   sendData(s);
 }
 
-void StratumSession::responseError(const string &idStr, int errCode) {
+void StratumSession::rpc1ResponseError(const string &idStr, int errCode) {
   //
   // {"id": 10, "result": null, "error":[21, "Job not found", null]}
   //
@@ -477,7 +485,7 @@ void StratumSession::rpc2ResponseError(const string &idStr, int errCode) {
   sendData(buf, len);
 }
 
-void StratumSession::responseAuthorized(const std::string &idStr) {
+void StratumSession::responseAuthorizeSuccess(const std::string &idStr) {
   responseTrue(idStr);
 }
 

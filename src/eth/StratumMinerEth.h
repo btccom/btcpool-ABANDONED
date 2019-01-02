@@ -45,11 +45,6 @@ private:
   void handleRequest_GetWork(const string &idStr, const JsonNode &jparams);
   void handleRequest_SubmitHashrate(const string &idStr, const JsonNode &jparams);
   void handleRequest_Submit(const string &idStr, const JsonNode &jparams);
-  void responseError(const string &idStr, int code);
-  void responseTrue(const string &idStr);
-  void responseFalse(const string &idStr, int errCode);
-  // response a false with an error object as data
-  void rpc2ResponseFalse(const string &idStr, int errCode);
 
   StratumProtocolEth ethProtocol_;
 };

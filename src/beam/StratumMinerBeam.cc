@@ -53,7 +53,7 @@ void StratumMinerBeam::handleRequest_Submit(const string &idStr, const JsonNode 
 
   auto &session = getSession();
   if (session.getState() != StratumSession::AUTHENTICATED) {
-    responseError(idStr, StratumStatus::UNAUTHORIZED);
+    session.responseError(idStr, StratumStatus::UNAUTHORIZED);
     return;
   }
 
@@ -62,7 +62,7 @@ void StratumMinerBeam::handleRequest_Submit(const string &idStr, const JsonNode 
     jsonRoot["nonce"].type() != Utilities::JS::type::Str ||
     jsonRoot["output"].type() != Utilities::JS::type::Str
   ) {
-    responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
+    session.responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
     return;
   }
 
@@ -73,7 +73,7 @@ void StratumMinerBeam::handleRequest_Submit(const string &idStr, const JsonNode 
   auto localJob = session.findLocalJob(jobId);
   // can't find local job
   if (localJob == nullptr) {
-    responseFalse(idStr, StratumStatus::JOB_NOT_FOUND);
+    session.responseFalse(idStr, StratumStatus::JOB_NOT_FOUND);
     return;
   }
 
@@ -86,7 +86,7 @@ void StratumMinerBeam::handleRequest_Submit(const string &idStr, const JsonNode 
     ->getStratumJobEx(localJob->jobId_);
   // can't find stratum job
   if (exjob.get() == nullptr) {
-    responseFalse(idStr, StratumStatus::JOB_NOT_FOUND);
+    session.responseFalse(idStr, StratumStatus::JOB_NOT_FOUND);
     return;
   }
   StratumJobBeam *sjob = dynamic_cast<StratumJobBeam *>(exjob->sjob_);
@@ -120,7 +120,7 @@ void StratumMinerBeam::handleRequest_Submit(const string &idStr, const JsonNode 
   LocalShare localShare(nonce, 0, 0);
   // can't add local share
   if (!localJob->addLocalShare(localShare)) {
-    responseFalse(idStr, StratumStatus::DUPLICATE_SHARE);
+    session.responseFalse(idStr, StratumStatus::DUPLICATE_SHARE);
     // add invalid share to counter
     invalidSharesCounter_.insert((int64_t) time(nullptr), 1);
     return;
@@ -176,21 +176,4 @@ void StratumMinerBeam::handleRequest_Submit(const string &idStr, const JsonNode 
   }
 
   server.sendShare2Kafka(localJob->chainId_, message.data(), size);
-}
-
-void StratumMinerBeam::responseError(const string &idStr, int code) {
-  getSession().rpc2ResponseError(idStr, code);
-}
-
-void StratumMinerBeam::responseTrue(const string &idStr) {
-    getSession().rpc2ResponseTrue(idStr);
-}
-
-void StratumMinerBeam::responseFalse(const string &idStr, int errCode) {
-  char buf[1024];
-  int len = snprintf(buf, sizeof(buf),
-                     "{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":false,\"data\":{\"code\":%d,\"message\":\"%s\"}}\n",
-                     idStr.empty() ? "null" : idStr.c_str(),
-                     errCode, StratumStatus::toString(errCode));
-  getSession().sendData(buf, len);
 }

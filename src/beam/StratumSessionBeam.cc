@@ -138,3 +138,20 @@ unique_ptr<StratumMiner> StratumSessionBeam::createMiner(
     workerId
   );
 }
+
+void StratumSessionBeam::responseError(const string &idStr, int code) {
+  rpc2ResponseError(idStr, code);
+}
+
+void StratumSessionBeam::responseTrue(const string &idStr) {
+    rpc2ResponseTrue(idStr);
+}
+
+void StratumSessionBeam::responseFalse(const string &idStr, int errCode) {
+  char buf[1024];
+  int len = snprintf(buf, sizeof(buf),
+                     "{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":false,\"data\":{\"code\":%d,\"message\":\"%s\"}}\n",
+                     idStr.empty() ? "null" : idStr.c_str(),
+                     errCode, StratumStatus::toString(errCode));
+  sendData(buf, len);
+}

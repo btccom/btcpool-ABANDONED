@@ -367,3 +367,37 @@ unique_ptr<StratumMiner> StratumSessionEth::createMiner(const std::string &clien
                                              workerId,
                                              ethProtocol_);
 }
+
+
+void StratumSessionEth::responseError(const string &idStr, int code) {
+  if (StratumProtocolEth::ETHPROXY == ethProtocol_) {
+    rpc2ResponseError(idStr, code);
+  } else {
+    responseError(idStr, code);
+  }
+}
+
+void StratumSessionEth::responseTrue(const string &idStr) {
+  if (StratumProtocolEth::ETHPROXY == ethProtocol_) {
+    rpc2ResponseTrue(idStr);
+  } else {
+    rpc1ResponseTrue(idStr);
+  }
+}
+
+void StratumSessionEth::responseFalse(const string &idStr, int code) {
+  if (StratumProtocolEth::ETHPROXY == ethProtocol_) {
+    rpc2ResponseFalse(idStr, code);
+  } else {
+    rpc1ResponseError(idStr, code);
+  }
+}
+
+void StratumSessionEth::rpc2ResponseFalse(const string &idStr, int errCode) {
+  char buf[1024];
+  int len = snprintf(buf, sizeof(buf),
+                     "{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":false,\"data\":{\"code\":%d,\"message\":\"%s\"}}\n",
+                     idStr.empty() ? "null" : idStr.c_str(),
+                     errCode, StratumStatus::toString(errCode));
+  sendData(buf, len);
+}

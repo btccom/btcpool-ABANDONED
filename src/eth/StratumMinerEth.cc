@@ -57,14 +57,14 @@ void StratumMinerEth::handleRequest_GetWork(const string &idStr, const JsonNode 
 }
 
 void StratumMinerEth::handleRequest_SubmitHashrate(const string &idStr, const JsonNode &jparams) {
-  responseTrue(idStr);
+  getSession().responseTrue(idStr);
 }
 
 void StratumMinerEth::handleRequest_Submit(const string &idStr, const JsonNode &jparams) {
 
   auto &session = getSession();
   if (session.getState() != StratumSession::AUTHENTICATED) {
-    responseError(idStr, StratumStatus::UNAUTHORIZED);
+    session.responseError(idStr, StratumStatus::UNAUTHORIZED);
 
     // there must be something wrong, send reconnect command
     const string s = "{\"id\":null,\"method\":\"client.reconnect\",\"params\":[]}\n";
@@ -95,13 +95,13 @@ void StratumMinerEth::handleRequest_Submit(const string &idStr, const JsonNode &
   auto params = (const_cast<JsonNode &>(jparams)).array();
 
   if (StratumProtocolEth::STRATUM == ethProtocol_ && params.size() < 5) {
-    responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
+    session.responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
     return;
   } else if (StratumProtocolEth::ETHPROXY == ethProtocol_ && params.size() < 3) {
-    responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
+    session.responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
     return;
   } else if (StratumProtocolEth::NICEHASH_STRATUM == ethProtocol_ && params.size() < 3) {
-    responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
+    session.responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
     return;
   }
 
@@ -138,7 +138,7 @@ void StratumMinerEth::handleRequest_Submit(const string &idStr, const JsonNode &
   auto localJob = session.findLocalJob(jobId);
   // can't find local job
   if (localJob == nullptr) {
-    responseFalse(idStr, StratumStatus::JOB_NOT_FOUND);
+    session.responseFalse(idStr, StratumStatus::JOB_NOT_FOUND);
     return;
   }
 
@@ -149,7 +149,7 @@ void StratumMinerEth::handleRequest_Submit(const string &idStr, const JsonNode &
   auto clientIp = session.getClientIp();
   shared_ptr<StratumJobEx> exjob = server.GetJobRepository(localJob->chainId_)->getStratumJobEx(localJob->jobId_);
   if (exjob.get() == nullptr) {
-    responseFalse(idStr, StratumStatus::JOB_NOT_FOUND);
+    session.responseFalse(idStr, StratumStatus::JOB_NOT_FOUND);
     return;
   }
   StratumJobEth *sjob = dynamic_cast<StratumJobEth *>(exjob->sjob_);
@@ -197,7 +197,7 @@ void StratumMinerEth::handleRequest_Submit(const string &idStr, const JsonNode &
   LocalShare localShare(nonce, 0, 0);
   // can't add local share
   if (!localJob->addLocalShare(localShare)) {
-    responseFalse(idStr, StratumStatus::DUPLICATE_SHARE);
+    session.responseFalse(idStr, StratumStatus::DUPLICATE_SHARE);
     // add invalid share to counter
     invalidSharesCounter_.insert((int64_t) time(nullptr), 1);
     return;
@@ -251,37 +251,4 @@ void StratumMinerEth::handleRequest_Submit(const string &idStr, const JsonNode &
   }
 
   server.sendShare2Kafka(localJob->chainId_, message.data(), size);
-}
-
-void StratumMinerEth::responseError(const string &idStr, int code) {
-  if (StratumProtocolEth::ETHPROXY == ethProtocol_) {
-    getSession().rpc2ResponseError(idStr, code);
-  } else {
-    getSession().responseError(idStr, code);
-  }
-}
-
-void StratumMinerEth::responseTrue(const string &idStr) {
-  if (StratumProtocolEth::ETHPROXY == ethProtocol_) {
-    getSession().rpc2ResponseTrue(idStr);
-  } else {
-    getSession().responseTrue(idStr);
-  }
-}
-
-void StratumMinerEth::responseFalse(const string &idStr, int code) {
-  if (StratumProtocolEth::ETHPROXY == ethProtocol_) {
-    rpc2ResponseFalse(idStr, code);
-  } else {
-    getSession().responseError(idStr, code);
-  }
-}
-
-void StratumMinerEth::rpc2ResponseFalse(const string &idStr, int errCode) {
-  char buf[1024];
-  int len = snprintf(buf, sizeof(buf),
-                     "{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":false,\"data\":{\"code\":%d,\"message\":\"%s\"}}\n",
-                     idStr.empty() ? "null" : idStr.c_str(),
-                     errCode, StratumStatus::toString(errCode));
-  getSession().sendData(buf, len);
 }

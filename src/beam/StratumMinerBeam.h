@@ -41,7 +41,4 @@ public:
 
 private:
   void handleRequest_Submit(const string &idStr, const JsonNode &jroot);
-  void responseError(const string &idStr, int code);
-  void responseTrue(const string &idStr);
-  void responseFalse(const string &idStr, int errCode);
 };

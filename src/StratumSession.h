@@ -158,11 +158,17 @@ public:
   void sendData(const std::string &str) override { sendData(str.data(), str.size()); }
   void readBuf(struct evbuffer *buf);
 
-  void responseTrue(const std::string &idStr) override;
-  void responseError(const std::string &idStr, int code) override;
-  virtual void responseAuthorized(const std::string &idStr);
+  // Please keep them in here and be virtual or you have to refactor checkUserAndPwd().
+  // We need override them to respond JSON-RPC 2.0 responses in ETHProxy and Beam authentication.
+  virtual void responseTrue(const std::string &idStr) override;
+  virtual void responseError(const std::string &idStr, int code) override;
+  virtual void responseAuthorizeSuccess(const std::string &idStr);
+
+  void rpc1ResponseTrue(const string &idStr);
+  void rpc1ResponseError(const string &idStr, int errCode);
   void rpc2ResponseTrue(const string &idStr);
   void rpc2ResponseError(const string &idStr, int errCode);
+
   void sendSetDifficulty(LocalJob &localJob, uint64_t difficulty) override;
   virtual void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false) = 0;
 };

@@ -53,6 +53,10 @@ public:
     int64_t workerId
   ) override;
 
+  void responseError(const string &idStr, int code);
+  void responseTrue(const string &idStr);
+  void responseFalse(const string &idStr, int errCode);
+
 private:
   uint64_t currentJobDiff_;
 };

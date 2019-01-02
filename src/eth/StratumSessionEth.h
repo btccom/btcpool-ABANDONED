@@ -51,6 +51,12 @@ public:
   std::unique_ptr<StratumMiner> createMiner(const std::string &clientAgent,
                                             const std::string &workerName,
                                             int64_t workerId) override;
+  
+  void responseError(const string &idStr, int code) override;
+  void responseTrue(const string &idStr) override;
+  void responseFalse(const string &idStr, int errCode);
+  // response a false with an error object as data
+  void rpc2ResponseFalse(const string &idStr, int errCode);
 
 private:
   StratumProtocolEth ethProtocol_;
