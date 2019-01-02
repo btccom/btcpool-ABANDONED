@@ -46,7 +46,7 @@ bool StratumJobBeam::initFromRawJob(const string &rawJob, const string &rpcAddr)
   }
 
   input_ = jnode["input"].str();
-  blkBits_ = jnode["difficulty"].uint32();
+  blockBits_ = jnode["difficulty"].uint32();
   rpcAddress_ = rpcAddr;
 
   // jobId: timestamp + input_prefix, we need to make sure jobId is unique in a some time
@@ -68,7 +68,7 @@ string StratumJobBeam::serializeToJson() const {
                          "}",
                          jobId_,
                          height_,
-                         blkBits_,
+                         blockBits_,
                          input_.c_str(),
                          rpcAddress_.c_str(),
                          rpcUserPwd_.c_str()
@@ -97,7 +97,7 @@ bool StratumJobBeam::unserializeFromJson(const char *s, size_t len)
 
   jobId_ = j["jobId"].uint64();
   height_ = j["height"].uint64();
-  blkBits_ = j["blockBits"].uint32_hex();
+  blockBits_ = j["blockBits"].uint32_hex();
   input_ = j["input"].str();
   rpcAddress_ = j["rpcAddress"].str();
   rpcUserPwd_ = j["rpcUserPwd"].str();

@@ -175,7 +175,7 @@ void StratumSession::handleLine(const std::string &line) {
     idStr = "\"" + jnode["id"].str() + "\"";
   }
 
-  if (validate(jmethod, jparams)) {
+  if (validate(jmethod, jparams, jnode)) {
     handleRequest(idStr, jmethod.str(), jparams, jnode);
   } else {
     // invalid params
@@ -328,7 +328,7 @@ void StratumSession::setClientAgent(const string &clientAgent) {
   isLongTimeout_ = (isAgentClient_ || clientAgent_ == PoolWatcherAgent);
 }
 
-bool StratumSession::validate(const JsonNode &jmethod, const JsonNode &jparams) {
+bool StratumSession::validate(const JsonNode &jmethod, const JsonNode &jparams, const JsonNode &jroot) {
   if (jmethod.type() == Utilities::JS::type::Str &&
       jmethod.size() != 0 &&
       jparams.type() == Utilities::JS::type::Array)

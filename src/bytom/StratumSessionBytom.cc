@@ -144,7 +144,7 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
   sendData(notifyStr);
 }
 
-bool StratumSessionBytom::validate(const JsonNode &jmethod, const JsonNode &jparams) {
+bool StratumSessionBytom::validate(const JsonNode &jmethod, const JsonNode &jparams, const JsonNode &jroot) {
 
   if (jmethod.type() == Utilities::JS::type::Str &&
       jmethod.size() != 0 &&

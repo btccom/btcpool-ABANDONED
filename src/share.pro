@@ -89,9 +89,9 @@ message BeamMsg{
   optional sint32     status        = 4;
   optional sint64     timestamp     = 5;
   optional string     ip            = 6;
-  optional uint64     headerhash    = 7;
+  optional uint64     inputprefix   = 7;
   optional uint64     sharediff     = 8;
-  optional uint64     networkdiff   = 9;
+  optional uint64     blockbits     = 9;
   optional uint32     height        = 10;
   optional uint64     nonce         = 11;
   optional uint32     sessionid     = 12;

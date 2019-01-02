@@ -44,6 +44,7 @@
 #include "bytom/StratumServerBytom.h"
 #include "sia/StratumServerSia.h"
 #include "decred/StratumServerDecred.h"
+#include "beam/StratumServerBeam.h"
 
 #include <chainparams.h>
 
@@ -82,6 +83,10 @@ StratumServer* createStratumServer(const libconfig::Config& config) {
     return new ServerBytom ();
   else if ("DCR" == type)
     return new ServerDecred();
+  else if ("BEAM" == type)
+    return new ServerBeam();
+
+  LOG(FATAL) << "Unknown type: " << type;
   return nullptr;
 }
 

@@ -50,9 +50,9 @@ public:
     set_status(0);
     set_timestamp(0);
     set_ip("0.0.0.0");
-    set_headerhash(0);
+    set_inputprefix(0);
     set_sharediff(0);
-    set_networkdiff(0);
+    set_blockbits(0);
     set_height(0);
     set_nonce(0);
     set_sessionid(0);
@@ -63,18 +63,18 @@ public:
   double score() const
   {
 
-    if (!StratumStatus::isAccepted(status()) || sharediff() == 0 || networkdiff() == 0) {
+    if (!StratumStatus::isAccepted(status()) || sharediff() == 0 || blockbits() == 0) {
       return 0.0;
     }
 
     // Network diff may less than share diff on testnet or regression test network.
     // On regression test network, the network diff may be zero.
     // But no matter how low the network diff is, you can only dig one block at a time.
-    if (networkdiff() < sharediff()) {
+    if (blockbits() < sharediff()) {
       return 1.0;
     }
     else {
-      return (double)sharediff() / (double)networkdiff();
+      return (double)sharediff() / (double)blockbits();
     }
   }
 
@@ -84,7 +84,7 @@ public:
       return false;
     }
     if (userid() == 0 || workerhashid() == 0 ||
-        networkdiff() == 0 || sharediff() == 0)
+        blockbits() == 0 || sharediff() == 0)
     {
       return false;
     }
@@ -93,13 +93,13 @@ public:
 
   string toString() const
   {
-    return Strings::Format("share(height: %u, input: %016" PRIx64 "..., ip: %s, userId: %d, "
+    return Strings::Format("share(height: %u, inputPrefix: %016" PRIx64 "..., ip: %s, userId: %d, "
                            "workerId: %" PRId64 ", time: %u/%s, "
                            "shareDiff: %" PRIu64 ", networkDiff: %" PRIu64 ", nonce: %016" PRIx64 ", "
                            "sessionId: %08x, status: %d/%s)",
-                           height(), headerhash(), ip().c_str(), userid(),
+                           height(), inputprefix(), ip().c_str(), userid(),
                            workerhashid(), timestamp(), date("%F %T", timestamp()).c_str(),
-                           sharediff(), networkdiff(), nonce(),
+                           sharediff(), blockbits(), nonce(),
                            sessionid(), status(), StratumStatus::toString(status()));
   }
 
@@ -185,7 +185,7 @@ public:
   bool initFromRawJob(const string &rawJob, const string &rpcAddr);
 
   uint32_t height_ = 0;
-  uint32_t blkBits_;
+  uint32_t blockBits_;
   string input_;
 
   string rpcAddress_;
@@ -211,11 +211,11 @@ struct StratumTraitsBeam {
     }
   };
   struct LocalJobType : public LocalJob {
-    LocalJobType(size_t chainId, uint64_t jobId, const std::string &input)
-        : LocalJob(chainId, jobId), input_(input) {
+    LocalJobType(size_t chainId, uint64_t jobId, uint32_t inputHash)
+        : LocalJob(chainId, jobId), inputHash_(inputHash) {
     }
-    bool operator==(const std::string &input) const { return input_ == input; }
+    bool operator==(uint32_t inputHash) const { return inputHash_ == inputHash; }
 
-    std::string input_;
+    uint32_t inputHash_;
   };
 };

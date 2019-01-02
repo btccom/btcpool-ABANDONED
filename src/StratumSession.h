@@ -130,7 +130,7 @@ protected:
   virtual void logAuthorizeResult(bool success);
   virtual string getMinerInfoJson(const string &type);
 
-  virtual bool validate(const JsonNode &jmethod, const JsonNode &jparams);
+  virtual bool validate(const JsonNode &jmethod, const JsonNode &jparams, const JsonNode &jroot);
   virtual std::unique_ptr<StratumMessageDispatcher> createDispatcher();
 
   StratumSession(StratumServer &server, struct bufferevent *bev, struct sockaddr *saddr, uint32_t extraNonce1);
