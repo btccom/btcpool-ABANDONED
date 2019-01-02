@@ -33,9 +33,11 @@
 
 #include <bitset>
 
+#include <openssl/ssl.h>
 #include <event2/bufferevent.h>
 #include <event2/listener.h>
 #include <event2/event.h>
+#include <event2/bufferevent_ssl.h>
 
 #include <glog/logging.h>
 
@@ -205,6 +207,8 @@ public:
 ///////////////////////////////////// StratumServer ///////////////////////////////////
 class StratumServer {
   // NetIO
+  bool enableTLS_;
+  SSL_CTX *sslCTX_;
   struct sockaddr_in sin_;
   struct event_base* base_;
   struct event* signal_event_;
@@ -247,6 +251,8 @@ public:
   shared_ptr<Zookeeper> zk_;
 
 protected:
+  SSL_CTX* getSSLCTX(const libconfig::Config &config);
+
   // This class cannot be instantiated.
   // Only subclasses of this class can be instantiated.
   StratumServer();

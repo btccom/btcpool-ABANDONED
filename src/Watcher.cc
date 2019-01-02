@@ -27,7 +27,6 @@
 #include <arpa/inet.h>
 #include <cinttypes>
 
-#include <openssl/err.h>
 #include <event2/event.h>
 #include <event2/buffer.h>
 #include <event2/bufferevent.h>
@@ -35,6 +34,7 @@
 #include <event2/thread.h>
 #include <glog/logging.h>
 
+#include "ssl/SSLUtils.h"
 
 static
 bool tryReadLine(string &line, struct bufferevent *bufev) {
@@ -180,15 +180,6 @@ void ClientContainer::removeAndCreateClient(PoolWatchClient *client) {
 
 
 ///////////////////////////////// PoolWatchClient //////////////////////////////
-SSL_CTX *PoolWatchClient::sslCTX_ = nullptr;
-
-string get_ssl_err_string() {
-  string errmsg;
-  errmsg.resize(1024);
-  ERR_error_string_n(ERR_get_error(), (char *)errmsg.data(), errmsg.size());
-  return errmsg.c_str(); // strip padding '\0'
-}
-
 PoolWatchClient::PoolWatchClient(
   struct event_base *base,
   ClientContainer *container,
@@ -206,20 +197,9 @@ PoolWatchClient::PoolWatchClient(
   config.lookupValue("enable_tls", enableTLS_);
 
   if (enableTLS_) {
-    if (sslCTX_ == nullptr) {
-      SSL_library_init();
-      SSL_load_error_strings();
-      OpenSSL_add_all_algorithms();
+    LOG(INFO) << "<" << poolName_ << "> TLS enabled";
 
-      sslCTX_ = SSL_CTX_new(TLS_method());
-      if(sslCTX_ == nullptr) {
-        LOG(FATAL) << "SSL_CTX init failed: " << get_ssl_err_string();
-      }
-
-      SSL_CTX_set_verify(sslCTX_, SSL_VERIFY_NONE, NULL);
-    }
-
-    SSL *ssl = SSL_new(sslCTX_);
+    SSL *ssl = SSL_new(get_client_SSL_CTX_With_Cache());
     if(ssl == nullptr) {
         LOG(FATAL) << "SSL init failed: " << get_ssl_err_string();
     }

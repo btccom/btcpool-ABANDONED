@@ -28,6 +28,8 @@
 #include <boost/thread.hpp>
 #include <event2/thread.h>
 
+#include "ssl/SSLUtils.h"
+
 using namespace std;
 
 #ifndef WORK_WITH_STRATUM_SWITCHER
@@ -356,8 +358,17 @@ bool StratumJobEx::isStale() {
 
 
 ///////////////////////////////////// StratumServer ///////////////////////////////////
+
+SSL_CTX* StratumServer::getSSLCTX(const libconfig::Config &config) {
+  return get_server_SSL_CTX(
+    config.lookup("sserver.tls_cert_file").c_str(),
+    config.lookup("sserver.tls_key_file").c_str()
+  );
+}
+
 StratumServer::StratumServer()
-  : base_(nullptr), signal_event_(nullptr), listener_(nullptr)
+  : enableTLS_(false)
+  , base_(nullptr), signal_event_(nullptr), listener_(nullptr)
   , isEnableSimulator_(false)
   , isSubmitInvalidBlock_(false)
   , isDevModeEnable_(false)
@@ -678,6 +689,15 @@ bool StratumServer::setup(const libconfig::Config &config) {
     return false;
   }
 
+  // check if TLS enabled
+  config.lookupValue("sserver.enable_tls", enableTLS_);
+  if (enableTLS_) {
+    LOG(INFO) << "TLS enabled";
+    // try get SSL CTX (load SSL cert and key)
+    // any error will abort the process
+    sslCTX_ = getSSLCTX(config);
+  }
+
   // ------------------- Derived Class Setup -------------------
   return setupInternal(config);
 }
@@ -771,9 +791,25 @@ void StratumServer::listenerCallback(struct evconnlistener* listener,
   }
 #endif
 
-  // If it returns NULL with flag BEV_OPT_THREADSAFE,
+  if (server->enableTLS_) {
+    SSL *ssl = SSL_new(server->sslCTX_);
+    if(ssl == nullptr) {
+      LOG(ERROR) << "Error calling SSL_new!";
+      server->stop();
+      return;
+    }
+
+    bev = bufferevent_openssl_socket_new(
+      base, fd, ssl, BUFFEREVENT_SSL_ACCEPTING,
+      BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE
+    );
+  }
+  else {
+    bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
+  }
+
+  // If it was NULL with flag BEV_OPT_THREADSAFE,
   // please call evthread_use_pthreads() before you call event_base_new().
-  bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE|BEV_OPT_THREADSAFE);
   if(bev == nullptr) {
     LOG(ERROR) << "Error constructing bufferevent! Maybe you forgot call evthread_use_pthreads() before event_base_new().";
     server->stop();
@@ -805,8 +841,16 @@ void StratumServer::eventCallback(struct bufferevent* bev, short events,
                               void *connection) {
   auto conn = static_cast<StratumSession *>(connection);
 
-  // should not be 'BEV_EVENT_CONNECTED'
-  assert((events & BEV_EVENT_CONNECTED) != BEV_EVENT_CONNECTED);
+  if (conn->getServer().enableTLS_) {
+    if (events & BEV_EVENT_CONNECTED) {
+      DLOG(INFO) << "TLS connected";
+      return;
+    }
+  }
+  else {
+    // should not be 'BEV_EVENT_CONNECTED'
+    assert((events & BEV_EVENT_CONNECTED) != BEV_EVENT_CONNECTED);
+  }
 
   if (events & BEV_EVENT_EOF) {
     LOG(INFO) << "socket closed";

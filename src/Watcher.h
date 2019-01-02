@@ -28,7 +28,6 @@
 #include "Kafka.h"
 #include "Utils.h"
 
-#include <openssl/ssl.h>
 #include <event2/event.h>
 #include <event2/buffer.h>
 #include <event2/bufferevent.h>
@@ -80,8 +79,6 @@ public:
 ///////////////////////////////// PoolWatchClient //////////////////////////////
 class PoolWatchClient {
 protected:
-  static SSL_CTX *sslCTX_;
-
   bool enableTLS_;
   struct bufferevent *bev_;
 
