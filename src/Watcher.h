@@ -28,10 +28,12 @@
 #include "Kafka.h"
 #include "Utils.h"
 
+#include <openssl/ssl.h>
 #include <event2/event.h>
 #include <event2/buffer.h>
 #include <event2/bufferevent.h>
 #include <event2/listener.h>
+#include <event2/bufferevent_ssl.h>
 #include <libconfig.h++>
 
 #include <bitset>
@@ -71,16 +73,15 @@ public:
   void stop();
 
   void removeAndCreateClient(PoolWatchClient *client);
-
-  static void readCallback (struct bufferevent *bev, void *ptr);
-  static void eventCallback(struct bufferevent *bev, short events, void *ptr);
-
 };
 
 
 ///////////////////////////////// PoolWatchClient //////////////////////////////
 class PoolWatchClient {
 protected:
+  static SSL_CTX *sslCTX_;
+
+  bool enableTLS_;
   struct bufferevent *bev_;
 
   bool handleMessage();
@@ -121,6 +122,9 @@ public:
   inline void sendData(const string &str) {
     sendData(str.data(), str.size());
   }
+  
+  static void readCallback (struct bufferevent *bev, void *ptr);
+  static void eventCallback(struct bufferevent *bev, short events, void *ptr);
 };
 
 #endif

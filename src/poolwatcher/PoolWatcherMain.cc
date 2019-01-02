@@ -38,6 +38,7 @@
 #include "config/bpool-version.h"
 #include "Utils.h"
 #include "bitcoin/WatcherBitcoin.h"
+#include "beam/WatcherBeam.h"
 
 #include <chainparams.h>
 
@@ -56,6 +57,23 @@ void handler(int sig) {
 void usage() {
   fprintf(stderr, BIN_VERSION_STRING("poolwatcher"));
   fprintf(stderr, "Usage:\tpoolwatcher -c \"poolwatcher.cfg\" [-l <log_dir|stderr>]\n");
+}
+
+ClientContainer* createClientContainer(const libconfig::Config &cfg) {
+  string type = cfg.lookup("poolwatcher.type");
+  LOG(INFO) << "PoolWatcher Type: " << type;
+
+#if defined(CHAIN_TYPE_STR)
+  if (CHAIN_TYPE_STR == type)
+#else 
+  if (false)
+#endif
+    return new ClientContainerBitcoin(cfg);
+  else if ("BEAM" == type)
+    return new ClientContainerBeam(cfg);
+
+  LOG(FATAL) << "Unknown PoolWatcher Type: " << type;
+  return nullptr;
 }
 
 int main(int argc, char **argv) {
@@ -133,7 +151,7 @@ int main(int argc, char **argv) {
   }
 
   try {
-    gClientContainer = new ClientContainerBitcoin(cfg);
+    gClientContainer = createClientContainer(cfg);
 
     // add pools
     const Setting &root = cfg.getRoot();

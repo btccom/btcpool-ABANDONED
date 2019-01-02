@@ -26,6 +26,7 @@
 #include <arpa/inet.h>
 #include <cinttypes>
 
+#include <openssl/err.h>
 #include <event2/event.h>
 #include <event2/buffer.h>
 #include <event2/bufferevent.h>
@@ -177,61 +178,64 @@ void ClientContainer::removeAndCreateClient(PoolWatchClient *client) {
   }
 }
 
-// static func
-void ClientContainer::readCallback(struct bufferevent *bev, void *ptr) {
-  static_cast<PoolWatchClient *>(ptr)->recvData();
-}
-
-// static func
-void ClientContainer::eventCallback(struct bufferevent *bev,
-                                    short events, void *ptr) {
-  PoolWatchClient *client = static_cast<PoolWatchClient *>(ptr);
-  ClientContainer *container = client->container_;
-
-  if (events & BEV_EVENT_CONNECTED) {
-    client->state_ = PoolWatchClient::State::CONNECTED;
-    client->onConnected();
-    return;
-  }
-
-  if (events & BEV_EVENT_EOF) {
-    LOG(INFO) << "upsession closed";
-  }
-  else if (events & BEV_EVENT_ERROR) {
-    LOG(ERROR) << "got an error on the upsession: "
-    << evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR());
-  }
-  else if (events & BEV_EVENT_TIMEOUT) {
-    LOG(INFO) << "upsession read/write timeout, events: " << events;
-  }
-  else {
-    LOG(ERROR) << "unhandled upsession events: " << events;
-  }
-
-  // update client
-  container->removeAndCreateClient(client);
-}
-
 
 ///////////////////////////////// PoolWatchClient //////////////////////////////
+SSL_CTX *PoolWatchClient::sslCTX_ = nullptr;
+
+string get_ssl_err_string() {
+  string errmsg;
+  errmsg.resize(1024);
+  ERR_error_string_n(ERR_get_error(), (char *)errmsg.data(), errmsg.size());
+  return errmsg.c_str(); // strip padding '\0'
+}
+
 PoolWatchClient::PoolWatchClient(
   struct event_base *base,
   ClientContainer *container,
   const libconfig::Setting &config
 )
-  : container_(container)
+  : enableTLS_(false)
+  , container_(container)
   , config_(config)
   , poolName_(config.lookup("name").c_str())
   , poolHost_(config.lookup("host").c_str())
   , poolPort_((int)config.lookup("port"))
   , workerName_(config.lookup("worker").c_str())
 {
-  bev_ = bufferevent_socket_new(base, -1, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
-  assert(bev_ != nullptr);
+  config.lookupValue("enable_tls", enableTLS_);
+
+  if (enableTLS_) {
+    if (sslCTX_ == nullptr) {
+      SSL_library_init();
+      SSL_load_error_strings();
+      OpenSSL_add_all_algorithms();
+
+      sslCTX_ = SSL_CTX_new(TLS_method());
+      if(sslCTX_ == nullptr) {
+        LOG(FATAL) << "SSL_CTX init failed: " << get_ssl_err_string();
+      }
+
+      SSL_CTX_set_verify(sslCTX_, SSL_VERIFY_NONE, NULL);
+    }
+
+    SSL *ssl = SSL_new(sslCTX_);
+    if(ssl == nullptr) {
+        LOG(FATAL) << "SSL init failed: " << get_ssl_err_string();
+    }
+
+    bev_ = bufferevent_openssl_socket_new(base, -1, ssl, BUFFEREVENT_SSL_CONNECTING, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
+  }
+  else {
+    bev_ = bufferevent_socket_new(base, -1, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
+  }
+
+  if(bev_ == nullptr) {
+    LOG(FATAL) << "bufferevent init failed";
+  }
 
   bufferevent_setcb(bev_,
-                    ClientContainer::readCallback,  NULL,
-                    ClientContainer::eventCallback, this);
+                    PoolWatchClient::readCallback,  NULL,
+                    PoolWatchClient::eventCallback, this);
   bufferevent_enable(bev_, EV_READ|EV_WRITE);
 
 
@@ -289,3 +293,39 @@ bool PoolWatchClient::handleMessage() {
   return false;
 }
 
+// static func
+void PoolWatchClient::readCallback(struct bufferevent *bev, void *ptr) {
+  static_cast<PoolWatchClient *>(ptr)->recvData();
+}
+
+// static func
+void PoolWatchClient::eventCallback(struct bufferevent *bev,
+                                    short events, void *ptr) {
+  PoolWatchClient *client = static_cast<PoolWatchClient *>(ptr);
+  ClientContainer *container = client->container_;
+
+  DLOG(INFO) << "PoolWatchClient::eventCallback: <" << client->poolName_ << "> " << events;
+
+  if (events & BEV_EVENT_CONNECTED) {
+    client->state_ = PoolWatchClient::State::CONNECTED;
+    client->onConnected();
+    return;
+  }
+
+  if (events & BEV_EVENT_EOF) {
+    LOG(INFO) << "upsession closed";
+  }
+  else if (events & BEV_EVENT_ERROR) {
+    LOG(ERROR) << "got an error on the upsession: "
+    << evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR());
+  }
+  else if (events & BEV_EVENT_TIMEOUT) {
+    LOG(INFO) << "upsession read/write timeout, events: " << events;
+  }
+  else {
+    LOG(ERROR) << "unhandled upsession events: " << events;
+  }
+
+  // update client
+  container->removeAndCreateClient(client);
+}
