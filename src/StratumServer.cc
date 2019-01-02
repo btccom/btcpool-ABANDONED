@@ -483,32 +483,6 @@ bool StratumServer::setup(const libconfig::Config &config) {
                  << " seconds) is too short, recommended to be 300 seconds or longer.";
   }
 
-  // server id
-  int serverId;
-  config.lookupValue("sserver.id", serverId);
-  if (serverId > 0xFF)
-  {
-    LOG(ERROR) << "invalid server id, range: [0, 255]";
-    return false;
-  }
-
-  serverId_ = (uint8_t)serverId;
-  if (serverId_ == 0) {
-    // assign ID from zookeeper
-    initZookeeper(config);
-    serverId_ = zk_->getUniqIdUint8(config.lookup("sserver.zookeeper_lock_path"));
-  }
-
-  // user info
-  userInfo_ = new UserInfo(this, config);
-  if (!userInfo_->setupThreads()) {
-    return false;
-  }
-
-#ifndef WORK_WITH_STRATUM_SWITCHER
-  sessionIDManager_ = new SessionIDManagerT<24>(serverId_);
-#endif
-
   // ------------------- Listen Options -------------------
 
   string listenIP = "0.0.0.0";
@@ -554,6 +528,34 @@ bool StratumServer::setup(const libconfig::Config &config) {
       config.lookup("sserver.job_topic")
     );
   }
+
+  // ------------------- user info -------------------
+  // It should at below of addChainVars() or sserver may crashed
+  // because of IndexOutOfBoundsException in chains_.
+  userInfo_ = new UserInfo(this, config);
+  if (!userInfo_->setupThreads()) {
+    return false;
+  }
+
+#ifndef WORK_WITH_STRATUM_SWITCHER
+  // ------------------- server id -------------------
+  int serverId;
+  config.lookupValue("sserver.id", serverId);
+  if (serverId > 0xFF)
+  {
+    LOG(ERROR) << "invalid server id, range: [0, 255]";
+    return false;
+  }
+
+  serverId_ = (uint8_t)serverId;
+  if (serverId_ == 0) {
+    // assign ID from zookeeper
+    initZookeeper(config);
+    serverId_ = zk_->getUniqIdUint8(config.lookup("sserver.zookeeper_lock_path"));
+  }
+  
+  sessionIDManager_ = new SessionIDManagerT<24>(serverId_);
+#endif
 
   // ------------------- Init JobRepository -------------------
   for (ChainVars &chain : chains_) {

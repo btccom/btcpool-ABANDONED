@@ -187,7 +187,7 @@ void StratumSession::logAuthorizeResult(bool success) {
   if (success) {
     LOG(INFO) << "authorize success, userId: " << worker_.userId_
               << ", wokerHashId: " << worker_.workerHashId_
-              << ", workerName:" << worker_.fullName_
+              << ", workerName: " << worker_.fullName_
               << ", clientAgent: " << clientAgent_
               << ", clientIp: " << clientIp_;
   }
@@ -222,12 +222,14 @@ void StratumSession::checkUserAndPwd(const string &idStr, const string &fullName
 
   size_t chainId;
   if (!server_.userInfo_->getChainId(worker_.userName_, chainId)) {
+    DLOG(INFO) << "cannot find user chain";
     logAuthorizeResult(false);
     responseError(idStr, StratumStatus::INVALID_USERNAME);
     return;
   }
 
   if (!switchChain(chainId)) {
+    DLOG(INFO) << "cannot switch user chain";
     logAuthorizeResult(false);
     responseError(idStr, StratumStatus::INVALID_USERNAME);
     return;
@@ -256,6 +258,7 @@ bool StratumSession::switchChain(size_t chainId) {
   const int32_t userId = server_.userInfo_->getUserId(chainId, worker_.userName_);
   if (userId <= 0)
   {
+    DLOG(INFO) << "cannot find user id";
     return false;
   }
 

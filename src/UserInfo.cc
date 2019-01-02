@@ -97,7 +97,8 @@ void UserInfo::regularUserName(string &userName) {
 
 bool UserInfo::getChainId(string userName, size_t &chainId) {
   if (chains_.size() == 1) {
-    return 0;
+    chainId = 0;
+    return true;
   }
 
   regularUserName(userName);
@@ -296,16 +297,17 @@ void UserInfo::runThreadUpdate(size_t chainId) {
   time_t lastUpdateTime = time(nullptr);
 
   while (running_) {
+    int32_t res = incrementalUpdateUsers(chainId);
+    lastUpdateTime = time(nullptr);
+
+    if (res > 0) {
+      LOG(INFO) << "chain " << server_->chainName(chainId) << " update users count: " << res;
+    }
+    
     if (lastUpdateTime + updateInterval > time(nullptr)) {
       usleep(500000);  // 500ms
       continue;
     }
-
-    int32_t res = incrementalUpdateUsers(chainId);
-    lastUpdateTime = time(nullptr);
-
-    if (res > 0)
-      LOG(INFO) << "chain " << server_->chainName(chainId) << " update users count: " << res;
   }
 }
 
