@@ -38,6 +38,7 @@ using namespace std;
 ////////////////////////////////// JobRepositoryBeam ///////////////////////////////
 JobRepositoryBeam::JobRepositoryBeam(size_t chainId, ServerBeam *server, const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime)
   : JobRepositoryBase(chainId, server, kafkaBrokers, consumerTopic, fileLastNotifyTime)
+  , lastHeight_(0)
 {
 }
 
