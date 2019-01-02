@@ -39,6 +39,7 @@
 #include <bitset>
 #include <map>
 #include <set>
+#include <memory>
 #include <boost/thread/shared_mutex.hpp>
 
 #define BTCCOM_WATCHER_AGENT   "btc.com-watcher/0.2"
@@ -52,7 +53,7 @@ class ClientContainer;
 class ClientContainer {
 protected:
   atomic<bool> running_;
-  vector<PoolWatchClient *> clients_;
+  vector<shared_ptr<PoolWatchClient>> clients_;
 
   // libevent2
   struct event_base *base_;

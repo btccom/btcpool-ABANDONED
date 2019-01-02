@@ -154,7 +154,7 @@ bool ClientContainer::init() {
 
 // do add pools before init()
 bool ClientContainer::addPools(const libconfig::Setting &config) {
-  auto ptr = createPoolWatchClient(config);
+  auto ptr = shared_ptr<PoolWatchClient>(createPoolWatchClient(config));
   if (!ptr->connect()) {
     return false;
   }
@@ -165,14 +165,13 @@ bool ClientContainer::addPools(const libconfig::Setting &config) {
 
 void ClientContainer::removeAndCreateClient(PoolWatchClient *client) {
   for (size_t i = 0; i < clients_.size(); i++) {
-    if (clients_[i] == client) {
-      auto ptr = createPoolWatchClient(client->config_);
+    if (clients_[i].get() == client) {
+      auto ptr = shared_ptr<PoolWatchClient>(createPoolWatchClient(client->config_));
       ptr->connect();
       LOG(INFO) << "reconnect " << ptr->poolName_;
 
-      // set new object, delete old one
+      // set new object, the old one will be auto free
       clients_[i] = ptr;
-      delete client;
 
       break;
     }
@@ -267,7 +266,6 @@ bool PoolWatchClient::connect() {
   // was successfully launched, and -1 if an error occurred.
   int res = bufferevent_socket_connect(bev_, (struct sockaddr *)&sin, sizeof(sin));
   if (res == 0) {
-    state_ = CONNECTED;
     return true;
   }
 
@@ -309,7 +307,7 @@ void PoolWatchClient::eventCallback(struct bufferevent *bev,
   DLOG(INFO) << "PoolWatchClient::eventCallback: <" << client->poolName_ << "> " << events;
 
   if (events & BEV_EVENT_CONNECTED) {
-    client->state_ = PoolWatchClient::State::CONNECTED;
+    client->state_ = CONNECTED;
     client->onConnected();
     return;
   }

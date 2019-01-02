@@ -30,6 +30,7 @@
 #include "bitcoin/BitcoinUtils.h"
 #include "bitcoin/StratumBitcoin.h"
 #include "rsk/RskWork.h"
+#include "beam/StratumBeam.h"
 
 #include <chainparams.h>
 #include <hash.h>
@@ -657,3 +658,14 @@ TEST(Stratum, StratumJobWithRskWork) {
   }
 }
 #endif
+
+TEST(Stratum, StratumJobBeam) {
+  string sjobStr = "{\"jobId\":6641843982926067808,"
+    "\"chain\":\"BEAM\",\"height\":34678,\"blockBits\":\"04411246\","
+    "\"input\":\"28fe7ed7673b153ace1d5f9c52c3e108ec55a48d07ed499bdf6e7d2049049e7a\","
+    "\"rpcAddress\":\"http://127.0.0.1:8332\",\"rpcUserPwd\":\"aaabbbccc\"}";
+
+  StratumJobBeam sjob;
+  ASSERT_EQ(sjob.unserializeFromJson(sjobStr.c_str(), sjobStr.size()), true);
+  ASSERT_EQ(sjob.serializeToJson(), sjobStr);
+}
