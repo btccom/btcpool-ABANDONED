@@ -23,6 +23,7 @@
  */
 #include "Watcher.h"
 
+#include <unistd.h>
 #include <arpa/inet.h>
 #include <cinttypes>
 
@@ -201,6 +202,7 @@ PoolWatchClient::PoolWatchClient(
   , poolHost_(config.lookup("host").c_str())
   , poolPort_((int)config.lookup("port"))
   , workerName_(config.lookup("worker").c_str())
+  , upTime_(time(nullptr))
 {
   config.lookupValue("enable_tls", enableTLS_);
 
@@ -324,6 +326,12 @@ void PoolWatchClient::eventCallback(struct bufferevent *bev,
   }
   else {
     LOG(ERROR) << "unhandled upsession events: " << events;
+  }
+
+  time_t sleepTime = 10 - (time(nullptr) - client->upTime_);
+  if (sleepTime > 0) {
+    LOG(WARNING) << "Connection broken too fast, sleep " << sleepTime << " seconds";
+    sleep(sleepTime);
   }
 
   // update client

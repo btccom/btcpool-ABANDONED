@@ -104,6 +104,8 @@ public:
   int16_t poolPort_;
   string  workerName_;
 
+  time_t upTime_;
+
 protected:
   PoolWatchClient(
     struct event_base *base,
