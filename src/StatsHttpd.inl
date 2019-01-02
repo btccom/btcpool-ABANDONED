@@ -1007,7 +1007,7 @@ void StatsServerT<SHARE>::consumeShareLog(rd_kafka_message_t *rkmessage) {
 
 
   if (!share.isValid()) {
-    LOG(ERROR) << "invalid share!" ;
+    LOG(ERROR) << "invalid share: " << share.toString();
     return;
   }
   if (dupShareChecker_ && !dupShareChecker_->addShare(share)) {
@@ -1079,71 +1079,78 @@ template <class SHARE>
 void StatsServerT<SHARE>::runThreadConsume() {
   LOG(INFO) << "start sharelog consume thread";
   time_t lastCleanTime     = time(nullptr);
-  time_t lastFlushDBTime   = time(nullptr);
+  time_t lastFlushDBTime   = 0; // Set to 0 to log lastShareTime_ of the first share
 
   const time_t kExpiredCleanInterval = 60*30;
   const int32_t kTimeoutMs = 1000;  // consumer timeout
 
+  // consuming history shares
   while (running_) {
-    bool noNewShares = false;
+    rd_kafka_message_t *rkmessage;
+    rkmessage = kafkaConsumer_.consumer(kTimeoutMs);
 
-    {
-      //
-      // consume message
-      //
-      rd_kafka_message_t *rkmessage;
-      rkmessage = kafkaConsumer_.consumer(kTimeoutMs);
+    if (rkmessage != nullptr) {
+      // consume share log (lastShareTime_ will be updated)
+      consumeShareLog(rkmessage);
+      rd_kafka_message_destroy(rkmessage);  /* Return message to rdkafka */
+    }
 
-      // timeout, most of time it's not nullptr and set an error:
-      //          rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF
-      if (rkmessage != nullptr) {
-        // consume share log (lastShareTime_ will be updated)
-        consumeShareLog(rkmessage);
-        rd_kafka_message_destroy(rkmessage);  /* Return message to rdkafka */
-      } else {
-        noNewShares = true;
-      }
+    if (lastFlushDBTime + kFlushDBInterval_ < time(nullptr)) {
+      LOG(INFO) << "consuming history shares: " << date("%F %T", lastShareTime_);
+      lastFlushDBTime = time(nullptr);
     }
 
     // don't flush database while consuming history shares.
     // otherwise, users' hashrate will be updated to 0 when statshttpd restarted.
-    if (isInitializing_) {
-      if (lastFlushDBTime + kFlushDBInterval_ < time(nullptr)) {
-        // the initialization state ends after consuming a share that generated in the last minute.
-        // If no shares received at the first consumption (lastShareTime_ == 0), the initialization state ends too.
-        if (!noNewShares && lastShareTime_ + 60 < time(nullptr)) {
-          LOG(INFO) << "consuming history shares: " << date("%F %T", lastShareTime_);
-          lastFlushDBTime = time(nullptr);
-        } else {
-          isInitializing_ = false;
-        }
-      }
-    } else {
-      //
-      // try to remove expired workers
-      //
-      if (lastCleanTime + kExpiredCleanInterval < time(nullptr)) {
-        removeExpiredWorkers();
-        lastCleanTime = time(nullptr);
-      }
 
-      //
-      // flush workers to table.mining_workers
-      //
-      if (lastFlushDBTime + kFlushDBInterval_ < time(nullptr)) {
-        // will use thread to flush data to DB.
-        // it's very fast because we use insert statement with multiple values
-        // and merge table when flush data to DB.
-        if (poolDB_ != nullptr) {
-          flushWorkersAndUsersToDB();
-        }
-        if (redisGroup_.size() > 0) {
-          flushWorkersAndUsersToRedis();
-        }
-        lastFlushDBTime = time(nullptr);
-      }
+    // the initialization state ends after consuming a share that generated in the last minute.
+    if (lastShareTime_ + 60 >= time(nullptr)) {
+      isInitializing_ = false;
+      break;
     }
 
+    // the initialization state ends after no shares in 5 minutes
+    // LastCleanTime is used here because it records the time when the consuming thread starting
+    if (lastShareTime_ == 0 && lastCleanTime + 300 < time(nullptr)) {
+      isInitializing_ = false;
+      break;
+    }
+  }
+
+  // consuming recent shares
+  while (running_) {
+    rd_kafka_message_t *rkmessage;
+    rkmessage = kafkaConsumer_.consumer(kTimeoutMs);
+
+    if (rkmessage != nullptr) {
+      // consume share log (lastShareTime_ will be updated)
+      consumeShareLog(rkmessage);
+      rd_kafka_message_destroy(rkmessage);  /* Return message to rdkafka */
+    }
+
+    //
+    // try to remove expired workers
+    //
+    if (lastCleanTime + kExpiredCleanInterval < time(nullptr)) {
+      removeExpiredWorkers();
+      lastCleanTime = time(nullptr);
+    }
+
+    //
+    // flush workers to table.mining_workers
+    //
+    if (lastFlushDBTime + kFlushDBInterval_ < time(nullptr)) {
+      // will use thread to flush data to DB.
+      // it's very fast because we use insert statement with multiple values
+      // and merge table when flush data to DB.
+      if (poolDB_ != nullptr) {
+        flushWorkersAndUsersToDB();
+      }
+      if (redisGroup_.size() > 0) {
+        flushWorkersAndUsersToRedis();
+      }
+      lastFlushDBTime = time(nullptr);
+    }
   }
   LOG(INFO) << "stop sharelog consume thread";
 
