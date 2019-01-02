@@ -447,6 +447,9 @@ set(THIRD_LIBRARIES ethash blake2 sph ${BH_SHARED_LIBRARY} ${USE_CUDA_LIBRARIES}
                     ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB} ${GMP_LIBRARIES} ${LIBEVENT_OPENSSL_LIB} ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY}
                     ${PTHREAD_LIBRARIES} ${PROTOBUF_LIBRARIES})
 
+include_directories(src/equihash)
+add_library(equihash src/equihash/crypto/equihash_impl.cpp)
+
 file(GLOB LIB_SOURCES
         src/*.cc
         src/rsk/*.cc
