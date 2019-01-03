@@ -78,8 +78,8 @@ bool MySQLConnection::open() {
   }
   if (mysql_real_connect(conn, host_.c_str(), username_.c_str(), password_.c_str(),
                          dbName_.c_str(), port_, nullptr, 0) == nullptr) {
-    close();
     LOG(ERROR) << "mysql_real_connect failed: " << mysql_error(conn);
+    close();
     return false;
   }
 
