@@ -44,6 +44,7 @@
 #include "eth/ShareLoggerEth.h"
 #include "bytom/ShareLoggerBytom.h"
 #include "decred/ShareLoggerDecred.h"
+#include "beam/ShareLoggerBeam.h"
 
 using namespace std;
 using namespace libconfig;
@@ -109,6 +110,14 @@ std::shared_ptr<ShareLogWriter> newShareLogWriter(const string &kafkaBrokers, co
   }
   else if (chainType == "DCR") {
     return make_shared<ShareLogWriterDecred>(chainType.c_str(),
+                                             kafkaBrokers.c_str(),
+                                             def.lookup("data_dir").c_str(),
+                                             def.lookup("kafka_group_id").c_str(),
+                                             def.lookup("share_topic"),
+                                             compressionLevel);
+  }
+  else if (chainType == "BEAM") {
+    return make_shared<ShareLogWriterBeam>(chainType.c_str(),
                                              kafkaBrokers.c_str(),
                                              def.lookup("data_dir").c_str(),
                                              def.lookup("kafka_group_id").c_str(),

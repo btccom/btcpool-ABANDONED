@@ -52,6 +52,9 @@
 
 #include "decred/StatsHttpdDecred.h"
 
+#include "beam/StatisticsBeam.h"
+#include "beam/StatsHttpdBeam.h"
+
 using namespace std;
 using namespace libconfig;
 
@@ -111,6 +114,14 @@ std::shared_ptr<StatsServer> newStatsServer(const string &chainType, const char 
                                                redisConcurrency, redisKeyPrefix, redisKeyExpire,
                                                redisPublishPolicy, redisIndexPolicy,
                                                kFlushDBInterval, fileLastFlushTime, nullptr);
+  }
+  else if (chainType == "BEAM") {
+    return std::make_shared<StatsServerBeam>(kafkaBrokers, kafkaShareTopic, kafkaCommonEventsTopic,
+                                            httpdHost, httpdPort, poolDBInfo, redisInfo,
+                                            redisConcurrency, redisKeyPrefix, redisKeyExpire,
+                                            redisPublishPolicy, redisIndexPolicy,
+                                            kFlushDBInterval, fileLastFlushTime,
+                                            std::make_shared<DuplicateShareCheckerBeam>(dupShareTrackingHeight));
   }
   else {
     LOG(FATAL) << "newStatsServer: unknown chain type " << chainType;

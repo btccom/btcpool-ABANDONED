@@ -21,29 +21,32 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-#pragma once
+#include "StatisticsBeam.h"
 
-#include <string>
-#include <uint256.h>
-#include "beam/core/block_crypt.h"
-#include "beam/core/difficulty.h"
 
-using std::string;
+template <>
+void ShareStatsDay<ShareBeam>::processShare(uint32_t hourIdx, const ShareBeam &share) {
+  ScopeLock sl(lock_);
 
-const uint64_t BEAM_COIN = 100000000;
+  if (StratumStatus::isAccepted(share.status())) {
+    shareAccept1h_[hourIdx] += share.sharediff();
+    shareAccept1d_          += share.sharediff();
 
-uint256 Beam_BitsToTarget(uint32_t bits);
-uint32_t Beam_TargetToBits(const uint256 &target);
+    double score = share.score();
+    double reward = Beam_GetStaticBlockReward(share.height());
+    double earn = score * reward;
 
-uint256 Beam_DiffToTarget(uint64_t diff);
-double Beam_TargetToDiff(const uint256 &target);
+    score1h_[hourIdx] += score;
+    score1d_          += score;
+    earn1h_[hourIdx]  += earn;
+    earn1d_           += earn;
 
-double Beam_BitsToDiff(uint32_t bits);
-uint32_t Beam_DiffToBits(uint64_t diff);
+  } else {
+    shareReject1h_[hourIdx] += share.sharediff();
+    shareReject1d_          += share.sharediff();
+  }
+  modifyHoursFlag_ |= (0x01u << hourIdx);
+}
 
-bool Beam_ComputeHash(const string &input, const uint64_t nonce, const string &output, beam::Difficulty::Raw &hash);
 
-uint256 Beam_Uint256Conv(const beam::Difficulty::Raw &raw);
-beam::Difficulty::Raw Beam_Uint256Conv(const uint256 &target);
-
-double Beam_GetStaticBlockReward(uint32_t height);
+template class ShareStatsDay<ShareBeam>;

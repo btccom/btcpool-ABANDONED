@@ -23,27 +23,33 @@
  */
 #pragma once
 
-#include <string>
-#include <uint256.h>
-#include "beam/core/block_crypt.h"
-#include "beam/core/difficulty.h"
+#include "Statistics.h"
 
-using std::string;
+#include "CommonBeam.h"
+#include "StratumBeam.h"
 
-const uint64_t BEAM_COIN = 100000000;
+///////////////////////////////  GlobalShareBeam  ////////////////////////////////
+// Used to detect duplicate share attacks on ETH mining.
+struct GlobalShareBeam {
+  uint64_t inputPrefix_;
+  uint64_t nonce_;
 
-uint256 Beam_BitsToTarget(uint32_t bits);
-uint32_t Beam_TargetToBits(const uint256 &target);
+  GlobalShareBeam() = default;
 
-uint256 Beam_DiffToTarget(uint64_t diff);
-double Beam_TargetToDiff(const uint256 &target);
+  GlobalShareBeam(const ShareBeam &share)
+    : inputPrefix_(share.inputprefix())
+    , nonce_(share.nonce())
+  {}
 
-double Beam_BitsToDiff(uint32_t bits);
-uint32_t Beam_DiffToBits(uint64_t diff);
+  GlobalShareBeam& operator=(const GlobalShareBeam &r) = default;
 
-bool Beam_ComputeHash(const string &input, const uint64_t nonce, const string &output, beam::Difficulty::Raw &hash);
-
-uint256 Beam_Uint256Conv(const beam::Difficulty::Raw &raw);
-beam::Difficulty::Raw Beam_Uint256Conv(const uint256 &target);
-
-double Beam_GetStaticBlockReward(uint32_t height);
+  bool operator<(const GlobalShareBeam &r) const {
+    if (inputPrefix_ <  r.inputPrefix_ ||
+       (inputPrefix_ == r.inputPrefix_ && nonce_ < r.nonce_)) {
+      return true;
+    }
+    return false;
+  }
+};
+////////////////////////////  Alias  ////////////////////////////
+using DuplicateShareCheckerBeam = DuplicateShareCheckerT<ShareBeam, GlobalShareBeam>;

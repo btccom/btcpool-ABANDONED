@@ -500,15 +500,15 @@ target_link_libraries(sserver btcpool beam equihash ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE STATSHTTPD_SOURCES src/statshttpd/*.cc)
 add_executable(statshttpd ${STATSHTTPD_SOURCES})
-target_link_libraries(statshttpd btcpool ${THIRD_LIBRARIES})
+target_link_libraries(statshttpd btcpool beam equihash ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE SHARELOGGER_SOURCES src/sharelogger/*.cc)
 add_executable(sharelogger ${SHARELOGGER_SOURCES})
-target_link_libraries(sharelogger btcpool ${THIRD_LIBRARIES})
+target_link_libraries(sharelogger btcpool beam equihash ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE SLPARSER_SOURCES src/slparser/*.cc)
 add_executable(slparser ${SLPARSER_SOURCES})
-target_link_libraries(slparser btcpool ${THIRD_LIBRARIES})
+target_link_libraries(slparser btcpool beam equihash ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE BLKMAKER_SOURCES src/blkmaker/*.cc)
 add_executable(blkmaker ${BLKMAKER_SOURCES})

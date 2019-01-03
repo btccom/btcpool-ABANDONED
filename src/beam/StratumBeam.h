@@ -24,6 +24,7 @@
 #pragma once
 
 #include "Stratum.h"
+#include "CommonBeam.h"
 
 #include "share.pro.pb.h"
 #include <uint256.h>
@@ -70,11 +71,12 @@ public:
     // Network diff may less than share diff on testnet or regression test network.
     // On regression test network, the network diff may be zero.
     // But no matter how low the network diff is, you can only dig one block at a time.
-    if (blockbits() < sharediff()) {
+    double networkDiff = Beam_BitsToDiff(blockbits());
+    if (networkDiff < sharediff()) {
       return 1.0;
     }
     else {
-      return (double)sharediff() / (double)blockbits();
+      return (double)sharediff() / networkDiff;
     }
   }
 
