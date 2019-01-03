@@ -455,6 +455,7 @@ add_library(beam
     src/beam/core/difficulty.cpp
     src/beam/core/ecc.cpp
     src/beam/core/uintBig.cpp
+    src/beam/core/static_members.cpp
     src/beam/pow/equihash.cpp
     src/beam/utility/common.cpp)
 
@@ -476,7 +477,7 @@ add_library(btcpool STATIC ${LIB_SOURCES} ${LIB_SOURCES_CHAINS} ${LIB_SOURCES_DE
 
 file(GLOB_RECURSE TEST_SOURCES test/*.cc test/*.cpp)
 add_executable(unittest ${TEST_SOURCES})
-target_link_libraries(unittest btcpool ${THIRD_LIBRARIES})
+target_link_libraries(unittest beam equihash btcpool ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE GBTMAKER_SOURCES src/gbtmaker/*.cc)
 add_executable(gbtmaker ${GBTMAKER_SOURCES})

@@ -14,6 +14,7 @@
 
 #include "common.h"
 #include "ecc_native.h"
+#include "secp256k1-zkp/src/hash_impl.h"
 
 #define ENABLE_MODULE_GENERATOR
 #define ENABLE_MODULE_RANGEPROOF

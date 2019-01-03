@@ -22,10 +22,12 @@
  THE SOFTWARE.
  */
 #include <glog/logging.h>
+#include <boost/endian/arithmetic.hpp>
 
 #include "gtest/gtest.h"
 #include "Common.h"
 #include "Utils.h"
+#include "beam/core/block_crypt.h"
 
 TEST(Utils, Strings_Format) {
   for (int i = 1; i < 1024; i++) {
@@ -87,4 +89,28 @@ TEST(Utils, Bin2Hex)
     EXPECT_NE(result2, rightHex);
 
 
+}
+
+TEST(Utils, BeamEquiHash) {
+  string input = "1b77cd8835ad65f95613a8934114663b6610fe7fdd1600bd0792d40fd1bd001f";
+  string output = "04bc2cad3a09e0cb21766a4849104a332e567251bc1e272163000bd24532b3dec4190fc3b31b8d42ae6c25e592e5ece09f77d28a58e0fe3b161cb97b68dfda6c3c6029efa5a12cc9e69aa6cd4676719adabab9a9ba15e38bda1c0d8c3090af30d0999f909b5498ce";
+  boost::endian::big_uint64_t nonce = 0x957125643e939c09ull;
+  uint32_t diff = 76766076ul;
+
+  vector<char> inputBin, outputBin;
+
+  ASSERT_TRUE(Hex2Bin(input.data(), input.size(), inputBin));
+  ASSERT_TRUE(Hex2Bin(output.data(), output.size(), outputBin));
+
+  beam::Block::PoW pow;
+
+  ASSERT_EQ(outputBin.size(), beam::Block::PoW::nSolutionBytes);
+  memcpy(pow.m_Indices.data(), outputBin.data(), beam::Block::PoW::nSolutionBytes);
+
+  ASSERT_EQ(sizeof(nonce), beam::Block::PoW::NonceType::nBytes);
+  memcpy(pow.m_Nonce.m_pData, (const char *)&nonce, beam::Block::PoW::NonceType::nBytes);
+
+  pow.m_Difficulty = diff;
+
+  ASSERT_TRUE(pow.IsValid(inputBin.data(), inputBin.size()));
 }
