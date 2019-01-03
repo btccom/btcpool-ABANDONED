@@ -33,7 +33,7 @@ StratumJobBeam::StratumJobBeam()
 {
 }
 
-bool StratumJobBeam::initFromRawJob(const string &rawJob, const string &rpcAddr) {
+bool StratumJobBeam::initFromRawJob(const string &rawJob, const string &rpcAddr, const string &rpcUserPwd) {
   JsonNode jnode;
   if (!JsonNode::parse(rawJob.data(), rawJob.data() + rawJob.size(), jnode)) {
     LOG(ERROR) << "decode line fail, not a json string";
@@ -48,6 +48,7 @@ bool StratumJobBeam::initFromRawJob(const string &rawJob, const string &rpcAddr)
   input_ = jnode["input"].str();
   blockBits_ = jnode["difficulty"].uint32();
   rpcAddress_ = rpcAddr;
+  rpcUserPwd_ = rpcUserPwd;
 
   // jobId: timestamp + input_prefix, we need to make sure jobId is unique in a some time
   // jobId can convert to uint64_t

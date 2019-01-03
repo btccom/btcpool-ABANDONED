@@ -29,10 +29,8 @@
 ///////////////////////////////// ClientContainer //////////////////////////////
 ClientContainerBeam::ClientContainerBeam(const libconfig::Config &config)
   : ClientContainer(config)
+  , kafkaSolvedShareConsumer_(kafkaBrokers_.c_str(), config.lookup("poolwatcher.solved_share_topic").c_str(), 0/*patition*/)
 {
-  submitRpcBindAddr_ = config.lookup("poolwatcher.submit_rpc_bind_addr").c_str();
-  submitRpcBindPort_ = (int)config.lookup("poolwatcher.submit_rpc_bind_port");
-  exposedSubmitRpc_  = config.lookup("poolwatcher.exposed_submit_rpc").c_str();
 }
 
 ClientContainerBeam::~ClientContainerBeam() 
@@ -40,7 +38,143 @@ ClientContainerBeam::~ClientContainerBeam()
 }
 
 bool ClientContainerBeam::initInternal() {
+  // we need to consume the latest few
+  const int32_t kConsumeLatestN = 5;
+  
+  map<string, string> consumerOptions;
+  consumerOptions["fetch.wait.max.ms"] = "10";
+  if (kafkaSolvedShareConsumer_.setup(RD_KAFKA_OFFSET_TAIL(kConsumeLatestN),
+      &consumerOptions) == false) {
+    LOG(INFO) << "setup kafkaSolvedShareConsumer_ fail";
+    return false;
+  }
+
+  if (!kafkaSolvedShareConsumer_.checkAlive()) {
+    LOG(ERROR) << "kafka brokers is not alive";
+    return false;
+  }
+
+  threadSolvedShareConsume_ = thread(&ClientContainerBeam::runThreadSolvedShareConsume, this);
   return true;
+}
+
+void ClientContainerBeam::runThreadSolvedShareConsume() {
+  LOG(INFO) << "waiting for stratum jobs...";
+  for (;;) {
+    {
+      std::lock_guard<std::mutex> lock(jobCacheLock_);
+      if (jobCacheMap_.size() > 0) {
+        break;
+      }
+    }
+    sleep(1);
+  }
+
+  LOG(INFO) << "start solved share consume thread";
+  
+  const int32_t kTimeoutMs = 1000;
+
+  while (running_) {
+    rd_kafka_message_t *rkmessage;
+    rkmessage = kafkaSolvedShareConsumer_.consumer(kTimeoutMs);
+
+    // timeout, most of time it's not nullptr and set an error:
+    //          rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF
+    if (rkmessage == nullptr) {
+      continue;
+    }
+
+    consumeSolvedShare(rkmessage);
+
+    /* Return message to rdkafka */
+    rd_kafka_message_destroy(rkmessage);
+  }
+
+  LOG(INFO) << "stop solved share consume thread";
+}
+
+void ClientContainerBeam::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
+  // check error
+  if (rkmessage->err) {
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
+      // Reached the end of the topic+partition queue on the broker.
+      // Not really an error.
+      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
+      //      << "[" << rkmessage->partition << "] "
+      //      << " message queue at offset " << rkmessage->offset;
+      // acturlly
+      return;
+    }
+  
+    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
+    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
+    << ": " << rd_kafka_message_errstr(rkmessage);
+  
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
+        rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
+      LOG(FATAL) << "consume fatal";
+    }
+    return;
+  }
+
+  string json((const char*)rkmessage->payload, rkmessage->len);
+  JsonNode jroot;
+  if (!JsonNode::parse(json.c_str(), json.c_str()+json.size(), jroot)) {
+    LOG(ERROR) << "cannot parse solved share json: " << json;
+    return;
+  }
+
+  if (jroot["input"].type() != Utilities::JS::type::Str ||
+      jroot["output"].type() != Utilities::JS::type::Str ||
+      jroot["nonce"].type() != Utilities::JS::type::Str)
+  {
+    LOG(ERROR) << "solved share json missing fields: " << json;
+    return;
+  }
+
+  string   nonce          = jroot["nonce"].str();
+  string   input          = jroot["input"].str();
+  string   output         = jroot["output"].str();
+  uint32_t height         = jroot["height"].uint32();
+  string   blockBits      = jroot["blockBits"].str();
+  uint32_t userId         = jroot["userId"].uint32();
+  int64_t  workerId       = jroot["workerId"].int64();
+  string   workerFullName = jroot["workerFullName"].str();
+
+  LOG(INFO) << "received a new solved share, worker: " << workerFullName
+            << ", height: " << height << ", blockBits: " << blockBits
+            << ", input: " << input << ", nonce: " << nonce
+            << ", output: " << output;
+
+  std::lock_guard<std::mutex> lock(jobCacheLock_);
+  auto itr = jobCacheMap_.find(input);
+
+  if (itr == jobCacheMap_.end()) {
+    LOG(ERROR) << "cannot find stratum job of solved share: " << json;
+    return;
+  }
+
+  const JobCache &job = itr->second;
+  string submitJson = Strings::Format(
+    "{"
+      "\"jsonrpc\":\"2.0\","
+      "\"id\":\"%s\","
+      "\"method\":\"solution\","
+      "\"nonce\":\"%s\","
+      "\"output\":\"%s\""
+    "}\n",
+    job.jobId_.c_str(),
+    nonce.c_str(),
+    output.c_str()
+  );
+
+  auto client = std::dynamic_pointer_cast<PoolWatchClientBeam>(clients_[job.clientId_]);
+  if (!client) {
+    LOG(ERROR) << "client " << job.clientId_ << " is not available for the solved share: " << json;
+    return;
+  }
+
+  client->submitShare(submitJson);
 }
 
 PoolWatchClient* ClientContainerBeam::createPoolWatchClient(const libconfig::Setting &config) {
@@ -112,6 +246,11 @@ void PoolWatchClientBeam::onConnected() {
   state_ = SUBSCRIBED;
 }
 
+void PoolWatchClientBeam::submitShare(string submitJson) {
+  sendData(submitJson);
+  LOG(INFO) << "<" << poolName_ << "> submit solution: " << submitJson;
+}
+
 void PoolWatchClientBeam::handleStratumMessage(const string &line) {
   DLOG(INFO) << "<" << poolName_ << "> UpPoolWatchClient recv(" << line.size() << "): " << line;
 
@@ -140,7 +279,6 @@ void PoolWatchClientBeam::handleStratumMessage(const string &line) {
   }
 
   if (jmethod.type() == Utilities::JS::type::Str) {
-
     if (jmethod.str() == "job") {
       if (state_ == SUBSCRIBED) {
         // The beam node will not send a success response for the authentication request,
@@ -149,14 +287,15 @@ void PoolWatchClientBeam::handleStratumMessage(const string &line) {
       }
 
       StratumJobBeam sjob;
-      if (!sjob.initFromRawJob(line, containerBeam->getExposedSubmitRpc())) {
+      if (!sjob.initFromRawJob(line, Strings::Format("%s:%u", poolHost_.c_str(), poolPort_), workerName_)) {
         LOG(ERROR) << "<" << poolName_ << "> init stratum job failed, "
                    << "raw job: " << line;
       }
 
       containerBeam->sendJobToKafka(jid.str(), sjob, this);
+      return;
     }
-
-    return;
   }
+
+  LOG(INFO) << "<" << poolName_ << "> recv(" << line.size() << "): " << line;
 }

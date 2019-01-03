@@ -182,7 +182,7 @@ public:
   StratumJobBeam();
   string serializeToJson() const override;
   bool unserializeFromJson(const char *s, size_t len) override;
-  bool initFromRawJob(const string &rawJob, const string &rpcAddr);
+  bool initFromRawJob(const string &rawJob, const string &rpcAddr, const string &rpcUserPwd);
 
   uint32_t height_ = 0;
   uint32_t blockBits_;
