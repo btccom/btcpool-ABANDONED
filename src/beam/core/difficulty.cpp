@@ -187,6 +187,53 @@ namespace beam
 		}
 	}
 
+	void Difficulty::Pack(const Raw& ref) {
+		BigFloat x = BigFloat(ref);
+
+		// to packed.
+		m_Packed = 0;
+
+		if (x.m_Value)
+		{
+			assert(1 & (x.m_Value >> (BigFloat::nBits - 1)));
+			x.m_Order += (BigFloat::nBits - 1 - s_MantissaBits);
+			if (x.m_Order >= 0)
+			{
+				x.m_Value >>= (BigFloat::nBits - 1 - s_MantissaBits);
+				Pack(x.m_Order, x.m_Value);
+			}
+		}
+	}
+	
+	void Difficulty::Pack(uint64_t number) {
+		if (number == 0) {
+			m_Packed = 0;
+			return;
+		}
+
+		// Example:
+		// n = 0001 1010 1111 0000 1110 0101 0001 1110 0001 1010 1111 0000 1110 0101 0001 1110
+		//        ↑
+		//        order = 61 - 1
+		// n = 1.10101111... * 2^60
+		uint64_t x; uint32_t order;
+		for (x=number, order=0; x; x>>=1, order++);
+		--order;
+
+		// Example:
+		// a = number << 60
+		//   = 1010 1111 0000 1110 0101 0001 1110 0001 1010 1111 0000 1110 0101 0001 1110 0000
+		// b = a >> 40
+		//   = 1010 1111 0000
+		uint32_t mantissa = (number << (64 - order)) >> (64 - s_MantissaBits);
+		
+		// n = 1.1010 1111 0000 * 2^60
+		//   = 1 1010 1111 0000 * 2^(60-24)
+		//     ↑
+		//     hidden fixed bit
+		m_Packed = (order << s_MantissaBits) | mantissa;
+	}
+
 	double Difficulty::ToFloat() const
 	{
 		uint32_t order, mantissa;
@@ -196,7 +243,7 @@ namespace beam
 		return ldexp(mantissa, nOrderCorrected);
 	}
 
-	double Difficulty::ToFloat(Raw& x)
+	double Difficulty::ToFloat(const Raw& x)
 	{
 		double res = 0;
 

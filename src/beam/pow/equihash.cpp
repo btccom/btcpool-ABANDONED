@@ -42,6 +42,10 @@ struct Block::PoW::Helper
 
 		return d.IsTargetReached(hv);
 	}
+
+	void ComputeHash(const uint8_t* pSol, uint32_t nSol, ECC::Hash::Value &hv) const {
+		ECC::Hash::Processor() << Blob(pSol, nSol) >> hv;
+	}
 };
 
 bool Block::PoW::IsValid(const void* pInput, uint32_t nSizeInput) const
@@ -53,6 +57,21 @@ bool Block::PoW::IsValid(const void* pInput, uint32_t nSizeInput) const
     return
 		hlp.m_Eh.IsValidSolution(hlp.m_Blake, v) &&
 		hlp.TestDifficulty(&m_Indices.front(), (uint32_t) m_Indices.size(), m_Difficulty);
+}
+
+bool Block::PoW::ComputeHash(const void* pInput, uint32_t nSizeInput, ECC::Hash::Value &hv) const
+{
+	Helper hlp;
+	hlp.Reset(pInput, nSizeInput, m_Nonce);
+
+	std::vector<uint8_t> v(m_Indices.begin(), m_Indices.end());
+	
+    if (!hlp.m_Eh.IsValidSolution(hlp.m_Blake, v)) {
+		return false;
+	}
+
+	hlp.ComputeHash(&m_Indices.front(), (uint32_t) m_Indices.size(), hv);
+	return true;
 }
 
 } // namespace beam

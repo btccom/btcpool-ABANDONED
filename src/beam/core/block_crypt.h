@@ -46,6 +46,7 @@ namespace beam
 			Difficulty m_Difficulty;
 
 			bool IsValid(const void* pInput, uint32_t nSizeInput) const;
+			bool ComputeHash(const void* pInput, uint32_t nSizeInput, ECC::Hash::Value &hv) const;
 
 		private:
 			struct Helper;

@@ -477,7 +477,7 @@ add_library(btcpool STATIC ${LIB_SOURCES} ${LIB_SOURCES_CHAINS} ${LIB_SOURCES_DE
 
 file(GLOB_RECURSE TEST_SOURCES test/*.cc test/*.cpp)
 add_executable(unittest ${TEST_SOURCES})
-target_link_libraries(unittest beam equihash btcpool ${THIRD_LIBRARIES})
+target_link_libraries(unittest btcpool beam equihash ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE GBTMAKER_SOURCES src/gbtmaker/*.cc)
 add_executable(gbtmaker ${GBTMAKER_SOURCES})
@@ -496,7 +496,7 @@ add_executable(jobmaker ${JOBMAKER_SOURCES})
 target_link_libraries(jobmaker btcpool ${THIRD_LIBRARIES})
 
 add_executable(sserver src/sserver/StratumServerMain.cc)
-target_link_libraries(sserver btcpool ${THIRD_LIBRARIES})
+target_link_libraries(sserver btcpool beam equihash ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE STATSHTTPD_SOURCES src/statshttpd/*.cc)
 add_executable(statshttpd ${STATSHTTPD_SOURCES})

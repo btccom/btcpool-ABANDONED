@@ -98,7 +98,7 @@ bool ServerBeam::setupInternal(const libconfig::Config &config) {
   return true;
 }
 
-int ServerBeam::checkShareAndUpdateDiff(
+void ServerBeam::checkAndUpdateShare(
   size_t chainId,
   ShareBeam &share,
   shared_ptr<StratumJobEx> exjob,
@@ -112,72 +112,63 @@ int ServerBeam::checkShareAndUpdateDiff(
              << ", input: " << sjob->input_
              << ", output: " << output;
 
-#ifndef NDEBUG
-  // Calculate the time required of light verification.
-  timeval start, end;
-  long mtime, seconds, useconds;
-  gettimeofday(&start, NULL);
-#endif
-
-  uint256 shareTarget;
-  if (!Beam_ComputeHash(sjob->input_, share.nonce(), output, shareTarget)) {
-    return StratumStatus::INVALID_SOLUTION;
+  beam::Difficulty::Raw shareHash;
+  if (!Beam_ComputeHash(sjob->input_, share.nonce(), output, shareHash)) {
+    share.set_status(StratumStatus::INVALID_SOLUTION);
+    return;
   }
+  uint256 shareTarget = Beam_Uint256Conv(shareHash);
 
-#ifndef NDEBUG
-  gettimeofday(&end, NULL);
-  seconds = end.tv_sec - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-  mtime = ((seconds)*1000 + useconds / 1000.0) + 0.5;
-  // Note: The performance difference between Debug and Release builds is very large.
-  // The Release build may complete in 4 ms, while the Debug build takes 100 ms.
-  DLOG(INFO) << "equihash compute takes " << mtime << " ms";
-#endif
-
+  beam::Difficulty networkDiff(share.blockbits());
   uint256 networkTarget = Beam_BitsToTarget(share.blockbits());
-  
-  //can not compare two uint256 directly because uint256 is little endian and uses memcmp
-  arith_uint256 bnShareTarget = UintToArith256(shareTarget);
-  arith_uint256 bnNetworkTarget = UintToArith256(networkTarget);
   
   DLOG(INFO) << "comapre share target: " << shareTarget.GetHex()
              << ", network target: " << networkTarget.GetHex();
-  
-  // print out high diff share, 2^10 = 1024
-  if ((bnShareTarget >> 10) <= bnNetworkTarget) {
+
+  // print out high diff share
+  beam::Difficulty highDiff;
+  highDiff.Pack((uint64_t)(networkDiff.ToFloat() / 1024));
+  if (highDiff.IsTargetReached(shareHash)) {
     LOG(INFO) << "high diff share, share target: " << shareTarget.GetHex()
               << ", network target: " << networkTarget.GetHex()
               << ", worker: " << workFullName;
   }
 
-  if (isSubmitInvalidBlock_ || bnShareTarget <= bnNetworkTarget) {
+  if (isSubmitInvalidBlock_ || networkDiff.IsTargetReached(shareHash)) {
     LOG(INFO) << "solution found, share target: " << shareTarget.GetHex()
               << ", network target: " << networkTarget.GetHex()
               << ", worker: " << workFullName;
 
     if (exjob->isStale()) {
+      share.set_status(StratumStatus::SOLVED_STALE);
       LOG(INFO) << "stale solved share: " << share.toString();
-      return StratumStatus::SOLVED_STALE;
+      return;
     }
     else {
+      share.set_status(StratumStatus::SOLVED);
       LOG(INFO) << "solved share: " << share.toString();
-      return StratumStatus::SOLVED;
+      return;
     }
     
   }
 
   // higher difficulty is prior
   for (auto itr = jobDiffs.rbegin(); itr != jobDiffs.rend(); itr++) {
+    beam::Difficulty jobDiff;
+    jobDiff.Pack((uint64_t)*itr);
+
     uint256 jobTarget = Beam_DiffToTarget(*itr);
     DLOG(INFO) << "comapre share target: " << shareTarget.GetHex() << ", job target: " << jobTarget.GetHex();
 
-    if (isEnableSimulator_ || bnShareTarget <= UintToArith256(jobTarget)) {
+    if (isEnableSimulator_ || jobDiff.IsTargetReached(shareHash)) {
       share.set_sharediff(*itr);
-      return exjob->isStale() ? StratumStatus::ACCEPT_STALE : StratumStatus::ACCEPT;
+      share.set_status(exjob->isStale() ? StratumStatus::ACCEPT_STALE : StratumStatus::ACCEPT);
+      return;
     }
   }
 
-  return StratumStatus::LOW_DIFFICULTY;
+  share.set_status(StratumStatus::LOW_DIFFICULTY);
+  return;
 }
 
 void ServerBeam::sendSolvedShare2Kafka(

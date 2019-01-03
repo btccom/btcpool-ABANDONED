@@ -25,16 +25,21 @@
 
 #include <string>
 #include <uint256.h>
+#include "beam/core/block_crypt.h"
+#include "beam/core/difficulty.h"
 
 using std::string;
 
 uint256 Beam_BitsToTarget(uint32_t bits);
 uint32_t Beam_TargetToBits(const uint256 &target);
 
-uint256 Beam_DiffToTarget(double diff);
+uint256 Beam_DiffToTarget(uint64_t diff);
 double Beam_TargetToDiff(const uint256 &target);
 
 double Beam_BitsToDiff(uint32_t bits);
-uint32_t Beam_DiffToBits(double diff);
+uint32_t Beam_DiffToBits(uint64_t diff);
 
-bool Beam_ComputeHash(const string &input, const uint64_t nonce, const string &output, uint256 &hash);
+bool Beam_ComputeHash(const string &input, const uint64_t nonce, const string &output, beam::Difficulty::Raw &hash);
+
+uint256 Beam_Uint256Conv(const beam::Difficulty::Raw &raw);
+beam::Difficulty::Raw Beam_Uint256Conv(const uint256 &target);

@@ -126,14 +126,14 @@ void StratumMinerBeam::handleRequest_Submit(const string &idStr, const JsonNode 
     return;
   }
 
-  share.set_status(server.checkShareAndUpdateDiff(
+  server.checkAndUpdateShare(
     localJob->chainId_,
     share,
     exjob,
     output,
     jobDiff.jobDiffs_,
     worker.fullName_
-  ));
+  );
 
   if (StratumStatus::isAccepted(share.status())) {
     DLOG(INFO) << "share reached the diff: " << share.sharediff();

@@ -22,12 +22,10 @@
  THE SOFTWARE.
  */
 #include <glog/logging.h>
-#include <boost/endian/arithmetic.hpp>
-
 #include "gtest/gtest.h"
 #include "Common.h"
 #include "Utils.h"
-#include "beam/core/block_crypt.h"
+#include "beam/CommonBeam.h"
 
 TEST(Utils, Strings_Format) {
   for (int i = 1; i < 1024; i++) {
@@ -91,26 +89,55 @@ TEST(Utils, Bin2Hex)
 
 }
 
-TEST(Utils, BeamEquiHash) {
+/*
+* Logs from beam-node
+I 2019-01-03.11:52:01.533 GenerateNewBlock: size of block = 295; amount of tx = 0
+I 2019-01-03.11:52:01.533 Block generated: Height=151, Fee=0, Difficulty=04-935b7c(25.2098), Size=295
+I 2019-01-03.11:52:01.533 New job for external miner
+I 2019-01-03.11:52:01.533 stratum server new job 151 will be sent to 1 connected peers
+I 2019-01-03.11:52:01.533 send: {"difficulty":76766076,"id":"151","input":"1b77cd8835ad65f95613a8934114663b6610fe7fdd1600bd0792d40fd1bd001f","jsonrpc":"2.0","method":"job"}
+I 2019-01-03.11:52:01.534 Mining nonce = eb5764f7f0b56497
+I 2019-01-03.11:52:01.908 recv: {"method" : "solution", "id": "151", "nonce": "957125643e939c09", "output": "04bc2cad3a09e0cb21766a4849104a332e567251bc1e272163000bd24532b3dec4190fc3b31b8d42ae6c25e592e5ece09f77d28a58e0fe3b161cb97b68dfda6c3c6029efa5a12cc9e69aa6cd4676719adabab9a9ba15e38bda1c0d8c3090af30d0999f909b5498ce", "jsonrpc":"2.0" }
+D 2019-01-03.11:52:01.909  sol.nonce=957125643e939c09 sol.output=04bc2cad3a09e0cb21766a4849104a332e567251bc1e272163000bd24532b3dec4190fc3b31b8d42ae6c25e592e5ece09f77d28a58e0fe3b161cb97b68dfda6c3c6029efa5a12cc9e69aa6cd4676719adabab9a9ba15e38bda1c0d8c3090af30d0999f909b5498ce
+I 2019-01-03.11:52:01.909 stratum server solution to 151 from 127.0.0.1:2717
+*/
+TEST(Utils, BeamEquiHash_1) {
   string input = "1b77cd8835ad65f95613a8934114663b6610fe7fdd1600bd0792d40fd1bd001f";
   string output = "04bc2cad3a09e0cb21766a4849104a332e567251bc1e272163000bd24532b3dec4190fc3b31b8d42ae6c25e592e5ece09f77d28a58e0fe3b161cb97b68dfda6c3c6029efa5a12cc9e69aa6cd4676719adabab9a9ba15e38bda1c0d8c3090af30d0999f909b5498ce";
-  boost::endian::big_uint64_t nonce = 0x957125643e939c09ull;
-  uint32_t diff = 76766076ul;
+  uint64_t nonce = 0x957125643e939c09ull;
+  uint32_t bits = 76766076ul;
+  beam::Difficulty::Raw hash;
 
-  vector<char> inputBin, outputBin;
+  ASSERT_TRUE(Beam_ComputeHash(input, nonce, output, hash));
+  ASSERT_EQ(Beam_Uint256Conv(hash).ToString(), "007bb47a19e35751a5f42f45949e76358843e774caac0efa6441ede89443cc06");
 
-  ASSERT_TRUE(Hex2Bin(input.data(), input.size(), inputBin));
-  ASSERT_TRUE(Hex2Bin(output.data(), output.size(), outputBin));
+  double diff = Beam_BitsToDiff(bits);
+  ASSERT_EQ(Strings::Format("%0.4lf", diff), "25.2098");
 
-  beam::Block::PoW pow;
+  uint256 target = Beam_BitsToTarget(bits);
+  ASSERT_EQ(target.ToString(), "c0b7351900000000000000000000000000000000000000000000000000000000");
+}
 
-  ASSERT_EQ(outputBin.size(), beam::Block::PoW::nSolutionBytes);
-  memcpy(pow.m_Indices.data(), outputBin.data(), beam::Block::PoW::nSolutionBytes);
+TEST(Utils, BeamEquiHash_2) {
+  string input = "e936a073a3478210e52a098120210b690ac046c6dfa13152bef72d728ec60c99";
+  string output = "0294d542f7feb7daa6731e565231c1e3fe7889891da5b7c5c1a463d0cc1db347f7c5d3be4ea5e39e2bf47c45693ca08cf36977c33f03c27589e4695c12426b29d241e016d742c0f758ee0e100de84a47a723bb716cca1dd7b57d7f8d03a4e8884b6eff8c4fe7ce9f";
+  uint64_t nonce = 0x937125643e939c09ull;
+  uint32_t bits = 76433405ul;
+  beam::Difficulty::Raw hash;
 
-  ASSERT_EQ(sizeof(nonce), beam::Block::PoW::NonceType::nBytes);
-  memcpy(pow.m_Nonce.m_pData, (const char *)&nonce, beam::Block::PoW::NonceType::nBytes);
+  ASSERT_TRUE(Beam_ComputeHash(input, nonce, output, hash));
+  ASSERT_EQ(Beam_Uint256Conv(hash).ToString(), "631812289123ed3f64a10d2c3afa942fdfa76fc12ae1c9459f1da21c46205901");
 
-  pow.m_Difficulty = diff;
+  double diff = Beam_BitsToDiff(bits);
+  ASSERT_EQ(Strings::Format("%0.4lf", diff), "24.8926");
 
-  ASSERT_TRUE(pow.IsValid(inputBin.data(), inputBin.size()));
+  uint256 target = Beam_BitsToTarget(bits);
+  ASSERT_EQ(target.ToString(), "d07fe41800000000000000000000000000000000000000000000000000000000");
+}
+
+TEST(Utils, BeamDiffToBits) {
+  for (uint64_t i=1; i!=0; i<<=1) {
+    double diff = Beam_BitsToDiff(Beam_DiffToBits(i));
+    ASSERT_EQ(i, (uint64_t)diff);
+  }
 }

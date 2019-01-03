@@ -35,6 +35,9 @@ namespace beam
 		bool IsTargetReached(const ECC::uintBig&) const;
 
 		void Unpack(Raw&) const;
+		void Pack(const Raw&);
+		void Pack(uint64_t number);
+		void Pack(double number);
 
 		void Unpack(uint32_t& order, uint32_t& mantissa) const;
 		void Pack(uint32_t order, uint32_t mantissa);
@@ -47,7 +50,7 @@ namespace beam
 		friend Raw& operator -= (Raw&, const Difficulty&);
 
 		double ToFloat() const;
-		static double ToFloat(Raw&);
+		static double ToFloat(const Raw&);
 
 		struct BigFloat;
 

@@ -35,7 +35,7 @@ class ServerBeam : public ServerBase<JobRepositoryBeam>
 {
 public:
   bool setupInternal(const libconfig::Config &config) override;
-  int checkShareAndUpdateDiff(
+  void checkAndUpdateShare(
     size_t chainId,
     ShareBeam &share,
     shared_ptr<StratumJobEx> exjob,
