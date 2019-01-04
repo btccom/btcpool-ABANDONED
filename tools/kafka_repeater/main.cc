@@ -37,6 +37,7 @@
 #include "ShareConvertor.hpp"
 #include "ShareDiffChanger.hpp"
 #include "SharePrinter.hpp"
+#include "MessagePrinter.hpp"
 
 using namespace std;
 using namespace libconfig;
@@ -132,12 +133,14 @@ int main(int argc, char **argv) {
     bool enableShareDiffChangerBtcV1 = false;
     bool enableShareDiffChangerBtcV2ToV1 = false;
     bool enableSharePrinterBtcV1 = false;
+    bool enableMessageHexPrinter = false;
     int repeatedNumberDisplayInterval = 10;
 
     readFromSetting(cfg, "share_convertor.bitcoin_v2_to_v1", enableShareConvBtcV2ToV1, true);
     readFromSetting(cfg, "share_diff_changer.bitcoin_v1", enableShareDiffChangerBtcV1, true);
     readFromSetting(cfg, "share_diff_changer.bitcoin_v2_to_v1", enableShareDiffChangerBtcV2ToV1, true);
     readFromSetting(cfg, "share_printer.bitcoin_v1", enableSharePrinterBtcV1, true);
+    readFromSetting(cfg, "message_printer.print_hex", enableMessageHexPrinter, true);
     readFromSetting(cfg, "log.repeated_number_display_interval", repeatedNumberDisplayInterval, true);
 
 
@@ -183,6 +186,12 @@ int main(int argc, char **argv) {
     }
     else if (enableSharePrinterBtcV1) {
       gKafkaRepeater = new SharePrinterBitcoinV1(
+        cfg.lookup("kafka.in_brokers"), cfg.lookup("kafka.in_topic"), cfg.lookup("kafka.in_group_id"),
+        cfg.lookup("kafka.out_brokers"), cfg.lookup("kafka.out_topic")
+      );
+    }
+    else if (enableMessageHexPrinter) {
+      gKafkaRepeater = new MessagePrinter(
         cfg.lookup("kafka.in_brokers"), cfg.lookup("kafka.in_topic"), cfg.lookup("kafka.in_group_id"),
         cfg.lookup("kafka.out_brokers"), cfg.lookup("kafka.out_topic")
       );
