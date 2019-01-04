@@ -65,6 +65,9 @@ public:
 class PoolWatchClientBeam : public PoolWatchClient
 {
 protected:
+  std::mutex wantSubmittedSharesLock_;
+  string wantSubmittedShares_;
+
   void handleStratumMessage(const string &line) override;
 
 public:

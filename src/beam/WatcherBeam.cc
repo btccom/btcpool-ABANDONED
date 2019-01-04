@@ -247,6 +247,15 @@ void PoolWatchClientBeam::onConnected() {
 }
 
 void PoolWatchClientBeam::submitShare(string submitJson) {
+  {
+    std::lock_guard<std::mutex> lock(wantSubmittedSharesLock_);
+    if (state_ != AUTHENTICATED) {
+      LOG(INFO) << "<" << poolName_ << "> client is not ready, submission will be delayed";
+      wantSubmittedShares_ += submitJson;
+      return;
+    }
+  }
+
   sendData(submitJson);
   LOG(INFO) << "<" << poolName_ << "> submit solution: " << submitJson;
 }
@@ -281,9 +290,17 @@ void PoolWatchClientBeam::handleStratumMessage(const string &line) {
   if (jmethod.type() == Utilities::JS::type::Str) {
     if (jmethod.str() == "job") {
       if (state_ == SUBSCRIBED) {
+        std::lock_guard<std::mutex> lock(wantSubmittedSharesLock_);
+        
         // The beam node will not send a success response for the authentication request,
         // so the first job notify is used as a sign of successful authentication.
         state_ = AUTHENTICATED;
+        
+        if (!wantSubmittedShares_.empty()) {
+          sendData(wantSubmittedShares_);
+          LOG(INFO) << "<" << poolName_ << "> submit delayed solution: " << wantSubmittedShares_;
+          wantSubmittedShares_.clear();
+        }
       }
 
       StratumJobBeam sjob;
