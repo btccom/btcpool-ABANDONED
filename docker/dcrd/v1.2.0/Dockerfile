@@ -29,9 +29,6 @@ RUN cd ~/source && [ $(sha256sum decred-linux-amd64-v1.2.0.tar.gz | cut -d " " -
 # mkdir dcrd data dir
 RUN mkdir -p /root/.dcrd
 
-# logrotate
-ADD logrotate-dcrd /etc/logrotate.d/dcrd
-
 #
 # services
 #
