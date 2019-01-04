@@ -31,6 +31,28 @@
 #include <time.h>
 #include <stdlib.h>
 
+static const char _hexchars[] = "0123456789abcdef";
+
+static inline int _hex2bin_char(const char c) {
+  if (c >= '0' && c <= '9')
+    return c - '0';
+  if (c >= 'a' && c <= 'f')
+    return (c - 'a') + 10;
+  if (c >= 'A' && c <= 'F')
+    return (c - 'A') + 10;
+  return -1;
+}
+
+void Bin2Hex(const uint8_t *in, size_t len, std::string &str) {
+  str.clear();
+  const uint8_t *p = in;
+  while (len--) {
+    str.push_back(_hexchars[p[0] >> 4]);
+    str.push_back(_hexchars[p[0] & 0xf]);
+    ++p;
+  }
+}
+
 std::string date(const char *format, const time_t timestamp) {
   char buffer[80] = {0};
   struct tm tm;
