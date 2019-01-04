@@ -53,8 +53,7 @@ void BlockMakerDecred::submitBlockHeader(const NodeDefinition& node, const Block
   string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getwork\",\"params\":[\"";
   request += HexStr(BEGIN(header), END(header)) + "8000000100000000000005a0\"]}";
 
-  LOG(INFO) << "submit block to: " << node.rpcAddr_;
-  DLOG(INFO) << "submitblock request: " << request;
+  LOG(INFO) << "submit block to: " << node.rpcAddr_ << ", request: " << request;
   // try N times
   for (size_t i = 0; i < 3; i++) {
     string response;
