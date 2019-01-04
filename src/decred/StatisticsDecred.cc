@@ -35,7 +35,7 @@ void ShareStatsDay<ShareDecred>::processShare(uint32_t hourIdx, const ShareDecre
     shareAccept1d_          += share.sharediff();
 
     double score = share.score();
-    double reward = GetBlockRewardDecredShare(share.height(), NetworkParamsDecred::get((NetworkDecred)share.network()));
+    double reward = GetBlockRewardDecredWork(share.height(), share.voters(), NetworkParamsDecred::get((NetworkDecred)share.network()));
     double earn = score * reward;
 
     score1h_[hourIdx] += score;
