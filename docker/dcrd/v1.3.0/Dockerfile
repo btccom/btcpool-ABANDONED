@@ -20,10 +20,10 @@ RUN apt-get update && apt-get install -y net-tools wget
 
 # download dcrd
 RUN mkdir ~/source
-RUN cd ~/source && wget https://github.com/decred/decred-binaries/releases/download/v1.2.0/decred-linux-amd64-v1.2.0.tar.gz
-RUN cd ~/source && [ $(sha256sum decred-linux-amd64-v1.2.0.tar.gz | cut -d " " -f 1) = "2ff1735463f6127ef6762907314f58c73a91e8d47d7692be208fc9be163a2bde" ] && \
-  tar zxvf decred-linux-amd64-v1.2.0.tar.gz && \
-  cp decred-linux-amd64-v1.2.0/dcr* /usr/local/bin
+RUN cd ~/source && wget https://github.com/decred/decred-binaries/releases/download/v1.3.0/decred-linux-amd64-v1.3.0.tar.gz
+RUN cd ~/source && [ $(sha256sum decred-linux-amd64-v1.3.0.tar.gz | cut -d " " -f 1) = "5002a68d4ddffe775b1f05d454c739ffac6b8e7ea8c3b044b38f0d7594bf294e" ] && \
+  tar zxvf decred-linux-amd64-v1.3.0.tar.gz && \
+  cp decred-linux-amd64-v1.3.0/dcr* /usr/local/bin
 
 # mkdir dcrd data dir
 RUN mkdir -p /root/.dcrd
