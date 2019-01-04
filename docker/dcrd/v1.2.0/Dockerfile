@@ -6,7 +6,7 @@
 # @since 2018-09-10
 #
 #
-FROM phusion/baseimage:0.9.22
+FROM phusion/baseimage:0.10.2
 LABEL maintainer="Hanjiang Yu <hanjiang.yu@bitmain.com>"
 
 ENV HOME /root
@@ -16,8 +16,7 @@ CMD ["/sbin/my_init"]
 # use aliyun source
 #ADD sources-aliyun.com.list /etc/apt/sources.list
 
-RUN DEBIAN_FRONTEND=noninteractive apt-get update
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y wget
+RUN apt-get update && apt-get install -y net-tools wget
 
 # download dcrd
 RUN mkdir ~/source
