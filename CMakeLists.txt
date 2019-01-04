@@ -520,7 +520,7 @@ target_link_libraries(simulator btcpool ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE POOLWATCHER_SOURCES src/poolwatcher/*.cc)
 add_executable(poolwatcher ${POOLWATCHER_SOURCES})
-target_link_libraries(poolwatcher btcpool ${THIRD_LIBRARIES})
+target_link_libraries(poolwatcher btcpool beam equihash ${THIRD_LIBRARIES})
 
 ###################################### Install & Package ######################################
 message("") # empty line

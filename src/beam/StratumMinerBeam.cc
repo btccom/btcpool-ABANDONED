@@ -126,13 +126,15 @@ void StratumMinerBeam::handleRequest_Submit(const string &idStr, const JsonNode 
     return;
   }
 
+  uint256 blockHash;
   server.checkAndUpdateShare(
     localJob->chainId_,
     share,
     exjob,
     output,
     jobDiff.jobDiffs_,
-    worker.fullName_
+    worker.fullName_,
+    blockHash
   );
 
   if (StratumStatus::isAccepted(share.status())) {
@@ -150,7 +152,8 @@ void StratumMinerBeam::handleRequest_Submit(const string &idStr, const JsonNode 
         share,
         sjob->input_,
         output,
-        worker
+        worker,
+        blockHash
       );
     }
   } else {

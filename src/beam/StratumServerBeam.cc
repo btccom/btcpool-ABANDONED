@@ -104,7 +104,8 @@ void ServerBeam::checkAndUpdateShare(
   shared_ptr<StratumJobEx> exjob,
   const string &output,
   const std::set<uint64_t> &jobDiffs,
-  const string &workFullName
+  const string &workFullName,
+  uint256 &computedShareHash
 ) {
   StratumJobBeam *sjob = dynamic_cast<StratumJobBeam *>(exjob->sjob_);
   
@@ -117,25 +118,25 @@ void ServerBeam::checkAndUpdateShare(
     share.set_status(StratumStatus::INVALID_SOLUTION);
     return;
   }
-  uint256 shareTarget = Beam_Uint256Conv(shareHash);
+  computedShareHash = Beam_Uint256Conv(shareHash);
 
   beam::Difficulty networkDiff(share.blockbits());
   uint256 networkTarget = Beam_BitsToTarget(share.blockbits());
   
-  DLOG(INFO) << "comapre share target: " << shareTarget.GetHex()
+  DLOG(INFO) << "comapre share hash: " << computedShareHash.GetHex()
              << ", network target: " << networkTarget.GetHex();
 
   // print out high diff share
   beam::Difficulty highDiff;
   highDiff.Pack((uint64_t)(networkDiff.ToFloat() / 1024));
   if (highDiff.IsTargetReached(shareHash)) {
-    LOG(INFO) << "high diff share, share target: " << shareTarget.GetHex()
+    LOG(INFO) << "high diff share, share hash: " << computedShareHash.GetHex()
               << ", network target: " << networkTarget.GetHex()
               << ", worker: " << workFullName;
   }
 
   if (isSubmitInvalidBlock_ || networkDiff.IsTargetReached(shareHash)) {
-    LOG(INFO) << "solution found, share target: " << shareTarget.GetHex()
+    LOG(INFO) << "solution found, share hash: " << computedShareHash.GetHex()
               << ", network target: " << networkTarget.GetHex()
               << ", worker: " << workFullName;
 
@@ -158,7 +159,7 @@ void ServerBeam::checkAndUpdateShare(
     jobDiff.Pack((uint64_t)*itr);
 
     uint256 jobTarget = Beam_DiffToTarget(*itr);
-    DLOG(INFO) << "comapre share target: " << shareTarget.GetHex() << ", job target: " << jobTarget.GetHex();
+    DLOG(INFO) << "comapre share hash: " << computedShareHash.GetHex() << ", job target: " << jobTarget.GetHex();
 
     if (isEnableSimulator_ || jobDiff.IsTargetReached(shareHash)) {
       share.set_sharediff(*itr);
@@ -176,17 +177,18 @@ void ServerBeam::sendSolvedShare2Kafka(
     const ShareBeam &share,
     const string &input,
     const string& output,
-    const StratumWorker &worker
+    const StratumWorker &worker,
+    const uint256 &blockHash
 ) {
   string msg = Strings::Format(
     "{\"nonce\":\"%016" PRIx64 "\",\"input\":\"%s\",\"output\":\"%s\","
     "\"height\":%u,\"blockBits\":\"%08x\",\"userId\":%d,"
     "\"workerId\":%" PRId64 ",\"workerFullName\":\"%s\","
-    "\"chain\":\"%s\"}",
+    "\"blockHash\":\"%s\",\"chain\":\"%s\"}",
     share.nonce(), input.c_str(), output.c_str(),
     share.height(), share.blockbits(), worker.userId_,
     worker.workerHashId_, filterWorkerName(worker.fullName_).c_str(),
-    "BEAM"
+    blockHash.ToString().c_str(), "BEAM"
   );
   ServerBase::sendSolvedShare2Kafka(chainId, msg.c_str(), msg.length());
 }

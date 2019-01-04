@@ -25,6 +25,7 @@
 
 #include "Watcher.h"
 #include "StratumBeam.h"
+#include "MySQLConnection.h"
 
 #include <queue>
 
@@ -39,6 +40,8 @@ protected:
     StratumJobBeam sJob_;
     size_t clientId_;
   };
+  
+  MysqlConnectInfo poolDB_; // save blocks to table `found_blocks`
 
   KafkaConsumer kafkaSolvedShareConsumer_;  // consume solved_share_topic
   thread threadSolvedShareConsume_;
@@ -58,6 +61,8 @@ public:
   ~ClientContainerBeam();
 
   bool sendJobToKafka(const string jobId, const StratumJobBeam &job, PoolWatchClientBeam *client);
+
+  MysqlConnectInfo& getMysqlInfo() { return poolDB_; }
 };
 
 

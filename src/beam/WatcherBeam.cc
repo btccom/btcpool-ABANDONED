@@ -29,6 +29,13 @@
 ///////////////////////////////// ClientContainer //////////////////////////////
 ClientContainerBeam::ClientContainerBeam(const libconfig::Config &config)
   : ClientContainer(config)
+  , poolDB_(
+      config.lookup("pooldb.host").c_str(),
+      (int)config.lookup("pooldb.port"),
+      config.lookup("pooldb.username").c_str(),
+      config.lookup("pooldb.password").c_str(),
+      config.lookup("pooldb.dbname").c_str()
+    )
   , kafkaSolvedShareConsumer_(kafkaBrokers_.c_str(), config.lookup("poolwatcher.solved_share_topic").c_str(), 0/*patition*/)
 {
 }
@@ -140,17 +147,21 @@ void ClientContainerBeam::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
   uint32_t userId         = jroot["userId"].uint32();
   int64_t  workerId       = jroot["workerId"].int64();
   string   workerFullName = jroot["workerFullName"].str();
+  string   blockHash      = jroot["blockHash"].str();
 
   LOG(INFO) << "received a new solved share, worker: " << workerFullName
-            << ", height: " << height << ", blockBits: " << blockBits
-            << ", input: " << input << ", nonce: " << nonce
+            << ", height: " << height
+            << ", blockHash: " << blockHash
+            << ", blockBits: " << blockBits
+            << ", input: " << input
+            << ", nonce: " << nonce
             << ", output: " << output;
 
   std::lock_guard<std::mutex> lock(jobCacheLock_);
   auto itr = jobCacheMap_.find(input);
 
   if (itr == jobCacheMap_.end()) {
-    LOG(ERROR) << "cannot find stratum job of solved share: " << json;
+    LOG(WARNING) << "cannot find stratum job of solved share: " << json;
     return;
   }
 
@@ -175,6 +186,50 @@ void ClientContainerBeam::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
   }
 
   client->submitShare(submitJson);
+
+  // save block to DB
+  const string nowStr = date("%F %T");
+  string sql = Strings::Format(
+    "INSERT INTO `found_blocks`("
+    "  `puid`, `worker_id`"
+    ", `worker_full_name`"
+    ", `height`, `hash`"
+    ", `input`, `nonce`"
+    ", `rewards`, `block_bits`"
+    ", `created_at`) "
+    "VALUES("
+    "  %ld, %" PRId64
+    ", '%s'"
+    ", %lu, '%s'"
+    ", '%s', '%s'"
+    ", %" PRId64 ", '%s'"
+    ", '%s');",
+    userId, workerId,
+    filterWorkerName(workerFullName).c_str(),
+    height, blockHash.c_str(),
+    input.c_str(), nonce.c_str(),
+    (int64_t)Beam_GetStaticBlockReward(height), blockBits.c_str(),
+    nowStr.c_str()
+  );
+  MysqlConnectInfo info = client->GetContainerBeam()->getMysqlInfo();
+  std::thread t([sql, info, blockHash]() {
+    // try connect to DB
+    MySQLConnection db(info);
+    for (size_t i = 0; i < 3; i++) {
+      if (db.ping())
+        break;
+      else
+        sleep(3);
+    }
+
+    if (db.execute(sql) == false) {
+      LOG(ERROR) << "insert found block failure: " << sql;
+      return;
+    }
+
+    LOG(INFO) << "insert found block success for hash " << blockHash;
+  });
+  t.detach();
 }
 
 PoolWatchClient* ClientContainerBeam::createPoolWatchClient(const libconfig::Setting &config) {
@@ -190,7 +245,7 @@ bool ClientContainerBeam::sendJobToKafka(const string jobId, const StratumJobBea
     }
   }
   if (clientId >= clients_.size()) {
-    LOG(ERROR) << "Drop a job that its client has been destroyed: " << job.serializeToJson();
+    LOG(ERROR) << "discard a job that its client has been destroyed: " << job.serializeToJson();
     return false;
   }
 

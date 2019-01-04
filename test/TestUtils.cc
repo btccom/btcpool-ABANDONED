@@ -141,3 +141,14 @@ TEST(Utils, BeamDiffToBits) {
     ASSERT_EQ(i, (uint64_t)diff);
   }
 }
+
+TEST(Utils, BeamDiff1ToTarget) {
+  uint256 target = Beam_DiffToTarget((uint64_t)1);
+  ASSERT_EQ(target.ToString(), "0000000100000000000000000000000000000000000000000000000000000000");
+
+  target = Beam_DiffToTarget((uint64_t)2);
+  ASSERT_EQ(target.ToString(), "0000000200000000000000000000000000000000000000000000000000000000");
+
+  target = Beam_DiffToTarget((uint64_t)1024);
+  ASSERT_EQ(target.ToString(), "0000000004000000000000000000000000000000000000000000000000000000");
+}

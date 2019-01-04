@@ -41,14 +41,16 @@ public:
     shared_ptr<StratumJobEx> exjob,
     const string &output,
     const std::set<uint64_t> &jobDiffs,
-    const string &workFullName
+    const string &workFullName,
+    uint256 &computedShareHash
   );
   void sendSolvedShare2Kafka(
     size_t chainId,
     const ShareBeam &share,
     const string &input,
     const string& output,
-    const StratumWorker &worker
+    const StratumWorker &worker,
+    const uint256 &blockHash
   );
 
   JobRepository* createJobRepository(
