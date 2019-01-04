@@ -1,0 +1,12 @@
+#! /bin/bash
+#
+# run shell for dcrd
+#
+# @copyright btc.com
+# @author hanjiang.yu@bitmain.com
+#
+export LC_ALL=C
+SROOT=$(cd $(dirname "$0"); pwd)
+cd $SROOT
+
+/usr/local/bin/dcrd --appdata=/root/.dcrd
