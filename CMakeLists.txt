@@ -471,6 +471,7 @@ file(GLOB LIB_SOURCES_CHAINS
         src/sia/*.cc
         src/decred/*.cc
         src/beam/*.cc
+        src/grin/*.cc
     )
 
 add_library(btcpool STATIC ${LIB_SOURCES} ${LIB_SOURCES_CHAINS} ${LIB_SOURCES_DECRED})

@@ -39,6 +39,7 @@
 #include "Utils.h"
 #include "bitcoin/WatcherBitcoin.h"
 #include "beam/WatcherBeam.h"
+#include "grin/WatcherGrin.h"
 
 #include <chainparams.h>
 
@@ -71,6 +72,8 @@ ClientContainer* createClientContainer(const libconfig::Config &cfg) {
     return new ClientContainerBitcoin(cfg);
   else if ("BEAM" == type)
     return new ClientContainerBeam(cfg);
+  else if ("GRIN" == type)
+    return new ClientContainerGrin(cfg);
 
   LOG(FATAL) << "Unknown PoolWatcher Type: " << type;
   return nullptr;
