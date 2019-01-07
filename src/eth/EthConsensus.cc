@@ -93,9 +93,12 @@ int64_t EthConsensus::getStaticBlockRewardClassic(int nHeight) {
 }
 
 // static block rewards of Ethereum Main Network
-int64_t EthConsensus::getStaticBlockRewardFoundation(int /*nHeight*/) {
-  // Ethereum Main Network has a static block reward (3 Ether) at current.
-  // And it seems does not have a clear block reward policy for the long-term.
+int64_t EthConsensus::getStaticBlockRewardFoundation(int nHeight) {
+ // Constantinople fork at block 7080000 on Mainnet.
+  if (nHeight >= 7080000) {
+    return 2e+18;
+  }
+  // Ethereum Main Network has a static block reward (3 Ether) before height 7080000.
   return 3e+18;
 }
 
