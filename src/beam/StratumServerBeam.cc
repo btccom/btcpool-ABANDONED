@@ -108,10 +108,15 @@ void ServerBeam::checkAndUpdateShare(
   uint256 &computedShareHash
 ) {
   StratumJobBeam *sjob = dynamic_cast<StratumJobBeam *>(exjob->sjob_);
-  
+
   DLOG(INFO) << "checking share nonce: " << hex << share.nonce()
              << ", input: " << sjob->input_
              << ", output: " << output;
+
+  if (exjob->isStale()) {
+    share.set_status(StratumStatus::JOB_NOT_FOUND);
+    return;
+  }
 
   beam::Difficulty::Raw shareHash;
   if (!Beam_ComputeHash(sjob->input_, share.nonce(), output, shareHash)) {
@@ -122,7 +127,7 @@ void ServerBeam::checkAndUpdateShare(
 
   beam::Difficulty networkDiff(share.blockbits());
   uint256 networkTarget = Beam_BitsToTarget(share.blockbits());
-  
+
   DLOG(INFO) << "comapre share hash: " << computedShareHash.GetHex()
              << ", network target: " << networkTarget.GetHex();
 
@@ -140,17 +145,9 @@ void ServerBeam::checkAndUpdateShare(
               << ", network target: " << networkTarget.GetHex()
               << ", worker: " << workFullName;
 
-    if (exjob->isStale()) {
-      share.set_status(StratumStatus::SOLVED_STALE);
-      LOG(INFO) << "stale solved share: " << share.toString();
-      return;
-    }
-    else {
-      share.set_status(StratumStatus::SOLVED);
-      LOG(INFO) << "solved share: " << share.toString();
-      return;
-    }
-    
+    share.set_status(StratumStatus::SOLVED);
+    LOG(INFO) << "solved share: " << share.toString();
+    return;
   }
 
   // higher difficulty is prior
@@ -163,7 +160,7 @@ void ServerBeam::checkAndUpdateShare(
 
     if (isEnableSimulator_ || jobDiff.IsTargetReached(shareHash)) {
       share.set_sharediff(*itr);
-      share.set_status(exjob->isStale() ? StratumStatus::ACCEPT_STALE : StratumStatus::ACCEPT);
+      share.set_status(StratumStatus::ACCEPT);
       return;
     }
   }
