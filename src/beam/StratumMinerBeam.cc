@@ -155,6 +155,8 @@ void StratumMinerBeam::handleRequest_Submit(const string &idStr, const JsonNode 
         worker,
         blockHash
       );
+      // mark jobs as stale
+      server.GetJobRepository(exjob->chainId_)->markAllJobsAsStale();
     }
   } else {
     // check if there is invalid share spamming

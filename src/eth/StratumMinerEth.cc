@@ -227,6 +227,8 @@ void StratumMinerEth::handleRequest_Submit(const string &idStr, const JsonNode &
   if (handleShare(idStr, share.status(), share.sharediff())) {
     if (StratumStatus::isSolved(share.status())) {
       server.sendSolvedShare2Kafka(localJob->chainId_, sNonce, sHeader, shareMixHash.GetHex(), height, networkDiff, worker, chain);
+      // mark jobs as stale
+      server.GetJobRepository(exjob->chainId_)->markAllJobsAsStale();
     }
   } else {
     // check if there is invalid share spamming
