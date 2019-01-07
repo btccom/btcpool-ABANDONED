@@ -153,7 +153,7 @@ public:
   bool setupThreadConsume();
   void markAllJobsAsStale();
   
-  void setMaxJobDelay (const time_t maxJobDelay);
+  void setMaxJobLifeTime (const time_t maxJobLifeTime);
   void sendMiningNotify(shared_ptr<StratumJobEx> exJob);
   shared_ptr<StratumJobEx> getStratumJobEx(const uint64_t jobId);
   shared_ptr<StratumJobEx> getLatestStratumJobEx();

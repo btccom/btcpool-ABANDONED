@@ -124,9 +124,9 @@ JobRepository::~JobRepository() {
     threadConsume_.join();
 }
 
-void JobRepository::setMaxJobDelay (const time_t maxJobDelay) {
-  LOG(INFO) << "set max job delay to " << maxJobDelay << "s";
-  kMaxJobsLifeTime_ = maxJobDelay;
+void JobRepository::setMaxJobLifeTime (const time_t maxJobLifeTime) {
+  LOG(INFO) << "set max job lifetime to " << maxJobLifeTime << "s";
+  kMaxJobsLifeTime_ = maxJobLifeTime;
 }
 
 shared_ptr<StratumJobEx> JobRepository::getStratumJobEx(const uint64_t jobId) {
@@ -589,7 +589,7 @@ bool StratumServer::setup(const libconfig::Config &config) {
 
   // ------------------- Init JobRepository -------------------
   for (ChainVars &chain : chains_) {
-    chain.jobRepository_->setMaxJobDelay(maxJobLifetime);
+    chain.jobRepository_->setMaxJobLifeTime(maxJobLifetime);
     if (!chain.jobRepository_->setupThreadConsume()) {
       LOG(ERROR) << "init JobRepository for chain " << chain.name_ << " failed";
       return false;
