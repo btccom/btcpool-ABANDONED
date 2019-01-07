@@ -227,7 +227,7 @@ void ClientContainerBeam::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
       return;
     }
 
-    LOG(INFO) << "insert found block success for hash " << blockHash;
+    LOG(INFO) << "insert found block " << blockHash << " success";
   });
   t.detach();
 }

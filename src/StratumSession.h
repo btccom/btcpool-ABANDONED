@@ -99,7 +99,7 @@ public:
 protected:
   StratumServer &server_;
   struct bufferevent *bev_;
-  uint32_t extraNonce1_;
+  uint32_t sessionId_;
   struct evbuffer *buffer_;
 
   uint32_t clientIpInt_;
@@ -133,7 +133,7 @@ protected:
   virtual bool validate(const JsonNode &jmethod, const JsonNode &jparams, const JsonNode &jroot);
   virtual std::unique_ptr<StratumMessageDispatcher> createDispatcher();
 
-  StratumSession(StratumServer &server, struct bufferevent *bev, struct sockaddr *saddr, uint32_t extraNonce1);
+  StratumSession(StratumServer &server, struct bufferevent *bev, struct sockaddr *saddr, uint32_t sessionId);
 
 public:
   virtual ~StratumSession();
@@ -145,7 +145,7 @@ public:
   StratumWorker &getWorker() { return worker_; }
   StratumMessageDispatcher &getDispatcher() override { return *dispatcher_; }
   uint32_t getClientIp() const { return clientIpInt_; };
-  uint32_t getSessionId() const { return extraNonce1_; }
+  uint32_t getSessionId() const { return sessionId_; }
   size_t getChainId() const { return chainId_; }
   State getState() const { return state_; }
   string getUserName() const { return worker_.userName_; }
@@ -180,8 +180,8 @@ class StratumSessionBase : public StratumSession
 {
 protected:
   using ServerType = typename StratumTraits::ServerType;
-  StratumSessionBase(ServerType &server, struct bufferevent *bev, struct sockaddr *saddr, uint32_t extraNonce1)
-      : StratumSession(server, bev, saddr, extraNonce1)
+  StratumSessionBase(ServerType &server, struct bufferevent *bev, struct sockaddr *saddr, uint32_t sessionId)
+      : StratumSession(server, bev, saddr, sessionId)
       , kMaxNumLocalJobs_(10)
   {
     // usually stratum job interval is 30~60 seconds, 10 is enough for miners

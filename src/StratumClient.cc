@@ -55,7 +55,7 @@ StratumClient::StratumClient(struct event_base* base,
   state_ = INIT;
   latestDiff_ = 1;
 
-  extraNonce1_ = 0u;
+  sessionId_ = 0u;
   extraNonce2Size_ = 8;
 
   // use random extraNonce2_
@@ -166,9 +166,9 @@ void StratumClient::handleLine(const string &line) {
       return;
     }
 
-    extraNonce1_     = resArr[1].uint32_hex();
+    sessionId_     = resArr[1].uint32_hex();
     extraNonce2Size_ = resArr[2].int32();
-    DLOG(INFO) << "extraNonce1_: " << extraNonce1_ << ", extraNonce2Size_: " << extraNonce2Size_;
+    DLOG(INFO) << "sessionId_: " << sessionId_ << ", extraNonce2Size_: " << extraNonce2Size_;
 
     // mining.authorize
     state_ = SUBSCRIBED;

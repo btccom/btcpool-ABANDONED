@@ -41,8 +41,8 @@ struct StratumMessageExSubmit {
 StratumSessionBitcoin::StratumSessionBitcoin(ServerBitcoin &server,
                                              struct bufferevent *bev,
                                              struct sockaddr *saddr,
-                                             uint32_t extraNonce1)
-    : StratumSessionBase(server, bev, saddr, extraNonce1)
+                                             uint32_t sessionId)
+    : StratumSessionBase(server, bev, saddr, sessionId)
     , shortJobIdIdx_(0)
     , versionMask_(0)
     , suggestedMinDiff_(0) {
@@ -286,8 +286,8 @@ void StratumSessionBitcoin::handleRequest_Subscribe(const string &idStr,
 
   setClientAgent(jparams.children()->at(0).str().substr(0, 30));  // 30 is max len
 
-  string extraNonce1Str = jparams.children()->at(1).str().substr(0, 8);  // 8 is max len
-  sscanf(extraNonce1Str.c_str(), "%x", &extraNonce1_); // convert hex to int
+  string sessionIdStr = jparams.children()->at(1).str().substr(0, 8);  // 8 is max len
+  sscanf(sessionIdStr.c_str(), "%x", &sessionId_); // convert hex to int
 
   // receive miner's IP from stratumSwitcher
   if (jparams.children()->size() >= 3) {
@@ -326,7 +326,7 @@ void StratumSessionBitcoin::handleRequest_Subscribe(const string &idStr,
   assert(StratumMiner::kExtraNonce2Size_ == 8);
   auto s = Strings::Format("{\"id\":%s,\"result\":[[[\"mining.set_difficulty\",\"%08x\"]"
                            ",[\"mining.notify\",\"%08x\"]],\"%08x\",%d],\"error\":null}\n",
-                           idStr.c_str(), extraNonce1_, extraNonce1_, extraNonce1_, StratumMiner::kExtraNonce2Size_);
+                           idStr.c_str(), sessionId_, sessionId_, sessionId_, StratumMiner::kExtraNonce2Size_);
   sendData(s);
 }
 
@@ -392,7 +392,7 @@ string StratumSessionBitcoin::getMinerInfoJson(const string &type) {
                           worker_.userId_, worker_.userName_.c_str(),
                           worker_.workerHashId_, worker_.workerName_.c_str(),
                           clientAgent_.c_str(), clientIp_.c_str(),
-                          extraNonce1_, versionMask_);
+                          sessionId_, versionMask_);
 }
 
 unique_ptr<StratumMessageDispatcher> StratumSessionBitcoin::createDispatcher() {

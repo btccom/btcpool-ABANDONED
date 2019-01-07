@@ -132,7 +132,7 @@ void StratumSessionDecred::handleRequest_Subscribe(const string &idStr,
   setClientAgent(jparams.children()->at(0).str().substr(0, 30));  // 30 is max len
 
   string extNonce1Str = jparams.children()->at(1).str().substr(0, 8);  // 8 is max len
-  sscanf(extNonce1Str.c_str(), "%x", &extraNonce1_); // convert hex to int
+  sscanf(extNonce1Str.c_str(), "%x", &sessionId_); // convert hex to int
 
   // receive miner's IP from stratumSwitcher
   if (jparams.children()->size() >= 3) {
@@ -168,10 +168,10 @@ void StratumSessionDecred::handleRequest_Subscribe(const string &idStr,
   //              to us: one will take first 4 bytes and another will take last four bytes so we put
   //              the value on both places.
   //  result[2] = ExtraNonce2_size, the number of bytes that the miner users for its ExtraNonce2 counter
-  auto extraNonce1Str = protocol_.getExtraNonce1String(extraNonce1_);
+  auto extraNonce1Str = protocol_.getExtraNonce1String(sessionId_);
   const string s = Strings::Format("{\"id\":%s,\"result\":[[[\"mining.set_difficulty\",\"%08x\"]"
                                    ",[\"mining.notify\",\"%08x\"]],\"%s\",%d],\"error\":null}\n",
-                                   idStr.c_str(), extraNonce1_, extraNonce1_, extraNonce1Str.c_str(), StratumMiner::kExtraNonce2Size_);
+                                   idStr.c_str(), sessionId_, sessionId_, extraNonce1Str.c_str(), StratumMiner::kExtraNonce2Size_);
   sendData(s);
 }
 

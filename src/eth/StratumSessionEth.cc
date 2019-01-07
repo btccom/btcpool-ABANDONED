@@ -99,9 +99,9 @@ void StratumSessionEth::sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr
 
   string strShareTarget = Eth_DifficultyToTarget(currentJobDiff_);
 
-  // extraNonce1_ == Session ID, 24 bits.
+  // Session ID, 24 bits.
   // Miners will fills 0 after the prefix to 64 bits.
-  uint32_t startNoncePrefix = extraNonce1_;
+  uint32_t startNoncePrefix = sessionId_;
 
   // Tips: NICEHASH_STRATUM use an extrNnonce, it is really an extraNonce (not startNonce)
   // and is sent at the subscribe of the session.
@@ -249,7 +249,7 @@ void StratumSessionEth::handleRequest_Subscribe(const string &idStr,
     }
 
     string extraNonce1Str = params->at(2).str().substr(0, 8);  // 8 is max len
-    sscanf(extraNonce1Str.c_str(), "%x", &extraNonce1_); // convert hex to int
+    sscanf(extraNonce1Str.c_str(), "%x", &sessionId_); // convert hex to int
 
     // receive miner's IP from stratumSwitcher
     if (params->size() >= 4) {
@@ -267,7 +267,7 @@ void StratumSessionEth::handleRequest_Subscribe(const string &idStr,
   if (protocolStr.substr(0, 16) == "ethereumstratum/") {
     ethProtocol_ = StratumProtocolEth::NICEHASH_STRATUM;
 
-    string noncePrefix = Strings::Format("%06x", extraNonce1_);
+    string noncePrefix = Strings::Format("%06x", sessionId_);
     if (isNiceHashClient_) {
       // NiceHash only accepts 2 bytes or shorter of extraNonce.
       noncePrefix = noncePrefix.substr(0, 4);
@@ -291,7 +291,7 @@ void StratumSessionEth::handleRequest_Subscribe(const string &idStr,
                                      "\"%06x\","
                                      "\"EthereumStratum/1.0.0\""
                                      "],\"%s\"],\"error\":null}\n",
-                                     idStr.c_str(), extraNonce1_, noncePrefix.c_str());
+                                     idStr.c_str(), sessionId_, noncePrefix.c_str());
     sendData(s);
   }
 #ifdef WORK_WITH_STRATUM_SWITCHER

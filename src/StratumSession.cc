@@ -44,8 +44,8 @@ static const uint32_t WriteTimeout = 120;
 static const string PoolWatcherAgent = "__PoolWatcher__";
 static const string BtccomAgentPrefix = "btccom-agent/";
 
-StratumSession::StratumSession(StratumServer &server, struct bufferevent *bev, struct sockaddr *saddr, uint32_t extraNonce1)
-: server_(server), bev_(bev), extraNonce1_(extraNonce1)
+StratumSession::StratumSession(StratumServer &server, struct bufferevent *bev, struct sockaddr *saddr, uint32_t sessionId)
+: server_(server), bev_(bev), sessionId_(sessionId)
 , buffer_(evbuffer_new()), clientAgent_("unknown")
 , isAgentClient_(false), isNiceHashClient_(false), chainId_(0)
 , state_(CONNECTED), isDead_(false), isLongTimeout_(false)
@@ -213,7 +213,7 @@ string StratumSession::getMinerInfoJson(const string &type) {
                           worker_.userId_, worker_.userName_.c_str(),
                           worker_.workerHashId_, worker_.workerName_.c_str(),
                           clientAgent_.c_str(), clientIp_.c_str(),
-                          extraNonce1_);
+                          sessionId_);
 }
 
 void StratumSession::checkUserAndPwd(const string &idStr, const string &fullName, const string &password)

@@ -49,7 +49,7 @@ class StratumClient {
   struct bufferevent *bev_;
   struct evbuffer *inBuf_;
 
-  uint32_t extraNonce1_;  // session ID
+  uint32_t sessionId_;  // session ID
   int32_t  extraNonce2Size_;
   uint64_t extraNonce2_;
   string workerFullName_;

@@ -65,7 +65,7 @@ void StratumSessionBeam::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, boo
 
   uint32_t shareBits = Beam_DiffToBits(currentJobDiff_);
 
-  DLOG(INFO) << "new eth stratum job mining.notify: share difficulty=" << std::hex << currentJobDiff_
+  DLOG(INFO) << "new stratum job mining.notify: share difficulty=" << std::hex << currentJobDiff_
              << ", share target=" << Beam_DiffToTarget(currentJobDiff_).ToString();
   string strNotify = Strings::Format(
     "{"
