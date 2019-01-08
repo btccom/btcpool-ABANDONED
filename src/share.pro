@@ -96,3 +96,20 @@ message BeamMsg{
   optional uint64     nonce         = 11;
   optional uint32     sessionid     = 12;
 }
+
+message GrinMsg{
+  required uint32     version       = 1;
+  optional sint64     workerhashid  = 2;
+  optional sint32     userid        = 3;
+  optional sint32     status        = 4;
+  optional sint64     timestamp     = 5;
+  optional string     ip            = 6;
+  optional uint64     jobid         = 7;
+  optional uint64     sharediff     = 8;
+  optional uint64     blockdiff      = 9;
+  optional uint64     height        = 10;
+  optional uint32     edgebits      = 11;
+  optional uint64     nonce         = 12;
+  repeated uint64     pow           = 13;
+  optional uint32     sessionid     = 14;
+}
