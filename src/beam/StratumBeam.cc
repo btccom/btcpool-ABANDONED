@@ -45,6 +45,10 @@ bool StratumJobBeam::initFromRawJob(const string &rawJob, const string &rpcAddr,
     return false;
   }
 
+  if (jnode["height"].type() == Utilities::JS::type::Int) {
+    height_ = jnode["height"].int32();
+  }
+
   input_ = jnode["input"].str();
   blockBits_ = jnode["difficulty"].uint32();
   rpcAddress_ = rpcAddr;

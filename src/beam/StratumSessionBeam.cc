@@ -73,11 +73,13 @@ void StratumSessionBeam::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, boo
       "\"jsonrpc\":\"2.0\","
       "\"method\":\"job\","
       "\"difficulty\":%u,"
-      "\"input\":\"%s\""
+      "\"input\":\"%s\","
+      "\"height\":%d"
     "}\n",
     inputHash,
     shareBits,
-    job->input_.c_str()
+    job->input_.c_str(),
+    job->height_
     );
 
   DLOG(INFO) << strNotify;
