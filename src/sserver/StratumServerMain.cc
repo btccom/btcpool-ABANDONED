@@ -167,7 +167,7 @@ int main(int argc, char **argv)
   try
   {
     // check if we are using testnet3
-    bool isTestnet3 = true;
+    bool isTestnet3 = false;
     cfg.lookupValue("testnet", isTestnet3);
     if (isTestnet3) {
       SelectParams(CBaseChainParams::TESTNET);
