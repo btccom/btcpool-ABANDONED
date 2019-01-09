@@ -471,6 +471,7 @@ file(GLOB LIB_SOURCES_CHAINS
         src/sia/*.cc
         src/decred/*.cc
         src/beam/*.cc
+        src/cuckoo/*.cpp
         src/grin/*.cc
     )
 

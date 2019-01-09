@@ -53,4 +53,22 @@ struct PrePowGrin {
   boost::endian::big_uint64_buf_t outputMmrSize;
   /// Total size of the kernel MMR after applying this block
   boost::endian::big_uint64_buf_t kernelMmrSize;
+  /// Total accumulated difficulty since genesis block
+  boost::endian::big_uint64_buf_t totoalDifficulty;
+  /// Variable difficulty scaling factor fo secondary proof of work
+  boost::endian::big_uint32_buf_t secondaryScaling;
 };
+
+struct PreProofGrin {
+  /// Field before nonce
+  PrePowGrin prePow;
+  /// Nonce increment used to mine this block.
+  boost::endian::big_uint64_buf_t nonce;
+};
+
+struct siphash_keys;
+bool VerifyPowGrinPrimary(const std::vector<uint64_t> &edges, siphash_keys &keys, uint32_t edgeBits);
+bool VerifyPowGrinSecondary(const std::vector<uint64_t> &edges, siphash_keys &keys, uint32_t edgeBits);
+bool VerifyPowGrin(const PreProofGrin &preProof, uint32_t edgeBits, const std::vector<uint64_t> &proofs);
+
+uint64_t PowDifficultyGrin(uint64_t height, uint32_t edgeBits, uint32_t secondaryScaling, const std::vector<uint64_t> &proofs);
