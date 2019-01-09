@@ -43,6 +43,12 @@ public:
   bool sendJobToKafka(const StratumJobGrin &job, PoolWatchClientGrin *client);
 
 private:
+  void runThreadSolvedShareConsume();
+  void consumeSolvedShare(rd_kafka_message_t *rkmessage);
+
+  KafkaConsumer kafkaSolvedShareConsumer_;  // consume solved_share_topic
+  thread threadSolvedShareConsume_;
+
   static const size_t kMaxJobCacheSize_ = 5000;
   std::mutex jobCacheLock_;
   std::queue<uint64_t> jobCache_;
