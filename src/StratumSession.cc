@@ -189,7 +189,8 @@ void StratumSession::logAuthorizeResult(bool success) {
               << ", wokerHashId: " << worker_.workerHashId_
               << ", workerName: " << worker_.fullName_
               << ", clientAgent: " << clientAgent_
-              << ", clientIp: " << clientIp_;
+              << ", clientIp: " << clientIp_
+              << ", chain: " << getServer().chainName(chainId_);
   }
   else {
     LOG(WARNING) << "authorize failed, workerName:" << worker_.fullName_
@@ -262,6 +263,7 @@ bool StratumSession::switchChain(size_t chainId) {
     return false;
   }
 
+  chainId_ = chainId;
   worker_.setUserID(userId);
   server_.userInfo_->addWorker(chainId, worker_.userId_, worker_.workerHashId_, worker_.workerName_, clientAgent_);
 

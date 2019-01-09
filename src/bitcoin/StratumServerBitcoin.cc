@@ -265,7 +265,17 @@ bool ServerBitcoin::setupInternal(const libconfig::Config &config)
   config.lookupValue("sserver.multi_chains", multiChains);
 
   if (multiChains) {
-
+    const Setting &chains = config.lookup("chains");
+    for (int i = 0; i < chains.getLength(); i++) {
+      addChainVars(
+        chains[i].lookup("kafka_brokers"),
+        chains[i].lookup("auxpow_solved_share_topic"),
+        chains[i].lookup("rsk_solved_share_topic")
+      );
+    }
+    if (chains_.empty()) {
+      LOG(FATAL) << "sserver.multi_chains enabled but chains empty!";
+    }
   }
   else {
     addChainVars(

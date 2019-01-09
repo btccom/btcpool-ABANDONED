@@ -367,7 +367,8 @@ void StratumSessionBitcoin::logAuthorizeResult(bool success) {
               << ", workerName: " << worker_.fullName_
               << ", versionMask: " << Strings::Format("%08x", versionMask_)
               << ", clientAgent: " << clientAgent_
-              << ", clientIp: " << clientIp_;
+              << ", clientIp: " << clientIp_
+              << ", chain: " << getServer().chainName(chainId_);
   }
   else {
     LOG(WARNING) << "authorize failed, workerName:" << worker_.fullName_

@@ -471,9 +471,6 @@ bool StratumServer::setup(const libconfig::Config &config) {
   defaultDifficultyController_ = make_shared<DiffController>(defaultDifficulty, maxDifficulty, minDifficulty, shareAvgSeconds, diffAdjustPeriod);
 
   // ------------------- Other Options -------------------
-
-  string fileLastMiningNotifyTime;
-  config.lookupValue("sserver.file_last_notify_time", fileLastMiningNotifyTime);
   
   uint32_t maxJobLifetime = 300;
   config.lookupValue("sserver.max_job_delay",    maxJobLifetime); // the old option name
@@ -499,7 +496,8 @@ bool StratumServer::setup(const libconfig::Config &config) {
     const string &shareTopic,
     const string &solvedShareTopic,
     const string &commonEventsTopic,
-    const string &jobTopic
+    const string &jobTopic,
+    const string &fileLastMiningNotifyTime
   ) {
     size_t chainId = chains_.size();
 
@@ -516,16 +514,37 @@ bool StratumServer::setup(const libconfig::Config &config) {
   config.lookupValue("sserver.multi_chains", multiChains);
 
   if (multiChains) {
+    const Setting &chains = config.lookup("chains");
+    for (int i = 0; i < chains.getLength(); i++) {
+      string fileLastMiningNotifyTime; // optional
+      chains.lookupValue("file_last_notify_time", fileLastMiningNotifyTime);
 
+      addChainVars(
+        chains[i].lookup("name"),
+        chains[i].lookup("kafka_brokers"),
+        chains[i].lookup("share_topic"),
+        chains[i].lookup("solved_share_topic"),
+        chains[i].lookup("common_events_topic"),
+        chains[i].lookup("job_topic"),
+        fileLastMiningNotifyTime
+      );
+    }
+    if (chains_.empty()) {
+      LOG(FATAL) << "sserver.multi_chains enabled but chains empty!";
+    }
   }
   else {
+    string fileLastMiningNotifyTime; // optional
+    config.lookupValue("sserver.file_last_notify_time", fileLastMiningNotifyTime);
+
     addChainVars(
       "default",
       config.lookup("kafka.brokers"),
       config.lookup("sserver.share_topic"),
       config.lookup("sserver.solved_share_topic"),
       config.lookup("sserver.common_events_topic"),
-      config.lookup("sserver.job_topic")
+      config.lookup("sserver.job_topic"),
+      fileLastMiningNotifyTime
     );
   }
 
@@ -680,6 +699,18 @@ void StratumServer::stop() {
   userInfo_->stop();
 }
 
+size_t StratumServer::switchChain(string userName, size_t newChainId) {
+  ScopeLock sl(connsLock_);
+  size_t switchedSessions = 0;
+  for (auto &itr : connections_) {
+    if (itr->getChainId() != newChainId && itr->getUserName() == userName) {
+      itr->switchChain(newChainId);
+      switchedSessions++;
+    }
+  }
+  return switchedSessions;
+}
+
 void StratumServer::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {
   //
   // http://www.sgi.com/tech/stl/Map.html
@@ -701,7 +732,9 @@ void StratumServer::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {
 #endif
       itr = connections_.erase(itr);
     } else {
-      conn->sendMiningNotify(exJobPtr);
+      if (conn->getChainId() == exJobPtr->chainId_) {
+        conn->sendMiningNotify(exJobPtr);
+      }
       ++itr;
     }
   }

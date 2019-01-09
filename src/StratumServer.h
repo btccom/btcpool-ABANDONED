@@ -260,7 +260,13 @@ public:
   void run();
   void stop();
 
+  shared_ptr<Zookeeper> getZookeeper(const libconfig::Config &config) {
+    initZookeeper(config);
+    return zk_;
+  }
+
   const string& chainName(size_t chainId) { return chains_[chainId].name_; }
+  size_t/* switched sessions */ switchChain(string userName, size_t newChainId);
 
   void sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr);
 

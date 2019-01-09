@@ -74,6 +74,9 @@ class UserInfo {
   vector<ChainVars> chains_;
   StratumServer *server_;
 
+  shared_ptr<Zookeeper> zk_;
+  string zkUserChainMapDir_;
+
   pthread_rwlock_t nameChainlock_;
   // username -> chainId
   std::unordered_map<string, size_t> nameChains_;
@@ -83,6 +86,9 @@ class UserInfo {
 
   void runThreadUpdate(size_t chainId);
   int32_t incrementalUpdateUsers(size_t chainId);
+
+  bool getChainIdFromZookeeper(const string &userName, size_t &chainId);
+  static void handleZookeeperEvent(zhandle_t *zh, int type, int state, const char *path, void *pUserInfo);
 
 public:
   UserInfo(StratumServer *server, const libconfig::Config &config);

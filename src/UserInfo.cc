@@ -56,7 +56,23 @@ UserInfo::UserInfo(StratumServer *server, const libconfig::Config &config)
   config.lookupValue("sserver.multi_chains", multiChains);
 
   if (multiChains) {
-
+    const Setting &chains = config.lookup("chains");
+    for (int i = 0; i < chains.getLength(); i++) {
+      addChainVars(chains[i].lookup("users_list_id_api_url"));
+    }
+    if (chains_.empty()) {
+      LOG(FATAL) << "sserver.multi_chains enabled but chains empty!";
+    }
+    if (chains_.size() > 1) {
+      zk_ = server->getZookeeper(config);
+      zkUserChainMapDir_ = config.lookup("users.zookeeper_userchain_map").c_str();
+      if (zkUserChainMapDir_.empty()) {
+        LOG(FATAL) << "users.zookeeper_userchain_map cannot be empty!";
+      }
+      if (zkUserChainMapDir_[zkUserChainMapDir_.size()-1] != '/') {
+        zkUserChainMapDir_ += '/';
+      }
+    }
   }
   else {
     // required (exception will be threw if inexists)
@@ -95,6 +111,88 @@ void UserInfo::regularUserName(string &userName) {
   }
 }
 
+bool UserInfo::getChainIdFromZookeeper(const string &userName, size_t &chainId) {
+  try {
+    // Prevent buffer overflow attacks on zookeeper
+    if (userName.size() > 200) {
+      LOG(WARNING) << "UserInfo::getChainIdFromZookeeper(): too long username: " << userName;
+      return false;
+    }
+
+    string nodePath = zkUserChainMapDir_ + userName;
+    string chainName;
+    chainName.resize(64);
+    if (zk_->getValueW(nodePath, chainName, handleZookeeperEvent, this)) {
+      DLOG(INFO) << "zk userchain map: " << userName << " : " << chainName;
+      for (chainId = 0; chainId < server_->chains_.size(); chainId++) {
+        if (chainName == server_->chains_[chainId].name_) {
+          // add to cache
+          pthread_rwlock_wrlock(&nameChainlock_);
+          nameChains_[userName] = chainId;
+          pthread_rwlock_unlock(&nameChainlock_);
+          return true;
+        }
+      }
+      // cannot find the chain, warning and ignore it
+      LOG(WARNING) << "UserInfo::getChainIdFromZookeeper(): Unknown chain name '"<< chainName << "' in zookeeper node '" << nodePath << "'.";
+    }
+    else {
+      LOG(INFO) << "cannot find mining chain in zookeeper, user name: " << userName << " (" << nodePath << ")";
+    }
+  }
+  catch (const std::exception &ex) {
+    LOG(ERROR) << "UserInfo::getChainIdFromZookeeper(): zk_->getValueW() failed: " << ex.what();
+  }
+  catch (...) {
+    LOG(ERROR) << "UserInfo::getChainIdFromZookeeper(): unknown exception";
+  }
+  return false;
+}
+
+void UserInfo::handleZookeeperEvent(zhandle_t *zh, int type, int state, const char *path, void *pUserInfo) {
+  DLOG(INFO) << "Zookeeper::globalWatcher: type:" << type << ", state:" << state << ", path:" << path;
+  UserInfo *userInfo = (UserInfo *)pUserInfo;
+  string nodePath(path);
+  string userName = nodePath.substr(userInfo->zkUserChainMapDir_.size());
+
+  // lookup cache
+  pthread_rwlock_rdlock(&userInfo->nameChainlock_);
+  auto itr = userInfo->nameChains_.find(userName);
+  pthread_rwlock_unlock(&userInfo->nameChainlock_);
+
+  if (itr == userInfo->nameChains_.end()) {
+    LOG(INFO) << "No workers of user " << userName << " online, switching request will be ignored";
+    return;
+  }
+  size_t currentChainId = itr->second;
+  size_t newChainId;
+  if (!userInfo->getChainIdFromZookeeper(userName, newChainId)) {
+    LOG(ERROR) << "UserInfo::handleZookeeperEvent(): cannot get chain id from zookeeper, switching request will be ignored";
+    return;
+  }
+  if (currentChainId == newChainId) {
+    LOG(INFO) << "Ignore empty switching request for user '" << userName << "': "
+              << userInfo->server_->chainName(currentChainId) << " -> " << userInfo->server_->chainName(newChainId);
+    return;
+  }
+
+  size_t switchedSessions = userInfo->server_->switchChain(userName, newChainId);
+
+  if (switchedSessions == 0) {
+    LOG(INFO) << "No workers of user " << userName << " online, subsequent switching request will be ignored";
+    // clear cache
+    pthread_rwlock_wrlock(&userInfo->nameChainlock_);
+    auto itr = userInfo->nameChains_.find(userName);
+    if (itr != userInfo->nameChains_.end()) {
+      userInfo->nameChains_.erase(itr);
+    }
+    pthread_rwlock_unlock(&userInfo->nameChainlock_);
+  }
+  
+  LOG(INFO) << "User '" << userName << "' (" << switchedSessions << " miners) switched chain: "
+            << userInfo->server_->chainName(currentChainId) << " -> " << userInfo->server_->chainName(newChainId);
+}
+
 bool UserInfo::getChainId(string userName, size_t &chainId) {
   if (chains_.size() == 1) {
     chainId = 0;
@@ -103,7 +201,7 @@ bool UserInfo::getChainId(string userName, size_t &chainId) {
 
   regularUserName(userName);
   
-  // lookup name -> chain map
+  // lookup name -> chain cache map
   pthread_rwlock_rdlock(&nameChainlock_);
   auto itr = nameChains_.find(userName);
   pthread_rwlock_unlock(&nameChainlock_);
@@ -113,8 +211,13 @@ bool UserInfo::getChainId(string userName, size_t &chainId) {
     return true;
   }
 
+  // lookup zookeeper
+  if (getChainIdFromZookeeper(userName, chainId)) {
+    return true;
+  }
+
   // lookup each chain
-  // The first one's id that find the user will be returned.
+  // The first chain's id that find the user will be returned.
   for (chainId = 0; chainId < chains_.size(); chainId++) {
     ChainVars &chain = chains_[chainId];
 
@@ -124,6 +227,7 @@ bool UserInfo::getChainId(string userName, size_t &chainId) {
 
     if (itr != chain.nameIds_.end()) {
       // chainId has been assigned to the correct value
+      DLOG(INFO) << "userName: " << userName << ", chainId: " << chainId;
       return true;
     }
   }

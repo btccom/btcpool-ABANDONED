@@ -140,6 +140,7 @@ public:
   uint8_t getUniqIdUint8(string parentPath, const string &userData = "", function<void()> idLostCallback = nullptr);
 
   string getValue(const string &nodePath, size_t sizeLimit);
+  bool getValueW(const string &nodePath, string &value, ZookeeperWatcherCallback func, void *data);
   vector<string> getChildren(const string &parentPath);
   void watchNode(string path, ZookeeperWatcherCallback func, void *data);
   void createLockNode(const string &nodePath, string &nodePathWithSeq, const string &value);

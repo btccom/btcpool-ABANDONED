@@ -148,6 +148,8 @@ public:
   uint32_t getSessionId() const { return extraNonce1_; }
   size_t getChainId() const { return chainId_; }
   State getState() const { return state_; }
+  string getUserName() const { return worker_.userName_; }
+
   bool isDead() const;
   void markAsDead();
   void addWorker(const std::string &clientAgent, const std::string &workerName, int64_t workerId) override;

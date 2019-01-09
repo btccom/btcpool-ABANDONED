@@ -493,6 +493,18 @@ string Zookeeper::getValue(const string &nodePath, size_t sizeLimit) {
   return data;
 }
 
+bool Zookeeper::getValueW(const string &nodePath, string &value, ZookeeperWatcherCallback func, void *data) {
+  int size = value.size();
+  int stat = zoo_wget(zh_, nodePath.c_str(), func, data, (char*)value.data(), &size, nullptr);
+
+  if (stat != ZOK) {
+    return false;
+  }
+
+  value.resize(size);
+  return true;
+}
+
 vector<string> Zookeeper::getChildren(const string &parentPath) {
   struct String_vector nodes = {0, nullptr};
   vector<string> children;
