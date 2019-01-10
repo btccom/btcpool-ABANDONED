@@ -90,45 +90,7 @@ void StratumSessionGrin::sendSetDifficulty(LocalJob &localJob, uint64_t difficul
 }
 
 void StratumSessionGrin::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
-  if (state_ < AUTHENTICATED || exJobPtr == nullptr) {
-    LOG(ERROR) << "sendMiningNotify failed, state: " << state_;
-    return;
-  }
-
-  StratumJobGrin *job = dynamic_cast<StratumJobGrin *>(exJobPtr->sjob_);
-  if (nullptr == job) {
-    return;
-  }
-
-  uint32_t prePowHash = djb2(job->prePowStr_.c_str());
-  auto ljob = findLocalJob(prePowHash);
-  // create a new local job if not exists
-  if (ljob == nullptr) {
-    ljob = &addLocalJob(exJobPtr->chainId_, job->jobId_, prePowHash);
-  } else {
-    dispatcher_->addLocalJob(*ljob);
-  }
-
-  DLOG(INFO) << "new stratum job mining.notify: share difficulty=" << std::hex << currentDifficulty_;
-  string strNotify = Strings::Format(
-    "{\"id\":\"Stratum\""
-    ",\"jsonrpc\":\"2.0\""
-    ",\"method\":\"job\""
-    ",\"params\":"
-    "{\"difficulty\":%" PRIu64
-    ",\"height\":%" PRIu64
-    ",\"job_id\":%" PRIu32
-    ",\"pre_pow\":\"%s\""
-    "}}\n",
-    currentDifficulty_,
-    job->height_,
-    prePowHash,
-    job->prePowStr_.c_str());
-
-  DLOG(INFO) << strNotify;
-  sendData(strNotify); // send notify string
-
-  clearLocalJobs();
+  sendMiningNotifyWithId(exJobPtr, "");
 }
 
 std::unique_ptr<StratumMiner> StratumSessionGrin::createMiner(
@@ -190,6 +152,8 @@ void StratumSessionGrin::handleRequest(
     handleRequest_Authorize(idStr, jparams);
   } if (method == "getjobtemplate") {
     handleRequest_GetJobTemplate(idStr);
+  } if (method == "keepalive") {
+    responseTrue(idStr);
   } else if (dispatcher_) {
     dispatcher_->handleRequest(idStr, method, jparams, jroot);
   }
@@ -222,5 +186,52 @@ void StratumSessionGrin::handleRequest_Authorize(
 }
 
 void StratumSessionGrin::handleRequest_GetJobTemplate(const std::string &idStr) {
-  // Empty here - we do not handle this yet...
+  sendMiningNotifyWithId(getServer().GetJobRepository(getChainId())->getLatestStratumJobEx(), idStr.empty() ? "null" : idStr);
+}
+
+
+
+void StratumSessionGrin::sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr, const std::string &idStr) {
+  if (state_ < AUTHENTICATED || exJobPtr == nullptr) {
+    LOG(ERROR) << "sendMiningNotify failed, state: " << state_;
+    return;
+  }
+
+  StratumJobGrin *job = dynamic_cast<StratumJobGrin *>(exJobPtr->sjob_);
+  if (nullptr == job) {
+    return;
+  }
+
+  uint32_t prePowHash = djb2(job->prePowStr_.c_str());
+  auto ljob = findLocalJob(prePowHash);
+  // create a new local job if not exists
+  if (ljob == nullptr) {
+    ljob = &addLocalJob(exJobPtr->chainId_, job->jobId_, prePowHash);
+  } else {
+    dispatcher_->addLocalJob(*ljob);
+  }
+
+  DLOG(INFO) << "new stratum job mining.notify: share difficulty=" << std::hex << currentDifficulty_;
+  string strNotify = Strings::Format(
+    "{\"id\":%s"
+    ",\"jsonrpc\":\"2.0\""
+    ",\"method\":\"%s\""
+    ",\"%s\":"
+    "{\"difficulty\":%" PRIu64
+    ",\"height\":%" PRIu64
+    ",\"job_id\":%" PRIu32
+    ",\"pre_pow\":\"%s\""
+    "}}\n",
+    idStr.empty() ? "\"Stratum\"" : idStr.c_str(),
+    idStr.empty() ? "job" : "getjobtemplate",
+    idStr.empty() ? "params" : "result",
+    currentDifficulty_,
+    job->height_,
+    prePowHash,
+    job->prePowStr_.c_str());
+
+  DLOG(INFO) << strNotify;
+  sendData(strNotify); // send notify string
+
+  clearLocalJobs();
 }

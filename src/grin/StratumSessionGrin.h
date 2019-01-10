@@ -58,6 +58,7 @@ protected:
 private:
   void handleRequest_Authorize(const std::string &idStr, const JsonNode &jparams);
   void handleRequest_GetJobTemplate(const std::string &idStr);
+  void sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr, const std::string &idStr);
 
   string currentMethod_;
   uint64_t currentDifficulty_;
