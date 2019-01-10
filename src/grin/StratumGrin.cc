@@ -42,11 +42,14 @@ bool StratumJobGrin::initFromRawJob(JsonNode &jparams) {
   difficulty_ = jparams["difficulty"].uint64();
   height_ = jparams["height"].uint64();
   nodeJobId_ = jparams["job_id"].uint64();
-  prePow_ = jparams["pre_pow"].str();
+  prePowStr_ = jparams["pre_pow"].str();
+  std::vector<char> prePowBin;
+  Hex2Bin(prePowStr_.c_str(), prePowStr_.length(), prePowBin);
+  memcpy(&prePow_, prePowBin.data(), prePowBin.size());
 
   // jobId: timestamp + input_prefix, we need to make sure jobId is unique in a some time
   // jobId can convert to uint64_t
-  uint32_t hash = djb2(prePow_.c_str());
+  uint32_t hash = djb2(prePowStr_.c_str());
   jobId_ = (static_cast<uint64_t>(time(nullptr)) << 32) | hash;
 
   return true;
@@ -64,7 +67,7 @@ string StratumJobGrin::serializeToJson() const {
     height_,
     difficulty_,
     nodeJobId_,
-    prePow_.c_str());
+    prePowStr_.c_str());
 }
 
 bool StratumJobGrin::unserializeFromJson(const char *s, size_t len) {
@@ -91,7 +94,10 @@ bool StratumJobGrin::unserializeFromJson(const char *s, size_t len) {
   height_ = j["height"].uint64();
   difficulty_ = j["difficulty"].uint64();
   nodeJobId_ = j["nodeJobId"].uint64();
-  prePow_ = j["prePow"].str();
+  prePowStr_ = j["prePow"].str();
+  std::vector<char> prePowBin;
+  Hex2Bin(prePowStr_.c_str(), prePowStr_.length(), prePowBin);
+  memcpy(&prePow_, prePowBin.data(), prePowBin.size());
 
   return true;
 }

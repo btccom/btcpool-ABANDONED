@@ -27,6 +27,8 @@
 #include "StratumSessionGrin.h"
 #include "CommonGrin.h"
 
+#include "arith_uint256.h"
+
 #include <boost/make_unique.hpp>
 #include <algorithm>
 
@@ -48,7 +50,7 @@ void StratumServerGrin::checkAndUpdateShare(
   auto sjob = dynamic_cast<StratumJobGrin *>(exjob->sjob_);
 
   DLOG(INFO) << "checking share nonce: " << std::hex << share.nonce()
-             << ", pre_pow: " << sjob->prePow_
+             << ", pre_pow: " << sjob->prePowStr_
              << ", edge_bits: " << share.edgebits();
 
   if (exjob->isStale()) {
@@ -57,8 +59,7 @@ void StratumServerGrin::checkAndUpdateShare(
   }
 
   PreProofGrin preProof;
-  auto bin = ParseHex(sjob->prePow_);
-  memcpy(&preProof.prePow, bin.data(), sizeof(PreProofGrin));
+  preProof.prePow = sjob->prePow_;
   preProof.nonce = share.nonce();
   if (!VerifyPowGrin(preProof, share.edgebits(), proofs)) {
     share.set_status(StratumStatus::INVALID_SOLUTION);
@@ -91,7 +92,7 @@ void StratumServerGrin::checkAndUpdateShare(
     DLOG(INFO) << "compare share difficulty: " << shareDiff << ", job difficulty: " << jobDiff;
 
     if (isEnableSimulator_ || shareDiff >= jobDiff) {
-      share.set_sharediff(jobDiff);
+      share.set_jobdiff(jobDiff);
       share.set_status(StratumStatus::ACCEPT);
       return;
     }
@@ -176,7 +177,7 @@ void JobRepositoryGrin::broadcastStratumJob(StratumJob *sjob) {
     lastHeight_ = sjobGrin->height_;
 
     LOG(INFO) << "received new height stratum job, height: " << sjobGrin->height_
-              << ", prePow: " << sjobGrin->prePow_;
+              << ", prePow: " << sjobGrin->prePowStr_;
   }
 
   shared_ptr<StratumJobEx> exJob{createStratumJobEx(sjobGrin, isClean)};

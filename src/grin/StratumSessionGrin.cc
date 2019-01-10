@@ -100,7 +100,7 @@ void StratumSessionGrin::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, boo
     return;
   }
 
-  uint32_t prePowHash = djb2(job->prePow_.c_str());
+  uint32_t prePowHash = djb2(job->prePowStr_.c_str());
   auto ljob = findLocalJob(prePowHash);
   // create a new local job if not exists
   if (ljob == nullptr) {
@@ -123,7 +123,7 @@ void StratumSessionGrin::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, boo
     currentDifficulty_,
     job->height_,
     prePowHash,
-    job->prePow_.c_str());
+    job->prePowStr_.c_str());
 
   DLOG(INFO) << strNotify;
   sendData(strNotify); // send notify string

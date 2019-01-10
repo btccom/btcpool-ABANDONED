@@ -113,16 +113,15 @@ void StratumMinerGrin::handleRequest_Submit(const string &idStr, const JsonNode 
   share.set_jobid(sjob->jobId_);
   share.set_workerhashid(workerId_);
   share.set_userid(worker.userId_);
-  share.set_blockdiff(sjob->difficulty_);
   share.set_timestamp((uint64_t) time(nullptr));
   share.set_status(StratumStatus::REJECT_NO_REASON);
-  share.set_edgebits(edgeBits);
+  share.set_jobdiff(jobDiff.currentJobDiff_);
+  share.set_blockdiff(sjob->difficulty_);
   share.set_height(height);
   share.set_nonce(nonce);
-  for (uint64_t proof : proofs) {
-    share.add_pow(proof);
-  }
   share.set_sessionid(sessionId); // TODO: fix it, set as real session id.
+  share.set_edgebits(edgeBits);
+  share.set_scaling(PowScalingGrin(height, edgeBits, sjob->prePow_.secondaryScaling.value()));
   IpAddress ip;
   ip.fromIpv4Int(session.getClientIp());
   share.set_ip(ip.toString());

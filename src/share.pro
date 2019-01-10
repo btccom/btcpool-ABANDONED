@@ -105,12 +105,12 @@ message GrinMsg{
   optional sint64     timestamp     = 5;
   optional string     ip            = 6;
   optional uint64     jobid         = 7;
-  optional uint64     sharediff     = 8;
-  optional uint64     blockdiff      = 9;
+  optional uint64     jobdiff       = 8;
+  optional uint64     blockdiff     = 9;
   optional uint64     height        = 10;
-  optional uint32     edgebits      = 11;
-  optional uint64     nonce         = 12;
-  repeated uint64     pow           = 13;
-  optional uint32     sessionid     = 14;
+  optional uint64     nonce         = 11;
+  optional uint32     sessionid     = 12;
+  optional uint32     edgebits      = 13;
+  optional uint32     scaling       = 14;
   optional uint64     hashprefix    = 15;
 }

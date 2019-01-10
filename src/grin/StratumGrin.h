@@ -54,20 +54,25 @@ public:
     set_timestamp(0);
     set_ip("0.0.0.0");
     set_jobid(0);
-    set_sharediff(0);
+    set_jobdiff(0);
     set_blockdiff(0);
     set_height(0);
-    set_edgebits(0);
     set_nonce(0);
     set_sessionid(0);
+    set_edgebits(0);
+    set_scaling(0);
+    set_hashprefix(0);
   }
   ShareGrin(const ShareGrin &r) = default;
   ShareGrin &operator=(const ShareGrin &r) = default;
 
+  uint32_t sharediff() const {
+    return jobdiff() / scaling();
+  }
+
   double score() const
   {
-
-    if (!StratumStatus::isAccepted(status()) || sharediff() == 0 || blockdiff() == 0) {
+    if (!StratumStatus::isAccepted(status()) || jobdiff() == 0 || scaling() == 0 || blockdiff() == 0) {
       return 0.0;
     }
 
@@ -75,11 +80,12 @@ public:
     // On regression test network, the network diff may be zero.
     // But no matter how low the network diff is, you can only dig one block at a time.
     double networkDiff = blockdiff();
-    if (networkDiff < sharediff()) {
+    double jobDiff = jobdiff();
+    if (networkDiff < jobDiff) {
       return 1.0;
     }
     else {
-      return (double)sharediff() / networkDiff;
+      return (double)jobDiff / networkDiff;
     }
   }
 
@@ -88,8 +94,7 @@ public:
     if (version() != CURRENT_VERSION) {
       return false;
     }
-    if (userid() == 0 || workerhashid() == 0 ||
-      blockdiff() == 0 || sharediff() == 0)
+    if (userid() == 0 || workerhashid() == 0 || blockdiff() == 0 || jobdiff() == 0 || scaling() == 0)
     {
       return false;
     }
@@ -104,7 +109,7 @@ public:
                            "sessionId: %08x, status: %d/%s)",
                            height(), jobid(), ip().c_str(), userid(),
                            workerhashid(), timestamp(), date("%F %T", timestamp()).c_str(),
-                           sharediff(), blockdiff(), nonce(),
+                           jobdiff(), blockdiff(), nonce(),
                            sessionid(), status(), StratumStatus::toString(status()));
   }
 
@@ -191,7 +196,8 @@ public:
   uint64_t height_;
   uint64_t nodeJobId_;
   uint64_t difficulty_;
-  string prePow_;
+  PrePowGrin prePow_;
+  string prePowStr_;
 };
 
 class StratumServerGrin;
