@@ -43,7 +43,8 @@ void StratumServerGrin::checkAndUpdateShare(
   shared_ptr<StratumJobEx> exjob,
   const vector<uint64_t > &proofs,
   const std::set<uint64_t> &jobDiffs,
-  const string &workFullName) {
+  const string &workFullName,
+  uint256 &blockHash) {
   auto sjob = dynamic_cast<StratumJobGrin *>(exjob->sjob_);
 
   DLOG(INFO) << "checking share nonce: " << std::hex << share.nonce()
@@ -64,6 +65,8 @@ void StratumServerGrin::checkAndUpdateShare(
     return;
   }
 
+  blockHash = PowHashGrin(share.height(), share.edgebits(), preProof.prePow.secondaryScaling.value(), proofs);
+  share.set_hashprefix(blockHash.GetCheapHash());
   uint64_t shareDiff = PowDifficultyGrin(share.height(), share.edgebits(), preProof.prePow.secondaryScaling.value(), proofs);
   DLOG(INFO) << "compare share difficulty: " << shareDiff << ", network difficulty: " << sjob->difficulty_;
 
@@ -103,7 +106,8 @@ void StratumServerGrin::sendSolvedShare2Kafka(
   const ShareGrin &share,
   shared_ptr<StratumJobEx> exjob,
   const vector<uint64_t> &proofs,
-  const StratumWorker &worker) {
+  const StratumWorker &worker,
+  const uint256 &blockHash) {
   string proofArray;
   if (!proofs.empty()) {
     proofArray = std::accumulate(
@@ -124,6 +128,7 @@ void StratumServerGrin::sendSolvedShare2Kafka(
     ",\"userId\":%" PRId32
     ",\"workerId\":%" PRId64
     ",\"workerFullName\":\"%s\""
+    ",\"blockHash\":\"%s\""
     "}",
     sjob->jobId_,
     sjob->nodeJobId_,
@@ -133,7 +138,8 @@ void StratumServerGrin::sendSolvedShare2Kafka(
     proofArray.c_str(),
     worker.userId_,
     worker.workerHashId_,
-    filterWorkerName(worker.fullName_).c_str());
+    filterWorkerName(worker.fullName_).c_str(),
+    blockHash.GetHex().c_str());
   ServerBase::sendSolvedShare2Kafka(chainId, msg.c_str(), msg.length());
 }
 

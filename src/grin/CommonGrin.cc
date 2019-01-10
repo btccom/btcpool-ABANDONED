@@ -30,6 +30,8 @@
 #include <boost/multiprecision/cpp_int.hpp>
 #include <limits>
 
+namespace {
+
 static const uint64_t EDGE_BLOCK_BITS = 6;
 static const uint64_t EDGE_BLOCK_SIZE = 1 << EDGE_BLOCK_BITS;
 static const uint64_t EDGE_BLOCK_MASK = EDGE_BLOCK_SIZE - 1;
@@ -45,6 +47,9 @@ static const uint64_t HOUR_HEIGHT = 3600 / BLOCK_TIME_SEC;
 static const uint64_t DAY_HEIGHT = 24 * HOUR_HEIGHT;
 static const uint64_t WEEK_HEIGHT = 7 * DAY_HEIGHT;
 static const uint64_t YEAR_HEIGHT = 52 * WEEK_HEIGHT;
+
+static const uint64_t GRIN_BASE = 1000000000;
+static const uint64_t REWARD = BLOCK_TIME_SEC * GRIN_BASE;
 
 // fills buffer with EDGE_BLOCK_SIZE siphash outputs for block containing edge in cuckaroo graph
 // return siphash output for given edge
@@ -63,7 +68,9 @@ static uint64_t SipBlock(siphash_keys &keys, uint64_t edge, uint64_t *buf) {
 
 // generate edge endpoint in cuck(at)oo graph without partition bit
 static uint64_t SipNode(siphash_keys &keys, uint64_t edge, uint64_t uorv, uint64_t edgeMask) {
-  return keys.siphash24(2*edge + uorv) & edgeMask;
+  return keys.siphash24(2 * edge + uorv) & edgeMask;
+}
+
 }
 
 // verify that edges are ascending and form a cycle in header-generated graph
@@ -169,6 +176,28 @@ static uint32_t GraphWeightGrin(uint64_t height, uint32_t edgeBits) {
   return ((2 << (edgeBits - BASE_EDGE_BITS)) * xprEdgeBits);
 }
 
+uint256 PowHashGrin(uint64_t height, uint32_t edgeBits, uint32_t secondaryScaling, const std::vector<uint64_t> &proofs) {
+  // Compress the proofs to a bit vector
+  std::vector<uint8_t> proofBits((proofs.size() * edgeBits + 7) / 8, 0);
+  uint64_t edgeMask = (static_cast<uint64_t>(1) << edgeBits) - 1;
+  size_t i = 0;
+  for (uint64_t proof : proofs) {
+    proof &= edgeMask;
+    for (uint32_t j = 0; j < edgeBits; ++j) {
+      if (0x1 & (proof >> j)) {
+        uint32_t position = i * edgeBits + j;
+        proofBits[position / 8] |= (1 << (position % 8));
+      }
+    }
+    ++i;
+  }
+
+  // Generate the blake2b hash
+  uint256 hash;
+  blake2b(hash.begin(), sizeof(hash), proofBits.data(), proofBits.size(), 0, 0);
+  return hash;
+}
+
 uint64_t PowDifficultyGrin(uint64_t height, uint32_t edgeBits, uint32_t secondaryScaling, const std::vector<uint64_t> &proofs) {
   // Compress the proofs to a bit vector
   std::vector<uint8_t> proofBits((proofs.size() * edgeBits + 7) / 8, 0);
@@ -195,4 +224,8 @@ uint64_t PowDifficultyGrin(uint64_t height, uint32_t edgeBits, uint32_t secondar
   } else {
     return PowDifficultyGrinScaled(hash[0].value(), GraphWeightGrin(height, edgeBits));
   }
+}
+
+uint64_t GetBlockRewardGrin(uint64_t height) {
+  return REWARD;
 }

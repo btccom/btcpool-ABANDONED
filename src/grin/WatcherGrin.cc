@@ -30,7 +30,16 @@
 
 ClientContainerGrin::ClientContainerGrin(const libconfig::Config &config)
   : ClientContainer{config}
-  , kafkaSolvedShareConsumer_{kafkaBrokers_.c_str(), config.lookup("poolwatcher.solved_share_topic").c_str(), 0/*patition*/} {
+  , kafkaSolvedShareConsumer_{
+    kafkaBrokers_.c_str(),
+    config.lookup("poolwatcher.solved_share_topic").c_str(),
+    0/*patition*/}
+  , poolDB_{
+    config.lookup("pooldb.host").c_str(),
+    (int) config.lookup("pooldb.port"),
+    config.lookup("pooldb.username").c_str(),
+    config.lookup("pooldb.password").c_str(),
+    config.lookup("pooldb.dbname").c_str()} {
 }
 
 PoolWatchClient* ClientContainerGrin::createPoolWatchClient(const libconfig::Setting &config) {
@@ -130,7 +139,8 @@ void ClientContainerGrin::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
     jroot["height"].type() != Utilities::JS::type::Int ||
     jroot["edgeBits"].type() != Utilities::JS::type::Int ||
     jroot["nonce"].type() != Utilities::JS::type::Int ||
-    jroot["proofs"].type() != Utilities::JS::type::Array)
+    jroot["proofs"].type() != Utilities::JS::type::Array ||
+    jroot["blockHash"].type() != Utilities::JS::type::Str)
   {
     LOG(ERROR) << "solved share json missing fields: " << json;
     return;
@@ -142,14 +152,18 @@ void ClientContainerGrin::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
   uint32_t edgeBits = jroot["edgeBits"].uint32();
   uint64_t nonce = jroot["nonce"].uint64();
   string proofs = jroot["proofs"].str();
+  uint32_t userId = jroot["userId"].uint32();
+  int64_t workerId = jroot["workerId"].int64();
   string workerFullName = jroot["workerFullName"].str();
+  string blockHash = jroot["blockHash"].str();
   LOG(INFO) << "received a new solved share, worker: " << workerFullName
             << ", jobId: " << jobId
             << ", nodeJobId: " << nodeJobId
             << ", height: " << height
             << ", edgeBits: " << edgeBits
             << ", nonce: " << nonce
-            << ", proofs: " << proofs;
+            << ", proofs: " << proofs
+            << ", blockHash: " << blockHash;
 
   std::lock_guard<std::mutex> lock(jobCacheLock_);
   auto itr = jobClients_.find(jobId);
@@ -173,16 +187,59 @@ void ClientContainerGrin::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
     "{\"edge_bits\":%" PRIu32
     ",\"height\":%" PRIu64
     ",\"job_id\":%" PRIu64
+    ",\"nonce\":%" PRIu64
     ",\"pow\":%s"
     "}}\n",
     edgeBits,
     height,
     jobId,
     nonce,
-    proofs.c_str()
-  );
+    proofs.c_str());
 
   client->sendData(submitJson);
+
+  // save block to DB
+  const string nowStr = date("%F %T");
+  string sql = Strings::Format(
+    "INSERT INTO `found_blocks`("
+    "  `puid`, `worker_id`"
+    ", `worker_full_name`"
+    ", `height`, `hash`"
+    ", `edge_bits`, `nonce`"
+    ", `rewards`, `job_id`"
+    ", `created_at`) "
+    "VALUES("
+    "  %ld, %" PRId64
+    ", '%s'"
+    ", %lu, '%s'"
+    ", '%" PRIu32 "', '%016" PRIx64 "'"
+    ", %" PRId64 ", '%" PRIu64 "'"
+    ", '%s');",
+    userId, workerId,
+    filterWorkerName(workerFullName).c_str(),
+    height, blockHash.c_str(),
+    edgeBits, nonce,
+    (int64_t)GetBlockRewardGrin(height), jobId,
+    nowStr.c_str()
+  );
+  std::thread t([this, sql, blockHash]() {
+    // try connect to DB
+    MySQLConnection db(poolDB_);
+    for (size_t i = 0; i < 3; i++) {
+      if (db.ping())
+        break;
+      else
+        sleep(3);
+    }
+
+    if (db.execute(sql) == false) {
+      LOG(ERROR) << "insert found block failure: " << sql;
+      return;
+    }
+
+    LOG(INFO) << "insert found block " << blockHash << " success";
+  });
+  t.detach();
 }
 
 bool ClientContainerGrin::sendJobToKafka(const StratumJobGrin &job, PoolWatchClientGrin *client) {

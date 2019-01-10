@@ -45,6 +45,7 @@
 #include "bytom/ShareLoggerBytom.h"
 #include "decred/ShareLoggerDecred.h"
 #include "beam/ShareLoggerBeam.h"
+#include "grin/ShareLoggerGrin.h"
 
 using namespace std;
 using namespace libconfig;
@@ -123,6 +124,16 @@ std::shared_ptr<ShareLogWriter> newShareLogWriter(const string &kafkaBrokers, co
                                              def.lookup("kafka_group_id").c_str(),
                                              def.lookup("share_topic"),
                                              compressionLevel);
+  }
+
+  else if (chainType == "GRIN") {
+    return make_shared<ShareLogWriterGrin>(
+      chainType.c_str(),
+      kafkaBrokers.c_str(),
+      def.lookup("data_dir").c_str(),
+      def.lookup("kafka_group_id").c_str(),
+      def.lookup("share_topic"),
+      compressionLevel);
   }
   else {
     LOG(FATAL) << "Unknown chain type " << chainType;

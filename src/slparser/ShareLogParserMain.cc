@@ -54,6 +54,9 @@
 #include "beam/StatisticsBeam.h"
 #include "beam/ShareLogParserBeam.h"
 
+#include "grin/StatisticsGrin.h"
+#include "grin/ShareLogParserGrin.h"
+
 #include "chainparamsbase.h"
 #include "chainparams.h"
 
@@ -98,6 +101,9 @@ std::shared_ptr<ShareLogDumper> newShareLogDumper(const string &chainType, const
   else if (chainType == "BEAM") {
     return std::make_shared<ShareLogDumperBeam>(chainType.c_str(), dataDir, timestamp, uids);
   }
+  else if (chainType == "GRIN") {
+    return std::make_shared<ShareLogDumperGrin>(chainType.c_str(), dataDir, timestamp, uids);
+  }
   else {
     LOG(FATAL) << "newShareLogDumper: unknown chain type " << chainType;
     return nullptr;
@@ -130,6 +136,10 @@ std::shared_ptr<ShareLogParser> newShareLogParser(const string &chainType, const
   else if (chainType == "BEAM") {
     return std::make_shared<ShareLogParserBeam>(chainType.c_str(), dataDir, timestamp, poolDBInfo,
                                                 std::make_shared<DuplicateShareCheckerBeam>(dupShareTrackingHeight));
+  }
+  else if (chainType == "GRIN") {
+    return std::make_shared<ShareLogParserGrin>(chainType.c_str(), dataDir, timestamp, poolDBInfo,
+                                                std::make_shared<DuplicateShareCheckerGrin>(dupShareTrackingHeight));
   }
   else {
     LOG(FATAL) << "newShareLogParser: unknown chain type " << chainType;
@@ -175,6 +185,12 @@ std::shared_ptr<ShareLogParserServer> newShareLogParserServer(const string &chai
                                                         httpdHost, httpdPort,
                                                         poolDBInfo, kFlushDBInterval,
                                                         std::make_shared<DuplicateShareCheckerBeam>(dupShareTrackingHeight));
+  }
+  else if (chainType == "GRIN") {
+    return std::make_shared<ShareLogParserServerGrin>(chainType.c_str(), dataDir,
+                                                      httpdHost, httpdPort,
+                                                      poolDBInfo, kFlushDBInterval,
+                                                      std::make_shared<DuplicateShareCheckerGrin>(dupShareTrackingHeight));
   }
   else {
     LOG(FATAL) << "newShareLogParserServer: unknown chain type " << chainType;

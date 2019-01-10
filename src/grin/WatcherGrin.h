@@ -26,6 +26,8 @@
 
 #include "Watcher.h"
 
+#include "MySQLConnection.h"
+
 #include <memory>
 #include <queue>
 #include <unordered_map>
@@ -41,6 +43,7 @@ public:
   bool initInternal() override;
 
   bool sendJobToKafka(const StratumJobGrin &job, PoolWatchClientGrin *client);
+  MysqlConnectInfo& getMysqlInfo() { return poolDB_; }
 
 private:
   void runThreadSolvedShareConsume();
@@ -53,6 +56,8 @@ private:
   std::mutex jobCacheLock_;
   std::queue<uint64_t> jobCache_;
   std::unordered_map<uint64_t, std::weak_ptr<PoolWatchClient>> jobClients_;
+
+  MysqlConnectInfo poolDB_; // save blocks to table `found_blocks`
 };
 
 class PoolWatchClientGrin : public PoolWatchClient {

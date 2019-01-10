@@ -110,6 +110,7 @@ void StratumMinerGrin::handleRequest_Submit(const string &idStr, const JsonNode 
 
   ShareGrin share;
   share.set_version(ShareGrin::CURRENT_VERSION);
+  share.set_jobid(sjob->jobId_);
   share.set_workerhashid(workerId_);
   share.set_userid(worker.userId_);
   share.set_blockdiff(sjob->difficulty_);
@@ -118,6 +119,9 @@ void StratumMinerGrin::handleRequest_Submit(const string &idStr, const JsonNode 
   share.set_edgebits(edgeBits);
   share.set_height(height);
   share.set_nonce(nonce);
+  for (uint64_t proof : proofs) {
+    share.add_pow(proof);
+  }
   share.set_sessionid(sessionId); // TODO: fix it, set as real session id.
   IpAddress ip;
   ip.fromIpv4Int(session.getClientIp());
@@ -132,13 +136,15 @@ void StratumMinerGrin::handleRequest_Submit(const string &idStr, const JsonNode 
     return;
   }
 
+  uint256 blockHash;
   server.checkAndUpdateShare(
     localJob->chainId_,
     share,
     exjob,
     proofs,
     jobDiff.jobDiffs_,
-    worker.fullName_);
+    worker.fullName_,
+    blockHash);
 
   if (StratumStatus::isAccepted(share.status())) {
     DLOG(INFO) << "share reached the diff: " << share.sharediff();
@@ -150,7 +156,7 @@ void StratumMinerGrin::handleRequest_Submit(const string &idStr, const JsonNode 
   // shares in a short time, we just drop them.
   if (handleShare(idStr, share.status(), share.sharediff())) {
     if (StratumStatus::isSolved(share.status())) {
-      server.sendSolvedShare2Kafka(localJob->chainId_, share, exjob, proofs, worker);
+      server.sendSolvedShare2Kafka(localJob->chainId_, share, exjob, proofs, worker, blockHash);
       // mark jobs as stale
       server.GetJobRepository(exjob->chainId_)->markAllJobsAsStale();
     }

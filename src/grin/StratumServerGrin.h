@@ -26,6 +26,8 @@
 
 #include "StratumServer.h"
 
+#include "uint256.h"
+
 class JobRepositoryGrin;
 class ShareGrin;
 
@@ -39,15 +41,15 @@ public:
     shared_ptr<StratumJobEx> exjob,
     const vector<uint64_t > &proofs,
     const std::set<uint64_t> &jobDiffs,
-    const string &workFullName
-  );
+    const string &workFullName,
+    uint256 &blockHash);
   void sendSolvedShare2Kafka(
     size_t chainId,
     const ShareGrin &share,
     shared_ptr<StratumJobEx> exjob,
     const vector<uint64_t > &proofs,
-    const StratumWorker &worker
-  );
+    const StratumWorker &worker,
+    const uint256 &blockHash);
 
 protected:
   JobRepository* createJobRepository(

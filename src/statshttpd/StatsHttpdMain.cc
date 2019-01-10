@@ -55,6 +55,9 @@
 #include "beam/StatisticsBeam.h"
 #include "beam/StatsHttpdBeam.h"
 
+#include "grin/StatisticsGrin.h"
+#include "grin/StatsHttpdGrin.h"
+
 using namespace std;
 using namespace libconfig;
 
@@ -122,6 +125,14 @@ std::shared_ptr<StatsServer> newStatsServer(const string &chainType, const char 
                                             redisPublishPolicy, redisIndexPolicy,
                                             kFlushDBInterval, fileLastFlushTime,
                                             std::make_shared<DuplicateShareCheckerBeam>(dupShareTrackingHeight));
+  }
+  else if (chainType == "GRIN") {
+    return std::make_shared<StatsServerGrin>(kafkaBrokers, kafkaShareTopic, kafkaCommonEventsTopic,
+                                             httpdHost, httpdPort, poolDBInfo, redisInfo,
+                                             redisConcurrency, redisKeyPrefix, redisKeyExpire,
+                                             redisPublishPolicy, redisIndexPolicy,
+                                             kFlushDBInterval, fileLastFlushTime,
+                                             std::make_shared<DuplicateShareCheckerGrin>(dupShareTrackingHeight));
   }
   else {
     LOG(FATAL) << "newStatsServer: unknown chain type " << chainType;

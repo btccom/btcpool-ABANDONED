@@ -83,7 +83,7 @@ bool StratumJobGrin::unserializeFromJson(const char *s, size_t len) {
     j["prePow"].size() != sizeof(PrePowGrin) * 2 ||
     !IsHex(j["prePow"].str()))
   {
-    LOG(ERROR) << "parse beam stratum job failure: " << s;
+    LOG(ERROR) << "parse grin stratum job failure: " << s;
     return false;
   }
 

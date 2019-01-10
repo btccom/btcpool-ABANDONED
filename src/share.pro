@@ -112,4 +112,5 @@ message GrinMsg{
   optional uint64     nonce         = 12;
   repeated uint64     pow           = 13;
   optional uint32     sessionid     = 14;
+  optional uint64     hashprefix    = 15;
 }
