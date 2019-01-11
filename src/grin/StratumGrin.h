@@ -66,6 +66,9 @@ public:
   ShareGrin(const ShareGrin &r) = default;
   ShareGrin &operator=(const ShareGrin &r) = default;
 
+  // Grin applies scaling when checking proof hash difficulty, to mitigate the solving cost.
+  // The scaling is dynamic and is determined by height, edge bits and secondary scaling field in job pre-PoW.
+  // Hence we need to remove the scaling to calculate "hash rate".
   uint32_t sharediff() const {
     return jobdiff() / scaling();
   }
