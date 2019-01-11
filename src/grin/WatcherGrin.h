@@ -28,7 +28,6 @@
 
 #include "MySQLConnection.h"
 
-#include <memory>
 #include <queue>
 #include <unordered_map>
 
@@ -52,10 +51,15 @@ private:
   KafkaConsumer kafkaSolvedShareConsumer_;  // consume solved_share_topic
   thread threadSolvedShareConsume_;
 
+  struct JobCache {
+    uint64_t nodeJobId;
+    size_t clientId;
+  };
+
   static const size_t kMaxJobCacheSize_ = 5000;
   std::mutex jobCacheLock_;
-  std::queue<uint64_t> jobCache_;
-  std::unordered_map<uint64_t, std::weak_ptr<PoolWatchClient>> jobClients_;
+  std::queue<string> jobCacheQueue_;
+  std::unordered_map<string, JobCache> jobCacheMap_;
 
   MysqlConnectInfo poolDB_; // save blocks to table `found_blocks`
 };

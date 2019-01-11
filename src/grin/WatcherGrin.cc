@@ -28,6 +28,8 @@
 
 #include "utilities_js.hpp"
 
+#include <sstream>
+
 ClientContainerGrin::ClientContainerGrin(const libconfig::Config &config)
   : ClientContainer{config}
   , kafkaSolvedShareConsumer_{
@@ -72,7 +74,7 @@ void ClientContainerGrin::runThreadSolvedShareConsume() {
   for (;;) {
     {
       std::lock_guard<std::mutex> lock(jobCacheLock_);
-      if (!jobCache_.empty()) {
+      if (!jobCacheMap_.empty()) {
         break;
       }
     }
@@ -134,8 +136,7 @@ void ClientContainerGrin::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
   }
 
   if (
-    jroot["jobId"].type() != Utilities::JS::type::Int ||
-    jroot["nodeJobId"].type() != Utilities::JS::type::Int ||
+    jroot["prePow"].type() != Utilities::JS::type::Str ||
     jroot["height"].type() != Utilities::JS::type::Int ||
     jroot["edgeBits"].type() != Utilities::JS::type::Int ||
     jroot["nonce"].type() != Utilities::JS::type::Int ||
@@ -146,19 +147,19 @@ void ClientContainerGrin::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
     return;
   }
 
-  uint64_t jobId = jroot["jobId"].uint64();
-  uint64_t nodeJobId = jroot["nodeJobId"].uint64();
+  string prePow = jroot["prePow"].str();
   uint64_t height = jroot["height"].uint64();
   uint32_t edgeBits = jroot["edgeBits"].uint32();
   uint64_t nonce = jroot["nonce"].uint64();
-  string proofs = jroot["proofs"].str();
   uint32_t userId = jroot["userId"].uint32();
   int64_t workerId = jroot["workerId"].int64();
   string workerFullName = jroot["workerFullName"].str();
   string blockHash = jroot["blockHash"].str();
+  std::ostringstream oss;
+  oss << jroot["proofs"].str();
+  auto proofs = oss.str();
   LOG(INFO) << "received a new solved share, worker: " << workerFullName
-            << ", jobId: " << jobId
-            << ", nodeJobId: " << nodeJobId
+            << ", prePow: " << prePow
             << ", height: " << height
             << ", edgeBits: " << edgeBits
             << ", nonce: " << nonce
@@ -166,16 +167,17 @@ void ClientContainerGrin::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
             << ", blockHash: " << blockHash;
 
   std::lock_guard<std::mutex> lock(jobCacheLock_);
-  auto itr = jobClients_.find(jobId);
+  auto itr = jobCacheMap_.find(prePow);
 
-  if (itr == jobClients_.end()) {
+  if (itr == jobCacheMap_.end()) {
     LOG(WARNING) << "cannot find stratum job of solved share: " << json;
     return;
   }
 
-  auto client = itr->second.lock();
+  auto nodeJobId = itr->second.nodeJobId;
+  auto client = clients_.at(itr->second.clientId);
   if (!client) {
-    LOG(ERROR) << "client for job " << jobId << " is not available for the solved share: " << json;
+    LOG(ERROR) << "client for prePow " << prePow << " is not available for the solved share: " << json;
     return;
   }
 
@@ -192,7 +194,7 @@ void ClientContainerGrin::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
     "}}\n",
     edgeBits,
     height,
-    jobId,
+    nodeJobId,
     nonce,
     proofs.c_str());
 
@@ -219,7 +221,7 @@ void ClientContainerGrin::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
     filterWorkerName(workerFullName).c_str(),
     height, blockHash.c_str(),
     edgeBits, nonce,
-    (int64_t)GetBlockRewardGrin(height), jobId,
+    (int64_t)GetBlockRewardGrin(height), nodeJobId,
     nowStr.c_str()
   );
   std::thread t([this, sql, blockHash]() {
@@ -244,15 +246,13 @@ void ClientContainerGrin::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
 
 bool ClientContainerGrin::sendJobToKafka(const StratumJobGrin &job, PoolWatchClientGrin *client) {
   // Find the client for the job
-  std::weak_ptr<PoolWatchClient> clientPtr;
-  for (auto &p : clients_) {
-    if (p.get() == client) {
-      clientPtr = p;
+  size_t clientId;
+  for (clientId = 0; clientId < clients_.size(); clientId++) {
+    if (clients_[clientId].get() == client) {
       break;
     }
   }
-
-  if (clientPtr.expired()) {
+  if (clientId >= clients_.size()) {
     LOG(ERROR) << "discard a job that its client has been destroyed: " << job.serializeToJson();
     return false;
   }
@@ -264,13 +264,13 @@ bool ClientContainerGrin::sendJobToKafka(const StratumJobGrin &job, PoolWatchCli
 
   // Job cache management
   std::lock_guard<std::mutex> lock{jobCacheLock_};
-  jobCache_.push(job.jobId_);
-  jobClients_[job.jobId_] = clientPtr;
-  while (jobClients_.size() > kMaxJobCacheSize_) {
-    auto itr = jobClients_.find(jobCache_.front());
-    jobCache_.pop();
-    if (itr != jobClients_.end()) {
-      jobClients_.erase(itr);
+  jobCacheQueue_.push(job.prePowStr_);
+  jobCacheMap_[job.prePowStr_] = {job.nodeJobId_, clientId};
+  while (jobCacheMap_.size() > kMaxJobCacheSize_) {
+    auto itr = jobCacheMap_.find(jobCacheQueue_.front());
+    jobCacheQueue_.pop();
+    if (itr != jobCacheMap_.end()) {
+      jobCacheMap_.erase(itr);
     }
   }
 

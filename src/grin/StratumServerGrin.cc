@@ -27,8 +27,6 @@
 #include "StratumSessionGrin.h"
 #include "CommonGrin.h"
 
-#include "arith_uint256.h"
-
 #include <boost/make_unique.hpp>
 #include <algorithm>
 
@@ -120,8 +118,7 @@ void StratumServerGrin::sendSolvedShare2Kafka(
 
   auto sjob = dynamic_cast<StratumJobGrin *>(exjob->sjob_);
   string msg = Strings::Format(
-    "{\"jobId\":%" PRIu64
-    ",\"nodeJobId\":%" PRIu64
+    "{\"prePow\":\"%s\""
     ",\"height\":%" PRIu64
     ",\"edgeBits\":%" PRIu32
     ",\"nonce\":%" PRIu64
@@ -131,8 +128,7 @@ void StratumServerGrin::sendSolvedShare2Kafka(
     ",\"workerFullName\":\"%s\""
     ",\"blockHash\":\"%s\""
     "}",
-    sjob->jobId_,
-    sjob->nodeJobId_,
+    sjob->prePowStr_.c_str(),
     sjob->height_,
     share.edgebits(),
     share.nonce(),
