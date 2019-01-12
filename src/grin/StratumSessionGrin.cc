@@ -202,9 +202,6 @@ void StratumSessionGrin::sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPt
     return;
   }
 
-  // Adjust minimal difficulty to fit secondary scaling, otherwise the hash target may has no leading zeros
-  dispatcher_->setMinDiff(job->prePow_.secondaryScaling.value() * 2);
-
   uint32_t prePowHash = djb2(job->prePowStr_.c_str());
   auto ljob = findLocalJob(prePowHash);
   // create a new local job if not exists

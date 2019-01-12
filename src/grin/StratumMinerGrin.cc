@@ -115,7 +115,7 @@ void StratumMinerGrin::handleRequest_Submit(const string &idStr, const JsonNode 
   share.set_userid(worker.userId_);
   share.set_timestamp((uint64_t) time(nullptr));
   share.set_status(StratumStatus::REJECT_NO_REASON);
-  share.set_jobdiff(jobDiff.currentJobDiff_);
+  share.set_sharediff(jobDiff.currentJobDiff_);
   share.set_blockdiff(sjob->difficulty_);
   share.set_height(height);
   share.set_nonce(nonce);
@@ -146,9 +146,9 @@ void StratumMinerGrin::handleRequest_Submit(const string &idStr, const JsonNode 
     blockHash);
 
   if (StratumStatus::isAccepted(share.status())) {
-    DLOG(INFO) << "share reached the diff: " << share.sharediff();
+    DLOG(INFO) << "share reached the diff: " << share.scaledShareDiff();
   } else {
-    DLOG(INFO) << "share not reached the diff: " << share.sharediff();
+    DLOG(INFO) << "share not reached the diff: " << share.scaledShareDiff();
   }
 
   // we send share to kafka by default, but if there are lots of invalid

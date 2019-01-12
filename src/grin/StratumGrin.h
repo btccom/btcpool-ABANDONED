@@ -54,7 +54,7 @@ public:
     set_timestamp(0);
     set_ip("0.0.0.0");
     set_jobid(0);
-    set_jobdiff(0);
+    set_sharediff(0);
     set_blockdiff(0);
     set_height(0);
     set_nonce(0);
@@ -68,14 +68,13 @@ public:
 
   // Grin applies scaling when checking proof hash difficulty, to mitigate the solving cost.
   // The scaling is dynamic and is determined by height, edge bits and secondary scaling field in job pre-PoW.
-  // Hence we need to remove the scaling to calculate "hash rate".
-  uint32_t sharediff() const {
-    return jobdiff() / scaling();
+  uint32_t scaledShareDiff() const {
+    return sharediff() * scaling();
   }
 
   double score() const
   {
-    if (!StratumStatus::isAccepted(status()) || jobdiff() == 0 || scaling() == 0 || blockdiff() == 0) {
+    if (!StratumStatus::isAccepted(status()) || scaledShareDiff() == 0 || scaling() == 0 || blockdiff() == 0) {
       return 0.0;
     }
 
@@ -83,7 +82,7 @@ public:
     // On regression test network, the network diff may be zero.
     // But no matter how low the network diff is, you can only dig one block at a time.
     double networkDiff = blockdiff();
-    double jobDiff = jobdiff();
+    double jobDiff = scaledShareDiff();
     if (networkDiff < jobDiff) {
       return 1.0;
     }
@@ -97,7 +96,7 @@ public:
     if (version() != CURRENT_VERSION) {
       return false;
     }
-    if (userid() == 0 || workerhashid() == 0 || blockdiff() == 0 || jobdiff() == 0 || scaling() == 0)
+    if (userid() == 0 || workerhashid() == 0 || blockdiff() == 0 || scaledShareDiff() == 0 || scaling() == 0)
     {
       return false;
     }
@@ -112,7 +111,7 @@ public:
                            "sessionId: %08x, status: %d/%s)",
                            height(), jobid(), ip().c_str(), userid(),
                            workerhashid(), timestamp(), date("%F %T", timestamp()).c_str(),
-                           jobdiff(), blockdiff(), nonce(),
+                           scaledShareDiff(), blockdiff(), nonce(),
                            sessionid(), status(), StratumStatus::toString(status()));
   }
 

@@ -66,17 +66,17 @@ void StratumServerGrin::checkAndUpdateShare(
 
   blockHash = PowHashGrin(share.height(), share.edgebits(), preProof.prePow.secondaryScaling.value(), proofs);
   share.set_hashprefix(blockHash.GetCheapHash());
-  uint64_t shareDiff = PowDifficultyGrin(share.height(), share.edgebits(), preProof.prePow.secondaryScaling.value(), proofs);
-  DLOG(INFO) << "compare share difficulty: " << shareDiff << ", network difficulty: " << sjob->difficulty_;
+  uint64_t scaledShareDiff = PowDifficultyGrin(share.height(), share.edgebits(), preProof.prePow.secondaryScaling.value(), proofs);
+  DLOG(INFO) << "compare share difficulty: " << scaledShareDiff << ", network difficulty: " << sjob->difficulty_;
 
   // print out high diff share
-  if (shareDiff / sjob->difficulty_ >= 1024) {
-    LOG(INFO) << "high diff share, share difficulty: " << shareDiff << ", network difficulty: " << sjob->difficulty_
+  if (scaledShareDiff / sjob->difficulty_ >= 1024) {
+    LOG(INFO) << "high diff share, share difficulty: " << scaledShareDiff << ", network difficulty: " << sjob->difficulty_
               << ", worker: " << workFullName;
   }
 
-  if (isSubmitInvalidBlock_ || shareDiff >= sjob->difficulty_) {
-    LOG(INFO) << "solution found, share difficulty: " << shareDiff << ", network difficulty: " << sjob->difficulty_
+  if (isSubmitInvalidBlock_ || scaledShareDiff >= sjob->difficulty_) {
+    LOG(INFO) << "solution found, share difficulty: " << scaledShareDiff << ", network difficulty: " << sjob->difficulty_
               << ", worker: " << workFullName;
 
     share.set_status(StratumStatus::SOLVED);
@@ -86,11 +86,11 @@ void StratumServerGrin::checkAndUpdateShare(
 
   // higher difficulty is prior
   for (auto itr = jobDiffs.rbegin(); itr != jobDiffs.rend(); itr++) {
-    uint64_t jobDiff = *itr;
-    DLOG(INFO) << "compare share difficulty: " << shareDiff << ", job difficulty: " << jobDiff;
+    uint64_t jobDiff = *itr * share.scaling();
+    DLOG(INFO) << "compare share difficulty: " << scaledShareDiff << ", job difficulty: " << jobDiff;
 
-    if (isEnableSimulator_ || shareDiff >= jobDiff) {
-      share.set_jobdiff(jobDiff);
+    if (isEnableSimulator_ || scaledShareDiff >= jobDiff) {
+      share.set_sharediff(jobDiff);
       share.set_status(StratumStatus::ACCEPT);
       return;
     }
