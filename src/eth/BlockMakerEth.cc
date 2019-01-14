@@ -32,15 +32,8 @@
 BlockMakerEth::BlockMakerEth(shared_ptr<BlockMakerDefinition> def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB) 
   : BlockMaker(def, kafkaBrokers, poolDB)
 {
-  useSubmitBlockDetail_ = checkRpcSubmitBlockDetail();
-  if (useSubmitBlockDetail_) {
-    LOG(INFO) << "use RPC eth_submitBlockDetail";
-  }
-  else if (checkRpcSubmitBlock()) {
-    LOG(INFO) << "use RPC eth_submitBlock, it has limited functionality and the block hash will not be recorded.";
-  }
-  else {
-    LOG(FATAL) << "Ethereum nodes doesn't support both eth_submitBlockDetail and eth_submitBlock, cannot submit block!";
+  if (!checkRpcSubmitBlock()) {
+    LOG(FATAL) << "One of Ethereum nodes don't support both parity_submitBlockDetail and eth_submitBlock, cannot submit block to it!";
   }
 }
 
@@ -81,164 +74,173 @@ void BlockMakerEth::processSolvedShare(rd_kafka_message_t *rkmessage)
 
 bool BlockMakerEth::submitBlock(const string &nonce, const string &header, const string &mix,
                                 const string &rpcUrl, const string &rpcUserPass,
-                                string &/*errMsg*/, string &/*blockHash*/) {
-  string request = Strings::Format("{\"jsonrpc\": \"2.0\", \"method\": \"eth_submitWork\", \"params\": [\"%s\",\"%s\",\"%s\"], \"id\": 5}\n",
-                                   HexAddPrefix(nonce).c_str(),
-                                   HexAddPrefix(header).c_str(),
-                                   HexAddPrefix(mix).c_str());
+                                string &errMsg, string &blockHash,
+                                string &request, string &response, bool &resultFound) {
+  resultFound = false;
 
-  string response;
-  bool ok = blockchainNodeRpcCall(rpcUrl.c_str(), rpcUserPass.c_str(), request.c_str(), response);
-  DLOG(INFO) << "eth_submitWork request: " << request;
-  DLOG(INFO) << "eth_submitWork response: " << response;
-  if (!ok) {
-    LOG(WARNING) << "Call RPC eth_submitWork failed, node url: " << rpcUrl;
-    return false;
-  }
-
-  JsonNode r;
-  if (!JsonNode::parse(response.c_str(), response.c_str() + response.size(), r)) {
-    LOG(WARNING) << "decode response failure, node url: " << rpcUrl << ", response: " << response;
-    return false;
-  }
-
-  if (r.type() != Utilities::JS::type::Obj || r["result"].type() != Utilities::JS::type::Bool) {
-    LOG(WARNING) << "node doesn't support eth_submitWork, node url: " << rpcUrl << ", response: " << response;
-    return false;
-  }
-
-  return r["result"].boolean();
-}
-
-/**
-  * RPC eth_submitWorkDetail:
+  /**
+  * Use parity_submitBlockDetail and eth_submitBlock at the same time.
+  * 
+  * About RPC parity_submitBlockDetail:
   *     A new RPC to submit POW work to Ethereum node. It has the same functionality as `eth_submitWork`
-  *     but returns more details about the submitted block.
-  *     It defined by the BTCPool project and implemented in the Parity Ethereum node as a patch.
+  *     but returns the hash of the submitted block.
+  *     When an error occurs, the specific error message will be returned instead of a `false`.
+  *     It defined by the BTCPool project and implemented in the Parity Ethereum node as a private RPC.
   * 
-  * Params (same as `eth_submitWork`):
-  *     [
-  *         (string) nonce,
-  *         (string) pow_hash,
-  *         (string) mix_hash
-  *     ]
-  * 
-  * Result:
-  *     [
-  *         (bool)           success,
-  *         (string or null) error_msg,
-  *         (string or null) block_hash,
-  *         ... // more fields may added in the future
-  *     ]
-  */
-bool BlockMakerEth::submitBlockDetail(const string &nonce, const string &header, const string &mix,
-                                      const string &rpcUrl, const string &rpcUserPass,
-                                      string &errMsg, string &blockHash) {
-  
-  string request = Strings::Format("{\"jsonrpc\": \"2.0\", \"method\": \"eth_submitWorkDetail\", \"params\": [\"%s\",\"%s\",\"%s\"], \"id\": 5}\n",
-                                   HexAddPrefix(nonce).c_str(),
-                                   HexAddPrefix(header).c_str(),
-                                   HexAddPrefix(mix).c_str());
+  * RPC parity_submitWorkDetail
 
-  string response;
+  * Params (same as `eth_submitWork`):
+  *   [
+  *       "<nonce>",
+  *       "<pow_hash>",
+  *       "<mix_hash>"
+  *   ]
+  *
+  * Result on success:
+  *   "block_hash"
+  *
+  * Error on failure:
+  *   {code: -32005, message: "Cannot submit work.", data: "<reason for submission failure>"}
+  * 
+  * Examples for the RPC calling:
+  * <https://github.com/paritytech/parity-ethereum/pull/9404>
+  * 
+  */
+  request = Strings::Format(
+    "["
+      "{\"jsonrpc\":\"2.0\",\"method\":\"parity_submitWorkDetail\",\"params\":[\"%s\",\"%s\",\"%s\"],\"id\":1},"
+      "{\"jsonrpc\":\"2.0\",\"method\":\"eth_submitWork\",\"params\":[\"%s\",\"%s\",\"%s\"],\"id\":2}"
+    "]",
+    HexAddPrefix(nonce).c_str(),
+    HexAddPrefix(header).c_str(),
+    HexAddPrefix(mix).c_str(),
+    HexAddPrefix(nonce).c_str(),
+    HexAddPrefix(header).c_str(),
+    HexAddPrefix(mix).c_str()
+  );
+
   bool ok = blockchainNodeRpcCall(rpcUrl.c_str(), rpcUserPass.c_str(), request.c_str(), response);
-  DLOG(INFO) << "eth_submitWorkDetail request: " << request;
-  DLOG(INFO) << "eth_submitWorkDetail response: " << response;
+  DLOG(INFO) << "eth_submitWork request for server " << rpcUrl << ": " << request;
+  DLOG(INFO) << "eth_submitWork response for server " << rpcUrl << ": " << response;
   if (!ok) {
-    LOG(WARNING) << "Call RPC eth_submitWorkDetail failed, node url: " << rpcUrl;
+    LOG(WARNING) << "Call RPC eth_submitWork failed, node url: " << rpcUrl
+                 << ", request: " << request
+                 << ", response: " << response;
     return false;
   }
 
   JsonNode r;
   if (!JsonNode::parse(response.c_str(), response.c_str() + response.size(), r)) {
-    LOG(WARNING) << "decode response failure, node url: " << rpcUrl << ", response: " << response;
+    LOG(WARNING) << "decode response failure, node url: " << rpcUrl
+                 << ", request: " << request
+                 << ", response: " << response;
     return false;
   }
 
-  if (r.type() != Utilities::JS::type::Obj || r["result"].type() != Utilities::JS::type::Array) {
-    LOG(WARNING) << "node doesn't support eth_submitWorkDetail, node url: " << rpcUrl << ", response: " << response;
+  if (r.type() != Utilities::JS::type::Array || r.children()->size() != 2) {
+    LOG(WARNING) << "node doesn't support multiple requests in the same JSON, node url: " << rpcUrl
+                 << ", request: " << request
+                 << ", response: " << response;
     return false;
   }
 
-  auto result = r["result"].children();
-
+  auto results = r.children();
   bool success = false;
-  if (result->size() >= 1 && result->at(0).type() == Utilities::JS::type::Bool) {
-    success = result->at(0).boolean();
-  }
 
-  if (result->size() >= 2 && result->at(1).type() == Utilities::JS::type::Str) {
-    errMsg = result->at(1).str();
-  }
+  for (auto res : *results) {
+    if (res.type() != Utilities::JS::type::Obj && res["id"].type() != Utilities::JS::type::Int) {
+      LOG(WARNING) << "Result is not a valid JSON-RPC object, node url: " << rpcUrl
+                   << ", request: " << request
+                   << ", response: " << response;
+      continue;
+    }
 
-  if (result->size() >= 3 && result->at(2).type() == Utilities::JS::type::Str) {
-    blockHash = result->at(2).str();
+    // id 1: parity_submitWorkDetail
+    //    2: eth_submitWork
+    if (res["id"].int64() == 1) {
+      //
+      // Success result of parity_submitWorkDetail. Example:
+      // {"jsonrpc":"2.0","result":"0x07a992176ab51ee50539c1ba287bef937fe49c9a96dafa03954fb6fefa594691","id":5}
+      //
+      if (res["result"].type() == Utilities::JS::type::Str) {
+        success = true;
+        resultFound = true;
+        blockHash = res["result"].str();
+        continue;
+      }
+    
+      //
+      // Failure result of parity_submitWorkDetail. Example:
+      // {"jsonrpc":"2.0","error":{"code":-32005,"message":"Cannot submit work.","data":"PoW hash is invalid or out of date."},"id":5}
+      //
+      if (res["error"].type() == Utilities::JS::type::Obj && res["error"]["data"].type() == Utilities::JS::type::Str) {
+        errMsg = res["error"]["data"].str();
+        resultFound = true;
+        continue;
+      }
+
+      // Ignore "Method not found" error of RPC parity_submitWorkDetail
+    }
+    else {
+      //
+      // Response of eth_submitWork. Example:
+      // {"jsonrpc":"2.0","result":false,"id":5}
+      //
+      if (res["result"].type() == Utilities::JS::type::Bool) {
+        if (res["result"].boolean() == true) {
+          success = true;
+        }
+        // Don't set `success = false` if the result is false,
+        // because parity_submitWorkDetail may have been successful
+        
+        resultFound = true;
+        continue;
+      }
+
+      LOG(WARNING) << "Unexpected result, node url: " << rpcUrl
+                   << ", request: " << request
+                   << ", response: " << response;
+    }
   }
 
   return success;
 }
 
 bool BlockMakerEth::checkRpcSubmitBlock() {
-  string request = Strings::Format("{\"jsonrpc\": \"2.0\", \"method\": \"eth_submitWork\", \"params\": [\"%s\",\"%s\",\"%s\"], \"id\": 5}\n",
-                                   "0x0000000000000000",
-                                   "0x0000000000000000000000000000000000000000000000000000000000000000",
-                                   "0x0000000000000000000000000000000000000000000000000000000000000000");
-
-  for (const auto &itr : def()->nodes) {
-    string response;
-    bool ok = blockchainNodeRpcCall(itr.rpcAddr_.c_str(), itr.rpcUserPwd_.c_str(), request.c_str(), response);
-    if (!ok) {
-      LOG(WARNING) << "Call RPC eth_submitWork failed, node url: " << itr.rpcAddr_;
-      return false;
-    }
-
-    JsonNode r;
-    if (!JsonNode::parse(response.c_str(), response.c_str() + response.size(), r)) {
-      LOG(WARNING) << "decode response failure, node url: " << itr.rpcAddr_ << ", response: " << response;
-      return false;
-    }
-
-    if (r.type() != Utilities::JS::type::Obj || r["result"].type() != Utilities::JS::type::Bool) {
-      LOG(WARNING) << "node doesn't support eth_submitWork, node url: " << itr.rpcAddr_ << ", response: " << response;
-      return false;
-    }
-  }
-
-  return true;
-}
-
-bool BlockMakerEth::checkRpcSubmitBlockDetail() {
-  string request = Strings::Format("{\"jsonrpc\": \"2.0\", \"method\": \"eth_submitWorkDetail\", \"params\": [\"%s\",\"%s\",\"%s\"], \"id\": 5}\n",
-                                   "0x0000000000000000",
-                                   "0x0000000000000000000000000000000000000000000000000000000000000000",
-                                   "0x0000000000000000000000000000000000000000000000000000000000000000");
-
   if (def()->nodes.empty()) {
     LOG(FATAL) << "Node list is empty, cannot submit block!";
     return false;
   }
 
   for (const auto &itr : def()->nodes) {
-    string response;
-    bool ok = blockchainNodeRpcCall(itr.rpcAddr_.c_str(), itr.rpcUserPwd_.c_str(), request.c_str(), response);
-    if (!ok) {
-      LOG(WARNING) << "Call RPC eth_submitWorkDetail failed, node url: " << itr.rpcAddr_;
+    string blockHash, errMsg, request, response;
+    bool resultFound = false;
+
+    submitBlock(
+      "0x0000000000000000",
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+      itr.rpcAddr_, itr.rpcUserPwd_,
+      errMsg, blockHash,
+      request, response, resultFound
+    );
+
+    if (!resultFound) {
+      LOG(FATAL) << "Node " << itr.rpcAddr_ << " doesn't support both parity_submitBlockDetail and eth_submitBlock, cannot submit block to it!"
+                 << " Request: " << request
+                 << ", response: " << response;
       return false;
     }
 
-    JsonNode r;
-    if (!JsonNode::parse(response.c_str(), response.c_str() + response.size(), r)) {
-      LOG(WARNING) << "decode response failure, node url: " << itr.rpcAddr_ << ", response: " << response;
-      return false;
+    if (!errMsg.empty()) {
+      LOG(INFO) << "Node " << itr.rpcAddr_ << " supports parity_submitBlockDetail. Block hash will be recorded correctly if submit block to it."
+                << " Request: " << request
+                << ", response: " << response;
     }
-
-    if (r.type() != Utilities::JS::type::Obj ||
-      r["result"].type() != Utilities::JS::type::Array ||
-      r["result"].children()->size() < 3 ||
-      r["result"].children()->at(0).type() != Utilities::JS::type::Bool)
-    {
-      LOG(WARNING) << "node doesn't support eth_submitWorkDetail, node url: " << itr.rpcAddr_ << ", response: " << response;
-      return false;
+    else {
+      LOG(WARNING) << "Node " << itr.rpcAddr_ << " doesn't supports parity_submitBlockDetail. Block hash will be empty if submit block to it."
+                   << " Request: " << request
+                   << ", response: " << response;
     }
   }
 
@@ -270,22 +272,27 @@ void BlockMakerEth::_submitBlockThread(const string &nonce, const string &header
                                        const uint32_t height, const string &chain, const uint64_t networkDiff, const StratumWorker &worker,
                                        std::atomic<bool> *syncSubmitSuccess) {
   string blockHash;
+  
+  // unused vars
+  string request, response;
+  bool resultFound;
 
   auto submitBlockOnce = [&]() {
-    // use eth_submitWorkDetail or eth_submitWork
-    auto submitFunc = useSubmitBlockDetail_ ? BlockMakerEth::submitBlockDetail : BlockMakerEth::submitBlock;
-    auto submitRpcName = useSubmitBlockDetail_ ? "eth_submitWorkDetail" : "eth_submitWork";
-
     string errMsg;
-    bool success = submitFunc(nonce, header, mix, node.rpcAddr_, node.rpcUserPwd_, errMsg, blockHash);
+    bool success = BlockMakerEth::submitBlock(
+      nonce, header, mix,
+      node.rpcAddr_, node.rpcUserPwd_,
+      errMsg, blockHash,
+      request, response, resultFound
+    );
     if (success) {
-      LOG(INFO) << submitRpcName << " success, chain: " << chain << ", height: " << height
+      LOG(INFO) << "submit block success, chain: " << chain << ", height: " << height
                 << ", hash: " << blockHash << ", hash_no_nonce: " << header
                 << ", networkDiff: " << networkDiff << ", worker: " << worker.fullName_;
       return true;
     }
 
-    LOG(WARNING) << submitRpcName << " failed, chain: " << chain << ", height: " << height << ", hash_no_nonce: " << header
+    LOG(WARNING) << "submit block failed, chain: " << chain << ", height: " << height << ", hash_no_nonce: " << header
                  << ", err_msg: " << errMsg;
     return false;
   };
