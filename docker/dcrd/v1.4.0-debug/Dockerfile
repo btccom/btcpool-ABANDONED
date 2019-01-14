@@ -30,7 +30,7 @@ RUN cd ~/source && git clone --depth=1 -b v1.4.0-rc1-debug https://github.com/Yi
 RUN cd ~/source/dcrd && \
     go install . .\cmd\... && \
     go build && \
-    ln -s $PWD/dcr* /usr/local/bin
+    ln -s $PWD/dcrd $PWD/cmd/dcrctl /usr/local/bin/
 
 # mkdir dcrd data dir
 RUN mkdir -p /root/.dcrd
@@ -43,9 +43,3 @@ RUN mkdir -p /root/.dcrd
 RUN mkdir    /etc/service/dcrd
 ADD run      /etc/service/dcrd/run
 RUN chmod +x /etc/service/dcrd/run
-
-# remove source & build files
-RUN rm -rf ~/source
-
-# clean
-RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
