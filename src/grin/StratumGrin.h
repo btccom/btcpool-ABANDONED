@@ -231,3 +231,9 @@ struct StratumTraitsGrin {
     uint32_t prePowHash_;
   };
 };
+
+enum class AlgorithmGrin {
+  Unknown,
+  Cuckaroo,
+  Cuckatoo,
+};

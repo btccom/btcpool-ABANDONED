@@ -27,5 +27,23 @@
 
 #include "StatsHttpd.h"
 
-////////////////////////////  Alias  ////////////////////////////
-using StatsServerGrin = StatsServerT<ShareGrin>;
+class StatsServerGrin : public StatsServerT<ShareGrin> {
+public:
+  StatsServerGrin(
+    const char *kafkaBrokers,
+    const char *kafkaShareTopic,
+    const char *kafkaCommonEventsTopic,
+    const string &httpdHost,
+    unsigned short httpdPort,
+    const MysqlConnectInfo *poolDBInfo,
+    const RedisConnectInfo *redisInfo,
+    const uint32_t redisConcurrency, const string &redisKeyPrefix, const int redisKeyExpire,
+    const int redisPublishPolicy, const int redisIndexPolicy,
+    const time_t kFlushDBInterval, const string &fileLastFlushTime,
+    shared_ptr<DuplicateShareChecker<ShareGrin>> dupShareChecker,
+    const libconfig::Config &config);
+
+private:
+  bool filterShare(const ShareGrin &share) override;
+  AlgorithmGrin algorithm_;
+};

@@ -112,7 +112,7 @@ std::shared_ptr<ShareLogDumper> newShareLogDumper(const string &chainType, const
 
 std::shared_ptr<ShareLogParser> newShareLogParser(const string &chainType, const string &dataDir,
                                                   time_t timestamp, const MysqlConnectInfo &poolDBInfo,
-                                                  const int dupShareTrackingHeight)
+                                                  const int dupShareTrackingHeight, const libconfig::Config &cfg)
 {
 #if defined(CHAIN_TYPE_STR)
   if (CHAIN_TYPE_STR == chainType)
@@ -139,7 +139,7 @@ std::shared_ptr<ShareLogParser> newShareLogParser(const string &chainType, const
   }
   else if (chainType == "GRIN") {
     return std::make_shared<ShareLogParserGrin>(chainType.c_str(), dataDir, timestamp, poolDBInfo,
-                                                std::make_shared<DuplicateShareCheckerGrin>(dupShareTrackingHeight));
+                                                std::make_shared<DuplicateShareCheckerGrin>(dupShareTrackingHeight), cfg);
   }
   else {
     LOG(FATAL) << "newShareLogParser: unknown chain type " << chainType;
@@ -151,7 +151,8 @@ std::shared_ptr<ShareLogParserServer> newShareLogParserServer(const string &chai
                                                         const string &httpdHost, unsigned short httpdPort,
                                                         const MysqlConnectInfo &poolDBInfo,
                                                         const uint32_t kFlushDBInterval,
-                                                        const int dupShareTrackingHeight)
+                                                        const int dupShareTrackingHeight,
+                                                        const libconfig::Config &cfg)
 {
 #if defined(CHAIN_TYPE_STR)
   if (CHAIN_TYPE_STR == chainType)
@@ -190,7 +191,7 @@ std::shared_ptr<ShareLogParserServer> newShareLogParserServer(const string &chai
     return std::make_shared<ShareLogParserServerGrin>(chainType.c_str(), dataDir,
                                                       httpdHost, httpdPort,
                                                       poolDBInfo, kFlushDBInterval,
-                                                      std::make_shared<DuplicateShareCheckerGrin>(dupShareTrackingHeight));
+                                                      std::make_shared<DuplicateShareCheckerGrin>(dupShareTrackingHeight), cfg);
   }
   else {
     LOG(FATAL) << "newShareLogParserServer: unknown chain type " << chainType;
@@ -318,7 +319,7 @@ int main(int argc, char **argv) {
       std::shared_ptr<ShareLogParser> slparser = newShareLogParser(chainType,
                                                              cfg.lookup("sharelog.data_dir"),
                                                              ts, *poolDBInfo,
-                                                             dupShareTrackingHeight);
+                                                             dupShareTrackingHeight, cfg);
       do {
         if (slparser->init() == false) {
           LOG(ERROR) << "init failure";
@@ -360,7 +361,7 @@ int main(int argc, char **argv) {
                                                  cfg.lookup("slparserhttpd.ip"),
                                                  port, *poolDBInfo,
                                                  kFlushDBInterval,
-                                                 dupShareTrackingHeight);
+                                                 dupShareTrackingHeight, cfg);
     gShareLogParserServer->run();
   }
   catch (const SettingException &e) {

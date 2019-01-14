@@ -29,5 +29,37 @@
 
 ///////////////////////////////  Alias  ///////////////////////////////
 using ShareLogDumperGrin = ShareLogDumperT<ShareGrin>;
-using ShareLogParserGrin = ShareLogParserT<ShareGrin>;
-using ShareLogParserServerGrin = ShareLogParserServerT<ShareGrin>;
+
+class ShareLogParserGrin : public ShareLogParserT<ShareGrin> {
+public:
+  ShareLogParserGrin(
+    const char *chainType,
+    const string &dataDir,
+    time_t timestamp,
+    const MysqlConnectInfo &poolDBInfo,
+    shared_ptr<DuplicateShareChecker<ShareGrin>> dupShareChecker,
+    const libconfig::Config &config);
+
+private:
+  bool filterShare(const ShareGrin *share) override;
+
+  AlgorithmGrin algorithm_;
+};
+
+class ShareLogParserServerGrin : public ShareLogParserServerT<ShareGrin> {
+public:
+  ShareLogParserServerGrin(
+    const char *chainType,
+    const string &dataDir,
+    const string &httpdHost,
+    unsigned short httpdPort,
+    const MysqlConnectInfo &poolDBInfo,
+    const uint32_t kFlushDBInterval,
+    shared_ptr<DuplicateShareChecker<ShareGrin>> dupShareChecker,
+    const libconfig::Config &config);
+
+private:
+  shared_ptr<ShareLogParserT<ShareGrin>> createShareLogParser(time_t datets) override;
+
+  const libconfig::Config &config_;
+};

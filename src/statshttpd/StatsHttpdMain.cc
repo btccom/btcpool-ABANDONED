@@ -81,7 +81,7 @@ std::shared_ptr<StatsServer> newStatsServer(const string &chainType, const char 
                                             const uint32_t redisConcurrency, const string &redisKeyPrefix, const int redisKeyExpire,
                                             const int redisPublishPolicy, const int redisIndexPolicy,
                                             const time_t kFlushDBInterval, const string &fileLastFlushTime,
-                                            const int dupShareTrackingHeight)
+                                            const int dupShareTrackingHeight, const libconfig::Config &cfg)
 {
 #if defined(CHAIN_TYPE_STR)
   if (CHAIN_TYPE_STR == chainType)
@@ -132,7 +132,7 @@ std::shared_ptr<StatsServer> newStatsServer(const string &chainType, const char 
                                              redisConcurrency, redisKeyPrefix, redisKeyExpire,
                                              redisPublishPolicy, redisIndexPolicy,
                                              kFlushDBInterval, fileLastFlushTime,
-                                             std::make_shared<DuplicateShareCheckerGrin>(dupShareTrackingHeight));
+                                             std::make_shared<DuplicateShareCheckerGrin>(dupShareTrackingHeight), cfg);
   }
   else {
     LOG(FATAL) << "newStatsServer: unknown chain type " << chainType;
@@ -257,7 +257,7 @@ int main(int argc, char **argv) {
                                   redisInfo, redisConcurrency, redisKeyPrefix,
                                   redisKeyExpire, redisPublishPolicy, redisIndexPolicy,
                                   (time_t)flushInterval, fileLastFlushTime,
-                                  dupShareTrackingHeight);
+                                  dupShareTrackingHeight, cfg);
     if (gStatsServer->init()) {
     	gStatsServer->run();
     }

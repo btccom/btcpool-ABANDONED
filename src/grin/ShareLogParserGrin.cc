@@ -31,3 +31,47 @@ template class ShareLogDumperT<ShareGrin>;
 template class ShareLogParserT<ShareGrin>;
 template class ShareLogParserServerT<ShareGrin>;
 
+ShareLogParserGrin::ShareLogParserGrin(
+  const char *chainType,
+  const string &dataDir,
+  time_t timestamp,
+  const MysqlConnectInfo &poolDBInfo,
+  shared_ptr<DuplicateShareChecker<ShareGrin>> dupShareChecker,
+  const libconfig::Config &config)
+  : ShareLogParserT{chainType, dataDir, timestamp, poolDBInfo, std::move(dupShareChecker)}
+  , algorithm_{AlgorithmGrin::Unknown} {
+  string algorithm;
+  if (config.lookupValue("sharelog.algorithm", algorithm)) {
+    LOG(INFO) << "Grin algorithm: " << algorithm;
+    if (algorithm == "cuckaroo") {
+      algorithm_ = AlgorithmGrin::Cuckaroo;
+    } else if (algorithm == "cuckatoo") {
+      algorithm_ = AlgorithmGrin::Cuckatoo;
+    }
+  }
+}
+
+bool ShareLogParserGrin::filterShare(const ShareGrin *share) {
+  switch (algorithm_) {
+  case AlgorithmGrin::Cuckaroo: return share->edgebits() == 29;
+  case AlgorithmGrin::Cuckatoo: return share->edgebits() >= 31;
+  default: return true;
+  }
+}
+
+ShareLogParserServerGrin::ShareLogParserServerGrin(
+  const char *chainType,
+  const string &dataDir,
+  const string &httpdHost,
+  unsigned short httpdPort,
+  const MysqlConnectInfo &poolDBInfo,
+  const uint32_t kFlushDBInterval,
+  shared_ptr<DuplicateShareChecker<ShareGrin>> dupShareChecker,
+  const libconfig::Config &config)
+  : ShareLogParserServerT{chainType, dataDir, httpdHost, httpdPort, poolDBInfo, kFlushDBInterval, std::move(dupShareChecker)}
+  , config_{config} {
+}
+
+shared_ptr<ShareLogParserT<ShareGrin>> ShareLogParserServerGrin::createShareLogParser(time_t datets) {
+  return std::make_shared<ShareLogParserGrin>(chainType_.c_str(), dataDir_, datets, poolDBInfo_, dupShareChecker_, config_);
+}
