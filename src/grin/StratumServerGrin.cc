@@ -86,10 +86,11 @@ void StratumServerGrin::checkAndUpdateShare(
 
   // higher difficulty is prior
   for (auto itr = jobDiffs.rbegin(); itr != jobDiffs.rend(); itr++) {
-    uint64_t jobDiff = *itr * share.scaling();
-    DLOG(INFO) << "compare share difficulty: " << scaledShareDiff << ", job difficulty: " << jobDiff;
+    uint64_t jobDiff = *itr;
+    uint64_t scaledJobDiff = jobDiff * share.scaling();
+    DLOG(INFO) << "compare share difficulty: " << scaledShareDiff << ", job difficulty: " << scaledJobDiff;
 
-    if (isEnableSimulator_ || scaledShareDiff >= jobDiff) {
+    if (isEnableSimulator_ || scaledShareDiff >= scaledJobDiff) {
       share.set_sharediff(jobDiff);
       share.set_status(StratumStatus::ACCEPT);
       return;
