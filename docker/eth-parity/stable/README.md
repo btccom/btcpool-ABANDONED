@@ -79,7 +79,7 @@ warp = true
 
 [misc]
 logging = "own_tx,sync=debug"
-log_file = "/root/.local/share/io.parity.ethereum/parity.log"
+log_file = "/home/parity/.local/share/io.parity.ethereum/parity.log"
 ```
 
 ### Ethereum Classic
@@ -120,7 +120,7 @@ warp = true
 
 [misc]
 logging = "own_tx=info,sync=info,chain=info,network=info,miner=info"
-log_file = "/root/.local/share/io.parity.ethereum/parity.log"
+log_file = "/home/parity/.local/share/io.parity.ethereum/parity.log"
 ```
 
 ## Start Docker Container
@@ -129,7 +129,7 @@ log_file = "/root/.local/share/io.parity.ethereum/parity.log"
 
 ```
 # start docker
-docker run -it -v /work/ethereum/eth-parity/:/root/.local/share/io.parity.ethereum/ -p 8545:8545 -p 30303:30303 --name eth-parity --restart always -d parity/parity:stable
+docker run -it -v /work/ethereum/eth-parity/:/home/parity/.local/share/io.parity.ethereum/ -p 8545:8545 -p 30303:30303 --name eth-parity --restart always -d parity/parity:stable
 
 # see the log
 tail -f /work/ethereum/eth-parity/parity.log
@@ -142,11 +142,60 @@ docker exec -it eth-parity /bin/bash
 
 ```
 # start docker
-docker run -it -v /work/ethereum/etc-parity/:/root/.local/share/io.parity.ethereum/ -p 8555:8545 -p 30403:30303 --name etc-parity --restart always -d parity/parity:stable
+docker run -it -v /work/ethereum/etc-parity/:/home/parity/.local/share/io.parity.ethereum/ -p 8555:8545 -p 30403:30303 --name etc-parity --restart always -d parity/parity:stable
 
 # see the log
 tail -f /work/ethereum/etc-parity/parity.log
 
 # login
 docker exec -it eth-parity /bin/bash
+```
+
+## How to upgrade from old deploment
+
+The old version of the parity container running with the user `root`,
+but now it running with the user `parity`.
+
+So before upgrading to the new version, you need to do some extra works, otherwise Parity will not able to start.
+
+The following command shows what you need to do:
+
+### For Ethereum
+
+```
+# Stop and remove the old container
+docker stop eth-parity
+docker rm eth-parity
+
+# The new user name is parity, its uid = 1000 and gid = 1000
+chown -R 1000:1000 /work/ethereum/eth-parity
+
+# Paths in config file need to update
+sed -i 's@/root/@/home/parity/@g' /work/ethereum/eth-parity/config.toml
+
+# Now you can run the new container
+docker run -it -v /work/ethereum/eth-parity/:/home/parity/.local/share/io.parity.ethereum/ -p 8545:8545 -p 30303:30303 --name eth-parity --restart always -d parity/parity:stable
+
+# Check if Parity is running properly
+tail -F /work/ethereum/eth-parity/parity.log
+```
+
+### For Ethereum Classic
+
+```
+# Stop and remove the old container
+docker stop etc-parity
+docker rm etc-parity
+
+# The new user name is parity, its uid = 1000 and gid = 1000
+chown -R 1000:1000 /work/ethereum/etc-parity
+
+# Paths in config file need to update
+sed -i 's@/root/@/home/parity/@g' /work/ethereum/etc-parity/config.toml
+
+# Now you can run the new container
+docker run -it -v /work/ethereum/etc-parity/:/home/parity/.local/share/io.parity.ethereum/ -p 8545:8545 -p 30303:30303 --name etc-parity --restart always -d parity/parity:stable
+
+# Check if Parity is running properly
+tail -F /work/ethereum/etc-parity/parity.log
 ```
