@@ -212,6 +212,7 @@ class StatsServerT : public StatsServer {
 
   void _processShare(WorkerKey &key, const SHARE &share);
   void processShare(const SHARE &share);
+  virtual bool filterShare(const SHARE &share) { return true; }
   void getWorkerStatusBatch(const vector<WorkerKey> &keys,
                             vector<WorkerStatus> &workerStatus);
   WorkerStatus mergeWorkerStatus(const vector<WorkerStatus> &workerStatus);
@@ -254,7 +255,7 @@ public:
                const int redisPublishPolicy, const int redisIndexPolicy,
                const time_t kFlushDBInterval, const string &fileLastFlushTime,
                shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker);
-  ~StatsServerT();
+  virtual ~StatsServerT();
 
   bool init();
   void stop();

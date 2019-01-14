@@ -175,6 +175,10 @@ void ShareLogParserT<SHARE>::parseShare(const SHARE *share) {
     LOG(INFO) << "duplicate share attack: " << share->toString();
     return;
   }
+  if (!filterShare(share)) {
+    DLOG(INFO) << "filtered share: " << share->toString();
+    return;
+  }
 
   WorkerKey wkey(share->userid(), share->workerhashid());
   WorkerKey ukey(share->userid(), 0);
@@ -688,7 +692,7 @@ bool ShareLogParserT<SHARE>::flushToDB() {
 ////////////////////////////  ShareLogParserServerT<SHARE>  ////////////////////////////
 template <class SHARE>
 ShareLogParserServerT<SHARE>::ShareLogParserServerT(const char *chainType,
-                                           const string dataDir,
+                                           const string &dataDir,
                                            const string &httpdHost,
                                            unsigned short httpdPort,
                                            const MysqlConnectInfo &poolDBInfo,
@@ -738,8 +742,7 @@ bool ShareLogParserServerT<SHARE>::initShareLogParser(time_t datets) {
   shareLogParser_ = nullptr;
 
   // set new obj
-  shared_ptr<ShareLogParserT<SHARE>> parser = std::make_shared<ShareLogParserT<SHARE>>(
-    chainType_.c_str(), dataDir_, date_, poolDBInfo_, dupShareChecker_);
+  auto parser = createShareLogParser(datets);
   
   if (!parser->init()) {
     LOG(ERROR) << "parser check failure, date: " << date("%F", date_);
@@ -750,6 +753,11 @@ bool ShareLogParserServerT<SHARE>::initShareLogParser(time_t datets) {
   shareLogParser_ = parser;
   pthread_rwlock_unlock(&rwlock_);
   return true;
+}
+
+template <class SHARE>
+shared_ptr<ShareLogParserT<SHARE>> ShareLogParserServerT<SHARE>::createShareLogParser(time_t datets) {
+  return std::make_shared<ShareLogParserT<SHARE>>(chainType_.c_str(), dataDir_, datets, poolDBInfo_, dupShareChecker_);
 }
 
 template <class SHARE>

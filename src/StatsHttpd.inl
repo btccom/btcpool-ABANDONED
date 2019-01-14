@@ -274,6 +274,10 @@ void StatsServerT<SHARE>::processShare(const SHARE &share) {
   if (now > share.timestamp() + STATS_SLIDING_WINDOW_SECONDS) {
     return;
   }
+  if (!filterShare(share)) {
+    DLOG(INFO) << "filtered share: " << share.toString();
+    return;
+  }
   poolWorker_.processShare(share);
 
   WorkerKey key(share.userid(), share.workerhashid());
