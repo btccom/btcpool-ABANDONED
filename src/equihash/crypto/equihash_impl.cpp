@@ -61,7 +61,7 @@ int Equihash<N,K>::InitialiseState(eh_HashState& base_state)
 
     const uint8_t outlen = (512 / N) * GetSizeInBytes(N);
 
-    static_assert(!((!outlen) || (outlen > BLAKE2B_OUTBYTES)));
+    static_assert(!((!outlen) || (outlen > BLAKE2B_OUTBYTES)), "");
 
     blake2b_param param = {0};
     param.digest_length = outlen;
@@ -191,7 +191,7 @@ void CompressArray(const unsigned char* in, size_t in_len,
 // comparison
 void EhIndexToArray(const eh_index i, unsigned char* array)
 {
-    static_assert(sizeof(eh_index) == 4);
+    static_assert(sizeof(eh_index) == 4, "");
     eh_index bei = htobe32(i);
     memcpy(array, &bei, sizeof(eh_index));
 }
@@ -200,7 +200,7 @@ void EhIndexToArray(const eh_index i, unsigned char* array)
 // comparison
 eh_index ArrayToEhIndex(const unsigned char* array)
 {
-    static_assert(sizeof(eh_index) == 4);
+    static_assert(sizeof(eh_index) == 4, "");
     eh_index bei;
     memcpy(&bei, array, sizeof(eh_index));
     return be32toh(bei);
@@ -209,7 +209,7 @@ eh_index ArrayToEhIndex(const unsigned char* array)
 eh_trunc TruncateIndex(const eh_index i, const unsigned int ilen)
 {
     // Truncate to 8 bits
-    static_assert(sizeof(eh_trunc) == 1);
+    static_assert(sizeof(eh_trunc) == 1, "");
     return (i >> (ilen - 8)) & 0xff;
 }
 
@@ -263,7 +263,7 @@ StepRow<WIDTH>::StepRow(const unsigned char* hashIn, size_t hInLen,
 template<size_t WIDTH> template<size_t W>
 StepRow<WIDTH>::StepRow(const StepRow<W>& a)
 {
-    static_assert(W <= WIDTH);
+    static_assert(W <= WIDTH, "");
     std::copy(a.hash, a.hash+W, hash);
 }
 

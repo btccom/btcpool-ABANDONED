@@ -48,6 +48,10 @@
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 
+// These two functions do not exist in OpenSSL 1.0.2
+#define TLS_client_method TLSv1_2_client_method
+#define TLS_server_method TLSv1_2_server_method
+
 static pthread_mutex_t *ssl_locks;
 static int ssl_num_locks;
 

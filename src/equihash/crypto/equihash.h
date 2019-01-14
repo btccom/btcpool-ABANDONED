@@ -166,8 +166,8 @@ template<unsigned int N, unsigned int K>
 class Equihash
 {
 private:
-    static_assert(K < N);
-    static_assert((N/(K+1)) + 1 < 8*sizeof(eh_index));
+    static_assert(K < N, "");
+    static_assert((N/(K+1)) + 1 < 8*sizeof(eh_index), "");
 
 public:
     enum : size_t { IndicesPerHashOutput=512/N };
