@@ -47,14 +47,12 @@ private:
 
   static bool submitBlock(const string &nonce, const string &header, const string &mix,
                           const string &rpcUrl, const string &rpcUserPass,
-                          string &errMsg, string &blockHash);
+                          string &errMsg, string &blockHash,
+                          string &request, string &response, bool &resultFound);
   static bool submitBlockDetail(const string &nonce, const string &header, const string &mix,
                                 const string &rpcUrl, const string &rpcUserPass,
                                 string &errMsg, string &blockHash);
   bool checkRpcSubmitBlock();
-  bool checkRpcSubmitBlockDetail();
-
-  bool useSubmitBlockDetail_;
 };
 
 #endif
