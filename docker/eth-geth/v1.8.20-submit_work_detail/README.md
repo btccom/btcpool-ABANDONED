@@ -3,7 +3,7 @@ Docker for go-ethereum
 
 * OS: `Ubuntu 16.04 LTS`
 * Docker image: build by yourself
-* geth version: v1.8.15 with RPC eth_submitWorkDetail
+* geth version: v1.8.20 with RPC parity_submitWorkDetail
 
 ## Install Docker CE
 
@@ -36,9 +36,9 @@ service docker restart
 ## Build Docker Image
 
 ```
-git clone --depth=1 -b submit_work_detail https://github.com/btccom/go-ethereum.git
+git clone --depth=1 -b 1.8.20-submit_work_detail https://github.com/btccom/go-ethereum.git
 cd go-ethereum
-docker build -t eth-geth:1.8.15-submit_work_detail .
+docker build -t eth-geth:1.8.20-submit_work_detail .
 ```
 
 ## Create Config Files
@@ -113,7 +113,7 @@ vim /work/ethereum/eth-geth/geth/static-nodes.json
 
 ```
 # start docker
-docker run -it -v /work/ethereum/eth-geth/:/root/.ethereum/ -p 8545:8545 -p 30303:30303 --name eth-geth --restart always -d eth-geth:1.8.15-submit_work_detail
+docker run -it -v /work/ethereum/eth-geth/:/root/.ethereum/ -p 8545:8545 -p 30303:30303 --name eth-geth --restart always -d eth-geth:1.8.20-submit_work_detail
 
 # see the log
 tail -f /work/ethereum/eth-geth/geth.log
@@ -124,5 +124,5 @@ docker exec -it eth-geth sh
 # If it not running properly, you can debug it
 docker stop eth-geth
 docker rm eth-geth
-docker run -it -v /work/ethereum/eth-geth/:/root/.ethereum/ -p 8545:8545 -p 30303:30303 --name eth-geth --entrypoint=/bin/sh eth-geth:1.8.15-submit_work_detail
+docker run -it -v /work/ethereum/eth-geth/:/root/.ethereum/ -p 8545:8545 -p 30303:30303 --name eth-geth --entrypoint=/bin/sh eth-geth:1.8.20-submit_work_detail
 ```
