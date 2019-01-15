@@ -118,6 +118,8 @@ void StratumServerGrin::sendSolvedShare2Kafka(
   }
 
   auto sjob = dynamic_cast<StratumJobGrin *>(exjob->sjob_);
+  string blockHashStr;
+  Bin2Hex(blockHash.begin(), blockHash.size(), blockHashStr);
   string msg = Strings::Format(
     "{\"prePow\":\"%s\""
     ",\"height\":%" PRIu64
@@ -137,7 +139,7 @@ void StratumServerGrin::sendSolvedShare2Kafka(
     worker.userId_,
     worker.workerHashId_,
     filterWorkerName(worker.fullName_).c_str(),
-    blockHash.GetHex().c_str());
+    blockHashStr.c_str());
   ServerBase::sendSolvedShare2Kafka(chainId, msg.c_str(), msg.length());
 }
 
