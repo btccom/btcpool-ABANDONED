@@ -14,7 +14,7 @@ CREATE TABLE `found_blocks` (
   `height` bigint(20) NOT NULL,
   `is_orphaned` tinyint(4) NOT NULL DEFAULT '0',
   `hash` char(64) NOT NULL DEFAULT '',
-  `edge_bits` tinyint(2) NOT NULL DEFAULT '',
+  `edge_bits` tinyint(2) NOT NULL DEFAULT 29,
   `nonce` char(16) NOT NULL,
   `rewards` decimal(35,0) NOT NULL,
   `size` int(11) NOT NULL DEFAULT '0',
