@@ -524,13 +524,13 @@ int ServerBitcoin::checkShare(
     << ", by: " << workFullName << " <<<<";
   }
 
+  DLOG(INFO) << "blkHash: " << blkHash.ToString() << ", jobTarget: "
+  << jobTarget.ToString() << ", networkTarget: " << sjob->networkTarget_.ToString();
+
   // check share diff
   if (isEnableSimulator_ == false && bnBlockHash > UintToArith256(jobTarget)) {
     return StratumStatus::LOW_DIFFICULTY;
   }
-
-  DLOG(INFO) << "blkHash: " << blkHash.ToString() << ", jobTarget: "
-  << jobTarget.ToString() << ", networkTarget: " << sjob->networkTarget_.ToString();
 
   // reach here means an valid share
   return StratumStatus::ACCEPT;
