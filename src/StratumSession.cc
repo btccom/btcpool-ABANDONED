@@ -123,7 +123,9 @@ bool StratumSession::handleMessage() {
     string exMessage;
     exMessage.resize(len);
     evbuffer_remove(buffer_, &exMessage.front(), exMessage.size());
-    dispatcher_->handleExMessage(exMessage);
+    if (dispatcher_) {
+      dispatcher_->handleExMessage(exMessage);
+    }
     return true;  // read message success, return true
   }
 
