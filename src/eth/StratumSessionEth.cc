@@ -207,7 +207,7 @@ void StratumSessionEth::handleRequest(const std::string &idStr,
   else if (method == "mining.authorize" || method == "eth_submitLogin") {
     handleRequest_Authorize(idStr, jparams, jroot);
   }
-  else if (dispatcher_) {
+  else {
     dispatcher_->handleRequest(idStr, method, jparams, jroot);
   }
 }

@@ -34,6 +34,45 @@
 
 using namespace std;
 
+#define NULL_DISPATCHER_LOG LOG(ERROR) << "Null message dispatcher shall not be called"
+
+void StratumMessageNullDispatcher::handleRequest(const string &idStr,
+                                                  const string &method,
+                                                  const JsonNode &jparams,
+                                                  const JsonNode &jroot) {
+  NULL_DISPATCHER_LOG;
+}
+
+void StratumMessageNullDispatcher::handleExMessage(const string &exMessage) {
+  NULL_DISPATCHER_LOG;
+}
+
+void StratumMessageNullDispatcher::responseShareAccepted(const string &idStr) {
+  NULL_DISPATCHER_LOG;
+}
+
+void StratumMessageNullDispatcher::responseShareError(const string &idStr, int32_t status) {
+  NULL_DISPATCHER_LOG;
+}
+
+void StratumMessageNullDispatcher::setMinDiff(uint64_t minDiff) {
+  NULL_DISPATCHER_LOG;
+}
+
+void StratumMessageNullDispatcher::resetCurDiff(uint64_t curDiff) {
+  NULL_DISPATCHER_LOG;
+}
+
+void StratumMessageNullDispatcher::addLocalJob(LocalJob &localJob) {
+  NULL_DISPATCHER_LOG;
+}
+
+void StratumMessageNullDispatcher::removeLocalJob(LocalJob &localJob) {
+  NULL_DISPATCHER_LOG;
+}
+
+#undef NULL_DISPATCHER_LOG
+
 StratumMessageMinerDispatcher::StratumMessageMinerDispatcher(IStratumSession &session, unique_ptr<StratumMiner> miner)
     : session_(session), miner_(move(miner)) {
 }

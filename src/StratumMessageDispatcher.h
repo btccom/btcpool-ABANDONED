@@ -53,6 +53,18 @@ public:
   virtual void removeLocalJob(LocalJob &localJob) = 0;
 };
 
+class StratumMessageNullDispatcher : public StratumMessageDispatcher {
+public:
+  void handleRequest(const std::string &idStr, const std::string &method, const JsonNode &jparams, const JsonNode &jroot) override;
+  void handleExMessage(const std::string &exMessage) override;
+  void responseShareAccepted(const std::string &idStr) override;
+  void responseShareError(const std::string &idStr, int32_t status) override;
+  void setMinDiff(uint64_t minDiff) override;
+  void resetCurDiff(uint64_t curDiff) override;
+  void addLocalJob(LocalJob &localJob) override;
+  void removeLocalJob(LocalJob &localJob) override;
+};
+
 class StratumMessageMinerDispatcher : public StratumMessageDispatcher {
 public:
   StratumMessageMinerDispatcher(IStratumSession &session, std::unique_ptr<StratumMiner> miner);

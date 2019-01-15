@@ -58,6 +58,9 @@ StratumSession::StratumSession(StratumServer &server, struct bufferevent *bev, s
   // remove the padding bytes
   clientIp_ = clientIp_.c_str();
 
+  // make a null dispatcher here to guard against invalid access
+  dispatcher_ = boost::make_unique<StratumMessageNullDispatcher>();
+
   setup();
   LOG(INFO) << "client connect, ip: " << clientIp_;
 }
@@ -123,9 +126,7 @@ bool StratumSession::handleMessage() {
     string exMessage;
     exMessage.resize(len);
     evbuffer_remove(buffer_, &exMessage.front(), exMessage.size());
-    if (dispatcher_) {
-      dispatcher_->handleExMessage(exMessage);
-    }
+    dispatcher_->handleExMessage(exMessage);
     return true;  // read message success, return true
   }
 
@@ -277,12 +278,6 @@ bool StratumSession::switchChain(size_t chainId) {
 void StratumSession::setDefaultDifficultyFromPassword(const string &password) {
   // testcase: TEST(StratumSession, SetDiff)
   using namespace boost::algorithm;
-
-  if (!dispatcher_) {
-    LOG(ERROR) << "StratumSession::setDefaultDifficultyFromPassword: ignore password "
-               << password << ", dispatcher_ is empty!";
-    return;
-  }
 
   uint64_t d = 0u, md = 0u;
   vector<string> arr;  // key=value,key=value

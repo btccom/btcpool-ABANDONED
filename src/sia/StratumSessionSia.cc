@@ -95,7 +95,7 @@ void StratumSessionSia::handleRequest(const std::string &idStr,
     // TODO: implement this...
     //handleRequest_Authorize(idStr, jparams, jroot);
   }
-  else if (dispatcher_) {
+  else {
     dispatcher_->handleRequest(idStr, method, jparams, jroot);
   }
 }

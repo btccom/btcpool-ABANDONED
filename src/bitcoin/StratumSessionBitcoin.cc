@@ -136,7 +136,7 @@ void StratumSessionBitcoin::handleRequest(const std::string &idStr,
   else if (method == "agent.get_capabilities") {
     handleRequest_AgentGetCapabilities(idStr, jparams);
   }
-  else if (dispatcher_) {
+  else {
     dispatcher_->handleRequest(idStr, method, jparams, jroot);
   }
 }
