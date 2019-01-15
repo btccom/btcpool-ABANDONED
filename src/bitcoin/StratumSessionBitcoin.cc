@@ -145,7 +145,7 @@ void StratumSessionBitcoin::handleRequest(
     handleRequest_MiningConfigure(idStr, jparams);
   } else if (method == "agent.get_capabilities") {
     handleRequest_AgentGetCapabilities(idStr, jparams);
-  } else if (dispatcher_) {
+  } else {
     dispatcher_->handleRequest(idStr, method, jparams, jroot);
   }
 }

@@ -178,7 +178,7 @@ void StratumSessionBytom::handleRequest(
     const JsonNode &jroot) {
   if (method == "login") {
     handleRequest_Authorize(idStr, jparams, jroot);
-  } else if (dispatcher_) {
+  } else {
     dispatcher_->handleRequest(idStr, method, jparams, jroot);
   }
 }

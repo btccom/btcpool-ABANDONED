@@ -101,7 +101,7 @@ void StratumSessionDecred::handleRequest(
     handleRequest_Subscribe(idStr, jparams, jroot);
   } else if (method == "mining.authorize") {
     handleRequest_Authorize(idStr, jparams, jroot);
-  } else if (dispatcher_) {
+  } else {
     dispatcher_->handleRequest(idStr, method, jparams, jroot);
   }
 }
