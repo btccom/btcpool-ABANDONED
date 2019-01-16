@@ -104,8 +104,8 @@ class ShareLogParserT : public ShareLogParser {
   }
 
   void parseShareLog(const uint8_t *buf, size_t len);
-  void parseShare(const SHARE *share);
-  virtual bool filterShare(const SHARE *share) { return true; }
+  void parseShare(SHARE &share);
+  virtual bool filterShare(const SHARE &share) { return true; }
 
   void generateDailyData(
     shared_ptr<ShareStatsDay<SHARE>> stats,
@@ -123,6 +123,7 @@ class ShareLogParserT : public ShareLogParser {
     const vector<string> values,
     const string &tableName,
     const string &extraFields);
+
   void removeExpiredDataFromDB();
 
 public:

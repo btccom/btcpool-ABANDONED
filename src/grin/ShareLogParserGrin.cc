@@ -51,10 +51,10 @@ ShareLogParserGrin::ShareLogParserGrin(
   }
 }
 
-bool ShareLogParserGrin::filterShare(const ShareGrin *share) {
+bool ShareLogParserGrin::filterShare(const ShareGrin &share) {
   switch (algorithm_) {
-  case AlgorithmGrin::Cuckaroo: return share->edgebits() == 29;
-  case AlgorithmGrin::Cuckatoo: return share->edgebits() >= 31;
+  case AlgorithmGrin::Cuckaroo: return share.edgebits() == 29;
+  case AlgorithmGrin::Cuckatoo: return share.edgebits() >= 31;
   default: return true;
   }
 }

@@ -41,7 +41,7 @@ public:
     const libconfig::Config &config);
 
 private:
-  bool filterShare(const ShareGrin *share) override;
+  bool filterShare(const ShareGrin &share) override;
 
   AlgorithmGrin algorithm_;
 };
