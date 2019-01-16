@@ -240,7 +240,11 @@ string _buildAuxPow(const CBlock *block) {
   }
 
   // 2. block_hash
+#ifdef CHAIN_TYPE_LTC
+  auxPow += block->GetPoWHash().GetHex();
+#else
   auxPow += block->GetHash().GetHex();
+#endif
 
   // 3. coinbase_branch, Merkle branch
   {
@@ -461,7 +465,7 @@ void BlockMakerBitcoin::_submitNamecoinBlockThread(const string &auxBlockHash,
   //
   // save to databse
   //
-  {
+  if(!def()->foundAuxBlockTable_.empty()) {
     const string nowStr = date("%F %T");
     string sql;
     sql = Strings::Format("INSERT INTO `%s` "
