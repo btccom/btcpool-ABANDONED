@@ -156,7 +156,7 @@ void ClientContainerGrin::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
   string workerFullName = jroot["workerFullName"].str();
   string blockHash = jroot["blockHash"].str();
   std::ostringstream oss;
-  oss << jroot["proofs"].str();
+  oss << jroot["proofs"];
   auto proofs = oss.str();
   LOG(INFO) << "received a new solved share, worker: " << workerFullName
             << ", prePow: " << prePow
@@ -198,6 +198,7 @@ void ClientContainerGrin::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
     nonce,
     proofs.c_str());
 
+  LOG(INFO) << "submitting block: " << submitJson;
   client->sendData(submitJson);
 
   // save block to DB
