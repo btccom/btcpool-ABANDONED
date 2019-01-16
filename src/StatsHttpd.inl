@@ -1011,7 +1011,7 @@ void StatsServerT<SHARE>::consumeShareLog(rd_kafka_message_t *rkmessage) {
     return;
   }
   if (dupShareChecker_ && !dupShareChecker_->addShare(share)) {
-    LOG(INFO) << "duplicate share attack: " ;
+    LOG(INFO) << "duplicate share attack: " << share.toString();
     return;
   }
 

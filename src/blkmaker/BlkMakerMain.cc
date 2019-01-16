@@ -268,7 +268,7 @@ int main(int argc, char **argv) {
         workers.push_back(std::make_shared<thread>(workerThread, maker));
       }
       else {
-        LOG(FATAL) << "gwmaker init failure, chain: ";
+        LOG(FATAL) << "blkmaker init failure, chain: " << maker->def()->chainType_;
       }
     }
 
