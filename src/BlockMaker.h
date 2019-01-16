@@ -72,12 +72,13 @@ protected:
   void runThreadConsumeSolvedShare();
   void consumeSolvedShare(rd_kafka_message_t *rkmessage);
   virtual void processSolvedShare(rd_kafka_message_t *rkmessage) = 0;
-  // read-only definition
-  inline shared_ptr<const BlockMakerDefinition> def() { return def_; }
 
 public:
   BlockMaker(shared_ptr<BlockMakerDefinition> def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
   virtual ~BlockMaker();
+  
+  // read-only definition
+  inline shared_ptr<const BlockMakerDefinition> def() { return def_; }
 
   virtual bool init();
   virtual void stop();
