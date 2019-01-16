@@ -162,22 +162,22 @@ void ShareLogParserT<SHARE>::parseShareLog(const uint8_t *buf, size_t len) {
     LOG(INFO) << "parse share from base message failed! " ;
     return;
   }
-  parseShare(&share);
+  parseShare(share);
 }
 
 template <class SHARE>
-void ShareLogParserT<SHARE>::parseShare(const SHARE *share) {
-  if (!share->isValid()) {
-    LOG(ERROR) << "invalid share: " << share->toString();
+void ShareLogParserT<SHARE>::parseShare(SHARE &share) {
+  if (!share.isValid()) {
+    LOG(ERROR) << "invalid share: " << share.toString();
     return;
   }
-  if (dupShareChecker_ && !dupShareChecker_->addShare(*share)) {
-    LOG(INFO) << "duplicate share attack: " << share->toString();
-    return;
+  if (dupShareChecker_ && !dupShareChecker_->addShare(share)) {
+    LOG(INFO) << "duplicate share attack: " << share.toString();
+    share.set_status(StratumStatus::DUPLICATE_SHARE);
   }
 
-  WorkerKey wkey(share->userid(), share->workerhashid());
-  WorkerKey ukey(share->userid(), 0);
+  WorkerKey wkey(share.userid(), share.workerhashid());
+  WorkerKey ukey(share.userid(), 0);
   WorkerKey pkey(0, 0);
 
   pthread_rwlock_wrlock(&rwlock_);
@@ -189,10 +189,10 @@ void ShareLogParserT<SHARE>::parseShare(const SHARE *share) {
   }
   pthread_rwlock_unlock(&rwlock_);
 
-  const uint32_t hourIdx = getHourIdx(share->timestamp());
-  workersStats_[wkey]->processShare(hourIdx, *share);
-  workersStats_[ukey]->processShare(hourIdx, *share);
-  workersStats_[pkey]->processShare(hourIdx, *share);
+  const uint32_t hourIdx = getHourIdx(share.timestamp());
+  workersStats_[wkey]->processShare(hourIdx, share);
+  workersStats_[ukey]->processShare(hourIdx, share);
+  workersStats_[pkey]->processShare(hourIdx, share);
 }
 
 template <class SHARE>

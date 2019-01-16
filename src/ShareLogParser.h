@@ -107,7 +107,7 @@ class ShareLogParserT : public ShareLogParser {
   }
 
   void parseShareLog(const uint8_t *buf, size_t len);
-  void parseShare(const SHARE *share);
+  void parseShare(SHARE &share);
 
   void generateDailyData(shared_ptr<ShareStatsDay<SHARE>> stats,
                          const int32_t userId, const int64_t workerId,
