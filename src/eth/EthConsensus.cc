@@ -24,7 +24,18 @@
 #include "EthConsensus.h"
 
 #include <algorithm>
+#include <glog/logging.h>
 
+// The hard fork Constantinople of Ethereum mainnet has been delayed.
+// So set a default height that won't arrive (9999999).
+// The user can change the height in the configuration file
+// after the fork height is determined.
+int EthConsensus::kHardForkConstantinopleHeight_ = 9999999;
+
+void EthConsensus::setHardForkConstantinopleHeight(int height) {
+    kHardForkConstantinopleHeight_ = height;
+    LOG(INFO) << "Height of Ethereum Constantinople Hard Fork: " << kHardForkConstantinopleHeight_;
+}
 
 EthConsensus::Chain EthConsensus::getChain(std::string chainStr) {
     // toupper
@@ -95,7 +106,7 @@ int64_t EthConsensus::getStaticBlockRewardClassic(int nHeight) {
 // static block rewards of Ethereum Main Network
 int64_t EthConsensus::getStaticBlockRewardFoundation(int nHeight) {
  // Constantinople fork at block 7080000 on Mainnet.
-  if (nHeight >= 7080000) {
+  if (nHeight >= kHardForkConstantinopleHeight_) {
     return 2e+18;
   }
   // Ethereum Main Network has a static block reward (3 Ether) before height 7080000.

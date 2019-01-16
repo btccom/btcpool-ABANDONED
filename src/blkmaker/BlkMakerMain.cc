@@ -38,6 +38,7 @@
 #include "Utils.h"
 
 #include "bitcoin/BlockMakerBitcoin.h"
+#include "eth/EthConsensus.h"
 #include "eth/BlockMakerEth.h"
 #include "bytom/BlockMakerBytom.h"
 #include "sia/BlockMakerSia.h"
@@ -99,6 +100,16 @@ shared_ptr<BlockMakerDefinition> createDefinition(const Setting &setting)
   shared_ptr<BlockMakerDefinition> def;
 
   readFromSetting(setting, "chain_type",  chainType);
+
+  // The hard fork Constantinople of Ethereum mainnet has been delayed.
+  // So set a default height that won't arrive (9999999).
+  // The user can change the height in the configuration file
+  // after the fork height is determined.
+  if (chainType == "ETH") {
+    int constantinopleHeight = 9999999;
+    setting.lookupValue("constantinople_height", constantinopleHeight);
+    EthConsensus::setHardForkConstantinopleHeight(constantinopleHeight);
+  }
   
 #if defined(CHAIN_TYPE_STR)
   if (CHAIN_TYPE_STR == chainType)

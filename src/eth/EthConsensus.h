@@ -54,6 +54,8 @@ public:
     // the 0.875 will be returned.
     static double getUncleBlockRewardRatio(int nHeight, Chain chain);
 
+    static void setHardForkConstantinopleHeight(int height);
+
 protected:
     // static block rewards of Ethereum Classic Main Network
     static int64_t getStaticBlockRewardClassic(int nHeight);
@@ -62,6 +64,12 @@ protected:
 
     static double getUncleBlockRewardRatioClassic(int nHeight);
     static double getUncleBlockRewardRatioFoundation(int nHeight);
+
+    // The hard fork Constantinople of Ethereum mainnet has been delayed.
+    // So set a default height that won't arrive (9999999).
+    // The user can change the height in the configuration file
+    // after the fork height is determined.
+    static int kHardForkConstantinopleHeight_;
 };
 
 #endif // ETH_CONSENSUS_H_
