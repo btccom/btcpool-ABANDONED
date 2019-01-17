@@ -43,7 +43,7 @@ StratumJob* JobRepositoryBitcoin::createStratumJob() {
 
 StratumJobEx* JobRepositoryBitcoin::createStratumJobEx(StratumJob *sjob, bool isClean)
 {
-  return new StratumJobExBitcoin(sjob, isClean);
+  return new StratumJobExBitcoin(chainId_, sjob, isClean);
 }
 
 
@@ -115,8 +115,8 @@ void JobRepositoryBitcoin::broadcastStratumJob(StratumJob *sjobBase) {
   }
 }
 
-StratumJobExBitcoin::StratumJobExBitcoin(StratumJob *sjob, bool isClean)
-  : StratumJobEx(chainId_, sjob, isClean)
+StratumJobExBitcoin::StratumJobExBitcoin(size_t chainId, StratumJob *sjob, bool isClean)
+  : StratumJobEx(chainId, sjob, isClean)
 {
   init();
 }

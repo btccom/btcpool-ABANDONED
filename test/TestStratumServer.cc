@@ -207,7 +207,7 @@ TEST(StratumServerBitcoin, CheckShare) {
   StratumJobBitcoin *sjob = new StratumJobBitcoin();
   sjob->unserializeFromJson(sjobJson.c_str(), sjobJson.size());
 
-  StratumJobExBitcoin exjob(sjob, true);
+  StratumJobExBitcoin exjob(0, sjob, true);
   
   CBlockHeader header;
   std::vector<char> coinbaseBin;

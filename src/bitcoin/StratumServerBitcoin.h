@@ -110,7 +110,7 @@ public:
   string miningNotify3Clean_;
 
 public:
-  StratumJobExBitcoin(StratumJob *sjob, bool isClean);
+  StratumJobExBitcoin(size_t chainId, StratumJob *sjob, bool isClean);
 
   void generateBlockHeader(CBlockHeader  *header,
                            std::vector<char> *coinbaseBin,
