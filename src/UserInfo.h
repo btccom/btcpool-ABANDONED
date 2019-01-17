@@ -70,7 +70,11 @@ class UserInfo {
 
   //--------------------
   atomic<bool> running_;
+
   bool caseInsensitive_;
+  bool stripUserSuffix_;
+  string userSuffixSeparator_;
+  
   vector<ChainVars> chains_;
   StratumServer *server_;
 

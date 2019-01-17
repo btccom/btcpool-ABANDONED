@@ -28,10 +28,25 @@
 UserInfo::UserInfo(StratumServer *server, const libconfig::Config &config)
 : running_(true)
 , caseInsensitive_(true)
+, stripUserSuffix_(false)
+, userSuffixSeparator_("_")
 , server_(server)
 {
   // optional
   config.lookupValue("users.case_insensitive", caseInsensitive_);
+
+  LOG(INFO) << "UserInfo: user name will be case " << (caseInsensitive_ ? "insensitive" : "sensitive");
+
+  config.lookupValue("users.strip_user_suffix", stripUserSuffix_);
+  config.lookupValue("users.user_suffix_separator", userSuffixSeparator_);
+
+  if (stripUserSuffix_) {
+    if (userSuffixSeparator_.empty()) {
+      LOG(FATAL) << "users.strip_user_suffix enabled but users.user_suffix_separator is empty!";
+    }
+
+    LOG(INFO) << "UserInfo: suffix " << userSuffixSeparator_ << "* will be stripped from user name";
+  }
 
   auto addChainVars = [&](const string &apiUrl) {
     chains_.push_back({
@@ -61,7 +76,7 @@ UserInfo::UserInfo(StratumServer *server, const libconfig::Config &config)
       addChainVars(chains[i].lookup("users_list_id_api_url"));
     }
     if (chains_.empty()) {
-      LOG(FATAL) << "sserver.multi_chains enabled but chains empty!";
+      LOG(FATAL) << "sserver.multi_chains enabled but chains is empty!";
     }
     if (chains_.size() > 1) {
       zk_ = server->getZookeeper(config);
@@ -108,6 +123,13 @@ void UserInfo::stop() {
 void UserInfo::regularUserName(string &userName) {
   if (caseInsensitive_) {
     std::transform(userName.begin(), userName.end(), userName.begin(), ::tolower);
+  }
+  if (stripUserSuffix_) {
+    size_t pos = userName.rfind(userSuffixSeparator_);
+    if (pos != userName.npos) {
+      userName = userName.substr(0, pos);
+      DLOG(INFO) << "User Suffix Stripped: " << userName;
+    }
   }
 }
 
