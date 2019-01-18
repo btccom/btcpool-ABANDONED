@@ -186,21 +186,19 @@ void JobRepository::runThreadConsume() {
 
     // timeout, most of time it's not nullptr and set an error:
     //          rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF
-    if (rkmessage == nullptr) {
-      continue;
+    if (rkmessage != nullptr) {
+      // consume stratum job
+      //
+      // It will create a StratumJob and try to broadcast it immediately with broadcastStratumJob(StratumJob *).
+      // A derived class needs to implement the abstract method broadcastStratumJob(StratumJob *) to decide
+      // whether to add the StratumJob to the map exJobs_ and whether to send the job to miners immediately.
+      // Derived classes do not need to implement a scheduled sending mechanism, checkAndSendMiningNotify() will
+      // provide a default implementation.
+      consumeStratumJob(rkmessage);
+      
+      // Return message to rdkafka
+      rd_kafka_message_destroy(rkmessage);
     }
-
-    // consume stratum job
-    //
-    // It will create a StratumJob and try to broadcast it immediately with broadcastStratumJob(StratumJob *).
-    // A derived class needs to implement the abstract method broadcastStratumJob(StratumJob *) to decide
-    // whether to add the StratumJob to the map exJobs_ and whether to send the job to miners immediately.
-    // Derived classes do not need to implement a scheduled sending mechanism, checkAndSendMiningNotify() will
-    // provide a default implementation.
-    consumeStratumJob(rkmessage);
-    
-    // Return message to rdkafka
-    rd_kafka_message_destroy(rkmessage);  
 
     // check if we need to send mining notify
     // It's a default implementation of scheduled sending / regular updating of stratum jobs.
@@ -209,6 +207,7 @@ void JobRepository::runThreadConsume() {
 
     tryCleanExpiredJobs();
   }
+
   LOG(INFO) << "stop job repository consume thread";
 }
 
@@ -308,7 +307,8 @@ void JobRepository::tryCleanExpiredJobs() {
   ScopeLock sl(lock_);
 
   const uint32_t nowTs = (uint32_t)time(nullptr);
-  while (exJobs_.size()) {
+  // Keep at least one job to keep normal mining when the jobmaker fails
+  while (exJobs_.size() > 1) {
     // Maps (and sets) are sorted, so the first element is the smallest,
     // and the last element is the largest.
     auto itr = exJobs_.begin();
