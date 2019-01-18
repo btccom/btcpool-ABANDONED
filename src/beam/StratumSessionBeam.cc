@@ -139,23 +139,49 @@ unique_ptr<StratumMiner> StratumSessionBeam::createMiner(
       workerId);
 }
 
+void StratumSessionBeam::responseAuthorizeSuccess(const string &idStr) {
+  string response = Strings::Format(
+      "{"
+      "\"id\":%s,"
+      "\"jsonrpc\":\"2.0\","
+      "\"method\":\"result\","
+      "\"nonceprefix\":\"%06x\","
+      "\"code\":0,"
+      "\"description\":\"Login successful\""
+      "}\n",
+      idStr.c_str(),
+      sessionId_);
+  sendData(response.data(), response.size());
+}
+
 void StratumSessionBeam::responseError(const string &idStr, int code) {
-  rpc2ResponseError(idStr, code);
+  string response = Strings::Format(
+      "{"
+      "\"id\":%s,"
+      "\"jsonrpc\":\"2.0\","
+      "\"method\":\"result\","
+      "\"code\":%d,"
+      "\"description\":\"%s\""
+      "}\n",
+      idStr.c_str(),
+      code,
+      StratumStatus::toString(code));
+  sendData(response.data(), response.size());
 }
 
 void StratumSessionBeam::responseTrue(const string &idStr) {
-  rpc2ResponseTrue(idStr);
+  string response = Strings::Format(
+      "{"
+      "\"id\":%s,"
+      "\"jsonrpc\":\"2.0\","
+      "\"method\":\"result\","
+      "\"code\":1,"
+      "\"description\":\"accepted\""
+      "}\n",
+      idStr.c_str());
+  sendData(response.data(), response.size());
 }
 
 void StratumSessionBeam::responseFalse(const string &idStr, int errCode) {
-  char buf[1024];
-  int len = snprintf(
-      buf,
-      sizeof(buf),
-      "{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":false,\"data\":{\"code\":%d,"
-      "\"message\":\"%s\"}}\n",
-      idStr.empty() ? "null" : idStr.c_str(),
-      errCode,
-      StratumStatus::toString(errCode));
-  sendData(buf, len);
+  responseError(idStr, errCode);
 }

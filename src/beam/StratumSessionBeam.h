@@ -49,6 +49,7 @@ protected:
       const JsonNode &jroot) override;
   void handleRequest_Authorize(
       const std::string &idStr, const JsonNode &jparams, const JsonNode &jroot);
+  void responseAuthorizeSuccess(const std::string &idStr);
 
 public:
   std::unique_ptr<StratumMiner> createMiner(
