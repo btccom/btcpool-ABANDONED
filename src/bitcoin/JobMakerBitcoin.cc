@@ -292,17 +292,16 @@ bool JobMakerHandlerBitcoin::findBestRawGbt(bool isMergedMiningUpdate, string &b
 
   const uint32_t bestHeight = gbtKeyGetHeight(bestKey);
   const bool currentGbtIsEmpty = gbtKeyIsEmptyBlock(bestKey);
+
+  if (bestKey == lastSendBestKey) {
+    LOG(WARNING) << "bestKey is the same as last one: " << lastSendBestKey;
+  }
   
   // if last job is an empty block job, we need to 
   // send a new non-empty job as quick as possible.
   if (bestHeight == currBestHeight_ && isLastJobEmptyBlock_ && !currentGbtIsEmpty) {
     needUpdateEmptyBlockJob = true;
     LOG(INFO) << "--------update last empty block job--------";
-  }
-
-  if (!needUpdateEmptyBlockJob && !isMergedMiningUpdate && bestKey == lastSendBestKey) {
-    LOG(WARNING) << "bestKey is the same as last one: " << lastSendBestKey;
-    return false;
   }
 
   // The height cannot reduce in normal.
