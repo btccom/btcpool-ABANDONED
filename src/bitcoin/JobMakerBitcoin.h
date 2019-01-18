@@ -65,7 +65,7 @@ class JobMakerHandlerBitcoin : public JobMakerHandler
 
   // return false if there is no best rawGbt or
   // doesn't need to send a stratum job at current.
-  bool findBestRawGbt(bool isMergedMiningUpdate, string &bestRawGbt);
+  bool findBestRawGbt(string &bestRawGbt);
   string makeStratumJob(const string &gbt);
 
   inline uint64_t makeGbtKey(uint32_t gbtTime, bool isEmptyBlock, uint32_t height);
