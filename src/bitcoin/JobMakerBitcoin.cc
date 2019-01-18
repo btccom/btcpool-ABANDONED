@@ -268,7 +268,7 @@ bool JobMakerHandlerBitcoin::addRawGbt(const string &msg) {
   return true;
 }
 
-bool JobMakerHandlerBitcoin::findBestRawGbt(bool isMergedMiningUpdate, string &bestRawGbt) {
+bool JobMakerHandlerBitcoin::findBestRawGbt(string &bestRawGbt) {
   static uint64_t lastSendBestKey = 0;
 
   ScopeLock sl(lock_);
@@ -313,7 +313,7 @@ bool JobMakerHandlerBitcoin::findBestRawGbt(bool isMergedMiningUpdate, string &b
     isFindNewHeight = true;
   }
 
-  if (isFindNewHeight || needUpdateEmptyBlockJob || isMergedMiningUpdate || isReachTimeout()) {
+  if (isFindNewHeight || needUpdateEmptyBlockJob || isMergedMiningUpdate_ || isReachTimeout()) {
     lastSendBestKey     = bestKey;
     currBestHeight_     = bestHeight;
 
@@ -501,7 +501,6 @@ string JobMakerHandlerBitcoin::makeStratumJob(const string &gbt) {
     }
   }
 
-  bool mergeMiningUpdate = def()->mergedMiningNotifyPolicy_ != 0;
   StratumJobBitcoin sjob;
   if (!sjob.initFromGbt(gbt.c_str(), def()->coinbaseInfo_,
                                      poolPayoutAddr_,
@@ -509,7 +508,7 @@ string JobMakerHandlerBitcoin::makeStratumJob(const string &gbt) {
                                      latestNmcAuxBlockJson,
                                      currentRskBlockJson, 
                                      def()->serverId_,
-                                     mergeMiningUpdate)) 
+                                     isMergedMiningUpdate_)) 
   {
     LOG(ERROR) << "init stratum job message from gbt str fail";
     return "";
@@ -527,16 +526,15 @@ string JobMakerHandlerBitcoin::makeStratumJob(const string &gbt) {
   << ", height: " << sjob.height_ << "--------";
   LOG(INFO) << "sjob: " << jobMsg;
 
+  isMergedMiningUpdate_ = false;
   return jobMsg;
 }
 
 string JobMakerHandlerBitcoin::makeStratumJobMsg() {
   string bestRawGbt;
-  if (!findBestRawGbt(isMergedMiningUpdate_, bestRawGbt)) {
+  if (!findBestRawGbt(bestRawGbt)) {
     return "";
   }
-  isMergedMiningUpdate_ = false;
-
   return makeStratumJob(bestRawGbt);
 }
 
