@@ -373,7 +373,7 @@ void StratumSessionEth::responseError(const string &idStr, int code) {
   if (StratumProtocolEth::ETHPROXY == ethProtocol_) {
     rpc2ResponseError(idStr, code);
   } else {
-    responseError(idStr, code);
+    rpc1ResponseError(idStr, code);
   }
 }
 
