@@ -112,7 +112,7 @@ void StratumMinerGrin::handleRequest_Submit(const string &idStr, const JsonNode 
   share.set_version(ShareGrin::CURRENT_VERSION);
   share.set_jobid(sjob->jobId_);
   share.set_workerhashid(workerId_);
-  share.set_userid(worker.userId_);
+  share.set_userid(worker.userId(exjob->chainId_));
   share.set_timestamp((uint64_t) time(nullptr));
   share.set_status(StratumStatus::REJECT_NO_REASON);
   share.set_sharediff(jobDiff.currentJobDiff_);
@@ -164,10 +164,8 @@ void StratumMinerGrin::handleRequest_Submit(const string &idStr, const JsonNode 
     int64_t invalidSharesNum = invalidSharesCounter_.sum(time(nullptr), INVALID_SHARE_SLIDING_WINDOWS_SIZE);
     // too much invalid shares, don't send them to kafka
     if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT) {
-      LOG(WARNING) << "invalid share spamming, diff: "
-                   << share.sharediff() << ", uid: " << worker.userId_
-                   << ", username: \"" << worker.userName_ << "\", ip: " << ip.toString()
-                   << "checkshare result: " << share.status();
+      LOG(WARNING) << "invalid share spamming, worker: " << worker.fullName_
+                   << ", " << share.toString();
       return;
     }
   }

@@ -213,7 +213,7 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
   share.set_version(ShareBitcoin::CURRENT_VERSION);
   share.set_jobid(localJob->jobId_);
   share.set_workerhashid(workerId_);
-  share.set_userid(worker.userId_);
+  share.set_userid(worker.userId(exjob->chainId_));
   share.set_sharediff(iter->second);
   share.set_blkbits(localJob->blkBits_);
   share.set_timestamp((uint64_t) time(nullptr));
@@ -276,10 +276,8 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
     // too much invalid shares, don't send them to kafka
     if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT) {
       isSendShareToKafka = false;
-
-      LOG(INFO) << "invalid share spamming, diff: "
-                << share.sharediff() << ", worker: " << worker.fullName_ << ", agent: "
-                << clientAgent_ << ", ip: " << session.getClientIp();
+      LOG(WARNING) << "invalid share spamming, worker: " << worker.fullName_
+                   << ", " << share.toString();
     }
   }
 

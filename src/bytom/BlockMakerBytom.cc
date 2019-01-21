@@ -66,7 +66,7 @@ void BlockMakerBytom::processSolvedShare(rd_kafka_message_t *rkmessage)
   submitBlockNonBlocking(request);
 
   // NOTE: Database save is not implemented. Need to setup mysql in test environment
-  StratumWorker worker;
+  StratumWorkerPlain worker;
   worker.userId_ = r["userId"].int32();
   worker.workerHashId_ = r["workerId"].int64();
   worker.fullName_ = r["workerFullName"].str();
@@ -95,13 +95,13 @@ void BlockMakerBytom::_submitBlockThread(const string &rpcAddress, const string 
 }
 
 void BlockMakerBytom::saveBlockToDBNonBlocking(const string &header, const uint32_t height,
-                                             const uint64_t networkDiff, const StratumWorker &worker) {
+                                             const uint64_t networkDiff, const StratumWorkerPlain &worker) {
   boost::thread t(boost::bind(&BlockMakerBytom::_saveBlockToDBThread, this,
                               header, height, networkDiff, worker));
 }
 
 void BlockMakerBytom::_saveBlockToDBThread(const string &header, const uint32_t height,
-                                         const uint64_t networkDiff, const StratumWorker &worker) {
+                                         const uint64_t networkDiff, const StratumWorkerPlain &worker) {
   const string nowStr = date("%F %T");
   string sql;
   sql = Strings::Format("INSERT INTO `found_blocks` "

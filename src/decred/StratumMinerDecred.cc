@@ -118,7 +118,7 @@ void StratumMinerDecred::handleRequest_Submit(const string &idStr, const JsonNod
   }
 
   ShareDecred share(workerId_,
-                    worker.userId_,
+                    worker.userId(exjob->chainId_),
                     clientIp,
                     localJob->jobId_,
                     iter->second,
@@ -159,9 +159,8 @@ void StratumMinerDecred::handleRequest_Submit(const string &idStr, const JsonNod
     // too much invalid shares, don't send them to kafka
     if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT) {
       isSendShareToKafka = false;
-
-      LOG(INFO) << "invalid share spamming, diff: " << share.sharediff() << ", worker: "
-                << worker.fullName_ << ", agent: " << clientAgent_ << ", ip: " << clientIp;
+      LOG(WARNING) << "invalid share spamming, worker: " << worker.fullName_
+                   << ", " << share.toString();
     }
   }
 

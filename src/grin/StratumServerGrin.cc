@@ -136,7 +136,7 @@ void StratumServerGrin::sendSolvedShare2Kafka(
     share.edgebits(),
     share.nonce(),
     proofArray.c_str(),
-    worker.userId_,
+    worker.userId(chainId),
     worker.workerHashId_,
     filterWorkerName(worker.fullName_).c_str(),
     blockHashStr.c_str());

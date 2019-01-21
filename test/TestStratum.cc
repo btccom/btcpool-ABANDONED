@@ -87,23 +87,41 @@ TEST(Stratum, Share2) {
 }
 
 TEST(Stratum, StratumWorker) {
-  StratumWorker w;
+  StratumWorker w(3);
   uint64_t u;
   int64_t workerId;
 
-  ASSERT_EQ(w.getUserName("abcd"), "abcd");
-  ASSERT_EQ(w.getUserName("abcdabcdabcdabcdabcdabcdabcd"), "abcdabcdabcdabcdabcdabcdabcd");
-  ASSERT_EQ(w.getUserName("abcd."), "abcd");
-  ASSERT_EQ(w.getUserName("abcd.123"), "abcd");
-  ASSERT_EQ(w.getUserName("abcd.123.456"), "abcd");
+  // test userid with multi chains
+  ASSERT_EQ(w.userIds_.size(), 3u);
+
+  w.setChainIdAndUserId(0, INT32_MAX);
+  ASSERT_EQ(w.userId(), INT32_MAX);
+
+  w.setChainIdAndUserId(1, 0);
+  ASSERT_EQ(w.userId(), 0);
+
+  w.setChainIdAndUserId(2, 123);
+  ASSERT_EQ(w.userId(), 123);
+
+  w.setChainIdAndUserId(1, 456);
+  ASSERT_EQ(w.userId(), 456);
+
+  ASSERT_EQ(w.userId(0), INT32_MAX);
+  ASSERT_EQ(w.userId(1), 456);
+  ASSERT_EQ(w.userId(2), 123);
+
+  // test username split
+  ASSERT_EQ(StratumWorker::getUserName("abcd"), "abcd");
+  ASSERT_EQ(StratumWorker::getUserName("abcdabcdabcdabcdabcdabcdabcd"), "abcdabcdabcdabcdabcdabcdabcd");
+  ASSERT_EQ(StratumWorker::getUserName("abcd."), "abcd");
+  ASSERT_EQ(StratumWorker::getUserName("abcd.123"), "abcd");
+  ASSERT_EQ(StratumWorker::getUserName("abcd.123.456"), "abcd");
 
   //
   // echo -n '123' |openssl dgst -sha256 -binary |openssl dgst -sha256
   //
-  w.setUserID(INT32_MAX);
   w.setNames("abcd.123");
   ASSERT_EQ(w.fullName_,   "abcd.123");
-  ASSERT_EQ(w.userId_,     INT32_MAX);
   ASSERT_EQ(w.userName_,   "abcd");
   ASSERT_EQ(w.workerName_, "123");
   // '123' dsha256 : 5a77d1e9612d350b3734f6282259b7ff0a3f87d62cfef5f35e91a5604c0490a3
@@ -113,10 +131,8 @@ TEST(Stratum, StratumWorker) {
   ASSERT_EQ(w.workerHashId_, workerId);
 
 
-  w.setUserID(0);
   w.setNames("abcdefg");
   ASSERT_EQ(w.fullName_,   "abcdefg.__default__");
-  ASSERT_EQ(w.userId_,     0);
   ASSERT_EQ(w.userName_,   "abcdefg");
   ASSERT_EQ(w.workerName_, "__default__");
   // '__default__' dsha256 : e00f302bc411fde77d954283be6904911742f2ac76c8e79abef5dff4e6a19770
@@ -126,19 +142,16 @@ TEST(Stratum, StratumWorker) {
   ASSERT_EQ(w.workerHashId_, workerId);
 
   // check allow chars
-  w.setUserID(0);
   w.setNames("abcdefg.azAZ09-._:|^/");
   ASSERT_EQ(w.workerName_, "azAZ09-._:|^/");
   ASSERT_EQ(w.fullName_,   "abcdefg.azAZ09-._:|^/");
 
   // some of them are bad chars
-  w.setUserID(0);
   w.setNames("abcdefg.~!@#$%^&*()+={}|[]\\<>?,./");
   ASSERT_EQ(w.workerName_, "^|./");
   ASSERT_EQ(w.fullName_,   "abcdefg.^|./");
 
   // all bad chars
-  w.setUserID(0);
   w.setNames("abcdefg.~!@#$%&*()+={}[]\\<>?,");
   ASSERT_EQ(w.workerName_, "__default__");
   ASSERT_EQ(w.fullName_,   "abcdefg.__default__");

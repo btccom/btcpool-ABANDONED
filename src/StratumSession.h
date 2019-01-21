@@ -110,7 +110,6 @@ protected:
   bool isNiceHashClient_;
   std::unique_ptr<StratumMessageDispatcher> dispatcher_;
 
-  std::atomic<size_t> chainId_;
   State state_;
   StratumWorker worker_;
   std::atomic<bool> isDead_;
@@ -146,7 +145,7 @@ public:
   StratumMessageDispatcher &getDispatcher() override { return *dispatcher_; }
   uint32_t getClientIp() const { return clientIpInt_; };
   uint32_t getSessionId() const { return sessionId_; }
-  size_t getChainId() const { return chainId_; }
+  size_t getChainId() const { return worker_.chainId_; }
   State getState() const { return state_; }
   string getUserName() const { return worker_.userName_; }
 

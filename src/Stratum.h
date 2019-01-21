@@ -111,10 +111,22 @@ public:
 };
 
 //////////////////////////////// StratumWorker ////////////////////////////////
-class StratumWorker
+class StratumWorkerPlain
 {
 public:
   int32_t userId_;
+  int64_t workerHashId_;
+
+  string fullName_;
+  string userName_;
+  string workerName_;
+};
+
+class StratumWorker
+{
+public:
+  std::atomic<size_t> chainId_;
+  vector<int32_t> userIds_;
   int64_t workerHashId_; // substr(0, 8, HASH(wokerName))
 
   string fullName_; // fullName = username.workername
@@ -124,11 +136,15 @@ public:
   void resetNames();
 
 public:
-  StratumWorker();
-  void setUserID(const int32_t userId);
-  void setNames(const string &fullName);
-  string getUserName(const string &fullName) const;
+  StratumWorker(const size_t chainSize);
 
+  void setChainIdAndUserId(const size_t chainId, const int32_t userId);
+  void setNames(const string &fullName);
+
+  int32_t userId() const { return userIds_[chainId_]; }
+  int32_t userId(const size_t chainId) const { return userIds_[chainId]; }
+
+  static string getUserName(const string &fullName);
   static int64_t calcWorkerId(const string &workerName);
 };
 

@@ -106,7 +106,11 @@ const char * StratumStatus::toString(int err) {
 }
 
 //////////////////////////////// StratumWorker ////////////////////////////////
-StratumWorker::StratumWorker(): userId_(0), workerHashId_(0) {}
+StratumWorker::StratumWorker(const size_t chainSize)
+: chainId_(0)
+, workerHashId_(0) {
+  userIds_.resize(chainSize, 0);
+}
 
 void StratumWorker::resetNames() {
   workerHashId_ = 0;
@@ -116,7 +120,7 @@ void StratumWorker::resetNames() {
   workerName_.clear();
 }
 
-string StratumWorker::getUserName(const string &fullName) const {
+string StratumWorker::getUserName(const string &fullName) {
   auto pos = fullName.find(".");
   if (pos == fullName.npos) {
     return fullName;
@@ -124,8 +128,9 @@ string StratumWorker::getUserName(const string &fullName) const {
   return fullName.substr(0, pos);
 }
 
-void StratumWorker::setUserID(const int32_t userId) {
-  userId_ = userId;
+void StratumWorker::setChainIdAndUserId(const size_t chainId, const int32_t userId) {
+  userIds_[chainId] = userId;
+  chainId_ = chainId;
 }
 
 void StratumWorker::setNames(const string &fullName) {

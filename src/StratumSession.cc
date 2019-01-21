@@ -47,8 +47,9 @@ static const string BtccomAgentPrefix = "btccom-agent/";
 StratumSession::StratumSession(StratumServer &server, struct bufferevent *bev, struct sockaddr *saddr, uint32_t sessionId)
 : server_(server), bev_(bev), sessionId_(sessionId)
 , buffer_(evbuffer_new()), clientAgent_("unknown")
-, isAgentClient_(false), isNiceHashClient_(false), chainId_(0)
-, state_(CONNECTED), isDead_(false), isLongTimeout_(false)
+, isAgentClient_(false), isNiceHashClient_(false)
+, state_(CONNECTED), worker_(server.chains_.size())
+, isDead_(false), isLongTimeout_(false)
 {
   assert(saddr->sa_family == AF_INET);
   auto ipv4 = reinterpret_cast<struct sockaddr_in *>(saddr);
@@ -188,12 +189,12 @@ void StratumSession::handleLine(const std::string &line) {
 
 void StratumSession::logAuthorizeResult(bool success) {
   if (success) {
-    LOG(INFO) << "authorize success, userId: " << worker_.userId_
+    LOG(INFO) << "authorize success, userId: " << worker_.userId()
               << ", wokerHashId: " << worker_.workerHashId_
               << ", workerName: " << worker_.fullName_
               << ", clientAgent: " << clientAgent_
               << ", clientIp: " << clientIp_
-              << ", chain: " << getServer().chainName(chainId_);
+              << ", chain: " << getServer().chainName(worker_.chainId_);
   }
   else {
     LOG(WARNING) << "authorize failed, workerName:" << worker_.fullName_
@@ -213,7 +214,7 @@ string StratumSession::getMinerInfoJson(const string &type) {
                           "}}",
                           date("%F %T").c_str(),
                           type.c_str(),
-                          worker_.userId_, worker_.userName_.c_str(),
+                          worker_.userId(), worker_.userName_.c_str(),
                           worker_.workerHashId_, worker_.workerName_.c_str(),
                           clientAgent_.c_str(), clientIp_.c_str(),
                           sessionId_);
@@ -266,9 +267,8 @@ bool StratumSession::switchChain(size_t chainId) {
     return false;
   }
 
-  chainId_ = chainId;
-  worker_.setUserID(userId);
-  server_.userInfo_->addWorker(chainId, worker_.userId_, worker_.workerHashId_, worker_.workerName_, clientAgent_);
+  worker_.setChainIdAndUserId(chainId, userId);
+  server_.userInfo_->addWorker(chainId, worker_.userId(), worker_.workerHashId_, worker_.workerName_, clientAgent_);
 
   // sent events to kafka: miner_connect
   server_.sendCommonEvents2Kafka(chainId, getMinerInfoJson("miner_connect"));
@@ -353,7 +353,7 @@ void StratumSession::addWorker(const std::string &clientAgent, const std::string
     LOG(ERROR) << "curr stratum session has NOT auth yet";
     return;
   }
-  server_.userInfo_->addWorker(chainId_, worker_.userId_, workerId, workerName, clientAgent);
+  server_.userInfo_->addWorker(worker_.chainId_, worker_.userId(), workerId, workerName, clientAgent);
 }
 
 void StratumSession::markAsDead() {
@@ -361,8 +361,8 @@ void StratumSession::markAsDead() {
   isDead_.store(true);
 
   // sent event to kafka: miner_dead
-  if (worker_.userId_ > 0) {
-    server_.sendCommonEvents2Kafka(chainId_, getMinerInfoJson("miner_dead"));
+  if (worker_.userId() > 0) {
+    server_.sendCommonEvents2Kafka(worker_.chainId_, getMinerInfoJson("miner_dead"));
   }
 }
 

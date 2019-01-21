@@ -62,7 +62,7 @@ void BlockMakerEth::processSolvedShare(rd_kafka_message_t *rkmessage)
     return;
   }
 
-  StratumWorker worker;
+  StratumWorkerPlain worker;
   worker.userId_ = r["userId"].int32();
   worker.workerHashId_ = r["workerId"].int64();
   worker.fullName_ = r["workerFullName"].str();
@@ -248,7 +248,7 @@ bool BlockMakerEth::checkRpcSubmitBlock() {
 }
 
 void BlockMakerEth::submitBlockNonBlocking(const string &nonce, const string &header, const string &mix, const vector<NodeDefinition> &nodes,
-                                           const uint32_t height, const string &chain, const uint64_t networkDiff, const StratumWorker &worker) {
+                                           const uint32_t height, const string &chain, const uint64_t networkDiff, const StratumWorkerPlain &worker) {
   std::vector<std::shared_ptr<std::thread>> threadPool;
   std::atomic<bool> syncSubmitSuccess(false);
 
@@ -269,7 +269,7 @@ void BlockMakerEth::submitBlockNonBlocking(const string &nonce, const string &he
 }
 
 void BlockMakerEth::_submitBlockThread(const string &nonce, const string &header, const string &mix, const NodeDefinition &node,
-                                       const uint32_t height, const string &chain, const uint64_t networkDiff, const StratumWorker &worker,
+                                       const uint32_t height, const string &chain, const uint64_t networkDiff, const StratumWorkerPlain &worker,
                                        std::atomic<bool> *syncSubmitSuccess) {
   string blockHash;
   
@@ -316,7 +316,7 @@ void BlockMakerEth::_submitBlockThread(const string &nonce, const string &header
 }
 
 void BlockMakerEth::saveBlockToDB(const string &nonce, const string &header, const string &blockHash, const uint32_t height,
-                                  const string &chain, const uint64_t networkDiff, const StratumWorker &worker) {
+                                  const string &chain, const uint64_t networkDiff, const StratumWorkerPlain &worker) {
   const string nowStr = date("%F %T");
   string sql;
   sql = Strings::Format("INSERT INTO `found_blocks` "

@@ -498,7 +498,7 @@ void ServerEth::sendSolvedShare2Kafka(
                                "\"workerId\":%" PRId64 ",\"workerFullName\":\"%s\","
                                "\"chain\":\"%s\"}",
                                strNonce.c_str(), strHeader.c_str(), strMix.c_str(),
-                               height, networkDiff, worker.userId_,
+                               height, networkDiff, worker.userId(chainId),
                                worker.workerHashId_, filterWorkerName(worker.fullName_).c_str(),
                                EthConsensus::getChainStr(chain).c_str());
   ServerBase::sendSolvedShare2Kafka(chainId, msg.c_str(), msg.length());

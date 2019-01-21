@@ -153,7 +153,7 @@ void StratumMinerSia::handleRequest_Submit(const string &idStr, const JsonNode &
   share.set_ip(ip.toString());
 
 
-  share.set_userid(worker.userId_);
+  share.set_userid(worker.userId(exjob->chainId_));
   share.set_sharediff(difficulty);
   share.set_timestamp((uint32_t) time(nullptr));
   share.set_status(StratumStatus::REJECT_NO_REASON);

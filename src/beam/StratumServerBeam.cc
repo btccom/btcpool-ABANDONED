@@ -183,7 +183,7 @@ void ServerBeam::sendSolvedShare2Kafka(
     "\"workerId\":%" PRId64 ",\"workerFullName\":\"%s\","
     "\"blockHash\":\"%s\",\"chain\":\"%s\"}",
     share.nonce(), input.c_str(), output.c_str(),
-    share.height(), share.blockbits(), worker.userId_,
+    share.height(), share.blockbits(), worker.userId(chainId),
     worker.workerHashId_, filterWorkerName(worker.fullName_).c_str(),
     blockHash.ToString().c_str(), "BEAM"
   );

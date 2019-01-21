@@ -66,7 +66,7 @@ void StratumSessionBitcoin::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, 
 
 #ifdef USER_DEFINED_COINBASE
   // add the User's coinbaseInfo to the coinbase1's tail
-  string userCoinbaseInfo = GetServer()->userInfo_->getCoinbaseInfo(worker_.userId_);
+  string userCoinbaseInfo = GetServer()->userInfo_->getCoinbaseInfo(worker_.userId());
   ljob.userCoinbaseInfo_ = userCoinbaseInfo;
 #endif
 
@@ -362,13 +362,13 @@ void StratumSessionBitcoin::handleRequest_Authorize(const string &idStr,
 
 void StratumSessionBitcoin::logAuthorizeResult(bool success) {
   if (success) {
-    LOG(INFO) << "authorize success, userId: " << worker_.userId_
+    LOG(INFO) << "authorize success, userId: " << worker_.userId()
               << ", wokerHashId: " << worker_.workerHashId_
               << ", workerName: " << worker_.fullName_
               << ", versionMask: " << Strings::Format("%08x", versionMask_)
               << ", clientAgent: " << clientAgent_
               << ", clientIp: " << clientIp_
-              << ", chain: " << getServer().chainName(chainId_);
+              << ", chain: " << getServer().chainName(worker_.chainId_);
   }
   else {
     LOG(WARNING) << "authorize failed, workerName:" << worker_.fullName_
@@ -389,7 +389,7 @@ string StratumSessionBitcoin::getMinerInfoJson(const string &type) {
                           "}}",
                           date("%F %T").c_str(),
                           type.c_str(),
-                          worker_.userId_, worker_.userName_.c_str(),
+                          worker_.userId(), worker_.userName_.c_str(),
                           worker_.workerHashId_, worker_.workerName_.c_str(),
                           clientAgent_.c_str(), clientIp_.c_str(),
                           sessionId_, versionMask_);

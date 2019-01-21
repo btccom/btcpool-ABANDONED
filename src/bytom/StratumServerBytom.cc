@@ -97,7 +97,7 @@ void ServerBytom::sendSolvedShare2Kafka(
                                "\"height\":%lu,\"networkDiff\":%" PRIu64 ",\"userId\":%ld,"
                                "\"workerId\":%" PRId64 ",\"workerFullName\":\"%s\"}",
                                nonce, strHeader.c_str(),
-                               height, networkDiff, worker.userId_,
+                               height, networkDiff, worker.userId(chainId),
                                worker.workerHashId_, filterWorkerName(worker.fullName_).c_str());
   ServerBase::sendSolvedShare2Kafka(chainId, msg.c_str(), msg.length());
 }

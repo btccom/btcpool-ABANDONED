@@ -38,12 +38,12 @@ public:
 
 private:
   void submitBlockNonBlocking(const string &nonce, const string &header, const string &mix, const vector<NodeDefinition> &nodes,
-                              const uint32_t height, const string &chain, const uint64_t networkDiff, const StratumWorker &worker);
+                              const uint32_t height, const string &chain, const uint64_t networkDiff, const StratumWorkerPlain &worker);
   void _submitBlockThread(const string &nonce, const string &header, const string &mix, const NodeDefinition &node,
-                          const uint32_t height, const string &chain, const uint64_t networkDiff, const StratumWorker &worker,
+                          const uint32_t height, const string &chain, const uint64_t networkDiff, const StratumWorkerPlain &worker,
                           std::atomic<bool> *syncSubmitSuccess);
   void saveBlockToDB(const string &nonce, const string &header, const string &blockHash, const uint32_t height,
-                     const string &chain, const uint64_t networkDiff, const StratumWorker &worker);
+                     const string &chain, const uint64_t networkDiff, const StratumWorkerPlain &worker);
 
   static bool submitBlock(const string &nonce, const string &header, const string &mix,
                           const string &rpcUrl, const string &rpcUserPass,

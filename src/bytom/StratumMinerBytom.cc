@@ -174,7 +174,7 @@ void StratumMinerBytom::handleRequest_Submit(const string &idStr, const JsonNode
   share.set_version(ShareBytom::CURRENT_VERSION);
   //  TODO: not set: share.checkSum_
   share.set_workerhashid(workerId_);
-  share.set_userid(worker.userId_);
+  share.set_userid(worker.userId(exjob->chainId_));
   share.set_status(StratumStatus::REJECT_NO_REASON);
   share.set_timestamp((uint32_t) time(nullptr));
   IpAddress ip;
@@ -259,10 +259,8 @@ void StratumMinerBytom::handleRequest_Submit(const string &idStr, const JsonNode
     // too much invalid shares, don't send them to kafka
     if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT) {
       isSendShareToKafka = false;
-      LOG(WARNING) << "invalid share spamming, diff: "
-                   << share.sharediff() << ", uid: " << worker.userId_
-                   << ", uname: \"" << worker.userName_ << "\", ip: " << clientIp
-                   << "checkshare result: " << share.status();
+      LOG(WARNING) << "invalid share spamming, worker: " << worker.fullName_
+                   << ", " << share.toString();
     }
   }
 
