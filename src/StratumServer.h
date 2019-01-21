@@ -130,6 +130,7 @@ protected:
   const time_t kMiningNotifyInterval_;
 
   time_t lastJobSendTime_;
+  uint64_t lastJobId_;
 
   thread threadConsume_;
 

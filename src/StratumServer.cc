@@ -115,6 +115,7 @@ JobRepository::JobRepository(
   , kMaxJobsLifeTime_(300)
   , kMiningNotifyInterval_(30)  // TODO: make as config arg
   , lastJobSendTime_(0)
+  , lastJobId_(0)
 {
   assert(kMiningNotifyInterval_ < kMaxJobsLifeTime_);
 }
@@ -287,20 +288,15 @@ void JobRepository::checkAndSendMiningNotify() {
 }
 
 void JobRepository::sendMiningNotify(shared_ptr<StratumJobEx> exJob) {
-  static uint64_t lastJobId = 0;
-  if (lastJobId == exJob->sjob_->jobId_) {
-    LOG(ERROR) << "no new jobId, ignore to send mining notify";
-    return;
-  }
-
   // send job to all clients
   server_->sendMiningNotifyToAll(exJob);
   lastJobSendTime_ = time(nullptr);
-  lastJobId = exJob->sjob_->jobId_;
 
   // write last mining notify time to file
-  if (!fileLastNotifyTime_.empty())
+  if (lastJobId_ != exJob->sjob_->jobId_ && !fileLastNotifyTime_.empty())
     writeTime2File(fileLastNotifyTime_.c_str(), (uint32_t)lastJobSendTime_);
+
+  lastJobId_ = exJob->sjob_->jobId_;
 }
 
 void JobRepository::tryCleanExpiredJobs() {
