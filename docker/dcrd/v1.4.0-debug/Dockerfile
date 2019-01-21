@@ -26,11 +26,10 @@ RUN cd ~/source && wget https://dl.google.com/go/go1.11.4.linux-amd64.tar.gz && 
     ln -s /usr/local/go/bin/go /usr/local/bin/go
 
 # clone dcrd source code
-RUN cd ~/source && git clone --depth=1 -b v1.4.0-rc1-debug https://github.com/YihaoPeng/dcrd.git
+RUN cd ~/source && git clone --depth=1 -b v1.4.0-rc1-debug https://github.com/btccom/dcrd.git
 RUN cd ~/source/dcrd && \
-    go install . .\cmd\... && \
-    go build && \
-    ln -s $PWD/dcrd $PWD/cmd/dcrctl /usr/local/bin/
+    go install . ./cmd/... && \
+    ln -s ~/go/bin/dcrd ~/go/bin/dcrctl /usr/local/bin/
 
 # mkdir dcrd data dir
 RUN mkdir -p /root/.dcrd
