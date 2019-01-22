@@ -174,13 +174,12 @@ void StratumSessionGrin::handleRequest_Authorize(
     password = jsonParams["pass"].str();
   }
 
-  checkUserAndPwd(idStr, fullName, password);
-
   string clientAgent;
   if (jsonParams["agent"].type() == Utilities::JS::type::Str) {
-    fullName = jsonParams["agent"].str();
+    clientAgent = jsonParams["agent"].str();
   }
   setClientAgent(clientAgent);
+  checkUserAndPwd(idStr, fullName, password);
 
   return;
 }
