@@ -146,7 +146,7 @@ void StratumMinerEth::handleRequest_Submit(const string &idStr, const JsonNode &
   auto &server = session.getServer();
   auto &worker = session.getWorker();
   auto extraNonce1 = session.getSessionId();
-  auto clientIp = session.getClientIp();
+
   shared_ptr<StratumJobEx> exjob = server.GetJobRepository(localJob->chainId_)->getStratumJobEx(localJob->jobId_);
   if (exjob.get() == nullptr) {
     session.responseFalse(idStr, StratumStatus::JOB_NOT_FOUND);

@@ -80,7 +80,6 @@ void StratumMinerBeam::handleRequest_Submit(const string &idStr, const JsonNode 
   auto &server = session.getServer();
   auto &worker = session.getWorker();
   auto sessionId = session.getSessionId();
-  auto clientIp = session.getClientIp();
   
   shared_ptr<StratumJobEx> exjob = server.GetJobRepository(localJob->chainId_)
     ->getStratumJobEx(localJob->jobId_);

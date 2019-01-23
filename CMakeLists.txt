@@ -458,6 +458,7 @@ add_library(beam
     src/beam/core/static_members.cpp
     src/beam/pow/equihash.cpp
     src/beam/utility/common.cpp)
+target_compile_options(beam PRIVATE -Wno-unused-function)
 
 file(GLOB LIB_SOURCES
         src/*.cc
