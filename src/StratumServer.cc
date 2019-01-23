@@ -130,6 +130,11 @@ void JobRepository::setMaxJobLifeTime (const time_t maxJobLifeTime) {
   kMaxJobsLifeTime_ = maxJobLifeTime;
 }
 
+void JobRepository::setMiningNotifyInterval(time_t miningNotifyInterval) {
+  LOG(INFO) << "set mining notify interval to " << miningNotifyInterval << "s";
+  kMiningNotifyInterval_ = miningNotifyInterval;
+}
+
 shared_ptr<StratumJobEx> JobRepository::getStratumJobEx(const uint64_t jobId) {
   ScopeLock sl(lock_);
   auto itr = exJobs_.find(jobId);
@@ -487,6 +492,9 @@ bool StratumServer::setup(const libconfig::Config &config) {
                  << " seconds) is too short, recommended to be 300 seconds or longer.";
   }
 
+  uint32_t miningNotifyInterval = 30; // optional
+  config.lookupValue("sserver.mining_notify_interval", miningNotifyInterval);
+
   // ------------------- Listen Options -------------------
 
   string listenIP = "0.0.0.0";
@@ -586,6 +594,7 @@ bool StratumServer::setup(const libconfig::Config &config) {
   // ------------------- Init JobRepository -------------------
   for (ChainVars &chain : chains_) {
     chain.jobRepository_->setMaxJobLifeTime(maxJobLifetime);
+    chain.jobRepository_->setMiningNotifyInterval(miningNotifyInterval);
     if (!chain.jobRepository_->setupThreadConsume()) {
       LOG(ERROR) << "init JobRepository for chain " << chain.name_ << " failed";
       return false;
