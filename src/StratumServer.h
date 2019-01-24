@@ -30,6 +30,7 @@
 #include "Stratum.h"
 
 #include <bitset>
+#include <queue>
 
 #include <event2/bufferevent.h>
 #include <event2/listener.h>
@@ -111,9 +112,13 @@ public:
 ////////////////////////////////// JobRepository ///////////////////////////////
 class JobRepository
 {
-protected:
+private:
   atomic<bool> running_;
   mutex lock_;
+  struct event *jobEvent_;
+  std::queue<std::unique_ptr<StratumJob>> jobQueue_;
+
+protected:
   std::map<uint64_t /* jobId */, shared_ptr<StratumJobEx>> exJobs_;
 
   KafkaConsumer kafkaConsumer_; // consume topic: 'StratumJob'
@@ -131,8 +136,13 @@ protected:
 private:
   void runThreadConsume();
   void consumeStratumJob(rd_kafka_message_t *rkmessage);
+  void processStratumJobs();
   void tryCleanExpiredJobs();
   void checkAndSendMiningNotify();
+
+  static void jobCallback(evutil_socket_t fd, short event, void *arg) {
+    static_cast<JobRepository *>(arg)->processStratumJobs();
+  }
 
 protected:
   JobRepository(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server);
@@ -261,12 +271,12 @@ public:
 ///////////////////////////////////// Server ///////////////////////////////////
 class Server {
   // NetIO
+  friend class JobRepository;
   struct sockaddr_in sin_;
   struct event_base* base_;
   struct event* signal_event_;
   struct evconnlistener* listener_;
   std::set<unique_ptr<StratumSession>> connections_;
-  mutex connsLock_;
 
 public:
   // kafka producers

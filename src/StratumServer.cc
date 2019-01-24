@@ -101,6 +101,7 @@ template class SessionIDManagerT<24>;
 ////////////////////////////////// JobRepository ///////////////////////////////
 JobRepository::JobRepository(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, Server *server)
   : running_(true)
+  , jobEvent_(evtimer_new(server->base_, JobRepository::jobCallback, this))
   , kafkaConsumer_(kafkaBrokers, consumerTopic, 0/*patition*/)
   , server_(server), fileLastNotifyTime_(fileLastNotifyTime)
   , kMaxJobsLifeTime_(300)
@@ -113,6 +114,9 @@ JobRepository::JobRepository(const char *kafkaBrokers, const char *consumerTopic
 JobRepository::~JobRepository() {
   if (threadConsume_.joinable())
     threadConsume_.join();
+
+  evtimer_del(jobEvent_);
+  event_free(jobEvent_);
 }
 
 void JobRepository::setMaxJobDelay (const time_t maxJobDelay) {
@@ -121,7 +125,6 @@ void JobRepository::setMaxJobDelay (const time_t maxJobDelay) {
 }
 
 shared_ptr<StratumJobEx> JobRepository::getStratumJobEx(const uint64_t jobId) {
-  ScopeLock sl(lock_);
   auto itr = exJobs_.find(jobId);
   if (itr != exJobs_.end()) {
     return itr->second;
@@ -130,7 +133,6 @@ shared_ptr<StratumJobEx> JobRepository::getStratumJobEx(const uint64_t jobId) {
 }
 
 shared_ptr<StratumJobEx> JobRepository::getLatestStratumJobEx() {
-  ScopeLock sl(lock_);
   if (exJobs_.size()) {
     return exJobs_.rbegin()->second;
   }
@@ -190,13 +192,6 @@ void JobRepository::runThreadConsume() {
       // Return message to rdkafka
       rd_kafka_message_destroy(rkmessage);
     }
-
-    // check if we need to send mining notify
-    // It's a default implementation of scheduled sending / regular updating of stratum jobs.
-    // If no job is sent for a long time via broadcastStratumJob(), a job will be sent via this method.
-    checkAndSendMiningNotify();
-
-    tryCleanExpiredJobs();
   }
 
   LOG(INFO) << "stop job repository consume thread";
@@ -228,32 +223,51 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
     return;
   }
 
-  StratumJob *sjob = createStratumJob();
+  std::unique_ptr<StratumJob> sjob{createStratumJob()};
   bool res = sjob->unserializeFromJson((const char *)rkmessage->payload,
                                        rkmessage->len);
   if (res == false) {
     LOG(ERROR) << "unserialize stratum job fail";
-    delete sjob;
     return;
   }
   // make sure the job is not expired.
   time_t now = time(nullptr);
   if (sjob->jobTime() + kMaxJobsLifeTime_ < now) {
     LOG(ERROR) << "too large delay from kafka to receive topic 'StratumJob' job time=" << sjob->jobTime() << ", max delay=" << kMaxJobsLifeTime_ << ", now=" << now;
-    delete sjob;
-    return;
-  }
-  // here you could use Map.find() without lock, it's sure
-  // that everyone is using this Map readonly now
-  auto existingJob = getStratumJobEx(sjob->jobId_);
-  if(existingJob != nullptr)
-  {
-    LOG(ERROR) << "jobId already existed";
-    delete sjob;
     return;
   }
 
-  broadcastStratumJob(sjob);
+  {
+    ScopeLock sl{lock_};
+    jobQueue_.push(std::move(sjob));
+  }
+  evtimer_add(jobEvent_, nullptr);
+  event_active(jobEvent_, EV_TIMEOUT, 0);
+}
+
+void JobRepository::processStratumJobs() {
+  std::queue<std::unique_ptr<StratumJob>> sjobs;
+  {
+    ScopeLock sl{lock_};
+    sjobs.swap(jobQueue_);
+  }
+
+  while (!sjobs.empty()) {
+    auto &sjob = sjobs.front();
+    auto existingJob = getStratumJobEx(sjob->jobId_);
+    if (existingJob != nullptr) {
+      LOG(ERROR) << "jobId already existed";
+    } else {
+      broadcastStratumJob(sjob.release());
+
+      // check if we need to send mining notify
+      // It's a default implementation of scheduled sending / regular updating of stratum jobs.
+      // If no job is sent for a long time via broadcastStratumJob(), a job will be sent via this method.
+      checkAndSendMiningNotify();
+      tryCleanExpiredJobs();
+    }
+    sjobs.pop();
+  }
 }
 
 StratumJobEx* JobRepository::createStratumJobEx(StratumJob *sjob, bool isClean){
@@ -261,7 +275,6 @@ StratumJobEx* JobRepository::createStratumJobEx(StratumJob *sjob, bool isClean){
 }
 
 void JobRepository::markAllJobsAsStale() {
-  ScopeLock sl(lock_);
   for (auto it : exJobs_) {
     it.second->markStale();
   }
@@ -295,8 +308,6 @@ void JobRepository::sendMiningNotify(shared_ptr<StratumJobEx> exJob) {
 }
 
 void JobRepository::tryCleanExpiredJobs() {
-  ScopeLock sl(lock_);
-
   const uint32_t nowTs = (uint32_t)time(nullptr);
   // Keep at least one job to keep normal mining when the jobmaker fails
   while (exJobs_.size() > 1) {
@@ -901,7 +912,6 @@ void Server::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {
   // being erased.
   //
 
-  ScopeLock sl(connsLock_);
   auto itr = connections_.begin();
   while (itr != connections_.end()) {
     auto &conn = *itr;
@@ -918,7 +928,6 @@ void Server::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {
 }
 
 void Server::addConnection(unique_ptr<StratumSession> connection) {
-  ScopeLock sl(connsLock_);
   connections_.insert(move(connection));
 }
 

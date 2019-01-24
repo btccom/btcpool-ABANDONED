@@ -77,20 +77,17 @@ void JobRepositoryDecred::broadcastStratumJob(StratumJob *sjob)
   bool moreVoters = voters > lastVoters_;
 
   shared_ptr<StratumJobEx> jobEx(createStratumJobEx(jobDecred, isClean));
-  {
-    ScopeLock sl(lock_);
 
-    if (isClean) {
-      // mark all jobs as stale, should do this before insert new job
-      // stale shares will not be rejected, they will be marked as ACCEPT_STALE and have lower rewards.
-      for (auto it : exJobs_) {
-        it.second->markStale();
-      }
+  if (isClean) {
+    // mark all jobs as stale, should do this before insert new job
+    // stale shares will not be rejected, they will be marked as ACCEPT_STALE and have lower rewards.
+    for (auto it : exJobs_) {
+      it.second->markStale();
     }
-
-    // insert new job
-    exJobs_[jobDecred->jobId_] = jobEx;
   }
+
+  // insert new job
+  exJobs_[jobDecred->jobId_] = jobEx;
 
   // We want to update jobs immediately if there are more voters for the same height block
   if (isClean || moreVoters) {

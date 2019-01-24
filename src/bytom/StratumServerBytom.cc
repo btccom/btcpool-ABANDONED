@@ -58,19 +58,17 @@ void JobRepositoryBytom::broadcastStratumJob(StratumJob *sjobBase)
               << ", prevhash: " << sjob->blockHeader_.previousBlockHash.c_str();
   }  
   shared_ptr<StratumJobEx> exJob(createStratumJobEx(sjob, isClean));
-  {
-    ScopeLock sl(lock_);
 
-    if (isClean) {
-      // mark all jobs as stale, should do this before insert new job
-      for (auto it : exJobs_) {
-        it.second->markStale();
-      }
+  if (isClean) {
+    // mark all jobs as stale, should do this before insert new job
+    for (auto it : exJobs_) {
+      it.second->markStale();
     }
-
-    // insert new job
-    exJobs_[sjob->jobId_] = exJob;
   }
+
+  // insert new job
+  exJobs_[sjob->jobId_] = exJob;
+
   if (isClean) {
     sendMiningNotify(exJob);
   }
