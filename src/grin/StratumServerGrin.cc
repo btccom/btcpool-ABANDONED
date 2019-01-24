@@ -189,16 +189,19 @@ void JobRepositoryGrin::broadcastStratumJob(StratumJob *sjob) {
       for (auto it : exJobs_) {
         it.second->markStale();
       }
-
-      // Grin miners do not like frequent job switching, hence we only send jobs:
-      // - when there is a new height
-      // - when miner calls getjobtemplate
-      // - when mining notify interval expires
-      sendMiningNotify(exJob);
     }
 
     // insert new job
     exJobs_[sjobGrin->jobId_] = exJob;
+  }
+
+  // sending data in lock scope may cause implicit race condition in libevent
+  if (isClean) {
+    // Grin miners do not like frequent job switching, hence we only send jobs:
+    // - when there is a new height
+    // - when miner calls getjobtemplate
+    // - when mining notify interval expires
+    sendMiningNotify(exJob);
   }
 }
  
