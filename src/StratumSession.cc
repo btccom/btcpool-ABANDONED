@@ -284,19 +284,16 @@ void StratumSession::setDefaultDifficultyFromPassword(const string &password) {
     }
   }
 
-  d  = formatDifficulty(d);
-  md = formatDifficulty(md);
-
   // set min diff first
   if (md > 0) {
     // diff range correction is done in setMinDiff
-    dispatcher_->setMinDiff(md);
+    dispatcher_->setMinDiff(formatDifficulty(md));
   }
 
   // than set current diff
   if (d > 0) {
     // diff range correction is done in resetCurDiff
-    dispatcher_->resetCurDiff(d);
+    dispatcher_->resetCurDiff(formatDifficulty(d));
   }
 }
 
