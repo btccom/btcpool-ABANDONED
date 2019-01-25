@@ -29,6 +29,8 @@
 
 #include "DiffController.h"
 
+#include <boost/functional/hash.hpp>
+
 StratumMinerGrin::StratumMinerGrin(
   StratumSessionGrin &session,
   const DiffController &diffController,
@@ -126,7 +128,7 @@ void StratumMinerGrin::handleRequest_Submit(const string &idStr, const JsonNode 
   ip.fromIpv4Int(session.getClientIp());
   share.set_ip(ip.toString());
 
-  LocalShare localShare(nonce, 0, 0);
+  LocalShare localShare(nonce, boost::hash_value(proofs), edgeBits);
   // can't add local share
   if (!localJob->addLocalShare(localShare)) {
     session.responseError(idStr, StratumStatus::DUPLICATE_SHARE);
