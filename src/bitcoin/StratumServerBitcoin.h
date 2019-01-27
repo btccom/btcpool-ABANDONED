@@ -74,9 +74,9 @@ private:
 public:
   JobRepositoryBitcoin(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerBitcoin *server);
   virtual ~JobRepositoryBitcoin();
-  virtual StratumJob* createStratumJob() override;
-  StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
-  void broadcastStratumJob(StratumJob *sjob) override;
+  virtual shared_ptr<StratumJob> createStratumJob() override;
+  shared_ptr<StratumJobEx> createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean) override;
+  void broadcastStratumJob(shared_ptr<StratumJob> sjob) override;
 
 };
 
@@ -96,7 +96,7 @@ public:
   string miningNotify3Clean_;
 
 public:
-  StratumJobExBitcoin(StratumJob *sjob, bool isClean);
+  StratumJobExBitcoin(shared_ptr<StratumJob> sjob, bool isClean);
 
   void generateBlockHeader(CBlockHeader  *header,
                            std::vector<char> *coinbaseBin,

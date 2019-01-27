@@ -152,7 +152,7 @@ void StratumMinerEth::handleRequest_Submit(const string &idStr, const JsonNode &
     responseFalse(idStr, StratumStatus::JOB_NOT_FOUND);
     return;
   }
-  StratumJobEth *sjob = dynamic_cast<StratumJobEth *>(exjob->sjob_);
+  auto sjob = std::static_pointer_cast<StratumJobEth>(exjob->sjob_);
 
   if (StratumProtocolEth::NICEHASH_STRATUM == ethProtocol_) {
     if (sNonce.size() != 16) {

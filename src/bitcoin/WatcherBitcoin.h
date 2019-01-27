@@ -32,7 +32,7 @@
 class ClientContainerBitcoin : public ClientContainer
 {
   boost::shared_mutex stratumJobMutex_;
-  StratumJobBitcoin *poolStratumJob_; // the last stratum job from the pool itself
+  shared_ptr<StratumJobBitcoin> poolStratumJob_; // the last stratum job from the pool itself
 protected:
   void consumeStratumJobInternal(const string& str) override;
   string createOnConnectedReplyString() const override;
@@ -51,7 +51,7 @@ public:
                     const string &blockPrevHash,
                     uint32_t blockTime, uint32_t blockVersion);
 
-  const StratumJobBitcoin * getPoolStratumJob();
+  const shared_ptr<StratumJobBitcoin>  getPoolStratumJob();
   boost::shared_lock<boost::shared_mutex> getPoolStratumJobReadLock();
 };
 

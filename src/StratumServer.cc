@@ -180,8 +180,8 @@ void JobRepository::runThreadConsume() {
     if (rkmessage != nullptr) {
       // consume stratum job
       //
-      // It will create a StratumJob and try to broadcast it immediately with broadcastStratumJob(StratumJob *).
-      // A derived class needs to implement the abstract method broadcastStratumJob(StratumJob *) to decide
+      // It will create a StratumJob and try to broadcast it immediately with broadcastStratumJob(shared_ptr<StratumJob>).
+      // A derived class needs to implement the abstract method broadcastStratumJob(shared_ptr<StratumJob>) to decide
       // whether to add the StratumJob to the map exJobs_ and whether to send the job to miners immediately.
       // Derived classes do not need to implement a scheduled sending mechanism, checkAndSendMiningNotify() will
       // provide a default implementation.
@@ -228,19 +228,17 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
     return;
   }
 
-  StratumJob *sjob = createStratumJob();
+  shared_ptr<StratumJob> sjob = createStratumJob();
   bool res = sjob->unserializeFromJson((const char *)rkmessage->payload,
                                        rkmessage->len);
   if (res == false) {
     LOG(ERROR) << "unserialize stratum job fail";
-    delete sjob;
     return;
   }
   // make sure the job is not expired.
   time_t now = time(nullptr);
   if (sjob->jobTime() + kMaxJobsLifeTime_ < now) {
     LOG(ERROR) << "too large delay from kafka to receive topic 'StratumJob' job time=" << sjob->jobTime() << ", max delay=" << kMaxJobsLifeTime_ << ", now=" << now;
-    delete sjob;
     return;
   }
   // here you could use Map.find() without lock, it's sure
@@ -249,15 +247,14 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   if(existingJob != nullptr)
   {
     LOG(ERROR) << "jobId already existed";
-    delete sjob;
     return;
   }
 
   broadcastStratumJob(sjob);
 }
 
-StratumJobEx* JobRepository::createStratumJobEx(StratumJob *sjob, bool isClean){
-  return new StratumJobEx(sjob, isClean);
+shared_ptr<StratumJobEx> JobRepository::createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean){
+  return std::make_shared<StratumJobEx>(sjob, isClean);
 }
 
 void JobRepository::markAllJobsAsStale() {
@@ -603,19 +600,15 @@ int32_t UserInfo::insertWorkerName() {
 
 
 ////////////////////////////////// StratumJobEx ////////////////////////////////
-StratumJobEx::StratumJobEx(StratumJob *sjob, bool isClean)
+StratumJobEx::StratumJobEx(shared_ptr<StratumJob> sjob, bool isClean)
   : state_(0)
   , isClean_(isClean)
   , sjob_(sjob)
 {
-  assert(sjob != nullptr);
+  assert(sjob);
 }
 
 StratumJobEx::~StratumJobEx() {
-  if (sjob_) {
-    delete sjob_;
-    sjob_ = nullptr;
-  }
 }
 
 void StratumJobEx::markStale() {

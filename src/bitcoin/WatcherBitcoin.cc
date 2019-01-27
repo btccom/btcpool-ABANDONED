@@ -63,7 +63,7 @@ boost::shared_lock<boost::shared_mutex> ClientContainerBitcoin::getPoolStratumJo
   return boost::shared_lock<boost::shared_mutex>(stratumJobMutex_);
 }
 
-const StratumJobBitcoin * ClientContainerBitcoin::getPoolStratumJob() {
+const shared_ptr<StratumJobBitcoin>  ClientContainerBitcoin::getPoolStratumJob() {
   return poolStratumJob_;
 }
 
@@ -77,18 +77,16 @@ PoolWatchClient* ClientContainerBitcoin::createPoolWatchClient(
 
 void ClientContainerBitcoin::consumeStratumJobInternal(const string& str) 
 {
-    StratumJobBitcoin *sjob = new StratumJobBitcoin();
+    shared_ptr<StratumJobBitcoin> sjob = std::make_shared<StratumJobBitcoin>();
     bool res = sjob->unserializeFromJson((const char *)str.data(), str.size());
     if (res == false) {
       LOG(ERROR) << "unserialize stratum job fail";
-      delete sjob;
       return;
     }
 
     // make sure the job is not expired.
     if (jobId2Time(sjob->jobId_) + 60 < time(nullptr)) {
       LOG(ERROR) << "too large delay from kafka to receive topic 'StratumJob'";
-      delete sjob;
       return;
     }
 
@@ -105,7 +103,6 @@ void ClientContainerBitcoin::consumeStratumJobInternal(const string& str)
 
       if (poolStratumJob_ != nullptr) {
         oldPrevHash = poolStratumJob_->prevHash_;
-        delete poolStratumJob_;
       }
 
       poolStratumJob_ = sjob;
@@ -242,7 +239,7 @@ void PoolWatchClientBitcoin::handleStratumMessage(const string &line) {
           // get a read lock before lookup this->poolStratumJob_
           // it will unlock by itself in destructor.
           auto readLock = containerBitcoin->getPoolStratumJobReadLock();
-          const StratumJobBitcoin *poolStratumJob = containerBitcoin->getPoolStratumJob();
+          const shared_ptr<StratumJobBitcoin> poolStratumJob = containerBitcoin->getPoolStratumJob();
 
           if (poolStratumJob == nullptr) {
             LOG(WARNING) << "<" << poolName_ << "> discard the job: pool stratum job is empty";

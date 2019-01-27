@@ -73,7 +73,7 @@ void StratumSessionEth::sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr
     return;
   }
 
-  StratumJobEth *ethJob = dynamic_cast<StratumJobEth *>(exJobPtr->sjob_);
+  auto ethJob = std::static_pointer_cast<StratumJobEth>(exJobPtr->sjob_);
   if (nullptr == ethJob) {
     return;
   }

@@ -748,12 +748,11 @@ void BlockMakerBitcoin::consumeStratumJob(rd_kafka_message_t *rkmessage) {
 
   LOG(INFO) << "received StratumJob message, len: " << rkmessage->len;
 
-  StratumJobBitcoin *sjob = new StratumJobBitcoin();
+  shared_ptr<StratumJobBitcoin> sjob = std::make_shared<StratumJobBitcoin>();
   bool res = sjob->unserializeFromJson((const char *)rkmessage->payload,
                                        rkmessage->len);
   if (res == false) {
     LOG(ERROR) << "unserialize stratum job fail";
-    delete sjob;
     return;
   }
 
@@ -792,7 +791,6 @@ void BlockMakerBitcoin::consumeStratumJob(rd_kafka_message_t *rkmessage) {
 
   }
 
-  delete sjob;
 }
 
 void BlockMakerBitcoin::runThreadConsumeRawGbt() {

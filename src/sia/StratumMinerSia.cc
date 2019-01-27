@@ -118,7 +118,7 @@ void StratumMinerSia::handleRequest_Submit(const string &idStr, const JsonNode &
     return;
   }
 
-  StratumJobSia *sjob = dynamic_cast<StratumJobSia *>(exjob->sjob_);
+  auto sjob = std::static_pointer_cast<StratumJobSia>(exjob->sjob_);
   if (nullptr == sjob) {
     session.responseError(idStr, StratumStatus::JOB_NOT_FOUND);
     LOG(ERROR) << "cast sia local job failed " << std::hex << localJob->jobId_;

@@ -34,8 +34,8 @@ class JobRepositoryDecred : public JobRepositoryBase<ServerDecred> {
 public:
   JobRepositoryDecred(const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime, ServerDecred *server);
 
-  StratumJob* createStratumJob() override;
-  void broadcastStratumJob(StratumJob *sjob) override;
+  shared_ptr<StratumJob> createStratumJob() override;
+  void broadcastStratumJob(shared_ptr<StratumJob> sjob) override;
 
 private:
   uint32_t lastHeight_;

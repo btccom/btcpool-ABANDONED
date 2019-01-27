@@ -42,11 +42,11 @@ JobRepositorySia::~JobRepositorySia()
 
 }
 
-StratumJobEx* JobRepositorySia::createStratumJobEx(StratumJob *sjob, bool isClean){
-  return new StratumJobEx(sjob, isClean);
+shared_ptr<StratumJobEx> JobRepositorySia::createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean){
+  return std::make_shared<StratumJobEx>(sjob, isClean);
 }
 
-void JobRepositorySia::broadcastStratumJob(StratumJob *sjob) {
+void JobRepositorySia::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
   LOG(INFO) << "broadcast sia stratum job " << std::hex << sjob->jobId_;
   shared_ptr<StratumJobEx> exJob(createStratumJobEx(sjob, true));
   {

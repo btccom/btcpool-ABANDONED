@@ -109,7 +109,7 @@ void StratumMinerDecred::handleRequest_Submit(const string &idStr, const JsonNod
   auto exjob = jobRepo->getStratumJobEx(localJob->jobId_);
   if (exjob) {
     // 0 means miner use stratum job's default block time
-    auto sjob = static_cast<StratumJobDecred *>(exjob->sjob_);
+    auto sjob = std::static_pointer_cast<StratumJobDecred>(exjob->sjob_);
     if (ntime == 0) {
       ntime = sjob->header_.timestamp.value();
     }

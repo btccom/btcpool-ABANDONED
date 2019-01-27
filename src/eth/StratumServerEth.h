@@ -63,12 +63,12 @@ public:
 
   bool compute(ethash_h256_t const header, uint64_t nonce, ethash_return_value_t& r);
 
-  StratumJob *createStratumJob() override {return new StratumJobEth();}
-  StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
-  void broadcastStratumJob(StratumJob *sjob) override;
+  shared_ptr<StratumJob> createStratumJob() override { return std::make_shared<StratumJobEth>(); }
+  shared_ptr<StratumJobEx> createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean) override;
+  void broadcastStratumJob(shared_ptr<StratumJob> sjob) override;
 
   // re-computing light when checking share failed.
-  void rebuildLightNonBlocking(StratumJobEth* job);
+  void rebuildLightNonBlocking(shared_ptr<StratumJobEth> job);
 
 private:
   // TODO: move to configuration file
@@ -81,7 +81,7 @@ private:
 	  uint64_t cacheSize_;
   };
 
-  void newLightNonBlocking(StratumJobEth* job);
+  void newLightNonBlocking(shared_ptr<StratumJobEth> job);
   void _newLightThread(uint64_t height);
   void deleteLight();
   void deleteLightNoLock();

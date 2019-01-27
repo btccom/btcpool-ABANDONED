@@ -74,7 +74,7 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
     return;
   }
 
-  StratumJobBytom *sJob = dynamic_cast<StratumJobBytom *>(exJobPtr->sjob_);
+  auto sJob = std::static_pointer_cast<StratumJobBytom>(exJobPtr->sjob_);
   if (nullptr == sJob)
     return;
 
