@@ -27,5 +27,7 @@
 // Without this, some linking errors will issued.
 // If you add a new derived class of Share, add it at the following.
 template class ShareLogDumperT<ShareEth>;
-template class ShareLogParserT<ShareEth>;
-template class ShareLogParserServerT<ShareEth>;
+template class ShareLogParserT<ShareNoStaleEth>;
+template class ShareLogParserT<ShareWithStaleEth>;
+template class ShareLogParserServerT<ShareNoStaleEth>;
+template class ShareLogParserServerT<ShareWithStaleEth>;

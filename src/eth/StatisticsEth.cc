@@ -23,30 +23,44 @@
  */
 #include "StatisticsEth.h"
 
-template <>
-void ShareStatsDay<ShareEth>::processShare(
-    uint32_t hourIdx, const ShareEth &share) {
-  ScopeLock sl(lock_);
+template <typename ShareEthType>
+static void processShareEth(
+    ShareStatsDay<ShareEthType> &statsDay,
+    uint32_t hourIdx,
+    const ShareEthType &share) {
+  ScopeLock sl(statsDay.lock_);
 
   if (StratumStatus::isAccepted(share.status())) {
-    shareAccept1h_[hourIdx] += share.sharediff();
-    shareAccept1d_ += share.sharediff();
+    statsDay.shareAccept1h_[hourIdx] += share.sharediff();
+    statsDay.shareAccept1d_ += share.sharediff();
 
     double score = share.score();
     double reward =
         EthConsensus::getStaticBlockReward(share.height(), share.getChain());
     double earn = score * reward;
 
-    score1h_[hourIdx] += score;
-    score1d_ += score;
-    earn1h_[hourIdx] += earn;
-    earn1d_ += earn;
-
+    statsDay.score1h_[hourIdx] += score;
+    statsDay.score1d_ += score;
+    statsDay.earn1h_[hourIdx] += earn;
+    statsDay.earn1d_ += earn;
   } else {
-    shareReject1h_[hourIdx] += share.sharediff();
-    shareReject1d_ += share.sharediff();
+    statsDay.shareReject1h_[hourIdx] += share.sharediff();
+    statsDay.shareReject1d_ += share.sharediff();
   }
-  modifyHoursFlag_ |= (0x01u << hourIdx);
+  statsDay.modifyHoursFlag_ |= (0x01u << hourIdx);
 }
 
-template class ShareStatsDay<ShareEth>;
+template <>
+void ShareStatsDay<ShareNoStaleEth>::processShare(
+    uint32_t hourIdx, const ShareNoStaleEth &share) {
+  processShareEth(*this, hourIdx, share);
+}
+
+template <>
+void ShareStatsDay<ShareWithStaleEth>::processShare(
+    uint32_t hourIdx, const ShareWithStaleEth &share) {
+  processShareEth(*this, hourIdx, share);
+}
+
+template class ShareStatsDay<ShareNoStaleEth>;
+template class ShareStatsDay<ShareWithStaleEth>;

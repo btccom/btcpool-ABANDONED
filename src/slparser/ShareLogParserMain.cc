@@ -111,7 +111,8 @@ std::shared_ptr<ShareLogParser> newShareLogParser(
     const string &dataDir,
     time_t timestamp,
     const MysqlConnectInfo &poolDBInfo,
-    const int dupShareTrackingHeight) {
+    const int dupShareTrackingHeight,
+    bool acceptStale) {
 #if defined(CHAIN_TYPE_STR)
   if (CHAIN_TYPE_STR == chainType)
 #else
@@ -121,12 +122,23 @@ std::shared_ptr<ShareLogParser> newShareLogParser(
     return std::make_shared<ShareLogParserBitcoin>(
         chainType.c_str(), dataDir, timestamp, poolDBInfo, nullptr);
   } else if (chainType == "ETH") {
-    return std::make_shared<ShareLogParserEth>(
-        chainType.c_str(),
-        dataDir,
-        timestamp,
-        poolDBInfo,
-        std::make_shared<DuplicateShareCheckerEth>(dupShareTrackingHeight));
+    if (acceptStale) {
+      return std::make_shared<ShareLogParserWithStaleEth>(
+          chainType.c_str(),
+          dataDir,
+          timestamp,
+          poolDBInfo,
+          std::make_shared<DuplicateShareCheckerWithStaleEth>(
+              dupShareTrackingHeight));
+    } else {
+      return std::make_shared<ShareLogParserNoStaleEth>(
+          chainType.c_str(),
+          dataDir,
+          timestamp,
+          poolDBInfo,
+          std::make_shared<DuplicateShareCheckerNoStaleEth>(
+              dupShareTrackingHeight));
+    }
   } else if (chainType == "BTM") {
     return std::make_shared<ShareLogParserBytom>(
         chainType.c_str(),
@@ -150,7 +162,8 @@ std::shared_ptr<ShareLogParserServer> newShareLogParserServer(
     unsigned short httpdPort,
     const MysqlConnectInfo &poolDBInfo,
     const uint32_t kFlushDBInterval,
-    const int dupShareTrackingHeight) {
+    const int dupShareTrackingHeight,
+    bool acceptStale) {
 #if defined(CHAIN_TYPE_STR)
   if (CHAIN_TYPE_STR == chainType)
 #else
@@ -166,14 +179,27 @@ std::shared_ptr<ShareLogParserServer> newShareLogParserServer(
         kFlushDBInterval,
         nullptr);
   } else if (chainType == "ETH") {
-    return std::make_shared<ShareLogParserServerEth>(
-        chainType.c_str(),
-        dataDir,
-        httpdHost,
-        httpdPort,
-        poolDBInfo,
-        kFlushDBInterval,
-        std::make_shared<DuplicateShareCheckerEth>(dupShareTrackingHeight));
+    if (acceptStale) {
+      return std::make_shared<ShareLogParserServerWithStaleEth>(
+          chainType.c_str(),
+          dataDir,
+          httpdHost,
+          httpdPort,
+          poolDBInfo,
+          kFlushDBInterval,
+          std::make_shared<DuplicateShareCheckerWithStaleEth>(
+              dupShareTrackingHeight));
+    } else {
+      return std::make_shared<ShareLogParserServerNoStaleEth>(
+          chainType.c_str(),
+          dataDir,
+          httpdHost,
+          httpdPort,
+          poolDBInfo,
+          kFlushDBInterval,
+          std::make_shared<DuplicateShareCheckerNoStaleEth>(
+              dupShareTrackingHeight));
+    }
   } else if (chainType == "BTM") {
     return std::make_shared<ShareLogParserServerBytom>(
         chainType.c_str(),
@@ -289,6 +315,9 @@ int main(int argc, char **argv) {
     int32_t dupShareTrackingHeight = 3;
     cfg.lookupValue(
         "dup_share_checker.tracking_height_number", dupShareTrackingHeight);
+    // Whether to accept stale shares or not
+    bool acceptStale = false;
+    cfg.lookupValue("sharelog.accept_stale", acceptStale);
 
     // The hard fork Constantinople of Ethereum mainnet has been delayed.
     // So set a default height that won't arrive (9999999).
@@ -338,7 +367,8 @@ int main(int argc, char **argv) {
           cfg.lookup("sharelog.data_dir"),
           ts,
           *poolDBInfo,
-          dupShareTrackingHeight);
+          dupShareTrackingHeight,
+          acceptStale);
       do {
         if (slparser->init() == false) {
           LOG(ERROR) << "init failure";
@@ -382,7 +412,8 @@ int main(int argc, char **argv) {
         port,
         *poolDBInfo,
         kFlushDBInterval,
-        dupShareTrackingHeight);
+        dupShareTrackingHeight,
+        acceptStale);
     gShareLogParserServer->run();
   } catch (std::exception &e) {
     LOG(FATAL) << "exception: " << e.what();

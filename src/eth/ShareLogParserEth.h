@@ -30,7 +30,10 @@
 
 ///////////////////////////////  Alias  ///////////////////////////////
 using ShareLogDumperEth = ShareLogDumperT<ShareEth>;
-using ShareLogParserEth = ShareLogParserT<ShareEth>;
-using ShareLogParserServerEth = ShareLogParserServerT<ShareEth>;
+using ShareLogParserNoStaleEth = ShareLogParserT<ShareNoStaleEth>;
+using ShareLogParserWithStaleEth = ShareLogParserT<ShareWithStaleEth>;
+using ShareLogParserServerNoStaleEth = ShareLogParserServerT<ShareNoStaleEth>;
+using ShareLogParserServerWithStaleEth =
+    ShareLogParserServerT<ShareWithStaleEth>;
 
 #endif // SHARELOGPARSER_H_

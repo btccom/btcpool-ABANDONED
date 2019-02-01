@@ -137,7 +137,7 @@ public:
 
   EthConsensus::Chain getChain() const { return getChain(version()); }
 
-  double score() const {
+  double baseScore() const {
 
     if (!StratumStatus::isAccepted(status()) || sharediff() == 0 ||
         networkdiff() == 0) {
@@ -153,11 +153,6 @@ public:
       result = 1.0;
     } else {
       result = (double)sharediff() / (double)networkdiff();
-    }
-
-    // Share of the uncle block has a lower reward.
-    if (StratumStatus::isStale(status())) {
-      result *= EthConsensus::getUncleBlockRewardRatio(height(), getChain());
     }
 
     return result;
@@ -301,6 +296,36 @@ public:
   }
 
   size_t getsharelength() { return IsInitialized() ? ByteSize() : 0; }
+};
+
+// This is only used for statistic purpose, ignores stale shares
+class ShareNoStaleEth : public ShareEth {
+public:
+  using ShareEth::ShareEth;
+  double score() const {
+    return StratumStatus::isAccepted(status()) ? baseScore() : 0.0;
+  }
+  int32_t status() const {
+    int32_t status = ShareEth::status();
+    return StratumStatus::isStale(status) ? StratumStatus::JOB_NOT_FOUND
+                                          : status;
+  }
+};
+
+// This is only used for statistic purpose, accepts stale shares
+class ShareWithStaleEth : public ShareEth {
+public:
+  using ShareEth::ShareEth;
+  double score() const {
+    double result = baseScore();
+
+    // Share of the stale job has a lower reward similar as uncle block
+    if (StratumStatus::isStale(status())) {
+      result *= EthConsensus::getUncleBlockRewardRatio(height(), getChain());
+    }
+
+    return result;
+  }
 };
 
 class StratumJobEth : public StratumJob {
