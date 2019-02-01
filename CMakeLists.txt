@@ -430,12 +430,12 @@ else()
   add_definitions(-DNO_CUDA)
 endif(USE_CUDA)
 
-file(GLOB ProtoFiles "${CMAKE_CURRENT_SOURCE_DIR}/src/share.pro")
-execute_process(COMMAND protoc --proto_path=${CMAKE_CURRENT_SOURCE_DIR}/src/  --cpp_out=src  ${ProtoFiles}
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
-if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/share.pro.pb.h")
-  message(FATAL_ERROR "generate share.pro.pb.h failed! please check whether the Protobuf compiler installed correctly!")
-endif()
+add_custom_command(
+  COMMAND ${PROTOBUF_PROTOC_EXECUTABLE} --cpp_out=${CMAKE_CURRENT_BINARY_DIR} src/share.pro
+  COMMENT "Generating share protobuf sources..."
+  DEPENDS src/share.pro
+  OUTPUT src/share.pro.pb.h src/share.pro.pb.cc
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/src src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config ${CHAIN_SRC_ROOT}/src/secp256k1/include
 	${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS} ${KAFKA_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS}
@@ -449,7 +449,6 @@ set(THIRD_LIBRARIES ethash blake2 sph ${BH_SHARED_LIBRARY} ${USE_CUDA_LIBRARIES}
 file(GLOB LIB_SOURCES
         src/*.cc
         src/rsk/*.cc
-
     )
 file(GLOB LIB_SOURCES_CHAINS
         src/eth/*.cc
@@ -459,7 +458,12 @@ file(GLOB LIB_SOURCES_CHAINS
         src/decred/*.cc
     )
 
-add_library(btcpool STATIC ${LIB_SOURCES} ${LIB_SOURCES_CHAINS} ${LIB_SOURCES_DECRED})
+add_library(
+    btcpool STATIC
+    ${CMAKE_CURRENT_BINARY_DIR}/src/share.pro.pb.cc
+    ${LIB_SOURCES}
+    ${LIB_SOURCES_CHAINS}
+    ${LIB_SOURCES_DECRED})
 
 file(GLOB_RECURSE TEST_SOURCES test/*.cc test/*.cpp)
 add_executable(unittest ${TEST_SOURCES})
