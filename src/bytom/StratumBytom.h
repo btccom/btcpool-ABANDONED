@@ -26,7 +26,7 @@
 
 #include "Stratum.h"
 #include "CommonBytom.h"
-#include "share.pro.pb.h"
+#include "bytom/bytom.pb.h"
 union BytomCombinedHeader
 {
   struct

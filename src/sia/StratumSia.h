@@ -27,7 +27,7 @@
 #include "bitcoin/CommonBitcoin.h"
 #include "Stratum.h"
 #include <uint256.h>
-#include "share.pro.pb.h"
+#include "sia/sia.pb.h"
 
 
 class ShareSiaBytesVersion
