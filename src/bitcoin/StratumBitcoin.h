@@ -31,7 +31,7 @@
 // #include <base58.h>
 #include "rsk/RskWork.h"
 #include "script/standard.h"
-#include "share.pro.pb.h"
+#include "bitcoin/bitcoin.pb.h"
 
 
 //
