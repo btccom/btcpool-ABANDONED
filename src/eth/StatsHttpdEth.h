@@ -28,6 +28,7 @@
 #include "StratumEth.h"
 
 ////////////////////////////  Alias  ////////////////////////////
-using StatsServerEth = StatsServerT<ShareEth>;
+using StatsServerNoStaleEth = StatsServerT<ShareNoStaleEth>;
+using StatsServerWithStaleEth = StatsServerT<ShareWithStaleEth>;
 
 #endif // STATSHTTPD_BYTOM_H_

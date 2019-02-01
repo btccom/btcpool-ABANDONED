@@ -86,7 +86,8 @@ std::shared_ptr<StatsServer> newStatsServer(
     const int redisIndexPolicy,
     const time_t kFlushDBInterval,
     const string &fileLastFlushTime,
-    const int dupShareTrackingHeight) {
+    const int dupShareTrackingHeight,
+    bool acceptStale) {
 #if defined(CHAIN_TYPE_STR)
   if (CHAIN_TYPE_STR == chainType)
 #else
@@ -110,22 +111,43 @@ std::shared_ptr<StatsServer> newStatsServer(
         fileLastFlushTime,
         nullptr);
   } else if (chainType == "ETH") {
-    return std::make_shared<StatsServerEth>(
-        kafkaBrokers,
-        kafkaShareTopic,
-        kafkaCommonEventsTopic,
-        httpdHost,
-        httpdPort,
-        poolDBInfo,
-        redisInfo,
-        redisConcurrency,
-        redisKeyPrefix,
-        redisKeyExpire,
-        redisPublishPolicy,
-        redisIndexPolicy,
-        kFlushDBInterval,
-        fileLastFlushTime,
-        std::make_shared<DuplicateShareCheckerEth>(dupShareTrackingHeight));
+    if (acceptStale) {
+      return std::make_shared<StatsServerWithStaleEth>(
+          kafkaBrokers,
+          kafkaShareTopic,
+          kafkaCommonEventsTopic,
+          httpdHost,
+          httpdPort,
+          poolDBInfo,
+          redisInfo,
+          redisConcurrency,
+          redisKeyPrefix,
+          redisKeyExpire,
+          redisPublishPolicy,
+          redisIndexPolicy,
+          kFlushDBInterval,
+          fileLastFlushTime,
+          std::make_shared<DuplicateShareCheckerWithStaleEth>(
+              dupShareTrackingHeight));
+    } else {
+      return std::make_shared<StatsServerNoStaleEth>(
+          kafkaBrokers,
+          kafkaShareTopic,
+          kafkaCommonEventsTopic,
+          httpdHost,
+          httpdPort,
+          poolDBInfo,
+          redisInfo,
+          redisConcurrency,
+          redisKeyPrefix,
+          redisKeyExpire,
+          redisPublishPolicy,
+          redisIndexPolicy,
+          kFlushDBInterval,
+          fileLastFlushTime,
+          std::make_shared<DuplicateShareCheckerNoStaleEth>(
+              dupShareTrackingHeight));
+    }
   } else if (chainType == "BTM") {
     return std::make_shared<StatsServerBytom>(
         kafkaBrokers,
@@ -272,10 +294,12 @@ int main(int argc, char **argv) {
 
     int32_t port = 8080;
     int32_t flushInterval = 20;
+    bool acceptStale = false;
     int32_t dupShareTrackingHeight = 3;
     cfg.lookupValue("statshttpd.port", port);
     cfg.lookupValue("statshttpd.flush_db_interval", flushInterval);
     cfg.lookupValue("statshttpd.file_last_flush_time", fileLastFlushTime);
+    cfg.lookupValue("statshttpd.accept_stale", acceptStale);
     cfg.lookupValue(
         "dup_share_checker.tracking_height_number", dupShareTrackingHeight);
     gStatsServer = newStatsServer(
@@ -294,7 +318,8 @@ int main(int argc, char **argv) {
         redisIndexPolicy,
         (time_t)flushInterval,
         fileLastFlushTime,
-        dupShareTrackingHeight);
+        dupShareTrackingHeight,
+        acceptStale);
     if (gStatsServer->init()) {
       gStatsServer->run();
     }
