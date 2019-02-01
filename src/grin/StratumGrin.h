@@ -26,7 +26,7 @@
 
 #include "CommonGrin.h"
 
-#include "share.pro.pb.h"
+#include "grin/grin.pb.h"
 #include "Stratum.h"
 
 #include "utilities_js.hpp"

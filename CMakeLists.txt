@@ -430,13 +430,6 @@ else()
   add_definitions(-DNO_CUDA)
 endif(USE_CUDA)
 
-file(GLOB ProtoFiles "${CMAKE_CURRENT_SOURCE_DIR}/src/share.pro")
-execute_process(COMMAND protoc --proto_path=${CMAKE_CURRENT_SOURCE_DIR}/src/  --cpp_out=src  ${ProtoFiles}
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
-if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/share.pro.pb.h")
-  message(FATAL_ERROR "generate share.pro.pb.h failed! please check whether the Protobuf compiler installed correctly!")
-endif()
-
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/src src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config ${CHAIN_SRC_ROOT}/src/secp256k1/include
 	${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS} ${KAFKA_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS}
                     ${LIBEVENT_INCLUDE_DIR} ${USE_CUDA_INCLUDE_DIRECTORY} ${BH_SHARED_INCLUDE_DIR} ${MYSQL_INCLUDE_DIR})
@@ -476,7 +469,23 @@ file(GLOB LIB_SOURCES_CHAINS
         src/grin/*.cc
     )
 
-add_library(btcpool STATIC ${LIB_SOURCES} ${LIB_SOURCES_CHAINS} ${LIB_SOURCES_DECRED})
+set(LIB_SOURCES_SHARES)
+foreach(SHARE_TYPE beam bitcoin bytom decred eth sia grin)
+  file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/src/${SHARE_TYPE})
+  add_custom_command(
+      COMMAND ${PROTOBUF_PROTOC_EXECUTABLE} --cpp_out=${CMAKE_CURRENT_BINARY_DIR}/src/${SHARE_TYPE} ${SHARE_TYPE}.proto
+      COMMENT "Generating ${SHARE_TYPE} share protobuf sources..."
+      DEPENDS src/${SHARE_TYPE}/${SHARE_TYPE}.proto
+      OUTPUT src/${SHARE_TYPE}/${SHARE_TYPE}.pb.h src/${SHARE_TYPE}/${SHARE_TYPE}.pb.cc
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/${SHARE_TYPE})
+  list(APPEND LIB_SOURCES_SHARES ${CMAKE_CURRENT_BINARY_DIR}/src/${SHARE_TYPE}/${SHARE_TYPE}.pb.cc)
+endforeach(SHARE_TYPE)
+
+add_library(
+    btcpool STATIC
+    ${LIB_SOURCES}
+    ${LIB_SOURCES_SHARES}
+    ${LIB_SOURCES_CHAINS})
 
 file(GLOB_RECURSE TEST_SOURCES test/*.cc test/*.cpp)
 add_executable(unittest ${TEST_SOURCES})

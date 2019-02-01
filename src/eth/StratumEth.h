@@ -28,7 +28,7 @@
 #include "EthConsensus.h"
 
 #include "rsk/RskWork.h"
-#include "share.pro.pb.h"
+#include "eth/eth.pb.h"
 #include <uint256.h>
 
 // [[[[ IMPORTANT REMINDER! ]]]]

@@ -26,7 +26,7 @@
 #include "Stratum.h"
 #include "CommonBeam.h"
 
-#include "share.pro.pb.h"
+#include "beam/beam.pb.h"
 #include <uint256.h>
 
 // [[[[ IMPORTANT REMINDER! ]]]]

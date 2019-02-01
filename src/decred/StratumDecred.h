@@ -27,7 +27,7 @@
 
 #include "Stratum.h"
 #include "CommonDecred.h"
-#include "share.pro.pb.h"
+#include "decred/decred.pb.h"
 class FoundBlockDecred
 {
 public:
