@@ -32,9 +32,6 @@ ELSE()
   set(CMAKE_CXX_FLAGS "-g -Wall")
 ENDIF()
 
-# compiler options
-set(CMAKE_CXX_COMPILER "g++")
-set(CMAKE_C_COMPILER "gcc")
 # set C++ standard
 set(CMAKE_CXX_STANDARD 11)
 # stop building after the first error
@@ -66,10 +63,6 @@ if(NOT CHAIN_TYPE)
 endif()
 # Bitcoin
 if (CHAIN_TYPE STREQUAL "BTC")
-  # bitcoin core is using c++ (alias). This to make sure pool and bitcoin using the same compiler
-  set(CMAKE_CXX_COMPILER "c++")
-  set(CMAKE_C_COMPILER "cc")
-
   set(CHAIN_NAME "Bitcoin Core")
   set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-bitcoin")
   set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.btc")
@@ -121,9 +114,6 @@ elseif(CHAIN_TYPE STREQUAL "LTC")
     set(CHAIN_NAME "Litecoin")
     set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-litecoin")
     set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.ltc")
-
-#    set(CMAKE_CXX_COMPILER "c++")
-#    set(CMAKE_C_COMPILER "cc")
 
     add_definitions(-DCHAIN_TYPE_LTC)
     add_definitions(-DCHAIN_TYPE_STR="LTC")
