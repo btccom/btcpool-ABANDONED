@@ -82,6 +82,7 @@ class PoolWatchClient {
 protected:
   bool enableTLS_;
   struct evdns_base *evdnsBase_;
+  struct event *reconnectEvent_;
   struct bufferevent *bev_;
 
   bool handleMessage();
@@ -127,6 +128,7 @@ public:
   
   static void readCallback (struct bufferevent *bev, void *ptr);
   static void eventCallback(struct bufferevent *bev, short events, void *ptr);
+  static void reconnectCallback(evutil_socket_t fd, short events, void *ptr);
 };
 
 #endif

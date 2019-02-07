@@ -161,6 +161,11 @@ PoolWatchClient::PoolWatchClient(
     LOG(FATAL) << "DNS init failed";
   }
 
+  reconnectEvent_ = evtimer_new(base, PoolWatchClient::reconnectCallback, this);
+  if (reconnectEvent_ == nullptr) {
+    LOG(FATAL) << "reconnect event init failed";
+  }
+
   if (enableTLS_) {
     LOG(INFO) << "<" << poolName_ << "> TLS enabled";
 
@@ -194,6 +199,7 @@ PoolWatchClient::PoolWatchClient(
 
 PoolWatchClient::~PoolWatchClient() {
   bufferevent_free(bev_);
+  event_free(reconnectEvent_);
   evdns_base_free(evdnsBase_, 0);
 }
 
@@ -240,7 +246,6 @@ void PoolWatchClient::readCallback(struct bufferevent *bev, void *ptr) {
 void PoolWatchClient::eventCallback(struct bufferevent *bev,
                                     short events, void *ptr) {
   PoolWatchClient *client = static_cast<PoolWatchClient *>(ptr);
-  ClientContainer *container = client->container_;
 
   DLOG(INFO) << "PoolWatchClient::eventCallback: <" << client->poolName_ << "> " << events;
 
@@ -270,12 +275,23 @@ void PoolWatchClient::eventCallback(struct bufferevent *bev,
     LOG(ERROR) << "unhandled upsession events: " << events;
   }
 
+  timeval reconnectTimeout{0, 0};
   time_t sleepTime = 10 - (time(nullptr) - client->upTime_);
   if (sleepTime > 0) {
     LOG(WARNING) << "Connection broken too fast, sleep " << sleepTime << " seconds";
-    sleep(sleepTime);
+    reconnectTimeout.tv_sec = sleepTime;
   }
+  evtimer_add(client->reconnectEvent_, &reconnectTimeout);
+}
 
-  // update client
-  container->removeAndCreateClient(client);
+void PoolWatchClient::reconnectCallback(evutil_socket_t fd, short events, void *ptr) {
+  PoolWatchClient *client = static_cast<PoolWatchClient *>(ptr);
+  ClientContainer *container = client->container_;
+
+  if (events & EV_TIMEOUT) {
+    // update client
+    container->removeAndCreateClient(client);
+  } else {
+    LOG(ERROR) << "reconnect event is not supposed to be triggered without EV_TIMEOUT";
+  }
 }
