@@ -56,46 +56,6 @@ bool tryReadLine(string &line, struct bufferevent *bufev) {
   return true;
 }
 
-static
-bool resolve(const string &host, struct	in_addr *sin_addr) {
-  LOG(INFO) << "resolve " << host.c_str();
-  struct evutil_addrinfo *ai = NULL;
-  struct evutil_addrinfo hints_in;
-  memset(&hints_in, 0, sizeof(evutil_addrinfo));
-  // AF_INET, v4; AF_INT6, v6; AF_UNSPEC, both v4 & v6
-  hints_in.ai_family   = AF_UNSPEC;
-  hints_in.ai_socktype = SOCK_STREAM;
-  hints_in.ai_protocol = IPPROTO_TCP;
-  hints_in.ai_flags    = EVUTIL_AI_ADDRCONFIG;
-
-  // TODO: use non-blocking to resolve hostname
-  int err = evutil_getaddrinfo(host.c_str(), NULL, &hints_in, &ai);
-  if (err != 0) {
-    LOG(ERROR) << "[" << host.c_str() << "] evutil_getaddrinfo err: " << err << ", " << evutil_gai_strerror(err);
-    return false;
-  }
-  if (ai == NULL) {
-    LOG(ERROR) << "[" << host.c_str() << "] evutil_getaddrinfo res is null";
-    return false;
-  }
-
-  // only get the first record, ignore ai = ai->ai_next
-  if (ai->ai_family == AF_INET) {
-    struct sockaddr_in *sin = (struct sockaddr_in*)ai->ai_addr;
-    *sin_addr = sin->sin_addr;
-
-    char ipStr[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &(sin->sin_addr), ipStr, INET_ADDRSTRLEN);
-    LOG(INFO) << "resolve host: " << host << ", ip: " << ipStr;
-  } else if (ai->ai_family == AF_INET6) {
-    // not support yet
-    LOG(ERROR) << "not support ipv6 yet";
-    return false;
-  }
-  evutil_freeaddrinfo(ai);
-  return true;
-}
-
 ///////////////////////////////// ClientContainer //////////////////////////////
 ClientContainer::ClientContainer(const libconfig::Config &config)
   : running_(true)
@@ -196,6 +156,16 @@ PoolWatchClient::PoolWatchClient(
 {
   config.lookupValue("enable_tls", enableTLS_);
 
+  evdnsBase_ = evdns_base_new(base, 1);
+  if (evdnsBase_ == nullptr) {
+    LOG(FATAL) << "DNS init failed";
+  }
+
+  reconnectEvent_ = evtimer_new(base, PoolWatchClient::reconnectCallback, this);
+  if (reconnectEvent_ == nullptr) {
+    LOG(FATAL) << "reconnect event init failed";
+  }
+
   if (enableTLS_) {
     LOG(INFO) << "<" << poolName_ << "> TLS enabled";
 
@@ -229,22 +199,16 @@ PoolWatchClient::PoolWatchClient(
 
 PoolWatchClient::~PoolWatchClient() {
   bufferevent_free(bev_);
+  event_free(reconnectEvent_);
+  evdns_base_free(evdnsBase_, 0);
 }
 
 bool PoolWatchClient::connect() {
-  struct sockaddr_in sin;
-  memset(&sin, 0, sizeof(sin));
-  sin.sin_family = AF_INET;
-  sin.sin_port   = htons(poolPort_);
-  if (!resolve(poolHost_, &sin.sin_addr)) {
-    return false;
-  }
-
   LOG(INFO) << "Connection request to " << poolHost_ << ":" << poolPort_;
 
-  // bufferevent_socket_connect(): This function returns 0 if the connect
+  // bufferevent_socket_connect_hostname(): This function returns 0 if the connect
   // was successfully launched, and -1 if an error occurred.
-  int res = bufferevent_socket_connect(bev_, (struct sockaddr *)&sin, sizeof(sin));
+  int res = bufferevent_socket_connect_hostname(bev_, evdnsBase_, AF_INET, poolHost_.c_str(), poolPort_);
   if (res == 0) {
     return true;
   }
@@ -282,7 +246,6 @@ void PoolWatchClient::readCallback(struct bufferevent *bev, void *ptr) {
 void PoolWatchClient::eventCallback(struct bufferevent *bev,
                                     short events, void *ptr) {
   PoolWatchClient *client = static_cast<PoolWatchClient *>(ptr);
-  ClientContainer *container = client->container_;
 
   DLOG(INFO) << "PoolWatchClient::eventCallback: <" << client->poolName_ << "> " << events;
 
@@ -296,8 +259,14 @@ void PoolWatchClient::eventCallback(struct bufferevent *bev,
     LOG(INFO) << "upsession closed";
   }
   else if (events & BEV_EVENT_ERROR) {
-    LOG(ERROR) << "got an error on the upsession: "
-    << evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR());
+    int dnsError = bufferevent_socket_get_dns_error(bev);
+    if (dnsError) {
+      LOG(ERROR) << "got a DNS error on the upsession: "
+                 << evutil_gai_strerror(dnsError);
+    } else {
+      LOG(ERROR) << "got an error on the upsession: "
+                 << evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR());
+    }
   }
   else if (events & BEV_EVENT_TIMEOUT) {
     LOG(INFO) << "upsession read/write timeout, events: " << events;
@@ -306,12 +275,23 @@ void PoolWatchClient::eventCallback(struct bufferevent *bev,
     LOG(ERROR) << "unhandled upsession events: " << events;
   }
 
+  timeval reconnectTimeout{0, 0};
   time_t sleepTime = 10 - (time(nullptr) - client->upTime_);
   if (sleepTime > 0) {
     LOG(WARNING) << "Connection broken too fast, sleep " << sleepTime << " seconds";
-    sleep(sleepTime);
+    reconnectTimeout.tv_sec = sleepTime;
   }
+  evtimer_add(client->reconnectEvent_, &reconnectTimeout);
+}
 
-  // update client
-  container->removeAndCreateClient(client);
+void PoolWatchClient::reconnectCallback(evutil_socket_t fd, short events, void *ptr) {
+  PoolWatchClient *client = static_cast<PoolWatchClient *>(ptr);
+  ClientContainer *container = client->container_;
+
+  if (events & EV_TIMEOUT) {
+    // update client
+    container->removeAndCreateClient(client);
+  } else {
+    LOG(ERROR) << "reconnect event is not supposed to be triggered without EV_TIMEOUT";
+  }
 }

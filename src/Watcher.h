@@ -33,6 +33,7 @@
 #include <event2/bufferevent.h>
 #include <event2/listener.h>
 #include <event2/bufferevent_ssl.h>
+#include <event2/dns.h>
 #include <libconfig.h++>
 
 #include <bitset>
@@ -80,6 +81,8 @@ public:
 class PoolWatchClient {
 protected:
   bool enableTLS_;
+  struct evdns_base *evdnsBase_;
+  struct event *reconnectEvent_;
   struct bufferevent *bev_;
 
   bool handleMessage();
@@ -125,6 +128,7 @@ public:
   
   static void readCallback (struct bufferevent *bev, void *ptr);
   static void eventCallback(struct bufferevent *bev, short events, void *ptr);
+  static void reconnectCallback(evutil_socket_t fd, short events, void *ptr);
 };
 
 #endif
