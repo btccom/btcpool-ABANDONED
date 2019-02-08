@@ -381,7 +381,7 @@ if (REBUILD_BH_SHARED)
 endif()
 
 add_subdirectory(3rdparty/libblake2)
-add_subdirectory(src/libethash)
+add_subdirectory(3rdparty/libethash)
 add_subdirectory(src/libsph)
 
 if(USE_CUDA)
