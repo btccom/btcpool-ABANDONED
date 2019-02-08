@@ -382,7 +382,7 @@ endif()
 
 add_subdirectory(3rdparty/libblake2)
 add_subdirectory(3rdparty/libethash)
-add_subdirectory(src/libsph)
+add_subdirectory(3rdparty/libsph)
 
 if(USE_CUDA)
   set(USE_CUDA_INCLUDE_DIRECTORY ${CUDA_INCLUDE_DIRECTORIES})
