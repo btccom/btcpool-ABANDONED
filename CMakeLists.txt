@@ -179,7 +179,7 @@ endif()
 #   message("    Nvidia CUDA toolkit 9.1 or later required (https://developer.nvidia.com/cuda-downloads).")
 #   message("    https://github.com/Bytom/bytom need to be cloned to $GOPATH/src")
 #   message("    If you want to update the prebuild libGpuTs.a,")
-#   message("    you can copy it from ${CMAKE_BINARY_DIR}/src/bytom/cutil/src to ${PROJECT_SOURCE_DIR}/prebuild/bytom")
+#   message("    you can copy it from ${CMAKE_BINARY_DIR}/3rdparty/bytom/cutil/src to ${PROJECT_SOURCE_DIR}/prebuild/bytom")
 # 
 #   set(GPUTS_LIBRARY GpuTs)
 # else()
@@ -380,21 +380,36 @@ if (REBUILD_BH_SHARED)
   )
 endif()
 
-add_subdirectory(src/libethash)
-add_subdirectory(src/libblake2)
-add_subdirectory(src/libsph)
+add_subdirectory(3rdparty/libblake2)
+add_subdirectory(3rdparty/libethash)
+add_subdirectory(3rdparty/libsph)
 
 if(USE_CUDA)
   set(USE_CUDA_INCLUDE_DIRECTORY ${CUDA_INCLUDE_DIRECTORIES})
-  add_subdirectory(src/bytom/cutil)
+  add_subdirectory(3rdparty/bytom/cutil)
   set(USE_CUDA_LIBRARIES GpuTs ${CUDA_LIBRARIES} ${CUDA_CUBLAS_LIBRARIES})
 else()
   add_definitions(-DNO_CUDA)
 endif(USE_CUDA)
 
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/src src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config ${CHAIN_SRC_ROOT}/src/secp256k1/include
-	${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS} ${KAFKA_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS}
-                    ${LIBEVENT_INCLUDE_DIR} ${USE_CUDA_INCLUDE_DIRECTORY} ${BH_SHARED_INCLUDE_DIR} ${MYSQL_INCLUDE_DIR})
+include_directories(
+  ${CMAKE_CURRENT_BINARY_DIR}/src
+  3rdparty
+  src
+  test
+  ${CHAIN_SRC_ROOT}/src
+  ${CHAIN_SRC_ROOT}/src/config
+  ${CHAIN_SRC_ROOT}/src/secp256k1/include
+  ${OPENSSL_INCLUDE_DIR}
+  ${Boost_INCLUDE_DIRS}
+  ${LIBZMQ_INCLUDE_DIR}
+  ${GLOG_INCLUDE_DIRS}
+  ${KAFKA_INCLUDE_DIRS}
+  ${ZLIB_INCLUDE_DIRS}
+  ${LIBEVENT_INCLUDE_DIR}
+  ${USE_CUDA_INCLUDE_DIRECTORY}
+  ${BH_SHARED_INCLUDE_DIR}
+  ${MYSQL_INCLUDE_DIR})
 
 set(THIRD_LIBRARIES ethash blake2 sph ${BH_SHARED_LIBRARY} ${USE_CUDA_LIBRARIES}
                     ${BITCOIN_LIBRARIES} ${secp256k1_LIBRARIES} ${GLOG_LIBRARIES} ${KAFKA_LIBRARIES} ${ZLIB_LIBRARIES} ${ZOOKEEPER_LIBRARIES}
