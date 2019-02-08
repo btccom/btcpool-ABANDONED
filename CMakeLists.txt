@@ -339,7 +339,37 @@ if(NOT CMAKE_OBJCOPY)
   mark_as_advanced(CMAKE_OBJCOPY)
 endif()
 
-add_subdirectory(src/config)
+########################## Generate version number #############################
+
+SET(BPOOL_VERSION_MAJOR "2")
+SET(BPOOL_VERSION_MINOR "3")
+SET(BPOOL_VERSION_PATCH "0")
+
+# Get the current abbreviated commit hash of the working branch
+if(EXISTS "${CMAKE_SOURCE_DIR}/.git")
+  execute_process(
+      COMMAND git log -1 --format=%h
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      OUTPUT_VARIABLE BPOOL_GIT_COMMIT_HASH
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+endif()
+
+if(BPOOL_GIT_COMMIT_HASH)
+  set(BPOOL_VERSION_PATCH "${BPOOL_VERSION_PATCH}-${BPOOL_GIT_COMMIT_HASH}")
+endif()
+
+set(BPOOL_VERSION_STR "${BPOOL_VERSION_MAJOR}.${BPOOL_VERSION_MINOR}.${BPOOL_VERSION_PATCH}")
+
+message("-- version string: ${BPOOL_VERSION_STR}")
+
+configure_file(src/config/bpool-version.h.in src/config/bpool-version.h)
+
+
+# package version of cpack
+SET(CPACK_PACKAGE_VERSION_MAJOR "${BPOOL_VERSION_MAJOR}")
+SET(CPACK_PACKAGE_VERSION_MINOR "${BPOOL_VERSION_MINOR}")
+SET(CPACK_PACKAGE_VERSION_PATCH "${BPOOL_VERSION_PATCH}")
 
 ###################################### Targets ######################################
 
