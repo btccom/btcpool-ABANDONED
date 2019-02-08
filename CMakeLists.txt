@@ -394,6 +394,7 @@ endif(USE_CUDA)
 
 include_directories(
   ${CMAKE_CURRENT_BINARY_DIR}/src
+  3rdparty
   src
   test
   ${CHAIN_SRC_ROOT}/src
