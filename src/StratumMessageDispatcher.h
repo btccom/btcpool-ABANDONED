@@ -43,7 +43,11 @@ class StratumMessageDispatcher {
 public:
   virtual ~StratumMessageDispatcher() = default;
 
-  virtual void handleRequest(const std::string &idStr, const std::string &method, const JsonNode &jparams, const JsonNode &jroot) = 0;
+  virtual void handleRequest(
+      const std::string &idStr,
+      const std::string &method,
+      const JsonNode &jparams,
+      const JsonNode &jroot) = 0;
   virtual void handleExMessage(const std::string &exMessage) = 0;
   virtual void responseShareAccepted(const std::string &idStr) = 0;
   virtual void responseShareError(const std::string &idStr, int32_t status) = 0;
@@ -55,9 +59,14 @@ public:
 
 class StratumMessageMinerDispatcher : public StratumMessageDispatcher {
 public:
-  StratumMessageMinerDispatcher(IStratumSession &session, std::unique_ptr<StratumMiner> miner);
+  StratumMessageMinerDispatcher(
+      IStratumSession &session, std::unique_ptr<StratumMiner> miner);
 
-  void handleRequest(const std::string &idStr, const std::string &method, const JsonNode &jparams, const JsonNode &jroot) override;
+  void handleRequest(
+      const std::string &idStr,
+      const std::string &method,
+      const JsonNode &jparams,
+      const JsonNode &jroot) override;
   void handleExMessage(const std::string &exMessage) override;
   void responseShareAccepted(const std::string &idStr) override;
   void responseShareError(const std::string &idStr, int32_t status) override;
@@ -73,10 +82,15 @@ protected:
 
 class StratumMessageAgentDispatcher : public StratumMessageDispatcher {
 public:
-  explicit StratumMessageAgentDispatcher(IStratumSession &session, const DiffController &diffController);
+  explicit StratumMessageAgentDispatcher(
+      IStratumSession &session, const DiffController &diffController);
   ~StratumMessageAgentDispatcher();
 
-  void handleRequest(const std::string &idStr, const std::string &method, const JsonNode &jparams, const JsonNode &jroot) override;
+  void handleRequest(
+      const std::string &idStr,
+      const std::string &method,
+      const JsonNode &jparams,
+      const JsonNode &jroot) override;
   void handleExMessage(const std::string &exMessage) override;
   void responseShareAccepted(const std::string &idStr) override {}
   void responseShareError(const std::string &idStr, int32_t status) override {}
@@ -92,9 +106,15 @@ protected:
 
 public:
   // These are public for unittests...
-  void registerWorker(uint32_t sessionId, const std::string &clientAgent, const std::string &workerName, int64_t workerId);
+  void registerWorker(
+      uint32_t sessionId,
+      const std::string &clientAgent,
+      const std::string &workerName,
+      int64_t workerId);
   void unregisterWorker(uint32_t sessionId);
-  static void getSetDiffCommand(std::map<uint8_t, std::vector<uint16_t>> &diffSessionIds, std::string &exMessage);
+  static void getSetDiffCommand(
+      std::map<uint8_t, std::vector<uint16_t>> &diffSessionIds,
+      std::string &exMessage);
 
 protected:
   IStratumSession &session_;

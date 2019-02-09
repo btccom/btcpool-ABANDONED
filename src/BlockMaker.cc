@@ -24,12 +24,15 @@
 #include "BlockMaker.h"
 
 ////////////////////////////////// BlockMaker //////////////////////////////////
-BlockMaker::BlockMaker(shared_ptr<BlockMakerDefinition> def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB)
+BlockMaker::BlockMaker(
+    shared_ptr<BlockMakerDefinition> def,
+    const char *kafkaBrokers,
+    const MysqlConnectInfo &poolDB)
   : def_(def)
   , running_(true)
-  , kafkaConsumerSolvedShare_(kafkaBrokers, def_->solvedShareTopic_.c_str(), 0/* patition */)
-  , poolDB_(poolDB)
-{
+  , kafkaConsumerSolvedShare_(
+        kafkaBrokers, def_->solvedShareTopic_.c_str(), 0 /* patition */)
+  , poolDB_(poolDB) {
 }
 
 BlockMaker::~BlockMaker() {
@@ -67,16 +70,18 @@ void BlockMaker::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
     if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
       // Reached the end of the topic+partition queue on the broker.
       // Not really an error.
-      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
+      //      LOG(INFO) << "consumer reached end of " <<
+      //      rd_kafka_topic_name(rkmessage->rkt)
       //      << "[" << rkmessage->partition << "] "
       //      << " message queue at offset " << rkmessage->offset;
       // acturlly
       return;
     }
 
-    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
-    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
-    << ": " << rd_kafka_message_errstr(rkmessage);
+    LOG(ERROR) << "consume error for topic "
+               << rd_kafka_topic_name(rkmessage->rkt) << "["
+               << rkmessage->partition << "] offset " << rkmessage->offset
+               << ": " << rd_kafka_message_errstr(rkmessage);
 
     if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
         rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {

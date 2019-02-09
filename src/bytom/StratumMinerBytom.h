@@ -27,23 +27,24 @@
 #include "StratumMiner.h"
 #include "StratumServerBytom.h"
 
-class StratumMinerBytom : public StratumMinerBase<StratumTraitsBytom>
-{
+class StratumMinerBytom : public StratumMinerBase<StratumTraitsBytom> {
 public:
-  StratumMinerBytom(StratumSessionBytom &session,
-                    const DiffController &diffController,
-                    const std::string &clientAgent,
-                    const std::string &workerName,
-                    int64_t workerId);
+  StratumMinerBytom(
+      StratumSessionBytom &session,
+      const DiffController &diffController,
+      const std::string &clientAgent,
+      const std::string &workerName,
+      int64_t workerId);
 
-  void handleRequest(const std::string &idStr,
-                     const std::string &method,
-                     const JsonNode &jparams,
-                     const JsonNode &jroot) override;
+  void handleRequest(
+      const std::string &idStr,
+      const std::string &method,
+      const JsonNode &jparams,
+      const JsonNode &jroot) override;
 
 private:
   void handleRequest_GetWork(const string &idStr, const JsonNode &jparams);
   void handleRequest_Submit(const string &idStr, const JsonNode &jparams);
 };
 
-#endif  // #ifndef STRATUM_MINER_BYTOM_H_
+#endif // #ifndef STRATUM_MINER_BYTOM_H_

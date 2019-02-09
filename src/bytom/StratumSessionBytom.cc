@@ -30,42 +30,52 @@
 
 #include <boost/make_unique.hpp>
 
-StratumSessionBytom::StratumSessionBytom(ServerBytom &server,
-                                         struct bufferevent *bev,
-                                         struct sockaddr *saddr,
-                                         uint32_t extraNonce1)
-    : StratumSessionBase(server, bev, saddr, extraNonce1), shortJobId_(1) {
+StratumSessionBytom::StratumSessionBytom(
+    ServerBytom &server,
+    struct bufferevent *bev,
+    struct sockaddr *saddr,
+    uint32_t extraNonce1)
+  : StratumSessionBase(server, bev, saddr, extraNonce1)
+  , shortJobId_(1) {
 }
 
-void StratumSessionBytom::rpc2ResponseBoolean(const string &idStr, bool result, const string &failMessage) {
+void StratumSessionBytom::rpc2ResponseBoolean(
+    const string &idStr, bool result, const string &failMessage) {
   if (result) {
-    const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":{\"status\":\"OK\"},\"error\":null}\n",
-                                     idStr.c_str());
+    const string s = Strings::Format(
+        "{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":{\"status\":\"OK\"},"
+        "\"error\":null}\n",
+        idStr.c_str());
     sendData(s);
   } else {
     const string s = Strings::Format(
-        "{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":null,\"error\":{\"code\":-1, \"message\":\"%s\"}}\n",
+        "{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":null,\"error\":{\"code\":-1,"
+        " \"message\":\"%s\"}}\n",
         idStr.c_str(),
         failMessage.c_str());
     sendData(s);
   }
 }
 
-void StratumSessionBytom::sendSetDifficulty(LocalJob &localJob, uint64_t difficulty) {
+void StratumSessionBytom::sendSetDifficulty(
+    LocalJob &localJob, uint64_t difficulty) {
   // Bytom has no set difficulty method, but will change the target directly
-  static_cast<StratumTraitsBytom::LocalJobType &>(localJob).jobDifficulty_ = difficulty;
+  static_cast<StratumTraitsBytom::LocalJobType &>(localJob).jobDifficulty_ =
+      difficulty;
 }
 
-void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
+void StratumSessionBytom::sendMiningNotify(
+    shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
   auto &server = getServer();
   /*
     Bytom difficulty logic (based on B3-Mimic repo)
     - constants
-      * Diff1: 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
-    Sending miningNotify
+      * Diff1:
+    0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF Sending
+    miningNotify
     - target
-      Pool target is based from Diff1 and difficulty. target = Diff1 / difficulty
-    Miner difficulty logic:
+      Pool target is based from Diff1 and difficulty. target = Diff1 /
+    difficulty Miner difficulty logic:
     - use target
     Pool check submit (see StratumMinerBytom::handleRequest_Submit)
   */
@@ -79,17 +89,20 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
     return;
 
   auto &ljob = addLocalJob(sJob->jobId_, shortJobId_++);
-  uint64_t jobDifficulty = server.isDevModeEnable_ ? server.devFixedDifficulty_ : ljob.jobDifficulty_;
+  uint64_t jobDifficulty = server.isDevModeEnable_ ? server.devFixedDifficulty_
+                                                   : ljob.jobDifficulty_;
   if (jobDifficulty == 0)
-    jobDifficulty = server.isDevModeEnable_ ? 1 : Bytom_TargetCompactToDifficulty(sJob->blockHeader_.bits);
+    jobDifficulty = server.isDevModeEnable_
+        ? 1
+        : Bytom_TargetCompactToDifficulty(sJob->blockHeader_.bits);
 
-  uint64_t nonce = (((uint64_t) extraNonce1_) << 32);
+  uint64_t nonce = (((uint64_t)extraNonce1_) << 32);
   string notifyStr, nonceStr, versionStr, heightStr, timestampStr, bitsStr;
-  Bin2HexR((uint8_t *) &nonce, 8, nonceStr);
-  Bin2Hex((uint8_t *) &sJob->blockHeader_.version, 8, versionStr);
-  Bin2Hex((uint8_t *) &sJob->blockHeader_.height, 8, heightStr);
-  Bin2Hex((uint8_t *) &sJob->blockHeader_.timestamp, 8, timestampStr);
-  Bin2Hex((uint8_t *) &sJob->blockHeader_.bits, 8, bitsStr);
+  Bin2HexR((uint8_t *)&nonce, 8, nonceStr);
+  Bin2Hex((uint8_t *)&sJob->blockHeader_.version, 8, versionStr);
+  Bin2Hex((uint8_t *)&sJob->blockHeader_.height, 8, heightStr);
+  Bin2Hex((uint8_t *)&sJob->blockHeader_.timestamp, 8, timestampStr);
+  Bin2Hex((uint8_t *)&sJob->blockHeader_.bits, 8, bitsStr);
 
   string targetStr;
   {
@@ -97,7 +110,8 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
     Bytom_DifficultyToTargetBinary(jobDifficulty, targetBin);
     //  trim the zeroes to reduce bandwidth
     unsigned int endIdx = targetBin.size() - 1;
-    for (; endIdx > 0; --endIdx)  //  > 0 (not >=0) because need to print at least 1 byte
+    for (; endIdx > 0;
+         --endIdx) //  > 0 (not >=0) because need to print at least 1 byte
     {
       if (targetBin[endIdx] != 0)
         break;
@@ -132,7 +146,8 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
 
   if (isFirstJob) {
     notifyStr = Strings::Format(
-        "{\"id\": 1, \"jsonrpc\": \"2.0\", \"result\": {\"id\": \"%s\", \"job\": %s, \"status\": \"OK\"}, \"error\": null}",
+        "{\"id\": 1, \"jsonrpc\": \"2.0\", \"result\": {\"id\": \"%s\", "
+        "\"job\": %s, \"status\": \"OK\"}, \"error\": null}",
         server.isDevModeEnable_ ? "antminer_1" : worker_.fullName_.c_str(),
         jobString.c_str());
   } else {
@@ -140,14 +155,15 @@ void StratumSessionBytom::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bo
         "{\"jsonrpc\": \"2.0\", \"method\":\"job\", \"params\": %s}",
         jobString.c_str());
   }
-  // LOG(INFO) << "Difficulty: " << ljob.jobDifficulty_ << "\nsendMiningNotify " << notifyStr.c_str();
+  // LOG(INFO) << "Difficulty: " << ljob.jobDifficulty_ << "\nsendMiningNotify "
+  // << notifyStr.c_str();
   sendData(notifyStr);
 }
 
-bool StratumSessionBytom::validate(const JsonNode &jmethod, const JsonNode &jparams) {
+bool StratumSessionBytom::validate(
+    const JsonNode &jmethod, const JsonNode &jparams) {
 
-  if (jmethod.type() == Utilities::JS::type::Str &&
-      jmethod.size() != 0 &&
+  if (jmethod.type() == Utilities::JS::type::Str && jmethod.size() != 0 &&
       jparams.type() == Utilities::JS::type::Obj) {
     return true;
   }
@@ -155,24 +171,23 @@ bool StratumSessionBytom::validate(const JsonNode &jmethod, const JsonNode &jpar
   return false;
 }
 
-void StratumSessionBytom::handleRequest(const std::string &idStr,
-                                      const std::string &method,
-                                      const JsonNode &jparams,
-                                      const JsonNode &jroot) {
+void StratumSessionBytom::handleRequest(
+    const std::string &idStr,
+    const std::string &method,
+    const JsonNode &jparams,
+    const JsonNode &jroot) {
   if (method == "login") {
     handleRequest_Authorize(idStr, jparams, jroot);
-  }
-  else if (dispatcher_) {
+  } else if (dispatcher_) {
     dispatcher_->handleRequest(idStr, method, jparams, jroot);
   }
 }
 
-void StratumSessionBytom::handleRequest_Authorize(const string &idStr,
-                                                  const JsonNode &jparams,
-                                                  const JsonNode &jroot) {
+void StratumSessionBytom::handleRequest_Authorize(
+    const string &idStr, const JsonNode &jparams, const JsonNode &jroot) {
 
   state_ = SUBSCRIBED;
-  auto params = const_cast<JsonNode &> (jparams);
+  auto params = const_cast<JsonNode &>(jparams);
   string fullName = params["login"].str();
   string password = params["pass"].str();
 
@@ -180,12 +195,14 @@ void StratumSessionBytom::handleRequest_Authorize(const string &idStr,
   return;
 }
 
-unique_ptr<StratumMiner> StratumSessionBytom::createMiner(const std::string &clientAgent,
-                                                          const std::string &workerName,
-                                                          int64_t workerId) {
-  return boost::make_unique<StratumMinerBytom>(*this,
-                                               *getServer().defaultDifficultyController_,
-                                               clientAgent,
-                                               workerName,
-                                               workerId);
+unique_ptr<StratumMiner> StratumSessionBytom::createMiner(
+    const std::string &clientAgent,
+    const std::string &workerName,
+    int64_t workerId) {
+  return boost::make_unique<StratumMinerBytom>(
+      *this,
+      *getServer().defaultDifficultyController_,
+      clientAgent,
+      workerName,
+      workerId);
 }

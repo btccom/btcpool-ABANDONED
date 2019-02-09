@@ -9,6 +9,9 @@ class Config;
 
 class Server;
 
-Server* createStratumServer(const std::string &type, const int32_t shareAvgSeconds, const libconfig::Config &config);
+Server *createStratumServer(
+    const std::string &type,
+    const int32_t shareAvgSeconds,
+    const libconfig::Config &config);
 
 #endif

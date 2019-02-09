@@ -28,7 +28,7 @@
 
   @author Martin Medina
   @copyright RSK Labs Ltd.
-  @version 1.0 30/03/17 
+  @version 1.0 30/03/17
 
   maintained by HaoLi (fatrat1117) and YihaoPeng since Feb 20, 2018
 */
@@ -41,8 +41,7 @@
 #include "utilities_js.hpp"
 #include <event2/event.h>
 
-struct GwMakerDefinition
-{
+struct GwMakerDefinition {
   string chainType_;
   bool enabled_;
 
@@ -57,56 +56,58 @@ struct GwMakerDefinition
 };
 
 class GwMakerHandler {
-  public:
-    virtual ~GwMakerHandler() = 0; // mark it's an abstract class
-    virtual void init(const GwMakerDefinition &def) { def_ = def; }
-    
-    // read-only definition
-    virtual const GwMakerDefinition& def() { return def_; }
+public:
+  virtual ~GwMakerHandler() = 0; // mark it's an abstract class
+  virtual void init(const GwMakerDefinition &def) { def_ = def; }
 
-    // Interface with the GwMaker.
-    // There is a default implementation that use virtual functions below.
-    // If the implementation does not meet the requirements, you can overload it
-    // and ignore all the following virtual functions.
-    virtual string makeRawGwMsg();
+  // read-only definition
+  virtual const GwMakerDefinition &def() { return def_; }
 
-  protected:
+  // Interface with the GwMaker.
+  // There is a default implementation that use virtual functions below.
+  // If the implementation does not meet the requirements, you can overload it
+  // and ignore all the following virtual functions.
+  virtual string makeRawGwMsg();
 
-    // These virtual functions make it easier to implement the makeRawGwMsg() interface.
-    // In most cases, you just need to override getRequestData() and processRawGw().
-    // If you have overloaded makeRawGwMsg() above, you can ignore all the following functions.
+protected:
+  // These virtual functions make it easier to implement the makeRawGwMsg()
+  // interface. In most cases, you just need to override getRequestData() and
+  // processRawGw(). If you have overloaded makeRawGwMsg() above, you can ignore
+  // all the following functions.
 
-    // Receive rpc response and generate RawGw message for the pool.
-    virtual string processRawGw(const string &gw) { return ""; }
+  // Receive rpc response and generate RawGw message for the pool.
+  virtual string processRawGw(const string &gw) { return ""; }
 
-    // Call RPC `getwork` and get the response.
-    virtual bool callRpcGw(string &resp);
+  // Call RPC `getwork` and get the response.
+  virtual bool callRpcGw(string &resp);
 
-    // Body of HTTP POST used by callRpcGw().
-    // return "" if use HTTP GET.
-    virtual string getRequestData() { return ""; }
-    // HTTP header `User-Agent` used by callRpcGw().
-    virtual string getUserAgent() { return "curl"; }
+  // Body of HTTP POST used by callRpcGw().
+  // return "" if use HTTP GET.
+  virtual string getRequestData() { return ""; }
+  // HTTP header `User-Agent` used by callRpcGw().
+  virtual string getUserAgent() { return "curl"; }
 
-    // blockchain and RPC-server definitions
-    GwMakerDefinition def_;
+  // blockchain and RPC-server definitions
+  GwMakerDefinition def_;
 };
 
-class GwMakerHandlerJson : public GwMakerHandler
-{
+class GwMakerHandlerJson : public GwMakerHandler {
   virtual bool checkFields(JsonNode &r) = 0;
   virtual string constructRawMsg(JsonNode &r) = 0;
   string processRawGw(const string &gw) override;
 };
 
 class GwNotification {
-  std::function<void (void)> callback_;
+  std::function<void(void)> callback_;
 
 public:
-  GwNotification(std::function<void (void)> callback, const string &httpdHost, unsigned short httpdPort);
+  GwNotification(
+      std::function<void(void)> callback,
+      const string &httpdHost,
+      unsigned short httpdPort);
   ~GwNotification();
 
-  //httpd
+  // httpd
   struct event_base *base_;
   string httpdHost_;
   unsigned short httpdPort_;
@@ -117,7 +118,6 @@ public:
   void runHttpd();
   void stop();
 };
-
 
 class GwMaker {
   shared_ptr<GwMakerHandler> handler_;

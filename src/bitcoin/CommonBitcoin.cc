@@ -37,7 +37,7 @@ uint64_t TargetToDiff(const string &str) {
   return TargetToDiff(t);
 }
 
-void BitsToTarget(uint32_t bits, uint256 & target) {
+void BitsToTarget(uint32_t bits, uint256 &target) {
   target = ArithToUint256(arith_uint256().SetCompact(bits));
 }
 
@@ -52,7 +52,7 @@ static const auto TARGET_DIFF1 = arith_uint256().SetCompact(BITS_DIFF1);
 
 static uint32_t _DiffToBits(uint64_t diff) {
   uint64_t nbytes = (BITS_DIFF1 >> 24) & 0xff;
-  uint64_t value  = BITS_DIFF1 & 0xffffffULL;
+  uint64_t value = BITS_DIFF1 & 0xffffffULL;
 
   if (diff == 0) {
     return 1;
@@ -65,18 +65,16 @@ static uint32_t _DiffToBits(uint64_t diff) {
 
   if (value % diff == 0) {
     value /= diff;
-  }
-  else if ((value << 8) % diff == 0) {
+  } else if ((value << 8) % diff == 0) {
     nbytes -= 1;
     value <<= 8;
     value /= diff;
-  }
-  else {
+  } else {
     return 1;
   }
 
   if (value > 0x00ffffffULL) {
-    return 1;  // overflow... should not happen
+    return 1; // overflow... should not happen
   }
   return (uint32_t)(value | (nbytes << 24));
 }
@@ -96,7 +94,7 @@ void DiffToTarget(uint64_t diff, uint256 &target, bool useTable) {
   if (useTable) {
     // try to find by table
     const uint64_t p = (uint64_t)log2(diff);
-    if (p < (sizeof(kDiff2TargetTable)/sizeof(kDiff2TargetTable[0])) &&
+    if (p < (sizeof(kDiff2TargetTable) / sizeof(kDiff2TargetTable[0])) &&
         diff == (1ull << p)) {
       target = kDiff2TargetTable[p];
       return;

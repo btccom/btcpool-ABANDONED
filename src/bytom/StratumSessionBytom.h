@@ -30,30 +30,39 @@
 
 class StratumSessionBytom : public StratumSessionBase<StratumTraitsBytom> {
 public:
-  StratumSessionBytom(ServerBytom &server,
-                      struct bufferevent *bev,
-                      struct sockaddr *saddr,
-                      uint32_t extraNonce1);
+  StratumSessionBytom(
+      ServerBytom &server,
+      struct bufferevent *bev,
+      struct sockaddr *saddr,
+      uint32_t extraNonce1);
 
-  void rpc2ResponseBoolean(const string &idStr, bool result, const string& failMessage = "");
+  void rpc2ResponseBoolean(
+      const string &idStr, bool result, const string &failMessage = "");
   void sendSetDifficulty(LocalJob &localJob, uint64_t difficulty) override;
-  void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) override;
-  void responseTrue(const string &idStr) override { return rpc2ResponseBoolean(idStr, true); };
+  void
+  sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) override;
+  void responseTrue(const string &idStr) override {
+    return rpc2ResponseBoolean(idStr, true);
+  };
 
 protected:
   bool validate(const JsonNode &jmethod, const JsonNode &jparams) override;
-  void handleRequest(const std::string &idStr, const std::string &method,
-                     const JsonNode &jparams, const JsonNode &jroot) override;
-  void handleRequest_Authorize(const std::string &idStr,
-                               const JsonNode &jparams,
-                               const JsonNode &jroot);
+  void handleRequest(
+      const std::string &idStr,
+      const std::string &method,
+      const JsonNode &jparams,
+      const JsonNode &jroot) override;
+  void handleRequest_Authorize(
+      const std::string &idStr, const JsonNode &jparams, const JsonNode &jroot);
+
 public:
-  std::unique_ptr<StratumMiner> createMiner(const std::string &clientAgent,
-                                            const std::string &workerName,
-                                            int64_t workerId) override;
+  std::unique_ptr<StratumMiner> createMiner(
+      const std::string &clientAgent,
+      const std::string &workerName,
+      int64_t workerId) override;
 
 private:
-  uint8_t shortJobId_;    //jobId starts from 1
+  uint8_t shortJobId_; // jobId starts from 1
 };
 
-#endif  // #ifndef STRATUM_SESSION_BYTOM_H_
+#endif // #ifndef STRATUM_SESSION_BYTOM_H_

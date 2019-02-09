@@ -27,13 +27,10 @@
 
 #include "Utils.h"
 
-
 ////////////////////////////////JobMakerHandlerEth//////////////////////////////////
-bool JobMakerHandlerEth::processMsg(const string &msg)
-{
+bool JobMakerHandlerEth::processMsg(const string &msg) {
   shared_ptr<RskWorkEth> work = make_shared<RskWorkEth>();
-  if (!work->initFromGw(msg))
-  {
+  if (!work->initFromGw(msg)) {
     LOG(ERROR) << "eth initFromGw failed " << msg;
     return false;
   }
@@ -42,20 +39,24 @@ bool JobMakerHandlerEth::processMsg(const string &msg)
   if (workMap_.find(key) != workMap_.end()) {
     DLOG(INFO) << "key already exist in workMap: " << key;
   }
-  
+
   workMap_.insert(std::make_pair(key, work));
-  LOG(INFO) << "add work, height: " << work->getHeight() << ", header: " << work->getBlockHash() << ", from: " << work->getRpcAddress();
+  LOG(INFO) << "add work, height: " << work->getHeight()
+            << ", header: " << work->getBlockHash()
+            << ", from: " << work->getRpcAddress();
 
   clearTimeoutMsg();
 
   if (work->getHeight() < lastReceivedHeight_) {
-    LOG(WARNING) << "low height work. lastHeight:" << lastReceivedHeight_ << ", workHeight: " << work->getHeight();
+    LOG(WARNING) << "low height work. lastHeight:" << lastReceivedHeight_
+                 << ", workHeight: " << work->getHeight();
     return false;
   }
 
   if (work->getHeight() == lastReceivedHeight_) {
     if (!workOfLastJob_) {
-      LOG(WARNING) << "work of last job is empty! lastHeight: " << lastReceivedHeight_;
+      LOG(WARNING) << "work of last job is empty! lastHeight: "
+                   << lastReceivedHeight_;
       return true;
     }
 
@@ -86,9 +87,11 @@ void JobMakerHandlerEth::clearTimeoutMsg() {
 
   // Ensure that workMap_ has at least one element, even if it expires.
   // So jobmaker can always generate jobs even if blockchain node does not
-  // update the response of getwork for a long time when there is no new transaction.
-  for (auto itr = workMap_.begin(); workMap_.size() > 1 && itr != workMap_.end(); ) {
-    const uint32_t ts  = itr->second->getCreatedAt();
+  // update the response of getwork for a long time when there is no new
+  // transaction.
+  for (auto itr = workMap_.begin();
+       workMap_.size() > 1 && itr != workMap_.end();) {
+    const uint32_t ts = itr->second->getCreatedAt();
     const uint32_t height = itr->second->getHeight();
 
     // gbt expired time
@@ -99,8 +102,9 @@ void JobMakerHandlerEth::clearTimeoutMsg() {
       ++itr;
     } else {
       // remove expired gbt
-      LOG(INFO) << "remove timeout work: " << date("%F %T", ts) << "|" << ts <<
-      ", height:" << height << ", headerHash:" << itr->second->getBlockHash();
+      LOG(INFO) << "remove timeout work: " << date("%F %T", ts) << "|" << ts
+                << ", height:" << height
+                << ", headerHash:" << itr->second->getBlockHash();
 
       // c++11: returns an iterator to the next element in the map
       itr = workMap_.erase(itr);
@@ -108,8 +112,7 @@ void JobMakerHandlerEth::clearTimeoutMsg() {
   }
 }
 
-string JobMakerHandlerEth::makeStratumJobMsg()
-{
+string JobMakerHandlerEth::makeStratumJobMsg() {
   if (workMap_.empty()) {
     return "";
   }
@@ -128,12 +131,16 @@ string JobMakerHandlerEth::makeStratumJobMsg()
 
 uint64_t JobMakerHandlerEth::makeWorkKey(const RskWorkEth &work) {
   const string &blockHash = work.getBlockHash();
-  uint64_t blockHashSuffix = strtoull(blockHash.substr(blockHash.size() - 4).c_str(), nullptr, 16);
+  uint64_t blockHashSuffix =
+      strtoull(blockHash.substr(blockHash.size() - 4).c_str(), nullptr, 16);
 
-  // key = | 32bits height | 8bits uncles | 8bits gasUsedPercent | 16bit hashSuffix |
+  // key = | 32bits height | 8bits uncles | 8bits gasUsedPercent | 16bit
+  // hashSuffix |
   uint64_t key = ((uint64_t)work.getHeight()) << 32;
-  key += (((uint64_t)work.getUncles()) & 0xFFu)  << 24; // No overflow, the largest number of uncles in Ethereum is 2.
-  key += (((uint64_t)work.getGasUsedPercent()) & 0xFFu)  << 16; // No overflow, the largest number should be 100 (100%).
+  key += (((uint64_t)work.getUncles()) & 0xFFu)
+      << 24; // No overflow, the largest number of uncles in Ethereum is 2.
+  key += (((uint64_t)work.getGasUsedPercent()) & 0xFFu)
+      << 16; // No overflow, the largest number should be 100 (100%).
   key += blockHashSuffix;
 
   return key;

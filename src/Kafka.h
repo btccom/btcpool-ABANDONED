@@ -36,32 +36,32 @@
 // Maximum transmit message size.
 // The RawGbt message may large than 30MB while the block size reach 8MB.
 // So allow the message to reach 60MB.
-#define RDKAFKA_MESSAGE_MAX_BYTES            "60000000"
+#define RDKAFKA_MESSAGE_MAX_BYTES "60000000"
 
 // Maximum number of bytes per topic+partition to request when
 // fetching messages from the broker
-#define RDKAFKA_FETCH_MESSAGE_MAX_BYTES      "60000000"
+#define RDKAFKA_FETCH_MESSAGE_MAX_BYTES "60000000"
 
 // Maximum number of kilobytes per topic+partition in the local consumer
 // queue. This value may be overshot by fetch.message.max.bytes.
 // Tips: the unit is **kBytes**, not Bytes. (60000 means 60 MB)
-#define RDKAFKA_QUEUED_MAX_MESSAGES_KBYTES   "60000"
+#define RDKAFKA_QUEUED_MAX_MESSAGES_KBYTES "60000"
 
 // compression codec to use for compressing message sets
-#define RDKAFKA_COMPRESSION_CODEC            "snappy"
+#define RDKAFKA_COMPRESSION_CODEC "snappy"
 
 // Maximum number of messages allowed on the producer queue.
 #define RDKAFKA_QUEUE_BUFFERING_MAX_MESSAGES "100000"
 
 // Maximum time, in milliseconds, for buffering data on the producer queue.
 // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
-#define RDKAFKA_QUEUE_BUFFERING_MAX_MS       "1000"
+#define RDKAFKA_QUEUE_BUFFERING_MAX_MS "1000"
 
 // Maximum number of messages batched in one MessageSet.
-#define RDKAFKA_BATCH_NUM_MESSAGES           "1000"
+#define RDKAFKA_BATCH_NUM_MESSAGES "1000"
 
 // Maximum time the broker may wait to fill the response with fetch.min.bytes
-#define RDKAFKA_CONSUMER_FETCH_WAIT_MAX_MS            "10"
+#define RDKAFKA_CONSUMER_FETCH_WAIT_MAX_MS "10"
 #define RDKAFKA_HIGH_LEVEL_CONSUMER_FETCH_WAIT_MAX_MS "50"
 
 ///////////////////////////////// KafkaConsumer ////////////////////////////////
@@ -69,11 +69,11 @@
 class KafkaConsumer {
   string brokers_;
   string topicStr_;
-  int    partition_;
+  int partition_;
   map<string, string> defaultOptions_;
 
-  rd_kafka_conf_t  *conf_;
-  rd_kafka_t       *consumer_;
+  rd_kafka_conf_t *conf_;
+  rd_kafka_t *consumer_;
   rd_kafka_topic_t *topic_;
 
 public:
@@ -89,13 +89,12 @@ public:
   //     RD_KAFKA_OFFSET_STORED
   //     RD_KAFKA_OFFSET_TAIL(CNT)
   //
-  bool setup(int64_t offset, const std::map<string, string> *options=nullptr);
+  bool setup(int64_t offset, const std::map<string, string> *options = nullptr);
   //
   // don't forget to call rd_kafka_message_destroy() after consumer()
   //
   rd_kafka_message_t *consumer(int timeout_ms);
 };
-
 
 //////////////////////////// KafkaHighLevelConsumer ////////////////////////////
 // High Level Consumer
@@ -103,18 +102,21 @@ class KafkaHighLevelConsumer {
   string brokers_;
   string topicStr_;
   string groupStr_;
-  int    partition_;
+  int partition_;
 
-  rd_kafka_conf_t  *conf_;
-  rd_kafka_t       *consumer_;
+  rd_kafka_conf_t *conf_;
+  rd_kafka_t *consumer_;
   rd_kafka_topic_partition_list_t *topics_;
 
 public:
-  KafkaHighLevelConsumer(const char *brokers, const char *topic, int partition,
-                         const string &groupStr);
+  KafkaHighLevelConsumer(
+      const char *brokers,
+      const char *topic,
+      int partition,
+      const string &groupStr);
   ~KafkaHighLevelConsumer();
 
-//  bool checkAlive();  // I don't know which function should be used to check
+  //  bool checkAlive();  // I don't know which function should be used to check
   bool setup();
 
   //
@@ -123,27 +125,27 @@ public:
   rd_kafka_message_t *consumer(int timeout_ms);
 };
 
-
 ///////////////////////////////// KafkaProducer ////////////////////////////////
 class KafkaProducer {
   string brokers_;
   string topicStr_;
-  int    partition_;
+  int partition_;
   map<string, string> defaultOptions_;
 
-  rd_kafka_conf_t  *conf_;
-  rd_kafka_t       *producer_;
+  rd_kafka_conf_t *conf_;
+  rd_kafka_t *producer_;
   rd_kafka_topic_t *topic_;
 
 public:
   KafkaProducer(const char *brokers, const char *topic, int partition);
   ~KafkaProducer();
 
-  bool setup(const std::map<string, string> *options=nullptr);
+  bool setup(const std::map<string, string> *options = nullptr);
   bool checkAlive();
   void produce(const void *payload, size_t len);
-  // Although the kafka producer is non-blocking, it will fail immediately in some cases,
-  // such as the local queue is full. In this case, the sender can choose to try again later.
+  // Although the kafka producer is non-blocking, it will fail immediately in
+  // some cases, such as the local queue is full. In this case, the sender can
+  // choose to try again later.
   bool tryProduce(const void *payload, size_t len);
 };
 

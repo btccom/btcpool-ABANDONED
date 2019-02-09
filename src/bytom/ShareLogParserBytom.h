@@ -24,7 +24,6 @@
 #ifndef SHARELOGPARSER_BYTOM_H_
 #define SHARELOGPARSER_BYTOM_H_
 
-
 #include "ShareLogParser.h"
 
 #include "StratumBytom.h"

@@ -27,11 +27,9 @@
 extern "C" {
 
 #include "libsph/sph_blake.h"
-
 }
 
-uint256 BlockHeaderDecred::getHash() const
-{
+uint256 BlockHeaderDecred::getHash() const {
   uint256 hash;
   sph_blake256_context ctx;
   sph_blake256_init(&ctx);
@@ -40,43 +38,42 @@ uint256 BlockHeaderDecred::getHash() const
   return hash;
 }
 
-const NetworkParamsDecred& NetworkParamsDecred::get(NetworkDecred network)
-{
+const NetworkParamsDecred &NetworkParamsDecred::get(NetworkDecred network) {
   static NetworkParamsDecred mainnetParams{
-    arith_uint256{}.SetCompact(0x1d00ffff),
-    3119582664,
-    100,
-    101,
-    6144,
-    6,
-    3,
-    1,
-    4096,
-    5,
+      arith_uint256{}.SetCompact(0x1d00ffff),
+      3119582664,
+      100,
+      101,
+      6144,
+      6,
+      3,
+      1,
+      4096,
+      5,
   };
   static NetworkParamsDecred testnetParams{
-    arith_uint256{}.SetCompact(0x1e00ffff),
-    2500000000,
-    100,
-    101,
-    2048,
-    6,
-    3,
-    1,
-    768,
-    5,
+      arith_uint256{}.SetCompact(0x1e00ffff),
+      2500000000,
+      100,
+      101,
+      2048,
+      6,
+      3,
+      1,
+      768,
+      5,
   };
   static NetworkParamsDecred simnetParams{
-    arith_uint256{}.SetCompact(0x207fffff),
-    50000000000,
-    100,
-    101,
-    128,
-    6,
-    3,
-    1,
-    16 + (64 * 2),
-    5,
+      arith_uint256{}.SetCompact(0x207fffff),
+      50000000000,
+      100,
+      101,
+      128,
+      6,
+      3,
+      1,
+      16 + (64 * 2),
+      5,
   };
 
   switch (network) {

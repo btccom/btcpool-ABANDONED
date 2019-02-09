@@ -31,25 +31,22 @@
 
 #include <vector>
 
-struct NodeDefinition
-{
+struct NodeDefinition {
   string rpcAddr_;
   string rpcUserPwd_;
 };
 
-struct BlockMakerDefinition
-{
+struct BlockMakerDefinition {
   string chainType_;
   bool enabled_;
-  vector<NodeDefinition> nodes; 
+  vector<NodeDefinition> nodes;
   string solvedShareTopic_;
   string foundAuxBlockTable_;
 
   virtual ~BlockMakerDefinition() {}
 };
 
-struct BlockMakerDefinitionBitcoin : public BlockMakerDefinition
-{
+struct BlockMakerDefinitionBitcoin : public BlockMakerDefinition {
   string rawGbtTopic_;
   string stratumJobTopic_;
   string auxPowSolvedShareTopic_; // merged mining solved share topic
@@ -59,8 +56,7 @@ struct BlockMakerDefinitionBitcoin : public BlockMakerDefinition
 };
 
 ////////////////////////////////// BlockMaker //////////////////////////////////
-class BlockMaker
-{
+class BlockMaker {
 protected:
   shared_ptr<BlockMakerDefinition> def_;
   atomic<bool> running_;
@@ -74,9 +70,12 @@ protected:
   virtual void processSolvedShare(rd_kafka_message_t *rkmessage) = 0;
 
 public:
-  BlockMaker(shared_ptr<BlockMakerDefinition> def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
+  BlockMaker(
+      shared_ptr<BlockMakerDefinition> def,
+      const char *kafkaBrokers,
+      const MysqlConnectInfo &poolDB);
   virtual ~BlockMaker();
-  
+
   // read-only definition
   inline shared_ptr<const BlockMakerDefinition> def() { return def_; }
 
@@ -84,6 +83,5 @@ public:
   virtual void stop();
   virtual void run();
 };
-
 
 #endif

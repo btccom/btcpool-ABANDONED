@@ -27,8 +27,7 @@
 #include "JobMaker.h"
 #include "utilities_js.hpp"
 
-class JobMakerHandlerBytom : public GwJobMakerHandler
-{
+class JobMakerHandlerBytom : public GwJobMakerHandler {
 public:
   virtual ~JobMakerHandlerBytom() {}
   bool processMsg(const string &msg) override;

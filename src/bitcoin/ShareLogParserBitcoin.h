@@ -24,7 +24,6 @@
 #ifndef SHARELOGPARSER_BITCOIN_H_
 #define SHARELOGPARSER_BITCOIN_H_
 
-
 #include "ShareLogParser.h"
 
 #include "StratumBitcoin.h"

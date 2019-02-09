@@ -29,7 +29,7 @@
 #include "CommonEth.h"
 #include "StratumEth.h"
 
-///////////////////////////////  GlobalShareEth  ////////////////////////////////
+///////////////////////////////  GlobalShareEth ////////////////////////////////
 // Used to detect duplicate share attacks on ETH mining.
 struct GlobalShareEth {
   uint64_t headerHash_;
@@ -39,10 +39,9 @@ struct GlobalShareEth {
 
   GlobalShareEth(const ShareEth &share)
     : headerHash_(share.headerhash())
-    , nonce_(share.nonce())
-  {}
+    , nonce_(share.nonce()) {}
 
-  GlobalShareEth& operator=(const GlobalShareEth &r) = default;
+  GlobalShareEth &operator=(const GlobalShareEth &r) = default;
 
   bool operator<(const GlobalShareEth &r) const {
     if (headerHash_ < r.headerHash_ ||
@@ -53,6 +52,7 @@ struct GlobalShareEth {
   }
 };
 ////////////////////////////  Alias  ////////////////////////////
-using DuplicateShareCheckerEth = DuplicateShareCheckerT<ShareEth, GlobalShareEth>;
+using DuplicateShareCheckerEth =
+    DuplicateShareCheckerT<ShareEth, GlobalShareEth>;
 
-#endif  // STATISTICS_ETH_H_
+#endif // STATISTICS_ETH_H_

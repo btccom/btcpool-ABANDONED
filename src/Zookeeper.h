@@ -46,19 +46,22 @@ class Zookeeper {
 public:
   static int nodeNameCompare(const void *pname1, const void *pname2);
 
-  static void globalWatcher(zhandle_t *zh, int type, int state, const char *path, void *zookeeper);
+  static void globalWatcher(
+      zhandle_t *zh, int type, int state, const char *path, void *zookeeper);
 
-  static void lockWatcher(zhandle_t *zh, int type, int state, const char *path, void *zookeeper);
+  static void lockWatcher(
+      zhandle_t *zh, int type, int state, const char *path, void *zookeeper);
 
   Zookeeper(const char *servers);
 
   virtual ~Zookeeper();
-  
+
   void getLock(const char *lockParentPath);
 
   bool doGetLock(const char *lockParentPath, const char *lockNodePath);
 
-  void createLockNode(const char *nodeParentPath, char *newNodePath, int newNodePathMaxLen);
+  void createLockNode(
+      const char *nodeParentPath, char *newNodePath, int newNodePathMaxLen);
 
   void createNodesRecursively(const char *nodePath);
 };

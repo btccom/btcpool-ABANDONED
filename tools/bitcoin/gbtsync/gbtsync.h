@@ -12,38 +12,40 @@
 
 #include <libconfig.h++>
 
-
 using namespace std;
 
-
-class SyncWorker
-{
+class SyncWorker {
 public:
-    void DoDiffs();
+  void DoDiffs();
 
-    std::unique_ptr<DataManager> dataManager;
-    std::chrono::duration<double> diffPeriod;
+  std::unique_ptr<DataManager> dataManager;
+  std::chrono::duration<double> diffPeriod;
 
-    DataManager::AddAndRemoveDataListPair diffResult;
-    std::chrono::time_point<std::chrono::system_clock> lastEndDiff;
+  DataManager::AddAndRemoveDataListPair diffResult;
+  std::chrono::time_point<std::chrono::system_clock> lastEndDiff;
 };
 
-class SyncManager
-{
+class SyncManager {
 public:
-    SyncManager();
-    void Run();
-    void AddWorker(DataManager* dataManager, std::chrono::duration<double> diffPeriod);
-    void Stop();
+  SyncManager();
+  void Run();
+  void
+  AddWorker(DataManager *dataManager, std::chrono::duration<double> diffPeriod);
+  void Stop();
 
 private:
-    void DoInit();
-    void DoDiffs();
-    void DoSync();
-    void Sync(DataManager::AddAndRemoveDataListPair& diffResult, DataManager& sourceManager, DataManager& destManager, bool giveupData);
+  void DoInit();
+  void DoDiffs();
+  void DoSync();
+  void Sync(
+      DataManager::AddAndRemoveDataListPair &diffResult,
+      DataManager &sourceManager,
+      DataManager &destManager,
+      bool giveupData);
+
 private:
-    std::vector<std::unique_ptr<SyncWorker>> m_Workers;
-    bool m_KeepRun;
+  std::vector<std::unique_ptr<SyncWorker>> m_Workers;
+  bool m_KeepRun;
 };
 
 #endif

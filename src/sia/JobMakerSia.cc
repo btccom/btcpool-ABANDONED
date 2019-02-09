@@ -27,15 +27,13 @@
 #include "Utils.h"
 
 ////////////////////////////////JobMakerHandlerSia//////////////////////////////////
-JobMakerHandlerSia::JobMakerHandlerSia() : time_(0)
-{
+JobMakerHandlerSia::JobMakerHandlerSia()
+  : time_(0) {
 }
 
-bool JobMakerHandlerSia::processMsg(const string &msg)
-{
+bool JobMakerHandlerSia::processMsg(const string &msg) {
   JsonNode j;
-  if (!JsonNode::parse(msg.c_str(), msg.c_str() + msg.length(), j))
-  {
+  if (!JsonNode::parse(msg.c_str(), msg.c_str() + msg.length(), j)) {
     LOG(ERROR) << "deserialize sia work failed " << msg;
     return false;
   }
@@ -53,50 +51,48 @@ bool JobMakerHandlerSia::processMsg(const string &msg)
   return processMsg(j);
 }
 
-bool JobMakerHandlerSia::processMsg(JsonNode &j)
-{
+bool JobMakerHandlerSia::processMsg(JsonNode &j) {
   target_ = j["target"].str();
   return true;
 }
 
-bool JobMakerHandlerSia::validate(JsonNode &j)
-{
+bool JobMakerHandlerSia::validate(JsonNode &j) {
   // check fields are valid
   if (j.type() != Utilities::JS::type::Obj ||
-    j["created_at_ts"].type() != Utilities::JS::type::Int ||
-    j["rpcAddress"].type() != Utilities::JS::type::Str ||
-    j["rpcUserPwd"].type() != Utilities::JS::type::Str ||
-    j["target"].type() != Utilities::JS::type::Str ||
-    j["hHash"].type() != Utilities::JS::type::Str) {
-      LOG(ERROR) << "work format not expected";
+      j["created_at_ts"].type() != Utilities::JS::type::Int ||
+      j["rpcAddress"].type() != Utilities::JS::type::Str ||
+      j["rpcUserPwd"].type() != Utilities::JS::type::Str ||
+      j["target"].type() != Utilities::JS::type::Str ||
+      j["hHash"].type() != Utilities::JS::type::Str) {
+    LOG(ERROR) << "work format not expected";
     return false;
-    }
+  }
 
   // check timestamp
-  if (j["created_at_ts"].uint32() + def()->maxJobDelay_ < time(nullptr))
-  {
-    LOG(ERROR) << "too old sia work: " << date("%F %T", j["created_at_ts"].uint32());
+  if (j["created_at_ts"].uint32() + def()->maxJobDelay_ < time(nullptr)) {
+    LOG(ERROR) << "too old sia work: "
+               << date("%F %T", j["created_at_ts"].uint32());
     return false;
   }
 
   return true;
 }
 
-string JobMakerHandlerSia::makeStratumJobMsg()
-{
-  if (0 == header_.size() ||
-      0 == target_.size())
+string JobMakerHandlerSia::makeStratumJobMsg() {
+  if (0 == header_.size() || 0 == target_.size())
     return "";
 
   uint64_t jobId = generateJobId(djb2(header_.c_str()));
 
-  return Strings::Format("{\"created_at_ts\":%u"
-                         ",\"jobId\":%" PRIu64 ""
-                         ",\"target\":\"%s\""
-                         ",\"hHash\":\"%s\""
-                         "}",
-                         time_,
-                         jobId,
-                         target_.c_str(),
-                         header_.c_str());
+  return Strings::Format(
+      "{\"created_at_ts\":%u"
+      ",\"jobId\":%" PRIu64
+      ""
+      ",\"target\":\"%s\""
+      ",\"hHash\":\"%s\""
+      "}",
+      time_,
+      jobId,
+      target_.c_str(),
+      header_.c_str());
 }

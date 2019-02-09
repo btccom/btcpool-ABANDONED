@@ -27,26 +27,22 @@
 #include <limits.h>
 
 ///////////////////////////////GwMakerHandlerBytom////////////////////////////////////
-bool GwMakerHandlerBytom::checkFields(JsonNode &r)
-{
+bool GwMakerHandlerBytom::checkFields(JsonNode &r) {
   //{"status":"success","data":{"block_header":
   //"0101a612b60a752a07bab9d7495a6861f88fc6f1c6656a29de3afda4747965400762c88cfb8d8ad7054010bb9a9b0622a77f633f47973971a955ca6ae00bad39372c9bf957b11fdae27dc9c377e5192668bc0a367e4a4764f11e7c725ecced1d7b6a492974fab1b6d5bc009ffcfd86808080801d",
   //"seed":"9e6f94f7a8b839b8bfd349fdb794cc125a0711a25c6b4c1dfbdf8d448e0a9a45"}}
-  if (r.type() != Utilities::JS::type::Obj)
-  {
+  if (r.type() != Utilities::JS::type::Obj) {
     LOG(ERROR) << "Bytom getwork return not jason";
     return false;
   }
 
   JsonNode status = r["status"];
-  if (status.type() != Utilities::JS::type::Str)
-  {
+  if (status.type() != Utilities::JS::type::Str) {
     LOG(ERROR) << "Bytom getwork return not jason";
     return false;
   }
 
-  if (status.str() != "success")
-  {
+  if (status.str() != "success") {
     LOG(ERROR) << "status " << status.str();
     return false;
   }
@@ -54,8 +50,7 @@ bool GwMakerHandlerBytom::checkFields(JsonNode &r)
   JsonNode data = r["data"];
   if (data.type() != Utilities::JS::type::Obj ||
       data["block_header"].type() != Utilities::JS::type::Str ||
-      data["seed"].type() != Utilities::JS::type::Str)
-  {
+      data["seed"].type() != Utilities::JS::type::Str) {
     LOG(ERROR) << "Bytom getwork retrun unexpected";
     return false;
   }
@@ -63,27 +58,25 @@ bool GwMakerHandlerBytom::checkFields(JsonNode &r)
   return true;
 }
 
-string GwMakerHandlerBytom::constructRawMsg(JsonNode &r)
-{
+string GwMakerHandlerBytom::constructRawMsg(JsonNode &r) {
   auto data = r["data"];
   string header = data["block_header"].str();
   string seed = data["seed"].str();
 
-  LOG(INFO) << "chain: " << def_.chainType_
-            << ", topic: " << def_.rawGwTopic_
-            << ", hHash: " << header
-            << ", sHash: " << seed;
+  LOG(INFO) << "chain: " << def_.chainType_ << ", topic: " << def_.rawGwTopic_
+            << ", hHash: " << header << ", sHash: " << seed;
 
-  return Strings::Format("{\"created_at_ts\":%u,"
-                         "\"chainType\":\"%s\","
-                         "\"rpcAddress\":\"%s\","
-                         "\"rpcUserPwd\":\"%s\","
-                         "\"hHash\":\"%s\","
-                         "\"sHash\":\"%s\"}",
-                         (uint32_t)time(nullptr),
-                         def_.chainType_.c_str(),
-                         def_.rpcAddr_.c_str(),
-                         def_.rpcUserPwd_.c_str(),
-                         header.c_str(),
-                         seed.c_str());
+  return Strings::Format(
+      "{\"created_at_ts\":%u,"
+      "\"chainType\":\"%s\","
+      "\"rpcAddress\":\"%s\","
+      "\"rpcUserPwd\":\"%s\","
+      "\"hHash\":\"%s\","
+      "\"sHash\":\"%s\"}",
+      (uint32_t)time(nullptr),
+      def_.chainType_.c_str(),
+      def_.rpcAddr_.c_str(),
+      def_.rpcUserPwd_.c_str(),
+      header.c_str(),
+      seed.c_str());
 }

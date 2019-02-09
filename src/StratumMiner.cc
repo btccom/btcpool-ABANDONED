@@ -33,14 +33,20 @@
 
 #include <event2/buffer.h>
 
-StratumMiner::StratumMiner(IStratumSession &session,
-                           const DiffController &diffController,
-                           const string &clientAgent,
-                           const string &workerName,
-                           int64_t workerId)
-    : session_(session), diffController_(new DiffController(diffController)), curDiff_(0), clientAgent_(clientAgent)
-    , isNiceHashClient_(isNiceHashAgent(clientAgent)), workerName_(workerName), workerId_(workerId)
-    , invalidSharesCounter_(INVALID_SHARE_SLIDING_WINDOWS_SIZE) {
+StratumMiner::StratumMiner(
+    IStratumSession &session,
+    const DiffController &diffController,
+    const string &clientAgent,
+    const string &workerName,
+    int64_t workerId)
+  : session_(session)
+  , diffController_(new DiffController(diffController))
+  , curDiff_(0)
+  , clientAgent_(clientAgent)
+  , isNiceHashClient_(isNiceHashAgent(clientAgent))
+  , workerName_(workerName)
+  , workerId_(workerId)
+  , invalidSharesCounter_(INVALID_SHARE_SLIDING_WINDOWS_SIZE) {
 }
 
 void StratumMiner::setMinDiff(uint64_t minDiff) {
@@ -56,7 +62,8 @@ uint64_t StratumMiner::calcCurDiff() {
   return curDiff_;
 }
 
-bool StratumMiner::handleShare(const std::string &idStr, int32_t status, uint64_t shareDiff) {
+bool StratumMiner::handleShare(
+    const std::string &idStr, int32_t status, uint64_t shareDiff) {
   auto &dispatcher = session_.getDispatcher();
   if (StratumStatus::isAccepted(status)) {
     diffController_->addAcceptedShare(shareDiff);

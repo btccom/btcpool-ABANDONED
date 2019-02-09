@@ -52,15 +52,15 @@ void handler(int sig) {
 }
 
 void usage() {
-  fprintf(stderr, "Usage:\n\tkafka_repeater -c \"kafka_repeater.cfg\" -l \"log_kafka_repeater\"\n");
+  fprintf(
+      stderr,
+      "Usage:\n\tkafka_repeater -c \"kafka_repeater.cfg\" -l "
+      "\"log_kafka_repeater\"\n");
 }
 
-template<typename S, typename V>
-void readFromSetting(const S &setting,
-                     const string &key,
-                     V &value,
-                     bool optional = false)
-{
+template <typename S, typename V>
+void readFromSetting(
+    const S &setting, const string &key, V &value, bool optional = false) {
   if (!setting.lookupValue(key, value) && !optional) {
     LOG(FATAL) << "config section missing key: " << key;
   }
@@ -68,7 +68,7 @@ void readFromSetting(const S &setting,
 
 int main(int argc, char **argv) {
   char *optLogDir = NULL;
-  char *optConf   = NULL;
+  char *optConf = NULL;
   int c;
 
   if (argc <= 1) {
@@ -77,15 +77,16 @@ int main(int argc, char **argv) {
   }
   while ((c = getopt(argc, argv, "c:l:h")) != -1) {
     switch (c) {
-      case 'c':
-        optConf = optarg;
-        break;
-      case 'l':
-        optLogDir = optarg;
-        break;
-      case 'h': default:
-        usage();
-        exit(0);
+    case 'c':
+      optConf = optarg;
+      break;
+    case 'l':
+      optLogDir = optarg;
+      break;
+    case 'h':
+    default:
+      usage();
+      exit(0);
     }
   }
 
@@ -98,23 +99,22 @@ int main(int argc, char **argv) {
   }
   // Log messages at a level >= this flag are automatically sent to
   // stderr in addition to log files.
-  FLAGS_stderrthreshold = 3;    // 3: FATAL
-  FLAGS_max_log_size    = 100;  // max log file size 100 MB
-  FLAGS_logbuflevel     = -1;   // don't buffer logs
+  FLAGS_stderrthreshold = 3; // 3: FATAL
+  FLAGS_max_log_size = 100; // max log file size 100 MB
+  FLAGS_logbuflevel = -1; // don't buffer logs
   FLAGS_stop_logging_if_full_disk = true;
 
   // Read the file. If there is an error, report it and exit.
   libconfig::Config cfg;
-  try
-  {
+  try {
     cfg.readFile(optConf);
-  } catch(const FileIOException &fioex) {
+  } catch (const FileIOException &fioex) {
     std::cerr << "I/O error while reading file." << std::endl;
-    return(EXIT_FAILURE);
-  } catch(const ParseException &pex) {
+    return (EXIT_FAILURE);
+  } catch (const ParseException &pex) {
     std::cerr << "Parse error at " << pex.getFile() << ":" << pex.getLine()
-    << " - " << pex.getError() << std::endl;
-    return(EXIT_FAILURE);
+              << " - " << pex.getError() << std::endl;
+    return (EXIT_FAILURE);
   }
 
   // lock cfg file:
@@ -126,7 +126,7 @@ int main(int argc, char **argv) {
   }*/
 
   signal(SIGTERM, handler);
-  signal(SIGINT,  handler);
+  signal(SIGINT, handler);
 
   try {
     bool enableShareConvBtcV2ToV1 = false;
@@ -136,83 +136,112 @@ int main(int argc, char **argv) {
     bool enableMessageHexPrinter = false;
     int repeatedNumberDisplayInterval = 10;
 
-    readFromSetting(cfg, "share_convertor.bitcoin_v2_to_v1", enableShareConvBtcV2ToV1, true);
-    readFromSetting(cfg, "share_diff_changer.bitcoin_v1", enableShareDiffChangerBtcV1, true);
-    readFromSetting(cfg, "share_diff_changer.bitcoin_v2_to_v1", enableShareDiffChangerBtcV2ToV1, true);
-    readFromSetting(cfg, "share_printer.bitcoin_v1", enableSharePrinterBtcV1, true);
-    readFromSetting(cfg, "message_printer.print_hex", enableMessageHexPrinter, true);
-    readFromSetting(cfg, "log.repeated_number_display_interval", repeatedNumberDisplayInterval, true);
-
+    readFromSetting(
+        cfg,
+        "share_convertor.bitcoin_v2_to_v1",
+        enableShareConvBtcV2ToV1,
+        true);
+    readFromSetting(
+        cfg,
+        "share_diff_changer.bitcoin_v1",
+        enableShareDiffChangerBtcV1,
+        true);
+    readFromSetting(
+        cfg,
+        "share_diff_changer.bitcoin_v2_to_v1",
+        enableShareDiffChangerBtcV2ToV1,
+        true);
+    readFromSetting(
+        cfg, "share_printer.bitcoin_v1", enableSharePrinterBtcV1, true);
+    readFromSetting(
+        cfg, "message_printer.print_hex", enableMessageHexPrinter, true);
+    readFromSetting(
+        cfg,
+        "log.repeated_number_display_interval",
+        repeatedNumberDisplayInterval,
+        true);
 
     if (enableShareConvBtcV2ToV1) {
       gKafkaRepeater = new ShareConvertorBitcoinV2ToV1(
-        cfg.lookup("kafka.in_brokers"), cfg.lookup("kafka.in_topic"), cfg.lookup("kafka.in_group_id"),
-        cfg.lookup("kafka.out_brokers"), cfg.lookup("kafka.out_topic")
-      );
-    }
-    else if (enableShareDiffChangerBtcV1) {
+          cfg.lookup("kafka.in_brokers"),
+          cfg.lookup("kafka.in_topic"),
+          cfg.lookup("kafka.in_group_id"),
+          cfg.lookup("kafka.out_brokers"),
+          cfg.lookup("kafka.out_topic"));
+    } else if (enableShareDiffChangerBtcV1) {
       gKafkaRepeater = new ShareDiffChangerBitcoinV1(
-        cfg.lookup("kafka.in_brokers"), cfg.lookup("kafka.in_topic"), cfg.lookup("kafka.in_group_id"),
-        cfg.lookup("kafka.out_brokers"), cfg.lookup("kafka.out_topic")
-      );
+          cfg.lookup("kafka.in_brokers"),
+          cfg.lookup("kafka.in_topic"),
+          cfg.lookup("kafka.in_group_id"),
+          cfg.lookup("kafka.out_brokers"),
+          cfg.lookup("kafka.out_topic"));
 
       int jobTimeOffset = 30;
-      readFromSetting(cfg, "share_diff_changer.job_time_offset", jobTimeOffset, true);
+      readFromSetting(
+          cfg, "share_diff_changer.job_time_offset", jobTimeOffset, true);
 
-      if (!dynamic_cast<ShareDiffChangerBitcoinV1*>(gKafkaRepeater)->initStratumJobConsumer(
-        cfg.lookup("share_diff_changer.job_brokers"), cfg.lookup("share_diff_changer.job_topic"),
-        cfg.lookup("share_diff_changer.job_group_id"), jobTimeOffset
-      )) {
+      if (!dynamic_cast<ShareDiffChangerBitcoinV1 *>(gKafkaRepeater)
+               ->initStratumJobConsumer(
+                   cfg.lookup("share_diff_changer.job_brokers"),
+                   cfg.lookup("share_diff_changer.job_topic"),
+                   cfg.lookup("share_diff_changer.job_group_id"),
+                   jobTimeOffset)) {
         LOG(FATAL) << "kafka repeater init failed";
         return 1;
       }
-    }
-    else if (enableShareDiffChangerBtcV2ToV1) {
+    } else if (enableShareDiffChangerBtcV2ToV1) {
       gKafkaRepeater = new ShareDiffChangerBitcoinV2ToV1(
-        cfg.lookup("kafka.in_brokers"), cfg.lookup("kafka.in_topic"), cfg.lookup("kafka.in_group_id"),
-        cfg.lookup("kafka.out_brokers"), cfg.lookup("kafka.out_topic")
-      );
+          cfg.lookup("kafka.in_brokers"),
+          cfg.lookup("kafka.in_topic"),
+          cfg.lookup("kafka.in_group_id"),
+          cfg.lookup("kafka.out_brokers"),
+          cfg.lookup("kafka.out_topic"));
 
       int jobTimeOffset = 30;
-      readFromSetting(cfg, "share_diff_changer.job_time_offset", jobTimeOffset, true);
+      readFromSetting(
+          cfg, "share_diff_changer.job_time_offset", jobTimeOffset, true);
 
-      if (!dynamic_cast<ShareDiffChangerBitcoinV2ToV1*>(gKafkaRepeater)->initStratumJobConsumer(
-        cfg.lookup("share_diff_changer.job_brokers"), cfg.lookup("share_diff_changer.job_topic"),
-        cfg.lookup("share_diff_changer.job_group_id"), jobTimeOffset
-      )) {
+      if (!dynamic_cast<ShareDiffChangerBitcoinV2ToV1 *>(gKafkaRepeater)
+               ->initStratumJobConsumer(
+                   cfg.lookup("share_diff_changer.job_brokers"),
+                   cfg.lookup("share_diff_changer.job_topic"),
+                   cfg.lookup("share_diff_changer.job_group_id"),
+                   jobTimeOffset)) {
         LOG(FATAL) << "kafka repeater init failed";
         return 1;
       }
-    }
-    else if (enableSharePrinterBtcV1) {
+    } else if (enableSharePrinterBtcV1) {
       gKafkaRepeater = new SharePrinterBitcoinV1(
-        cfg.lookup("kafka.in_brokers"), cfg.lookup("kafka.in_topic"), cfg.lookup("kafka.in_group_id"),
-        cfg.lookup("kafka.out_brokers"), cfg.lookup("kafka.out_topic")
-      );
-    }
-    else if (enableMessageHexPrinter) {
+          cfg.lookup("kafka.in_brokers"),
+          cfg.lookup("kafka.in_topic"),
+          cfg.lookup("kafka.in_group_id"),
+          cfg.lookup("kafka.out_brokers"),
+          cfg.lookup("kafka.out_topic"));
+    } else if (enableMessageHexPrinter) {
       gKafkaRepeater = new MessagePrinter(
-        cfg.lookup("kafka.in_brokers"), cfg.lookup("kafka.in_topic"), cfg.lookup("kafka.in_group_id"),
-        cfg.lookup("kafka.out_brokers"), cfg.lookup("kafka.out_topic")
-      );
-    }
-    else {
+          cfg.lookup("kafka.in_brokers"),
+          cfg.lookup("kafka.in_topic"),
+          cfg.lookup("kafka.in_group_id"),
+          cfg.lookup("kafka.out_brokers"),
+          cfg.lookup("kafka.out_topic"));
+    } else {
       gKafkaRepeater = new KafkaRepeater(
-        cfg.lookup("kafka.in_brokers"), cfg.lookup("kafka.in_topic"), cfg.lookup("kafka.in_group_id"),
-        cfg.lookup("kafka.out_brokers"), cfg.lookup("kafka.out_topic")
-      );
+          cfg.lookup("kafka.in_brokers"),
+          cfg.lookup("kafka.in_topic"),
+          cfg.lookup("kafka.in_group_id"),
+          cfg.lookup("kafka.out_brokers"),
+          cfg.lookup("kafka.out_topic"));
     }
 
-    
     if (!gKafkaRepeater->init()) {
       LOG(FATAL) << "kafka repeater init failed";
       return 1;
     }
 
-    gKafkaRepeater->runMessageNumberDisplayThread(repeatedNumberDisplayInterval);
+    gKafkaRepeater->runMessageNumberDisplayThread(
+        repeatedNumberDisplayInterval);
     gKafkaRepeater->run();
-  }
-  catch (std::exception & e) {
+  } catch (std::exception &e) {
     LOG(FATAL) << "exception: " << e.what();
     return 1;
   }

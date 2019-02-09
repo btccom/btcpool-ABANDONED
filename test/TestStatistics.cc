@@ -51,7 +51,6 @@ TEST(StatsWindow, clear) {
   }
 }
 
-
 TEST(StatsWindow, sum01) {
   int windowSize = 60;
   StatsWindow<int64_t> sw(windowSize);
@@ -68,14 +67,14 @@ TEST(StatsWindow, sum01) {
     ASSERT_EQ(sw.sum(windowSize - 1, i), i * val);
   }
 
-  for (int i = windowSize; i < windowSize*2; i++) {
+  for (int i = windowSize; i < windowSize * 2; i++) {
     ASSERT_EQ(sw.sum(i, 1), 0);
   }
-  for (int i = windowSize; i < windowSize*2; i++) {
+  for (int i = windowSize; i < windowSize * 2; i++) {
     ASSERT_EQ(sw.sum(i, windowSize), (windowSize - (i % windowSize + 1)) * val);
   }
 
-  for (int i = windowSize*2; i < windowSize*3; i++) {
+  for (int i = windowSize * 2; i < windowSize * 3; i++) {
     ASSERT_EQ(sw.sum(i, windowSize), 0);
   }
 }
@@ -96,18 +95,17 @@ TEST(StatsWindow, sum02) {
     ASSERT_EQ(sw.sum(windowSize - 1, i), i * val);
   }
 
-  for (int i = windowSize; i < windowSize*2; i++) {
+  for (int i = windowSize; i < windowSize * 2; i++) {
     ASSERT_EQ(sw.sum(i, 1), 0);
   }
-  for (int i = windowSize; i < windowSize*2; i++) {
+  for (int i = windowSize; i < windowSize * 2; i++) {
     ASSERT_EQ(sw.sum(i, windowSize), (windowSize - (i % windowSize + 1)) * val);
   }
 
-  for (int i = windowSize*2; i < windowSize*3; i++) {
+  for (int i = windowSize * 2; i < windowSize * 3; i++) {
     ASSERT_EQ(sw.sum(i, windowSize), 0);
   }
 }
-
 
 TEST(StatsWindow, sum03) {
   StatsWindow<int64_t> sw(5);
@@ -143,25 +141,23 @@ TEST(StatsWindow, sum03) {
   ASSERT_EQ(sw.sum(8, 5), 35);
 }
 
-
 TEST(StatsWindow, map) {
   int windowSize = 10;
   StatsWindow<int64_t> sw(windowSize);
   for (int i = 0; i < windowSize; i++) {
     sw.insert(i, i * 2);
   }
-  ASSERT_EQ(sw.sum(windowSize-1), sw.sum(windowSize-1, windowSize));
+  ASSERT_EQ(sw.sum(windowSize - 1), sw.sum(windowSize - 1, windowSize));
 
-  int64_t sum = sw.sum(windowSize-1, windowSize);
+  int64_t sum = sw.sum(windowSize - 1, windowSize);
   sw.mapDivide(2);
-  int64_t sum2 = sw.sum(windowSize-1, windowSize);
-  ASSERT_EQ(sum/2, sum2);
+  int64_t sum2 = sw.sum(windowSize - 1, windowSize);
+  ASSERT_EQ(sum / 2, sum2);
 
   sw.mapMultiply(2);
-  int64_t sum3 = sw.sum(windowSize-1, windowSize);
+  int64_t sum3 = sw.sum(windowSize - 1, windowSize);
   ASSERT_EQ(sum, sum3);
 }
-
 
 ////////////////////////////////  ShareStatsDay  ///////////////////////////////
 TEST(ShareStatsDay, ShareStatsDay) {
@@ -184,7 +180,7 @@ TEST(ShareStatsDay, ShareStatsDay) {
     share.set_blkbits(0x1d00ffffu);
 
     // accept
-    for (uint32_t i = 0; i < 24; i++) {  // hour idx range: [0, 23]
+    for (uint32_t i = 0; i < 24; i++) { // hour idx range: [0, 23]
       share.set_sharediff(shareValue);
       stats.processShare(i, share);
     }
@@ -223,10 +219,10 @@ TEST(ShareStatsDay, ShareStatsDay) {
     share.set_blkbits(0x18050edcu);
 
     // accept
-    for (uint32_t i = 0; i < 24; i++) {  // hour idx range: [0, 23]
+    for (uint32_t i = 0; i < 24; i++) { // hour idx range: [0, 23]
       share.set_sharediff(shareValue);
       stats.processShare(i, share);
-//      LOG(INFO) << score2Str(share.score());
+      //      LOG(INFO) << score2Str(share.score());
     }
 
     // reject
@@ -242,58 +238,59 @@ TEST(ShareStatsDay, ShareStatsDay) {
       ASSERT_EQ(ss.shareAccept_, shareValue);
       ASSERT_EQ(ss.shareReject_, shareValue);
 
-      #ifndef CHAIN_TYPE_UBTC
-        ASSERT_EQ((uint64_t)ss.earn_, 24697859UL);  // satoshi
-      #else
-        ASSERT_EQ((uint64_t)ss.earn_, 1975828UL);  // satoshi, only for UBTC
-      #endif
+#ifndef CHAIN_TYPE_UBTC
+      ASSERT_EQ((uint64_t)ss.earn_, 24697859UL); // satoshi
+#else
+      ASSERT_EQ((uint64_t)ss.earn_, 1975828UL); // satoshi, only for UBTC
+#endif
     }
     stats.getShareStatsDay(&ss);
     ASSERT_EQ(ss.shareAccept_, shareValue * 24);
     ASSERT_EQ(ss.shareReject_, shareValue * 24);
-    #ifndef CHAIN_TYPE_UBTC
-      ASSERT_EQ((uint64_t)ss.earn_, 592748626UL);  // satoshi
-    #else
-      ASSERT_EQ((uint64_t)ss.earn_, 47419890UL);  // satoshi, only for UBTC
-    #endif
+#ifndef CHAIN_TYPE_UBTC
+    ASSERT_EQ((uint64_t)ss.earn_, 592748626UL); // satoshi
+#else
+    ASSERT_EQ((uint64_t)ss.earn_, 47419890UL); // satoshi, only for UBTC
+#endif
   }
 }
 
 ////////////////////////////////  GlobalShare  ///////////////////////////////
 TEST(GlobalShare, GlobalShareEth) {
-    ShareEth share1;
-    share1.set_headerhash(0x12345678);
-    share1.set_nonce(0x87654321);
+  ShareEth share1;
+  share1.set_headerhash(0x12345678);
+  share1.set_nonce(0x87654321);
 
-    ShareEth share2;
-    share2.set_headerhash(0x12345678);
-    share2.set_nonce(0x33333333);
+  ShareEth share2;
+  share2.set_headerhash(0x12345678);
+  share2.set_nonce(0x33333333);
 
-    ShareEth share3;
-    share3.set_headerhash(0x33333333);
-    share3.set_nonce(0x55555555);
+  ShareEth share3;
+  share3.set_headerhash(0x33333333);
+  share3.set_nonce(0x55555555);
 
-    GlobalShareEth a(share1);
-    GlobalShareEth b(share2);
-    GlobalShareEth c(share3);
-    GlobalShareEth d(share3);
+  GlobalShareEth a(share1);
+  GlobalShareEth b(share2);
+  GlobalShareEth c(share3);
+  GlobalShareEth d(share3);
 
-    ASSERT_EQ(a < a, false);
+  ASSERT_EQ(a < a, false);
 
-    ASSERT_EQ(c < d, false);
-    ASSERT_EQ(d < c, false);
+  ASSERT_EQ(c < d, false);
+  ASSERT_EQ(d < c, false);
 
-    ASSERT_EQ(a < b, false);
-    ASSERT_EQ(b < a, true);
+  ASSERT_EQ(a < b, false);
+  ASSERT_EQ(b < a, true);
 
-    ASSERT_EQ(a < c, true);
-    ASSERT_EQ(c < a, false);
+  ASSERT_EQ(a < c, true);
+  ASSERT_EQ(c < a, false);
 
-    ASSERT_EQ(b < c, true);
-    ASSERT_EQ(c < b, false);
+  ASSERT_EQ(b < c, true);
+  ASSERT_EQ(c < b, false);
 }
 
-////////////////////////////////  DuplicateShareChecker  ///////////////////////////////
+////////////////////////////////  DuplicateShareChecker
+//////////////////////////////////
 TEST(DuplicateShareChecker, DuplicateShareCheckerEth) {
   // same share
   {

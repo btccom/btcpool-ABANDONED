@@ -27,14 +27,14 @@
 
 #include "bitcoin/BitcoinUtils.h"
 
-
-////////////////////////////////  Block Rewards  /////////////////////////////////
+////////////////////////////////  Block Rewards
+////////////////////////////////////
 TEST(BitcoinUtils, GetBlockReward) {
   // using mainnet
   SelectParams(CBaseChainParams::MAIN);
   auto consensus = Params().GetConsensus();
   int64_t reward = 0;
-  
+
   reward = GetBlockReward(1, consensus);
   ASSERT_EQ(reward, 5000000000); // 50 BTC
 
@@ -60,73 +60,73 @@ TEST(BitcoinUtils, GetBlockReward) {
   ASSERT_EQ(reward, 1250000000); // 12.5 BTC
 
   reward = GetBlockReward(629999, consensus);
-  #ifndef CHAIN_TYPE_UBTC
-    ASSERT_EQ(reward, 1250000000); // 12.5 BTC
-  #else
-    ASSERT_EQ(reward, 100000000); // 1 UBTC
-  #endif
+#ifndef CHAIN_TYPE_UBTC
+  ASSERT_EQ(reward, 1250000000); // 12.5 BTC
+#else
+  ASSERT_EQ(reward, 100000000); // 1 UBTC
+#endif
 
   reward = GetBlockReward(630000, consensus);
-  #ifndef CHAIN_TYPE_UBTC
-    ASSERT_EQ(reward, 625000000); // 6.25 BTC
-  #else
-    ASSERT_EQ(reward, 100000000); // 1 UBTC
-  #endif
+#ifndef CHAIN_TYPE_UBTC
+  ASSERT_EQ(reward, 625000000); // 6.25 BTC
+#else
+  ASSERT_EQ(reward, 100000000); // 1 UBTC
+#endif
 
   reward = GetBlockReward(700000, consensus);
-  #ifndef CHAIN_TYPE_UBTC
-    ASSERT_EQ(reward, 625000000); // 6.25 BTC
-  #else
-    ASSERT_EQ(reward, 100000000); // 1 UBTC
-  #endif
+#ifndef CHAIN_TYPE_UBTC
+  ASSERT_EQ(reward, 625000000); // 6.25 BTC
+#else
+  ASSERT_EQ(reward, 100000000); // 1 UBTC
+#endif
 
   reward = GetBlockReward(5000000, consensus);
-  #ifndef CHAIN_TYPE_UBTC
-    ASSERT_EQ(reward, 596);       // 596 satoshi
-  #else
-    ASSERT_EQ(reward, 25000000); // 0.25 UBTC
-  #endif
+#ifndef CHAIN_TYPE_UBTC
+  ASSERT_EQ(reward, 596); // 596 satoshi
+#else
+  ASSERT_EQ(reward, 25000000); // 0.25 UBTC
+#endif
 
   reward = GetBlockReward(6719999, consensus);
-  #ifndef CHAIN_TYPE_UBTC
-    ASSERT_EQ(reward, 2);         // 2 satoshi
-  #else
-    ASSERT_EQ(reward, 12500000); // 0.125 UBTC
-  #endif
+#ifndef CHAIN_TYPE_UBTC
+  ASSERT_EQ(reward, 2); // 2 satoshi
+#else
+  ASSERT_EQ(reward, 12500000); // 0.125 UBTC
+#endif
 
   // The 32th halvings.
   reward = GetBlockReward(6720000, consensus);
-  #ifndef CHAIN_TYPE_UBTC
-    ASSERT_EQ(reward, 1);         // 1 satoshi
-  #else
-    ASSERT_EQ(reward, 12500000); // 0.125 UBTC
-  #endif
+#ifndef CHAIN_TYPE_UBTC
+  ASSERT_EQ(reward, 1); // 1 satoshi
+#else
+  ASSERT_EQ(reward, 12500000); // 0.125 UBTC
+#endif
 
   reward = GetBlockReward(6929999, consensus);
-  #ifndef CHAIN_TYPE_UBTC
-    ASSERT_EQ(reward, 1);         // 1 satoshi
-  #else
-    ASSERT_EQ(reward, 12500000); // 0.125 UBTC
-  #endif
+#ifndef CHAIN_TYPE_UBTC
+  ASSERT_EQ(reward, 1); // 1 satoshi
+#else
+  ASSERT_EQ(reward, 12500000); // 0.125 UBTC
+#endif
 
   // The 33th and the lastest halvings.
   reward = GetBlockReward(6930000, consensus);
-  #ifndef CHAIN_TYPE_UBTC
-    ASSERT_EQ(reward, 0);         // 0 satoshi
-  #else
-    ASSERT_EQ(reward, 12500000); // 0.125 UBTC
-  #endif
+#ifndef CHAIN_TYPE_UBTC
+  ASSERT_EQ(reward, 0); // 0 satoshi
+#else
+  ASSERT_EQ(reward, 12500000); // 0.125 UBTC
+#endif
 
   // The 63th halvings (in fact does not exist).
   // Detects if the calculation method is affected by the int64_t sign bit.
   // If the method is affected by the sign bit, -2 may be returned.
   reward = GetBlockReward(13300000, consensus);
-  #ifndef CHAIN_TYPE_UBTC
-    ASSERT_EQ(reward, 0);         // 0 satoshi
-  #else
-    ASSERT_EQ(reward, 1562500); // 0.015625 UBTC
-  #endif
+#ifndef CHAIN_TYPE_UBTC
+  ASSERT_EQ(reward, 0); // 0 satoshi
+#else
+  ASSERT_EQ(reward, 1562500); // 0.015625 UBTC
+#endif
 
   reward = GetBlockReward(70000000, consensus);
-  ASSERT_EQ(reward, 0);         // 0 satoshi
+  ASSERT_EQ(reward, 0); // 0 satoshi
 }

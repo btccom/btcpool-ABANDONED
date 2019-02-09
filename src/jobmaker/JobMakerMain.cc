@@ -55,7 +55,7 @@ using namespace libconfig;
 static vector<shared_ptr<JobMaker>> gJobMakers;
 
 void handler(int sig) {
-  for (auto jobMaker: gJobMakers) {
+  for (auto jobMaker : gJobMakers) {
     if (jobMaker)
       jobMaker->stop();
   }
@@ -63,21 +63,21 @@ void handler(int sig) {
 
 void usage() {
   fprintf(stderr, BIN_VERSION_STRING("jobmaker"));
-  fprintf(stderr, "Usage:\tjobmaker -c \"jobmaker.cfg\" [-l <log_dir|stderr>]\n");
+  fprintf(
+      stderr, "Usage:\tjobmaker -c \"jobmaker.cfg\" [-l <log_dir|stderr>]\n");
 }
 
-bool isGwChain(const string &chainType)
-{
-  return ("ETH" == chainType ||
-          "SIA" == chainType ||
-          "BTM" == chainType ||
-          "DCR" == chainType);
+bool isGwChain(const string &chainType) {
+  return (
+      "ETH" == chainType || "SIA" == chainType || "BTM" == chainType ||
+      "DCR" == chainType);
 }
 
-shared_ptr<JobMakerHandler> createGwJobMakerHandler(shared_ptr<GwJobMakerDefinition> def) {
+shared_ptr<JobMakerHandler>
+createGwJobMakerHandler(shared_ptr<GwJobMakerDefinition> def) {
   shared_ptr<GwJobMakerHandler> handler;
 
-  if      (def->chainType_ == "ETH")
+  if (def->chainType_ == "ETH")
     handler = make_shared<JobMakerHandlerEth>();
   else if (def->chainType_ == "SIA")
     handler = make_shared<JobMakerHandlerSia>();
@@ -93,7 +93,8 @@ shared_ptr<JobMakerHandler> createGwJobMakerHandler(shared_ptr<GwJobMakerDefinit
   return handler;
 }
 
-shared_ptr<JobMakerHandler> createGbtJobMakerHandler(shared_ptr<GbtJobMakerDefinition> def) {
+shared_ptr<JobMakerHandler>
+createGbtJobMakerHandler(shared_ptr<GbtJobMakerDefinition> def) {
   shared_ptr<JobMakerHandlerBitcoin> handler;
 
   if (def->chainType_ == CHAIN_TYPE_STR)
@@ -106,8 +107,8 @@ shared_ptr<JobMakerHandler> createGbtJobMakerHandler(shared_ptr<GbtJobMakerDefin
   return handler;
 }
 
-shared_ptr<GwJobMakerDefinition> createGwJobMakerDefinition(const Setting &setting)
-{
+shared_ptr<GwJobMakerDefinition>
+createGwJobMakerDefinition(const Setting &setting) {
   shared_ptr<GwJobMakerDefinition> def;
 
   string chainType;
@@ -126,22 +127,21 @@ shared_ptr<GwJobMakerDefinition> createGwJobMakerDefinition(const Setting &setti
     auto defEth = make_shared<JobMakerDefinitionEth>();
     defEth->chain_ = chain;
     def = defEth;
-  }
-  else {
+  } else {
     def = make_shared<GwJobMakerDefinition>();
   }
 
   def->chainType_ = chainType;
 
-  readFromSetting(setting, "rawgw_topic",         def->rawGwTopic_);
-  readFromSetting(setting, "job_topic",           def->jobTopic_);
+  readFromSetting(setting, "rawgw_topic", def->rawGwTopic_);
+  readFromSetting(setting, "job_topic", def->jobTopic_);
 
-  readFromSetting(setting, "job_interval",        def->jobInterval_);
-  readFromSetting(setting, "max_job_delay",       def->maxJobDelay_);
-  readFromSetting(setting, "work_life_time",      def->workLifeTime_);
+  readFromSetting(setting, "job_interval", def->jobInterval_);
+  readFromSetting(setting, "max_job_delay", def->maxJobDelay_);
+  readFromSetting(setting, "work_life_time", def->workLifeTime_);
 
   readFromSetting(setting, "zookeeper_lock_path", def->zookeeperLockPath_);
-  readFromSetting(setting, "file_last_job_time",  def->fileLastJobTime_, true);
+  readFromSetting(setting, "file_last_job_time", def->fileLastJobTime_, true);
   readFromSetting(setting, "id", def->serverId_);
 
   def->enabled_ = false;
@@ -150,32 +150,33 @@ shared_ptr<GwJobMakerDefinition> createGwJobMakerDefinition(const Setting &setti
   return def;
 }
 
-shared_ptr<GbtJobMakerDefinition> createGbtJobMakerDefinition(const Setting &setting)
-{
+shared_ptr<GbtJobMakerDefinition>
+createGbtJobMakerDefinition(const Setting &setting) {
   shared_ptr<GbtJobMakerDefinition> def = make_shared<GbtJobMakerDefinition>();
 
-  readFromSetting(setting, "chain_type",          def->chainType_);
-  readFromSetting(setting, "testnet",             def->testnet_);
+  readFromSetting(setting, "chain_type", def->chainType_);
+  readFromSetting(setting, "testnet", def->testnet_);
 
-  readFromSetting(setting, "payout_address",      def->payoutAddr_);
-  readFromSetting(setting, "coinbase_info",       def->coinbaseInfo_);
-  readFromSetting(setting, "block_version",       def->blockVersion_);
+  readFromSetting(setting, "payout_address", def->payoutAddr_);
+  readFromSetting(setting, "coinbase_info", def->coinbaseInfo_);
+  readFromSetting(setting, "block_version", def->blockVersion_);
 
-  readFromSetting(setting, "rawgbt_topic",        def->rawGbtTopic_);
-  readFromSetting(setting, "auxpow_gw_topic",     def->auxPowGwTopic_);
-  readFromSetting(setting, "rsk_rawgw_topic",     def->rskRawGwTopic_);
-  readFromSetting(setting, "job_topic",           def->jobTopic_);
+  readFromSetting(setting, "rawgbt_topic", def->rawGbtTopic_);
+  readFromSetting(setting, "auxpow_gw_topic", def->auxPowGwTopic_);
+  readFromSetting(setting, "rsk_rawgw_topic", def->rskRawGwTopic_);
+  readFromSetting(setting, "job_topic", def->jobTopic_);
 
-  readFromSetting(setting, "job_interval",        def->jobInterval_);
-  readFromSetting(setting, "max_job_delay",       def->maxJobDelay_);
-  readFromSetting(setting, "gbt_life_time",       def->gbtLifeTime_);
+  readFromSetting(setting, "job_interval", def->jobInterval_);
+  readFromSetting(setting, "max_job_delay", def->maxJobDelay_);
+  readFromSetting(setting, "gbt_life_time", def->gbtLifeTime_);
   readFromSetting(setting, "empty_gbt_life_time", def->emptyGbtLifeTime_);
 
   def->mergedMiningNotifyPolicy_ = 1;
-  readFromSetting(setting, "merged_mining_notify",   def->mergedMiningNotifyPolicy_, true);
+  readFromSetting(
+      setting, "merged_mining_notify", def->mergedMiningNotifyPolicy_, true);
 
   readFromSetting(setting, "zookeeper_lock_path", def->zookeeperLockPath_);
-  readFromSetting(setting, "file_last_job_time",  def->fileLastJobTime_, true);
+  readFromSetting(setting, "file_last_job_time", def->fileLastJobTime_, true);
   readFromSetting(setting, "id", def->serverId_);
 
   def->enabled_ = false;
@@ -184,43 +185,48 @@ shared_ptr<GbtJobMakerDefinition> createGbtJobMakerDefinition(const Setting &set
   return def;
 }
 
-void createJobMakers(const libconfig::Config &cfg, const string &kafkaBrokers, const string &zkBrokers, vector<shared_ptr<JobMaker>> &makers)
-{
+void createJobMakers(
+    const libconfig::Config &cfg,
+    const string &kafkaBrokers,
+    const string &zkBrokers,
+    vector<shared_ptr<JobMaker>> &makers) {
   const Setting &root = cfg.getRoot();
   const Setting &workerDefs = root["job_workers"];
 
-  for (int i = 0; i < workerDefs.getLength(); i++)
-  {
+  for (int i = 0; i < workerDefs.getLength(); i++) {
     string chainType;
     readFromSetting(workerDefs[i], "chain_type", chainType);
-    
-    if (isGwChain(chainType))
-    {
+
+    if (isGwChain(chainType)) {
       auto def = createGwJobMakerDefinition(workerDefs[i]);
 
       if (!def->enabled_) {
-        LOG(INFO) << "chain: " << def->chainType_ << ", topic: " << def->jobTopic_ << ", disabled.";
+        LOG(INFO) << "chain: " << def->chainType_
+                  << ", topic: " << def->jobTopic_ << ", disabled.";
         continue;
       }
-      
-      LOG(INFO) << "chain: " << def->chainType_ << ", topic: " << def->jobTopic_ << ", enabled.";
+
+      LOG(INFO) << "chain: " << def->chainType_ << ", topic: " << def->jobTopic_
+                << ", enabled.";
 
       auto handle = createGwJobMakerHandler(def);
-      makers.push_back(std::make_shared<JobMaker>(handle, kafkaBrokers, zkBrokers));
-    }
-    else
-    {
+      makers.push_back(
+          std::make_shared<JobMaker>(handle, kafkaBrokers, zkBrokers));
+    } else {
       auto def = createGbtJobMakerDefinition(workerDefs[i]);
 
       if (!def->enabled_) {
-        LOG(INFO) << "chain: " << def->chainType_ << ", topic: " << def->jobTopic_ << ", disabled.";
+        LOG(INFO) << "chain: " << def->chainType_
+                  << ", topic: " << def->jobTopic_ << ", disabled.";
         continue;
       }
-      
-      LOG(INFO) << "chain: " << def->chainType_ << ", topic: " << def->jobTopic_ << ", enabled.";
+
+      LOG(INFO) << "chain: " << def->chainType_ << ", topic: " << def->jobTopic_
+                << ", enabled.";
 
       auto handle = createGbtJobMakerHandler(def);
-      makers.push_back(std::make_shared<JobMaker>(handle, kafkaBrokers, zkBrokers));
+      makers.push_back(
+          std::make_shared<JobMaker>(handle, kafkaBrokers, zkBrokers));
     }
   }
 }
@@ -235,7 +241,7 @@ void workerThread(shared_ptr<JobMaker> jobmaker) {
 
 int main(int argc, char **argv) {
   char *optLogDir = NULL;
-  char *optConf   = NULL;
+  char *optConf = NULL;
   int c;
 
   if (argc <= 1) {
@@ -244,15 +250,16 @@ int main(int argc, char **argv) {
   }
   while ((c = getopt(argc, argv, "c:l:h")) != -1) {
     switch (c) {
-      case 'c':
-        optConf = optarg;
-        break;
-      case 'l':
-        optLogDir = optarg;
-        break;
-      case 'h': default:
-        usage();
-        exit(0);
+    case 'c':
+      optConf = optarg;
+      break;
+    case 'l':
+      optLogDir = optarg;
+      break;
+    case 'h':
+    default:
+      usage();
+      exit(0);
     }
   }
 
@@ -265,25 +272,24 @@ int main(int argc, char **argv) {
   }
   // Log messages at a level >= this flag are automatically sent to
   // stderr in addition to log files.
-  FLAGS_stderrthreshold = 3;    // 3: FATAL
-  FLAGS_max_log_size    = 100;  // max log file size 100 MB
-  FLAGS_logbuflevel     = -1;   // don't buffer logs
+  FLAGS_stderrthreshold = 3; // 3: FATAL
+  FLAGS_max_log_size = 100; // max log file size 100 MB
+  FLAGS_logbuflevel = -1; // don't buffer logs
   FLAGS_stop_logging_if_full_disk = true;
 
   LOG(INFO) << BIN_VERSION_STRING("jobmaker");
 
   // Read the file. If there is an error, report it and exit.
   libconfig::Config cfg;
-  try
-  {
+  try {
     cfg.readFile(optConf);
-  } catch(const FileIOException &fioex) {
+  } catch (const FileIOException &fioex) {
     std::cerr << "I/O error while reading file." << std::endl;
-    return(EXIT_FAILURE);
-  } catch(const ParseException &pex) {
+    return (EXIT_FAILURE);
+  } catch (const ParseException &pex) {
     std::cerr << "Parse error at " << pex.getFile() << ":" << pex.getLine()
-    << " - " << pex.getError() << std::endl;
-    return(EXIT_FAILURE);
+              << " - " << pex.getError() << std::endl;
+    return (EXIT_FAILURE);
   }
 
   // lock cfg file:
@@ -295,7 +301,7 @@ int main(int argc, char **argv) {
   }*/
 
   signal(SIGTERM, handler);
-  signal(SIGINT,  handler);
+  signal(SIGINT, handler);
 
   try {
     vector<shared_ptr<thread>> workers;
@@ -309,8 +315,7 @@ int main(int argc, char **argv) {
     createJobMakers(cfg, kafkaBrokers, zkBrokers, gJobMakers);
 
     // init & run JobMaker
-    for (auto jobmaker : gJobMakers)
-    {
+    for (auto jobmaker : gJobMakers) {
       workers.push_back(std::make_shared<thread>(workerThread, jobmaker));
     }
 
@@ -323,8 +328,7 @@ int main(int argc, char **argv) {
       }
     }
 
-  }
-  catch (std::exception & e) {
+  } catch (std::exception &e) {
     LOG(FATAL) << "exception: " << e.what();
     return 1;
   }

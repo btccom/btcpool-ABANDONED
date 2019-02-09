@@ -32,31 +32,37 @@
 
 #include <arith_uint256.h>
 
-///////////////////////////////// StratumSessionSia ////////////////////////////////
-StratumMinerSia::StratumMinerSia(StratumSessionSia &session,
-                                 const DiffController &diffController,
-                                 const std::string &clientAgent,
-                                 const std::string &workerName,
-                                 int64_t workerId)
-    : StratumMinerBase(session, diffController, clientAgent, workerName, workerId) {
+///////////////////////////////// StratumSessionSia
+///////////////////////////////////
+StratumMinerSia::StratumMinerSia(
+    StratumSessionSia &session,
+    const DiffController &diffController,
+    const std::string &clientAgent,
+    const std::string &workerName,
+    int64_t workerId)
+  : StratumMinerBase(
+        session, diffController, clientAgent, workerName, workerId) {
 }
 
-void StratumMinerSia::handleRequest(const std::string &idStr,
-                                    const std::string &method,
-                                    const JsonNode &jparams,
-                                    const JsonNode &jroot) {
+void StratumMinerSia::handleRequest(
+    const std::string &idStr,
+    const std::string &method,
+    const JsonNode &jparams,
+    const JsonNode &jroot) {
   if (method == "mining.submit") {
     handleRequest_Submit(idStr, jparams);
   }
 }
 
-void StratumMinerSia::handleRequest_Submit(const string &idStr, const JsonNode &jparams) {
+void StratumMinerSia::handleRequest_Submit(
+    const string &idStr, const JsonNode &jparams) {
   auto &session = getSession();
   auto &server = session.getServer();
   if (session.getState() != StratumSession::AUTHENTICATED) {
     session.responseError(idStr, StratumStatus::UNAUTHORIZED);
     // there must be something wrong, send reconnect command
-    const string s = "{\"id\":null,\"method\":\"client.reconnect\",\"params\":[]}\n";
+    const string s =
+        "{\"id\":null,\"method\":\"client.reconnect\",\"params\":[]}\n";
     session.sendData(s);
     return;
   }
@@ -69,7 +75,8 @@ void StratumMinerSia::handleRequest_Submit(const string &idStr, const JsonNode &
   }
 
   string header = params[2].str();
-  //string header = "00000000000000021f3e8ede65495c4311ef59e5b7a4338542e573819f5979e982719d0366014155e935aa5a00000000201929782a8fe3209b152520c51d2a82dc364e4a3eb6fb8131439835e278ff8b";
+  // string header =
+  // "00000000000000021f3e8ede65495c4311ef59e5b7a4338542e573819f5979e982719d0366014155e935aa5a00000000201929782a8fe3209b152520c51d2a82dc364e4a3eb6fb8131439835e278ff8b";
   if (162 == header.length())
     header = header.substr(2, 160);
   if (header.length() != 160) {
@@ -83,7 +90,8 @@ void StratumMinerSia::handleRequest_Submit(const string &idStr, const JsonNode &
     bHeader[i] = strtol(header.substr(i * 2, 2).c_str(), 0, 16);
   // uint64_t nonce = strtoull(header.substr(64, 16).c_str(), nullptr, 16);
   // uint64_t timestamp = strtoull(header.substr(80, 16).c_str(), nullptr, 16);
-  // DLOG(INFO) << "nonce=" << std::hex << nonce << ", timestamp=" << std::hex << timestamp; 
+  // DLOG(INFO) << "nonce=" << std::hex << nonce << ", timestamp=" << std::hex
+  // << timestamp;
   // //memcpy(bHeader + 32, &nonce, 8);
   // memcpy(bHeader + 40, &timestamp, 8);
   // for (int i = 48; i < 80; ++i)
@@ -96,16 +104,16 @@ void StratumMinerSia::handleRequest_Submit(const string &idStr, const JsonNode &
   uint8_t out[32] = {0};
   int ret = blake2b(out, 32, bHeader, 80, nullptr, 0);
   DLOG(INFO) << "blake2b return=" << ret;
-  //str = "";
+  // str = "";
   for (int i = 0; i < 32; ++i)
     str += Strings::Format("%02x", out[i]);
   DLOG(INFO) << str;
 
-  uint8_t shortJobId = (uint8_t) atoi(params[1].str());
+  uint8_t shortJobId = (uint8_t)atoi(params[1].str());
   LocalJob *localJob = session.findLocalJob(shortJobId);
   if (nullptr == localJob) {
     session.responseError(idStr, StratumStatus::JOB_NOT_FOUND);
-    LOG(ERROR) << "sia local job not found " << (int) shortJobId;
+    LOG(ERROR) << "sia local job not found " << (int)shortJobId;
     return;
   }
 
@@ -125,13 +133,13 @@ void StratumMinerSia::handleRequest_Submit(const string &idStr, const JsonNode &
     return;
   }
 
-  uint64_t nonce = *((uint64_t *) (bHeader + 32));
+  uint64_t nonce = *((uint64_t *)(bHeader + 32));
   LocalShare localShare(nonce, 0, 0);
   if (!server.isEnableSimulator_ && !localJob->addLocalShare(localShare)) {
     session.responseError(idStr, StratumStatus::DUPLICATE_SHARE);
     LOG(ERROR) << "duplicated share nonce " << std::hex << nonce;
     // add invalid share to counter
-    invalidSharesCounter_.insert((int64_t) time(nullptr), 1);
+    invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
     return;
   }
 
@@ -152,18 +160,17 @@ void StratumMinerSia::handleRequest_Submit(const string &idStr, const JsonNode &
   ip.fromIpv4Int(clientIp);
   share.set_ip(ip.toString());
 
-
   share.set_userid(worker.userId_);
   share.set_sharediff(difficulty);
-  share.set_timestamp((uint32_t) time(nullptr));
+  share.set_timestamp((uint32_t)time(nullptr));
   share.set_status(StratumStatus::REJECT_NO_REASON);
 
   arith_uint256 shareTarget(str);
   arith_uint256 networkTarget = UintToArith256(sjob->networkTarget_);
 
   if (shareTarget < networkTarget) {
-    //valid share
-    //submit share
+    // valid share
+    // submit share
     server.sendSolvedShare2Kafka(bHeader, 80);
     diffController_->addAcceptedShare(share.sharediff());
     LOG(INFO) << "sia solution found";
@@ -174,9 +181,9 @@ void StratumMinerSia::handleRequest_Submit(const string &idStr, const JsonNode &
   std::string message;
   uint32_t size = 0;
   if (!share.SerializeToArrayWithVersion(message, size)) {
-    LOG(ERROR) << "share SerializeToArray failed!"<< share.toString();
+    LOG(ERROR) << "share SerializeToArray failed!" << share.toString();
     return;
   }
 
-  server.sendShare2Kafka((const uint8_t *) message.data(), size);
+  server.sendShare2Kafka((const uint8_t *)message.data(), size);
 }

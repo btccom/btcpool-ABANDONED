@@ -33,128 +33,128 @@
 int EthConsensus::kHardForkConstantinopleHeight_ = 9999999;
 
 void EthConsensus::setHardForkConstantinopleHeight(int height) {
-    kHardForkConstantinopleHeight_ = height;
-    LOG(INFO) << "Height of Ethereum Constantinople Hard Fork: " << kHardForkConstantinopleHeight_;
+  kHardForkConstantinopleHeight_ = height;
+  LOG(INFO) << "Height of Ethereum Constantinople Hard Fork: "
+            << kHardForkConstantinopleHeight_;
 }
 
 EthConsensus::Chain EthConsensus::getChain(std::string chainStr) {
-    // toupper
-    std::transform(chainStr.begin(), chainStr.end(), chainStr.begin(), ::toupper);
+  // toupper
+  std::transform(chainStr.begin(), chainStr.end(), chainStr.begin(), ::toupper);
 
-    if (chainStr == "CLASSIC") {
-        return Chain::CLASSIC;
-    }
-    else if (chainStr == "FOUNDATION") {
-        return Chain::FOUNDATION;
-    }
-    else {
-        return Chain::UNKNOWN;
-    }
+  if (chainStr == "CLASSIC") {
+    return Chain::CLASSIC;
+  } else if (chainStr == "FOUNDATION") {
+    return Chain::FOUNDATION;
+  } else {
+    return Chain::UNKNOWN;
+  }
 }
 
 std::string EthConsensus::getChainStr(const Chain chain) {
-    switch (chain) {
-    case Chain::CLASSIC:
-        return "CLASSIC";
-    case Chain::FOUNDATION:
-        return "FOUNDATION";
-    case Chain::UNKNOWN:
-        return "UNKNOWN";
-    }
-    // should not be here
+  switch (chain) {
+  case Chain::CLASSIC:
+    return "CLASSIC";
+  case Chain::FOUNDATION:
+    return "FOUNDATION";
+  case Chain::UNKNOWN:
     return "UNKNOWN";
+  }
+  // should not be here
+  return "UNKNOWN";
 }
 
 // The "static" block reward for the winning block.
-    // Uncle block rewards are not included.
+// Uncle block rewards are not included.
 int64_t EthConsensus::getStaticBlockReward(int nHeight, Chain chain) {
-    switch (chain) {
-    case Chain::CLASSIC:
-        return getStaticBlockRewardClassic(nHeight);
-    case Chain::FOUNDATION:
-        return getStaticBlockRewardFoundation(nHeight);
-    case Chain::UNKNOWN:
-        return 0;
-    }
-    // should not be here
+  switch (chain) {
+  case Chain::CLASSIC:
+    return getStaticBlockRewardClassic(nHeight);
+  case Chain::FOUNDATION:
+    return getStaticBlockRewardFoundation(nHeight);
+  case Chain::UNKNOWN:
     return 0;
+  }
+  // should not be here
+  return 0;
 }
 
 // static block rewards of Ethereum Classic Main Network
 // The implementation followed ECIP-1017:
 // https://github.com/ethereumproject/ECIPs/blob/master/ECIPs/ECIP-1017.md
 int64_t EthConsensus::getStaticBlockRewardClassic(int nHeight) {
-    const int64_t blockEra = (nHeight - 1) / 5000000 + 1;
+  const int64_t blockEra = (nHeight - 1) / 5000000 + 1;
 
-    // The blockEra is 2 in 2018.
-    // Avoid calculations by giving the result directly.
-    if (blockEra == 2) {
-        return 4e+18;
-    }
-    
-    int64_t reward = 5e+18;
+  // The blockEra is 2 in 2018.
+  // Avoid calculations by giving the result directly.
+  if (blockEra == 2) {
+    return 4e+18;
+  }
 
-    for (int i=1; i<blockEra; i++) {
-        // ECIP-1017: all rewards will be reduced at a constant rate of 20% upon entering a new Era.
-        // reward *= 0.8 (avoid converts to float)
-        reward = reward * 8 / 10;
-    }
+  int64_t reward = 5e+18;
 
-    return reward;
+  for (int i = 1; i < blockEra; i++) {
+    // ECIP-1017: all rewards will be reduced at a constant rate of 20% upon
+    // entering a new Era. reward *= 0.8 (avoid converts to float)
+    reward = reward * 8 / 10;
+  }
+
+  return reward;
 }
 
 // static block rewards of Ethereum Main Network
 int64_t EthConsensus::getStaticBlockRewardFoundation(int nHeight) {
- // Constantinople fork at block 7080000 on Mainnet.
+  // Constantinople fork at block 7080000 on Mainnet.
   if (nHeight >= kHardForkConstantinopleHeight_) {
     return 2e+18;
   }
-  // Ethereum Main Network has a static block reward (3 Ether) before height 7080000.
+  // Ethereum Main Network has a static block reward (3 Ether) before height
+  // 7080000.
   return 3e+18;
 }
 
 double EthConsensus::getUncleBlockRewardRatio(int nHeight, Chain chain) {
-    switch (chain) {
-    case Chain::CLASSIC:
-        return getUncleBlockRewardRatioClassic(nHeight);
-    case Chain::FOUNDATION:
-        return getUncleBlockRewardRatioFoundation(nHeight);
-    case Chain::UNKNOWN:
-        return 0.0;
-    }
-    // should not be here
+  switch (chain) {
+  case Chain::CLASSIC:
+    return getUncleBlockRewardRatioClassic(nHeight);
+  case Chain::FOUNDATION:
+    return getUncleBlockRewardRatioFoundation(nHeight);
+  case Chain::UNKNOWN:
     return 0.0;
+  }
+  // should not be here
+  return 0.0;
 }
 
 // uncle block reward radio of Ethereum Classic Main Network
 // The implementation followed ECIP-1017:
 // https://github.com/ethereumproject/ECIPs/blob/master/ECIPs/ECIP-1017.md
 double EthConsensus::getUncleBlockRewardRatioClassic(int nHeight) {
-    // Assume that there is only one height lower than the main chain block
+  // Assume that there is only one height lower than the main chain block
 
-    const int64_t blockEra = (nHeight - 1) / 5000000 + 1;
+  const int64_t blockEra = (nHeight - 1) / 5000000 + 1;
 
-    if (blockEra == 1) {
-        // The blockEra 1 is special
-        return 7.0 / 8.0;
-    }
-    else if (blockEra == 2) {
-        // The blockEra is 2 in 2018.
-        // Avoid calculations by giving the result directly.
-        return 1.0 / 32.0;
-    }
+  if (blockEra == 1) {
+    // The blockEra 1 is special
+    return 7.0 / 8.0;
+  } else if (blockEra == 2) {
+    // The blockEra is 2 in 2018.
+    // Avoid calculations by giving the result directly.
+    return 1.0 / 32.0;
+  }
 
-    double radio = 1.0 / 32.0;
+  double radio = 1.0 / 32.0;
 
-    for (int i=2; i<blockEra; i++) {
-        // ECIP-1017: all rewards will be reduced at a constant rate of 20% upon entering a new Era.
-        radio *= 0.8;
-    }
+  for (int i = 2; i < blockEra; i++) {
+    // ECIP-1017: all rewards will be reduced at a constant rate of 20% upon
+    // entering a new Era.
+    radio *= 0.8;
+  }
 
-    return radio;
+  return radio;
 }
 
 double EthConsensus::getUncleBlockRewardRatioFoundation(int /*nHeight*/) {
-    // Assume that there is only one height lower than the main chain block
-    return 7.0 / 8.0;
+  // Assume that there is only one height lower than the main chain block
+  return 7.0 / 8.0;
 }
