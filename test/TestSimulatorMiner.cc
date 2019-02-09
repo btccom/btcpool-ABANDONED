@@ -40,15 +40,14 @@ TEST(SIMULATOR, miner) {
   // config file name: simulator.cfg
   const char *conf = "simulator.cfg";
   libconfig::Config cfg;
-  try
-  {
+  try {
     cfg.readFile(conf);
-  } catch(const FileIOException &fioex) {
+  } catch (const FileIOException &fioex) {
     std::cerr << "I/O error while reading file: " << conf << std::endl;
     return;
-  } catch(const ParseException &pex) {
+  } catch (const ParseException &pex) {
     std::cerr << "Parse error at " << pex.getFile() << ":" << pex.getLine()
-    << " - " << pex.getError() << std::endl;
+              << " - " << pex.getError() << std::endl;
     return;
   }
 
@@ -69,7 +68,9 @@ TEST(SIMULATOR, miner) {
 
   // req: mining.subscribe
   {
-    sbuf = "{\"id\":1,\"method\":\"mining.subscribe\",\"params\":[\"__simulator__/0.1\"]}\n";
+    sbuf =
+        "{\"id\":1,\"method\":\"mining.subscribe\",\"params\":[\"__simulator__/"
+        "0.1\"]}\n";
     // send 1 byte each time, this will trigger read events several times
     for (size_t i = 0; i < sbuf.size(); i++) {
       conn.send(sbuf.substr(i, 1));
@@ -83,7 +84,7 @@ TEST(SIMULATOR, miner) {
     conn.getLine(line);
     ASSERT_TRUE(JsonNode::parse(line.data(), line.data() + line.size(), jnode));
     jresult = jnode["result"];
-    jerror  = jnode["error"];
+    jerror = jnode["error"];
     ASSERT_EQ(jerror.type(), Utilities::JS::type::Null);
 
     auto resArr = jresult.array();
@@ -99,15 +100,16 @@ TEST(SIMULATOR, miner) {
 
   // req: mining.authorize
   {
-    sbuf = Strings::Format("{\"id\": 1, \"method\": \"mining.authorize\","
-                               "\"params\": [\"\%s.simulator_test\", \"\"]}\n",
-                               userName.c_str());
+    sbuf = Strings::Format(
+        "{\"id\": 1, \"method\": \"mining.authorize\","
+        "\"params\": [\"\%s.simulator_test\", \"\"]}\n",
+        userName.c_str());
     conn.send(sbuf);
     conn.getLine(line);
 
     ASSERT_TRUE(JsonNode::parse(line.data(), line.data() + line.size(), jnode));
     jresult = jnode["result"];
-    jerror  = jnode["error"];
+    jerror = jnode["error"];
     ASSERT_TRUE(jresult.boolean());
     ASSERT_EQ(jerror.type(), Utilities::JS::type::Null);
   }
@@ -142,18 +144,21 @@ TEST(SIMULATOR, miner) {
 
   // req: mining.submit
   {
-    sbuf = Strings::Format("{\"params\": [\"%s.simulator_test\",\"%s\",\"%016llx\",\"%08x\",\"%08x\"]"
-                        ",\"id\":4,\"method\": \"mining.submit\"}\n",
-                        userName.c_str(),
-                        latestJobId.c_str(),
-                        extraNonce2,
-                        nTime, nNonce);
+    sbuf = Strings::Format(
+        "{\"params\": "
+        "[\"%s.simulator_test\",\"%s\",\"%016llx\",\"%08x\",\"%08x\"]"
+        ",\"id\":4,\"method\": \"mining.submit\"}\n",
+        userName.c_str(),
+        latestJobId.c_str(),
+        extraNonce2,
+        nTime,
+        nNonce);
     conn.send(sbuf);
     conn.getLine(line);
     ASSERT_TRUE(JsonNode::parse(line.data(), line.data() + line.size(), jnode));
 
     jresult = jnode["result"];
-    jerror  = jnode["error"];
+    jerror = jnode["error"];
     ASSERT_TRUE(jresult.boolean());
     ASSERT_TRUE(jerror.type() == Utilities::JS::type::Null);
   }
@@ -161,12 +166,15 @@ TEST(SIMULATOR, miner) {
   // req: mining.submit, duplicate
   //   {"id":4,"result":null,"error":(22,"Duplicate share",null)}
   {
-    sbuf = Strings::Format("{\"params\": [\"%s.simulator_test\",\"%s\",\"%016llx\",\"%08x\",\"%08x\"]"
-                           ",\"id\":4,\"method\": \"mining.submit\"}\n",
-                           userName.c_str(),
-                           latestJobId.c_str(),
-                           extraNonce2,
-                           nTime, nNonce);
+    sbuf = Strings::Format(
+        "{\"params\": "
+        "[\"%s.simulator_test\",\"%s\",\"%016llx\",\"%08x\",\"%08x\"]"
+        ",\"id\":4,\"method\": \"mining.submit\"}\n",
+        userName.c_str(),
+        latestJobId.c_str(),
+        extraNonce2,
+        nTime,
+        nNonce);
     conn.send(sbuf);
     conn.getLine(line);
     ASSERT_TRUE(JsonNode::parse(line.data(), line.data() + line.size(), jnode));
@@ -177,12 +185,15 @@ TEST(SIMULATOR, miner) {
   //   {"id":4,"result":null,"error":(31,"Time too old",null)}
   {
     nTime = time(nullptr) - 86400;
-    sbuf = Strings::Format("{\"params\": [\"%s.simulator_test\",\"%s\",\"%016llx\",\"%08x\",\"%08x\"]"
-                           ",\"id\":4,\"method\": \"mining.submit\"}\n",
-                           userName.c_str(),
-                           latestJobId.c_str(),
-                           ++extraNonce2,
-                           nTime, nNonce);
+    sbuf = Strings::Format(
+        "{\"params\": "
+        "[\"%s.simulator_test\",\"%s\",\"%016llx\",\"%08x\",\"%08x\"]"
+        ",\"id\":4,\"method\": \"mining.submit\"}\n",
+        userName.c_str(),
+        latestJobId.c_str(),
+        ++extraNonce2,
+        nTime,
+        nNonce);
     conn.send(sbuf);
     conn.getLine(line);
     ASSERT_TRUE(JsonNode::parse(line.data(), line.data() + line.size(), jnode));
@@ -192,13 +203,16 @@ TEST(SIMULATOR, miner) {
   // req: mining.submit, time too new
   //   {"id":4,"result":null,"error":(32,"Time too new",null)}
   {
-    nTime = time(nullptr) + 3600*2;
-    sbuf = Strings::Format("{\"params\": [\"%s.simulator_test\",\"%s\",\"%016llx\",\"%08x\",\"%08x\"]"
-                           ",\"id\":4,\"method\": \"mining.submit\"}\n",
-                           userName.c_str(),
-                           latestJobId.c_str(),
-                           ++extraNonce2,
-                           nTime, nNonce);
+    nTime = time(nullptr) + 3600 * 2;
+    sbuf = Strings::Format(
+        "{\"params\": "
+        "[\"%s.simulator_test\",\"%s\",\"%016llx\",\"%08x\",\"%08x\"]"
+        ",\"id\":4,\"method\": \"mining.submit\"}\n",
+        userName.c_str(),
+        latestJobId.c_str(),
+        ++extraNonce2,
+        nTime,
+        nNonce);
     conn.send(sbuf);
     conn.getLine(line);
     ASSERT_TRUE(JsonNode::parse(line.data(), line.data() + line.size(), jnode));
@@ -209,19 +223,18 @@ TEST(SIMULATOR, miner) {
   //   {"id":4,"result":null,"error":(21,"Job not found (=stale)",null)}
   {
     nTime = time(nullptr);
-    sbuf = Strings::Format("{\"params\": [\"%s.simulator_test\",\"%s\",\"%016llx\",\"%08x\",\"%08x\"]"
-                           ",\"id\":4,\"method\": \"mining.submit\"}\n",
-                           userName.c_str(),
-                           "s982asd2das",
-                           ++extraNonce2,
-                           nTime, nNonce);
+    sbuf = Strings::Format(
+        "{\"params\": "
+        "[\"%s.simulator_test\",\"%s\",\"%016llx\",\"%08x\",\"%08x\"]"
+        ",\"id\":4,\"method\": \"mining.submit\"}\n",
+        userName.c_str(),
+        "s982asd2das",
+        ++extraNonce2,
+        nTime,
+        nNonce);
     conn.send(sbuf);
     conn.getLine(line);
     ASSERT_TRUE(JsonNode::parse(line.data(), line.data() + line.size(), jnode));
     ASSERT_TRUE(jnode["error"].type() != Utilities::JS::type::Null);
   }
-
 }
-
-
-

@@ -28,27 +28,26 @@
 #include <boost/endian/conversion.hpp>
 
 StratumJobDecred::StratumJobDecred()
-  : StratumJob()
-{
+  : StratumJob() {
   memset(&header_, 0, sizeof(BlockHeaderDecred));
 }
 
 string StratumJobDecred::serializeToJson() const {
-  return Strings::Format("{\"jobId\":%" PRIu64
-                         ",\"prevHash\":\"%s\""
-                         ",\"coinBase1\":\"%s\""
-                         ",\"coinBase2\":\"%s\""
-                         ",\"version\":\"%s\""
-                         ",\"target\":\"%s\""
-                         ",\"network\":%" PRIu32
-                         "}",
-                         jobId_,
-                         getPrevHash().c_str(),
-                         getCoinBase1().c_str(),
-                         HexStr(BEGIN(header_.stakeVersion), END(header_.stakeVersion)).c_str(),
-                         HexStr(BEGIN(header_.version), END(header_.version)).c_str(),
-                         target_.ToString().c_str(),
-                         static_cast<uint32_t>(network_));
+  return Strings::Format(
+      "{\"jobId\":%" PRIu64
+      ",\"prevHash\":\"%s\""
+      ",\"coinBase1\":\"%s\""
+      ",\"coinBase2\":\"%s\""
+      ",\"version\":\"%s\""
+      ",\"target\":\"%s\""
+      ",\"network\":%" PRIu32 "}",
+      jobId_,
+      getPrevHash().c_str(),
+      getCoinBase1().c_str(),
+      HexStr(BEGIN(header_.stakeVersion), END(header_.stakeVersion)).c_str(),
+      HexStr(BEGIN(header_.version), END(header_.version)).c_str(),
+      target_.ToString().c_str(),
+      static_cast<uint32_t>(network_));
 }
 
 bool StratumJobDecred::unserializeFromJson(const char *s, size_t len) {
@@ -91,16 +90,14 @@ bool StratumJobDecred::unserializeFromJson(const char *s, size_t len) {
   UNSERIALIZE_SJOB_FIELD(version, &header_.version);
   UNSERIALIZE_SJOB_FIELD(target, target_.begin());
 #undef UNSERIALIZE_SJOB_FIELD
-  
+
   return true;
 }
 
-string StratumJobDecred::getPrevHash() const
-{
+string StratumJobDecred::getPrevHash() const {
   return HexStr(header_.prevBlock.begin(), header_.prevBlock.end());
 }
 
-string StratumJobDecred::getCoinBase1() const
-{
+string StratumJobDecred::getCoinBase1() const {
   return HexStr(header_.merkelRoot.begin(), header_.extraData.begin());
 }

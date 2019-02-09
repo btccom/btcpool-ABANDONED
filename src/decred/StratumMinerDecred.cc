@@ -32,24 +32,28 @@
 
 #include <boost/endian/conversion.hpp>
 
-StratumMinerDecred::StratumMinerDecred(StratumSessionDecred &session,
-                                       const DiffController &diffController,
-                                       const std::string &clientAgent,
-                                       const std::string &workerName,
-                                       int64_t workerId)
-    : StratumMinerBase(session, diffController, clientAgent, workerName, workerId) {
+StratumMinerDecred::StratumMinerDecred(
+    StratumSessionDecred &session,
+    const DiffController &diffController,
+    const std::string &clientAgent,
+    const std::string &workerName,
+    int64_t workerId)
+  : StratumMinerBase(
+        session, diffController, clientAgent, workerName, workerId) {
 }
 
-void StratumMinerDecred::handleRequest(const std::string &idStr,
-                                       const std::string &method,
-                                       const JsonNode &jparams,
-                                       const JsonNode &jroot) {
+void StratumMinerDecred::handleRequest(
+    const std::string &idStr,
+    const std::string &method,
+    const JsonNode &jparams,
+    const JsonNode &jroot) {
   if (method == "mining.submit") {
     handleRequest_Submit(idStr, jparams);
   }
 }
 
-void StratumMinerDecred::handleRequest_Submit(const string &idStr, const JsonNode &jparams) {
+void StratumMinerDecred::handleRequest_Submit(
+    const string &idStr, const JsonNode &jparams) {
   auto &session = getSession();
   if (session.getState() != StratumSession::AUTHENTICATED) {
     session.responseError(idStr, StratumStatus::UNAUTHORIZED);
@@ -66,8 +70,12 @@ void StratumMinerDecred::handleRequest_Submit(const string &idStr, const JsonNod
   //  params[3] = nTime
   //  params[4] = nonce
   if (jparams.children()->size() < 5 ||
-      std::any_of(std::next(jparams.children()->begin()), jparams.children()->end(),
-                  [](const JsonNode &n) { return n.type() != Utilities::JS::type::Str || !IsHex(n.str()); })) {
+      std::any_of(
+          std::next(jparams.children()->begin()),
+          jparams.children()->end(),
+          [](const JsonNode &n) {
+            return n.type() != Utilities::JS::type::Str || !IsHex(n.str());
+          })) {
     session.responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
     return;
   }
@@ -79,7 +87,8 @@ void StratumMinerDecred::handleRequest_Submit(const string &idStr, const JsonNod
     return;
   }
 
-  auto shortJobId = static_cast<uint8_t>(jparams.children()->at(1).uint32_hex());
+  auto shortJobId =
+      static_cast<uint8_t>(jparams.children()->at(1).uint32_hex());
   auto ntime = jparams.children()->at(3).uint32_hex();
   auto nonce = jparams.children()->at(4).uint32_hex();
 
@@ -92,9 +101,11 @@ void StratumMinerDecred::handleRequest_Submit(const string &idStr, const JsonNod
     // if can't find localJob, could do nothing
     session.responseError(idStr, StratumStatus::JOB_NOT_FOUND);
 
-    LOG(INFO) << "rejected share: " << StratumStatus::toString(StratumStatus::JOB_NOT_FOUND)
-              << ", worker: " << worker.fullName_ << ", Share(id: " << idStr << ", shortJobId: "
-              << static_cast<uint16_t>(shortJobId) << ", nTime: " << ntime << "/" << date("%F %T", ntime) << ")";
+    LOG(INFO) << "rejected share: "
+              << StratumStatus::toString(StratumStatus::JOB_NOT_FOUND)
+              << ", worker: " << worker.fullName_ << ", Share(id: " << idStr
+              << ", shortJobId: " << static_cast<uint16_t>(shortJobId)
+              << ", nTime: " << ntime << "/" << date("%F %T", ntime) << ")";
     return;
   }
 
@@ -117,28 +128,33 @@ void StratumMinerDecred::handleRequest_Submit(const string &idStr, const JsonNod
     height = sjob->header_.height.value();
   }
 
-  ShareDecred share(workerId_,
-                    worker.userId_,
-                    clientIp,
-                    localJob->jobId_,
-                    iter->second,
-                    localJob->blkBits_,
-                    height,
-                    nonce,
-                    session.getSessionId());
+  ShareDecred share(
+      workerId_,
+      worker.userId_,
+      clientIp,
+      localJob->jobId_,
+      iter->second,
+      localJob->blkBits_,
+      height,
+      nonce,
+      session.getSessionId());
 
   // we send share to kafka by default, but if there are lots of invalid
   // shares in a short time, we just drop them.
   bool isSendShareToKafka = true;
 
-  LocalShare
-      localShare(reinterpret_cast<boost::endian::little_uint64_buf_t *>(extraNonce2.data())->value(), nonce, ntime);
+  LocalShare localShare(
+      reinterpret_cast<boost::endian::little_uint64_buf_t *>(extraNonce2.data())
+          ->value(),
+      nonce,
+      ntime);
 
   // can't find local share
   if (!localJob->addLocalShare(localShare)) {
     share.set_status(StratumStatus::DUPLICATE_SHARE);
   } else {
-    share.set_status(server.checkShare(share, exjob, extraNonce2, ntime, nonce, worker.fullName_));
+    share.set_status(server.checkShare(
+        share, exjob, extraNonce2, ntime, nonce, worker.fullName_));
   }
 
   if (!handleShare(idStr, share.status(), share.sharediff())) {
@@ -149,19 +165,21 @@ void StratumMinerDecred::handleRequest_Submit(const string &idStr, const JsonNod
   DLOG(INFO) << share.toString();
 
   if (!StratumStatus::isAccepted(share.status())) {
-    // log all rejected share to answer "Why the rejection rate of my miner increased?"
+    // log all rejected share to answer "Why the rejection rate of my miner
+    // increased?"
     LOG(INFO) << "rejected share: " << StratumStatus::toString(share.status())
               << ", worker: " << worker.fullName_ << ", " << share.toString();
 
     // check if thers is invalid share spamming
-    int64_t invalidSharesNum = invalidSharesCounter_.sum(time(nullptr),
-                                                         INVALID_SHARE_SLIDING_WINDOWS_SIZE);
+    int64_t invalidSharesNum = invalidSharesCounter_.sum(
+        time(nullptr), INVALID_SHARE_SLIDING_WINDOWS_SIZE);
     // too much invalid shares, don't send them to kafka
     if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT) {
       isSendShareToKafka = false;
 
-      LOG(INFO) << "invalid share spamming, diff: " << share.sharediff() << ", worker: "
-                << worker.fullName_ << ", agent: " << clientAgent_ << ", ip: " << clientIp;
+      LOG(INFO) << "invalid share spamming, diff: " << share.sharediff()
+                << ", worker: " << worker.fullName_
+                << ", agent: " << clientAgent_ << ", ip: " << clientIp;
     }
   }
 
@@ -170,11 +188,12 @@ void StratumMinerDecred::handleRequest_Submit(const string &idStr, const JsonNod
     std::string message;
     uint32_t size = 0;
     if (!share.SerializeToArrayWithVersion(message, size)) {
-      LOG(ERROR) << "share SerializeToArrayWithVersion failed!"<< share.toString();
+      LOG(ERROR) << "share SerializeToArrayWithVersion failed!"
+                 << share.toString();
       return;
     }
 
-    server.sendShare2Kafka((const uint8_t *) message.data(), size);
+    server.sendShare2Kafka((const uint8_t *)message.data(), size);
   }
   return;
 }

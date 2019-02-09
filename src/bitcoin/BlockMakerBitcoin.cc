@@ -35,17 +35,25 @@
 #include <streams.h>
 
 ////////////////////////////////// BlockMaker //////////////////////////////////
-BlockMakerBitcoin::BlockMakerBitcoin(shared_ptr<BlockMakerDefinition> blkMakerDef, const char *kafkaBrokers, const MysqlConnectInfo &poolDB)
+BlockMakerBitcoin::BlockMakerBitcoin(
+    shared_ptr<BlockMakerDefinition> blkMakerDef,
+    const char *kafkaBrokers,
+    const MysqlConnectInfo &poolDB)
   : BlockMaker(blkMakerDef, kafkaBrokers, poolDB)
-  , kMaxRawGbtNum_(100)    /* if 5 seconds a rawgbt, will hold 100*5/60 = 8 mins rawgbt */
-  , kMaxStratumJobNum_(120) /* if 30 seconds a stratum job, will hold 60 mins stratum job */
+  , kMaxRawGbtNum_(
+        100) /* if 5 seconds a rawgbt, will hold 100*5/60 = 8 mins rawgbt */
+  , kMaxStratumJobNum_(
+        120) /* if 30 seconds a stratum job, will hold 60 mins stratum job */
   , lastSubmittedBlockTime()
   , submittedRskBlocks(0)
-  , kafkaConsumerRawGbt_     (kafkaBrokers, def()->rawGbtTopic_.c_str(),       0/* patition */)
-  , kafkaConsumerStratumJob_ (kafkaBrokers, def()->stratumJobTopic_.c_str(),  0/* patition */)
-  , kafkaConsumerNamecoinSolvedShare_(kafkaBrokers, def()->auxPowSolvedShareTopic_.c_str(), 0/* patition */)
-  , kafkaConsumerRskSolvedShare_(kafkaBrokers, def()->rskSolvedShareTopic_.c_str(), 0/* patition */)
-{
+  , kafkaConsumerRawGbt_(
+        kafkaBrokers, def()->rawGbtTopic_.c_str(), 0 /* patition */)
+  , kafkaConsumerStratumJob_(
+        kafkaBrokers, def()->stratumJobTopic_.c_str(), 0 /* patition */)
+  , kafkaConsumerNamecoinSolvedShare_(
+        kafkaBrokers, def()->auxPowSolvedShareTopic_.c_str(), 0 /* patition */)
+  , kafkaConsumerRskSolvedShare_(
+        kafkaBrokers, def()->rskSolvedShareTopic_.c_str(), 0 /* patition */) {
 }
 
 BlockMakerBitcoin::~BlockMakerBitcoin() {
@@ -66,15 +74,15 @@ bool BlockMakerBitcoin::init() {
   if (!checkBitcoinds())
     return false;
 
-  if(!BlockMaker::init())
-  {
+  if (!BlockMaker::init()) {
     return false;
   }
   //
   // Raw Gbt
   //
   // we need to consume the latest N messages
-  if (kafkaConsumerRawGbt_.setup(RD_KAFKA_OFFSET_TAIL(kMaxRawGbtNum_)) == false) {
+  if (kafkaConsumerRawGbt_.setup(RD_KAFKA_OFFSET_TAIL(kMaxRawGbtNum_)) ==
+      false) {
     LOG(INFO) << "setup kafkaConsumerRawGbt_ fail";
     return false;
   }
@@ -87,7 +95,8 @@ bool BlockMakerBitcoin::init() {
   // Stratum Job
   //
   // we need to consume the latest 2 messages, just in case
-  if (kafkaConsumerStratumJob_.setup(RD_KAFKA_OFFSET_TAIL(kMaxStratumJobNum_)) == false) {
+  if (kafkaConsumerStratumJob_.setup(
+          RD_KAFKA_OFFSET_TAIL(kMaxStratumJobNum_)) == false) {
     LOG(INFO) << "setup kafkaConsumerStratumJob_ fail";
     return false;
   }
@@ -100,12 +109,14 @@ bool BlockMakerBitcoin::init() {
   // Namecoin Sloved Share
   //
   // we need to consume the latest 2 messages, just in case
-  if (kafkaConsumerNamecoinSolvedShare_.setup(RD_KAFKA_OFFSET_TAIL(2)) == false) {
+  if (kafkaConsumerNamecoinSolvedShare_.setup(RD_KAFKA_OFFSET_TAIL(2)) ==
+      false) {
     LOG(INFO) << "setup kafkaConsumerNamecoinSolvedShare_ fail";
     return false;
   }
   if (!kafkaConsumerNamecoinSolvedShare_.checkAlive()) {
-    LOG(ERROR) << "kafka brokers is not alive: kafkaConsumerNamecoinSolvedShare_";
+    LOG(ERROR)
+        << "kafka brokers is not alive: kafkaConsumerNamecoinSolvedShare_";
     return false;
   }
 
@@ -131,16 +142,18 @@ void BlockMakerBitcoin::consumeRawGbt(rd_kafka_message_t *rkmessage) {
     if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
       // Reached the end of the topic+partition queue on the broker.
       // Not really an error.
-      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
+      //      LOG(INFO) << "consumer reached end of " <<
+      //      rd_kafka_topic_name(rkmessage->rkt)
       //      << "[" << rkmessage->partition << "] "
       //      << " message queue at offset " << rkmessage->offset;
       // acturlly
       return;
     }
 
-    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
-    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
-    << ": " << rd_kafka_message_errstr(rkmessage);
+    LOG(ERROR) << "consume error for topic "
+               << rd_kafka_topic_name(rkmessage->rkt) << "["
+               << rkmessage->partition << "] offset " << rkmessage->offset
+               << ": " << rd_kafka_message_errstr(rkmessage);
 
     if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
         rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
@@ -160,9 +173,9 @@ void BlockMakerBitcoin::addRawgbt(const char *str, size_t len) {
     LOG(ERROR) << "parse rawgbt message to json fail";
     return;
   }
-  if (r["created_at_ts"].type()         != Utilities::JS::type::Int ||
+  if (r["created_at_ts"].type() != Utilities::JS::type::Int ||
       r["block_template_base64"].type() != Utilities::JS::type::Str ||
-      r["gbthash"].type()               != Utilities::JS::type::Str) {
+      r["gbthash"].type() != Utilities::JS::type::Str) {
     LOG(ERROR) << "invalid rawgbt: missing fields";
     return;
   }
@@ -174,7 +187,7 @@ void BlockMakerBitcoin::addRawgbt(const char *str, size_t len) {
   }
 
   const string gbt = DecodeBase64(r["block_template_base64"].str());
-  assert(gbt.length() > 64);  // valid gbt string's len at least 64 bytes
+  assert(gbt.length() > 64); // valid gbt string's len at least 64 bytes
 
   JsonNode nodeGbt;
   if (!JsonNode::parse(gbt.c_str(), gbt.c_str() + gbt.length(), nodeGbt)) {
@@ -185,28 +198,30 @@ void BlockMakerBitcoin::addRawgbt(const char *str, size_t len) {
 
 #ifdef CHAIN_TYPE_BCH
   bool isLightVersion = jgbt["job_id"].type() == Utilities::JS::type::Str;
-  if(isLightVersion)
-  {
+  if (isLightVersion) {
     ScopeLock ls(rawGbtlightLock_);
     rawGbtlightMap_[gbtHash] = jgbt["job_id"].str();
-    LOG(INFO) << "insert rawgbt light: " << gbtHash.ToString() << ", job_id: " << jgbt["job_id"].str().c_str();
+    LOG(INFO) << "insert rawgbt light: " << gbtHash.ToString()
+              << ", job_id: " << jgbt["job_id"].str().c_str();
     return;
   }
 #endif // CHAIN_TYPE_BCH
   // transaction without coinbase_tx
-  shared_ptr<vector<CTransactionRef>> vtxs = std::make_shared<vector<CTransactionRef>>();
-  for (JsonNode & node : jgbt["transactions"].array()) {
+  shared_ptr<vector<CTransactionRef>> vtxs =
+      std::make_shared<vector<CTransactionRef>>();
+  for (JsonNode &node : jgbt["transactions"].array()) {
     CMutableTransaction tx;
     DecodeHexTx(tx, node["data"].str());
     vtxs->push_back(MakeTransactionRef(std::move(tx)));
   }
 
-  LOG(INFO) << "insert rawgbt: " << gbtHash.ToString() << ", txs: " << vtxs->size();
+  LOG(INFO) << "insert rawgbt: " << gbtHash.ToString()
+            << ", txs: " << vtxs->size();
   insertRawGbt(gbtHash, vtxs);
 }
 
-void BlockMakerBitcoin::insertRawGbt(const uint256 &gbtHash,
-                              shared_ptr<vector<CTransactionRef>> vtxs) {
+void BlockMakerBitcoin::insertRawGbt(
+    const uint256 &gbtHash, shared_ptr<vector<CTransactionRef>> vtxs) {
   ScopeLock ls(rawGbtLock_);
 
   // insert rawgbt
@@ -217,13 +232,12 @@ void BlockMakerBitcoin::insertRawGbt(const uint256 &gbtHash,
   while (rawGbtQ_.size() > kMaxRawGbtNum_) {
     const uint256 h = *rawGbtQ_.begin();
 
-    rawGbtMap_.erase(h);   // delete from map
-    rawGbtQ_.pop_front();  // delete from Q
+    rawGbtMap_.erase(h); // delete from map
+    rawGbtQ_.pop_front(); // delete from Q
   }
 }
 
-static
-string _buildAuxPow(const CBlock *block) {
+static string _buildAuxPow(const CBlock *block) {
   //
   // see: https://en.bitcoin.it/wiki/Merged_mining_specification
   //
@@ -248,7 +262,7 @@ string _buildAuxPow(const CBlock *block) {
 
   // 3. coinbase_branch, Merkle branch
   {
-    vector<uint256> merkleBranch = BlockMerkleBranch(*block, 0/* position */);
+    vector<uint256> merkleBranch = BlockMerkleBranch(*block, 0 /* position */);
 
     // Number of links in branch
     // should be Variable integer, but can't over than 0xfd, so we just print
@@ -271,8 +285,8 @@ string _buildAuxPow(const CBlock *block) {
 
   // 4. Aux Blockchain Link
   {
-    auxPow += "00";        // Number of links in branch
-    auxPow += "00000000";  // Branch sides bitmask
+    auxPow += "00"; // Number of links in branch
+    auxPow += "00000000"; // Branch sides bitmask
   }
 
   // 5. Parent Block Header
@@ -285,22 +299,25 @@ string _buildAuxPow(const CBlock *block) {
   return auxPow;
 }
 
-void BlockMakerBitcoin::consumeNamecoinSolvedShare(rd_kafka_message_t *rkmessage) {
+void BlockMakerBitcoin::consumeNamecoinSolvedShare(
+    rd_kafka_message_t *rkmessage) {
   // check error
   if (rkmessage->err) {
     if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
       // Reached the end of the topic+partition queue on the broker.
       // Not really an error.
-      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
+      //      LOG(INFO) << "consumer reached end of " <<
+      //      rd_kafka_topic_name(rkmessage->rkt)
       //      << "[" << rkmessage->partition << "] "
       //      << " message queue at offset " << rkmessage->offset;
       // acturlly
       return;
     }
 
-    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
-    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
-    << ": " << rd_kafka_message_errstr(rkmessage);
+    LOG(ERROR) << "consume error for topic "
+               << rd_kafka_topic_name(rkmessage->rkt) << "["
+               << rkmessage->partition << "] offset " << rkmessage->offset
+               << ": " << rd_kafka_message_errstr(rkmessage);
 
     if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
         rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
@@ -316,30 +333,32 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(rd_kafka_message_t *rkmessage
   // namecoin solved share message
   //
   JsonNode j;
-  if (JsonNode::parse((const char *)rkmessage->payload,
-                      (const char *)rkmessage->payload + rkmessage->len, j) == false) {
+  if (JsonNode::parse(
+          (const char *)rkmessage->payload,
+          (const char *)rkmessage->payload + rkmessage->len,
+          j) == false) {
     LOG(ERROR) << "decode namecoin solved share message fail: "
-    << string((const char *)rkmessage->payload, rkmessage->len);
+               << string((const char *)rkmessage->payload, rkmessage->len);
     return;
   }
   // check fields
-  if (j["job_id"].type()         != Utilities::JS::type::Int ||
+  if (j["job_id"].type() != Utilities::JS::type::Int ||
       j["aux_block_hash"].type() != Utilities::JS::type::Str ||
-      j["block_header"].type()   != Utilities::JS::type::Str ||
-      j["coinbase_tx"].type()    != Utilities::JS::type::Str ||
-      j["rpc_addr"].type()       != Utilities::JS::type::Str ||
-      j["rpc_userpass"].type()   != Utilities::JS::type::Str) {
+      j["block_header"].type() != Utilities::JS::type::Str ||
+      j["coinbase_tx"].type() != Utilities::JS::type::Str ||
+      j["rpc_addr"].type() != Utilities::JS::type::Str ||
+      j["rpc_userpass"].type() != Utilities::JS::type::Str) {
     LOG(ERROR) << "namecoin solved share message missing some fields";
     return;
   }
 
-  const uint64_t jobId        = j["job_id"].uint64();
-  const string auxBlockHash   = j["aux_block_hash"].str();
+  const uint64_t jobId = j["job_id"].uint64();
+  const string auxBlockHash = j["aux_block_hash"].str();
   const string blockHeaderHex = j["block_header"].str();
-  const string coinbaseTxHex  = j["coinbase_tx"].str();
-  const string rpcAddr        = j["rpc_addr"].str();
-  const string rpcUserpass    = j["rpc_userpass"].str();
-  assert(blockHeaderHex.size() == sizeof(CBlockHeader)*2);
+  const string coinbaseTxHex = j["coinbase_tx"].str();
+  const string rpcAddr = j["rpc_addr"].str();
+  const string rpcUserpass = j["rpc_userpass"].str();
+  assert(blockHeaderHex.size() == sizeof(CBlockHeader) * 2);
 
   CBlockHeader blkHeader;
   vector<char> coinbaseTxBin;
@@ -368,7 +387,8 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(rd_kafka_message_t *rkmessage
   {
     ScopeLock ls(rawGbtLock_);
     if (rawGbtMap_.find(gbtHash) == rawGbtMap_.end()) {
-      LOG(ERROR) << "can't find this gbthash in rawGbtMap_: " << gbtHash.ToString();
+      LOG(ERROR) << "can't find this gbthash in rawGbtMap_: "
+                 << gbtHash.ToString();
       return;
     }
     vtxs = rawGbtMap_[gbtHash];
@@ -400,27 +420,33 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(rd_kafka_message_t *rkmessage
   const string auxPow = _buildAuxPow(&newblk);
 
   // submit to namecoind
-  submitNamecoinBlockNonBlocking(auxBlockHash, auxPow,
-                                 newblk.GetHash().ToString(),
-                                 rpcAddr, rpcUserpass);
+  submitNamecoinBlockNonBlocking(
+      auxBlockHash, auxPow, newblk.GetHash().ToString(), rpcAddr, rpcUserpass);
 }
 
-void BlockMakerBitcoin::submitNamecoinBlockNonBlocking(const string &auxBlockHash,
-                                                const string &auxPow,
-                                                const string &bitcoinBlockHash,
-                                                const string &rpcAddress,
-                                                const string &rpcUserpass) {
+void BlockMakerBitcoin::submitNamecoinBlockNonBlocking(
+    const string &auxBlockHash,
+    const string &auxPow,
+    const string &bitcoinBlockHash,
+    const string &rpcAddress,
+    const string &rpcUserpass) {
   // use thread to submit
-  boost::thread t(boost::bind(&BlockMakerBitcoin::_submitNamecoinBlockThread, this,
-                              auxBlockHash, auxPow, bitcoinBlockHash,
-                              rpcAddress, rpcUserpass));
+  boost::thread t(boost::bind(
+      &BlockMakerBitcoin::_submitNamecoinBlockThread,
+      this,
+      auxBlockHash,
+      auxPow,
+      bitcoinBlockHash,
+      rpcAddress,
+      rpcUserpass));
 }
 
-void BlockMakerBitcoin::_submitNamecoinBlockThread(const string &auxBlockHash,
-                                            const string &auxPow,
-                                            const string &bitcoinBlockHash,
-                                            const string &rpcAddress,
-                                            const string &rpcUserpass) {
+void BlockMakerBitcoin::_submitNamecoinBlockThread(
+    const string &auxBlockHash,
+    const string &auxPow,
+    const string &bitcoinBlockHash,
+    const string &rpcAddress,
+    const string &rpcUserpass) {
   //
   // request : submitauxblock <hash> <auxpow>
   //
@@ -428,28 +454,33 @@ void BlockMakerBitcoin::_submitNamecoinBlockThread(const string &auxBlockHash,
     string request = "";
 
     bool isSupportSubmitAuxBlock = false;
-    if(isAddrSupportSubmitAux_.find(rpcAddress) != isAddrSupportSubmitAux_.end()) {
-      isSupportSubmitAuxBlock = isAddrSupportSubmitAux_.find(rpcAddress)->second;
+    if (isAddrSupportSubmitAux_.find(rpcAddress) !=
+        isAddrSupportSubmitAux_.end()) {
+      isSupportSubmitAuxBlock =
+          isAddrSupportSubmitAux_.find(rpcAddress)->second;
     } else {
-      LOG(INFO) << "can't find " << rpcAddress << " in isAddrSupportSubmitAux_ map";
+      LOG(INFO) << "can't find " << rpcAddress
+                << " in isAddrSupportSubmitAux_ map";
     }
 
-    if(isSupportSubmitAuxBlock) {
-      request = Strings::Format("{\"id\":1,\"method\":\"submitauxblock\",\"params\":[\"%s\",\"%s\"]}",
-                                             auxBlockHash.c_str(),
-                                             auxPow.c_str());
+    if (isSupportSubmitAuxBlock) {
+      request = Strings::Format(
+          "{\"id\":1,\"method\":\"submitauxblock\",\"params\":[\"%s\",\"%s\"]}",
+          auxBlockHash.c_str(),
+          auxPow.c_str());
     } else {
-      request = Strings::Format("{\"id\":1,\"method\":\"getauxblock\",\"params\":[\"%s\",\"%s\"]}",
-                                             auxBlockHash.c_str(),
-                                             auxPow.c_str());
+      request = Strings::Format(
+          "{\"id\":1,\"method\":\"getauxblock\",\"params\":[\"%s\",\"%s\"]}",
+          auxBlockHash.c_str(),
+          auxPow.c_str());
     }
 
     DLOG(INFO) << "submitauxblock request: " << request;
     // try N times
     for (size_t i = 0; i < 3; i++) {
       string response;
-      bool res = blockchainNodeRpcCall(rpcAddress.c_str(), rpcUserpass.c_str(),
-                                 request.c_str(), response);
+      bool res = blockchainNodeRpcCall(
+          rpcAddress.c_str(), rpcUserpass.c_str(), request.c_str(), response);
 
       // success
       if (res == true) {
@@ -465,16 +496,20 @@ void BlockMakerBitcoin::_submitNamecoinBlockThread(const string &auxBlockHash,
   //
   // save to databse
   //
-  if(!def()->foundAuxBlockTable_.empty()) {
+  if (!def()->foundAuxBlockTable_.empty()) {
     const string nowStr = date("%F %T");
     string sql;
-    sql = Strings::Format("INSERT INTO `%s` "
-                          " (`bitcoin_block_hash`,`aux_block_hash`,"
-                          "  `aux_pow`,`created_at`) "
-                          " VALUES (\"%s\",\"%s\",\"%s\",\"%s\"); ",
-                          def()->foundAuxBlockTable_.empty() ? "found_nmc_blocks" : def()->foundAuxBlockTable_.c_str(),
-                          bitcoinBlockHash.c_str(),
-                          auxBlockHash.c_str(), auxPow.c_str(), nowStr.c_str());
+    sql = Strings::Format(
+        "INSERT INTO `%s` "
+        " (`bitcoin_block_hash`,`aux_block_hash`,"
+        "  `aux_pow`,`created_at`) "
+        " VALUES (\"%s\",\"%s\",\"%s\",\"%s\"); ",
+        def()->foundAuxBlockTable_.empty() ? "found_nmc_blocks"
+                                           : def()->foundAuxBlockTable_.c_str(),
+        bitcoinBlockHash.c_str(),
+        auxBlockHash.c_str(),
+        auxPow.c_str(),
+        nowStr.c_str());
     // try connect to DB
     MySQLConnection db(poolDB_);
     for (size_t i = 0; i < 3; i++) {
@@ -506,12 +541,16 @@ void BlockMakerBitcoin::processSolvedShare(rd_kafka_message_t *rkmessage) {
     coinbaseTxBin.resize(rkmessage->len - sizeof(FoundBlock));
 
     // foundBlock
-    memcpy((uint8_t *)&foundBlock, (const uint8_t *)rkmessage->payload, sizeof(FoundBlock));
+    memcpy(
+        (uint8_t *)&foundBlock,
+        (const uint8_t *)rkmessage->payload,
+        sizeof(FoundBlock));
 
     // coinbase tx
-    memcpy((uint8_t *)coinbaseTxBin.data(),
-           (const uint8_t *)rkmessage->payload + sizeof(FoundBlock),
-           coinbaseTxBin.size());
+    memcpy(
+        (uint8_t *)coinbaseTxBin.data(),
+        (const uint8_t *)rkmessage->payload + sizeof(FoundBlock),
+        coinbaseTxBin.size());
     // copy header
     memcpy((uint8_t *)&blkHeader, foundBlock.header80_, sizeof(CBlockHeader));
   }
@@ -531,18 +570,18 @@ void BlockMakerBitcoin::processSolvedShare(rd_kafka_message_t *rkmessage) {
   {
     ScopeLock ls(rawGbtlightLock_);
     const auto iter = rawGbtlightMap_.find(gbtHash);
-    if(iter != rawGbtlightMap_.end())
-    {
+    if (iter != rawGbtlightMap_.end()) {
       gbtlightJobId = iter->second;
     }
   }
   bool lightVersion = !gbtlightJobId.empty();
-  if(!lightVersion)
-#endif  // CHAIN_TYPE_BCH
+  if (!lightVersion)
+#endif // CHAIN_TYPE_BCH
   {
     ScopeLock ls(rawGbtLock_);
     if (rawGbtMap_.find(gbtHash) == rawGbtMap_.end()) {
-      LOG(ERROR) << "can't find this gbthash in rawGbtMap_: " << gbtHash.ToString();
+      LOG(ERROR) << "can't find this gbthash in rawGbtMap_: "
+                 << gbtHash.ToString();
       return;
     }
     vtxs = rawGbtMap_[gbtHash];
@@ -571,57 +610,72 @@ void BlockMakerBitcoin::processSolvedShare(rd_kafka_message_t *rkmessage) {
   // submit to bitcoind
   const string blockHex = EncodeHexBlock(newblk);
 #ifdef CHAIN_TYPE_BCH
-  if(lightVersion)
-  {
-    LOG(INFO) << "submit block light: " << newblk.GetHash().ToString() << " with job_id: " << gbtlightJobId.c_str();
+  if (lightVersion) {
+    LOG(INFO) << "submit block light: " << newblk.GetHash().ToString()
+              << " with job_id: " << gbtlightJobId.c_str();
     submitBlockLightNonBlocking(blockHex, gbtlightJobId);
-  }
-  else
-#endif  // CHAIN_TYPE_BCH
+  } else
+#endif // CHAIN_TYPE_BCH
   {
 #ifdef CHAIN_TYPE_LTC
     LOG(INFO) << "submit block pow: " << newblk.GetPoWHash().ToString();
 #endif
     LOG(INFO) << "submit block: " << newblk.GetHash().ToString();
-    submitBlockNonBlocking(blockHex);  // using thread
+    submitBlockNonBlocking(blockHex); // using thread
   }
 
   uint64_t coinbaseValue = AMOUNT_SATOSHIS(newblk.vtx[0]->GetValueOut());
 
   // save to DB, using thread
-  saveBlockToDBNonBlocking(foundBlock, blkHeader,
-                           coinbaseValue,  // coinbase value
-                           blockHex.length()/2);
+  saveBlockToDBNonBlocking(
+      foundBlock,
+      blkHeader,
+      coinbaseValue, // coinbase value
+      blockHex.length() / 2);
 }
 
-void BlockMakerBitcoin::saveBlockToDBNonBlocking(const FoundBlock &foundBlock,
-                                          const CBlockHeader &header,
-                                          const uint64_t coinbaseValue,
-                                          const int32_t blksize) {
-  boost::thread t(boost::bind(&BlockMakerBitcoin::_saveBlockToDBThread, this,
-                              foundBlock, header, coinbaseValue, blksize));
+void BlockMakerBitcoin::saveBlockToDBNonBlocking(
+    const FoundBlock &foundBlock,
+    const CBlockHeader &header,
+    const uint64_t coinbaseValue,
+    const int32_t blksize) {
+  boost::thread t(boost::bind(
+      &BlockMakerBitcoin::_saveBlockToDBThread,
+      this,
+      foundBlock,
+      header,
+      coinbaseValue,
+      blksize));
 }
 
-void BlockMakerBitcoin::_saveBlockToDBThread(const FoundBlock &foundBlock,
-                                      const CBlockHeader &header,
-                                      const uint64_t coinbaseValue,
-                                      const int32_t blksize) {
+void BlockMakerBitcoin::_saveBlockToDBThread(
+    const FoundBlock &foundBlock,
+    const CBlockHeader &header,
+    const uint64_t coinbaseValue,
+    const int32_t blksize) {
   const string nowStr = date("%F %T");
   string sql;
-  sql = Strings::Format("INSERT INTO `found_blocks` "
-                        " (`puid`, `worker_id`, `worker_full_name`, `job_id`"
-                        "  ,`height`, `hash`, `rewards`, `size`, `prev_hash`"
-                        "  ,`bits`, `version`, `created_at`)"
-                        " VALUES (%d,%" PRId64",\"%s\", %" PRIu64",%d,\"%s\""
-                        "  ,%" PRId64",%d,\"%s\",%u,%d,\"%s\"); ",
-                        foundBlock.userId_, foundBlock.workerId_,
-                        // filter again, just in case
-                        filterWorkerName(foundBlock.workerFullName_).c_str(),
-                        foundBlock.jobId_, foundBlock.height_,
-                        header.GetHash().ToString().c_str(),
-                        coinbaseValue, blksize,
-                        header.hashPrevBlock.ToString().c_str(),
-                        header.nBits, header.nVersion, nowStr.c_str());
+  sql = Strings::Format(
+      "INSERT INTO `found_blocks` "
+      " (`puid`, `worker_id`, `worker_full_name`, `job_id`"
+      "  ,`height`, `hash`, `rewards`, `size`, `prev_hash`"
+      "  ,`bits`, `version`, `created_at`)"
+      " VALUES (%d,%" PRId64 ",\"%s\", %" PRIu64
+      ",%d,\"%s\""
+      "  ,%" PRId64 ",%d,\"%s\",%u,%d,\"%s\"); ",
+      foundBlock.userId_,
+      foundBlock.workerId_,
+      // filter again, just in case
+      filterWorkerName(foundBlock.workerFullName_).c_str(),
+      foundBlock.jobId_,
+      foundBlock.height_,
+      header.GetHash().ToString().c_str(),
+      coinbaseValue,
+      blksize,
+      header.hashPrevBlock.ToString().c_str(),
+      header.nBits,
+      header.nVersion,
+      nowStr.c_str());
 
   LOG(INFO) << "BlockMakerBitcoin::_saveBlockToDBThread: " << sql;
 
@@ -656,15 +710,22 @@ bool BlockMakerBitcoin::checkBitcoinds() {
 void BlockMakerBitcoin::submitBlockNonBlocking(const string &blockHex) {
   for (const auto &itr : def()->nodes) {
     // use thread to submit
-    boost::thread t(boost::bind(&BlockMakerBitcoin::_submitBlockThread, this,
-                                itr.rpcAddr_, itr.rpcUserPwd_, blockHex));
+    boost::thread t(boost::bind(
+        &BlockMakerBitcoin::_submitBlockThread,
+        this,
+        itr.rpcAddr_,
+        itr.rpcUserPwd_,
+        blockHex));
   }
 }
 
-void BlockMakerBitcoin::_submitBlockThread(const string &rpcAddress,
-                                    const string &rpcUserpass,
-                                    const string &blockHex) {
-  string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"submitblock\",\"params\":[\"";
+void BlockMakerBitcoin::_submitBlockThread(
+    const string &rpcAddress,
+    const string &rpcUserpass,
+    const string &blockHex) {
+  string request =
+      "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"submitblock\",\"params\":"
+      "[\"";
   request += blockHex + "\"]}";
 
   LOG(INFO) << "submit block to: " << rpcAddress;
@@ -672,8 +733,8 @@ void BlockMakerBitcoin::_submitBlockThread(const string &rpcAddress,
   // try N times
   for (size_t i = 0; i < 3; i++) {
     string response;
-    bool res = blockchainNodeRpcCall(rpcAddress.c_str(), rpcUserpass.c_str(),
-                               request.c_str(), response);
+    bool res = blockchainNodeRpcCall(
+        rpcAddress.c_str(), rpcUserpass.c_str(), request.c_str(), response);
 
     // success
     if (res == true) {
@@ -687,19 +748,29 @@ void BlockMakerBitcoin::_submitBlockThread(const string &rpcAddress,
 }
 
 #ifdef CHAIN_TYPE_BCH
-void BlockMakerBitcoin::submitBlockLightNonBlocking(const string &blockHex, const string& job_id) {
+void BlockMakerBitcoin::submitBlockLightNonBlocking(
+    const string &blockHex, const string &job_id) {
   for (const auto &itr : def()->nodes) {
     // use thread to submit
-    boost::thread t(boost::bind(&BlockMakerBitcoin::_submitBlockLightThread, this,
-                                itr.rpcAddr_, itr.rpcUserPwd_, job_id, blockHex));
+    boost::thread t(boost::bind(
+        &BlockMakerBitcoin::_submitBlockLightThread,
+        this,
+        itr.rpcAddr_,
+        itr.rpcUserPwd_,
+        job_id,
+        blockHex));
     t.detach();
   }
 }
-void BlockMakerBitcoin::_submitBlockLightThread(const string &rpcAddress, const string &rpcUserpass, const string& job_id, 
-                        const string &blockHex)
-{
+void BlockMakerBitcoin::_submitBlockLightThread(
+    const string &rpcAddress,
+    const string &rpcUserpass,
+    const string &job_id,
+    const string &blockHex) {
 
-  string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"submitblocklight\",\"params\":[\"";
+  string request =
+      "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"submitblocklight\","
+      "\"params\":[\"";
   request += blockHex + "\", \"";
   request += job_id + "\"";
   request += "]}";
@@ -708,16 +779,17 @@ void BlockMakerBitcoin::_submitBlockLightThread(const string &rpcAddress, const 
   // try N times
   for (size_t i = 0; i < 3; i++) {
     string response;
-    bool res = blockchainNodeRpcCall(rpcAddress.c_str(), rpcUserpass.c_str(),
-                               request.c_str(), response);
+    bool res = blockchainNodeRpcCall(
+        rpcAddress.c_str(), rpcUserpass.c_str(), request.c_str(), response);
     // success
     if (res == true) {
-      LOG(INFO) << "rpc call success, submit block light response: " << response;
+      LOG(INFO) << "rpc call success, submit block light response: "
+                << response;
       break;
     }
     // failure
     LOG(ERROR) << "rpc call fail: " << response;
-  }  
+  }
 }
 #endif // CHAIN_TYPE_BCH
 
@@ -727,16 +799,18 @@ void BlockMakerBitcoin::consumeStratumJob(rd_kafka_message_t *rkmessage) {
     if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
       // Reached the end of the topic+partition queue on the broker.
       // Not really an error.
-      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
+      //      LOG(INFO) << "consumer reached end of " <<
+      //      rd_kafka_topic_name(rkmessage->rkt)
       //      << "[" << rkmessage->partition << "] "
       //      << " message queue at offset " << rkmessage->offset;
       // acturlly
       return;
     }
 
-    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
-    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
-    << ": " << rd_kafka_message_errstr(rkmessage);
+    LOG(ERROR) << "consume error for topic "
+               << rd_kafka_topic_name(rkmessage->rkt) << "["
+               << rkmessage->partition << "] offset " << rkmessage->offset
+               << ": " << rd_kafka_message_errstr(rkmessage);
 
     if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
         rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
@@ -749,8 +823,8 @@ void BlockMakerBitcoin::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   LOG(INFO) << "received StratumJob message, len: " << rkmessage->len;
 
   shared_ptr<StratumJobBitcoin> sjob = std::make_shared<StratumJobBitcoin>();
-  bool res = sjob->unserializeFromJson((const char *)rkmessage->payload,
-                                       rkmessage->len);
+  bool res = sjob->unserializeFromJson(
+      (const char *)rkmessage->payload, rkmessage->len);
   if (res == false) {
     LOG(ERROR) << "unserialize stratum job fail";
     return;
@@ -768,29 +842,36 @@ void BlockMakerBitcoin::consumeStratumJob(rd_kafka_message_t *rkmessage) {
     }
   }
 
-  LOG(INFO) << "StratumJob, jobId: " << sjob->jobId_ << ", gbtHash: " << gbtHash.ToString();
+  LOG(INFO) << "StratumJob, jobId: " << sjob->jobId_
+            << ", gbtHash: " << gbtHash.ToString();
   bool isSupportSubmitAuxBlock = false;
-  if(!sjob->nmcRpcAddr_.empty() && !sjob->nmcRpcUserpass_.empty() &&
-     isAddrSupportSubmitAux_.find(sjob->nmcRpcAddr_) == isAddrSupportSubmitAux_.end()) {
+  if (!sjob->nmcRpcAddr_.empty() && !sjob->nmcRpcUserpass_.empty() &&
+      isAddrSupportSubmitAux_.find(sjob->nmcRpcAddr_) ==
+          isAddrSupportSubmitAux_.end()) {
 
     string response;
-    string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"help\",\"params\":[]}";
-    bool res = blockchainNodeRpcCall(sjob->nmcRpcAddr_.c_str(), sjob->nmcRpcUserpass_.c_str(),
-                               request.c_str(), response);
+    string request =
+        "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"help\",\"params\":[]}";
+    bool res = blockchainNodeRpcCall(
+        sjob->nmcRpcAddr_.c_str(),
+        sjob->nmcRpcUserpass_.c_str(),
+        request.c_str(),
+        response);
     if (!res) {
       LOG(INFO) << "auxcoind rpc call failure";
     } else {
-        isSupportSubmitAuxBlock = (response.find("createauxblock") == std::string::npos ||
-        response.find("submitauxblock") == std::string::npos) ? false : true;
-        
-        LOG(INFO) << "auxcoind " << (isSupportSubmitAuxBlock ? " " : "doesn't ") 
-        << "support rpc commands: createauxblock and submitauxblock";
+      isSupportSubmitAuxBlock =
+          (response.find("createauxblock") == std::string::npos ||
+           response.find("submitauxblock") == std::string::npos)
+          ? false
+          : true;
 
-        isAddrSupportSubmitAux_[sjob->nmcRpcAddr_] = isSupportSubmitAuxBlock;
+      LOG(INFO) << "auxcoind " << (isSupportSubmitAuxBlock ? " " : "doesn't ")
+                << "support rpc commands: createauxblock and submitauxblock";
+
+      isAddrSupportSubmitAux_[sjob->nmcRpcAddr_] = isSupportSubmitAuxBlock;
     }
-
   }
-
 }
 
 void BlockMakerBitcoin::runThreadConsumeRawGbt() {
@@ -842,21 +923,43 @@ void BlockMakerBitcoin::runThreadConsumeNamecoinSolvedShare() {
 }
 
 /**
-  Beginning of methods needed to consume a solved share and submit a block to RSK node.
+  Beginning of methods needed to consume a solved share and submit a block to
+  RSK node.
 
   @author Martin Medina
   @copyright RSK Labs Ltd.
 */
-void BlockMakerBitcoin::submitRskBlockPartialMerkleNonBlocking(const string &rpcAddress, const string &rpcUserPwd, const string &blockHashHex, 
-                                                        const string &blockHeaderHex, const string &coinbaseHex, const string &merkleHashesHex, 
-                                                        const string &totalTxCount) {
-  boost::thread t(boost::bind(&BlockMakerBitcoin::_submitRskBlockPartialMerkleThread, this, rpcAddress, rpcUserPwd, blockHashHex, blockHeaderHex, coinbaseHex, merkleHashesHex, totalTxCount));
+void BlockMakerBitcoin::submitRskBlockPartialMerkleNonBlocking(
+    const string &rpcAddress,
+    const string &rpcUserPwd,
+    const string &blockHashHex,
+    const string &blockHeaderHex,
+    const string &coinbaseHex,
+    const string &merkleHashesHex,
+    const string &totalTxCount) {
+  boost::thread t(boost::bind(
+      &BlockMakerBitcoin::_submitRskBlockPartialMerkleThread,
+      this,
+      rpcAddress,
+      rpcUserPwd,
+      blockHashHex,
+      blockHeaderHex,
+      coinbaseHex,
+      merkleHashesHex,
+      totalTxCount));
 }
 
-void BlockMakerBitcoin::_submitRskBlockPartialMerkleThread(const string &rpcAddress, const string &rpcUserPwd, const string &blockHashHex, 
-                                      const string &blockHeaderHex, const string &coinbaseHex, const string &merkleHashesHex, 
-                                      const string &totalTxCount) {
-  string request = "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"method\":\"mnr_submitBitcoinBlockPartialMerkle\",\"params\":[";
+void BlockMakerBitcoin::_submitRskBlockPartialMerkleThread(
+    const string &rpcAddress,
+    const string &rpcUserPwd,
+    const string &blockHashHex,
+    const string &blockHeaderHex,
+    const string &coinbaseHex,
+    const string &merkleHashesHex,
+    const string &totalTxCount) {
+  string request =
+      "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"method\":\"mnr_"
+      "submitBitcoinBlockPartialMerkle\",\"params\":[";
   request += "\"" + blockHashHex + "\", ";
   request += "\"" + blockHeaderHex + "\", ";
   request += "\"" + coinbaseHex + "\", ";
@@ -867,7 +970,8 @@ void BlockMakerBitcoin::_submitRskBlockPartialMerkleThread(const string &rpcAddr
   // try N times
   for (size_t i = 0; i < 3; i++) {
     string response;
-    bool res = blockchainNodeRpcCall(rpcAddress.c_str(), rpcUserPwd.c_str(), request.c_str(), response);
+    bool res = blockchainNodeRpcCall(
+        rpcAddress.c_str(), rpcUserPwd.c_str(), request.c_str(), response);
 
     // success
     if (res) {
@@ -888,9 +992,10 @@ void BlockMakerBitcoin::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
       return;
     }
 
-    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
-    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
-    << ": " << rd_kafka_message_errstr(rkmessage);
+    LOG(ERROR) << "consume error for topic "
+               << rd_kafka_topic_name(rkmessage->rkt) << "["
+               << rkmessage->partition << "] offset " << rkmessage->offset
+               << ": " << rd_kafka_message_errstr(rkmessage);
 
     if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
         rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
@@ -920,15 +1025,21 @@ void BlockMakerBitcoin::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
     coinbaseTxBin.resize(rkmessage->len - sizeof(RskSolvedShareData));
 
     // shareData
-    memcpy((uint8_t *)&shareData, (const uint8_t *)rkmessage->payload, sizeof(RskSolvedShareData));
+    memcpy(
+        (uint8_t *)&shareData,
+        (const uint8_t *)rkmessage->payload,
+        sizeof(RskSolvedShareData));
     // coinbase tx
-    memcpy((uint8_t *)coinbaseTxBin.data(), (const uint8_t *)rkmessage->payload + sizeof(RskSolvedShareData), coinbaseTxBin.size());
+    memcpy(
+        (uint8_t *)coinbaseTxBin.data(),
+        (const uint8_t *)rkmessage->payload + sizeof(RskSolvedShareData),
+        coinbaseTxBin.size());
     // copy header
     memcpy((uint8_t *)&blkHeader, shareData.header80_, sizeof(CBlockHeader));
   }
 
   LOG(INFO) << "submit RSK block: " << blkHeader.GetHash().ToString();
-  
+
   // get gbtHash and rawgbt (vtxs)
   uint256 gbtHash;
   shared_ptr<vector<CTransactionRef>> vtxs;
@@ -941,13 +1052,13 @@ void BlockMakerBitcoin::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
   {
     ScopeLock ls(rawGbtLock_);
     if (rawGbtMap_.find(gbtHash) == rawGbtMap_.end()) {
-      LOG(ERROR) << "can't find this gbthash in rawGbtMap_: " << gbtHash.ToString();
+      LOG(ERROR) << "can't find this gbthash in rawGbtMap_: "
+                 << gbtHash.ToString();
       return;
     }
     vtxs = rawGbtMap_[gbtHash];
   }
   assert(vtxs.get() != nullptr);
-
 
   vector<uint256> vtxhashes;
   vtxhashes.resize(1 + vtxs->size()); // coinbase + gbt txs
@@ -966,14 +1077,15 @@ void BlockMakerBitcoin::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
 
   // put other tx hashes
   for (size_t i = 0; i < vtxs->size(); i++) {
-    vtxhashes[i + 1] = (*vtxs)[i]->GetHash(); // vtxs is a shared_ptr<vector<CTransactionRef>>
+    vtxhashes[i + 1] =
+        (*vtxs)[i]->GetHash(); // vtxs is a shared_ptr<vector<CTransactionRef>>
   }
 
   string blockHashHex = blkHeader.GetHash().ToString();
   string blockHeaderHex = EncodeHexBlockHeader(blkHeader);
 
   // coinbase bin -> hex
-  string coinbaseHex;  
+  string coinbaseHex;
   Bin2Hex(coinbaseTxBin, coinbaseHex);
 
   // build coinbase's merkle tree branch
@@ -981,12 +1093,15 @@ void BlockMakerBitcoin::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
   string hashHex;
   vector<uint256> cbMerkleBranch = ComputeMerkleBranch(vtxhashes, 0);
 
-  Bin2Hex((uint8_t*)(vtxhashes[0].begin()), sizeof(uint256), hashHex); // coinbase hash
+  Bin2Hex(
+      (uint8_t *)(vtxhashes[0].begin()),
+      sizeof(uint256),
+      hashHex); // coinbase hash
   merkleHashesHex.append(hashHex);
   for (size_t i = 0; i < cbMerkleBranch.size(); i++) {
-      merkleHashesHex.append("\x20"); // space character
-      Bin2Hex((uint8_t*)cbMerkleBranch[i].begin(), sizeof(uint256), hashHex);
-      merkleHashesHex.append(hashHex);
+    merkleHashesHex.append("\x20"); // space character
+    Bin2Hex((uint8_t *)cbMerkleBranch[i].begin(), sizeof(uint256), hashHex);
+    merkleHashesHex.append(hashHex);
   }
 
   // block tx count
@@ -994,8 +1109,14 @@ void BlockMakerBitcoin::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
   sstream << std::hex << vtxhashes.size();
   string totalTxCountHex(sstream.str());
 
-  submitRskBlockPartialMerkleNonBlocking(shareData.rpcAddress_, shareData.rpcUserPwd_, blockHashHex, blockHeaderHex, 
-                                        coinbaseHex, merkleHashesHex, totalTxCountHex);  // using thread
+  submitRskBlockPartialMerkleNonBlocking(
+      shareData.rpcAddress_,
+      shareData.rpcUserPwd_,
+      blockHashHex,
+      blockHeaderHex,
+      coinbaseHex,
+      merkleHashesHex,
+      totalTxCountHex); // using thread
 }
 
 /**
@@ -1005,28 +1126,29 @@ void BlockMakerBitcoin::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
   @returns true if block can be submitted to RSK node. false otherwise.
 */
 bool BlockMakerBitcoin::submitToRskNode() {
-    uint32_t maxSubmissionsPerSecond = 2;
-    int64_t oneSecondWindowInMs = 1000;
+  uint32_t maxSubmissionsPerSecond = 2;
+  int64_t oneSecondWindowInMs = 1000;
 
-    if (lastSubmittedBlockTime.is_not_a_date_time()) {
-        lastSubmittedBlockTime = bpt::microsec_clock::universal_time();
-    }
+  if (lastSubmittedBlockTime.is_not_a_date_time()) {
+    lastSubmittedBlockTime = bpt::microsec_clock::universal_time();
+  }
 
-    bpt::ptime currentTime(bpt::microsec_clock::universal_time());
-    bpt::time_duration elapsed = currentTime - lastSubmittedBlockTime;
+  bpt::ptime currentTime(bpt::microsec_clock::universal_time());
+  bpt::time_duration elapsed = currentTime - lastSubmittedBlockTime;
 
-    if (elapsed.total_milliseconds() > oneSecondWindowInMs) {
-        lastSubmittedBlockTime = currentTime;
-        submittedRskBlocks = 0;
-        elapsed = currentTime - lastSubmittedBlockTime;
-    }
+  if (elapsed.total_milliseconds() > oneSecondWindowInMs) {
+    lastSubmittedBlockTime = currentTime;
+    submittedRskBlocks = 0;
+    elapsed = currentTime - lastSubmittedBlockTime;
+  }
 
-    if (elapsed.total_milliseconds() < oneSecondWindowInMs && submittedRskBlocks < maxSubmissionsPerSecond) {
-        submittedRskBlocks++;
-        return true;
-    }
+  if (elapsed.total_milliseconds() < oneSecondWindowInMs &&
+      submittedRskBlocks < maxSubmissionsPerSecond) {
+    submittedRskBlocks++;
+    return true;
+  }
 
-    return false;
+  return false;
 }
 
 void BlockMakerBitcoin::runThreadConsumeRskSolvedShare() {
@@ -1048,9 +1170,13 @@ void BlockMakerBitcoin::runThreadConsumeRskSolvedShare() {
 
 void BlockMakerBitcoin::run() {
   // setup threads
-  threadConsumeRawGbt_      = thread(&BlockMakerBitcoin::runThreadConsumeRawGbt,     this);
-  threadConsumeStratumJob_  = thread(&BlockMakerBitcoin::runThreadConsumeStratumJob, this);
-  threadConsumeNamecoinSolvedShare_ = thread(&BlockMakerBitcoin::runThreadConsumeNamecoinSolvedShare, this);
-  threadConsumeRskSolvedShare_ = thread(&BlockMakerBitcoin::runThreadConsumeRskSolvedShare, this);
+  threadConsumeRawGbt_ =
+      thread(&BlockMakerBitcoin::runThreadConsumeRawGbt, this);
+  threadConsumeStratumJob_ =
+      thread(&BlockMakerBitcoin::runThreadConsumeStratumJob, this);
+  threadConsumeNamecoinSolvedShare_ =
+      thread(&BlockMakerBitcoin::runThreadConsumeNamecoinSolvedShare, this);
+  threadConsumeRskSolvedShare_ =
+      thread(&BlockMakerBitcoin::runThreadConsumeRskSolvedShare, this);
   BlockMaker::run();
 }

@@ -24,20 +24,16 @@
 #include "Common.h"
 #include "bytom/bh_shared.h"
 
-
-uint64_t Bytom_TargetCompactToDifficulty(uint64_t bits)
-{
+uint64_t Bytom_TargetCompactToDifficulty(uint64_t bits) {
   return CalculateDifficultyByTargetCompact(bits);
 }
 
-void Bytom_DifficultyToTargetBinary(uint64_t difficulty, vector<uint8_t>& out)
-{
+void Bytom_DifficultyToTargetBinary(uint64_t difficulty, vector<uint8_t> &out) {
   out.resize(32);
-  GoSlice outSlice = {(void *)out.data(), 32, 32};  
+  GoSlice outSlice = {(void *)out.data(), 32, 32};
   CalculateTargetBinaryByDifficulty(difficulty, outSlice);
 }
 
-uint64_t Bytom_JobDifficultyToTargetCompact(uint64_t difficulty)
-{
+uint64_t Bytom_JobDifficultyToTargetCompact(uint64_t difficulty) {
   return CalculateTargetCompactByDifficulty(difficulty);
 }

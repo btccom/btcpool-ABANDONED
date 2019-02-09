@@ -53,7 +53,7 @@ protected:
 
 public:
   RskWork();
-  virtual ~RskWork() {};
+  virtual ~RskWork(){};
 
   bool initFromGw(const string &rawGetWork);
   bool isInitialized() const;
@@ -64,16 +64,16 @@ public:
   string getRpcAddress() const;
   string getRpcUserPwd() const;
   bool getNotifyFlag() const;
-  
+
 private:
   virtual bool validate(JsonNode &work);
-  virtual void initialize(JsonNode &work); 
+  virtual void initialize(JsonNode &work);
 };
 
 class RskWorkEth : public RskWork {
   virtual bool validate(JsonNode &work);
   virtual void initialize(JsonNode &work);
-  
+
   string seedHash_;
   string parent_;
   uint32_t height_;

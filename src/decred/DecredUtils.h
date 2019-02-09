@@ -29,6 +29,7 @@
 
 struct NetworkParamsDecred;
 
-int64_t GetBlockRewardDecredWork(uint32_t height, uint16_t voters, const NetworkParamsDecred& params);
+int64_t GetBlockRewardDecredWork(
+    uint32_t height, uint16_t voters, const NetworkParamsDecred &params);
 
 #endif

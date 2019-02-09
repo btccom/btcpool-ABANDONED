@@ -30,7 +30,7 @@ void DiffController::setMinDiff(uint64_t minDiff) {
   } else if (minDiff > kMaxDiff_) {
     minDiff = kMaxDiff_;
   }
-  
+
   minDiff_ = minDiff;
 }
 
@@ -40,7 +40,7 @@ void DiffController::setCurDiff(uint64_t curDiff) {
   } else if (curDiff > kMaxDiff_) {
     curDiff = kMaxDiff_;
   }
-  
+
   curDiff_ = curDiff;
 }
 
@@ -58,7 +58,6 @@ void DiffController::addAcceptedShare(const uint64_t share) {
   shares_.insert(k, share);
 }
 
-
 //
 // level:  min ~ max, coefficient
 //
@@ -74,7 +73,7 @@ void DiffController::addAcceptedShare(const uint64_t share) {
 //
 
 static int __hashRateDown(int level) {
-  const int levels[] = {0, 4, 8, 16,   32, 64, 128, 256};
+  const int levels[] = {0, 4, 8, 16, 32, 64, 128, 256};
   if (level >= 8) {
     return 512;
   }
@@ -83,10 +82,10 @@ static int __hashRateDown(int level) {
 }
 
 static int __hashRateUp(int level) {
-  const int levels[] = {4, 8, 16, 32,   64, 128, 256, 512};
+  const int levels[] = {4, 8, 16, 32, 64, 128, 256, 512};
   assert(level >= 0 && level <= 7);
   if (level >= 8) {
-    return 0x7fffffffL;  // INT32_MAX
+    return 0x7fffffffL; // INT32_MAX
   }
   return levels[level];
 }
@@ -96,7 +95,7 @@ int DiffController::adjustHashRateLevel(const double hashRateT) {
   // hashrate is always danceing,
   // so need to use rate high and low to check it's level
   const double rateHigh = 1.50;
-  const double rateLow  = 0.75;
+  const double rateLow = 0.75;
 
   // reduce level
   if (curHashRateLevel_ > 0 && hashRateT < __hashRateDown(curHashRateLevel_)) {
@@ -123,14 +122,14 @@ double DiffController::minerCoefficient(const time_t now, const int64_t idx) {
   if (now <= startTime_) {
     return 1.0;
   }
-  uint64_t shares    = shares_.sum(idx);
+  uint64_t shares = shares_.sum(idx);
   time_t shareWindow = isFullWindow(now) ? kDiffWindow_ : (now - startTime_);
-  double hashRateT   = (double)shares * pow(2, 32) / shareWindow / pow(10, 12);
+  double hashRateT = (double)shares * pow(2, 32) / shareWindow / pow(10, 12);
   adjustHashRateLevel(hashRateT);
   assert(curHashRateLevel_ >= 0 && curHashRateLevel_ <= 8);
 
   const double c[] = {1.0, 1.0, 1.0, 1.2, 1.5, 2.0, 3.0, 4.0, 6.0};
-  assert(sizeof(c)/sizeof(c[0]) == 9);
+  assert(sizeof(c) / sizeof(c[0]) == 9);
   return c[curHashRateLevel_];
 }
 
@@ -146,12 +145,12 @@ uint64_t DiffController::_calcCurDiff() {
   const time_t now = time(nullptr);
   const int64_t k = now / kRecordSeconds_;
   const double sharesCount = (double)sharesNum_.sum(k);
-  if (startTime_ == 0) {  // first time, we set the start time
+  if (startTime_ == 0) { // first time, we set the start time
     startTime_ = time(nullptr);
   }
 
   const double kRateHigh = 1.40;
-  const double kRateLow  = 0.40;
+  const double kRateLow = 0.40;
   double expectedCount = round(kDiffWindow_ / (double)kRecordSeconds_);
 
   if (isFullWindow(now)) { /* have a full window now */
@@ -159,14 +158,14 @@ uint64_t DiffController::_calcCurDiff() {
     expectedCount *= minerCoefficient(now, k);
   }
   if (expectedCount > kDiffWindow_) {
-    expectedCount = kDiffWindow_;  // one second per share is enough
+    expectedCount = kDiffWindow_; // one second per share is enough
   }
 
   // this is for very low hashrate miner, eg. USB miners
   // should received at least one share every 60 seconds
   if (!isFullWindow(now) && now >= startTime_ + 60 &&
-      sharesCount <= (int32_t)((now - startTime_)/60.0) &&
-      curDiff_ >= minDiff_*2) {
+      sharesCount <= (int32_t)((now - startTime_) / 60.0) &&
+      curDiff_ >= minDiff_ * 2) {
     setCurDiff(curDiff_ / 2);
     sharesNum_.mapMultiply(2.0);
     return curDiff_;
@@ -174,8 +173,7 @@ uint64_t DiffController::_calcCurDiff() {
 
   // too fast
   if (sharesCount > expectedCount * kRateHigh) {
-    while (sharesNum_.sum(k) > expectedCount && 
-           curDiff_ < kMaxDiff_) {
+    while (sharesNum_.sum(k) > expectedCount && curDiff_ < kMaxDiff_) {
       setCurDiff(curDiff_ * 2);
       sharesNum_.mapDivide(2.0);
     }
@@ -183,15 +181,15 @@ uint64_t DiffController::_calcCurDiff() {
   }
 
   // too slow
-  if (isFullWindow(now) && curDiff_ >= minDiff_*2) {
+  if (isFullWindow(now) && curDiff_ >= minDiff_ * 2) {
     while (sharesNum_.sum(k) < expectedCount * kRateLow &&
-           curDiff_ >= minDiff_*2) {
+           curDiff_ >= minDiff_ * 2) {
       setCurDiff(curDiff_ / 2);
       sharesNum_.mapMultiply(2.0);
     }
     assert(curDiff_ >= minDiff_);
     return curDiff_;
   }
-  
+
   return curDiff_;
 }

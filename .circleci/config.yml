@@ -21,6 +21,18 @@ commands:
           when: on_fail
 
 jobs:
+  check_clang_format:
+    docker:
+      - image: btccom/btcpool_build:latest
+    steps:
+      - checkout
+      - run:
+          name: Run clang-format
+          command: ./run-clang-format.sh && git diff --exit-code
+      - run:
+          name: Send failure notification
+          command: if [ -n "$BEARYCHAT_WEBHOOK" ]; then curl $BEARYCHAT_WEBHOOK -H 'Content-Type:application/json' -d "{\"text\":\"[$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/$CIRCLE_JOB/$CIRCLE_BUILD_NUM]($CIRCLE_BUILD_URL) failed\"}"; fi
+          when: on_fail
   build_and_run_unit_tests_bch:
     docker:
       - image: btccom/btcpool_build:bch-0.18.5
@@ -45,7 +57,16 @@ jobs:
 workflows:
   build_and_run_unit_tests_all_chains:
     jobs:
-      - build_and_run_unit_tests_bch
-      - build_and_run_unit_tests_btc
-      - build_and_run_unit_tests_sbtc
-      - build_and_run_unit_tests_ubtc
+      - check_clang_format
+      - build_and_run_unit_tests_bch:
+          requires:
+            - check_clang_format
+      - build_and_run_unit_tests_btc:
+          requires:
+            - check_clang_format
+      - build_and_run_unit_tests_sbtc:
+          requires:
+            - check_clang_format
+      - build_and_run_unit_tests_ubtc:
+          requires:
+            - check_clang_format

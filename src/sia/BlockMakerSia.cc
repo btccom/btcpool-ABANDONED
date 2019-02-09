@@ -26,13 +26,14 @@
 #include <boost/thread.hpp>
 
 //////////////////////////////////////BlockMakerSia//////////////////////////////////////////////////
-BlockMakerSia::BlockMakerSia(shared_ptr<BlockMakerDefinition> def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB) 
-  : BlockMaker(def, kafkaBrokers, poolDB)
-{
+BlockMakerSia::BlockMakerSia(
+    shared_ptr<BlockMakerDefinition> def,
+    const char *kafkaBrokers,
+    const MysqlConnectInfo &poolDB)
+  : BlockMaker(def, kafkaBrokers, poolDB) {
 }
 
-void BlockMakerSia::processSolvedShare(rd_kafka_message_t *rkmessage)
-{
+void BlockMakerSia::processSolvedShare(rd_kafka_message_t *rkmessage) {
   if (rkmessage->len != 80) {
     LOG(ERROR) << "incorrect header len: " << rkmessage->len;
     return;
@@ -40,10 +41,15 @@ void BlockMakerSia::processSolvedShare(rd_kafka_message_t *rkmessage)
 
   char buf[80] = {0};
   memcpy(buf, rkmessage->payload, 80);
-  for (const auto &itr : def()->nodes)
-  {
+  for (const auto &itr : def()->nodes) {
     string response;
-    rpcCall(itr.rpcAddr_.c_str(), itr.rpcUserPwd_.c_str(), buf, 80, response, "Sia-Agent");
+    rpcCall(
+        itr.rpcAddr_.c_str(),
+        itr.rpcUserPwd_.c_str(),
+        buf,
+        80,
+        response,
+        "Sia-Agent");
     LOG(INFO) << "submission result: " << response;
   }
 }

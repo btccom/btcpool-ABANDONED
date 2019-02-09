@@ -42,44 +42,50 @@ typedef struct st_mysql_res MYSQL_RES;
  * auto free
  */
 struct MySQLResult {
-  struct st_mysql_res * result;
+  struct st_mysql_res *result;
   MySQLResult();
-  MySQLResult(MYSQL_RES * result);
-  void reset(MYSQL_RES * result);
+  MySQLResult(MYSQL_RES *result);
+  void reset(MYSQL_RES *result);
   ~MySQLResult();
   uint64_t numRows();
   uint32_t fields();
-  char ** nextRow();
+  char **nextRow();
 };
 
 class MysqlConnectInfo {
 public:
-  string  host_;
+  string host_;
   int32_t port_;
-  string  username_;
-  string  password_;
-  string  dbName_;
+  string username_;
+  string password_;
+  string dbName_;
 
-  MysqlConnectInfo(const string &host, int32_t port, const string &userName,
-                   const string &password, const string &dbName):
-  host_(host), port_(port), username_(userName), password_(password), dbName_(dbName)
-  {
-  }
+  MysqlConnectInfo(
+      const string &host,
+      int32_t port,
+      const string &userName,
+      const string &password,
+      const string &dbName)
+    : host_(host)
+    , port_(port)
+    , username_(userName)
+    , password_(password)
+    , dbName_(dbName) {}
 
   MysqlConnectInfo(const MysqlConnectInfo &r) {
-    host_     = r.host_;
-    port_     = r.port_;
+    host_ = r.host_;
+    port_ = r.port_;
     username_ = r.username_;
     password_ = r.password_;
-    dbName_   = r.dbName_;
+    dbName_ = r.dbName_;
   }
 
-  MysqlConnectInfo& operator=(const MysqlConnectInfo &r) {
-    host_     = r.host_;
-    port_     = r.port_;
+  MysqlConnectInfo &operator=(const MysqlConnectInfo &r) {
+    host_ = r.host_;
+    port_ = r.port_;
     username_ = r.username_;
     password_ = r.password_;
-    dbName_   = r.dbName_;
+    dbName_ = r.dbName_;
     return *this;
   }
 };
@@ -98,7 +104,7 @@ protected:
   string password_;
   string dbName_;
 
-  struct st_mysql * conn;
+  struct st_mysql *conn;
 
 public:
   MySQLConnection(const MysqlConnectInfo &connectInfo);
@@ -109,28 +115,27 @@ public:
   bool ping();
   bool reconnect();
 
-  bool execute(const char * sql);
-  bool execute(const string &sql) {
-    return execute(sql.c_str());
-  }
+  bool execute(const char *sql);
+  bool execute(const string &sql) { return execute(sql.c_str()); }
 
-  bool query(const char * sql, MySQLResult & result);
-  bool query(const string & sql, MySQLResult & result) {
+  bool query(const char *sql, MySQLResult &result);
+  bool query(const string &sql, MySQLResult &result) {
     return query(sql.c_str(), result);
   }
 
   // return -1 on failure
-  int64_t update(const char * sql);
-  int64_t update(const string & sql) {
-    return update(sql.c_str());
-  }
+  int64_t update(const char *sql);
+  int64_t update(const string &sql) { return update(sql.c_str()); }
   uint64_t affectedRows();
   uint64_t getInsertId();
 
   string getVariable(const char *name);
 };
 
-bool multiInsert(MySQLConnection &db, const string &table,
-                 const string &fields, const vector<string> &values);
+bool multiInsert(
+    MySQLConnection &db,
+    const string &table,
+    const string &fields,
+    const vector<string> &values);
 
 #endif

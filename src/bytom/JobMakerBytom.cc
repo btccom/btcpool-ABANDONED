@@ -27,11 +27,9 @@
 #include "Utils.h"
 #include "utilities_js.hpp"
 ///////////////////////////////////JobMakerHandlerBytom//////////////////////////////////
-bool JobMakerHandlerBytom::processMsg(const string &msg)
-{
+bool JobMakerHandlerBytom::processMsg(const string &msg) {
   JsonNode j;
-  if (!JsonNode::parse(msg.c_str(), msg.c_str() + msg.length(), j))
-  {
+  if (!JsonNode::parse(msg.c_str(), msg.c_str() + msg.length(), j)) {
     LOG(ERROR) << "deserialize bytom work failed " << msg;
     return false;
   }
@@ -50,32 +48,29 @@ bool JobMakerHandlerBytom::processMsg(const string &msg)
   return true;
 }
 
-bool JobMakerHandlerBytom::validate(JsonNode &j)
-{
+bool JobMakerHandlerBytom::validate(JsonNode &j) {
   // check fields are valid
   if (j.type() != Utilities::JS::type::Obj ||
-    j["created_at_ts"].type() != Utilities::JS::type::Int ||
-    j["rpcAddress"].type() != Utilities::JS::type::Str ||
-    j["rpcUserPwd"].type() != Utilities::JS::type::Str ||
-    j["hHash"].type() != Utilities::JS::type::Str) {
-      LOG(ERROR) << "work format not expected";
+      j["created_at_ts"].type() != Utilities::JS::type::Int ||
+      j["rpcAddress"].type() != Utilities::JS::type::Str ||
+      j["rpcUserPwd"].type() != Utilities::JS::type::Str ||
+      j["hHash"].type() != Utilities::JS::type::Str) {
+    LOG(ERROR) << "work format not expected";
     return false;
-    }
+  }
 
   // check timestamp
-  if (j["created_at_ts"].uint32() + def()->maxJobDelay_ < time(nullptr))
-  {
-    LOG(ERROR) << "too old bytom work: " << date("%F %T", j["created_at_ts"].uint32());
+  if (j["created_at_ts"].uint32() + def()->maxJobDelay_ < time(nullptr)) {
+    LOG(ERROR) << "too old bytom work: "
+               << date("%F %T", j["created_at_ts"].uint32());
     return false;
   }
 
   return true;
 }
 
-string JobMakerHandlerBytom::makeStratumJobMsg()
-{
-  if (0 == header_.size() ||
-      0 == seed_.size())
+string JobMakerHandlerBytom::makeStratumJobMsg() {
+  if (0 == header_.size() || 0 == seed_.size())
     return "";
 
   StratumJobBytom job;

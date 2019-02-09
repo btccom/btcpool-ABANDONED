@@ -30,16 +30,16 @@
 
 using namespace std;
 
-/* 
-* Possible values of `redisReply->type`:
-*   REDIS_REPLY_STRING    1
-*   REDIS_REPLY_ARRAY     2
-*   REDIS_REPLY_INTEGER   3
-*   REDIS_REPLY_NIL       4
-*   REDIS_REPLY_STATUS    5
-*   REDIS_REPLY_ERROR     6
-* From: <hiredis/read.h>
-*/
+/*
+ * Possible values of `redisReply->type`:
+ *   REDIS_REPLY_STRING    1
+ *   REDIS_REPLY_ARRAY     2
+ *   REDIS_REPLY_INTEGER   3
+ *   REDIS_REPLY_NIL       4
+ *   REDIS_REPLY_STATUS    5
+ *   REDIS_REPLY_ERROR     6
+ * From: <hiredis/read.h>
+ */
 
 /////////////////////////////// RedisResult ///////////////////////////////
 class RedisResult {
@@ -48,9 +48,9 @@ class RedisResult {
 public:
   RedisResult();
   RedisResult(redisReply *reply);
-  RedisResult(RedisResult &&other);                        // move constructor
-  RedisResult(const RedisResult &other) = delete;          // copy constructor
-  RedisResult& operator=(const RedisResult& str) = delete; // assign operation
+  RedisResult(RedisResult &&other); // move constructor
+  RedisResult(const RedisResult &other) = delete; // copy constructor
+  RedisResult &operator=(const RedisResult &str) = delete; // assign operation
   ~RedisResult();
 
   void reset(redisReply *reply);
@@ -65,25 +65,25 @@ public:
 /////////////////////////////// RedisConnectInfo ///////////////////////////////
 class RedisConnectInfo {
 public:
-  string  host_;
+  string host_;
   int32_t port_;
   string passwd_;
 
-  RedisConnectInfo(const string &host, int32_t port, const string &passwd) :
-    host_(host), port_(port), passwd_(passwd)
-  {
-  }
+  RedisConnectInfo(const string &host, int32_t port, const string &passwd)
+    : host_(host)
+    , port_(port)
+    , passwd_(passwd) {}
 
   RedisConnectInfo(const RedisConnectInfo &r) {
-    host_     = r.host_;
-    port_     = r.port_;
-    passwd_   = r.passwd_;
+    host_ = r.host_;
+    port_ = r.port_;
+    passwd_ = r.passwd_;
   }
 
-  RedisConnectInfo& operator=(const RedisConnectInfo &r) {
-    host_     = r.host_;
-    port_     = r.port_;
-    passwd_   = r.passwd_;
+  RedisConnectInfo &operator=(const RedisConnectInfo &r) {
+    host_ = r.host_;
+    port_ = r.port_;
+    passwd_ = r.passwd_;
     return *this;
   }
 };

@@ -29,26 +29,33 @@
 #include "CommonBytom.h"
 #include "StratumBytom.h"
 
-///////////////////////////////  GlobalShareBytom  ////////////////////////////////
+///////////////////////////////  GlobalShareBytom
+///////////////////////////////////
 // Used to detect duplicate share attacks on Bytom mining.
 struct GlobalShareBytom {
   BytomCombinedHeader combinedHeader_;
 
   GlobalShareBytom() = delete;
 
-  GlobalShareBytom(const ShareBytom &share)
-  {
-    memcpy(&combinedHeader_, share.combinedheader().data(), share.combinedheader().length());
+  GlobalShareBytom(const ShareBytom &share) {
+    memcpy(
+        &combinedHeader_,
+        share.combinedheader().data(),
+        share.combinedheader().length());
   }
 
-  GlobalShareBytom& operator=(const GlobalShareBytom &r) = default;
+  GlobalShareBytom &operator=(const GlobalShareBytom &r) = default;
 
   bool operator<(const GlobalShareBytom &r) const {
-    return std::memcmp(&combinedHeader_, &r.combinedHeader_, sizeof(BytomCombinedHeader)) < 0;
+    return std::memcmp(
+               &combinedHeader_,
+               &r.combinedHeader_,
+               sizeof(BytomCombinedHeader)) < 0;
   }
 };
 
 ////////////////////////////  Alias  ////////////////////////////
-using DuplicateShareCheckerBytom = DuplicateShareCheckerT<ShareBytom, GlobalShareBytom>;
+using DuplicateShareCheckerBytom =
+    DuplicateShareCheckerT<ShareBytom, GlobalShareBytom>;
 
 #endif

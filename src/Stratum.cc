@@ -37,11 +37,9 @@ string filterWorkerName(const string &workerName) {
   s.reserve(workerName.size());
 
   for (const auto &c : workerName) {
-    if (('a' <= c && c <= 'z') ||
-        ('A' <= c && c <= 'Z') ||
-        ('0' <= c && c <= '9') ||
-        c == '-' || c == '.' || c == '_' || c == ':' ||
-        c == '|' || c == '^' || c == '/') {
+    if (('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') ||
+        ('0' <= c && c <= '9') || c == '-' || c == '.' || c == '_' ||
+        c == ':' || c == '|' || c == '^' || c == '/') {
       s += c;
     }
   }
@@ -49,61 +47,64 @@ string filterWorkerName(const string &workerName) {
   return s;
 }
 
-
 //////////////////////////////// StratumStatus ////////////////////////////////
-const char * StratumStatus::toString(int err) {
+const char *StratumStatus::toString(int err) {
   switch (err) {
-    case ACCEPT:
-      return "Share accepted";
-    case ACCEPT_STALE:
-      return "Share accepted (stale)";
-    case SOLVED:
-      return "Share accepted and solved";
-    case SOLVED_STALE:
-      return "Share accepted and solved (stale)";
-    case REJECT_NO_REASON:
-      return "Share rejected";
+  case ACCEPT:
+    return "Share accepted";
+  case ACCEPT_STALE:
+    return "Share accepted (stale)";
+  case SOLVED:
+    return "Share accepted and solved";
+  case SOLVED_STALE:
+    return "Share accepted and solved (stale)";
+  case REJECT_NO_REASON:
+    return "Share rejected";
 
-    case JOB_NOT_FOUND:
-      return "Job not found (=stale)";
-    case DUPLICATE_SHARE:
-      return "Duplicate share";
-    case LOW_DIFFICULTY:
-      return "Low difficulty";
-    case UNAUTHORIZED:
-      return "Unauthorized worker";
-    case NOT_SUBSCRIBED:
-      return "Not subscribed";
+  case JOB_NOT_FOUND:
+    return "Job not found (=stale)";
+  case DUPLICATE_SHARE:
+    return "Duplicate share";
+  case LOW_DIFFICULTY:
+    return "Low difficulty";
+  case UNAUTHORIZED:
+    return "Unauthorized worker";
+  case NOT_SUBSCRIBED:
+    return "Not subscribed";
 
-    case ILLEGAL_METHOD:
-      return "Illegal method";
-    case ILLEGAL_PARARMS:
-      return "Illegal params";
-    case IP_BANNED:
-      return "Ip banned";
-    case INVALID_USERNAME:
-      return "Invalid username";
-    case INTERNAL_ERROR:
-      return "Internal error";
-    case TIME_TOO_OLD:
-      return "Time too old";
-    case TIME_TOO_NEW:
-      return "Time too new";
-    case ILLEGAL_VERMASK:
-      return "Invalid version mask";
+  case ILLEGAL_METHOD:
+    return "Illegal method";
+  case ILLEGAL_PARARMS:
+    return "Illegal params";
+  case IP_BANNED:
+    return "Ip banned";
+  case INVALID_USERNAME:
+    return "Invalid username";
+  case INTERNAL_ERROR:
+    return "Internal error";
+  case TIME_TOO_OLD:
+    return "Time too old";
+  case TIME_TOO_NEW:
+    return "Time too new";
+  case ILLEGAL_VERMASK:
+    return "Invalid version mask";
 
 #ifdef WORK_WITH_STRATUM_SWITCHER
-    case CLIENT_IS_NOT_SWITCHER:
-      return "Client is not a stratum switcher";
+  case CLIENT_IS_NOT_SWITCHER:
+    return "Client is not a stratum switcher";
 #endif
 
-    case UNKNOWN: default:
-      return "Unknown";
+  case UNKNOWN:
+  default:
+    return "Unknown";
   }
 }
 
 //////////////////////////////// StratumWorker ////////////////////////////////
-StratumWorker::StratumWorker(): userId_(0), workerHashId_(0) {}
+StratumWorker::StratumWorker()
+  : userId_(0)
+  , workerHashId_(0) {
+}
 
 void StratumWorker::reset() {
   userId_ = 0;
@@ -122,16 +123,17 @@ string StratumWorker::getUserName(const string &fullName) const {
   return fullName.substr(0, pos);
 }
 
-void StratumWorker::setUserIDAndNames(const int32_t userId, const string &fullName) {
+void StratumWorker::setUserIDAndNames(
+    const int32_t userId, const string &fullName) {
   reset();
   userId_ = userId;
 
   auto pos = fullName.find(".");
   if (pos == fullName.npos) {
-    userName_   = fullName;
+    userName_ = fullName;
   } else {
-    userName_   = fullName.substr(0, pos);
-    workerName_ = fullName.substr(pos+1);
+    userName_ = fullName.substr(0, pos);
+    workerName_ = fullName.substr(pos + 1);
   }
 
   // the worker name will insert to DB, so must be filter
@@ -158,11 +160,11 @@ int64_t StratumWorker::calcWorkerId(const string &workerName) {
   const uint256 workerNameHash = Hash(workerName.begin(), workerName.end());
 
   // need to convert to uint64_t first than copy memory
-  const uint64_t tmpId = strtoull(workerNameHash.ToString().substr(0, 16).c_str(),
-                                  nullptr, 16);
+  const uint64_t tmpId =
+      strtoull(workerNameHash.ToString().substr(0, 16).c_str(), nullptr, 16);
   memcpy((uint8_t *)&workerHashId, (uint8_t *)&tmpId, 8);
 
-  if (workerHashId == 0) {  // zero is kept
+  if (workerHashId == 0) { // zero is kept
     workerHashId++;
   }
 
@@ -171,11 +173,8 @@ int64_t StratumWorker::calcWorkerId(const string &workerName) {
 
 //////////////////////////////////  StratumJob  ////////////////////////////////
 StratumJob::StratumJob()
-  : jobId_(0)
-{
+  : jobId_(0) {
 }
 
-StratumJob::~StratumJob()
-{
-  
+StratumJob::~StratumJob() {
 }

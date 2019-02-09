@@ -23,11 +23,10 @@
  */
 #include "Common.h"
 
-uint32_t djb2(const char *s)
-{
+uint32_t djb2(const char *s) {
   uint32_t hash = 5381;
   int c;
-  uint8_t* str = (uint8_t*) s;
+  uint8_t *str = (uint8_t *)s;
   while ((c = *str++))
     hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
 
@@ -51,4 +50,3 @@ uint64_t formatDifficulty(const uint64_t diff) {
   assert(i <= 63);
   return 1ULL << i;
 }
-

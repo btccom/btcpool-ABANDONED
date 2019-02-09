@@ -29,43 +29,36 @@
 #include <glog/logging.h>
 
 StratumJobSia::StratumJobSia()
-  : nTime_(0U)
-{
-
+  : nTime_(0U) {
 }
 
-StratumJobSia::~StratumJobSia()
-{
-
+StratumJobSia::~StratumJobSia() {
 }
 
-
-string StratumJobSia::serializeToJson() const
-{
-  return Strings::Format("{\"created_at_ts\":%u"
-                         ",\"jobId\":%" PRIu64 ""
-                         ",\"target\":\"%s\""
-                         ",\"hHash\":\"%s\""
-                         "}",
-                         nTime_,
-                         jobId_,
-                         networkTarget_.GetHex().c_str(),
-                         blockHashForMergedMining_.c_str());
+string StratumJobSia::serializeToJson() const {
+  return Strings::Format(
+      "{\"created_at_ts\":%u"
+      ",\"jobId\":%" PRIu64
+      ""
+      ",\"target\":\"%s\""
+      ",\"hHash\":\"%s\""
+      "}",
+      nTime_,
+      jobId_,
+      networkTarget_.GetHex().c_str(),
+      blockHashForMergedMining_.c_str());
 }
 
 ///////////////////////////////StratumJobSia///////////////////////////
-bool StratumJobSia::unserializeFromJson(const char *s, size_t len)
-{
+bool StratumJobSia::unserializeFromJson(const char *s, size_t len) {
   JsonNode j;
-  if (!JsonNode::parse(s, s + len, j))
-  {
+  if (!JsonNode::parse(s, s + len, j)) {
     return false;
   }
   if (j["created_at_ts"].type() != Utilities::JS::type::Int ||
       j["jobId"].type() != Utilities::JS::type::Int ||
       j["target"].type() != Utilities::JS::type::Str ||
-      j["hHash"].type() != Utilities::JS::type::Str)
-  {
+      j["hHash"].type() != Utilities::JS::type::Str) {
     LOG(ERROR) << "parse sia stratum job failure: " << s;
     return false;
   }
@@ -77,4 +70,3 @@ bool StratumJobSia::unserializeFromJson(const char *s, size_t len)
 
   return true;
 }
-

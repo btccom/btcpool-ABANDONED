@@ -29,14 +29,12 @@
 #include "bitcoin/CommonBitcoin.h"
 
 ///////////////////////////////StratumJobEth///////////////////////////
-StratumJobEth::StratumJobEth()
-{
+StratumJobEth::StratumJobEth() {
 }
 
-bool StratumJobEth::initFromGw(const RskWorkEth &work, EthConsensus::Chain chain, uint8_t serverId)
-{
-  if (work.isInitialized())
-  {
+bool StratumJobEth::initFromGw(
+    const RskWorkEth &work, EthConsensus::Chain chain, uint8_t serverId) {
+  if (work.isInitialized()) {
     chain_ = chain;
 
     height_ = work.getHeight();
@@ -56,65 +54,65 @@ bool StratumJobEth::initFromGw(const RskWorkEth &work, EthConsensus::Chain chain
     // generate job id
     string header = headerHash_.substr(2, 64);
     // jobId: timestamp + hash of header + server id
-    jobId_ = (static_cast<uint64_t>(time(nullptr)) << 32) | (djb2(header.c_str()) & 0xFFFFFF00) | serverId;
+    jobId_ = (static_cast<uint64_t>(time(nullptr)) << 32) |
+        (djb2(header.c_str()) & 0xFFFFFF00) | serverId;
   }
   return seedHash_.size() && headerHash_.size();
 }
 
 string StratumJobEth::serializeToJson() const {
-  return Strings::Format("{\"jobId\":%" PRIu64""
+  return Strings::Format(
+      "{\"jobId\":%" PRIu64
+      ""
 
-                         ",\"chain\":\"%s\""
-                         ",\"height\":%u"
-                         ",\"parent\":\"%s\""
+      ",\"chain\":\"%s\""
+      ",\"height\":%u"
+      ",\"parent\":\"%s\""
 
-                         ",\"networkTarget\":\"0x%s\""
-                         ",\"headerHash\":\"%s\""
-                         ",\"sHash\":\"%s\""
+      ",\"networkTarget\":\"0x%s\""
+      ",\"headerHash\":\"%s\""
+      ",\"sHash\":\"%s\""
 
-                         ",\"uncles\":\"%u\""
-                         ",\"transactions\":\"%u\""
-                         ",\"gasUsedPercent\":\"%f\""
+      ",\"uncles\":\"%u\""
+      ",\"transactions\":\"%u\""
+      ",\"gasUsedPercent\":\"%f\""
 
-                         ",\"rpcAddress\":\"%s\""
-                         ",\"rpcUserPwd\":\"%s\""
+      ",\"rpcAddress\":\"%s\""
+      ",\"rpcUserPwd\":\"%s\""
 
-                         // backward compatible
-                         ",\"rskNetworkTarget\":\"0x%s\""
-                         ",\"rskBlockHashForMergedMining\":\"%s\""
-                         ",\"rskFeesForMiner\":\"\""
-                         ",\"rskdRpcAddress\":\"\""
-                         ",\"rskdRpcUserPwd\":\"\""
-                         ",\"isRskCleanJob\":false"
-                         "}",
-                         jobId_,
+      // backward compatible
+      ",\"rskNetworkTarget\":\"0x%s\""
+      ",\"rskBlockHashForMergedMining\":\"%s\""
+      ",\"rskFeesForMiner\":\"\""
+      ",\"rskdRpcAddress\":\"\""
+      ",\"rskdRpcUserPwd\":\"\""
+      ",\"isRskCleanJob\":false"
+      "}",
+      jobId_,
 
-                         EthConsensus::getChainStr(chain_).c_str(),
-                         height_,
-                         parent_.c_str(),
+      EthConsensus::getChainStr(chain_).c_str(),
+      height_,
+      parent_.c_str(),
 
-                         networkTarget_.GetHex().c_str(),
-                         headerHash_.c_str(),
-                         seedHash_.c_str(),
-                         
-                         uncles_,
-                         transactions_,
-                         gasUsedPercent_,
+      networkTarget_.GetHex().c_str(),
+      headerHash_.c_str(),
+      seedHash_.c_str(),
 
-                         rpcAddress_.c_str(),
-                         rpcUserPwd_.c_str(),
+      uncles_,
+      transactions_,
+      gasUsedPercent_,
 
-                         // backward compatible
-                         networkTarget_.GetHex().c_str(),
-                         headerHash_.c_str()
-                         );
+      rpcAddress_.c_str(),
+      rpcUserPwd_.c_str(),
+
+      // backward compatible
+      networkTarget_.GetHex().c_str(),
+      headerHash_.c_str());
 }
 
-bool StratumJobEth::unserializeFromJson(const char *s, size_t len)
-{
+bool StratumJobEth::unserializeFromJson(const char *s, size_t len) {
   JsonNode j;
-  if (!JsonNode::parse(s, s + len, j))
-  {
+  if (!JsonNode::parse(s, s + len, j)) {
     return false;
   }
 
@@ -123,8 +121,7 @@ bool StratumJobEth::unserializeFromJson(const char *s, size_t len)
       j["height"].type() != Utilities::JS::type::Int ||
       j["networkTarget"].type() != Utilities::JS::type::Str ||
       j["headerHash"].type() != Utilities::JS::type::Str ||
-      j["sHash"].type() != Utilities::JS::type::Str)
-  {
+      j["sHash"].type() != Utilities::JS::type::Str) {
     LOG(ERROR) << "parse eth stratum job failure: " << s;
     return false;
   }
@@ -139,8 +136,7 @@ bool StratumJobEth::unserializeFromJson(const char *s, size_t len)
   if (j["parent"].type() == Utilities::JS::type::Str &&
       j["uncles"].type() == Utilities::JS::type::Int &&
       j["transactions"].type() == Utilities::JS::type::Int &&
-      j["gasUsedPercent"].type() == Utilities::JS::type::Real)
-  {
+      j["gasUsedPercent"].type() == Utilities::JS::type::Real) {
     parent_ = j["parent"].str();
     uncles_ = j["uncles"].uint32();
     transactions_ = j["transactions"].uint32();
@@ -148,8 +144,7 @@ bool StratumJobEth::unserializeFromJson(const char *s, size_t len)
   }
 
   if (j["rpcAddress"].type() == Utilities::JS::type::Str &&
-      j["rpcUserPwd"].type() == Utilities::JS::type::Str)
-  {
+      j["rpcUserPwd"].type() == Utilities::JS::type::Str) {
     rpcAddress_ = j["rpcAddress"].str();
     rpcUserPwd_ = j["rpcUserPwd"].str();
   }

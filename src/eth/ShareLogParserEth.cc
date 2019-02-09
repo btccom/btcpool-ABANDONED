@@ -29,4 +29,3 @@
 template class ShareLogDumperT<ShareEth>;
 template class ShareLogParserT<ShareEth>;
 template class ShareLogParserServerT<ShareEth>;
-

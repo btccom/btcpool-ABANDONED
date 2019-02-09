@@ -25,8 +25,8 @@
 #include "DecredUtils.h"
 #include "CommonDecred.h"
 
-static int64_t GetBlockRewaredDecred(uint32_t height, const NetworkParamsDecred& params)
-{
+static int64_t
+GetBlockRewaredDecred(uint32_t height, const NetworkParamsDecred &params) {
   int64_t iterations = height / params.subsidyReductionInterval;
   int64_t subsidy = params.baseSubsidy;
   for (int64_t i = 0; i < iterations; i++) {
@@ -36,10 +36,12 @@ static int64_t GetBlockRewaredDecred(uint32_t height, const NetworkParamsDecred&
   return subsidy;
 }
 
-int64_t GetBlockRewardDecredWork(uint32_t height, uint16_t voters, const NetworkParamsDecred& params)
-{
-  int64_t totalProportion = params.workRewardProportion + params.stakeRewardProportion + params.blockTaxProportion;
-  int64_t powSubsidy = GetBlockRewaredDecred(height, params) * params.workRewardProportion / totalProportion;
+int64_t GetBlockRewardDecredWork(
+    uint32_t height, uint16_t voters, const NetworkParamsDecred &params) {
+  int64_t totalProportion = params.workRewardProportion +
+      params.stakeRewardProportion + params.blockTaxProportion;
+  int64_t powSubsidy = GetBlockRewaredDecred(height, params) *
+      params.workRewardProportion / totalProportion;
   if (height < params.stakeValidationHeight) {
     return powSubsidy;
   }

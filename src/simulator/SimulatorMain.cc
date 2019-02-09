@@ -47,12 +47,13 @@ using namespace libconfig;
 
 void usage() {
   fprintf(stderr, BIN_VERSION_STRING("simulator"));
-  fprintf(stderr, "Usage:\tsimulator -c \"simulator.cfg\" [-l <log_dir|stderr>]\n");
+  fprintf(
+      stderr, "Usage:\tsimulator -c \"simulator.cfg\" [-l <log_dir|stderr>]\n");
 }
 
 int main(int argc, char **argv) {
   char *optLogDir = NULL;
-  char *optConf   = NULL;
+  char *optConf = NULL;
   int c;
 
   if (argc <= 1) {
@@ -61,15 +62,16 @@ int main(int argc, char **argv) {
   }
   while ((c = getopt(argc, argv, "c:l:h")) != -1) {
     switch (c) {
-      case 'c':
-        optConf = optarg;
-        break;
-      case 'l':
-        optLogDir = optarg;
-        break;
-      case 'h': default:
-        usage();
-        exit(0);
+    case 'c':
+      optConf = optarg;
+      break;
+    case 'l':
+      optLogDir = optarg;
+      break;
+    case 'h':
+    default:
+      usage();
+      exit(0);
     }
   }
 
@@ -82,25 +84,24 @@ int main(int argc, char **argv) {
   }
   // Log messages at a level >= this flag are automatically sent to
   // stderr in addition to log files.
-  FLAGS_stderrthreshold = 3;    // 3: FATAL
-  FLAGS_max_log_size    = 100;  // max log file size 100 MB
-  FLAGS_logbuflevel     = -1;   // don't buffer logs
+  FLAGS_stderrthreshold = 3; // 3: FATAL
+  FLAGS_max_log_size = 100; // max log file size 100 MB
+  FLAGS_logbuflevel = -1; // don't buffer logs
   FLAGS_stop_logging_if_full_disk = true;
 
   LOG(INFO) << BIN_VERSION_STRING("simulator");
 
   // Read the file. If there is an error, report it and exit.
   libconfig::Config cfg;
-  try
-  {
+  try {
     cfg.readFile(optConf);
-  } catch(const FileIOException &fioex) {
+  } catch (const FileIOException &fioex) {
     std::cerr << "I/O error while reading file." << std::endl;
-    return(EXIT_FAILURE);
-  } catch(const ParseException &pex) {
+    return (EXIT_FAILURE);
+  } catch (const ParseException &pex) {
     std::cerr << "Parse error at " << pex.getFile() << ":" << pex.getLine()
-    << " - " << pex.getError() << std::endl;
-    return(EXIT_FAILURE);
+              << " - " << pex.getError() << std::endl;
+    return (EXIT_FAILURE);
   }
 
   // lock cfg file:
@@ -112,7 +113,7 @@ int main(int argc, char **argv) {
   }*/
 
   // ignore SIGPIPE, avoiding process be killed
-  signal(SIGPIPE,  SIG_IGN);
+  signal(SIGPIPE, SIG_IGN);
 
   try {
     int32_t port = 3333;
@@ -132,15 +133,16 @@ int main(int argc, char **argv) {
     StratumClient::registerFactory<StratumClientEth>("ETH");
 
     // new StratumClientWrapper
-    auto wrapper = boost::make_unique<StratumClientWrapper>(cfg.lookup("simulator.ss_ip").c_str(),
-                                                            (unsigned short)port, numConns,
-                                                            cfg.lookup("simulator.username"),
-                                                            cfg.lookup("simulator.minername_prefix"),
-                                                            passwd,
-                                                            cfg.lookup("simulator.type"));
+    auto wrapper = boost::make_unique<StratumClientWrapper>(
+        cfg.lookup("simulator.ss_ip").c_str(),
+        (unsigned short)port,
+        numConns,
+        cfg.lookup("simulator.username"),
+        cfg.lookup("simulator.minername_prefix"),
+        passwd,
+        cfg.lookup("simulator.type"));
     wrapper->run();
-  }
-  catch (std::exception & e) {
+  } catch (std::exception &e) {
     LOG(FATAL) << "exception: " << e.what();
     return 1;
   }

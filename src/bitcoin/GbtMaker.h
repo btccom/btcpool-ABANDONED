@@ -29,7 +29,6 @@
 
 #include "zmq.hpp"
 
-
 /////////////////////////////////// GbtMaker ///////////////////////////////////
 class GbtMaker {
   atomic<bool> running_;
@@ -68,10 +67,14 @@ class GbtMaker {
   void kafkaProduceMsg(const void *payload, size_t len);
 
 public:
-  GbtMaker(const string &zmqBitcoindAddr,
-           const string &bitcoindRpcAddr, const string &bitcoindRpcUserpass,
-           const string &kafkaBrokers, const string &kafkaRawGbtTopic,
-           uint32_t kRpcCallInterval, bool isCheckZmq);
+  GbtMaker(
+      const string &zmqBitcoindAddr,
+      const string &bitcoindRpcAddr,
+      const string &bitcoindRpcUserpass,
+      const string &kafkaBrokers,
+      const string &kafkaRawGbtTopic,
+      uint32_t kRpcCallInterval,
+      bool isCheckZmq);
   ~GbtMaker();
 
   bool init();
@@ -81,8 +84,6 @@ public:
 #endif
   void run();
 };
-
-
 
 //////////////////////////////// NMCAuxBlockMaker //////////////////////////////
 //
@@ -105,7 +106,7 @@ class NMCAuxBlockMaker {
   string kafkaAuxPowGwTopic_;
   KafkaProducer kafkaProducer_;
   bool isCheckZmq_;
-  string coinbaseAddress_;  // nmc coinbase payout address
+  string coinbaseAddress_; // nmc coinbase payout address
   bool useCreateAuxBlockInterface_;
 
   bool checkNamecoindZMQ();
@@ -118,18 +119,21 @@ class NMCAuxBlockMaker {
   void kafkaProduceMsg(const void *payload, size_t len);
 
 public:
-  NMCAuxBlockMaker(const string &zmqNamecoindAddr,
-                   const string &rpcAddr, const string &rpcUserpass,
-                   const string &kafkaBrokers, const string &kafkaAuxPowGwTopic,
-                   uint32_t kRpcCallInterval,
-                   const string &fileLastRpcCallTime, bool isCheckZmq,
-                   const string &coinbaseAddress);
+  NMCAuxBlockMaker(
+      const string &zmqNamecoindAddr,
+      const string &rpcAddr,
+      const string &rpcUserpass,
+      const string &kafkaBrokers,
+      const string &kafkaAuxPowGwTopic,
+      uint32_t kRpcCallInterval,
+      const string &fileLastRpcCallTime,
+      bool isCheckZmq,
+      const string &coinbaseAddress);
   ~NMCAuxBlockMaker();
 
   bool init();
   void stop();
   void run();
 };
-
 
 #endif

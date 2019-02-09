@@ -36,16 +36,21 @@
 #include <boost/multi_index/tag.hpp>
 
 struct GetWorkDecred {
-  GetWorkDecred(const string &data,
-                const string &target,
-                uint32_t createdAt,
-                uint32_t height,
-                NetworkDecred network,
-                uint32_t size,
-                uint16_t voters)
-    : data(data), target(target), createdAt(createdAt), height(height), network(network), size(size), voters(voters)
-  {
-  }
+  GetWorkDecred(
+      const string &data,
+      const string &target,
+      uint32_t createdAt,
+      uint32_t height,
+      NetworkDecred network,
+      uint32_t size,
+      uint16_t voters)
+    : data(data)
+    , target(target)
+    , createdAt(createdAt)
+    , height(height)
+    , network(network)
+    , size(size)
+    , voters(voters) {}
 
   string data;
   string target;
@@ -61,36 +66,41 @@ struct ByCreationTimeDecred {};
 struct ByDataDecred {};
 
 // The getwork job dimensions
-// - Height + voters + size + creation time: ordered non-unique for best block retrieval
+// - Height + voters + size + creation time: ordered non-unique for best block
+// retrieval
 // - Creation time: ordered non-unique for timeout handling
 // - Data: hashed unique for duplication checks
 using GetWorkDecredMap = boost::multi_index_container<
-  GetWorkDecred,
-  boost::multi_index::indexed_by<
-    boost::multi_index::ordered_non_unique<
-      boost::multi_index::tag<ByBestBlockDecred>,
-      boost::multi_index::composite_key<
-        GetWorkDecred,
-        boost::multi_index::member<GetWorkDecred, NetworkDecred, &GetWorkDecred::network>,
-        boost::multi_index::member<GetWorkDecred, uint32_t, &GetWorkDecred::height>,
-        boost::multi_index::member<GetWorkDecred, uint16_t, &GetWorkDecred::voters>,
-        boost::multi_index::member<GetWorkDecred, uint32_t, &GetWorkDecred::size>,
-        boost::multi_index::member<GetWorkDecred, uint32_t, &GetWorkDecred::createdAt>
-      >
-    >,
-    boost::multi_index::ordered_non_unique<
-      boost::multi_index::tag<ByCreationTimeDecred>,
-      boost::multi_index::member<GetWorkDecred, uint32_t, &GetWorkDecred::createdAt>
-    >,
-    boost::multi_index::hashed_unique<
-      boost::multi_index::tag<ByDataDecred>,
-      boost::multi_index::member<GetWorkDecred, string, &GetWorkDecred::data>
-    >
-  >
->;
+    GetWorkDecred,
+    boost::multi_index::indexed_by<
+        boost::multi_index::ordered_non_unique<
+            boost::multi_index::tag<ByBestBlockDecred>,
+            boost::multi_index::composite_key<
+                GetWorkDecred,
+                boost::multi_index::member<
+                    GetWorkDecred,
+                    NetworkDecred,
+                    &GetWorkDecred::network>,
+                boost::multi_index::
+                    member<GetWorkDecred, uint32_t, &GetWorkDecred::height>,
+                boost::multi_index::
+                    member<GetWorkDecred, uint16_t, &GetWorkDecred::voters>,
+                boost::multi_index::
+                    member<GetWorkDecred, uint32_t, &GetWorkDecred::size>,
+                boost::multi_index::member<
+                    GetWorkDecred,
+                    uint32_t,
+                    &GetWorkDecred::createdAt>>>,
+        boost::multi_index::ordered_non_unique<
+            boost::multi_index::tag<ByCreationTimeDecred>,
+            boost::multi_index::
+                member<GetWorkDecred, uint32_t, &GetWorkDecred::createdAt>>,
+        boost::multi_index::hashed_unique<
+            boost::multi_index::tag<ByDataDecred>,
+            boost::multi_index::
+                member<GetWorkDecred, string, &GetWorkDecred::data>>>>;
 
-class JobMakerHandlerDecred : public GwJobMakerHandler
-{
+class JobMakerHandlerDecred : public GwJobMakerHandler {
 public:
   JobMakerHandlerDecred();
   bool processMsg(const string &msg) override;

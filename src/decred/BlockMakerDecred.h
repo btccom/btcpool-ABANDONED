@@ -30,14 +30,18 @@
 
 class BlockMakerDecred : public BlockMaker {
 public:
-  BlockMakerDecred(shared_ptr<BlockMakerDefinition> def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
+  BlockMakerDecred(
+      shared_ptr<BlockMakerDefinition> def,
+      const char *kafkaBrokers,
+      const MysqlConnectInfo &poolDB);
 
 protected:
   void processSolvedShare(rd_kafka_message_t *rkmessage) override;
 
 private:
-  void submitBlockHeader(const NodeDefinition& node, const BlockHeaderDecred& header);
-  void saveBlockToDB(const FoundBlockDecred& foundBlock);
+  void submitBlockHeader(
+      const NodeDefinition &node, const BlockHeaderDecred &header);
+  void saveBlockToDB(const FoundBlockDecred &foundBlock);
 };
 
 #endif

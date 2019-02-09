@@ -41,21 +41,25 @@ namespace bpt = boost::posix_time;
 //   public:
 //     virtual ~BlockMakerHandler() = 0; // mark it's an abstract class
 //     virtual void init(const BlockMakerDefinition &def) { def_ = def; }
-    
+
 //     // read-only definition
 //     virtual const BlockMakerDefinition& def() { return def_; }
 //     virtual void processSolvedShare(rd_kafka_message_t *rkmessage) = 0;
 //     // Interface with the GwMaker.
 //     // There is a default implementation that use virtual functions below.
-//     // If the implementation does not meet the requirements, you can overload it
+//     // If the implementation does not meet the requirements, you can overload
+//     it
 //     // and ignore all the following virtual functions.
 //   //   virtual string makeRawGwMsg();
 
 //   // protected:
 
-//   //   // These virtual functions make it easier to implement the makeRawGwMsg() interface.
-//   //   // In most cases, you just need to override getRequestData() and processRawGw().
-//   //   // If you have overloaded makeRawGwMsg() above, you can ignore all the following functions.
+//   //   // These virtual functions make it easier to implement the
+//   makeRawGwMsg() interface.
+//   //   // In most cases, you just need to override getRequestData() and
+//   processRawGw().
+//   //   // If you have overloaded makeRawGwMsg() above, you can ignore all the
+//   following functions.
 
 //   //   // Receive rpc response and generate RawGw message for the pool.
 //   //   virtual string processRawGw(const string &gw) { return ""; }
@@ -79,14 +83,12 @@ namespace bpt = boost::posix_time;
 
 // class BlockMakerHandlerSia : public BlockMakerHandler{
 //   virtual void processSolvedShare(rd_kafka_message_t *rkmessage) {
-    
+
 //   }
 // };
 
-
 ////////////////////////////////// BlockMaker //////////////////////////////////
-class BlockMakerBitcoin : public BlockMaker
-{
+class BlockMakerBitcoin : public BlockMaker {
 protected:
 #ifdef CHAIN_TYPE_BCH
   mutex rawGbtlightLock_;
@@ -113,15 +115,16 @@ protected:
   KafkaConsumer kafkaConsumerNamecoinSolvedShare_;
   KafkaConsumer kafkaConsumerRskSolvedShare_;
 
-  void insertRawGbt(const uint256 &gbtHash,
-                    shared_ptr<vector<CTransactionRef>> vtxs);
+  void insertRawGbt(
+      const uint256 &gbtHash, shared_ptr<vector<CTransactionRef>> vtxs);
 
   thread threadConsumeRawGbt_;
   thread threadConsumeStratumJob_;
   thread threadConsumeNamecoinSolvedShare_;
   thread threadConsumeRskSolvedShare_;
 
-  std::map<std::string/*rpcaddr*/, bool/*isSupportSubmitAuxBlock*/> isAddrSupportSubmitAux_;
+  std::map<std::string /*rpcaddr*/, bool /*isSupportSubmitAuxBlock*/>
+      isAddrSupportSubmitAux_;
 
   void runThreadConsumeRawGbt();
   void runThreadConsumeStratumJob();
@@ -137,60 +140,78 @@ protected:
 
   void addRawgbt(const char *str, size_t len);
 
-  void saveBlockToDBNonBlocking(const FoundBlock &foundBlock,
-                                const CBlockHeader &header,
-                                const uint64_t coinbaseValue, const int32_t blksize);
-  void _saveBlockToDBThread(const FoundBlock &foundBlock,
-                            const CBlockHeader &header,
-                            const uint64_t coinbaseValue, const int32_t blksize);
+  void saveBlockToDBNonBlocking(
+      const FoundBlock &foundBlock,
+      const CBlockHeader &header,
+      const uint64_t coinbaseValue,
+      const int32_t blksize);
+  void _saveBlockToDBThread(
+      const FoundBlock &foundBlock,
+      const CBlockHeader &header,
+      const uint64_t coinbaseValue,
+      const int32_t blksize);
 #ifdef CHAIN_TYPE_BCH
-  void submitBlockLightNonBlocking(const string &blockHex, const string& job_id);
-  void _submitBlockLightThread(const string &rpcAddress, const string &rpcUserpass, const string& job_id,
-                          const string &blockHex);
+  void
+  submitBlockLightNonBlocking(const string &blockHex, const string &job_id);
+  void _submitBlockLightThread(
+      const string &rpcAddress,
+      const string &rpcUserpass,
+      const string &job_id,
+      const string &blockHex);
 #endif // CHAIN_TYPE_BCH
 
   void submitBlockNonBlocking(const string &blockHex);
-  void _submitBlockThread(const string &rpcAddress, const string &rpcUserpass,
-                          const string &blockHex);
+  void _submitBlockThread(
+      const string &rpcAddress,
+      const string &rpcUserpass,
+      const string &blockHex);
   bool checkBitcoinds();
 
-  void submitNamecoinBlockNonBlocking(const string &auxBlockHash,
-                                      const string &auxPow,
-                                      const string &bitcoinBlockHash,
-                                      const string &rpcAddress,
-                                      const string &rpcUserpass);
-  void _submitNamecoinBlockThread(const string &auxBlockHash,
-                                  const string &auxPow,
-                                  const string &bitcoinBlockHash,
-                                  const string &rpcAddress,
-                                  const string &rpcUserpass);
+  void submitNamecoinBlockNonBlocking(
+      const string &auxBlockHash,
+      const string &auxPow,
+      const string &bitcoinBlockHash,
+      const string &rpcAddress,
+      const string &rpcUserpass);
+  void _submitNamecoinBlockThread(
+      const string &auxBlockHash,
+      const string &auxPow,
+      const string &bitcoinBlockHash,
+      const string &rpcAddress,
+      const string &rpcUserpass);
 
-  void submitRskBlockPartialMerkleNonBlocking(const string &rpcAddress,
-                                              const string &rpcUserPwd,
-                                              const string &blockHashHex, 
-                                              const string &blockHeaderHex, 
-                                              const string &coinbaseHex, 
-                                              const string &merkleHashesHex, 
-                                              const string &totalTxCount);
-  void _submitRskBlockPartialMerkleThread(const string &rpcAddress,
-                                          const string &rpcUserPwd,
-                                          const string &blockHashHex, 
-                                          const string &blockHeaderHex, 
-                                          const string &coinbaseHex, 
-                                          const string &merkleHashesHex, 
-                                          const string &totalTxCount);
+  void submitRskBlockPartialMerkleNonBlocking(
+      const string &rpcAddress,
+      const string &rpcUserPwd,
+      const string &blockHashHex,
+      const string &blockHeaderHex,
+      const string &coinbaseHex,
+      const string &merkleHashesHex,
+      const string &totalTxCount);
+  void _submitRskBlockPartialMerkleThread(
+      const string &rpcAddress,
+      const string &rpcUserPwd,
+      const string &blockHashHex,
+      const string &blockHeaderHex,
+      const string &coinbaseHex,
+      const string &merkleHashesHex,
+      const string &totalTxCount);
   bool submitToRskNode();
 
   // read-only definition
-  inline shared_ptr<const BlockMakerDefinitionBitcoin> def() { return std::dynamic_pointer_cast<const BlockMakerDefinitionBitcoin>(def_); }
+  inline shared_ptr<const BlockMakerDefinitionBitcoin> def() {
+    return std::dynamic_pointer_cast<const BlockMakerDefinitionBitcoin>(def_);
+  }
 
 public:
-  BlockMakerBitcoin(shared_ptr<BlockMakerDefinition> def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
+  BlockMakerBitcoin(
+      shared_ptr<BlockMakerDefinition> def,
+      const char *kafkaBrokers,
+      const MysqlConnectInfo &poolDB);
   virtual ~BlockMakerBitcoin();
 
   bool init() override;
   void run() override;
 };
-
 
 #endif

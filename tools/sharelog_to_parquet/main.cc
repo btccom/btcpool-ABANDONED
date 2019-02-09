@@ -51,11 +51,14 @@ using parquet::Type;
 using parquet::schema::GroupNode;
 using parquet::schema::PrimitiveNode;
 
-
 const size_t DEFAULT_NUM_ROWS_PER_ROW_GROUP = 1000000;
 
 void usage() {
-  fprintf(stderr, "Usage:\n\tsharelog_to_parquet -i \"<input-sharelog-v1-file.bin>\" -o \"<output-parquet-file.bin>\" [-n %ld]\n", DEFAULT_NUM_ROWS_PER_ROW_GROUP);
+  fprintf(
+      stderr,
+      "Usage:\n\tsharelog_to_parquet -i \"<input-sharelog-v1-file.bin>\" -o "
+      "\"<output-parquet-file.bin>\" [-n %ld]\n",
+      DEFAULT_NUM_ROWS_PER_ROW_GROUP);
 }
 
 class ParquetWriter {
@@ -95,77 +98,99 @@ public:
     auto rgWriter = fileWriter->AppendRowGroup();
 
     // job_id
-    auto jobIdWriter = static_cast<parquet::Int64Writer*>(rgWriter->NextColumn());
-    for (share=sharesBegin; share!=sharesEnd; share++) {
-      jobIdWriter->WriteBatch(1, nullptr, nullptr, (int64_t*)&(share->jobId_));
+    auto jobIdWriter =
+        static_cast<parquet::Int64Writer *>(rgWriter->NextColumn());
+    for (share = sharesBegin; share != sharesEnd; share++) {
+      jobIdWriter->WriteBatch(1, nullptr, nullptr, (int64_t *)&(share->jobId_));
     }
 
     // worker_id
-    auto workerIdWriter = static_cast<parquet::Int64Writer*>(rgWriter->NextColumn());
-    for (share=sharesBegin; share!=sharesEnd; share++) {
-      workerIdWriter->WriteBatch(1, nullptr, nullptr, (int64_t*)&(share->workerHashId_));
+    auto workerIdWriter =
+        static_cast<parquet::Int64Writer *>(rgWriter->NextColumn());
+    for (share = sharesBegin; share != sharesEnd; share++) {
+      workerIdWriter->WriteBatch(
+          1, nullptr, nullptr, (int64_t *)&(share->workerHashId_));
     }
 
     // ip_long
-    auto ipLongWriter = static_cast<parquet::Int32Writer*>(rgWriter->NextColumn());
-    for (share=sharesBegin; share!=sharesEnd; share++) {
-      ipLongWriter->WriteBatch(1, nullptr, nullptr, (int32_t*)&(share->ip_));
+    auto ipLongWriter =
+        static_cast<parquet::Int32Writer *>(rgWriter->NextColumn());
+    for (share = sharesBegin; share != sharesEnd; share++) {
+      ipLongWriter->WriteBatch(1, nullptr, nullptr, (int32_t *)&(share->ip_));
     }
 
     // user_id
-    auto userIdWriter = static_cast<parquet::Int32Writer*>(rgWriter->NextColumn());
-    for (share=sharesBegin; share!=sharesEnd; share++) {
-      userIdWriter->WriteBatch(1, nullptr, nullptr, (int32_t*)&(share->userId_));
+    auto userIdWriter =
+        static_cast<parquet::Int32Writer *>(rgWriter->NextColumn());
+    for (share = sharesBegin; share != sharesEnd; share++) {
+      userIdWriter->WriteBatch(
+          1, nullptr, nullptr, (int32_t *)&(share->userId_));
     }
 
     // share_diff
-    auto shareDiffWriter = static_cast<parquet::Int64Writer*>(rgWriter->NextColumn());
-    for (share=sharesBegin; share!=sharesEnd; share++) {
-      shareDiffWriter->WriteBatch(1, nullptr, nullptr, (int64_t*)&(share->share_));
+    auto shareDiffWriter =
+        static_cast<parquet::Int64Writer *>(rgWriter->NextColumn());
+    for (share = sharesBegin; share != sharesEnd; share++) {
+      shareDiffWriter->WriteBatch(
+          1, nullptr, nullptr, (int64_t *)&(share->share_));
     }
 
     // timestamp
-    auto timestampWriter = static_cast<parquet::Int64Writer*>(rgWriter->NextColumn());
-    for (share=sharesBegin; share!=sharesEnd; share++) {
+    auto timestampWriter =
+        static_cast<parquet::Int64Writer *>(rgWriter->NextColumn());
+    for (share = sharesBegin; share != sharesEnd; share++) {
       int64_t timeMillis = share->timestamp_ * 1000;
       timestampWriter->WriteBatch(1, nullptr, nullptr, &timeMillis);
     }
 
     // block_bits
-    auto blkBitsWriter = static_cast<parquet::Int32Writer*>(rgWriter->NextColumn());
-    for (share=sharesBegin; share!=sharesEnd; share++) {
-      blkBitsWriter->WriteBatch(1, nullptr, nullptr, (int32_t*)&(share->blkBits_));
+    auto blkBitsWriter =
+        static_cast<parquet::Int32Writer *>(rgWriter->NextColumn());
+    for (share = sharesBegin; share != sharesEnd; share++) {
+      blkBitsWriter->WriteBatch(
+          1, nullptr, nullptr, (int32_t *)&(share->blkBits_));
     }
 
     // result
-    auto resultWriter = static_cast<parquet::Int32Writer*>(rgWriter->NextColumn());
-    for (share=sharesBegin; share!=sharesEnd; share++) {
-      resultWriter->WriteBatch(1, nullptr, nullptr, (int32_t*)&(share->result_));
+    auto resultWriter =
+        static_cast<parquet::Int32Writer *>(rgWriter->NextColumn());
+    for (share = sharesBegin; share != sharesEnd; share++) {
+      resultWriter->WriteBatch(
+          1, nullptr, nullptr, (int32_t *)&(share->result_));
     }
-    
+
     // Save current RowGroup
     rgWriter->Close();
   }
 
-  ~ParquetWriter() {
-    fileWriter->Close();
-  }
+  ~ParquetWriter() { fileWriter->Close(); }
 
 protected:
   std::shared_ptr<GroupNode> setupSchema() {
     parquet::schema::NodeVector fields;
 
-    fields.push_back(PrimitiveNode::Make("job_id",     Repetition::REQUIRED, Type::INT64, LogicalType::INT_64));
-    fields.push_back(PrimitiveNode::Make("worker_id",  Repetition::REQUIRED, Type::INT64, LogicalType::INT_64));
-    fields.push_back(PrimitiveNode::Make("ip_long",    Repetition::REQUIRED, Type::INT32, LogicalType::INT_32));
-    fields.push_back(PrimitiveNode::Make("user_id",    Repetition::REQUIRED, Type::INT32, LogicalType::INT_32));
-    fields.push_back(PrimitiveNode::Make("share_diff", Repetition::REQUIRED, Type::INT64, LogicalType::INT_64));
-    fields.push_back(PrimitiveNode::Make("timestamp",  Repetition::REQUIRED, Type::INT64, LogicalType::TIMESTAMP_MILLIS));
-    fields.push_back(PrimitiveNode::Make("block_bits", Repetition::REQUIRED, Type::INT32, LogicalType::INT_32));
-    fields.push_back(PrimitiveNode::Make("result",     Repetition::REQUIRED, Type::INT32, LogicalType::INT_32));
+    fields.push_back(PrimitiveNode::Make(
+        "job_id", Repetition::REQUIRED, Type::INT64, LogicalType::INT_64));
+    fields.push_back(PrimitiveNode::Make(
+        "worker_id", Repetition::REQUIRED, Type::INT64, LogicalType::INT_64));
+    fields.push_back(PrimitiveNode::Make(
+        "ip_long", Repetition::REQUIRED, Type::INT32, LogicalType::INT_32));
+    fields.push_back(PrimitiveNode::Make(
+        "user_id", Repetition::REQUIRED, Type::INT32, LogicalType::INT_32));
+    fields.push_back(PrimitiveNode::Make(
+        "share_diff", Repetition::REQUIRED, Type::INT64, LogicalType::INT_64));
+    fields.push_back(PrimitiveNode::Make(
+        "timestamp",
+        Repetition::REQUIRED,
+        Type::INT64,
+        LogicalType::TIMESTAMP_MILLIS));
+    fields.push_back(PrimitiveNode::Make(
+        "block_bits", Repetition::REQUIRED, Type::INT32, LogicalType::INT_32));
+    fields.push_back(PrimitiveNode::Make(
+        "result", Repetition::REQUIRED, Type::INT32, LogicalType::INT_32));
 
-    // Create a GroupNode named 'share_bitcoin_v1' using the primitive nodes defined above
-    // This GroupNode is the root node of the schema tree
+    // Create a GroupNode named 'share_bitcoin_v1' using the primitive nodes
+    // defined above This GroupNode is the root node of the schema tree
     return std::static_pointer_cast<GroupNode>(
         GroupNode::Make("share_bitcoin_v1", Repetition::REQUIRED, fields));
   }
@@ -173,7 +198,7 @@ protected:
 
 int main(int argc, char **argv) {
   char *inFile = NULL;
-  char *outFile   = NULL;
+  char *outFile = NULL;
   size_t batchShareNum = DEFAULT_NUM_ROWS_PER_ROW_GROUP;
   int c;
 
@@ -183,18 +208,19 @@ int main(int argc, char **argv) {
   }
   while ((c = getopt(argc, argv, "i:o:n:h")) != -1) {
     switch (c) {
-      case 'i':
-        inFile = optarg;
-        break;
-      case 'o':
-        outFile = optarg;
-        break;
-      case 'n':
-        batchShareNum = strtoull(optarg, nullptr, 10);
-        break;
-      case 'h': default:
-        usage();
-        exit(0);
+    case 'i':
+      inFile = optarg;
+      break;
+    case 'o':
+      outFile = optarg;
+      break;
+    case 'n':
+      batchShareNum = strtoull(optarg, nullptr, 10);
+      break;
+    case 'h':
+    default:
+      usage();
+      exit(0);
     }
   }
 
@@ -212,7 +238,7 @@ int main(int argc, char **argv) {
       LOG(FATAL) << "missing output file (-o \"<output-parquet-file.bin>\")";
       return 1;
     }
-    
+
     // open file (auto-detecting compression format or non-compression)
     LOG(INFO) << "open input file: " << inFile;
     zstr::ifstream in(inFile, std::ios::binary);
@@ -225,7 +251,8 @@ int main(int argc, char **argv) {
     ParquetWriter out;
     auto stat = out.open(outFile);
     if (!stat.ok()) {
-      LOG(FATAL) << "open output file " << outFile << " failed: " << stat.message();
+      LOG(FATAL) << "open output file " << outFile
+                 << " failed: " << stat.message();
       return 1;
     }
 
@@ -247,8 +274,7 @@ int main(int argc, char **argv) {
 
     delete[] shares;
     LOG(INFO) << "completed.";
-  }
-  catch (std::exception & e) {
+  } catch (std::exception &e) {
     LOG(FATAL) << "exception: " << e.what();
     return 1;
   }

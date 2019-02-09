@@ -28,8 +28,7 @@
 #include "Stratum.h"
 #include "CommonDecred.h"
 #include "decred/decred.pb.h"
-class FoundBlockDecred
-{
+class FoundBlockDecred {
 public:
   uint64_t jobId_;
   int64_t workerId_; // found by who
@@ -38,62 +37,65 @@ public:
   BlockHeaderDecred header_;
   NetworkDecred network_;
 
-  FoundBlockDecred(uint64_t jobId, int64_t workerId, int32_t userId, const string &workerFullName, const BlockHeaderDecred& header, NetworkDecred network)
-    : jobId_(jobId), workerId_(workerId), userId_(userId), header_(header), network_(network)
-  {
-    snprintf(workerFullName_, sizeof(workerFullName_), "%s", workerFullName.c_str());
+  FoundBlockDecred(
+      uint64_t jobId,
+      int64_t workerId,
+      int32_t userId,
+      const string &workerFullName,
+      const BlockHeaderDecred &header,
+      NetworkDecred network)
+    : jobId_(jobId)
+    , workerId_(workerId)
+    , userId_(userId)
+    , header_(header)
+    , network_(network) {
+    snprintf(
+        workerFullName_, sizeof(workerFullName_), "%s", workerFullName.c_str());
   }
 };
 
-
-
-
-class ShareDecredBytesVersion
-{
+class ShareDecredBytesVersion {
 public:
+  uint32_t version_; // 0
+  uint32_t checkSum_; // 4
 
-  uint32_t  version_;//0
-  uint32_t  checkSum_;//4
+  int64_t workerHashId_; // 8
+  int32_t userId_; // 16
+  int32_t status_; // 20
+  int64_t timestamp_; // 24
+  IpAddress ip_; // 32
 
-  int64_t   workerHashId_;//8
-  int32_t   userId_;//16
-  int32_t   status_;//20
-  int64_t   timestamp_;//24
-  IpAddress ip_;//32
-
-  uint64_t jobId_;//48
-  uint64_t shareDiff_;//56
-  uint32_t blkBits_;//64
-  uint32_t height_;//68
-  uint32_t nonce_;//72
-  uint32_t sessionId_;//76
-  NetworkDecred network_;//80
-  uint16_t voters_;//84
+  uint64_t jobId_; // 48
+  uint64_t shareDiff_; // 56
+  uint32_t blkBits_; // 64
+  uint32_t height_; // 68
+  uint32_t nonce_; // 72
+  uint32_t sessionId_; // 76
+  NetworkDecred network_; // 80
+  uint16_t voters_; // 84
 
   uint32_t checkSum() const {
     uint64_t c = 0;
 
-    c += (uint64_t) version_;
-    c += (uint64_t) workerHashId_;
-    c += (uint64_t) userId_;
-    c += (uint64_t) status_;
-    c += (uint64_t) timestamp_;
-    c += (uint64_t) ip_.addrUint64[0];
-    c += (uint64_t) ip_.addrUint64[1];
-    c += (uint64_t) jobId_;
-    c += (uint64_t) shareDiff_;
-    c += (uint64_t) blkBits_;
-    c += (uint64_t) height_;
-    c += (uint64_t) nonce_;
-    c += (uint64_t) sessionId_;
-    c += (uint64_t) network_;
-    c += (uint64_t) voters_;
+    c += (uint64_t)version_;
+    c += (uint64_t)workerHashId_;
+    c += (uint64_t)userId_;
+    c += (uint64_t)status_;
+    c += (uint64_t)timestamp_;
+    c += (uint64_t)ip_.addrUint64[0];
+    c += (uint64_t)ip_.addrUint64[1];
+    c += (uint64_t)jobId_;
+    c += (uint64_t)shareDiff_;
+    c += (uint64_t)blkBits_;
+    c += (uint64_t)height_;
+    c += (uint64_t)nonce_;
+    c += (uint64_t)sessionId_;
+    c += (uint64_t)network_;
+    c += (uint64_t)voters_;
 
-    return ((uint32_t) c) + ((uint32_t) (c >> 32));
+    return ((uint32_t)c) + ((uint32_t)(c >> 32));
   }
-
 };
-
 
 // [[[[ IMPORTANT REMINDER! ]]]]
 // Please keep the Share structure forward compatible.
@@ -103,14 +105,13 @@ public:
 // and the new version will coexist for a while.
 // If there is no forward compatibility, one of the versions of Share
 // will be considered invalid, resulting in loss of users' hashrate.
-class ShareDecred : public sharebase::DecredMsg
-{
+class ShareDecred : public sharebase::DecredMsg {
 public:
-
-  const static uint32_t BYTES_VERSION = 0x00200001u; // first 0020: DCR, second 0001: version 1, the share struct is bytes array
-  const static uint32_t CURRENT_VERSION = 0x00200002u; // first 0020: DCR, second 0002: version 2
-
-
+  const static uint32_t BYTES_VERSION =
+      0x00200001u; // first 0020: DCR, second 0001: version 1, the share struct
+                   // is bytes array
+  const static uint32_t CURRENT_VERSION =
+      0x00200002u; // first 0020: DCR, second 0002: version 2
 
   ShareDecred() {
     set_version(ShareDecred::CURRENT_VERSION);
@@ -156,86 +157,102 @@ public:
     set_ip(ip.toString());
   }
 
-  double score() const
-  {
-    if (sharediff() == 0 || blkbits() == 0)
-    {
+  double score() const {
+    if (sharediff() == 0 || blkbits() == 0) {
       return 0.0;
     }
 
-    double networkDifficulty = NetworkParamsDecred::get((NetworkDecred)network()).powLimit.getdouble() / arith_uint256().SetCompact(blkbits()).getdouble();
+    double networkDifficulty =
+        NetworkParamsDecred::get((NetworkDecred)network())
+            .powLimit.getdouble() /
+        arith_uint256().SetCompact(blkbits()).getdouble();
 
-    // Network diff may less than share diff on testnet or regression test network.
-    // On regression test network, the network diff may be zero.
-    // But no matter how low the network diff is, you can only dig one block at a time.
-    if (networkDifficulty < sharediff())
-    {
+    // Network diff may less than share diff on testnet or regression test
+    // network. On regression test network, the network diff may be zero. But no
+    // matter how low the network diff is, you can only dig one block at a time.
+    if (networkDifficulty < sharediff()) {
       return 1.0;
     }
 
     return sharediff() / networkDifficulty;
   }
 
-  bool isValid() const
-  {
+  bool isValid() const {
     if (version() != CURRENT_VERSION) {
       return false;
     }
 
-    if (jobid() == 0 || userid() == 0 || workerhashid() == 0 ||
-        height() == 0 || blkbits() == 0 || sharediff() == 0)
-    {
+    if (jobid() == 0 || userid() == 0 || workerhashid() == 0 || height() == 0 ||
+        blkbits() == 0 || sharediff() == 0) {
       return false;
     }
 
     return true;
   }
 
-  string toString() const
-  {
-    double networkDifficulty = NetworkParamsDecred::get((NetworkDecred)network()).powLimit.getdouble() / arith_uint256().SetCompact(blkbits()).getdouble();
-    return Strings::Format("share(jobId: %" PRIu64 ", ip: %s, userId: %d, "
-                           "workerId: %" PRId64 ", time: %u/%s, height: %u, "
-                           "blkBits: %08x/%lf, shareDiff: %" PRIu64 ", "
-                           "voters: %u, status: %d/%s)",
-                           jobid(), ip().c_str(), userid(),
-                           workerhashid(), timestamp(), date("%F %T", timestamp()).c_str(), height(),
-                           blkbits(), networkDifficulty, sharediff(),
-                           voters(), status(), StratumStatus::toString(status()));
+  string toString() const {
+    double networkDifficulty =
+        NetworkParamsDecred::get((NetworkDecred)network())
+            .powLimit.getdouble() /
+        arith_uint256().SetCompact(blkbits()).getdouble();
+    return Strings::Format(
+        "share(jobId: %" PRIu64
+        ", ip: %s, userId: %d, "
+        "workerId: %" PRId64
+        ", time: %u/%s, height: %u, "
+        "blkBits: %08x/%lf, shareDiff: %" PRIu64
+        ", "
+        "voters: %u, status: %d/%s)",
+        jobid(),
+        ip().c_str(),
+        userid(),
+        workerhashid(),
+        timestamp(),
+        date("%F %T", timestamp()).c_str(),
+        height(),
+        blkbits(),
+        networkDifficulty,
+        sharediff(),
+        voters(),
+        status(),
+        StratumStatus::toString(status()));
   }
 
-  bool SerializeToBuffer(string& data, uint32_t& size) const{
+  bool SerializeToBuffer(string &data, uint32_t &size) const {
     size = ByteSize();
     data.resize(size);
     if (!SerializeToArray((uint8_t *)data.data(), size)) {
       DLOG(INFO) << "base.SerializeToArray failed!" << std::endl;
       return false;
-
     }
     return true;
   }
 
-  bool UnserializeWithVersion(const uint8_t* data, uint32_t size){
+  bool UnserializeWithVersion(const uint8_t *data, uint32_t size) {
 
-    if(nullptr == data || size <= 0) {
+    if (nullptr == data || size <= 0) {
       return false;
     }
 
-    const uint8_t * payload = data;
-    uint32_t version = *((uint32_t*)payload);
+    const uint8_t *payload = data;
+    uint32_t version = *((uint32_t *)payload);
 
     if (version == CURRENT_VERSION) {
 
-      if (!ParseFromArray((const uint8_t *)(payload + sizeof(uint32_t)), size - sizeof(uint32_t))) {
+      if (!ParseFromArray(
+              (const uint8_t *)(payload + sizeof(uint32_t)),
+              size - sizeof(uint32_t))) {
         DLOG(INFO) << "share ParseFromArray failed!";
         return false;
       }
-    } else if (version == BYTES_VERSION && size == sizeof(ShareDecredBytesVersion)) {
+    } else if (
+        version == BYTES_VERSION && size == sizeof(ShareDecredBytesVersion)) {
 
-      ShareDecredBytesVersion* share = (ShareDecredBytesVersion*) payload;
+      ShareDecredBytesVersion *share = (ShareDecredBytesVersion *)payload;
 
       if (share->checkSum() != share->checkSum_) {
-        DLOG(INFO) << "checkSum mismatched! checkSum_: " << share->checkSum_<< ", checkSum(): " << share->checkSum();
+        DLOG(INFO) << "checkSum mismatched! checkSum_: " << share->checkSum_
+                   << ", checkSum(): " << share->checkSum();
         return false;
       }
 
@@ -263,16 +280,15 @@ public:
     return true;
   }
 
-
-  bool SerializeToArrayWithLength(string& data, uint32_t& size) const {
+  bool SerializeToArrayWithLength(string &data, uint32_t &size) const {
     size = ByteSize();
     data.resize(size + sizeof(uint32_t));
 
-    *((uint32_t*)data.data()) = size;
-    uint8_t * payload = (uint8_t *)data.data();
+    *((uint32_t *)data.data()) = size;
+    uint8_t *payload = (uint8_t *)data.data();
 
     if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
-       DLOG(INFO) << "base.SerializeToArray failed!";
+      DLOG(INFO) << "base.SerializeToArray failed!";
       return false;
     }
 
@@ -280,13 +296,12 @@ public:
     return true;
   }
 
-
-  bool SerializeToArrayWithVersion(string& data, uint32_t& size) const {
+  bool SerializeToArrayWithVersion(string &data, uint32_t &size) const {
     size = ByteSize();
     data.resize(size + sizeof(uint32_t));
 
-    uint8_t * payload = (uint8_t *)data.data();
-    *((uint32_t*)payload) = version();
+    uint8_t *payload = (uint8_t *)data.data();
+    *((uint32_t *)payload) = version();
 
     if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
       DLOG(INFO) << "SerializeToArray failed!";
@@ -297,14 +312,13 @@ public:
     return true;
   }
 
-  uint32_t getsharelength() {
-      return IsInitialized() ? ByteSize() : 0;
-  }
+  uint32_t getsharelength() { return IsInitialized() ? ByteSize() : 0; }
 };
 
 class StratumJobDecred : public StratumJob {
 public:
-  static const size_t CoinBase1Size = offsetof(BlockHeaderDecred, extraData) - offsetof(BlockHeaderDecred, merkelRoot);
+  static const size_t CoinBase1Size = offsetof(BlockHeaderDecred, extraData) -
+      offsetof(BlockHeaderDecred, merkelRoot);
 
   BlockHeaderDecred header_;
   uint256 target_;
@@ -321,7 +335,10 @@ class StratumProtocolDecred {
 public:
   virtual ~StratumProtocolDecred() = default;
   virtual string getExtraNonce1String(uint32_t extraNonce1) const = 0;
-  virtual void setExtraNonces(BlockHeaderDecred &header, uint32_t extraNonce1, const vector<uint8_t> &extraNonce2) = 0;
+  virtual void setExtraNonces(
+      BlockHeaderDecred &header,
+      uint32_t extraNonce1,
+      const vector<uint8_t> &extraNonce2) = 0;
 };
 
 class ServerDecred;
@@ -333,8 +350,12 @@ struct StratumTraitsDecred {
   using JobDiffType = uint64_t;
   struct LocalJobType : public LocalJob {
     LocalJobType(uint64_t jobId, uint8_t shortJobId, uint32_t blkBits)
-        : LocalJob(jobId), shortJobId_(shortJobId), blkBits_(blkBits) {}
-    bool operator==(uint8_t shortJobId) const { return shortJobId_ == shortJobId; }
+      : LocalJob(jobId)
+      , shortJobId_(shortJobId)
+      , blkBits_(blkBits) {}
+    bool operator==(uint8_t shortJobId) const {
+      return shortJobId_ == shortJobId;
+    }
     uint8_t shortJobId_;
     uint32_t blkBits_;
   };

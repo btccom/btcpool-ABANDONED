@@ -30,33 +30,40 @@
 
 class StratumSessionEth : public StratumSessionBase<StratumTraitsEth> {
 public:
-  StratumSessionEth(ServerEth &server,
-                    struct bufferevent *bev,
-                    struct sockaddr *saddr,
-                    uint32_t extraNonce1);
+  StratumSessionEth(
+      ServerEth &server,
+      struct bufferevent *bev,
+      struct sockaddr *saddr,
+      uint32_t extraNonce1);
   void sendSetDifficulty(LocalJob &localJob, uint64_t difficulty) override;
-  void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) override;
-  void sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPtr, const string &idStr);
+  void
+  sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) override;
+  void sendMiningNotifyWithId(
+      shared_ptr<StratumJobEx> exJobPtr, const string &idStr);
 
 protected:
-  void handleRequest(const std::string &idStr, const std::string &method,
-                     const JsonNode &jparams, const JsonNode &jroot) override;
-  void handleRequest_Subscribe(const std::string &idStr,
-                               const JsonNode &jparams,
-                               const JsonNode &jroot);
-  void handleRequest_Authorize(const std::string &idStr,
-                               const JsonNode &jparams,
-                               const JsonNode &jroot);
+  void handleRequest(
+      const std::string &idStr,
+      const std::string &method,
+      const JsonNode &jparams,
+      const JsonNode &jroot) override;
+  void handleRequest_Subscribe(
+      const std::string &idStr, const JsonNode &jparams, const JsonNode &jroot);
+  void handleRequest_Authorize(
+      const std::string &idStr, const JsonNode &jparams, const JsonNode &jroot);
+
 public:
-  std::unique_ptr<StratumMiner> createMiner(const std::string &clientAgent,
-                                            const std::string &workerName,
-                                            int64_t workerId) override;
+  std::unique_ptr<StratumMiner> createMiner(
+      const std::string &clientAgent,
+      const std::string &workerName,
+      int64_t workerId) override;
 
 private:
   StratumProtocolEth ethProtocol_;
-  // Record the difficulty of the last time sent to the miner in NICEHASH_STRATUM protocol.
+  // Record the difficulty of the last time sent to the miner in
+  // NICEHASH_STRATUM protocol.
   uint64_t nicehashLastSentDiff_;
   uint64_t currentJobDiff_;
 };
 
-#endif  // #ifndef STRATUM_SESSION_ETH_H_
+#endif // #ifndef STRATUM_SESSION_ETH_H_

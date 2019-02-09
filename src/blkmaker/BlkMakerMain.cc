@@ -47,10 +47,10 @@
 using namespace std;
 using namespace libconfig;
 
-vector<shared_ptr<BlockMaker>> makers;// *gBlockMaker = nullptr;
+vector<shared_ptr<BlockMaker>> makers; // *gBlockMaker = nullptr;
 
 void handler(int sig) {
-  for (auto maker: makers) {
+  for (auto maker : makers) {
     if (maker)
       maker->stop();
   }
@@ -58,7 +58,8 @@ void handler(int sig) {
 
 void usage() {
   fprintf(stderr, BIN_VERSION_STRING("blkmaker"));
-  fprintf(stderr, "Usage:\tblkmaker -c \"blkmaker.cfg\" [-l <log_dir|stderr>]\n");
+  fprintf(
+      stderr, "Usage:\tblkmaker -c \"blkmaker.cfg\" [-l <log_dir|stderr>]\n");
 }
 
 // BlockMaker* createBlockMaker(Config& cfg, MysqlConnectInfo* poolDBInfo) {
@@ -66,7 +67,7 @@ void usage() {
 //   string broker = cfg.lookup("kafka.brokers");
 
 //   BlockMaker *maker = nullptr;
-//   if ("BTC" == type) 
+//   if ("BTC" == type)
 //     maker = new BlockMaker(broker.c_str(), *poolDBInfo);
 //   else
 //     maker = new BlockMakerEth(broker.c_str(), *poolDBInfo);
@@ -74,15 +75,18 @@ void usage() {
 //   return maker;
 // }
 
-BlockMaker* createBlockMaker(shared_ptr<BlockMakerDefinition> def, const string& broker, MysqlConnectInfo* poolDBInfo) {
+BlockMaker *createBlockMaker(
+    shared_ptr<BlockMakerDefinition> def,
+    const string &broker,
+    MysqlConnectInfo *poolDBInfo) {
   BlockMaker *maker = nullptr;
 #if defined(CHAIN_TYPE_STR)
   if (CHAIN_TYPE_STR == def->chainType_)
-#else 
+#else
   if (false)
-#endif  
+#endif
     maker = new BlockMakerBitcoin(def, broker.c_str(), *poolDBInfo);
-  else if ("ETH" == def->chainType_) 
+  else if ("ETH" == def->chainType_)
     maker = new BlockMakerEth(def, broker.c_str(), *poolDBInfo);
   else if ("SIA" == def->chainType_)
     maker = new BlockMakerSia(def, broker.c_str(), *poolDBInfo);
@@ -94,12 +98,11 @@ BlockMaker* createBlockMaker(shared_ptr<BlockMakerDefinition> def, const string&
   return maker;
 }
 
-shared_ptr<BlockMakerDefinition> createDefinition(const Setting &setting)
-{
+shared_ptr<BlockMakerDefinition> createDefinition(const Setting &setting) {
   string chainType;
   shared_ptr<BlockMakerDefinition> def;
 
-  readFromSetting(setting, "chain_type",  chainType);
+  readFromSetting(setting, "chain_type", chainType);
 
   // The hard fork Constantinople of Ethereum mainnet has been delayed.
   // So set a default height that won't arrive (9999999).
@@ -110,24 +113,27 @@ shared_ptr<BlockMakerDefinition> createDefinition(const Setting &setting)
     setting.lookupValue("constantinople_height", constantinopleHeight);
     EthConsensus::setHardForkConstantinopleHeight(constantinopleHeight);
   }
-  
+
 #if defined(CHAIN_TYPE_STR)
   if (CHAIN_TYPE_STR == chainType)
-#else 
+#else
   if (false)
 #endif
   {
-    shared_ptr<BlockMakerDefinitionBitcoin> bitcoinDef = std::make_shared<BlockMakerDefinitionBitcoin>();
+    shared_ptr<BlockMakerDefinitionBitcoin> bitcoinDef =
+        std::make_shared<BlockMakerDefinitionBitcoin>();
 
-    readFromSetting(setting, "job_topic",  bitcoinDef->stratumJobTopic_);
-    readFromSetting(setting, "rawgbt_topic",  bitcoinDef->rawGbtTopic_);
-    readFromSetting(setting, "auxpow_solved_share_topic",  bitcoinDef->auxPowSolvedShareTopic_);
-    readFromSetting(setting, "rsk_solved_share_topic", bitcoinDef->rskSolvedShareTopic_);
+    readFromSetting(setting, "job_topic", bitcoinDef->stratumJobTopic_);
+    readFromSetting(setting, "rawgbt_topic", bitcoinDef->rawGbtTopic_);
+    readFromSetting(
+        setting,
+        "auxpow_solved_share_topic",
+        bitcoinDef->auxPowSolvedShareTopic_);
+    readFromSetting(
+        setting, "rsk_solved_share_topic", bitcoinDef->rskSolvedShareTopic_);
 
     def = bitcoinDef;
-  }
-  else
-  {
+  } else {
     def = std::make_shared<BlockMakerDefinition>();
   }
 
@@ -135,22 +141,23 @@ shared_ptr<BlockMakerDefinition> createDefinition(const Setting &setting)
   def->enabled_ = false;
   readFromSetting(setting, "enabled", def->enabled_, true);
   readFromSetting(setting, "solved_share_topic", def->solvedShareTopic_);
-  readFromSetting(setting, "found_aux_block_table", def->foundAuxBlockTable_, true);
- 
+  readFromSetting(
+      setting, "found_aux_block_table", def->foundAuxBlockTable_, true);
+
   const Setting &nodes = setting["nodes"];
-  for (int i = 0; i < nodes.getLength(); ++i)
-  {
+  for (int i = 0; i < nodes.getLength(); ++i) {
     const Setting &nodeSetting = nodes[i];
     NodeDefinition nodeDef;
-    readFromSetting(nodeSetting, "rpc_addr",  nodeDef.rpcAddr_);
-    readFromSetting(nodeSetting, "rpc_userpwd",  nodeDef.rpcUserPwd_);
+    readFromSetting(nodeSetting, "rpc_addr", nodeDef.rpcAddr_);
+    readFromSetting(nodeSetting, "rpc_userpwd", nodeDef.rpcUserPwd_);
     def->nodes.push_back(nodeDef);
   }
 
   return def;
 }
 
-// shared_ptr<BlockMakerHandler> createBlockMakerHandler(const BlockMakerDefinition &def)
+// shared_ptr<BlockMakerHandler> createBlockMakerHandler(const
+// BlockMakerDefinition &def)
 // {
 //   shared_ptr<BlockMakerHandler> handler;
 
@@ -168,23 +175,24 @@ shared_ptr<BlockMakerDefinition> createDefinition(const Setting &setting)
 //   return handler;
 // }
 
-void createBlockMakers(const libconfig::Config &cfg, MysqlConnectInfo* poolDBInfo)
-{
+void createBlockMakers(
+    const libconfig::Config &cfg, MysqlConnectInfo *poolDBInfo) {
   string broker = cfg.lookup("kafka.brokers");
   const Setting &root = cfg.getRoot();
   const Setting &makerDefs = root["blk_makers"];
 
-  for (int i = 0; i < makerDefs.getLength(); ++i)
-  {
+  for (int i = 0; i < makerDefs.getLength(); ++i) {
     auto def = createDefinition(makerDefs[i]);
-    if (!def->enabled_)
-    {
-      LOG(INFO) << "chain: " << def->chainType_ << ", topic: " << def->solvedShareTopic_ << ", disabled.";
+    if (!def->enabled_) {
+      LOG(INFO) << "chain: " << def->chainType_
+                << ", topic: " << def->solvedShareTopic_ << ", disabled.";
       continue;
     }
-    LOG(INFO) << "chain: " << def->chainType_ << ", topic: " << def->solvedShareTopic_ << ", enabled.";
-    //auto handler = createBlockMakerHandler(def);
-    //makers.push_back(std::make_shared<BlockMaker>(broker.c_str(), *poolDBInfo));
+    LOG(INFO) << "chain: " << def->chainType_
+              << ", topic: " << def->solvedShareTopic_ << ", enabled.";
+    // auto handler = createBlockMakerHandler(def);
+    // makers.push_back(std::make_shared<BlockMaker>(broker.c_str(),
+    // *poolDBInfo));
     shared_ptr<BlockMaker> maker(createBlockMaker(def, broker, poolDBInfo));
     makers.push_back(maker);
   }
@@ -197,7 +205,7 @@ void workerThread(shared_ptr<BlockMaker> maker) {
 
 int main(int argc, char **argv) {
   char *optLogDir = NULL;
-  char *optConf   = NULL;
+  char *optConf = NULL;
   int c;
 
   if (argc <= 1) {
@@ -206,15 +214,16 @@ int main(int argc, char **argv) {
   }
   while ((c = getopt(argc, argv, "c:l:h")) != -1) {
     switch (c) {
-      case 'c':
-        optConf = optarg;
-        break;
-      case 'l':
-        optLogDir = optarg;
-        break;
-      case 'h': default:
-        usage();
-        exit(0);
+    case 'c':
+      optConf = optarg;
+      break;
+    case 'l':
+      optLogDir = optarg;
+      break;
+    case 'h':
+    default:
+      usage();
+      exit(0);
     }
   }
 
@@ -227,25 +236,24 @@ int main(int argc, char **argv) {
   }
   // Log messages at a level >= this flag are automatically sent to
   // stderr in addition to log files.
-  FLAGS_stderrthreshold = 3;    // 3: FATAL
-  FLAGS_max_log_size    = 100;  // max log file size 100 MB
-  FLAGS_logbuflevel     = -1;   // don't buffer logs
+  FLAGS_stderrthreshold = 3; // 3: FATAL
+  FLAGS_max_log_size = 100; // max log file size 100 MB
+  FLAGS_logbuflevel = -1; // don't buffer logs
   FLAGS_stop_logging_if_full_disk = true;
 
   LOG(INFO) << BIN_VERSION_STRING("blkmaker");
 
   // Read the file. If there is an error, report it and exit.
   libconfig::Config cfg;
-  try
-  {
+  try {
     cfg.readFile(optConf);
-  } catch(const FileIOException &fioex) {
+  } catch (const FileIOException &fioex) {
     std::cerr << "I/O error while reading file." << std::endl;
-    return(EXIT_FAILURE);
-  } catch(const ParseException &pex) {
+    return (EXIT_FAILURE);
+  } catch (const ParseException &pex) {
     std::cerr << "Parse error at " << pex.getFile() << ":" << pex.getLine()
-    << " - " << pex.getError() << std::endl;
-    return(EXIT_FAILURE);
+              << " - " << pex.getError() << std::endl;
+    return (EXIT_FAILURE);
   }
 
   // lock cfg file:
@@ -257,29 +265,30 @@ int main(int argc, char **argv) {
   }*/
 
   signal(SIGTERM, handler);
-  signal(SIGINT,  handler);
+  signal(SIGINT, handler);
 
   MysqlConnectInfo *poolDBInfo = nullptr;
   {
     int32_t poolDBPort = 3306;
     cfg.lookupValue("pooldb.port", poolDBPort);
-    poolDBInfo = new MysqlConnectInfo(cfg.lookup("pooldb.host"), poolDBPort,
-                                      cfg.lookup("pooldb.username"),
-                                      cfg.lookup("pooldb.password"),
-                                      cfg.lookup("pooldb.dbname"));
+    poolDBInfo = new MysqlConnectInfo(
+        cfg.lookup("pooldb.host"),
+        poolDBPort,
+        cfg.lookup("pooldb.username"),
+        cfg.lookup("pooldb.password"),
+        cfg.lookup("pooldb.dbname"));
   }
 
   createBlockMakers(cfg, poolDBInfo);
 
   try {
     vector<shared_ptr<thread>> workers;
-    for (auto maker : makers)
-    {
+    for (auto maker : makers) {
       if (maker->init()) {
         workers.push_back(std::make_shared<thread>(workerThread, maker));
-      }
-      else {
-        LOG(FATAL) << "blkmaker init failure, chain: " << maker->def()->chainType_;
+      } else {
+        LOG(FATAL) << "blkmaker init failure, chain: "
+                   << maker->def()->chainType_;
       }
     }
 
@@ -291,7 +300,7 @@ int main(int argc, char **argv) {
         LOG(INFO) << "worker exit";
       }
     }
-  } catch (std::exception & e) {
+  } catch (std::exception &e) {
     LOG(FATAL) << "exception: " << e.what();
     return 1;
   }

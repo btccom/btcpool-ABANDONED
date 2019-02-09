@@ -49,10 +49,8 @@ using namespace libconfig;
 
 StratumServer *gStratumServer = nullptr;
 
-void handler(int sig)
-{
-  if (gStratumServer)
-  {
+void handler(int sig) {
+  if (gStratumServer) {
     gStratumServer->stop();
   }
 }
@@ -62,21 +60,17 @@ void usage() {
   fprintf(stderr, "Usage:\tsserver -c \"sserver.cfg\" [-l <log_dir|stderr>]\n");
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
   char *optLogDir = NULL;
   char *optConf = NULL;
   int c;
 
-  if (argc <= 1)
-  {
+  if (argc <= 1) {
     usage();
     return 1;
   }
-  while ((c = getopt(argc, argv, "c:l:h")) != -1)
-  {
-    switch (c)
-    {
+  while ((c = getopt(argc, argv, "c:l:h")) != -1) {
+    switch (c) {
     case 'c':
       optConf = optarg;
       break;
@@ -100,25 +94,20 @@ int main(int argc, char **argv)
   // Log messages at a level >= this flag are automatically sent to
   // stderr in addition to log files.
   FLAGS_stderrthreshold = 3; // 3: FATAL
-  FLAGS_max_log_size = 100;  // max log file size 100 MB
-  FLAGS_logbuflevel = -1;    // don't buffer logs
+  FLAGS_max_log_size = 100; // max log file size 100 MB
+  FLAGS_logbuflevel = -1; // don't buffer logs
   FLAGS_stop_logging_if_full_disk = true;
 
   LOG(INFO) << BIN_VERSION_STRING("sserver");
 
   // Read the file. If there is an error, report it and exit.
   libconfig::Config cfg;
-  try
-  {
+  try {
     cfg.readFile(optConf);
-  }
-  catch (const FileIOException &fioex)
-  {
+  } catch (const FileIOException &fioex) {
     std::cerr << "I/O error while reading file." << std::endl;
     return (EXIT_FAILURE);
-  }
-  catch (const ParseException &pex)
-  {
+  } catch (const ParseException &pex) {
     std::cerr << "Parse error at " << pex.getFile() << ":" << pex.getLine()
               << " - " << pex.getError() << std::endl;
     return (EXIT_FAILURE);
@@ -136,8 +125,7 @@ int main(int argc, char **argv)
   signal(SIGTERM, handler);
   signal(SIGINT, handler);
 
-  try
-  {
+  try {
     // check if we are using testnet3
     bool isTestnet3 = true;
     cfg.lookupValue("testnet", isTestnet3);
@@ -154,20 +142,19 @@ int main(int argc, char **argv)
 
     cfg.lookupValue("sserver.port", port);
     cfg.lookupValue("sserver.id", serverId);
-    if (serverId > 0xFFu || serverId == 0)
-    {
+    if (serverId > 0xFFu || serverId == 0) {
       LOG(FATAL) << "invalid server id, range: [1, 255]";
       return (EXIT_FAILURE);
     }
-    if (cfg.exists("sserver.share_avg_seconds"))
-    {
+    if (cfg.exists("sserver.share_avg_seconds")) {
       cfg.lookupValue("sserver.share_avg_seconds", shareAvgSeconds);
     }
 
     bool isEnableSimulator = false;
     cfg.lookupValue("sserver.enable_simulator", isEnableSimulator);
     bool isSubmitInvalidBlock = false;
-    cfg.lookupValue("sserver.enable_submit_invalid_block", isSubmitInvalidBlock);
+    cfg.lookupValue(
+        "sserver.enable_submit_invalid_block", isSubmitInvalidBlock);
 
     bool isDevModeEnabled = false;
     cfg.lookupValue("sserver.enable_dev_mode", isDevModeEnabled);
@@ -193,59 +180,61 @@ int main(int argc, char **argv)
     uint32_t diffAdjustPeriod = 300;
     cfg.lookupValue("sserver.diff_adjust_period", diffAdjustPeriod);
 
-    if (0 == defaultDifficulty ||
-        0 == maxDifficulty ||
-        0 == minDifficulty ||
-        0 == diffAdjustPeriod)
-    {
-      LOG(FATAL) << "difficulty settings are not expected: def=" << defaultDifficulty << ", min=" << minDifficulty << ", max=" << maxDifficulty << ", adjustPeriod=" << diffAdjustPeriod;
+    if (0 == defaultDifficulty || 0 == maxDifficulty || 0 == minDifficulty ||
+        0 == diffAdjustPeriod) {
+      LOG(FATAL) << "difficulty settings are not expected: def="
+                 << defaultDifficulty << ", min=" << minDifficulty
+                 << ", max=" << maxDifficulty
+                 << ", adjustPeriod=" << diffAdjustPeriod;
       return 1;
     }
 
     if ((int32_t)diffAdjustPeriod < (int32_t)shareAvgSeconds) {
-      LOG(FATAL) << "`diff_adjust_period` should not less than `share_avg_seconds`";
+      LOG(FATAL)
+          << "`diff_adjust_period` should not less than `share_avg_seconds`";
       return 1;
     }
 
-    shared_ptr<DiffController> dc = make_shared<DiffController>(defaultDifficulty, maxDifficulty, minDifficulty, shareAvgSeconds, diffAdjustPeriod);
+    shared_ptr<DiffController> dc = make_shared<DiffController>(
+        defaultDifficulty,
+        maxDifficulty,
+        minDifficulty,
+        shareAvgSeconds,
+        diffAdjustPeriod);
     evthread_use_pthreads();
 
     // new StratumServer
-    gStratumServer = new StratumServer(cfg.lookup("sserver.ip").c_str(),
-                                       (unsigned short)port,
-                                       cfg.lookup("kafka.brokers").c_str(),
-                                       cfg.lookup("users.list_id_api_url"),
-                                       serverId,
-                                       fileLastMiningNotifyTime,
-                                       isEnableSimulator,
-                                       isSubmitInvalidBlock,
-                                       isDevModeEnabled,
-                                       devFixedDifficulty,
-                                       cfg.lookup("sserver.job_topic"),
-                                       maxJobDelay,
-                                       dc,
-                                       cfg.lookup("sserver.solved_share_topic"),
-                                       cfg.lookup("sserver.share_topic"),
-                                       cfg.lookup("sserver.common_events_topic"));
+    gStratumServer = new StratumServer(
+        cfg.lookup("sserver.ip").c_str(),
+        (unsigned short)port,
+        cfg.lookup("kafka.brokers").c_str(),
+        cfg.lookup("users.list_id_api_url"),
+        serverId,
+        fileLastMiningNotifyTime,
+        isEnableSimulator,
+        isSubmitInvalidBlock,
+        isDevModeEnabled,
+        devFixedDifficulty,
+        cfg.lookup("sserver.job_topic"),
+        maxJobDelay,
+        dc,
+        cfg.lookup("sserver.solved_share_topic"),
+        cfg.lookup("sserver.share_topic"),
+        cfg.lookup("sserver.common_events_topic"));
 
-    if (!gStratumServer->createServer(cfg.lookup("sserver.type"), shareAvgSeconds, cfg))
-    {
+    if (!gStratumServer->createServer(
+            cfg.lookup("sserver.type"), shareAvgSeconds, cfg)) {
       LOG(FATAL) << "createServer failed";
       return 1;
     }
 
-    if (!gStratumServer->init())
-    {
+    if (!gStratumServer->init()) {
       LOG(FATAL) << "init failure";
-    }
-    else
-    {
+    } else {
       gStratumServer->run();
     }
     delete gStratumServer;
-  }
-  catch (std::exception &e)
-  {
+  } catch (std::exception &e) {
     LOG(FATAL) << "exception: " << e.what();
     return 1;
   }

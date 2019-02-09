@@ -27,18 +27,30 @@
 #include "BlockMaker.h"
 #include "CommonBytom.h"
 
-class BlockMakerBytom : public BlockMaker
-{
+class BlockMakerBytom : public BlockMaker {
 public:
-  BlockMakerBytom(shared_ptr<BlockMakerDefinition> def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
+  BlockMakerBytom(
+      shared_ptr<BlockMakerDefinition> def,
+      const char *kafkaBrokers,
+      const MysqlConnectInfo &poolDB);
   void processSolvedShare(rd_kafka_message_t *rkmessage) override;
 
 private:
   void submitBlockNonBlocking(const string &request);
-  void _submitBlockThread(const string &rpcAddress, const string &rpcUserpass, const string& request);
-  void saveBlockToDBNonBlocking(const string &header, const uint32_t height, const uint64_t networkDiff, const StratumWorker &worker);
-  void _saveBlockToDBThread(const string &header, const uint32_t height, const uint64_t networkDiff, const StratumWorker &worker);
-
+  void _submitBlockThread(
+      const string &rpcAddress,
+      const string &rpcUserpass,
+      const string &request);
+  void saveBlockToDBNonBlocking(
+      const string &header,
+      const uint32_t height,
+      const uint64_t networkDiff,
+      const StratumWorker &worker);
+  void _saveBlockToDBThread(
+      const string &header,
+      const uint32_t height,
+      const uint64_t networkDiff,
+      const StratumWorker &worker);
 };
 
 #endif
