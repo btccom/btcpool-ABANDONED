@@ -446,8 +446,8 @@ add_library(
     ${LIB_SOURCES_SHARES}
     ${LIB_SOURCES_CHAINS})
 
-file(GLOB_RECURSE TEST_SOURCES test/*.cc test/*.cpp)
-add_executable(unittest ${TEST_SOURCES})
+file(GLOB_RECURSE TEST_SOURCES test/*.cpp)
+add_executable(unittest ${TEST_SOURCES} 3rdparty/gmock-gtest-all.cc)
 target_link_libraries(unittest btcpool ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE GBTMAKER_SOURCES src/gbtmaker/*.cc)
