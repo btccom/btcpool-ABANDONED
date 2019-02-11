@@ -45,14 +45,15 @@ WorkerShares<SHARE>::WorkerShares(const int64_t workerId, const int32_t userId)
 }
 
 template <class SHARE>
-void WorkerShares<SHARE>::processShare(const SHARE &share) {
+void WorkerShares<SHARE>::processShare(const SHARE &share, bool acceptStale) {
   ScopeLock sl(lock_);
   const time_t now = time(nullptr);
   if (now > share.timestamp() + STATS_SLIDING_WINDOW_SECONDS) {
     return;
   }
 
-  if (StratumStatus::isAccepted(share.status())) {
+  if (StratumStatus::isAccepted(share.status()) &&
+      (acceptStale || !StratumStatus::isStale(share.status()))) {
     acceptCount_++;
     acceptShareSec_.insert(share.timestamp(), share.sharediff());
   } else {
@@ -126,7 +127,8 @@ StatsServerT<SHARE>::StatsServerT(
     const int redisIndexPolicy,
     const time_t kFlushDBInterval,
     const string &fileLastFlushTime,
-    shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker)
+    shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker,
+    bool acceptStale)
   : running_(true)
   , totalWorkerCount_(0)
   , totalUserCount_(0)
@@ -151,6 +153,7 @@ StatsServerT<SHARE>::StatsServerT(
   , lastFlushTime_(0)
   , fileLastFlushTime_(fileLastFlushTime)
   , dupShareChecker_(dupShareChecker)
+  , acceptStale_(acceptStale)
   , base_(nullptr)
   , httpdHost_(httpdHost)
   , httpdPort_(httpdPort)
@@ -301,7 +304,7 @@ void StatsServerT<SHARE>::processShare(const SHARE &share) {
   if (now > share.timestamp() + STATS_SLIDING_WINDOW_SECONDS) {
     return;
   }
-  poolWorker_.processShare(share);
+  poolWorker_.processShare(share, acceptStale_);
 
   WorkerKey key(share.userid(), share.workerhashid());
   _processShare(key, share);
@@ -319,19 +322,19 @@ void StatsServerT<SHARE>::_processShare(WorkerKey &key, const SHARE &share) {
   shared_ptr<WorkerShares<SHARE>> workerShare = nullptr, userShare = nullptr;
 
   if (workerItr != workerSet_.end()) {
-    workerItr->second->processShare(share);
+    workerItr->second->processShare(share, acceptStale_);
   } else {
     workerShare =
         make_shared<WorkerShares<SHARE>>(share.workerhashid(), share.userid());
-    workerShare->processShare(share);
+    workerShare->processShare(share, acceptStale_);
   }
 
   if (userItr != userSet_.end()) {
-    userItr->second->processShare(share);
+    userItr->second->processShare(share, acceptStale_);
   } else {
     userShare =
         make_shared<WorkerShares<SHARE>>(share.workerhashid(), share.userid());
-    userShare->processShare(share);
+    userShare->processShare(share, acceptStale_);
   }
 
   if (workerShare != nullptr || userShare != nullptr) {
