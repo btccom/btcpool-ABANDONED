@@ -106,6 +106,8 @@ class ShareLogParserT : public ShareLogParser {
   shared_ptr<DuplicateShareChecker<SHARE>>
       dupShareChecker_; // Used to detect duplicate share attacks.
 
+  bool acceptStale_; // Whether stale shares are accepted
+
   inline int32_t getHourIdx(uint32_t ts) {
     // %H	Hour in 24h format (00-23)
     return atoi(date("%H", ts).c_str());
@@ -140,7 +142,8 @@ public:
       const string &dataDir,
       time_t timestamp,
       const MysqlConnectInfo &poolDBInfo,
-      shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker);
+      shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker,
+      bool acceptStale);
   ~ShareLogParserT();
 
   bool init();
@@ -201,6 +204,8 @@ class ShareLogParserServerT : public ShareLogParserServer {
   shared_ptr<DuplicateShareChecker<SHARE>>
       dupShareChecker_; // Used to detect duplicate share attacks.
 
+  bool acceptStale_; // Whether stale shares are accepted
+
   // httpd
   struct event_base *base_;
   string httpdHost_;
@@ -237,7 +242,8 @@ public:
       unsigned short httpdPort,
       const MysqlConnectInfo &poolDBInfo,
       const uint32_t kFlushDBInterval,
-      shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker);
+      shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker,
+      bool acceptStale);
   ~ShareLogParserServerT();
 
   void stop();

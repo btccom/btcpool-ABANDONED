@@ -24,29 +24,8 @@
 #include "StatisticsEth.h"
 
 template <>
-void ShareStatsDay<ShareEth>::processShare(
-    uint32_t hourIdx, const ShareEth &share) {
-  ScopeLock sl(lock_);
-
-  if (StratumStatus::isAccepted(share.status())) {
-    shareAccept1h_[hourIdx] += share.sharediff();
-    shareAccept1d_ += share.sharediff();
-
-    double score = share.score();
-    double reward =
-        EthConsensus::getStaticBlockReward(share.height(), share.getChain());
-    double earn = score * reward;
-
-    score1h_[hourIdx] += score;
-    score1d_ += score;
-    earn1h_[hourIdx] += earn;
-    earn1d_ += earn;
-
-  } else {
-    shareReject1h_[hourIdx] += share.sharediff();
-    shareReject1d_ += share.sharediff();
-  }
-  modifyHoursFlag_ |= (0x01u << hourIdx);
+double ShareStatsDay<ShareEth>::getShareReward(const ShareEth &share) {
+  return EthConsensus::getStaticBlockReward(share.height(), share.getChain());
 }
 
 template class ShareStatsDay<ShareEth>;
