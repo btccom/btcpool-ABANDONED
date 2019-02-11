@@ -45,6 +45,7 @@ public:
       const time_t kFlushDBInterval,
       const string &fileLastFlushTime,
       shared_ptr<DuplicateShareChecker<ShareGrin>> dupShareChecker,
+      bool acceptStale,
       const libconfig::Config &config);
 
 private:
