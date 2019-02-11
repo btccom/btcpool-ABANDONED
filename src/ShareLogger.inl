@@ -25,30 +25,32 @@
 #include <glog/logging.h>
 
 //////////////////////////////  ShareLogWriterT  ///////////////////////////////
-template<class SHARE>
-ShareLogWriterT<SHARE>::ShareLogWriterT(const char *chainType,
-                                        const char *kafkaBrokers,
-                                        const string &dataDir,
-                                        const string &kafkaGroupID,
-                                        const char *shareLogTopic,
-                                        const int compressionLevel)
-:running_(true), dataDir_(dataDir),
-compressionLevel_(compressionLevel), chainType_(chainType),
-hlConsumer_(kafkaBrokers, shareLogTopic, 0/* patition */, kafkaGroupID)
-{
+template <class SHARE>
+ShareLogWriterT<SHARE>::ShareLogWriterT(
+    const char *chainType,
+    const char *kafkaBrokers,
+    const string &dataDir,
+    const string &kafkaGroupID,
+    const char *shareLogTopic,
+    const int compressionLevel)
+  : running_(true)
+  , dataDir_(dataDir)
+  , compressionLevel_(compressionLevel)
+  , chainType_(chainType)
+  , hlConsumer_(kafkaBrokers, shareLogTopic, 0 /* patition */, kafkaGroupID) {
 }
 
-template<class SHARE>
+template <class SHARE>
 ShareLogWriterT<SHARE>::~ShareLogWriterT() {
   // close file handlers
-  for (auto & itr : fileHandlers_) {
+  for (auto &itr : fileHandlers_) {
     LOG(INFO) << "fclose file handler, date: " << date("%F", itr.first);
     delete itr.second;
   }
   fileHandlers_.clear();
 }
 
-template<class SHARE>
+template <class SHARE>
 void ShareLogWriterT<SHARE>::stop() {
   if (!running_)
     return;
@@ -56,8 +58,8 @@ void ShareLogWriterT<SHARE>::stop() {
   running_ = false;
 }
 
-template<class SHARE>
-zstr::ofstream * ShareLogWriterT<SHARE>::getFileHandler(uint32_t ts) {
+template <class SHARE>
+zstr::ofstream *ShareLogWriterT<SHARE>::getFileHandler(uint32_t ts) {
   string filePath;
 
   try {
@@ -68,7 +70,10 @@ zstr::ofstream * ShareLogWriterT<SHARE>::getFileHandler(uint32_t ts) {
     filePath = getStatsFilePath(chainType_.c_str(), dataDir_, ts);
     LOG(INFO) << "fopen: " << filePath;
 
-    zstr::ofstream *f = new zstr::ofstream(filePath, std::ios::app | std::ios::binary, compressionLevel_);  // append mode, bin file
+    zstr::ofstream *f = new zstr::ofstream(
+        filePath,
+        std::ios::app | std::ios::binary,
+        compressionLevel_); // append mode, bin file
     if (!*f) {
       LOG(FATAL) << "fopen file fail: " << filePath;
       return nullptr;
@@ -83,27 +88,29 @@ zstr::ofstream * ShareLogWriterT<SHARE>::getFileHandler(uint32_t ts) {
   }
 }
 
-template<class SHARE>
+template <class SHARE>
 void ShareLogWriterT<SHARE>::consumeShareLog(rd_kafka_message_t *rkmessage) {
   // check error
   if (rkmessage->err) {
     if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
       // Reached the end of the topic+partition queue on the broker.
       // Not really an error.
-      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
+      //      LOG(INFO) << "consumer reached end of " <<
+      //      rd_kafka_topic_name(rkmessage->rkt)
       //      << "[" << rkmessage->partition << "] "
       //      << " message queue at offset " << rkmessage->offset;
       // acturlly
       return;
     }
 
-    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
-    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
-    << ": " << rd_kafka_message_errstr(rkmessage);
+    LOG(ERROR) << "consume error for topic "
+               << rd_kafka_topic_name(rkmessage->rkt) << "["
+               << rkmessage->partition << "] offset " << rkmessage->offset
+               << ": " << rd_kafka_message_errstr(rkmessage);
 
     if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
         rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
-        LOG(FATAL) << "consume fatal";
+      LOG(FATAL) << "consume fatal";
     }
     return;
   }
@@ -119,18 +126,22 @@ void ShareLogWriterT<SHARE>::consumeShareLog(rd_kafka_message_t *rkmessage) {
   // uint32_t headlength  = *((uint32_t*)payload);
 
   // if (rkmessage->len < sizeof(uint32_t) + headlength) {
-  //   LOG(ERROR) << "invalid share , kafka message size : "<< rkmessage->len  << " <  complete share size " <<
+  //   LOG(ERROR) << "invalid share , kafka message size : "<< rkmessage->len <<
+  //   " <  complete share size " <<
   //              headlength + sizeof(uint32_t);
   //   return;
   // }
 
-  // if (!share.ParseFromArray((const uint8_t *)(payload + sizeof(uint32_t)), headlength)) {
-  //   LOG(ERROR) << "parse share from kafka message failed rkmessage->len = "<< rkmessage->len ;
-  //   return;
+  // if (!share.ParseFromArray((const uint8_t *)(payload + sizeof(uint32_t)),
+  // headlength)) {
+  //   LOG(ERROR) << "parse share from kafka message failed rkmessage->len = "<<
+  //   rkmessage->len ; return;
   // }
 
-  if (!share.UnserializeWithVersion((const uint8_t *)(rkmessage->payload), rkmessage->len)) {
-    LOG(ERROR) << "parse share from kafka message failed rkmessage->len = "<< rkmessage->len ;
+  if (!share.UnserializeWithVersion(
+          (const uint8_t *)(rkmessage->payload), rkmessage->len)) {
+    LOG(ERROR) << "parse share from kafka message failed rkmessage->len = "
+               << rkmessage->len;
     return;
   }
 
@@ -145,7 +156,7 @@ void ShareLogWriterT<SHARE>::consumeShareLog(rd_kafka_message_t *rkmessage) {
   }
 }
 
-template<class SHARE>
+template <class SHARE>
 void ShareLogWriterT<SHARE>::tryCloseOldHanders() {
   while (fileHandlers_.size() > 3) {
     // Maps (and sets) are sorted, so the first element is the smallest,
@@ -159,17 +170,17 @@ void ShareLogWriterT<SHARE>::tryCloseOldHanders() {
   }
 }
 
-template<class SHARE>
+template <class SHARE>
 bool ShareLogWriterT<SHARE>::flushToDisk() {
-  if(shares_.empty())
+  if (shares_.empty())
     return true;
 
   try {
-    std::set<zstr::ofstream*> usedHandlers;
+    std::set<zstr::ofstream *> usedHandlers;
 
     DLOG(INFO) << "flushToDisk shares count: " << shares_.size();
-    for (const auto& share : shares_) {
-      const uint32_t ts = share.timestamp() - (share.timestamp()% 86400);
+    for (const auto &share : shares_) {
+      const uint32_t ts = share.timestamp() - (share.timestamp() % 86400);
       zstr::ofstream *f = getFileHandler(ts);
       if (f == nullptr)
         return false;
@@ -178,17 +189,17 @@ bool ShareLogWriterT<SHARE>::flushToDisk() {
 
       string message;
       uint32_t size = 0;
-      if(!share.SerializeToBuffer(message, size)) {
+      if (!share.SerializeToBuffer(message, size)) {
         DLOG(INFO) << "base.SerializeToArray failed!" << std::endl;
         continue;
       }
-      f->write((char*)&size, sizeof(uint32_t));
-      f->write((char*)message.data(), size);
+      f->write((char *)&size, sizeof(uint32_t));
+      f->write((char *)message.data(), size);
     }
 
     shares_.clear();
 
-    for (auto & f : usedHandlers) {
+    for (auto &f : usedHandlers) {
       DLOG(INFO) << "fflush() file to disk";
       f->flush();
     }
@@ -197,14 +208,14 @@ bool ShareLogWriterT<SHARE>::flushToDisk() {
     tryCloseOldHanders();
 
     return true;
-  
+
   } catch (...) {
     LOG(ERROR) << "write file fail";
     return false;
   }
 }
 
-template<class SHARE>
+template <class SHARE>
 void ShareLogWriterT<SHARE>::run() {
   time_t lastFlushTime = time(nullptr);
   const int32_t kFlushDiskInterval = 2;
@@ -240,12 +251,12 @@ void ShareLogWriterT<SHARE>::run() {
     if (rkmessage == nullptr) {
       continue;
     }
-    
+
     DLOG(INFO) << "a new message, size: " << rkmessage->len;
 
     // consume share log
     consumeShareLog(rkmessage);
-    rd_kafka_message_destroy(rkmessage);  /* Return message to rdkafka */
+    rd_kafka_message_destroy(rkmessage); /* Return message to rdkafka */
   }
 
   // flush left shares
