@@ -38,6 +38,7 @@ public:
       time_t timestamp,
       const MysqlConnectInfo &poolDBInfo,
       shared_ptr<DuplicateShareChecker<ShareGrin>> dupShareChecker,
+      bool acceptStale,
       const libconfig::Config &config);
 
 private:
@@ -56,6 +57,7 @@ public:
       const MysqlConnectInfo &poolDBInfo,
       const uint32_t kFlushDBInterval,
       shared_ptr<DuplicateShareChecker<ShareGrin>> dupShareChecker,
+      bool acceptStale,
       const libconfig::Config &config);
 
 private:
