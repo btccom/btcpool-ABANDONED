@@ -42,12 +42,12 @@ JobRepositoryBeam::JobRepositoryBeam(size_t chainId, ServerBeam *server, const c
 {
 }
 
-StratumJobEx* JobRepositoryBeam::createStratumJobEx(StratumJob *sjob, bool isClean) {
-  return new StratumJobEx(chainId_, sjob, isClean);
+shared_ptr<StratumJobEx> JobRepositoryBeam::createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean) {
+  return make_shared<StratumJobEx>(chainId_, sjob, isClean);
 }
 
-void JobRepositoryBeam::broadcastStratumJob(StratumJob *sjob) {
-  StratumJobBeam* sjobBeam = dynamic_cast<StratumJobBeam*>(sjob);
+void JobRepositoryBeam::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
+  auto sjobBeam = static_pointer_cast<StratumJobBeam>(sjob);
 
   LOG(INFO) << "broadcast stratum job " << std::hex << sjobBeam->jobId_;
 
@@ -107,7 +107,7 @@ void ServerBeam::checkAndUpdateShare(
   const string &workFullName,
   uint256 &computedShareHash
 ) {
-  StratumJobBeam *sjob = dynamic_cast<StratumJobBeam *>(exjob->sjob_);
+  auto sjob = static_pointer_cast<StratumJobBeam>(exjob->sjob_);
 
   DLOG(INFO) << "checking share nonce: " << hex << share.nonce()
              << ", input: " << sjob->input_

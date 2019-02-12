@@ -49,7 +49,7 @@ void StratumSessionBeam::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, boo
     return;
   }
 
-  StratumJobBeam *job = dynamic_cast<StratumJobBeam *>(exJobPtr->sjob_);
+  auto job = std::static_pointer_cast<StratumJobBeam>(exJobPtr->sjob_);
   if (nullptr == job) {
     return;
   }

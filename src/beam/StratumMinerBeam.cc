@@ -88,7 +88,7 @@ void StratumMinerBeam::handleRequest_Submit(const string &idStr, const JsonNode 
     session.responseFalse(idStr, StratumStatus::JOB_NOT_FOUND);
     return;
   }
-  StratumJobBeam *sjob = dynamic_cast<StratumJobBeam *>(exjob->sjob_);
+  auto sjob = std::static_pointer_cast<StratumJobBeam>(exjob->sjob_);
 
   // Used to prevent duplicate shares. (sHeader has a prefix "0x")
   uint64_t inputPrefix = stoull(sjob->input_.substr(0, 16), nullptr, 16);

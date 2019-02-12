@@ -69,9 +69,9 @@ public:
   JobRepositoryBeam(size_t chainId, ServerBeam *server, const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime);
   virtual ~JobRepositoryBeam();
 
-  StratumJob *createStratumJob() override { return new StratumJobBeam();}
-  StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
-  void broadcastStratumJob(StratumJob *sjob) override;
+  shared_ptr<StratumJob> createStratumJob() override { return make_shared<StratumJobBeam>();}
+  shared_ptr<StratumJobEx> createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean) override;
+  void broadcastStratumJob(shared_ptr<StratumJob> sjob) override;
 
 private:
   uint32_t lastHeight_;

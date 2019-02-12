@@ -53,8 +53,8 @@ public:
     int64_t workerId
   ) override;
 
-  void responseError(const string &idStr, int code);
-  void responseTrue(const string &idStr);
+  void responseError(const string &idStr, int code) override;
+  void responseTrue(const string &idStr) override;
   void responseFalse(const string &idStr, int errCode);
 
 private:
