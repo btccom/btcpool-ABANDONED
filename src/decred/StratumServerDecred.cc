@@ -51,14 +51,14 @@ JobRepositoryDecred::JobRepositoryDecred(size_t chainId, ServerDecred *server, c
 {
 }
 
-StratumJob* JobRepositoryDecred::createStratumJob()
+shared_ptr<StratumJob> JobRepositoryDecred::createStratumJob()
 {
-  return new StratumJobDecred();
+  return std::make_shared<StratumJobDecred>();
 }
 
-void JobRepositoryDecred::broadcastStratumJob(StratumJob *sjob)
+void JobRepositoryDecred::broadcastStratumJob(shared_ptr<StratumJob> sjob)
 {
-  auto jobDecred = dynamic_cast<StratumJobDecred*>(sjob);
+  auto jobDecred = std::static_pointer_cast<StratumJobDecred>(sjob);
   if (!jobDecred) {
     LOG(ERROR) << "wrong job type: jobId = " << sjob->jobId_;
     return;
@@ -167,7 +167,7 @@ int ServerDecred::checkShare(ShareDecred &share, shared_ptr<StratumJobEx> exJobP
     return StratumStatus::JOB_NOT_FOUND;
   }
 
-  auto sjob = dynamic_cast<StratumJobDecred*>(exJobPtr->sjob_);
+  auto sjob = std::static_pointer_cast<StratumJobDecred>(exJobPtr->sjob_);
   share.set_network((uint32_t)sjob->network_);
   share.set_voters(sjob->header_.voters.value());
   if (ntime > sjob->header_.timestamp.value() + 600) {

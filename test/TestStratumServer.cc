@@ -204,7 +204,7 @@ TEST(StratumServerBitcoin, CheckShare) {
   "372cb27\",\"rskNetworkTarget\":\"0x00000000000000001386e3444eba74f8a750a71a75ed0b7fecdfd282a8cef091\",\"rskFeesForMiner\":\"0\",\""
   "rskdRpcAddress\":\"http://127.0.0.1:4444\",\"rskdRpcUserPwd\":\"user:pass\",\"isRskCleanJob\":true}";
   
-  StratumJobBitcoin *sjob = new StratumJobBitcoin();
+  auto sjob = std::make_shared<StratumJobBitcoin>();
   sjob->unserializeFromJson(sjobJson.c_str(), sjobJson.size());
 
   StratumJobExBitcoin exjob(0, sjob, true);

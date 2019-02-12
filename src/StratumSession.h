@@ -137,7 +137,7 @@ protected:
 public:
   virtual ~StratumSession();
   virtual bool initialize() { return true; }
-  virtual bool switchChain(size_t chainId);
+  bool switchChain(size_t chainId) override;
   uint16_t decodeSessionId(const std::string &exMessage) const override { return StratumMessageEx::AGENT_MAX_SESSION_ID; };
 
   StratumServer &getServer() { return server_; }

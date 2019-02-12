@@ -199,6 +199,10 @@ int main(int argc, char **argv) {
     vector<shared_ptr<thread>> workers;
     string brokers = cfg.lookup("kafka.brokers");
 
+    bool sslVerifyPeer = true;
+    cfg.lookupValue("curl.ssl_verify_peer", sslVerifyPeer);
+    setSslVerifyPeer(sslVerifyPeer);
+
     // create GwMaker
     createGwMakers(cfg, brokers, gGwMakers);
 

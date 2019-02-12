@@ -88,10 +88,9 @@ protected:
   
 public:
   using JobRepositoryBase::JobRepositoryBase;
-  virtual StratumJob* createStratumJob() override;
-  StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
-  void broadcastStratumJob(StratumJob *sjob) override;
-
+  virtual shared_ptr<StratumJob> createStratumJob() override;
+  shared_ptr<StratumJobEx> createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean) override;
+  void broadcastStratumJob(shared_ptr<StratumJob> sjob) override;
 };
 
 class StratumJobExBitcoin : public StratumJobEx
@@ -110,7 +109,7 @@ public:
   string miningNotify3Clean_;
 
 public:
-  StratumJobExBitcoin(size_t chainId, StratumJob *sjob, bool isClean);
+  StratumJobExBitcoin(size_t chainId, shared_ptr<StratumJob> sjob, bool isClean);
 
   void generateBlockHeader(CBlockHeader  *header,
                            std::vector<char> *coinbaseBin,

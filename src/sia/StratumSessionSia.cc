@@ -55,7 +55,7 @@ void StratumSessionSia::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool
   // "0x0000000007547ff5d321871ff4fb4f118b8d13a30a1ff7b317f3c5b20629578a"],
   // "method":"mining.notify"}
 
-  StratumJobSia *siaJob = dynamic_cast<StratumJobSia *>(exJobPtr->sjob_);
+  auto siaJob = std::static_pointer_cast<StratumJobSia>(exJobPtr->sjob_);
   if (nullptr == siaJob) {
     return;
   }

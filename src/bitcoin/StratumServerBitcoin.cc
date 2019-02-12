@@ -37,18 +37,18 @@ using namespace std;
 
 //////////////////////////////////// JobRepositoryBitcoin /////////////////////////////////
 
-StratumJob* JobRepositoryBitcoin::createStratumJob() {
-  return new StratumJobBitcoin();
+shared_ptr<StratumJob> JobRepositoryBitcoin::createStratumJob() {
+  return std::make_shared<StratumJobBitcoin>();
 }
 
-StratumJobEx* JobRepositoryBitcoin::createStratumJobEx(StratumJob *sjob, bool isClean)
+shared_ptr<StratumJobEx> JobRepositoryBitcoin::createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean)
 {
-  return new StratumJobExBitcoin(chainId_, sjob, isClean);
+  return std::make_shared<StratumJobExBitcoin>(chainId_, sjob, isClean);
 }
 
 
-void JobRepositoryBitcoin::broadcastStratumJob(StratumJob *sjobBase) {
-  StratumJobBitcoin* sjob = dynamic_cast<StratumJobBitcoin*>(sjobBase);
+void JobRepositoryBitcoin::broadcastStratumJob(shared_ptr<StratumJob> sjobBase) {
+  auto sjob = std::static_pointer_cast<StratumJobBitcoin>(sjobBase);
   if(!sjob)
   {
     LOG(FATAL) << "JobRepositoryBitcoin::broadcastStratumJob error: cast StratumJobBitcoin failed";
@@ -104,8 +104,8 @@ void JobRepositoryBitcoin::broadcastStratumJob(StratumJob *sjobBase) {
     itr++;
     shared_ptr<StratumJobEx> exJob2 = itr->second;
 
-    StratumJobBitcoin* sjob1 = dynamic_cast<StratumJobBitcoin*>(exJob1->sjob_);
-    StratumJobBitcoin* sjob2 = dynamic_cast<StratumJobBitcoin*>(exJob2->sjob_);
+    auto sjob1 = std::static_pointer_cast<StratumJobBitcoin>(exJob1->sjob_);
+    auto sjob2 = std::static_pointer_cast<StratumJobBitcoin>(exJob2->sjob_);
 
     if (exJob2->isClean_ == true &&
         sjob2->merkleBranch_.size() == 0 &&
@@ -115,7 +115,7 @@ void JobRepositoryBitcoin::broadcastStratumJob(StratumJob *sjobBase) {
   }
 }
 
-StratumJobExBitcoin::StratumJobExBitcoin(size_t chainId, StratumJob *sjob, bool isClean)
+StratumJobExBitcoin::StratumJobExBitcoin(size_t chainId, shared_ptr<StratumJob> sjob, bool isClean)
   : StratumJobEx(chainId, sjob, isClean)
 {
   init();
@@ -123,7 +123,7 @@ StratumJobExBitcoin::StratumJobExBitcoin(size_t chainId, StratumJob *sjob, bool 
 
 
 void StratumJobExBitcoin::init() {
-  StratumJobBitcoin* sjob = dynamic_cast<StratumJobBitcoin*>(sjob_);
+  auto sjob = std::static_pointer_cast<StratumJobBitcoin>(sjob_);
   string merkleBranchStr;
   {
     // '"'+ 64 + '"' + ',' = 67 bytes
@@ -177,7 +177,7 @@ void StratumJobExBitcoin::generateCoinbaseTx(std::vector<char> *coinbaseBin,
                                       string *userCoinbaseInfo) {
   string coinbaseHex;
   const string extraNonceStr = Strings::Format("%08x%s", extraNonce1, extraNonce2Hex.c_str());
-  StratumJobBitcoin* sjob = dynamic_cast<StratumJobBitcoin*>(sjob_);
+  auto sjob = std::static_pointer_cast<StratumJobBitcoin>(sjob_);
   string coinbase1 = sjob->coinbase1_;
 
 #ifdef USER_DEFINED_COINBASE
@@ -370,11 +370,11 @@ int ServerBitcoin::checkShare(
   string *userCoinbaseInfo
 ) {
   shared_ptr<StratumJobEx> exJobPtrShared = GetJobRepository(chainId)->getStratumJobEx(share.jobid());
-  StratumJobExBitcoin* exJobPtr = static_cast<StratumJobExBitcoin*>(exJobPtrShared.get());
+  auto exJobPtr = std::static_pointer_cast<StratumJobExBitcoin>(exJobPtrShared);
   if (exJobPtr == nullptr) {
     return StratumStatus::JOB_NOT_FOUND;
   }
-  StratumJobBitcoin *sjob = dynamic_cast<StratumJobBitcoin*>(exJobPtr->sjob_);
+  auto sjob = std::static_pointer_cast<StratumJobBitcoin>(exJobPtr->sjob_);
 
   if (exJobPtr->isStale()) {
     return StratumStatus::JOB_NOT_FOUND;

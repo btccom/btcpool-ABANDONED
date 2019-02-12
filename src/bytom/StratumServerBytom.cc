@@ -32,14 +32,14 @@ using namespace std;
 
 ///////////////////////////////////JobRepositoryBytom///////////////////////////////////
 
-StratumJobEx* JobRepositoryBytom::createStratumJobEx(StratumJob *sjob, bool isClean)
+shared_ptr<StratumJobEx> JobRepositoryBytom::createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean)
 {
-  return new StratumJobEx(chainId_, sjob, isClean);
+  return std::make_shared<StratumJobEx>(chainId_, sjob, isClean);
 }
 
-void JobRepositoryBytom::broadcastStratumJob(StratumJob *sjobBase)
+void JobRepositoryBytom::broadcastStratumJob(shared_ptr<StratumJob> sjobBase)
 {
-  StratumJobBytom* sjob = dynamic_cast<StratumJobBytom*>(sjobBase);
+  auto sjob = std::static_pointer_cast<StratumJobBytom>(sjobBase);
   if(!sjob)
   {
     LOG(FATAL) << "JobRepositoryBytom::broadcastStratumJob error: cast StratumJobBytom failed";

@@ -60,7 +60,7 @@ void StratumMinerBytom::handleRequest_GetWork(const string &idStr, const JsonNod
 
 namespace BytomUtils {
 
-int checkProofOfWork(EncodeBlockHeader_return encoded, StratumJobBytom *sJob, uint64_t difficulty) {
+int checkProofOfWork(EncodeBlockHeader_return encoded, shared_ptr<StratumJobBytom> sJob, uint64_t difficulty) {
   DLOG(INFO) << "verify blockheader hash=" << encoded.r1 << ", seed=" << sJob->seed_;
   vector<char> vHeader, vSeed;
   Hex2Bin(encoded.r1, vHeader);
@@ -131,7 +131,7 @@ void StratumMinerBytom::handleRequest_Submit(const string &idStr, const JsonNode
     return;
   }
 
-  StratumJobBytom *sJob = dynamic_cast<StratumJobBytom *>(exjob->sjob_);
+  auto sJob = std::static_pointer_cast<StratumJobBytom>(exjob->sjob_);
   if (nullptr == sJob) {
     session.rpc2ResponseBoolean(idStr, false, "Unknown reason");
     LOG(FATAL) << "Code error, casting stratum job bytom failed for job id=" << std::hex << localJob->jobId_;

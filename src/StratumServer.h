@@ -160,9 +160,9 @@ public:
   shared_ptr<StratumJobEx> getStratumJobEx(const uint64_t jobId);
   shared_ptr<StratumJobEx> getLatestStratumJobEx();
 
-  virtual StratumJob* createStratumJob() = 0;
-  virtual StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean);
-  virtual void broadcastStratumJob(StratumJob *sjob) = 0;
+  virtual shared_ptr<StratumJob> createStratumJob() = 0;
+  virtual shared_ptr<StratumJobEx> createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean);
+  virtual void broadcastStratumJob(shared_ptr<StratumJob> sjob) = 0;
 };
 
 //  This base class is to help type safety of accessing server_ member variable. Avoid manual casting.
@@ -194,10 +194,10 @@ class StratumJobEx {
 public:
   size_t chainId_;
   bool isClean_;
-  StratumJob *sjob_;
+  shared_ptr<StratumJob> sjob_;
 
 public:
-  StratumJobEx(size_t chainId, StratumJob *sjob, bool isClean);
+  StratumJobEx(size_t chainId, shared_ptr<StratumJob> sjob, bool isClean);
   virtual ~StratumJobEx();
 
   void markStale();

@@ -54,9 +54,9 @@ private:
 
 public:
   using JobRepositoryBase::JobRepositoryBase;
-  StratumJob* createStratumJob() override {return new StratumJobBytom();}
-  StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
-  void broadcastStratumJob(StratumJob *sjob) override;
+  shared_ptr<StratumJob> createStratumJob() override { return std::make_shared<StratumJobBytom>(); }
+  shared_ptr<StratumJobEx> createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean) override;
+  void broadcastStratumJob(shared_ptr<StratumJob> sjob) override;
 };
 
 #endif  // STRATUM_SERVER_BYTOM_H_

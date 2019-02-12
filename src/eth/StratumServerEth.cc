@@ -50,12 +50,12 @@ JobRepositoryEth::JobRepositoryEth(size_t chainId, ServerEth *server, const char
   loadLightFromFile();
 }
 
-StratumJobEx* JobRepositoryEth::createStratumJobEx(StratumJob *sjob, bool isClean){
-  return new StratumJobEx(chainId_, sjob, isClean);
+shared_ptr<StratumJobEx> JobRepositoryEth::createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean){
+  return std::make_shared<StratumJobEx>(chainId_, sjob, isClean);
 }
 
-void JobRepositoryEth::broadcastStratumJob(StratumJob *sjob) {
-  StratumJobEth* sjobEth = dynamic_cast<StratumJobEth*>(sjob);
+void JobRepositoryEth::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
+  auto sjobEth = std::static_pointer_cast<StratumJobEth>(sjob);
 
   LOG(INFO) << "broadcast eth stratum job " << std::hex << sjobEth->jobId_;
 
@@ -95,14 +95,15 @@ JobRepositoryEth::~JobRepositoryEth() {
   deleteLight();
 }
 
-void JobRepositoryEth::rebuildLightNonBlocking(StratumJobEth* job) {
+void JobRepositoryEth::rebuildLightNonBlocking(shared_ptr<StratumJobEth> job) {
   epochs_ = 0;
   newLightNonBlocking(job);
 }
 
-void JobRepositoryEth::newLightNonBlocking(StratumJobEth* job) {
-  if (nullptr == job)
+void JobRepositoryEth::newLightNonBlocking(shared_ptr<StratumJobEth> job) {
+  if (!job) {
     return;
+  }
 
   boost::thread t(boost::bind(&JobRepositoryEth::_newLightThread, this, job->height_));
   t.detach();
@@ -405,7 +406,7 @@ int ServerEth::checkShareAndUpdateDiff(
     return StratumStatus::JOB_NOT_FOUND;
   }
 
-  StratumJobEth *sjob = dynamic_cast<StratumJobEth *>(exJobPtr->sjob_);
+  auto sjob = std::static_pointer_cast<StratumJobEth>(exJobPtr->sjob_);
   
   DLOG(INFO) << "checking share nonce: " << hex << nonce << ", header: " << header.GetHex();
   

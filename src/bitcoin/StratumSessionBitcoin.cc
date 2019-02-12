@@ -56,11 +56,11 @@ uint16_t StratumSessionBitcoin::decodeSessionId(const std::string &exMessage) co
 }
 
 void StratumSessionBitcoin::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
-  auto exJob = static_cast<StratumJobExBitcoin *>(exJobPtr.get());
+  auto exJob = std::static_pointer_cast<StratumJobExBitcoin>(exJobPtr);
   if (state_ < AUTHENTICATED || exJob == nullptr) {
     return;
   }
-  auto sjob = dynamic_cast<StratumJobBitcoin *>(exJob->sjob_);
+  auto sjob = std::static_pointer_cast<StratumJobBitcoin>(exJob->sjob_);
 
   auto &ljob = addLocalJob(exJob->chainId_, sjob->jobId_, allocShortJobId(), sjob->nBits_);
 

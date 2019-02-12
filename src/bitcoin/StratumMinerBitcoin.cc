@@ -195,7 +195,7 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
 
   if (exjob.get() != NULL) {
     // 0 means miner use stratum job's default block time
-    StratumJobBitcoin *sjobBitcoin = static_cast<StratumJobBitcoin *>(exjob->sjob_);
+    auto sjobBitcoin = std::static_pointer_cast<StratumJobBitcoin>(exjob->sjob_);
     if (nTime == 0) {
       nTime = sjobBitcoin->nTime_;
     }

@@ -32,9 +32,6 @@ ELSE()
   set(CMAKE_CXX_FLAGS "-g -Wall")
 ENDIF()
 
-# compiler options
-set(CMAKE_CXX_COMPILER "g++")
-set(CMAKE_C_COMPILER "gcc")
 # set C++ standard
 set(CMAKE_CXX_STANDARD 11)
 # stop building after the first error
@@ -66,10 +63,6 @@ if(NOT CHAIN_TYPE)
 endif()
 # Bitcoin
 if (CHAIN_TYPE STREQUAL "BTC")
-  # bitcoin core is using c++ (alias). This to make sure pool and bitcoin using the same compiler
-  set(CMAKE_CXX_COMPILER "c++")
-  set(CMAKE_C_COMPILER "cc")
-
   set(CHAIN_NAME "Bitcoin Core")
   set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-bitcoin")
   set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.btc")
@@ -121,9 +114,6 @@ elseif(CHAIN_TYPE STREQUAL "LTC")
     set(CHAIN_NAME "Litecoin")
     set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-litecoin")
     set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.ltc")
-
-#    set(CMAKE_CXX_COMPILER "c++")
-#    set(CMAKE_C_COMPILER "cc")
 
     add_definitions(-DCHAIN_TYPE_LTC)
     add_definitions(-DCHAIN_TYPE_STR="LTC")
@@ -189,7 +179,7 @@ endif()
 #   message("    Nvidia CUDA toolkit 9.1 or later required (https://developer.nvidia.com/cuda-downloads).")
 #   message("    https://github.com/Bytom/bytom need to be cloned to $GOPATH/src")
 #   message("    If you want to update the prebuild libGpuTs.a,")
-#   message("    you can copy it from ${CMAKE_BINARY_DIR}/src/bytom/cutil/src to ${PROJECT_SOURCE_DIR}/prebuild/bytom")
+#   message("    you can copy it from ${CMAKE_BINARY_DIR}/3rdparty/bytom/cutil/src to ${PROJECT_SOURCE_DIR}/prebuild/bytom")
 # 
 #   set(GPUTS_LIBRARY GpuTs)
 # else()
@@ -311,75 +301,20 @@ if (NOT EXISTS ${secp256k1_LIBRARIES})
   message(FATAL_ERROR "build secp256k1 failed!")
 endif()
 
-find_package(OpenSSL)
-if(NOT OPENSSL_FOUND)
-  message(FATAL_ERROR "OpenSSL not found!")
-endif()
-
-find_package(ZLIB)
-if(NOT ZLIB_FOUND)
-  message(FATAL_ERROR "ZLib not found!")
-endif()
-
-find_package(LibConfig)
-if(NOT LIBCONFIGPP_FOUND)
-  message(FATAL_ERROR "LibConfig++ not found!")
-endif()
-
-find_package(Glog)
-if(NOT GLOG_FOUND)
-message(FATAL_ERROR "Glog not found!")
-endif()
-
-find_package(libzmq)
-if(NOT LIBZMQ_FOUND)
-  message(FATAL_ERROR "libzmq not found!")
-endif()
-
-find_package(CURL)
-if(NOT CURL_FOUND)
-  message(FATAL_ERROR "libcurl not found!")
-endif()
-
-find_package(LibEvent)
-if(NOT LibEvent_FOUND)
-  message(FATAL_ERROR "libevent2 not found!")
-endif()
-
-find_package(Protobuf)
-if(NOT Protobuf_FOUND)
-  message(FATAL_ERROR "libprotobuf not found!")
-endif()
-
-find_package(Boost 1.47.0 COMPONENTS thread filesystem system regex program_options chrono)
-if(NOT Boost_FOUND)
-  message(FATAL_ERROR "Boost not found!")
-endif()
-
-find_package(ZookeeperC)
-if(NOT ZOOKEEPER_FOUND)
-  message(FATAL_ERROR "libzookeeper-mt not found!")
-endif()
-
-find_package(LibGMP)
-if(NOT GMP_FOUND)
-  message(FATAL_ERROR "libgmp not found!")
-endif()
-
-find_package(LibHiredis)
-if(NOT HIREDIS_FOUND)
-  message(FATAL_ERROR "libhiredis not found!")
-endif()
-
-find_package(LibPthread)
-if(NOT PTHREAD_FOUND)
-  message(FATAL_ERROR "libpthread not found!")
-endif()
-
-find_package(KafkaC)
-if(NOT KAFKA_FOUND)
-  message(FATAL_ERROR "librdkafka not found!")
-endif()
+find_package(OpenSSL REQUIRED)
+find_package(ZLIB REQUIRED)
+find_package(LibConfig REQUIRED)
+find_package(Glog REQUIRED)
+find_package(libzmq REQUIRED)
+find_package(CURL REQUIRED)
+find_package(LibEvent REQUIRED)
+find_package(Protobuf REQUIRED)
+find_package(Boost 1.47.0 COMPONENTS thread filesystem system regex program_options chrono REQUIRED)
+find_package(ZookeeperC REQUIRED)
+find_package(LibGMP REQUIRED)
+find_package(LibHiredis REQUIRED)
+find_package(LibPthread REQUIRED)
+find_package(KafkaC REQUIRED)
 
 if(USE_CUDA)
   find_package(CUDA 9.1)
@@ -389,10 +324,7 @@ if(USE_CUDA)
   endif()
 endif()
 
-find_package(MYSQL)
-if(NOT MYSQL_FOUND)
-  message(FATAL_ERROR "libmysqlclient not found!")
-endif()
+find_package(MYSQL REQUIRED)
 # Force to use discovered OPENSSL_CRYPTO_LIBRARY & OPENSSL_SSL_LIBRARY
 string(REPLACE "-lcrypto" "" MYSQL_LIBRARIES ${MYSQL_LIBRARIES})
 string(REPLACE "-lssl" "" MYSQL_LIBRARIES ${MYSQL_LIBRARIES})
@@ -407,7 +339,37 @@ if(NOT CMAKE_OBJCOPY)
   mark_as_advanced(CMAKE_OBJCOPY)
 endif()
 
-add_subdirectory(src/config)
+########################## Generate version number #############################
+
+SET(BPOOL_VERSION_MAJOR "2")
+SET(BPOOL_VERSION_MINOR "3")
+SET(BPOOL_VERSION_PATCH "0")
+
+# Get the current abbreviated commit hash of the working branch
+if(EXISTS "${CMAKE_SOURCE_DIR}/.git")
+  execute_process(
+      COMMAND git log -1 --format=%h
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      OUTPUT_VARIABLE BPOOL_GIT_COMMIT_HASH
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+endif()
+
+if(BPOOL_GIT_COMMIT_HASH)
+  set(BPOOL_VERSION_PATCH "${BPOOL_VERSION_PATCH}-${BPOOL_GIT_COMMIT_HASH}")
+endif()
+
+set(BPOOL_VERSION_STR "${BPOOL_VERSION_MAJOR}.${BPOOL_VERSION_MINOR}.${BPOOL_VERSION_PATCH}")
+
+message("-- version string: ${BPOOL_VERSION_STR}")
+
+configure_file(src/config/bpool-version.h.in src/config/bpool-version.h)
+
+
+# package version of cpack
+SET(CPACK_PACKAGE_VERSION_MAJOR "${BPOOL_VERSION_MAJOR}")
+SET(CPACK_PACKAGE_VERSION_MINOR "${BPOOL_VERSION_MINOR}")
+SET(CPACK_PACKAGE_VERSION_PATCH "${BPOOL_VERSION_PATCH}")
 
 ###################################### Targets ######################################
 
@@ -418,21 +380,36 @@ if (REBUILD_BH_SHARED)
   )
 endif()
 
-add_subdirectory(src/libethash)
-add_subdirectory(src/libblake2)
-add_subdirectory(src/libsph)
+add_subdirectory(3rdparty/libblake2)
+add_subdirectory(3rdparty/libethash)
+add_subdirectory(3rdparty/libsph)
 
 if(USE_CUDA)
   set(USE_CUDA_INCLUDE_DIRECTORY ${CUDA_INCLUDE_DIRECTORIES})
-  add_subdirectory(src/bytom/cutil)
+  add_subdirectory(3rdparty/bytom/cutil)
   set(USE_CUDA_LIBRARIES GpuTs ${CUDA_LIBRARIES} ${CUDA_CUBLAS_LIBRARIES})
 else()
   add_definitions(-DNO_CUDA)
 endif(USE_CUDA)
 
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/src src test ${CHAIN_SRC_ROOT}/src ${CHAIN_SRC_ROOT}/src/config ${CHAIN_SRC_ROOT}/src/secp256k1/include
-	${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${LIBZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS} ${KAFKA_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS}
-                    ${LIBEVENT_INCLUDE_DIR} ${USE_CUDA_INCLUDE_DIRECTORY} ${BH_SHARED_INCLUDE_DIR} ${MYSQL_INCLUDE_DIR})
+include_directories(
+  ${CMAKE_CURRENT_BINARY_DIR}/src
+  3rdparty
+  src
+  test
+  ${CHAIN_SRC_ROOT}/src
+  ${CHAIN_SRC_ROOT}/src/config
+  ${CHAIN_SRC_ROOT}/src/secp256k1/include
+  ${OPENSSL_INCLUDE_DIR}
+  ${Boost_INCLUDE_DIRS}
+  ${LIBZMQ_INCLUDE_DIR}
+  ${GLOG_INCLUDE_DIRS}
+  ${KAFKA_INCLUDE_DIRS}
+  ${ZLIB_INCLUDE_DIRS}
+  ${LIBEVENT_INCLUDE_DIR}
+  ${USE_CUDA_INCLUDE_DIRECTORY}
+  ${BH_SHARED_INCLUDE_DIR}
+  ${MYSQL_INCLUDE_DIR})
 
 set(THIRD_LIBRARIES ethash blake2 sph ${BH_SHARED_LIBRARY} ${USE_CUDA_LIBRARIES}
                     ${BITCOIN_LIBRARIES} ${secp256k1_LIBRARIES} ${GLOG_LIBRARIES} ${KAFKA_LIBRARIES} ${ZLIB_LIBRARIES} ${ZOOKEEPER_LIBRARIES}
@@ -453,6 +430,11 @@ add_library(beam
     src/beam/utility/common.cpp)
 target_compile_options(beam PRIVATE -Wno-unused-function)
 
+add_library(cuckoo
+  3rdparty/cuckoo/cuckaroo.cpp
+  3rdparty/cuckoo/cuckatoo.cpp
+  3rdparty/cuckoo/siphash.cpp)
+
 file(GLOB LIB_SOURCES
         src/*.cc
         src/rsk/*.cc
@@ -465,7 +447,6 @@ file(GLOB LIB_SOURCES_CHAINS
         src/sia/*.cc
         src/decred/*.cc
         src/beam/*.cc
-        src/cuckoo/*.cpp
         src/grin/*.cc
     )
 
@@ -487,9 +468,14 @@ add_library(
     ${LIB_SOURCES_SHARES}
     ${LIB_SOURCES_CHAINS})
 
-file(GLOB_RECURSE TEST_SOURCES test/*.cc test/*.cpp)
-add_executable(unittest ${TEST_SOURCES})
-target_link_libraries(unittest btcpool beam equihash ${THIRD_LIBRARIES})
+file(GLOB_RECURSE TEST_SOURCES test/*.cc)
+add_executable(unittest ${TEST_SOURCES} 3rdparty/gmock-gtest-all.cc)
+target_link_libraries(unittest
+  btcpool
+  beam
+  cuckoo
+  equihash
+  ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE GBTMAKER_SOURCES src/gbtmaker/*.cc)
 add_executable(gbtmaker ${GBTMAKER_SOURCES})
@@ -508,19 +494,40 @@ add_executable(jobmaker ${JOBMAKER_SOURCES})
 target_link_libraries(jobmaker btcpool ${THIRD_LIBRARIES})
 
 add_executable(sserver src/sserver/StratumServerMain.cc)
-target_link_libraries(sserver btcpool beam equihash ${THIRD_LIBRARIES})
+target_link_libraries(sserver
+  btcpool
+  beam
+  cuckoo
+  equihash
+  ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE STATSHTTPD_SOURCES src/statshttpd/*.cc)
 add_executable(statshttpd ${STATSHTTPD_SOURCES})
-target_link_libraries(statshttpd btcpool beam equihash ${THIRD_LIBRARIES})
+target_link_libraries(
+  statshttpd
+  btcpool
+  beam
+  cuckoo
+  equihash
+  ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE SHARELOGGER_SOURCES src/sharelogger/*.cc)
 add_executable(sharelogger ${SHARELOGGER_SOURCES})
-target_link_libraries(sharelogger btcpool beam equihash ${THIRD_LIBRARIES})
+target_link_libraries(sharelogger
+  btcpool
+  beam
+  cuckoo
+  equihash
+  ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE SLPARSER_SOURCES src/slparser/*.cc)
 add_executable(slparser ${SLPARSER_SOURCES})
-target_link_libraries(slparser btcpool beam equihash ${THIRD_LIBRARIES})
+target_link_libraries(slparser
+  btcpool
+  beam
+  cuckoo
+  equihash
+  ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE BLKMAKER_SOURCES src/blkmaker/*.cc)
 add_executable(blkmaker ${BLKMAKER_SOURCES})
@@ -532,7 +539,12 @@ target_link_libraries(simulator btcpool ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE POOLWATCHER_SOURCES src/poolwatcher/*.cc)
 add_executable(poolwatcher ${POOLWATCHER_SOURCES})
-target_link_libraries(poolwatcher btcpool beam equihash ${THIRD_LIBRARIES})
+target_link_libraries(poolwatcher
+  btcpool
+  beam
+  cuckoo
+  equihash
+  ${THIRD_LIBRARIES})
 
 ###################################### Install & Package ######################################
 message("") # empty line

@@ -49,9 +49,9 @@ class JobRepositorySia : public JobRepositoryBase<ServerSia>
 public:
   JobRepositorySia(size_t chainId, ServerSia *server, const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime);
   ~JobRepositorySia();
-  StratumJob *createStratumJob() override {return new StratumJobSia();}
-  StratumJobEx* createStratumJobEx(StratumJob *sjob, bool isClean) override;
-  void broadcastStratumJob(StratumJob *sjob) override;
+  shared_ptr<StratumJob> createStratumJob() override { return std::make_shared<StratumJobSia>(); }
+  shared_ptr<StratumJobEx> createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean) override;
+  void broadcastStratumJob(shared_ptr<StratumJob> sjob) override;
 };
 
 #endif

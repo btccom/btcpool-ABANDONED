@@ -194,6 +194,13 @@ CurlWriteChunkCallback(void *contents, size_t size, size_t nmemb, void *userp)
   return realsize;
 }
 
+// This may be ugly but I really do not want to modify every places calling HTTP methods...
+static bool sslVerifyPeer = true;
+
+void setSslVerifyPeer(bool verifyPeer) {
+  sslVerifyPeer = verifyPeer;
+}
+
 bool httpGET(const char *url, string &response, long timeoutMs) {
   return httpPOST(url, nullptr, nullptr, response, timeoutMs, nullptr);
 }
@@ -238,6 +245,7 @@ bool httpPOSTImpl(const char *url, const char *userpwd, const char *postData, in
     curl_easy_setopt(curl, CURLOPT_USERPWD, userpwd);
 
   curl_easy_setopt(curl, CURLOPT_USE_SSL, CURLUSESSL_TRY);
+  curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, sslVerifyPeer);
   curl_easy_setopt(curl, CURLOPT_USERAGENT, agent);
 
   curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, timeoutMs);

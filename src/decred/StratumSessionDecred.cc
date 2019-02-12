@@ -49,7 +49,7 @@ void StratumSessionDecred::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, b
     return;
   }
 
-  StratumJobDecred *jobDecred = dynamic_cast<StratumJobDecred *>(exJobPtr->sjob_);
+  auto jobDecred = std::static_pointer_cast<StratumJobDecred>(exJobPtr->sjob_);
   if (nullptr == jobDecred)
   {
     LOG(ERROR) << "Invalid job type, jobId = " << exJobPtr->sjob_->jobId_;
