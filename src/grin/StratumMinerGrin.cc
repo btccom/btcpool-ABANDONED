@@ -101,7 +101,7 @@ void StratumMinerGrin::handleRequest_Submit(const string &idStr, const JsonNode 
     session.responseError(idStr, StratumStatus::JOB_NOT_FOUND);
     return;
   }
-  auto sjob = dynamic_cast<StratumJobGrin *>(exjob->sjob_);
+  auto sjob = std::static_pointer_cast<StratumJobGrin>(exjob->sjob_);
 
   auto iter = jobDiffs_.find(localJob);
   if (iter == jobDiffs_.end()) {

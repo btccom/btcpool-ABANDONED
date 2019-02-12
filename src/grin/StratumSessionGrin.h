@@ -44,8 +44,8 @@ public:
     const std::string &workerName,
     int64_t workerId) override;
 
-  void responseError(const string &idStr, int code);
-  void responseTrue(const string &idStr);
+  void responseError(const string &idStr, int code) override;
+  void responseTrue(const string &idStr) override;
 
 protected:
   bool validate(const JsonNode &jmethod, const JsonNode &jparams, const JsonNode &jroot) override;

@@ -66,7 +66,7 @@ struct PreProofGrin {
   boost::endian::big_uint64_buf_t nonce;
 };
 
-struct siphash_keys;
+class siphash_keys;
 bool VerifyPowGrinPrimary(const std::vector<uint64_t> &edges, siphash_keys &keys, uint32_t edgeBits);
 bool VerifyPowGrinSecondary(const std::vector<uint64_t> &edges, siphash_keys &keys, uint32_t edgeBits);
 bool VerifyPowGrin(const PreProofGrin &preProof, uint32_t edgeBits, const std::vector<uint64_t> &proofs);

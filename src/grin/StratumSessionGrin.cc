@@ -196,7 +196,7 @@ void StratumSessionGrin::sendMiningNotifyWithId(shared_ptr<StratumJobEx> exJobPt
     return;
   }
 
-  StratumJobGrin *job = dynamic_cast<StratumJobGrin *>(exJobPtr->sjob_);
+  auto job = std::static_pointer_cast<StratumJobGrin>(exJobPtr->sjob_);
   if (nullptr == job) {
     return;
   }

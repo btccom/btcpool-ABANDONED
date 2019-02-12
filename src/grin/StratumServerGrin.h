@@ -68,8 +68,8 @@ public:
     const char *consumerTopic,
     const string &fileLastNotifyTime);
 
-  StratumJob* createStratumJob() override;
-  void broadcastStratumJob(StratumJob *sjob) override;
+  shared_ptr<StratumJob> createStratumJob() override;
+  void broadcastStratumJob(shared_ptr<StratumJob> sjob) override;
 
 private:
   uint64_t lastHeight_;

@@ -45,7 +45,7 @@ void StratumServerGrin::checkAndUpdateShare(
   const std::set<uint64_t> &jobDiffs,
   const string &workFullName,
   uint256 &blockHash) {
-  auto sjob = dynamic_cast<StratumJobGrin *>(exjob->sjob_);
+  auto sjob = std::static_pointer_cast<StratumJobGrin>(exjob->sjob_);
 
   DLOG(INFO) << "checking share nonce: " << std::hex << share.nonce()
              << ", pre_pow: " << sjob->prePowStr_
@@ -117,7 +117,7 @@ void StratumServerGrin::sendSolvedShare2Kafka(
       [](string a, int b) { return std::move(a) + "," + std::to_string(b); });
   }
 
-  auto sjob = dynamic_cast<StratumJobGrin *>(exjob->sjob_);
+  auto sjob = std::static_pointer_cast<StratumJobGrin>(exjob->sjob_);
   string blockHashStr;
   Bin2Hex(blockHash.begin(), blockHash.size(), blockHashStr);
   string msg = Strings::Format(
@@ -161,12 +161,12 @@ JobRepositoryGrin::JobRepositoryGrin(
   , lastHeight_{0} {
 }
 
-StratumJob* JobRepositoryGrin::createStratumJob() {
-  return new StratumJobGrin;
+shared_ptr<StratumJob> JobRepositoryGrin::createStratumJob() {
+  return make_shared<StratumJobGrin>();
 }
 
-void JobRepositoryGrin::broadcastStratumJob(StratumJob *sjob) {
-  auto sjobGrin = dynamic_cast<StratumJobGrin*>(sjob);
+void JobRepositoryGrin::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
+  auto sjobGrin = std::static_pointer_cast<StratumJobGrin>(sjob);
 
   LOG(INFO) << "broadcast stratum job " << std::hex << sjobGrin->jobId_;
 
