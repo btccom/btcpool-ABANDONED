@@ -468,15 +468,11 @@ add_library(
     ${LIB_SOURCES}
     ${LIB_SOURCES_SHARES}
     ${LIB_SOURCES_CHAINS})
+target_link_libraries(btcpool PUBLIC beam cuckoo)
 
 file(GLOB_RECURSE TEST_SOURCES test/*.cc)
 add_executable(unittest ${TEST_SOURCES} 3rdparty/gmock-gtest-all.cc)
-target_link_libraries(unittest
-  btcpool
-  beam
-  cuckoo
-  equihash
-  ${THIRD_LIBRARIES})
+target_link_libraries(unittest btcpool ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE GBTMAKER_SOURCES src/gbtmaker/*.cc)
 add_executable(gbtmaker ${GBTMAKER_SOURCES})
@@ -495,40 +491,19 @@ add_executable(jobmaker ${JOBMAKER_SOURCES})
 target_link_libraries(jobmaker btcpool ${THIRD_LIBRARIES})
 
 add_executable(sserver src/sserver/StratumServerMain.cc)
-target_link_libraries(sserver
-  btcpool
-  beam
-  cuckoo
-  equihash
-  ${THIRD_LIBRARIES})
+target_link_libraries(sserver btcpool ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE STATSHTTPD_SOURCES src/statshttpd/*.cc)
 add_executable(statshttpd ${STATSHTTPD_SOURCES})
-target_link_libraries(
-  statshttpd
-  btcpool
-  beam
-  cuckoo
-  equihash
-  ${THIRD_LIBRARIES})
+target_link_libraries(statshttpd btcpool ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE SHARELOGGER_SOURCES src/sharelogger/*.cc)
 add_executable(sharelogger ${SHARELOGGER_SOURCES})
-target_link_libraries(sharelogger
-  btcpool
-  beam
-  cuckoo
-  equihash
-  ${THIRD_LIBRARIES})
+target_link_libraries(sharelogger btcpool ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE SLPARSER_SOURCES src/slparser/*.cc)
 add_executable(slparser ${SLPARSER_SOURCES})
-target_link_libraries(slparser
-  btcpool
-  beam
-  cuckoo
-  equihash
-  ${THIRD_LIBRARIES})
+target_link_libraries(slparser btcpool ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE BLKMAKER_SOURCES src/blkmaker/*.cc)
 add_executable(blkmaker ${BLKMAKER_SOURCES})
@@ -540,12 +515,7 @@ target_link_libraries(simulator btcpool ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE POOLWATCHER_SOURCES src/poolwatcher/*.cc)
 add_executable(poolwatcher ${POOLWATCHER_SOURCES})
-target_link_libraries(poolwatcher
-  btcpool
-  beam
-  cuckoo
-  equihash
-  ${THIRD_LIBRARIES})
+target_link_libraries(poolwatcher btcpool ${THIRD_LIBRARIES})
 
 ###################################### Install & Package ######################################
 message("") # empty line
