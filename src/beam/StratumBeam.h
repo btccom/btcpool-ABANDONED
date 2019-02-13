@@ -38,11 +38,10 @@
 // If there is no forward compatibility, one of the versions of Share
 // will be considered invalid, resulting in loss of users' hashrate.
 
-class ShareBeam : public sharebase::BeamMsg
-{
+class ShareBeam : public sharebase::BeamMsg {
 public:
-
-  const static uint32_t CURRENT_VERSION = 0x0bea0001u; // first 0bea: BEAM, second 0001: version 1
+  const static uint32_t CURRENT_VERSION =
+      0x0bea0001u; // first 0bea: BEAM, second 0001: version 1
 
   ShareBeam() {
     set_version(0);
@@ -61,77 +60,87 @@ public:
   ShareBeam(const ShareBeam &r) = default;
   ShareBeam &operator=(const ShareBeam &r) = default;
 
-  double score() const
-  {
+  double score() const {
 
-    if (!StratumStatus::isAccepted(status()) || sharediff() == 0 || blockbits() == 0) {
+    if (!StratumStatus::isAccepted(status()) || sharediff() == 0 ||
+        blockbits() == 0) {
       return 0.0;
     }
 
-    // Network diff may less than share diff on testnet or regression test network.
-    // On regression test network, the network diff may be zero.
-    // But no matter how low the network diff is, you can only dig one block at a time.
+    // Network diff may less than share diff on testnet or regression test
+    // network. On regression test network, the network diff may be zero. But no
+    // matter how low the network diff is, you can only dig one block at a time.
     double networkDiff = Beam_BitsToDiff(blockbits());
     if (networkDiff < sharediff()) {
       return 1.0;
-    }
-    else {
+    } else {
       return (double)sharediff() / networkDiff;
     }
   }
 
-  bool isValid() const
-  {
+  bool isValid() const {
     if (version() != CURRENT_VERSION) {
       return false;
     }
-    if (userid() == 0 || workerhashid() == 0 ||
-        blockbits() == 0 || sharediff() == 0)
-    {
+    if (userid() == 0 || workerhashid() == 0 || blockbits() == 0 ||
+        sharediff() == 0) {
       return false;
     }
     return true;
   }
 
-  string toString() const
-  {
-    return Strings::Format("share(height: %u, inputPrefix: %016" PRIx64 "..., ip: %s, userId: %d, "
-                           "workerId: %" PRId64 ", time: %u/%s, "
-                           "shareDiff: %" PRIu64 ", networkDiff: %" PRIu64 ", nonce: %016" PRIx64 ", "
-                           "sessionId: %08x, status: %d/%s)",
-                           height(), inputprefix(), ip().c_str(), userid(),
-                           workerhashid(), timestamp(), date("%F %T", timestamp()).c_str(),
-                           sharediff(), blockbits(), nonce(),
-                           sessionid(), status(), StratumStatus::toString(status()));
+  string toString() const {
+    return Strings::Format(
+        "share(height: %u, inputPrefix: %016" PRIx64
+        "..., ip: %s, userId: %d, "
+        "workerId: %" PRId64
+        ", time: %u/%s, "
+        "shareDiff: %" PRIu64 ", networkDiff: %" PRIu64 ", nonce: %016" PRIx64
+        ", "
+        "sessionId: %08x, status: %d/%s)",
+        height(),
+        inputprefix(),
+        ip().c_str(),
+        userid(),
+        workerhashid(),
+        timestamp(),
+        date("%F %T", timestamp()).c_str(),
+        sharediff(),
+        blockbits(),
+        nonce(),
+        sessionid(),
+        status(),
+        StratumStatus::toString(status()));
   }
 
-  bool SerializeToBuffer(string& data, uint32_t& size) const{
+  bool SerializeToBuffer(string &data, uint32_t &size) const {
     size = ByteSize();
     data.resize(size);
 
     if (!SerializeToArray((uint8_t *)data.data(), size)) {
-        DLOG(INFO) << "base.SerializeToArray failed!" << std::endl;
-        return false;
-      }
+      DLOG(INFO) << "base.SerializeToArray failed!" << std::endl;
+      return false;
+    }
 
     return true;
   }
 
-  bool UnserializeWithVersion(const uint8_t* data, uint32_t size){
-    if(nullptr == data || size <= 0) {
+  bool UnserializeWithVersion(const uint8_t *data, uint32_t size) {
+    if (nullptr == data || size <= 0) {
       return false;
     }
 
-    const uint8_t * payload = data;
-    uint32_t version = *((uint32_t*)payload);
+    const uint8_t *payload = data;
+    uint32_t version = *((uint32_t *)payload);
 
     if (version == CURRENT_VERSION) {
-      if (!ParseFromArray((const uint8_t *)(payload + sizeof(uint32_t)), size - sizeof(uint32_t))) {
+      if (!ParseFromArray(
+              (const uint8_t *)(payload + sizeof(uint32_t)),
+              size - sizeof(uint32_t))) {
         DLOG(INFO) << "share ParseFromArray failed!";
         return false;
       }
-    }
-    else {
+    } else {
       DLOG(INFO) << "unknow share received! data size: " << size;
       return false;
     }
@@ -139,15 +148,15 @@ public:
     return true;
   }
 
-  bool SerializeToArrayWithLength(string& data, uint32_t& size) const {
+  bool SerializeToArrayWithLength(string &data, uint32_t &size) const {
     size = ByteSize();
     data.resize(size + sizeof(uint32_t));
 
-    *((uint32_t*)data.data()) = size;
-    uint8_t * payload = (uint8_t *)data.data();
+    *((uint32_t *)data.data()) = size;
+    uint8_t *payload = (uint8_t *)data.data();
 
     if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
-       DLOG(INFO) << "base.SerializeToArray failed!";
+      DLOG(INFO) << "base.SerializeToArray failed!";
       return false;
     }
 
@@ -155,12 +164,12 @@ public:
     return true;
   }
 
-  bool SerializeToArrayWithVersion(string& data, uint32_t& size) const {
+  bool SerializeToArrayWithVersion(string &data, uint32_t &size) const {
     size = ByteSize();
     data.resize(size + sizeof(uint32_t));
 
-    uint8_t * payload = (uint8_t *)data.data();
-    *((uint32_t*)payload) = version();
+    uint8_t *payload = (uint8_t *)data.data();
+    *((uint32_t *)payload) = version();
 
     if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
       DLOG(INFO) << "SerializeToArray failed!";
@@ -171,20 +180,16 @@ public:
     return true;
   }
 
-  size_t getsharelength() {
-    return IsInitialized() ? ByteSize() : 0;
-  }
+  size_t getsharelength() { return IsInitialized() ? ByteSize() : 0; }
 };
 
-
-
-class StratumJobBeam : public StratumJob
-{
+class StratumJobBeam : public StratumJob {
 public:
   StratumJobBeam();
   string serializeToJson() const override;
   bool unserializeFromJson(const char *s, size_t len) override;
-  bool initFromRawJob(const string &rawJob, const string &rpcAddr, const string &rpcUserPwd);
+  bool initFromRawJob(
+      const string &rawJob, const string &rpcAddr, const string &rpcUserPwd);
 
   uint32_t height_ = 0;
   uint32_t blockBits_;
@@ -214,9 +219,11 @@ struct StratumTraitsBeam {
   };
   struct LocalJobType : public LocalJob {
     LocalJobType(size_t chainId, uint64_t jobId, uint32_t inputHash)
-        : LocalJob(chainId, jobId), inputHash_(inputHash) {
+      : LocalJob(chainId, jobId)
+      , inputHash_(inputHash) {}
+    bool operator==(uint32_t inputHash) const {
+      return inputHash_ == inputHash;
     }
-    bool operator==(uint32_t inputHash) const { return inputHash_ == inputHash; }
 
     uint32_t inputHash_;
   };

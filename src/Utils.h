@@ -62,25 +62,45 @@ inline string HexAddPrefix(const string &hex) {
   return string("0x") + hex;
 }
 
-//bool DecodeBinTx(CTransaction& tx, const unsigned char *data, size_t len);
-//bool DecodeBinBlk(CBlock& block, const unsigned char *data, size_t len);
+// bool DecodeBinTx(CTransaction& tx, const unsigned char *data, size_t len);
+// bool DecodeBinBlk(CBlock& block, const unsigned char *data, size_t len);
 
-std::string s_recv(zmq::socket_t & socket);
-bool s_send(zmq::socket_t & socket, const std::string & string);
-bool s_sendmore (zmq::socket_t & socket, const std::string & string);
+std::string s_recv(zmq::socket_t &socket);
+bool s_send(zmq::socket_t &socket, const std::string &string);
+bool s_sendmore(zmq::socket_t &socket, const std::string &string);
 
 void setSslVerifyPeer(bool verifyPeer);
-bool httpGET (const char *url, string &response, long timeoutMs);
-bool httpGET (const char *url, const char *userpwd,
-              string &response, long timeoutMs);
-bool httpPOST(const char *url, const char *userpwd, const char *postData,
-              string &response, long timeoutMs, const char *contentType);
-bool httpPOST(const char *url, const char *userpwd, const char *postData,
-              string &response, long timeoutMs, const char *contentType, const char *agent);
-bool blockchainNodeRpcCall(const char *url, const char *userpwd, const char *reqData,
-                     string &response);
+bool httpGET(const char *url, string &response, long timeoutMs);
+bool httpGET(
+    const char *url, const char *userpwd, string &response, long timeoutMs);
+bool httpPOST(
+    const char *url,
+    const char *userpwd,
+    const char *postData,
+    string &response,
+    long timeoutMs,
+    const char *contentType);
+bool httpPOST(
+    const char *url,
+    const char *userpwd,
+    const char *postData,
+    string &response,
+    long timeoutMs,
+    const char *contentType,
+    const char *agent);
+bool blockchainNodeRpcCall(
+    const char *url,
+    const char *userpwd,
+    const char *reqData,
+    string &response);
 
-bool rpcCall(const char *url, const char *userpwd, const char *reqData, int len, string &response, const char *agent);  
+bool rpcCall(
+    const char *url,
+    const char *userpwd,
+    const char *reqData,
+    int len,
+    string &response,
+    const char *agent);
 
 string date(const char *format, const time_t timestamp);
 inline string date(const char *format) {
@@ -95,8 +115,8 @@ void writeTime2File(const char *filename, uint32_t t);
 
 class Strings {
 public:
-  static string Format(const char * fmt, ...);
-  static void Append(string & dest, const char * fmt, ...);
+  static string Format(const char *fmt, ...);
+  static void Append(string &dest, const char *fmt, ...);
 };
 
 string score2Str(double s);
@@ -114,21 +134,19 @@ inline double share2HashrateP(uint64_t share, uint32_t timeDiff) {
   return share2HashrateG(share, timeDiff) / 1000000.0;
 }
 
-bool fileExists(const char* file);
-bool fileNonEmpty(const char* file);
+bool fileExists(const char *file);
+bool fileNonEmpty(const char *file);
 
-template<typename S, typename V>
-void readFromSetting(const S &setting,
-                     const string &key,
-                     V &value,
-                     bool optional = false)
-{
+template <typename S, typename V>
+void readFromSetting(
+    const S &setting, const string &key, V &value, bool optional = false) {
   if (!setting.lookupValue(key, value) && !optional) {
     LOG(FATAL) << "config section missing key: " << key;
   }
 }
 
-string getStatsFilePath(const char *chainType, const string &dataDir, time_t ts);
+string
+getStatsFilePath(const char *chainType, const string &dataDir, time_t ts);
 
 // redis sorted-set uses double as its rank.
 // 37^9  = 1.299617398e+14 < 2^52 = 4.503599627e+15

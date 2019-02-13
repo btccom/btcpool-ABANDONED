@@ -31,16 +31,18 @@
 class StratumMinerDecred : public StratumMinerBase<StratumTraitsDecred> {
 public:
   using StratumMiner::kExtraNonce2Size_;
-  StratumMinerDecred(StratumSessionDecred &session,
-                     const DiffController &diffController,
-                     const std::string &clientAgent,
-                     const std::string &workerName,
-                     int64_t workerId);
+  StratumMinerDecred(
+      StratumSessionDecred &session,
+      const DiffController &diffController,
+      const std::string &clientAgent,
+      const std::string &workerName,
+      int64_t workerId);
 
-  void handleRequest(const std::string &idStr,
-                     const std::string &method,
-                     const JsonNode &jparams,
-                     const JsonNode &jroot) override;
+  void handleRequest(
+      const std::string &idStr,
+      const std::string &method,
+      const JsonNode &jparams,
+      const JsonNode &jroot) override;
 
 private:
   void handleRequest_Submit(const string &idStr, const JsonNode &jparams);

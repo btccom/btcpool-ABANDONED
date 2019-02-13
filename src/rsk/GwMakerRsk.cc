@@ -28,7 +28,7 @@
 
   @author Martin Medina
   @copyright RSK Labs Ltd.
-  @version 1.0 30/03/17 
+  @version 1.0 30/03/17
 
   maintained by YihaoPeng since Feb 20, 2018
 */
@@ -40,13 +40,13 @@
 
 ///////////////////////////////GwMakerHandlerRsk////////////////////////////////////
 bool GwMakerHandlerRsk::checkFields(JsonNode &r) {
-  if (r["result"].type()                                != Utilities::JS::type::Obj ||
-      r["result"]["parentBlockHash"].type()             != Utilities::JS::type::Str ||
-      r["result"]["blockHashForMergedMining"].type()    != Utilities::JS::type::Str ||
-      r["result"]["target"].type()                      != Utilities::JS::type::Str ||
-      r["result"]["feesPaidToMiner"].type()             != Utilities::JS::type::Str ||
-      r["result"]["notify"].type()                      != Utilities::JS::type::Bool)
-  {
+  if (r["result"].type() != Utilities::JS::type::Obj ||
+      r["result"]["parentBlockHash"].type() != Utilities::JS::type::Str ||
+      r["result"]["blockHashForMergedMining"].type() !=
+          Utilities::JS::type::Str ||
+      r["result"]["target"].type() != Utilities::JS::type::Str ||
+      r["result"]["feesPaidToMiner"].type() != Utilities::JS::type::Str ||
+      r["result"]["notify"].type() != Utilities::JS::type::Bool) {
     return false;
   }
 
@@ -56,28 +56,30 @@ bool GwMakerHandlerRsk::checkFields(JsonNode &r) {
 string GwMakerHandlerRsk::constructRawMsg(JsonNode &r) {
 
   LOG(INFO) << "chain: " << def_.chainType_ << ", topic: " << def_.rawGwTopic_
-  << ", parent block hash: "           << r["result"]["parentBlockHash"].str()
-  << ", block hash for merge mining: " << r["result"]["blockHashForMergedMining"].str()
-  << ", target: "                      << r["result"]["target"].str()
-  << ", fees paid to miner: "          << r["result"]["feesPaidToMiner"].str()
-  << ", notify: "                      << r["result"]["notify"].boolean();
+            << ", parent block hash: " << r["result"]["parentBlockHash"].str()
+            << ", block hash for merge mining: "
+            << r["result"]["blockHashForMergedMining"].str()
+            << ", target: " << r["result"]["target"].str()
+            << ", fees paid to miner: " << r["result"]["feesPaidToMiner"].str()
+            << ", notify: " << r["result"]["notify"].boolean();
 
-  return Strings::Format("{\"created_at_ts\":%u,"
-                        "\"chainType\":\"%s\","
-                        "\"rpcAddress\":\"%s\","
-                        "\"rpcUserPwd\":\"%s\","
-                        "\"target\":\"%s\","
-                        "\"parentBlockHash\":\"%s\","
-                        "\"blockHashForMergedMining\":\"%s\","
-                        "\"feesPaidToMiner\":\"%s\","
-                        "\"notify\":\"%s\"}",
-                        (uint32_t)time(nullptr),
-                        def_.chainType_.c_str(),
-                        def_.rpcAddr_.c_str(),
-                        def_.rpcUserPwd_.c_str(),
-                        r["result"]["target"].str().c_str(), 
-                        r["result"]["parentBlockHash"].str().c_str(),
-                        r["result"]["blockHashForMergedMining"].str().c_str(),
-                        r["result"]["feesPaidToMiner"].str().c_str(),
-                        r["result"]["notify"].boolean() ? "true" : "false");
+  return Strings::Format(
+      "{\"created_at_ts\":%u,"
+      "\"chainType\":\"%s\","
+      "\"rpcAddress\":\"%s\","
+      "\"rpcUserPwd\":\"%s\","
+      "\"target\":\"%s\","
+      "\"parentBlockHash\":\"%s\","
+      "\"blockHashForMergedMining\":\"%s\","
+      "\"feesPaidToMiner\":\"%s\","
+      "\"notify\":\"%s\"}",
+      (uint32_t)time(nullptr),
+      def_.chainType_.c_str(),
+      def_.rpcAddr_.c_str(),
+      def_.rpcUserPwd_.c_str(),
+      r["result"]["target"].str().c_str(),
+      r["result"]["parentBlockHash"].str().c_str(),
+      r["result"]["blockHashForMergedMining"].str().c_str(),
+      r["result"]["feesPaidToMiner"].str().c_str(),
+      r["result"]["notify"].boolean() ? "true" : "false");
 }

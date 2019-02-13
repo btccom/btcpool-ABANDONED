@@ -33,12 +33,14 @@
 
 ////////////////////////////////  WorkerShares  ////////////////////////////////
 template <class SHARE>
-WorkerShares<SHARE>::WorkerShares(const int64_t workerId, const int32_t userId):
-workerId_(workerId), userId_(userId), acceptCount_(0),
-lastShareIP_(0), lastShareTime_(0),
-acceptShareSec_(STATS_SLIDING_WINDOW_SECONDS),
-rejectShareMin_(STATS_SLIDING_WINDOW_SECONDS/60)
-{
+WorkerShares<SHARE>::WorkerShares(const int64_t workerId, const int32_t userId)
+  : workerId_(workerId)
+  , userId_(userId)
+  , acceptCount_(0)
+  , lastShareIP_(0)
+  , lastShareTime_(0)
+  , acceptShareSec_(STATS_SLIDING_WINDOW_SECONDS)
+  , rejectShareMin_(STATS_SLIDING_WINDOW_SECONDS / 60) {
   assert(STATS_SLIDING_WINDOW_SECONDS >= 3600);
 }
 
@@ -52,9 +54,9 @@ void WorkerShares<SHARE>::processShare(const SHARE &share) {
 
   if (StratumStatus::isAccepted(share.status())) {
     acceptCount_++;
-    acceptShareSec_.insert(share.timestamp(),    share.sharediff());
+    acceptShareSec_.insert(share.timestamp(), share.sharediff());
   } else {
-    rejectShareMin_.insert(share.timestamp()/60, share.sharediff());
+    rejectShareMin_.insert(share.timestamp() / 60, share.sharediff());
   }
 
   lastShareIP_.fromString(share.ip());
@@ -67,16 +69,16 @@ WorkerStatus WorkerShares<SHARE>::getWorkerStatus() {
   const time_t now = time(nullptr);
   WorkerStatus s;
 
-  s.accept1m_  = acceptShareSec_.sum(now, 60);
-  s.accept5m_  = acceptShareSec_.sum(now, 300);
+  s.accept1m_ = acceptShareSec_.sum(now, 60);
+  s.accept5m_ = acceptShareSec_.sum(now, 300);
   s.accept15m_ = acceptShareSec_.sum(now, 900);
-  s.reject15m_ = rejectShareMin_.sum(now/60, 15);
+  s.reject15m_ = rejectShareMin_.sum(now / 60, 15);
 
   s.accept1h_ = acceptShareSec_.sum(now, 3600);
-  s.reject1h_ = rejectShareMin_.sum(now/60, 60);
+  s.reject1h_ = rejectShareMin_.sum(now / 60, 60);
 
-  s.acceptCount_   = acceptCount_;
-  s.lastShareIP_   = lastShareIP_;
+  s.acceptCount_ = acceptCount_;
+  s.lastShareIP_ = lastShareIP_;
   s.lastShareTime_ = lastShareTime_;
 
   return s;
@@ -87,50 +89,73 @@ void WorkerShares<SHARE>::getWorkerStatus(WorkerStatus &s) {
   ScopeLock sl(lock_);
   const time_t now = time(nullptr);
 
-  s.accept1m_  = acceptShareSec_.sum(now, 60);
-  s.accept5m_  = acceptShareSec_.sum(now, 300);
+  s.accept1m_ = acceptShareSec_.sum(now, 60);
+  s.accept5m_ = acceptShareSec_.sum(now, 300);
   s.accept15m_ = acceptShareSec_.sum(now, 900);
-  s.reject15m_ = rejectShareMin_.sum(now/60, 15);
+  s.reject15m_ = rejectShareMin_.sum(now / 60, 15);
 
   s.accept1h_ = acceptShareSec_.sum(now, 3600);
-  s.reject1h_ = rejectShareMin_.sum(now/60, 60);
+  s.reject1h_ = rejectShareMin_.sum(now / 60, 60);
 
-  s.acceptCount_   = acceptCount_;
-  s.lastShareIP_   = lastShareIP_;
+  s.acceptCount_ = acceptCount_;
+  s.lastShareIP_ = lastShareIP_;
   s.lastShareTime_ = lastShareTime_;
 }
 
 template <class SHARE>
 bool WorkerShares<SHARE>::isExpired() {
   ScopeLock sl(lock_);
-  return (lastShareTime_ + STATS_SLIDING_WINDOW_SECONDS) < (uint32_t)time(nullptr);
+  return (lastShareTime_ + STATS_SLIDING_WINDOW_SECONDS) <
+      (uint32_t)time(nullptr);
 }
-
 
 ////////////////////////////////  StatsServerT  ////////////////////////////////
 template <class SHARE>
-StatsServerT<SHARE>::StatsServerT(const char *kafkaBrokers, const char *kafkaShareTopic, const char *kafkaCommonEventsTopic,
-                                  const string &httpdHost, unsigned short httpdPort,
-                                  const MysqlConnectInfo *poolDBInfo, const RedisConnectInfo *redisInfo,
-                                  const uint32_t redisConcurrency, const string &redisKeyPrefix,
-                                  const int redisKeyExpire, const int redisPublishPolicy, const int redisIndexPolicy,
-                                  const time_t kFlushDBInterval, const string &fileLastFlushTime,
-                                  shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker):
-running_(true), totalWorkerCount_(0), totalUserCount_(0), uptime_(time(nullptr)),
-poolWorker_(0u/* worker id */, 0/* user id */),
-kafkaConsumer_(kafkaBrokers, kafkaShareTopic, 0/* patition */),
-kafkaConsumerCommonEvents_(kafkaBrokers, kafkaCommonEventsTopic, 0/* patition */),
-poolDB_(nullptr), poolDBCommonEvents_(nullptr),
-redisCommonEvents_(nullptr), redisConcurrency_(redisConcurrency),
-redisKeyPrefix_(redisKeyPrefix), redisKeyExpire_(redisKeyExpire),
-redisPublishPolicy_(redisPublishPolicy), redisIndexPolicy_(redisIndexPolicy),
-kFlushDBInterval_(kFlushDBInterval),
-isInserting_(false), isUpdateRedis_(false),
-lastShareTime_(0), isInitializing_(true), lastFlushTime_(0),
-fileLastFlushTime_(fileLastFlushTime), dupShareChecker_(dupShareChecker),
-base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort),
-requestCount_(0), responseBytes_(0)
-{
+StatsServerT<SHARE>::StatsServerT(
+    const char *kafkaBrokers,
+    const char *kafkaShareTopic,
+    const char *kafkaCommonEventsTopic,
+    const string &httpdHost,
+    unsigned short httpdPort,
+    const MysqlConnectInfo *poolDBInfo,
+    const RedisConnectInfo *redisInfo,
+    const uint32_t redisConcurrency,
+    const string &redisKeyPrefix,
+    const int redisKeyExpire,
+    const int redisPublishPolicy,
+    const int redisIndexPolicy,
+    const time_t kFlushDBInterval,
+    const string &fileLastFlushTime,
+    shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker)
+  : running_(true)
+  , totalWorkerCount_(0)
+  , totalUserCount_(0)
+  , uptime_(time(nullptr))
+  , poolWorker_(0u /* worker id */, 0 /* user id */)
+  , kafkaConsumer_(kafkaBrokers, kafkaShareTopic, 0 /* patition */)
+  , kafkaConsumerCommonEvents_(
+        kafkaBrokers, kafkaCommonEventsTopic, 0 /* patition */)
+  , poolDB_(nullptr)
+  , poolDBCommonEvents_(nullptr)
+  , redisCommonEvents_(nullptr)
+  , redisConcurrency_(redisConcurrency)
+  , redisKeyPrefix_(redisKeyPrefix)
+  , redisKeyExpire_(redisKeyExpire)
+  , redisPublishPolicy_(redisPublishPolicy)
+  , redisIndexPolicy_(redisIndexPolicy)
+  , kFlushDBInterval_(kFlushDBInterval)
+  , isInserting_(false)
+  , isUpdateRedis_(false)
+  , lastShareTime_(0)
+  , isInitializing_(true)
+  , lastFlushTime_(0)
+  , fileLastFlushTime_(fileLastFlushTime)
+  , dupShareChecker_(dupShareChecker)
+  , base_(nullptr)
+  , httpdHost_(httpdHost)
+  , httpdPort_(httpdPort)
+  , requestCount_(0)
+  , responseBytes_(0) {
   if (poolDBInfo != nullptr) {
     poolDB_ = new MySQLConnection(*poolDBInfo);
     poolDBCommonEvents_ = new MySQLConnection(*poolDBInfo);
@@ -138,8 +163,8 @@ requestCount_(0), responseBytes_(0)
 
   if (redisInfo != nullptr) {
     redisCommonEvents_ = new RedisConnection(*redisInfo);
-    
-    for (uint32_t i=0; i<redisConcurrency; i++) {
+
+    for (uint32_t i = 0; i < redisConcurrency; i++) {
       RedisConnection *redis = new RedisConnection(*redisInfo);
       redisGroup_.push_back(redis);
     }
@@ -154,7 +179,7 @@ StatsServerT<SHARE>::~StatsServerT() {
 
   if (threadConsume_.joinable())
     threadConsume_.join();
- 
+
   if (threadConsumeCommonEvents_.joinable())
     threadConsumeCommonEvents_.join();
 
@@ -189,32 +214,34 @@ StatsServerT<SHARE>::~StatsServerT() {
 }
 
 template <class SHARE>
-string StatsServerT<SHARE>::getRedisKeyMiningWorker(const int32_t userId, const int64_t workerId) {
-    string key = redisKeyPrefix_;
-    key += "mining_workers/pu/";
-    key += std::to_string(userId);
-    key += "/wk/";
-    key += std::to_string(workerId);
-    return key;
+string StatsServerT<SHARE>::getRedisKeyMiningWorker(
+    const int32_t userId, const int64_t workerId) {
+  string key = redisKeyPrefix_;
+  key += "mining_workers/pu/";
+  key += std::to_string(userId);
+  key += "/wk/";
+  key += std::to_string(workerId);
+  return key;
 }
 
 template <class SHARE>
 string StatsServerT<SHARE>::getRedisKeyMiningWorker(const int32_t userId) {
-    string key = redisKeyPrefix_;
-    key += "mining_workers/pu/";
-    key += std::to_string(userId);
-    key += "/all";
-    return key;
+  string key = redisKeyPrefix_;
+  key += "mining_workers/pu/";
+  key += std::to_string(userId);
+  key += "/all";
+  return key;
 }
 
 template <class SHARE>
-string StatsServerT<SHARE>::getRedisKeyIndex(const int32_t userId, const string &indexName) {
-    string key = redisKeyPrefix_;
-    key += "mining_workers/pu/";
-    key += std::to_string(userId);
-    key += "/sort/";
-    key += indexName;
-    return key;
+string StatsServerT<SHARE>::getRedisKeyIndex(
+    const int32_t userId, const string &indexName) {
+  string key = redisKeyPrefix_;
+  key += "mining_workers/pu/";
+  key += std::to_string(userId);
+  key += "/sort/";
+  key += indexName;
+  return key;
 }
 
 template <class SHARE>
@@ -225,9 +252,9 @@ bool StatsServerT<SHARE>::init() {
       return false;
     }
 
-  // check db conf (only poolDB_ needs)
-  	string value = poolDB_->getVariable("max_allowed_packet");
-    if (atoi(value.c_str()) < 16 * 1024 *1024) {
+    // check db conf (only poolDB_ needs)
+    string value = poolDB_->getVariable("max_allowed_packet");
+    if (atoi(value.c_str()) < 16 * 1024 * 1024) {
       LOG(INFO) << "db conf 'max_allowed_packet' is less than 16*1024*1024";
       return false;
     }
@@ -243,7 +270,7 @@ bool StatsServerT<SHARE>::init() {
     return false;
   }
 
-  for (size_t i=0; i<redisGroup_.size(); i++) {
+  for (size_t i = 0; i < redisGroup_.size(); i++) {
     if (redisGroup_[i] != nullptr && !redisGroup_[i]->ping()) {
       LOG(INFO) << "redis " << i << " in redisGroup ping failure";
       return false;
@@ -286,7 +313,7 @@ void StatsServerT<SHARE>::processShare(const SHARE &share) {
 
 template <class SHARE>
 void StatsServerT<SHARE>::_processShare(WorkerKey &key, const SHARE &share) {
-  const  int32_t userId = key.userId_;
+  const int32_t userId = key.userId_;
 
   pthread_rwlock_rdlock(&rwlock_);
   auto workerItr = workerSet_.find(key);
@@ -298,19 +325,21 @@ void StatsServerT<SHARE>::_processShare(WorkerKey &key, const SHARE &share) {
   if (workerItr != workerSet_.end()) {
     workerItr->second->processShare(share);
   } else {
-    workerShare = make_shared<WorkerShares<SHARE>>(share.workerhashid(), share.userid());
+    workerShare =
+        make_shared<WorkerShares<SHARE>>(share.workerhashid(), share.userid());
     workerShare->processShare(share);
   }
 
   if (userItr != userSet_.end()) {
     userItr->second->processShare(share);
   } else {
-    userShare = make_shared<WorkerShares<SHARE>>(share.workerhashid(), share.userid());
+    userShare =
+        make_shared<WorkerShares<SHARE>>(share.workerhashid(), share.userid());
     userShare->processShare(share);
   }
 
   if (workerShare != nullptr || userShare != nullptr) {
-    pthread_rwlock_wrlock(&rwlock_);    // write lock
+    pthread_rwlock_wrlock(&rwlock_); // write lock
     if (workerShare != nullptr) {
       workerSet_[key] = workerShare;
       totalWorkerCount_++;
@@ -333,7 +362,8 @@ void StatsServerT<SHARE>::flushWorkersAndUsersToRedis() {
   }
 
   isUpdateRedis_ = true;
-  boost::thread t(boost::bind(&StatsServerT<SHARE>::_flushWorkersAndUsersToRedisThread, this));
+  boost::thread t(boost::bind(
+      &StatsServerT<SHARE>::_flushWorkersAndUsersToRedisThread, this));
 }
 
 template <class SHARE>
@@ -341,10 +371,9 @@ void StatsServerT<SHARE>::_flushWorkersAndUsersToRedisThread() {
   std::vector<boost::thread> threadPool;
 
   assert(redisGroup_.size() == redisConcurrency_);
-  for (uint32_t i=0; i<redisConcurrency_; i++) {
-    threadPool.push_back(
-      boost::thread(boost::bind(&StatsServerT<SHARE>::_flushWorkersAndUsersToRedisThread, this, i))
-    );
+  for (uint32_t i = 0; i < redisConcurrency_; i++) {
+    threadPool.push_back(boost::thread(boost::bind(
+        &StatsServerT<SHARE>::_flushWorkersAndUsersToRedisThread, this, i)));
   }
 
   for (auto &t : threadPool) {
@@ -354,14 +383,16 @@ void StatsServerT<SHARE>::_flushWorkersAndUsersToRedisThread() {
   }
 
   pthread_rwlock_rdlock(&rwlock_);
-  LOG(INFO) << "flush to redis... done, " << workerSet_.size() << " workers, " << userSet_.size() << " users";
+  LOG(INFO) << "flush to redis... done, " << workerSet_.size() << " workers, "
+            << userSet_.size() << " users";
   pthread_rwlock_unlock(&rwlock_);
 
   isUpdateRedis_ = false;
 }
 
 template <class SHARE>
-void StatsServerT<SHARE>::_flushWorkersAndUsersToRedisThread(uint32_t threadStep) {
+void StatsServerT<SHARE>::_flushWorkersAndUsersToRedisThread(
+    uint32_t threadStep) {
   if (!checkRedis(threadStep)) {
     return;
   }
@@ -373,7 +404,8 @@ template <class SHARE>
 bool StatsServerT<SHARE>::checkRedis(uint32_t threadStep) {
   if (threadStep > redisGroup_.size() - 1) {
     LOG(ERROR) << "checkRedis(" << threadStep << "): "
-               << "threadStep out of range, should less than " << threadStep << "!";
+               << "threadStep out of range, should less than " << threadStep
+               << "!";
     return false;
   }
 
@@ -395,13 +427,14 @@ void StatsServerT<SHARE>::flushWorkersToRedis(uint32_t threadStep) {
   size_t workerCounter = 0;
   std::unordered_map<int32_t /*userId*/, WorkerIndexBuffer> indexBufferMap;
 
-  pthread_rwlock_rdlock(&rwlock_);  // read lock
+  pthread_rwlock_rdlock(&rwlock_); // read lock
   LOG(INFO) << "redis (thread " << threadStep << "): flush workers, rd locked";
-  
+
   size_t stepSize = workerSet_.size() / redisConcurrency_;
   if (workerSet_.size() % redisConcurrency_ != 0) {
     // +1 to avoid missing the last few items.
-    // Example: 5 / 2 = 2. Each thread handles 2 items and the fifth was missing.
+    // Example: 5 / 2 = 2. Each thread handles 2 items and the fifth was
+    // missing.
     stepSize++;
   }
 
@@ -410,13 +443,14 @@ void StatsServerT<SHARE>::flushWorkersToRedis(uint32_t threadStep) {
   auto itr = workerSet_.begin();
 
   // move to the beginning position
-  for (size_t i=0; i<offsetBegin && itr!=workerSet_.end(); i++, itr++);
+  for (size_t i = 0; i < offsetBegin && itr != workerSet_.end(); i++, itr++)
+    ;
 
   // flush all workes status in a stepSize
-  for (size_t i=0; i<stepSize && itr!=workerSet_.end(); i++, itr++) {
+  for (size_t i = 0; i < stepSize && itr != workerSet_.end(); i++, itr++) {
     workerCounter++;
 
-    const int32_t userId   = itr->first.userId_;
+    const int32_t userId = itr->first.userId_;
     const int64_t workerId = itr->first.workerId_;
     shared_ptr<WorkerShares<SHARE>> workerShare = itr->second;
     const WorkerStatus status = workerShare->getWorkerStatus();
@@ -424,18 +458,17 @@ void StatsServerT<SHARE>::flushWorkersToRedis(uint32_t threadStep) {
     string key = getRedisKeyMiningWorker(userId, workerId);
 
     // update info
-    redis->prepare({"HMSET", key,
-                      "accept_1m", std::to_string(status.accept1m_),
-                      "accept_5m", std::to_string(status.accept5m_),
-                      "accept_15m", std::to_string(status.accept15m_),
-                      "reject_15m", std::to_string(status.reject15m_),
-                      "accept_1h", std::to_string(status.accept1h_),
-                      "reject_1h", std::to_string(status.reject1h_),
-                      "accept_count", std::to_string(status.acceptCount_),
-                      "last_share_ip", status.lastShareIP_.toString(),
-                      "last_share_time", std::to_string(status.lastShareTime_),
-                      "updated_at", std::to_string(time(nullptr))
-                  });
+    redis->prepare({"HMSET",           key,
+                    "accept_1m",       std::to_string(status.accept1m_),
+                    "accept_5m",       std::to_string(status.accept5m_),
+                    "accept_15m",      std::to_string(status.accept15m_),
+                    "reject_15m",      std::to_string(status.reject15m_),
+                    "accept_1h",       std::to_string(status.accept1h_),
+                    "reject_1h",       std::to_string(status.reject1h_),
+                    "accept_count",    std::to_string(status.acceptCount_),
+                    "last_share_ip",   status.lastShareIP_.toString(),
+                    "last_share_time", std::to_string(status.lastShareTime_),
+                    "updated_at",      std::to_string(time(nullptr))});
     // set key expire
     if (redisKeyExpire_ > 0) {
       redis->prepare({"EXPIRE", key, std::to_string(redisKeyExpire_)});
@@ -459,15 +492,15 @@ void StatsServerT<SHARE>::flushWorkersToRedis(uint32_t threadStep) {
     return;
   }
 
-  for (size_t i=0; i<workerCounter; i++) {
+  for (size_t i = 0; i < workerCounter; i++) {
     // update info
     {
       RedisResult r = redis->execute();
       if (r.type() != REDIS_REPLY_STATUS || r.str() != "OK") {
         LOG(INFO) << "redis (thread " << threadStep << ") HMSET failed, "
-                               << "item index: " << i << ", "
-                               << "reply type: " << r.type() << ", "
-                               << "reply str: " << r.str();
+                  << "item index: " << i << ", "
+                  << "reply type: " << r.type() << ", "
+                  << "reply str: " << r.str();
       }
     }
     // set key expire
@@ -475,10 +508,10 @@ void StatsServerT<SHARE>::flushWorkersToRedis(uint32_t threadStep) {
       RedisResult r = redis->execute();
       if (r.type() != REDIS_REPLY_INTEGER || r.integer() != 1) {
         LOG(INFO) << "redis (thread " << threadStep << ") EXPIRE failed, "
-                                 << "item index: " << i << ", "
-                                 << "reply type: " << r.type() << ", "
-                                 << "reply integer: " << r.integer() << ","
-                                 << "reply str: " << r.str();
+                  << "item index: " << i << ", "
+                  << "reply type: " << r.type() << ", "
+                  << "reply integer: " << r.integer() << ","
+                  << "reply str: " << r.str();
       }
     }
     // notification
@@ -486,9 +519,9 @@ void StatsServerT<SHARE>::flushWorkersToRedis(uint32_t threadStep) {
       RedisResult r = redis->execute();
       if (r.type() != REDIS_REPLY_INTEGER) {
         LOG(INFO) << "redis (thread " << threadStep << ") PUBLISH failed, "
-                                 << "item index: " << i << ", "
-                                 << "reply type: " << r.type() << ", "
-                                 << "reply str: " << r.str();
+                  << "item index: " << i << ", "
+                  << "reply type: " << r.type() << ", "
+                  << "reply str: " << r.str();
       }
     }
   }
@@ -498,71 +531,94 @@ void StatsServerT<SHARE>::flushWorkersToRedis(uint32_t threadStep) {
     flushIndexToRedis(redis, indexBufferMap);
   }
 
-  LOG(INFO) << "flush workers to redis (thread " << threadStep << ") done, workers: " << workerCounter;
+  LOG(INFO) << "flush workers to redis (thread " << threadStep
+            << ") done, workers: " << workerCounter;
   return;
 }
 
 template <class SHARE>
-void StatsServerT<SHARE>::flushIndexToRedis(RedisConnection *redis,
-                    std::unordered_map<int32_t /*userId*/, WorkerIndexBuffer> &indexBufferMap) {
+void StatsServerT<SHARE>::flushIndexToRedis(
+    RedisConnection *redis,
+    std::unordered_map<int32_t /*userId*/, WorkerIndexBuffer> &indexBufferMap) {
 
   for (auto itr = indexBufferMap.begin(); itr != indexBufferMap.end(); itr++) {
     flushIndexToRedis(redis, itr->second, itr->first);
   }
-
 }
 
 template <class SHARE>
-void StatsServerT<SHARE>::flushIndexToRedis(RedisConnection *redis, WorkerIndexBuffer &buffer, const int32_t userId) {
+void StatsServerT<SHARE>::flushIndexToRedis(
+    RedisConnection *redis, WorkerIndexBuffer &buffer, const int32_t userId) {
   // accept_1m
   if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_1M) {
-    buffer.accept1m_.insert(buffer.accept1m_.begin(), {"ZADD", getRedisKeyIndex(userId, "accept_1m")});
+    buffer.accept1m_.insert(
+        buffer.accept1m_.begin(),
+        {"ZADD", getRedisKeyIndex(userId, "accept_1m")});
     flushIndexToRedis(redis, buffer.accept1m_);
   }
   // accept_5m
   if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_5M) {
-    buffer.accept5m_.insert(buffer.accept5m_.begin(), {"ZADD", getRedisKeyIndex(userId, "accept_5m")});
+    buffer.accept5m_.insert(
+        buffer.accept5m_.begin(),
+        {"ZADD", getRedisKeyIndex(userId, "accept_5m")});
     flushIndexToRedis(redis, buffer.accept5m_);
   }
   // accept_15m
   if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_15M) {
-    buffer.accept15m_.insert(buffer.accept15m_.begin(), {"ZADD", getRedisKeyIndex(userId, "accept_15m")});
+    buffer.accept15m_.insert(
+        buffer.accept15m_.begin(),
+        {"ZADD", getRedisKeyIndex(userId, "accept_15m")});
     flushIndexToRedis(redis, buffer.accept15m_);
   }
   // reject_15m
   if (redisIndexPolicy_ & REDIS_INDEX_REJECT_15M) {
-    buffer.reject15m_.insert(buffer.reject15m_.begin(), {"ZADD", getRedisKeyIndex(userId, "reject_15m")});
+    buffer.reject15m_.insert(
+        buffer.reject15m_.begin(),
+        {"ZADD", getRedisKeyIndex(userId, "reject_15m")});
     flushIndexToRedis(redis, buffer.reject15m_);
   }
   // accept_1h
   if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_1H) {
-    buffer.accept1h_.insert(buffer.accept1h_.begin(), {"ZADD", getRedisKeyIndex(userId, "accept_1h")});
+    buffer.accept1h_.insert(
+        buffer.accept1h_.begin(),
+        {"ZADD", getRedisKeyIndex(userId, "accept_1h")});
     flushIndexToRedis(redis, buffer.accept1h_);
   }
   // reject_1h
   if (redisIndexPolicy_ & REDIS_INDEX_REJECT_1H) {
-    buffer.reject1h_.insert(buffer.reject1h_.begin(), {"ZADD", getRedisKeyIndex(userId, "reject_1h")});
+    buffer.reject1h_.insert(
+        buffer.reject1h_.begin(),
+        {"ZADD", getRedisKeyIndex(userId, "reject_1h")});
     flushIndexToRedis(redis, buffer.reject1h_);
   }
   // accept_count
   if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_COUNT) {
-    buffer.acceptCount_.insert(buffer.acceptCount_.begin(), {"ZADD", getRedisKeyIndex(userId, "accept_count")});
+    buffer.acceptCount_.insert(
+        buffer.acceptCount_.begin(),
+        {"ZADD", getRedisKeyIndex(userId, "accept_count")});
     flushIndexToRedis(redis, buffer.acceptCount_);
   }
   // last_share_ip
   if (redisIndexPolicy_ & REDIS_INDEX_LAST_SHARE_IP) {
-    buffer.lastShareIP_.insert(buffer.lastShareIP_.begin(), {"ZADD", getRedisKeyIndex(userId, "last_share_ip")});
+    buffer.lastShareIP_.insert(
+        buffer.lastShareIP_.begin(),
+        {"ZADD", getRedisKeyIndex(userId, "last_share_ip")});
     flushIndexToRedis(redis, buffer.lastShareIP_);
   }
   // last_share_time
   if (redisIndexPolicy_ & REDIS_INDEX_LAST_SHARE_TIME) {
-    buffer.lastShareTime_.insert(buffer.lastShareTime_.begin(), {"ZADD", getRedisKeyIndex(userId, "last_share_time")});
+    buffer.lastShareTime_.insert(
+        buffer.lastShareTime_.begin(),
+        {"ZADD", getRedisKeyIndex(userId, "last_share_time")});
     flushIndexToRedis(redis, buffer.lastShareTime_);
   }
 }
 
 template <class SHARE>
-void StatsServerT<SHARE>::addIndexToBuffer(WorkerIndexBuffer &buffer, const int64_t workerId, const WorkerStatus &status) {
+void StatsServerT<SHARE>::addIndexToBuffer(
+    WorkerIndexBuffer &buffer,
+    const int64_t workerId,
+    const WorkerStatus &status) {
   // accept_1m
   if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_1M) {
     buffer.accept1m_.push_back(std::to_string(status.accept1m_));
@@ -600,7 +656,8 @@ void StatsServerT<SHARE>::addIndexToBuffer(WorkerIndexBuffer &buffer, const int6
   }
   // last_share_ip
   if (redisIndexPolicy_ & REDIS_INDEX_LAST_SHARE_IP) {
-    buffer.lastShareIP_.push_back(std::to_string(status.lastShareIP_.addrUint64[1]));
+    buffer.lastShareIP_.push_back(
+        std::to_string(status.lastShareIP_.addrUint64[1]));
     buffer.lastShareIP_.push_back(std::to_string(workerId));
   }
   // last_share_time
@@ -609,11 +666,12 @@ void StatsServerT<SHARE>::addIndexToBuffer(WorkerIndexBuffer &buffer, const int6
     buffer.lastShareTime_.push_back(std::to_string(workerId));
   }
 
-  buffer.size_ ++;
+  buffer.size_++;
 }
 
 template <class SHARE>
-void StatsServerT<SHARE>::flushIndexToRedis(RedisConnection *redis, const std::vector<string> &commandVector) {
+void StatsServerT<SHARE>::flushIndexToRedis(
+    RedisConnection *redis, const std::vector<string> &commandVector) {
   redis->prepare(commandVector);
   RedisResult r = redis->execute();
   if (r.type() != REDIS_REPLY_INTEGER) {
@@ -629,13 +687,14 @@ void StatsServerT<SHARE>::flushUsersToRedis(uint32_t threadStep) {
   RedisConnection *redis = redisGroup_[threadStep];
   size_t userCounter = 0;
 
-  pthread_rwlock_rdlock(&rwlock_);  // read lock
+  pthread_rwlock_rdlock(&rwlock_); // read lock
   LOG(INFO) << "redis (thread " << threadStep << "): flush users, rd locked";
 
   size_t stepSize = userSet_.size() / redisConcurrency_;
   if (userSet_.size() % redisConcurrency_ != 0) {
     // +1 to avoid missing the last few items.
-    // Example: 5 / 2 = 2. Each thread handles 2 items and the fifth was missing.
+    // Example: 5 / 2 = 2. Each thread handles 2 items and the fifth was
+    // missing.
     stepSize++;
   }
 
@@ -644,13 +703,14 @@ void StatsServerT<SHARE>::flushUsersToRedis(uint32_t threadStep) {
   auto itr = userSet_.begin();
 
   // move to the beginning position
-  for (size_t i=0; i<offsetBegin && itr!=userSet_.end(); i++, itr++);
+  for (size_t i = 0; i < offsetBegin && itr != userSet_.end(); i++, itr++)
+    ;
 
   // flush all users status in a stepSize
-  for (size_t i=0; i<stepSize && itr!=userSet_.end(); i++, itr++) {
+  for (size_t i = 0; i < stepSize && itr != userSet_.end(); i++, itr++) {
     userCounter++;
 
-    const int32_t userId   = itr->first;
+    const int32_t userId = itr->first;
     shared_ptr<WorkerShares<SHARE>> workerShare = itr->second;
     const WorkerStatus status = workerShare->getWorkerStatus();
     const int32_t workerCount = userWorkerCount_[userId];
@@ -658,19 +718,18 @@ void StatsServerT<SHARE>::flushUsersToRedis(uint32_t threadStep) {
     string key = getRedisKeyMiningWorker(userId);
 
     // update info
-    redis->prepare({"HMSET", key,
-                      "worker_count", std::to_string(workerCount),
-                      "accept_1m", std::to_string(status.accept1m_),
-                      "accept_5m", std::to_string(status.accept5m_),
-                      "accept_15m", std::to_string(status.accept15m_),
-                      "reject_15m", std::to_string(status.reject15m_),
-                      "accept_1h", std::to_string(status.accept1h_),
-                      "reject_1h", std::to_string(status.reject1h_),
-                      "accept_count", std::to_string(status.acceptCount_),
-                      "last_share_ip", status.lastShareIP_.toString(),
-                      "last_share_time", std::to_string(status.lastShareTime_),
-                      "updated_at", std::to_string(time(nullptr))
-                  });
+    redis->prepare({"HMSET",           key,
+                    "worker_count",    std::to_string(workerCount),
+                    "accept_1m",       std::to_string(status.accept1m_),
+                    "accept_5m",       std::to_string(status.accept5m_),
+                    "accept_15m",      std::to_string(status.accept15m_),
+                    "reject_15m",      std::to_string(status.reject15m_),
+                    "accept_1h",       std::to_string(status.accept1h_),
+                    "reject_1h",       std::to_string(status.reject1h_),
+                    "accept_count",    std::to_string(status.acceptCount_),
+                    "last_share_ip",   status.lastShareIP_.toString(),
+                    "last_share_time", std::to_string(status.lastShareTime_),
+                    "updated_at",      std::to_string(time(nullptr))});
     // set key expire
     if (redisKeyExpire_ > 0) {
       redis->prepare({"EXPIRE", key, std::to_string(redisKeyExpire_)});
@@ -689,15 +748,15 @@ void StatsServerT<SHARE>::flushUsersToRedis(uint32_t threadStep) {
     return;
   }
 
-  for (size_t i=0; i<userCounter; i++) {
+  for (size_t i = 0; i < userCounter; i++) {
     // update info
     {
       RedisResult r = redis->execute();
       if (r.type() != REDIS_REPLY_STATUS || r.str() != "OK") {
         LOG(INFO) << "redis (thread " << threadStep << ") HMSET failed, "
-                               << "item index: " << i << ", "
-                               << "reply type: " << r.type() << ", "
-                               << "reply str: " << r.str();
+                  << "item index: " << i << ", "
+                  << "reply type: " << r.type() << ", "
+                  << "reply str: " << r.str();
       }
     }
     // set key expire
@@ -705,10 +764,10 @@ void StatsServerT<SHARE>::flushUsersToRedis(uint32_t threadStep) {
       RedisResult r = redis->execute();
       if (r.type() != REDIS_REPLY_INTEGER || r.integer() != 1) {
         LOG(INFO) << "redis (thread " << threadStep << ") EXPIRE failed, "
-                                 << "item index: " << i << ", "
-                                 << "reply type: " << r.type() << ", "
-                                 << "reply integer: " << r.integer() << ","
-                                 << "reply str: " << r.str();
+                  << "item index: " << i << ", "
+                  << "reply type: " << r.type() << ", "
+                  << "reply integer: " << r.integer() << ","
+                  << "reply str: " << r.str();
       }
     }
     // publish notification
@@ -716,14 +775,15 @@ void StatsServerT<SHARE>::flushUsersToRedis(uint32_t threadStep) {
       RedisResult r = redis->execute();
       if (r.type() != REDIS_REPLY_INTEGER) {
         LOG(INFO) << "redis (thread " << threadStep << ") PUBLISH failed, "
-                                 << "item index: " << i << ", "
-                                 << "reply type: " << r.type() << ", "
-                                 << "reply str: " << r.str();
+                  << "item index: " << i << ", "
+                  << "reply type: " << r.type() << ", "
+                  << "reply str: " << r.str();
       }
     }
   }
 
-  LOG(INFO) << "flush users to redis (thread " << threadStep << ") done, users: " << userCounter;
+  LOG(INFO) << "flush users to redis (thread " << threadStep
+            << ") done, users: " << userCounter;
   return;
 }
 
@@ -736,7 +796,8 @@ void StatsServerT<SHARE>::flushWorkersAndUsersToDB() {
   }
 
   isInserting_ = true;
-  boost::thread t(boost::bind(&StatsServerT<SHARE>::_flushWorkersAndUsersToDBThread, this));
+  boost::thread t(
+      boost::bind(&StatsServerT<SHARE>::_flushWorkersAndUsersToDBThread, this));
 }
 
 template <class SHARE>
@@ -745,24 +806,31 @@ void StatsServerT<SHARE>::_flushWorkersAndUsersToDBThread() {
   // merge two table items
   // table.`mining_workers` unique index: `puid` + `worker_id`
   //
-  const string mergeSQL = "INSERT INTO `mining_workers` "
-  " SELECT * FROM `mining_workers_tmp` "
-  " ON DUPLICATE KEY "
-  " UPDATE "
-  "  `mining_workers`.`accept_1m`      =`mining_workers_tmp`.`accept_1m`, "
-  "  `mining_workers`.`accept_5m`      =`mining_workers_tmp`.`accept_5m`, "
-  "  `mining_workers`.`accept_15m`     =`mining_workers_tmp`.`accept_15m`, "
-  "  `mining_workers`.`reject_15m`     =`mining_workers_tmp`.`reject_15m`, "
-  "  `mining_workers`.`accept_1h`      =`mining_workers_tmp`.`accept_1h`, "
-  "  `mining_workers`.`reject_1h`      =`mining_workers_tmp`.`reject_1h`, "
-  "  `mining_workers`.`accept_count`   =`mining_workers_tmp`.`accept_count`,"
-  "  `mining_workers`.`last_share_ip`  =`mining_workers_tmp`.`last_share_ip`,"
-  "  `mining_workers`.`last_share_time`=`mining_workers_tmp`.`last_share_time`,"
-  "  `mining_workers`.`updated_at`     =`mining_workers_tmp`.`updated_at` ";
+  const string mergeSQL =
+      "INSERT INTO `mining_workers` "
+      " SELECT * FROM `mining_workers_tmp` "
+      " ON DUPLICATE KEY "
+      " UPDATE "
+      "  `mining_workers`.`accept_1m`      =`mining_workers_tmp`.`accept_1m`, "
+      "  `mining_workers`.`accept_5m`      =`mining_workers_tmp`.`accept_5m`, "
+      "  `mining_workers`.`accept_15m`     =`mining_workers_tmp`.`accept_15m`, "
+      "  `mining_workers`.`reject_15m`     =`mining_workers_tmp`.`reject_15m`, "
+      "  `mining_workers`.`accept_1h`      =`mining_workers_tmp`.`accept_1h`, "
+      "  `mining_workers`.`reject_1h`      =`mining_workers_tmp`.`reject_1h`, "
+      "  `mining_workers`.`accept_count`   "
+      "=`mining_workers_tmp`.`accept_count`,"
+      "  `mining_workers`.`last_share_ip`  "
+      "=`mining_workers_tmp`.`last_share_ip`,"
+      "  "
+      "`mining_workers`.`last_share_time`=`mining_workers_tmp`.`last_share_"
+      "time`,"
+      "  `mining_workers`.`updated_at`     =`mining_workers_tmp`.`updated_at` ";
   // fields for table.mining_workers
-  const string fields = "`worker_id`,`puid`,`group_id`,`accept_1m`, `accept_5m`,"
-  "`accept_15m`, `reject_15m`, `accept_1h`,`reject_1h`, `accept_count`, `last_share_ip`,"
-  " `last_share_time`, `created_at`, `updated_at`";
+  const string fields =
+      "`worker_id`,`puid`,`group_id`,`accept_1m`, `accept_5m`,"
+      "`accept_15m`, `reject_15m`, `accept_1h`,`reject_1h`, `accept_count`, "
+      "`last_share_ip`,"
+      " `last_share_time`, `created_at`, `updated_at`";
   // values for multi-insert sql
   vector<string> values;
   size_t workerCounter = 0;
@@ -773,59 +841,75 @@ void StatsServerT<SHARE>::_flushWorkersAndUsersToDBThread() {
     goto finish;
   }
 
-  pthread_rwlock_rdlock(&rwlock_);  // read lock
+  pthread_rwlock_rdlock(&rwlock_); // read lock
   LOG(INFO) << "flush DB: rd locked";
 
   // get all workes status
   for (auto itr = workerSet_.begin(); itr != workerSet_.end(); itr++) {
     workerCounter++;
 
-    const int32_t userId   = itr->first.userId_;
+    const int32_t userId = itr->first.userId_;
     const int64_t workerId = itr->first.workerId_;
     shared_ptr<WorkerShares<SHARE>> workerShare = itr->second;
     const WorkerStatus status = workerShare->getWorkerStatus();
 
     const string nowStr = date("%F %T", time(nullptr));
 
-    values.push_back(Strings::Format("%" PRId64",%d,%d,%" PRIu64",%" PRIu64","
-                                     "%" PRIu64",%" PRIu64","  // accept_15m, reject_15m
-                                     "%" PRIu64",%" PRIu64","  // accept_1h,  reject_1h
-                                     "%d,\"%s\","
-                                     "\"%s\",\"%s\",\"%s\"",
-                                     workerId, userId,
-                                     -1 * userId,  /* default group id */
-                                     status.accept1m_, status.accept5m_,
-                                     status.accept15m_, status.reject15m_,
-                                     status.accept1h_, status.reject1h_,
-                                     status.acceptCount_, status.lastShareIP_.toString().c_str(),
-                                     date("%F %T", status.lastShareTime_).c_str(),
-                                     nowStr.c_str(), nowStr.c_str()));
+    values.push_back(
+        Strings::Format(
+            "%" PRId64 ",%d,%d,%" PRIu64 ",%" PRIu64 ","
+            "%" PRIu64 ",%" PRIu64 "," // accept_15m, reject_15m
+            "%" PRIu64 ",%" PRIu64 "," // accept_1h,  reject_1h
+            "%d,\"%s\","
+            "\"%s\",\"%s\",\"%s\"",
+            workerId,
+            userId,
+            -1 * userId, /* default group id */
+            status.accept1m_,
+            status.accept5m_,
+            status.accept15m_,
+            status.reject15m_,
+            status.accept1h_,
+            status.reject1h_,
+            status.acceptCount_,
+            status.lastShareIP_.toString().c_str(),
+            date("%F %T", status.lastShareTime_).c_str(),
+            nowStr.c_str(),
+            nowStr.c_str()));
   }
 
   // get all users status
   for (auto itr = userSet_.begin(); itr != userSet_.end(); itr++) {
     userCounter++;
 
-    const int32_t userId   = itr->first;
+    const int32_t userId = itr->first;
     const int64_t workerId = 0;
     shared_ptr<WorkerShares<SHARE>> workerShare = itr->second;
     const WorkerStatus status = workerShare->getWorkerStatus();
 
     const string nowStr = date("%F %T", time(nullptr));
 
-    values.push_back(Strings::Format("%" PRId64",%d,%d,%" PRIu64",%" PRIu64","
-                                     "%" PRIu64",%" PRIu64","  // accept_15m, reject_15m
-                                     "%" PRIu64",%" PRIu64","  // accept_1h,  reject_1h
-                                     "%d,\"%s\","
-                                     "\"%s\",\"%s\",\"%s\"",
-                                     workerId, userId,
-                                     -1 * userId,  /* default group id */
-                                     status.accept1m_, status.accept5m_,
-                                     status.accept15m_, status.reject15m_,
-                                     status.accept1h_, status.reject1h_,
-                                     status.acceptCount_, status.lastShareIP_.toString().c_str(),
-                                     date("%F %T", status.lastShareTime_).c_str(),
-                                     nowStr.c_str(), nowStr.c_str()));
+    values.push_back(
+        Strings::Format(
+            "%" PRId64 ",%d,%d,%" PRIu64 ",%" PRIu64 ","
+            "%" PRIu64 ",%" PRIu64 "," // accept_15m, reject_15m
+            "%" PRIu64 ",%" PRIu64 "," // accept_1h,  reject_1h
+            "%d,\"%s\","
+            "\"%s\",\"%s\",\"%s\"",
+            workerId,
+            userId,
+            -1 * userId, /* default group id */
+            status.accept1m_,
+            status.accept5m_,
+            status.accept15m_,
+            status.reject15m_,
+            status.accept1h_,
+            status.reject1h_,
+            status.acceptCount_,
+            status.lastShareIP_.toString().c_str(),
+            date("%F %T", status.lastShareTime_).c_str(),
+            nowStr.c_str(),
+            nowStr.c_str()));
   }
 
   pthread_rwlock_unlock(&rwlock_);
@@ -836,11 +920,13 @@ void StatsServerT<SHARE>::_flushWorkersAndUsersToDBThread() {
     goto finish;
   }
 
-  if (!poolDB_->execute("DROP TEMPORARY TABLE IF EXISTS `mining_workers_tmp`;")) {
+  if (!poolDB_->execute(
+          "DROP TEMPORARY TABLE IF EXISTS `mining_workers_tmp`;")) {
     LOG(ERROR) << "DROP TEMPORARY TABLE `mining_workers_tmp` failure";
     goto finish;
   }
-  if (!poolDB_->execute("CREATE TEMPORARY TABLE `mining_workers_tmp` like `mining_workers`;")) {
+  if (!poolDB_->execute("CREATE TEMPORARY TABLE `mining_workers_tmp` like "
+                        "`mining_workers`;")) {
     LOG(ERROR) << "CREATE TEMPORARY TABLE `mining_workers_tmp` failure";
     // something went wrong with the current mysql connection, try to reconnect.
     poolDB_->reconnect();
@@ -857,12 +943,13 @@ void StatsServerT<SHARE>::_flushWorkersAndUsersToDBThread() {
     LOG(ERROR) << "merge mining_workers failure";
     goto finish;
   }
-  LOG(INFO) << "flush to DB... done, workers: " << workerCounter << ", users: " << userCounter;
+  LOG(INFO) << "flush to DB... done, workers: " << workerCounter
+            << ", users: " << userCounter;
 
   lastFlushTime_ = time(nullptr);
   // save flush timestamp to file, for monitor system
   if (!fileLastFlushTime_.empty())
-  	writeTime2File(fileLastFlushTime_.c_str(), lastFlushTime_);
+    writeTime2File(fileLastFlushTime_.c_str(), lastFlushTime_);
 
 finish:
   isInserting_ = false;
@@ -873,11 +960,11 @@ void StatsServerT<SHARE>::removeExpiredWorkers() {
   size_t expiredWorkerCount = 0;
   size_t expiredUserCount = 0;
 
-  pthread_rwlock_wrlock(&rwlock_);  // write lock
+  pthread_rwlock_wrlock(&rwlock_); // write lock
 
   // delete all expired workers
-  for (auto itr = workerSet_.begin(); itr != workerSet_.end(); ) {
-    const int32_t userId   = itr->first.userId_;
+  for (auto itr = workerSet_.begin(); itr != workerSet_.end();) {
+    const int32_t userId = itr->first.userId_;
     shared_ptr<WorkerShares<SHARE>> workerShare = itr->second;
 
     if (workerShare->isExpired()) {
@@ -886,7 +973,7 @@ void StatsServerT<SHARE>::removeExpiredWorkers() {
       expiredWorkerCount++;
       totalWorkerCount_--;
       userWorkerCount_[userId]--;
-      
+
       if (userWorkerCount_[userId] <= 0) {
         userWorkerCount_.erase(userId);
       }
@@ -896,7 +983,7 @@ void StatsServerT<SHARE>::removeExpiredWorkers() {
   }
 
   // delete all expired users
-  for (auto itr = userSet_.begin(); itr != userSet_.end(); ) {
+  for (auto itr = userSet_.begin(); itr != userSet_.end();) {
     shared_ptr<WorkerShares<SHARE>> workerShare = itr->second;
 
     if (workerShare->isExpired()) {
@@ -911,15 +998,16 @@ void StatsServerT<SHARE>::removeExpiredWorkers() {
 
   pthread_rwlock_unlock(&rwlock_);
 
-  LOG(INFO) << "removed expired workers: " << expiredWorkerCount << ", users: " << expiredUserCount;
+  LOG(INFO) << "removed expired workers: " << expiredWorkerCount
+            << ", users: " << expiredUserCount;
 }
 
 template <class SHARE>
-void StatsServerT<SHARE>::getWorkerStatusBatch(const vector<WorkerKey> &keys,
-                                       vector<WorkerStatus> &workerStatus) {
+void StatsServerT<SHARE>::getWorkerStatusBatch(
+    const vector<WorkerKey> &keys, vector<WorkerStatus> &workerStatus) {
   workerStatus.resize(keys.size());
 
-  vector<shared_ptr<WorkerShares<SHARE>> > ptrs;
+  vector<shared_ptr<WorkerShares<SHARE>>> ptrs;
   ptrs.resize(keys.size());
 
   // find all shared pointer
@@ -953,24 +1041,25 @@ void StatsServerT<SHARE>::getWorkerStatusBatch(const vector<WorkerKey> &keys,
 }
 
 template <class SHARE>
-WorkerStatus StatsServerT<SHARE>::mergeWorkerStatus(const vector<WorkerStatus> &workerStatus) {
+WorkerStatus StatsServerT<SHARE>::mergeWorkerStatus(
+    const vector<WorkerStatus> &workerStatus) {
   WorkerStatus s;
 
   if (workerStatus.size() == 0)
     return s;
 
   for (size_t i = 0; i < workerStatus.size(); i++) {
-    s.accept1m_    += workerStatus[i].accept1m_;
-    s.accept5m_    += workerStatus[i].accept5m_;
-    s.accept15m_   += workerStatus[i].accept15m_;
-    s.reject15m_   += workerStatus[i].reject15m_;
-    s.accept1h_    += workerStatus[i].accept1h_;
-    s.reject1h_    += workerStatus[i].reject1h_;
+    s.accept1m_ += workerStatus[i].accept1m_;
+    s.accept5m_ += workerStatus[i].accept5m_;
+    s.accept15m_ += workerStatus[i].accept15m_;
+    s.reject15m_ += workerStatus[i].reject15m_;
+    s.accept1h_ += workerStatus[i].accept1h_;
+    s.reject1h_ += workerStatus[i].reject1h_;
     s.acceptCount_ += workerStatus[i].acceptCount_;
 
     if (workerStatus[i].lastShareTime_ > s.lastShareTime_) {
       s.lastShareTime_ = workerStatus[i].lastShareTime_;
-      s.lastShareIP_   = workerStatus[i].lastShareIP_;
+      s.lastShareIP_ = workerStatus[i].lastShareIP_;
     }
   }
   return s;
@@ -983,16 +1072,18 @@ void StatsServerT<SHARE>::consumeShareLog(rd_kafka_message_t *rkmessage) {
     if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
       // Reached the end of the topic+partition queue on the broker.
       // Not really an error.
-      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
+      //      LOG(INFO) << "consumer reached end of " <<
+      //      rd_kafka_topic_name(rkmessage->rkt)
       //      << "[" << rkmessage->partition << "] "
       //      << " message queue at offset " << rkmessage->offset;
       // acturlly
       return;
     }
 
-    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
-    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
-    << ": " << rd_kafka_message_errstr(rkmessage);
+    LOG(ERROR) << "consume error for topic "
+               << rd_kafka_topic_name(rkmessage->rkt) << "["
+               << rkmessage->partition << "] offset " << rkmessage->offset
+               << ": " << rd_kafka_message_errstr(rkmessage);
 
     if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
         rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
@@ -1003,8 +1094,10 @@ void StatsServerT<SHARE>::consumeShareLog(rd_kafka_message_t *rkmessage) {
 
   SHARE share;
 
-  if (!share.UnserializeWithVersion((const uint8_t *)(rkmessage->payload), rkmessage->len)) {
-    LOG(ERROR) << "parse share from kafka message failed rkmessage->len = "<< rkmessage->len ;
+  if (!share.UnserializeWithVersion(
+          (const uint8_t *)(rkmessage->payload), rkmessage->len)) {
+    LOG(ERROR) << "parse share from kafka message failed rkmessage->len = "
+               << rkmessage->len;
     return;
   }
 
@@ -1029,15 +1122,16 @@ bool StatsServerT<SHARE>::setupThreadConsume() {
     // so in 60 mins there will be 100000/10*3600 = 36,000,000 shares.
     // data size will be 36,000,000 * sizeof(SHARE) = 1,728,000,000 Bytes.
     //
-    const int32_t kConsumeLatestN = 100000/10*3600;  // 36,000,000
+    const int32_t kConsumeLatestN = 100000 / 10 * 3600; // 36,000,000
 
     map<string, string> consumerOptions;
     // fetch.wait.max.ms:
-    // Maximum time the broker may wait to fill the response with fetch.min.bytes.
+    // Maximum time the broker may wait to fill the response with
+    // fetch.min.bytes.
     consumerOptions["fetch.wait.max.ms"] = "200";
 
-    if (kafkaConsumer_.setup(RD_KAFKA_OFFSET_TAIL(kConsumeLatestN),
-                             &consumerOptions) == false) {
+    if (kafkaConsumer_.setup(
+            RD_KAFKA_OFFSET_TAIL(kConsumeLatestN), &consumerOptions) == false) {
       LOG(INFO) << "setup consumer fail";
       return false;
     }
@@ -1055,15 +1149,16 @@ bool StatsServerT<SHARE>::setupThreadConsume() {
 
     map<string, string> consumerOptions;
     // fetch.wait.max.ms:
-    // Maximum time the broker may wait to fill the response with fetch.min.bytes.
+    // Maximum time the broker may wait to fill the response with
+    // fetch.min.bytes.
     consumerOptions["fetch.wait.max.ms"] = "600";
 
-    if (kafkaConsumerCommonEvents_.setup(RD_KAFKA_OFFSET_TAIL(kConsumeLatestN),
-                                         &consumerOptions) == false) {
+    if (kafkaConsumerCommonEvents_.setup(
+            RD_KAFKA_OFFSET_TAIL(kConsumeLatestN), &consumerOptions) == false) {
       LOG(INFO) << "setup common events consumer fail";
       return false;
     }
-  
+
     if (!kafkaConsumerCommonEvents_.checkAlive()) {
       LOG(ERROR) << "common events kafka brokers is not alive";
       return false;
@@ -1072,19 +1167,21 @@ bool StatsServerT<SHARE>::setupThreadConsume() {
 
   // run threads
   threadConsume_ = thread(&StatsServerT<SHARE>::runThreadConsume, this);
-  threadConsumeCommonEvents_ = thread(&StatsServerT<SHARE>::runThreadConsumeCommonEvents, this);
-  
+  threadConsumeCommonEvents_ =
+      thread(&StatsServerT<SHARE>::runThreadConsumeCommonEvents, this);
+
   return true;
 }
 
 template <class SHARE>
 void StatsServerT<SHARE>::runThreadConsume() {
   LOG(INFO) << "start sharelog consume thread";
-  time_t lastCleanTime     = time(nullptr);
-  time_t lastFlushDBTime   = 0; // Set to 0 to log lastShareTime_ of the first share
+  time_t lastCleanTime = time(nullptr);
+  time_t lastFlushDBTime =
+      0; // Set to 0 to log lastShareTime_ of the first share
 
-  const time_t kExpiredCleanInterval = 60*30;
-  const int32_t kTimeoutMs = 1000;  // consumer timeout
+  const time_t kExpiredCleanInterval = 60 * 30;
+  const int32_t kTimeoutMs = 1000; // consumer timeout
 
   // consuming history shares
   while (running_) {
@@ -1097,25 +1194,29 @@ void StatsServerT<SHARE>::runThreadConsume() {
 
       // consume share log (lastShareTime_ will be updated)
       consumeShareLog(rkmessage);
-      rd_kafka_message_destroy(rkmessage);  /* Return message to rdkafka */
+      rd_kafka_message_destroy(rkmessage); /* Return message to rdkafka */
     }
 
     if (lastFlushDBTime + kFlushDBInterval_ < time(nullptr)) {
-      LOG(INFO) << "consuming history shares: " << date("%F %T", lastShareTime_);
+      LOG(INFO) << "consuming history shares: "
+                << date("%F %T", lastShareTime_);
       lastFlushDBTime = time(nullptr);
     }
 
     // don't flush database while consuming history shares.
-    // otherwise, users' hashrate will be updated to 0 when statshttpd restarted.
+    // otherwise, users' hashrate will be updated to 0 when statshttpd
+    // restarted.
 
-    // the initialization state ends after consuming a share that generated in the last minute.
+    // the initialization state ends after consuming a share that generated in
+    // the last minute.
     if (lastShareTime_ + 60 >= time(nullptr)) {
       isInitializing_ = false;
       break;
     }
 
     // the initialization state ends after no shares in 5 minutes
-    // LastCleanTime is used here because it records the latest time that got a non-empty message
+    // LastCleanTime is used here because it records the latest time that got a
+    // non-empty message
     if (rkmessage == nullptr && lastCleanTime + 300 < time(nullptr)) {
       isInitializing_ = false;
       break;
@@ -1130,7 +1231,7 @@ void StatsServerT<SHARE>::runThreadConsume() {
     if (rkmessage != nullptr) {
       // consume share log (lastShareTime_ will be updated)
       consumeShareLog(rkmessage);
-      rd_kafka_message_destroy(rkmessage);  /* Return message to rdkafka */
+      rd_kafka_message_destroy(rkmessage); /* Return message to rdkafka */
     }
 
     //
@@ -1159,14 +1260,14 @@ void StatsServerT<SHARE>::runThreadConsume() {
   }
   LOG(INFO) << "stop sharelog consume thread";
 
-  stop();  // if thread exit, we must call server to stop
+  stop(); // if thread exit, we must call server to stop
 }
 
 template <class SHARE>
 void StatsServerT<SHARE>::runThreadConsumeCommonEvents() {
   LOG(INFO) << "start common events consume thread";
 
-  const int32_t kTimeoutMs = 3000;  // consumer timeout
+  const int32_t kTimeoutMs = 3000; // consumer timeout
 
   while (running_) {
     //
@@ -1183,7 +1284,7 @@ void StatsServerT<SHARE>::runThreadConsumeCommonEvents() {
 
     // consume share log
     consumeCommonEvents(rkmessage);
-    rd_kafka_message_destroy(rkmessage);  /* Return message to rdkafka */
+    rd_kafka_message_destroy(rkmessage); /* Return message to rdkafka */
   }
 
   LOG(INFO) << "stop common events consume thread";
@@ -1196,16 +1297,18 @@ void StatsServerT<SHARE>::consumeCommonEvents(rd_kafka_message_t *rkmessage) {
     if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
       // Reached the end of the topic+partition queue on the broker.
       // Not really an error.
-      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
+      //      LOG(INFO) << "consumer reached end of " <<
+      //      rd_kafka_topic_name(rkmessage->rkt)
       //      << "[" << rkmessage->partition << "] "
       //      << " message queue at offset " << rkmessage->offset;
       // acturlly
       return;
     }
 
-    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
-    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
-    << ": " << rd_kafka_message_errstr(rkmessage);
+    LOG(ERROR) << "consume error for topic "
+               << rd_kafka_topic_name(rkmessage->rkt) << "["
+               << rkmessage->partition << "] offset " << rkmessage->offset
+               << ": " << rd_kafka_message_errstr(rkmessage);
 
     if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
         rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
@@ -1214,7 +1317,7 @@ void StatsServerT<SHARE>::consumeCommonEvents(rd_kafka_message_t *rkmessage) {
     return;
   }
 
-  const char *message = (const char*)rkmessage->payload;
+  const char *message = (const char *)rkmessage->payload;
   DLOG(INFO) << "A New Common Event: " << string(message, rkmessage->len);
 
   JsonNode r;
@@ -1224,7 +1327,7 @@ void StatsServerT<SHARE>::consumeCommonEvents(rd_kafka_message_t *rkmessage) {
   }
 
   // check fields
-  if (r["type"].type()    != Utilities::JS::type::Str ||
+  if (r["type"].type() != Utilities::JS::type::Str ||
       r["content"].type() != Utilities::JS::type::Obj) {
     LOG(ERROR) << "common event missing some fields";
     return;
@@ -1233,47 +1336,54 @@ void StatsServerT<SHARE>::consumeCommonEvents(rd_kafka_message_t *rkmessage) {
   // update worker status
   if (r["type"].str() == "worker_update") {
     // check fields
-    if (r["content"]["user_id"].type()     != Utilities::JS::type::Int ||
-        r["content"]["worker_id"].type()   != Utilities::JS::type::Int ||
+    if (r["content"]["user_id"].type() != Utilities::JS::type::Int ||
+        r["content"]["worker_id"].type() != Utilities::JS::type::Int ||
         r["content"]["worker_name"].type() != Utilities::JS::type::Str ||
         r["content"]["miner_agent"].type() != Utilities::JS::type::Str) {
       LOG(ERROR) << "common event `worker_update` missing some fields";
       return;
     }
 
-    int32_t userId    = r["content"]["user_id"].int32();
-    int64_t workerId  = r["content"]["worker_id"].int64();
+    int32_t userId = r["content"]["user_id"].int32();
+    int64_t workerId = r["content"]["worker_id"].int64();
     string workerName = filterWorkerName(r["content"]["worker_name"].str());
     string minerAgent = filterWorkerName(r["content"]["miner_agent"].str());
 
     if (poolDBCommonEvents_ != nullptr) {
-      updateWorkerStatusToDB(userId, workerId, workerName.c_str(), minerAgent.c_str());
+      updateWorkerStatusToDB(
+          userId, workerId, workerName.c_str(), minerAgent.c_str());
     }
     if (redisCommonEvents_ != nullptr) {
-      updateWorkerStatusToRedis(userId, workerId, workerName.c_str(), minerAgent.c_str());
+      updateWorkerStatusToRedis(
+          userId, workerId, workerName.c_str(), minerAgent.c_str());
     }
   }
-
 }
 
 template <class SHARE>
-bool StatsServerT<SHARE>::updateWorkerStatusToRedis(const int32_t userId, const int64_t workerId,
-                                     const char *workerName, const char *minerAgent) {
+bool StatsServerT<SHARE>::updateWorkerStatusToRedis(
+    const int32_t userId,
+    const int64_t workerId,
+    const char *workerName,
+    const char *minerAgent) {
   string key = getRedisKeyMiningWorker(userId, workerId);
 
   // update info
   {
-    redisCommonEvents_->prepare({"HMSET", key,
-                      "worker_name", workerName,
-                      "miner_agent", minerAgent,
-                      "updated_at", std::to_string(time(nullptr))
-                    });
+    redisCommonEvents_->prepare({"HMSET",
+                                 key,
+                                 "worker_name",
+                                 workerName,
+                                 "miner_agent",
+                                 minerAgent,
+                                 "updated_at",
+                                 std::to_string(time(nullptr))});
     RedisResult r = redisCommonEvents_->execute();
 
     if (r.type() != REDIS_REPLY_STATUS || r.str() != "OK") {
       LOG(INFO) << "redis HMSET failed, item key: " << key << ", "
-                                    << "reply type: " << r.type() << ", "
-                                    << "reply str: " << r.str();
+                << "reply type: " << r.type() << ", "
+                << "reply str: " << r.str();
 
       // try ping & reconnect redis, so last update may success
       if (!redisCommonEvents_->ping()) {
@@ -1286,14 +1396,15 @@ bool StatsServerT<SHARE>::updateWorkerStatusToRedis(const int32_t userId, const 
 
   // set key expire
   if (redisKeyExpire_ > 0) {
-    redisCommonEvents_->prepare({"EXPIRE", key, std::to_string(redisKeyExpire_)});
+    redisCommonEvents_->prepare(
+        {"EXPIRE", key, std::to_string(redisKeyExpire_)});
     RedisResult r = redisCommonEvents_->execute();
 
     if (r.type() != REDIS_REPLY_INTEGER || r.integer() != 1) {
       LOG(INFO) << "redis EXPIRE failed, item key: " << key << ", "
-                              << "reply type: " << r.type() << ", "
-                              << "reply integer: " << r.integer() << ","
-                              << "reply str: " << r.str();
+                << "reply type: " << r.type() << ", "
+                << "reply integer: " << r.integer() << ","
+                << "reply str: " << r.str();
 
       // try ping & reconnect redis, so last update may success
       if (!redisCommonEvents_->ping()) {
@@ -1306,10 +1417,12 @@ bool StatsServerT<SHARE>::updateWorkerStatusToRedis(const int32_t userId, const 
 
   // update index
   if (redisIndexPolicy_ & REDIS_INDEX_WORKER_NAME) {
-    updateWorkerStatusIndexToRedis(userId, "worker_name", workerName, std::to_string(workerId));
+    updateWorkerStatusIndexToRedis(
+        userId, "worker_name", workerName, std::to_string(workerId));
   }
   if (redisIndexPolicy_ & REDIS_INDEX_MINER_AGENT) {
-    updateWorkerStatusIndexToRedis(userId, "miner_agent", minerAgent, std::to_string(workerId));
+    updateWorkerStatusIndexToRedis(
+        userId, "miner_agent", minerAgent, std::to_string(workerId));
   }
 
   // publish notification
@@ -1319,8 +1432,8 @@ bool StatsServerT<SHARE>::updateWorkerStatusToRedis(const int32_t userId, const 
 
     if (r.type() != REDIS_REPLY_INTEGER) {
       LOG(INFO) << "redis PUBLISH failed, item key: " << key << ", "
-                                << "reply type: " << r.type() << ", "
-                                << "reply str: " << r.str();
+                << "reply type: " << r.type() << ", "
+                << "reply str: " << r.str();
 
       // try ping & reconnect redis, so last update may success
       if (!redisCommonEvents_->ping()) {
@@ -1335,13 +1448,19 @@ bool StatsServerT<SHARE>::updateWorkerStatusToRedis(const int32_t userId, const 
 }
 
 template <class SHARE>
-void StatsServerT<SHARE>::updateWorkerStatusIndexToRedis(const int32_t userId, const string &key,
-                                                 const string &score, const string &value) {
-  
+void StatsServerT<SHARE>::updateWorkerStatusIndexToRedis(
+    const int32_t userId,
+    const string &key,
+    const string &score,
+    const string &value) {
+
   // convert string to number
   uint64_t scoreRank = getAlphaNumRank(score);
 
-  redisCommonEvents_->prepare({"ZADD", getRedisKeyIndex(userId, key), std::to_string(scoreRank), value});
+  redisCommonEvents_->prepare({"ZADD",
+                               getRedisKeyIndex(userId, key),
+                               std::to_string(scoreRank),
+                               value});
   RedisResult r = redisCommonEvents_->execute();
 
   if (r.type() != REDIS_REPLY_INTEGER) {
@@ -1352,17 +1471,22 @@ void StatsServerT<SHARE>::updateWorkerStatusIndexToRedis(const int32_t userId, c
 }
 
 template <class SHARE>
-bool StatsServerT<SHARE>::updateWorkerStatusToDB(const int32_t userId, const int64_t workerId,
-                                     const char *workerName, const char *minerAgent) {
+bool StatsServerT<SHARE>::updateWorkerStatusToDB(
+    const int32_t userId,
+    const int64_t workerId,
+    const char *workerName,
+    const char *minerAgent) {
   string sql;
   char **row = nullptr;
   MySQLResult res;
   const string nowStr = date("%F %T");
 
   // find the miner
-  sql = Strings::Format("SELECT `group_id` FROM `mining_workers` "
-                        " WHERE `puid`=%d AND `worker_id`= %" PRId64"",
-                        userId, workerId);
+  sql = Strings::Format(
+      "SELECT `group_id` FROM `mining_workers` "
+      " WHERE `puid`=%d AND `worker_id`= %" PRId64 "",
+      userId,
+      workerId);
   poolDBCommonEvents_->query(sql, res);
 
   if (res.numRows() != 0 && (row = res.nextRow()) != nullptr) {
@@ -1370,31 +1494,39 @@ bool StatsServerT<SHARE>::updateWorkerStatusToDB(const int32_t userId, const int
 
     // group Id == 0: means the miner's status is 'deleted'
     // we need to move from 'deleted' group to 'default' group.
-    sql = Strings::Format("UPDATE `mining_workers` SET `group_id`=%d, "
-                          " `worker_name`=\"%s\", `miner_agent`=\"%s\", "
-                          " `updated_at`=\"%s\" "
-                          " WHERE `puid`=%d AND `worker_id`= %" PRId64"",
-                          groupId == 0 ? userId * -1 : groupId,
-                          workerName, minerAgent,
-                          nowStr.c_str(),
-                          userId, workerId);
-  }
-  else {
+    sql = Strings::Format(
+        "UPDATE `mining_workers` SET `group_id`=%d, "
+        " `worker_name`=\"%s\", `miner_agent`=\"%s\", "
+        " `updated_at`=\"%s\" "
+        " WHERE `puid`=%d AND `worker_id`= %" PRId64 "",
+        groupId == 0 ? userId * -1 : groupId,
+        workerName,
+        minerAgent,
+        nowStr.c_str(),
+        userId,
+        workerId);
+  } else {
     // we have to use 'ON DUPLICATE KEY UPDATE', because 'statshttpd' may insert
     // items to table.mining_workers between we 'select' and 'insert' gap.
     // 'statshttpd' will always set an empty 'worker_name'.
-    sql = Strings::Format("INSERT INTO `mining_workers`(`puid`,`worker_id`,"
-                          " `group_id`,`worker_name`,`miner_agent`,"
-                          " `created_at`,`updated_at`) "
-                          " VALUES(%d,%" PRId64",%d,\"%s\",\"%s\",\"%s\",\"%s\")"
-                          " ON DUPLICATE KEY UPDATE "
-                          " `worker_name`= \"%s\",`miner_agent`=\"%s\",`updated_at`=\"%s\" ",
-                          userId, workerId,
-                          userId * -1,  // default group id
-                          workerName, minerAgent,
-                          nowStr.c_str(), nowStr.c_str(),
-                          workerName, minerAgent,
-                          nowStr.c_str());
+    sql = Strings::Format(
+        "INSERT INTO `mining_workers`(`puid`,`worker_id`,"
+        " `group_id`,`worker_name`,`miner_agent`,"
+        " `created_at`,`updated_at`) "
+        " VALUES(%d,%" PRId64
+        ",%d,\"%s\",\"%s\",\"%s\",\"%s\")"
+        " ON DUPLICATE KEY UPDATE "
+        " `worker_name`= \"%s\",`miner_agent`=\"%s\",`updated_at`=\"%s\" ",
+        userId,
+        workerId,
+        userId * -1, // default group id
+        workerName,
+        minerAgent,
+        nowStr.c_str(),
+        nowStr.c_str(),
+        workerName,
+        minerAgent,
+        nowStr.c_str());
   }
 
   if (poolDBCommonEvents_->execute(sql) == false) {
@@ -1412,23 +1544,25 @@ bool StatsServerT<SHARE>::updateWorkerStatusToDB(const int32_t userId, const int
 }
 
 template <class SHARE>
-typename StatsServerT<SHARE>::ServerStatus StatsServerT<SHARE>::getServerStatus() {
+typename StatsServerT<SHARE>::ServerStatus
+StatsServerT<SHARE>::getServerStatus() {
   ServerStatus s;
 
-  s.uptime_        = (uint32_t)(time(nullptr) - uptime_);
-  s.requestCount_  = requestCount_;
-  s.workerCount_   = totalWorkerCount_;
-  s.userCount_     = totalUserCount_;
+  s.uptime_ = (uint32_t)(time(nullptr) - uptime_);
+  s.requestCount_ = requestCount_;
+  s.workerCount_ = totalWorkerCount_;
+  s.userCount_ = totalUserCount_;
   s.responseBytes_ = responseBytes_;
-  s.poolStatus_    = poolWorker_.getWorkerStatus();
+  s.poolStatus_ = poolWorker_.getWorkerStatus();
 
   return s;
 }
 
 template <class SHARE>
-void StatsServerT<SHARE>::httpdServerStatus(struct evhttp_request *req, void *arg) {
-  evhttp_add_header(evhttp_request_get_output_headers(req),
-                    "Content-Type", "text/json");
+void StatsServerT<SHARE>::httpdServerStatus(
+    struct evhttp_request *req, void *arg) {
+  evhttp_add_header(
+      evhttp_request_get_output_headers(req), "Content-Type", "text/json");
   StatsServerT<SHARE> *server = (StatsServerT<SHARE> *)arg;
   server->requestCount_++;
 
@@ -1436,32 +1570,46 @@ void StatsServerT<SHARE>::httpdServerStatus(struct evhttp_request *req, void *ar
 
   // service is initializing, return a error
   if (server->isInitializing_) {
-    evbuffer_add_printf(evb, "{\"err_no\":2,\"err_msg\":\"service is initializing...\"}");
+    evbuffer_add_printf(
+        evb, "{\"err_no\":2,\"err_msg\":\"service is initializing...\"}");
     evhttp_send_reply(req, HTTP_OK, "OK", evb);
     evbuffer_free(evb);
 
     return;
   }
-  
+
   StatsServerT<SHARE>::ServerStatus s = server->getServerStatus();
 
-  evbuffer_add_printf(evb, "{\"err_no\":0,\"err_msg\":\"\","
-                      "\"data\":{\"uptime\":\"%04u d %02u h %02u m %02u s\","
-                      "\"request\":%" PRIu64",\"repbytes\":%" PRIu64","
-                      "\"pool\":{\"accept\":[%" PRIu64",%" PRIu64",%" PRIu64",%" PRIu64"],"
-                      "\"reject\":[0,0,%" PRIu64",%" PRIu64"],\"accept_count\":%" PRIu32","
-                      "\"workers\":%" PRIu64",\"users\":%" PRIu64""
-                      "}}}",
-                      s.uptime_/86400, (s.uptime_%86400)/3600,
-                      (s.uptime_%3600)/60, s.uptime_%60,
-                      s.requestCount_, s.responseBytes_,
-                      // accept
-                      s.poolStatus_.accept1m_, s.poolStatus_.accept5m_,
-                      s.poolStatus_.accept15m_, s.poolStatus_.accept1h_,
-                      // reject
-                      s.poolStatus_.reject15m_, s.poolStatus_.reject1h_,
-                      s.poolStatus_.acceptCount_,
-                      s.workerCount_, s.userCount_);
+  evbuffer_add_printf(
+      evb,
+      "{\"err_no\":0,\"err_msg\":\"\","
+      "\"data\":{\"uptime\":\"%04u d %02u h %02u m %02u s\","
+      "\"request\":%" PRIu64 ",\"repbytes\":%" PRIu64
+      ","
+      "\"pool\":{\"accept\":[%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64
+      "],"
+      "\"reject\":[0,0,%" PRIu64 ",%" PRIu64 "],\"accept_count\":%" PRIu32
+      ","
+      "\"workers\":%" PRIu64 ",\"users\":%" PRIu64
+      ""
+      "}}}",
+      s.uptime_ / 86400,
+      (s.uptime_ % 86400) / 3600,
+      (s.uptime_ % 3600) / 60,
+      s.uptime_ % 60,
+      s.requestCount_,
+      s.responseBytes_,
+      // accept
+      s.poolStatus_.accept1m_,
+      s.poolStatus_.accept5m_,
+      s.poolStatus_.accept15m_,
+      s.poolStatus_.accept1h_,
+      // reject
+      s.poolStatus_.reject15m_,
+      s.poolStatus_.reject1h_,
+      s.poolStatus_.acceptCount_,
+      s.workerCount_,
+      s.userCount_);
 
   server->responseBytes_ += evbuffer_get_length(evb);
   evhttp_send_reply(req, HTTP_OK, "OK", evb);
@@ -1469,14 +1617,15 @@ void StatsServerT<SHARE>::httpdServerStatus(struct evhttp_request *req, void *ar
 }
 
 template <class SHARE>
-void StatsServerT<SHARE>::httpdGetWorkerStatus(struct evhttp_request *req, void *arg) {
-  evhttp_add_header(evhttp_request_get_output_headers(req),
-                    "Content-Type", "text/json");
+void StatsServerT<SHARE>::httpdGetWorkerStatus(
+    struct evhttp_request *req, void *arg) {
+  evhttp_add_header(
+      evhttp_request_get_output_headers(req), "Content-Type", "text/json");
   StatsServerT<SHARE> *server = (StatsServerT<SHARE> *)arg;
   server->requestCount_++;
 
   evhttp_cmd_type rMethod = evhttp_request_get_command(req);
-  char *query = nullptr;  // remember free it
+  char *query = nullptr; // remember free it
 
   if (rMethod == EVHTTP_REQ_GET) {
     // GET
@@ -1486,15 +1635,14 @@ void StatsServerT<SHARE>::httpdGetWorkerStatus(struct evhttp_request *req, void 
       query = strdup(uriQuery);
       evhttp_uri_free(uri);
     }
-  }
-  else if (rMethod == EVHTTP_REQ_POST) {
+  } else if (rMethod == EVHTTP_REQ_POST) {
     // POST
     struct evbuffer *evbIn = evhttp_request_get_input_buffer(req);
     size_t len = 0;
     if (evbIn != nullptr && (len = evbuffer_get_length(evbIn)) > 0) {
       query = (char *)malloc(len + 1);
       evbuffer_copyout(evbIn, query, len);
-      query[len] = '\0';  // evbuffer is not include '\0'
+      query[len] = '\0'; // evbuffer is not include '\0'
     }
   }
 
@@ -1503,7 +1651,8 @@ void StatsServerT<SHARE>::httpdGetWorkerStatus(struct evhttp_request *req, void 
 
   // service is initializing, return
   if (server->isInitializing_) {
-    evbuffer_add_printf(evb, "{\"err_no\":2,\"err_msg\":\"service is initializing...\"}");
+    evbuffer_add_printf(
+        evb, "{\"err_no\":2,\"err_msg\":\"service is initializing...\"}");
     evhttp_send_reply(req, HTTP_OK, "OK", evb);
     evbuffer_free(evb);
 
@@ -1522,9 +1671,9 @@ void StatsServerT<SHARE>::httpdGetWorkerStatus(struct evhttp_request *req, void 
   // parse query
   struct evkeyvalq params;
   evhttp_parse_query_str(query, &params);
-  const char *pUserId   = evhttp_find_header(&params, "user_id");
+  const char *pUserId = evhttp_find_header(&params, "user_id");
   const char *pWorkerId = evhttp_find_header(&params, "worker_id");
-  const char *pIsMerge  = evhttp_find_header(&params, "is_merge");
+  const char *pIsMerge = evhttp_find_header(&params, "is_merge");
 
   if (pUserId == nullptr || pWorkerId == nullptr) {
     evbuffer_add_printf(evb, "{\"err_no\":1,\"err_msg\":\"invalid args\"}");
@@ -1547,14 +1696,17 @@ finish:
 }
 
 template <class SHARE>
-void StatsServerT<SHARE>::getWorkerStatus(struct evbuffer *evb, const char *pUserId,
-                                  const char *pWorkerId, const char *pIsMerge) {
+void StatsServerT<SHARE>::getWorkerStatus(
+    struct evbuffer *evb,
+    const char *pUserId,
+    const char *pWorkerId,
+    const char *pIsMerge) {
   assert(pWorkerId != nullptr);
   const int32_t userId = atoi(pUserId);
 
   bool isMerge = false;
   if (pIsMerge != nullptr && (*pIsMerge == 'T' || *pIsMerge == 't')) {
-      isMerge = true;
+    isMerge = true;
   }
 
   vector<string> vWorkerIdsStr;
@@ -1581,32 +1733,41 @@ void StatsServerT<SHARE>::getWorkerStatus(struct evbuffer *evb, const char *pUse
   for (const auto &status : workerStatus) {
     // extra infomations
     string extraInfo;
-    if (!isMerge && keys[i].workerId_ == 0) {  // all workers of this user
+    if (!isMerge && keys[i].workerId_ == 0) { // all workers of this user
       pthread_rwlock_rdlock(&rwlock_);
       extraInfo = Strings::Format(",\"workers\":%d", userWorkerCount_[userId]);
       pthread_rwlock_unlock(&rwlock_);
     }
 
-    evbuffer_add_printf(evb,
-                        "%s\"%" PRId64"\":{\"accept\":[%" PRIu64",%" PRIu64",%" PRIu64",%" PRIu64"]"
-                        ",\"reject\":[0,0,%" PRIu64",%" PRIu64"],\"accept_count\":%" PRIu32""
-                        ",\"last_share_ip\":\"%s\",\"last_share_time\":%" PRIu64
-                        "%s}",
-                        (i == 0 ? "" : ","),
-                        (isMerge ? 0 : keys[i].workerId_),
-                        status.accept1m_, status.accept5m_, status.accept15m_, status.accept1h_,
-                        status.reject15m_, status.reject1h_,
-                        status.acceptCount_,
-                        status.lastShareIP_.toString().c_str(), status.lastShareTime_,
-                        extraInfo.length() ? extraInfo.c_str() : "");
+    evbuffer_add_printf(
+        evb,
+        "%s\"%" PRId64 "\":{\"accept\":[%" PRIu64 ",%" PRIu64 ",%" PRIu64
+        ",%" PRIu64
+        "]"
+        ",\"reject\":[0,0,%" PRIu64 ",%" PRIu64 "],\"accept_count\":%" PRIu32
+        ""
+        ",\"last_share_ip\":\"%s\",\"last_share_time\":%" PRIu64 "%s}",
+        (i == 0 ? "" : ","),
+        (isMerge ? 0 : keys[i].workerId_),
+        status.accept1m_,
+        status.accept5m_,
+        status.accept15m_,
+        status.accept1h_,
+        status.reject15m_,
+        status.reject1h_,
+        status.acceptCount_,
+        status.lastShareIP_.toString().c_str(),
+        status.lastShareTime_,
+        extraInfo.length() ? extraInfo.c_str() : "");
     i++;
   }
 }
 
 template <class SHARE>
-void StatsServerT<SHARE>::httpdGetFlushDBTime(struct evhttp_request *req, void *arg) {
-  evhttp_add_header(evhttp_request_get_output_headers(req),
-                    "Content-Type", "text/json");
+void StatsServerT<SHARE>::httpdGetFlushDBTime(
+    struct evhttp_request *req, void *arg) {
+  evhttp_add_header(
+      evhttp_request_get_output_headers(req), "Content-Type", "text/json");
   StatsServerT<SHARE> *server = (StatsServerT<SHARE> *)arg;
   server->requestCount_++;
 
@@ -1614,14 +1775,19 @@ void StatsServerT<SHARE>::httpdGetFlushDBTime(struct evhttp_request *req, void *
 
   // service is initializing, return
   if (server->isInitializing_) {
-    evbuffer_add_printf(evb, "{\"err_no\":2,\"err_msg\":\"service is initializing...\"}");
+    evbuffer_add_printf(
+        evb, "{\"err_no\":2,\"err_msg\":\"service is initializing...\"}");
     evhttp_send_reply(req, HTTP_OK, "OK", evb);
     evbuffer_free(evb);
 
     return;
   }
-  
-  evbuffer_add_printf(evb, "{\"err_no\":0,\"err_msg\":\"\",\"data\":{\"flush_db_time\":%" PRId64 "}}", (int64_t)server->lastFlushTime_);
+
+  evbuffer_add_printf(
+      evb,
+      "{\"err_no\":0,\"err_msg\":\"\",\"data\":{\"flush_db_time\":%" PRId64
+      "}}",
+      (int64_t)server->lastFlushTime_);
 
   server->responseBytes_ += evbuffer_get_length(evb);
   evhttp_send_reply(req, HTTP_OK, "OK", evb);
@@ -1636,17 +1802,26 @@ void StatsServerT<SHARE>::runHttpd() {
   base_ = event_base_new();
   httpd = evhttp_new(base_);
 
-  evhttp_set_allowed_methods(httpd, EVHTTP_REQ_GET | EVHTTP_REQ_POST | EVHTTP_REQ_HEAD);
+  evhttp_set_allowed_methods(
+      httpd, EVHTTP_REQ_GET | EVHTTP_REQ_POST | EVHTTP_REQ_HEAD);
   evhttp_set_timeout(httpd, 5 /* timeout in seconds */);
 
-  evhttp_set_cb(httpd, "/",               StatsServerT<SHARE>::httpdServerStatus, this);
-  evhttp_set_cb(httpd, "/worker_status",  StatsServerT<SHARE>::httpdGetWorkerStatus, this);
-  evhttp_set_cb(httpd, "/worker_status/", StatsServerT<SHARE>::httpdGetWorkerStatus, this);
-  evhttp_set_cb(httpd, "/flush_db_time",  StatsServerT<SHARE>::httpdGetFlushDBTime, this);
+  evhttp_set_cb(httpd, "/", StatsServerT<SHARE>::httpdServerStatus, this);
+  evhttp_set_cb(
+      httpd, "/worker_status", StatsServerT<SHARE>::httpdGetWorkerStatus, this);
+  evhttp_set_cb(
+      httpd,
+      "/worker_status/",
+      StatsServerT<SHARE>::httpdGetWorkerStatus,
+      this);
+  evhttp_set_cb(
+      httpd, "/flush_db_time", StatsServerT<SHARE>::httpdGetFlushDBTime, this);
 
-  handle = evhttp_bind_socket_with_handle(httpd, httpdHost_.c_str(), httpdPort_);
+  handle =
+      evhttp_bind_socket_with_handle(httpd, httpdHost_.c_str(), httpdPort_);
   if (!handle) {
-    LOG(ERROR) << "couldn't bind to port: " << httpdPort_ << ", host: " << httpdHost_ << ", exiting.";
+    LOG(ERROR) << "couldn't bind to port: " << httpdPort_
+               << ", host: " << httpdHost_ << ", exiting.";
     return;
   }
   event_base_dispatch(base_);

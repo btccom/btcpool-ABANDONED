@@ -32,7 +32,12 @@ class ServerDecred;
 
 class JobRepositoryDecred : public JobRepositoryBase<ServerDecred> {
 public:
-  JobRepositoryDecred(size_t chainId, ServerDecred *server, const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime);
+  JobRepositoryDecred(
+      size_t chainId,
+      ServerDecred *server,
+      const char *kafkaBrokers,
+      const char *consumerTopic,
+      const string &fileLastNotifyTime);
 
   shared_ptr<StratumJob> createStratumJob() override;
   void broadcastStratumJob(shared_ptr<StratumJob> sjob) override;
@@ -45,18 +50,23 @@ private:
 class ServerDecred : public ServerBase<JobRepositoryDecred> {
 public:
   bool setupInternal(const libconfig::Config &config) override;
-  unique_ptr<StratumSession> createConnection(bufferevent *bev, sockaddr *saddr, uint32_t sessionID) override;
+  unique_ptr<StratumSession> createConnection(
+      bufferevent *bev, sockaddr *saddr, uint32_t sessionID) override;
 
-  int checkShare(ShareDecred &share, shared_ptr<StratumJobEx> exJobPtr, const vector<uint8_t> &extraNonce2,
-                 uint32_t ntime, uint32_t nonce, const string &workerFullName);
+  int checkShare(
+      ShareDecred &share,
+      shared_ptr<StratumJobEx> exJobPtr,
+      const vector<uint8_t> &extraNonce2,
+      uint32_t ntime,
+      uint32_t nonce,
+      const string &workerFullName);
 
 protected:
-  JobRepository* createJobRepository(
-    size_t chainId,
-    const char *kafkaBrokers,
-    const char *consumerTopic,
-    const string &fileLastNotifyTime
-  ) override;
+  JobRepository *createJobRepository(
+      size_t chainId,
+      const char *kafkaBrokers,
+      const char *consumerTopic,
+      const string &fileLastNotifyTime) override;
 
 private:
   unique_ptr<StratumProtocolDecred> protocol_;

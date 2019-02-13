@@ -41,12 +41,15 @@ using namespace std;
 using namespace libconfig;
 
 void usage() {
-  fprintf(stderr, "Usage:\n\tshare_convertor -i \"<input-sharelog-v2-file.bin>\" -o \"<output-sharelog-v1-file.bin>\"\n");
+  fprintf(
+      stderr,
+      "Usage:\n\tshare_convertor -i \"<input-sharelog-v2-file.bin>\" -o "
+      "\"<output-sharelog-v1-file.bin>\"\n");
 }
 
 int main(int argc, char **argv) {
   char *inFile = NULL;
-  char *outFile   = NULL;
+  char *outFile = NULL;
   int c;
 
   if (argc <= 1) {
@@ -55,15 +58,16 @@ int main(int argc, char **argv) {
   }
   while ((c = getopt(argc, argv, "i:o:h")) != -1) {
     switch (c) {
-      case 'i':
-        inFile = optarg;
-        break;
-      case 'o':
-        outFile = optarg;
-        break;
-      case 'h': default:
-        usage();
-        exit(0);
+    case 'i':
+      inFile = optarg;
+      break;
+    case 'o':
+      outFile = optarg;
+      break;
+    case 'h':
+    default:
+      usage();
+      exit(0);
     }
   }
 
@@ -78,10 +82,11 @@ int main(int argc, char **argv) {
     }
 
     if (outFile == NULL) {
-      LOG(FATAL) << "missing output file (-o \"<output-sharelog-v1-file.bin>\")";
+      LOG(FATAL)
+          << "missing output file (-o \"<output-sharelog-v1-file.bin>\")";
       return 1;
     }
-    
+
     // open file (auto-detecting compression format or non-compression)
     LOG(INFO) << "open input file: " << inFile;
     zstr::ifstream in(inFile, std::ios::binary);
@@ -109,12 +114,10 @@ int main(int argc, char **argv) {
       in.read((char *)&v2, sizeof(v2));
     }
     LOG(INFO) << "completed.";
-  }
-  catch (const SettingException &e) {
+  } catch (const SettingException &e) {
     LOG(FATAL) << "config missing: " << e.getPath();
     return 1;
-  }
-  catch (const std::exception &e) {
+  } catch (const std::exception &e) {
     LOG(FATAL) << "exception: " << e.what();
     return 1;
   }

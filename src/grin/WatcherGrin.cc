@@ -32,19 +32,19 @@
 
 ClientContainerGrin::ClientContainerGrin(const libconfig::Config &config)
   : ClientContainer{config}
-  , kafkaSolvedShareConsumer_{
-    kafkaBrokers_.c_str(),
-    config.lookup("poolwatcher.solved_share_topic").c_str(),
-    0/*patition*/}
-  , poolDB_{
-    config.lookup("pooldb.host").c_str(),
-    (int) config.lookup("pooldb.port"),
-    config.lookup("pooldb.username").c_str(),
-    config.lookup("pooldb.password").c_str(),
-    config.lookup("pooldb.dbname").c_str()} {
+  , kafkaSolvedShareConsumer_{kafkaBrokers_.c_str(),
+                              config.lookup("poolwatcher.solved_share_topic")
+                                  .c_str(),
+                              0 /*patition*/}
+  , poolDB_{config.lookup("pooldb.host").c_str(),
+            (int)config.lookup("pooldb.port"),
+            config.lookup("pooldb.username").c_str(),
+            config.lookup("pooldb.password").c_str(),
+            config.lookup("pooldb.dbname").c_str()} {
 }
 
-PoolWatchClient* ClientContainerGrin::createPoolWatchClient(const libconfig::Setting &config) {
+PoolWatchClient *
+ClientContainerGrin::createPoolWatchClient(const libconfig::Setting &config) {
   return new PoolWatchClientGrin{base_, this, config};
 }
 
@@ -54,8 +54,8 @@ bool ClientContainerGrin::initInternal() {
 
   map<string, string> consumerOptions;
   consumerOptions["fetch.wait.max.ms"] = "10";
-  if (kafkaSolvedShareConsumer_.setup(RD_KAFKA_OFFSET_TAIL(kConsumeLatestN),
-                                      &consumerOptions) == false) {
+  if (kafkaSolvedShareConsumer_.setup(
+          RD_KAFKA_OFFSET_TAIL(kConsumeLatestN), &consumerOptions) == false) {
     LOG(INFO) << "setup kafkaSolvedShareConsumer_ fail";
     return false;
   }
@@ -65,7 +65,8 @@ bool ClientContainerGrin::initInternal() {
     return false;
   }
 
-  threadSolvedShareConsume_ = thread(&ClientContainerGrin::runThreadSolvedShareConsume, this);
+  threadSolvedShareConsume_ =
+      thread(&ClientContainerGrin::runThreadSolvedShareConsume, this);
   return true;
 }
 
@@ -110,39 +111,39 @@ void ClientContainerGrin::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
     if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
       // Reached the end of the topic+partition queue on the broker.
       // Not really an error.
-      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
+      //      LOG(INFO) << "consumer reached end of " <<
+      //      rd_kafka_topic_name(rkmessage->rkt)
       //      << "[" << rkmessage->partition << "] "
       //      << " message queue at offset " << rkmessage->offset;
       // acturlly
       return;
     }
 
-    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
-               << "[" << rkmessage->partition << "] offset " << rkmessage->offset
+    LOG(ERROR) << "consume error for topic "
+               << rd_kafka_topic_name(rkmessage->rkt) << "["
+               << rkmessage->partition << "] offset " << rkmessage->offset
                << ": " << rd_kafka_message_errstr(rkmessage);
 
     if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
-      rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
+        rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
       LOG(FATAL) << "consume fatal";
     }
     return;
   }
 
-  string json((const char*)rkmessage->payload, rkmessage->len);
+  string json((const char *)rkmessage->payload, rkmessage->len);
   JsonNode jroot;
-  if (!JsonNode::parse(json.c_str(), json.c_str()+json.size(), jroot)) {
+  if (!JsonNode::parse(json.c_str(), json.c_str() + json.size(), jroot)) {
     LOG(ERROR) << "cannot parse solved share json: " << json;
     return;
   }
 
-  if (
-    jroot["prePow"].type() != Utilities::JS::type::Str ||
-    jroot["height"].type() != Utilities::JS::type::Int ||
-    jroot["edgeBits"].type() != Utilities::JS::type::Int ||
-    jroot["nonce"].type() != Utilities::JS::type::Int ||
-    jroot["proofs"].type() != Utilities::JS::type::Array ||
-    jroot["blockHash"].type() != Utilities::JS::type::Str)
-  {
+  if (jroot["prePow"].type() != Utilities::JS::type::Str ||
+      jroot["height"].type() != Utilities::JS::type::Int ||
+      jroot["edgeBits"].type() != Utilities::JS::type::Int ||
+      jroot["nonce"].type() != Utilities::JS::type::Int ||
+      jroot["proofs"].type() != Utilities::JS::type::Array ||
+      jroot["blockHash"].type() != Utilities::JS::type::Str) {
     LOG(ERROR) << "solved share json missing fields: " << json;
     return;
   }
@@ -159,12 +160,9 @@ void ClientContainerGrin::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
   oss << jroot["proofs"];
   auto proofs = oss.str();
   LOG(INFO) << "received a new solved share, worker: " << workerFullName
-            << ", prePow: " << prePow
-            << ", height: " << height
-            << ", edgeBits: " << edgeBits
-            << ", nonce: " << nonce
-            << ", proofs: " << proofs
-            << ", blockHash: " << blockHash;
+            << ", prePow: " << prePow << ", height: " << height
+            << ", edgeBits: " << edgeBits << ", nonce: " << nonce
+            << ", proofs: " << proofs << ", blockHash: " << blockHash;
 
   std::lock_guard<std::mutex> lock(jobCacheLock_);
   auto itr = jobCacheMap_.find(prePow);
@@ -177,26 +175,25 @@ void ClientContainerGrin::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
   auto nodeJobId = itr->second.nodeJobId;
   auto client = clients_.at(itr->second.clientId);
   if (!client) {
-    LOG(ERROR) << "client for prePow " << prePow << " is not available for the solved share: " << json;
+    LOG(ERROR) << "client for prePow " << prePow
+               << " is not available for the solved share: " << json;
     return;
   }
 
   string submitJson = Strings::Format(
-    "{\"id\":\"0\""
-    ",\"jsonrpc\":\"2.0\""
-    ",\"method\":\"submit\""
-    ",\"params\":"
-    "{\"edge_bits\":%" PRIu32
-    ",\"height\":%" PRIu64
-    ",\"job_id\":%" PRIu64
-    ",\"nonce\":%" PRIu64
-    ",\"pow\":%s"
-    "}}\n",
-    edgeBits,
-    height,
-    nodeJobId,
-    nonce,
-    proofs.c_str());
+      "{\"id\":\"0\""
+      ",\"jsonrpc\":\"2.0\""
+      ",\"method\":\"submit\""
+      ",\"params\":"
+      "{\"edge_bits\":%" PRIu32 ",\"height\":%" PRIu64 ",\"job_id\":%" PRIu64
+      ",\"nonce\":%" PRIu64
+      ",\"pow\":%s"
+      "}}\n",
+      edgeBits,
+      height,
+      nodeJobId,
+      nonce,
+      proofs.c_str());
 
   LOG(INFO) << "submitting block: " << submitJson;
   client->sendData(submitJson);
@@ -204,27 +201,32 @@ void ClientContainerGrin::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
   // save block to DB
   const string nowStr = date("%F %T");
   string sql = Strings::Format(
-    "INSERT INTO `found_blocks`("
-    "  `puid`, `worker_id`"
-    ", `worker_full_name`"
-    ", `height`, `hash`"
-    ", `edge_bits`, `nonce`"
-    ", `rewards`, `job_id`"
-    ", `created_at`) "
-    "VALUES("
-    "  %ld, %" PRId64
-    ", '%s'"
-    ", %lu, '%s'"
-    ", '%" PRIu32 "', '%016" PRIx64 "'"
-    ", %" PRId64 ", '%" PRIu64 "'"
-    ", '%s');",
-    userId, workerId,
-    filterWorkerName(workerFullName).c_str(),
-    height, blockHash.c_str(),
-    edgeBits, nonce,
-    (int64_t)GetBlockRewardGrin(height), nodeJobId,
-    nowStr.c_str()
-  );
+      "INSERT INTO `found_blocks`("
+      "  `puid`, `worker_id`"
+      ", `worker_full_name`"
+      ", `height`, `hash`"
+      ", `edge_bits`, `nonce`"
+      ", `rewards`, `job_id`"
+      ", `created_at`) "
+      "VALUES("
+      "  %ld, %" PRId64
+      ", '%s'"
+      ", %lu, '%s'"
+      ", '%" PRIu32 "', '%016" PRIx64
+      "'"
+      ", %" PRId64 ", '%" PRIu64
+      "'"
+      ", '%s');",
+      userId,
+      workerId,
+      filterWorkerName(workerFullName).c_str(),
+      height,
+      blockHash.c_str(),
+      edgeBits,
+      nonce,
+      (int64_t)GetBlockRewardGrin(height),
+      nodeJobId,
+      nowStr.c_str());
   std::thread t([this, sql, blockHash]() {
     // try connect to DB
     MySQLConnection db(poolDB_);
@@ -245,7 +247,8 @@ void ClientContainerGrin::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
   t.detach();
 }
 
-bool ClientContainerGrin::sendJobToKafka(const StratumJobGrin &job, PoolWatchClientGrin *client) {
+bool ClientContainerGrin::sendJobToKafka(
+    const StratumJobGrin &job, PoolWatchClientGrin *client) {
   // Find the client for the job
   size_t clientId;
   for (clientId = 0; clientId < clients_.size(); clientId++) {
@@ -254,7 +257,8 @@ bool ClientContainerGrin::sendJobToKafka(const StratumJobGrin &job, PoolWatchCli
     }
   }
   if (clientId >= clients_.size()) {
-    LOG(ERROR) << "discard a job that its client has been destroyed: " << job.serializeToJson();
+    LOG(ERROR) << "discard a job that its client has been destroyed: "
+               << job.serializeToJson();
     return false;
   }
 
@@ -279,12 +283,15 @@ bool ClientContainerGrin::sendJobToKafka(const StratumJobGrin &job, PoolWatchCli
 }
 
 PoolWatchClientGrin::PoolWatchClientGrin(
-  struct event_base *base,
-  ClientContainer *container,
-  const libconfig::Setting &config) : PoolWatchClient(base, container, config) {}
+    struct event_base *base,
+    ClientContainer *container,
+    const libconfig::Setting &config)
+  : PoolWatchClient(base, container, config) {
+}
 
 void PoolWatchClientGrin::onConnected() {
-  // Grin node does not yet implement login method and jobs are pushed automatically once connected
+  // Grin node does not yet implement login method and jobs are pushed
+  // automatically once connected
   state_ = SUBSCRIBED;
 }
 
@@ -303,9 +310,11 @@ void PoolWatchClientGrin::handleStratumMessage(const string &line) {
     if (jmethod.str() == "job") {
       StratumJobGrin sjob;
       if (!sjob.initFromRawJob(jparams)) {
-        LOG(ERROR) << "<" << poolName_ << "> init stratum job failed, " << "raw job: " << line;
+        LOG(ERROR) << "<" << poolName_ << "> init stratum job failed, "
+                   << "raw job: " << line;
       } else {
-        static_cast<ClientContainerGrin *>(container_)->sendJobToKafka(sjob, this);
+        static_cast<ClientContainerGrin *>(container_)
+            ->sendJobToKafka(sjob, this);
       }
     }
   }

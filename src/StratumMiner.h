@@ -38,30 +38,36 @@ class IStratumSession;
 //////////////////////////////// StratumMiner ////////////////////////////////
 class StratumMiner {
 protected:
-  static const int INVALID_SHARE_SLIDING_WINDOWS_SIZE = 60;  // unit: seconds
-  static const int64_t INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT = 20;  // max number
-  StratumMiner(IStratumSession &session,
-               const DiffController &diffController,
-               const std::string &clientAgent,
-               const std::string &workerName,
-               int64_t workerId);
+  static const int INVALID_SHARE_SLIDING_WINDOWS_SIZE = 60; // unit: seconds
+  static const int64_t INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT =
+      20; // max number
+  StratumMiner(
+      IStratumSession &session,
+      const DiffController &diffController,
+      const std::string &clientAgent,
+      const std::string &workerName,
+      int64_t workerId);
+
 public:
   static const size_t kExtraNonce2Size_ = 8;
   virtual ~StratumMiner() = default;
-  virtual void handleRequest(const std::string &idStr,
-                             const std::string &method,
-                             const JsonNode &jparams,
-                             const JsonNode &jroot) = 0;
-  virtual void handleExMessage(const std::string &exMessage) {}; // No agent support by default
+  virtual void handleRequest(
+      const std::string &idStr,
+      const std::string &method,
+      const JsonNode &jparams,
+      const JsonNode &jroot) = 0;
+  virtual void handleExMessage(
+      const std::string &exMessage){}; // No agent support by default
   void setMinDiff(uint64_t minDiff);
   void resetCurDiff(uint64_t curDiff);
   uint64_t getCurDiff() const { return curDiff_; };
   uint64_t calcCurDiff();
   virtual uint64_t addLocalJob(LocalJob &localJob) = 0;
-  virtual void removeLocalJob( LocalJob &localJob) = 0;
+  virtual void removeLocalJob(LocalJob &localJob) = 0;
 
 protected:
-  bool handleShare(const std::string &idStr, int32_t status, uint64_t shareDiff);
+  bool
+  handleShare(const std::string &idStr, int32_t status, uint64_t shareDiff);
 
   IStratumSession &session_;
   std::unique_ptr<DiffController> diffController_;
@@ -74,17 +80,19 @@ protected:
   StatsWindow<int64_t> invalidSharesCounter_;
 };
 
-template<typename StratumTraits>
+template <typename StratumTraits>
 class StratumMinerBase : public StratumMiner {
   using SessionType = typename StratumTraits::SessionType;
   using JobDiffType = typename StratumTraits::JobDiffType;
+
 protected:
-  StratumMinerBase(SessionType &session,
-                   const DiffController &diffController,
-                   const std::string &clientAgent,
-                   const std::string &workerName,
-                   int64_t workerId)
-      : StratumMiner(session, diffController, clientAgent, workerName, workerId) {
+  StratumMinerBase(
+      SessionType &session,
+      const DiffController &diffController,
+      const std::string &clientAgent,
+      const std::string &workerName,
+      int64_t workerId)
+    : StratumMiner(session, diffController, clientAgent, workerName, workerId) {
     for (auto &localJob : session.getLocalJobs()) {
       addLocalJob(localJob);
     }

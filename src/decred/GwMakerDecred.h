@@ -29,14 +29,14 @@
 #include "GwMaker.h"
 #include "utilities_js.hpp"
 
-class GwMakerHandlerDecred : public GwMakerHandlerJson 
-{
+class GwMakerHandlerDecred : public GwMakerHandlerJson {
   bool checkFields(JsonNode &r) override;
   string constructRawMsg(JsonNode &r) override;
-  string getRequestData() override
-  {
-    return "[{\"jsonrpc\": \"2.0\", \"method\": \"getcurrentnet\", \"params\": [], \"id\": 0}"
-           ",{\"jsonrpc\": \"2.0\", \"method\": \"getwork\", \"params\": [], \"id\": 1}]";
+  string getRequestData() override {
+    return "[{\"jsonrpc\": \"2.0\", \"method\": \"getcurrentnet\", \"params\": "
+           "[], \"id\": 0}"
+           ",{\"jsonrpc\": \"2.0\", \"method\": \"getwork\", \"params\": [], "
+           "\"id\": 1}]";
   }
 };
 

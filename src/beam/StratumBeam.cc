@@ -29,11 +29,11 @@
 #include <boost/endian/buffers.hpp>
 
 ///////////////////////////////StratumJobBeam///////////////////////////
-StratumJobBeam::StratumJobBeam()
-{
+StratumJobBeam::StratumJobBeam() {
 }
 
-bool StratumJobBeam::initFromRawJob(const string &rawJob, const string &rpcAddr, const string &rpcUserPwd) {
+bool StratumJobBeam::initFromRawJob(
+    const string &rawJob, const string &rpcAddr, const string &rpcUserPwd) {
   JsonNode jnode;
   if (!JsonNode::parse(rawJob.data(), rawJob.data() + rawJob.size(), jnode)) {
     LOG(ERROR) << "decode line fail, not a json string";
@@ -54,37 +54,35 @@ bool StratumJobBeam::initFromRawJob(const string &rawJob, const string &rpcAddr,
   rpcAddress_ = rpcAddr;
   rpcUserPwd_ = rpcUserPwd;
 
-  // jobId: timestamp + input_prefix, we need to make sure jobId is unique in a some time
-  // jobId can convert to uint64_t
+  // jobId: timestamp + input_prefix, we need to make sure jobId is unique in a
+  // some time jobId can convert to uint64_t
   uint32_t hash = djb2(input_.c_str());
   jobId_ = (static_cast<uint64_t>(time(nullptr)) << 32) | hash;
-  
+
   return true;
 }
 
 string StratumJobBeam::serializeToJson() const {
-  return Strings::Format("{\"jobId\":%" PRIu64
-                         ",\"chain\":\"BEAM\""
-                         ",\"height\":%u"
-                         ",\"blockBits\":\"%08x\""
-                         ",\"input\":\"%s\""
-                         ",\"rpcAddress\":\"%s\""
-                         ",\"rpcUserPwd\":\"%s\""
-                         "}",
-                         jobId_,
-                         height_,
-                         blockBits_,
-                         input_.c_str(),
-                         rpcAddress_.c_str(),
-                         rpcUserPwd_.c_str()
-                         );
+  return Strings::Format(
+      "{\"jobId\":%" PRIu64
+      ",\"chain\":\"BEAM\""
+      ",\"height\":%u"
+      ",\"blockBits\":\"%08x\""
+      ",\"input\":\"%s\""
+      ",\"rpcAddress\":\"%s\""
+      ",\"rpcUserPwd\":\"%s\""
+      "}",
+      jobId_,
+      height_,
+      blockBits_,
+      input_.c_str(),
+      rpcAddress_.c_str(),
+      rpcUserPwd_.c_str());
 }
 
-bool StratumJobBeam::unserializeFromJson(const char *s, size_t len)
-{
+bool StratumJobBeam::unserializeFromJson(const char *s, size_t len) {
   JsonNode j;
-  if (!JsonNode::parse(s, s + len, j))
-  {
+  if (!JsonNode::parse(s, s + len, j)) {
     return false;
   }
 
@@ -94,8 +92,7 @@ bool StratumJobBeam::unserializeFromJson(const char *s, size_t len)
       j["blockBits"].type() != Utilities::JS::type::Str ||
       j["input"].type() != Utilities::JS::type::Str ||
       j["rpcAddress"].type() != Utilities::JS::type::Str ||
-      j["rpcUserPwd"].type() != Utilities::JS::type::Str)
-  {
+      j["rpcUserPwd"].type() != Utilities::JS::type::Str) {
     LOG(ERROR) << "parse beam stratum job failure: " << s;
     return false;
   }

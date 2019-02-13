@@ -29,28 +29,35 @@
 
 class JobRepositorySia;
 
-class ServerSia : public ServerBase<JobRepositorySia>
-{
+class ServerSia : public ServerBase<JobRepositorySia> {
 public:
-  unique_ptr<StratumSession> createConnection(struct bufferevent *bev, struct sockaddr *saddr, const uint32_t sessionID) override;
+  unique_ptr<StratumSession> createConnection(
+      struct bufferevent *bev,
+      struct sockaddr *saddr,
+      const uint32_t sessionID) override;
 
 private:
-  JobRepository* createJobRepository(
-    size_t chainId,
-    const char *kafkaBrokers,
-    const char *consumerTopic,
-    const string &fileLastNotifyTime
-  ) override;
-
+  JobRepository *createJobRepository(
+      size_t chainId,
+      const char *kafkaBrokers,
+      const char *consumerTopic,
+      const string &fileLastNotifyTime) override;
 };
 
-class JobRepositorySia : public JobRepositoryBase<ServerSia>
-{
+class JobRepositorySia : public JobRepositoryBase<ServerSia> {
 public:
-  JobRepositorySia(size_t chainId, ServerSia *server, const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime);
+  JobRepositorySia(
+      size_t chainId,
+      ServerSia *server,
+      const char *kafkaBrokers,
+      const char *consumerTopic,
+      const string &fileLastNotifyTime);
   ~JobRepositorySia();
-  shared_ptr<StratumJob> createStratumJob() override { return std::make_shared<StratumJobSia>(); }
-  shared_ptr<StratumJobEx> createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean) override;
+  shared_ptr<StratumJob> createStratumJob() override {
+    return std::make_shared<StratumJobSia>();
+  }
+  shared_ptr<StratumJobEx>
+  createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean) override;
   void broadcastStratumJob(shared_ptr<StratumJob> sjob) override;
 };
 

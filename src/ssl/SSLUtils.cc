@@ -36,15 +36,16 @@
 #include "SSLUtils.h"
 
 /*
-* Some code copied from LibEvent's document
-* http://www.wangafu.net/~nickm/libevent-book/Ref6a_advanced_bufferevents.html
-* 
-* The built in threading mechanisms of Libevent do not cover OpenSSL locking.
-* Since OpenSSL uses a myriad of global variables, you must still configure OpenSSL to be thread safe.
-* While this process is outside the scope of Libevent, this topic comes up enough to warrant discussion.
-* 
-* Example: A very simple example of how to enable thread safe OpenSSL
-*/
+ * Some code copied from LibEvent's document
+ * http://www.wangafu.net/~nickm/libevent-book/Ref6a_advanced_bufferevents.html
+ *
+ * The built in threading mechanisms of Libevent do not cover OpenSSL locking.
+ * Since OpenSSL uses a myriad of global variables, you must still configure
+ * OpenSSL to be thread safe. While this process is outside the scope of
+ * Libevent, this topic comes up enough to warrant discussion.
+ *
+ * Example: A very simple example of how to enable thread safe OpenSSL
+ */
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 
@@ -60,7 +61,7 @@ static unsigned long get_thread_id_cb() {
   return (unsigned long)pthread_self();
 }
 
-static void thread_lock_cb(int mode, int which, const char * f, int l) {
+static void thread_lock_cb(int mode, int which, const char *f, int l) {
   if (which < ssl_num_locks) {
     if (mode & CRYPTO_LOCK) {
       pthread_mutex_lock(&(ssl_locks[which]));
@@ -105,7 +106,7 @@ std::string get_ssl_err_string() {
   return errmsg.c_str(); // strip padding '\0'
 }
 
-SSL_CTX* get_client_SSL_CTX() {
+SSL_CTX *get_client_SSL_CTX() {
   SSL_CTX *sslCTX = nullptr;
 
   /* Initialize the OpenSSL library */
@@ -120,7 +121,7 @@ SSL_CTX* get_client_SSL_CTX() {
   }
 
   sslCTX = SSL_CTX_new(TLS_client_method());
-  if(sslCTX == nullptr) {
+  if (sslCTX == nullptr) {
     LOG(FATAL) << "SSL_CTX init failed: " << get_ssl_err_string();
   }
 
@@ -129,7 +130,7 @@ SSL_CTX* get_client_SSL_CTX() {
   return sslCTX;
 }
 
-SSL_CTX* get_client_SSL_CTX_With_Cache() {
+SSL_CTX *get_client_SSL_CTX_With_Cache() {
   static SSL_CTX *sslCTX = nullptr;
 
   if (sslCTX == nullptr) {
@@ -139,7 +140,8 @@ SSL_CTX* get_client_SSL_CTX_With_Cache() {
   return sslCTX;
 }
 
-SSL_CTX* get_server_SSL_CTX(const std::string &certFile, const std::string &keyFile) {
+SSL_CTX *
+get_server_SSL_CTX(const std::string &certFile, const std::string &keyFile) {
   SSL_CTX *sslCTX = nullptr;
 
   /* Initialize the OpenSSL library */
@@ -154,18 +156,24 @@ SSL_CTX* get_server_SSL_CTX(const std::string &certFile, const std::string &keyF
   }
 
   sslCTX = SSL_CTX_new(TLS_server_method());
-  if(sslCTX == nullptr) {
+  if (sslCTX == nullptr) {
     LOG(FATAL) << "SSL_CTX init failed: " << get_ssl_err_string();
   }
 
   if (!SSL_CTX_use_certificate_chain_file(sslCTX, certFile.c_str()) ||
-      !SSL_CTX_use_PrivateKey_file(sslCTX, keyFile.c_str(), SSL_FILETYPE_PEM)
-  ) {
-    LOG(FATAL) << "Couldn't read '" << certFile << "' or '" << keyFile << "' file.\n"
-      "To generate a key and self-signed certificate, run:\n"
-      "  openssl genrsa -out " << keyFile << " 2048\n"
-      "  openssl req -new -key " << keyFile << " -out " << certFile << ".req\n"
-      "  openssl x509 -req -days 365 -in " << certFile << ".req -signkey " << keyFile << " -out " << certFile;
+      !SSL_CTX_use_PrivateKey_file(sslCTX, keyFile.c_str(), SSL_FILETYPE_PEM)) {
+    LOG(FATAL) << "Couldn't read '" << certFile << "' or '" << keyFile
+               << "' file.\n"
+                  "To generate a key and self-signed certificate, run:\n"
+                  "  openssl genrsa -out "
+               << keyFile
+               << " 2048\n"
+                  "  openssl req -new -key "
+               << keyFile << " -out " << certFile
+               << ".req\n"
+                  "  openssl x509 -req -days 365 -in "
+               << certFile << ".req -signkey " << keyFile << " -out "
+               << certFile;
   }
 
   return sslCTX;

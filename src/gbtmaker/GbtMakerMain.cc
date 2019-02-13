@@ -53,12 +53,13 @@ void handler(int sig) {
 
 void usage() {
   fprintf(stderr, BIN_VERSION_STRING("gbtmaker"));
-  fprintf(stderr, "Usage:\tgbtmaker -c \"gbtmaker.cfg\" [-l <log_dir|stderr>]\n");
+  fprintf(
+      stderr, "Usage:\tgbtmaker -c \"gbtmaker.cfg\" [-l <log_dir|stderr>]\n");
 }
 
 int main(int argc, char **argv) {
   char *optLogDir = NULL;
-  char *optConf   = NULL;
+  char *optConf = NULL;
   int c;
 
   if (argc <= 1) {
@@ -67,15 +68,16 @@ int main(int argc, char **argv) {
   }
   while ((c = getopt(argc, argv, "c:l:h")) != -1) {
     switch (c) {
-      case 'c':
-        optConf = optarg;
-        break;
-      case 'l':
-        optLogDir = optarg;
-        break;
-      case 'h': default:
-        usage();
-        exit(0);
+    case 'c':
+      optConf = optarg;
+      break;
+    case 'l':
+      optLogDir = optarg;
+      break;
+    case 'h':
+    default:
+      usage();
+      exit(0);
     }
   }
 
@@ -88,25 +90,24 @@ int main(int argc, char **argv) {
   }
   // Log messages at a level >= this flag are automatically sent to
   // stderr in addition to log files.
-  FLAGS_stderrthreshold = 3;    // 3: FATAL
-  FLAGS_max_log_size    = 100;  // max log file size 100 MB
-  FLAGS_logbuflevel     = -1;   // don't buffer logs
+  FLAGS_stderrthreshold = 3; // 3: FATAL
+  FLAGS_max_log_size = 100; // max log file size 100 MB
+  FLAGS_logbuflevel = -1; // don't buffer logs
   FLAGS_stop_logging_if_full_disk = true;
 
   LOG(INFO) << BIN_VERSION_STRING("gbtmaker");
 
   // Read the file. If there is an error, report it and exit.
   libconfig::Config cfg;
-  try
-  {
+  try {
     cfg.readFile(optConf);
-  } catch(const FileIOException &fioex) {
+  } catch (const FileIOException &fioex) {
     std::cerr << "I/O error while reading file." << std::endl;
-    return(EXIT_FAILURE);
-  } catch(const ParseException &pex) {
+    return (EXIT_FAILURE);
+  } catch (const ParseException &pex) {
     std::cerr << "Parse error at " << pex.getFile() << ":" << pex.getLine()
-    << " - " << pex.getError() << std::endl;
-    return(EXIT_FAILURE);
+              << " - " << pex.getError() << std::endl;
+    return (EXIT_FAILURE);
   }
 
   // lock cfg file:
@@ -118,18 +119,20 @@ int main(int argc, char **argv) {
   }*/
 
   signal(SIGTERM, handler);
-  signal(SIGINT,  handler);
+  signal(SIGINT, handler);
 
   bool isCheckZmq = true;
   cfg.lookupValue("gbtmaker.is_check_zmq", isCheckZmq);
   int32_t rpcCallInterval = 5;
   cfg.lookupValue("gbtmaker.rpcinterval", rpcCallInterval);
-  gGbtMaker = new GbtMaker(cfg.lookup("bitcoind.zmq_addr"),
-                           cfg.lookup("bitcoind.rpc_addr"),
-                           cfg.lookup("bitcoind.rpc_userpwd"),
-                           cfg.lookup("kafka.brokers"),
-                           cfg.lookup("gbtmaker.rawgbt_topic"),
-                           rpcCallInterval, isCheckZmq);
+  gGbtMaker = new GbtMaker(
+      cfg.lookup("bitcoind.zmq_addr"),
+      cfg.lookup("bitcoind.rpc_addr"),
+      cfg.lookup("bitcoind.rpc_userpwd"),
+      cfg.lookup("kafka.brokers"),
+      cfg.lookup("gbtmaker.rawgbt_topic"),
+      rpcCallInterval,
+      isCheckZmq);
 
   try {
     if (!gGbtMaker->init()) {
@@ -138,12 +141,9 @@ int main(int argc, char **argv) {
 #ifdef CHAIN_TYPE_BCH
       bool runLightGbt = false;
       cfg.lookupValue("gbtmaker.lightgbt", runLightGbt);
-      if(runLightGbt)
-      {
+      if (runLightGbt) {
         gGbtMaker->runLightGbt();
-      }
-      else
-      {
+      } else {
         gGbtMaker->run();
       }
 #else
@@ -151,12 +151,10 @@ int main(int argc, char **argv) {
 #endif
     }
     delete gGbtMaker;
-  }
-  catch (const SettingException &e) {
+  } catch (const SettingException &e) {
     LOG(FATAL) << "config missing: " << e.getPath();
     return 1;
-  }
-  catch (const std::exception &e) {
+  } catch (const std::exception &e) {
     LOG(FATAL) << "exception: " << e.what();
     return 1;
   }

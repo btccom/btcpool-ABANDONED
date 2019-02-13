@@ -44,19 +44,22 @@ class StratumServer;
 class StratumJobEx;
 
 // Supported BTCAgent features / capabilities, a JSON array.
-// Sent within the request / response of agent.get_capabilities for protocol negotiation.
-// Known capabilities:
-//     verrol: version rolling (shares with a version mask can be submitted through a BTCAgent session).
+// Sent within the request / response of agent.get_capabilities for protocol
+// negotiation. Known capabilities:
+//     verrol: version rolling (shares with a version mask can be submitted
+//     through a BTCAgent session).
 #define BTCAGENT_PROTOCOL_CAPABILITIES "[\"verrol\"]"
 
 enum class StratumCommandEx : uint8_t {
-  REGISTER_WORKER            = 0x01u, // Agent -> Pool
-  SUBMIT_SHARE               = 0x02u, // Agent -> Pool,  mining.submit(...)
-  SUBMIT_SHARE_WITH_TIME     = 0x03u, // Agent -> Pool,  mining.submit(..., nTime)
-  UNREGISTER_WORKER          = 0x04u, // Agent -> Pool
-  MINING_SET_DIFF            = 0x05u, // Pool  -> Agent, mining.set_difficulty(diff)
-  SUBMIT_SHARE_WITH_VER      = 0x12u, // Agent -> Pool,  mining.submit(..., nVersionMask)
-  SUBMIT_SHARE_WITH_TIME_VER = 0x13u, // Agent -> Pool,  mining.submit(..., nTime, nVersionMask)
+  REGISTER_WORKER = 0x01u, // Agent -> Pool
+  SUBMIT_SHARE = 0x02u, // Agent -> Pool,  mining.submit(...)
+  SUBMIT_SHARE_WITH_TIME = 0x03u, // Agent -> Pool,  mining.submit(..., nTime)
+  UNREGISTER_WORKER = 0x04u, // Agent -> Pool
+  MINING_SET_DIFF = 0x05u, // Pool  -> Agent, mining.set_difficulty(diff)
+  SUBMIT_SHARE_WITH_VER =
+      0x12u, // Agent -> Pool,  mining.submit(..., nVersionMask)
+  SUBMIT_SHARE_WITH_TIME_VER =
+      0x13u, // Agent -> Pool,  mining.submit(..., nTime, nVersionMask)
 };
 
 struct StratumMessageEx {
@@ -74,10 +77,14 @@ struct StratumMessageEx {
 class IStratumSession {
 public:
   virtual ~IStratumSession() = default;
-  virtual void addWorker(const std::string &clientAgent, const std::string &workerName, int64_t workerId) = 0;
-  virtual std::unique_ptr<StratumMiner> createMiner(const std::string &clientAgent,
-                                                    const std::string &workerName,
-                                                    int64_t workerId) = 0;
+  virtual void addWorker(
+      const std::string &clientAgent,
+      const std::string &workerName,
+      int64_t workerId) = 0;
+  virtual std::unique_ptr<StratumMiner> createMiner(
+      const std::string &clientAgent,
+      const std::string &workerName,
+      int64_t workerId) = 0;
   virtual uint16_t decodeSessionId(const std::string &exMessage) const = 0;
   virtual StratumMessageDispatcher &getDispatcher() = 0;
   virtual void responseTrue(const std::string &idStr) = 0;
@@ -91,11 +98,8 @@ public:
 class StratumSession : public IStratumSession {
 public:
   // mining state
-  enum State {
-    CONNECTED     = 0,
-    SUBSCRIBED    = 1,
-    AUTHENTICATED = 2
-  };
+  enum State { CONNECTED = 0, SUBSCRIBED = 1, AUTHENTICATED = 2 };
+
 protected:
   StratumServer &server_;
   struct bufferevent *bev_;
@@ -105,7 +109,7 @@ protected:
   uint32_t clientIpInt_;
   std::string clientIp_;
 
-  std::string clientAgent_;  // eg. bfgminer/4.4.0-32-gac4e9b3
+  std::string clientAgent_; // eg. bfgminer/4.4.0-32-gac4e9b3
   bool isAgentClient_;
   bool isNiceHashClient_;
   std::unique_ptr<StratumMessageDispatcher> dispatcher_;
@@ -118,27 +122,39 @@ protected:
   void setup();
   void setReadTimeout(int32_t readTimeout);
 
-  bool handleMessage();  // handle all messages: ex-message and stratum message
+  bool handleMessage(); // handle all messages: ex-message and stratum message
   bool tryReadLine(std::string &line);
   void handleLine(const std::string &line);
-  virtual void handleRequest(const std::string &idStr, const std::string &method, const JsonNode &jparams, const JsonNode &jroot) = 0;
-  void checkUserAndPwd(const string &idStr, const string &fullName, const string &password);
+  virtual void handleRequest(
+      const std::string &idStr,
+      const std::string &method,
+      const JsonNode &jparams,
+      const JsonNode &jroot) = 0;
+  void checkUserAndPwd(
+      const string &idStr, const string &fullName, const string &password);
   void setDefaultDifficultyFromPassword(const string &password);
   void setClientAgent(const string &clientAgent);
 
   virtual void logAuthorizeResult(bool success);
   virtual string getMinerInfoJson(const string &type);
 
-  virtual bool validate(const JsonNode &jmethod, const JsonNode &jparams, const JsonNode &jroot);
+  virtual bool validate(
+      const JsonNode &jmethod, const JsonNode &jparams, const JsonNode &jroot);
   virtual std::unique_ptr<StratumMessageDispatcher> createDispatcher();
 
-  StratumSession(StratumServer &server, struct bufferevent *bev, struct sockaddr *saddr, uint32_t sessionId);
+  StratumSession(
+      StratumServer &server,
+      struct bufferevent *bev,
+      struct sockaddr *saddr,
+      uint32_t sessionId);
 
 public:
   virtual ~StratumSession();
   virtual bool initialize() { return true; }
   bool switchChain(size_t chainId) override;
-  uint16_t decodeSessionId(const std::string &exMessage) const override { return StratumMessageEx::AGENT_MAX_SESSION_ID; };
+  uint16_t decodeSessionId(const std::string &exMessage) const override {
+    return StratumMessageEx::AGENT_MAX_SESSION_ID;
+  };
 
   StratumServer &getServer() { return server_; }
   StratumWorker &getWorker() { return worker_; }
@@ -151,14 +167,20 @@ public:
 
   bool isDead() const;
   void markAsDead();
-  void addWorker(const std::string &clientAgent, const std::string &workerName, int64_t workerId) override;
+  void addWorker(
+      const std::string &clientAgent,
+      const std::string &workerName,
+      int64_t workerId) override;
 
   void sendData(const char *data, size_t len) override;
-  void sendData(const std::string &str) override { sendData(str.data(), str.size()); }
+  void sendData(const std::string &str) override {
+    sendData(str.data(), str.size());
+  }
   void readBuf(struct evbuffer *buf);
 
-  // Please keep them in here and be virtual or you have to refactor checkUserAndPwd().
-  // We need override them to respond JSON-RPC 2.0 responses in ETHProxy and Beam authentication.
+  // Please keep them in here and be virtual or you have to refactor
+  // checkUserAndPwd(). We need override them to respond JSON-RPC 2.0 responses
+  // in ETHProxy and Beam authentication.
   virtual void responseTrue(const std::string &idStr) override;
   virtual void responseError(const std::string &idStr, int code) override;
   virtual void responseAuthorizeSuccess(const std::string &idStr);
@@ -169,42 +191,48 @@ public:
   void rpc2ResponseError(const string &idStr, int errCode);
 
   void sendSetDifficulty(LocalJob &localJob, uint64_t difficulty) override;
-  virtual void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob=false) = 0;
+  virtual void sendMiningNotify(
+      shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob = false) = 0;
 };
 
-//  This base class is to help type safety of accessing server_ member variable. Avoid manual casting.
-//  And by templating a minimum class declaration, we avoid bloating the code too much.
-template<typename StratumTraits>
-class StratumSessionBase : public StratumSession
-{
+//  This base class is to help type safety of accessing server_ member variable.
+//  Avoid manual casting. And by templating a minimum class declaration, we
+//  avoid bloating the code too much.
+template <typename StratumTraits>
+class StratumSessionBase : public StratumSession {
 protected:
   using ServerType = typename StratumTraits::ServerType;
-  StratumSessionBase(ServerType &server, struct bufferevent *bev, struct sockaddr *saddr, uint32_t sessionId)
-      : StratumSession(server, bev, saddr, sessionId)
-      , kMaxNumLocalJobs_(10)
-  {
+  StratumSessionBase(
+      ServerType &server,
+      struct bufferevent *bev,
+      struct sockaddr *saddr,
+      uint32_t sessionId)
+    : StratumSession(server, bev, saddr, sessionId)
+    , kMaxNumLocalJobs_(10) {
     // usually stratum job interval is 30~60 seconds, 10 is enough for miners
     // should <= 10, we use short_job_id,  range: [0 ~ 9]. do NOT change it.
     assert(kMaxNumLocalJobs_ <= 10);
   }
 
   using LocalJobType = typename StratumTraits::LocalJobType;
-  static_assert(std::is_base_of<LocalJob, LocalJobType>::value, "Local job type is not derived from LocalJob");
+  static_assert(
+      std::is_base_of<LocalJob, LocalJobType>::value,
+      "Local job type is not derived from LocalJob");
   std::deque<LocalJobType> localJobs_;
   size_t kMaxNumLocalJobs_;
 
 public:
-  template<typename Key>
-  LocalJobType *findLocalJob(const Key& key)
-  {
+  template <typename Key>
+  LocalJobType *findLocalJob(const Key &key) {
     for (auto &localJob : localJobs_) {
-      if (localJob == key) return &localJob;
+      if (localJob == key)
+        return &localJob;
     }
     return nullptr;
   }
 
-  template<typename ... Args>
-  LocalJobType &addLocalJob(size_t chainId, uint64_t jobId, Args&&... args) {
+  template <typename... Args>
+  LocalJobType &addLocalJob(size_t chainId, uint64_t jobId, Args &&... args) {
     localJobs_.emplace_back(chainId, jobId, std::forward<Args>(args)...);
     auto &localJob = localJobs_.back();
     dispatcher_->addLocalJob(localJob);
@@ -220,8 +248,7 @@ public:
 
   std::deque<LocalJobType> &getLocalJobs() { return localJobs_; }
 
-  inline ServerType &getServer() const
-  {
+  inline ServerType &getServer() const {
     return static_cast<ServerType &>(server_);
   }
 };

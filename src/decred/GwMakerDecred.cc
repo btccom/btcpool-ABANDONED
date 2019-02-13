@@ -28,17 +28,16 @@
 
 ///////////////////////////////GwMakerHandlerDecred////////////////////////////////////
 bool GwMakerHandlerDecred::checkFields(JsonNode &r) {
-  if (r.type() != Utilities::JS::type::Array ||
-      r.array().size() != 2) {
+  if (r.type() != Utilities::JS::type::Array || r.array().size() != 2) {
     return false;
   }
 
-  auto& r0 = r.array().at(0);
+  auto &r0 = r.array().at(0);
   if (r0["result"].type() != Utilities::JS::type::Int) {
     return false;
   }
 
-  auto& r1 = r.array().at(1);
+  auto &r1 = r.array().at(1);
   if (r1["result"].type() != Utilities::JS::type::Obj ||
       r1["result"]["data"].type() != Utilities::JS::type::Str ||
       r1["result"]["data"].size() != 384 ||
@@ -53,25 +52,26 @@ bool GwMakerHandlerDecred::checkFields(JsonNode &r) {
 }
 
 string GwMakerHandlerDecred::constructRawMsg(JsonNode &r) {
-  auto& r0 = r.array().at(0);
-  auto& r1 = r.array().at(1);
+  auto &r0 = r.array().at(0);
+  auto &r1 = r.array().at(1);
   LOG(INFO) << "chain: " << def_.chainType_ << ", topic: " << def_.rawGwTopic_
             << ", data: " << r1["result"]["data"].str()
             << ", target: " << r1["result"]["target"].str()
             << ", network: " << r0["result"].uint32();
 
-  return Strings::Format("{\"created_at_ts\":%u,"
-                         "\"chainType\":\"%s\","
-                         "\"rpcAddress\":\"%s\","
-                         "\"rpcUserPwd\":\"%s\","
-                         "\"data\":\"%s\","
-                         "\"target\":\"%s\","
-                         "\"network\":%u}",
-                         (uint32_t)time(nullptr),
-                         def_.chainType_.c_str(),
-                         def_.rpcAddr_.c_str(),
-                         def_.rpcUserPwd_.c_str(),
-                         r1["result"]["data"].str().c_str(),
-                         r1["result"]["target"].str().c_str(),
-                         r0["result"].uint32());
+  return Strings::Format(
+      "{\"created_at_ts\":%u,"
+      "\"chainType\":\"%s\","
+      "\"rpcAddress\":\"%s\","
+      "\"rpcUserPwd\":\"%s\","
+      "\"data\":\"%s\","
+      "\"target\":\"%s\","
+      "\"network\":%u}",
+      (uint32_t)time(nullptr),
+      def_.chainType_.c_str(),
+      def_.rpcAddr_.c_str(),
+      def_.rpcUserPwd_.c_str(),
+      r1["result"]["data"].str().c_str(),
+      r1["result"]["target"].str().c_str(),
+      r0["result"].uint32());
 }

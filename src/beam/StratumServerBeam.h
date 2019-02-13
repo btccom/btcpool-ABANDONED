@@ -31,46 +31,52 @@
 
 class JobRepositoryBeam;
 
-class ServerBeam : public ServerBase<JobRepositoryBeam>
-{
+class ServerBeam : public ServerBase<JobRepositoryBeam> {
 public:
   bool setupInternal(const libconfig::Config &config) override;
   void checkAndUpdateShare(
-    size_t chainId,
-    ShareBeam &share,
-    shared_ptr<StratumJobEx> exjob,
-    const string &output,
-    const std::set<uint64_t> &jobDiffs,
-    const string &workFullName,
-    uint256 &computedShareHash
-  );
+      size_t chainId,
+      ShareBeam &share,
+      shared_ptr<StratumJobEx> exjob,
+      const string &output,
+      const std::set<uint64_t> &jobDiffs,
+      const string &workFullName,
+      uint256 &computedShareHash);
   void sendSolvedShare2Kafka(
-    size_t chainId,
-    const ShareBeam &share,
-    const string &input,
-    const string& output,
-    const StratumWorker &worker,
-    const uint256 &blockHash
-  );
+      size_t chainId,
+      const ShareBeam &share,
+      const string &input,
+      const string &output,
+      const StratumWorker &worker,
+      const uint256 &blockHash);
 
-  JobRepository* createJobRepository(
-    size_t chainId,
-    const char *kafkaBrokers,
-    const char *consumerTopic,
-    const string &fileLastNotifyTime
-  ) override;
+  JobRepository *createJobRepository(
+      size_t chainId,
+      const char *kafkaBrokers,
+      const char *consumerTopic,
+      const string &fileLastNotifyTime) override;
 
-  unique_ptr<StratumSession> createConnection(struct bufferevent *bev, struct sockaddr *saddr, const uint32_t sessionID) override;
+  unique_ptr<StratumSession> createConnection(
+      struct bufferevent *bev,
+      struct sockaddr *saddr,
+      const uint32_t sessionID) override;
 };
 
-class JobRepositoryBeam : public JobRepositoryBase<ServerBeam>
-{
+class JobRepositoryBeam : public JobRepositoryBase<ServerBeam> {
 public:
-  JobRepositoryBeam(size_t chainId, ServerBeam *server, const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime);
+  JobRepositoryBeam(
+      size_t chainId,
+      ServerBeam *server,
+      const char *kafkaBrokers,
+      const char *consumerTopic,
+      const string &fileLastNotifyTime);
   virtual ~JobRepositoryBeam();
 
-  shared_ptr<StratumJob> createStratumJob() override { return make_shared<StratumJobBeam>();}
-  shared_ptr<StratumJobEx> createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean) override;
+  shared_ptr<StratumJob> createStratumJob() override {
+    return make_shared<StratumJobBeam>();
+  }
+  shared_ptr<StratumJobEx>
+  createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean) override;
   void broadcastStratumJob(shared_ptr<StratumJob> sjob) override;
 
 private:

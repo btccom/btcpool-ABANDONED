@@ -42,12 +42,10 @@
 #include <memory>
 #include <boost/thread/shared_mutex.hpp>
 
-#define BTCCOM_WATCHER_AGENT   "btc.com-watcher/0.2"
-
+#define BTCCOM_WATCHER_AGENT "btc.com-watcher/0.2"
 
 class PoolWatchClient;
 class ClientContainer;
-
 
 ///////////////////////////////// ClientContainer //////////////////////////////
 class ClientContainer {
@@ -59,9 +57,10 @@ protected:
   struct event_base *base_;
 
   string kafkaBrokers_;
-  KafkaProducer kafkaProducer_;  // produce GBT message
+  KafkaProducer kafkaProducer_; // produce GBT message
 
-  virtual PoolWatchClient* createPoolWatchClient(const libconfig::Setting &config) = 0;
+  virtual PoolWatchClient *
+  createPoolWatchClient(const libconfig::Setting &config) = 0;
   virtual bool initInternal() = 0;
 
 public:
@@ -76,7 +75,6 @@ public:
   void removeAndCreateClient(PoolWatchClient *client);
 };
 
-
 ///////////////////////////////// PoolWatchClient //////////////////////////////
 class PoolWatchClient {
 protected:
@@ -89,30 +87,24 @@ protected:
   virtual void handleStratumMessage(const string &line) = 0;
 
 public:
-  enum State {
-    INIT          = 0,
-    CONNECTED     = 1,
-    SUBSCRIBED    = 2,
-    AUTHENTICATED = 3
-  };
+  enum State { INIT = 0, CONNECTED = 1, SUBSCRIBED = 2, AUTHENTICATED = 3 };
 
   State state_;
   ClientContainer *container_;
 
   const libconfig::Setting &config_;
-  string  poolName_;
-  string  poolHost_;
+  string poolName_;
+  string poolHost_;
   int16_t poolPort_;
-  string  workerName_;
+  string workerName_;
 
   time_t upTime_;
 
 protected:
   PoolWatchClient(
-    struct event_base *base,
-    ClientContainer *container,
-    const libconfig::Setting &config
-  );
+      struct event_base *base,
+      ClientContainer *container,
+      const libconfig::Setting &config);
 
 public:
   virtual ~PoolWatchClient();
@@ -122,11 +114,9 @@ public:
 
   void recvData();
   void sendData(const char *data, size_t len);
-  inline void sendData(const string &str) {
-    sendData(str.data(), str.size());
-  }
-  
-  static void readCallback (struct bufferevent *bev, void *ptr);
+  inline void sendData(const string &str) { sendData(str.data(), str.size()); }
+
+  static void readCallback(struct bufferevent *bev, void *ptr);
   static void eventCallback(struct bufferevent *bev, short events, void *ptr);
   static void reconnectCallback(evutil_socket_t fd, short events, void *ptr);
 };

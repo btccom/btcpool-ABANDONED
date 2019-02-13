@@ -40,11 +40,10 @@
 // If there is no forward compatibility, one of the versions of Share
 // will be considered invalid, resulting in loss of users' hashrate.
 
-class ShareGrin : public sharebase::GrinMsg
-{
+class ShareGrin : public sharebase::GrinMsg {
 public:
-
-  const static uint32_t CURRENT_VERSION = 0x00400001u; // first 0040: Grin, second 0001: version 1
+  const static uint32_t CURRENT_VERSION =
+      0x00400001u; // first 0040: Grin, second 0001: version 1
 
   ShareGrin() {
     set_version(0);
@@ -66,56 +65,65 @@ public:
   ShareGrin(const ShareGrin &r) = default;
   ShareGrin &operator=(const ShareGrin &r) = default;
 
-  // Grin applies scaling when checking proof hash difficulty, to mitigate the solving cost.
-  // The scaling is dynamic and is determined by height, edge bits and secondary scaling field in job pre-PoW.
-  uint32_t scaledShareDiff() const {
-    return sharediff() * scaling();
-  }
+  // Grin applies scaling when checking proof hash difficulty, to mitigate the
+  // solving cost. The scaling is dynamic and is determined by height, edge bits
+  // and secondary scaling field in job pre-PoW.
+  uint32_t scaledShareDiff() const { return sharediff() * scaling(); }
 
-  double score() const
-  {
-    if (!StratumStatus::isAccepted(status()) || scaledShareDiff() == 0 || scaling() == 0 || blockdiff() == 0) {
+  double score() const {
+    if (!StratumStatus::isAccepted(status()) || scaledShareDiff() == 0 ||
+        scaling() == 0 || blockdiff() == 0) {
       return 0.0;
     }
 
-    // Network diff may less than share diff on testnet or regression test network.
-    // On regression test network, the network diff may be zero.
-    // But no matter how low the network diff is, you can only dig one block at a time.
+    // Network diff may less than share diff on testnet or regression test
+    // network. On regression test network, the network diff may be zero. But no
+    // matter how low the network diff is, you can only dig one block at a time.
     double networkDiff = blockdiff();
     double jobDiff = scaledShareDiff();
     if (networkDiff < jobDiff) {
       return 1.0;
-    }
-    else {
+    } else {
       return (double)jobDiff / networkDiff;
     }
   }
 
-  bool isValid() const
-  {
+  bool isValid() const {
     if (version() != CURRENT_VERSION) {
       return false;
     }
-    if (userid() == 0 || workerhashid() == 0 || blockdiff() == 0 || scaledShareDiff() == 0 || scaling() == 0)
-    {
+    if (userid() == 0 || workerhashid() == 0 || blockdiff() == 0 ||
+        scaledShareDiff() == 0 || scaling() == 0) {
       return false;
     }
     return true;
   }
 
-  string toString() const
-  {
-    return Strings::Format("share(height: %u, jobId: %" PRIu64 "..., ip: %s, userId: %d, "
-                           "workerId: %" PRId64 ", time: %u/%s, "
-                           "shareDiff: %" PRIu64 ", networkDiff: %" PRIu64 ", nonce: %016" PRIx64 ", "
-                           "sessionId: %08x, status: %d/%s)",
-                           height(), jobid(), ip().c_str(), userid(),
-                           workerhashid(), timestamp(), date("%F %T", timestamp()).c_str(),
-                           scaledShareDiff(), blockdiff(), nonce(),
-                           sessionid(), status(), StratumStatus::toString(status()));
+  string toString() const {
+    return Strings::Format(
+        "share(height: %u, jobId: %" PRIu64
+        "..., ip: %s, userId: %d, "
+        "workerId: %" PRId64
+        ", time: %u/%s, "
+        "shareDiff: %" PRIu64 ", networkDiff: %" PRIu64 ", nonce: %016" PRIx64
+        ", "
+        "sessionId: %08x, status: %d/%s)",
+        height(),
+        jobid(),
+        ip().c_str(),
+        userid(),
+        workerhashid(),
+        timestamp(),
+        date("%F %T", timestamp()).c_str(),
+        scaledShareDiff(),
+        blockdiff(),
+        nonce(),
+        sessionid(),
+        status(),
+        StratumStatus::toString(status()));
   }
 
-  bool SerializeToBuffer(string& data, uint32_t& size) const{
+  bool SerializeToBuffer(string &data, uint32_t &size) const {
     size = ByteSize();
     data.resize(size);
 
@@ -127,21 +135,22 @@ public:
     return true;
   }
 
-  bool UnserializeWithVersion(const uint8_t* data, uint32_t size){
-    if(nullptr == data || size <= 0) {
+  bool UnserializeWithVersion(const uint8_t *data, uint32_t size) {
+    if (nullptr == data || size <= 0) {
       return false;
     }
 
-    const uint8_t * payload = data;
-    uint32_t version = *((uint32_t*)payload);
+    const uint8_t *payload = data;
+    uint32_t version = *((uint32_t *)payload);
 
     if (version == CURRENT_VERSION) {
-      if (!ParseFromArray((const uint8_t *)(payload + sizeof(uint32_t)), size - sizeof(uint32_t))) {
+      if (!ParseFromArray(
+              (const uint8_t *)(payload + sizeof(uint32_t)),
+              size - sizeof(uint32_t))) {
         DLOG(INFO) << "share ParseFromArray failed!";
         return false;
       }
-    }
-    else {
+    } else {
       DLOG(INFO) << "unknow share received! data size: " << size;
       return false;
     }
@@ -149,12 +158,12 @@ public:
     return true;
   }
 
-  bool SerializeToArrayWithLength(string& data, uint32_t& size) const {
+  bool SerializeToArrayWithLength(string &data, uint32_t &size) const {
     size = ByteSize();
     data.resize(size + sizeof(uint32_t));
 
-    *((uint32_t*)data.data()) = size;
-    uint8_t * payload = (uint8_t *)data.data();
+    *((uint32_t *)data.data()) = size;
+    uint8_t *payload = (uint8_t *)data.data();
 
     if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
       DLOG(INFO) << "base.SerializeToArray failed!";
@@ -165,12 +174,12 @@ public:
     return true;
   }
 
-  bool SerializeToArrayWithVersion(string& data, uint32_t& size) const {
+  bool SerializeToArrayWithVersion(string &data, uint32_t &size) const {
     size = ByteSize();
     data.resize(size + sizeof(uint32_t));
 
-    uint8_t * payload = (uint8_t *)data.data();
-    *((uint32_t*)payload) = version();
+    uint8_t *payload = (uint8_t *)data.data();
+    *((uint32_t *)payload) = version();
 
     if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
       DLOG(INFO) << "SerializeToArray failed!";
@@ -181,9 +190,7 @@ public:
     return true;
   }
 
-  size_t getsharelength() {
-    return IsInitialized() ? ByteSize() : 0;
-  }
+  size_t getsharelength() { return IsInitialized() ? ByteSize() : 0; }
 };
 
 class StratumJobGrin : public StratumJob {
@@ -224,9 +231,11 @@ struct StratumTraitsGrin {
 
   struct LocalJobType : public LocalJob {
     LocalJobType(size_t chainId, uint64_t jobId, uint32_t prePowHash)
-      : LocalJob(chainId, jobId), prePowHash_(prePowHash) {
+      : LocalJob(chainId, jobId)
+      , prePowHash_(prePowHash) {}
+    bool operator==(uint64_t prePowHash) const {
+      return prePowHash_ == prePowHash;
     }
-    bool operator==(uint64_t prePowHash) const { return prePowHash_ == prePowHash; }
 
     uint32_t prePowHash_;
   };

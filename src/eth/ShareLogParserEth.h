@@ -24,7 +24,6 @@
 #ifndef SHARELOGPARSER_ETH_H_
 #define SHARELOGPARSER_ETH_H_
 
-
 #include "ShareLogParser.h"
 
 #include "StratumEth.h"

@@ -47,7 +47,8 @@ static const uint64_t YEAR_HEIGHT = 52 * WEEK_HEIGHT;
 static const uint64_t GRIN_BASE = 1000000000;
 static const uint64_t REWARD = BLOCK_TIME_SEC * GRIN_BASE;
 
-static uint64_t PowDifficultyGrinScaled(uint64_t hash, uint32_t secondaryScaling) {
+static uint64_t
+PowDifficultyGrinScaled(uint64_t hash, uint32_t secondaryScaling) {
   boost::multiprecision::uint128_t x = secondaryScaling;
   x <<= 64;
   x /= hash;
@@ -55,27 +56,39 @@ static uint64_t PowDifficultyGrinScaled(uint64_t hash, uint32_t secondaryScaling
 }
 
 // verify that edges are ascending and form a cycle in header-generated graph
-bool VerifyPowGrinPrimary(const std::vector<uint64_t> &edges, siphash_keys &keys, uint32_t edgeBits) {
+bool VerifyPowGrinPrimary(
+    const std::vector<uint64_t> &edges, siphash_keys &keys, uint32_t edgeBits) {
   return verify_cuckatoo(edges, keys, edgeBits);
 }
 
 // verify that edges are ascending and form a cycle in header-generated graph
-bool VerifyPowGrinSecondary(const std::vector<uint64_t> &edges, siphash_keys &keys, uint32_t edgeBits) {
+bool VerifyPowGrinSecondary(
+    const std::vector<uint64_t> &edges, siphash_keys &keys, uint32_t edgeBits) {
   return verify_cuckaroo(edges, keys, edgeBits);
 }
 
-bool VerifyPowGrin(const PreProofGrin &preProof, uint32_t edgeBits, const std::vector<uint64_t> &proofs) {
+bool VerifyPowGrin(
+    const PreProofGrin &preProof,
+    uint32_t edgeBits,
+    const std::vector<uint64_t> &proofs) {
   if (edgeBits != SECOND_POW_EDGE_BITS && edgeBits < DEFAULT_MIN_EDGE_BITS)
     return false;
 
   siphash_keys siphashKeys;
   char preProofKeys[32];
-  blake2b(preProofKeys, sizeof(preProofKeys), &preProof, sizeof(preProof), 0, 0);
+  blake2b(
+      preProofKeys, sizeof(preProofKeys), &preProof, sizeof(preProof), 0, 0);
   siphashKeys.setkeys(preProofKeys);
-  return edgeBits == SECOND_POW_EDGE_BITS ? VerifyPowGrinSecondary(proofs, siphashKeys, edgeBits) : VerifyPowGrinPrimary(proofs, siphashKeys, edgeBits);
+  return edgeBits == SECOND_POW_EDGE_BITS
+      ? VerifyPowGrinSecondary(proofs, siphashKeys, edgeBits)
+      : VerifyPowGrinPrimary(proofs, siphashKeys, edgeBits);
 }
 
-uint256 PowHashGrin(uint64_t height, uint32_t edgeBits, uint32_t secondaryScaling, const std::vector<uint64_t> &proofs) {
+uint256 PowHashGrin(
+    uint64_t height,
+    uint32_t edgeBits,
+    uint32_t secondaryScaling,
+    const std::vector<uint64_t> &proofs) {
   // Compress the proofs to a bit vector
   std::vector<uint8_t> proofBits((proofs.size() * edgeBits + 7) / 8, 0);
   uint64_t edgeMask = (static_cast<uint64_t>(1) << edgeBits) - 1;
@@ -100,7 +113,8 @@ uint256 PowHashGrin(uint64_t height, uint32_t edgeBits, uint32_t secondaryScalin
 uint32_t GraphWeightGrin(uint64_t height, uint32_t edgeBits) {
   uint64_t xprEdgeBits = edgeBits;
 
-  auto bitsOverMin = edgeBits <= DEFAULT_MIN_EDGE_BITS ? 0 : edgeBits - DEFAULT_MIN_EDGE_BITS;
+  auto bitsOverMin =
+      edgeBits <= DEFAULT_MIN_EDGE_BITS ? 0 : edgeBits - DEFAULT_MIN_EDGE_BITS;
   auto expiryHeight = (1 << bitsOverMin) * YEAR_HEIGHT;
   if (height >= expiryHeight) {
     auto weeks = 1 + (height - expiryHeight) / WEEK_HEIGHT;
@@ -110,11 +124,17 @@ uint32_t GraphWeightGrin(uint64_t height, uint32_t edgeBits) {
   return ((2 << (edgeBits - BASE_EDGE_BITS)) * xprEdgeBits);
 }
 
-uint32_t PowScalingGrin(uint64_t height, uint32_t edgeBits, uint32_t secondaryScaling) {
-  return edgeBits == SECOND_POW_EDGE_BITS ? secondaryScaling : GraphWeightGrin(height, edgeBits);
+uint32_t
+PowScalingGrin(uint64_t height, uint32_t edgeBits, uint32_t secondaryScaling) {
+  return edgeBits == SECOND_POW_EDGE_BITS ? secondaryScaling
+                                          : GraphWeightGrin(height, edgeBits);
 }
 
-uint64_t PowDifficultyGrin(uint64_t height, uint32_t edgeBits, uint32_t secondaryScaling, const std::vector<uint64_t> &proofs) {
+uint64_t PowDifficultyGrin(
+    uint64_t height,
+    uint32_t edgeBits,
+    uint32_t secondaryScaling,
+    const std::vector<uint64_t> &proofs) {
   // Compress the proofs to a bit vector
   std::vector<uint8_t> proofBits((proofs.size() * edgeBits + 7) / 8, 0);
   uint64_t edgeMask = (static_cast<uint64_t>(1) << edgeBits) - 1;
@@ -135,7 +155,8 @@ uint64_t PowDifficultyGrin(uint64_t height, uint32_t edgeBits, uint32_t secondar
   blake2b(hash, sizeof(hash), proofBits.data(), proofBits.size(), 0, 0);
 
   // Scale the difficulty
-  return PowDifficultyGrinScaled(hash[0].value(), PowScalingGrin(height, edgeBits, secondaryScaling));
+  return PowDifficultyGrinScaled(
+      hash[0].value(), PowScalingGrin(height, edgeBits, secondaryScaling));
 }
 
 uint64_t GetBlockRewardGrin(uint64_t height) {

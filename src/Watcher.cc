@@ -36,8 +36,7 @@
 
 #include "ssl/SSLUtils.h"
 
-static
-bool tryReadLine(string &line, struct bufferevent *bufev) {
+static bool tryReadLine(string &line, struct bufferevent *bufev) {
   line.clear();
   struct evbuffer *inBuf = bufferevent_get_input(bufev);
 
@@ -45,12 +44,12 @@ bool tryReadLine(string &line, struct bufferevent *bufev) {
   struct evbuffer_ptr loc;
   loc = evbuffer_search_eol(inBuf, NULL, NULL, EVBUFFER_EOL_LF);
   if (loc.pos < 0) {
-    return false;  // not found
+    return false; // not found
   }
 
   // copies and removes the first datlen bytes from the front of buf
   // into the memory at data
-  line.resize(loc.pos + 1);  // containing "\n"
+  line.resize(loc.pos + 1); // containing "\n"
   evbuffer_remove(inBuf, (void *)line.data(), line.size());
 
   return true;
@@ -60,10 +59,13 @@ bool tryReadLine(string &line, struct bufferevent *bufev) {
 ClientContainer::ClientContainer(const libconfig::Config &config)
   : running_(true)
   , kafkaBrokers_(config.lookup("kafka.brokers").c_str())
-  , kafkaProducer_(kafkaBrokers_.c_str(), config.lookup("poolwatcher.rawgbt_topic").c_str(), 0/* partition */)
-{
+  , kafkaProducer_(
+        kafkaBrokers_.c_str(),
+        config.lookup("poolwatcher.rawgbt_topic").c_str(),
+        0 /* partition */) {
   // Enable multithreading and flag BEV_OPT_THREADSAFE.
-  // Without it, bufferevent_socket_new() will return NULL with flag BEV_OPT_THREADSAFE.
+  // Without it, bufferevent_socket_new() will return NULL with flag
+  // BEV_OPT_THREADSAFE.
   evthread_use_pthreads();
 
   base_ = event_base_new();
@@ -126,7 +128,8 @@ bool ClientContainer::addPools(const libconfig::Setting &config) {
 void ClientContainer::removeAndCreateClient(PoolWatchClient *client) {
   for (size_t i = 0; i < clients_.size(); i++) {
     if (clients_[i].get() == client) {
-      auto ptr = shared_ptr<PoolWatchClient>(createPoolWatchClient(client->config_));
+      auto ptr =
+          shared_ptr<PoolWatchClient>(createPoolWatchClient(client->config_));
       ptr->connect();
       LOG(INFO) << "reconnect " << ptr->poolName_;
 
@@ -138,13 +141,11 @@ void ClientContainer::removeAndCreateClient(PoolWatchClient *client) {
   }
 }
 
-
 ///////////////////////////////// PoolWatchClient //////////////////////////////
 PoolWatchClient::PoolWatchClient(
-  struct event_base *base,
-  ClientContainer *container,
-  const libconfig::Setting &config
-)
+    struct event_base *base,
+    ClientContainer *container,
+    const libconfig::Setting &config)
   : enableTLS_(false)
   , container_(container)
   , config_(config)
@@ -152,8 +153,7 @@ PoolWatchClient::PoolWatchClient(
   , poolHost_(config.lookup("host").c_str())
   , poolPort_((int)config.lookup("port"))
   , workerName_(config.lookup("worker").c_str())
-  , upTime_(time(nullptr))
-{
+  , upTime_(time(nullptr)) {
   config.lookupValue("enable_tls", enableTLS_);
 
   evdnsBase_ = evdns_base_new(base, 1);
@@ -170,25 +170,32 @@ PoolWatchClient::PoolWatchClient(
     LOG(INFO) << "<" << poolName_ << "> TLS enabled";
 
     SSL *ssl = SSL_new(get_client_SSL_CTX_With_Cache());
-    if(ssl == nullptr) {
-        LOG(FATAL) << "SSL init failed: " << get_ssl_err_string();
+    if (ssl == nullptr) {
+      LOG(FATAL) << "SSL init failed: " << get_ssl_err_string();
     }
 
-    bev_ = bufferevent_openssl_socket_new(base, -1, ssl, BUFFEREVENT_SSL_CONNECTING, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
-  }
-  else {
-    bev_ = bufferevent_socket_new(base, -1, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
+    bev_ = bufferevent_openssl_socket_new(
+        base,
+        -1,
+        ssl,
+        BUFFEREVENT_SSL_CONNECTING,
+        BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
+  } else {
+    bev_ = bufferevent_socket_new(
+        base, -1, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
   }
 
-  if(bev_ == nullptr) {
+  if (bev_ == nullptr) {
     LOG(FATAL) << "bufferevent init failed";
   }
 
-  bufferevent_setcb(bev_,
-                    PoolWatchClient::readCallback,  NULL,
-                    PoolWatchClient::eventCallback, this);
-  bufferevent_enable(bev_, EV_READ|EV_WRITE);
-
+  bufferevent_setcb(
+      bev_,
+      PoolWatchClient::readCallback,
+      NULL,
+      PoolWatchClient::eventCallback,
+      this);
+  bufferevent_enable(bev_, EV_READ | EV_WRITE);
 
   state_ = INIT;
 
@@ -206,9 +213,10 @@ PoolWatchClient::~PoolWatchClient() {
 bool PoolWatchClient::connect() {
   LOG(INFO) << "Connection request to " << poolHost_ << ":" << poolPort_;
 
-  // bufferevent_socket_connect_hostname(): This function returns 0 if the connect
-  // was successfully launched, and -1 if an error occurred.
-  int res = bufferevent_socket_connect_hostname(bev_, evdnsBase_, AF_INET, poolHost_.c_str(), poolPort_);
+  // bufferevent_socket_connect_hostname(): This function returns 0 if the
+  // connect was successfully launched, and -1 if an error occurred.
+  int res = bufferevent_socket_connect_hostname(
+      bev_, evdnsBase_, AF_INET, poolHost_.c_str(), poolPort_);
   if (res == 0) {
     return true;
   }
@@ -243,11 +251,12 @@ void PoolWatchClient::readCallback(struct bufferevent *bev, void *ptr) {
 }
 
 // static func
-void PoolWatchClient::eventCallback(struct bufferevent *bev,
-                                    short events, void *ptr) {
+void PoolWatchClient::eventCallback(
+    struct bufferevent *bev, short events, void *ptr) {
   PoolWatchClient *client = static_cast<PoolWatchClient *>(ptr);
 
-  DLOG(INFO) << "PoolWatchClient::eventCallback: <" << client->poolName_ << "> " << events;
+  DLOG(INFO) << "PoolWatchClient::eventCallback: <" << client->poolName_ << "> "
+             << events;
 
   if (events & BEV_EVENT_CONNECTED) {
     client->state_ = CONNECTED;
@@ -257,8 +266,7 @@ void PoolWatchClient::eventCallback(struct bufferevent *bev,
 
   if (events & BEV_EVENT_EOF) {
     LOG(INFO) << "upsession closed";
-  }
-  else if (events & BEV_EVENT_ERROR) {
+  } else if (events & BEV_EVENT_ERROR) {
     int dnsError = bufferevent_socket_get_dns_error(bev);
     if (dnsError) {
       LOG(ERROR) << "got a DNS error on the upsession: "
@@ -267,24 +275,24 @@ void PoolWatchClient::eventCallback(struct bufferevent *bev,
       LOG(ERROR) << "got an error on the upsession: "
                  << evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR());
     }
-  }
-  else if (events & BEV_EVENT_TIMEOUT) {
+  } else if (events & BEV_EVENT_TIMEOUT) {
     LOG(INFO) << "upsession read/write timeout, events: " << events;
-  }
-  else {
+  } else {
     LOG(ERROR) << "unhandled upsession events: " << events;
   }
 
   timeval reconnectTimeout{0, 0};
   time_t sleepTime = 10 - (time(nullptr) - client->upTime_);
   if (sleepTime > 0) {
-    LOG(WARNING) << "Connection broken too fast, sleep " << sleepTime << " seconds";
+    LOG(WARNING) << "Connection broken too fast, sleep " << sleepTime
+                 << " seconds";
     reconnectTimeout.tv_sec = sleepTime;
   }
   evtimer_add(client->reconnectEvent_, &reconnectTimeout);
 }
 
-void PoolWatchClient::reconnectCallback(evutil_socket_t fd, short events, void *ptr) {
+void PoolWatchClient::reconnectCallback(
+    evutil_socket_t fd, short events, void *ptr) {
   PoolWatchClient *client = static_cast<PoolWatchClient *>(ptr);
   ClientContainer *container = client->container_;
 
@@ -292,6 +300,7 @@ void PoolWatchClient::reconnectCallback(evutil_socket_t fd, short events, void *
     // update client
     container->removeAndCreateClient(client);
   } else {
-    LOG(ERROR) << "reconnect event is not supposed to be triggered without EV_TIMEOUT";
+    LOG(ERROR)
+        << "reconnect event is not supposed to be triggered without EV_TIMEOUT";
   }
 }

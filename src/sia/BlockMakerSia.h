@@ -27,10 +27,12 @@
 #include "BlockMaker.h"
 #include "Common.h"
 
-class BlockMakerSia : public BlockMaker
-{
+class BlockMakerSia : public BlockMaker {
 public:
-  BlockMakerSia(shared_ptr<BlockMakerDefinition> def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
+  BlockMakerSia(
+      shared_ptr<BlockMakerDefinition> def,
+      const char *kafkaBrokers,
+      const MysqlConnectInfo &poolDB);
   void processSolvedShare(rd_kafka_message_t *rkmessage) override;
 };
 

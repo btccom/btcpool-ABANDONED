@@ -24,16 +24,19 @@
 #include "JobMaker.h"
 #include "Utils.h"
 
-
 ///////////////////////////////////  JobMaker  /////////////////////////////////
-JobMaker::JobMaker(shared_ptr<JobMakerHandler> handler,
-                   const string &kafkaBrokers,
-                   const string& zookeeperBrokers) : handler_(handler),
-                                            running_(true),
-                                            zkBrokers_(zookeeperBrokers),
-                                            kafkaBrokers_(kafkaBrokers),
-                                            kafkaProducer_(kafkaBrokers.c_str(), handler->def()->jobTopic_.c_str(), RD_KAFKA_PARTITION_UA)
-{
+JobMaker::JobMaker(
+    shared_ptr<JobMakerHandler> handler,
+    const string &kafkaBrokers,
+    const string &zookeeperBrokers)
+  : handler_(handler)
+  , running_(true)
+  , zkBrokers_(zookeeperBrokers)
+  , kafkaBrokers_(kafkaBrokers)
+  , kafkaProducer_(
+        kafkaBrokers.c_str(),
+        handler->def()->jobTopic_.c_str(),
+        RD_KAFKA_PARTITION_UA) {
 }
 
 JobMaker::~JobMaker() {
@@ -47,8 +50,7 @@ void JobMaker::stop() {
   LOG(INFO) << "stop jobmaker";
 }
 
-bool JobMaker::setupKafkaProducer()
-{
+bool JobMaker::setupKafkaProducer() {
   map<string, string> options;
   // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
   options["queue.buffering.max.ms"] = "1";
@@ -73,15 +75,16 @@ bool JobMaker::init() {
       }
 
       zk_ = std::make_shared<Zookeeper>(zkBrokers_);
-      handler_->setServerId(zk_->getUniqIdUint8(handler_->def()->zookeeperLockPath_));
+      handler_->setServerId(
+          zk_->getUniqIdUint8(handler_->def()->zookeeperLockPath_));
 
-    } catch(const ZookeeperException &zooex) {
+    } catch (const ZookeeperException &zooex) {
       LOG(ERROR) << zooex.what();
       return false;
     }
   }
 
-  if(!setupKafkaProducer())
+  if (!setupKafkaProducer())
     return false;
 
   /* setup kafka consumers */
@@ -92,25 +95,22 @@ bool JobMaker::init() {
   return true;
 }
 
-bool JobMaker::consumeKafkaMsg(rd_kafka_message_t *rkmessage, JobMakerConsumerHandler &consumerHandler)
-{
+bool JobMaker::consumeKafkaMsg(
+    rd_kafka_message_t *rkmessage, JobMakerConsumerHandler &consumerHandler) {
   // check error
   string topic = rd_kafka_topic_name(rkmessage->rkt);
-  if (rkmessage->err)
-  {
-    if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF)
-    {
+  if (rkmessage->err) {
+    if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
       // Reached the end of the topic+partition queue on the broker.
       return false;
     }
 
-    LOG(ERROR) << "consume error for topic " << topic.c_str()
-               << "[" << rkmessage->partition << "] offset " << rkmessage->offset
+    LOG(ERROR) << "consume error for topic " << topic.c_str() << "["
+               << rkmessage->partition << "] offset " << rkmessage->offset
                << ": " << rd_kafka_message_errstr(rkmessage);
 
     if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
-        rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC)
-    {
+        rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
       LOG(FATAL) << "consume fatal";
       stop();
     }
@@ -118,7 +118,8 @@ bool JobMaker::consumeKafkaMsg(rd_kafka_message_t *rkmessage, JobMakerConsumerHa
   }
 
   // set json string
-  LOG(INFO) << "received " << topic.c_str() << " message len: " << rkmessage->len;
+  LOG(INFO) << "received " << topic.c_str()
+            << " message len: " << rkmessage->len;
 
   string msg((const char *)rkmessage->payload, rkmessage->len);
 
@@ -140,11 +141,12 @@ void JobMaker::produceStratumJob() {
   }
 
   lastJobTime_ = time(nullptr);
-  
+
   // save send timestamp to file, for monitor system
   if (!handler_->def()->fileLastJobTime_.empty()) {
     // TODO: fix Y2K38 issue
-  	writeTime2File(handler_->def()->fileLastJobTime_.c_str(), (uint32_t)lastJobTime_);
+    writeTime2File(
+        handler_->def()->fileLastJobTime_.c_str(), (uint32_t)lastJobTime_);
   }
 }
 
@@ -153,7 +155,8 @@ void JobMaker::runThreadKafkaConsume(JobMakerConsumerHandler &consumerHandler) {
   bool jobUpdated = false;
 
   while (running_) {
-    rd_kafka_message_t *rkmessage = consumerHandler.kafkaConsumer_->consumer(timeoutMs);
+    rd_kafka_message_t *rkmessage =
+        consumerHandler.kafkaConsumer_->consumer(timeoutMs);
     if (rkmessage) {
       jobUpdated = consumeKafkaMsg(rkmessage, consumerHandler);
 
@@ -164,30 +167,36 @@ void JobMaker::runThreadKafkaConsume(JobMakerConsumerHandler &consumerHandler) {
       // Kafka will not skip any message during your sleep(), you will received
       // all messages from your beginning offset to the latest in any case.
       // So sleep() will cause unexpected delay before consumer a new message.
-      // If the producer's speed is faster than the sleep() here, the consumption
-      // will be delayed permanently and the latest message will never be received.
+      // If the producer's speed is faster than the sleep() here, the
+      // consumption will be delayed permanently and the latest message will
+      // never be received.
 
       // At the same time, there is not a busy waiting.
-      // KafkaConsumer::consumer(timeoutMs) will return after `timeoutMs` millisecond
-      // if no new messages. You can increase `timeoutMs` if you want.
+      // KafkaConsumer::consumer(timeoutMs) will return after `timeoutMs`
+      // millisecond if no new messages. You can increase `timeoutMs` if you
+      // want.
     }
 
     uint32_t timeDiff;
-    if (rkmessage == nullptr || (!jobUpdated && (timeDiff = time(nullptr) - lastJobTime_) > handler_->def()->jobInterval_)) {
+    if (rkmessage == nullptr ||
+        (!jobUpdated &&
+         (timeDiff = time(nullptr) - lastJobTime_) >
+             handler_->def()->jobInterval_)) {
       produceStratumJob();
       jobUpdated = true;
     }
 
-    timeoutMs = (handler_->def()->jobInterval_ - (jobUpdated ? 0 : timeDiff)) * 1000;
+    timeoutMs =
+        (handler_->def()->jobInterval_ - (jobUpdated ? 0 : timeDiff)) * 1000;
   }
 }
 
 void JobMaker::run() {
 
   // running consumer threads
-  for (JobMakerConsumerHandler &consumerhandler : kafkaConsumerHandlers_)
-  {
-    kafkaConsumerWorkers_.push_back(std::make_shared<thread>(std::bind(&JobMaker::runThreadKafkaConsume, this, consumerhandler)));
+  for (JobMakerConsumerHandler &consumerhandler : kafkaConsumerHandlers_) {
+    kafkaConsumerWorkers_.push_back(std::make_shared<thread>(
+        std::bind(&JobMaker::runThreadKafkaConsume, this, consumerhandler)));
   }
 
   // wait consumer threads exit
@@ -200,29 +209,28 @@ void JobMaker::run() {
   }
 }
 
-
-JobMakerConsumerHandler JobMakerHandler::createConsumerHandler(const string &kafkaBrokers, const string &topic, int64_t offset
-    , vector<pair<string, string>> consumerOptions, JobMakerMessageProcessor messageProcessor)
-{
+JobMakerConsumerHandler JobMakerHandler::createConsumerHandler(
+    const string &kafkaBrokers,
+    const string &topic,
+    int64_t offset,
+    vector<pair<string, string>> consumerOptions,
+    JobMakerMessageProcessor messageProcessor) {
   std::map<string, string> usedConsumerOptions;
   //  default
   usedConsumerOptions["fetch.wait.max.ms"] = "5";
   //  passed settings
-  for(auto& option : consumerOptions)
-  {
+  for (auto &option : consumerOptions) {
     usedConsumerOptions[option.first] = option.second;
   }
 
   JobMakerConsumerHandler result;
-  auto consumer = std::make_shared<KafkaConsumer>(kafkaBrokers.c_str(), topic.c_str(), 0);
+  auto consumer =
+      std::make_shared<KafkaConsumer>(kafkaBrokers.c_str(), topic.c_str(), 0);
   if (!consumer->setup(RD_KAFKA_OFFSET_TAIL(offset), &usedConsumerOptions)) {
     LOG(ERROR) << "kafka consumer " << topic << " setup failure";
-  }
-  else if (!consumer->checkAlive()) {
+  } else if (!consumer->checkAlive()) {
     LOG(FATAL) << "kafka consumer " << topic << " is NOT alive";
-  }
-  else
-  {
+  } else {
     result.kafkaConsumer_ = consumer;
     result.messageProcessor_ = messageProcessor;
   }
@@ -230,9 +238,9 @@ JobMakerConsumerHandler JobMakerHandler::createConsumerHandler(const string &kaf
   return result;
 }
 
-uint64_t JobMakerHandler::generateJobId(uint32_t hash) const
-{
-  return (static_cast<uint64_t>(time(nullptr)) << 32) | (hash & 0xFFFFFF00) | (def_->serverId_ & 0xFF);
+uint64_t JobMakerHandler::generateJobId(uint32_t hash) const {
+  return (static_cast<uint64_t>(time(nullptr)) << 32) | (hash & 0xFFFFFF00) |
+      (def_->serverId_ & 0xFF);
 }
 
 void JobMakerHandler::setServerId(uint8_t id) {
@@ -240,14 +248,16 @@ void JobMakerHandler::setServerId(uint8_t id) {
 }
 
 ////////////////////////////////GwJobMakerHandler//////////////////////////////////
-bool GwJobMakerHandler::initConsumerHandlers(const string &kafkaBrokers, vector<JobMakerConsumerHandler> &handlers)
-{
+bool GwJobMakerHandler::initConsumerHandlers(
+    const string &kafkaBrokers, vector<JobMakerConsumerHandler> &handlers) {
   {
-    auto messageProcessor = std::bind(&GwJobMakerHandler::processMsg, this, std::placeholders::_1);
-    auto handler = createConsumerHandler(kafkaBrokers, def()->rawGwTopic_, 1, {}, messageProcessor);
-    if(handler.kafkaConsumer_ == nullptr)
+    auto messageProcessor =
+        std::bind(&GwJobMakerHandler::processMsg, this, std::placeholders::_1);
+    auto handler = createConsumerHandler(
+        kafkaBrokers, def()->rawGwTopic_, 1, {}, messageProcessor);
+    if (handler.kafkaConsumer_ == nullptr)
       return false;
     handlers.push_back(handler);
   }
-  return true;  
+  return true;
 }

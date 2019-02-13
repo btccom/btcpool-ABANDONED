@@ -29,29 +29,32 @@
 class StratumSessionBeam : public StratumSessionBase<StratumTraitsBeam> {
 public:
   StratumSessionBeam(
-    ServerBeam &server,
-    struct bufferevent *bev,
-    struct sockaddr *saddr,
-    uint32_t sessionId
-  );
+      ServerBeam &server,
+      struct bufferevent *bev,
+      struct sockaddr *saddr,
+      uint32_t sessionId);
   void sendSetDifficulty(LocalJob &localJob, uint64_t difficulty) override;
-  void sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) override;
+  void
+  sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) override;
 
 protected:
-  bool validate(const JsonNode &jmethod, const JsonNode &jparams, const JsonNode &jroot) override;
-  void handleRequest(const std::string &idStr, const std::string &method,
-                     const JsonNode &jparams, const JsonNode &jroot) override;
+  bool validate(
+      const JsonNode &jmethod,
+      const JsonNode &jparams,
+      const JsonNode &jroot) override;
+  void handleRequest(
+      const std::string &idStr,
+      const std::string &method,
+      const JsonNode &jparams,
+      const JsonNode &jroot) override;
   void handleRequest_Authorize(
-    const std::string &idStr,
-    const JsonNode &jparams,
-    const JsonNode &jroot
-  );
+      const std::string &idStr, const JsonNode &jparams, const JsonNode &jroot);
+
 public:
   std::unique_ptr<StratumMiner> createMiner(
-    const std::string &clientAgent,
-    const std::string &workerName,
-    int64_t workerId
-  ) override;
+      const std::string &clientAgent,
+      const std::string &workerName,
+      int64_t workerId) override;
 
   void responseError(const string &idStr, int code) override;
   void responseTrue(const string &idStr) override;

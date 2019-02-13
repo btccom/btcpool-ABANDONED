@@ -30,28 +30,28 @@
 ClientContainerBeam::ClientContainerBeam(const libconfig::Config &config)
   : ClientContainer(config)
   , poolDB_(
-      config.lookup("pooldb.host").c_str(),
-      (int)config.lookup("pooldb.port"),
-      config.lookup("pooldb.username").c_str(),
-      config.lookup("pooldb.password").c_str(),
-      config.lookup("pooldb.dbname").c_str()
-    )
-  , kafkaSolvedShareConsumer_(kafkaBrokers_.c_str(), config.lookup("poolwatcher.solved_share_topic").c_str(), 0/*patition*/)
-{
+        config.lookup("pooldb.host").c_str(),
+        (int)config.lookup("pooldb.port"),
+        config.lookup("pooldb.username").c_str(),
+        config.lookup("pooldb.password").c_str(),
+        config.lookup("pooldb.dbname").c_str())
+  , kafkaSolvedShareConsumer_(
+        kafkaBrokers_.c_str(),
+        config.lookup("poolwatcher.solved_share_topic").c_str(),
+        0 /*patition*/) {
 }
 
-ClientContainerBeam::~ClientContainerBeam() 
-{
+ClientContainerBeam::~ClientContainerBeam() {
 }
 
 bool ClientContainerBeam::initInternal() {
   // we need to consume the latest few
   const int32_t kConsumeLatestN = 5;
-  
+
   map<string, string> consumerOptions;
   consumerOptions["fetch.wait.max.ms"] = "10";
-  if (kafkaSolvedShareConsumer_.setup(RD_KAFKA_OFFSET_TAIL(kConsumeLatestN),
-      &consumerOptions) == false) {
+  if (kafkaSolvedShareConsumer_.setup(
+          RD_KAFKA_OFFSET_TAIL(kConsumeLatestN), &consumerOptions) == false) {
     LOG(INFO) << "setup kafkaSolvedShareConsumer_ fail";
     return false;
   }
@@ -61,7 +61,8 @@ bool ClientContainerBeam::initInternal() {
     return false;
   }
 
-  threadSolvedShareConsume_ = thread(&ClientContainerBeam::runThreadSolvedShareConsume, this);
+  threadSolvedShareConsume_ =
+      thread(&ClientContainerBeam::runThreadSolvedShareConsume, this);
   return true;
 }
 
@@ -78,7 +79,7 @@ void ClientContainerBeam::runThreadSolvedShareConsume() {
   }
 
   LOG(INFO) << "start solved share consume thread";
-  
+
   const int32_t kTimeoutMs = 1000;
 
   while (running_) {
@@ -106,17 +107,19 @@ void ClientContainerBeam::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
     if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
       // Reached the end of the topic+partition queue on the broker.
       // Not really an error.
-      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
+      //      LOG(INFO) << "consumer reached end of " <<
+      //      rd_kafka_topic_name(rkmessage->rkt)
       //      << "[" << rkmessage->partition << "] "
       //      << " message queue at offset " << rkmessage->offset;
       // acturlly
       return;
     }
-  
-    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
-    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
-    << ": " << rd_kafka_message_errstr(rkmessage);
-  
+
+    LOG(ERROR) << "consume error for topic "
+               << rd_kafka_topic_name(rkmessage->rkt) << "["
+               << rkmessage->partition << "] offset " << rkmessage->offset
+               << ": " << rd_kafka_message_errstr(rkmessage);
+
     if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
         rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
       LOG(FATAL) << "consume fatal";
@@ -124,38 +127,34 @@ void ClientContainerBeam::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
     return;
   }
 
-  string json((const char*)rkmessage->payload, rkmessage->len);
+  string json((const char *)rkmessage->payload, rkmessage->len);
   JsonNode jroot;
-  if (!JsonNode::parse(json.c_str(), json.c_str()+json.size(), jroot)) {
+  if (!JsonNode::parse(json.c_str(), json.c_str() + json.size(), jroot)) {
     LOG(ERROR) << "cannot parse solved share json: " << json;
     return;
   }
 
   if (jroot["input"].type() != Utilities::JS::type::Str ||
       jroot["output"].type() != Utilities::JS::type::Str ||
-      jroot["nonce"].type() != Utilities::JS::type::Str)
-  {
+      jroot["nonce"].type() != Utilities::JS::type::Str) {
     LOG(ERROR) << "solved share json missing fields: " << json;
     return;
   }
 
-  string   nonce          = jroot["nonce"].str();
-  string   input          = jroot["input"].str();
-  string   output         = jroot["output"].str();
-  uint32_t height         = jroot["height"].uint32();
-  string   blockBits      = jroot["blockBits"].str();
-  uint32_t userId         = jroot["userId"].uint32();
-  int64_t  workerId       = jroot["workerId"].int64();
-  string   workerFullName = jroot["workerFullName"].str();
-  string   blockHash      = jroot["blockHash"].str();
+  string nonce = jroot["nonce"].str();
+  string input = jroot["input"].str();
+  string output = jroot["output"].str();
+  uint32_t height = jroot["height"].uint32();
+  string blockBits = jroot["blockBits"].str();
+  uint32_t userId = jroot["userId"].uint32();
+  int64_t workerId = jroot["workerId"].int64();
+  string workerFullName = jroot["workerFullName"].str();
+  string blockHash = jroot["blockHash"].str();
 
   LOG(INFO) << "received a new solved share, worker: " << workerFullName
-            << ", height: " << height
-            << ", blockHash: " << blockHash
-            << ", blockBits: " << blockBits
-            << ", input: " << input
-            << ", nonce: " << nonce
-            << ", output: " << output;
+            << ", height: " << height << ", blockHash: " << blockHash
+            << ", blockBits: " << blockBits << ", input: " << input
+            << ", nonce: " << nonce << ", output: " << output;
 
   std::lock_guard<std::mutex> lock(jobCacheLock_);
   auto itr = jobCacheMap_.find(input);
@@ -167,21 +166,22 @@ void ClientContainerBeam::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
 
   const JobCache &job = itr->second;
   string submitJson = Strings::Format(
-    "{"
+      "{"
       "\"jsonrpc\":\"2.0\","
       "\"id\":\"%s\","
       "\"method\":\"solution\","
       "\"nonce\":\"%s\","
       "\"output\":\"%s\""
-    "}\n",
-    job.jobId_.c_str(),
-    nonce.c_str(),
-    output.c_str()
-  );
+      "}\n",
+      job.jobId_.c_str(),
+      nonce.c_str(),
+      output.c_str());
 
-  auto client = std::dynamic_pointer_cast<PoolWatchClientBeam>(clients_[job.clientId_]);
+  auto client =
+      std::dynamic_pointer_cast<PoolWatchClientBeam>(clients_[job.clientId_]);
   if (!client) {
-    LOG(ERROR) << "client " << job.clientId_ << " is not available for the solved share: " << json;
+    LOG(ERROR) << "client " << job.clientId_
+               << " is not available for the solved share: " << json;
     return;
   }
 
@@ -190,27 +190,31 @@ void ClientContainerBeam::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
   // save block to DB
   const string nowStr = date("%F %T");
   string sql = Strings::Format(
-    "INSERT INTO `found_blocks`("
-    "  `puid`, `worker_id`"
-    ", `worker_full_name`"
-    ", `height`, `hash`"
-    ", `input`, `nonce`"
-    ", `rewards`, `block_bits`"
-    ", `created_at`) "
-    "VALUES("
-    "  %ld, %" PRId64
-    ", '%s'"
-    ", %lu, '%s'"
-    ", '%s', '%s'"
-    ", %" PRId64 ", '%s'"
-    ", '%s');",
-    userId, workerId,
-    filterWorkerName(workerFullName).c_str(),
-    height, blockHash.c_str(),
-    input.c_str(), nonce.c_str(),
-    (int64_t)Beam_GetStaticBlockReward(height), blockBits.c_str(),
-    nowStr.c_str()
-  );
+      "INSERT INTO `found_blocks`("
+      "  `puid`, `worker_id`"
+      ", `worker_full_name`"
+      ", `height`, `hash`"
+      ", `input`, `nonce`"
+      ", `rewards`, `block_bits`"
+      ", `created_at`) "
+      "VALUES("
+      "  %ld, %" PRId64
+      ", '%s'"
+      ", %lu, '%s'"
+      ", '%s', '%s'"
+      ", %" PRId64
+      ", '%s'"
+      ", '%s');",
+      userId,
+      workerId,
+      filterWorkerName(workerFullName).c_str(),
+      height,
+      blockHash.c_str(),
+      input.c_str(),
+      nonce.c_str(),
+      (int64_t)Beam_GetStaticBlockReward(height),
+      blockBits.c_str(),
+      nowStr.c_str());
   MysqlConnectInfo info = client->GetContainerBeam()->getMysqlInfo();
   std::thread t([sql, info, blockHash]() {
     // try connect to DB
@@ -232,11 +236,15 @@ void ClientContainerBeam::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
   t.detach();
 }
 
-PoolWatchClient* ClientContainerBeam::createPoolWatchClient(const libconfig::Setting &config) {
+PoolWatchClient *
+ClientContainerBeam::createPoolWatchClient(const libconfig::Setting &config) {
   return new PoolWatchClientBeam(base_, this, config);
 }
 
-bool ClientContainerBeam::sendJobToKafka(const string jobId, const StratumJobBeam &job, PoolWatchClientBeam *client) {
+bool ClientContainerBeam::sendJobToKafka(
+    const string jobId,
+    const StratumJobBeam &job,
+    PoolWatchClientBeam *client) {
   // find job's client id
   size_t clientId;
   for (clientId = 0; clientId < clients_.size(); clientId++) {
@@ -245,7 +253,8 @@ bool ClientContainerBeam::sendJobToKafka(const string jobId, const StratumJobBea
     }
   }
   if (clientId >= clients_.size()) {
-    LOG(ERROR) << "discard a job that its client has been destroyed: " << job.serializeToJson();
+    LOG(ERROR) << "discard a job that its client has been destroyed: "
+               << job.serializeToJson();
     return false;
   }
 
@@ -275,28 +284,24 @@ bool ClientContainerBeam::sendJobToKafka(const string jobId, const StratumJobBea
 
 ///////////////////////////////// PoolWatchClient //////////////////////////////
 PoolWatchClientBeam::PoolWatchClientBeam(
-  struct event_base *base,
-  ClientContainerBeam *container,
-  const libconfig::Setting &config
-)
-  : PoolWatchClient(base, container, config)
-{
+    struct event_base *base,
+    ClientContainerBeam *container,
+    const libconfig::Setting &config)
+  : PoolWatchClient(base, container, config) {
 }
 
-PoolWatchClientBeam::~PoolWatchClientBeam() 
-{
+PoolWatchClientBeam::~PoolWatchClientBeam() {
 }
 
 void PoolWatchClientBeam::onConnected() {
   string s = Strings::Format(
-    "{"
+      "{"
       "\"id\":\"login\","
       "\"jsonrpc\":\"2.0\","
       "\"method\":\"login\","
       "\"api_key\":\"%s\""
-    "}\n",
-    workerName_.c_str()
-  );
+      "}\n",
+      workerName_.c_str());
   sendData(s);
   state_ = SUBSCRIBED;
 }
@@ -305,7 +310,8 @@ void PoolWatchClientBeam::submitShare(string submitJson) {
   {
     std::lock_guard<std::mutex> lock(wantSubmittedSharesLock_);
     if (state_ != AUTHENTICATED) {
-      LOG(INFO) << "<" << poolName_ << "> client is not ready, submission will be delayed";
+      LOG(INFO) << "<" << poolName_
+                << "> client is not ready, submission will be delayed";
       wantSubmittedShares_ += submitJson;
       return;
     }
@@ -316,7 +322,8 @@ void PoolWatchClientBeam::submitShare(string submitJson) {
 }
 
 void PoolWatchClientBeam::handleStratumMessage(const string &line) {
-  DLOG(INFO) << "<" << poolName_ << "> UpPoolWatchClient recv(" << line.size() << "): " << line;
+  DLOG(INFO) << "<" << poolName_ << "> UpPoolWatchClient recv(" << line.size()
+             << "): " << line;
 
   auto containerBeam = GetContainerBeam();
 
@@ -325,17 +332,17 @@ void PoolWatchClientBeam::handleStratumMessage(const string &line) {
     LOG(ERROR) << "decode line fail, not a json string";
     return;
   }
-  JsonNode jid     = jnode["id"];
+  JsonNode jid = jnode["id"];
   JsonNode jmethod = jnode["method"];
-  
+
   if (state_ == SUBSCRIBED) {
-    if (jid.type() == Utilities::JS::type::Str &&
-        jid.str() == "login" &&
+    if (jid.type() == Utilities::JS::type::Str && jid.str() == "login" &&
         jnode["code"].type() == Utilities::JS::type::Int &&
         jnode["code"].int64() != 0) {
       // authorize failed
-      LOG(ERROR) << "<" << poolName_ << "> auth failed, name: \"" << workerName_ << "\", "
-                << "response: " << line;
+      LOG(ERROR) << "<" << poolName_ << "> auth failed, name: \"" << workerName_
+                 << "\", "
+                 << "response: " << line;
       // close connection
       bufferevent_free(bev_);
       return;
@@ -346,20 +353,25 @@ void PoolWatchClientBeam::handleStratumMessage(const string &line) {
     if (jmethod.str() == "job") {
       if (state_ == SUBSCRIBED) {
         std::lock_guard<std::mutex> lock(wantSubmittedSharesLock_);
-        
-        // The beam node will not send a success response for the authentication request,
-        // so the first job notify is used as a sign of successful authentication.
+
+        // The beam node will not send a success response for the authentication
+        // request, so the first job notify is used as a sign of successful
+        // authentication.
         state_ = AUTHENTICATED;
-        
+
         if (!wantSubmittedShares_.empty()) {
           sendData(wantSubmittedShares_);
-          LOG(INFO) << "<" << poolName_ << "> submit delayed solution: " << wantSubmittedShares_;
+          LOG(INFO) << "<" << poolName_
+                    << "> submit delayed solution: " << wantSubmittedShares_;
           wantSubmittedShares_.clear();
         }
       }
 
       StratumJobBeam sjob;
-      if (!sjob.initFromRawJob(line, Strings::Format("%s:%u", poolHost_.c_str(), poolPort_), workerName_)) {
+      if (!sjob.initFromRawJob(
+              line,
+              Strings::Format("%s:%u", poolHost_.c_str(), poolPort_),
+              workerName_)) {
         LOG(ERROR) << "<" << poolName_ << "> init stratum job failed, "
                    << "raw job: " << line;
       }

@@ -28,11 +28,11 @@
 #include <netinet/in.h>
 #include <string>
 
-
-///////////////////////////////////// IPv4/IPv6 compatible address structure ////////////////////////////////////
+///////////////////////////////////// IPv4/IPv6 compatible address structure
+///////////////////////////////////////
 union IpAddress {
   // all datas are big endian
-  uint8_t  addrUint8[16];
+  uint8_t addrUint8[16];
   uint16_t addrUint16[8];
   uint32_t addrUint32[4];
   uint64_t addrUint64[2];
@@ -65,8 +65,7 @@ union IpAddress {
       addrUint32[1] = 0;
       addrUint32[2] = 0;
       return inet_pton(AF_INET, ipStr.c_str(), (void *)&addrIpv4[3]);
-    }
-    else {
+    } else {
       return inet_pton(AF_INET, ipStr.c_str(), (void *)&addrIpv6);
     }
   }
@@ -75,11 +74,10 @@ union IpAddress {
     const char *pStr;
 
     if (isIpv4()) {
-      char str[INET_ADDRSTRLEN];  
+      char str[INET_ADDRSTRLEN];
       pStr = inet_ntop(AF_INET, (void *)&(addrIpv4[3]), str, sizeof(str));
-    }
-    else {
-      char str[INET6_ADDRSTRLEN];  
+    } else {
+      char str[INET6_ADDRSTRLEN];
       pStr = inet_ntop(AF_INET6, &addrIpv6, str, sizeof(str));
     }
 
@@ -93,9 +91,7 @@ union IpAddress {
     addrIpv4[3] = inAddr;
   }
 
-  void fromInAddr(const struct in6_addr &inAddr) {
-    addrIpv6 = inAddr;
-  }
+  void fromInAddr(const struct in6_addr &inAddr) { addrIpv6 = inAddr; }
 
   void fromIpv4Int(const uint32_t ipv4Int) {
     addrUint32[0] = 0;
@@ -104,9 +100,7 @@ union IpAddress {
     addrUint32[3] = ipv4Int;
   }
 
-  uint32_t toIpv4Int() const {
-    return addrUint32[3];
-  }
+  uint32_t toIpv4Int() const { return addrUint32[3]; }
 
   bool isIpv4() const {
     if (addrUint32[0] == 0 && addrUint32[1] == 0) {
@@ -133,6 +127,7 @@ union IpAddress {
 };
 
 // IpAddress should be 16 bytes
-static_assert(sizeof(IpAddress) == 16, "union IpAddress should not large than 16 bytes");
+static_assert(
+    sizeof(IpAddress) == 16, "union IpAddress should not large than 16 bytes");
 
 #endif // BPOOL_NETWORK_H_

@@ -32,26 +32,26 @@ using namespace std;
 
 ///////////////////////////////////JobRepositoryBytom///////////////////////////////////
 
-shared_ptr<StratumJobEx> JobRepositoryBytom::createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean)
-{
+shared_ptr<StratumJobEx> JobRepositoryBytom::createStratumJobEx(
+    shared_ptr<StratumJob> sjob, bool isClean) {
   return std::make_shared<StratumJobEx>(chainId_, sjob, isClean);
 }
 
-void JobRepositoryBytom::broadcastStratumJob(shared_ptr<StratumJob> sjobBase)
-{
+void JobRepositoryBytom::broadcastStratumJob(shared_ptr<StratumJob> sjobBase) {
   auto sjob = std::static_pointer_cast<StratumJobBytom>(sjobBase);
-  if(!sjob)
-  {
-    LOG(FATAL) << "JobRepositoryBytom::broadcastStratumJob error: cast StratumJobBytom failed";
+  if (!sjob) {
+    LOG(FATAL) << "JobRepositoryBytom::broadcastStratumJob error: cast "
+                  "StratumJobBytom failed";
     return;
   }
   bool isClean = false;
   if (latestPreviousBlockHash_ != sjob->blockHeader_.previousBlockHash) {
     isClean = true;
     latestPreviousBlockHash_ = sjob->blockHeader_.previousBlockHash;
-    LOG(INFO) << "received new height stratum job, height: " << sjob->blockHeader_.height
+    LOG(INFO) << "received new height stratum job, height: "
+              << sjob->blockHeader_.height
               << ", prevhash: " << sjob->blockHeader_.previousBlockHash.c_str();
-  }  
+  }
   shared_ptr<StratumJobEx> exJob(createStratumJobEx(sjob, isClean));
   {
     ScopeLock sl(lock_);
@@ -71,33 +71,39 @@ void JobRepositoryBytom::broadcastStratumJob(shared_ptr<StratumJob> sjobBase)
   }
 }
 
-
 ///////////////////////////////ServerBytom///////////////////////////////
 JobRepository *ServerBytom::createJobRepository(
-  size_t chainId,
-  const char *kafkaBrokers,
-  const char *consumerTopic,
-  const string &fileLastNotifyTime
-) {
-  return new JobRepositoryBytom(chainId, this, kafkaBrokers, consumerTopic, fileLastNotifyTime);
+    size_t chainId,
+    const char *kafkaBrokers,
+    const char *consumerTopic,
+    const string &fileLastNotifyTime) {
+  return new JobRepositoryBytom(
+      chainId, this, kafkaBrokers, consumerTopic, fileLastNotifyTime);
 }
 
-unique_ptr<StratumSession> ServerBytom::createConnection(struct bufferevent *bev, struct sockaddr *saddr, const uint32_t sessionID)
-{
+unique_ptr<StratumSession> ServerBytom::createConnection(
+    struct bufferevent *bev, struct sockaddr *saddr, const uint32_t sessionID) {
   return boost::make_unique<StratumSessionBytom>(*this, bev, saddr, sessionID);
 }
 
 void ServerBytom::sendSolvedShare2Kafka(
-  size_t chainId,
-  uint64_t nonce, const string &strHeader,
-  uint64_t height, uint64_t networkDiff,
-  const StratumWorker &worker)
-{
-  string msg = Strings::Format("{\"nonce\":%lu,\"header\":\"%s\","
-                               "\"height\":%lu,\"networkDiff\":%" PRIu64 ",\"userId\":%ld,"
-                               "\"workerId\":%" PRId64 ",\"workerFullName\":\"%s\"}",
-                               nonce, strHeader.c_str(),
-                               height, networkDiff, worker.userId(chainId),
-                               worker.workerHashId_, filterWorkerName(worker.fullName_).c_str());
+    size_t chainId,
+    uint64_t nonce,
+    const string &strHeader,
+    uint64_t height,
+    uint64_t networkDiff,
+    const StratumWorker &worker) {
+  string msg = Strings::Format(
+      "{\"nonce\":%lu,\"header\":\"%s\","
+      "\"height\":%lu,\"networkDiff\":%" PRIu64
+      ",\"userId\":%ld,"
+      "\"workerId\":%" PRId64 ",\"workerFullName\":\"%s\"}",
+      nonce,
+      strHeader.c_str(),
+      height,
+      networkDiff,
+      worker.userId(chainId),
+      worker.workerHashId_,
+      filterWorkerName(worker.fullName_).c_str());
   ServerBase::sendSolvedShare2Kafka(chainId, msg.c_str(), msg.length());
 }

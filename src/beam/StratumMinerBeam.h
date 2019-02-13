@@ -28,16 +28,18 @@
 
 class StratumMinerBeam : public StratumMinerBase<StratumTraitsBeam> {
 public:
-  StratumMinerBeam(StratumSessionBeam &session,
-                  const DiffController &diffController,
-                  const std::string &clientAgent,
-                  const std::string &workerName,
-                  int64_t workerId);
+  StratumMinerBeam(
+      StratumSessionBeam &session,
+      const DiffController &diffController,
+      const std::string &clientAgent,
+      const std::string &workerName,
+      int64_t workerId);
 
-  void handleRequest(const std::string &idStr,
-                     const std::string &method,
-                     const JsonNode &jparams,
-                     const JsonNode &jroot) override;
+  void handleRequest(
+      const std::string &idStr,
+      const std::string &method,
+      const JsonNode &jparams,
+      const JsonNode &jroot) override;
 
 private:
   void handleRequest_Submit(const string &idStr, const JsonNode &jroot);

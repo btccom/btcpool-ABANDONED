@@ -24,11 +24,9 @@
 #ifndef JOB_MAKER_ETH_H_
 #define JOB_MAKER_ETH_H_
 
-
 #include "JobMaker.h"
 #include "EthConsensus.h"
 #include "rsk/RskWork.h"
-
 
 struct JobMakerDefinitionEth : public GwJobMakerDefinition {
   virtual ~JobMakerDefinitionEth() {}
@@ -36,23 +34,25 @@ struct JobMakerDefinitionEth : public GwJobMakerDefinition {
   EthConsensus::Chain chain_;
 };
 
-
-class JobMakerHandlerEth : public GwJobMakerHandler
-{
+class JobMakerHandlerEth : public GwJobMakerHandler {
 public:
   virtual ~JobMakerHandlerEth() {}
   bool processMsg(const string &msg) override;
   string makeStratumJobMsg() override;
 
   // read-only definition
-  inline shared_ptr<const JobMakerDefinitionEth> def() { return std::dynamic_pointer_cast<const JobMakerDefinitionEth>(def_); }
+  inline shared_ptr<const JobMakerDefinitionEth> def() {
+    return std::dynamic_pointer_cast<const JobMakerDefinitionEth>(def_);
+  }
 
 private:
   void clearTimeoutMsg();
   inline uint64_t makeWorkKey(const RskWorkEth &work);
 
-  std::map<uint64_t/* @see makeWorkKey() */, shared_ptr<RskWorkEth>> workMap_;  // sorting works by height + uncles + gasUsedPercent + hash
-  shared_ptr<RskWorkEth> workOfLastJob_; // for quickly updating jobs that with low gas used and low uncles
+  std::map<uint64_t /* @see makeWorkKey() */, shared_ptr<RskWorkEth>>
+      workMap_; // sorting works by height + uncles + gasUsedPercent + hash
+  shared_ptr<RskWorkEth> workOfLastJob_; // for quickly updating jobs that with
+                                         // low gas used and low uncles
   uint32_t lastReceivedHeight_ = 0; // used for rejecting low height works
 };
 

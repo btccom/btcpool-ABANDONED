@@ -26,19 +26,23 @@
 #include <set>
 #include <iostream>
 
-///////////////////////////////  ShareLogDumperT  ///////////////////////////////
+///////////////////////////////  ShareLogDumperT ///////////////////////////////
 template <class SHARE>
-ShareLogDumperT<SHARE>::ShareLogDumperT(const char *chainType, const string &dataDir,
-                               time_t timestamp, const std::set<int32_t> &uids)
-: uids_(uids), isDumpAll_(false)
-{
+ShareLogDumperT<SHARE>::ShareLogDumperT(
+    const char *chainType,
+    const string &dataDir,
+    time_t timestamp,
+    const std::set<int32_t> &uids)
+  : uids_(uids)
+  , isDumpAll_(false) {
   filePath_ = getStatsFilePath(chainType, dataDir, timestamp);
 
   if (uids_.empty())
     isDumpAll_ = true;
 }
 
-template <class SHARE>ShareLogDumperT<SHARE>::~ShareLogDumperT() {
+template <class SHARE>
+ShareLogDumperT<SHARE>::~ShareLogDumperT() {
 }
 
 template <class SHARE>
@@ -59,16 +63,20 @@ void ShareLogDumperT<SHARE>::dump2stdout() {
     uint32_t incompleteShareSize = 0;
     while (f.peek() != EOF) {
 
-      f.read((char *)buf.data() + incompleteShareSize, buf.size() - incompleteShareSize);
+      f.read(
+          (char *)buf.data() + incompleteShareSize,
+          buf.size() - incompleteShareSize);
       uint32_t readNum = f.gcount() + incompleteShareSize;
 
       uint32_t currentpos = 0;
       while (currentpos + sizeof(uint32_t) < readNum) {
-        uint32_t sharelength = *(uint32_t*)(buf.data() + currentpos);
+        uint32_t sharelength = *(uint32_t *)(buf.data() + currentpos);
 
-        if (readNum >=  currentpos + sizeof(uint32_t) + sharelength) {
+        if (readNum >= currentpos + sizeof(uint32_t) + sharelength) {
 
-          parseShareLog((const uint8_t *)(buf.data() + currentpos + sizeof(uint32_t)), sharelength);
+          parseShareLog(
+              (const uint8_t *)(buf.data() + currentpos + sizeof(uint32_t)),
+              sharelength);
           currentpos = currentpos + sizeof(uint32_t) + sharelength;
         } else {
           DLOG(INFO) << "not read enough length " << sharelength << std::endl;
@@ -77,11 +85,15 @@ void ShareLogDumperT<SHARE>::dump2stdout() {
       }
       incompleteShareSize = readNum - currentpos;
       if (incompleteShareSize > 0) {
-          DLOG(INFO) << "incomplete share size: " << incompleteShareSize << std::endl;
-          memcpy((char *)buf.data(), (char *)buf.data() + currentpos, incompleteShareSize);
-        }
+        DLOG(INFO) << "incomplete share size: " << incompleteShareSize
+                   << std::endl;
+        memcpy(
+            (char *)buf.data(),
+            (char *)buf.data() + currentpos,
+            incompleteShareSize);
+      }
     }
-  
+
   } catch (...) {
     LOG(ERROR) << "open file fail: " << filePath_;
   }
@@ -110,15 +122,21 @@ void ShareLogDumperT<SHARE>::parseShare(const SHARE *share) {
   }
 }
 
-///////////////////////////////  ShareLogParserT  ///////////////////////////////
+///////////////////////////////  ShareLogParserT ///////////////////////////////
 template <class SHARE>
-ShareLogParserT<SHARE>::ShareLogParserT(const char *chainType, const string &dataDir,
-                               time_t timestamp, const MysqlConnectInfo &poolDBInfo,
-                               shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker)
-: date_(timestamp), chainType_(chainType), f_(nullptr), buf_(nullptr)
-, incompleteShareSize_(0), poolDB_(poolDBInfo)
-, dupShareChecker_(dupShareChecker)
-{
+ShareLogParserT<SHARE>::ShareLogParserT(
+    const char *chainType,
+    const string &dataDir,
+    time_t timestamp,
+    const MysqlConnectInfo &poolDBInfo,
+    shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker)
+  : date_(timestamp)
+  , chainType_(chainType)
+  , f_(nullptr)
+  , buf_(nullptr)
+  , incompleteShareSize_(0)
+  , poolDB_(poolDBInfo)
+  , dupShareChecker_(dupShareChecker) {
   pthread_rwlock_init(&rwlock_, nullptr);
 
   {
@@ -159,7 +177,7 @@ template <class SHARE>
 void ShareLogParserT<SHARE>::parseShareLog(const uint8_t *buf, size_t len) {
   SHARE share;
   if (!share.ParseFromArray(buf, len)) {
-    LOG(INFO) << "parse share from base message failed! " ;
+    LOG(INFO) << "parse share from base message failed! ";
     return;
   }
   parseShare(share);
@@ -217,17 +235,21 @@ bool ShareLogParserT<SHARE>::processUnchangedShareLog() {
     uint32_t incompleteShareSize = 0;
     while (f.peek() != EOF) {
 
-      f.read((char *)buf.data()+ incompleteShareSize, buf.size() - incompleteShareSize);
+      f.read(
+          (char *)buf.data() + incompleteShareSize,
+          buf.size() - incompleteShareSize);
       uint32_t readNum = f.gcount() + incompleteShareSize;
 
       uint32_t currentpos = 0;
       while (currentpos + sizeof(uint32_t) < readNum) {
-        uint32_t sharelength = *(uint32_t*)(buf.data()+ currentpos);//get shareLength
+        uint32_t sharelength =
+            *(uint32_t *)(buf.data() + currentpos); // get shareLength
         DLOG(INFO) << "sharelength = " << sharelength << std::endl;
-        if (readNum >=  currentpos + sizeof(uint32_t) + sharelength) {
+        if (readNum >= currentpos + sizeof(uint32_t) + sharelength) {
 
-          parseShareLog((const uint8_t *)(buf.data() +
-                        currentpos + sizeof(uint32_t)), sharelength);
+          parseShareLog(
+              (const uint8_t *)(buf.data() + currentpos + sizeof(uint32_t)),
+              sharelength);
 
           currentpos = currentpos + sizeof(uint32_t) + sharelength;
         } else {
@@ -237,8 +259,12 @@ bool ShareLogParserT<SHARE>::processUnchangedShareLog() {
       }
       incompleteShareSize = readNum - currentpos;
       if (incompleteShareSize > 0) {
-        LOG(INFO) << "incompleteShareSize_ " << incompleteShareSize << std::endl;
-        memcpy((char *)buf.data(), (char *)buf.data() + currentpos, incompleteShareSize);
+        LOG(INFO) << "incompleteShareSize_ " << incompleteShareSize
+                  << std::endl;
+        memcpy(
+            (char *)buf.data(),
+            (char *)buf.data() + currentpos,
+            incompleteShareSize);
       }
     }
     return true;
@@ -250,30 +276,26 @@ bool ShareLogParserT<SHARE>::processUnchangedShareLog() {
 
 template <class SHARE>
 int64_t ShareLogParserT<SHARE>::processGrowingShareLog() {
-  if(f_ == nullptr)
-  {
+  if (f_ == nullptr) {
     bool fileOpened = true;
-    try
-    {
+    try {
       f_ = new zstr::ifstream(filePath_, std::ios::binary);
       if (f_ == nullptr) {
         LOG(WARNING) << "open file fail. Filename: " << filePath_;
         fileOpened = false;
       }
-    }
-    catch(...)
-    {
-      //  just log warning instead of error because it's a usual scenario the file not exist and it throw an exception
+    } catch (...) {
+      //  just log warning instead of error because it's a usual scenario the
+      //  file not exist and it throw an exception
       LOG(WARNING) << "open file fail with exception. Filename: " << filePath_;
       fileOpened = false;
     }
 
-    if(!fileOpened)
-    {
+    if (!fileOpened) {
       delete f_;
       f_ = nullptr;
 
-      return -1;      
+      return -1;
     }
   }
 
@@ -298,9 +320,12 @@ int64_t ShareLogParserT<SHARE>::processGrowingShareLog() {
     // Now zlib/gzip file stream is used.
     //
 
-    // If an incomplete share was found at last read, only reading the rest part of it.
+    // If an incomplete share was found at last read, only reading the rest part
+    // of it.
 
-    f_->read((char *)buf_ + incompleteShareSize_, bufferlength_ - incompleteShareSize_);
+    f_->read(
+        (char *)buf_ + incompleteShareSize_,
+        bufferlength_ - incompleteShareSize_);
 
     if (f_->gcount() == 0) {
       return 0;
@@ -310,12 +335,13 @@ int64_t ShareLogParserT<SHARE>::processGrowingShareLog() {
     uint32_t currentpos = 0, parsedsharenum = 0;
     while (currentpos + sizeof(uint32_t) < readNum) {
 
-      uint32_t sharelength = *(uint32_t*)(buf_ + currentpos);//get shareLength
-      if (readNum >=  currentpos + sizeof(uint32_t) + sharelength) {
+      uint32_t sharelength = *(uint32_t *)(buf_ + currentpos); // get
+                                                               // shareLength
+      if (readNum >= currentpos + sizeof(uint32_t) + sharelength) {
 
         parseShareLog(buf_ + currentpos + sizeof(uint32_t), sharelength);
         currentpos = currentpos + sizeof(uint32_t) + sharelength;
-        parsedsharenum ++;
+        parsedsharenum++;
       } else {
         break;
       }
@@ -330,7 +356,7 @@ int64_t ShareLogParserT<SHARE>::processGrowingShareLog() {
     DLOG(INFO) << "processGrowingShareLog share count: " << parsedsharenum;
     return parsedsharenum;
 
-  } catch (...) {  
+  } catch (...) {
     LOG(ERROR) << "reading file fail with exception: " << filePath_;
     return -1;
   }
@@ -347,20 +373,23 @@ bool ShareLogParserT<SHARE>::isReachEOF() {
 }
 
 template <class SHARE>
-void ShareLogParserT<SHARE>::generateHoursData(shared_ptr<ShareStatsDay<SHARE>> stats,
-                                       const int32_t userId,
-                                       const int64_t workerId,
-                                       vector<string> *valuesWorkersHour,
-                                       vector<string> *valuesUsersHour,
-                                       vector<string> *valuesPoolHour) {
-  assert(sizeof(stats->shareAccept1h_) / sizeof(stats->shareAccept1h_[0]) == 24);
-  assert(sizeof(stats->shareReject1h_) / sizeof(stats->shareReject1h_[0]) == 24);
-  assert(sizeof(stats->score1h_)       / sizeof(stats->score1h_[0])       == 24);
+void ShareLogParserT<SHARE>::generateHoursData(
+    shared_ptr<ShareStatsDay<SHARE>> stats,
+    const int32_t userId,
+    const int64_t workerId,
+    vector<string> *valuesWorkersHour,
+    vector<string> *valuesUsersHour,
+    vector<string> *valuesPoolHour) {
+  assert(
+      sizeof(stats->shareAccept1h_) / sizeof(stats->shareAccept1h_[0]) == 24);
+  assert(
+      sizeof(stats->shareReject1h_) / sizeof(stats->shareReject1h_[0]) == 24);
+  assert(sizeof(stats->score1h_) / sizeof(stats->score1h_[0]) == 24);
 
   string table, extraValues;
   // worker
   if (userId != 0 && workerId != 0) {
-    extraValues = Strings::Format("% " PRId64",%d,", workerId, userId);
+    extraValues = Strings::Format("% " PRId64 ",%d,", workerId, userId);
     table = "stats_workers_hour";
   }
   // user
@@ -371,8 +400,7 @@ void ShareLogParserT<SHARE>::generateHoursData(shared_ptr<ShareStatsDay<SHARE>> 
   // pool
   else if (userId == 0 && workerId == 0) {
     table = "stats_pool_hour";
-  }
-  else {
+  } else {
     LOG(ERROR) << "unknown stats type";
     return;
   }
@@ -386,24 +414,33 @@ void ShareLogParserT<SHARE>::generateHoursData(shared_ptr<ShareStatsDay<SHARE>> 
       if ((stats->modifyHoursFlag_ & flag) == 0x0u) {
         continue;
       }
-      const string hourStr = Strings::Format("%s%02d", date("%Y%m%d", date_).c_str(), i);
+      const string hourStr =
+          Strings::Format("%s%02d", date("%Y%m%d", date_).c_str(), i);
       const int32_t hour = atoi(hourStr.c_str());
 
-      const uint64_t accept   = stats->shareAccept1h_[i];  // alias
-      const uint64_t reject   = stats->shareReject1h_[i];
+      const uint64_t accept = stats->shareAccept1h_[i]; // alias
+      const uint64_t reject = stats->shareReject1h_[i];
       double rejectRate = 0.0;
       if (reject)
-      	rejectRate = (double)reject / (accept + reject);
-      const string nowStr   = date("%F %T");
+        rejectRate = (double)reject / (accept + reject);
+      const string nowStr = date("%F %T");
       const string scoreStr = score2Str(stats->score1h_[i]);
-      const double earn    = stats->earn1h_[i];
+      const double earn = stats->earn1h_[i];
 
-      valuesStr = Strings::Format("%s %d,%" PRIu64",%" PRIu64","
-                                  "  %lf,'%s',%0.0lf,'%s','%s'",
-                                  extraValues.c_str(),
-                                  hour, accept, reject, rejectRate, scoreStr.c_str(),
-                                  earn, nowStr.c_str(), nowStr.c_str());
-    }  // for scope lock
+      valuesStr = Strings::Format(
+          "%s %d,%" PRIu64 ",%" PRIu64
+          ","
+          "  %lf,'%s',%0.0lf,'%s','%s'",
+          extraValues.c_str(),
+          hour,
+          accept,
+          reject,
+          rejectRate,
+          scoreStr.c_str(),
+          earn,
+          nowStr.c_str(),
+          nowStr.c_str());
+    } // for scope lock
 
     if (table == "stats_workers_hour") {
       valuesWorkersHour->push_back(valuesStr);
@@ -416,16 +453,17 @@ void ShareLogParserT<SHARE>::generateHoursData(shared_ptr<ShareStatsDay<SHARE>> 
 }
 
 template <class SHARE>
-void ShareLogParserT<SHARE>::flushHourOrDailyData(const vector<string> values,
-                                          const string &tableName,
-                                          const string &extraFields) {
+void ShareLogParserT<SHARE>::flushHourOrDailyData(
+    const vector<string> values,
+    const string &tableName,
+    const string &extraFields) {
   string mergeSQL;
   string fields;
 
   // in case two process use the same tmp table name, we add process id into
   // tmp table name.
-  const string tmpTableName = Strings::Format("%s_tmp_%d",
-                                              tableName.c_str(), getpid());
+  const string tmpTableName =
+      Strings::Format("%s_tmp_%d", tableName.c_str(), getpid());
 
   if (!poolDB_.ping()) {
     LOG(ERROR) << "can't connect to pool DB";
@@ -438,11 +476,13 @@ void ShareLogParserT<SHARE>::flushHourOrDailyData(const vector<string> values,
   }
 
   // drop tmp table
-  const string sqlDropTmpTable = Strings::Format("DROP TEMPORARY TABLE IF EXISTS `%s`;",
-                                                 tmpTableName.c_str());
+  const string sqlDropTmpTable = Strings::Format(
+      "DROP TEMPORARY TABLE IF EXISTS `%s`;", tmpTableName.c_str());
   // create tmp table
-  const string createTmpTable = Strings::Format("CREATE TEMPORARY TABLE `%s` like `%s`;",
-                                                tmpTableName.c_str(), tableName.c_str());
+  const string createTmpTable = Strings::Format(
+      "CREATE TEMPORARY TABLE `%s` like `%s`;",
+      tmpTableName.c_str(),
+      tableName.c_str());
 
   if (!poolDB_.execute(sqlDropTmpTable)) {
     LOG(ERROR) << "DROP TEMPORARY TABLE `" << tmpTableName << "` failure";
@@ -456,8 +496,10 @@ void ShareLogParserT<SHARE>::flushHourOrDailyData(const vector<string> values,
   }
 
   // fields for table.stats_xxxxx_hour
-  fields = Strings::Format("%s `share_accept`,`share_reject`,`reject_rate`,"
-                           "`score`,`earn`,`created_at`,`updated_at`", extraFields.c_str());
+  fields = Strings::Format(
+      "%s `share_accept`,`share_reject`,`reject_rate`,"
+      "`score`,`earn`,`created_at`,`updated_at`",
+      extraFields.c_str());
 
   if (!multiInsert(poolDB_, tmpTableName, fields, values)) {
     LOG(ERROR) << "multi-insert table." << tmpTableName << " failure";
@@ -465,17 +507,19 @@ void ShareLogParserT<SHARE>::flushHourOrDailyData(const vector<string> values,
   }
 
   // merge two table items
-  mergeSQL = Strings::Format("INSERT INTO `%s` "
-                             " SELECT * FROM `%s` AS `t2` "
-                             " ON DUPLICATE KEY "
-                             " UPDATE "
-                             "  `share_accept` = `t2`.`share_accept`, "
-                             "  `share_reject` = `t2`.`share_reject`, "
-                             "  `reject_rate`  = `t2`.`reject_rate`, "
-                             "  `score`        = `t2`.`score`, "
-                             "  `earn`         = `t2`.`earn`, "
-                             "  `updated_at`   = `t2`.`updated_at` ",
-                             tableName.c_str(), tmpTableName.c_str());
+  mergeSQL = Strings::Format(
+      "INSERT INTO `%s` "
+      " SELECT * FROM `%s` AS `t2` "
+      " ON DUPLICATE KEY "
+      " UPDATE "
+      "  `share_accept` = `t2`.`share_accept`, "
+      "  `share_reject` = `t2`.`share_reject`, "
+      "  `reject_rate`  = `t2`.`reject_rate`, "
+      "  `score`        = `t2`.`score`, "
+      "  `earn`         = `t2`.`earn`, "
+      "  `updated_at`   = `t2`.`updated_at` ",
+      tableName.c_str(),
+      tmpTableName.c_str());
   if (!poolDB_.update(mergeSQL)) {
     LOG(ERROR) << "merge mining_workers failure";
     return;
@@ -488,16 +532,17 @@ void ShareLogParserT<SHARE>::flushHourOrDailyData(const vector<string> values,
 }
 
 template <class SHARE>
-void ShareLogParserT<SHARE>::generateDailyData(shared_ptr<ShareStatsDay<SHARE>> stats,
-                                       const int32_t userId,
-                                       const int64_t workerId,
-                                       vector<string> *valuesWorkersDay,
-                                       vector<string> *valuesUsersDay,
-                                       vector<string> *valuesPoolDay) {
+void ShareLogParserT<SHARE>::generateDailyData(
+    shared_ptr<ShareStatsDay<SHARE>> stats,
+    const int32_t userId,
+    const int64_t workerId,
+    vector<string> *valuesWorkersDay,
+    vector<string> *valuesUsersDay,
+    vector<string> *valuesPoolDay) {
   string table, extraValues;
   // worker
   if (userId != 0 && workerId != 0) {
-    extraValues = Strings::Format("% " PRId64",%d,", workerId, userId);
+    extraValues = Strings::Format("% " PRId64 ",%d,", workerId, userId);
     table = "stats_workers_day";
   }
   // user
@@ -508,8 +553,7 @@ void ShareLogParserT<SHARE>::generateDailyData(shared_ptr<ShareStatsDay<SHARE>> 
   // pool
   else if (userId == 0 && workerId == 0) {
     table = "stats_pool_day";
-  }
-  else {
+  } else {
     LOG(ERROR) << "unknown stats type";
     return;
   }
@@ -519,21 +563,29 @@ void ShareLogParserT<SHARE>::generateDailyData(shared_ptr<ShareStatsDay<SHARE>> 
     ScopeLock sl(stats->lock_);
     const int32_t day = atoi(date("%Y%m%d", date_).c_str());
 
-    const uint64_t accept   = stats->shareAccept1d_;  // alias
-    const uint64_t reject   = stats->shareReject1d_;
+    const uint64_t accept = stats->shareAccept1d_; // alias
+    const uint64_t reject = stats->shareReject1d_;
     double rejectRate = 0.0;
     if (reject)
       rejectRate = (double)reject / (accept + reject);
-    const string nowStr   = date("%F %T");
+    const string nowStr = date("%F %T");
     const string scoreStr = score2Str(stats->score1d_);
-    const double earn    = stats->earn1d_;
+    const double earn = stats->earn1d_;
 
-    valuesStr = Strings::Format("%s %d,%" PRIu64",%" PRIu64","
-                                "  %lf,'%s',%0.0lf,'%s','%s'",
-                                extraValues.c_str(),
-                                day, accept, reject, rejectRate, scoreStr.c_str(),
-                                earn, nowStr.c_str(), nowStr.c_str());
-  }  // for scope lock
+    valuesStr = Strings::Format(
+        "%s %d,%" PRIu64 ",%" PRIu64
+        ","
+        "  %lf,'%s',%0.0lf,'%s','%s'",
+        extraValues.c_str(),
+        day,
+        accept,
+        reject,
+        rejectRate,
+        scoreStr.c_str(),
+        earn,
+        nowStr.c_str(),
+        nowStr.c_str());
+  } // for scope lock
 
   if (table == "stats_workers_day") {
     valuesWorkersDay->push_back(valuesStr);
@@ -545,7 +597,8 @@ void ShareLogParserT<SHARE>::generateDailyData(shared_ptr<ShareStatsDay<SHARE>> 
 }
 
 template <class SHARE>
-shared_ptr<ShareStatsDay<SHARE>> ShareLogParserT<SHARE>::getShareStatsDayHandler(const WorkerKey &key) {
+shared_ptr<ShareStatsDay<SHARE>>
+ShareLogParserT<SHARE>::getShareStatsDayHandler(const WorkerKey &key) {
   pthread_rwlock_rdlock(&rwlock_);
   auto itr = workersStats_.find(key);
   pthread_rwlock_unlock(&rwlock_);
@@ -574,13 +627,13 @@ void ShareLogParserT<SHARE>::removeExpiredDataFromDB() {
   //
   {
     const int32_t kDailyDataKeepDays_workers = 90; // 3 months
-    const string dayStr = date("%Y%m%d",
-                               time(nullptr) - 86400 * kDailyDataKeepDays_workers);
-    sql = Strings::Format("DELETE FROM `stats_workers_day` WHERE `day` < '%s'",
-                          dayStr.c_str());
+    const string dayStr =
+        date("%Y%m%d", time(nullptr) - 86400 * kDailyDataKeepDays_workers);
+    sql = Strings::Format(
+        "DELETE FROM `stats_workers_day` WHERE `day` < '%s'", dayStr.c_str());
     if (poolDB_.execute(sql)) {
-      LOG(INFO) << "delete expired workers daily data before '"<< dayStr
-      << "', count: " << poolDB_.affectedRows();
+      LOG(INFO) << "delete expired workers daily data before '" << dayStr
+                << "', count: " << poolDB_.affectedRows();
     }
   }
 
@@ -588,14 +641,15 @@ void ShareLogParserT<SHARE>::removeExpiredDataFromDB() {
   // table.stats_workers_hour
   //
   {
-    const int32_t kHourDataKeepDays_workers = 24*3;  // 3 days
-    const string hourStr = date("%Y%m%d%H",
-                               time(nullptr) - 3600 * kHourDataKeepDays_workers);
-    sql = Strings::Format("DELETE FROM `stats_workers_hour` WHERE `hour` < '%s'",
-                          hourStr.c_str());
+    const int32_t kHourDataKeepDays_workers = 24 * 3; // 3 days
+    const string hourStr =
+        date("%Y%m%d%H", time(nullptr) - 3600 * kHourDataKeepDays_workers);
+    sql = Strings::Format(
+        "DELETE FROM `stats_workers_hour` WHERE `hour` < '%s'",
+        hourStr.c_str());
     if (poolDB_.execute(sql)) {
-      LOG(INFO) << "delete expired workers hour data before '"<< hourStr
-      << "', count: " << poolDB_.affectedRows();
+      LOG(INFO) << "delete expired workers hour data before '" << hourStr
+                << "', count: " << poolDB_.affectedRows();
     }
   }
 
@@ -603,14 +657,14 @@ void ShareLogParserT<SHARE>::removeExpiredDataFromDB() {
   // table.stats_users_hour
   //
   {
-    const int32_t kHourDataKeepDays_users = 24*30;  // 30 days
-    const string hourStr = date("%Y%m%d%H",
-                                time(nullptr) - 3600 * kHourDataKeepDays_users);
-    sql = Strings::Format("DELETE FROM `stats_users_hour` WHERE `hour` < '%s'",
-                          hourStr.c_str());
+    const int32_t kHourDataKeepDays_users = 24 * 30; // 30 days
+    const string hourStr =
+        date("%Y%m%d%H", time(nullptr) - 3600 * kHourDataKeepDays_users);
+    sql = Strings::Format(
+        "DELETE FROM `stats_users_hour` WHERE `hour` < '%s'", hourStr.c_str());
     if (poolDB_.execute(sql)) {
-      LOG(INFO) << "delete expired users hour data before '"<< hourStr
-      << "', count: " << poolDB_.affectedRows();
+      LOG(INFO) << "delete expired users hour data before '" << hourStr
+                << "', count: " << poolDB_.affectedRows();
     }
   }
 }
@@ -633,10 +687,10 @@ bool ShareLogParserT<SHARE>::flushToDB() {
   pthread_rwlock_rdlock(&rwlock_);
   for (const auto &itr : workersStats_) {
     if (itr.second->modifyHoursFlag_ == 0x0u) {
-      continue;  // no new data, ignore
+      continue; // no new data, ignore
     }
     keys.push_back(itr.first);
-    stats.push_back(itr.second);  // shared_ptr increase ref here
+    stats.push_back(itr.second); // shared_ptr increase ref here
   }
   pthread_rwlock_unlock(&rwlock_);
 
@@ -654,30 +708,45 @@ bool ShareLogParserT<SHARE>::flushToDB() {
     //
     // the lock is in flushDailyData() & flushHoursData(), so maybe we lost
     // some data between func gaps, but it's not important. we will exec
-    // processUnchangedShareLog() after the day has been past, no data will lost by than.
+    // processUnchangedShareLog() after the day has been past, no data will lost
+    // by than.
     //
-    generateHoursData(stats[i], keys[i].userId_, keys[i].workerId_,
-                      &valuesWorkersHour, &valuesUsersHour, &valuesPoolHour);
-    generateDailyData(stats[i], keys[i].userId_, keys[i].workerId_,
-                      &valuesWorkersDay, &valuesUsersDay, &valuesPoolDay);
+    generateHoursData(
+        stats[i],
+        keys[i].userId_,
+        keys[i].workerId_,
+        &valuesWorkersHour,
+        &valuesUsersHour,
+        &valuesPoolHour);
+    generateDailyData(
+        stats[i],
+        keys[i].userId_,
+        keys[i].workerId_,
+        &valuesWorkersDay,
+        &valuesUsersDay,
+        &valuesPoolDay);
 
-    stats[i]->modifyHoursFlag_ = 0x0u;  // reset flag
+    stats[i]->modifyHoursFlag_ = 0x0u; // reset flag
   }
 
   LOG(INFO) << "generated sql values";
   size_t counter = 0;
 
   // flush hours data
-  flushHourOrDailyData(valuesWorkersHour, "stats_workers_hour", "`worker_id`,`puid`,`hour`,");
-  flushHourOrDailyData(valuesUsersHour,   "stats_users_hour"  , "`puid`,`hour`,");
-  flushHourOrDailyData(valuesPoolHour,    "stats_pool_hour"   , "`hour`,");
-  counter += valuesWorkersHour.size() + valuesUsersHour.size() + valuesPoolHour.size();
+  flushHourOrDailyData(
+      valuesWorkersHour, "stats_workers_hour", "`worker_id`,`puid`,`hour`,");
+  flushHourOrDailyData(valuesUsersHour, "stats_users_hour", "`puid`,`hour`,");
+  flushHourOrDailyData(valuesPoolHour, "stats_pool_hour", "`hour`,");
+  counter +=
+      valuesWorkersHour.size() + valuesUsersHour.size() + valuesPoolHour.size();
 
   // flush daily data
-  flushHourOrDailyData(valuesWorkersDay, "stats_workers_day", "`worker_id`,`puid`,`day`,");
-  flushHourOrDailyData(valuesUsersDay,   "stats_users_day"  , "`puid`,`day`,");
-  flushHourOrDailyData(valuesPoolDay,    "stats_pool_day"   , "`day`,");
-  counter += valuesWorkersDay.size() + valuesUsersDay.size() + valuesPoolDay.size();
+  flushHourOrDailyData(
+      valuesWorkersDay, "stats_workers_day", "`worker_id`,`puid`,`day`,");
+  flushHourOrDailyData(valuesUsersDay, "stats_users_day", "`puid`,`day`,");
+  flushHourOrDailyData(valuesPoolDay, "stats_pool_day", "`day`,");
+  counter +=
+      valuesWorkersDay.size() + valuesUsersDay.size() + valuesPoolDay.size();
 
   // done: daily data and hour data
   LOG(INFO) << "flush to DB... done, items: " << counter;
@@ -688,26 +757,32 @@ bool ShareLogParserT<SHARE>::flushToDB() {
   return true;
 }
 
-
-////////////////////////////  ShareLogParserServerT<SHARE>  ////////////////////////////
+////////////////////////////  ShareLogParserServerT<SHARE>
+///////////////////////////////
 template <class SHARE>
-ShareLogParserServerT<SHARE>::ShareLogParserServerT(const char *chainType,
-                                           const string &dataDir,
-                                           const string &httpdHost,
-                                           unsigned short httpdPort,
-                                           const MysqlConnectInfo &poolDBInfo,
-                                           const uint32_t kFlushDBInterval,
-                                           shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker):
-running_(true), chainType_(chainType), dataDir_(dataDir),
-poolDBInfo_(poolDBInfo), kFlushDBInterval_(kFlushDBInterval),
-dupShareChecker_(dupShareChecker),
-base_(nullptr), httpdHost_(httpdHost), httpdPort_(httpdPort),
-requestCount_(0), responseBytes_(0)
-{
+ShareLogParserServerT<SHARE>::ShareLogParserServerT(
+    const char *chainType,
+    const string &dataDir,
+    const string &httpdHost,
+    unsigned short httpdPort,
+    const MysqlConnectInfo &poolDBInfo,
+    const uint32_t kFlushDBInterval,
+    shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker)
+  : running_(true)
+  , chainType_(chainType)
+  , dataDir_(dataDir)
+  , poolDBInfo_(poolDBInfo)
+  , kFlushDBInterval_(kFlushDBInterval)
+  , dupShareChecker_(dupShareChecker)
+  , base_(nullptr)
+  , httpdHost_(httpdHost)
+  , httpdPort_(httpdPort)
+  , requestCount_(0)
+  , responseBytes_(0) {
   const time_t now = time(nullptr);
 
   uptime_ = now;
-  date_   = now - (now % 86400);
+  date_ = now - (now % 86400);
 
   pthread_rwlock_init(&rwlock_, nullptr);
 }
@@ -743,7 +818,7 @@ bool ShareLogParserServerT<SHARE>::initShareLogParser(time_t datets) {
 
   // set new obj
   auto parser = createShareLogParser(datets);
-  
+
   if (!parser->init()) {
     LOG(ERROR) << "parser check failure, date: " << date("%F", date_);
     pthread_rwlock_unlock(&rwlock_);
@@ -756,17 +831,22 @@ bool ShareLogParserServerT<SHARE>::initShareLogParser(time_t datets) {
 }
 
 template <class SHARE>
-shared_ptr<ShareLogParserT<SHARE>> ShareLogParserServerT<SHARE>::createShareLogParser(time_t datets) {
-  return std::make_shared<ShareLogParserT<SHARE>>(chainType_.c_str(), dataDir_, datets, poolDBInfo_, dupShareChecker_);
+shared_ptr<ShareLogParserT<SHARE>>
+ShareLogParserServerT<SHARE>::createShareLogParser(time_t datets) {
+  return std::make_shared<ShareLogParserT<SHARE>>(
+      chainType_.c_str(), dataDir_, datets, poolDBInfo_, dupShareChecker_);
 }
 
 template <class SHARE>
-void ShareLogParserServerT<SHARE>::getShareStats(struct evbuffer *evb, const char *pUserId,
-                                         const char *pWorkerId, const char *pHour) {
+void ShareLogParserServerT<SHARE>::getShareStats(
+    struct evbuffer *evb,
+    const char *pUserId,
+    const char *pWorkerId,
+    const char *pHour) {
   vector<string> vHoursStr;
   vector<string> vWorkerIdsStr;
   vector<WorkerKey> keys;
-  vector<int32_t>   hours;  // range: -23, -22, ..., 0, 24
+  vector<int32_t> hours; // range: -23, -22, ..., 0, 24
   const int32_t userId = atoi(pUserId);
 
   // split by ','
@@ -797,7 +877,8 @@ void ShareLogParserServerT<SHARE>::getShareStats(struct evbuffer *evb, const cha
 
   // output json string
   for (size_t i = 0; i < keys.size(); i++) {
-    evbuffer_add_printf(evb, "%s\"%" PRId64"\":[", (i == 0 ? "" : ","), keys[i].workerId_);
+    evbuffer_add_printf(
+        evb, "%s\"%" PRId64 "\":[", (i == 0 ? "" : ","), keys[i].workerId_);
 
     for (size_t j = 0; j < hours.size(); j++) {
       ShareStats *s = &shareStats[i * hours.size() + j];
@@ -805,22 +886,30 @@ void ShareLogParserServerT<SHARE>::getShareStats(struct evbuffer *evb, const cha
 
       double rejectRate = 0.0;
       if (s->shareReject_ != 0)
-      	rejectRate = 1.0 * s->shareReject_ / (s->shareAccept_ + s->shareReject_);
+        rejectRate =
+            1.0 * s->shareReject_ / (s->shareAccept_ + s->shareReject_);
 
-      evbuffer_add_printf(evb,
-                          "%s{\"hour\":%d,\"accept\":%" PRIu64",\"reject\":%" PRIu64","
-                          "\"reject_rate\":%lf,\"earn\":%0.0lf}",
-                          (j == 0 ? "" : ","), hour,
-                          s->shareAccept_, s->shareReject_, rejectRate, s->earn_);
+      evbuffer_add_printf(
+          evb,
+          "%s{\"hour\":%d,\"accept\":%" PRIu64 ",\"reject\":%" PRIu64
+          ","
+          "\"reject_rate\":%lf,\"earn\":%0.0lf}",
+          (j == 0 ? "" : ","),
+          hour,
+          s->shareAccept_,
+          s->shareReject_,
+          rejectRate,
+          s->earn_);
     }
     evbuffer_add_printf(evb, "]");
   }
 }
 
 template <class SHARE>
-void ShareLogParserServerT<SHARE>::_getShareStats(const vector<WorkerKey> &keys,
-                                          const vector<int32_t> &hours,
-                                          vector<ShareStats> &shareStats) {
+void ShareLogParserServerT<SHARE>::_getShareStats(
+    const vector<WorkerKey> &keys,
+    const vector<int32_t> &hours,
+    vector<ShareStats> &shareStats) {
   pthread_rwlock_rdlock(&rwlock_);
   shared_ptr<ShareLogParserT<SHARE>> shareLogParser = shareLogParser_;
   pthread_rwlock_unlock(&rwlock_);
@@ -829,7 +918,8 @@ void ShareLogParserServerT<SHARE>::_getShareStats(const vector<WorkerKey> &keys,
     return;
 
   for (size_t i = 0; i < keys.size(); i++) {
-    shared_ptr<ShareStatsDay<SHARE>> statsDay = shareLogParser->getShareStatsDayHandler(keys[i]);
+    shared_ptr<ShareStatsDay<SHARE>> statsDay =
+        shareLogParser->getShareStatsDayHandler(keys[i]);
     if (statsDay == nullptr)
       continue;
 
@@ -848,15 +938,15 @@ void ShareLogParserServerT<SHARE>::_getShareStats(const vector<WorkerKey> &keys,
 }
 
 template <class SHARE>
-void ShareLogParserServerT<SHARE>::httpdShareStats(struct evhttp_request *req,
-                                           void *arg) {
-  evhttp_add_header(evhttp_request_get_output_headers(req),
-                    "Content-Type", "text/json");
+void ShareLogParserServerT<SHARE>::httpdShareStats(
+    struct evhttp_request *req, void *arg) {
+  evhttp_add_header(
+      evhttp_request_get_output_headers(req), "Content-Type", "text/json");
   ShareLogParserServerT<SHARE> *server = (ShareLogParserServerT<SHARE> *)arg;
   server->requestCount_++;
 
   evhttp_cmd_type rMethod = evhttp_request_get_command(req);
-  char *query = nullptr;  // remember free it
+  char *query = nullptr; // remember free it
 
   if (rMethod == EVHTTP_REQ_GET) {
     // GET
@@ -866,15 +956,14 @@ void ShareLogParserServerT<SHARE>::httpdShareStats(struct evhttp_request *req,
       query = strdup(uriQuery);
       evhttp_uri_free(uri);
     }
-  }
-  else if (rMethod == EVHTTP_REQ_POST) {
+  } else if (rMethod == EVHTTP_REQ_POST) {
     // POST
     struct evbuffer *evbIn = evhttp_request_get_input_buffer(req);
     size_t len = 0;
     if (evbIn != nullptr && (len = evbuffer_get_length(evbIn)) > 0) {
       query = (char *)malloc(len + 1);
       evbuffer_copyout(evbIn, query, len);
-      query[len] = '\0';  // evbuffer is not include '\0'
+      query[len] = '\0'; // evbuffer is not include '\0'
     }
   }
 
@@ -893,9 +982,9 @@ void ShareLogParserServerT<SHARE>::httpdShareStats(struct evhttp_request *req,
   // parse query
   struct evkeyvalq params;
   evhttp_parse_query_str(query, &params);
-  const char *pUserId   = evhttp_find_header(&params, "user_id");
+  const char *pUserId = evhttp_find_header(&params, "user_id");
   const char *pWorkerId = evhttp_find_header(&params, "worker_id");
-  const char *pHour     = evhttp_find_header(&params, "hour");
+  const char *pHour = evhttp_find_header(&params, "hour");
 
   if (pUserId == nullptr || pWorkerId == nullptr || pHour == nullptr) {
     evbuffer_add_printf(evb, "{\"err_no\":1,\"err_msg\":\"invalid args\"}");
@@ -918,10 +1007,11 @@ finish:
 }
 
 template <class SHARE>
-void ShareLogParserServerT<SHARE>::getServerStatus(ShareLogParserServerT<SHARE>::ServerStatus &s) {
-  s.date_          = date_;
-  s.uptime_        = (uint32_t)(time(nullptr) - uptime_);
-  s.requestCount_  = requestCount_;
+void ShareLogParserServerT<SHARE>::getServerStatus(
+    ShareLogParserServerT<SHARE>::ServerStatus &s) {
+  s.date_ = date_;
+  s.uptime_ = (uint32_t)(time(nullptr) - uptime_);
+  s.requestCount_ = requestCount_;
   s.responseBytes_ = responseBytes_;
 
   pthread_rwlock_rdlock(&rwlock_);
@@ -929,7 +1019,8 @@ void ShareLogParserServerT<SHARE>::getServerStatus(ShareLogParserServerT<SHARE>:
   pthread_rwlock_unlock(&rwlock_);
 
   WorkerKey pkey(0, 0);
-  shared_ptr<ShareStatsDay<SHARE>> statsDayPtr = shareLogParser->getShareStatsDayHandler(pkey);
+  shared_ptr<ShareStatsDay<SHARE>> statsDayPtr =
+      shareLogParser->getShareStatsDayHandler(pkey);
 
   s.stats.resize(2);
   statsDayPtr->getShareStatsDay(&(s.stats[0]));
@@ -937,9 +1028,10 @@ void ShareLogParserServerT<SHARE>::getServerStatus(ShareLogParserServerT<SHARE>:
 }
 
 template <class SHARE>
-void ShareLogParserServerT<SHARE>::httpdServerStatus(struct evhttp_request *req, void *arg) {
-  evhttp_add_header(evhttp_request_get_output_headers(req),
-                    "Content-Type", "text/json");
+void ShareLogParserServerT<SHARE>::httpdServerStatus(
+    struct evhttp_request *req, void *arg) {
+  evhttp_add_header(
+      evhttp_request_get_output_headers(req), "Content-Type", "text/json");
   ShareLogParserServerT<SHARE> *server = (ShareLogParserServerT<SHARE> *)arg;
   server->requestCount_++;
 
@@ -950,34 +1042,50 @@ void ShareLogParserServerT<SHARE>::httpdServerStatus(struct evhttp_request *req,
 
   double rejectRate0 = 0.0, rejectRate1 = 0.0;
   if (s.stats[0].shareReject_)
-    rejectRate0 = s.stats[0].shareReject_ / (s.stats[0].shareAccept_ + s.stats[0].shareReject_);
+    rejectRate0 = s.stats[0].shareReject_ /
+        (s.stats[0].shareAccept_ + s.stats[0].shareReject_);
   if (s.stats[1].shareReject_)
-    rejectRate1 = s.stats[1].shareReject_ / (s.stats[1].shareAccept_ + s.stats[1].shareReject_);
+    rejectRate1 = s.stats[1].shareReject_ /
+        (s.stats[1].shareAccept_ + s.stats[1].shareReject_);
 
   time_t now = time(nullptr);
   if (now % 3600 == 0)
-    now += 2;  // just in case the denominator is zero
+    now += 2; // just in case the denominator is zero
 
-  evbuffer_add_printf(evb, "{\"err_no\":0,\"err_msg\":\"\","
-                      "\"data\":{\"uptime\":\"%04u d %02u h %02u m %02u s\","
-                      "\"request\":%" PRIu64",\"repbytes\":%" PRIu64","
-                      "\"pool\":{\"today\":{"
-                      "\"hashrate_t\":%lf,\"accept\":%" PRIu64","
-                      "\"reject\":%" PRIu64",\"reject_rate\":%lf,\"earn\":%0.0lf},"
-                      "\"curr_hour\":{\"hashrate_t\":%lf,\"accept\":%" PRIu64","
-                      "\"reject\":%" PRIu64",\"reject_rate\":%lf,\"earn\":%0.0lf}}"
-                      "}}",
-                      s.uptime_/86400, (s.uptime_%86400)/3600,
-                      (s.uptime_%3600)/60, s.uptime_%60,
-                      s.requestCount_, s.responseBytes_,
-                      // pool today
-                      share2HashrateT(s.stats[0].shareAccept_, now % 86400),
-                      s.stats[0].shareAccept_,
-                      s.stats[0].shareReject_, rejectRate0, s.stats[0].earn_,
-                      // pool current hour
-                      share2HashrateT(s.stats[1].shareAccept_, now % 3600),
-                      s.stats[1].shareAccept_,
-                      s.stats[1].shareReject_, rejectRate1, s.stats[1].earn_);
+  evbuffer_add_printf(
+      evb,
+      "{\"err_no\":0,\"err_msg\":\"\","
+      "\"data\":{\"uptime\":\"%04u d %02u h %02u m %02u s\","
+      "\"request\":%" PRIu64 ",\"repbytes\":%" PRIu64
+      ","
+      "\"pool\":{\"today\":{"
+      "\"hashrate_t\":%lf,\"accept\":%" PRIu64
+      ","
+      "\"reject\":%" PRIu64
+      ",\"reject_rate\":%lf,\"earn\":%0.0lf},"
+      "\"curr_hour\":{\"hashrate_t\":%lf,\"accept\":%" PRIu64
+      ","
+      "\"reject\":%" PRIu64
+      ",\"reject_rate\":%lf,\"earn\":%0.0lf}}"
+      "}}",
+      s.uptime_ / 86400,
+      (s.uptime_ % 86400) / 3600,
+      (s.uptime_ % 3600) / 60,
+      s.uptime_ % 60,
+      s.requestCount_,
+      s.responseBytes_,
+      // pool today
+      share2HashrateT(s.stats[0].shareAccept_, now % 86400),
+      s.stats[0].shareAccept_,
+      s.stats[0].shareReject_,
+      rejectRate0,
+      s.stats[0].earn_,
+      // pool current hour
+      share2HashrateT(s.stats[1].shareAccept_, now % 3600),
+      s.stats[1].shareAccept_,
+      s.stats[1].shareReject_,
+      rejectRate1,
+      s.stats[1].earn_);
 
   server->responseBytes_ += evbuffer_get_length(evb);
   evhttp_send_reply(req, HTTP_OK, "OK", evb);
@@ -992,16 +1100,28 @@ void ShareLogParserServerT<SHARE>::runHttpd() {
   base_ = event_base_new();
   httpd = evhttp_new(base_);
 
-  evhttp_set_allowed_methods(httpd, EVHTTP_REQ_GET | EVHTTP_REQ_POST | EVHTTP_REQ_HEAD);
+  evhttp_set_allowed_methods(
+      httpd, EVHTTP_REQ_GET | EVHTTP_REQ_POST | EVHTTP_REQ_HEAD);
   evhttp_set_timeout(httpd, 5 /* timeout in seconds */);
 
-  evhttp_set_cb(httpd, "/",             ShareLogParserServerT<SHARE>::httpdServerStatus, this);
-  evhttp_set_cb(httpd, "/share_stats",  ShareLogParserServerT<SHARE>::httpdShareStats,   this);
-  evhttp_set_cb(httpd, "/share_stats/", ShareLogParserServerT<SHARE>::httpdShareStats,   this);
+  evhttp_set_cb(
+      httpd, "/", ShareLogParserServerT<SHARE>::httpdServerStatus, this);
+  evhttp_set_cb(
+      httpd,
+      "/share_stats",
+      ShareLogParserServerT<SHARE>::httpdShareStats,
+      this);
+  evhttp_set_cb(
+      httpd,
+      "/share_stats/",
+      ShareLogParserServerT<SHARE>::httpdShareStats,
+      this);
 
-  handle = evhttp_bind_socket_with_handle(httpd, httpdHost_.c_str(), httpdPort_);
+  handle =
+      evhttp_bind_socket_with_handle(httpd, httpdHost_.c_str(), httpdPort_);
   if (!handle) {
-    LOG(ERROR) << "couldn't bind to port: " << httpdPort_ << ", host: " << httpdHost_ << ", exiting.";
+    LOG(ERROR) << "couldn't bind to port: " << httpdPort_
+               << ", host: " << httpdHost_ << ", exiting.";
     return;
   }
   event_base_dispatch(base_);
@@ -1009,7 +1129,8 @@ void ShareLogParserServerT<SHARE>::runHttpd() {
 
 template <class SHARE>
 bool ShareLogParserServerT<SHARE>::setupThreadShareLogParser() {
-  threadShareLogParser_ = thread(&ShareLogParserServerT<SHARE>::runThreadShareLogParser, this);
+  threadShareLogParser_ =
+      thread(&ShareLogParserServerT<SHARE>::runThreadShareLogParser, this);
   return true;
 }
 
@@ -1052,7 +1173,7 @@ void ShareLogParserServerT<SHARE>::runThreadShareLogParser() {
 
     // flush data to db
     if (time(nullptr) > lastFlushDBTime + kFlushDBInterval_) {
-      shareLogParser->flushToDB();  // will wait util all data flush to DB
+      shareLogParser->flushToDB(); // will wait util all data flush to DB
       lastFlushDBTime = time(nullptr);
     }
 
@@ -1068,18 +1189,19 @@ void ShareLogParserServerT<SHARE>::runThreadShareLogParser() {
 
   LOG(INFO) << "thread sharelog parser stop";
 
-  stop();  // if thread exit, we must call server to stop
+  stop(); // if thread exit, we must call server to stop
 }
 
 template <class SHARE>
-void ShareLogParserServerT<SHARE>::trySwitchBinFile(shared_ptr<ShareLogParserT<SHARE>> shareLogParser) {
+void ShareLogParserServerT<SHARE>::trySwitchBinFile(
+    shared_ptr<ShareLogParserT<SHARE>> shareLogParser) {
   assert(shareLogParser != nullptr);
 
   const time_t now = time(nullptr);
   const time_t beginTs = now - (now % 86400);
 
   if (beginTs == date_)
-    return;  // still today
+    return; // still today
 
   //
   // switch file when:
@@ -1088,11 +1210,9 @@ void ShareLogParserServerT<SHARE>::trySwitchBinFile(shared_ptr<ShareLogParserT<S
   //   3. new file exists
   //
   const string filePath = getStatsFilePath(chainType_.c_str(), dataDir_, now);
-  if (now > beginTs + 5 &&
-      shareLogParser->isReachEOF() &&
-      fileNonEmpty(filePath.c_str()))
-  {
-    shareLogParser->flushToDB();  // flush data
+  if (now > beginTs + 5 && shareLogParser->isReachEOF() &&
+      fileNonEmpty(filePath.c_str())) {
+    shareLogParser->flushToDB(); // flush data
 
     bool res = initShareLogParser(now);
     if (!res) {
@@ -1114,4 +1234,3 @@ void ShareLogParserServerT<SHARE>::run() {
 
   runHttpd();
 }
-

@@ -24,17 +24,17 @@
 
 #include "StratumGrin.h"
 
-StratumJobGrin::StratumJobGrin() {}
+StratumJobGrin::StratumJobGrin() {
+}
 
 bool StratumJobGrin::initFromRawJob(JsonNode &jparams) {
-  if (
-    jparams.type() != Utilities::JS::type::Obj ||
-    jparams["difficulty"].type() != Utilities::JS::type::Int ||
-    jparams["height"].type() != Utilities::JS::type::Int ||
-    jparams["job_id"].type() != Utilities::JS::type::Int ||
-    jparams["pre_pow"].type() != Utilities::JS::type::Str ||
-    jparams["pre_pow"].size() != sizeof(PrePowGrin) * 2 ||
-    !IsHex(jparams["pre_pow"].str())) {
+  if (jparams.type() != Utilities::JS::type::Obj ||
+      jparams["difficulty"].type() != Utilities::JS::type::Int ||
+      jparams["height"].type() != Utilities::JS::type::Int ||
+      jparams["job_id"].type() != Utilities::JS::type::Int ||
+      jparams["pre_pow"].type() != Utilities::JS::type::Str ||
+      jparams["pre_pow"].size() != sizeof(PrePowGrin) * 2 ||
+      !IsHex(jparams["pre_pow"].str())) {
     LOG(ERROR) << "invalid raw job parameters";
     return false;
   }
@@ -47,8 +47,8 @@ bool StratumJobGrin::initFromRawJob(JsonNode &jparams) {
   Hex2Bin(prePowStr_.c_str(), prePowStr_.length(), prePowBin);
   memcpy(&prePow_, prePowBin.data(), prePowBin.size());
 
-  // jobId: timestamp + input_prefix, we need to make sure jobId is unique in a some time
-  // jobId can convert to uint64_t
+  // jobId: timestamp + input_prefix, we need to make sure jobId is unique in a
+  // some time jobId can convert to uint64_t
   uint32_t hash = djb2(prePowStr_.c_str());
   jobId_ = (static_cast<uint64_t>(time(nullptr)) << 32) | hash;
 
@@ -57,35 +57,30 @@ bool StratumJobGrin::initFromRawJob(JsonNode &jparams) {
 
 string StratumJobGrin::serializeToJson() const {
   return Strings::Format(
-    "{\"jobId\":%" PRIu64
-    ",\"height\":%" PRIu64
-    ",\"difficulty\":%" PRIu64
-    ",\"nodeJobId\":%" PRIu64
-    ",\"prePow\":\"%s\""
-    "}",
-    jobId_,
-    height_,
-    difficulty_,
-    nodeJobId_,
-    prePowStr_.c_str());
+      "{\"jobId\":%" PRIu64 ",\"height\":%" PRIu64 ",\"difficulty\":%" PRIu64
+      ",\"nodeJobId\":%" PRIu64
+      ",\"prePow\":\"%s\""
+      "}",
+      jobId_,
+      height_,
+      difficulty_,
+      nodeJobId_,
+      prePowStr_.c_str());
 }
 
 bool StratumJobGrin::unserializeFromJson(const char *s, size_t len) {
   JsonNode j;
-  if (!JsonNode::parse(s, s + len, j))
-  {
+  if (!JsonNode::parse(s, s + len, j)) {
     return false;
   }
 
-  if (
-    j["jobId"].type() != Utilities::JS::type::Int ||
-    j["height"].type() != Utilities::JS::type::Int ||
-    j["difficulty"].type() != Utilities::JS::type::Int ||
-    j["nodeJobId"].type() != Utilities::JS::type::Int ||
-    j["prePow"].type() != Utilities::JS::type::Str ||
-    j["prePow"].size() != sizeof(PrePowGrin) * 2 ||
-    !IsHex(j["prePow"].str()))
-  {
+  if (j["jobId"].type() != Utilities::JS::type::Int ||
+      j["height"].type() != Utilities::JS::type::Int ||
+      j["difficulty"].type() != Utilities::JS::type::Int ||
+      j["nodeJobId"].type() != Utilities::JS::type::Int ||
+      j["prePow"].type() != Utilities::JS::type::Str ||
+      j["prePow"].size() != sizeof(PrePowGrin) * 2 ||
+      !IsHex(j["prePow"].str())) {
     LOG(ERROR) << "parse grin stratum job failure: " << s;
     return false;
   }

@@ -32,18 +32,23 @@
 
 #include <boost/make_unique.hpp>
 
-StratumSessionSia::StratumSessionSia(ServerSia &server,
-                                     struct bufferevent *bev,
-                                     struct sockaddr *saddr,
-                                     uint32_t extraNonce1)
-    : StratumSessionBase(server, bev, saddr, extraNonce1), shortJobId_(0) {
+StratumSessionSia::StratumSessionSia(
+    ServerSia &server,
+    struct bufferevent *bev,
+    struct sockaddr *saddr,
+    uint32_t extraNonce1)
+  : StratumSessionBase(server, bev, saddr, extraNonce1)
+  , shortJobId_(0) {
 }
 
-void StratumSessionSia::sendSetDifficulty(LocalJob &localJob, uint64_t difficulty) {
-  static_cast<StratumTraitsSia::LocalJobType &>(localJob).jobDifficulty_ = difficulty;
+void StratumSessionSia::sendSetDifficulty(
+    LocalJob &localJob, uint64_t difficulty) {
+  static_cast<StratumTraitsSia::LocalJobType &>(localJob).jobDifficulty_ =
+      difficulty;
 }
 
-void StratumSessionSia::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
+void StratumSessionSia::sendMiningNotify(
+    shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
 
   if (state_ < AUTHENTICATED || nullptr == exJobPtr) {
     LOG(ERROR) << "sia sendMiningNotify failed, state: " << state_;
@@ -70,13 +75,14 @@ void StratumSessionSia::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool
     DiffToTarget(jobDifficulty, shareTarget);
   }
   string strShareTarget = shareTarget.GetHex();
-  LOG(INFO) << "new sia stratum job mining.notify: share difficulty=" << jobDifficulty << ", share target="
-            << strShareTarget;
-  const string strNotify = Strings::Format("{\"id\":6,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
-                                           "\"params\":[\"%u\",\"0x%s\",\"0x%s\"]}\n",
-                                           ljob.shortJobId_,
-                                           siaJob->blockHashForMergedMining_.c_str(),
-                                           strShareTarget.c_str());
+  LOG(INFO) << "new sia stratum job mining.notify: share difficulty="
+            << jobDifficulty << ", share target=" << strShareTarget;
+  const string strNotify = Strings::Format(
+      "{\"id\":6,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
+      "\"params\":[\"%u\",\"0x%s\",\"0x%s\"]}\n",
+      ljob.shortJobId_,
+      siaJob->blockHashForMergedMining_.c_str(),
+      strShareTarget.c_str());
 
   sendData(strNotify); // send notify string
 
@@ -84,25 +90,23 @@ void StratumSessionSia::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool
   clearLocalJobs();
 }
 
-void StratumSessionSia::handleRequest(const std::string &idStr,
-                                      const std::string &method,
-                                      const JsonNode &jparams,
-                                      const JsonNode &jroot) {
+void StratumSessionSia::handleRequest(
+    const std::string &idStr,
+    const std::string &method,
+    const JsonNode &jparams,
+    const JsonNode &jroot) {
   if (method == "mining.subscribe") {
     handleRequest_Subscribe(idStr, jparams, jroot);
-  }
-  else if (method == "mining.authorize") {
+  } else if (method == "mining.authorize") {
     // TODO: implement this...
-    //handleRequest_Authorize(idStr, jparams, jroot);
-  }
-  else {
+    // handleRequest_Authorize(idStr, jparams, jroot);
+  } else {
     dispatcher_->handleRequest(idStr, method, jparams, jroot);
   }
 }
 
-void StratumSessionSia::handleRequest_Subscribe(const string &idStr,
-                                                const JsonNode &jparams,
-                                                const JsonNode &jroot) {
+void StratumSessionSia::handleRequest_Subscribe(
+    const string &idStr, const JsonNode &jparams, const JsonNode &jroot) {
   if (state_ != CONNECTED) {
     responseError(idStr, StratumStatus::UNKNOWN);
     return;
@@ -110,16 +114,19 @@ void StratumSessionSia::handleRequest_Subscribe(const string &idStr,
 
   state_ = SUBSCRIBED;
 
-  const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":true}\n", idStr.c_str());
+  const string s = Strings::Format(
+      "{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":true}\n", idStr.c_str());
   sendData(s);
 }
 
-unique_ptr<StratumMiner> StratumSessionSia::createMiner(const std::string &clientAgent,
-                                                        const std::string &workerName,
-                                                        int64_t workerId) {
-  return boost::make_unique<StratumMinerSia>(*this,
-                                             *getServer().defaultDifficultyController_,
-                                             clientAgent,
-                                             workerName,
-                                             workerId);
+unique_ptr<StratumMiner> StratumSessionSia::createMiner(
+    const std::string &clientAgent,
+    const std::string &workerName,
+    int64_t workerId) {
+  return boost::make_unique<StratumMinerSia>(
+      *this,
+      *getServer().defaultDifficultyController_,
+      clientAgent,
+      workerName,
+      workerId);
 }

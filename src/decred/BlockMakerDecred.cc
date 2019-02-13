@@ -26,39 +26,48 @@
 #include "StratumDecred.h"
 #include "DecredUtils.h"
 
-BlockMakerDecred::BlockMakerDecred(shared_ptr<BlockMakerDefinition> def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB)
-  : BlockMaker(def, kafkaBrokers, poolDB)
-{
+BlockMakerDecred::BlockMakerDecred(
+    shared_ptr<BlockMakerDefinition> def,
+    const char *kafkaBrokers,
+    const MysqlConnectInfo &poolDB)
+  : BlockMaker(def, kafkaBrokers, poolDB) {
 }
 
-void BlockMakerDecred::processSolvedShare(rd_kafka_message_t *rkmessage)
-{
+void BlockMakerDecred::processSolvedShare(rd_kafka_message_t *rkmessage) {
   if (rkmessage->len != sizeof(FoundBlockDecred)) {
     return;
   }
   auto foundBlock = reinterpret_cast<FoundBlockDecred *>(rkmessage->payload);
 
-  // TODO: Think about a better way to do it asynchronously for all block makers...
+  // TODO: Think about a better way to do it asynchronously for all block
+  // makers...
   for (auto &node : def()->nodes) {
-    thread t(std::bind(&BlockMakerDecred::submitBlockHeader, this, node, foundBlock->header_));
+    thread t(std::bind(
+        &BlockMakerDecred::submitBlockHeader, this, node, foundBlock->header_));
     t.detach();
   }
   thread d(std::bind(&BlockMakerDecred::saveBlockToDB, this, *foundBlock));
   d.detach();
 }
 
-void BlockMakerDecred::submitBlockHeader(const NodeDefinition& node, const BlockHeaderDecred& header)
-{
-  // RPC call getwork with padded block header as data parameter is equivalent to submitbblock
-  string request = "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getwork\",\"params\":[\"";
-  request += HexStr(BEGIN(header), END(header)) + "8000000100000000000005a0\"]}";
+void BlockMakerDecred::submitBlockHeader(
+    const NodeDefinition &node, const BlockHeaderDecred &header) {
+  // RPC call getwork with padded block header as data parameter is equivalent
+  // to submitbblock
+  string request =
+      "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getwork\",\"params\":[\"";
+  request +=
+      HexStr(BEGIN(header), END(header)) + "8000000100000000000005a0\"]}";
 
   LOG(INFO) << "submit block to: " << node.rpcAddr_ << ", request: " << request;
   // try N times
   for (size_t i = 0; i < 3; i++) {
     string response;
-    bool res = blockchainNodeRpcCall(node.rpcAddr_.c_str(), node.rpcUserPwd_.c_str(),
-                               request.c_str(), response);
+    bool res = blockchainNodeRpcCall(
+        node.rpcAddr_.c_str(),
+        node.rpcUserPwd_.c_str(),
+        request.c_str(),
+        response);
 
     // success
     if (res == true) {
@@ -71,24 +80,35 @@ void BlockMakerDecred::submitBlockHeader(const NodeDefinition& node, const Block
   }
 }
 
-void BlockMakerDecred::saveBlockToDB(const FoundBlockDecred &foundBlock)
-{
-  auto& header = foundBlock.header_;
+void BlockMakerDecred::saveBlockToDB(const FoundBlockDecred &foundBlock) {
+  auto &header = foundBlock.header_;
   const string nowStr = date("%F %T");
-  string sql = Strings::Format("INSERT INTO `found_blocks` "
-                               " (`puid`, `worker_id`, `worker_full_name`, `job_id`"
-                               "  ,`height`, `hash`, `rewards`, `size`, `prev_hash`"
-                               "  ,`bits`, `version`, `voters`, `network`, `created_at`)"
-                               " VALUES (%d,%" PRId64",\"%s\", %" PRIu64",%d,\"%s\""
-                               "  ,%" PRId64",%d,\"%s\",%u,%d,%u,%u,\"%s\"); ",
-                               foundBlock.userId_, foundBlock.workerId_,
-                               // filter again, just in case
-                               filterWorkerName(foundBlock.workerFullName_).c_str(),
-                               foundBlock.jobId_, header.height.value(),
-                               header.getHash().ToString().c_str(),
-                               GetBlockRewardDecredWork(header.height.value(), header.voters.value(), NetworkParamsDecred::get(foundBlock.network_)),
-                               header.size.value(), header.prevBlock.ToString().c_str(), header.nBits.value(),
-                               header.version.value(), header.voters.value(), foundBlock.network_, nowStr.c_str());
+  string sql = Strings::Format(
+      "INSERT INTO `found_blocks` "
+      " (`puid`, `worker_id`, `worker_full_name`, `job_id`"
+      "  ,`height`, `hash`, `rewards`, `size`, `prev_hash`"
+      "  ,`bits`, `version`, `voters`, `network`, `created_at`)"
+      " VALUES (%d,%" PRId64 ",\"%s\", %" PRIu64
+      ",%d,\"%s\""
+      "  ,%" PRId64 ",%d,\"%s\",%u,%d,%u,%u,\"%s\"); ",
+      foundBlock.userId_,
+      foundBlock.workerId_,
+      // filter again, just in case
+      filterWorkerName(foundBlock.workerFullName_).c_str(),
+      foundBlock.jobId_,
+      header.height.value(),
+      header.getHash().ToString().c_str(),
+      GetBlockRewardDecredWork(
+          header.height.value(),
+          header.voters.value(),
+          NetworkParamsDecred::get(foundBlock.network_)),
+      header.size.value(),
+      header.prevBlock.ToString().c_str(),
+      header.nBits.value(),
+      header.version.value(),
+      header.voters.value(),
+      foundBlock.network_,
+      nowStr.c_str());
 
   LOG(INFO) << "BlockMakerDecred::saveBlockToDB: " << sql;
 

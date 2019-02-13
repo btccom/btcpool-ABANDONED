@@ -37,27 +37,32 @@
 #include <iostream>
 
 using std::ostream;
-static ostream& operator<<(ostream& os, const StratumJobDecred& job)
-{
-  os << "jobId = " << job.jobId_ << ", prevHash = " << job.getPrevHash() << ", coinBase1 = " << job.getCoinBase1()
-     << ", coinBase2 = " << job.header_.stakeVersion << ", vesion = " << job.header_.version << ", height = " << job.header_.height;
+static ostream &operator<<(ostream &os, const StratumJobDecred &job) {
+  os << "jobId = " << job.jobId_ << ", prevHash = " << job.getPrevHash()
+     << ", coinBase1 = " << job.getCoinBase1()
+     << ", coinBase2 = " << job.header_.stakeVersion
+     << ", vesion = " << job.header_.version
+     << ", height = " << job.header_.height;
   return os;
 }
 
-JobRepositoryDecred::JobRepositoryDecred(size_t chainId, ServerDecred *server, const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime)
-  : JobRepositoryBase<ServerDecred>(chainId, server, kafkaBrokers, consumerTopic, fileLastNotifyTime)
+JobRepositoryDecred::JobRepositoryDecred(
+    size_t chainId,
+    ServerDecred *server,
+    const char *kafkaBrokers,
+    const char *consumerTopic,
+    const string &fileLastNotifyTime)
+  : JobRepositoryBase<ServerDecred>(
+        chainId, server, kafkaBrokers, consumerTopic, fileLastNotifyTime)
   , lastHeight_(0)
-  , lastVoters_(0)
-{
+  , lastVoters_(0) {
 }
 
-shared_ptr<StratumJob> JobRepositoryDecred::createStratumJob()
-{
+shared_ptr<StratumJob> JobRepositoryDecred::createStratumJob() {
   return std::make_shared<StratumJobDecred>();
 }
 
-void JobRepositoryDecred::broadcastStratumJob(shared_ptr<StratumJob> sjob)
-{
+void JobRepositoryDecred::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
   auto jobDecred = std::static_pointer_cast<StratumJobDecred>(sjob);
   if (!jobDecred) {
     LOG(ERROR) << "wrong job type: jobId = " << sjob->jobId_;
@@ -82,7 +87,8 @@ void JobRepositoryDecred::broadcastStratumJob(shared_ptr<StratumJob> sjob)
 
     if (isClean) {
       // mark all jobs as stale, should do this before insert new job
-      // stale shares will not be rejected, they will be marked as ACCEPT_STALE and have lower rewards.
+      // stale shares will not be rejected, they will be marked as ACCEPT_STALE
+      // and have lower rewards.
       for (auto it : exJobs_) {
         it.second->markStale();
       }
@@ -92,7 +98,8 @@ void JobRepositoryDecred::broadcastStratumJob(shared_ptr<StratumJob> sjob)
     exJobs_[jobDecred->jobId_] = jobEx;
   }
 
-  // We want to update jobs immediately if there are more voters for the same height block
+  // We want to update jobs immediately if there are more voters for the same
+  // height block
   if (isClean || moreVoters) {
     lastVoters_ = voters;
     sendMiningNotify(jobEx);
@@ -100,37 +107,56 @@ void JobRepositoryDecred::broadcastStratumJob(shared_ptr<StratumJob> sjob)
 }
 
 // gominer protocol
-// mining.notify: extra nonce 2 size is the actual extra nonce 2 size, extra nonce 1 is the actual extra nonce 1
-// mining.submit: extra nonce 2 is the actual extra nonce 2
+// mining.notify: extra nonce 2 size is the actual extra nonce 2 size, extra
+// nonce 1 is the actual extra nonce 1 mining.submit: extra nonce 2 is the
+// actual extra nonce 2
 class StratumProtocolDecredGoMiner : public StratumProtocolDecred {
 public:
   string getExtraNonce1String(uint32_t extraNonce1) const override {
-    return Strings::Format("%08" PRIx32, boost::endian::endian_reverse(extraNonce1));
+    return Strings::Format(
+        "%08" PRIx32, boost::endian::endian_reverse(extraNonce1));
   }
 
-  void setExtraNonces(BlockHeaderDecred &header, uint32_t extraNonce1, const vector<uint8_t> &extraNonce2) override {
-    *reinterpret_cast<boost::endian::little_uint32_buf_t *>(header.extraData.begin()) = extraNonce1;
-    std::copy_n(extraNonce2.begin(), StratumMiner::kExtraNonce2Size_, header.extraData.begin() + sizeof(extraNonce1));
+  void setExtraNonces(
+      BlockHeaderDecred &header,
+      uint32_t extraNonce1,
+      const vector<uint8_t> &extraNonce2) override {
+    *reinterpret_cast<boost::endian::little_uint32_buf_t *>(
+        header.extraData.begin()) = extraNonce1;
+    std::copy_n(
+        extraNonce2.begin(),
+        StratumMiner::kExtraNonce2Size_,
+        header.extraData.begin() + sizeof(extraNonce1));
   }
 };
 
 // tpruvot protocol
-// mining.notify: extra nonce 2 size is not used, extra nonce 1 is considered as the whole extra nonce, bits higher than 32 to be rolled
-// mining.submit: extra nonce 2 is considered as the whole rolled extra nonce but we only take the first 8 bytes (last 4 bytes shall be extra nonce1).
+// mining.notify: extra nonce 2 size is not used, extra nonce 1 is considered as
+// the whole extra nonce, bits higher than 32 to be rolled mining.submit: extra
+// nonce 2 is considered as the whole rolled extra nonce but we only take the
+// first 8 bytes (last 4 bytes shall be extra nonce1).
 class StratumProtocolDecredTPruvot : public StratumProtocolDecred {
 public:
   string getExtraNonce1String(uint32_t extraNonce1) const override {
-    return Strings::Format("%024" PRIx32, boost::endian::endian_reverse(extraNonce1));
+    return Strings::Format(
+        "%024" PRIx32, boost::endian::endian_reverse(extraNonce1));
   }
 
-  void setExtraNonces(BlockHeaderDecred &header, uint32_t extraNonce1, const vector<uint8_t> &extraNonce2) override {
-    *reinterpret_cast<boost::endian::little_uint32_buf_t *>(header.extraData.begin() + StratumMiner::kExtraNonce2Size_) = extraNonce1;
-    std::copy_n(extraNonce2.begin(), StratumMiner::kExtraNonce2Size_, header.extraData.begin());
+  void setExtraNonces(
+      BlockHeaderDecred &header,
+      uint32_t extraNonce1,
+      const vector<uint8_t> &extraNonce2) override {
+    *reinterpret_cast<boost::endian::little_uint32_buf_t *>(
+        header.extraData.begin() + StratumMiner::kExtraNonce2Size_) =
+        extraNonce1;
+    std::copy_n(
+        extraNonce2.begin(),
+        StratumMiner::kExtraNonce2Size_,
+        header.extraData.begin());
   }
 };
 
-bool ServerDecred::setupInternal(const libconfig::Config &config)
-{
+bool ServerDecred::setupInternal(const libconfig::Config &config) {
   string protocol;
   config.lookupValue("sserver.protocol", protocol);
   boost::algorithm::to_lower(protocol);
@@ -142,27 +168,32 @@ bool ServerDecred::setupInternal(const libconfig::Config &config)
     LOG(INFO) << "Using tpruvot stratum protocol";
     protocol_ = boost::make_unique<StratumProtocolDecredTPruvot>();
   }
-  
+
   return true;
 }
 
-unique_ptr<StratumSession> ServerDecred::createConnection(bufferevent *bev, sockaddr *saddr, uint32_t sessionID)
-{
-  return boost::make_unique<StratumSessionDecred>(*this, bev, saddr, sessionID, *protocol_);
+unique_ptr<StratumSession> ServerDecred::createConnection(
+    bufferevent *bev, sockaddr *saddr, uint32_t sessionID) {
+  return boost::make_unique<StratumSessionDecred>(
+      *this, bev, saddr, sessionID, *protocol_);
 }
 
-JobRepository* ServerDecred::createJobRepository(
-  size_t chainId,
-  const char *kafkaBrokers,
-  const char *consumerTopic,
-  const string &fileLastNotifyTime
-) {
-  return new JobRepositoryDecred(chainId, this, kafkaBrokers, consumerTopic, fileLastNotifyTime);
+JobRepository *ServerDecred::createJobRepository(
+    size_t chainId,
+    const char *kafkaBrokers,
+    const char *consumerTopic,
+    const string &fileLastNotifyTime) {
+  return new JobRepositoryDecred(
+      chainId, this, kafkaBrokers, consumerTopic, fileLastNotifyTime);
 }
 
-int ServerDecred::checkShare(ShareDecred &share, shared_ptr<StratumJobEx> exJobPtr, const vector<uint8_t> &extraNonce2,
-                             uint32_t ntime, uint32_t nonce, const string &workerFullName)
-{
+int ServerDecred::checkShare(
+    ShareDecred &share,
+    shared_ptr<StratumJobEx> exJobPtr,
+    const vector<uint8_t> &extraNonce2,
+    uint32_t ntime,
+    uint32_t nonce,
+    const string &workerFullName) {
   if (!exJobPtr || exJobPtr->isStale()) {
     return StratumStatus::JOB_NOT_FOUND;
   }
@@ -174,8 +205,14 @@ int ServerDecred::checkShare(ShareDecred &share, shared_ptr<StratumJobEx> exJobP
     return StratumStatus::TIME_TOO_NEW;
   }
 
-  FoundBlockDecred foundBlock(share.jobid(), share.workerhashid(), share.userid(), workerFullName, sjob->header_, sjob->network_);
-  auto& header = foundBlock.header_;
+  FoundBlockDecred foundBlock(
+      share.jobid(),
+      share.workerhashid(),
+      share.userid(),
+      workerFullName,
+      sjob->header_,
+      sjob->network_);
+  auto &header = foundBlock.header_;
   header.timestamp = ntime;
   header.nonce = nonce;
   protocol_->setExtraNonces(header, share.sessionid(), extraNonce2);
@@ -189,14 +226,15 @@ int ServerDecred::checkShare(ShareDecred &share, shared_ptr<StratumJobEx> exJobP
   //
   if (isSubmitInvalidBlock_ == true || bnBlockHash <= bnNetworkTarget) {
     // send
-    sendSolvedShare2Kafka(exJobPtr->chainId_, (const char*)&foundBlock, sizeof(foundBlock));
+    sendSolvedShare2Kafka(
+        exJobPtr->chainId_, (const char *)&foundBlock, sizeof(foundBlock));
 
     // mark jobs as stale
     GetJobRepository(exJobPtr->chainId_)->markAllJobsAsStale();
 
     LOG(INFO) << ">>>> found a new block: " << blkHash.ToString()
-    << ", jobId: " << share.jobid() << ", userId: " << share.userid()
-    << ", by: " << workerFullName << " <<<<";
+              << ", jobId: " << share.jobid() << ", userId: " << share.userid()
+              << ", by: " << workerFullName << " <<<<";
   }
 
   // print out high diff share, 2^10 = 1024
@@ -207,10 +245,12 @@ int ServerDecred::checkShare(ShareDecred &share, shared_ptr<StratumJobEx> exJobP
   }
 
   // check share diff
-  auto jobTarget = NetworkParamsDecred::get(sjob->network_).powLimit / share.sharediff();
+  auto jobTarget =
+      NetworkParamsDecred::get(sjob->network_).powLimit / share.sharediff();
 
-  DLOG(INFO) << "blkHash: " << blkHash.ToString() << ", jobTarget: "
-  << jobTarget.ToString() << ", networkTarget: " << sjob->target_.ToString();
+  DLOG(INFO) << "blkHash: " << blkHash.ToString()
+             << ", jobTarget: " << jobTarget.ToString()
+             << ", networkTarget: " << sjob->target_.ToString();
 
   if (isEnableSimulator_ == false && bnBlockHash > jobTarget) {
     return StratumStatus::LOW_DIFFICULTY;

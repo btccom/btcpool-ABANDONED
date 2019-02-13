@@ -28,7 +28,8 @@
 #include "CommonBeam.h"
 #include "StratumBeam.h"
 
-///////////////////////////////  GlobalShareBeam  ////////////////////////////////
+///////////////////////////////  GlobalShareBeam
+///////////////////////////////////
 // Used to detect duplicate share attacks on ETH mining.
 struct GlobalShareBeam {
   uint64_t inputPrefix_;
@@ -38,18 +39,18 @@ struct GlobalShareBeam {
 
   GlobalShareBeam(const ShareBeam &share)
     : inputPrefix_(share.inputprefix())
-    , nonce_(share.nonce())
-  {}
+    , nonce_(share.nonce()) {}
 
-  GlobalShareBeam& operator=(const GlobalShareBeam &r) = default;
+  GlobalShareBeam &operator=(const GlobalShareBeam &r) = default;
 
   bool operator<(const GlobalShareBeam &r) const {
-    if (inputPrefix_ <  r.inputPrefix_ ||
-       (inputPrefix_ == r.inputPrefix_ && nonce_ < r.nonce_)) {
+    if (inputPrefix_ < r.inputPrefix_ ||
+        (inputPrefix_ == r.inputPrefix_ && nonce_ < r.nonce_)) {
       return true;
     }
     return false;
   }
 };
 ////////////////////////////  Alias  ////////////////////////////
-using DuplicateShareCheckerBeam = DuplicateShareCheckerT<ShareBeam, GlobalShareBeam>;
+using DuplicateShareCheckerBeam =
+    DuplicateShareCheckerT<ShareBeam, GlobalShareBeam>;

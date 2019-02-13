@@ -31,18 +31,23 @@
 
 using namespace std;
 
-//////////////////////////////////// JobRepositorySia /////////////////////////////////
-JobRepositorySia::JobRepositorySia(size_t chainId, ServerSia *server, const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime) : 
-  JobRepositoryBase(chainId, server, kafkaBrokers, consumerTopic, fileLastNotifyTime)
-{
+//////////////////////////////////// JobRepositorySia
+////////////////////////////////////
+JobRepositorySia::JobRepositorySia(
+    size_t chainId,
+    ServerSia *server,
+    const char *kafkaBrokers,
+    const char *consumerTopic,
+    const string &fileLastNotifyTime)
+  : JobRepositoryBase(
+        chainId, server, kafkaBrokers, consumerTopic, fileLastNotifyTime) {
 }
 
-JobRepositorySia::~JobRepositorySia()
-{
-
+JobRepositorySia::~JobRepositorySia() {
 }
 
-shared_ptr<StratumJobEx> JobRepositorySia::createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean){
+shared_ptr<StratumJobEx> JobRepositorySia::createStratumJobEx(
+    shared_ptr<StratumJob> sjob, bool isClean) {
   return std::make_shared<StratumJobEx>(chainId_, sjob, isClean);
 }
 
@@ -64,17 +69,16 @@ void JobRepositorySia::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
 }
 
 ////////////////////////////////// ServierSia ///////////////////////////////
-unique_ptr<StratumSession> ServerSia::createConnection(struct bufferevent *bev,
-                                                             struct sockaddr *saddr,
-                                                             const uint32_t sessionID) {
+unique_ptr<StratumSession> ServerSia::createConnection(
+    struct bufferevent *bev, struct sockaddr *saddr, const uint32_t sessionID) {
   return boost::make_unique<StratumSessionSia>(*this, bev, saddr, sessionID);
 }
 
 JobRepository *ServerSia::createJobRepository(
-  size_t chainId,
-  const char *kafkaBrokers,
-  const char *consumerTopic,
-  const string &fileLastNotifyTime
-) {
-  return new JobRepositorySia(chainId, this, kafkaBrokers, consumerTopic, fileLastNotifyTime);
+    size_t chainId,
+    const char *kafkaBrokers,
+    const char *consumerTopic,
+    const string &fileLastNotifyTime) {
+  return new JobRepositorySia(
+      chainId, this, kafkaBrokers, consumerTopic, fileLastNotifyTime);
 }

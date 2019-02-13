@@ -30,20 +30,24 @@
 
 #include <boost/make_unique.hpp>
 
-StratumSessionBeam::StratumSessionBeam(ServerBeam &server,
-                                     struct bufferevent *bev,
-                                     struct sockaddr *saddr,
-                                     uint32_t sessionId)
-    : StratumSessionBase(server, bev, saddr, sessionId)
-    , currentJobDiff_(0){
+StratumSessionBeam::StratumSessionBeam(
+    ServerBeam &server,
+    struct bufferevent *bev,
+    struct sockaddr *saddr,
+    uint32_t sessionId)
+  : StratumSessionBase(server, bev, saddr, sessionId)
+  , currentJobDiff_(0) {
 }
 
-void StratumSessionBeam::sendSetDifficulty(LocalJob &localJob, uint64_t difficulty) {
-  // BEAM stratum have no set difficulty method, but change the job bits directly
+void StratumSessionBeam::sendSetDifficulty(
+    LocalJob &localJob, uint64_t difficulty) {
+  // BEAM stratum have no set difficulty method, but change the job bits
+  // directly
   currentJobDiff_ = difficulty;
 }
 
-void StratumSessionBeam::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
+void StratumSessionBeam::sendMiningNotify(
+    shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
   if (state_ < AUTHENTICATED || exJobPtr == nullptr) {
     LOG(ERROR) << "sendMiningNotify failed, state: " << state_;
     return;
@@ -65,22 +69,22 @@ void StratumSessionBeam::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, boo
 
   uint32_t shareBits = Beam_DiffToBits(currentJobDiff_);
 
-  DLOG(INFO) << "new stratum job mining.notify: share difficulty=" << std::hex << currentJobDiff_
-             << ", share target=" << Beam_DiffToTarget(currentJobDiff_).ToString();
+  DLOG(INFO) << "new stratum job mining.notify: share difficulty=" << std::hex
+             << currentJobDiff_ << ", share target="
+             << Beam_DiffToTarget(currentJobDiff_).ToString();
   string strNotify = Strings::Format(
-    "{"
+      "{"
       "\"id\":%u,"
       "\"jsonrpc\":\"2.0\","
       "\"method\":\"job\","
       "\"difficulty\":%u,"
       "\"input\":\"%s\","
       "\"height\":%d"
-    "}\n",
-    inputHash,
-    shareBits,
-    job->input_.c_str(),
-    job->height_
-    );
+      "}\n",
+      inputHash,
+      shareBits,
+      job->input_.c_str(),
+      job->height_);
 
   DLOG(INFO) << strNotify;
   sendData(strNotify); // send notify string
@@ -89,7 +93,8 @@ void StratumSessionBeam::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, boo
   clearLocalJobs();
 }
 
-bool StratumSessionBeam::validate(const JsonNode &jmethod, const JsonNode &jparams, const JsonNode &jroot) {
+bool StratumSessionBeam::validate(
+    const JsonNode &jmethod, const JsonNode &jparams, const JsonNode &jroot) {
   if (jmethod.type() == Utilities::JS::type::Str && jmethod.size() != 0) {
     return true;
   }
@@ -97,24 +102,19 @@ bool StratumSessionBeam::validate(const JsonNode &jmethod, const JsonNode &jpara
 }
 
 void StratumSessionBeam::handleRequest(
-  const std::string &idStr,
-  const std::string &method,
-  const JsonNode &jparams,
-  const JsonNode &jroot
-) {
+    const std::string &idStr,
+    const std::string &method,
+    const JsonNode &jparams,
+    const JsonNode &jroot) {
   if (method == "login") {
     handleRequest_Authorize(idStr, jparams, jroot);
-  }
-  else if (dispatcher_) {
+  } else if (dispatcher_) {
     dispatcher_->handleRequest(idStr, method, jparams, jroot);
   }
 }
 
 void StratumSessionBeam::handleRequest_Authorize(
-  const string &idStr,
-  const JsonNode &jparams,
-  const JsonNode &jroot
-) {
+    const string &idStr, const JsonNode &jparams, const JsonNode &jroot) {
   // const type cannot access string indexed object member
   JsonNode &jsonRoot = const_cast<JsonNode &>(jroot);
 
@@ -122,23 +122,21 @@ void StratumSessionBeam::handleRequest_Authorize(
   if (jsonRoot["api_key"].type() == Utilities::JS::type::Str) {
     fullName = jsonRoot["api_key"].str();
   }
-  
+
   checkUserAndPwd(idStr, fullName, "");
   return;
 }
 
 unique_ptr<StratumMiner> StratumSessionBeam::createMiner(
-  const std::string &clientAgent,
-  const std::string &workerName,
-  int64_t workerId
-) {
+    const std::string &clientAgent,
+    const std::string &workerName,
+    int64_t workerId) {
   return boost::make_unique<StratumMinerBeam>(
-    *this,
-    *getServer().defaultDifficultyController_,
-    clientAgent,
-    workerName,
-    workerId
-  );
+      *this,
+      *getServer().defaultDifficultyController_,
+      clientAgent,
+      workerName,
+      workerId);
 }
 
 void StratumSessionBeam::responseError(const string &idStr, int code) {
@@ -146,14 +144,18 @@ void StratumSessionBeam::responseError(const string &idStr, int code) {
 }
 
 void StratumSessionBeam::responseTrue(const string &idStr) {
-    rpc2ResponseTrue(idStr);
+  rpc2ResponseTrue(idStr);
 }
 
 void StratumSessionBeam::responseFalse(const string &idStr, int errCode) {
   char buf[1024];
-  int len = snprintf(buf, sizeof(buf),
-                     "{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":false,\"data\":{\"code\":%d,\"message\":\"%s\"}}\n",
-                     idStr.empty() ? "null" : idStr.c_str(),
-                     errCode, StratumStatus::toString(errCode));
+  int len = snprintf(
+      buf,
+      sizeof(buf),
+      "{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":false,\"data\":{\"code\":%d,"
+      "\"message\":\"%s\"}}\n",
+      idStr.empty() ? "null" : idStr.c_str(),
+      errCode,
+      StratumStatus::toString(errCode));
   sendData(buf, len);
 }

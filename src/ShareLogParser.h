@@ -37,23 +37,27 @@
 // Interface, used as a pointer type.
 class ShareLogDumper {
 public:
-  virtual ~ShareLogDumper() {};
+  virtual ~ShareLogDumper(){};
   virtual void dump2stdout() = 0;
 };
 
-///////////////////////////////  ShareLogDumperT  ///////////////////////////////
+///////////////////////////////  ShareLogDumperT ///////////////////////////////
 // print share.toString() to stdout
-template<class SHARE>
+template <class SHARE>
 class ShareLogDumperT : public ShareLogDumper {
-  string filePath_;  // sharelog data file path
-  std::set<int32_t> uids_;  // if empty dump all user's shares
+  string filePath_; // sharelog data file path
+  std::set<int32_t> uids_; // if empty dump all user's shares
   bool isDumpAll_;
 
   void parseShareLog(const uint8_t *buf, size_t len);
   void parseShare(const SHARE *share);
 
 public:
-  ShareLogDumperT(const char *chainType, const string &dataDir, time_t timestamp, const std::set<int32_t> &uids);
+  ShareLogDumperT(
+      const char *chainType,
+      const string &dataDir,
+      time_t timestamp,
+      const std::set<int32_t> &uids);
   ~ShareLogDumperT();
 
   void dump2stdout();
@@ -68,35 +72,39 @@ public:
   virtual bool flushToDB() = 0;
   virtual bool processUnchangedShareLog() = 0;
 };
-///////////////////////////////  ShareLogParserT  ///////////////////////////////
+///////////////////////////////  ShareLogParserT ///////////////////////////////
 //
 // 1. read sharelog data files
 // 2. calculate share & score
 // 3. write stats data to DB
 //
-template<class SHARE>
+template <class SHARE>
 class ShareLogParserT : public ShareLogParser {
   pthread_rwlock_t rwlock_;
   // key: WorkerKey, value: share stats
-  std::unordered_map<WorkerKey/* userID + workerID */, shared_ptr<ShareStatsDay<SHARE>>> workersStats_;
+  std::unordered_map<
+      WorkerKey /* userID + workerID */,
+      shared_ptr<ShareStatsDay<SHARE>>>
+      workersStats_;
 
-  time_t date_;      // date_ % 86400 == 0
-  string filePath_;  // sharelog data file path
+  time_t date_; // date_ % 86400 == 0
+  string filePath_; // sharelog data file path
   const string chainType_;
 
   //
   // for processGrowingShareLog()
   //
-  zstr::ifstream *f_;        // file handler
-  uint8_t *buf_;   // fread buffer
+  zstr::ifstream *f_; // file handler
+  uint8_t *buf_; // fread buffer
   // 48 * 1000000 = 48,000,000 ~ 48 MB
-  static const size_t kMaxElementsNum_ = 1000000;  // num of shares
+  static const size_t kMaxElementsNum_ = 1000000; // num of shares
   size_t incompleteShareSize_;
   uint32_t bufferlength_;
 
-  MySQLConnection poolDB_;  // save stats data
+  MySQLConnection poolDB_; // save stats data
 
-  shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker_; // Used to detect duplicate share attacks.
+  shared_ptr<DuplicateShareChecker<SHARE>>
+      dupShareChecker_; // Used to detect duplicate share attacks.
 
   inline int32_t getHourIdx(uint32_t ts) {
     // %H	Hour in 24h format (00-23)
@@ -108,29 +116,33 @@ class ShareLogParserT : public ShareLogParser {
   virtual bool filterShare(const SHARE &share) { return true; }
 
   void generateDailyData(
-    shared_ptr<ShareStatsDay<SHARE>> stats,
-    const int32_t userId, const int64_t workerId,
-    vector<string> *valuesWorkersDay,
-    vector<string> *valuesUsersDay,
-    vector<string> *valuesPoolDay);
+      shared_ptr<ShareStatsDay<SHARE>> stats,
+      const int32_t userId,
+      const int64_t workerId,
+      vector<string> *valuesWorkersDay,
+      vector<string> *valuesUsersDay,
+      vector<string> *valuesPoolDay);
   void generateHoursData(
-    shared_ptr<ShareStatsDay<SHARE>> stats,
-    const int32_t userId, const int64_t workerId,
-    vector<string> *valuesWorkersHour,
-    vector<string> *valuesUsersHour,
-    vector<string> *valuesPoolHour);
+      shared_ptr<ShareStatsDay<SHARE>> stats,
+      const int32_t userId,
+      const int64_t workerId,
+      vector<string> *valuesWorkersHour,
+      vector<string> *valuesUsersHour,
+      vector<string> *valuesPoolHour);
   void flushHourOrDailyData(
-    const vector<string> values,
-    const string &tableName,
-    const string &extraFields);
+      const vector<string> values,
+      const string &tableName,
+      const string &extraFields);
 
   void removeExpiredDataFromDB();
 
 public:
   ShareLogParserT(
-    const char *chainType, const string &dataDir,
-    time_t timestamp, const MysqlConnectInfo &poolDBInfo,
-    shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker);
+      const char *chainType,
+      const string &dataDir,
+      time_t timestamp,
+      const MysqlConnectInfo &poolDBInfo,
+      shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker);
   virtual ~ShareLogParserT();
 
   bool init();
@@ -139,7 +151,8 @@ public:
   bool flushToDB();
 
   // get share stats day handler
-  shared_ptr<ShareStatsDay<SHARE>> getShareStatsDayHandler(const WorkerKey &key);
+  shared_ptr<ShareStatsDay<SHARE>>
+  getShareStatsDayHandler(const WorkerKey &key);
 
   // read unchanged share data bin file, for example yestoday's file. it will
   // use mmap() to get high performance. call only once will process
@@ -148,33 +161,33 @@ public:
 
   // today's file is still growing, return processed shares number.
   int64_t processGrowingShareLog();
-  bool isReachEOF();  // only for growing file
+  bool isReachEOF(); // only for growing file
 };
 
 ////////////////////////////  ShareLogParserServer  ////////////////////////////
 // Interface, used as a pointer type.
 class ShareLogParserServer {
 public:
-  virtual ~ShareLogParserServer() {};
+  virtual ~ShareLogParserServer(){};
   virtual void stop() = 0;
   virtual void run() = 0;
 };
 
-////////////////////////////  ShareLogParserServerT  ////////////////////////////
+////////////////////////////  ShareLogParserServerT ////////////////////////////
 //
 // read share binlog, parse shares, calc stats data than save them to database
 // table.stats_xxxx. meanwhile hold there stats data in memory so it could
 // provide httpd service. web/app could read the latest data from it's http API.
 //
-template<class SHARE>
+template <class SHARE>
 class ShareLogParserServerT : public ShareLogParserServer {
 protected:
   struct ServerStatus {
     uint32_t uptime_;
     uint64_t requestCount_;
     uint64_t responseBytes_;
-    uint32_t date_;  // Y-m-d
-    vector<ShareStats> stats;  // first is today and latest 3 hours
+    uint32_t date_; // Y-m-d
+    vector<ShareStats> stats; // first is today and latest 3 hours
   };
 
   //-----------------
@@ -182,13 +195,14 @@ protected:
   pthread_rwlock_t rwlock_;
   time_t uptime_;
   // share log daily
-  time_t date_;      // date_ % 86400 == 0
+  time_t date_; // date_ % 86400 == 0
   shared_ptr<ShareLogParserT<SHARE>> shareLogParser_;
   const string chainType_;
   string dataDir_;
-  MysqlConnectInfo poolDBInfo_;  // save stats data
+  MysqlConnectInfo poolDBInfo_; // save stats data
   time_t kFlushDBInterval_;
-  shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker_; // Used to detect duplicate share attacks.
+  shared_ptr<DuplicateShareChecker<SHARE>>
+      dupShareChecker_; // Used to detect duplicate share attacks.
 
   // httpd
   struct event_base *base_;
@@ -199,15 +213,19 @@ protected:
 
   void getServerStatus(ServerStatus &s);
   void getShareStats(
-    struct evbuffer *evb, const char *pUserId,
-    const char *pWorkerId, const char *pHour);
+      struct evbuffer *evb,
+      const char *pUserId,
+      const char *pWorkerId,
+      const char *pHour);
   void _getShareStats(
-    const vector<WorkerKey> &keys, const vector<int32_t> &hours,
-    vector<ShareStats> &shareStats);
+      const vector<WorkerKey> &keys,
+      const vector<int32_t> &hours,
+      vector<ShareStats> &shareStats);
 
   void runThreadShareLogParser();
   bool initShareLogParser(time_t datets);
-  virtual shared_ptr<ShareLogParserT<SHARE>> createShareLogParser(time_t datets);
+  virtual shared_ptr<ShareLogParserT<SHARE>>
+  createShareLogParser(time_t datets);
   bool setupThreadShareLogParser();
   void trySwitchBinFile(shared_ptr<ShareLogParserT<SHARE>> shareLogParser);
   void runHttpd();
@@ -218,11 +236,13 @@ public:
 
 public:
   ShareLogParserServerT(
-    const char *chainType, const string &dataDir,
-    const string &httpdHost, unsigned short httpdPort,
-    const MysqlConnectInfo &poolDBInfo,
-    const uint32_t kFlushDBInterval,
-    shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker);
+      const char *chainType,
+      const string &dataDir,
+      const string &httpdHost,
+      unsigned short httpdPort,
+      const MysqlConnectInfo &poolDBInfo,
+      const uint32_t kFlushDBInterval,
+      shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker);
   virtual ~ShareLogParserServerT();
 
   void stop();
@@ -235,6 +255,5 @@ public:
 #include "ShareLogParser.inl"
 
 ///////////////////////////////  Alias  ///////////////////////////////
-
 
 #endif // SHARELOGPARSER_H_

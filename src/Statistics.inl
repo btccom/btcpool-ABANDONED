@@ -27,7 +27,9 @@
 ////////////////////////////////// StatsWindow /////////////////////////////////
 template <typename T>
 StatsWindow<T>::StatsWindow(const int windowSize)
-:maxRingIdx_(-1), windowSize_(windowSize), elements_(windowSize) {
+  : maxRingIdx_(-1)
+  , windowSize_(windowSize)
+  , elements_(windowSize) {
 }
 
 template <typename T>
@@ -53,19 +55,19 @@ void StatsWindow<T>::clear() {
 
 template <typename T>
 bool StatsWindow<T>::insert(const int64_t curRingIdx, const T val) {
-  if (maxRingIdx_ > curRingIdx + windowSize_) {  // too small index, drop it
+  if (maxRingIdx_ > curRingIdx + windowSize_) { // too small index, drop it
     return false;
   }
 
-  if (maxRingIdx_ == -1/* first insert */ ||
-      curRingIdx - maxRingIdx_ > windowSize_/* all data expired */) {
+  if (maxRingIdx_ == -1 /* first insert */ ||
+      curRingIdx - maxRingIdx_ > windowSize_ /* all data expired */) {
     clear();
     maxRingIdx_ = curRingIdx;
   }
 
   while (maxRingIdx_ < curRingIdx) {
     maxRingIdx_++;
-    elements_[maxRingIdx_ % windowSize_] = 0;  // reset
+    elements_[maxRingIdx_ % windowSize_] = 0; // reset
   }
 
   elements_[curRingIdx % windowSize_] += val;
@@ -97,17 +99,20 @@ T StatsWindow<T>::sum(int64_t beginRingIdx) {
 
 ///////////////////////////////  ShareStatsDay  ////////////////////////////////
 template <class SHARE>
-void ShareStatsDay<SHARE>::getShareStatsHour(uint32_t hourIdx, ShareStats *stats) {
+void ShareStatsDay<SHARE>::getShareStatsHour(
+    uint32_t hourIdx, ShareStats *stats) {
   ScopeLock sl(lock_);
   if (hourIdx > 23)
     return;
 
   stats->shareAccept_ = shareAccept1h_[hourIdx];
   stats->shareReject_ = shareReject1h_[hourIdx];
-  stats->earn_        = earn1h_[hourIdx];
+  stats->earn_ = earn1h_[hourIdx];
 
   if (stats->shareReject_)
-  	stats->rejectRate_  = (stats->shareReject_ * 1.0 / (stats->shareAccept_ + stats->shareReject_));
+    stats->rejectRate_ =
+        (stats->shareReject_ * 1.0 /
+         (stats->shareAccept_ + stats->shareReject_));
   else
     stats->rejectRate_ = 0.0;
 }
@@ -117,10 +122,12 @@ void ShareStatsDay<SHARE>::getShareStatsDay(ShareStats *stats) {
   ScopeLock sl(lock_);
   stats->shareAccept_ = shareAccept1d_;
   stats->shareReject_ = shareReject1d_;
-  stats->earn_        = earn1d_;
+  stats->earn_ = earn1d_;
 
   if (stats->shareReject_)
-    stats->rejectRate_  = (stats->shareReject_ * 1.0 / (stats->shareAccept_ + stats->shareReject_));
+    stats->rejectRate_ =
+        (stats->shareReject_ * 1.0 /
+         (stats->shareAccept_ + stats->shareReject_));
   else
     stats->rejectRate_ = 0.0;
 }

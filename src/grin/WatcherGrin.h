@@ -38,17 +38,18 @@ class ClientContainerGrin : public ClientContainer {
 public:
   explicit ClientContainerGrin(const libconfig::Config &config);
 
-  PoolWatchClient *createPoolWatchClient(const libconfig::Setting &config) override;
+  PoolWatchClient *
+  createPoolWatchClient(const libconfig::Setting &config) override;
   bool initInternal() override;
 
   bool sendJobToKafka(const StratumJobGrin &job, PoolWatchClientGrin *client);
-  MysqlConnectInfo& getMysqlInfo() { return poolDB_; }
+  MysqlConnectInfo &getMysqlInfo() { return poolDB_; }
 
 private:
   void runThreadSolvedShareConsume();
   void consumeSolvedShare(rd_kafka_message_t *rkmessage);
 
-  KafkaConsumer kafkaSolvedShareConsumer_;  // consume solved_share_topic
+  KafkaConsumer kafkaSolvedShareConsumer_; // consume solved_share_topic
   thread threadSolvedShareConsume_;
 
   struct JobCache {
@@ -66,7 +67,10 @@ private:
 
 class PoolWatchClientGrin : public PoolWatchClient {
 public:
-  PoolWatchClientGrin(struct event_base *base, ClientContainer *container,const libconfig::Setting &config);
+  PoolWatchClientGrin(
+      struct event_base *base,
+      ClientContainer *container,
+      const libconfig::Setting &config);
 
   void onConnected() override;
 

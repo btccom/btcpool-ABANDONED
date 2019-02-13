@@ -29,144 +29,141 @@
 #include <uint256.h>
 #include "sia/sia.pb.h"
 
-
-class ShareSiaBytesVersion
-{
+class ShareSiaBytesVersion {
 public:
+  uint32_t version_ = 0;
+  uint32_t checkSum_ = 0;
 
-  uint32_t  version_      = 0;
-  uint32_t  checkSum_     = 0;
+  int64_t workerHashId_ = 0; // 8
+  int32_t userId_ = 0; // 16
+  int32_t status_ = 0; // 20
+  int64_t timestamp_ = 0; // 24
+  IpAddress ip_ = 0; // 32
 
-  int64_t   workerHashId_ = 0;//8
-  int32_t   userId_       = 0;//16
-  int32_t   status_       = 0;//20
-  int64_t   timestamp_    = 0;//24
-  IpAddress ip_           = 0;//32
-
-  uint64_t jobId_     = 0;//48
-  uint64_t shareDiff_ = 0;//56
-  uint32_t blkBits_   = 0;//64
-  uint32_t height_    = 0;//68
-  uint32_t nonce_     = 0;//72
-  uint32_t sessionId_ = 0;//76
+  uint64_t jobId_ = 0; // 48
+  uint64_t shareDiff_ = 0; // 56
+  uint32_t blkBits_ = 0; // 64
+  uint32_t height_ = 0; // 68
+  uint32_t nonce_ = 0; // 72
+  uint32_t sessionId_ = 0; // 76
 
   uint32_t checkSum() const {
     uint64_t c = 0;
 
-    c += (uint64_t) version_;
-    c += (uint64_t) workerHashId_;
-    c += (uint64_t) userId_;
-    c += (uint64_t) status_;
-    c += (uint64_t) timestamp_;
-    c += (uint64_t) ip_.addrUint64[0];
-    c += (uint64_t) ip_.addrUint64[1];
-    c += (uint64_t) jobId_;
-    c += (uint64_t) shareDiff_;
-    c += (uint64_t) blkBits_;
-    c += (uint64_t) height_;
-    c += (uint64_t) nonce_;
-    c += (uint64_t) sessionId_;
+    c += (uint64_t)version_;
+    c += (uint64_t)workerHashId_;
+    c += (uint64_t)userId_;
+    c += (uint64_t)status_;
+    c += (uint64_t)timestamp_;
+    c += (uint64_t)ip_.addrUint64[0];
+    c += (uint64_t)ip_.addrUint64[1];
+    c += (uint64_t)jobId_;
+    c += (uint64_t)shareDiff_;
+    c += (uint64_t)blkBits_;
+    c += (uint64_t)height_;
+    c += (uint64_t)nonce_;
+    c += (uint64_t)sessionId_;
 
-    return ((uint32_t) c) + ((uint32_t) (c >> 32));
+    return ((uint32_t)c) + ((uint32_t)(c >> 32));
   }
-
 };
 
-
-class ShareSia : public sharebase::SiaMsg
-{
+class ShareSia : public sharebase::SiaMsg {
 public:
-
-  const static uint32_t BYTES_VERSION = 0x00010003u; // first 0001: bitcoin, second 0003: version 3.
-  const static uint32_t CURRENT_VERSION = 0x00010004u; // first 0001: bitcoin, second 0003: version 4.
+  const static uint32_t BYTES_VERSION =
+      0x00010003u; // first 0001: bitcoin, second 0003: version 3.
+  const static uint32_t CURRENT_VERSION =
+      0x00010004u; // first 0001: bitcoin, second 0003: version 4.
 
   // Please pay attention to memory alignment when adding / removing fields.
-  // Please note that changing the Share structure will be incompatible with the old deployment.
-  // Also, think carefully when removing fields. Some fields are not used by BTCPool itself,
-  // but are important to external statistics programs.
+  // Please note that changing the Share structure will be incompatible with the
+  // old deployment. Also, think carefully when removing fields. Some fields are
+  // not used by BTCPool itself, but are important to external statistics
+  // programs.
 
-  // TODO: Change to a data structure that is easier to upgrade, such as ProtoBuf.
+  // TODO: Change to a data structure that is easier to upgrade, such as
+  // ProtoBuf.
 
-
-  ShareSia() {
-    set_version(CURRENT_VERSION);
-  }
+  ShareSia() { set_version(CURRENT_VERSION); }
   ShareSia(const ShareSia &r) = default;
   ShareSia &operator=(const ShareSia &r) = default;
 
-  double score() const
-  {
-    if (sharediff() == 0 || blkbits() == 0)
-    {
+  double score() const {
+    if (sharediff() == 0 || blkbits() == 0) {
       return 0.0;
     }
 
     double networkDifficulty = 0.0;
     BitsToDifficulty(blkbits(), &networkDifficulty);
 
-    // Network diff may less than share diff on testnet or regression test network.
-    // On regression test network, the network diff may be zero.
-    // But no matter how low the network diff is, you can only dig one block at a time.
-    if (networkDifficulty < (double)sharediff())
-    {
+    // Network diff may less than share diff on testnet or regression test
+    // network. On regression test network, the network diff may be zero. But no
+    // matter how low the network diff is, you can only dig one block at a time.
+    if (networkDifficulty < (double)sharediff()) {
       return 1.0;
     }
 
     return (double)sharediff() / networkDifficulty;
   }
 
-
-  bool isValid() const
-  {
+  bool isValid() const {
     if (version() != CURRENT_VERSION) {
       return false;
     }
 
-    if (jobid() == 0 || userid() == 0 || workerhashid() == 0 ||
-        height() == 0 || blkbits() == 0 || sharediff() == 0)
-    {
+    if (jobid() == 0 || userid() == 0 || workerhashid() == 0 || height() == 0 ||
+        blkbits() == 0 || sharediff() == 0) {
       return false;
     }
 
     return true;
   }
 
-  string toString() const
-  {
+  string toString() const {
     double networkDifficulty = 0.0;
     BitsToDifficulty(blkbits(), &networkDifficulty);
 
-    return Strings::Format("share(jobId: %" PRIu64 ", ip: %s, userId: %d, "
-                           "workerId: %" PRId64 ", time: %u/%s, height: %u, "
-                           "blkBits: %08x/%lf, shareDiff: %" PRIu64 ", "
-                           "status: %d/%s)",
-                           jobid(), ip().c_str(), userid(),
-                           workerhashid(), timestamp(), date("%F %T", timestamp()).c_str(), height(),
-                           blkbits(), networkDifficulty, sharediff(),
-                           status(), StratumStatus::toString(status()));
+    return Strings::Format(
+        "share(jobId: %" PRIu64
+        ", ip: %s, userId: %d, "
+        "workerId: %" PRId64
+        ", time: %u/%s, height: %u, "
+        "blkBits: %08x/%lf, shareDiff: %" PRIu64
+        ", "
+        "status: %d/%s)",
+        jobid(),
+        ip().c_str(),
+        userid(),
+        workerhashid(),
+        timestamp(),
+        date("%F %T", timestamp()).c_str(),
+        height(),
+        blkbits(),
+        networkDifficulty,
+        sharediff(),
+        status(),
+        StratumStatus::toString(status()));
   }
 
-
-  bool SerializeToBuffer(string& data, uint32_t& size) const{
+  bool SerializeToBuffer(string &data, uint32_t &size) const {
     size = ByteSize();
     data.resize(size);
     if (!SerializeToArray((uint8_t *)data.data(), size)) {
       DLOG(INFO) << "base.SerializeToArray failed!" << std::endl;
       return false;
-
     }
     return true;
   }
 
-  bool SerializeToArrayWithLength(string& data, uint32_t& size) const {
+  bool SerializeToArrayWithLength(string &data, uint32_t &size) const {
     size = ByteSize();
     data.resize(size + sizeof(uint32_t));
 
-    *((uint32_t*)data.data()) = size;
-    uint8_t * payload = (uint8_t *)data.data();
+    *((uint32_t *)data.data()) = size;
+    uint8_t *payload = (uint8_t *)data.data();
 
     if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
-       DLOG(INFO) << "base.SerializeToArray failed!";
+      DLOG(INFO) << "base.SerializeToArray failed!";
       return false;
     }
 
@@ -174,12 +171,12 @@ public:
     return true;
   }
 
-  bool SerializeToArrayWithVersion(string& data, uint32_t& size) const {
+  bool SerializeToArrayWithVersion(string &data, uint32_t &size) const {
     size = ByteSize();
     data.resize(size + sizeof(uint32_t));
 
-    uint8_t * payload = (uint8_t *)data.data();
-    *((uint32_t*)payload) = version();
+    uint8_t *payload = (uint8_t *)data.data();
+    *((uint32_t *)payload) = version();
 
     if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
       DLOG(INFO) << "SerializeToArray failed!";
@@ -190,27 +187,31 @@ public:
     return true;
   }
 
-  bool UnserializeWithVersion(const uint8_t* data, uint32_t size){
+  bool UnserializeWithVersion(const uint8_t *data, uint32_t size) {
 
-    if(nullptr == data || size <= 0) {
+    if (nullptr == data || size <= 0) {
       return false;
     }
 
-    const uint8_t * payload = data;
-    uint32_t version = *((uint32_t*)payload);
+    const uint8_t *payload = data;
+    uint32_t version = *((uint32_t *)payload);
 
     if (version == CURRENT_VERSION) {
 
-      if (!ParseFromArray((const uint8_t *)(payload + sizeof(uint32_t)), size - sizeof(uint32_t))) {
+      if (!ParseFromArray(
+              (const uint8_t *)(payload + sizeof(uint32_t)),
+              size - sizeof(uint32_t))) {
         DLOG(INFO) << "share ParseFromArray failed!";
         return false;
       }
-    } else if ((version == BYTES_VERSION) && size == sizeof(ShareSiaBytesVersion)) {
+    } else if (
+        (version == BYTES_VERSION) && size == sizeof(ShareSiaBytesVersion)) {
 
-      ShareSiaBytesVersion* share = (ShareSiaBytesVersion*) payload;
+      ShareSiaBytesVersion *share = (ShareSiaBytesVersion *)payload;
 
       if (share->checkSum() != share->checkSum_) {
-        DLOG(INFO) << "checkSum mismatched! checkSum_: " << share->checkSum_<< ", checkSum(): " << share->checkSum();
+        DLOG(INFO) << "checkSum mismatched! checkSum_: " << share->checkSum_
+                   << ", checkSum(): " << share->checkSum();
         return false;
       }
 
@@ -236,16 +237,12 @@ public:
     return true;
   }
 
-  uint32_t getsharelength() {
-      return IsInitialized() ? ByteSize() : 0;
-  }
-
+  uint32_t getsharelength() { return IsInitialized() ? ByteSize() : 0; }
 };
 
-//static_assert(sizeof(ShareSia) == 80, "ShareBitcoin should be 80 bytes");
+// static_assert(sizeof(ShareSia) == 80, "ShareBitcoin should be 80 bytes");
 
-class StratumJobSia : public StratumJob
-{
+class StratumJobSia : public StratumJob {
 public:
   uint32_t nTime_;
   string blockHashForMergedMining_;
@@ -268,8 +265,12 @@ struct StratumTraitsSia {
   using JobDiffType = uint64_t;
   struct LocalJobType : public LocalJob {
     LocalJobType(size_t chainId, uint64_t jobId, uint8_t shortJobId)
-        : LocalJob(chainId, jobId), shortJobId_(shortJobId), jobDifficulty_(0) {}
-    bool operator==(uint8_t shortJobId) const { return shortJobId_ == shortJobId; }
+      : LocalJob(chainId, jobId)
+      , shortJobId_(shortJobId)
+      , jobDifficulty_(0) {}
+    bool operator==(uint8_t shortJobId) const {
+      return shortJobId_ == shortJobId;
+    }
     uint8_t shortJobId_;
     uint64_t jobDifficulty_;
   };

@@ -32,25 +32,27 @@
 #include <boost/functional/hash.hpp>
 
 StratumMinerGrin::StratumMinerGrin(
-  StratumSessionGrin &session,
-  const DiffController &diffController,
-  const std::string &clientAgent,
-  const std::string &workerName,
-  int64_t workerId)
-  : StratumMinerBase(session, diffController, clientAgent, workerName, workerId) {
+    StratumSessionGrin &session,
+    const DiffController &diffController,
+    const std::string &clientAgent,
+    const std::string &workerName,
+    int64_t workerId)
+  : StratumMinerBase(
+        session, diffController, clientAgent, workerName, workerId) {
 }
 
 void StratumMinerGrin::handleRequest(
-  const std::string &idStr,
-  const std::string &method,
-  const JsonNode &jparams,
-  const JsonNode &jroot) {
+    const std::string &idStr,
+    const std::string &method,
+    const JsonNode &jparams,
+    const JsonNode &jroot) {
   if (method == "submit") {
     handleRequest_Submit(idStr, jparams);
   }
 }
 
-void StratumMinerGrin::handleRequest_Submit(const string &idStr, const JsonNode &jparams) {
+void StratumMinerGrin::handleRequest_Submit(
+    const string &idStr, const JsonNode &jparams) {
   // const type cannot access string indexed object member
   JsonNode &jsonParams = const_cast<JsonNode &>(jparams);
 
@@ -60,12 +62,11 @@ void StratumMinerGrin::handleRequest_Submit(const string &idStr, const JsonNode 
     return;
   }
 
-  if (
-    jsonParams["edge_bits"].type() != Utilities::JS::type::Int ||
-    jsonParams["height"].type() != Utilities::JS::type::Int ||
-    jsonParams["job_id"].type() != Utilities::JS::type::Int ||
-    jsonParams["nonce"].type() != Utilities::JS::type::Int ||
-    jsonParams["pow"].type() != Utilities::JS::type::Array) {
+  if (jsonParams["edge_bits"].type() != Utilities::JS::type::Int ||
+      jsonParams["height"].type() != Utilities::JS::type::Int ||
+      jsonParams["job_id"].type() != Utilities::JS::type::Int ||
+      jsonParams["nonce"].type() != Utilities::JS::type::Int ||
+      jsonParams["pow"].type() != Utilities::JS::type::Array) {
     session.responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
     return;
   }
@@ -95,7 +96,8 @@ void StratumMinerGrin::handleRequest_Submit(const string &idStr, const JsonNode 
   auto &worker = session.getWorker();
   auto sessionId = session.getSessionId();
 
-  shared_ptr<StratumJobEx> exjob = server.GetJobRepository(localJob->chainId_)->getStratumJobEx(localJob->jobId_);
+  shared_ptr<StratumJobEx> exjob = server.GetJobRepository(localJob->chainId_)
+                                       ->getStratumJobEx(localJob->jobId_);
   // can't find stratum job
   if (exjob.get() == nullptr) {
     session.responseError(idStr, StratumStatus::JOB_NOT_FOUND);
@@ -115,7 +117,7 @@ void StratumMinerGrin::handleRequest_Submit(const string &idStr, const JsonNode 
   share.set_jobid(sjob->jobId_);
   share.set_workerhashid(workerId_);
   share.set_userid(worker.userId(exjob->chainId_));
-  share.set_timestamp((uint64_t) time(nullptr));
+  share.set_timestamp((uint64_t)time(nullptr));
   share.set_status(StratumStatus::REJECT_NO_REASON);
   share.set_sharediff(jobDiff.currentJobDiff_);
   share.set_blockdiff(sjob->difficulty_);
@@ -123,7 +125,8 @@ void StratumMinerGrin::handleRequest_Submit(const string &idStr, const JsonNode 
   share.set_nonce(nonce);
   share.set_sessionid(sessionId); // TODO: fix it, set as real session id.
   share.set_edgebits(edgeBits);
-  share.set_scaling(PowScalingGrin(height, edgeBits, sjob->prePow_.secondaryScaling.value()));
+  share.set_scaling(
+      PowScalingGrin(height, edgeBits, sjob->prePow_.secondaryScaling.value()));
   IpAddress ip;
   ip.fromIpv4Int(session.getClientIp());
   share.set_ip(ip.toString());
@@ -133,19 +136,19 @@ void StratumMinerGrin::handleRequest_Submit(const string &idStr, const JsonNode 
   if (!localJob->addLocalShare(localShare)) {
     session.responseError(idStr, StratumStatus::DUPLICATE_SHARE);
     // add invalid share to counter
-    invalidSharesCounter_.insert((int64_t) time(nullptr), 1);
+    invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
     return;
   }
 
   uint256 blockHash;
   server.checkAndUpdateShare(
-    localJob->chainId_,
-    share,
-    exjob,
-    proofs,
-    jobDiff.jobDiffs_,
-    worker.fullName_,
-    blockHash);
+      localJob->chainId_,
+      share,
+      exjob,
+      proofs,
+      jobDiff.jobDiffs_,
+      worker.fullName_,
+      blockHash);
 
   if (StratumStatus::isAccepted(share.status())) {
     DLOG(INFO) << "share reached the diff: " << share.scaledShareDiff();
@@ -157,13 +160,15 @@ void StratumMinerGrin::handleRequest_Submit(const string &idStr, const JsonNode 
   // shares in a short time, we just drop them.
   if (handleShare(idStr, share.status(), share.sharediff())) {
     if (StratumStatus::isSolved(share.status())) {
-      server.sendSolvedShare2Kafka(localJob->chainId_, share, exjob, proofs, worker, blockHash);
+      server.sendSolvedShare2Kafka(
+          localJob->chainId_, share, exjob, proofs, worker, blockHash);
       // mark jobs as stale
       server.GetJobRepository(exjob->chainId_)->markAllJobsAsStale();
     }
   } else {
     // check if there is invalid share spamming
-    int64_t invalidSharesNum = invalidSharesCounter_.sum(time(nullptr), INVALID_SHARE_SLIDING_WINDOWS_SIZE);
+    int64_t invalidSharesNum = invalidSharesCounter_.sum(
+        time(nullptr), INVALID_SHARE_SLIDING_WINDOWS_SIZE);
     // too much invalid shares, don't send them to kafka
     if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT) {
       LOG(WARNING) << "invalid share spamming, worker: " << worker.fullName_
@@ -177,7 +182,7 @@ void StratumMinerGrin::handleRequest_Submit(const string &idStr, const JsonNode 
   std::string message;
   uint32_t size = 0;
   if (!share.SerializeToArrayWithVersion(message, size)) {
-    LOG(ERROR) << "share SerializeToBuffer failed!"<< share.toString();
+    LOG(ERROR) << "share SerializeToBuffer failed!" << share.toString();
     return;
   }
   server.sendShare2Kafka(localJob->chainId_, message.data(), size);

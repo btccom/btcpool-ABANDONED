@@ -67,15 +67,27 @@ struct PreProofGrin {
 };
 
 class siphash_keys;
-bool VerifyPowGrinPrimary(const std::vector<uint64_t> &edges, siphash_keys &keys, uint32_t edgeBits);
-bool VerifyPowGrinSecondary(const std::vector<uint64_t> &edges, siphash_keys &keys, uint32_t edgeBits);
-bool VerifyPowGrin(const PreProofGrin &preProof, uint32_t edgeBits, const std::vector<uint64_t> &proofs);
+bool VerifyPowGrinPrimary(
+    const std::vector<uint64_t> &edges, siphash_keys &keys, uint32_t edgeBits);
+bool VerifyPowGrinSecondary(
+    const std::vector<uint64_t> &edges, siphash_keys &keys, uint32_t edgeBits);
+bool VerifyPowGrin(
+    const PreProofGrin &preProof,
+    uint32_t edgeBits,
+    const std::vector<uint64_t> &proofs);
 
-uint256 PowHashGrin(uint64_t height, uint32_t edgeBits, uint32_t secondaryScaling, const std::vector<uint64_t> &proofs);
+uint256 PowHashGrin(
+    uint64_t height,
+    uint32_t edgeBits,
+    uint32_t secondaryScaling,
+    const std::vector<uint64_t> &proofs);
 uint32_t GraphWeightGrin(uint64_t height, uint32_t edgeBits);
-uint32_t PowScalingGrin(uint64_t height, uint32_t edgeBits, uint32_t secondaryScaling);
-uint64_t PowDifficultyGrin(uint64_t height, uint32_t edgeBits, uint32_t secondaryScaling, const std::vector<uint64_t> &proofs);
+uint32_t
+PowScalingGrin(uint64_t height, uint32_t edgeBits, uint32_t secondaryScaling);
+uint64_t PowDifficultyGrin(
+    uint64_t height,
+    uint32_t edgeBits,
+    uint32_t secondaryScaling,
+    const std::vector<uint64_t> &proofs);
 
 uint64_t GetBlockRewardGrin(uint64_t height);
-
-

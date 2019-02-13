@@ -28,7 +28,8 @@
 
 #include "Statistics.h"
 
-///////////////////////////////  GlobalShareGrin  ////////////////////////////////
+///////////////////////////////  GlobalShareGrin
+///////////////////////////////////
 // Used to detect duplicate share attacks on ETH mining.
 struct GlobalShareGrin {
   uint64_t nonce_;
@@ -40,20 +41,20 @@ struct GlobalShareGrin {
   GlobalShareGrin(const ShareGrin &share)
     : nonce_(share.nonce())
     , hashPrefix_(share.hashprefix())
-    , prePowHash_(share.jobid())
-  {}
+    , prePowHash_(share.jobid()) {}
 
-  GlobalShareGrin& operator=(const GlobalShareGrin &r) = default;
+  GlobalShareGrin &operator=(const GlobalShareGrin &r) = default;
 
   bool operator<(const GlobalShareGrin &r) const {
-    if (
-      prePowHash_ <  r.prePowHash_ ||
-      (prePowHash_ == r.prePowHash_ && nonce_ < r.nonce_) ||
-      (prePowHash_ == r.prePowHash_ && nonce_ == r.nonce_ && hashPrefix_ < r.hashPrefix_)) {
+    if (prePowHash_ < r.prePowHash_ ||
+        (prePowHash_ == r.prePowHash_ && nonce_ < r.nonce_) ||
+        (prePowHash_ == r.prePowHash_ && nonce_ == r.nonce_ &&
+         hashPrefix_ < r.hashPrefix_)) {
       return true;
     }
     return false;
   }
 };
 ////////////////////////////  Alias  ////////////////////////////
-using DuplicateShareCheckerGrin = DuplicateShareCheckerT<ShareGrin, GlobalShareGrin>;
+using DuplicateShareCheckerGrin =
+    DuplicateShareCheckerT<ShareGrin, GlobalShareGrin>;

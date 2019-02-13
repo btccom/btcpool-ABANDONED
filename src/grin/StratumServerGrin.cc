@@ -31,20 +31,18 @@
 #include <algorithm>
 
 unique_ptr<StratumSession> StratumServerGrin::createConnection(
-  struct bufferevent *bev,
-  struct sockaddr *saddr,
-  uint32_t sessionID) {
+    struct bufferevent *bev, struct sockaddr *saddr, uint32_t sessionID) {
   return boost::make_unique<StratumSessionGrin>(*this, bev, saddr, sessionID);
 }
 
 void StratumServerGrin::checkAndUpdateShare(
-  size_t chainId,
-  ShareGrin &share,
-  shared_ptr<StratumJobEx> exjob,
-  const vector<uint64_t > &proofs,
-  const std::set<uint64_t> &jobDiffs,
-  const string &workFullName,
-  uint256 &blockHash) {
+    size_t chainId,
+    ShareGrin &share,
+    shared_ptr<StratumJobEx> exjob,
+    const vector<uint64_t> &proofs,
+    const std::set<uint64_t> &jobDiffs,
+    const string &workFullName,
+    uint256 &blockHash) {
   auto sjob = std::static_pointer_cast<StratumJobGrin>(exjob->sjob_);
 
   DLOG(INFO) << "checking share nonce: " << std::hex << share.nonce()
@@ -64,19 +62,30 @@ void StratumServerGrin::checkAndUpdateShare(
     return;
   }
 
-  blockHash = PowHashGrin(share.height(), share.edgebits(), preProof.prePow.secondaryScaling.value(), proofs);
+  blockHash = PowHashGrin(
+      share.height(),
+      share.edgebits(),
+      preProof.prePow.secondaryScaling.value(),
+      proofs);
   share.set_hashprefix(blockHash.GetCheapHash());
-  uint64_t scaledShareDiff = PowDifficultyGrin(share.height(), share.edgebits(), preProof.prePow.secondaryScaling.value(), proofs);
-  DLOG(INFO) << "compare share difficulty: " << scaledShareDiff << ", network difficulty: " << sjob->difficulty_;
+  uint64_t scaledShareDiff = PowDifficultyGrin(
+      share.height(),
+      share.edgebits(),
+      preProof.prePow.secondaryScaling.value(),
+      proofs);
+  DLOG(INFO) << "compare share difficulty: " << scaledShareDiff
+             << ", network difficulty: " << sjob->difficulty_;
 
   // print out high diff share
   if (scaledShareDiff / sjob->difficulty_ >= 1024) {
-    LOG(INFO) << "high diff share, share difficulty: " << scaledShareDiff << ", network difficulty: " << sjob->difficulty_
+    LOG(INFO) << "high diff share, share difficulty: " << scaledShareDiff
+              << ", network difficulty: " << sjob->difficulty_
               << ", worker: " << workFullName;
   }
 
   if (isSubmitInvalidBlock_ || scaledShareDiff >= sjob->difficulty_) {
-    LOG(INFO) << "solution found, share difficulty: " << scaledShareDiff << ", network difficulty: " << sjob->difficulty_
+    LOG(INFO) << "solution found, share difficulty: " << scaledShareDiff
+              << ", network difficulty: " << sjob->difficulty_
               << ", worker: " << workFullName;
 
     share.set_status(StratumStatus::SOLVED);
@@ -88,7 +97,8 @@ void StratumServerGrin::checkAndUpdateShare(
   for (auto itr = jobDiffs.rbegin(); itr != jobDiffs.rend(); itr++) {
     uint64_t jobDiff = *itr;
     uint64_t scaledJobDiff = jobDiff * share.scaling();
-    DLOG(INFO) << "compare share difficulty: " << scaledShareDiff << ", job difficulty: " << scaledJobDiff;
+    DLOG(INFO) << "compare share difficulty: " << scaledShareDiff
+               << ", job difficulty: " << scaledJobDiff;
 
     if (isEnableSimulator_ || scaledShareDiff >= scaledJobDiff) {
       share.set_sharediff(jobDiff);
@@ -102,62 +112,64 @@ void StratumServerGrin::checkAndUpdateShare(
 }
 
 void StratumServerGrin::sendSolvedShare2Kafka(
-  size_t chainId,
-  const ShareGrin &share,
-  shared_ptr<StratumJobEx> exjob,
-  const vector<uint64_t> &proofs,
-  const StratumWorker &worker,
-  const uint256 &blockHash) {
+    size_t chainId,
+    const ShareGrin &share,
+    shared_ptr<StratumJobEx> exjob,
+    const vector<uint64_t> &proofs,
+    const StratumWorker &worker,
+    const uint256 &blockHash) {
   string proofArray;
   if (!proofs.empty()) {
     proofArray = std::accumulate(
-      std::next(proofs.begin()),
-      proofs.end(),
-      std::to_string(proofs.front()),
-      [](string a, int b) { return std::move(a) + "," + std::to_string(b); });
+        std::next(proofs.begin()),
+        proofs.end(),
+        std::to_string(proofs.front()),
+        [](string a, int b) { return std::move(a) + "," + std::to_string(b); });
   }
 
   auto sjob = std::static_pointer_cast<StratumJobGrin>(exjob->sjob_);
   string blockHashStr;
   Bin2Hex(blockHash.begin(), blockHash.size(), blockHashStr);
   string msg = Strings::Format(
-    "{\"prePow\":\"%s\""
-    ",\"height\":%" PRIu64
-    ",\"edgeBits\":%" PRIu32
-    ",\"nonce\":%" PRIu64
-    ",\"proofs\":[%s]"
-    ",\"userId\":%" PRId32
-    ",\"workerId\":%" PRId64
-    ",\"workerFullName\":\"%s\""
-    ",\"blockHash\":\"%s\""
-    "}",
-    sjob->prePowStr_.c_str(),
-    sjob->height_,
-    share.edgebits(),
-    share.nonce(),
-    proofArray.c_str(),
-    worker.userId(chainId),
-    worker.workerHashId_,
-    filterWorkerName(worker.fullName_).c_str(),
-    blockHashStr.c_str());
+      "{\"prePow\":\"%s\""
+      ",\"height\":%" PRIu64 ",\"edgeBits\":%" PRIu32 ",\"nonce\":%" PRIu64
+      ",\"proofs\":[%s]"
+      ",\"userId\":%" PRId32 ",\"workerId\":%" PRId64
+      ",\"workerFullName\":\"%s\""
+      ",\"blockHash\":\"%s\""
+      "}",
+      sjob->prePowStr_.c_str(),
+      sjob->height_,
+      share.edgebits(),
+      share.nonce(),
+      proofArray.c_str(),
+      worker.userId(chainId),
+      worker.workerHashId_,
+      filterWorkerName(worker.fullName_).c_str(),
+      blockHashStr.c_str());
   ServerBase::sendSolvedShare2Kafka(chainId, msg.c_str(), msg.length());
 }
 
-JobRepository* StratumServerGrin::createJobRepository(
-  size_t chainId,
-  const char *kafkaBrokers,
-  const char *consumerTopic,
-  const string &fileLastNotifyTime) {
-  return new JobRepositoryGrin{chainId, this, kafkaBrokers, consumerTopic, fileLastNotifyTime};
+JobRepository *StratumServerGrin::createJobRepository(
+    size_t chainId,
+    const char *kafkaBrokers,
+    const char *consumerTopic,
+    const string &fileLastNotifyTime) {
+  return new JobRepositoryGrin{
+      chainId, this, kafkaBrokers, consumerTopic, fileLastNotifyTime};
 }
 
 JobRepositoryGrin::JobRepositoryGrin(
-  size_t chainId,
-  StratumServerGrin *server,
-  const char *kafkaBrokers,
-  const char *consumerTopic,
-  const string &fileLastNotifyTime)
-  : JobRepositoryBase{chainId, server, kafkaBrokers, consumerTopic, fileLastNotifyTime}
+    size_t chainId,
+    StratumServerGrin *server,
+    const char *kafkaBrokers,
+    const char *consumerTopic,
+    const string &fileLastNotifyTime)
+  : JobRepositoryBase{chainId,
+                      server,
+                      kafkaBrokers,
+                      consumerTopic,
+                      fileLastNotifyTime}
   , lastHeight_{0} {
 }
 
@@ -175,8 +187,8 @@ void JobRepositoryGrin::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
     isClean = true;
     lastHeight_ = sjobGrin->height_;
 
-    LOG(INFO) << "received new height stratum job, height: " << sjobGrin->height_
-              << ", prePow: " << sjobGrin->prePowStr_;
+    LOG(INFO) << "received new height stratum job, height: "
+              << sjobGrin->height_ << ", prePow: " << sjobGrin->prePowStr_;
   }
 
   shared_ptr<StratumJobEx> exJob{createStratumJobEx(sjobGrin, isClean)};
@@ -185,7 +197,8 @@ void JobRepositoryGrin::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
 
     if (isClean) {
       // mark all jobs as stale, should do this before insert new job
-      // stale shares will not be rejected, they will be marked as ACCEPT_STALE and have lower rewards.
+      // stale shares will not be rejected, they will be marked as ACCEPT_STALE
+      // and have lower rewards.
       for (auto it : exJobs_) {
         it.second->markStale();
       }
@@ -204,4 +217,3 @@ void JobRepositoryGrin::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
     sendMiningNotify(exJob);
   }
 }
- 

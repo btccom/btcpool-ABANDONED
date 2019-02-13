@@ -54,10 +54,8 @@ using namespace libconfig;
 
 StratumServer *gStratumServer = nullptr;
 
-void handler(int sig)
-{
-  if (gStratumServer)
-  {
+void handler(int sig) {
+  if (gStratumServer) {
     gStratumServer->stop();
   }
 }
@@ -67,12 +65,12 @@ void usage() {
   fprintf(stderr, "Usage:\tsserver -c \"sserver.cfg\" [-l <log_dir|stderr>]\n");
 }
 
-StratumServer* createStratumServer(const libconfig::Config& config) {
+StratumServer *createStratumServer(const libconfig::Config &config) {
   string type = config.lookup("sserver.type");
   LOG(INFO) << "createServer type: " << type;
 #if defined(CHAIN_TYPE_STR)
   if (CHAIN_TYPE_STR == type)
-#else 
+#else
   if (false)
 #endif
     return new ServerBitcoin();
@@ -80,8 +78,8 @@ StratumServer* createStratumServer(const libconfig::Config& config) {
     return new ServerEth();
   else if ("SIA" == type)
     return new ServerSia();
-  else if ("BTM" == type) 
-    return new ServerBytom ();
+  else if ("BTM" == type)
+    return new ServerBytom();
   else if ("DCR" == type)
     return new ServerDecred();
   else if ("BEAM" == type)
@@ -93,21 +91,17 @@ StratumServer* createStratumServer(const libconfig::Config& config) {
   return nullptr;
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
   char *optLogDir = NULL;
   char *optConf = NULL;
   int c;
 
-  if (argc <= 1)
-  {
+  if (argc <= 1) {
     usage();
     return 1;
   }
-  while ((c = getopt(argc, argv, "c:l:h")) != -1)
-  {
-    switch (c)
-    {
+  while ((c = getopt(argc, argv, "c:l:h")) != -1) {
+    switch (c) {
     case 'c':
       optConf = optarg;
       break;
@@ -131,25 +125,20 @@ int main(int argc, char **argv)
   // Log messages at a level >= this flag are automatically sent to
   // stderr in addition to log files.
   FLAGS_stderrthreshold = 3; // 3: FATAL
-  FLAGS_max_log_size = 100;  // max log file size 100 MB
-  FLAGS_logbuflevel = -1;    // don't buffer logs
+  FLAGS_max_log_size = 100; // max log file size 100 MB
+  FLAGS_logbuflevel = -1; // don't buffer logs
   FLAGS_stop_logging_if_full_disk = true;
 
   LOG(INFO) << BIN_VERSION_STRING("sserver");
 
   // Read the file. If there is an error, report it and exit.
   libconfig::Config cfg;
-  try
-  {
+  try {
     cfg.readFile(optConf);
-  }
-  catch (const FileIOException &fioex)
-  {
+  } catch (const FileIOException &fioex) {
     std::cerr << "I/O error while reading file." << std::endl;
     return (EXIT_FAILURE);
-  }
-  catch (const ParseException &pex)
-  {
+  } catch (const ParseException &pex) {
     std::cerr << "Parse error at " << pex.getFile() << ":" << pex.getLine()
               << " - " << pex.getError() << std::endl;
     return (EXIT_FAILURE);
@@ -167,8 +156,7 @@ int main(int argc, char **argv)
   signal(SIGTERM, handler);
   signal(SIGINT, handler);
 
-  try
-  {
+  try {
     // check if we are using testnet3
     bool isTestnet3 = false;
     cfg.lookupValue("testnet", isTestnet3);
@@ -180,9 +168,8 @@ int main(int argc, char **argv)
     }
 
     gStratumServer = createStratumServer(cfg);
-    
-    if (!gStratumServer->setup(cfg))
-    {
+
+    if (!gStratumServer->setup(cfg)) {
       LOG(FATAL) << "stratum server setup failure";
       return 1;
     }
@@ -190,13 +177,10 @@ int main(int argc, char **argv)
     gStratumServer->run();
 
     delete gStratumServer;
-  }
-  catch (const SettingException &e) {
+  } catch (const SettingException &e) {
     LOG(FATAL) << "config missing: " << e.getPath();
     return 1;
-  }
-  catch (const std::exception &e)
-  {
+  } catch (const std::exception &e) {
     LOG(FATAL) << "exception: " << e.what();
     return 1;
   }

@@ -28,7 +28,7 @@
 
   @author Martin Medina
   @copyright RSK Labs Ltd.
-  @version 1.0 30/03/17 
+  @version 1.0 30/03/17
 
   maintained by YihaoPeng since Feb 20, 2018
 */
@@ -41,11 +41,13 @@
 #include "GwMaker.h"
 #include "utilities_js.hpp"
 
-class GwMakerHandlerRsk : public GwMakerHandlerJson 
-{
+class GwMakerHandlerRsk : public GwMakerHandlerJson {
   bool checkFields(JsonNode &r) override;
   string constructRawMsg(JsonNode &r) override;
-  string getRequestData() override { return "{\"jsonrpc\": \"2.0\", \"method\": \"mnr_getWork\", \"params\": [], \"id\": 1}"; }
+  string getRequestData() override {
+    return "{\"jsonrpc\": \"2.0\", \"method\": \"mnr_getWork\", \"params\": "
+           "[], \"id\": 1}";
+  }
 };
 
 #endif

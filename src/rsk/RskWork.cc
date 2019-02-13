@@ -34,26 +34,28 @@
 
 #include "Utils.h"
 
-RskWork::RskWork() : initialized_(false) {}
+RskWork::RskWork()
+  : initialized_(false) {
+}
 
-bool RskWork::validate(JsonNode &work)
-{
+bool RskWork::validate(JsonNode &work) {
   // check fields are valid
-  if (work["created_at_ts"].type()    != Utilities::JS::type::Int   ||
-      work["rskdRpcAddress"].type()   != Utilities::JS::type::Str   ||
-      work["rskdRpcUserPwd"].type()   != Utilities::JS::type::Str   ||
-      work["parentBlockHash"].type()             != Utilities::JS::type::Str ||
-      work["blockHashForMergedMining"].type()    != Utilities::JS::type::Str ||
-      work["target"].type()                      != Utilities::JS::type::Str ||
-      work["feesPaidToMiner"].type()             != Utilities::JS::type::Str ||
-      work["notify"].type()                      != Utilities::JS::type::Str) {
+  if (work["created_at_ts"].type() != Utilities::JS::type::Int ||
+      work["rskdRpcAddress"].type() != Utilities::JS::type::Str ||
+      work["rskdRpcUserPwd"].type() != Utilities::JS::type::Str ||
+      work["parentBlockHash"].type() != Utilities::JS::type::Str ||
+      work["blockHashForMergedMining"].type() != Utilities::JS::type::Str ||
+      work["target"].type() != Utilities::JS::type::Str ||
+      work["feesPaidToMiner"].type() != Utilities::JS::type::Str ||
+      work["notify"].type() != Utilities::JS::type::Str) {
     LOG(ERROR) << "rsk getwork fields failure";
     return false;
   }
 
   // check timestamp
   if (work["created_at_ts"].uint32() + 60u < time(nullptr)) {
-    LOG(ERROR) << "too old rsk getwork: " << date("%F %T", work["created_at_ts"].uint32());
+    LOG(ERROR) << "too old rsk getwork: "
+               << date("%F %T", work["created_at_ts"].uint32());
     return false;
   }
 
@@ -65,7 +67,7 @@ void RskWork::initialize(JsonNode &work) {
   blockHash_ = work["blockHashForMergedMining"].str();
   target_ = work["target"].str();
   fees_ = work["feesPaidToMiner"].str();
-  rpcAddress_ = work["rskdRpcAddress"].str(); 
+  rpcAddress_ = work["rskdRpcAddress"].str();
   rpcUserPwd_ = work["rskdRpcUserPwd"].str();
   notifyFlag_ = work["notify"].boolean();
 
@@ -74,25 +76,23 @@ void RskWork::initialize(JsonNode &work) {
 
 bool RskWork::initFromGw(const string &rawGetWork) {
   JsonNode work;
-  //DLOG(INFO) << "initFromGw: " << rawGetWork;
+  // DLOG(INFO) << "initFromGw: " << rawGetWork;
   // check is valid json
-  if (!JsonNode::parse(rawGetWork.c_str(),
-                       rawGetWork.c_str() + rawGetWork.length(),
-                       work)) {
+  if (!JsonNode::parse(
+          rawGetWork.c_str(), rawGetWork.c_str() + rawGetWork.length(), work)) {
     LOG(ERROR) << "decode rsk getwork json fail: >" << rawGetWork << "<";
     return false;
   }
 
-  if (!validate(work)) 
+  if (!validate(work))
     return false;
-
 
   initialize(work);
   return true;
 }
 
-bool RskWork::isInitialized() const { 
-  return initialized_; 
+bool RskWork::isInitialized() const {
+  return initialized_;
 }
 
 u_int32_t RskWork::getCreatedAt() const {
@@ -123,8 +123,7 @@ bool RskWork::getNotifyFlag() const {
   return notifyFlag_;
 }
 
-bool RskWorkEth::validate(JsonNode &work)
-{
+bool RskWorkEth::validate(JsonNode &work) {
   // check fields are valid
   if (work["created_at_ts"].type() != Utilities::JS::type::Int ||
       work["rpcAddress"].type() != Utilities::JS::type::Str ||
@@ -136,26 +135,24 @@ bool RskWorkEth::validate(JsonNode &work)
       work["height"].type() != Utilities::JS::type::Int ||
       work["uncles"].type() != Utilities::JS::type::Int ||
       work["transactions"].type() != Utilities::JS::type::Int ||
-      work["gasUsedPercent"].type() != Utilities::JS::type::Real)
-  {
+      work["gasUsedPercent"].type() != Utilities::JS::type::Real) {
     LOG(ERROR) << "getwork fields failure";
     return false;
   }
 
   // check timestamp
-  if (work["created_at_ts"].uint32() + 60u < time(nullptr))
-  {
-    LOG(ERROR) << "too old getwork: " << date("%F %T", work["created_at_ts"].uint32());
+  if (work["created_at_ts"].uint32() + 60u < time(nullptr)) {
+    LOG(ERROR) << "too old getwork: "
+               << date("%F %T", work["created_at_ts"].uint32());
     return false;
   }
   return true;
 }
 
-void RskWorkEth::initialize(JsonNode &work)
-{
-  //LOG(INFO) << "RskWorkEth:: initialize";
+void RskWorkEth::initialize(JsonNode &work) {
+  // LOG(INFO) << "RskWorkEth:: initialize";
   created_at = work["created_at_ts"].uint32();
-  rpcAddress_ = work["rpcAddress"].str(); 
+  rpcAddress_ = work["rpcAddress"].str();
   rpcUserPwd_ = work["rpcUserPwd"].str();
   parent_ = work["parent"].str();
   target_ = work["target"].str();

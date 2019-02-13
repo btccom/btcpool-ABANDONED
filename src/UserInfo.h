@@ -38,10 +38,12 @@ class UserInfo {
   struct WorkerName {
     int32_t userId_;
     int64_t workerId_;
-    char    workerName_[21];
-    char    minerAgent_[31];
+    char workerName_[21];
+    char minerAgent_[31];
 
-    WorkerName(): userId_(0), workerId_(0) {
+    WorkerName()
+      : userId_(0)
+      , workerId_(0) {
       memset(workerName_, 0, sizeof(workerName_));
       memset(minerAgent_, 0, sizeof(minerAgent_));
     }
@@ -74,7 +76,7 @@ class UserInfo {
   bool caseInsensitive_;
   bool stripUserSuffix_;
   string userSuffixSeparator_;
-  
+
   vector<ChainVars> chains_;
   StratumServer *server_;
 
@@ -92,7 +94,8 @@ class UserInfo {
   int32_t incrementalUpdateUsers(size_t chainId);
 
   bool getChainIdFromZookeeper(const string &userName, size_t &chainId);
-  static void handleZookeeperEvent(zhandle_t *zh, int type, int state, const char *path, void *pUserInfo);
+  static void handleZookeeperEvent(
+      zhandle_t *zh, int type, int state, const char *path, void *pUserInfo);
 
 public:
   UserInfo(StratumServer *server, const libconfig::Config &config);
@@ -104,28 +107,26 @@ public:
   void regularUserName(string &userName);
 
   // Get chain id by user name.
-  // 
+  //
   // It will first look for nameChains_ and (TODO) zookeeper nodes.
-  // 
+  //
   // If the user is not in nameChains_, look up each chain's nameIds_ and
   // return the first one's id that find the user.
-  // 
+  //
   // If only one chain, chainId=0 and true will always be returned.
   bool getChainId(string userName, size_t &chainId);
   int32_t getUserId(size_t chainId, string userName);
 #ifdef USER_DEFINED_COINBASE
-  string  getCoinbaseInfo(size_t chainId, int32_t userId);
+  string getCoinbaseInfo(size_t chainId, int32_t userId);
 #endif
 
   void addWorker(
-    const size_t chainId,
-    const int32_t userId, const int64_t workerId,
-    const string &workerName, const string &minerAgent
-  );
+      const size_t chainId,
+      const int32_t userId,
+      const int64_t workerId,
+      const string &workerName,
+      const string &minerAgent);
 
   void removeWorker(
-    const size_t chainId,
-    const int32_t userId,
-    const int64_t workerId
-  );
+      const size_t chainId, const int32_t userId, const int64_t workerId);
 };

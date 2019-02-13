@@ -23,7 +23,6 @@
  */
 #pragma once
 
-
 #include "ShareLogParser.h"
 
 #include "StratumBeam.h"

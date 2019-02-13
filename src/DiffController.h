@@ -27,17 +27,15 @@
 #include "Common.h"
 #include "Statistics.h"
 
-
 //////////////////////////////// DiffController ////////////////////////////////
-class DiffController
-{
+class DiffController {
 public:
   // max diff, cannot large than 2^62.
   const uint64_t kMaxDiff_;
   // min diff
   const uint64_t kMinDiff_;
 
-  const time_t kDiffWindow_;    // time window, seconds, 60*N
+  const time_t kDiffWindow_; // time window, seconds, 60*N
   const time_t kRecordSeconds_; // every N seconds as a record
 
   time_t startTime_; // first job send time
@@ -45,40 +43,42 @@ public:
   uint64_t curDiff_;
   int32_t curHashRateLevel_;
   StatsWindow<double> sharesNum_; // share count
-  StatsWindow<uint64_t> shares_;    // share
+  StatsWindow<uint64_t> shares_; // share
 
   void setCurDiff(uint64_t curDiff); // set current diff with bounds checking
   virtual uint64_t _calcCurDiff();
   int adjustHashRateLevel(const double hashRateT);
 
-  inline bool isFullWindow(const time_t now)
-  {
+  inline bool isFullWindow(const time_t now) {
     return now >= startTime_ + kDiffWindow_;
   }
+
 private:
   double minerCoefficient(const time_t now, const int64_t idx);
 
 public:
-  DiffController(const uint64_t defaultDifficulty,
-                 const uint64_t maxDifficulty,
-                 const uint64_t minDifficulty,
-                 const uint32_t shareAvgSeconds,
-                 const uint32_t diffAdjustPeriod) :
-                                              kMaxDiff_(maxDifficulty),
-                                              kMinDiff_(minDifficulty),
-                                              kDiffWindow_(diffAdjustPeriod),
-                                              kRecordSeconds_(shareAvgSeconds),
-                                              startTime_(0),
-                                              curHashRateLevel_(0),
-                                              sharesNum_(kDiffWindow_ / kRecordSeconds_), /* every N seconds as a record */
-                                              shares_(kDiffWindow_ / kRecordSeconds_)
-  {
+  DiffController(
+      const uint64_t defaultDifficulty,
+      const uint64_t maxDifficulty,
+      const uint64_t minDifficulty,
+      const uint32_t shareAvgSeconds,
+      const uint32_t diffAdjustPeriod)
+    : kMaxDiff_(maxDifficulty)
+    , kMinDiff_(minDifficulty)
+    , kDiffWindow_(diffAdjustPeriod)
+    , kRecordSeconds_(shareAvgSeconds)
+    , startTime_(0)
+    , curHashRateLevel_(0)
+    , sharesNum_(kDiffWindow_ / kRecordSeconds_)
+    , /* every N seconds as a record */
+    shares_(kDiffWindow_ / kRecordSeconds_) {
     // Cannot large than 2^62.
     // If `kMaxDiff_` be 2^63, user can set `kMinDiff_` equals 2^63,
     // then `kMinDiff_*2` will be zero when next difficulty decrease and
     // DiffController::_calcCurDiff() will infinite loop.
     if (kMaxDiff_ > 0x4000000000000000ull) {
-      LOG(FATAL) << "too large max_difficulty, it should <= 0x4000000000000000.";
+      LOG(FATAL)
+          << "too large max_difficulty, it should <= 0x4000000000000000.";
     }
 
     if (kMinDiff_ < 1) {
@@ -97,7 +97,7 @@ public:
     resetCurDiff(defaultDifficulty);
   }
 
-  DiffController(const DiffController& other)
+  DiffController(const DiffController &other)
     : kMaxDiff_(other.kMaxDiff_)
     , kMinDiff_(other.kMinDiff_)
     , kDiffWindow_(other.kDiffWindow_)
@@ -106,9 +106,10 @@ public:
     , minDiff_(other.minDiff_)
     , curDiff_(other.curDiff_)
     , curHashRateLevel_(other.curHashRateLevel_)
-    , sharesNum_(other.kDiffWindow_ / other.kRecordSeconds_) /* every N seconds as a record */
-    , shares_(other.kDiffWindow_  / other.kRecordSeconds_) {
-  }
+    , sharesNum_(
+          other.kDiffWindow_ /
+          other.kRecordSeconds_) /* every N seconds as a record */
+    , shares_(other.kDiffWindow_ / other.kRecordSeconds_) {}
 
   virtual ~DiffController() {}
 

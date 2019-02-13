@@ -1,4 +1,4 @@
-/* 
+/*
  The MIT License (MIT)
 
  Copyright (c) [2016] [BTC.COM]
@@ -27,7 +27,7 @@
 #include "Common.h"
 
 uint64_t Bytom_TargetCompactToDifficulty(uint64_t bits);
-void Bytom_DifficultyToTargetBinary(uint64_t difficulty, vector<uint8_t>& out);
+void Bytom_DifficultyToTargetBinary(uint64_t difficulty, vector<uint8_t> &out);
 uint64_t Bytom_JobDifficultyToTargetCompact(uint64_t difficulty);
 
 #endif

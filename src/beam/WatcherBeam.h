@@ -32,26 +32,26 @@
 class PoolWatchClientBeam;
 
 ///////////////////////////////// ClientContainer //////////////////////////////
-class ClientContainerBeam : public ClientContainer
-{
+class ClientContainerBeam : public ClientContainer {
 protected:
   struct JobCache {
     string jobId_;
     StratumJobBeam sJob_;
     size_t clientId_;
   };
-  
+
   MysqlConnectInfo poolDB_; // save blocks to table `found_blocks`
 
-  KafkaConsumer kafkaSolvedShareConsumer_;  // consume solved_share_topic
+  KafkaConsumer kafkaSolvedShareConsumer_; // consume solved_share_topic
   thread threadSolvedShareConsume_;
 
   const size_t kMaxJobCacheSize_ = 5000;
   std::queue<string> jobCacheKeyQ_;
   map<string, JobCache> jobCacheMap_;
   std::mutex jobCacheLock_;
-  
-  PoolWatchClient* createPoolWatchClient(const libconfig::Setting &config) override;
+
+  PoolWatchClient *
+  createPoolWatchClient(const libconfig::Setting &config) override;
   bool initInternal() override;
   void runThreadSolvedShareConsume();
   void consumeSolvedShare(rd_kafka_message_t *rkmessage);
@@ -60,15 +60,16 @@ public:
   ClientContainerBeam(const libconfig::Config &config);
   ~ClientContainerBeam();
 
-  bool sendJobToKafka(const string jobId, const StratumJobBeam &job, PoolWatchClientBeam *client);
+  bool sendJobToKafka(
+      const string jobId,
+      const StratumJobBeam &job,
+      PoolWatchClientBeam *client);
 
-  MysqlConnectInfo& getMysqlInfo() { return poolDB_; }
+  MysqlConnectInfo &getMysqlInfo() { return poolDB_; }
 };
 
-
 ///////////////////////////////// PoolWatchClient //////////////////////////////
-class PoolWatchClientBeam : public PoolWatchClient
-{
+class PoolWatchClientBeam : public PoolWatchClient {
 protected:
   std::mutex wantSubmittedSharesLock_;
   string wantSubmittedShares_;
@@ -77,14 +78,15 @@ protected:
 
 public:
   PoolWatchClientBeam(
-    struct event_base *base,
-    ClientContainerBeam *container,
-    const libconfig::Setting &config
-  );
+      struct event_base *base,
+      ClientContainerBeam *container,
+      const libconfig::Setting &config);
   ~PoolWatchClientBeam();
 
   void onConnected() override;
   void submitShare(string submitJson);
 
-  ClientContainerBeam* GetContainerBeam(){ return static_cast<ClientContainerBeam*>(container_); }
+  ClientContainerBeam *GetContainerBeam() {
+    return static_cast<ClientContainerBeam *>(container_);
+  }
 };

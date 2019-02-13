@@ -45,17 +45,17 @@
 
 ///////////////////////////////// StratumClient ////////////////////////////////
 class StratumClient {
- protected: 
+protected:
   struct bufferevent *bev_;
   struct evbuffer *inBuf_;
 
-  uint32_t sessionId_;  // session ID
-  int32_t  extraNonce2Size_;
+  uint32_t sessionId_; // session ID
+  int32_t extraNonce2Size_;
   uint64_t extraNonce2_;
   string workerFullName_;
   string workerPasswd_;
   bool isMining_;
-  string   latestJobId_;
+  string latestJobId_;
   uint64_t latestDiff_;
 
   bool tryReadLine(string &line);
@@ -63,34 +63,37 @@ class StratumClient {
 
 public:
   // mining state
-  enum State {
-    INIT          = 0,
-    CONNECTED     = 1,
-    SUBSCRIBED    = 2,
-    AUTHENTICATED = 3
-  };
+  enum State { INIT = 0, CONNECTED = 1, SUBSCRIBED = 2, AUTHENTICATED = 3 };
   atomic<State> state_;
 
-  using Factory = function<unique_ptr<StratumClient> (struct event_base *, const string &, const string &)>;
+  using Factory = function<unique_ptr<StratumClient>(
+      struct event_base *, const string &, const string &)>;
   static bool registerFactory(const string &chainType, Factory factory);
-  template<typename T>
+  template <typename T>
   static bool registerFactory(const string &chainType) {
-    static_assert(std::is_base_of<StratumClient, T>::value, "Factory is not constructing the correct type");
-    return registerFactory(chainType, [](struct event_base *base, const string &workerFullName, const string &workerPasswd) {
-      return boost::make_unique<T>(base, workerFullName, workerPasswd);
-    });
+    static_assert(
+        std::is_base_of<StratumClient, T>::value,
+        "Factory is not constructing the correct type");
+    return registerFactory(
+        chainType,
+        [](struct event_base *base,
+           const string &workerFullName,
+           const string &workerPasswd) {
+          return boost::make_unique<T>(base, workerFullName, workerPasswd);
+        });
   }
 
 public:
-  StratumClient(struct event_base *base, const string &workerFullName, const string &workerPasswd);
+  StratumClient(
+      struct event_base *base,
+      const string &workerFullName,
+      const string &workerPasswd);
   virtual ~StratumClient();
 
   bool connect(struct sockaddr_in &sin);
 
   void sendData(const char *data, size_t len);
-  inline void sendData(const string &str) {
-    sendData(str.data(), str.size());
-  }
+  inline void sendData(const string &str) { sendData(str.data(), str.size()); }
 
   void readBuf(struct evbuffer *buf);
   void submitShare();
@@ -106,7 +109,7 @@ class StratumClientWrapper {
   struct event *sigterm_;
   struct event *sigint_;
   uint32_t numConnections_;
-  string userName_;   // miner usename
+  string userName_; // miner usename
   string minerNamePrefix_;
   string passwd_; // miner password, used to set difficulty
   string type_;
@@ -115,14 +118,17 @@ class StratumClientWrapper {
   void submitShares();
 
 public:
-  StratumClientWrapper(const char *host, const uint32_t port,
-                       const uint32_t numConnections,
-                       const string &userName, const string &minerNamePrefix,
-                       const string &passwd,
-                       const string &type);
+  StratumClientWrapper(
+      const char *host,
+      const uint32_t port,
+      const uint32_t numConnections,
+      const string &userName,
+      const string &minerNamePrefix,
+      const string &passwd,
+      const string &type);
   ~StratumClientWrapper();
 
-  static void readCallback (struct bufferevent* bev, void *connection);
+  static void readCallback(struct bufferevent *bev, void *connection);
   static void eventCallback(struct bufferevent *bev, short events, void *ptr);
   static void timerCallback(evutil_socket_t fd, short event, void *ptr);
   static void signalCallback(evutil_socket_t fd, short event, void *ptr);
@@ -130,10 +136,11 @@ public:
   void stop();
   void run();
 
-  unique_ptr<StratumClient> createClient(struct event_base *base, const string &workerFullName, const string &workerPasswd);
+  unique_ptr<StratumClient> createClient(
+      struct event_base *base,
+      const string &workerFullName,
+      const string &workerPasswd);
 };
-
-
 
 //////////////////////////////// TCPClientWrapper //////////////////////////////
 // simple tcp wrapper, use for test
@@ -149,9 +156,7 @@ public:
 
   bool connect(const char *host, const int port);
   void send(const char *data, const size_t len);
-  inline void send(const string &s) {
-    send(s.data(), s.size());
-  }
+  inline void send(const string &s) { send(s.data(), s.size()); }
   void getLine(string &line);
 };
 

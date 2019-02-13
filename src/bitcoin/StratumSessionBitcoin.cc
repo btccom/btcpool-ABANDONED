@@ -38,35 +38,41 @@ struct StratumMessageExSubmit {
   boost::endian::little_uint16_buf_t sessionId;
 };
 
-StratumSessionBitcoin::StratumSessionBitcoin(ServerBitcoin &server,
-                                             struct bufferevent *bev,
-                                             struct sockaddr *saddr,
-                                             uint32_t sessionId)
-    : StratumSessionBase(server, bev, saddr, sessionId)
-    , shortJobIdIdx_(0)
-    , versionMask_(0)
-    , suggestedMinDiff_(0) {
+StratumSessionBitcoin::StratumSessionBitcoin(
+    ServerBitcoin &server,
+    struct bufferevent *bev,
+    struct sockaddr *saddr,
+    uint32_t sessionId)
+  : StratumSessionBase(server, bev, saddr, sessionId)
+  , shortJobIdIdx_(0)
+  , versionMask_(0)
+  , suggestedMinDiff_(0) {
 }
 
-uint16_t StratumSessionBitcoin::decodeSessionId(const std::string &exMessage) const {
+uint16_t
+StratumSessionBitcoin::decodeSessionId(const std::string &exMessage) const {
   if (exMessage.size() < (1 + 1 + 2 + 1 + 2))
     return StratumMessageEx::AGENT_MAX_SESSION_ID + 1;
-  auto header = reinterpret_cast<const StratumMessageExSubmit *>(exMessage.data());
+  auto header =
+      reinterpret_cast<const StratumMessageExSubmit *>(exMessage.data());
   return header->sessionId.value();
 }
 
-void StratumSessionBitcoin::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
+void StratumSessionBitcoin::sendMiningNotify(
+    shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
   auto exJob = std::static_pointer_cast<StratumJobExBitcoin>(exJobPtr);
   if (state_ < AUTHENTICATED || exJob == nullptr) {
     return;
   }
   auto sjob = std::static_pointer_cast<StratumJobBitcoin>(exJob->sjob_);
 
-  auto &ljob = addLocalJob(exJob->chainId_, sjob->jobId_, allocShortJobId(), sjob->nBits_);
+  auto &ljob = addLocalJob(
+      exJob->chainId_, sjob->jobId_, allocShortJobId(), sjob->nBits_);
 
 #ifdef USER_DEFINED_COINBASE
   // add the User's coinbaseInfo to the coinbase1's tail
-  string userCoinbaseInfo = GetServer()->userInfo_->getCoinbaseInfo(worker_.userId());
+  string userCoinbaseInfo =
+      GetServer()->userInfo_->getCoinbaseInfo(worker_.userId());
   ljob.userCoinbaseInfo_ = userCoinbaseInfo;
 #endif
 
@@ -82,10 +88,11 @@ void StratumSessionBitcoin::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, 
     // we need to send unique JobID to NiceHash Client, they have problems with
     // short Job ID
     //
-    const uint64_t niceHashJobId = (uint64_t) time(nullptr) * 10 + ljob.shortJobId_;
-    notifyStr.append(Strings::Format("% " PRIu64"", niceHashJobId));
+    const uint64_t niceHashJobId =
+        (uint64_t)time(nullptr) * 10 + ljob.shortJobId_;
+    notifyStr.append(Strings::Format("% " PRIu64 "", niceHashJobId));
   } else {
-    notifyStr.append(Strings::Format("%u", ljob.shortJobId_));  // short jobId
+    notifyStr.append(Strings::Format("%u", ljob.shortJobId_)); // short jobId
   }
 
   // notify2
@@ -95,9 +102,15 @@ void StratumSessionBitcoin::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, 
 
 #ifdef USER_DEFINED_COINBASE
   string userCoinbaseHex;
-  Bin2Hex((const uint8_t *)ljob.userCoinbaseInfo_.c_str(), ljob.userCoinbaseInfo_.size(), userCoinbaseHex);
+  Bin2Hex(
+      (const uint8_t *)ljob.userCoinbaseInfo_.c_str(),
+      ljob.userCoinbaseInfo_.size(),
+      userCoinbaseHex);
   // replace the last `userCoinbaseHex.size()` bytes to `userCoinbaseHex`
-  coinbase1.replace(coinbase1.size()-userCoinbaseHex.size(), userCoinbaseHex.size(), userCoinbaseHex);
+  coinbase1.replace(
+      coinbase1.size() - userCoinbaseHex.size(),
+      userCoinbaseHex.size(),
+      userCoinbaseHex);
 #endif
 
   // coinbase1
@@ -109,16 +122,17 @@ void StratumSessionBitcoin::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, 
   else
     notifyStr.append(exJob->miningNotify3_);
 
-  sendData(notifyStr);  // send notify string
+  sendData(notifyStr); // send notify string
 
   // clear localJobs_
   clearLocalJobs();
 }
 
-void StratumSessionBitcoin::handleRequest(const std::string &idStr,
-                                      const std::string &method,
-                                      const JsonNode &jparams,
-                                      const JsonNode &jroot) {
+void StratumSessionBitcoin::handleRequest(
+    const std::string &idStr,
+    const std::string &method,
+    const JsonNode &jparams,
+    const JsonNode &jroot) {
   // Note: "mining.suggest_target" may be called before "mining.subscribe",
   // and most miners will call "mining.configure" in its first request.
   // So, don't assume that any future requests will appear after
@@ -126,30 +140,28 @@ void StratumSessionBitcoin::handleRequest(const std::string &idStr,
 
   if (method == "mining.subscribe") {
     handleRequest_Subscribe(idStr, jparams);
-  }
-  else if (method == "mining.authorize") {
+  } else if (method == "mining.authorize") {
     handleRequest_Authorize(idStr, jparams);
-  }
-  else if (method == "mining.configure") {
+  } else if (method == "mining.configure") {
     handleRequest_MiningConfigure(idStr, jparams);
-  }
-  else if (method == "agent.get_capabilities") {
+  } else if (method == "agent.get_capabilities") {
     handleRequest_AgentGetCapabilities(idStr, jparams);
-  }
-  else {
+  } else {
     dispatcher_->handleRequest(idStr, method, jparams, jroot);
   }
 }
 
-void StratumSessionBitcoin::handleRequest_AgentGetCapabilities(const string &idStr,
-                                                               const JsonNode &jparams) {
-  string s = Strings::Format("{\"id\":%s,\"result\":{\"capabilities\":" BTCAGENT_PROTOCOL_CAPABILITIES "}}\n",
-                             idStr.c_str());
+void StratumSessionBitcoin::handleRequest_AgentGetCapabilities(
+    const string &idStr, const JsonNode &jparams) {
+  string s = Strings::Format(
+      "{\"id\":%s,\"result\":{\"capabilities\":" BTCAGENT_PROTOCOL_CAPABILITIES
+      "}}\n",
+      idStr.c_str());
   sendData(s);
 }
 
-void StratumSessionBitcoin::handleRequest_MiningConfigure(const string &idStr,
-                                                          const JsonNode &jparams) {
+void StratumSessionBitcoin::handleRequest_MiningConfigure(
+    const string &idStr, const JsonNode &jparams) {
   uint32_t allowedVersionMask = getServer().getVersionMask();
 
   if (jparams.children()->size() < 2 ||
@@ -184,7 +196,7 @@ void StratumSessionBitcoin::handleRequest_MiningConfigure(const string &idStr,
   // 		  "minimum-difficulty": true
   // 	   }
   // }
-  // 
+  //
   auto extensions = jparams.children()->at(0).array();
   JsonNode options = jparams.children()->at(1);
   std::map<string, string> results;
@@ -194,7 +206,7 @@ void StratumSessionBitcoin::handleRequest_MiningConfigure(const string &idStr,
       continue;
     }
     const string name = ext.str();
-    
+
     //------------------------------------------------------------
     if (name == "minimum-difficulty") {
       auto diffNode = options["minimum-difficulty.value"];
@@ -213,10 +225,11 @@ void StratumSessionBitcoin::handleRequest_MiningConfigure(const string &idStr,
         results["version-rolling"] = "false";
         continue;
       }
-      
+
       versionMask_ = maskNode.uint32_hex();
       results["version-rolling"] = "true";
-      results["version-rolling.mask"] = Strings::Format("\"%08x\"", versionMask_ & allowedVersionMask);
+      results["version-rolling.mask"] =
+          Strings::Format("\"%08x\"", versionMask_ & allowedVersionMask);
 
     } //----------------------------------------------------------
     else {
@@ -229,33 +242,37 @@ void StratumSessionBitcoin::handleRequest_MiningConfigure(const string &idStr,
 
   // c++ map to json object
   if (!results.empty()) {
-    auto itr=results.begin();
+    auto itr = results.begin();
     resultStr += "\"" + itr->first + "\":" + itr->second;
-    
+
     while (++itr != results.end()) {
       resultStr += ",\"" + itr->first + "\":" + itr->second;
     }
   }
-  
+
   //
   // send result of mining.configure
   //
-  string s = Strings::Format("{\"id\":%s,\"result\":{%s},\"error\":null}\n",
-                             idStr.c_str(), resultStr.c_str());
+  string s = Strings::Format(
+      "{\"id\":%s,\"result\":{%s},\"error\":null}\n",
+      idStr.c_str(),
+      resultStr.c_str());
   sendData(s);
 
   //
   // mining.set_version_mask
   //
   if (versionMask_ != 0) {
-    s = Strings::Format("{\"id\":null,\"method\":\"mining.set_version_mask\",\"params\":[\"%08x\"]}\n",
-                        versionMask_ & allowedVersionMask);
+    s = Strings::Format(
+        "{\"id\":null,\"method\":\"mining.set_version_mask\",\"params\":[\"%"
+        "08x\"]}\n",
+        versionMask_ & allowedVersionMask);
     sendData(s);
   }
 }
 
-void StratumSessionBitcoin::handleRequest_Subscribe(const string &idStr,
-                                                    const JsonNode &jparams) {
+void StratumSessionBitcoin::handleRequest_Subscribe(
+    const string &idStr, const JsonNode &jparams) {
   if (state_ != CONNECTED) {
     responseError(idStr, StratumStatus::UNKNOWN);
     return;
@@ -264,29 +281,33 @@ void StratumSessionBitcoin::handleRequest_Subscribe(const string &idStr,
 #ifdef WORK_WITH_STRATUM_SWITCHER
 
   //
-  // For working with StratumSwitcher, the ExtraNonce1 must be provided as param 2.
+  // For working with StratumSwitcher, the ExtraNonce1 must be provided as
+  // param 2.
   //
   //  params[0] = client version           [require]
   //  params[1] = session id / ExtraNonce1 [require]
   //  params[2] = miner's real IP (unit32) [optional]
   //
   //  StratumSwitcher request eg.:
-  //  {"id": 1, "method": "mining.subscribe", "params": ["StratumSwitcher/0.1", "01ad557d", 203569230]}
-  //  203569230 -> 12.34.56.78
+  //  {"id": 1, "method": "mining.subscribe", "params": ["StratumSwitcher/0.1",
+  //  "01ad557d", 203569230]} 203569230 -> 12.34.56.78
   //
 
   if (jparams.children()->size() < 2) {
     responseError(idStr, StratumStatus::CLIENT_IS_NOT_SWITCHER);
     LOG(ERROR) << "A non-switcher subscribe request is detected and rejected.";
-    LOG(ERROR) << "Cmake option POOL__WORK_WITH_STRATUM_SWITCHER enabled, you can only connect to the sserver via a stratum switcher.";
+    LOG(ERROR) << "Cmake option POOL__WORK_WITH_STRATUM_SWITCHER enabled, you "
+                  "can only connect to the sserver via a stratum switcher.";
     return;
   }
 
   state_ = SUBSCRIBED;
 
-  setClientAgent(jparams.children()->at(0).str().substr(0, 30));  // 30 is max len
+  setClientAgent(
+      jparams.children()->at(0).str().substr(0, 30)); // 30 is max len
 
-  string sessionIdStr = jparams.children()->at(1).str().substr(0, 8);  // 8 is max len
+  string sessionIdStr =
+      jparams.children()->at(1).str().substr(0, 8); // 8 is max len
   sscanf(sessionIdStr.c_str(), "%x", &sessionId_); // convert hex to int
 
   // receive miner's IP from stratumSwitcher
@@ -297,7 +318,8 @@ void StratumSessionBitcoin::handleRequest_Subscribe(const string &idStr,
     clientIp_.resize(INET_ADDRSTRLEN);
     struct in_addr addr;
     addr.s_addr = clientIpInt_;
-    clientIp_ = inet_ntop(AF_INET, &addr, (char *)clientIp_.data(), (socklen_t)clientIp_.size());
+    clientIp_ = inet_ntop(
+        AF_INET, &addr, (char *)clientIp_.data(), (socklen_t)clientIp_.size());
     LOG(INFO) << "client real IP: " << clientIp_;
   }
 
@@ -310,28 +332,37 @@ void StratumSessionBitcoin::handleRequest_Subscribe(const string &idStr,
   //  params[1] = session id of pool [optional]
   //
   // client request eg.:
-  //  {"id": 1, "method": "mining.subscribe", "params": ["bfgminer/4.4.0-32-gac4e9b3", "01ad557d"]}
+  //  {"id": 1, "method": "mining.subscribe", "params":
+  //  ["bfgminer/4.4.0-32-gac4e9b3", "01ad557d"]}
   //
   if (jparams.children()->size() >= 1) {
-    setClientAgent(jparams.children()->at(0).str().substr(0, 30));  // 30 is max len
+    setClientAgent(
+        jparams.children()->at(0).str().substr(0, 30)); // 30 is max len
   }
 
 #endif // WORK_WITH_STRATUM_SWITCHER
 
-
-  //  result[0] = 2-tuple with name of subscribed notification and subscription ID.
-  //              Theoretically it may be used for unsubscribing, but obviously miners won't use it.
+  //  result[0] = 2-tuple with name of subscribed notification and subscription
+  //  ID.
+  //              Theoretically it may be used for unsubscribing, but obviously
+  //              miners won't use it.
   //  result[1] = ExtraNonce1, used for building the coinbase.
-  //  result[2] = Extranonce2_size, the number of bytes that the miner users for its ExtraNonce2 counter
+  //  result[2] = Extranonce2_size, the number of bytes that the miner users for
+  //  its ExtraNonce2 counter
   assert(StratumMiner::kExtraNonce2Size_ == 8);
-  auto s = Strings::Format("{\"id\":%s,\"result\":[[[\"mining.set_difficulty\",\"%08x\"]"
-                           ",[\"mining.notify\",\"%08x\"]],\"%08x\",%d],\"error\":null}\n",
-                           idStr.c_str(), sessionId_, sessionId_, sessionId_, StratumMiner::kExtraNonce2Size_);
+  auto s = Strings::Format(
+      "{\"id\":%s,\"result\":[[[\"mining.set_difficulty\",\"%08x\"]"
+      ",[\"mining.notify\",\"%08x\"]],\"%08x\",%d],\"error\":null}\n",
+      idStr.c_str(),
+      sessionId_,
+      sessionId_,
+      sessionId_,
+      StratumMiner::kExtraNonce2Size_);
   sendData(s);
 }
 
-void StratumSessionBitcoin::handleRequest_Authorize(const string &idStr,
-                                                    const JsonNode &jparams) {
+void StratumSessionBitcoin::handleRequest_Authorize(
+    const string &idStr, const JsonNode &jparams) {
   if (state_ != SUBSCRIBED) {
     responseError(idStr, StratumStatus::NOT_SUBSCRIBED);
     return;
@@ -340,9 +371,9 @@ void StratumSessionBitcoin::handleRequest_Authorize(const string &idStr,
   //
   //  params[0] = user[.worker]
   //  params[1] = password
-  //  eg. {"params": ["slush.miner1", "password"], "id": 2, "method": "mining.authorize"}
-  //  the password may be omitted.
-  //  eg. {"params": ["slush.miner1"], "id": 2, "method": "mining.authorize"}
+  //  eg. {"params": ["slush.miner1", "password"], "id": 2, "method":
+  //  "mining.authorize"} the password may be omitted. eg. {"params":
+  //  ["slush.miner1"], "id": 2, "method": "mining.authorize"}
   //
   if (jparams.children()->size() < 1) {
     responseError(idStr, StratumStatus::INVALID_USERNAME);
@@ -369,8 +400,7 @@ void StratumSessionBitcoin::logAuthorizeResult(bool success) {
               << ", clientAgent: " << clientAgent_
               << ", clientIp: " << clientIp_
               << ", chain: " << getServer().chainName(worker_.chainId_);
-  }
-  else {
+  } else {
     LOG(WARNING) << "authorize failed, workerName:" << worker_.fullName_
                  << ", versionMask: " << Strings::Format("%08x", versionMask_)
                  << ", clientAgent: " << clientAgent_
@@ -379,33 +409,36 @@ void StratumSessionBitcoin::logAuthorizeResult(bool success) {
 }
 
 string StratumSessionBitcoin::getMinerInfoJson(const string &type) {
-  return Strings::Format("{\"created_at\":\"%s\","
-                          "\"type\":\"%s\","
-                          "\"content\":{"
-                          "\"user_id\":%d,\"user_name\":\"%s\","
-                          "\"worker_id\":%" PRId64 ",\"worker_name\":\"%s\","
-                          "\"client_agent\":\"%s\",\"ip\":\"%s\","
-                          "\"session_id\":\"%08x\",\"version_mask\":\"%08x\""
-                          "}}",
-                          date("%F %T").c_str(),
-                          type.c_str(),
-                          worker_.userId(), worker_.userName_.c_str(),
-                          worker_.workerHashId_, worker_.workerName_.c_str(),
-                          clientAgent_.c_str(), clientIp_.c_str(),
-                          sessionId_, versionMask_);
+  return Strings::Format(
+      "{\"created_at\":\"%s\","
+      "\"type\":\"%s\","
+      "\"content\":{"
+      "\"user_id\":%d,\"user_name\":\"%s\","
+      "\"worker_id\":%" PRId64
+      ",\"worker_name\":\"%s\","
+      "\"client_agent\":\"%s\",\"ip\":\"%s\","
+      "\"session_id\":\"%08x\",\"version_mask\":\"%08x\""
+      "}}",
+      date("%F %T").c_str(),
+      type.c_str(),
+      worker_.userId(),
+      worker_.userName_.c_str(),
+      worker_.workerHashId_,
+      worker_.workerName_.c_str(),
+      clientAgent_.c_str(),
+      clientIp_.c_str(),
+      sessionId_,
+      versionMask_);
 }
 
 unique_ptr<StratumMessageDispatcher> StratumSessionBitcoin::createDispatcher() {
   if (isAgentClient_) {
     return boost::make_unique<StratumMessageAgentDispatcher>(
-      *this,
-      *getServer().defaultDifficultyController_);
+        *this, *getServer().defaultDifficultyController_);
   } else {
     return boost::make_unique<StratumMessageMinerDispatcher>(
-      *this,
-      createMiner(clientAgent_,
-      worker_.workerName_,
-      worker_.workerHashId_));
+        *this,
+        createMiner(clientAgent_, worker_.workerName_, worker_.workerHashId_));
   }
 }
 
@@ -417,15 +450,16 @@ uint8_t StratumSessionBitcoin::allocShortJobId() {
   return shortJobIdIdx_++;
 }
 
-unique_ptr<StratumMiner> StratumSessionBitcoin::createMiner(const std::string &clientAgent,
-                                                            const std::string &workerName,
-                                                            int64_t workerId) {
+unique_ptr<StratumMiner> StratumSessionBitcoin::createMiner(
+    const std::string &clientAgent,
+    const std::string &workerName,
+    int64_t workerId) {
   auto miner = boost::make_unique<StratumMinerBitcoin>(
-    *this,
-    *getServer().defaultDifficultyController_,
-    clientAgent,
-    workerName,
-    workerId);
+      *this,
+      *getServer().defaultDifficultyController_,
+      clientAgent,
+      workerName,
+      workerId);
 
   if (suggestedMinDiff_ != 0) {
     miner->setMinDiff(suggestedMinDiff_);

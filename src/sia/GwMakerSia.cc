@@ -27,8 +27,7 @@
 #include <limits.h>
 
 ///////////////////////////////GwMakerHandlerSia////////////////////////////////////
-string GwMakerHandlerSia::processRawGw(const string &msg)
-{
+string GwMakerHandlerSia::processRawGw(const string &msg) {
   if (msg.length() != 112)
     return "";
 
@@ -39,26 +38,24 @@ string GwMakerHandlerSia::processRawGw(const string &msg)
   // timestamp	[72-80)	[40-48)
   // merkle root	[80-112)	[48-80)
   string targetStr;
-  for (int i = 0; i < 32; ++i)
-  {
+  for (int i = 0; i < 32; ++i) {
     uint8_t val = (uint8_t)msg[i];
     targetStr += Strings::Format("%02x", val);
   }
 
-  //Claymore purposely reverses the timestamp
+  // Claymore purposely reverses the timestamp
   //"00000000000000021f3e8ede65495c4311ef59e5b7a4338542e573819f5979e90000000000000000cd33aa5a00000000486573a66f31f5911959fce210ef557c715f716d0f022e1ba9f396294fc39d42"
 
   string headerStr;
-  for (int i = 32; i < 112; ++i)
-  {
+  for (int i = 32; i < 112; ++i) {
     uint8_t val = (uint8_t)msg[i];
     headerStr += Strings::Format("%02x", val);
   }
 
-  //time stamp
+  // time stamp
   // uint64_t timestamp = *((uint64*)&msg[72]);
-  // string timestampStr = Strings::Format("%08x%08x", timestamp >> 32, timestamp & 0xFFFFFFFF);
-  // DLOG(INFO) << "timestamp string=" <<  timestampStr;
+  // string timestampStr = Strings::Format("%08x%08x", timestamp >> 32,
+  // timestamp & 0xFFFFFFFF); DLOG(INFO) << "timestamp string=" << timestampStr;
 
   // headerStr += timestampStr;
 
@@ -68,22 +65,22 @@ string GwMakerHandlerSia::processRawGw(const string &msg)
   //   headerStr += Strings::Format("%02x", val);
   // }
 
-  LOG(INFO) << "chain: "    << def_.chainType_
-            << ", topic: "  << def_.rawGwTopic_
-            << ", target: " << targetStr
-            << ", hHash: "  << headerStr;
+  LOG(INFO) << "chain: " << def_.chainType_ << ", topic: " << def_.rawGwTopic_
+            << ", target: " << targetStr << ", hHash: " << headerStr;
 
-  //LOG(INFO) << "Sia work target 0x" << targetStr << ", blkId 0x" << blkIdStr << ;
-  return Strings::Format("{\"created_at_ts\":%u,"
-                         "\"chainType\":\"%s\","
-                         "\"rpcAddress\":\"%s\","
-                         "\"rpcUserPwd\":\"%s\","
-                         "\"target\":\"%s\","
-                         "\"hHash\":\"%s\"}",
-                         (uint32_t)time(nullptr),
-                         def_.chainType_.c_str(),
-                         def_.rpcAddr_.c_str(),
-                         def_.rpcUserPwd_.c_str(),
-                         targetStr.c_str(),
-                         headerStr.c_str());
+  // LOG(INFO) << "Sia work target 0x" << targetStr << ", blkId 0x" << blkIdStr
+  // << ;
+  return Strings::Format(
+      "{\"created_at_ts\":%u,"
+      "\"chainType\":\"%s\","
+      "\"rpcAddress\":\"%s\","
+      "\"rpcUserPwd\":\"%s\","
+      "\"target\":\"%s\","
+      "\"hHash\":\"%s\"}",
+      (uint32_t)time(nullptr),
+      def_.chainType_.c_str(),
+      def_.rpcAddr_.c_str(),
+      def_.rpcUserPwd_.c_str(),
+      targetStr.c_str(),
+      headerStr.c_str());
 }

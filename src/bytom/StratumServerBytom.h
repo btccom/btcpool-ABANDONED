@@ -29,34 +29,39 @@
 
 class JobRepositoryBytom;
 
-class ServerBytom : public ServerBase<JobRepositoryBytom>
-{
+class ServerBytom : public ServerBase<JobRepositoryBytom> {
 public:
-  JobRepository* createJobRepository(
-    size_t chainId,
-    const char *kafkaBrokers,
-    const char *consumerTopic,
-    const string &fileLastNotifyTime
-  ) override;
+  JobRepository *createJobRepository(
+      size_t chainId,
+      const char *kafkaBrokers,
+      const char *consumerTopic,
+      const string &fileLastNotifyTime) override;
 
-  unique_ptr<StratumSession> createConnection(struct bufferevent *bev, struct sockaddr *saddr, const uint32_t sessionID) override;
+  unique_ptr<StratumSession> createConnection(
+      struct bufferevent *bev,
+      struct sockaddr *saddr,
+      const uint32_t sessionID) override;
   void sendSolvedShare2Kafka(
-    size_t chainId,
-    uint64_t nonce, const string &strHeader,
-    uint64_t height, uint64_t networkDiff, const StratumWorker &worker
-  );
+      size_t chainId,
+      uint64_t nonce,
+      const string &strHeader,
+      uint64_t height,
+      uint64_t networkDiff,
+      const StratumWorker &worker);
 };
 
-class JobRepositoryBytom : public JobRepositoryBase<ServerBytom>
-{
+class JobRepositoryBytom : public JobRepositoryBase<ServerBytom> {
 private:
   string latestPreviousBlockHash_;
 
 public:
   using JobRepositoryBase::JobRepositoryBase;
-  shared_ptr<StratumJob> createStratumJob() override { return std::make_shared<StratumJobBytom>(); }
-  shared_ptr<StratumJobEx> createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean) override;
+  shared_ptr<StratumJob> createStratumJob() override {
+    return std::make_shared<StratumJobBytom>();
+  }
+  shared_ptr<StratumJobEx>
+  createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean) override;
   void broadcastStratumJob(shared_ptr<StratumJob> sjob) override;
 };
 
-#endif  // STRATUM_SERVER_BYTOM_H_
+#endif // STRATUM_SERVER_BYTOM_H_

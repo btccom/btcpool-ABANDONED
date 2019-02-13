@@ -30,8 +30,9 @@
 #include <uint256.h>
 #include <string>
 
-// Decred block header (https://docs.decred.org/advanced/block-header-specifications/)
-// Byte arrays are used so that the members are packed
+// Decred block header
+// (https://docs.decred.org/advanced/block-header-specifications/) Byte arrays
+// are used so that the members are packed
 struct BlockHeaderDecred {
   boost::endian::little_uint32_buf_t version;
   uint256 prevBlock;
@@ -55,7 +56,8 @@ struct BlockHeaderDecred {
   uint256 getHash() const;
 };
 
-static_assert(sizeof(BlockHeaderDecred) == 180, "Decred block header type is invalid");
+static_assert(
+    sizeof(BlockHeaderDecred) == 180, "Decred block header type is invalid");
 
 // CMD_MAGIC_NUMBER number from the network type
 enum class NetworkDecred : uint32_t {
@@ -72,7 +74,8 @@ inline bool operator<(NetworkDecred lhs, NetworkDecred rhs) {
   case NetworkDecred::TestNet:
     return lhs != NetworkDecred::MainNet && lhs != NetworkDecred::TestNet;
   case NetworkDecred::SimNet:
-    return lhs != NetworkDecred::MainNet && lhs != NetworkDecred::TestNet && lhs != NetworkDecred::SimNet;
+    return lhs != NetworkDecred::MainNet && lhs != NetworkDecred::TestNet &&
+        lhs != NetworkDecred::SimNet;
   }
   return false;
 }
@@ -89,7 +92,7 @@ struct NetworkParamsDecred {
   int64_t stakeValidationHeight;
   uint16_t ticketsPerBlock;
 
-  static const NetworkParamsDecred& get(NetworkDecred network);
+  static const NetworkParamsDecred &get(NetworkDecred network);
 };
 
 #endif

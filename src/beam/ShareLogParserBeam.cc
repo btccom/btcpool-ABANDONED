@@ -29,4 +29,3 @@
 template class ShareLogDumperT<ShareBeam>;
 template class ShareLogParserT<ShareBeam>;
 template class ShareLogParserServerT<ShareBeam>;
-

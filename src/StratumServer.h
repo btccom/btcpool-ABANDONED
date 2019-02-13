@@ -55,21 +55,17 @@ class DiffController;
 
 //////////////////////////////// SessionIDManager //////////////////////////////
 
-enum StratumServerType
-{
-  BTC = 1,
-  ETH
-};
+enum StratumServerType { BTC = 1, ETH };
 
 class SessionIDManager {
 public:
   virtual ~SessionIDManager() {}
   virtual bool ifFull() = 0;
-  // The default value is 0: no interval, the session id will be allocated continuously.
-  // If the value is N, then id2 = id1 + N.
-  // Skipped ids are not assigned to other sessions unless the allocator reaches
-  // the maximum and rolls back to the beginning.
-  // This setting can be used to reserve more mining space for workers and there is no DoS risk.
+  // The default value is 0: no interval, the session id will be allocated
+  // continuously. If the value is N, then id2 = id1 + N. Skipped ids are not
+  // assigned to other sessions unless the allocator reaches the maximum and
+  // rolls back to the beginning. This setting can be used to reserve more
+  // mining space for workers and there is no DoS risk.
   virtual void setAllocInterval(uint32_t interval) = 0;
   virtual bool allocSessionId(uint32_t *sessionID) = 0;
   virtual void freeSessionId(uint32_t sessionId) = 0;
@@ -88,12 +84,13 @@ class SessionIDManagerT : public SessionIDManager {
   //     [000...]          [1, 255]    range: [0, kSessionIdMask]
   //
 
-  const static uint32_t kSessionIdMask = (1 << IBITS) - 1;      // example: 0x00FFFFFF;
+  const static uint32_t kSessionIdMask =
+      (1 << IBITS) - 1; // example: 0x00FFFFFF;
 
   uint8_t serverId_;
   std::bitset<kSessionIdMask + 1> sessionIds_;
 
-  uint32_t count_;  // how many ids are used now
+  uint32_t count_; // how many ids are used now
   uint32_t allocIdx_;
   uint32_t allocInterval_;
   mutex lock_;
@@ -111,10 +108,8 @@ public:
 
 #endif // #ifndef WORK_WITH_STRATUM_SWITCHER
 
-
 ////////////////////////////////// JobRepository ///////////////////////////////
-class JobRepository
-{
+class JobRepository {
 protected:
   atomic<bool> running_;
   mutex lock_;
@@ -122,7 +117,7 @@ protected:
   std::map<uint64_t /* jobId */, shared_ptr<StratumJobEx>> exJobs_;
 
   KafkaConsumer kafkaConsumer_; // consume topic: 'StratumJob'
-  StratumServer *server_;              // call server to send new job
+  StratumServer *server_; // call server to send new job
 
   string fileLastNotifyTime_;
 
@@ -142,46 +137,45 @@ private:
 
 public:
   JobRepository(
-    size_t chainId,
-    StratumServer *server,
-    const char *kafkaBrokers,
-    const char *consumerTopic,
-    const string &fileLastNotifyTime
-  );
+      size_t chainId,
+      StratumServer *server,
+      const char *kafkaBrokers,
+      const char *consumerTopic,
+      const string &fileLastNotifyTime);
   virtual ~JobRepository();
 
   void stop();
   bool setupThreadConsume();
   void markAllJobsAsStale();
-  
-  void setMaxJobLifeTime (const time_t maxJobLifeTime);
+
+  void setMaxJobLifeTime(const time_t maxJobLifeTime);
   void setMiningNotifyInterval(time_t miningNotifyInterval);
   void sendMiningNotify(shared_ptr<StratumJobEx> exJob);
   shared_ptr<StratumJobEx> getStratumJobEx(const uint64_t jobId);
   shared_ptr<StratumJobEx> getLatestStratumJobEx();
 
   virtual shared_ptr<StratumJob> createStratumJob() = 0;
-  virtual shared_ptr<StratumJobEx> createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean);
+  virtual shared_ptr<StratumJobEx>
+  createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean);
   virtual void broadcastStratumJob(shared_ptr<StratumJob> sjob) = 0;
 };
 
-//  This base class is to help type safety of accessing server_ member variable. Avoid manual casting.
-//  And by templating a minimum class declaration, we avoid bloating the code too much.
-template<typename ServerType>
-class JobRepositoryBase : public JobRepository
-{
+//  This base class is to help type safety of accessing server_ member variable.
+//  Avoid manual casting. And by templating a minimum class declaration, we
+//  avoid bloating the code too much.
+template <typename ServerType>
+class JobRepositoryBase : public JobRepository {
 public:
   using JobRepository::JobRepository;
+
 protected:
-  inline ServerType* GetServer() const
-  {
-    return static_cast<ServerType*>(server_);
+  inline ServerType *GetServer() const {
+    return static_cast<ServerType *>(server_);
   }
+
 private:
   using JobRepository::server_; //  hide the server_ member variable
 };
-
-
 
 ////////////////////////////////// StratumJobEx ////////////////////////////////
 //
@@ -202,19 +196,18 @@ public:
 
   void markStale();
   bool isStale();
-
 };
 
-
-///////////////////////////////////// StratumServer ///////////////////////////////////
+///////////////////////////////////// StratumServer
+//////////////////////////////////////
 class StratumServer {
   // NetIO
   bool enableTLS_;
   SSL_CTX *sslCTX_;
   struct sockaddr_in sin_;
-  struct event_base* base_;
-  struct event* signal_event_;
-  struct evconnlistener* listener_;
+  struct event_base *base_;
+  struct event *signal_event_;
+  struct evconnlistener *listener_;
   std::set<unique_ptr<StratumSession>> connections_;
   mutex connsLock_;
 
@@ -226,7 +219,7 @@ public:
     KafkaProducer *kafkaProducerShareLog_;
     KafkaProducer *kafkaProducerSolvedShare_;
     KafkaProducer *kafkaProducerCommonEvents_;
-    
+
     JobRepository *jobRepository_;
   };
 
@@ -236,7 +229,8 @@ public:
   // WARNING: if enable it, will make block and submit it even it's not a
   //          solved share. use to test submit block.
   bool isSubmitInvalidBlock_;
-  // WARNING: if enable, difficulty sent to miners is always devFixedDifficulty_. 
+  // WARNING: if enable, difficulty sent to miners is always
+  // devFixedDifficulty_.
   bool isDevModeEnable_;
   // WARNING: difficulty to send to miners.
   float devFixedDifficulty_;
@@ -249,11 +243,11 @@ public:
   vector<ChainVars> chains_;
   shared_ptr<DiffController> defaultDifficultyController_;
   uint8_t serverId_;
-  
+
   shared_ptr<Zookeeper> zk_;
 
 protected:
-  SSL_CTX* getSSLCTX(const libconfig::Config &config);
+  SSL_CTX *getSSLCTX(const libconfig::Config &config);
 
   // This class cannot be instantiated.
   // Only subclasses of this class can be instantiated.
@@ -273,42 +267,45 @@ public:
     return zk_;
   }
 
-  const string& chainName(size_t chainId) { return chains_[chainId].name_; }
-  size_t/* switched sessions */ switchChain(string userName, size_t newChainId);
+  const string &chainName(size_t chainId) { return chains_[chainId].name_; }
+  size_t /* switched sessions */
+  switchChain(string userName, size_t newChainId);
 
   void sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr);
 
   void addConnection(unique_ptr<StratumSession> connection);
   void removeConnection(StratumSession &connection);
 
-  static void listenerCallback(struct evconnlistener* listener,
-                               evutil_socket_t socket,
-                               struct sockaddr* saddr,
-                               int socklen, void* server);
-  static void readCallback (struct bufferevent *, void *connection);
+  static void listenerCallback(
+      struct evconnlistener *listener,
+      evutil_socket_t socket,
+      struct sockaddr *saddr,
+      int socklen,
+      void *server);
+  static void readCallback(struct bufferevent *, void *connection);
   static void eventCallback(struct bufferevent *, short, void *connection);
 
   void sendShare2Kafka(size_t chainId, const char *data, size_t len);
   void sendSolvedShare2Kafka(size_t chainId, const char *data, size_t len);
   void sendCommonEvents2Kafka(size_t chainId, const string &message);
 
-  virtual unique_ptr<StratumSession> createConnection(struct bufferevent *bev, struct sockaddr *saddr, uint32_t sessionID) = 0;
+  virtual unique_ptr<StratumSession> createConnection(
+      struct bufferevent *bev, struct sockaddr *saddr, uint32_t sessionID) = 0;
 
 protected:
-  virtual JobRepository* createJobRepository(
-    size_t chainId,
-    const char *kafkaBrokers,
-    const char *consumerTopic,
-    const string &fileLastNotifyTime
-  ) = 0;
-
+  virtual JobRepository *createJobRepository(
+      size_t chainId,
+      const char *kafkaBrokers,
+      const char *consumerTopic,
+      const string &fileLastNotifyTime) = 0;
 };
 
-template<typename TJobRepository>
-class ServerBase : public StratumServer
-{
+template <typename TJobRepository>
+class ServerBase : public StratumServer {
 public:
-  TJobRepository* GetJobRepository(size_t chainId){ return static_cast<TJobRepository*>(chains_[chainId].jobRepository_); }
+  TJobRepository *GetJobRepository(size_t chainId) {
+    return static_cast<TJobRepository *>(chains_[chainId].jobRepository_);
+  }
 };
 
 #endif

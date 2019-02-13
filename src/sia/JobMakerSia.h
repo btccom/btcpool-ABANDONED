@@ -27,9 +27,7 @@
 #include "JobMaker.h"
 #include "utilities_js.hpp"
 
-
-class JobMakerHandlerSia : public GwJobMakerHandler
-{
+class JobMakerHandlerSia : public GwJobMakerHandler {
 public:
   JobMakerHandlerSia();
   virtual ~JobMakerHandlerSia() {}
@@ -42,7 +40,6 @@ protected:
   string header_;
   uint32_t time_;
   bool validate(JsonNode &j);
-
 };
 
 #endif

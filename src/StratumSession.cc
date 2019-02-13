@@ -44,18 +44,28 @@ static const uint32_t WriteTimeout = 120;
 static const string PoolWatcherAgent = "__PoolWatcher__";
 static const string BtccomAgentPrefix = "btccom-agent/";
 
-StratumSession::StratumSession(StratumServer &server, struct bufferevent *bev, struct sockaddr *saddr, uint32_t sessionId)
-: server_(server), bev_(bev), sessionId_(sessionId)
-, buffer_(evbuffer_new()), clientAgent_("unknown")
-, isAgentClient_(false), isNiceHashClient_(false)
-, state_(CONNECTED), worker_(server.chains_.size())
-, isDead_(false), isLongTimeout_(false)
-{
+StratumSession::StratumSession(
+    StratumServer &server,
+    struct bufferevent *bev,
+    struct sockaddr *saddr,
+    uint32_t sessionId)
+  : server_(server)
+  , bev_(bev)
+  , sessionId_(sessionId)
+  , buffer_(evbuffer_new())
+  , clientAgent_("unknown")
+  , isAgentClient_(false)
+  , isNiceHashClient_(false)
+  , state_(CONNECTED)
+  , worker_(server.chains_.size())
+  , isDead_(false)
+  , isLongTimeout_(false) {
   assert(saddr->sa_family == AF_INET);
   auto ipv4 = reinterpret_cast<struct sockaddr_in *>(saddr);
   clientIpInt_ = ipv4->sin_addr.s_addr;
   clientIp_.resize(INET_ADDRSTRLEN);
-  evutil_inet_ntop(AF_INET, &ipv4->sin_addr, &clientIp_.front(), INET_ADDRSTRLEN);
+  evutil_inet_ntop(
+      AF_INET, &ipv4->sin_addr, &clientIp_.front(), INET_ADDRSTRLEN);
   // remove the padding bytes
   clientIp_ = clientIp_.c_str();
 
@@ -67,8 +77,8 @@ StratumSession::StratumSession(StratumServer &server, struct bufferevent *bev, s
 }
 
 StratumSession::~StratumSession() {
-  LOG(INFO) << "close stratum session, ip: " << clientIp_
-            << ", name: \"" << worker_.fullName_ << "\""
+  LOG(INFO) << "close stratum session, ip: " << clientIp_ << ", name: \""
+            << worker_.fullName_ << "\""
             << ", agent: \"" << clientAgent_ << "\"";
   evbuffer_free(buffer_);
   bufferevent_free(bev_);
@@ -115,11 +125,12 @@ bool StratumSession::handleMessage() {
     // and it will fall into infinite loop with handleMessage() calling.
     //
     if (len < 4) {
-      LOG(ERROR) << "received invalid ex-message, type: " << std::hex << cmd << ", len: " << len;
+      LOG(ERROR) << "received invalid ex-message, type: " << std::hex << cmd
+                 << ", len: " << len;
       return false;
     }
 
-    if (evBufLen < len)  // didn't received the whole message yet
+    if (evBufLen < len) // didn't received the whole message yet
       return false;
 
     // copies and removes the first datlen bytes from the front of buf
@@ -130,7 +141,7 @@ bool StratumSession::handleMessage() {
     if (dispatcher_) {
       dispatcher_->handleExMessage(exMessage);
     }
-    return true;  // read message success, return true
+    return true; // read message success, return true
   }
 
   //
@@ -142,7 +153,7 @@ bool StratumSession::handleMessage() {
     return true;
   }
 
-  return false;  // read message failure
+  return false; // read message failure
 }
 
 bool StratumSession::tryReadLine(std::string &line) {
@@ -152,12 +163,12 @@ bool StratumSession::tryReadLine(std::string &line) {
   struct evbuffer_ptr loc;
   loc = evbuffer_search_eol(buffer_, nullptr, nullptr, EVBUFFER_EOL_LF);
   if (loc.pos < 0) {
-    return false;  // not found
+    return false; // not found
   }
 
   // copies and removes the first datlen bytes from the front of buf
   // into the memory at data
-  line.resize(loc.pos + 1);  // containing "\n"
+  line.resize(loc.pos + 1); // containing "\n"
   evbuffer_remove(buffer_, &line.front(), line.size());
   return true;
 }
@@ -167,7 +178,8 @@ void StratumSession::handleLine(const std::string &line) {
 
   JsonNode jnode;
   if (!JsonNode::parse(line.data(), line.data() + line.size(), jnode)) {
-    LOG(ERROR) << "decode line fail, not a json string. string value: \"" << line.c_str() << "\"";
+    LOG(ERROR) << "decode line fail, not a json string. string value: \""
+               << line.c_str() << "\"";
     return;
   }
   JsonNode jid = jnode["id"];
@@ -197,8 +209,7 @@ void StratumSession::logAuthorizeResult(bool success) {
               << ", clientAgent: " << clientAgent_
               << ", clientIp: " << clientIp_
               << ", chain: " << getServer().chainName(worker_.chainId_);
-  }
-  else {
+  } else {
     LOG(WARNING) << "authorize failed, workerName:" << worker_.fullName_
                  << ", clientAgent: " << clientAgent_
                  << ", clientIp: " << clientIp_;
@@ -206,24 +217,29 @@ void StratumSession::logAuthorizeResult(bool success) {
 }
 
 string StratumSession::getMinerInfoJson(const string &type) {
-  return Strings::Format("{\"created_at\":\"%s\","
-                          "\"type\":\"%s\","
-                          "\"content\":{"
-                          "\"user_id\":%d,\"user_name\":\"%s\","
-                          "\"worker_id\":%" PRId64 ",\"worker_name\":\"%s\","
-                          "\"client_agent\":\"%s\",\"ip\":\"%s\","
-                          "\"session_id\":\"%08x\""
-                          "}}",
-                          date("%F %T").c_str(),
-                          type.c_str(),
-                          worker_.userId(), worker_.userName_.c_str(),
-                          worker_.workerHashId_, worker_.workerName_.c_str(),
-                          clientAgent_.c_str(), clientIp_.c_str(),
-                          sessionId_);
+  return Strings::Format(
+      "{\"created_at\":\"%s\","
+      "\"type\":\"%s\","
+      "\"content\":{"
+      "\"user_id\":%d,\"user_name\":\"%s\","
+      "\"worker_id\":%" PRId64
+      ",\"worker_name\":\"%s\","
+      "\"client_agent\":\"%s\",\"ip\":\"%s\","
+      "\"session_id\":\"%08x\""
+      "}}",
+      date("%F %T").c_str(),
+      type.c_str(),
+      worker_.userId(),
+      worker_.userName_.c_str(),
+      worker_.workerHashId_,
+      worker_.workerName_.c_str(),
+      clientAgent_.c_str(),
+      clientIp_.c_str(),
+      sessionId_);
 }
 
-void StratumSession::checkUserAndPwd(const string &idStr, const string &fullName, const string &password)
-{
+void StratumSession::checkUserAndPwd(
+    const string &idStr, const string &fullName, const string &password) {
   // set id & names, will filter workername in this func
   worker_.setNames(fullName);
 
@@ -248,8 +264,7 @@ void StratumSession::checkUserAndPwd(const string &idStr, const string &fullName
   state_ = AUTHENTICATED;
   dispatcher_ = createDispatcher();
 
-  if (!password.empty())
-  {
+  if (!password.empty()) {
     setDefaultDifficultyFromPassword(password);
   }
 
@@ -258,19 +273,26 @@ void StratumSession::checkUserAndPwd(const string &idStr, const string &fullName
   setReadTimeout(isLongTimeout_ ? 86400 * 7 : 60 * 10);
 
   // send latest stratum job
-  sendMiningNotify(server_.chains_[chainId].jobRepository_->getLatestStratumJobEx(), true /* is first job */);
+  sendMiningNotify(
+      server_.chains_[chainId].jobRepository_->getLatestStratumJobEx(),
+      true /* is first job */);
 }
 
 bool StratumSession::switchChain(size_t chainId) {
-  const int32_t userId = server_.userInfo_->getUserId(chainId, worker_.userName_);
-  if (userId <= 0)
-  {
+  const int32_t userId =
+      server_.userInfo_->getUserId(chainId, worker_.userName_);
+  if (userId <= 0) {
     DLOG(INFO) << "cannot find user id";
     return false;
   }
 
   worker_.setChainIdAndUserId(chainId, userId);
-  server_.userInfo_->addWorker(chainId, worker_.userId(), worker_.workerHashId_, worker_.workerName_, clientAgent_);
+  server_.userInfo_->addWorker(
+      chainId,
+      worker_.userId(),
+      worker_.workerHashId_,
+      worker_.workerName_,
+      clientAgent_);
 
   // sent events to kafka: miner_connect
   server_.sendCommonEvents2Kafka(chainId, getMinerInfoJson("miner_connect"));
@@ -282,13 +304,13 @@ void StratumSession::setDefaultDifficultyFromPassword(const string &password) {
   using namespace boost::algorithm;
 
   uint64_t d = 0u, md = 0u;
-  vector<string> arr;  // key=value,key=value
+  vector<string> arr; // key=value,key=value
   split(arr, password, is_any_of(","));
   if (arr.size() == 0)
     return;
 
   for (auto it = arr.begin(); it != arr.end(); it++) {
-    vector<string> arr2;  // key,value
+    vector<string> arr2; // key,value
     split(arr2, *it, is_any_of("="));
     if (arr2.size() != 2 || arr2[1].empty()) {
       continue;
@@ -297,8 +319,7 @@ void StratumSession::setDefaultDifficultyFromPassword(const string &password) {
     if (arr2[0] == "d") {
       // 'd' : start difficulty
       d = strtoull(arr2[1].c_str(), nullptr, 10);
-    }
-    else if (arr2[0] == "md") {
+    } else if (arr2[0] == "md") {
       // 'md' : minimum difficulty
       md = strtoull(arr2[1].c_str(), nullptr, 10);
     }
@@ -320,15 +341,16 @@ void StratumSession::setDefaultDifficultyFromPassword(const string &password) {
 void StratumSession::setClientAgent(const string &clientAgent) {
   clientAgent_ = filterWorkerName(clientAgent);
   isNiceHashClient_ = isNiceHashAgent(clientAgent_);
-  isAgentClient_ = (0 == clientAgent_.compare(0, BtccomAgentPrefix.size(), BtccomAgentPrefix));
+  isAgentClient_ =
+      (0 ==
+       clientAgent_.compare(0, BtccomAgentPrefix.size(), BtccomAgentPrefix));
   isLongTimeout_ = (isAgentClient_ || clientAgent_ == PoolWatcherAgent);
 }
 
-bool StratumSession::validate(const JsonNode &jmethod, const JsonNode &jparams, const JsonNode &jroot) {
-  if (jmethod.type() == Utilities::JS::type::Str &&
-      jmethod.size() != 0 &&
-      jparams.type() == Utilities::JS::type::Array)
-  {
+bool StratumSession::validate(
+    const JsonNode &jmethod, const JsonNode &jparams, const JsonNode &jroot) {
+  if (jmethod.type() == Utilities::JS::type::Str && jmethod.size() != 0 &&
+      jparams.type() == Utilities::JS::type::Array) {
     return true;
   }
 
@@ -337,22 +359,25 @@ bool StratumSession::validate(const JsonNode &jmethod, const JsonNode &jparams, 
 
 unique_ptr<StratumMessageDispatcher> StratumSession::createDispatcher() {
   // By default there is no agent support
-  return boost::make_unique<StratumMessageMinerDispatcher>(*this,
-                                                           createMiner(clientAgent_,
-                                                                       worker_.workerName_,
-                                                                       worker_.workerHashId_));
+  return boost::make_unique<StratumMessageMinerDispatcher>(
+      *this,
+      createMiner(clientAgent_, worker_.workerName_, worker_.workerHashId_));
 }
 
 bool StratumSession::isDead() const {
   return isDead_.load();
 }
 
-void StratumSession::addWorker(const std::string &clientAgent, const std::string &workerName, int64_t workerId) {
+void StratumSession::addWorker(
+    const std::string &clientAgent,
+    const std::string &workerName,
+    int64_t workerId) {
   if (state_ != AUTHENTICATED) {
     LOG(ERROR) << "curr stratum session has NOT auth yet";
     return;
   }
-  server_.userInfo_->addWorker(worker_.chainId_, worker_.userId(), workerId, workerName, clientAgent);
+  server_.userInfo_->addWorker(
+      worker_.chainId_, worker_.userId(), workerId, workerName, clientAgent);
 }
 
 void StratumSession::markAsDead() {
@@ -361,7 +386,8 @@ void StratumSession::markAsDead() {
 
   // sent event to kafka: miner_dead
   if (worker_.userId() > 0) {
-    server_.sendCommonEvents2Kafka(worker_.chainId_, getMinerInfoJson("miner_dead"));
+    server_.sendCommonEvents2Kafka(
+        worker_.chainId_, getMinerInfoJson("miner_dead"));
   }
 }
 
@@ -414,10 +440,13 @@ void StratumSession::rpc1ResponseError(const string &idStr, int errCode) {
   // {"id": 10, "result": null, "error":[21, "Job not found", null]}
   //
   char buf[1024];
-  int len = snprintf(buf, sizeof(buf),
-                     "{\"id\":%s,\"result\":null,\"error\":[%d,\"%s\",null]}\n",
-                     idStr.empty() ? "null" : idStr.c_str(),
-                     errCode, StratumStatus::toString(errCode));
+  int len = snprintf(
+      buf,
+      sizeof(buf),
+      "{\"id\":%s,\"result\":null,\"error\":[%d,\"%s\",null]}\n",
+      idStr.empty() ? "null" : idStr.c_str(),
+      errCode,
+      StratumStatus::toString(errCode));
   sendData(buf, len);
 }
 
@@ -426,28 +455,26 @@ void StratumSession::rpc1ResponseError(const string &idStr, int errCode) {
  * <https://www.jsonrpc.org/specification>
  *
  * 5 Response object
- * When a rpc call is made, the StratumServer MUST reply with a Response, except for in the case of Notifications.
- * The Response is expressed as a single JSON Object, with the following members:
- * jsonrpc
- *   A String specifying the version of the JSON-RPC protocol. MUST be exactly "2.0".
- * result
- *   This member is REQUIRED on success.
- *   This member MUST NOT exist if there was an error invoking the method.
- *   The value of this member is determined by the method invoked on the StratumServer.
- * error
- *   This member is REQUIRED on error.
- *   This member MUST NOT exist if there was no error triggered during invocation.
- *   The value for this member MUST be an Object as defined in section 5.1.
- * id
- *   This member is REQUIRED.
- *   It MUST be the same as the value of the id member in the Request Object.
- *   If there was an error in detecting the id in the Request object (e.g. Parse error/Invalid Request), it MUST be Null.
+ * When a rpc call is made, the StratumServer MUST reply with a Response, except
+ * for in the case of Notifications. The Response is expressed as a single JSON
+ * Object, with the following members: jsonrpc A String specifying the version
+ * of the JSON-RPC protocol. MUST be exactly "2.0". result This member is
+ * REQUIRED on success. This member MUST NOT exist if there was an error
+ * invoking the method. The value of this member is determined by the method
+ * invoked on the StratumServer. error This member is REQUIRED on error. This
+ * member MUST NOT exist if there was no error triggered during invocation. The
+ * value for this member MUST be an Object as defined in section 5.1. id This
+ * member is REQUIRED. It MUST be the same as the value of the id member in the
+ * Request Object. If there was an error in detecting the id in the Request
+ * object (e.g. Parse error/Invalid Request), it MUST be Null.
  *
- * Either the result member or error member MUST be included, but both members MUST NOT be included.
+ * Either the result member or error member MUST be included, but both members
+ * MUST NOT be included.
  */
 
 void StratumSession::rpc2ResponseTrue(const string &idStr) {
-  const string s = Strings::Format("{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":true}\n", idStr.c_str());
+  const string s = Strings::Format(
+      "{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":true}\n", idStr.c_str());
   sendData(s);
 }
 
@@ -457,8 +484,8 @@ void StratumSession::rpc2ResponseTrue(const string &idStr) {
  *
  * 5.1 Error object
  *
- * When a rpc call encounters an error, the Response Object MUST contain the error member
- * with a value that is a Object with the following members:
+ * When a rpc call encounters an error, the Response Object MUST contain the
+ * error member with a value that is a Object with the following members:
  *
  * code
  *     A Number that indicates the error type that occurred.
@@ -467,17 +494,21 @@ void StratumSession::rpc2ResponseTrue(const string &idStr) {
  *     A String providing a short description of the error.
  *     The message SHOULD be limited to a concise single sentence.
  * data
- *     A Primitive or Structured value that contains additional information about the error.
- *     This may be omitted.
- *     The value of this member is defined by the StratumServer (e.g. detailed error information, nested errors etc.).
+ *     A Primitive or Structured value that contains additional information
+ * about the error. This may be omitted. The value of this member is defined by
+ * the StratumServer (e.g. detailed error information, nested errors etc.).
  */
 
 void StratumSession::rpc2ResponseError(const string &idStr, int errCode) {
   char buf[1024];
-  int len = snprintf(buf, sizeof(buf),
-                     "{\"id\":%s,\"jsonrpc\":\"2.0\",\"error\":{\"code\":%d,\"message\":\"%s\"}}\n",
-                     idStr.empty() ? "null" : idStr.c_str(),
-                     errCode, StratumStatus::toString(errCode));
+  int len = snprintf(
+      buf,
+      sizeof(buf),
+      "{\"id\":%s,\"jsonrpc\":\"2.0\",\"error\":{\"code\":%d,\"message\":\"%"
+      "s\"}}\n",
+      idStr.empty() ? "null" : idStr.c_str(),
+      errCode,
+      StratumStatus::toString(errCode));
   sendData(buf, len);
 }
 
@@ -485,16 +516,19 @@ void StratumSession::responseAuthorizeSuccess(const std::string &idStr) {
   responseTrue(idStr);
 }
 
-void StratumSession::sendSetDifficulty(LocalJob &localJob, uint64_t difficulty) {
+void StratumSession::sendSetDifficulty(
+    LocalJob &localJob, uint64_t difficulty) {
   string s;
   if (!server_.isDevModeEnable_) {
-    s = Strings::Format("{\"id\":null,\"method\":\"mining.set_difficulty\""
-                        ",\"params\":[%" PRIu64"]}\n",
-                        difficulty);
+    s = Strings::Format(
+        "{\"id\":null,\"method\":\"mining.set_difficulty\""
+        ",\"params\":[%" PRIu64 "]}\n",
+        difficulty);
   } else {
-    s = Strings::Format("{\"id\":null,\"method\":\"mining.set_difficulty\""
-                        ",\"params\":[%.3f]}\n",
-                        server_.devFixedDifficulty_);
+    s = Strings::Format(
+        "{\"id\":null,\"method\":\"mining.set_difficulty\""
+        ",\"params\":[%.3f]}\n",
+        server_.devFixedDifficulty_);
   }
 
   sendData(s);

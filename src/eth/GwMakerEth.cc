@@ -28,64 +28,65 @@
 
 ///////////////////////////////GwMakerHandlerEth////////////////////////////////////
 bool GwMakerHandlerEth::checkFields(JsonNode &r) {
-  if (r.type() != Utilities::JS::type::Array || r.array().size() < 2)
-  {
+  if (r.type() != Utilities::JS::type::Array || r.array().size() < 2) {
     LOG(ERROR) << "[getBlockByNumber,getWork] returns unexpected";
     return false;
   }
 
   auto responses = r.array();
-  return checkFieldsPendingBlock(responses[0])
-      && checkFieldsGetwork(responses[1]);
+  return checkFieldsPendingBlock(responses[0]) &&
+      checkFieldsGetwork(responses[1]);
 }
 
-bool GwMakerHandlerEth::checkFieldsPendingBlock(JsonNode &r)
-{
-/*
-  response of eth_getBlockByNumber
-  {
-    "jsonrpc": "2.0",
-    "id": 1,
-    "result": {
-      "difficulty": "0xbab6a8bebb86a",
-      "extraData": "0x452f4254432e434f4d2f",
-      "gasLimit": "0x7a1200",
-      "gasUsed": "0x79f82b",
-      "hash": null,
-      "logsBloom": "...",
-      "miner": null,
-      "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
-      "nonce": null,
-      "number": "0x62853d",
-      "parentHash": "0xd0e3d722db1fa9e0a05330bc0a1b4b3421ca61fcf23224d82869eeb2d77263a2",
-      "receiptsRoot": "0x823f1bfe3a5f37f9891c528034d6a124752f63bdcc0e88bf3b731375301337f8",
-      "sha3Uncles": "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347",
-      "size": "0x8bfb",
-      "stateRoot": "0xdd58b5ce8ad79ca02bb9321c3b1a2123b9f627d9164cf4b73371fc39cfc12c5e",
-      "timestamp": "0x5bb71091",
-      "totalDifficulty": null,
-      "transactions": [...],
-      "transactionsRoot": "0x8bbba93b1b39a96308aac8914b7f407d0ff46bc7456241f9b540874b2e1a4502",
-      "uncles": [...]
+bool GwMakerHandlerEth::checkFieldsPendingBlock(JsonNode &r) {
+  /*
+    response of eth_getBlockByNumber
+    {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "result": {
+        "difficulty": "0xbab6a8bebb86a",
+        "extraData": "0x452f4254432e434f4d2f",
+        "gasLimit": "0x7a1200",
+        "gasUsed": "0x79f82b",
+        "hash": null,
+        "logsBloom": "...",
+        "miner": null,
+        "mixHash":
+    "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "nonce": null,
+        "number": "0x62853d",
+        "parentHash":
+    "0xd0e3d722db1fa9e0a05330bc0a1b4b3421ca61fcf23224d82869eeb2d77263a2",
+        "receiptsRoot":
+    "0x823f1bfe3a5f37f9891c528034d6a124752f63bdcc0e88bf3b731375301337f8",
+        "sha3Uncles":
+    "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347",
+        "size": "0x8bfb",
+        "stateRoot":
+    "0xdd58b5ce8ad79ca02bb9321c3b1a2123b9f627d9164cf4b73371fc39cfc12c5e",
+        "timestamp": "0x5bb71091",
+        "totalDifficulty": null,
+        "transactions": [...],
+        "transactionsRoot":
+    "0x8bbba93b1b39a96308aac8914b7f407d0ff46bc7456241f9b540874b2e1a4502",
+        "uncles": [...]
+      }
     }
-  }
-  */
-  if (r.type() != Utilities::JS::type::Obj)
-  {
+    */
+  if (r.type() != Utilities::JS::type::Obj) {
     LOG(ERROR) << "getBlockByNumber(penging) returns a non-object";
     return false;
   }
 
   JsonNode result = r["result"];
   if (result["error"].type() == Utilities::JS::type::Obj &&
-      result["error"]["message"].type() == Utilities::JS::type::Str)
-  {
+      result["error"]["message"].type() == Utilities::JS::type::Str) {
     LOG(ERROR) << result["error"]["message"].str();
     return false;
   }
 
-  if (result.type() != Utilities::JS::type::Obj)
-  {
+  if (result.type() != Utilities::JS::type::Obj) {
     LOG(ERROR) << "getBlockByNumber(penging) retrun unexpected";
     return false;
   }
@@ -94,7 +95,7 @@ bool GwMakerHandlerEth::checkFieldsPendingBlock(JsonNode &r)
       result["gasLimit"].type() != Utilities::JS::type::Str ||
       result["gasUsed"].type() != Utilities::JS::type::Str ||
       // number will be null in some versions of Parity
-      //result["number"].type() != Utilities::JS::type::Str ||
+      // result["number"].type() != Utilities::JS::type::Str ||
       result["transactions"].type() != Utilities::JS::type::Array ||
       result["uncles"].type() != Utilities::JS::type::Array) {
     LOG(ERROR) << "result of getBlockByNumber(penging): missing fields";
@@ -127,23 +128,20 @@ bool GwMakerHandlerEth::checkFieldsGetwork(JsonNode &r) {
   //     }
   // }
 
-  if (r.type() != Utilities::JS::type::Obj)
-  {
+  if (r.type() != Utilities::JS::type::Obj) {
     LOG(ERROR) << "getwork returns a non-object";
     return false;
   }
-  
+
   JsonNode result = r["result"];
   if (result["error"].type() == Utilities::JS::type::Obj &&
-      result["error"]["message"].type() == Utilities::JS::type::Str)
-  {
+      result["error"]["message"].type() == Utilities::JS::type::Str) {
     LOG(ERROR) << result["error"]["message"].str();
     return false;
   }
 
   if (result.type() != Utilities::JS::type::Array ||
-      result.array().size() < 3)
-  {
+      result.array().size() < 3) {
     LOG(ERROR) << "getwork retrun unexpected";
     return false;
   }
@@ -157,7 +155,7 @@ string GwMakerHandlerEth::constructRawMsg(JsonNode &r) {
   auto work = responses[1]["result"].array();
 
   string heightStr = "null";
-  
+
   // number will be null in some versions of Parity
   if (block["number"].type() == Utilities::JS::type::Str) {
     heightStr = block["number"].str();
@@ -167,85 +165,89 @@ string GwMakerHandlerEth::constructRawMsg(JsonNode &r) {
   // Parity will response this field.
   if (work.size() >= 4 && work[3].type() == Utilities::JS::type::Str) {
     if (heightStr != "null" && heightStr != work[3].str()) {
-      LOG(WARNING) << "block height mis-matched between getBlockByNumber(pending) "
-                   << heightStr <<" and getWork() " << work[3].str();
+      LOG(WARNING)
+          << "block height mis-matched between getBlockByNumber(pending) "
+          << heightStr << " and getWork() " << work[3].str();
     }
     heightStr = work[3].str();
   }
 
   long height = strtol(heightStr.c_str(), nullptr, 16);
   if (height < 1 || height == LONG_MAX) {
-    LOG(WARNING) << "block height/number wrong: " << heightStr << " (" << height << ")";
+    LOG(WARNING) << "block height/number wrong: " << heightStr << " (" << height
+                 << ")";
     return "";
   }
 
   float gasLimit = (float)strtoll(block["gasLimit"].str().c_str(), nullptr, 16);
-  float gasUsed  = (float)strtoll(block["gasUsed"].str().c_str(), nullptr, 16);
+  float gasUsed = (float)strtoll(block["gasUsed"].str().c_str(), nullptr, 16);
   float gasUsedPercent = gasUsed / gasLimit * 100;
 
   size_t uncles = block["uncles"].array().size();
   size_t transactions = block["transactions"].array().size();
-  
-  LOG(INFO) << "chain: "    << def_.chainType_
-            << ", topic: "  << def_.rawGwTopic_
+
+  LOG(INFO) << "chain: " << def_.chainType_ << ", topic: " << def_.rawGwTopic_
             << ", parent: " << block["parentHash"].str()
-            << ", target: " << work[2].str()
-            << ", hHash: "  << work[0].str()
-            << ", sHash: "  << work[1].str()
-            << ", height: " << height
-            << ", uncles: " << uncles
-            << ", transactions: " << transactions
+            << ", target: " << work[2].str() << ", hHash: " << work[0].str()
+            << ", sHash: " << work[1].str() << ", height: " << height
+            << ", uncles: " << uncles << ", transactions: " << transactions
             << ", gasUsedPercent: " << gasUsedPercent;
 
-  return Strings::Format("{"
-                         "\"created_at_ts\":%u,"
-                         "\"chainType\":\"%s\","
-                         "\"rpcAddress\":\"%s\","
-                         "\"rpcUserPwd\":\"%s\","
-                         "\"parent\":\"%s\","
-                         "\"target\":\"%s\","
-                         "\"hHash\":\"%s\","
-                         "\"sHash\":\"%s\","
-                         "\"height\":%ld,"
-                         "\"uncles\":%lu,"
-                         "\"transactions\":%lu,"
-                         "\"gasUsedPercent\":%f"
-                         "}",
-                         (uint32_t)time(nullptr),
-                         def_.chainType_.c_str(),
-                         def_.rpcAddr_.c_str(), 
-                         def_.rpcUserPwd_.c_str(),
-                         block["parentHash"].str().c_str(),
-                         work[2].str().c_str(),
-                         work[0].str().c_str(), 
-                         work[1].str().c_str(),
-                         height,
-                         uncles,
-                         transactions,
-                         gasUsedPercent);
+  return Strings::Format(
+      "{"
+      "\"created_at_ts\":%u,"
+      "\"chainType\":\"%s\","
+      "\"rpcAddress\":\"%s\","
+      "\"rpcUserPwd\":\"%s\","
+      "\"parent\":\"%s\","
+      "\"target\":\"%s\","
+      "\"hHash\":\"%s\","
+      "\"sHash\":\"%s\","
+      "\"height\":%ld,"
+      "\"uncles\":%lu,"
+      "\"transactions\":%lu,"
+      "\"gasUsedPercent\":%f"
+      "}",
+      (uint32_t)time(nullptr),
+      def_.chainType_.c_str(),
+      def_.rpcAddr_.c_str(),
+      def_.rpcUserPwd_.c_str(),
+      block["parentHash"].str().c_str(),
+      work[2].str().c_str(),
+      work[0].str().c_str(),
+      work[1].str().c_str(),
+      height,
+      uncles,
+      transactions,
+      gasUsedPercent);
 }
 
 string GwMakerHandlerEth::getBlockHeight() {
-  const string request = "{\"jsonrpc\":\"2.0\",\"method\":\"eth_getBlockByNumber\",\"params\":[\"pending\", false],\"id\":2}";
+  const string request =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"eth_getBlockByNumber\",\"params\":["
+      "\"pending\", false],\"id\":2}";
 
   string response;
-  bool res = blockchainNodeRpcCall(def_.rpcAddr_.c_str(), def_.rpcUserPwd_.c_str(), request.c_str(), response);
+  bool res = blockchainNodeRpcCall(
+      def_.rpcAddr_.c_str(),
+      def_.rpcUserPwd_.c_str(),
+      request.c_str(),
+      response);
   if (!res) {
     LOG(ERROR) << "get pending block failed";
     return "";
   }
 
   JsonNode j;
-  if (!JsonNode::parse(response.c_str(), response.c_str() + response.length(), j))
-  {
+  if (!JsonNode::parse(
+          response.c_str(), response.c_str() + response.length(), j)) {
     LOG(ERROR) << "deserialize block informaiton failed";
     return "";
   }
 
   JsonNode result = j["result"];
   if (result.type() != Utilities::JS::type::Obj ||
-      result["number"].type() != Utilities::JS::type::Str)
-  {
+      result["number"].type() != Utilities::JS::type::Str) {
     LOG(ERROR) << "block informaiton format not expected: " << response;
     return "";
   }

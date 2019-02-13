@@ -29,7 +29,8 @@
 void init_ssl_locking();
 std::string get_ssl_err_string();
 
-SSL_CTX* get_client_SSL_CTX();
-SSL_CTX* get_client_SSL_CTX_With_Cache();
+SSL_CTX *get_client_SSL_CTX();
+SSL_CTX *get_client_SSL_CTX_With_Cache();
 
-SSL_CTX* get_server_SSL_CTX(const std::string &certFile, const std::string &keyFile);
+SSL_CTX *
+get_server_SSL_CTX(const std::string &certFile, const std::string &keyFile);

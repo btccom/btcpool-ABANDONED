@@ -29,25 +29,30 @@
 
 #include "CommonBeam.h"
 
-///////////////////////////////// StratumSessionBeam ////////////////////////////////
-StratumMinerBeam::StratumMinerBeam(StratumSessionBeam &session,
-                                 const DiffController &diffController,
-                                 const std::string &clientAgent,
-                                 const std::string &workerName,
-                                 int64_t workerId)
-    : StratumMinerBase(session, diffController, clientAgent, workerName, workerId) {
+///////////////////////////////// StratumSessionBeam
+///////////////////////////////////
+StratumMinerBeam::StratumMinerBeam(
+    StratumSessionBeam &session,
+    const DiffController &diffController,
+    const std::string &clientAgent,
+    const std::string &workerName,
+    int64_t workerId)
+  : StratumMinerBase(
+        session, diffController, clientAgent, workerName, workerId) {
 }
 
-void StratumMinerBeam::handleRequest(const std::string &idStr,
-                                    const std::string &method,
-                                    const JsonNode &jparams,
-                                    const JsonNode &jroot) {
+void StratumMinerBeam::handleRequest(
+    const std::string &idStr,
+    const std::string &method,
+    const JsonNode &jparams,
+    const JsonNode &jroot) {
   if (method == "solution") {
     handleRequest_Submit(idStr, jroot);
   }
 }
 
-void StratumMinerBeam::handleRequest_Submit(const string &idStr, const JsonNode &jroot) {
+void StratumMinerBeam::handleRequest_Submit(
+    const string &idStr, const JsonNode &jroot) {
   // const type cannot access string indexed object member
   JsonNode &jsonRoot = const_cast<JsonNode &>(jroot);
 
@@ -57,11 +62,9 @@ void StratumMinerBeam::handleRequest_Submit(const string &idStr, const JsonNode 
     return;
   }
 
-  if (
-    jsonRoot["id"].type() != Utilities::JS::type::Str ||
-    jsonRoot["nonce"].type() != Utilities::JS::type::Str ||
-    jsonRoot["output"].type() != Utilities::JS::type::Str
-  ) {
+  if (jsonRoot["id"].type() != Utilities::JS::type::Str ||
+      jsonRoot["nonce"].type() != Utilities::JS::type::Str ||
+      jsonRoot["output"].type() != Utilities::JS::type::Str) {
     session.responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
     return;
   }
@@ -80,9 +83,9 @@ void StratumMinerBeam::handleRequest_Submit(const string &idStr, const JsonNode 
   auto &server = session.getServer();
   auto &worker = session.getWorker();
   auto sessionId = session.getSessionId();
-  
+
   shared_ptr<StratumJobEx> exjob = server.GetJobRepository(localJob->chainId_)
-    ->getStratumJobEx(localJob->jobId_);
+                                       ->getStratumJobEx(localJob->jobId_);
   // can't find stratum job
   if (exjob.get() == nullptr) {
     session.responseFalse(idStr, StratumStatus::JOB_NOT_FOUND);
@@ -107,7 +110,7 @@ void StratumMinerBeam::handleRequest_Submit(const string &idStr, const JsonNode 
   share.set_userid(worker.userId(exjob->chainId_));
   share.set_sharediff(jobDiff.currentJobDiff_);
   share.set_blockbits(sjob->blockBits_);
-  share.set_timestamp((uint64_t) time(nullptr));
+  share.set_timestamp((uint64_t)time(nullptr));
   share.set_status(StratumStatus::REJECT_NO_REASON);
   share.set_height(sjob->height_);
   share.set_nonce(nonce);
@@ -121,20 +124,19 @@ void StratumMinerBeam::handleRequest_Submit(const string &idStr, const JsonNode 
   if (!localJob->addLocalShare(localShare)) {
     session.responseFalse(idStr, StratumStatus::DUPLICATE_SHARE);
     // add invalid share to counter
-    invalidSharesCounter_.insert((int64_t) time(nullptr), 1);
+    invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
     return;
   }
 
   uint256 blockHash;
   server.checkAndUpdateShare(
-    localJob->chainId_,
-    share,
-    exjob,
-    output,
-    jobDiff.jobDiffs_,
-    worker.fullName_,
-    blockHash
-  );
+      localJob->chainId_,
+      share,
+      exjob,
+      output,
+      jobDiff.jobDiffs_,
+      worker.fullName_,
+      blockHash);
 
   if (StratumStatus::isAccepted(share.status())) {
     DLOG(INFO) << "share reached the diff: " << share.sharediff();
@@ -147,19 +149,14 @@ void StratumMinerBeam::handleRequest_Submit(const string &idStr, const JsonNode 
   if (handleShare(idStr, share.status(), share.sharediff())) {
     if (StratumStatus::isSolved(share.status())) {
       server.sendSolvedShare2Kafka(
-        localJob->chainId_,
-        share,
-        sjob->input_,
-        output,
-        worker,
-        blockHash
-      );
+          localJob->chainId_, share, sjob->input_, output, worker, blockHash);
       // mark jobs as stale
       server.GetJobRepository(exjob->chainId_)->markAllJobsAsStale();
     }
   } else {
     // check if there is invalid share spamming
-    int64_t invalidSharesNum = invalidSharesCounter_.sum(time(nullptr), INVALID_SHARE_SLIDING_WINDOWS_SIZE);
+    int64_t invalidSharesNum = invalidSharesCounter_.sum(
+        time(nullptr), INVALID_SHARE_SLIDING_WINDOWS_SIZE);
     // too much invalid shares, don't send them to kafka
     if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT) {
       LOG(WARNING) << "invalid share spamming, worker: " << worker.fullName_
@@ -173,7 +170,7 @@ void StratumMinerBeam::handleRequest_Submit(const string &idStr, const JsonNode 
   std::string message;
   uint32_t size = 0;
   if (!share.SerializeToArrayWithVersion(message, size)) {
-    LOG(ERROR) << "share SerializeToBuffer failed!"<< share.toString();
+    LOG(ERROR) << "share SerializeToBuffer failed!" << share.toString();
     return;
   }
 

@@ -30,36 +30,32 @@
 #include <glog/logging.h>
 
 StratumJobBytom::StratumJobBytom()
-  : nTime_(0U)
-{
-
+  : nTime_(0U) {
 }
 
-string StratumJobBytom::serializeToJson() const
-{
-  return Strings::Format("{\"created_at_ts\":%u"
-                         ",\"jobId\":%" PRIu64 ""
-                         ",\"sHash\":\"%s\""
-                         ",\"hHash\":\"%s\""
-                         "}",
-                         nTime_,
-                         jobId_,
-                         seed_.c_str(),
-                         hHash_.c_str());
+string StratumJobBytom::serializeToJson() const {
+  return Strings::Format(
+      "{\"created_at_ts\":%u"
+      ",\"jobId\":%" PRIu64
+      ""
+      ",\"sHash\":\"%s\""
+      ",\"hHash\":\"%s\""
+      "}",
+      nTime_,
+      jobId_,
+      seed_.c_str(),
+      hHash_.c_str());
 }
 
-bool StratumJobBytom::unserializeFromJson(const char *s, size_t len)
-{
+bool StratumJobBytom::unserializeFromJson(const char *s, size_t len) {
   JsonNode j;
-  if (!JsonNode::parse(s, s + len, j))
-  {
+  if (!JsonNode::parse(s, s + len, j)) {
     return false;
   }
   if (j["created_at_ts"].type() != Utilities::JS::type::Int ||
       j["jobId"].type() != Utilities::JS::type::Int ||
       j["sHash"].type() != Utilities::JS::type::Str ||
-      j["hHash"].type() != Utilities::JS::type::Str)
-  {
+      j["hHash"].type() != Utilities::JS::type::Str) {
     LOG(ERROR) << "parse bytom stratum job failure: " << s;
     return false;
   }
@@ -73,9 +69,9 @@ bool StratumJobBytom::unserializeFromJson(const char *s, size_t len)
   return true;
 }
 
-void StratumJobBytom::updateBlockHeaderFromHash()
-{
-  GoSlice text = {(void *)hHash_.data(), (int)hHash_.length(), (int)hHash_.length()};
+void StratumJobBytom::updateBlockHeaderFromHash() {
+  GoSlice text = {
+      (void *)hHash_.data(), (int)hHash_.length(), (int)hHash_.length()};
   DecodeBlockHeader_return bh = DecodeBlockHeader(text);
   DLOG(INFO) << "bytom block height=" << bh.r1 << ", timestamp=" << bh.r3;
   blockHeader_.version = bh.r0;
@@ -90,21 +86,25 @@ void StratumJobBytom::updateBlockHeaderFromHash()
   free(bh.r6);
 }
 
-string BlockHeaderBytom::serializeToJson() const
-{
-  return Strings::Format("{\"Version\":%" PRIu64 ""
-                         ",\"Height\":%" PRIu64 ""
-                         ",\"PreviousBlockHash\":\"%s\""
-                         ",\"Timestamp\":%" PRIu64 ""
-                         ",\"TransactionsMerkleRoot\":\"%s\""
-                         ",\"TransactionStatusHash\":\"%s\""
-                         ",\"Bits\":%" PRIu64 ""
-                         "}",
-                         version,
-                         height,
-                         previousBlockHash.c_str(),
-                         timestamp,
-                         transactionsMerkleRoot.c_str(),
-                         transactionStatusHash.c_str(),
-                         bits);
+string BlockHeaderBytom::serializeToJson() const {
+  return Strings::Format(
+      "{\"Version\":%" PRIu64
+      ""
+      ",\"Height\":%" PRIu64
+      ""
+      ",\"PreviousBlockHash\":\"%s\""
+      ",\"Timestamp\":%" PRIu64
+      ""
+      ",\"TransactionsMerkleRoot\":\"%s\""
+      ",\"TransactionStatusHash\":\"%s\""
+      ",\"Bits\":%" PRIu64
+      ""
+      "}",
+      version,
+      height,
+      previousBlockHash.c_str(),
+      timestamp,
+      transactionsMerkleRoot.c_str(),
+      transactionStatusHash.c_str(),
+      bits);
 }

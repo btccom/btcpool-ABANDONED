@@ -34,15 +34,21 @@
 
 using namespace std;
 
-
-////////////////////////////////// JobRepositoryBeam ///////////////////////////////
-JobRepositoryBeam::JobRepositoryBeam(size_t chainId, ServerBeam *server, const char *kafkaBrokers, const char *consumerTopic, const string &fileLastNotifyTime)
-  : JobRepositoryBase(chainId, server, kafkaBrokers, consumerTopic, fileLastNotifyTime)
-  , lastHeight_(0)
-{
+////////////////////////////////// JobRepositoryBeam
+//////////////////////////////////
+JobRepositoryBeam::JobRepositoryBeam(
+    size_t chainId,
+    ServerBeam *server,
+    const char *kafkaBrokers,
+    const char *consumerTopic,
+    const string &fileLastNotifyTime)
+  : JobRepositoryBase(
+        chainId, server, kafkaBrokers, consumerTopic, fileLastNotifyTime)
+  , lastHeight_(0) {
 }
 
-shared_ptr<StratumJobEx> JobRepositoryBeam::createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean) {
+shared_ptr<StratumJobEx> JobRepositoryBeam::createStratumJobEx(
+    shared_ptr<StratumJob> sjob, bool isClean) {
   return make_shared<StratumJobEx>(chainId_, sjob, isClean);
 }
 
@@ -56,17 +62,18 @@ void JobRepositoryBeam::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
     isClean = true;
     lastHeight_ = sjobBeam->height_;
 
-    LOG(INFO) << "received new height stratum job, height: " << sjobBeam->height_
-              << ", input: " << sjobBeam->input_;
+    LOG(INFO) << "received new height stratum job, height: "
+              << sjobBeam->height_ << ", input: " << sjobBeam->input_;
   }
-  
+
   shared_ptr<StratumJobEx> exJob(createStratumJobEx(sjobBeam, isClean));
   {
     ScopeLock sl(lock_);
 
     if (isClean) {
       // mark all jobs as stale, should do this before insert new job
-      // stale shares will not be rejected, they will be marked as ACCEPT_STALE and have lower rewards.
+      // stale shares will not be rejected, they will be marked as ACCEPT_STALE
+      // and have lower rewards.
       for (auto it : exJobs_) {
         it.second->markStale();
       }
@@ -76,7 +83,7 @@ void JobRepositoryBeam::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
     exJobs_[sjobBeam->jobId_] = exJob;
   }
 
-  //send job
+  // send job
   sendMiningNotify(exJob);
 }
 
@@ -85,33 +92,31 @@ JobRepositoryBeam::~JobRepositoryBeam() {
 
 ////////////////////////////////// ServierBeam ///////////////////////////////
 bool ServerBeam::setupInternal(const libconfig::Config &config) {
-  #ifndef WORK_WITH_STRATUM_SWITCHER
-    // Use 16 bits index of Session ID.
-    // The full Session ID (with server id as prefix) is 24 bits.
-    // Session ID will be used as starting nonce, so the single
-    // searching space of a miner will be 2^40 (= 2^64 - 2^24).
-    delete sessionIDManager_;
-    sessionIDManager_ = new SessionIDManagerT<16>(serverId_);
-    sessionIDManager_->setAllocInterval(256);
-  #endif
+#ifndef WORK_WITH_STRATUM_SWITCHER
+  // Use 16 bits index of Session ID.
+  // The full Session ID (with server id as prefix) is 24 bits.
+  // Session ID will be used as starting nonce, so the single
+  // searching space of a miner will be 2^40 (= 2^64 - 2^24).
+  delete sessionIDManager_;
+  sessionIDManager_ = new SessionIDManagerT<16>(serverId_);
+  sessionIDManager_->setAllocInterval(256);
+#endif
 
   return true;
 }
 
 void ServerBeam::checkAndUpdateShare(
-  size_t chainId,
-  ShareBeam &share,
-  shared_ptr<StratumJobEx> exjob,
-  const string &output,
-  const std::set<uint64_t> &jobDiffs,
-  const string &workFullName,
-  uint256 &computedShareHash
-) {
+    size_t chainId,
+    ShareBeam &share,
+    shared_ptr<StratumJobEx> exjob,
+    const string &output,
+    const std::set<uint64_t> &jobDiffs,
+    const string &workFullName,
+    uint256 &computedShareHash) {
   auto sjob = static_pointer_cast<StratumJobBeam>(exjob->sjob_);
 
   DLOG(INFO) << "checking share nonce: " << hex << share.nonce()
-             << ", input: " << sjob->input_
-             << ", output: " << output;
+             << ", input: " << sjob->input_ << ", output: " << output;
 
   if (exjob->isStale()) {
     share.set_status(StratumStatus::JOB_NOT_FOUND);
@@ -156,7 +161,8 @@ void ServerBeam::checkAndUpdateShare(
     jobDiff.Pack((uint64_t)*itr);
 
     uint256 jobTarget = Beam_DiffToTarget(*itr);
-    DLOG(INFO) << "comapre share hash: " << computedShareHash.GetHex() << ", job target: " << jobTarget.GetHex();
+    DLOG(INFO) << "comapre share hash: " << computedShareHash.GetHex()
+               << ", job target: " << jobTarget.GetHex();
 
     if (isEnableSimulator_ || jobDiff.IsTargetReached(shareHash)) {
       share.set_sharediff(*itr);
@@ -173,33 +179,39 @@ void ServerBeam::sendSolvedShare2Kafka(
     size_t chainId,
     const ShareBeam &share,
     const string &input,
-    const string& output,
+    const string &output,
     const StratumWorker &worker,
-    const uint256 &blockHash
-) {
+    const uint256 &blockHash) {
   string msg = Strings::Format(
-    "{\"nonce\":\"%016" PRIx64 "\",\"input\":\"%s\",\"output\":\"%s\","
-    "\"height\":%u,\"blockBits\":\"%08x\",\"userId\":%d,"
-    "\"workerId\":%" PRId64 ",\"workerFullName\":\"%s\","
-    "\"blockHash\":\"%s\",\"chain\":\"%s\"}",
-    share.nonce(), input.c_str(), output.c_str(),
-    share.height(), share.blockbits(), worker.userId(chainId),
-    worker.workerHashId_, filterWorkerName(worker.fullName_).c_str(),
-    blockHash.ToString().c_str(), "BEAM"
-  );
+      "{\"nonce\":\"%016" PRIx64
+      "\",\"input\":\"%s\",\"output\":\"%s\","
+      "\"height\":%u,\"blockBits\":\"%08x\",\"userId\":%d,"
+      "\"workerId\":%" PRId64
+      ",\"workerFullName\":\"%s\","
+      "\"blockHash\":\"%s\",\"chain\":\"%s\"}",
+      share.nonce(),
+      input.c_str(),
+      output.c_str(),
+      share.height(),
+      share.blockbits(),
+      worker.userId(chainId),
+      worker.workerHashId_,
+      filterWorkerName(worker.fullName_).c_str(),
+      blockHash.ToString().c_str(),
+      "BEAM");
   ServerBase::sendSolvedShare2Kafka(chainId, msg.c_str(), msg.length());
 }
 
-unique_ptr<StratumSession> ServerBeam::createConnection(struct bufferevent *bev, struct sockaddr *saddr, uint32_t sessionID)
-{
+unique_ptr<StratumSession> ServerBeam::createConnection(
+    struct bufferevent *bev, struct sockaddr *saddr, uint32_t sessionID) {
   return boost::make_unique<StratumSessionBeam>(*this, bev, saddr, sessionID);
 }
 
 JobRepository *ServerBeam::createJobRepository(
-  size_t chainId,
-  const char *kafkaBrokers,
-  const char *consumerTopic,
-  const string &fileLastNotifyTime
-) {
-  return new JobRepositoryBeam(chainId, this, kafkaBrokers, consumerTopic, fileLastNotifyTime);
+    size_t chainId,
+    const char *kafkaBrokers,
+    const char *consumerTopic,
+    const string &fileLastNotifyTime) {
+  return new JobRepositoryBeam(
+      chainId, this, kafkaBrokers, consumerTopic, fileLastNotifyTime);
 }

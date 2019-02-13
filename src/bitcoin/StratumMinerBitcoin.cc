@@ -30,19 +30,23 @@
 #include <boost/make_unique.hpp>
 #include <event2/buffer.h>
 
-///////////////////////////////// StratumMinerBitcoin ////////////////////////////////
-StratumMinerBitcoin::StratumMinerBitcoin(StratumSessionBitcoin &session,
-                                         const DiffController &diffController,
-                                         const string &clientAgent,
-                                         const string &workerName,
-                                         int64_t workerId)
-    : StratumMinerBase(session, diffController, clientAgent, workerName, workerId) {
+///////////////////////////////// StratumMinerBitcoin
+///////////////////////////////////
+StratumMinerBitcoin::StratumMinerBitcoin(
+    StratumSessionBitcoin &session,
+    const DiffController &diffController,
+    const string &clientAgent,
+    const string &workerName,
+    int64_t workerId)
+  : StratumMinerBase(
+        session, diffController, clientAgent, workerName, workerId) {
 }
 
-void StratumMinerBitcoin::handleRequest(const string &idStr,
-                                        const string &method,
-                                        const JsonNode &jparams,
-                                        const JsonNode &jroot) {
+void StratumMinerBitcoin::handleRequest(
+    const string &idStr,
+    const string &method,
+    const JsonNode &jparams,
+    const JsonNode &jroot) {
   if (method == "mining.submit") {
     handleRequest_Submit(idStr, jparams);
   } else if (method == "mining.suggest_target") {
@@ -52,9 +56,10 @@ void StratumMinerBitcoin::handleRequest(const string &idStr,
 
 void StratumMinerBitcoin::handleExMessage(const std::string &exMessage) {
   //
-  // SUBMIT_SHARE | SUBMIT_SHARE_WITH_TIME | SUBMIT_SHARE_WITH_VER | SUBMIT_SHARE_WITH_TIME_VER:
-  // | magic_number(1) | cmd(1) | len (2) | jobId (uint8_t) | session_id (uint16_t) |
-  // | extra_nonce2 (uint32_t) | nNonce (uint32_t) | [nTime (uint32_t) ] | [nVersionMask (uint32_t)] |
+  // SUBMIT_SHARE | SUBMIT_SHARE_WITH_TIME | SUBMIT_SHARE_WITH_VER |
+  // SUBMIT_SHARE_WITH_TIME_VER: | magic_number(1) | cmd(1) | len (2) | jobId
+  // (uint8_t) | session_id (uint16_t) | | extra_nonce2 (uint32_t) | nNonce
+  // (uint32_t) | [nTime (uint32_t) ] | [nVersionMask (uint32_t)] |
   //
   auto command = static_cast<StratumCommandEx>(exMessage[1]);
   if (command == StratumCommandEx::SUBMIT_SHARE) {
@@ -68,13 +73,15 @@ void StratumMinerBitcoin::handleExMessage(const std::string &exMessage) {
   }
 }
 
-void StratumMinerBitcoin::handleRequest_Submit(const string &idStr, const JsonNode &jparams) {
+void StratumMinerBitcoin::handleRequest_Submit(
+    const string &idStr, const JsonNode &jparams) {
   auto &session = getSession();
   if (session.getState() != StratumSession::AUTHENTICATED) {
     session.responseError(idStr, StratumStatus::UNAUTHORIZED);
 
     // there must be something wrong, send reconnect command
-    const string s = "{\"id\":null,\"method\":\"client.reconnect\",\"params\":[]}\n";
+    const string s =
+        "{\"id\":null,\"method\":\"client.reconnect\",\"params\":[]}\n";
     session.sendData(s);
     return;
   }
@@ -92,9 +99,9 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr, const JsonNo
 
   uint8_t shortJobId;
   if (isNiceHashClient_) {
-    shortJobId = (uint8_t) (jparams.children()->at(1).uint64() % 10);
+    shortJobId = (uint8_t)(jparams.children()->at(1).uint64() % 10);
   } else {
-    shortJobId = (uint8_t) jparams.children()->at(1).uint32();
+    shortJobId = (uint8_t)jparams.children()->at(1).uint32();
   }
   const uint64_t extraNonce2 = jparams.children()->at(2).uint64_hex();
   uint32_t nTime = jparams.children()->at(3).uint32_hex();
@@ -105,14 +112,15 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr, const JsonNo
     versionMask = jparams.children()->at(5).uint32_hex();
   }
 
-  handleRequest_Submit(idStr, shortJobId, extraNonce2, nonce, nTime, versionMask);
+  handleRequest_Submit(
+      idStr, shortJobId, extraNonce2, nonce, nTime, versionMask);
 }
 
-void StratumMinerBitcoin::handleRequest_SuggestTarget(const string &idStr,
-                                                      const JsonNode &jparams) {
+void StratumMinerBitcoin::handleRequest_SuggestTarget(
+    const string &idStr, const JsonNode &jparams) {
   auto &session = getSession();
   if (session.getState() != StratumSession::CONNECTED) {
-    return;  // suggest should be call before subscribe
+    return; // suggest should be call before subscribe
   }
 
   if (jparams.children()->size() == 0) {
@@ -122,13 +130,15 @@ void StratumMinerBitcoin::handleRequest_SuggestTarget(const string &idStr,
   resetCurDiff(formatDifficulty(TargetToDiff(jparams.children()->at(0).str())));
 }
 
-void StratumMinerBitcoin::handleExMessage_SubmitShare(const std::string &exMessage,
-                                                      const bool isWithTime,
-                                                      const bool isWithVersion) {
+void StratumMinerBitcoin::handleExMessage_SubmitShare(
+    const std::string &exMessage,
+    const bool isWithTime,
+    const bool isWithVersion) {
   //
-  // SUBMIT_SHARE | SUBMIT_SHARE_WITH_TIME | SUBMIT_SHARE_WITH_VER | SUBMIT_SHARE_WITH_TIME_VER:
-  // | magic_number(1) | cmd(1) | len (2) | jobId (uint8_t) | session_id (uint16_t) |
-  // | extra_nonce2 (uint32_t) | nNonce (uint32_t) | [nTime (uint32_t) ] | [nVersionMask (uint32_t)] |
+  // SUBMIT_SHARE | SUBMIT_SHARE_WITH_TIME | SUBMIT_SHARE_WITH_VER |
+  // SUBMIT_SHARE_WITH_TIME_VER: | magic_number(1) | cmd(1) | len (2) | jobId
+  // (uint8_t) | session_id (uint16_t) | | extra_nonce2 (uint32_t) | nNonce
+  // (uint32_t) | [nTime (uint32_t) ] | [nVersionMask (uint32_t)] |
   //
   size_t msgSize = 15;
   if (isWithTime) {
@@ -142,33 +152,42 @@ void StratumMinerBitcoin::handleExMessage_SubmitShare(const std::string &exMessa
   }
 
   const uint8_t *p = (uint8_t *)exMessage.data();
-  const uint8_t shortJobId = *(uint8_t  *)(p +  4);
-  const uint16_t sessionId = *(uint16_t *)(p +  5);
+  const uint8_t shortJobId = *(uint8_t *)(p + 4);
+  const uint16_t sessionId = *(uint16_t *)(p + 5);
   if (sessionId > StratumMessageEx::AGENT_MAX_SESSION_ID) {
     return;
   }
-  const uint32_t exNonce2    = *(uint32_t *)(p +  7);
-  const uint32_t nonce       = *(uint32_t *)(p + 11);
-  const uint32_t timestamp   = (isWithTime    == false ? 0 : *(uint32_t *)(p + 15));
-  const uint32_t versionMask = (isWithVersion == false ? 0 : *(uint32_t *)(p + msgSize - 4));
+  const uint32_t exNonce2 = *(uint32_t *)(p + 7);
+  const uint32_t nonce = *(uint32_t *)(p + 11);
+  const uint32_t timestamp = (isWithTime == false ? 0 : *(uint32_t *)(p + 15));
+  const uint32_t versionMask =
+      (isWithVersion == false ? 0 : *(uint32_t *)(p + msgSize - 4));
 
-  const uint64_t fullExtraNonce2 = ((uint64_t)sessionId << 32) | (uint64_t)exNonce2;
+  const uint64_t fullExtraNonce2 =
+      ((uint64_t)sessionId << 32) | (uint64_t)exNonce2;
 
   // debug
-  DLOG(INFO) << Strings::Format("[agent] shortJobId: %02x, sessionId: %08x, "
-                                "exNonce2: %016llx, nonce: %08x, time: %08x, versionMask: %08x",
-                                shortJobId, (uint32_t)sessionId,
-                                fullExtraNonce2, nonce, timestamp, versionMask);
+  DLOG(INFO) << Strings::Format(
+      "[agent] shortJobId: %02x, sessionId: %08x, "
+      "exNonce2: %016llx, nonce: %08x, time: %08x, versionMask: %08x",
+      shortJobId,
+      (uint32_t)sessionId,
+      fullExtraNonce2,
+      nonce,
+      timestamp,
+      versionMask);
 
-  handleRequest_Submit("null", shortJobId, fullExtraNonce2, nonce, timestamp, versionMask);
+  handleRequest_Submit(
+      "null", shortJobId, fullExtraNonce2, nonce, timestamp, versionMask);
 }
 
-void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
-                                               uint8_t shortJobId,
-                                               uint64_t extraNonce2,
-                                               uint32_t nonce,
-                                               uint32_t nTime,
-                                               uint32_t versionMask) {
+void StratumMinerBitcoin::handleRequest_Submit(
+    const string &idStr,
+    uint8_t shortJobId,
+    uint64_t extraNonce2,
+    uint32_t nonce,
+    uint32_t nTime,
+    uint32_t versionMask) {
   auto &session = getSession();
   auto &server = session.getServer();
   auto &worker = session.getWorker();
@@ -181,11 +200,12 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
     // if can't find localJob, could do nothing
     handleShare(idStr, StratumStatus::JOB_NOT_FOUND, 0);
 
-    LOG(INFO) << "rejected share: " << StratumStatus::toString(StratumStatus::JOB_NOT_FOUND)
+    LOG(INFO) << "rejected share: "
+              << StratumStatus::toString(StratumStatus::JOB_NOT_FOUND)
               << ", worker: " << worker.fullName_
               << ", versionMask: " << Strings::Format("%08x", versionMask)
-              << ", Share(id: " << idStr << ", shortJobId: "
-              << (int) shortJobId << ", nTime: " << nTime << "/" << date("%F %T", nTime) << ")";
+              << ", Share(id: " << idStr << ", shortJobId: " << (int)shortJobId
+              << ", nTime: " << nTime << "/" << date("%F %T", nTime) << ")";
     return;
   }
 
@@ -195,7 +215,8 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
 
   if (exjob.get() != NULL) {
     // 0 means miner use stratum job's default block time
-    auto sjobBitcoin = std::static_pointer_cast<StratumJobBitcoin>(exjob->sjob_);
+    auto sjobBitcoin =
+        std::static_pointer_cast<StratumJobBitcoin>(exjob->sjob_);
     if (nTime == 0) {
       nTime = sjobBitcoin->nTime_;
     }
@@ -216,7 +237,7 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
   share.set_userid(worker.userId(exjob->chainId_));
   share.set_sharediff(iter->second);
   share.set_blkbits(localJob->blkBits_);
-  share.set_timestamp((uint64_t) time(nullptr));
+  share.set_timestamp((uint64_t)time(nullptr));
   share.set_height(height);
   share.set_nonce(nonce);
   share.set_versionmask(versionMask);
@@ -240,21 +261,31 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
   if (!localJob->addLocalShare(localShare)) {
     share.set_status(StratumStatus::DUPLICATE_SHARE);
   } else {
-#ifdef  USER_DEFINED_COINBASE
+#ifdef USER_DEFINED_COINBASE
     // check block header
     share.set_status(server->checkShare(
-      localJob->chainId_,
-      share, session.getSessionId(), extraNonce2Hex,
-      nTime, nonce, versionMask, jobTarget,
-      worker_.fullName_,
-      &localJob->userCoinbaseInfo_));
+        localJob->chainId_,
+        share,
+        session.getSessionId(),
+        extraNonce2Hex,
+        nTime,
+        nonce,
+        versionMask,
+        jobTarget,
+        worker_.fullName_,
+        &localJob->userCoinbaseInfo_));
 #else
     // check block header
     share.set_status(server.checkShare(
-      localJob->chainId_,
-      share, session.getSessionId(), extraNonce2Hex,
-      nTime, nonce, versionMask, jobTarget,
-      worker.fullName_));
+        localJob->chainId_,
+        share,
+        session.getSessionId(),
+        extraNonce2Hex,
+        nTime,
+        nonce,
+        versionMask,
+        jobTarget,
+        worker.fullName_));
 #endif
   }
 
@@ -262,17 +293,18 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
 
   if (!handleShare(idStr, share.status(), share.sharediff())) {
     // add invalid share to counter
-    invalidSharesCounter_.insert((int64_t) time(nullptr), 1);
+    invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
 
-    // log all rejected share to answer "Why the rejection rate of my miner increased?"
+    // log all rejected share to answer "Why the rejection rate of my miner
+    // increased?"
     LOG(INFO) << "rejected share: " << StratumStatus::toString(share.status())
               << ", worker: " << worker.fullName_
               << ", versionMask: " << Strings::Format("%08x", versionMask)
               << ", " << share.toString();
 
     // check if thers is invalid share spamming
-    int64_t invalidSharesNum = invalidSharesCounter_.sum(time(nullptr),
-                                                         INVALID_SHARE_SLIDING_WINDOWS_SIZE);
+    int64_t invalidSharesNum = invalidSharesCounter_.sum(
+        time(nullptr), INVALID_SHARE_SLIDING_WINDOWS_SIZE);
     // too much invalid shares, don't send them to kafka
     if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT) {
       isSendShareToKafka = false;
@@ -286,7 +318,7 @@ void StratumMinerBitcoin::handleRequest_Submit(const string &idStr,
     std::string message;
     uint32_t size = 0;
     if (!share.SerializeToArrayWithVersion(message, size)) {
-      LOG(ERROR) << "share SerializeToBuffer failed!"<< share.toString();
+      LOG(ERROR) << "share SerializeToBuffer failed!" << share.toString();
       return;
     }
 

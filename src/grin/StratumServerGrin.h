@@ -33,40 +33,43 @@ class ShareGrin;
 
 class StratumServerGrin : public ServerBase<JobRepositoryGrin> {
 public:
-  unique_ptr<StratumSession> createConnection(struct bufferevent *bev, struct sockaddr *saddr, uint32_t sessionID) override;
+  unique_ptr<StratumSession> createConnection(
+      struct bufferevent *bev,
+      struct sockaddr *saddr,
+      uint32_t sessionID) override;
 
   void checkAndUpdateShare(
-    size_t chainId,
-    ShareGrin &share,
-    shared_ptr<StratumJobEx> exjob,
-    const vector<uint64_t > &proofs,
-    const std::set<uint64_t> &jobDiffs,
-    const string &workFullName,
-    uint256 &blockHash);
+      size_t chainId,
+      ShareGrin &share,
+      shared_ptr<StratumJobEx> exjob,
+      const vector<uint64_t> &proofs,
+      const std::set<uint64_t> &jobDiffs,
+      const string &workFullName,
+      uint256 &blockHash);
   void sendSolvedShare2Kafka(
-    size_t chainId,
-    const ShareGrin &share,
-    shared_ptr<StratumJobEx> exjob,
-    const vector<uint64_t > &proofs,
-    const StratumWorker &worker,
-    const uint256 &blockHash);
+      size_t chainId,
+      const ShareGrin &share,
+      shared_ptr<StratumJobEx> exjob,
+      const vector<uint64_t> &proofs,
+      const StratumWorker &worker,
+      const uint256 &blockHash);
 
 protected:
-  JobRepository* createJobRepository(
-    size_t chainId,
-    const char *kafkaBrokers,
-    const char *consumerTopic,
-    const string &fileLastNotifyTime) override;
+  JobRepository *createJobRepository(
+      size_t chainId,
+      const char *kafkaBrokers,
+      const char *consumerTopic,
+      const string &fileLastNotifyTime) override;
 };
 
-class JobRepositoryGrin: public JobRepositoryBase<StratumServerGrin> {
+class JobRepositoryGrin : public JobRepositoryBase<StratumServerGrin> {
 public:
   JobRepositoryGrin(
-    size_t chainId,
-    StratumServerGrin *server,
-    const char *kafkaBrokers,
-    const char *consumerTopic,
-    const string &fileLastNotifyTime);
+      size_t chainId,
+      StratumServerGrin *server,
+      const char *kafkaBrokers,
+      const char *consumerTopic,
+      const string &fileLastNotifyTime);
 
   shared_ptr<StratumJob> createStratumJob() override;
   void broadcastStratumJob(shared_ptr<StratumJob> sjob) override;

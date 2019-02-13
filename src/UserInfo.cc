@@ -26,42 +26,44 @@
 
 //////////////////////////////////// UserInfo /////////////////////////////////
 UserInfo::UserInfo(StratumServer *server, const libconfig::Config &config)
-: running_(true)
-, caseInsensitive_(true)
-, stripUserSuffix_(false)
-, userSuffixSeparator_("_")
-, server_(server)
-{
+  : running_(true)
+  , caseInsensitive_(true)
+  , stripUserSuffix_(false)
+  , userSuffixSeparator_("_")
+  , server_(server) {
   // optional
   config.lookupValue("users.case_insensitive", caseInsensitive_);
 
-  LOG(INFO) << "UserInfo: user name will be case " << (caseInsensitive_ ? "insensitive" : "sensitive");
+  LOG(INFO) << "UserInfo: user name will be case "
+            << (caseInsensitive_ ? "insensitive" : "sensitive");
 
   config.lookupValue("users.strip_user_suffix", stripUserSuffix_);
   config.lookupValue("users.user_suffix_separator", userSuffixSeparator_);
 
   if (stripUserSuffix_) {
     if (userSuffixSeparator_.empty()) {
-      LOG(FATAL) << "users.strip_user_suffix enabled but users.user_suffix_separator is empty!";
+      LOG(FATAL) << "users.strip_user_suffix enabled but "
+                    "users.user_suffix_separator is empty!";
     }
 
-    LOG(INFO) << "UserInfo: suffix " << userSuffixSeparator_ << "* will be stripped from user name";
+    LOG(INFO) << "UserInfo: suffix " << userSuffixSeparator_
+              << "* will be stripped from user name";
   }
 
   auto addChainVars = [&](const string &apiUrl) {
     chains_.push_back({
-      apiUrl,
-      new pthread_rwlock_t(), // rwlock_
-      {}, // nameIds_
-      0,  // lastMaxUserId_
+        apiUrl,
+        new pthread_rwlock_t(), // rwlock_
+        {}, // nameIds_
+        0, // lastMaxUserId_
 #ifdef USER_DEFINED_COINBASE
-      {}, // idCoinbaseInfos_
-      0,  // lastTime_
+        {}, // idCoinbaseInfos_
+        0, // lastTime_
 #endif
-      new std::mutex(), // workerNameLock_
-      {}, // workerNameQ_
-      {}, // threadInsertWorkerName_
-      {}  // threadUpdate_
+        new std::mutex(), // workerNameLock_
+        {}, // workerNameQ_
+        {}, // threadInsertWorkerName_
+        {} // threadUpdate_
     });
 
     pthread_rwlock_init(chains_.rbegin()->nameIdlock_, nullptr);
@@ -80,20 +82,20 @@ UserInfo::UserInfo(StratumServer *server, const libconfig::Config &config)
     }
     if (chains_.size() > 1) {
       zk_ = server->getZookeeper(config);
-      zkUserChainMapDir_ = config.lookup("users.zookeeper_userchain_map").c_str();
+      zkUserChainMapDir_ =
+          config.lookup("users.zookeeper_userchain_map").c_str();
       if (zkUserChainMapDir_.empty()) {
         LOG(FATAL) << "users.zookeeper_userchain_map cannot be empty!";
       }
-      if (zkUserChainMapDir_[zkUserChainMapDir_.size()-1] != '/') {
+      if (zkUserChainMapDir_[zkUserChainMapDir_.size() - 1] != '/') {
         zkUserChainMapDir_ += '/';
       }
     }
-  }
-  else {
+  } else {
     // required (exception will be threw if inexists)
     addChainVars(config.lookup("users.list_id_api_url"));
   }
-  
+
   pthread_rwlock_init(&nameChainlock_, nullptr);
 }
 
@@ -122,7 +124,8 @@ void UserInfo::stop() {
 
 void UserInfo::regularUserName(string &userName) {
   if (caseInsensitive_) {
-    std::transform(userName.begin(), userName.end(), userName.begin(), ::tolower);
+    std::transform(
+        userName.begin(), userName.end(), userName.begin(), ::tolower);
   }
   if (stripUserSuffix_) {
     size_t pos = userName.rfind(userSuffixSeparator_);
@@ -133,11 +136,13 @@ void UserInfo::regularUserName(string &userName) {
   }
 }
 
-bool UserInfo::getChainIdFromZookeeper(const string &userName, size_t &chainId) {
+bool UserInfo::getChainIdFromZookeeper(
+    const string &userName, size_t &chainId) {
   try {
     // Prevent buffer overflow attacks on zookeeper
     if (userName.size() > 200) {
-      LOG(WARNING) << "UserInfo::getChainIdFromZookeeper(): too long username: " << userName;
+      LOG(WARNING) << "UserInfo::getChainIdFromZookeeper(): too long username: "
+                   << userName;
       return false;
     }
 
@@ -156,23 +161,27 @@ bool UserInfo::getChainIdFromZookeeper(const string &userName, size_t &chainId) 
         }
       }
       // cannot find the chain, warning and ignore it
-      LOG(WARNING) << "UserInfo::getChainIdFromZookeeper(): Unknown chain name '"<< chainName << "' in zookeeper node '" << nodePath << "'.";
+      LOG(WARNING)
+          << "UserInfo::getChainIdFromZookeeper(): Unknown chain name '"
+          << chainName << "' in zookeeper node '" << nodePath << "'.";
+    } else {
+      LOG(INFO) << "cannot find mining chain in zookeeper, user name: "
+                << userName << " (" << nodePath << ")";
     }
-    else {
-      LOG(INFO) << "cannot find mining chain in zookeeper, user name: " << userName << " (" << nodePath << ")";
-    }
-  }
-  catch (const std::exception &ex) {
-    LOG(ERROR) << "UserInfo::getChainIdFromZookeeper(): zk_->getValueW() failed: " << ex.what();
-  }
-  catch (...) {
+  } catch (const std::exception &ex) {
+    LOG(ERROR)
+        << "UserInfo::getChainIdFromZookeeper(): zk_->getValueW() failed: "
+        << ex.what();
+  } catch (...) {
     LOG(ERROR) << "UserInfo::getChainIdFromZookeeper(): unknown exception";
   }
   return false;
 }
 
-void UserInfo::handleZookeeperEvent(zhandle_t *zh, int type, int state, const char *path, void *pUserInfo) {
-  DLOG(INFO) << "Zookeeper::globalWatcher: type:" << type << ", state:" << state << ", path:" << path;
+void UserInfo::handleZookeeperEvent(
+    zhandle_t *zh, int type, int state, const char *path, void *pUserInfo) {
+  DLOG(INFO) << "Zookeeper::globalWatcher: type:" << type << ", state:" << state
+             << ", path:" << path;
   UserInfo *userInfo = (UserInfo *)pUserInfo;
   string nodePath(path);
   string userName = nodePath.substr(userInfo->zkUserChainMapDir_.size());
@@ -183,25 +192,30 @@ void UserInfo::handleZookeeperEvent(zhandle_t *zh, int type, int state, const ch
   pthread_rwlock_unlock(&userInfo->nameChainlock_);
 
   if (itr == userInfo->nameChains_.end()) {
-    LOG(INFO) << "No workers of user " << userName << " online, switching request will be ignored";
+    LOG(INFO) << "No workers of user " << userName
+              << " online, switching request will be ignored";
     return;
   }
   size_t currentChainId = itr->second;
   size_t newChainId;
   if (!userInfo->getChainIdFromZookeeper(userName, newChainId)) {
-    LOG(ERROR) << "UserInfo::handleZookeeperEvent(): cannot get chain id from zookeeper, switching request will be ignored";
+    LOG(ERROR) << "UserInfo::handleZookeeperEvent(): cannot get chain id from "
+                  "zookeeper, switching request will be ignored";
     return;
   }
   if (currentChainId == newChainId) {
-    LOG(INFO) << "Ignore empty switching request for user '" << userName << "': "
-              << userInfo->server_->chainName(currentChainId) << " -> " << userInfo->server_->chainName(newChainId);
+    LOG(INFO) << "Ignore empty switching request for user '" << userName
+              << "': " << userInfo->server_->chainName(currentChainId) << " -> "
+              << userInfo->server_->chainName(newChainId);
     return;
   }
 
-  size_t switchedSessions = userInfo->server_->switchChain(userName, newChainId);
+  size_t switchedSessions =
+      userInfo->server_->switchChain(userName, newChainId);
 
   if (switchedSessions == 0) {
-    LOG(INFO) << "No workers of user " << userName << " online, subsequent switching request will be ignored";
+    LOG(INFO) << "No workers of user " << userName
+              << " online, subsequent switching request will be ignored";
     // clear cache
     pthread_rwlock_wrlock(&userInfo->nameChainlock_);
     auto itr = userInfo->nameChains_.find(userName);
@@ -210,9 +224,11 @@ void UserInfo::handleZookeeperEvent(zhandle_t *zh, int type, int state, const ch
     }
     pthread_rwlock_unlock(&userInfo->nameChainlock_);
   }
-  
-  LOG(INFO) << "User '" << userName << "' (" << switchedSessions << " miners) switched chain: "
-            << userInfo->server_->chainName(currentChainId) << " -> " << userInfo->server_->chainName(newChainId);
+
+  LOG(INFO) << "User '" << userName << "' (" << switchedSessions
+            << " miners) switched chain: "
+            << userInfo->server_->chainName(currentChainId) << " -> "
+            << userInfo->server_->chainName(newChainId);
 }
 
 bool UserInfo::getChainId(string userName, size_t &chainId) {
@@ -222,7 +238,7 @@ bool UserInfo::getChainId(string userName, size_t &chainId) {
   }
 
   regularUserName(userName);
-  
+
   // lookup name -> chain cache map
   pthread_rwlock_rdlock(&nameChainlock_);
   auto itr = nameChains_.find(userName);
@@ -269,7 +285,7 @@ int32_t UserInfo::getUserId(size_t chainId, string userName) {
   if (itr != chain.nameIds_.end()) {
     return itr->second;
   }
-  return 0;  // not found
+  return 0; // not found
 }
 
 #ifdef USER_DEFINED_COINBASE
@@ -285,19 +301,25 @@ string UserInfo::getCoinbaseInfo(size_t chainId, int32_t userId) {
   if (itr != chain.idCoinbaseInfos_.end()) {
     return itr->second;
   }
-  return "";  // not found
+  return ""; // not found
 }
 
 int32_t UserInfo::incrementalUpdateUsers(size_t chainId) {
   ChainVars &chain = chains_[chainId];
 
   //
-  // WARNING: The API is incremental update, we use `?last_id=*&last_time=*` to make sure
-  //          always get the new data. Make sure you have use `last_id` and `last_time` in API.
+  // WARNING: The API is incremental update, we use `?last_id=*&last_time=*` to
+  // make sure
+  //          always get the new data. Make sure you have use `last_id` and
+  //          `last_time` in API.
   //
-  const string url = Strings::Format("%s?last_id=%d&last_time=%" PRId64, chain.apiUrl_.c_str(), chain.lastMaxUserId_, chain.lastTime_);
+  const string url = Strings::Format(
+      "%s?last_id=%d&last_time=%" PRId64,
+      chain.apiUrl_.c_str(),
+      chain.lastMaxUserId_,
+      chain.lastTime_);
   string resp;
-  if (!httpGET(url.c_str(), resp, 10000/* timeout ms */)) {
+  if (!httpGET(url.c_str(), resp, 10000 /* timeout ms */)) {
     LOG(ERROR) << "http get request user list fail, url: " << url;
     return -1;
   }
@@ -308,7 +330,8 @@ int32_t UserInfo::incrementalUpdateUsers(size_t chainId) {
     return -1;
   }
   if (r["data"].type() == Utilities::JS::type::Undefined) {
-    LOG(ERROR) << "invalid data, should key->value, type: " << (int)r["data"].type();
+    LOG(ERROR) << "invalid data, should key->value, type: "
+               << (int)r["data"].type();
     return -1;
   }
   JsonNode data = r["data"];
@@ -338,7 +361,8 @@ int32_t UserInfo::incrementalUpdateUsers(size_t chainId) {
       coinbaseInfo.resize(USER_DEFINED_COINBASE_SIZE);
     } else {
       // padding '\x20' at both beginning and ending of coinbaseInfo
-      int beginPaddingLen = (USER_DEFINED_COINBASE_SIZE - coinbaseInfo.size()) / 2;
+      int beginPaddingLen =
+          (USER_DEFINED_COINBASE_SIZE - coinbaseInfo.size()) / 2;
       coinbaseInfo.insert(0, beginPaddingLen, '\x20');
       coinbaseInfo.resize(USER_DEFINED_COINBASE_SIZE, '\x20');
     }
@@ -351,7 +375,6 @@ int32_t UserInfo::incrementalUpdateUsers(size_t chainId) {
     // get user's coinbase info
     LOG(INFO) << "user id: " << userId << ", coinbase info: " << coinbaseInfo;
     chain.idCoinbaseInfos_[userId] = coinbaseInfo;
-
   }
   pthread_rwlock_unlock(&chain.nameIdlock_);
 
@@ -369,9 +392,10 @@ int32_t UserInfo::incrementalUpdateUsers(size_t chainId) {
   // WARNING: The API is incremental update, we use `?last_id=` to make sure
   //          always get the new data. Make sure you have use `last_id` in API.
   //
-  const string url = Strings::Format("%s?last_id=%d", chain.apiUrl_.c_str(), chain.lastMaxUserId_);
+  const string url = Strings::Format(
+      "%s?last_id=%d", chain.apiUrl_.c_str(), chain.lastMaxUserId_);
   string resp;
-  if (!httpGET(url.c_str(), resp, 10000/* timeout ms */)) {
+  if (!httpGET(url.c_str(), resp, 10000 /* timeout ms */)) {
     LOG(ERROR) << "http get request user list fail, url: " << url;
     return -1;
   }
@@ -382,7 +406,8 @@ int32_t UserInfo::incrementalUpdateUsers(size_t chainId) {
     return -1;
   }
   if (r["data"].type() == Utilities::JS::type::Undefined) {
-    LOG(ERROR) << "invalid data, should key->value, type: " << (int)r["data"].type();
+    LOG(ERROR) << "invalid data, should key->value, type: "
+               << (int)r["data"].type();
     return -1;
   }
   auto vUser = r["data"].children();
@@ -395,7 +420,7 @@ int32_t UserInfo::incrementalUpdateUsers(size_t chainId) {
     string userName(itr.key_start(), itr.key_end() - itr.key_start());
     regularUserName(userName);
 
-    const int32_t userId   = itr.int32();
+    const int32_t userId = itr.int32();
     if (userId > chain.lastMaxUserId_) {
       chain.lastMaxUserId_ = userId;
     }
@@ -419,7 +444,7 @@ void UserInfo::runThreadUpdate(size_t chainId) {
   // data in one request.
   //
 
-  const time_t updateInterval = 10;  // seconds
+  const time_t updateInterval = 10; // seconds
   time_t lastUpdateTime = time(nullptr);
 
   while (running_) {
@@ -427,49 +452,59 @@ void UserInfo::runThreadUpdate(size_t chainId) {
     lastUpdateTime = time(nullptr);
 
     if (res > 0) {
-      LOG(INFO) << "chain " << server_->chainName(chainId) << " update users count: " << res;
+      LOG(INFO) << "chain " << server_->chainName(chainId)
+                << " update users count: " << res;
     }
-    
+
     if (lastUpdateTime + updateInterval > time(nullptr)) {
-      usleep(500000);  // 500ms
+      usleep(500000); // 500ms
       continue;
     }
   }
 }
 
 bool UserInfo::setupThreads() {
-  for (size_t chainId =0; chainId < chains_.size(); chainId++) {
+  for (size_t chainId = 0; chainId < chains_.size(); chainId++) {
     ChainVars &chain = chains_[chainId];
 
     chain.threadUpdate_ = thread(&UserInfo::runThreadUpdate, this, chainId);
-    chain.threadInsertWorkerName_ = thread(&UserInfo::runThreadInsertWorkerName, this, chainId);
+    chain.threadInsertWorkerName_ =
+        thread(&UserInfo::runThreadInsertWorkerName, this, chainId);
   }
 
   return true;
 }
 
-void UserInfo::addWorker(const size_t chainId,
-                         const int32_t userId, const int64_t workerId,
-                         const string &workerName, const string &minerAgent) {
+void UserInfo::addWorker(
+    const size_t chainId,
+    const int32_t userId,
+    const int64_t workerId,
+    const string &workerName,
+    const string &minerAgent) {
   ChainVars &chain = chains_[chainId];
   ScopeLock sl(*chain.workerNameLock_);
 
   // insert to Q
   chain.workerNameQ_.push_back(WorkerName());
-  chain.workerNameQ_.rbegin()->userId_   = userId;
+  chain.workerNameQ_.rbegin()->userId_ = userId;
   chain.workerNameQ_.rbegin()->workerId_ = workerId;
 
   // worker name
-  snprintf(chain.workerNameQ_.rbegin()->workerName_,
-           sizeof(chain.workerNameQ_.rbegin()->workerName_),
-           "%s", workerName.c_str());
+  snprintf(
+      chain.workerNameQ_.rbegin()->workerName_,
+      sizeof(chain.workerNameQ_.rbegin()->workerName_),
+      "%s",
+      workerName.c_str());
   // miner agent
-  snprintf(chain.workerNameQ_.rbegin()->minerAgent_,
-           sizeof(chain.workerNameQ_.rbegin()->minerAgent_),
-           "%s", minerAgent.c_str());
+  snprintf(
+      chain.workerNameQ_.rbegin()->minerAgent_,
+      sizeof(chain.workerNameQ_.rbegin()->minerAgent_),
+      "%s",
+      minerAgent.c_str());
 }
 
-void UserInfo::removeWorker(const size_t chainId, const int32_t userId, const int64_t workerId) {
+void UserInfo::removeWorker(
+    const size_t chainId, const int32_t userId, const int64_t workerId) {
   // no action at current
 }
 
@@ -495,26 +530,26 @@ int32_t UserInfo::insertWorkerName(size_t chainId) {
   if (itr == chain.workerNameQ_.end())
     return 0;
 
-
   // sent events to kafka: worker_update
   {
     string eventJson;
-    eventJson = Strings::Format("{\"created_at\":\"%s\","
-                                 "\"type\":\"worker_update\","
-                                 "\"content\":{"
-                                     "\"user_id\":%d,"
-                                     "\"worker_id\":%" PRId64 ","
-                                     "\"worker_name\":\"%s\","
-                                     "\"miner_agent\":\"%s\""
-                                "}}",
-                                date("%F %T").c_str(),
-                                itr->userId_,
-                                itr->workerId_,
-                                itr->workerName_,
-                                itr->minerAgent_);
+    eventJson = Strings::Format(
+        "{\"created_at\":\"%s\","
+        "\"type\":\"worker_update\","
+        "\"content\":{"
+        "\"user_id\":%d,"
+        "\"worker_id\":%" PRId64
+        ","
+        "\"worker_name\":\"%s\","
+        "\"miner_agent\":\"%s\""
+        "}}",
+        date("%F %T").c_str(),
+        itr->userId_,
+        itr->workerId_,
+        itr->workerName_,
+        itr->minerAgent_);
     server_->sendCommonEvents2Kafka(chainId, eventJson);
   }
-
 
   {
     ScopeLock sl(*chain.workerNameLock_);
