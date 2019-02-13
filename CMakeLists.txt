@@ -417,18 +417,19 @@ set(THIRD_LIBRARIES ethash blake2 sph ${BH_SHARED_LIBRARY} ${USE_CUDA_LIBRARIES}
                     ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB} ${GMP_LIBRARIES} ${LIBEVENT_OPENSSL_LIB} ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY}
                     ${PTHREAD_LIBRARIES} ${PROTOBUF_LIBRARIES})
 
-include_directories(src/equihash)
-add_library(equihash src/equihash/crypto/equihash_impl.cpp)
+add_library(equihash 3rdparty/equihash/crypto/equihash_impl.cpp)
+target_include_directories(equihash PUBLIC 3rdparty/equihash)
 
-include_directories(src/beam)
 add_library(beam
-    src/beam/core/difficulty.cpp
-    src/beam/core/ecc.cpp
-    src/beam/core/uintBig.cpp
-    src/beam/core/static_members.cpp
-    src/beam/pow/equihash.cpp
-    src/beam/utility/common.cpp)
+    3rdparty/beam/core/difficulty.cpp
+    3rdparty/beam/core/ecc.cpp
+    3rdparty/beam/core/uintBig.cpp
+    3rdparty/beam/core/static_members.cpp
+    3rdparty/beam/pow/equihash.cpp
+    3rdparty/beam/utility/common.cpp)
 target_compile_options(beam PRIVATE -Wno-unused-function)
+target_include_directories(beam PUBLIC 3rdparty/beam)
+target_link_libraries(beam PUBLIC equihash)
 
 add_library(cuckoo
   3rdparty/cuckoo/cuckaroo.cpp
