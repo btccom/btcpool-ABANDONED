@@ -1,0 +1,8 @@
+#pragma once
+
+#include <cstdint>
+#include <vector>
+
+class siphash_keys;
+
+bool verify_cuckatoo(const std::vector<uint64_t> &edges, siphash_keys &keys, uint32_t edge_bits);
