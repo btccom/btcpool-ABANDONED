@@ -1,9 +1,9 @@
-Docker for Dcrd v1.4.0-rc1
+Docker for Dcrd v1.4.0
 ============================
 
 * OS: `Ubuntu 14.04 LTS`
 * Docker Image OS: `Ubuntu 16.04 LTS`
-* Dcrd: `v1.4.0-rc1`
+* Dcrd: `v1.4.0`
 
 ## Install Docker
 
@@ -22,13 +22,13 @@ service docker status
 cd /work
 
 git clone https://github.com/btccom/btcpool.git
-cd btcpool/docker/dcrd/v1.4.0-rc1
+cd btcpool/docker/dcrd/v1.4.0
 
 # If your server is in China, please check "Dockerfile" and uncomment some lines.
 
 # build
-docker build -t dcrd:1.4.0-rc1 .
-# docker build --no-cache -t dcrd:1.4.0-rc1 .
+docker build -t dcrd:1.4.0 .
+# docker build --no-cache -t dcrd:1.4.0 .
 
 # mkdir for dcrd
 mkdir -p /work/dcrd
@@ -62,7 +62,7 @@ listen=address:port
 
 ```
 # start docker (mainnet, assuming listening port 9108 & RPC listening port 9109)
-docker run -it -v /work/dcrd:/root/.dcrd --name dcrd -p 9108:9108 -p 9109:9109 --restart always -d dcrd:1.4.0-rc1
+docker run -it -v /work/dcrd:/root/.dcrd --name dcrd -p 9108:9108 -p 9109:9109 --restart always -d dcrd:1.4.0
 
 # login
 docker exec -it dcrd /bin/bash
