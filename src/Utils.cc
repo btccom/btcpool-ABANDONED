@@ -250,6 +250,7 @@ bool httpPOSTImpl(
     curl_easy_setopt(curl, CURLOPT_USERPWD, userpwd);
 
   curl_easy_setopt(curl, CURLOPT_USE_SSL, CURLUSESSL_TRY);
+  curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, sslVerifyPeer ? 2 : 0);
   curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, sslVerifyPeer);
   curl_easy_setopt(curl, CURLOPT_USERAGENT, agent);
 
