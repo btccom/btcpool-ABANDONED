@@ -49,8 +49,6 @@ void StratumMinerBitcoin::handleRequest(
     const JsonNode &jroot) {
   if (method == "mining.submit") {
     handleRequest_Submit(idStr, jparams);
-  } else if (method == "mining.suggest_target") {
-    handleRequest_SuggestTarget(idStr, jparams);
   }
 }
 
@@ -114,20 +112,6 @@ void StratumMinerBitcoin::handleRequest_Submit(
 
   handleRequest_Submit(
       idStr, shortJobId, extraNonce2, nonce, nTime, versionMask);
-}
-
-void StratumMinerBitcoin::handleRequest_SuggestTarget(
-    const string &idStr, const JsonNode &jparams) {
-  auto &session = getSession();
-  if (session.getState() != StratumSession::CONNECTED) {
-    return; // suggest should be call before subscribe
-  }
-
-  if (jparams.children()->size() == 0) {
-    session.responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
-    return;
-  }
-  resetCurDiff(formatDifficulty(TargetToDiff(jparams.children()->at(0).str())));
 }
 
 void StratumMinerBitcoin::handleExMessage_SubmitShare(

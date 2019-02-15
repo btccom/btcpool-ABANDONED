@@ -46,7 +46,8 @@ StratumSessionBitcoin::StratumSessionBitcoin(
   : StratumSessionBase(server, bev, saddr, sessionId)
   , shortJobIdIdx_(0)
   , versionMask_(0)
-  , suggestedMinDiff_(0) {
+  , suggestedMinDiff_(0)
+  , suggestedDiff_(0) {
 }
 
 uint16_t
@@ -146,6 +147,8 @@ void StratumSessionBitcoin::handleRequest(
     handleRequest_MiningConfigure(idStr, jparams);
   } else if (method == "agent.get_capabilities") {
     handleRequest_AgentGetCapabilities(idStr, jparams);
+  } else if (method == "mining.suggest_target") {
+    handleRequest_SuggestTarget(idStr, jparams);
   } else {
     dispatcher_->handleRequest(idStr, method, jparams, jroot);
   }
@@ -391,6 +394,23 @@ void StratumSessionBitcoin::handleRequest_Authorize(
   return;
 }
 
+void StratumSessionBitcoin::handleRequest_SuggestTarget(
+    const string &idStr, const JsonNode &jparams) {
+  if (state_ != CONNECTED) {
+    responseError(idStr, StratumStatus::ILLEGAL_METHOD);
+    return; // suggest should be call before subscribe
+  }
+
+  if (jparams.children()->size() == 0) {
+    responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
+    return;
+  }
+
+  suggestedDiff_ =
+      formatDifficulty(TargetToDiff(jparams.children()->at(0).str()));
+  responseTrue(idStr);
+}
+
 void StratumSessionBitcoin::logAuthorizeResult(bool success) {
   if (success) {
     LOG(INFO) << "authorize success, userId: " << worker_.userId()
@@ -463,6 +483,10 @@ unique_ptr<StratumMiner> StratumSessionBitcoin::createMiner(
 
   if (suggestedMinDiff_ != 0) {
     miner->setMinDiff(suggestedMinDiff_);
+  }
+
+  if (suggestedDiff_ != 0) {
+    miner->resetCurDiff(suggestedDiff_);
   }
 
   return miner;

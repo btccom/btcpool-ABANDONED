@@ -55,6 +55,8 @@ protected:
   // request from BTCAgent
   void handleRequest_AgentGetCapabilities(
       const string &idStr, const JsonNode &jparams);
+  void handleRequest_SuggestTarget(
+      const std::string &idStr, const JsonNode &jparams);
 
   void logAuthorizeResult(bool success) override;
   string getMinerInfoJson(const string &type) override;
@@ -74,6 +76,7 @@ private:
 
   uint32_t versionMask_; // version mask that the miner wants
   uint64_t suggestedMinDiff_; // min difficulty that the miner wants
+  uint64_t suggestedDiff_; // difficulty that the miner wants
 };
 
 #endif // #ifndef STRATUM_SESSION_BITCOIN_H_
