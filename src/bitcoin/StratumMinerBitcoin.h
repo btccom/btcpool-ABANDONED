@@ -46,8 +46,6 @@ public:
 
 private:
   void handleRequest_Submit(const std::string &idStr, const JsonNode &jparams);
-  void handleRequest_SuggestTarget(
-      const std::string &idStr, const JsonNode &jparams);
   void handleExMessage_SubmitShare(
       const std::string &exMessage,
       const bool isWithTime,
