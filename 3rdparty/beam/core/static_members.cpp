@@ -12,6 +12,6 @@ template <uint32_t nBytes_>
 const uint32_t uintBig_t<nBytes_>::nBytes;
 
 // Class template instantiation
-template class uintBig_t<8u>;
+template struct uintBig_t<8u>;
 
 };

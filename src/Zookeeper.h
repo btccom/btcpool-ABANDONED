@@ -84,6 +84,7 @@ protected:
 // A Distributed Unique ID Allocator
 class ZookeeperUniqId {
 public:
+  virtual ~ZookeeperUniqId() = default;
   virtual size_t assignID() = 0;
   virtual void recoveryID() = 0;
   virtual bool isAssigned() = 0;
