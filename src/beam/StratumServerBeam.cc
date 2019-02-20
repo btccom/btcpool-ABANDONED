@@ -124,7 +124,8 @@ void ServerBeam::checkAndUpdateShare(
   }
 
   beam::Difficulty::Raw shareHash;
-  if (!Beam_ComputeHash(sjob->input_, share.nonce(), output, shareHash)) {
+  if (!Beam_ComputeHash(sjob->input_, share.nonce(), output, shareHash) &&
+      !isEnableSimulator_) {
     share.set_status(StratumStatus::INVALID_SOLUTION);
     return;
   }

@@ -41,6 +41,7 @@
 #include "Utils.h"
 #include "StratumClient.h"
 #include "eth/StratumClientEth.h"
+#include "beam/StratumClientBeam.h"
 
 using namespace std;
 using namespace libconfig;
@@ -125,15 +126,20 @@ int main(int argc, char **argv) {
     string passwd;
     cfg.lookupValue("simulator.passwd", passwd);
 
+    bool enableTLS = false;
+    cfg.lookupValue("simulator.enable_tls", enableTLS);
+
     evthread_use_pthreads();
 
     // register stratum client factories
     StratumClient::registerFactory<StratumClient>("BTC");
     StratumClient::registerFactory<StratumClient>("DCR");
     StratumClient::registerFactory<StratumClientEth>("ETH");
+    StratumClient::registerFactory<StratumClientBeam>("BEAM");
 
     // new StratumClientWrapper
     auto wrapper = boost::make_unique<StratumClientWrapper>(
+        enableTLS,
         cfg.lookup("simulator.ss_ip").c_str(),
         (unsigned short)port,
         numConns,

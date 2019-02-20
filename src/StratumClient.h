@@ -46,6 +46,7 @@
 ///////////////////////////////// StratumClient ////////////////////////////////
 class StratumClient {
 protected:
+  bool enableTLS_;
   struct bufferevent *bev_;
   struct evbuffer *inBuf_;
 
@@ -67,7 +68,7 @@ public:
   atomic<State> state_;
 
   using Factory = function<unique_ptr<StratumClient>(
-      struct event_base *, const string &, const string &)>;
+      bool, struct event_base *, const string &, const string &)>;
   static bool registerFactory(const string &chainType, Factory factory);
   template <typename T>
   static bool registerFactory(const string &chainType) {
@@ -76,21 +77,25 @@ public:
         "Factory is not constructing the correct type");
     return registerFactory(
         chainType,
-        [](struct event_base *base,
+        [](bool enableTLS,
+           struct event_base *base,
            const string &workerFullName,
            const string &workerPasswd) {
-          return boost::make_unique<T>(base, workerFullName, workerPasswd);
+          return boost::make_unique<T>(
+              enableTLS, base, workerFullName, workerPasswd);
         });
   }
 
 public:
   StratumClient(
+      bool enableTLS,
       struct event_base *base,
       const string &workerFullName,
       const string &workerPasswd);
   virtual ~StratumClient();
 
   bool connect(struct sockaddr_in &sin);
+  virtual void sendHelloData();
 
   void sendData(const char *data, size_t len);
   inline void sendData(const string &str) { sendData(str.data(), str.size()); }
@@ -103,6 +108,7 @@ public:
 ////////////////////////////// StratumClientWrapper ////////////////////////////
 class StratumClientWrapper {
   bool running_;
+  bool enableTLS_;
   struct event_base *base_;
   struct sockaddr_in sin_;
   struct event *timer_;
@@ -119,6 +125,7 @@ class StratumClientWrapper {
 
 public:
   StratumClientWrapper(
+      bool enableTLS,
       const char *host,
       const uint32_t port,
       const uint32_t numConnections,
@@ -137,6 +144,7 @@ public:
   void run();
 
   unique_ptr<StratumClient> createClient(
+      bool enableTLS,
       struct event_base *base,
       const string &workerFullName,
       const string &workerPasswd);

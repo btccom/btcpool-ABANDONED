@@ -26,13 +26,6 @@
 #include "Utils.h"
 
 ////////////////////////////// StratumClientEth ////////////////////////////
-StratumClientEth::StratumClientEth(
-    struct event_base *base,
-    const string &workerFullName,
-    const string &workerPasswd)
-  : StratumClient(base, workerFullName, workerPasswd) {
-}
-
 string StratumClientEth::constructShare() {
   // etherminer (STRATUM)
   // {"id": 4, "method": "mining.submit",

@@ -23,11 +23,13 @@
  */
 #include "StratumClient.h"
 #include "Utils.h"
+#include "ssl/SSLUtils.h"
 
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <signal.h>
+#include <event2/bufferevent_ssl.h>
 
 #include <random>
 
@@ -38,15 +40,34 @@ bool StratumClient::registerFactory(const string &chainType, Factory factory) {
 
 ///////////////////////////////// StratumClient ////////////////////////////////
 StratumClient::StratumClient(
+    bool enableTLS,
     struct event_base *base,
     const string &workerFullName,
     const string &workerPasswd)
-  : workerFullName_(workerFullName)
+  : enableTLS_(enableTLS)
+  , workerFullName_(workerFullName)
   , workerPasswd_(workerPasswd)
   , isMining_(false) {
   inBuf_ = evbuffer_new();
-  bev_ = bufferevent_socket_new(
-      base, -1, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
+
+  if (enableTLS_) {
+    LOG(INFO) << "<" << workerFullName_ << "> TLS enabled";
+
+    SSL *ssl = SSL_new(get_client_SSL_CTX_With_Cache());
+    if (ssl == nullptr) {
+      LOG(FATAL) << "SSL init failed: " << get_ssl_err_string();
+    }
+
+    bev_ = bufferevent_openssl_socket_new(
+        base,
+        -1,
+        ssl,
+        BUFFEREVENT_SSL_CONNECTING,
+        BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
+  } else {
+    bev_ = bufferevent_socket_new(
+        base, -1, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
+  }
   assert(bev_ != nullptr);
 
   bufferevent_setcb(
@@ -85,6 +106,12 @@ bool StratumClient::connect(struct sockaddr_in &sin) {
     return true;
   }
   return false;
+}
+
+void StratumClient::sendHelloData() {
+  sendData(
+      "{\"id\":1,\"method\":\"mining.subscribe\",\"params\":[\"__simulator__/"
+      "0.1\"]}\n");
 }
 
 void StratumClient::readBuf(struct evbuffer *buf) {
@@ -225,6 +252,7 @@ void StratumClient::sendData(const char *data, size_t len) {
 
 ////////////////////////////// StratumClientWrapper ////////////////////////////
 StratumClientWrapper::StratumClientWrapper(
+    bool enableTLS,
     const char *host,
     const uint32_t port,
     const uint32_t numConnections,
@@ -233,6 +261,7 @@ StratumClientWrapper::StratumClientWrapper(
     const string &passwd,
     const string &type)
   : running_(true)
+  , enableTLS_(enableTLS)
   , base_(event_base_new())
   , numConnections_(numConnections)
   , userName_(userName)
@@ -278,9 +307,7 @@ void StratumClientWrapper::eventCallback(
   if (events & BEV_EVENT_CONNECTED) {
     client->state_ = StratumClient::State::CONNECTED;
     // subscribe
-    client->sendData(
-        "{\"id\":1,\"method\":\"mining.subscribe\",\"params\":[\"__simulator__/"
-        "0.1\"]}\n");
+    client->sendHelloData();
   } else if (events & BEV_EVENT_ERROR) {
     /* An error occured while connecting. */
     // TODO
@@ -314,7 +341,7 @@ void StratumClientWrapper::run() {
   for (size_t i = 0; i < numConnections_; i++) {
     const string workerFullName = Strings::Format(
         "%s.%s-%05d", userName_.c_str(), minerNamePrefix_.c_str(), i);
-    auto client = createClient(base_, workerFullName, passwd_);
+    auto client = createClient(enableTLS_, base_, workerFullName, passwd_);
 
     if (!client->connect(sin_)) {
       LOG(ERROR) << "client connnect failure: " << workerFullName;
@@ -368,12 +395,13 @@ void StratumClientWrapper::submitShares() {
 }
 
 unique_ptr<StratumClient> StratumClientWrapper::createClient(
+    bool enableTLS,
     struct event_base *base,
     const string &workerFullName,
     const string &workerPasswd) {
   auto iter = gStratumClientFactories.find(type_);
   if (iter != gStratumClientFactories.end() && iter->second) {
-    return iter->second(base, workerFullName, workerPasswd);
+    return iter->second(enableTLS, base, workerFullName, workerPasswd);
   } else {
     return nullptr;
   }

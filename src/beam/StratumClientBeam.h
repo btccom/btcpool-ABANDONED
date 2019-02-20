@@ -21,23 +21,22 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-
-#ifndef STRATUM_CLIENT_ETH_H_
-#define STRATUM_CLIENT_ETH_H_
+#pragma once
 
 #include "StratumClient.h"
 
-class StratumClientEth : public StratumClient {
+class StratumClientBeam : public StratumClient {
 public:
   using StratumClient::StratumClient;
 
+  void sendHelloData();
   virtual string constructShare();
-  string headerHash_;
-  string mixHash_;
-  string target_;
+
+  string id_;
+  string input_;
+  uint32_t bits_;
+  uint32_t height_;
 
 protected:
   virtual void handleLine(const string &line);
 };
-
-#endif
