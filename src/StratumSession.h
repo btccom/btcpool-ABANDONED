@@ -195,10 +195,7 @@ protected:
       struct sockaddr *saddr,
       uint32_t extraNonce1)
     : StratumSession(server, bev, saddr, extraNonce1)
-    , kMaxNumLocalJobs_(10) {
-    // usually stratum job interval is 30~60 seconds, 10 is enough for miners
-    // should <= 10, we use short_job_id,  range: [0 ~ 9]. do NOT change it.
-    assert(kMaxNumLocalJobs_ <= 10);
+    , kMaxNumLocalJobs_(256) {
   }
 
   using LocalJobType = typename StratumTraits::LocalJobType;
