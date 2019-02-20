@@ -30,15 +30,32 @@ UserInfo::UserInfo(StratumServer *server, const libconfig::Config &config)
   , caseInsensitive_(true)
   , stripUserSuffix_(false)
   , userSuffixSeparator_("_")
-  , server_(server) {
+  , server_(server)
+  , enableAutoReg_(false)
+  , autoRegMaxPendingUsers_(50) {
   // optional
   config.lookupValue("users.case_insensitive", caseInsensitive_);
+  config.lookupValue("users.strip_user_suffix", stripUserSuffix_);
+  config.lookupValue("users.user_suffix_separator", userSuffixSeparator_);
+  config.lookupValue("users.enable_auto_reg", enableAutoReg_);
+  config.lookupValue(
+      "users.auto_reg_max_pending_users", autoRegMaxPendingUsers_);
+  config.lookupValue("users.zookeeper_auto_reg_watch_dir", zkAutoRegWatchDir_);
 
   LOG(INFO) << "UserInfo: user name will be case "
             << (caseInsensitive_ ? "insensitive" : "sensitive");
 
-  config.lookupValue("users.strip_user_suffix", stripUserSuffix_);
-  config.lookupValue("users.user_suffix_separator", userSuffixSeparator_);
+  if (enableAutoReg_) {
+    LOG(INFO) << "UserInfo: auto register enabled";
+
+    if (zkAutoRegWatchDir_[zkAutoRegWatchDir_.size() - 1] != '/') {
+      zkAutoRegWatchDir_ += '/';
+    }
+
+    if (!zk_) {
+      zk_ = server->getZookeeper(config);
+    }
+  }
 
   if (stripUserSuffix_) {
     if (userSuffixSeparator_.empty()) {
@@ -81,7 +98,9 @@ UserInfo::UserInfo(StratumServer *server, const libconfig::Config &config)
       LOG(FATAL) << "sserver.multi_chains enabled but chains is empty!";
     }
     if (chains_.size() > 1) {
-      zk_ = server->getZookeeper(config);
+      if (!zk_) {
+        zk_ = server->getZookeeper(config);
+      }
       zkUserChainMapDir_ =
           config.lookup("users.zookeeper_userchain_map").c_str();
       if (zkUserChainMapDir_.empty()) {
@@ -149,7 +168,7 @@ bool UserInfo::getChainIdFromZookeeper(
     string nodePath = zkUserChainMapDir_ + userName;
     string chainName;
     chainName.resize(64);
-    if (zk_->getValueW(nodePath, chainName, handleZookeeperEvent, this)) {
+    if (zk_->getValueW(nodePath, chainName, handleSwitchChainEvent, this)) {
       DLOG(INFO) << "zk userchain map: " << userName << " : " << chainName;
       for (chainId = 0; chainId < server_->chains_.size(); chainId++) {
         if (chainName == server_->chains_[chainId].name_) {
@@ -178,10 +197,10 @@ bool UserInfo::getChainIdFromZookeeper(
   return false;
 }
 
-void UserInfo::handleZookeeperEvent(
+void UserInfo::handleSwitchChainEvent(
     zhandle_t *zh, int type, int state, const char *path, void *pUserInfo) {
-  DLOG(INFO) << "Zookeeper::globalWatcher: type:" << type << ", state:" << state
-             << ", path:" << path;
+  DLOG(INFO) << "UserInfo::handleSwitchChainEvent: type:" << type
+             << ", state:" << state << ", path:" << path;
   UserInfo *userInfo = (UserInfo *)pUserInfo;
   string nodePath(path);
   string userName = nodePath.substr(userInfo->zkUserChainMapDir_.size());
@@ -503,11 +522,6 @@ void UserInfo::addWorker(
       minerAgent.c_str());
 }
 
-void UserInfo::removeWorker(
-    const size_t chainId, const int32_t userId, const int64_t workerId) {
-  // no action at current
-}
-
 void UserInfo::runThreadInsertWorkerName(size_t chainId) {
   while (running_) {
     if (insertWorkerName(chainId) > 0) {
@@ -556,4 +570,55 @@ int32_t UserInfo::insertWorkerName(size_t chainId) {
     chain.workerNameQ_.pop_front();
   }
   return 1;
+}
+
+void UserInfo::handleAutoRegEvent(
+    zhandle_t *zh, int type, int state, const char *path, void *pUserInfo) {
+  DLOG(INFO) << "UserInfo::handleAutoRegEvent: type:" << type
+             << ", state:" << state << ", path:" << path;
+
+  UserInfo *userInfo = (UserInfo *)pUserInfo;
+  string nodePath(path);
+  string userName = nodePath.substr(userInfo->zkAutoRegWatchDir_.size());
+
+  size_t sessions = userInfo->server_->autoRegCallback(userName);
+
+  LOG(INFO) << "Auto Reg: User '" << userName << "' (" << sessions
+            << " miners online) registered";
+}
+
+bool UserInfo::tryAutoReg(
+    string userName, uint32_t sessionId, string fullWorkerName) {
+  try {
+    fullWorkerName = filterWorkerName(fullWorkerName);
+    userName = filterWorkerName(userName);
+    regularUserName(userName);
+
+    if (autoRegPendingUsers_.find(userName) != autoRegPendingUsers_.end()) {
+      return true;
+    }
+    if (autoRegPendingUsers_.size() >= autoRegMaxPendingUsers_) {
+      LOG(INFO) << "UserInfo: too many pending registing request, user: "
+                << userName;
+      return false;
+    }
+
+    string userInfo = Strings::Format(
+        "{"
+        "\"SessionID\":%u,"
+        "\"Worker\":\"%s\""
+        "}",
+        sessionId,
+        fullWorkerName.c_str());
+
+    string zkPath = zkAutoRegWatchDir_ + userName;
+    zk_->createNode(zkPath, userInfo);
+    zk_->watchNode(zkPath, handleAutoRegEvent, this);
+    return true;
+  } catch (const std::exception &ex) {
+    LOG(ERROR) << "UserInfo::tryAutoReg() exception: " << ex.what();
+  } catch (...) {
+    LOG(ERROR) << "UserInfo::tryAutoReg(): unknown exception";
+  }
+  return false;
 }

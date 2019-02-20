@@ -82,6 +82,10 @@ class UserInfo {
 
   shared_ptr<Zookeeper> zk_;
   string zkUserChainMapDir_;
+  bool enableAutoReg_;
+  string zkAutoRegWatchDir_;
+  uint autoRegMaxPendingUsers_;
+  std::set<string> autoRegPendingUsers_;
 
   pthread_rwlock_t nameChainlock_;
   // username -> chainId
@@ -94,7 +98,9 @@ class UserInfo {
   int32_t incrementalUpdateUsers(size_t chainId);
 
   bool getChainIdFromZookeeper(const string &userName, size_t &chainId);
-  static void handleZookeeperEvent(
+  static void handleSwitchChainEvent(
+      zhandle_t *zh, int type, int state, const char *path, void *pUserInfo);
+  static void handleAutoRegEvent(
       zhandle_t *zh, int type, int state, const char *path, void *pUserInfo);
 
 public:
@@ -127,6 +133,6 @@ public:
       const string &workerName,
       const string &minerAgent);
 
-  void removeWorker(
-      const size_t chainId, const int32_t userId, const int64_t workerId);
+  bool autoRegEnabled() const { return enableAutoReg_; }
+  bool tryAutoReg(string userName, uint32_t sessionId, string fullWorkerName);
 };

@@ -143,7 +143,8 @@ void StratumWorker::setNames(const string &fullName) {
     workerName_ = fullName.substr(pos + 1);
   }
 
-  // the worker name will insert to DB, so must be filter
+  // the user name and worker name will insert to DB, so must be filter
+  userName_ = filterWorkerName(userName_);
   workerName_ = filterWorkerName(workerName_);
 
   // max length for worker name is 20

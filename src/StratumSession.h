@@ -98,7 +98,12 @@ public:
 class StratumSession : public IStratumSession {
 public:
   // mining state
-  enum State { CONNECTED = 0, SUBSCRIBED = 1, AUTHENTICATED = 2 };
+  enum State {
+    CONNECTED = 0,
+    SUBSCRIBED = 1,
+    AUTHENTICATED = 2,
+    AUTO_REGISTING = 4
+  };
 
 protected:
   StratumServer &server_;
@@ -119,6 +124,15 @@ protected:
   std::atomic<bool> isDead_;
   bool isLongTimeout_;
 
+  struct AuthorizeInfo {
+    string idStr_;
+    string userName_;
+    string fullName_;
+    string password_;
+  };
+
+  shared_ptr<AuthorizeInfo> savedAuthorizeInfo_;
+
   void setup();
   void setReadTimeout(int32_t readTimeout);
 
@@ -131,7 +145,10 @@ protected:
       const JsonNode &jparams,
       const JsonNode &jroot) = 0;
   void checkUserAndPwd(
-      const string &idStr, const string &fullName, const string &password);
+      const string &idStr,
+      const string &fullName,
+      const string &password,
+      bool isAutoRegCallback = false);
   void setDefaultDifficultyFromPassword(const string &password);
   void setClientAgent(const string &clientAgent);
 
@@ -152,6 +169,7 @@ public:
   virtual ~StratumSession();
   virtual bool initialize() { return true; }
   bool switchChain(size_t chainId) override;
+  bool autoRegCallback(const string &userName);
   uint16_t decodeSessionId(const std::string &exMessage) const override {
     return StratumMessageEx::AGENT_MAX_SESSION_ID;
   };

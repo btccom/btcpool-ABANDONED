@@ -767,6 +767,17 @@ size_t StratumServer::switchChain(string userName, size_t newChainId) {
   return switchedSessions;
 }
 
+size_t StratumServer::autoRegCallback(const string &userName) {
+  ScopeLock sl(connsLock_);
+  size_t sessions = 0;
+  for (auto &itr : connections_) {
+    if (itr->autoRegCallback(userName)) {
+      sessions++;
+    }
+  }
+  return sessions;
+}
+
 void StratumServer::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {
   //
   // http://www.sgi.com/tech/stl/Map.html

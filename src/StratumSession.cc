@@ -59,7 +59,8 @@ StratumSession::StratumSession(
   , state_(CONNECTED)
   , worker_(server.chains_.size())
   , isDead_(false)
-  , isLongTimeout_(false) {
+  , isLongTimeout_(false)
+  , savedAuthorizeInfo_(nullptr) {
   assert(saddr->sa_family == AF_INET);
   auto ipv4 = reinterpret_cast<struct sockaddr_in *>(saddr);
   clientIpInt_ = ipv4->sin_addr.s_addr;
@@ -238,20 +239,68 @@ string StratumSession::getMinerInfoJson(const string &type) {
       sessionId_);
 }
 
+bool StratumSession::autoRegCallback(const string &userName) {
+  if (savedAuthorizeInfo_ && userName == savedAuthorizeInfo_->userName_) {
+    checkUserAndPwd(
+        savedAuthorizeInfo_->idStr_,
+        savedAuthorizeInfo_->fullName_,
+        savedAuthorizeInfo_->password_,
+        true);
+    return true;
+  }
+
+  return false;
+}
+
 void StratumSession::checkUserAndPwd(
-    const string &idStr, const string &fullName, const string &password) {
+    const string &idStr,
+    const string &fullName,
+    const string &password,
+    bool isAutoRegCallback) {
+  if (isAutoRegCallback) {
+    if (isDead_ || state_ != AUTO_REGISTING) {
+      DLOG(INFO) << "cannot authorized from auto registing, "
+                 << (isDead_ ? "session dead" : "state wrong")
+                 << ", worker: " << fullName;
+      return;
+    }
+    if (savedAuthorizeInfo_) {
+      savedAuthorizeInfo_ = nullptr;
+    }
+  }
+
   // set id & names, will filter workername in this func
   worker_.setNames(fullName);
 
   size_t chainId;
   if (!server_.userInfo_->getChainId(worker_.userName_, chainId)) {
-    DLOG(INFO) << "cannot find user chain";
-    logAuthorizeResult(false);
-    responseError(idStr, StratumStatus::INVALID_USERNAME);
-    return;
+    DLOG(INFO) << "cannot find user " << worker_.userName_ << " in any chain";
+
+    if (!server_.userInfo_->autoRegEnabled()) {
+      logAuthorizeResult(false);
+      responseError(idStr, StratumStatus::INVALID_USERNAME);
+      return;
+    }
   }
 
   if (!switchChain(chainId)) {
+    if (!isAutoRegCallback && server_.userInfo_->autoRegEnabled()) {
+      DLOG(INFO) << "try auto registing user " << worker_.userName_;
+
+      savedAuthorizeInfo_ = shared_ptr<AuthorizeInfo>(
+          new AuthorizeInfo({idStr, worker_.userName_, fullName, password}));
+      // try auto registing
+      if (server_.userInfo_->tryAutoReg(
+              worker_.userName_, sessionId_, worker_.fullName_)) {
+        // Request for auto registing success
+        // Return and waiting for a callback
+        state_ = AUTO_REGISTING;
+        return;
+      }
+      // auto registing failed, remove saved info
+      savedAuthorizeInfo_ = nullptr;
+    }
+
     DLOG(INFO) << "cannot switch user chain";
     logAuthorizeResult(false);
     responseError(idStr, StratumStatus::INVALID_USERNAME);

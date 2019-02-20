@@ -560,6 +560,24 @@ vector<string> Zookeeper::getChildren(const string &parentPath) {
   return children;
 }
 
+void Zookeeper::createNode(const string &nodePath, const string &value) {
+  int stat = zoo_create(
+      zh_,
+      nodePath.c_str(),
+      value.c_str(),
+      value.size(),
+      &ZOO_OPEN_ACL_UNSAFE,
+      0,
+      nullptr,
+      0);
+
+  if (stat != ZOK) {
+    throw ZookeeperException(
+        string("Zookeeper::createNode: create node ") + nodePath +
+        " failed: " + zerror(stat));
+  }
+}
+
 void Zookeeper::createLockNode(
     const string &nodePath, string &nodePathWithSeq, const string &value) {
   nodePathWithSeq.resize(

@@ -157,6 +157,7 @@ public:
       void *data);
   vector<string> getChildren(const string &parentPath);
   void watchNode(string path, ZookeeperWatcherCallback func, void *data);
+  void createNode(const string &nodePath, const string &value);
   void createLockNode(
       const string &nodePath, string &nodePathWithSeq, const string &value);
   void createEphemeralNode(const string &nodePath, const string &value);
