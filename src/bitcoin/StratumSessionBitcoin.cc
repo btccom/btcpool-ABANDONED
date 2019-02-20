@@ -464,7 +464,7 @@ unique_ptr<StratumMessageDispatcher> StratumSessionBitcoin::createDispatcher() {
 
 uint8_t StratumSessionBitcoin::allocShortJobId() {
   // return range: [0, 9]
-  if (shortJobIdIdx_ >= 10) {
+  if (shortJobIdIdx_ >= kMaxNumLocalJobs_) {
     shortJobIdIdx_ = 0;
   }
   return shortJobIdIdx_++;
