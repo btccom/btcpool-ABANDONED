@@ -86,6 +86,7 @@ class UserInfo {
   string zkAutoRegWatchDir_;
   uint autoRegMaxPendingUsers_;
   std::set<string> autoRegPendingUsers_;
+  std::mutex autoRegPendingUsersLock_;
 
   pthread_rwlock_t nameChainlock_;
   // username -> chainId

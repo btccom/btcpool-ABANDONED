@@ -581,6 +581,11 @@ void UserInfo::handleAutoRegEvent(
   string nodePath(path);
   string userName = nodePath.substr(userInfo->zkAutoRegWatchDir_.size());
 
+  {
+    ScopeLock lock(userInfo->autoRegPendingUsersLock_);
+    userInfo->autoRegPendingUsers_.erase(userName);
+  }
+
   size_t sessions = userInfo->server_->autoRegCallback(userName);
 
   LOG(INFO) << "Auto Reg: User '" << userName << "' (" << sessions
@@ -594,13 +599,17 @@ bool UserInfo::tryAutoReg(
     userName = filterWorkerName(userName);
     regularUserName(userName);
 
-    if (autoRegPendingUsers_.find(userName) != autoRegPendingUsers_.end()) {
-      return true;
-    }
-    if (autoRegPendingUsers_.size() >= autoRegMaxPendingUsers_) {
-      LOG(INFO) << "UserInfo: too many pending registing request, user: "
-                << userName;
-      return false;
+    {
+      ScopeLock lock(autoRegPendingUsersLock_);
+      if (autoRegPendingUsers_.find(userName) != autoRegPendingUsers_.end()) {
+        return true;
+      }
+      if (autoRegPendingUsers_.size() >= autoRegMaxPendingUsers_) {
+        LOG(INFO) << "UserInfo: too many pending registing request, user: "
+                  << userName;
+        return false;
+      }
+      autoRegPendingUsers_.insert(userName);
     }
 
     string userInfo = Strings::Format(
@@ -620,5 +629,8 @@ bool UserInfo::tryAutoReg(
   } catch (...) {
     LOG(ERROR) << "UserInfo::tryAutoReg(): unknown exception";
   }
+
+  ScopeLock lock(autoRegPendingUsersLock_);
+  autoRegPendingUsers_.erase(userName);
   return false;
 }
