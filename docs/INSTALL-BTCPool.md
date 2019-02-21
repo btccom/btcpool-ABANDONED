@@ -480,6 +480,9 @@ $ curl http://xxx.xxx.xxx/GetUserList?last_id=8
 
 There is a demo for the API: https://github.com/btccom/btcpool/issues/16#issuecomment-278245381
 
+There are more reference implementations here, including a user list with automatic registration enabled
+and a user list with `POOL__USER_DEFINED_COINBASE=ON`: [install/api-sample](../install/api-sample)
+
 ### use `supervisor` to manager services.
 
 ```
