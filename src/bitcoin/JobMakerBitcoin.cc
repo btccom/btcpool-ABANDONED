@@ -105,7 +105,7 @@ bool JobMakerHandlerBitcoin::initConsumerHandlers(
     auto messageProcessor = std::bind(
         &JobMakerHandlerBitcoin::processAuxPowMsg, this, std::placeholders::_1);
     auto handler = createConsumerHandler(
-        kafkaBrokers, def()->auxPowGwTopic_, 1, {}, messageProcessor);
+        kafkaBrokers, def()->auxPowGwTopic_, 1, {}, messageProcessor, false);
     if (handler.kafkaConsumer_ == nullptr)
       return false;
     handlers.push_back(handler);
@@ -117,7 +117,7 @@ bool JobMakerHandlerBitcoin::initConsumerHandlers(
     auto messageProcessor = std::bind(
         &JobMakerHandlerBitcoin::processRskGwMsg, this, std::placeholders::_1);
     auto handler = createConsumerHandler(
-        kafkaBrokers, def()->rskRawGwTopic_, 1, {}, messageProcessor);
+        kafkaBrokers, def()->rskRawGwTopic_, 1, {}, messageProcessor, false);
     if (handler.kafkaConsumer_ == nullptr)
       return false;
     handlers.push_back(handler);
