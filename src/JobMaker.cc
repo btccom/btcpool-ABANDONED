@@ -178,6 +178,11 @@ void JobMaker::runThreadKafkaConsume(JobMakerConsumerHandler &consumerHandler) {
       // want.
     }
 
+    // don't trigger timeout if jobKeepAlive_ be false.
+    if (!consumerHandler.jobKeepAlive_) {
+      continue;
+    }
+
     uint32_t timeDiff;
     if (rkmessage == nullptr ||
         (!jobUpdated &&
@@ -215,7 +220,8 @@ JobMakerConsumerHandler JobMakerHandler::createConsumerHandler(
     const string &topic,
     int64_t offset,
     vector<pair<string, string>> consumerOptions,
-    JobMakerMessageProcessor messageProcessor) {
+    JobMakerMessageProcessor messageProcessor,
+    bool jobKeepAlive) {
   std::map<string, string> usedConsumerOptions;
   //  default
   usedConsumerOptions["fetch.wait.max.ms"] = "5";
@@ -232,8 +238,10 @@ JobMakerConsumerHandler JobMakerHandler::createConsumerHandler(
   } else if (!consumer->checkAlive()) {
     LOG(FATAL) << "kafka consumer " << topic << " is NOT alive";
   } else {
+    result.kafkaTopic_ = topic;
     result.kafkaConsumer_ = consumer;
     result.messageProcessor_ = messageProcessor;
+    result.jobKeepAlive_ = jobKeepAlive;
   }
 
   return result;

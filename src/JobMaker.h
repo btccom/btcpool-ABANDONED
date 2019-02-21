@@ -47,6 +47,10 @@ struct JobMakerConsumerHandler {
   string kafkaTopic_;
   shared_ptr<KafkaConsumer> kafkaConsumer_;
   JobMakerMessageProcessor messageProcessor_;
+
+  // When be false, jobmaker will not trigger a timeout when the consumer
+  // has not received the new message for a long time.
+  bool jobKeepAlive_;
 };
 
 struct JobMakerDefinition {
@@ -112,7 +116,8 @@ public:
       const string &topic,
       int64_t offset,
       vector<pair<string, string>> consumerOptions,
-      JobMakerMessageProcessor messageProcessor);
+      JobMakerMessageProcessor messageProcessor,
+      bool jobKeepAlive = true);
 
   uint64_t generateJobId(uint32_t hash) const;
 
