@@ -185,13 +185,40 @@ string GwMakerHandlerEth::constructRawMsg(JsonNode &r) {
 
   size_t uncles = block["uncles"].array().size();
   size_t transactions = block["transactions"].array().size();
+  string parentHash = block["parentHash"].str();
+
+  // eth_getWork extension fields for BTCPool:
+  //   work[4], 32 bytes hex encoded parent block header pow-hash
+  //   work[5], hex encoded gas limit
+  //   work[6], hex encoded gas used
+  //   work[7], hex encoded transaction count
+  //   work[8], hex encoded uncle count
+  bool btcpoolExtensionFields = false;
+  if (work.size() >= 9 && work[4].type() == Utilities::JS::type::Str &&
+      work[5].type() == Utilities::JS::type::Str &&
+      work[6].type() == Utilities::JS::type::Str &&
+      work[7].type() == Utilities::JS::type::Str &&
+      work[8].type() == Utilities::JS::type::Str) {
+    btcpoolExtensionFields = true;
+
+    parentHash = work[4].str();
+
+    gasLimit = (float)strtoll(work[5].str().c_str(), nullptr, 16);
+    gasUsed = (float)strtoll(work[6].str().c_str(), nullptr, 16);
+    gasUsedPercent = gasUsed / gasLimit * 100;
+
+    transactions = strtoll(work[7].str().c_str(), nullptr, 16);
+    uncles = strtoll(work[8].str().c_str(), nullptr, 16);
+  }
 
   LOG(INFO) << "chain: " << def_.chainType_ << ", topic: " << def_.rawGwTopic_
-            << ", parent: " << block["parentHash"].str()
-            << ", target: " << work[2].str() << ", hHash: " << work[0].str()
-            << ", sHash: " << work[1].str() << ", height: " << height
-            << ", uncles: " << uncles << ", transactions: " << transactions
-            << ", gasUsedPercent: " << gasUsedPercent;
+            << ", parent: " << parentHash << ", target: " << work[2].str()
+            << ", hHash: " << work[0].str() << ", sHash: " << work[1].str()
+            << ", height: " << height << ", uncles: " << uncles
+            << ", transactions: " << transactions
+            << ", gasUsedPercent: " << gasUsedPercent
+            << ", btcpoolExtensionFields: "
+            << (btcpoolExtensionFields ? "true" : "false");
 
   return Strings::Format(
       "{"
@@ -212,7 +239,7 @@ string GwMakerHandlerEth::constructRawMsg(JsonNode &r) {
       def_.chainType_.c_str(),
       def_.rpcAddr_.c_str(),
       def_.rpcUserPwd_.c_str(),
-      block["parentHash"].str().c_str(),
+      parentHash.c_str(),
       work[2].str().c_str(),
       work[0].str().c_str(),
       work[1].str().c_str(),
