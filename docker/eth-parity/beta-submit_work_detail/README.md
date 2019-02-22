@@ -36,9 +36,9 @@ service docker restart
 ## Build Docker Image
 
 ```
-git clone -b docker https://github.com/btccom/parity-ethereum.git
+git clone --depth=1 -b v2.0.4_submit_work_detail https://github.com/btccom/parity-ethereum.git
 cd parity-ethereum
-docker build -t parity:2.0.4-submit_work_detail -f docker/ubuntu/Dockerfile --tag btccom/parity-ethereum:v2.0.4_submit_work_detail .
+docker build -t parity:2.0.4-submit_work_detail -f docker/alpine/Dockerfile .
 ```
 
 ## Create Config Files
