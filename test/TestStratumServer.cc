@@ -30,6 +30,7 @@
 #include "bitcoin/BitcoinUtils.h"
 #include "bitcoin/StratumBitcoin.h"
 #include "bitcoin/StratumServerBitcoin.h"
+#include "eth/StratumServerEth.h"
 
 // #include "Kafka.h"
 
@@ -251,4 +252,128 @@ TEST(StratumServerBitcoin, CheckShare) {
   uint256 blkHash = uint256S(
       "1028e53e8145994a9ebe4f39eb6a7e3fd4036f2f21a05a5a696e8ac6d0829ef4");
   ASSERT_EQ(blkHash, header.GetHash());
+}
+
+TEST(StratumServerEth, EthashCalculator) {
+#ifdef NDEBUG
+
+  // -------------- share 1 --------------
+  uint64_t height = 0x6eab2a;
+  uint64_t nonce = 0x41ba179e96428b55;
+  uint256 header = uint256S(
+      "0x729a3740005234239728098a2d75855f5cb0fd7c536ad1337013bbc5159aefce");
+
+  ethash_h256_t etheader;
+  Uint256ToEthash256(header, etheader);
+
+  EthashCalculator ethashCalc;
+
+  ethash_return_value_t r;
+  ethashCalc.compute(height, etheader, nonce, r);
+  ASSERT_EQ(r.success, true);
+
+  uint256 hash = Ethash256ToUint256(r.result);
+  ASSERT_EQ(
+      hash.ToString(),
+      "0000000042901566d9a95493277579e6bca96c8c6bc5998c73f4fd96c8f63627");
+
+  // -------------- share 2 --------------
+  height = 0x6eab8e;
+  nonce = 0x25ace7ef07e8201f;
+  header = uint256S(
+      "0x2fb0df3aeb11b47bddee83a9f86d9de773b57edd6fd6651d0b44a07adc2c713c");
+  Uint256ToEthash256(header, etheader);
+
+  ethashCalc.buildDagCache(height);
+  ethashCalc.compute(height, etheader, nonce, r);
+  ASSERT_EQ(r.success, true);
+
+  hash = Ethash256ToUint256(r.result);
+  ASSERT_EQ(
+      hash.ToString(),
+      "00000001f1b86d886d67a0c652a9c31861c29d9e6b337861a0240183634ab2a0");
+
+  // -------------- recompute share 1 --------------
+  height = 0x6eab2a;
+  nonce = 0x41ba179e96428b55;
+  header = uint256S(
+      "0x729a3740005234239728098a2d75855f5cb0fd7c536ad1337013bbc5159aefce");
+  Uint256ToEthash256(header, etheader);
+
+  ethashCalc.rebuildDagCache(height);
+  ethashCalc.compute(height, etheader, nonce, r);
+  ASSERT_EQ(r.success, true);
+
+  hash = Ethash256ToUint256(r.result);
+  ASSERT_EQ(
+      hash.ToString(),
+      "0000000042901566d9a95493277579e6bca96c8c6bc5998c73f4fd96c8f63627");
+
+  // -------------- DAG switching --------------
+  height = 6239515;
+  nonce = 0x2516c8db789a47ba;
+  header = uint256S(
+      "0xb2597c55ab42a975028ccdf0c555957d287fc49fda8dda7267a73601afc7d113");
+  Uint256ToEthash256(header, etheader);
+
+  ethashCalc.buildDagCache(height);
+  ethashCalc.compute(height, etheader, nonce, r);
+  ASSERT_EQ(r.success, true);
+
+  hash = Ethash256ToUint256(r.result);
+  ASSERT_EQ(
+      hash.ToString(),
+      "0000000000000c92d7cf2171b74075d6205c3f3ddee755e6fb1a67af9b5eef30");
+
+  // -------------- no DAG switching --------------
+  height = 6241058;
+  nonce = 0x76ddbee015779003;
+  header = uint256S(
+      "0x85a62aaf18b09e29b51d0b61e0f3291bf582c13e27f0a53c53d206195f76a630");
+  Uint256ToEthash256(header, etheader);
+
+  ethashCalc.buildDagCache(height);
+  ethashCalc.compute(height, etheader, nonce, r);
+  ASSERT_EQ(r.success, true);
+
+  hash = Ethash256ToUint256(r.result);
+  ASSERT_EQ(
+      hash.ToString(),
+      "000000000000069a33c7116ec5c6f58362e9aa92dc01871c05df1c7dbfaeeedb");
+
+  // -------------- DAG switching --------------
+  height = 6261827;
+  nonce = 0xd5553dd37d6e1d62;
+  header = uint256S(
+      "0xf6b4e52f99ca0c500e2af5d93a65ae3b744e1a37fb7f8865976383529d9443ee");
+  Uint256ToEthash256(header, etheader);
+
+  ethashCalc.buildDagCache(height);
+  ethashCalc.compute(height, etheader, nonce, r);
+  ASSERT_EQ(r.success, true);
+
+  hash = Ethash256ToUint256(r.result);
+  ASSERT_EQ(
+      hash.ToString(),
+      "0000000000000e5c3d65dd0b478c0d8a36481b42e799c5221f8f98df79d95314");
+
+  // -------------- DAG switching --------------
+  height = 6341752;
+  nonce = 0x54d38be87d7b7ecb;
+  header = uint256S(
+      "0x1a39c0bb28a5a7d8bbeeb720cf645db7a73fa565448390e94e0b894606725542");
+  Uint256ToEthash256(header, etheader);
+
+  ethashCalc.buildDagCache(height);
+  ethashCalc.compute(height, etheader, nonce, r);
+  ASSERT_EQ(r.success, true);
+
+  hash = Ethash256ToUint256(r.result);
+  ASSERT_EQ(
+      hash.ToString(),
+      "000000000000052537c273d1d70a21ce2334302852949cb0c02a90b41cd8d839");
+
+#else
+  LOG(INFO) << "ethash_light_new() in debug build was too slow, skip the test.";
+#endif
 }

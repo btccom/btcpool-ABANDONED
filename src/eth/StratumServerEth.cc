@@ -38,6 +38,246 @@
 
 using namespace std;
 
+///////////////////////////// EthashCalculator ////////////////////////////////
+
+EthashCalculator::EthashCalculator(const string &cacheFile)
+  : cacheFile_(cacheFile) {
+  if (!cacheFile_.empty()) {
+    loadCacheFromFile(cacheFile_);
+  }
+}
+
+EthashCalculator::~EthashCalculator() {
+  if (!cacheFile_.empty()) {
+    saveCacheToFile(cacheFile_);
+  }
+
+  for (auto itr : lightCaches_) {
+    ethash_light_delete(itr.second);
+  }
+}
+
+size_t EthashCalculator::saveCacheToFile(const string &cacheFile) {
+  ScopeLock sl(lock_);
+  size_t loadedNum = 0;
+
+  if (lightCaches_.empty()) {
+    LOG(INFO) << "DAG cache was empty";
+    return 0;
+  }
+
+  std::ofstream f(cacheFile, std::ios::binary | std::ios::trunc);
+  if (!f) {
+    LOG(ERROR) << "create DAG cache file " << cacheFile << " failed";
+    return 0;
+  }
+
+  for (auto itr : lightCaches_) {
+    saveCacheToFile(itr.second, f);
+    loadedNum++;
+  }
+
+  f.close();
+  LOG(INFO) << "saved " << loadedNum << " DAG caches to file " << cacheFile;
+  return loadedNum;
+}
+
+void EthashCalculator::saveCacheToFile(
+    const ethash_light_t &light, std::ofstream &f) {
+  LightCacheHeader header;
+  header.blockNumber_ = light->block_number;
+  header.cacheSize_ = light->cache_size;
+  header.checksum_ =
+      computeCacheChecksum(header, (const uint8_t *)light->cache);
+
+  f.write((const char *)&header, sizeof(header));
+  f.write((const char *)light->cache, header.cacheSize_);
+  f.flush();
+}
+
+size_t EthashCalculator::loadCacheFromFile(const string &cacheFile) {
+  ScopeLock sl(lock_);
+  size_t loadedNum = 0;
+
+  std::ifstream f(cacheFile, std::ios::binary);
+  if (!f) {
+    LOG(WARNING) << "cannot read DAG cache file " << cacheFile;
+    return 0;
+  }
+
+  ethash_light_t light;
+  while (nullptr != (light = loadCacheFromFile(f))) {
+    uint64_t epoch = light->block_number / ETHASH_EPOCH_LENGTH;
+    lightCaches_[epoch] = light;
+    loadedNum++;
+  }
+
+  f.close();
+  LOG(INFO) << "loaded " << loadedNum << " DAG caches from file " << cacheFile;
+  return loadedNum;
+}
+
+ethash_light_t EthashCalculator::loadCacheFromFile(std::ifstream &f) {
+  LightCacheHeader header;
+  uint64_t checksum;
+  struct ethash_light *ret;
+
+  f.read((char *)&header, sizeof(header));
+  if (f.gcount() == 0) {
+    // file EOF reached
+    return nullptr;
+  }
+  if (f.gcount() != sizeof(header)) {
+    LOG(WARNING) << "cannot load DAG cache: header should be " << sizeof(header)
+                 << " bytes but read only " << f.gcount() << " bytes";
+    return nullptr;
+  }
+
+  // ethash_light_delete() will use free() to release the memory.
+  // So malloc() and calloc() should used for memory allocation.
+  // The basic logic and codes copied from ethash_light_new_internal().
+  ret = (ethash_light *)calloc(sizeof(*ret), 1);
+  if (!ret) {
+    LOG(WARNING) << "cannot load DAG cache: calloc " << sizeof(*ret)
+                 << " bytes failed";
+    return nullptr;
+  }
+#if defined(__MIC__)
+  ret->cache = _mm_malloc((size_t)header.cacheSize_, 64);
+#else
+  ret->cache = malloc((size_t)header.cacheSize_);
+#endif
+  if (!ret->cache) {
+    LOG(WARNING) << "cannot load DAG cache: malloc " << header.cacheSize_
+                 << " bytes failed";
+    goto fail_free_light;
+  }
+
+  f.read((char *)ret->cache, header.cacheSize_);
+  if (f.gcount() != (std::streamsize)header.cacheSize_) {
+    LOG(WARNING) << "cannot load DAG cache: cache should be "
+                 << header.cacheSize_ << " bytes but read only " << f.gcount()
+                 << " bytes";
+    goto fail_free_cache_mem;
+  }
+
+  checksum = computeCacheChecksum(header, (const uint8_t *)ret->cache);
+  if (checksum != header.checksum_) {
+    LOG(WARNING) << "cannot load DAG light: checksum mis-matched, it should be "
+                 << header.checksum_ << " but is " << checksum;
+    goto fail_free_cache_mem;
+  }
+
+  ret->block_number = header.blockNumber_;
+  ret->cache_size = header.cacheSize_;
+  return ret;
+
+fail_free_cache_mem:
+#if defined(__MIC__)
+  _mm_free(ret->cache);
+#else
+  free(ret->cache);
+#endif
+fail_free_light:
+  free(ret);
+  return nullptr;
+}
+
+uint64_t EthashCalculator::computeCacheChecksum(
+    const LightCacheHeader &header, const uint8_t *data) {
+  union {
+    uint64_t u64;
+    uint8_t u8[8];
+  } checksum;
+
+  checksum.u64 = 0;
+  checksum.u64 += header.blockNumber_;
+  checksum.u64 += header.cacheSize_;
+
+  for (size_t i = 0; i < header.cacheSize_; i++) {
+    checksum.u8[i % 8] += data[i];
+  }
+
+  return checksum.u64;
+}
+
+void EthashCalculator::buildDagCacheWithoutLock(uint64_t height) {
+  uint64_t epoch = height / ETHASH_EPOCH_LENGTH;
+  if (lightCaches_[epoch] != nullptr) {
+    return;
+  }
+
+  LOG(INFO) << "building DAG cache for block height " << height << " (epoch "
+            << epoch << ")";
+  time_t beginTime = time(nullptr);
+
+  lightCaches_[epoch] = ethash_light_new(height);
+  lightEpochs_.push(epoch);
+
+  // Note: The performance of ethash_light_new() difference between Debug and
+  // Release builds is very large. The Release build may complete in 5 seconds,
+  // while the Debug build takes more than 60 seconds.
+  LOG(INFO) << "DAG cache for block height " << height << " (epoch " << epoch
+            << ") built within " << (time(nullptr) - beginTime) << " seconds";
+
+  // remove redundant caches
+  while (lightEpochs_.size() > kMaxCacheSize_) {
+    uint64_t epoch = lightEpochs_.front();
+    ethash_light_delete(lightCaches_[epoch]);
+
+    lightCaches_.erase(epoch);
+    lightEpochs_.pop();
+
+    LOG(INFO) << "remove redundant DAG cache: epoch " << epoch;
+  }
+
+  assert(lightCaches_.size() == lightEpochs_.size());
+}
+
+ethash_light_t EthashCalculator::getDagCacheWithoutLock(uint64_t height) {
+  uint64_t epoch = height / ETHASH_EPOCH_LENGTH;
+  if (lightCaches_[epoch] == nullptr) {
+    buildDagCacheWithoutLock(height);
+  }
+  return lightCaches_[epoch];
+}
+
+void EthashCalculator::buildDagCache(uint64_t height) {
+  ScopeLock sl(lock_);
+  buildDagCacheWithoutLock(height);
+}
+
+void EthashCalculator::rebuildDagCache(uint64_t height) {
+  ScopeLock sl(lock_);
+  uint64_t epoch = height / ETHASH_EPOCH_LENGTH;
+
+  if (lightCaches_[epoch] != nullptr) {
+    ethash_light_delete(lightCaches_[epoch]);
+  } else {
+    LOG(ERROR) << "EthashCalculator::rebuildDagCache(" << height
+               << "): the old DAG cache should not be empty";
+    lightEpochs_.push(epoch);
+  }
+
+  LOG(INFO) << "rebuilding DAG cache for block height " << height;
+  time_t beginTime = time(nullptr);
+
+  lightCaches_[epoch] = ethash_light_new(height);
+
+  LOG(INFO) << "DAG cache for block height " << height << " rebuilt within "
+            << (time(nullptr) - beginTime) << " seconds";
+}
+
+bool EthashCalculator::compute(
+    uint64_t height,
+    const ethash_h256_t &header,
+    uint64_t nonce,
+    ethash_return_value_t &r) {
+  ScopeLock sl(lock_);
+  r = ethash_light_compute(getDagCacheWithoutLock(height), header, nonce);
+  return r.success;
+}
+
 ////////////////////////////////// JobRepositoryEth
 //////////////////////////////////
 JobRepositoryEth::JobRepositoryEth(
@@ -48,10 +288,7 @@ JobRepositoryEth::JobRepositoryEth(
     const string &fileLastNotifyTime)
   : JobRepositoryBase(
         chainId, server, kafkaBrokers, consumerTopic, fileLastNotifyTime)
-  , light_(nullptr)
-  , nextLight_(nullptr)
-  , epochs_(0xffffffffffffffff) {
-  loadLightFromFile();
+  , ethashCalc_(Strings::Format(kLightCacheFilePathFormat, (uint32_t)chainId)) {
 }
 
 shared_ptr<StratumJobEx> JobRepositoryEth::createStratumJobEx(
@@ -65,7 +302,7 @@ void JobRepositoryEth::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
   LOG(INFO) << "broadcast eth stratum job " << std::hex << sjobEth->jobId_;
 
   bool isClean = false;
-  if (sjobEth->height_ > lastHeight_) {
+  if (sjobEth->height_ != lastHeight_) {
     isClean = true;
     lastHeight_ = sjobEth->height_;
 
@@ -89,294 +326,30 @@ void JobRepositoryEth::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
 
   // send job first
   sendMiningNotify(exJob);
-  // then, create light for verification
-  newLightNonBlocking(sjobEth);
+  // then, build DAG cache for verification
+  buildDagCacheNonBlocking(sjobEth->height_);
 }
 
 JobRepositoryEth::~JobRepositoryEth() {
-  saveLightToFile();
-  deleteLight();
 }
 
-void JobRepositoryEth::rebuildLightNonBlocking(shared_ptr<StratumJobEth> job) {
-  epochs_ = 0;
-  newLightNonBlocking(job);
-}
-
-void JobRepositoryEth::newLightNonBlocking(shared_ptr<StratumJobEth> job) {
-  if (!job) {
-    return;
-  }
-
-  boost::thread t(
-      boost::bind(&JobRepositoryEth::_newLightThread, this, job->height_));
+void JobRepositoryEth::buildDagCacheNonBlocking(uint64_t height) {
+  std::thread t([height, this]() { this->ethashCalc_.buildDagCache(height); });
   t.detach();
 }
 
-void JobRepositoryEth::_newLightThread(uint64_t height) {
-  uint64_t const newEpochs = height / ETHASH_EPOCH_LENGTH;
-  // same seed do nothing
-  if (newEpochs == epochs_) {
-    return;
-  }
-
-  {
-    ScopeLock slLight(lightLock_);
-    ScopeLock slNextLight(nextLightLock_);
-
-    // Update epochs_ immediately to prevent the next thread
-    // blocking for waiting nextLightLock_.
-    uint64_t oldEpochs = epochs_;
-    epochs_ = newEpochs;
-
-    LOG(INFO) << "creating light for blk height... " << height;
-    time_t now = time(nullptr);
-
-    if (nullptr == nextLight_) {
-      light_ = ethash_light_new(height);
-    } else if (newEpochs == oldEpochs + 1) {
-      // get pre-generated light if exists
-      ethash_light_delete(light_);
-      light_ = nextLight_;
-      nextLight_ = nullptr;
-    } else {
-      // pre-generated light unavailable because of epochs jumping
-      ethash_light_delete(nextLight_);
-      nextLight_ = nullptr;
-
-      ethash_light_delete(light_);
-      // regenerate light with current epochs
-      light_ = ethash_light_new(height);
-    }
-
-    if (nullptr == light_) {
-      LOG(FATAL) << "create light for blk height: " << height << " failed";
-    }
-
-    time_t elapse = time(nullptr) - now;
-    // Note: The performance difference between Debug and Release builds is very
-    // large. The Release build may complete in 5 s, while the Debug build takes
-    // more than 60 s.
-    LOG(INFO) << "create light for blk height: " << height << " takes "
-              << elapse << " seconds";
-  }
-
-  {
-    ScopeLock slNextLight(nextLightLock_);
-
-    time_t now = time(nullptr);
-    uint64_t nextBlkNum = height + ETHASH_EPOCH_LENGTH;
-    LOG(INFO) << "creating light for blk height... " << nextBlkNum;
-
-    nextLight_ = ethash_light_new(nextBlkNum);
-
-    time_t elapse = time(nullptr) - now;
-    // Note: The performance difference between Debug and Release builds is very
-    // large. The Release build may complete in 5 s, while the Debug build takes
-    // more than 60 s.
-    LOG(INFO) << "create light for blk height: " << nextBlkNum << " takes "
-              << elapse << " seconds";
-  }
-}
-
-void JobRepositoryEth::deleteLight() {
-  ScopeLock slLight(lightLock_);
-  ScopeLock slNextLight(nextLightLock_);
-  deleteLightNoLock();
-}
-
-void JobRepositoryEth::deleteLightNoLock() {
-  if (light_ != nullptr) {
-    ethash_light_delete(light_);
-    light_ = nullptr;
-  }
-
-  if (nextLight_ != nullptr) {
-    ethash_light_delete(nextLight_);
-    nextLight_ = nullptr;
-  }
-}
-
-void JobRepositoryEth::saveLightToFile() {
-  ScopeLock slLight(lightLock_);
-  ScopeLock slNextLight(nextLightLock_);
-
-  if (light_ == nullptr && nextLight_ == nullptr) {
-    LOG(INFO) << "no DAG light can be cached";
-    return;
-  }
-
-  std::ofstream f(kLightCacheFilePath, std::ios::binary | std::ios::trunc);
-  if (!f) {
-    LOG(ERROR) << "create DAG light caching file " << kLightCacheFilePath
-               << " failed";
-    return;
-  }
-
-  if (light_ != nullptr) {
-    LOG(INFO) << "cache DAG light of current epoch to file...";
-    saveLightToFile(light_, f);
-  }
-
-  if (nextLight_ != nullptr) {
-    LOG(INFO) << "cache DAG light of next epoch to file...";
-    saveLightToFile(nextLight_, f);
-  }
-
-  f.close();
-  LOG(INFO) << "DAG light was cached to file " << kLightCacheFilePath;
-}
-
-void JobRepositoryEth::saveLightToFile(
-    const ethash_light_t &light, std::ofstream &f) {
-  LightCacheHeader header;
-  header.blockNumber_ = light->block_number;
-  header.cacheSize_ = light->cache_size;
-  header.checkSum_ =
-      computeLightCacheCheckSum(header, (const uint8_t *)light->cache);
-
-  f.write((const char *)&header, sizeof(header));
-  f.write((const char *)light->cache, header.cacheSize_);
-  f.flush();
-}
-
-void JobRepositoryEth::loadLightFromFile() {
-  ScopeLock slLight(lightLock_);
-  ScopeLock slNextLight(nextLightLock_);
-
-  std::ifstream f(kLightCacheFilePath, std::ios::binary);
-  if (!f) {
-    LOG(WARNING) << "cannot read DAG light caching file "
-                 << kLightCacheFilePath;
-    return;
-  }
-
-  LOG(INFO) << "load DAG light of current epoch from file...";
-  light_ = loadLightFromFile(f);
-
-  LOG(INFO) << "load DAG light of next epoch from file...";
-  nextLight_ = loadLightFromFile(f);
-
-  if (light_ != nullptr) {
-    epochs_ = light_->block_number / ETHASH_EPOCH_LENGTH;
-  }
-
-  f.close();
-  LOG(INFO) << "loading DAG light from file " << kLightCacheFilePath
-            << " finished";
-}
-
-ethash_light_t JobRepositoryEth::loadLightFromFile(std::ifstream &f) {
-  if (f.eof()) {
-    LOG(WARNING)
-        << "cannot load DAG light: file EOF reached when reading header";
-    return NULL;
-  }
-
-  uint64_t checkSum;
-  LightCacheHeader header;
-
-  f.read((char *)&header, sizeof(header));
-  if (f.gcount() != sizeof(header)) {
-    LOG(WARNING) << "cannot load DAG light: only " << f.gcount()
-                 << " bytes was read"
-                    " but header size is "
-                 << sizeof(header) << "bytes";
-    return NULL;
-  }
-
-  // ethash_light_delete() will use free() to release the memory.
-  // So malloc() and calloc() should used for memory allocation.
-  // The basic logic and codes copied from ethash_light_new_internal().
-  struct ethash_light *ret;
-  ret = (ethash_light *)calloc(sizeof(*ret), 1);
-  if (!ret) {
-    LOG(WARNING) << "cannot load DAG light: calloc " << sizeof(*ret)
-                 << " bytes failed";
-    return NULL;
-  }
-#if defined(__MIC__)
-  ret->cache = _mm_malloc((size_t)header.cacheSize_, 64);
-#else
-  ret->cache = malloc((size_t)header.cacheSize_);
-#endif
-  if (!ret->cache) {
-    LOG(WARNING) << "cannot load DAG light: malloc " << header.cacheSize_
-                 << " bytes failed (cache maybe broken)";
-    goto fail_free_light;
-  }
-
-  if (f.eof()) {
-    LOG(WARNING)
-        << "cannot load DAG light: file EOF reached when reading cache";
-    goto fail_free_cache_mem;
-  }
-
-  f.read((char *)ret->cache, header.cacheSize_);
-  if (f.gcount() != (std::streamsize)header.cacheSize_) {
-    LOG(WARNING) << "cannot load DAG light: only " << f.gcount()
-                 << " bytes was read"
-                 << " but cache size is " << header.cacheSize_ << " bytes";
-    goto fail_free_cache_mem;
-  }
-
-  checkSum = computeLightCacheCheckSum(header, (const uint8_t *)ret->cache);
-  if (checkSum != header.checkSum_) {
-    LOG(WARNING) << "cannot load DAG light: checkSum mis-matched, it should be "
-                 << header.checkSum_ << " but is " << checkSum << " now";
-    goto fail_free_cache_mem;
-  }
-
-  ret->block_number = header.blockNumber_;
-  ret->cache_size = header.cacheSize_;
-  return ret;
-
-fail_free_cache_mem:
-#if defined(__MIC__)
-  _mm_free(ret->cache);
-#else
-  free(ret->cache);
-#endif
-fail_free_light:
-  free(ret);
-  return NULL;
-}
-
-uint64_t JobRepositoryEth::computeLightCacheCheckSum(
-    const LightCacheHeader &header, const uint8_t *data) {
-  union {
-    uint64_t u64;
-    uint8_t u8[8];
-  } checkSum;
-
-  checkSum.u64 = 0;
-  checkSum.u64 += header.blockNumber_;
-  checkSum.u64 += header.cacheSize_;
-
-  for (size_t i = 0; i < header.cacheSize_; i++) {
-    checkSum.u8[i % 8] += data[i];
-  }
-
-  return checkSum.u64;
+void JobRepositoryEth::rebuildDagCacheNonBlocking(uint64_t height) {
+  std::thread t(
+      [height, this]() { this->ethashCalc_.rebuildDagCache(height); });
+  t.detach();
 }
 
 bool JobRepositoryEth::compute(
-    ethash_h256_t const header, uint64_t nonce, ethash_return_value_t &r) {
-  ScopeLock sl(lightLock_);
-  if (light_ != nullptr) {
-    r = ethash_light_compute(light_, header, nonce);
-    // LOG(INFO) << "ethash_light_compute: " << r.success << ", result: ";
-    // for (int i = 0; i < 32; ++i)
-    //   LOG(INFO) << hex << (int)r.result.b[i];
-
-    // LOG(INFO) << "mixed hash: ";
-    // for (int i = 0; i < 32; ++i)
-    //   LOG(INFO) << hex << (int)r.mix_hash.b[i];
-
-    return r.success;
-  }
-  LOG(ERROR) << "light_ is nullptr, what's wrong?";
-  return false;
+    uint64_t height,
+    const ethash_h256_t &header,
+    uint64_t nonce,
+    ethash_return_value_t &r) {
+  return ethashCalc_.compute(height, header, nonce, r);
 }
 
 ////////////////////////////////// ServierEth ///////////////////////////////
@@ -436,7 +409,7 @@ int ServerEth::checkShareAndUpdateDiff(
   gettimeofday(&start, NULL);
 #endif
 
-  bool ret = jobRepo->compute(ethashHeader, nonce, r);
+  bool ret = jobRepo->compute(share.height(), ethashHeader, nonce, r);
 
 #ifndef NDEBUG
   gettimeofday(&end, NULL);
@@ -446,12 +419,12 @@ int ServerEth::checkShareAndUpdateDiff(
   // Note: The performance difference between Debug and Release builds is very
   // large. The Release build may complete in 4 ms, while the Debug build takes
   // 100 ms.
-  DLOG(INFO) << "light compute takes " << mtime << " ms";
+  DLOG(INFO) << "ethash computing takes " << mtime << " ms";
 #endif
 
   if (!ret || !r.success) {
-    LOG(ERROR) << "light cache creation error, try re-create it";
-    jobRepo->rebuildLightNonBlocking(sjob);
+    LOG(ERROR) << "ethash computing failed, try rebuild the DAG cache";
+    jobRepo->rebuildDagCacheNonBlocking(sjob->height_);
     return StratumStatus::INTERNAL_ERROR;
   }
 

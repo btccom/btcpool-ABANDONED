@@ -27,6 +27,7 @@
 #include "CommonEth.h"
 
 #include <set>
+#include <queue>
 #include "StratumServer.h"
 #include "StratumEth.h"
 
@@ -69,6 +70,54 @@ public:
       const uint32_t sessionID) override;
 };
 
+class EthashCalculator {
+protected:
+  const size_t kMaxCacheSize_ = 3;
+
+  std::mutex lock_;
+  std::map<uint64_t /*epoch*/, ethash_light_t> lightCaches_;
+  std::queue<uint64_t> lightEpochs_;
+  string cacheFile_;
+
+  // save ethash_light_t to file
+  struct LightCacheHeader {
+    uint64_t checksum_;
+    uint64_t blockNumber_;
+    uint64_t cacheSize_;
+  };
+
+  // Creating a new ethash_light_t (DAG cache) is so slow (in Debug build),
+  // it may need more than 120 seconds for current Ethereum mainnet.
+  // So save it to a file before exiting and load it back at next time
+  // to reduce the computation time required after a restart.
+  //
+  // Note: The performance of ethash_light_new() difference between Debug and
+  // Release builds is very large. The Release build may complete in 5 seconds,
+  // while the Debug build takes more than 60 seconds.
+  size_t /*saved num*/ saveCacheToFile(const string &cacheFile);
+  void saveCacheToFile(const ethash_light_t &light, std::ofstream &f);
+  size_t /*loaded num*/ loadCacheFromFile(const string &cacheFile);
+  ethash_light_t loadCacheFromFile(std::ifstream &f);
+  uint64_t
+  computeCacheChecksum(const LightCacheHeader &header, const uint8_t *data);
+
+  void buildDagCacheWithoutLock(uint64_t height);
+  ethash_light_t getDagCacheWithoutLock(uint64_t height);
+
+public:
+  EthashCalculator() {}
+  EthashCalculator(const string &cacheFile);
+  ~EthashCalculator();
+
+  void buildDagCache(uint64_t height);
+  void rebuildDagCache(uint64_t height);
+  bool compute(
+      uint64_t height,
+      const ethash_h256_t &header,
+      uint64_t nonce,
+      ethash_return_value_t &r);
+};
+
 class JobRepositoryEth : public JobRepositoryBase<ServerEth> {
 public:
   JobRepositoryEth(
@@ -79,8 +128,11 @@ public:
       const string &fileLastNotifyTime);
   virtual ~JobRepositoryEth();
 
-  bool
-  compute(ethash_h256_t const header, uint64_t nonce, ethash_return_value_t &r);
+  bool compute(
+      uint64_t height,
+      const ethash_h256_t &header,
+      uint64_t nonce,
+      ethash_return_value_t &r);
 
   shared_ptr<StratumJob> createStratumJob() override {
     return std::make_shared<StratumJobEth>();
@@ -89,46 +141,15 @@ public:
   createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean) override;
   void broadcastStratumJob(shared_ptr<StratumJob> sjob) override;
 
-  // re-computing light when checking share failed.
-  void rebuildLightNonBlocking(shared_ptr<StratumJobEth> job);
+  void rebuildDagCacheNonBlocking(uint64_t height);
 
-private:
+protected:
+  void buildDagCacheNonBlocking(uint64_t height);
+
   // TODO: move to configuration file
-  const char *kLightCacheFilePath = "./sserver-eth-dagcache.dat";
+  const char *kLightCacheFilePathFormat = "./sserver-eth%u-dagcache.dat";
 
-  // save ethash_light_t to file
-  struct LightCacheHeader {
-    uint64_t checkSum_;
-    uint64_t blockNumber_;
-    uint64_t cacheSize_;
-  };
-
-  void newLightNonBlocking(shared_ptr<StratumJobEth> job);
-  void _newLightThread(uint64_t height);
-  void deleteLight();
-  void deleteLightNoLock();
-
-  // Creating a new ethash_light_t (DAG cache) is so slow (in Debug build),
-  // it may need more than 120 seconds for current Ethereum mainnet.
-  // So save it to a file before shutdown and load it back at next time
-  // to reduce the computation time required after a reboot.
-  //
-  // Note: The performance difference between Debug and Release builds is very
-  // large. The Release build may complete in 5 s, while the Debug build takes
-  // more than 60 s.
-  void saveLightToFile();
-  void saveLightToFile(const ethash_light_t &light, std::ofstream &f);
-  void loadLightFromFile();
-  ethash_light_t loadLightFromFile(std::ifstream &f);
-  uint64_t computeLightCacheCheckSum(
-      const LightCacheHeader &header, const uint8_t *data);
-
-  ethash_light_t light_;
-  ethash_light_t nextLight_;
-  std::atomic<uint64_t> epochs_;
-  mutex lightLock_;
-  mutex nextLightLock_;
-
+  EthashCalculator ethashCalc_;
   uint32_t lastHeight_;
 };
 #endif // STRATUM_SERVER_ETH_H_

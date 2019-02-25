@@ -185,32 +185,3 @@ TEST(Utils, BeamDiff1ToTarget) {
       target.ToString(),
       "0000000004000000000000000000000000000000000000000000000000000000");
 }
-
-TEST(Utils, EthashCompute) {
-#ifdef NDEBUG
-  uint32_t height = 0x6eab2a;
-  uint64_t nonce = 0x41ba179e96428b55;
-  uint256 header = uint256S(
-      "0x729a3740005234239728098a2d75855f5cb0fd7c536ad1337013bbc5159aefce");
-
-  ethash_h256_t etheader;
-  Uint256ToEthash256(header, etheader);
-
-  ethash_light_t light;
-  light = ethash_light_new(height);
-
-  ethash_return_value_t r;
-  r = ethash_light_compute(light, etheader, nonce);
-
-  ASSERT_EQ(r.success, true);
-
-  uint256 hash = Ethash256ToUint256(r.result);
-  ASSERT_EQ(
-      hash.ToString(),
-      "0000000042901566d9a95493277579e6bca96c8c6bc5998c73f4fd96c8f63627");
-
-  ethash_light_delete(light);
-#else
-  LOG(INFO) << "ethash_light_new() in debug build was too slow, skip the test.";
-#endif
-}
