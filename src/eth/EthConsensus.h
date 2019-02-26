@@ -66,10 +66,7 @@ protected:
   static double getUncleBlockRewardRatioClassic(int nHeight);
   static double getUncleBlockRewardRatioFoundation(int nHeight);
 
-  // The hard fork Constantinople of Ethereum mainnet has been delayed.
-  // So set a default height that won't arrive (9999999).
-  // The user can change the height in the configuration file
-  // after the fork height is determined.
+  // The hard fork Constantinople of Ethereum mainnet
   static int kHardForkConstantinopleHeight_;
 };
 

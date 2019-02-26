@@ -313,12 +313,9 @@ int main(int argc, char **argv) {
     cfg.lookupValue(
         "dup_share_checker.tracking_height_number", dupShareTrackingHeight);
 
-    // The hard fork Constantinople of Ethereum mainnet has been delayed.
-    // So set a default height that won't arrive (9999999).
-    // The user can change the height in the configuration file
-    // after the fork height is determined.
+    // The hard fork Constantinople of Ethereum mainnet
     if (chainType == "ETH") {
-      int constantinopleHeight = 9999999;
+      int constantinopleHeight = 7280000;
       cfg.lookupValue("sharelog.constantinople_height", constantinopleHeight);
       EthConsensus::setHardForkConstantinopleHeight(constantinopleHeight);
     }
