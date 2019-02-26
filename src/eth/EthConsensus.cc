@@ -26,11 +26,8 @@
 #include <algorithm>
 #include <glog/logging.h>
 
-// The hard fork Constantinople of Ethereum mainnet has been delayed.
-// So set a default height that won't arrive (9999999).
-// The user can change the height in the configuration file
-// after the fork height is determined.
-int EthConsensus::kHardForkConstantinopleHeight_ = 9999999;
+// The hard fork Constantinople of Ethereum mainnet
+int EthConsensus::kHardForkConstantinopleHeight_ = 7280000;
 
 void EthConsensus::setHardForkConstantinopleHeight(int height) {
   kHardForkConstantinopleHeight_ = height;
