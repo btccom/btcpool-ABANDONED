@@ -46,6 +46,7 @@ StatsServerGrin::StatsServerGrin(
     const time_t kFlushDBInterval,
     const string &fileLastFlushTime,
     shared_ptr<DuplicateShareChecker<ShareGrin>> dupShareChecker,
+    bool acceptStale,
     const libconfig::Config &config)
   : StatsServerT{kafkaBrokers,
                  kafkaShareTopic,
@@ -61,7 +62,8 @@ StatsServerGrin::StatsServerGrin(
                  redisIndexPolicy,
                  kFlushDBInterval,
                  fileLastFlushTime,
-                 std::move(dupShareChecker)}
+                 std::move(dupShareChecker),
+                 acceptStale}
   , algorithm_{AlgorithmGrin::Unknown} {
   string algorithm;
   if (config.lookupValue("statshttpd.algorithm", algorithm)) {

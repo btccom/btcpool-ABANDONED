@@ -82,7 +82,7 @@ public:
   //  void serialize(...);
   //  bool unserialize(const ...);
 
-  void processShare(const SHARE &share);
+  void processShare(const SHARE &share, bool acceptStale);
   WorkerStatus getWorkerStatus();
   void getWorkerStatus(WorkerStatus &status);
   bool isExpired();
@@ -199,6 +199,8 @@ class StatsServerT : public StatsServer {
   shared_ptr<DuplicateShareChecker<SHARE>>
       dupShareChecker_; // Used to detect duplicate share attacks.
 
+  bool acceptStale_; // Whether stale shares are accepted
+
   // httpd
   struct event_base *base_;
   string httpdHost_;
@@ -286,7 +288,8 @@ public:
       const int redisIndexPolicy,
       const time_t kFlushDBInterval,
       const string &fileLastFlushTime,
-      shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker);
+      shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker,
+      bool acceptStale);
   virtual ~StatsServerT();
 
   bool init();

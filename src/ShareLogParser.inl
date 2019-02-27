@@ -129,14 +129,16 @@ ShareLogParserT<SHARE>::ShareLogParserT(
     const string &dataDir,
     time_t timestamp,
     const MysqlConnectInfo &poolDBInfo,
-    shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker)
+    shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker,
+    bool acceptStale)
   : date_(timestamp)
   , chainType_(chainType)
   , f_(nullptr)
   , buf_(nullptr)
   , incompleteShareSize_(0)
   , poolDB_(poolDBInfo)
-  , dupShareChecker_(dupShareChecker) {
+  , dupShareChecker_(dupShareChecker)
+  , acceptStale_(acceptStale) {
   pthread_rwlock_init(&rwlock_, nullptr);
 
   {
@@ -212,9 +214,9 @@ void ShareLogParserT<SHARE>::parseShare(SHARE &share) {
   pthread_rwlock_unlock(&rwlock_);
 
   const uint32_t hourIdx = getHourIdx(share.timestamp());
-  workersStats_[wkey]->processShare(hourIdx, share);
-  workersStats_[ukey]->processShare(hourIdx, share);
-  workersStats_[pkey]->processShare(hourIdx, share);
+  workersStats_[wkey]->processShare(hourIdx, share, acceptStale_);
+  workersStats_[ukey]->processShare(hourIdx, share, acceptStale_);
+  workersStats_[pkey]->processShare(hourIdx, share, acceptStale_);
 }
 
 template <class SHARE>
@@ -767,13 +769,15 @@ ShareLogParserServerT<SHARE>::ShareLogParserServerT(
     unsigned short httpdPort,
     const MysqlConnectInfo &poolDBInfo,
     const uint32_t kFlushDBInterval,
-    shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker)
+    shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker,
+    bool acceptStale)
   : running_(true)
   , chainType_(chainType)
   , dataDir_(dataDir)
   , poolDBInfo_(poolDBInfo)
   , kFlushDBInterval_(kFlushDBInterval)
   , dupShareChecker_(dupShareChecker)
+  , acceptStale_(acceptStale)
   , base_(nullptr)
   , httpdHost_(httpdHost)
   , httpdPort_(httpdPort)
@@ -834,7 +838,12 @@ template <class SHARE>
 shared_ptr<ShareLogParserT<SHARE>>
 ShareLogParserServerT<SHARE>::createShareLogParser(time_t datets) {
   return std::make_shared<ShareLogParserT<SHARE>>(
-      chainType_.c_str(), dataDir_, datets, poolDBInfo_, dupShareChecker_);
+      chainType_.c_str(),
+      dataDir_,
+      datets,
+      poolDBInfo_,
+      dupShareChecker_,
+      acceptStale_);
 }
 
 template <class SHARE>

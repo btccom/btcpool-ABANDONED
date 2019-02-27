@@ -99,6 +99,32 @@ T StatsWindow<T>::sum(int64_t beginRingIdx) {
 
 ///////////////////////////////  ShareStatsDay  ////////////////////////////////
 template <class SHARE>
+void ShareStatsDay<SHARE>::processShare(
+    uint32_t hourIdx, const SHARE &share, bool acceptStale) {
+  ScopeLock sl(lock_);
+
+  if (StratumStatus::isAccepted(share.status()) &&
+      (acceptStale || !StratumStatus::isStale(share.status()))) {
+    shareAccept1h_[hourIdx] += share.sharediff();
+    shareAccept1d_ += share.sharediff();
+
+    double score = share.score();
+    double reward = getShareReward(share);
+    double earn = score * reward;
+
+    score1h_[hourIdx] += score;
+    score1d_ += score;
+    earn1h_[hourIdx] += earn;
+    earn1d_ += earn;
+
+  } else {
+    shareReject1h_[hourIdx] += share.sharediff();
+    shareReject1d_ += share.sharediff();
+  }
+  modifyHoursFlag_ |= (0x01u << hourIdx);
+}
+
+template <class SHARE>
 void ShareStatsDay<SHARE>::getShareStatsHour(
     uint32_t hourIdx, ShareStats *stats) {
   ScopeLock sl(lock_);

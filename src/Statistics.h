@@ -134,7 +134,8 @@ public:
   ShareStatsDay(const ShareStatsDay &r) = default;
   ShareStatsDay &operator=(const ShareStatsDay &r) = default;
 
-  void processShare(uint32_t hourIdx, const SHARE &share);
+  void processShare(uint32_t hourIdx, const SHARE &share, bool acceptStale);
+  double getShareReward(const SHARE &share);
   void getShareStatsHour(uint32_t hourIdx, ShareStats *stats);
   void getShareStatsDay(ShareStats *stats);
 };

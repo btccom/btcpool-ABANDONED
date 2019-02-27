@@ -37,12 +37,14 @@ ShareLogParserGrin::ShareLogParserGrin(
     time_t timestamp,
     const MysqlConnectInfo &poolDBInfo,
     shared_ptr<DuplicateShareChecker<ShareGrin>> dupShareChecker,
+    bool acceptStale,
     const libconfig::Config &config)
   : ShareLogParserT{chainType,
                     dataDir,
                     timestamp,
                     poolDBInfo,
-                    std::move(dupShareChecker)}
+                    std::move(dupShareChecker),
+                    acceptStale}
   , algorithm_{AlgorithmGrin::Unknown} {
   string algorithm;
   if (config.lookupValue("sharelog.algorithm", algorithm)) {
@@ -74,6 +76,7 @@ ShareLogParserServerGrin::ShareLogParserServerGrin(
     const MysqlConnectInfo &poolDBInfo,
     const uint32_t kFlushDBInterval,
     shared_ptr<DuplicateShareChecker<ShareGrin>> dupShareChecker,
+    bool acceptStale,
     const libconfig::Config &config)
   : ShareLogParserServerT{chainType,
                           dataDir,
@@ -81,7 +84,8 @@ ShareLogParserServerGrin::ShareLogParserServerGrin(
                           httpdPort,
                           poolDBInfo,
                           kFlushDBInterval,
-                          std::move(dupShareChecker)}
+                          std::move(dupShareChecker),
+                          acceptStale}
   , config_{config} {
 }
 
@@ -93,5 +97,6 @@ ShareLogParserServerGrin::createShareLogParser(time_t datets) {
       datets,
       poolDBInfo_,
       dupShareChecker_,
+      acceptStale_,
       config_);
 }
