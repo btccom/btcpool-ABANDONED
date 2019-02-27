@@ -182,14 +182,14 @@ TEST(ShareStatsDay, ShareStatsDay) {
     // accept
     for (uint32_t i = 0; i < 24; i++) { // hour idx range: [0, 23]
       share.set_sharediff(shareValue);
-      stats.processShare(i, share);
+      stats.processShare(i, share, false);
     }
 
     // reject
     share.set_status(StratumStatus::REJECT_NO_REASON);
     for (uint32_t i = 0; i < 24; i++) {
       share.set_sharediff(shareValue);
-      stats.processShare(i, share);
+      stats.processShare(i, share, false);
     }
 
     ShareStats ss;
@@ -221,7 +221,7 @@ TEST(ShareStatsDay, ShareStatsDay) {
     // accept
     for (uint32_t i = 0; i < 24; i++) { // hour idx range: [0, 23]
       share.set_sharediff(shareValue);
-      stats.processShare(i, share);
+      stats.processShare(i, share, false);
       //      LOG(INFO) << score2Str(share.score());
     }
 
@@ -229,7 +229,7 @@ TEST(ShareStatsDay, ShareStatsDay) {
     share.set_status(StratumStatus::REJECT_NO_REASON);
     for (uint32_t i = 0; i < 24; i++) {
       share.set_sharediff(shareValue);
-      stats.processShare(i, share);
+      stats.processShare(i, share, false);
     }
 
     ShareStats ss;
