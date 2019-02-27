@@ -195,8 +195,7 @@ protected:
       struct sockaddr *saddr,
       uint32_t extraNonce1)
     : StratumSession(server, bev, saddr, extraNonce1)
-    , kMaxNumLocalJobs_(256) {
-  }
+    , kMaxNumLocalJobs_(256) {}
 
   using LocalJobType = typename StratumTraits::LocalJobType;
   static_assert(
