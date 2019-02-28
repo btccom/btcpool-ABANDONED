@@ -332,7 +332,14 @@ void StratumSessionEth::handleRequest_Authorize(
   // const type cannot access string indexed object member
   JsonNode &jsonRoot = const_cast<JsonNode &>(jroot);
 
-#ifndef WORK_WITH_STRATUM_SWITCHER
+#ifdef WORK_WITH_STRATUM_SWITCHER
+  if (state_ != SUBSCRIBED) {
+    responseError(idStr, StratumStatus::CLIENT_IS_NOT_SWITCHER);
+    LOG(ERROR) << "A non-switcher authorize request is detected and rejected.";
+    LOG(ERROR) << "Cmake option POOL__WORK_WITH_STRATUM_SWITCHER enabled, you "
+                  "can only connect to the sserver via a stratum switcher.";
+  }
+#else
   if (StratumProtocolEth::ETHPROXY == ethProtocol_ &&
       jsonRoot["method"].str() == "eth_submitLogin") {
     // Subscribe is not required for ETHPROXY (without stratum switcher).
@@ -340,12 +347,12 @@ void StratumSessionEth::handleRequest_Authorize(
     // required.
     state_ = SUBSCRIBED;
   }
-#endif
 
   if (state_ != SUBSCRIBED) {
     responseError(idStr, StratumStatus::NOT_SUBSCRIBED);
     return;
   }
+#endif
 
   // STRATUM / NICEHASH_STRATUM:        {"id":3, "method":"mining.authorize",
   // "params":["test.aaa", "x"]} ETH_PROXY (Claymore):              {"worker":
