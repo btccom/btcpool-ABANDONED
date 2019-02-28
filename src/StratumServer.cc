@@ -366,7 +366,6 @@ SSL_CTX *StratumServer::getSSLCTX(const libconfig::Config &config) {
 StratumServer::StratumServer()
   : enableTLS_(false)
   , base_(nullptr)
-  , signal_event_(nullptr)
   , listener_(nullptr)
   , isEnableSimulator_(false)
   , isSubmitInvalidBlock_(false)
@@ -380,9 +379,6 @@ StratumServer::StratumServer()
 }
 
 StratumServer::~StratumServer() {
-  if (signal_event_ != nullptr) {
-    event_free(signal_event_);
-  }
   if (listener_ != nullptr) {
     evconnlistener_free(listener_);
   }

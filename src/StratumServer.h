@@ -206,7 +206,6 @@ class StratumServer {
   SSL_CTX *sslCTX_;
   struct sockaddr_in sin_;
   struct event_base *base_;
-  struct event *signal_event_;
   struct evconnlistener *listener_;
   std::set<unique_ptr<StratumSession>> connections_;
   mutex connsLock_;
