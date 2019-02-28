@@ -411,17 +411,20 @@ void StratumSessionBitcoin::handleRequest_SuggestTarget(
   responseTrue(idStr);
 }
 
-void StratumSessionBitcoin::logAuthorizeResult(bool success) {
+void StratumSessionBitcoin::logAuthorizeResult(
+    bool success, const string &password) {
   if (success) {
     LOG(INFO) << "authorize success, userId: " << worker_.userId()
               << ", wokerHashId: " << worker_.workerHashId_
               << ", workerName: " << worker_.fullName_
+              << ", password: " << password
               << ", versionMask: " << Strings::Format("%08x", versionMask_)
               << ", clientAgent: " << clientAgent_
               << ", clientIp: " << clientIp_
               << ", chain: " << getServer().chainName(worker_.chainId_);
   } else {
     LOG(WARNING) << "authorize failed, workerName:" << worker_.fullName_
+                 << ", password: " << password
                  << ", versionMask: " << Strings::Format("%08x", versionMask_)
                  << ", clientAgent: " << clientAgent_
                  << ", clientIp: " << clientIp_;

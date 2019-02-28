@@ -152,7 +152,7 @@ protected:
   void setDefaultDifficultyFromPassword(const string &password);
   void setClientAgent(const string &clientAgent);
 
-  virtual void logAuthorizeResult(bool success);
+  virtual void logAuthorizeResult(bool success, const string &password);
   virtual string getMinerInfoJson(const string &type);
 
   virtual bool validate(

@@ -58,7 +58,7 @@ protected:
   void handleRequest_SuggestTarget(
       const std::string &idStr, const JsonNode &jparams);
 
-  void logAuthorizeResult(bool success) override;
+  void logAuthorizeResult(bool success, const string &password) override;
   string getMinerInfoJson(const string &type) override;
 
   std::unique_ptr<StratumMessageDispatcher> createDispatcher() override;

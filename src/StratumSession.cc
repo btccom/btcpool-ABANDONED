@@ -202,16 +202,17 @@ void StratumSession::handleLine(const std::string &line) {
   }
 }
 
-void StratumSession::logAuthorizeResult(bool success) {
+void StratumSession::logAuthorizeResult(bool success, const string &password) {
   if (success) {
     LOG(INFO) << "authorize success, userId: " << worker_.userId()
               << ", wokerHashId: " << worker_.workerHashId_
               << ", workerName: " << worker_.fullName_
-              << ", clientAgent: " << clientAgent_
+              << ", password: " << password << ", clientAgent: " << clientAgent_
               << ", clientIp: " << clientIp_
               << ", chain: " << getServer().chainName(worker_.chainId_);
   } else {
     LOG(WARNING) << "authorize failed, workerName:" << worker_.fullName_
+                 << ", password: " << password
                  << ", clientAgent: " << clientAgent_
                  << ", clientIp: " << clientIp_;
   }
@@ -277,7 +278,7 @@ void StratumSession::checkUserAndPwd(
     DLOG(INFO) << "cannot find user " << worker_.userName_ << " in any chain";
 
     if (!server_.userInfo_->autoRegEnabled()) {
-      logAuthorizeResult(false);
+      logAuthorizeResult(false, password);
       responseError(idStr, StratumStatus::INVALID_USERNAME);
       return;
     }
@@ -302,12 +303,12 @@ void StratumSession::checkUserAndPwd(
     }
 
     DLOG(INFO) << "cannot switch user chain";
-    logAuthorizeResult(false);
+    logAuthorizeResult(false, password);
     responseError(idStr, StratumStatus::INVALID_USERNAME);
     return;
   }
 
-  logAuthorizeResult(true);
+  logAuthorizeResult(true, password);
   responseAuthorizeSuccess(idStr);
 
   state_ = AUTHENTICATED;
