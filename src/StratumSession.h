@@ -207,9 +207,12 @@ protected:
 public:
   template <typename Key>
   LocalJobType *findLocalJob(const Key &key) {
-    for (auto &localJob : localJobs_) {
-      if (localJob == key)
-        return &localJob;
+    auto iter = localJobs_.rbegin();
+    auto iend = localJobs_.rend();
+    for (; iter != iend; ++iter) {
+      if (*iter == key) {
+        return &(*iter);
+      }
     }
     return nullptr;
   }
