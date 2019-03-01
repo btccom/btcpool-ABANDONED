@@ -273,8 +273,9 @@ void StratumSession::checkUserAndPwd(
   // set id & names, will filter workername in this func
   worker_.setNames(fullName);
 
-  size_t chainId;
-  if (!server_.userInfo_->getChainId(worker_.userName_, chainId)) {
+  size_t chainId = 0;
+  bool found = server_.userInfo_->getChainId(worker_.userName_, chainId);
+  if (!found) {
     DLOG(INFO) << "cannot find user " << worker_.userName_ << " in any chain";
 
     if (!server_.userInfo_->autoRegEnabled()) {
@@ -284,7 +285,7 @@ void StratumSession::checkUserAndPwd(
     }
   }
 
-  if (!switchChain(chainId)) {
+  if (!found || !switchChain(chainId)) {
     if (!isAutoRegCallback && server_.userInfo_->autoRegEnabled()) {
       DLOG(INFO) << "try auto registing user " << worker_.userName_;
 
