@@ -192,21 +192,18 @@ void JobRepositoryGrin::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
   }
 
   shared_ptr<StratumJobEx> exJob{createStratumJobEx(sjobGrin, isClean)};
-  {
-    ScopeLock sl(lock_);
 
-    if (isClean) {
-      // mark all jobs as stale, should do this before insert new job
-      // stale shares will not be rejected, they will be marked as ACCEPT_STALE
-      // and have lower rewards.
-      for (auto it : exJobs_) {
-        it.second->markStale();
-      }
+  if (isClean) {
+    // mark all jobs as stale, should do this before insert new job
+    // stale shares will not be rejected, they will be marked as ACCEPT_STALE
+    // and have lower rewards.
+    for (auto it : exJobs_) {
+      it.second->markStale();
     }
-
-    // insert new job
-    exJobs_[sjobGrin->jobId_] = exJob;
   }
+
+  // insert new job
+  exJobs_[sjobGrin->jobId_] = exJob;
 
   // sending data in lock scope may cause implicit race condition in libevent
   if (isClean) {

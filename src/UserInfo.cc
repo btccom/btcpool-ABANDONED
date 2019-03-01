@@ -229,25 +229,28 @@ void UserInfo::handleSwitchChainEvent(
     return;
   }
 
-  size_t switchedSessions =
-      userInfo->server_->switchChain(userName, newChainId);
+  userInfo->server_->dispatch(
+      [userInfo, userName, currentChainId, newChainId]() {
+        size_t switchedSessions =
+            userInfo->server_->switchChain(userName, newChainId);
 
-  if (switchedSessions == 0) {
-    LOG(INFO) << "No workers of user " << userName
-              << " online, subsequent switching request will be ignored";
-    // clear cache
-    pthread_rwlock_wrlock(&userInfo->nameChainlock_);
-    auto itr = userInfo->nameChains_.find(userName);
-    if (itr != userInfo->nameChains_.end()) {
-      userInfo->nameChains_.erase(itr);
-    }
-    pthread_rwlock_unlock(&userInfo->nameChainlock_);
-  }
+        if (switchedSessions == 0) {
+          LOG(INFO) << "No workers of user " << userName
+                    << " online, subsequent switching request will be ignored";
+          // clear cache
+          pthread_rwlock_wrlock(&userInfo->nameChainlock_);
+          auto itr = userInfo->nameChains_.find(userName);
+          if (itr != userInfo->nameChains_.end()) {
+            userInfo->nameChains_.erase(itr);
+          }
+          pthread_rwlock_unlock(&userInfo->nameChainlock_);
+        }
 
-  LOG(INFO) << "User '" << userName << "' (" << switchedSessions
-            << " miners) switched chain: "
-            << userInfo->server_->chainName(currentChainId) << " -> "
-            << userInfo->server_->chainName(newChainId);
+        LOG(INFO) << "User '" << userName << "' (" << switchedSessions
+                  << " miners) switched chain: "
+                  << userInfo->server_->chainName(currentChainId) << " -> "
+                  << userInfo->server_->chainName(newChainId);
+      });
 }
 
 bool UserInfo::getChainId(string userName, size_t &chainId) {
@@ -586,10 +589,12 @@ void UserInfo::handleAutoRegEvent(
     userInfo->autoRegPendingUsers_.erase(userName);
   }
 
-  size_t sessions = userInfo->server_->autoRegCallback(userName);
+  userInfo->server_->dispatch([userInfo, userName]() {
+    size_t sessions = userInfo->server_->autoRegCallback(userName);
 
-  LOG(INFO) << "Auto Reg: User '" << userName << "' (" << sessions
-            << " miners online) registered";
+    LOG(INFO) << "Auto Reg: User '" << userName << "' (" << sessions
+              << " miners online) registered";
+  });
 }
 
 bool UserInfo::tryAutoReg(

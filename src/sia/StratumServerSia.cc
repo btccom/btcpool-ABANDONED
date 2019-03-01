@@ -54,16 +54,13 @@ shared_ptr<StratumJobEx> JobRepositorySia::createStratumJobEx(
 void JobRepositorySia::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
   LOG(INFO) << "broadcast sia stratum job " << std::hex << sjob->jobId_;
   shared_ptr<StratumJobEx> exJob(createStratumJobEx(sjob, true));
-  {
-    ScopeLock sl(lock_);
 
-    // mark all jobs as stale, should do this before insert new job
-    for (auto it : exJobs_)
-      it.second->markStale();
+  // mark all jobs as stale, should do this before insert new job
+  for (auto it : exJobs_)
+    it.second->markStale();
 
-    // insert new job
-    exJobs_[sjob->jobId_] = exJob;
-  }
+  // insert new job
+  exJobs_[sjob->jobId_] = exJob;
 
   sendMiningNotify(exJob);
 }

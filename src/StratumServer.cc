@@ -137,7 +137,6 @@ void JobRepository::setMiningNotifyInterval(time_t miningNotifyInterval) {
 }
 
 shared_ptr<StratumJobEx> JobRepository::getStratumJobEx(const uint64_t jobId) {
-  ScopeLock sl(lock_);
   auto itr = exJobs_.find(jobId);
   if (itr != exJobs_.end()) {
     return itr->second;
@@ -146,7 +145,6 @@ shared_ptr<StratumJobEx> JobRepository::getStratumJobEx(const uint64_t jobId) {
 }
 
 shared_ptr<StratumJobEx> JobRepository::getLatestStratumJobEx() {
-  ScopeLock sl(lock_);
   if (exJobs_.size()) {
     return exJobs_.rbegin()->second;
   }
@@ -210,13 +208,15 @@ void JobRepository::runThreadConsume() {
       rd_kafka_message_destroy(rkmessage);
     }
 
-    // check if we need to send mining notify
-    // It's a default implementation of scheduled sending / regular updating of
-    // stratum jobs. If no job is sent for a long time via
-    // broadcastStratumJob(), a job will be sent via this method.
-    checkAndSendMiningNotify();
+    server_->dispatch([this]() {
+      // check if we need to send mining notify
+      // It's a default implementation of scheduled sending / regular updating
+      // of stratum jobs. If no job is sent for a long time via
+      // broadcastStratumJob(), a job will be sent via this method.
+      checkAndSendMiningNotify();
 
-    tryCleanExpiredJobs();
+      tryCleanExpiredJobs();
+    });
   }
 
   LOG(INFO) << "stop job repository consume thread";
@@ -264,15 +264,18 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
         << ", now=" << now;
     return;
   }
-  // here you could use Map.find() without lock, it's sure
-  // that everyone is using this Map readonly now
-  auto existingJob = getStratumJobEx(sjob->jobId_);
-  if (existingJob != nullptr) {
-    LOG(ERROR) << "jobId already existed";
-    return;
-  }
 
-  broadcastStratumJob(sjob);
+  server_->dispatch([this, sjob]() {
+    // here you could use Map.find() without lock, it's sure
+    // that everyone is using this Map readonly now
+    auto existingJob = getStratumJobEx(sjob->jobId_);
+    if (existingJob != nullptr) {
+      LOG(ERROR) << "jobId already existed";
+      return;
+    }
+
+    broadcastStratumJob(sjob);
+  });
 }
 
 shared_ptr<StratumJobEx>
@@ -281,7 +284,6 @@ JobRepository::createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean) {
 }
 
 void JobRepository::markAllJobsAsStale() {
-  ScopeLock sl(lock_);
   for (auto it : exJobs_) {
     it.second->markStale();
   }
@@ -309,8 +311,6 @@ void JobRepository::sendMiningNotify(shared_ptr<StratumJobEx> exJob) {
 }
 
 void JobRepository::tryCleanExpiredJobs() {
-  ScopeLock sl(lock_);
-
   const uint32_t nowTs = (uint32_t)time(nullptr);
   // Keep at least one job to keep normal mining when the jobmaker fails
   while (exJobs_.size() > 1) {
@@ -751,8 +751,38 @@ void StratumServer::stop() {
   userInfo_->stop();
 }
 
+namespace {
+
+class StratumServerTask {
+public:
+  StratumServerTask(event_base *base, std::function<void()> task)
+    : task_{move(task)}
+    , event_{event_new(base, -1, 0, &StratumServerTask::execute, this)} {
+    event_add(event_, nullptr);
+    event_active(event_, EV_TIMEOUT, 0);
+  }
+
+  static void execute(evutil_socket_t, short, void *context) {
+    delete static_cast<StratumServerTask *>(context);
+  }
+
+private:
+  ~StratumServerTask() {
+    task_();
+    event_free(event_);
+  }
+
+  std::function<void()> task_;
+  struct event *event_;
+};
+
+} // namespace
+
+void StratumServer::dispatch(std::function<void()> task) {
+  new StratumServerTask{base_, move(task)};
+}
+
 size_t StratumServer::switchChain(string userName, size_t newChainId) {
-  ScopeLock sl(connsLock_);
   size_t switchedSessions = 0;
   for (auto &itr : connections_) {
     if (itr->getChainId() != newChainId && itr->getUserName() == userName) {
@@ -764,7 +794,6 @@ size_t StratumServer::switchChain(string userName, size_t newChainId) {
 }
 
 size_t StratumServer::autoRegCallback(const string &userName) {
-  ScopeLock sl(connsLock_);
   size_t sessions = 0;
   for (auto &itr : connections_) {
     if (itr->autoRegCallback(userName)) {
@@ -784,8 +813,6 @@ void StratumServer::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {
   // of course, for iterators that actually point to the element that is
   // being erased.
   //
-
-  ScopeLock sl(connsLock_);
   auto itr = connections_.begin();
   while (itr != connections_.end()) {
     auto &conn = *itr;
@@ -804,7 +831,6 @@ void StratumServer::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {
 }
 
 void StratumServer::addConnection(unique_ptr<StratumSession> connection) {
-  ScopeLock sl(connsLock_);
   connections_.insert(move(connection));
 }
 

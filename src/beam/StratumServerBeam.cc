@@ -67,21 +67,18 @@ void JobRepositoryBeam::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
   }
 
   shared_ptr<StratumJobEx> exJob(createStratumJobEx(sjobBeam, isClean));
-  {
-    ScopeLock sl(lock_);
 
-    if (isClean) {
-      // mark all jobs as stale, should do this before insert new job
-      // stale shares will not be rejected, they will be marked as ACCEPT_STALE
-      // and have lower rewards.
-      for (auto it : exJobs_) {
-        it.second->markStale();
-      }
+  if (isClean) {
+    // mark all jobs as stale, should do this before insert new job
+    // stale shares will not be rejected, they will be marked as ACCEPT_STALE
+    // and have lower rewards.
+    for (auto it : exJobs_) {
+      it.second->markStale();
     }
-
-    // insert new job
-    exJobs_[sjobBeam->jobId_] = exJob;
   }
+
+  // insert new job
+  exJobs_[sjobBeam->jobId_] = exJob;
 
   // send job
   sendMiningNotify(exJob);

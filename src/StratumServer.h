@@ -112,7 +112,6 @@ public:
 class JobRepository {
 protected:
   atomic<bool> running_;
-  mutex lock_;
   size_t chainId_;
   std::map<uint64_t /* jobId */, shared_ptr<StratumJobEx>> exJobs_;
 
@@ -208,7 +207,6 @@ class StratumServer {
   struct event_base *base_;
   struct evconnlistener *listener_;
   std::set<unique_ptr<StratumSession>> connections_;
-  mutex connsLock_;
 
 public:
   struct ChainVars {
@@ -260,6 +258,9 @@ public:
   bool setup(const libconfig::Config &config);
   void run();
   void stop();
+
+  // Dispatch the task to the libevent loop
+  void dispatch(std::function<void()> task);
 
   shared_ptr<Zookeeper> getZookeeper(const libconfig::Config &config) {
     initZookeeper(config);
