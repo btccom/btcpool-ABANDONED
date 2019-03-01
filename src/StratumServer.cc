@@ -336,11 +336,11 @@ void JobRepository::tryCleanExpiredJobs() {
       break;  // not expired
     }
 
+    LOG(INFO) << "remove expired stratum job, id: " << itr->first
+              << ", time: " << date("%F %T", jobTime);
+
     // remove expired job
     exJobs_.erase(itr);
-
-    LOG(INFO) << "remove expired stratum job, id: " << itr->first
-    << ", time: " << date("%F %T", jobTime);
   }
 }
 
