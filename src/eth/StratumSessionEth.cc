@@ -55,7 +55,7 @@ StratumSessionEth::StratumSessionEth(
 }
 
 void StratumSessionEth::sendSetDifficulty(
-    LocalJob &localJob, uint64_t difficulty) {
+    shared_ptr<LocalJob> localJob, uint64_t difficulty) {
   // Some ETH stratum variants have no set difficulty method, but change the
   // target directly
   currentJobDiff_ = difficulty;
@@ -98,9 +98,9 @@ void StratumSessionEth::sendMiningNotifyWithId(
   auto ljob = findLocalJob(header);
   // create a new LocalJobEth if not exists
   if (ljob == nullptr) {
-    ljob = &addLocalJob(ethJob->jobId_, header);
+    ljob = addLocalJob(ethJob->jobId_, header);
   } else {
-    dispatcher_->addLocalJob(*ljob);
+    dispatcher_->addLocalJob(ljob);
   }
 
   string strShareTarget = Eth_DifficultyToTarget(currentJobDiff_);

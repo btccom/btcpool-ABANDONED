@@ -56,7 +56,7 @@ void StratumSessionDecred::sendMiningNotify(
     return;
   }
 
-  auto &ljob = addLocalJob(
+  auto ljob = addLocalJob(
       jobDecred->jobId_, shortJobId_++, jobDecred->header_.nBits.value());
 
   // PrevHash field is int32 reversed
@@ -67,7 +67,7 @@ void StratumSessionDecred::sendMiningNotify(
       "\"params\":[\"%04" PRIx8
       "\",\"%08x%08x%08x%08x%08x%08x%08x%08x\",\"%s00000000\",\"%s\",[],\"%s\","
       "\"%" PRIx32 "\",\"%" PRIx32 "\",%s]}\n",
-      ljob.shortJobId_,
+      ljob->shortJobId_,
       prevHash[0].value(),
       prevHash[1].value(),
       prevHash[2].value(),

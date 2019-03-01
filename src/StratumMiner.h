@@ -62,8 +62,8 @@ public:
   void resetCurDiff(uint64_t curDiff);
   uint64_t getCurDiff() const { return curDiff_; };
   uint64_t calcCurDiff();
-  virtual uint64_t addLocalJob(LocalJob &localJob) = 0;
-  virtual void removeLocalJob(LocalJob &localJob) = 0;
+  virtual uint64_t addLocalJob(shared_ptr<LocalJob> localJob) = 0;
+  virtual void removeLocalJob(shared_ptr<LocalJob> localJob) = 0;
 
 protected:
   bool
@@ -103,19 +103,19 @@ public:
     return static_cast<SessionType &>(session_);
   }
 
-  uint64_t addLocalJob(LocalJob &localJob) override {
+  uint64_t addLocalJob(shared_ptr<LocalJob> localJob) override {
     uint64_t curDiff = calcCurDiff();
     // Overload the assignment operator of JobDiffType to add customizations
-    jobDiffs_[&localJob] = curDiff;
+    jobDiffs_[localJob] = curDiff;
     return curDiff;
   }
 
-  void removeLocalJob(LocalJob &localJob) override {
-    jobDiffs_.erase(&localJob);
+  void removeLocalJob(shared_ptr<LocalJob> localJob) override {
+    jobDiffs_.erase(localJob);
   }
 
 protected:
-  std::map<const LocalJob *, JobDiffType> jobDiffs_;
+  std::map<shared_ptr<LocalJob>, JobDiffType> jobDiffs_;
 };
 
 #endif // #define STRATUM_MINER_H_

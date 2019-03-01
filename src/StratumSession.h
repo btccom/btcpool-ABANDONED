@@ -91,7 +91,8 @@ public:
   virtual void responseError(const std::string &idStr, int code) = 0;
   virtual void sendData(const char *data, size_t len) = 0;
   virtual void sendData(const std::string &str) = 0;
-  virtual void sendSetDifficulty(LocalJob &localJob, uint64_t difficulty) = 0;
+  virtual void
+  sendSetDifficulty(shared_ptr<LocalJob> localJob, uint64_t difficulty) = 0;
 };
 
 class StratumSession : public IStratumSession {
@@ -177,7 +178,9 @@ public:
   virtual void responseAuthorized(const std::string &idStr);
   void rpc2ResponseTrue(const string &idStr);
   void rpc2ResponseError(const string &idStr, int errCode);
-  void sendSetDifficulty(LocalJob &localJob, uint64_t difficulty) override;
+
+  void sendSetDifficulty(
+      shared_ptr<LocalJob> localJob, uint64_t difficulty) override;
   virtual void sendMiningNotify(
       shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob = false) = 0;
 };
@@ -201,38 +204,48 @@ protected:
   static_assert(
       std::is_base_of<LocalJob, LocalJobType>::value,
       "Local job type is not derived from LocalJob");
-  std::deque<LocalJobType> localJobs_;
+  std::deque<shared_ptr<LocalJobType>> localJobs_;
+  std::mutex localJobsLock_;
   size_t kMaxNumLocalJobs_;
 
 public:
   template <typename Key>
-  LocalJobType *findLocalJob(const Key &key) {
+  shared_ptr<LocalJobType> findLocalJob(const Key &key) {
+    ScopeLock sl(localJobsLock_);
     auto iter = localJobs_.rbegin();
     auto iend = localJobs_.rend();
     for (; iter != iend; ++iter) {
-      if (*iter == key) {
-        return &(*iter);
+      if (**iter == key) {
+        return *iter;
       }
     }
     return nullptr;
   }
 
   template <typename... Args>
-  LocalJobType &addLocalJob(uint64_t jobId, Args &&... args) {
-    localJobs_.emplace_back(jobId, std::forward<Args>(args)...);
-    auto &localJob = localJobs_.back();
+  shared_ptr<LocalJobType> addLocalJob(uint64_t jobId, Args &&... args) {
+    auto localJob =
+        std::make_shared<LocalJobType>(jobId, std::forward<Args>(args)...);
+    {
+      ScopeLock sl(localJobsLock_);
+      localJobs_.push_back(localJob);
+    }
     dispatcher_->addLocalJob(localJob);
     return localJob;
   }
 
   void clearLocalJobs() {
+    ScopeLock sl(localJobsLock_);
     while (localJobs_.size() >= kMaxNumLocalJobs_) {
       dispatcher_->removeLocalJob(localJobs_.front());
       localJobs_.pop_front();
     }
   }
 
-  std::deque<LocalJobType> &getLocalJobs() { return localJobs_; }
+  vector<shared_ptr<LocalJobType>> getLocalJobs() {
+    return vector<shared_ptr<LocalJobType>>(
+        localJobs_.begin(), localJobs_.end());
+  }
 
   inline ServerType &getServer() const {
     return static_cast<ServerType &>(server_);

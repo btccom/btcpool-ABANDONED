@@ -38,7 +38,8 @@ public:
 
   void rpc2ResponseBoolean(
       const string &idStr, bool result, const string &failMessage = "");
-  void sendSetDifficulty(LocalJob &localJob, uint64_t difficulty) override;
+  void sendSetDifficulty(
+      shared_ptr<LocalJob> localJob, uint64_t difficulty) override;
   void
   sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) override;
   void responseTrue(const string &idStr) override {

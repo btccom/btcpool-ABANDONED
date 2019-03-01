@@ -58,10 +58,10 @@ void StratumSessionBytom::rpc2ResponseBoolean(
 }
 
 void StratumSessionBytom::sendSetDifficulty(
-    LocalJob &localJob, uint64_t difficulty) {
+    shared_ptr<LocalJob> localJob, uint64_t difficulty) {
   // Bytom has no set difficulty method, but will change the target directly
-  static_cast<StratumTraitsBytom::LocalJobType &>(localJob).jobDifficulty_ =
-      difficulty;
+  std::static_pointer_cast<StratumTraitsBytom::LocalJobType>(localJob)
+      ->jobDifficulty_ = difficulty;
 }
 
 void StratumSessionBytom::sendMiningNotify(
@@ -88,9 +88,9 @@ void StratumSessionBytom::sendMiningNotify(
   if (nullptr == sJob)
     return;
 
-  auto &ljob = addLocalJob(sJob->jobId_, shortJobId_++);
+  auto ljob = addLocalJob(sJob->jobId_, shortJobId_++);
   uint64_t jobDifficulty = server.isDevModeEnable_ ? server.devFixedDifficulty_
-                                                   : ljob.jobDifficulty_;
+                                                   : ljob->jobDifficulty_;
   if (jobDifficulty == 0)
     jobDifficulty = server.isDevModeEnable_
         ? 1
@@ -140,7 +140,7 @@ void StratumSessionBytom::sendMiningNotify(
       sJob->blockHeader_.transactionStatusHash.c_str(),
       nonceStr.c_str(),
       bitsStr.c_str(),
-      ljob.shortJobId_,
+      ljob->shortJobId_,
       sJob->seed_.c_str(),
       targetStr.c_str());
 
@@ -155,8 +155,8 @@ void StratumSessionBytom::sendMiningNotify(
         "{\"jsonrpc\": \"2.0\", \"method\":\"job\", \"params\": %s}",
         jobString.c_str());
   }
-  // LOG(INFO) << "Difficulty: " << ljob.jobDifficulty_ << "\nsendMiningNotify "
-  // << notifyStr.c_str();
+  // LOG(INFO) << "Difficulty: " << ljob->jobDifficulty_ << "\nsendMiningNotify
+  // " << notifyStr.c_str();
   sendData(notifyStr);
 }
 

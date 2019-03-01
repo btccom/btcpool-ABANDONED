@@ -67,13 +67,13 @@ void StratumSessionBitcoin::sendMiningNotify(
   }
   auto sjob = std::static_pointer_cast<StratumJobBitcoin>(exJob->sjob_);
 
-  auto &ljob = addLocalJob(sjob->jobId_, allocShortJobId(), sjob->nBits_);
+  auto ljob = addLocalJob(sjob->jobId_, allocShortJobId(), sjob->nBits_);
 
 #ifdef USER_DEFINED_COINBASE
   // add the User's coinbaseInfo to the coinbase1's tail
   string userCoinbaseInfo =
       GetServer()->userInfo_->getCoinbaseInfo(worker_.userId_);
-  ljob.userCoinbaseInfo_ = userCoinbaseInfo;
+  ljob->userCoinbaseInfo_ = userCoinbaseInfo;
 #endif
 
   string notifyStr;
@@ -89,10 +89,10 @@ void StratumSessionBitcoin::sendMiningNotify(
     // short Job ID
     //
     const uint64_t niceHashJobId =
-        (uint64_t)time(nullptr) * 10 + ljob.shortJobId_;
+        (uint64_t)time(nullptr) * 10 + ljob->shortJobId_;
     notifyStr.append(Strings::Format("% " PRIu64 "", niceHashJobId));
   } else {
-    notifyStr.append(Strings::Format("%u", ljob.shortJobId_)); // short jobId
+    notifyStr.append(Strings::Format("%u", ljob->shortJobId_)); // short jobId
   }
 
   // notify2
@@ -103,8 +103,8 @@ void StratumSessionBitcoin::sendMiningNotify(
 #ifdef USER_DEFINED_COINBASE
   string userCoinbaseHex;
   Bin2Hex(
-      (const uint8_t *)ljob.userCoinbaseInfo_.c_str(),
-      ljob.userCoinbaseInfo_.size(),
+      (const uint8_t *)ljob->userCoinbaseInfo_.c_str(),
+      ljob->userCoinbaseInfo_.size(),
       userCoinbaseHex);
   // replace the last `userCoinbaseHex.size()` bytes to `userCoinbaseHex`
   coinbase1.replace(

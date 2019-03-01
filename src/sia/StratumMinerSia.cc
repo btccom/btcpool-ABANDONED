@@ -110,7 +110,7 @@ void StratumMinerSia::handleRequest_Submit(
   DLOG(INFO) << str;
 
   uint8_t shortJobId = (uint8_t)atoi(params[1].str());
-  LocalJob *localJob = session.findLocalJob(shortJobId);
+  auto localJob = session.findLocalJob(shortJobId);
   if (nullptr == localJob) {
     session.responseError(idStr, StratumStatus::JOB_NOT_FOUND);
     LOG(ERROR) << "sia local job not found " << (int)shortJobId;

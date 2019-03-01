@@ -66,11 +66,12 @@ void StratumMessageNullDispatcher::resetCurDiff(uint64_t curDiff) {
   NULL_DISPATCHER_LOG;
 }
 
-void StratumMessageNullDispatcher::addLocalJob(LocalJob &localJob) {
+void StratumMessageNullDispatcher::addLocalJob(shared_ptr<LocalJob> localJob) {
   NULL_DISPATCHER_LOG;
 }
 
-void StratumMessageNullDispatcher::removeLocalJob(LocalJob &localJob) {
+void StratumMessageNullDispatcher::removeLocalJob(
+    shared_ptr<LocalJob> localJob) {
   NULL_DISPATCHER_LOG;
 }
 
@@ -111,7 +112,7 @@ void StratumMessageMinerDispatcher::resetCurDiff(uint64_t curDiff) {
   miner_->resetCurDiff(curDiff);
 }
 
-void StratumMessageMinerDispatcher::addLocalJob(LocalJob &localJob) {
+void StratumMessageMinerDispatcher::addLocalJob(shared_ptr<LocalJob> localJob) {
   auto oldDiff = miner_->getCurDiff();
   auto newDiff = miner_->addLocalJob(localJob);
   if (newDiff != oldDiff) {
@@ -119,7 +120,8 @@ void StratumMessageMinerDispatcher::addLocalJob(LocalJob &localJob) {
   }
 }
 
-void StratumMessageMinerDispatcher::removeLocalJob(LocalJob &localJob) {
+void StratumMessageMinerDispatcher::removeLocalJob(
+    shared_ptr<LocalJob> localJob) {
   miner_->removeLocalJob(localJob);
 }
 
@@ -193,7 +195,7 @@ void StratumMessageAgentDispatcher::resetCurDiff(uint64_t curDiff) {
   }
 }
 
-void StratumMessageAgentDispatcher::addLocalJob(LocalJob &localJob) {
+void StratumMessageAgentDispatcher::addLocalJob(shared_ptr<LocalJob> localJob) {
   uint64_t agentDiff = diffController_->calcCurDiff();
   if (agentDiff != curDiff_) {
     session_.sendSetDifficulty(localJob, agentDiff);
@@ -227,7 +229,8 @@ void StratumMessageAgentDispatcher::addLocalJob(LocalJob &localJob) {
   }
 }
 
-void StratumMessageAgentDispatcher::removeLocalJob(LocalJob &localJob) {
+void StratumMessageAgentDispatcher::removeLocalJob(
+    shared_ptr<LocalJob> localJob) {
   for (auto &p : miners_) {
     p.second->removeLocalJob(localJob);
   }

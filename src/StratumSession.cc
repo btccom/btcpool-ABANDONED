@@ -483,7 +483,7 @@ void StratumSession::responseAuthorized(const std::string &idStr) {
 }
 
 void StratumSession::sendSetDifficulty(
-    LocalJob &localJob, uint64_t difficulty) {
+    shared_ptr<LocalJob> localJob, uint64_t difficulty) {
   string s;
   if (!server_.isDevModeEnable_) {
     s = Strings::Format(

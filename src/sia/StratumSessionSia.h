@@ -35,7 +35,8 @@ public:
       struct bufferevent *bev,
       struct sockaddr *saddr,
       uint32_t extraNonce1);
-  void sendSetDifficulty(LocalJob &localJob, uint64_t difficulty) override;
+  void sendSetDifficulty(
+      shared_ptr<LocalJob> localJob, uint64_t difficulty) override;
   void
   sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) override;
 

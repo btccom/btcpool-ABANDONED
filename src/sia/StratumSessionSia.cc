@@ -42,9 +42,9 @@ StratumSessionSia::StratumSessionSia(
 }
 
 void StratumSessionSia::sendSetDifficulty(
-    LocalJob &localJob, uint64_t difficulty) {
-  static_cast<StratumTraitsSia::LocalJobType &>(localJob).jobDifficulty_ =
-      difficulty;
+    shared_ptr<LocalJob> localJob, uint64_t difficulty) {
+  std::static_pointer_cast<StratumTraitsSia::LocalJobType>(localJob)
+      ->jobDifficulty_ = difficulty;
 }
 
 void StratumSessionSia::sendMiningNotify(
@@ -65,8 +65,8 @@ void StratumSessionSia::sendMiningNotify(
     return;
   }
 
-  auto &ljob = addLocalJob(siaJob->jobId_, shortJobId_++);
-  uint64_t jobDifficulty = ljob.jobDifficulty_;
+  auto ljob = addLocalJob(siaJob->jobId_, shortJobId_++);
+  uint64_t jobDifficulty = ljob->jobDifficulty_;
   uint256 shareTarget;
   if (jobDifficulty == 0) {
     shareTarget = siaJob->networkTarget_;
@@ -80,7 +80,7 @@ void StratumSessionSia::sendMiningNotify(
   const string strNotify = Strings::Format(
       "{\"id\":6,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
       "\"params\":[\"%u\",\"0x%s\",\"0x%s\"]}\n",
-      ljob.shortJobId_,
+      ljob->shortJobId_,
       siaJob->blockHashForMergedMining_.c_str(),
       strShareTarget.c_str());
 

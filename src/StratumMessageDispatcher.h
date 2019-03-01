@@ -39,6 +39,8 @@ class StratumMiner;
 class DiffController;
 struct LocalJob;
 
+using std::shared_ptr;
+
 class StratumMessageDispatcher {
 public:
   virtual ~StratumMessageDispatcher() = default;
@@ -53,8 +55,8 @@ public:
   virtual void responseShareError(const std::string &idStr, int32_t status) = 0;
   virtual void setMinDiff(uint64_t minDiff) = 0;
   virtual void resetCurDiff(uint64_t curDiff) = 0;
-  virtual void addLocalJob(LocalJob &localJob) = 0;
-  virtual void removeLocalJob(LocalJob &localJob) = 0;
+  virtual void addLocalJob(shared_ptr<LocalJob> localJob) = 0;
+  virtual void removeLocalJob(shared_ptr<LocalJob> localJob) = 0;
 };
 
 class StratumMessageNullDispatcher : public StratumMessageDispatcher {
@@ -69,8 +71,8 @@ public:
   void responseShareError(const std::string &idStr, int32_t status) override;
   void setMinDiff(uint64_t minDiff) override;
   void resetCurDiff(uint64_t curDiff) override;
-  void addLocalJob(LocalJob &localJob) override;
-  void removeLocalJob(LocalJob &localJob) override;
+  void addLocalJob(shared_ptr<LocalJob> localJob) override;
+  void removeLocalJob(shared_ptr<LocalJob> localJob) override;
 };
 
 class StratumMessageMinerDispatcher : public StratumMessageDispatcher {
@@ -88,8 +90,8 @@ public:
   void responseShareError(const std::string &idStr, int32_t status) override;
   void setMinDiff(uint64_t minDiff) override;
   void resetCurDiff(uint64_t curDiff) override;
-  void addLocalJob(LocalJob &localJob) override;
-  void removeLocalJob(LocalJob &localJob) override;
+  void addLocalJob(shared_ptr<LocalJob> localJob) override;
+  void removeLocalJob(shared_ptr<LocalJob> localJob) override;
 
 protected:
   IStratumSession &session_;
@@ -112,8 +114,8 @@ public:
   void responseShareError(const std::string &idStr, int32_t status) override {}
   void setMinDiff(uint64_t minDiff) override;
   void resetCurDiff(uint64_t curDiff) override;
-  void addLocalJob(LocalJob &localJob) override;
-  void removeLocalJob(LocalJob &localJob) override;
+  void addLocalJob(shared_ptr<LocalJob> localJob) override;
+  void removeLocalJob(shared_ptr<LocalJob> localJob) override;
 
 protected:
   void handleExMessage_RegisterWorker(const std::string &exMessage);
