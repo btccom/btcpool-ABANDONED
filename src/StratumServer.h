@@ -108,7 +108,6 @@ public:
 class JobRepository {
 protected:
   atomic<bool> running_;
-  mutex lock_;
   std::map<uint64_t /* jobId */, shared_ptr<StratumJobEx>> exJobs_;
 
   KafkaConsumer kafkaConsumer_; // consume topic: 'StratumJob'
@@ -270,7 +269,6 @@ class Server {
   struct event *signal_event_;
   struct evconnlistener *listener_;
   std::set<unique_ptr<StratumSession>> connections_;
-  mutex connsLock_;
 
 public:
   // kafka producers
@@ -320,6 +318,9 @@ public:
   bool setup(StratumServer *sserver);
   void run();
   void stop();
+
+  // Dispatch the task to the libevent loop
+  void dispatch(std::function<void()> task);
 
   void sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr);
 

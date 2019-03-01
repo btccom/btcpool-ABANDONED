@@ -89,19 +89,16 @@ void JobRepositoryBitcoin::broadcastStratumJob(
   // this flag is set, miner should also drop all previous jobs.
   //
   shared_ptr<StratumJobEx> exJob(createStratumJobEx(sjob, isClean));
-  {
-    ScopeLock sl(lock_);
 
-    if (isClean) {
-      // mark all jobs as stale, should do this before insert new job
-      for (auto it : exJobs_) {
-        it.second->markStale();
-      }
+  if (isClean) {
+    // mark all jobs as stale, should do this before insert new job
+    for (auto it : exJobs_) {
+      it.second->markStale();
     }
-
-    // insert new job
-    exJobs_[sjob->jobId_] = exJob;
   }
+
+  // insert new job
+  exJobs_[sjob->jobId_] = exJob;
 
   // if job has clean flag, call server to send job
   if (isClean || isMergedMiningClean) {
