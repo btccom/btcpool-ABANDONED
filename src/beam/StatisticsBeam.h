@@ -34,23 +34,28 @@
 struct GlobalShareBeam {
   uint64_t inputPrefix_;
   uint64_t nonce_;
+  uint32_t outputHash_;
 
   GlobalShareBeam() = default;
 
   GlobalShareBeam(const ShareBeam &share)
     : inputPrefix_(share.inputprefix())
-    , nonce_(share.nonce()) {}
+    , nonce_(share.nonce())
+    , outputHash_(share.outputhash()) {}
 
   GlobalShareBeam &operator=(const GlobalShareBeam &r) = default;
 
   bool operator<(const GlobalShareBeam &r) const {
     if (inputPrefix_ < r.inputPrefix_ ||
-        (inputPrefix_ == r.inputPrefix_ && nonce_ < r.nonce_)) {
+        (inputPrefix_ == r.inputPrefix_ && nonce_ < r.nonce_) ||
+        (inputPrefix_ == r.inputPrefix_ && nonce_ == r.nonce_ &&
+         outputHash_ < r.outputHash_)) {
       return true;
     }
     return false;
   }
 };
+
 ////////////////////////////  Alias  ////////////////////////////
 using DuplicateShareCheckerBeam =
     DuplicateShareCheckerT<ShareBeam, GlobalShareBeam>;

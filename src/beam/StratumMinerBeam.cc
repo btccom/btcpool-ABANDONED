@@ -93,8 +93,11 @@ void StratumMinerBeam::handleRequest_Submit(
   }
   auto sjob = std::static_pointer_cast<StratumJobBeam>(exjob->sjob_);
 
-  // Used to prevent duplicate shares. (sHeader has a prefix "0x")
+  // Used to prevent duplicate shares.
+  // Note: The same (input, nonce) may have multiple different and valid
+  // outputs.
   uint64_t inputPrefix = stoull(sjob->input_.substr(0, 16), nullptr, 16);
+  uint32_t outputHash = djb2(output.c_str());
 
   auto iter = jobDiffs_.find(localJob);
   if (iter == jobDiffs_.end()) {
@@ -115,11 +118,12 @@ void StratumMinerBeam::handleRequest_Submit(
   share.set_height(sjob->height_);
   share.set_nonce(nonce);
   share.set_sessionid(sessionId);
+  share.set_outputhash(outputHash);
   IpAddress ip;
   ip.fromIpv4Int(session.getClientIp());
   share.set_ip(ip.toString());
 
-  LocalShare localShare(nonce, 0, 0);
+  LocalShare localShare(nonce, outputHash, 0);
   // can't add local share
   if (!localJob->addLocalShare(localShare)) {
     session.responseFalse(idStr, StratumStatus::DUPLICATE_SHARE);

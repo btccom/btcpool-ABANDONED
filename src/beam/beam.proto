@@ -38,4 +38,5 @@ message BeamMsg{
   optional uint32 height = 10;
   optional uint64 nonce = 11;
   optional uint32 sessionid = 12;
+  optional uint32 outputhash = 13;
 }
