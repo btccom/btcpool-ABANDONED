@@ -190,7 +190,6 @@ void StratumMinerBytom::handleRequest_Submit(
   ShareBytom share;
   //  ShareBase portion
   share.set_version(ShareBytom::CURRENT_VERSION);
-  //  TODO: not set: share.checkSum_
   share.set_workerhashid(workerId_);
   share.set_userid(worker.userId(exjob->chainId_));
   share.set_status(StratumStatus::REJECT_NO_REASON);

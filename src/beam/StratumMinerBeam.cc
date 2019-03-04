@@ -114,7 +114,7 @@ void StratumMinerBeam::handleRequest_Submit(
   share.set_status(StratumStatus::REJECT_NO_REASON);
   share.set_height(sjob->height_);
   share.set_nonce(nonce);
-  share.set_sessionid(sessionId); // TODO: fix it, set as real session id.
+  share.set_sessionid(sessionId);
   IpAddress ip;
   ip.fromIpv4Int(session.getClientIp());
   share.set_ip(ip.toString());

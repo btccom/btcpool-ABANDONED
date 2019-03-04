@@ -204,7 +204,7 @@ void StratumMinerEth::handleRequest_Submit(
   share.set_status(StratumStatus::REJECT_NO_REASON);
   share.set_height(height);
   share.set_nonce(nonce);
-  share.set_sessionid(extraNonce1); // TODO: fix it, set as real session id.
+  share.set_sessionid(extraNonce1);
   IpAddress ip;
   ip.fromIpv4Int(session.getClientIp());
   share.set_ip(ip.toString());

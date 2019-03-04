@@ -115,7 +115,7 @@ JobRepository::JobRepository(
   , server_(server)
   , fileLastNotifyTime_(fileLastNotifyTime)
   , kMaxJobsLifeTime_(300)
-  , kMiningNotifyInterval_(30) // TODO: make as config arg
+  , kMiningNotifyInterval_(30)
   , lastJobSendTime_(0)
   , lastJobId_(0) {
   assert(kMiningNotifyInterval_ < kMaxJobsLifeTime_);
