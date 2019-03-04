@@ -75,6 +75,7 @@ bool MySQLConnection::open() {
   conn = mysql_init(NULL);
   if (!conn) {
     LOG(ERROR) << "create MYSQL failed";
+    return false;
   }
   if (mysql_real_connect(
           conn,
