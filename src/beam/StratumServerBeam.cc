@@ -81,7 +81,13 @@ void JobRepositoryBeam::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
   exJobs_[sjobBeam->jobId_] = exJob;
 
   // send job
-  sendMiningNotify(exJob);
+  if (isClean) {
+    //  we will send jobs:
+    // - when there is a new height (here)
+    // - when mining notify interval expires (in
+    //   JobRepository::checkAndSendMiningNotify())
+    sendMiningNotify(exJob);
+  }
 }
 
 JobRepositoryBeam::~JobRepositoryBeam() {
@@ -121,8 +127,9 @@ void ServerBeam::checkAndUpdateShare(
   }
 
   beam::Difficulty::Raw shareHash;
-  if (!Beam_ComputeHash(sjob->input_, share.nonce(), output, shareHash) &&
-      !isEnableSimulator_) {
+  bool isValidSulution =
+      Beam_ComputeHash(sjob->input_, share.nonce(), output, shareHash);
+  if (!isValidSulution && !isEnableSimulator_) {
     share.set_status(StratumStatus::INVALID_SOLUTION);
     return;
   }
@@ -135,15 +142,19 @@ void ServerBeam::checkAndUpdateShare(
              << ", network target: " << networkTarget.GetHex();
 
   // print out high diff share
+  // Invalid solution can easily reach the network target, so it should be
+  // excluded to prevent too many high diff and solved shares when
+  // isEnableSimulator_ enabled.
   beam::Difficulty highDiff;
   highDiff.Pack((uint64_t)(networkDiff.ToFloat() / 1024));
-  if (highDiff.IsTargetReached(shareHash)) {
+  if (isValidSulution && highDiff.IsTargetReached(shareHash)) {
     LOG(INFO) << "high diff share, share hash: " << computedShareHash.GetHex()
               << ", network target: " << networkTarget.GetHex()
               << ", worker: " << workFullName;
   }
 
-  if (isSubmitInvalidBlock_ || networkDiff.IsTargetReached(shareHash)) {
+  if (isSubmitInvalidBlock_ ||
+      (isValidSulution && networkDiff.IsTargetReached(shareHash))) {
     LOG(INFO) << "solution found, share hash: " << computedShareHash.GetHex()
               << ", network target: " << networkTarget.GetHex()
               << ", worker: " << workFullName;
