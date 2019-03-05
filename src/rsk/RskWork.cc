@@ -162,5 +162,10 @@ void RskWorkEth::initialize(JsonNode &work) {
   uncles_ = work["uncles"].uint32();
   transactions_ = work["transactions"].uint32();
   gasUsedPercent_ = work["gasUsedPercent"].real();
+
+  if (work["header"].type() == Utilities::JS::type::Str) {
+    header_ = work["header"].str();
+  }
+
   initialized_ = true;
 }

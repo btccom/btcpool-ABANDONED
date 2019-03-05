@@ -84,7 +84,7 @@ void StratumSessionEth::sendMiningNotifyWithId(
     return;
   }
 
-  string header = ethJob->headerHash_;
+  string header = ethJob->getHeaderHashWithExtraNonce(sessionId_);
   string seed = ethJob->seedHash_;
 
   // strip prefix "0x"

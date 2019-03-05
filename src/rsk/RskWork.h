@@ -80,6 +80,7 @@ class RskWorkEth : public RskWork {
   uint32_t uncles_;
   uint32_t transactions_;
   float gasUsedPercent_;
+  string header_;
 
 public:
   string getSeedHash() const { return seedHash_; }
@@ -88,6 +89,7 @@ public:
   uint32_t getUncles() const { return uncles_; }
   uint32_t getTransactions() const { return transactions_; }
   float getGasUsedPercent() const { return gasUsedPercent_; }
+  const string &getHeader() const { return header_; }
 };
 
 #endif

@@ -247,12 +247,13 @@ void StratumMinerEth::handleRequest_Submit(
       server.sendSolvedShare2Kafka(
           localJob->chainId_,
           sNonce,
-          sHeader,
+          sjob->headerHash_,
           shareMixHash.GetHex(),
           height,
           networkDiff,
           worker,
-          chain);
+          chain,
+          boost::make_optional(!sjob->header_.empty(), extraNonce1));
       // mark jobs as stale
       server.GetJobRepository(exjob->chainId_)->markAllJobsAsStale();
     }

@@ -513,10 +513,12 @@ void ServerEth::sendSolvedShare2Kafka(
     const uint32_t height,
     const uint64_t networkDiff,
     const StratumWorker &worker,
-    const EthConsensus::Chain chain) {
+    const EthConsensus::Chain chain,
+    const boost::optional<uint32_t> &sessionId) {
   string msg = Strings::Format(
       "{\"nonce\":\"%s\",\"header\":\"%s\",\"mix\":\"%s\","
       "\"height\":%lu,\"networkDiff\":%" PRIu64
+      "%s"
       ",\"userId\":%ld,"
       "\"workerId\":%" PRId64
       ",\"workerFullName\":\"%s\","
@@ -526,10 +528,14 @@ void ServerEth::sendSolvedShare2Kafka(
       strMix.c_str(),
       height,
       networkDiff,
+      sessionId
+          ? Strings::Format(",\"extraNonce\":%" PRIu32, *sessionId).c_str()
+          : "",
       worker.userId(chainId),
       worker.workerHashId_,
       filterWorkerName(worker.fullName_).c_str(),
       EthConsensus::getChainStr(chain).c_str());
+  LOG(INFO) << "sending solved share: " << msg;
   ServerBase::sendSolvedShare2Kafka(chainId, msg.c_str(), msg.length());
 }
 

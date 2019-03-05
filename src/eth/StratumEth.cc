@@ -27,6 +27,9 @@
 #include <glog/logging.h>
 
 #include "bitcoin/CommonBitcoin.h"
+#include "libethash/sha3.h"
+
+#include <boost/endian/buffers.hpp>
 
 ///////////////////////////////StratumJobEth///////////////////////////
 StratumJobEth::StratumJobEth() {
@@ -50,6 +53,8 @@ bool StratumJobEth::initFromGw(
 
     rpcAddress_ = work.getRpcAddress();
     rpcUserPwd_ = work.getRpcUserPwd();
+
+    header_ = work.getHeader();
 
     // generate job id
     string header = headerHash_.substr(2, 64);
@@ -77,6 +82,8 @@ string StratumJobEth::serializeToJson() const {
       ",\"transactions\":\"%u\""
       ",\"gasUsedPercent\":\"%f\""
 
+      "%s"
+
       ",\"rpcAddress\":\"%s\""
       ",\"rpcUserPwd\":\"%s\""
 
@@ -101,6 +108,10 @@ string StratumJobEth::serializeToJson() const {
       uncles_,
       transactions_,
       gasUsedPercent_,
+
+      header_.empty()
+          ? ""
+          : Strings::Format(",\"header\":\"%s\"", header_.c_str()).c_str(),
 
       rpcAddress_.c_str(),
       rpcUserPwd_.c_str(),
@@ -143,6 +154,15 @@ bool StratumJobEth::unserializeFromJson(const char *s, size_t len) {
     gasUsedPercent_ = j["gasUsedPercent"].real();
   }
 
+  if (j["header"].type() == Utilities::JS::type::Str) {
+    header_ = HexStripPrefix(j["header"].str());
+    if (IsHex(header_)) {
+      headerBin_ = ParseHex(header_);
+    } else {
+      header_.clear();
+    }
+  }
+
   if (j["rpcAddress"].type() == Utilities::JS::type::Str &&
       j["rpcUserPwd"].type() == Utilities::JS::type::Str) {
     rpcAddress_ = j["rpcAddress"].str();
@@ -150,4 +170,18 @@ bool StratumJobEth::unserializeFromJson(const char *s, size_t len) {
   }
 
   return true;
+}
+
+string StratumJobEth::getHeaderHashWithExtraNonce(uint32_t extraNonce) const {
+  if (header_.empty()) {
+    return headerHash_;
+  } else {
+    boost::endian::little_uint32_buf_t extraNonceBuf{extraNonce};
+    std::copy_n(extraNonceBuf.data(), 4, headerBin_.rbegin());
+    uint8_t hash[32];
+    sha3_256(hash, 32, headerBin_.data(), headerBin_.size());
+    string headerHash;
+    Bin2Hex(hash, 32, headerHash);
+    return headerHash;
+  }
 }

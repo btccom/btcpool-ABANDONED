@@ -313,6 +313,8 @@ public:
       EthConsensus::Chain chain,
       uint8_t serverId);
 
+  string getHeaderHashWithExtraNonce(uint32_t extraNonce) const;
+
   EthConsensus::Chain chain_ = EthConsensus::Chain::UNKNOWN;
   uint32_t height_ = 0;
   string parent_;
@@ -324,6 +326,9 @@ public:
   uint32_t uncles_ = 0;
   uint32_t transactions_ = 0;
   float gasUsedPercent_ = 0.0;
+
+  string header_;
+  mutable vector<uint8_t> headerBin_;
 
   string rpcAddress_;
   string rpcUserPwd_;

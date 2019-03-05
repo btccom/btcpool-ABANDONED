@@ -211,6 +211,14 @@ string GwMakerHandlerEth::constructRawMsg(JsonNode &r) {
     uncles = strtoll(work[8].str().c_str(), nullptr, 16);
   }
 
+  // This field is RLP encoded header with additional 4 bytes at the end of
+  // extra data to be filled by sserver
+  string header;
+  if (work.size() >= 10 && work[9].type() == Utilities::JS::type::Str) {
+    LOG(INFO) << "header for extra nonce: " << work[9];
+    header = Strings::Format(",\"header\":\"%s\"", work[9].str().c_str());
+  }
+
   LOG(INFO) << "chain: " << def_.chainType_ << ", topic: " << def_.rawGwTopic_
             << ", parent: " << parentHash << ", target: " << work[2].str()
             << ", hHash: " << work[0].str() << ", sHash: " << work[1].str()
@@ -234,6 +242,7 @@ string GwMakerHandlerEth::constructRawMsg(JsonNode &r) {
       "\"uncles\":%lu,"
       "\"transactions\":%lu,"
       "\"gasUsedPercent\":%f"
+      "%s"
       "}",
       (uint32_t)time(nullptr),
       def_.chainType_.c_str(),
@@ -246,7 +255,8 @@ string GwMakerHandlerEth::constructRawMsg(JsonNode &r) {
       height,
       uncles,
       transactions,
-      gasUsedPercent);
+      gasUsedPercent,
+      header.c_str());
 }
 
 string GwMakerHandlerEth::getBlockHeight() {
