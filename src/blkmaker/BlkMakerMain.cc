@@ -21,32 +21,38 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
 */
+
+//#include "bitcoin/BlockMakerBitcoin.h"
+//#include "eth/BlockMakerEth.h"
+//#include "bytom/BlockMakerBytom.h"
+//#include "sia/BlockMakerSia.h"
+//#include "decred/BlockMakerDecred.h"
+
+#include "BlockMakerZCash.h"
+
+
+
+#include "Utils.h"
+#include "config/bpool-version.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <signal.h>
 #include <err.h>
 #include <errno.h>
 #include <unistd.h>
-
 #include <iostream>
-
 #include <boost/interprocess/sync/file_lock.hpp>
 #include <glog/logging.h>
 #include <libconfig.h++>
-
-#include "config/bpool-version.h"
-#include "Utils.h"
-
-#include "bitcoin/BlockMakerBitcoin.h"
-#include "eth/BlockMakerEth.h"
-#include "bytom/BlockMakerBytom.h"
-#include "sia/BlockMakerSia.h"
-#include "decred/BlockMakerDecred.h"
-
+/////////////////////////////////////////////////////////
 using namespace std;
 using namespace libconfig;
 
+/////////////////////////////////////////////////////////
 vector<shared_ptr<BlockMaker>> makers;// *gBlockMaker = nullptr;
+
+
 
 void handler(int sig) {
   for (auto maker: makers) {
@@ -60,35 +66,37 @@ void usage() {
   fprintf(stderr, "Usage:\tblkmaker -c \"blkmaker.cfg\" [-l <log_dir|stderr>]\n");
 }
 
-// BlockMaker* createBlockMaker(Config& cfg, MysqlConnectInfo* poolDBInfo) {
-//   string type = cfg.lookup("blockmaker.type");
-//   string broker = cfg.lookup("kafka.brokers");
+/////////////////////////////////////////////////////////
+BlockMaker* createBlockMaker(shared_ptr<BlockMakerDefinition> def, \
+                             const string& broker, \
+                             MysqlConnectInfo* poolDBInfo)
+{
+    BlockMaker *maker = nullptr;
 
-//   BlockMaker *maker = nullptr;
-//   if ("BTC" == type) 
-//     maker = new BlockMaker(broker.c_str(), *poolDBInfo);
-//   else
-//     maker = new BlockMakerEth(broker.c_str(), *poolDBInfo);
+#ifndef CHAIN_TYPE_STR
+    if ("ETH" == def->chainType_) {
+        maker = new BlockMakerEth(def, broker.c_str(), *poolDBInfo);
+    }
+    else if ("SIA" == def->chainType_) {
+        maker = new BlockMakerSia(def, broker.c_str(), *poolDBInfo);
+    }
+    else if ("BTM" == def->chainType_) {
+        maker = new BlockMakerBytom(def, broker.c_str(), *poolDBInfo);
+    }
+    else if ("DCR" == def->chainType_) {
+        maker = new BlockMakerDecred(def, broker.c_str(), *poolDBInfo);
+    }
+    else if ("ZEC" == def->chainType_) {
+        maker = new BlockMakerZCash(def, broker.c_str(), *poolDBInfo);
+    }
+    else {
+        maker = new BlockMakerBitcoin(def, broker.c_str(), *poolDBInfo);
+    }
+#endif
 
-//   return maker;
-// }
-
-BlockMaker* createBlockMaker(shared_ptr<BlockMakerDefinition> def, const string& broker, MysqlConnectInfo* poolDBInfo) {
-  BlockMaker *maker = nullptr;
-#if defined(CHAIN_TYPE_STR)
-  if (CHAIN_TYPE_STR == def->chainType_)
-#else 
-  if (false)
-#endif  
-    maker = new BlockMakerBitcoin(def, broker.c_str(), *poolDBInfo);
-  else if ("ETH" == def->chainType_) 
-    maker = new BlockMakerEth(def, broker.c_str(), *poolDBInfo);
-  else if ("SIA" == def->chainType_)
-    maker = new BlockMakerSia(def, broker.c_str(), *poolDBInfo);
-  else if ("BTM" == def->chainType_)
-    maker = new BlockMakerBytom(def, broker.c_str(), *poolDBInfo);
-  else if ("DCR" == def->chainType_)
-    maker = new BlockMakerDecred(def, broker.c_str(), *poolDBInfo);
+#ifdef CHAIN_TYPE_ZEC
+    maker = new BlockMakerZCash(def, broker.c_str(), *poolDBInfo);
+#endif
 
   return maker;
 }
@@ -137,24 +145,6 @@ shared_ptr<BlockMakerDefinition> createDefinition(const Setting &setting)
 
   return def;
 }
-
-// shared_ptr<BlockMakerHandler> createBlockMakerHandler(const BlockMakerDefinition &def)
-// {
-//   shared_ptr<BlockMakerHandler> handler;
-
-//   if (def->chainType_ == "ETH")
-//     handler = make_shared<BlockMakerHandler>();
-//   else if (def->chainType_ == "SIA")
-//     handler = make_shared<BlockMakerHandler>();
-//   else if (def->chainType_ == "RSK")
-//     handler = make_shared<BlockMakerHandler>();
-//   else
-//     LOG(FATAL) << "unknown chain type: " << def->chainType_;
-
-//   handler->init(def);
-
-//   return handler;
-// }
 
 void createBlockMakers(const libconfig::Config &cfg, MysqlConnectInfo* poolDBInfo)
 {

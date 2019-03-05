@@ -129,7 +129,34 @@ elseif(CHAIN_TYPE STREQUAL "LTC")
     add_definitions(-DCHAIN_TYPE_STR="LTC")
     add_definitions(-DKAFKA_TOPIC_PREFIX="LTC_")
     add_definitions(-DZOOKEEPER_NODE_POSTFIX="_ltc")
+# ZCash
+elseif(CHAIN_TYPE STREQUAL "ZEC")
+    set(CHAIN_NAME "ZCash")
+    set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-zcash")
+    set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.zec")
 
+    add_definitions(-DINCLUDE_BTC_KEY_IO_H)
+    add_definitions(-DCHAIN_TYPE_ZEC)
+    add_definitions(-DCHAIN_TYPE_STR="ZEC")
+    add_definitions(-DKAFKA_TOPIC_PREFIX="ZEC_")
+    add_definitions(-DZOOKEEPER_NODE_POSTFIX="_zec")
+
+    file(GLOB LIB_SOURCES_CHAINS "src/zcash/*.cc")
+    include_directories("src/zcash")
+    include_directories("${CHAIN_SRC_ROOT}/src/snark/libsnark")
+    include_directories("${CHAIN_SRC_ROOT}/depends/x86_64-unknown-linux-gnu/include")
+    link_directories("${CHAIN_SRC_ROOT}/depends/x86_64-unknown-linux-gnu/lib")
+
+    FIND_PACKAGE(OpenMP)
+    if(OPENMP_FOUND)
+        message("OPENMP FOUND")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+    endif()
+    include_directories(SYSTEM ${OpenMP_INCLUDE_PATH})
+
+#     add_definitions(-DCURVE_BN128)
 # Unknown
 else()
   message("Unknown chain type! (-DCHAIN_TYPE=${CHAIN_TYPE})")
@@ -275,6 +302,21 @@ set(BITCOIN_LIBRARIES ${BITCOIN_LIBRARIES}
 else()
 set(BITCOIN_LIBRARIES ${BITCOIN_LIBRARIES}
   "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto.a")
+endif()
+
+## zcash uses different names of libs
+if(CHAIN_TYPE STREQUAL "ZEC")
+set(BITCOIN_LIBRARIES
+    "${CHAIN_SRC_ROOT}/src/libbitcoin_common.a"
+    "${CHAIN_SRC_ROOT}/src/libbitcoin_util.a"
+    "${CHAIN_SRC_ROOT}/src/libzcash.a"
+    "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto.a"
+    "${CHAIN_SRC_ROOT}/src/snark/libsnark.a"
+#    "${CHAIN_SRC_ROOT}/src/univalue/.libs/libunivalue.a"
+
+#    "${CHAIN_SRC_ROOT}/depends/x86_64-unknown-linux-gnu/lib/libcrypto.a"
+    "${CHAIN_SRC_ROOT}/depends/x86_64-unknown-linux-gnu/lib/libsodium.a"
+    "${CHAIN_SRC_ROOT}/depends/x86_64-unknown-linux-gnu/lib/librustzcash.a")
 endif()
 
 list(GET BITCOIN_LIBRARIES 0 BITCOIN_LIBRARIE)
@@ -442,40 +484,44 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/src src test ${CHAIN_SRC_ROOT}/s
                     ${LIBEVENT_INCLUDE_DIR} ${USE_CUDA_INCLUDE_DIRECTORY} ${BH_SHARED_INCLUDE_DIR} ${MYSQL_INCLUDE_DIR})
 
 set(THIRD_LIBRARIES ethash blake2 sph ${BH_SHARED_LIBRARY} ${USE_CUDA_LIBRARIES}
-                    ${BITCOIN_LIBRARIES} ${secp256k1_LIBRARIES} ${GLOG_LIBRARIES} ${KAFKA_LIBRARIES} ${ZLIB_LIBRARIES} ${ZOOKEEPER_LIBRARIES}
-                    ${MYSQL_LIBRARIES} ${LIBZMQ_LIBRARIES} ${Hiredis_LIBRARIES} ${CURL_LIBRARIES} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY}
-                    ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB} ${GMP_LIBRARIES} ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} ${PTHREAD_LIBRARIES} ${PROTOBUF_LIBRARIES})
+                    ${BITCOIN_LIBRARIES} ${secp256k1_LIBRARIES} ${GLOG_LIBRARIES}
+                    ${KAFKA_LIBRARIES} ${ZLIB_LIBRARIES} ${ZOOKEEPER_LIBRARIES}
+                    ${MYSQL_LIBRARIES} ${LIBZMQ_LIBRARIES} ${Hiredis_LIBRARIES}
+                    ${CURL_LIBRARIES} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY}
+                    ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB} ${GMP_LIBRARIES}
+                    ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} ${PTHREAD_LIBRARIES}
+                    ${PROTOBUF_LIBRARIES})
 
 file(GLOB LIB_SOURCES
         src/*.cc
         src/rsk/*.cc
 
     )
-file(GLOB LIB_SOURCES_CHAINS
-        src/eth/*.cc
-        src/bytom/*.cc 
-        src/bitcoin/*.cc 
-        src/sia/*.cc
-        src/decred/*.cc
-    )
+#file(GLOB LIB_SOURCES_CHAINS
+#        src/eth/*.cc
+#        src/bytom/*.cc
+#        src/bitcoin/*.cc
+#        src/sia/*.cc
+#        src/decred/*.cc
+#    )
 
 add_library(btcpool STATIC ${LIB_SOURCES} ${LIB_SOURCES_CHAINS} ${LIB_SOURCES_DECRED})
 
-file(GLOB_RECURSE TEST_SOURCES test/*.cc test/*.cpp)
-add_executable(unittest ${TEST_SOURCES})
-target_link_libraries(unittest btcpool ${THIRD_LIBRARIES})
+#file(GLOB_RECURSE TEST_SOURCES test/*.cc test/*.cpp)
+#add_executable(unittest ${TEST_SOURCES})
+#target_link_libraries(unittest btcpool ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE GBTMAKER_SOURCES src/gbtmaker/*.cc)
 add_executable(gbtmaker ${GBTMAKER_SOURCES})
 target_link_libraries(gbtmaker btcpool ${THIRD_LIBRARIES})
 
-set(GWMAKER_SOURCES src/gwmaker/GwMakerMain.cc)
-add_executable(gwmaker ${GWMAKER_SOURCES})
-target_link_libraries(gwmaker btcpool ${THIRD_LIBRARIES})
+#set(GWMAKER_SOURCES src/gwmaker/GwMakerMain.cc)
+#add_executable(gwmaker ${GWMAKER_SOURCES})
+#target_link_libraries(gwmaker btcpool ${THIRD_LIBRARIES})
 
-file(GLOB_RECURSE NMC_AUXBLOCK_MAKER_SOURCES src/nmcauxmaker/*.cc)
-add_executable(nmcauxmaker ${NMC_AUXBLOCK_MAKER_SOURCES})
-target_link_libraries(nmcauxmaker btcpool ${THIRD_LIBRARIES})
+#file(GLOB_RECURSE NMC_AUXBLOCK_MAKER_SOURCES src/nmcauxmaker/*.cc)
+#add_executable(nmcauxmaker ${NMC_AUXBLOCK_MAKER_SOURCES})
+#target_link_libraries(nmcauxmaker btcpool ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE JOBMAKER_SOURCES src/jobmaker/*.cc)
 add_executable(jobmaker ${JOBMAKER_SOURCES})
@@ -500,9 +546,9 @@ file(GLOB_RECURSE BLKMAKER_SOURCES src/blkmaker/*.cc)
 add_executable(blkmaker ${BLKMAKER_SOURCES})
 target_link_libraries(blkmaker btcpool ${THIRD_LIBRARIES})
 
-file(GLOB_RECURSE SIMULATOR_SOURCES src/simulator/*.cc)
-add_executable(simulator ${SIMULATOR_SOURCES})
-target_link_libraries(simulator btcpool ${THIRD_LIBRARIES})
+#file(GLOB_RECURSE SIMULATOR_SOURCES src/simulator/*.cc)
+#add_executable(simulator ${SIMULATOR_SOURCES})
+#target_link_libraries(simulator btcpool ${THIRD_LIBRARIES})
 
 file(GLOB_RECURSE POOLWATCHER_SOURCES src/poolwatcher/*.cc)
 add_executable(poolwatcher ${POOLWATCHER_SOURCES})
@@ -520,21 +566,21 @@ message("------------------------------- Install & Package ---------------------
 set(INSTALL_TARGETS
         blkmaker
         gbtmaker
-        gwmaker
+#        gwmaker
         jobmaker
-        nmcauxmaker
+#        nmcauxmaker
         poolwatcher
         sharelogger
-        simulator
+#        simulator
         slparser
         sserver
         statshttpd)
 
 # testcase
-set(INSTALL_TEST_TARGETS
-        unittest)
+#set(INSTALL_TEST_TARGETS
+#        unittest)
 
-gtest_discover_tests(unittest)
+#gtest_discover_tests(unittest)
 
 # tmp dir for install & packet
 set(PACKAGE_TMP_DIR ${CMAKE_BINARY_DIR}/package_tmp)

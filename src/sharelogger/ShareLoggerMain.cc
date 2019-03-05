@@ -40,10 +40,15 @@
 
 #include "config/bpool-version.h"
 #include "Utils.h"
+
+#ifdef CHAIN_TYPE_ZEC
+#include "ShareLoggerZCash.h"
+#else
 #include "bitcoin/ShareLoggerBitcoin.h"
 #include "eth/ShareLoggerEth.h"
 #include "bytom/ShareLoggerBytom.h"
 #include "decred/ShareLoggerDecred.h"
+#endif
 
 using namespace std;
 using namespace libconfig;
@@ -77,12 +82,19 @@ std::shared_ptr<ShareLogWriter> newShareLogWriter(const string &kafkaBrokers, co
   def.lookupValue("compression_level", compressionLevel);
 
 
-
 #if defined(CHAIN_TYPE_STR)
   if (CHAIN_TYPE_STR == chainType)
+  {
+      return make_shared<ShareLogWriterZCash>(def.lookup("chain_type").c_str(),
+                                              kafkaBrokers.c_str(),
+                                              def.lookup("data_dir").c_str(),
+                                              def.lookup("kafka_group_id").c_str(),
+                                              def.lookup("share_topic"),
+                                              compressionLevel);
+
+  }
 #else 
   if (false)
-#endif
   {
     return make_shared<ShareLogWriterBitcoin>(def.lookup("chain_type").c_str(),
                                               kafkaBrokers.c_str(),
@@ -115,6 +127,7 @@ std::shared_ptr<ShareLogWriter> newShareLogWriter(const string &kafkaBrokers, co
                                              def.lookup("share_topic"),
                                              compressionLevel);
   }
+#endif
   else {
     LOG(FATAL) << "Unknown chain type " << chainType;
     return nullptr;

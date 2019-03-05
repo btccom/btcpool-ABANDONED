@@ -40,6 +40,10 @@
 #include "Utils.h"
 #include "ShareLogParser.h"
 
+#ifdef CHAIN_TYPE_ZEC
+#include "StatisticsZCash.h"
+#include "ShareLogParserZCash.h"
+#else
 #include "bitcoin/StatisticsBitcoin.h"
 #include "bitcoin/ShareLogParserBitcoin.h"
 
@@ -50,6 +54,8 @@
 #include "bytom/ShareLogParserBytom.h"
 
 #include "decred/ShareLogParserDecred.h"
+
+#endif
 
 #include "chainparamsbase.h"
 #include "chainparams.h"
@@ -75,11 +81,10 @@ void usage() {
 std::shared_ptr<ShareLogDumper> newShareLogDumper(const string &chainType, const string &dataDir,
                                                   time_t timestamp, const std::set<int32_t> &uids)
 {
-#if defined(CHAIN_TYPE_STR)
+#ifdef CHAIN_TYPE_ZEC
+    return std::make_shared<ShareLogDumperZCash>(chainType.c_str(), dataDir, timestamp, uids);
+#elif defined(CHAIN_TYPE_STR)
   if (CHAIN_TYPE_STR == chainType)
-#else 
-  if (false)
-#endif
   {
     return std::make_shared<ShareLogDumperBitcoin>(chainType.c_str(), dataDir, timestamp, uids);
   }
@@ -93,21 +98,23 @@ std::shared_ptr<ShareLogDumper> newShareLogDumper(const string &chainType, const
     return std::make_shared<ShareLogDumperDecred>(chainType.c_str(), dataDir, timestamp, uids);
   }
   else {
+      LOG(FATAL) << "newShareLogDumper: unknown chain type " << chainType;
+      return nullptr;
+    }
+#else
     LOG(FATAL) << "newShareLogDumper: unknown chain type " << chainType;
     return nullptr;
-  }
+#endif
 }
 
 std::shared_ptr<ShareLogParser> newShareLogParser(const string &chainType, const string &dataDir,
                                                   time_t timestamp, const MysqlConnectInfo &poolDBInfo,
                                                   const int dupShareTrackingHeight)
 {
-#if defined(CHAIN_TYPE_STR)
-  if (CHAIN_TYPE_STR == chainType)
-#else 
-  if (false)
-#endif  
-{
+#ifdef CHAIN_TYPE_ZEC
+    return std::make_shared<ShareLogParserZCash>(chainType.c_str(), dataDir, timestamp, poolDBInfo, nullptr);
+#elif defined(CHAIN_TYPE_STR)
+  if (chainType == "BTC") {
     return std::make_shared<ShareLogParserBitcoin>(chainType.c_str(), dataDir, timestamp, poolDBInfo, nullptr);
   }
   else if (chainType == "ETH") {
@@ -125,6 +132,10 @@ std::shared_ptr<ShareLogParser> newShareLogParser(const string &chainType, const
     LOG(FATAL) << "newShareLogParser: unknown chain type " << chainType;
     return nullptr;
   }
+#else
+    LOG(FATAL) << "newShareLogParser: unknown chain type " << chainType;
+    return nullptr;
+#endif
 }
 
 std::shared_ptr<ShareLogParserServer> newShareLogParserServer(const string &chainType, const string &dataDir,
@@ -133,11 +144,13 @@ std::shared_ptr<ShareLogParserServer> newShareLogParserServer(const string &chai
                                                         const uint32_t kFlushDBInterval,
                                                         const int dupShareTrackingHeight)
 {
-#if defined(CHAIN_TYPE_STR)
-  if (CHAIN_TYPE_STR == chainType)
-#else 
-  if (false)
-#endif  
+
+#ifdef CHAIN_TYPE_ZEC
+    return std::make_shared<ShareLogParserServerZCash>(chainType.c_str(), dataDir,
+                                                         httpdHost, httpdPort,
+                                                         poolDBInfo, kFlushDBInterval, nullptr);
+#elif defined(CHAIN_TYPE_STR)
+  if (chainType == "BTC")
   {
     return std::make_shared<ShareLogParserServerBitcoin>(chainType.c_str(), dataDir,
                                                          httpdHost, httpdPort,
@@ -164,6 +177,10 @@ std::shared_ptr<ShareLogParserServer> newShareLogParserServer(const string &chai
     LOG(FATAL) << "newShareLogParserServer: unknown chain type " << chainType;
     return nullptr;
   }
+#else
+    LOG(FATAL) << "newShareLogParserServer: unknown chain type " << chainType;
+    return nullptr;
+#endif
 }
 
 int main(int argc, char **argv) {

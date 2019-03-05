@@ -75,7 +75,8 @@ protected:
   inline shared_ptr<const BlockMakerDefinition> def() { return def_; }
 
 public:
-  BlockMaker(shared_ptr<BlockMakerDefinition> def, const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
+  BlockMaker(shared_ptr<BlockMakerDefinition> def, \
+             const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
   virtual ~BlockMaker();
 
   virtual bool init();

@@ -37,7 +37,11 @@
 
 #include "config/bpool-version.h"
 #include "Utils.h"
+#ifdef CHAIN_TYPE_ZEC
+#include "WatcherZCash.h"
+#else
 #include "bitcoin/WatcherBitcoin.h"
+#endif
 
 #include <chainparams.h>
 
@@ -135,11 +139,18 @@ int main(int argc, char **argv) {
   bool disableChecking = false;
   cfg.lookupValue("poolwatcher.disable_checking", disableChecking);
 
+
+#ifdef CHAIN_TYPE_ZEC
+  gClientContainer = new ClientContainerZCash(cfg.lookup("kafka.brokers"),
+                                                cfg.lookup("poolwatcher.job_topic"),
+                                                cfg.lookup("poolwatcher.rawgbt_topic"),
+                                                disableChecking);
+#else
   gClientContainer = new ClientContainerBitcoin(cfg.lookup("kafka.brokers"),
                                                 cfg.lookup("poolwatcher.job_topic"),
                                                 cfg.lookup("poolwatcher.rawgbt_topic"),
                                                 disableChecking);
-
+#endif
   // add pools
   {
     const Setting &root = cfg.getRoot();

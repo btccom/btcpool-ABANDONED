@@ -41,11 +41,15 @@
 #include "JobMaker.h"
 #include "Zookeeper.h"
 
+#ifdef CHAIN_TYPE_ZEC
+#include "JobMakerZCash.h"
+#else
 #include "bitcoin/JobMakerBitcoin.h"
 #include "eth/JobMakerEth.h"
 #include "bytom/JobMakerBytom.h"
 #include "sia/JobMakerSia.h"
 #include "decred/JobMakerDecred.h"
+#endif
 
 #include <chainparams.h>
 
@@ -74,6 +78,7 @@ bool isGwChain(const string &chainType)
           "DCR" == chainType);
 }
 
+#ifndef CHAIN_TYPE_ZEC
 shared_ptr<JobMakerHandler> createGwJobMakerHandler(shared_ptr<GwJobMakerDefinition> def) {
   shared_ptr<GwJobMakerHandler> handler;
 
@@ -85,19 +90,6 @@ shared_ptr<JobMakerHandler> createGwJobMakerHandler(shared_ptr<GwJobMakerDefinit
     handler = make_shared<JobMakerHandlerBytom>();
   else if (def->chainType_ == "DCR")
     handler = make_shared<JobMakerHandlerDecred>();
-  else
-    LOG(FATAL) << "unknown chain type: " << def->chainType_;
-
-  handler->init(def);
-
-  return handler;
-}
-
-shared_ptr<JobMakerHandler> createGbtJobMakerHandler(shared_ptr<GbtJobMakerDefinition> def) {
-  shared_ptr<JobMakerHandlerBitcoin> handler;
-
-  if (def->chainType_ == CHAIN_TYPE_STR)
-    handler = make_shared<JobMakerHandlerBitcoin>();
   else
     LOG(FATAL) << "unknown chain type: " << def->chainType_;
 
@@ -150,6 +142,20 @@ shared_ptr<GwJobMakerDefinition> createGwJobMakerDefinition(const Setting &setti
   return def;
 }
 
+#else
+shared_ptr<JobMakerHandler> createGbtJobMakerHandler(shared_ptr<GbtJobMakerDefinition> def) {
+  shared_ptr<JobMakerHandlerZCash> handler;
+
+  if (def->chainType_ == CHAIN_TYPE_STR)
+    handler = make_shared<JobMakerHandlerZCash>();
+  else
+    LOG(FATAL) << "unknown chain type: " << def->chainType_;
+
+  handler->init(def);
+
+  return std::move(handler);
+}
+
 shared_ptr<GbtJobMakerDefinition> createGbtJobMakerDefinition(const Setting &setting)
 {
   shared_ptr<GbtJobMakerDefinition> def = make_shared<GbtJobMakerDefinition>();
@@ -184,6 +190,10 @@ shared_ptr<GbtJobMakerDefinition> createGbtJobMakerDefinition(const Setting &set
   return def;
 }
 
+
+#endif
+
+
 void createJobMakers(const libconfig::Config &cfg, const string &kafkaBrokers, const string &zkBrokers, vector<shared_ptr<JobMaker>> &makers)
 {
   const Setting &root = cfg.getRoot();
@@ -196,6 +206,7 @@ void createJobMakers(const libconfig::Config &cfg, const string &kafkaBrokers, c
     
     if (isGwChain(chainType))
     {
+#ifndef CHAIN_TYPE_ZEC
       auto def = createGwJobMakerDefinition(workerDefs[i]);
 
       if (!def->enabled_) {
@@ -207,6 +218,7 @@ void createJobMakers(const libconfig::Config &cfg, const string &kafkaBrokers, c
 
       auto handle = createGwJobMakerHandler(def);
       makers.push_back(std::make_shared<JobMaker>(handle, kafkaBrokers, zkBrokers));
+#endif
     }
     else
     {

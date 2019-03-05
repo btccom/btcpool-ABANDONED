@@ -175,15 +175,27 @@ public:
 // TODO: Move bitcoin-specific fields to the subclass
 struct LocalShare {
   uint64_t exNonce2_;  // extra nonce2 fixed 8 bytes
+#ifdef CHAIN_TYPE_ZEC
+    uint64_t nonce_;
+#else
   uint32_t nonce_;     // nonce in block header
+#endif
   uint32_t time_;      // nTime in block header
   uint32_t versionMask_;  // block version mask
 
+#ifdef CHAIN_TYPE_ZEC
+  LocalShare(uint64_t exNonce2, uint64_t nonce, uint32_t time, uint32_t versionMask):
+      exNonce2_(exNonce2), nonce_(nonce), time_(time), versionMask_(versionMask) {}
+
+  LocalShare(uint64_t exNonce2, uint64_t nonce, uint32_t time):
+      exNonce2_(exNonce2), nonce_(nonce), time_(time), versionMask_(0) {}
+#else
   LocalShare(uint64_t exNonce2, uint32_t nonce, uint32_t time, uint32_t versionMask):
       exNonce2_(exNonce2), nonce_(nonce), time_(time), versionMask_(versionMask) {}
   
   LocalShare(uint64_t exNonce2, uint32_t nonce, uint32_t time):
       exNonce2_(exNonce2), nonce_(nonce), time_(time), versionMask_(0) {}
+#endif
 
   LocalShare & operator=(const LocalShare &other) {
     exNonce2_ = other.exNonce2_;
