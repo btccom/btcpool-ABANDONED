@@ -58,9 +58,11 @@ endif()
 #
 # Chain Type
 #
+set(SUPPORTED_CHAIN_TYPES "BTC|BCH|BSV|UBTC|SBTC|LTC")
 if(NOT CHAIN_TYPE)
-  message(FATAL_ERROR "Chain type not defined! (-DCHAIN_TYPE=BTC|BCH|UBTC|SBTC)")
+  message(FATAL_ERROR "Chain type not defined! (-DCHAIN_TYPE=${SUPPORTED_CHAIN_TYPES})")
 endif()
+
 # Bitcoin
 if (CHAIN_TYPE STREQUAL "BTC")
   set(CHAIN_NAME "Bitcoin Core")
@@ -71,21 +73,17 @@ if (CHAIN_TYPE STREQUAL "BTC")
     add_definitions(-DINCLUDE_BTC_KEY_IO_H)
   endif()
 
-  add_definitions(-DCHAIN_TYPE_BTC)
-  add_definitions(-DCHAIN_TYPE_STR="BTC")
-  add_definitions(-DKAFKA_TOPIC_PREFIX="") # for compatibility with old deployments, let it empty.
-  add_definitions(-DZOOKEEPER_NODE_POSTFIX="") # for compatibility with old deployments, let it empty.
-
 # BitcoinCash
-elseif(CHAIN_TYPE STREQUAL "BCH" OR CHAIN_TYPE STREQUAL "BSV")
+elseif(CHAIN_TYPE STREQUAL "BCH")
   set(CHAIN_NAME "Bitcoin ABC")
   set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-bitcoincash")
   set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.bch")
 
-  add_definitions(-DCHAIN_TYPE_${CHAIN_TYPE})
-  add_definitions(-DCHAIN_TYPE_STR="${CHAIN_TYPE}")
-  add_definitions(-DKAFKA_TOPIC_PREFIX="") # for compatibility with old deployments, let it empty.
-  add_definitions(-DZOOKEEPER_NODE_POSTFIX="") # for compatibility with old deployments, let it empty.
+# BitcoinSV
+elseif(CHAIN_TYPE STREQUAL "BSV")
+  set(CHAIN_NAME "Bitcoin SV")
+  set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-bitcoinsv")
+  set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.bsv")
 
 # UnitiedBitcoin
 elseif(CHAIN_TYPE STREQUAL "UBTC")
@@ -93,21 +91,11 @@ elseif(CHAIN_TYPE STREQUAL "UBTC")
   set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-unitedbitcoin")
   set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.ubtc")
 
-  add_definitions(-DCHAIN_TYPE_UBTC)
-  add_definitions(-DCHAIN_TYPE_STR="UBTC")
-  add_definitions(-DKAFKA_TOPIC_PREFIX="UBTC_")
-  add_definitions(-DZOOKEEPER_NODE_POSTFIX="_ubtc")
-
 # SuperBitcoin
 elseif(CHAIN_TYPE STREQUAL "SBTC")
   set(CHAIN_NAME "Super Bitcoin")
   set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-superbitcoin")
   set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.sbtc")
-
-  add_definitions(-DCHAIN_TYPE_SBTC)
-  add_definitions(-DCHAIN_TYPE_STR="SBTC")
-  add_definitions(-DKAFKA_TOPIC_PREFIX="SBTC_")
-  add_definitions(-DZOOKEEPER_NODE_POSTFIX="_sbtc")
 
 # Litecoin
 elseif(CHAIN_TYPE STREQUAL "LTC")
@@ -115,24 +103,32 @@ elseif(CHAIN_TYPE STREQUAL "LTC")
     set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-litecoin")
     set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.ltc")
 
-    add_definitions(-DCHAIN_TYPE_LTC)
-    add_definitions(-DCHAIN_TYPE_STR="LTC")
-    add_definitions(-DKAFKA_TOPIC_PREFIX="LTC_")
-    add_definitions(-DZOOKEEPER_NODE_POSTFIX="_ltc")
-
 # Unknown
 else()
   message("Unknown chain type! (-DCHAIN_TYPE=${CHAIN_TYPE})")
-  message(FATAL_ERROR "Supported chain type: BTC|BCH|UBTC|SBTC|LTC")
+  message(FATAL_ERROR "Supported chain type: ${SUPPORTED_CHAIN_TYPES}")
 endif()
-
-option(CHAIN_ENABLE_WALLET "Enable chain wallet feature" OFF)
 
 message("-- Chain Type: ${CHAIN_NAME} (-DCHAIN_TYPE=${CHAIN_TYPE})")
 
+# add chain type definitions
+add_definitions(-DCHAIN_TYPE_${CHAIN_TYPE})
+add_definitions(-DCHAIN_TYPE_STR="${CHAIN_TYPE}")
 
 # add a macro that needed by chain's source code
 add_definitions(-DHAVE_CONFIG_H)
+
+
+#
+# Whether to enable the wallet when building the blockchain code
+#
+
+option(CHAIN_ENABLE_WALLET "Enable wallet when building chain code" OFF)
+if(CHAIN_ENABLE_WALLET)
+  message("-- Wallet of Chain Code Enabled (-DCHAIN_ENABLE_WALLET=ON)")
+else()
+  message("-- Wallet of Chain Code Disabled (-DCHAIN_ENABLE_WALLET=OFF)")
+endif()
 
 
 #
@@ -168,26 +164,6 @@ else()
   set(BH_SHARED_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/prebuild)
   set(BH_SHARED_LIBRARY ${BH_SHARED_INCLUDE_DIR}/bytom/bh_shared.a)
 endif()
-
-# ###
-# # Rebuild Bytom's GPU (Nvidia CUDA) Codes
-# ###
-# option(REBUILD_GPU_CODE "Rebuild Bytom's GPU (Nvidia CUDA) Codes" OFF)
-# 
-# if(REBUILD_GPU_CODE)
-#   message("-- Rebuild Bytom's GPU (Nvidia CUDA) Codes: Enabled (-DREBUILD_GPU_CODE=ON)")
-#   message("    Nvidia CUDA toolkit 9.1 or later required (https://developer.nvidia.com/cuda-downloads).")
-#   message("    https://github.com/Bytom/bytom need to be cloned to $GOPATH/src")
-#   message("    If you want to update the prebuild libGpuTs.a,")
-#   message("    you can copy it from ${CMAKE_BINARY_DIR}/3rdparty/bytom/cutil/src to ${PROJECT_SOURCE_DIR}/prebuild/bytom")
-# 
-#   set(GPUTS_LIBRARY GpuTs)
-# else()
-#   message("-- Rebuild Bytom's GPU (Nvidia CUDA) Codes: Disabled (-DREBUILD_GPU_CODE=OFF)")
-#   message("    The prebuild libGpuTs.a in ${PROJECT_SOURCE_DIR}/prebuild/bytom will be used ")
-# 
-#   set(GPUTS_LIBRARY ${PROJECT_SOURCE_DIR}/prebuild/bytom/libGpuTs.a)
-# endif()
 
 
 ###
@@ -257,25 +233,27 @@ set(BITCOIN_LIBRARIES
   "${CHAIN_SRC_ROOT}/src/libbitcoin_util.a")
 
 if(CHAIN_TYPE STREQUAL "BCH")
-set(BITCOIN_LIBRARIES ${BITCOIN_LIBRARIES}
-  "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto_base.a"
-  "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto_shani.a"
-  "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto_avx2.a"
-  "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto_sse41.a")
+  set(BITCOIN_LIBRARIES ${BITCOIN_LIBRARIES}
+    "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto_base.a"
+    "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto_shani.a"
+    "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto_avx2.a"
+    "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto_sse41.a")
 else()
-set(BITCOIN_LIBRARIES ${BITCOIN_LIBRARIES}
-  "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto.a")
+  set(BITCOIN_LIBRARIES ${BITCOIN_LIBRARIES}
+    "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto.a")
 endif()
 
 list(GET BITCOIN_LIBRARIES 0 BITCOIN_LIBRARIE)
 if (NOT EXISTS ${BITCOIN_LIBRARIE})
   message(STATUS "building ${CHAIN_NAME}...")
   execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./autogen.sh)
+
   if (NOT CHAIN_ENABLE_WALLET)
     execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./configure --with-gui=no --disable-wallet --disable-tests --disable-bench)
   else()
     execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./configure --with-gui=no --disable-tests --disable-bench)
   endif()
+
   execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND make ${MAKE_JOBS})
 endif()
 
@@ -301,6 +279,10 @@ if (NOT EXISTS ${secp256k1_LIBRARIES})
   message(FATAL_ERROR "build secp256k1 failed!")
 endif()
 
+
+#
+# other libraries
+#
 find_package(OpenSSL REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(LibConfig REQUIRED)
@@ -330,6 +312,7 @@ string(REPLACE "-lcrypto" "" MYSQL_LIBRARIES ${MYSQL_LIBRARIES})
 string(REPLACE "-lssl" "" MYSQL_LIBRARIES ${MYSQL_LIBRARIES})
 string(STRIP ${MYSQL_LIBRARIES} MYSQL_LIBRARIES)
 
+
 ###################################### Building Tools ######################################
 
 # Find binutils
@@ -338,6 +321,7 @@ if(NOT CMAKE_OBJCOPY)
   message("-- CMAKE_OBJCOPY not found, debug info will not separated from targets")
   mark_as_advanced(CMAKE_OBJCOPY)
 endif()
+
 
 ########################## Generate version number #############################
 
@@ -399,6 +383,7 @@ configure_file(src/config/bpool-version.h.in src/config/bpool-version.h)
 SET(CPACK_PACKAGE_VERSION_MAJOR "${BPOOL_VERSION_MAJOR}")
 SET(CPACK_PACKAGE_VERSION_MINOR "${BPOOL_VERSION_MINOR}")
 SET(CPACK_PACKAGE_VERSION_PATCH "${BPOOL_VERSION_PATCH}")
+
 
 ###################################### Targets ######################################
 
@@ -550,6 +535,7 @@ target_link_libraries(simulator btcpool ${THIRD_LIBRARIES})
 file(GLOB_RECURSE POOLWATCHER_SOURCES src/poolwatcher/*.cc)
 add_executable(poolwatcher ${POOLWATCHER_SOURCES})
 target_link_libraries(poolwatcher btcpool ${THIRD_LIBRARIES})
+
 
 ###################################### Install & Package ######################################
 message("") # empty line
