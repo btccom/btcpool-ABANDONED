@@ -37,55 +37,9 @@ class CBlockHeader;
 
 namespace bpt = boost::posix_time;
 
-// class BlockMakerHandler {
-//   public:
-//     virtual ~BlockMakerHandler() = 0; // mark it's an abstract class
-//     virtual void init(const BlockMakerDefinition &def) { def_ = def; }
-
-//     // read-only definition
-//     virtual const BlockMakerDefinition& def() { return def_; }
-//     virtual void processSolvedShare(rd_kafka_message_t *rkmessage) = 0;
-//     // Interface with the GwMaker.
-//     // There is a default implementation that use virtual functions below.
-//     // If the implementation does not meet the requirements, you can overload
-//     it
-//     // and ignore all the following virtual functions.
-//   //   virtual string makeRawGwMsg();
-
-//   // protected:
-
-//   //   // These virtual functions make it easier to implement the
-//   makeRawGwMsg() interface.
-//   //   // In most cases, you just need to override getRequestData() and
-//   processRawGw().
-//   //   // If you have overloaded makeRawGwMsg() above, you can ignore all the
-//   following functions.
-
-//   //   // Receive rpc response and generate RawGw message for the pool.
-//   //   virtual string processRawGw(const string &gw) { return ""; }
-
-//   //   // Call RPC `getwork` and get the response.
-//   //   virtual bool callRpcGw(string &resp);
-
-//   //   // Body of HTTP POST used by callRpcGw().
-//   //   // return "" if use HTTP GET.
-//   //   virtual string getRequestData() { return ""; }
-//   //   // HTTP header `User-Agent` used by callRpcGw().
-//   //   virtual string getUserAgent() { return "curl"; }
-
-//     // blockchain and RPC-server definitions
-//     BlockMakerDefinition def_;
-// };
-
-// class BlockMakerHandlerEth : public BlockMakerHandler{
-//   virtual void processSolvedShare(rd_kafka_message_t *rkmessage);
-// };
-
-// class BlockMakerHandlerSia : public BlockMakerHandler{
-//   virtual void processSolvedShare(rd_kafka_message_t *rkmessage) {
-
-//   }
-// };
+#ifdef CHAIN_TYPE_ZEC
+using CTransactionRef = std::shared_ptr<const CTransaction>;
+#endif
 
 ////////////////////////////////// BlockMaker //////////////////////////////////
 class BlockMakerBitcoin : public BlockMaker {
@@ -112,32 +66,39 @@ protected:
 
   KafkaConsumer kafkaConsumerRawGbt_;
   KafkaConsumer kafkaConsumerStratumJob_;
+#ifndef CHAIN_TYPE_ZEC
   KafkaConsumer kafkaConsumerNamecoinSolvedShare_;
   KafkaConsumer kafkaConsumerRskSolvedShare_;
+#endif
 
   void insertRawGbt(
       const uint256 &gbtHash, shared_ptr<vector<CTransactionRef>> vtxs);
 
   thread threadConsumeRawGbt_;
   thread threadConsumeStratumJob_;
+#ifndef CHAIN_TYPE_ZEC
   thread threadConsumeNamecoinSolvedShare_;
   thread threadConsumeRskSolvedShare_;
 
   std::map<std::string /*rpcaddr*/, bool /*isSupportSubmitAuxBlock*/>
       isAddrSupportSubmitAux_;
+#endif
 
   void runThreadConsumeRawGbt();
   void runThreadConsumeStratumJob();
+#ifndef CHAIN_TYPE_ZEC
   void runThreadConsumeNamecoinSolvedShare();
   void runThreadConsumeRskSolvedShare();
+#endif
 
   void consumeRawGbt(rd_kafka_message_t *rkmessage);
   void consumeStratumJob(rd_kafka_message_t *rkmessage);
   void consumeSolvedShare(rd_kafka_message_t *rkmessage);
   void processSolvedShare(rd_kafka_message_t *rkmessage) override;
+#ifndef CHAIN_TYPE_ZEC
   void consumeNamecoinSolvedShare(rd_kafka_message_t *rkmessage);
   void consumeRskSolvedShare(rd_kafka_message_t *rkmessage);
-
+#endif
   void addRawgbt(const char *str, size_t len);
 
   void saveBlockToDBNonBlocking(
@@ -167,6 +128,7 @@ protected:
       const string &blockHex);
   bool checkBitcoinds();
 
+#ifndef CHAIN_TYPE_ZEC
   void submitNamecoinBlockNonBlocking(
       const string &auxBlockHash,
       const string &auxPow,
@@ -197,6 +159,7 @@ protected:
       const string &merkleHashesHex,
       const string &totalTxCount);
   bool submitToRskNode();
+#endif
 
   // read-only definition
   inline shared_ptr<const BlockMakerDefinitionBitcoin> def() {

@@ -28,7 +28,17 @@
 
 #include "rsk/RskSolvedShareData.h"
 
+#ifdef CHAIN_TYPE_ZEC
+static inline CTransactionRef MakeTransactionRef() {
+  return std::make_shared<const CTransaction>();
+}
+template <typename Tx>
+static inline CTransactionRef MakeTransactionRef(Tx &&txIn) {
+  return std::make_shared<const CTransaction>(std::forward<Tx>(txIn));
+}
+#else
 #include <consensus/merkle.h>
+#endif
 
 #include <boost/thread.hpp>
 
@@ -50,10 +60,13 @@ BlockMakerBitcoin::BlockMakerBitcoin(
         kafkaBrokers, def()->rawGbtTopic_.c_str(), 0 /* patition */)
   , kafkaConsumerStratumJob_(
         kafkaBrokers, def()->stratumJobTopic_.c_str(), 0 /* patition */)
+#ifndef CHAIN_TYPE_ZEC
   , kafkaConsumerNamecoinSolvedShare_(
         kafkaBrokers, def()->auxPowSolvedShareTopic_.c_str(), 0 /* patition */)
   , kafkaConsumerRskSolvedShare_(
-        kafkaBrokers, def()->rskSolvedShareTopic_.c_str(), 0 /* patition */) {
+        kafkaBrokers, def()->rskSolvedShareTopic_.c_str(), 0 /* patition */)
+#endif
+{
 }
 
 BlockMakerBitcoin::~BlockMakerBitcoin() {
@@ -63,11 +76,13 @@ BlockMakerBitcoin::~BlockMakerBitcoin() {
   if (threadConsumeStratumJob_.joinable())
     threadConsumeStratumJob_.join();
 
+#ifndef CHAIN_TYPE_ZEC
   if (threadConsumeNamecoinSolvedShare_.joinable())
     threadConsumeNamecoinSolvedShare_.join();
 
   if (threadConsumeRskSolvedShare_.joinable())
     threadConsumeRskSolvedShare_.join();
+#endif
 }
 
 bool BlockMakerBitcoin::init() {
@@ -105,6 +120,7 @@ bool BlockMakerBitcoin::init() {
     return false;
   }
 
+#ifndef CHAIN_TYPE_ZEC
   //
   // Namecoin Sloved Share
   //
@@ -132,6 +148,7 @@ bool BlockMakerBitcoin::init() {
     LOG(ERROR) << "kafka brokers is not alive: kafkaConsumerRskSolvedShare_";
     return false;
   }
+#endif
 
   return true;
 }
@@ -210,9 +227,15 @@ void BlockMakerBitcoin::addRawgbt(const char *str, size_t len) {
   shared_ptr<vector<CTransactionRef>> vtxs =
       std::make_shared<vector<CTransactionRef>>();
   for (JsonNode &node : jgbt["transactions"].array()) {
+#ifdef CHAIN_TYPE_ZEC
+    CTransaction tx;
+    DecodeHexTx(tx, node["data"].str());
+    vtxs->push_back(MakeTransactionRef(tx));
+#else
     CMutableTransaction tx;
     DecodeHexTx(tx, node["data"].str());
     vtxs->push_back(MakeTransactionRef(std::move(tx)));
+#endif
   }
 
   LOG(INFO) << "insert rawgbt: " << gbtHash.ToString()
@@ -237,6 +260,7 @@ void BlockMakerBitcoin::insertRawGbt(
   }
 }
 
+#ifndef CHAIN_TYPE_ZEC
 static string _buildAuxPow(const CBlock *block) {
   //
   // see: https://en.bitcoin.it/wiki/Merged_mining_specification
@@ -524,6 +548,7 @@ void BlockMakerBitcoin::_submitNamecoinBlockThread(
     }
   }
 }
+#endif
 
 void BlockMakerBitcoin::processSolvedShare(rd_kafka_message_t *rkmessage) {
   //
@@ -552,7 +577,7 @@ void BlockMakerBitcoin::processSolvedShare(rd_kafka_message_t *rkmessage) {
         (const uint8_t *)rkmessage->payload + sizeof(FoundBlock),
         coinbaseTxBin.size());
     // copy header
-    memcpy((uint8_t *)&blkHeader, foundBlock.header80_, sizeof(CBlockHeader));
+    foundBlock.headerData_.get(blkHeader);
   }
 
   // get gbtHash and rawgbt (vtxs)
@@ -597,14 +622,24 @@ void BlockMakerBitcoin::processSolvedShare(rd_kafka_message_t *rkmessage) {
   {
     CSerializeData sdata;
     sdata.insert(sdata.end(), coinbaseTxBin.begin(), coinbaseTxBin.end());
+#ifdef CHAIN_TYPE_ZEC
+    newblk.vtx.push_back(CTransaction());
+#else
     newblk.vtx.push_back(MakeTransactionRef());
+#endif
     CDataStream c(sdata, SER_NETWORK, PROTOCOL_VERSION);
     c >> newblk.vtx[newblk.vtx.size() - 1];
   }
 
   // put other txs
   if (vtxs && vtxs->size()) {
+#ifdef CHAIN_TYPE_ZEC
+    for (size_t i = 0; i < vtxs->size(); ++i) {
+      newblk.vtx.push_back(*vtxs->at(i));
+    }
+#else
     newblk.vtx.insert(newblk.vtx.end(), vtxs->begin(), vtxs->end());
+#endif
   }
 
   // submit to bitcoind
@@ -624,7 +659,11 @@ void BlockMakerBitcoin::processSolvedShare(rd_kafka_message_t *rkmessage) {
     submitBlockNonBlocking(blockHex); // using thread
   }
 
+#ifdef CHAIN_TYPE_ZEC
+  uint64_t coinbaseValue = AMOUNT_SATOSHIS(newblk.vtx[0].GetValueOut());
+#else
   uint64_t coinbaseValue = AMOUNT_SATOSHIS(newblk.vtx[0]->GetValueOut());
+#endif
 
   // save to DB, using thread
   saveBlockToDBNonBlocking(
@@ -844,6 +883,8 @@ void BlockMakerBitcoin::consumeStratumJob(rd_kafka_message_t *rkmessage) {
 
   LOG(INFO) << "StratumJob, jobId: " << sjob->jobId_
             << ", gbtHash: " << gbtHash.ToString();
+
+#ifndef CHAIN_TYPE_ZEC
   bool isSupportSubmitAuxBlock = false;
   if (!sjob->nmcRpcAddr_.empty() && !sjob->nmcRpcUserpass_.empty() &&
       isAddrSupportSubmitAux_.find(sjob->nmcRpcAddr_) ==
@@ -872,6 +913,7 @@ void BlockMakerBitcoin::consumeStratumJob(rd_kafka_message_t *rkmessage) {
       isAddrSupportSubmitAux_[sjob->nmcRpcAddr_] = isSupportSubmitAuxBlock;
     }
   }
+#endif
 }
 
 void BlockMakerBitcoin::runThreadConsumeRawGbt() {
@@ -906,6 +948,7 @@ void BlockMakerBitcoin::runThreadConsumeStratumJob() {
   }
 }
 
+#ifndef CHAIN_TYPE_ZEC
 void BlockMakerBitcoin::runThreadConsumeNamecoinSolvedShare() {
   const int32_t timeoutMs = 1000;
 
@@ -1035,7 +1078,7 @@ void BlockMakerBitcoin::consumeRskSolvedShare(rd_kafka_message_t *rkmessage) {
         (const uint8_t *)rkmessage->payload + sizeof(RskSolvedShareData),
         coinbaseTxBin.size());
     // copy header
-    memcpy((uint8_t *)&blkHeader, shareData.header80_, sizeof(CBlockHeader));
+    shareData.headerData_.get(blkHeader);
   }
 
   LOG(INFO) << "submit RSK block: " << blkHeader.GetHash().ToString();
@@ -1167,6 +1210,7 @@ void BlockMakerBitcoin::runThreadConsumeRskSolvedShare() {
   }
 }
 //// End of methods added to merge mine for RSK
+#endif
 
 void BlockMakerBitcoin::run() {
   // setup threads
@@ -1174,9 +1218,11 @@ void BlockMakerBitcoin::run() {
       thread(&BlockMakerBitcoin::runThreadConsumeRawGbt, this);
   threadConsumeStratumJob_ =
       thread(&BlockMakerBitcoin::runThreadConsumeStratumJob, this);
+#ifndef CHAIN_TYPE_ZEC
   threadConsumeNamecoinSolvedShare_ =
       thread(&BlockMakerBitcoin::runThreadConsumeNamecoinSolvedShare, this);
   threadConsumeRskSolvedShare_ =
       thread(&BlockMakerBitcoin::runThreadConsumeRskSolvedShare, this);
+#endif
   BlockMaker::run();
 }

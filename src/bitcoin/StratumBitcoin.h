@@ -28,7 +28,8 @@
 #include "CommonBitcoin.h"
 
 #include <uint256.h>
-// #include <base58.h>
+#include <primitives/block.h>
+
 #include "rsk/RskWork.h"
 #include "script/standard.h"
 #include "bitcoin/bitcoin.pb.h"
@@ -40,6 +41,32 @@
 //       so 500 bytes may enough.
 #define COINBASE_TX_MAX_SIZE 500
 
+// ZCash's nonce is 256bits, others are 32bits.
+#ifdef CHAIN_TYPE_ZEC
+using BitcoinNonceType = uint256;
+// for mainnet & testnet:
+// n=200, k=9, 2^9 = 512
+// 21 bits * 512 / 8 = 1344
+// 140 + 3 bytes(1344_vint) + 1344 = 1487 Bytes
+const size_t BitcoinHeaderSize = 1487;
+#else
+using BitcoinNonceType = uint32_t;
+const size_t BitcoinHeaderSize = 80;
+#endif
+
+/////////////////////////// BitcoinBlockHeaderData ///////////////////////////
+class BitcoinHeaderData {
+public:
+  uint8_t headerData_[BitcoinHeaderSize];
+
+  BitcoinHeaderData() { memset(headerData_, 0, sizeof(headerData_)); }
+  void set(const CBlockHeader &header);
+  bool get(CBlockHeader &header);
+};
+static_assert(
+    sizeof(BitcoinHeaderData) == BitcoinHeaderSize,
+    "sizeof(BitcoinHeaderData) should equal with BitcoinHeaderSize");
+
 ////////////////////////////////// FoundBlock //////////////////////////////////
 class FoundBlock {
 public:
@@ -47,7 +74,7 @@ public:
   int64_t workerId_; // found by who
   int32_t userId_;
   int32_t height_;
-  uint8_t header80_[80];
+  BitcoinHeaderData headerData_;
   char workerFullName_[40]; // <UserName>.<WorkerName>
 
   FoundBlock()
@@ -55,7 +82,6 @@ public:
     , workerId_(0)
     , userId_(0)
     , height_(0) {
-    memset(header80_, 0, sizeof(header80_));
     memset(workerFullName_, 0, sizeof(workerFullName_));
   }
 };

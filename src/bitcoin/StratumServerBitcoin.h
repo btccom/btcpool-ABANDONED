@@ -25,6 +25,7 @@
 #define STRATUM_SERVER_BITCOIN_H_
 
 #include "StratumServer.h"
+#include "StratumBitcoin.h"
 #include <uint256.h>
 
 class CBlockHeader;
@@ -65,7 +66,7 @@ public:
       const uint32_t extraNonce1,
       const string &extraNonce2Hex,
       const uint32_t nTime,
-      const uint32_t nonce,
+      const BitcoinNonceType nonce,
       const uint32_t versionMask,
       const uint256 &jobTarget,
       const string &workFullName,
@@ -122,7 +123,7 @@ public:
       const uint32_t nBits,
       const int32_t nVersion,
       const uint32_t nTime,
-      const uint32_t nonce,
+      const BitcoinNonceType nonce,
       const uint32_t versionMask,
       string *userCoinbaseInfo = nullptr);
   void init();

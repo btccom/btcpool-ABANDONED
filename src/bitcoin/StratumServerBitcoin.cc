@@ -209,7 +209,7 @@ void StratumJobExBitcoin::generateBlockHeader(
     const uint32_t nBits,
     const int32_t nVersion,
     const uint32_t nTime,
-    const uint32_t nonce,
+    const BitcoinNonceType nonce,
     const uint32_t versionMask,
     string *userCoinbaseInfo) {
   generateCoinbaseTx(
@@ -370,7 +370,7 @@ int ServerBitcoin::checkShare(
     const uint32_t extraNonce1,
     const string &extraNonce2Hex,
     const uint32_t nTime,
-    const uint32_t nonce,
+    const BitcoinNonceType nonce,
     const uint32_t versionMask,
     const uint256 &jobTarget,
     const string &workFullName,
@@ -432,13 +432,13 @@ int ServerBitcoin::checkShare(
     foundBlock.workerId_ = share.workerhashid();
     foundBlock.userId_ = share.userid();
     foundBlock.height_ = sjob->height_;
-    memcpy(
-        foundBlock.header80_, (const uint8_t *)&header, sizeof(CBlockHeader));
+    foundBlock.headerData_.set(header);
     snprintf(
         foundBlock.workerFullName_,
         sizeof(foundBlock.workerFullName_),
         "%s",
         workFullName.c_str());
+
     // send
     sendSolvedShare2Kafka(chainId, &foundBlock, coinbaseBin);
 
@@ -488,7 +488,7 @@ int ServerBitcoin::checkShare(
         sizeof(shareData.rpcUserPwd_),
         "%s",
         sjob->rskdRpcUserPwd_.c_str());
-    memcpy(shareData.header80_, (const uint8_t *)&header, sizeof(CBlockHeader));
+    shareData.headerData_.set(header);
     snprintf(
         shareData.workerFullName_,
         sizeof(shareData.workerFullName_),

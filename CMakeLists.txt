@@ -58,7 +58,7 @@ endif()
 #
 # Chain Type
 #
-set(SUPPORTED_CHAIN_TYPES "BTC|BCH|BSV|UBTC|SBTC|LTC")
+set(SUPPORTED_CHAIN_TYPES "BTC|BCH|BSV|UBTC|SBTC|LTC|ZEC")
 if(NOT CHAIN_TYPE)
   message(FATAL_ERROR "Chain type not defined! (-DCHAIN_TYPE=${SUPPORTED_CHAIN_TYPES})")
 endif()
@@ -99,9 +99,17 @@ elseif(CHAIN_TYPE STREQUAL "SBTC")
 
 # Litecoin
 elseif(CHAIN_TYPE STREQUAL "LTC")
-    set(CHAIN_NAME "Litecoin")
-    set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-litecoin")
-    set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.ltc")
+  set(CHAIN_NAME "Litecoin")
+  set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-litecoin")
+  set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.ltc")
+
+# ZCash
+elseif(CHAIN_TYPE STREQUAL "ZEC")
+  set(CHAIN_NAME "ZCash")
+  set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-zcash")
+  set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.zec")
+
+  add_definitions(-DINCLUDE_BTC_KEY_IO_H)
 
 # Unknown
 else()
@@ -227,34 +235,50 @@ message("------------------------------- Libs -------------------------------")
 #
 # chain's libs
 #
-set(BITCOIN_LIBRARIES
-  "${CHAIN_SRC_ROOT}/src/libbitcoin_common.a"
-  "${CHAIN_SRC_ROOT}/src/libbitcoin_consensus.a"
-  "${CHAIN_SRC_ROOT}/src/libbitcoin_util.a")
-
 if(CHAIN_TYPE STREQUAL "BCH")
   set(BITCOIN_LIBRARIES ${BITCOIN_LIBRARIES}
+    "${CHAIN_SRC_ROOT}/src/libbitcoin_common.a"
+    "${CHAIN_SRC_ROOT}/src/libbitcoin_consensus.a"
+    "${CHAIN_SRC_ROOT}/src/libbitcoin_util.a"
     "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto_base.a"
     "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto_shani.a"
     "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto_avx2.a"
     "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto_sse41.a")
+
+elseif(CHAIN_TYPE STREQUAL "ZEC")
+  set(BITCOIN_LIBRARIES
+    "${CHAIN_SRC_ROOT}/src/libbitcoin_common.a"
+    "${CHAIN_SRC_ROOT}/src/libbitcoin_util.a"
+    "${CHAIN_SRC_ROOT}/src/libzcash.a"
+    "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto.a"
+    "${CHAIN_SRC_ROOT}/src/snark/libsnark.a"
+    "${CHAIN_SRC_ROOT}/depends/x86_64-unknown-linux-gnu/lib/libsodium.a"
+    "${CHAIN_SRC_ROOT}/depends/x86_64-unknown-linux-gnu/lib/librustzcash.a")
+
 else()
   set(BITCOIN_LIBRARIES ${BITCOIN_LIBRARIES}
+    "${CHAIN_SRC_ROOT}/src/libbitcoin_common.a"
+    "${CHAIN_SRC_ROOT}/src/libbitcoin_consensus.a"
+    "${CHAIN_SRC_ROOT}/src/libbitcoin_util.a"
     "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto.a")
 endif()
 
 list(GET BITCOIN_LIBRARIES 0 BITCOIN_LIBRARIE)
 if (NOT EXISTS ${BITCOIN_LIBRARIE})
   message(STATUS "building ${CHAIN_NAME}...")
-  execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./autogen.sh)
 
-  if (NOT CHAIN_ENABLE_WALLET)
-    execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./configure --with-gui=no --disable-wallet --disable-tests --disable-bench)
+  if(CHAIN_TYPE STREQUAL "ZEC")
+    execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./zcutil/build.sh ${MAKE_JOBS})
+
   else()
-    execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./configure --with-gui=no --disable-tests --disable-bench)
-  endif()
+    if (NOT CHAIN_ENABLE_WALLET)
+      execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./configure --with-gui=no --disable-wallet --disable-tests --disable-bench)
+    else()
+      execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./configure --with-gui=no --disable-tests --disable-bench)
+    endif()
 
-  execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND make ${MAKE_JOBS})
+    execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND make ${MAKE_JOBS})
+  endif()
 endif()
 
 foreach(BITCOIN_LIBRARIE ${BITCOIN_LIBRARIES})
@@ -283,6 +307,10 @@ endif()
 #
 # other libraries
 #
+if(CHAIN_TYPE STREQUAL "ZEC")
+  FIND_PACKAGE(OpenMP REQUIRED)
+endif()
+
 find_package(OpenSSL REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(LibConfig REQUIRED)
@@ -409,6 +437,7 @@ endif(USE_CUDA)
 include_directories(
   ${CMAKE_CURRENT_BINARY_DIR}/src
   3rdparty
+  3rdparty/equihash
   src
   test
   ${CHAIN_SRC_ROOT}/src
@@ -431,8 +460,12 @@ set(THIRD_LIBRARIES ethash blake2 sph ${BH_SHARED_LIBRARY} ${USE_CUDA_LIBRARIES}
                     ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB} ${GMP_LIBRARIES} ${LIBEVENT_OPENSSL_LIB} ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY}
                     ${PTHREAD_LIBRARIES} ${PROTOBUF_LIBRARIES})
 
+if(CHAIN_TYPE STREQUAL "ZEC")
+  include_directories(${OpenMP_INCLUDE_PATH})
+  set(THIRD_LIBRARIES ${THIRD_LIBRARIES} ${OpenMP_CXX_LIBRARIES})
+endif()
+
 add_library(equihash 3rdparty/equihash/crypto/equihash_impl.cpp)
-target_include_directories(equihash PUBLIC 3rdparty/equihash)
 
 add_library(beam
     3rdparty/beam/core/difficulty.cpp

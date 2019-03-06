@@ -39,7 +39,7 @@ std::string EncodeHexBlockHeader(const CBlockHeader &blkHeader) {
   return HexStr(ssBlkHeader.begin(), ssBlkHeader.end());
 }
 
-#ifdef CHAIN_TYPE_BCH
+#if defined(CHAIN_TYPE_BCH) || defined(CHAIN_TYPE_ZEC)
 /**
  * This implements a constant-space merkle root/path calculator, limited to 2^32
  * leaves.
@@ -158,7 +158,11 @@ std::vector<uint256> BlockMerkleBranch(const CBlock &block, uint32_t position) {
   std::vector<uint256> leaves;
   leaves.resize(block.vtx.size());
   for (size_t s = 0; s < block.vtx.size(); s++) {
+#ifdef CHAIN_TYPE_ZEC
+    leaves[s] = block.vtx[s].GetHash();
+#else
     leaves[s] = block.vtx[s]->GetHash();
+#endif
   }
   return ComputeMerkleBranch(leaves, position);
 }

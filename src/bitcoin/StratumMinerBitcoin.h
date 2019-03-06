@@ -54,7 +54,7 @@ private:
       const std::string &idStr,
       uint8_t shortJobId,
       uint64_t extraNonce2,
-      uint32_t nonce,
+      BitcoinNonceType nonce,
       uint32_t nTime,
       uint32_t versionMask);
 };

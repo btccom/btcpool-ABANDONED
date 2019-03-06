@@ -32,23 +32,29 @@
 #include <chainparams.h>
 #include <base58.h>
 
+#ifdef INCLUDE_BTC_KEY_IO_H
+#include <key_io.h>
+#endif
+
 #include "CommonBitcoin.h"
 
 #if defined(CHAIN_TYPE_BCH) || defined(CHAIN_TYPE_BSV)
+
 // header that defined DecodeDestination & IsValidDestinationString
 #include <dstencode.h>
+
 #ifdef CHAIN_TYPE_BCH
+
 #define AMOUNT_TYPE(x) Amount(x *SATOSHI)
 #define COIN_TO_SATOSHIS (COIN / SATOSHI)
 #define AMOUNT_SATOSHIS(amt) (amt / SATOSHI)
 
-std::vector<uint256>
-ComputeMerkleBranch(const std::vector<uint256> &leaves, uint32_t position);
-std::vector<uint256> BlockMerkleBranch(const CBlock &block, uint32_t position);
 #else
+
 #define AMOUNT_TYPE Amount
 #define COIN_TO_SATOSHIS COIN.GetSatoshis()
 #define AMOUNT_SATOSHIS(amt) amt.GetSatoshis()
+
 #endif
 
 namespace BitcoinUtils {
@@ -59,7 +65,9 @@ inline CTxDestination DecodeDestination(const std::string &str) {
   return ::DecodeDestination(str, Params());
 }
 } // namespace BitcoinUtils
+
 #elif defined(CHAIN_TYPE_SBTC)
+
 #define AMOUNT_TYPE CAmount
 #define COIN_TO_SATOSHIS COIN
 #define AMOUNT_SATOSHIS(amt) amt
@@ -68,7 +76,9 @@ namespace BitcoinUtils {
 CTxDestination DecodeDestination(const std::string &str);
 bool IsValidDestinationString(const std::string &str);
 } // namespace BitcoinUtils
+
 #else
+
 #define AMOUNT_TYPE CAmount
 #define COIN_TO_SATOSHIS COIN
 #define AMOUNT_SATOSHIS(amt) amt
@@ -81,6 +91,13 @@ inline CTxDestination DecodeDestination(const std::string &str) {
   return ::DecodeDestination(str);
 }
 } // namespace BitcoinUtils
+
+#endif
+
+#if defined(CHAIN_TYPE_BCH) || defined(CHAIN_TYPE_ZEC)
+std::vector<uint256>
+ComputeMerkleBranch(const std::vector<uint256> &leaves, uint32_t position);
+std::vector<uint256> BlockMerkleBranch(const CBlock &block, uint32_t position);
 #endif
 
 std::string EncodeHexBlock(const CBlock &block);

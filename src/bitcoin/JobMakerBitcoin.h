@@ -31,6 +31,10 @@
 #include <uint256.h>
 #include <base58.h>
 
+#ifdef INCLUDE_BTC_KEY_IO_H
+#include <key_io.h>
+#endif
+
 class JobMakerHandlerBitcoin : public JobMakerHandler {
   mutex lock_; // lock when update rawgbtMap_
   mutex auxJsonLock_;

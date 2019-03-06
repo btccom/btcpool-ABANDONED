@@ -38,6 +38,31 @@
 
 #include <boost/endian/buffers.hpp>
 
+void BitcoinHeaderData::set(const CBlockHeader &header) {
+  CDataStream ssBlockHeader(SER_NETWORK, PROTOCOL_VERSION);
+  ssBlockHeader << header;
+  // use std::string to save binary data
+  const string headerBin = ssBlockHeader.str();
+  assert(headerBin.size() == BitcoinHeaderSize);
+  // set header data
+  memcpy(headerData_, headerBin.data(), headerBin.size());
+}
+
+bool BitcoinHeaderData::get(CBlockHeader &header) {
+  std::vector<unsigned char> dataHeader(
+      headerData_, headerData_ + BitcoinHeaderSize);
+  CDataStream ssHeader(dataHeader, SER_NETWORK, PROTOCOL_VERSION);
+  try {
+    ssHeader >> header;
+  } catch (const std::exception &e) {
+    LOG(ERROR) << "BitcoinHeaderData: unserilze header failed: " << e.what();
+  } catch (...) {
+    LOG(ERROR) << "BitcoinHeaderData: unserilze header failed: unknown error";
+    return false;
+  }
+  return true;
+}
+
 static void
 makeMerkleBranch(const vector<uint256> &vtxhashs, vector<uint256> &steps) {
   if (vtxhashs.size() == 0) {
@@ -340,9 +365,15 @@ bool StratumJobBitcoin::initFromGbt(
     // read txs hash/data
     vector<uint256> vtxhashs; // txs without coinbase
     for (JsonNode &node : jgbt["transactions"].array()) {
+#ifdef CHAIN_TYPE_ZEC
+      CTransaction tx;
+      DecodeHexTx(tx, node["data"].str());
+      vtxhashs.push_back(tx.GetHash());
+#else
       CMutableTransaction tx;
       DecodeHexTx(tx, node["data"].str());
       vtxhashs.push_back(MakeTransactionRef(std::move(tx))->GetHash());
+#endif
     }
     // make merkleSteps and merkle branch
     makeMerkleBranch(vtxhashs, merkleBranch_);

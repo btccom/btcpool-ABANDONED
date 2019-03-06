@@ -43,6 +43,8 @@ void BitsToTarget(uint32_t bits, uint256 &target) {
 
 #ifdef CHAIN_TYPE_LTC
 static const uint32_t BITS_DIFF1 = 0x1f00ffff;
+#elif defined(CHAIN_TYPE_ZEC)
+static const uint32_t BITS_DIFF1 = 0x1f07ffff;
 #else
 static const uint32_t BITS_DIFF1 = 0x1d00ffff;
 #endif

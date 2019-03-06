@@ -184,6 +184,7 @@ TEST(StratumServer, SessionIDManager8Bits) {
 
 #endif // #ifndef WORK_WITH_STRATUM_SWITCHER
 
+#ifndef CHAIN_TYPE_ZEC
 TEST(StratumServerBitcoin, CheckShare) {
   string sjobJson =
       "{\"jobId\":6645522065066147329,\"gbtHash\":"
@@ -253,6 +254,7 @@ TEST(StratumServerBitcoin, CheckShare) {
       "1028e53e8145994a9ebe4f39eb6a7e3fd4036f2f21a05a5a696e8ac6d0829ef4");
   ASSERT_EQ(blkHash, header.GetHash());
 }
+#endif
 
 TEST(StratumServerEth, EthashCalculator) {
 #ifdef NDEBUG

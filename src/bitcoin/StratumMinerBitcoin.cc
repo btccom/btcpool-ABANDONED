@@ -103,7 +103,12 @@ void StratumMinerBitcoin::handleRequest_Submit(
   }
   const uint64_t extraNonce2 = jparams.children()->at(2).uint64_hex();
   uint32_t nTime = jparams.children()->at(3).uint32_hex();
-  const uint32_t nonce = jparams.children()->at(4).uint32_hex();
+
+#ifdef CHAIN_TYPE_ZEC
+  const BitcoinNonceType nonce = uint256S(jparams.children()->at(4).str());
+#else
+  const BitcoinNonceType nonce = jparams.children()->at(4).uint32_hex();
+#endif
 
   uint32_t versionMask = 0u;
   if (jparams.children()->size() >= 6) {
@@ -118,6 +123,9 @@ void StratumMinerBitcoin::handleExMessage_SubmitShare(
     const std::string &exMessage,
     const bool isWithTime,
     const bool isWithVersion) {
+#ifdef CHAIN_TYPE_ZEC
+  LOG(INFO) << "sserver ZCash does not support BTCAgent protocol at current.";
+#else
   //
   // SUBMIT_SHARE | SUBMIT_SHARE_WITH_TIME | SUBMIT_SHARE_WITH_VER |
   // SUBMIT_SHARE_WITH_TIME_VER: | magic_number(1) | cmd(1) | len (2) | jobId
@@ -163,13 +171,14 @@ void StratumMinerBitcoin::handleExMessage_SubmitShare(
 
   handleRequest_Submit(
       "null", shortJobId, fullExtraNonce2, nonce, timestamp, versionMask);
+#endif
 }
 
 void StratumMinerBitcoin::handleRequest_Submit(
     const string &idStr,
     uint8_t shortJobId,
     uint64_t extraNonce2,
-    uint32_t nonce,
+    BitcoinNonceType nonce,
     uint32_t nTime,
     uint32_t versionMask) {
   auto &session = getSession();
@@ -237,13 +246,20 @@ void StratumMinerBitcoin::handleRequest_Submit(
   share.set_blkbits(localJob->blkBits_);
   share.set_timestamp((uint64_t)time(nullptr));
   share.set_height(sjobBitcoin->height_);
-  share.set_nonce(nonce);
   share.set_versionmask(versionMask);
   share.set_sessionid(session.getSessionId());
   share.set_status(StratumStatus::REJECT_NO_REASON);
+  // set IP
   IpAddress ip;
   ip.fromIpv4Int(session.getClientIp());
   share.set_ip(ip.toString());
+// set nonce
+#ifdef CHAIN_TYPE_ZEC
+  uint32_t nonceHash = djb2(nonce.ToString().c_str());
+  share.set_nonce(nonceHash);
+#else
+  share.set_nonce(nonce);
+#endif
 
   // calc jobTarget
   uint256 jobTarget;
@@ -253,7 +269,11 @@ void StratumMinerBitcoin::handleRequest_Submit(
   // shares in a short time, we just drop them.
   bool isSendShareToKafka = true;
 
+#ifdef CHAIN_TYPE_ZEC
+  LocalShare localShare(extraNonce2, nonceHash, nTime, versionMask);
+#else
   LocalShare localShare(extraNonce2, nonce, nTime, versionMask);
+#endif
 
   // can't find local share
   if (!localJob->addLocalShare(localShare)) {
