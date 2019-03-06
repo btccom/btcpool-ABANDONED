@@ -52,7 +52,7 @@ public:
 
 class JobRepositoryBytom : public JobRepositoryBase<ServerBytom> {
 private:
-  string latestPreviousBlockHash_;
+  uint32_t lastHeight_ = 0;
 
 public:
   using JobRepositoryBase::JobRepositoryBase;

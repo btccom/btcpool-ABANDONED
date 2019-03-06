@@ -66,7 +66,7 @@ void JobRepositoryEth::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
   LOG(INFO) << "broadcast eth stratum job " << std::hex << sjobEth->jobId_;
 
   bool isClean = false;
-  if (sjobEth->height_ != lastHeight_) {
+  if (sjobEth->height_ > lastHeight_) {
     isClean = true;
     lastHeight_ = sjobEth->height_;
 

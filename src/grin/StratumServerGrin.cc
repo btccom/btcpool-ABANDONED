@@ -183,7 +183,7 @@ void JobRepositoryGrin::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
   LOG(INFO) << "broadcast stratum job " << std::hex << sjobGrin->jobId_;
 
   bool isClean = false;
-  if (sjobGrin->height_ != lastHeight_) {
+  if (sjobGrin->height_ > lastHeight_) {
     isClean = true;
     lastHeight_ = sjobGrin->height_;
 

@@ -39,15 +39,11 @@ shared_ptr<StratumJobEx> JobRepositoryBytom::createStratumJobEx(
 
 void JobRepositoryBytom::broadcastStratumJob(shared_ptr<StratumJob> sjobBase) {
   auto sjob = std::static_pointer_cast<StratumJobBytom>(sjobBase);
-  if (!sjob) {
-    LOG(FATAL) << "JobRepositoryBytom::broadcastStratumJob error: cast "
-                  "StratumJobBytom failed";
-    return;
-  }
+
   bool isClean = false;
-  if (latestPreviousBlockHash_ != sjob->blockHeader_.previousBlockHash) {
+  if (lastHeight_ > sjob->blockHeader_.height) {
     isClean = true;
-    latestPreviousBlockHash_ = sjob->blockHeader_.previousBlockHash;
+    lastHeight_ = sjob->blockHeader_.height;
     LOG(INFO) << "received new height stratum job, height: "
               << sjob->blockHeader_.height
               << ", prevhash: " << sjob->blockHeader_.previousBlockHash.c_str();

@@ -72,7 +72,7 @@ void JobRepositoryDecred::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
   LOG(INFO) << "broadcasting job: " << *jobDecred;
   bool isClean = false;
   auto height = jobDecred->header_.height.value();
-  if (height != lastHeight_) {
+  if (height > lastHeight_) {
     LOG(INFO) << "received job with new height, old height = " << lastHeight_;
     isClean = true;
     lastHeight_ = height;

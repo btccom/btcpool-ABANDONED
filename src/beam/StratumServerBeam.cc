@@ -58,7 +58,7 @@ void JobRepositoryBeam::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
   LOG(INFO) << "broadcast stratum job " << std::hex << sjobBeam->jobId_;
 
   bool isClean = false;
-  if (sjobBeam->height_ != lastHeight_) {
+  if (sjobBeam->height_ > lastHeight_) {
     isClean = true;
     lastHeight_ = sjobBeam->height_;
 

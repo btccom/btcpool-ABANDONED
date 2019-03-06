@@ -50,15 +50,11 @@ shared_ptr<StratumJobEx> JobRepositoryBitcoin::createStratumJobEx(
 void JobRepositoryBitcoin::broadcastStratumJob(
     shared_ptr<StratumJob> sjobBase) {
   auto sjob = std::static_pointer_cast<StratumJobBitcoin>(sjobBase);
-  if (!sjob) {
-    LOG(FATAL) << "JobRepositoryBitcoin::broadcastStratumJob error: cast "
-                  "StratumJobBitcoin failed";
-    return;
-  }
+
   bool isClean = false;
-  if (latestPrevBlockHash_ != sjob->prevHash_) {
+  if (lastHeight_ > sjob->height_) {
     isClean = true;
-    latestPrevBlockHash_ = sjob->prevHash_;
+    lastHeight_ = sjob->height_;
     LOG(INFO) << "received new height stratum job, height: " << sjob->height_
               << ", prevhash: " << sjob->prevHash_.ToString();
   }

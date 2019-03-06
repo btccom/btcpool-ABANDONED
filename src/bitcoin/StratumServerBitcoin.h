@@ -84,7 +84,7 @@ protected:
 
 class JobRepositoryBitcoin : public JobRepositoryBase<ServerBitcoin> {
 protected:
-  uint256 latestPrevBlockHash_;
+  uint32_t lastHeight_ = 0;
 
 public:
   using JobRepositoryBase::JobRepositoryBase;
