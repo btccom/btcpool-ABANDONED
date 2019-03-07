@@ -66,8 +66,6 @@ using std::condition_variable;
 using std::function;
 
 typedef lock_guard<mutex> ScopeLock;
-typedef unique_lock<mutex> UniqueLock;
-typedef condition_variable Condition;
 
 /**
  * byte order conversion utils
