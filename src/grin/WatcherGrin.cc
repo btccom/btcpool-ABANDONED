@@ -79,7 +79,7 @@ void ClientContainerGrin::runThreadSolvedShareConsume() {
         break;
       }
     }
-    sleep(1);
+    std::this_thread::sleep_for(1s);
   }
 
   LOG(INFO) << "start solved share consume thread";
@@ -234,7 +234,7 @@ void ClientContainerGrin::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
       if (db.ping())
         break;
       else
-        sleep(3);
+        std::this_thread::sleep_for(3s);
     }
 
     if (db.execute(sql) == false) {

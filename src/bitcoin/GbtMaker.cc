@@ -331,7 +331,7 @@ void GbtMaker::threadListenBitcoind() {
         if (!running_) {
           break;
         }
-        usleep(20000); // so we sleep and try again
+        std::this_thread::sleep_for(20ms); // so we sleep and try again
         continue;
       }
       subscriber.recv(&zContent);
@@ -374,7 +374,7 @@ void GbtMaker::runLightGbt() {
   thread threadListenBitcoind = thread(&GbtMaker::threadListenBitcoind, this);
 
   while (running_) {
-    sleep(1);
+    std::this_thread::sleep_for(1s);
     submitRawGbtLightMsg(true);
   }
 
@@ -387,7 +387,7 @@ void GbtMaker::run() {
   thread threadListenBitcoind = thread(&GbtMaker::threadListenBitcoind, this);
 
   while (running_) {
-    sleep(1);
+    std::this_thread::sleep_for(1s);
     submitRawGbtMsg(true);
   }
 
@@ -599,7 +599,7 @@ void NMCAuxBlockMaker::threadListenNamecoind() {
         if (!running_) {
           break;
         }
-        usleep(50000); // so we sleep and try again
+        std::this_thread::sleep_for(50ms); // so we sleep and try again
         continue;
       }
       subscriber.recv(&zcontent);
@@ -696,7 +696,7 @@ void NMCAuxBlockMaker::run() {
 
   // createauxblock interval
   while (running_) {
-    sleep(1);
+    std::this_thread::sleep_for(1s);
     submitAuxblockMsg(true);
   }
 

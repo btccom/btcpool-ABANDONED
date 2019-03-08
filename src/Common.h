@@ -67,6 +67,8 @@ using std::function;
 
 typedef lock_guard<mutex> ScopeLock;
 
+using namespace std::chrono_literals;
+
 /**
  * byte order conversion utils
  */

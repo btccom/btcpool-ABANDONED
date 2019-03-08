@@ -34,6 +34,9 @@
 #include <event2/buffer_compat.h>
 #include <event2/keyvalq_struct.h>
 
+#include <chrono>
+#include <thread>
+
 ///////////////////////////////GwMaker////////////////////////////////////
 GwMaker::GwMaker(shared_ptr<GwMakerHandler> handler, const string &kafkaBrokers)
   : handler_(handler)
@@ -107,7 +110,8 @@ void GwMaker::submitRawGwMsg() {
 void GwMaker::run() {
 
   while (running_) {
-    usleep(handler_->def().rpcInterval_ * 1000);
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds{handler_->def().rpcInterval_});
     submitRawGwMsg();
   }
 

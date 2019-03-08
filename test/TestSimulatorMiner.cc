@@ -34,6 +34,8 @@
 #include <glog/logging.h>
 #include <libconfig.h++>
 
+#include <thread>
+
 using namespace libconfig;
 
 TEST(SIMULATOR, miner) {
@@ -74,7 +76,7 @@ TEST(SIMULATOR, miner) {
     // send 1 byte each time, this will trigger read events several times
     for (size_t i = 0; i < sbuf.size(); i++) {
       conn.send(sbuf.substr(i, 1));
-      usleep(10000);
+      std::this_thread::sleep_for(10ms);
     }
 
     //

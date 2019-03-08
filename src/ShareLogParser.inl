@@ -1160,7 +1160,7 @@ void ShareLogParserServerT<SHARE>::runThreadShareLogParser() {
     if (shareLogParser == nullptr) {
       if (initShareLogParser(time(nullptr)) == false) {
         LOG(ERROR) << "initShareLogParser fail";
-        sleep(3);
+        std::this_thread::sleep_for(3s);
         continue;
       }
     }
@@ -1178,7 +1178,7 @@ void ShareLogParserServerT<SHARE>::runThreadShareLogParser() {
       DLOG(INFO) << "process share: " << shareNum;
     }
     // shareNum < 0 means that the file read error. So wait longer.
-    sleep(shareNum < 0 ? 5 : 1);
+    std::this_thread::sleep_for(shareNum < 0 ? 5s : 1s);
 
     // flush data to db
     if (time(nullptr) > lastFlushDBTime + kFlushDBInterval_) {

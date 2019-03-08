@@ -26,6 +26,7 @@
 
 #include "utilities_js.hpp"
 
+#include <chrono>
 #include <thread>
 
 ////////////////////////////////////////////////BlockMakerEth////////////////////////////////////////////////////////////////
@@ -379,7 +380,10 @@ void BlockMakerEth::_submitBlockThread(
       *syncSubmitSuccess = true;
       break;
     }
-    sleep(6 - retryTime); // first sleep 1s, second sleep 2s, ...
+    std::this_thread::sleep_for(
+        6s -
+        std::chrono::seconds{
+            retryTime}); // first sleep 1s, second sleep 2s, ...
     retryTime--;
   }
 
@@ -428,7 +432,7 @@ void BlockMakerEth::saveBlockToDB(
     if (db.ping())
       break;
     else
-      sleep(3);
+      std::this_thread::sleep_for(3s);
   }
 
   if (db.execute(sql) == false) {

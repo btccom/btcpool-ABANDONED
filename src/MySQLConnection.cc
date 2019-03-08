@@ -181,7 +181,8 @@ query:
 
   // use mysql_ping() to reconnnect
   if (queryTimes <= 3 && (error_no == 2006 || error_no == 2013)) {
-    sleep(10); // rds switch master-slave usually take about 20 seconds
+    // rds switch master-slave usually take about 20 seconds
+    std::this_thread::sleep_for(10s);
     if (mysql_ping(conn) == 0) {
       LOG(ERROR) << "reconnect success";
     } else {

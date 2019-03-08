@@ -112,7 +112,7 @@ void BlockMaker::runThreadConsumeSolvedShare() {
 }
 
 void BlockMaker::run() {
-  sleep(3);
+  std::this_thread::sleep_for(3s);
 
   runThreadConsumeSolvedShare();
 }

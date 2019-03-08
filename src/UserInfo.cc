@@ -479,7 +479,7 @@ void UserInfo::runThreadUpdate(size_t chainId) {
     }
 
     if (lastUpdateTime + updateInterval > time(nullptr)) {
-      usleep(500000); // 500ms
+      std::this_thread::sleep_for(500ms);
       continue;
     }
   }
@@ -530,7 +530,7 @@ void UserInfo::runThreadInsertWorkerName(size_t chainId) {
     if (insertWorkerName(chainId) > 0) {
       continue;
     }
-    sleep(1);
+    std::this_thread::sleep_for(1s);
   }
 }
 

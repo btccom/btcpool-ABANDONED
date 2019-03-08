@@ -150,7 +150,7 @@ void BlockMakerBytom::_saveBlockToDBThread(
     if (db.ping())
       break;
     else
-      sleep(3);
+      std::this_thread::sleep_for(3s);
   }
 
   if (db.execute(sql) == false) {

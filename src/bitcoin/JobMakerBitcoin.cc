@@ -126,7 +126,7 @@ bool JobMakerHandlerBitcoin::initConsumerHandlers(
 
   // sleep 3 seconds, wait for the latest N messages transfer from broker to
   // client
-  sleep(3);
+  std::this_thread::sleep_for(3s);
 
   /* pre-consume some messages for initialization */
 
