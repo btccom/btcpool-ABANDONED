@@ -30,8 +30,6 @@
 
 #include "bitcoin/CommonBitcoin.h"
 
-#include <boost/make_unique.hpp>
-
 StratumSessionDecred::StratumSessionDecred(
     ServerDecred &server,
     struct bufferevent *bev,
@@ -235,7 +233,7 @@ unique_ptr<StratumMiner> StratumSessionDecred::createMiner(
     const std::string &clientAgent,
     const std::string &workerName,
     int64_t workerId) {
-  return boost::make_unique<StratumMinerDecred>(
+  return std::make_unique<StratumMinerDecred>(
       *this,
       *getServer().defaultDifficultyController_,
       clientAgent,

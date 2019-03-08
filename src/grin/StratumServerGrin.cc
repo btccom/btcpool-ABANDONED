@@ -27,12 +27,11 @@
 #include "StratumSessionGrin.h"
 #include "CommonGrin.h"
 
-#include <boost/make_unique.hpp>
 #include <algorithm>
 
 unique_ptr<StratumSession> StratumServerGrin::createConnection(
     struct bufferevent *bev, struct sockaddr *saddr, uint32_t sessionID) {
-  return boost::make_unique<StratumSessionGrin>(*this, bev, saddr, sessionID);
+  return std::make_unique<StratumSessionGrin>(*this, bev, saddr, sessionID);
 }
 
 void StratumServerGrin::checkAndUpdateShare(

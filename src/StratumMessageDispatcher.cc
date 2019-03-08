@@ -29,7 +29,6 @@
 #include "StratumMiner.h"
 #include "DiffController.h"
 
-#include <boost/make_unique.hpp>
 #include <glog/logging.h>
 
 using namespace std;

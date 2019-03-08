@@ -27,7 +27,6 @@
 #include "StratumMessageDispatcher.h"
 #include "DiffController.h"
 
-#include <boost/make_unique.hpp>
 #include <event2/buffer.h>
 
 ///////////////////////////////// StratumMinerBitcoin

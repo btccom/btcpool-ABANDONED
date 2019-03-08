@@ -27,7 +27,6 @@
 #include "DiffController.h"
 
 #include <boost/thread.hpp>
-#include <boost/make_unique.hpp>
 
 #include <fstream>
 
@@ -541,7 +540,7 @@ void ServerEth::sendSolvedShare2Kafka(
 
 unique_ptr<StratumSession> ServerEth::createConnection(
     struct bufferevent *bev, struct sockaddr *saddr, uint32_t sessionID) {
-  return boost::make_unique<StratumSessionEth>(*this, bev, saddr, sessionID);
+  return std::make_unique<StratumSessionEth>(*this, bev, saddr, sessionID);
 }
 
 JobRepository *ServerEth::createJobRepository(

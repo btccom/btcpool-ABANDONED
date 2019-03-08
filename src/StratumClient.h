@@ -40,7 +40,6 @@
 #include <uint256.h>
 #include "utilities_js.hpp"
 
-#include <boost/make_unique.hpp>
 #include <type_traits>
 
 ///////////////////////////////// StratumClient ////////////////////////////////
@@ -81,7 +80,7 @@ public:
            struct event_base *base,
            const string &workerFullName,
            const string &workerPasswd) {
-          return boost::make_unique<T>(
+          return std::make_unique<T>(
               enableTLS, base, workerFullName, workerPasswd);
         });
   }

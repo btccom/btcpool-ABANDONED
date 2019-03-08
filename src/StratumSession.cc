@@ -32,7 +32,6 @@
 
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/split.hpp>
-#include <boost/make_unique.hpp>
 
 #include <event2/buffer.h>
 #include <glog/logging.h>
@@ -71,7 +70,7 @@ StratumSession::StratumSession(
   clientIp_ = clientIp_.c_str();
 
   // make a null dispatcher here to guard against invalid access
-  dispatcher_ = boost::make_unique<StratumMessageNullDispatcher>();
+  dispatcher_ = std::make_unique<StratumMessageNullDispatcher>();
 
   setup();
   LOG(INFO) << "client connect, ip: " << clientIp_;
@@ -410,7 +409,7 @@ bool StratumSession::validate(
 
 unique_ptr<StratumMessageDispatcher> StratumSession::createDispatcher() {
   // By default there is no agent support
-  return boost::make_unique<StratumMessageMinerDispatcher>(
+  return std::make_unique<StratumMessageMinerDispatcher>(
       *this,
       createMiner(clientAgent_, worker_.workerName_, worker_.workerHashId_));
 }

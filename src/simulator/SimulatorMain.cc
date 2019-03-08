@@ -138,7 +138,7 @@ int main(int argc, char **argv) {
     StratumClient::registerFactory<StratumClientBeam>("BEAM");
 
     // new StratumClientWrapper
-    auto wrapper = boost::make_unique<StratumClientWrapper>(
+    auto wrapper = std::make_unique<StratumClientWrapper>(
         enableTLS,
         cfg.lookup("simulator.ss_ip").c_str(),
         (unsigned short)port,

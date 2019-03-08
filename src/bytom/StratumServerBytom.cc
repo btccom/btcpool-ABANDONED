@@ -26,8 +26,6 @@
 #include "StratumSessionBytom.h"
 #include "DiffController.h"
 
-#include <boost/make_unique.hpp>
-
 using namespace std;
 
 ///////////////////////////////////JobRepositoryBytom///////////////////////////////////
@@ -77,7 +75,7 @@ JobRepository *ServerBytom::createJobRepository(
 
 unique_ptr<StratumSession> ServerBytom::createConnection(
     struct bufferevent *bev, struct sockaddr *saddr, const uint32_t sessionID) {
-  return boost::make_unique<StratumSessionBytom>(*this, bev, saddr, sessionID);
+  return std::make_unique<StratumSessionBytom>(*this, bev, saddr, sessionID);
 }
 
 void ServerBytom::sendSolvedShare2Kafka(

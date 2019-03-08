@@ -30,8 +30,6 @@
 
 #include "DiffController.h"
 
-#include <boost/make_unique.hpp>
-
 namespace {
 
 class ScopedMethodReset {
@@ -101,7 +99,7 @@ std::unique_ptr<StratumMiner> StratumSessionGrin::createMiner(
     const std::string &clientAgent,
     const std::string &workerName,
     int64_t workerId) {
-  return boost::make_unique<StratumMinerGrin>(
+  return std::make_unique<StratumMinerGrin>(
       *this,
       *getServer().defaultDifficultyController_,
       clientAgent,

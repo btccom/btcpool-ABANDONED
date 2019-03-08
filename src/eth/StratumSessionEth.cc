@@ -28,8 +28,6 @@
 #include "StratumMinerEth.h"
 #include "DiffController.h"
 
-#include <boost/make_unique.hpp>
-
 // Remove the Ethereum address prefix from worker's full name
 // 0x00d8c82Eb65124Ea3452CaC59B64aCC230AA3482.test.aaa -> test.aaa
 static string stripEthAddrFromFullName(const string &fullNameStr) {
@@ -390,7 +388,7 @@ unique_ptr<StratumMiner> StratumSessionEth::createMiner(
     const std::string &clientAgent,
     const std::string &workerName,
     int64_t workerId) {
-  return boost::make_unique<StratumMinerEth>(
+  return std::make_unique<StratumMinerEth>(
       *this,
       *getServer().defaultDifficultyController_,
       clientAgent,

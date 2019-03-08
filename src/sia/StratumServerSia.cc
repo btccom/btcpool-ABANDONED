@@ -27,8 +27,6 @@
 #include "StratumSessionSia.h"
 #include "DiffController.h"
 
-#include <boost/make_unique.hpp>
-
 using namespace std;
 
 //////////////////////////////////// JobRepositorySia
@@ -68,7 +66,7 @@ void JobRepositorySia::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
 ////////////////////////////////// ServierSia ///////////////////////////////
 unique_ptr<StratumSession> ServerSia::createConnection(
     struct bufferevent *bev, struct sockaddr *saddr, const uint32_t sessionID) {
-  return boost::make_unique<StratumSessionSia>(*this, bev, saddr, sessionID);
+  return std::make_unique<StratumSessionSia>(*this, bev, saddr, sessionID);
 }
 
 JobRepository *ServerSia::createJobRepository(

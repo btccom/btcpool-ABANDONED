@@ -33,7 +33,6 @@
 #include "arith_uint256.h"
 
 #include <boost/algorithm/string.hpp>
-#include <boost/make_unique.hpp>
 #include <iostream>
 
 using std::ostream;
@@ -160,10 +159,10 @@ bool ServerDecred::setupInternal(const libconfig::Config &config) {
 
   if (protocol == "gominer") {
     LOG(INFO) << "Using gominer stratum protocol";
-    protocol_ = boost::make_unique<StratumProtocolDecredGoMiner>();
+    protocol_ = std::make_unique<StratumProtocolDecredGoMiner>();
   } else {
     LOG(INFO) << "Using tpruvot stratum protocol";
-    protocol_ = boost::make_unique<StratumProtocolDecredTPruvot>();
+    protocol_ = std::make_unique<StratumProtocolDecredTPruvot>();
   }
 
   return true;
@@ -171,7 +170,7 @@ bool ServerDecred::setupInternal(const libconfig::Config &config) {
 
 unique_ptr<StratumSession> ServerDecred::createConnection(
     bufferevent *bev, sockaddr *saddr, uint32_t sessionID) {
-  return boost::make_unique<StratumSessionDecred>(
+  return std::make_unique<StratumSessionDecred>(
       *this, bev, saddr, sessionID, *protocol_);
 }
 

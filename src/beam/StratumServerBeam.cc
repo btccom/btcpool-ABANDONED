@@ -27,7 +27,6 @@
 #include "DiffController.h"
 
 #include <boost/thread.hpp>
-#include <boost/make_unique.hpp>
 #include <arith_uint256.h>
 
 #include "CommonBeam.h"
@@ -213,7 +212,7 @@ void ServerBeam::sendSolvedShare2Kafka(
 
 unique_ptr<StratumSession> ServerBeam::createConnection(
     struct bufferevent *bev, struct sockaddr *saddr, uint32_t sessionID) {
-  return boost::make_unique<StratumSessionBeam>(*this, bev, saddr, sessionID);
+  return std::make_unique<StratumSessionBeam>(*this, bev, saddr, sessionID);
 }
 
 JobRepository *ServerBeam::createJobRepository(

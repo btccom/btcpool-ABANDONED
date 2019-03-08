@@ -28,8 +28,6 @@
 #include "StratumMinerBitcoin.h"
 #include "DiffController.h"
 
-#include <boost/make_unique.hpp>
-
 struct StratumMessageExSubmit {
   boost::endian::little_uint8_buf_t magic;
   boost::endian::little_uint8_buf_t command;
@@ -456,10 +454,10 @@ string StratumSessionBitcoin::getMinerInfoJson(const string &type) {
 
 unique_ptr<StratumMessageDispatcher> StratumSessionBitcoin::createDispatcher() {
   if (isAgentClient_) {
-    return boost::make_unique<StratumMessageAgentDispatcher>(
+    return std::make_unique<StratumMessageAgentDispatcher>(
         *this, *getServer().defaultDifficultyController_);
   } else {
-    return boost::make_unique<StratumMessageMinerDispatcher>(
+    return std::make_unique<StratumMessageMinerDispatcher>(
         *this,
         createMiner(clientAgent_, worker_.workerName_, worker_.workerHashId_));
   }
@@ -477,7 +475,7 @@ unique_ptr<StratumMiner> StratumSessionBitcoin::createMiner(
     const std::string &clientAgent,
     const std::string &workerName,
     int64_t workerId) {
-  auto miner = boost::make_unique<StratumMinerBitcoin>(
+  auto miner = std::make_unique<StratumMinerBitcoin>(
       *this,
       *getServer().defaultDifficultyController_,
       clientAgent,

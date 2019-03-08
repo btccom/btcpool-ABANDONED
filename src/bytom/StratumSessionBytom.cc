@@ -28,8 +28,6 @@
 #include "StratumMinerBytom.h"
 #include "DiffController.h"
 
-#include <boost/make_unique.hpp>
-
 StratumSessionBytom::StratumSessionBytom(
     ServerBytom &server,
     struct bufferevent *bev,
@@ -199,7 +197,7 @@ unique_ptr<StratumMiner> StratumSessionBytom::createMiner(
     const std::string &clientAgent,
     const std::string &workerName,
     int64_t workerId) {
-  return boost::make_unique<StratumMinerBytom>(
+  return std::make_unique<StratumMinerBytom>(
       *this,
       *getServer().defaultDifficultyController_,
       clientAgent,

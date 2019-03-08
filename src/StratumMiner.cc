@@ -29,7 +29,6 @@
 #include "StratumMessageDispatcher.h"
 
 #include <boost/algorithm/string.hpp>
-#include <boost/make_unique.hpp>
 
 #include <event2/buffer.h>
 
