@@ -367,6 +367,7 @@ StratumServer::StratumServer()
   : enableTLS_(false)
   , base_(nullptr)
   , listener_(nullptr)
+  , tcpReadTimeout_(600)
   , isEnableSimulator_(false)
   , isSubmitInvalidBlock_(false)
   , isDevModeEnable_(false)
@@ -504,6 +505,8 @@ bool StratumServer::setup(const libconfig::Config &config) {
 
   uint32_t miningNotifyInterval = 30; // optional
   config.lookupValue("sserver.mining_notify_interval", miningNotifyInterval);
+
+  config.lookupValue("sserver.tcp_read_timeout", tcpReadTimeout_); // optional
 
   // ------------------- Listen Options -------------------
 

@@ -320,7 +320,7 @@ void StratumSession::checkUserAndPwd(
 
   // set read timeout to 10 mins, it's enought for most miners even usb miner.
   // if it's a pool watcher, set timeout to a week
-  setReadTimeout(isLongTimeout_ ? 86400 * 7 : 60 * 10);
+  setReadTimeout(isLongTimeout_ ? 86400 * 7 : getServer().tcpReadTimeout());
 
   // send latest stratum job
   sendMiningNotify(

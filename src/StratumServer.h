@@ -207,6 +207,7 @@ class StratumServer {
   struct event_base *base_;
   struct evconnlistener *listener_;
   std::set<unique_ptr<StratumSession>> connections_;
+  uint32_t tcpReadTimeout_; // seconds
 
 public:
   struct ChainVars {
@@ -267,6 +268,7 @@ public:
     return zk_;
   }
 
+  const uint32_t tcpReadTimeout() { return tcpReadTimeout_; }
   const string &chainName(size_t chainId) { return chains_[chainId].name_; }
   size_t /* switched sessions */
   switchChain(string userName, size_t newChainId);
