@@ -74,7 +74,7 @@ void StratumSessionBeam::sendMiningNotify(
              << Beam_DiffToTarget(currentJobDiff_).ToString();
   string strNotify = Strings::Format(
       "{"
-      "\"id\":%u,"
+      "\"id\":\"%08x\","
       "\"jsonrpc\":\"2.0\","
       "\"method\":\"job\","
       "\"difficulty\":%u,"

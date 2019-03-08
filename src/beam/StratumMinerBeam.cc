@@ -69,7 +69,7 @@ void StratumMinerBeam::handleRequest_Submit(
     return;
   }
 
-  uint32_t jobId = jsonRoot["id"].uint32();
+  uint32_t jobId = jsonRoot["id"].uint32_hex();
   uint64_t nonce = jsonRoot["nonce"].uint64_hex();
   string output = jsonRoot["output"].str();
 
