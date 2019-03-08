@@ -52,7 +52,7 @@ void JobRepositoryBitcoin::broadcastStratumJob(
   auto sjob = std::static_pointer_cast<StratumJobBitcoin>(sjobBase);
 
   bool isClean = false;
-  if (lastHeight_ > sjob->height_) {
+  if (lastHeight_ > static_cast<uint32_t>(sjob->height_)) {
     isClean = true;
     lastHeight_ = sjob->height_;
     LOG(INFO) << "received new height stratum job, height: " << sjob->height_
