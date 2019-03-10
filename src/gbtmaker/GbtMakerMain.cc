@@ -121,20 +121,20 @@ int main(int argc, char **argv) {
   signal(SIGTERM, handler);
   signal(SIGINT, handler);
 
-  bool isCheckZmq = true;
-  cfg.lookupValue("gbtmaker.is_check_zmq", isCheckZmq);
-  int32_t rpcCallInterval = 5;
-  cfg.lookupValue("gbtmaker.rpcinterval", rpcCallInterval);
-  gGbtMaker = new GbtMaker(
-      cfg.lookup("bitcoind.zmq_addr"),
-      cfg.lookup("bitcoind.rpc_addr"),
-      cfg.lookup("bitcoind.rpc_userpwd"),
-      cfg.lookup("kafka.brokers"),
-      cfg.lookup("gbtmaker.rawgbt_topic"),
-      rpcCallInterval,
-      isCheckZmq);
-
   try {
+    bool isCheckZmq = true;
+    cfg.lookupValue("gbtmaker.is_check_zmq", isCheckZmq);
+    int32_t rpcCallInterval = 5;
+    cfg.lookupValue("gbtmaker.rpcinterval", rpcCallInterval);
+    gGbtMaker = new GbtMaker(
+        cfg.lookup("bitcoind.zmq_addr"),
+        cfg.lookup("bitcoind.rpc_addr"),
+        cfg.lookup("bitcoind.rpc_userpwd"),
+        cfg.lookup("kafka.brokers"),
+        cfg.lookup("gbtmaker.rawgbt_topic"),
+        rpcCallInterval,
+        isCheckZmq);
+
     if (!gGbtMaker->init()) {
       LOG(FATAL) << "gbtmaker init failure";
     } else {
