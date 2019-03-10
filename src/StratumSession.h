@@ -236,6 +236,8 @@ protected:
   size_t kMaxNumLocalJobs_;
 
 public:
+  size_t maxNumLocalJobs() const { return kMaxNumLocalJobs_; }
+
   template <typename Key>
   LocalJobType *findLocalJob(const Key &key) {
     auto iter = localJobs_.rbegin();

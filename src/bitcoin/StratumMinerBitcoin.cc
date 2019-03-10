@@ -96,7 +96,8 @@ void StratumMinerBitcoin::handleRequest_Submit(
 
   uint8_t shortJobId;
   if (isNiceHashClient_) {
-    shortJobId = (uint8_t)(jparams.children()->at(1).uint64() % 10);
+    shortJobId = (uint8_t)(
+        jparams.children()->at(1).uint64() % session.maxNumLocalJobs());
   } else {
     shortJobId = (uint8_t)jparams.children()->at(1).uint32();
   }
