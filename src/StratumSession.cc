@@ -567,24 +567,6 @@ void StratumSession::responseAuthorizeSuccess(const std::string &idStr) {
   responseTrue(idStr);
 }
 
-void StratumSession::sendSetDifficulty(
-    LocalJob &localJob, uint64_t difficulty) {
-  string s;
-  if (!server_.isDevModeEnable_) {
-    s = Strings::Format(
-        "{\"id\":null,\"method\":\"mining.set_difficulty\""
-        ",\"params\":[%" PRIu64 "]}\n",
-        difficulty);
-  } else {
-    s = Strings::Format(
-        "{\"id\":null,\"method\":\"mining.set_difficulty\""
-        ",\"params\":[%.3f]}\n",
-        server_.devFixedDifficulty_);
-  }
-
-  sendData(s);
-}
-
 void StratumSession::reportShare(
     size_t chainId, int32_t status, uint64_t shareDiff) {
   ++server_.chains_[chainId].shareStats_[status];

@@ -545,7 +545,6 @@ string JobMakerHandlerBitcoin::makeStratumJob(const string &gbt) {
 
   LOG(INFO) << "--------producer stratum job, jobId: " << sjob.jobId_
             << ", height: " << sjob.height_ << "--------";
-  LOG(INFO) << "sjob: " << jobMsg;
 
   isMergedMiningUpdate_ = false;
   return jobMsg;

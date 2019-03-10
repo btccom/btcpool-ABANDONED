@@ -43,7 +43,7 @@ void BitcoinHeaderData::set(const CBlockHeader &header) {
   ssBlockHeader << header;
   // use std::string to save binary data
   const string headerBin = ssBlockHeader.str();
-  assert(headerBin.size() == BitcoinHeaderSize);
+  assert(headerBin.size() <= BitcoinHeaderSize);
   // set header data
   memcpy(headerData_, headerBin.data(), headerBin.size());
 }
@@ -136,6 +136,10 @@ string StratumJobBitcoin::serializeToJson() const {
 #ifdef CHAIN_TYPE_UBTC
       ",\"rootStateHash\":\"%s\""
 #endif
+#ifdef CHAIN_TYPE_ZEC
+      ",\"merkleRoot\":\"%s\""
+      ",\"finalSaplingRoot\":\"%s\""
+#endif
       // namecoin, optional
       ",\"nmcBlockHash\":\"%s\",\"nmcBits\":%u,\"nmcHeight\":%d"
       ",\"nmcRpcAddr\":\"%s\",\"nmcRpcUserpass\":\"%s\""
@@ -164,6 +168,10 @@ string StratumJobBitcoin::serializeToJson() const {
       witnessCommitment_.size() ? witnessCommitment_.c_str() : "",
 #ifdef CHAIN_TYPE_UBTC
       rootStateHash_.size() ? rootStateHash_.c_str() : "",
+#endif
+#ifdef CHAIN_TYPE_ZEC
+      merkleRoot_.ToString().c_str(),
+      finalSaplingRoot_.ToString().c_str(),
 #endif
       // nmc
       nmcAuxBlockHash_.ToString().c_str(),
@@ -229,6 +237,14 @@ bool StratumJobBitcoin::unserializeFromJson(const char *s, size_t len) {
   if (j["rootStateHash"].type() == Utilities::JS::type::Str &&
       j["rootStateHash"].str().length() >= 2 * 2) {
     rootStateHash_ = j["rootStateHash"].str();
+  }
+#endif
+
+#ifdef CHAIN_TYPE_ZEC
+  if (j["merkleRoot"].type() == Utilities::JS::type::Str &&
+      j["finalSaplingRoot"].type() == Utilities::JS::type::Str) {
+    merkleRoot_ = uint256S(j["merkleRoot"].str());
+    finalSaplingRoot_ = uint256S(j["finalSaplingRoot"].str());
   }
 #endif
 
@@ -318,7 +334,9 @@ bool StratumJobBitcoin::initFromGbt(
   nBits_ = jgbt["bits"].uint32_hex();
   nTime_ = jgbt["curtime"].uint32();
   minTime_ = jgbt["mintime"].uint32();
+#ifndef CHAIN_TYPE_ZEC
   coinbaseValue_ = jgbt["coinbasevalue"].int64();
+#endif
 
   // default_witness_commitment must be at least 38 bytes
   if (jgbt["default_witness_commitment"].type() == Utilities::JS::type::Str &&
@@ -333,6 +351,12 @@ bool StratumJobBitcoin::initFromGbt(
   if (jgbt["default_root_state_hash"].type() == Utilities::JS::type::Str &&
       jgbt["default_root_state_hash"].str().length() >= 2 * 2) {
     rootStateHash_ = jgbt["default_root_state_hash"].str();
+  }
+#endif
+
+#ifdef CHAIN_TYPE_ZEC
+  if (jgbt["finalsaplingroothash"].type() == Utilities::JS::type::Str) {
+    finalSaplingRoot_ = uint256S(jgbt["finalsaplingroothash"].str());
   }
 #endif
 
@@ -441,6 +465,89 @@ bool StratumJobBitcoin::initFromGbt(
   }
 
   // make coinbase1 & coinbase2
+#ifdef CHAIN_TYPE_ZEC
+  {
+    // ZCash uses a pre-generated coinbase transaction template
+    string coinbaseStr = jgbt["coinbasetxn"]["data"].str();
+    CMutableTransaction cbtx;
+    {
+      CTransaction rotx;
+      DecodeHexTx(rotx, coinbaseStr);
+      cbtx = rotx;
+    }
+
+    // ------------- input -------------
+    if (cbtx.vin.size() != 1) {
+      LOG(ERROR) << "wrong coinbase input size: " << cbtx.vin.size()
+                 << ", tx data: " << coinbaseStr;
+      return false;
+    }
+    CTxIn &cbIn = cbtx.vin[0];
+
+    // add current timestamp to coinbase tx input, so if the block's merkle root
+    // hash is the same, there's no risk for miners to calc the same space.
+    // https://github.com/btccom/btcpool/issues/5
+    //
+    // 5 bytes in script: 0x04xxxxxxxx.
+    // eg. 0x0402363d58 -> 0x583d3602 = 1480406530 = 2016-11-29 16:02:10
+    //
+    cbIn.scriptSig << CScriptNum((uint32_t)time(nullptr));
+
+    // pool's info
+    cbIn.scriptSig.insert(
+        cbIn.scriptSig.end(), poolCoinbaseInfo.begin(), poolCoinbaseInfo.end());
+
+    // 100: coinbase script sig max len, range: (2, 100).
+    //
+    // zcashd/src/main.cpp: CheckTransactionWithoutProofVerification()
+    //   if (tx.IsCoinBase())
+    //   {
+    //     if (tx.vin[0].scriptSig.size() < 2 || tx.vin[0].scriptSig.size() >
+    //     100)
+    //       return state.DoS(100, false, REJECT_INVALID, "bad-cb-length");
+    //   }
+    //
+    if (cbIn.scriptSig.size() >= 100) {
+      LOG(FATAL) << "coinbase input script size over than 100, shold < 100";
+      return false;
+    }
+
+    // ------------- outputs -------------
+    if (cbtx.vout.size() < 2) {
+      LOG(ERROR) << "wrong coinbase output size: " << cbtx.vout.size()
+                 << ", tx data: " << coinbaseStr;
+      return false;
+    }
+
+    CTxOut &poolReward = cbtx.vout[0];
+    CTxOut &foundersReward = cbtx.vout[1];
+
+    if (foundersReward.nValue > poolReward.nValue) {
+      LOG(ERROR) << "wrong coinbase output value, foundersReward.nValue ("
+                 << foundersReward.nValue << ") > poolReward.nValue ("
+                 << poolReward.nValue << ")"
+                 << ", tx data: " << coinbaseStr;
+    }
+
+    poolReward.scriptPubKey = GetScriptForDestination(poolPayoutAddr);
+
+    // ------------- compute merkle root -------------
+    vector<char> coinbaseTpl;
+    {
+      CSerializeData sdata;
+      CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+      ssTx << cbtx; // put coinbase CTransaction to CDataStream
+      ssTx.GetAndClear(sdata); // dump coinbase bin to coinbaseTpl
+      coinbaseTpl.insert(coinbaseTpl.end(), sdata.begin(), sdata.end());
+    }
+
+    // We store coinbaseTpl in coinbase_, keep coinbase2_ empty.
+    coinbase1_ = HexStr(coinbaseTpl.begin(), coinbaseTpl.end());
+    coinbase2_.clear();
+
+    merkleRoot_ = ComputeCoinbaseMerkleRoot(coinbaseTpl, merkleBranch_);
+  }
+#else
   {
     CTxIn cbIn;
     //
@@ -619,7 +726,8 @@ bool StratumJobBitcoin::initFromGbt(
     coinbase2_ = HexStr(
         &coinbaseTpl[extraNonceStart + placeHolder.size()],
         &coinbaseTpl[coinbaseTpl.size()]);
-  }
+  } // make coinbase1 & coinbase2
+#endif
 
   return true;
 }

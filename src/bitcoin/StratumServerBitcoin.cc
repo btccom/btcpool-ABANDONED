@@ -24,10 +24,11 @@
 #include "StratumServerBitcoin.h"
 #include "StratumSessionBitcoin.h"
 #include "StratumBitcoin.h"
+#include "BitcoinUtils.h"
 
 #include "rsk/RskSolvedShareData.h"
 
-#include <arith_uint256.h>
+#include "arith_uint256.h"
 #include "hash.h"
 #include "primitives/block.h"
 
@@ -116,6 +117,47 @@ StratumJobExBitcoin::StratumJobExBitcoin(
 
 void StratumJobExBitcoin::init() {
   auto sjob = std::static_pointer_cast<StratumJobBitcoin>(sjob_);
+
+#ifdef CHAIN_TYPE_ZEC
+  //
+  // mining.notify()
+  //   {"id": null, "method": "mining.notify",
+  //    "params": ["JobID", "Version", "PrevHash", "MerkleRoot",
+  //               "FinalSaplingRootHash", "Time", "Bits", CleanJobs]}
+  //
+  // we don't put jobId here, session will fill with the shortJobId
+  miningNotify1_ = "{\"id\":null,\"method\":\"mining.notify\",\"params\":[\"";
+
+  miningNotify2_ = "";
+  coinbase1_ = "";
+
+  const string prevHash = getNotifyHashStr(sjob->prevHash_);
+  const string merkleRoot = getNotifyHashStr(sjob->merkleRoot_);
+  const string finalSaplingRoot = getNotifyHashStr(sjob->finalSaplingRoot_);
+
+  miningNotify3_ = Strings::Format(
+      "\",\"%s\",\"%s\",\"%s\","
+      "\"%s\",\"%s\",\"%s\",%s]}\n",
+      getNotifyUint32Str(sjob->nVersion_).c_str(),
+      prevHash.c_str(),
+      merkleRoot.c_str(),
+      finalSaplingRoot.c_str(),
+      getNotifyUint32Str(sjob->nTime_).c_str(),
+      getNotifyUint32Str(sjob->nBits_).c_str(),
+      isClean_ ? "true" : "false");
+
+  // always set clean to true, reset of them is the same with miningNotify2_
+  miningNotify3Clean_ = Strings::Format(
+      "\",\"%s\",\"%s\",\"%s\","
+      "\"%s\",\"%s\",\"%s\",true]}\n",
+      getNotifyUint32Str(sjob->nVersion_).c_str(),
+      prevHash.c_str(),
+      merkleRoot.c_str(),
+      finalSaplingRoot.c_str(),
+      getNotifyUint32Str(sjob->nTime_).c_str(),
+      getNotifyUint32Str(sjob->nBits_).c_str());
+
+#else
   string merkleBranchStr;
   {
     // '"'+ 64 + '"' + ',' = 67 bytes
@@ -165,6 +207,7 @@ void StratumJobExBitcoin::init() {
       sjob->nVersion_,
       sjob->nBits_,
       sjob->nTime_);
+#endif
 }
 
 void StratumJobExBitcoin::generateCoinbaseTx(
@@ -212,26 +255,35 @@ void StratumJobExBitcoin::generateBlockHeader(
     const BitcoinNonceType nonce,
     const uint32_t versionMask,
     string *userCoinbaseInfo) {
-  generateCoinbaseTx(
-      coinbaseBin, extraNonce1, extraNonce2Hex, userCoinbaseInfo);
 
   header->hashPrevBlock = hashPrevBlock;
   header->nVersion = (nVersion ^ versionMask);
   header->nBits = nBits;
   header->nTime = nTime;
+
+#ifdef CHAIN_TYPE_ZEC
+  header->nNonce = nonce.nonce;
+  header->nSolution =
+      ParseHex(nonce.solution.substr(getSolutionVintSize() * 2));
+
+  auto sjob = std::static_pointer_cast<StratumJobBitcoin>(sjob_);
+
+  header->hashMerkleRoot = sjob->merkleRoot_;
+  header->hashFinalSaplingRoot = sjob->finalSaplingRoot_;
+
+  Hex2Bin(sjob->coinbase1_.c_str(), sjob->coinbase1_.size(), *coinbaseBin);
+
+#else
   header->nNonce = nonce;
 
-  // hashMerkleRoot
-  header->hashMerkleRoot = Hash(coinbaseBin->begin(), coinbaseBin->end());
-
-  for (const uint256 &step : merkleBranch) {
-    header->hashMerkleRoot = Hash(
-        BEGIN(header->hashMerkleRoot),
-        END(header->hashMerkleRoot),
-        BEGIN(step),
-        END(step));
-  }
+  // compute merkle root
+  generateCoinbaseTx(
+      coinbaseBin, extraNonce1, extraNonce2Hex, userCoinbaseInfo);
+  header->hashMerkleRoot =
+      ComputeCoinbaseMerkleRoot(*coinbaseBin, merkleBranch);
+#endif
 }
+
 ////////////////////////////////// ServerBitcoin ///////////////////////////////
 ServerBitcoin::ServerBitcoin()
   : ServerBase()
@@ -419,6 +471,25 @@ int ServerBitcoin::checkShare(
 #endif
   arith_uint256 bnBlockHash = UintToArith256(blkHash);
   arith_uint256 bnNetworkTarget = UintToArith256(sjob->networkTarget_);
+
+#ifdef CHAIN_TYPE_ZEC
+  DLOG(INFO) << Strings::Format(
+      "CBlockHeader nVersion: %08x, hashPrevBlock: %s, hashMerkleRoot: %s, "
+      "hashFinalSaplingRoot: %s, nTime: %08x, nBits: %08x, nNonce: %s",
+      header.nVersion,
+      header.hashPrevBlock.ToString().c_str(),
+      header.hashMerkleRoot.ToString().c_str(),
+      header.hashFinalSaplingRoot.ToString().c_str(),
+      header.nTime,
+      header.nBits,
+      header.nNonce.ToString().c_str());
+
+  // check equihash solution
+  if (isEnableSimulator_ == false &&
+      CheckEquihashSolution(&header, Params()) == false) {
+    return StratumStatus::INVALID_SOLUTION;
+  }
+#endif
 
   //
   // found new block

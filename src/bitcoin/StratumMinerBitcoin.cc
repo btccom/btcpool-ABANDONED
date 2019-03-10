@@ -26,6 +26,7 @@
 #include "StratumSessionBitcoin.h"
 #include "StratumMessageDispatcher.h"
 #include "DiffController.h"
+#include "BitcoinUtils.h"
 
 #include <event2/buffer.h>
 
@@ -83,12 +84,6 @@ void StratumMinerBitcoin::handleRequest_Submit(
     return;
   }
 
-  //  params[0] = Worker Name
-  //  params[1] = Job ID
-  //  params[2] = ExtraNonce 2
-  //  params[3] = nTime
-  //  params[4] = nonce
-  //  params[5] = version mask (optional)
   if (jparams.children()->size() < 5) {
     session.responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
     return;
@@ -101,19 +96,49 @@ void StratumMinerBitcoin::handleRequest_Submit(
   } else {
     shortJobId = (uint8_t)jparams.children()->at(1).uint32();
   }
-  const uint64_t extraNonce2 = jparams.children()->at(2).uint64_hex();
-  uint32_t nTime = jparams.children()->at(3).uint32_hex();
 
 #ifdef CHAIN_TYPE_ZEC
-  const BitcoinNonceType nonce = uint256S(jparams.children()->at(4).str());
-#else
-  const BitcoinNonceType nonce = jparams.children()->at(4).uint32_hex();
-#endif
+  BitcoinNonceType nonce;
 
+  // For ZCash:
+  //  params[0] = WORKER_NAME
+  //  params[1] = JOB_ID
+  //  params[2] = TIME
+  //  params[3] = NONCE_2
+  //  params[4] = EQUIHASH_SOLUTION
+  uint32_t nTime = SwapUint(jparams.children()->at(2).uint32_hex());
+  string nonce2Str = jparams.children()->at(3).str();
+  if (nonce2Str.size() != 56) {
+    session.responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
+  }
+
+  nonce.nonce = SwapUint(uint256S(Strings::Format(
+      "%08x%s",
+      session.getSessionId(),
+      jparams.children()->at(3).str().c_str())));
+  nonce.solution = jparams.children()->at(4).str();
+
+  // ZCash's share doesn't have them
+  const uint64_t extraNonce2 = 0;
+  uint32_t versionMask = 0u;
+
+#else
+
+  // For Bitcoin:
+  //  params[0] = Worker Name
+  //  params[1] = Job ID
+  //  params[2] = ExtraNonce 2
+  //  params[3] = nTime
+  //  params[4] = nonce
+  //  params[5] = version mask (optional)
+  const uint64_t extraNonce2 = jparams.children()->at(2).uint64_hex();
+  uint32_t nTime = jparams.children()->at(3).uint32_hex();
+  BitcoinNonceType nonce = jparams.children()->at(4).uint32_hex();
   uint32_t versionMask = 0u;
   if (jparams.children()->size() >= 6) {
     versionMask = jparams.children()->at(5).uint32_hex();
   }
+#endif
 
   handleRequest_Submit(
       idStr, shortJobId, extraNonce2, nonce, nTime, versionMask);
@@ -255,7 +280,7 @@ void StratumMinerBitcoin::handleRequest_Submit(
   share.set_ip(ip.toString());
 // set nonce
 #ifdef CHAIN_TYPE_ZEC
-  uint32_t nonceHash = djb2(nonce.ToString().c_str());
+  uint32_t nonceHash = djb2(nonce.nonce.ToString().c_str());
   share.set_nonce(nonceHash);
 #else
   share.set_nonce(nonce);
@@ -270,7 +295,11 @@ void StratumMinerBitcoin::handleRequest_Submit(
   bool isSendShareToKafka = true;
 
 #ifdef CHAIN_TYPE_ZEC
-  LocalShare localShare(extraNonce2, nonceHash, nTime, versionMask);
+  LocalShare localShare(
+      nonce.nonce.GetCheapHash(),
+      nonceHash,
+      nTime,
+      djb2(nonce.solution.c_str()));
 #else
   LocalShare localShare(extraNonce2, nonce, nTime, versionMask);
 #endif
@@ -279,20 +308,6 @@ void StratumMinerBitcoin::handleRequest_Submit(
   if (!localJob->addLocalShare(localShare)) {
     share.set_status(StratumStatus::DUPLICATE_SHARE);
   } else {
-#ifdef USER_DEFINED_COINBASE
-    // check block header
-    share.set_status(server->checkShare(
-        localJob->chainId_,
-        share,
-        session.getSessionId(),
-        extraNonce2Hex,
-        nTime,
-        nonce,
-        versionMask,
-        jobTarget,
-        worker_.fullName_,
-        &localJob->userCoinbaseInfo_));
-#else
     // check block header
     share.set_status(server.checkShare(
         localJob->chainId_,
@@ -303,8 +318,12 @@ void StratumMinerBitcoin::handleRequest_Submit(
         nonce,
         versionMask,
         jobTarget,
-        worker.fullName_));
+        worker.fullName_
+#ifdef USER_DEFINED_COINBASE
+        ,
+        &localJob->userCoinbaseInfo_
 #endif
+        ));
   }
 
   DLOG(INFO) << share.toString();

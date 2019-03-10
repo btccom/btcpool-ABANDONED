@@ -179,7 +179,13 @@ string GbtMaker::makeRawGbtMsg() {
   if (r["result"].type() != Utilities::JS::type::Obj ||
       r["result"]["previousblockhash"].type() != Utilities::JS::type::Str ||
       r["result"]["height"].type() != Utilities::JS::type::Int ||
+#ifdef CHAIN_TYPE_ZEC
+      r["result"]["coinbasetxn"].type() != Utilities::JS::type::Obj ||
+      r["result"]["coinbasetxn"]["data"].type() != Utilities::JS::type::Str ||
+      r["result"]["coinbasetxn"]["fee"].type() != Utilities::JS::type::Int ||
+#else
       r["result"]["coinbasevalue"].type() != Utilities::JS::type::Int ||
+#endif
       r["result"]["bits"].type() != Utilities::JS::type::Str ||
       r["result"]["mintime"].type() != Utilities::JS::type::Int ||
       r["result"]["curtime"].type() != Utilities::JS::type::Int ||
@@ -191,7 +197,12 @@ string GbtMaker::makeRawGbtMsg() {
 
   LOG(INFO) << "gbt height: " << r["result"]["height"].uint32()
             << ", prev_hash: " << r["result"]["previousblockhash"].str()
+#ifdef CHAIN_TYPE_ZEC
+            << ", coinbase_fee: "
+            << r["result"]["coinbasevalue"]["fee"].uint64()
+#else
             << ", coinbase_value: " << r["result"]["coinbasevalue"].uint64()
+#endif
             << ", bits: " << r["result"]["bits"].str()
             << ", mintime: " << r["result"]["mintime"].uint32()
             << ", version: " << r["result"]["version"].uint32() << "|0x"

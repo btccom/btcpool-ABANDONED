@@ -217,7 +217,6 @@ public:
   void rpc2ResponseTrue(const string &idStr);
   void rpc2ResponseError(const string &idStr, int errCode);
 
-  void sendSetDifficulty(LocalJob &localJob, uint64_t difficulty) override;
   virtual void sendMiningNotify(
       shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob = false) = 0;
 

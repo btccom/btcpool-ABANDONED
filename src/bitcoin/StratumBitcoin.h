@@ -43,12 +43,16 @@
 
 // ZCash's nonce is 256bits, others are 32bits.
 #ifdef CHAIN_TYPE_ZEC
-using BitcoinNonceType = uint256;
-// for mainnet & testnet:
+struct BitcoinNonceType {
+  uint256 nonce;
+  string solution;
+};
+// For mainnet & testnet:
 // n=200, k=9, 2^9 = 512
 // 21 bits * 512 / 8 = 1344
 // 140 + 3 bytes(1344_vint) + 1344 = 1487 Bytes
-const size_t BitcoinHeaderSize = 1487;
+// Set to 1488 bytes for memory align
+const size_t BitcoinHeaderSize = 1488;
 #else
 using BitcoinNonceType = uint32_t;
 const size_t BitcoinHeaderSize = 80;
@@ -316,8 +320,8 @@ public:
   uint256 prevHash_;
   string prevHashBeStr_; // little-endian hex, memory's order
   int32_t height_;
-  string coinbase1_;
-  string coinbase2_;
+  string coinbase1_; // bitcoin: coinbase1, zcash: full coinbase tx
+  string coinbase2_; // bitcoin: coinbase2, zcash: empty
   vector<uint256> merkleBranch_;
 
   int32_t nVersion_;
@@ -330,6 +334,11 @@ public:
 #ifdef CHAIN_TYPE_UBTC
   // if UB smart contract is not active, it will be empty
   string rootStateHash_;
+#endif
+
+#ifdef CHAIN_TYPE_ZEC
+  uint256 merkleRoot_;
+  uint256 finalSaplingRoot_;
 #endif
 
   uint256 networkTarget_;

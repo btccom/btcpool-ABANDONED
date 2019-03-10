@@ -37,6 +37,7 @@ public:
       struct sockaddr *saddr,
       uint32_t extraNonce1);
   uint16_t decodeSessionId(const std::string &exMessage) const override;
+  void sendSetDifficulty(LocalJob &localJob, uint64_t difficulty) override;
   void
   sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) override;
 

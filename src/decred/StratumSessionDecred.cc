@@ -41,6 +41,24 @@ StratumSessionDecred::StratumSessionDecred(
   , shortJobId_(0) {
 }
 
+void StratumSessionDecred::sendSetDifficulty(
+    LocalJob &localJob, uint64_t difficulty) {
+  string s;
+  if (!server_.isDevModeEnable_) {
+    s = Strings::Format(
+        "{\"id\":null,\"method\":\"mining.set_difficulty\""
+        ",\"params\":[%" PRIu64 "]}\n",
+        difficulty);
+  } else {
+    s = Strings::Format(
+        "{\"id\":null,\"method\":\"mining.set_difficulty\""
+        ",\"params\":[%.3f]}\n",
+        server_.devFixedDifficulty_);
+  }
+
+  sendData(s);
+}
+
 void StratumSessionDecred::sendMiningNotify(
     shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
   if (state_ < AUTHENTICATED || exJobPtr == nullptr) {

@@ -94,11 +94,20 @@ inline CTxDestination DecodeDestination(const std::string &str) {
 
 #endif
 
+#ifdef CHAIN_TYPE_ZEC
+int32_t getSolutionVintSize();
+bool CheckEquihashSolution(
+    const CBlockHeader *pblock, const CChainParams &params);
+#endif
+
 #if defined(CHAIN_TYPE_BCH) || defined(CHAIN_TYPE_ZEC)
 std::vector<uint256>
 ComputeMerkleBranch(const std::vector<uint256> &leaves, uint32_t position);
 std::vector<uint256> BlockMerkleBranch(const CBlock &block, uint32_t position);
 #endif
+
+uint256 ComputeCoinbaseMerkleRoot(
+    const std::vector<char> &coinbaseBin, const vector<uint256> &merkleBranch);
 
 std::string EncodeHexBlock(const CBlock &block);
 std::string EncodeHexBlockHeader(const CBlockHeader &blkHeader);
@@ -108,5 +117,24 @@ int64_t GetBlockReward(int nHeight, const Consensus::Params &consensusParams);
 bool checkBitcoinRPC(const string &rpcAddr, const string &rpcUserpass);
 
 int32_t getBlockHeightFromCoinbase(const string &coinbase1);
+
+string getNotifyHashStr(const uint256 &hash);
+string getNotifyUint32Str(const uint32_t var);
+
+inline uint16_t SwapUint(uint16_t v) {
+  return (v >> 8) | (v << 8);
+}
+inline uint32_t SwapUint(uint32_t v) {
+  return ((v & 0xff000000) >> 24) | ((v & 0x00ff0000) >> 8) |
+      ((v & 0x0000ff00) << 8) | ((v & 0x000000ff) << 24);
+}
+inline uint64_t SwapUint(uint64_t v) {
+  return ((v & 0xff00000000000000ULL) >> 56) |
+      ((v & 0x00ff000000000000ULL) >> 40) |
+      ((v & 0x0000ff0000000000ULL) >> 24) | ((v & 0x000000ff00000000ULL) >> 8) |
+      ((v & 0x00000000ff000000ULL) << 8) | ((v & 0x0000000000ff0000ULL) << 24) |
+      ((v & 0x000000000000ff00ULL) << 40) | ((v & 0x00000000000000ffULL) << 56);
+}
+uint256 SwapUint(const uint256 &hash);
 
 #endif // BITCOIN_UTILS_H_

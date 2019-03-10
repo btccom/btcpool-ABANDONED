@@ -57,6 +57,37 @@ StratumSessionBitcoin::decodeSessionId(const std::string &exMessage) const {
   return header->sessionId.value();
 }
 
+void StratumSessionBitcoin::sendSetDifficulty(
+    LocalJob &localJob, uint64_t difficulty) {
+  string s;
+
+#ifdef CHAIN_TYPE_ZEC
+  // {"id": null, "method": "mining.set_target", "params": ["TARGET"]}
+  uint256 target;
+  DiffToTarget(difficulty, target);
+
+  s = Strings::Format(
+      "{\"id\":null,\"method\":\"mining.set_target\""
+      ",\"params\":[\"%s\"]}\n",
+      target.ToString().c_str());
+
+#else
+  if (!server_.isDevModeEnable_) {
+    s = Strings::Format(
+        "{\"id\":null,\"method\":\"mining.set_difficulty\""
+        ",\"params\":[%" PRIu64 "]}\n",
+        difficulty);
+  } else {
+    s = Strings::Format(
+        "{\"id\":null,\"method\":\"mining.set_difficulty\""
+        ",\"params\":[%.3f]}\n",
+        server_.devFixedDifficulty_);
+  }
+#endif
+
+  sendData(s);
+}
+
 void StratumSessionBitcoin::sendMiningNotify(
     shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) {
   auto exJob = std::static_pointer_cast<StratumJobExBitcoin>(exJobPtr);
@@ -351,6 +382,14 @@ void StratumSessionBitcoin::handleRequest_Subscribe(
   //  result[2] = Extranonce2_size, the number of bytes that the miner users for
   //  its ExtraNonce2 counter
   assert(StratumMiner::kExtraNonce2Size_ == 8);
+
+#ifdef CHAIN_TYPE_ZEC
+  // {"id": 1, "result": ["SESSION_ID", "NONCE_1"], "error": null}
+  auto s = Strings::Format(
+      "{\"id\":%s,\"result\":[null,\"%08x\"],\"error\":null}\n",
+      idStr.c_str(),
+      sessionId_);
+#else
   auto s = Strings::Format(
       "{\"id\":%s,\"result\":[[[\"mining.set_difficulty\",\"%08x\"]"
       ",[\"mining.notify\",\"%08x\"]],\"%08x\",%d],\"error\":null}\n",
@@ -359,6 +398,8 @@ void StratumSessionBitcoin::handleRequest_Subscribe(
       sessionId_,
       sessionId_,
       StratumMiner::kExtraNonce2Size_);
+#endif
+
   sendData(s);
 }
 

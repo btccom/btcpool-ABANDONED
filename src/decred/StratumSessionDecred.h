@@ -37,6 +37,7 @@ public:
       uint32_t extraNonce1,
       const StratumProtocolDecred &protocol);
 
+  void sendSetDifficulty(LocalJob &localJob, uint64_t difficulty) override;
   void
   sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob) override;
 

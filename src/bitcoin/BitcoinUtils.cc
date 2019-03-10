@@ -28,6 +28,10 @@
 
 #include <streams.h>
 
+#ifdef CHAIN_TYPE_ZEC
+#include "equihash/zcash/equihash_zcash.hpp"
+#endif
+
 std::string EncodeHexBlock(const CBlock &block) {
   CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
   ssBlock << block;
@@ -37,6 +41,18 @@ std::string EncodeHexBlockHeader(const CBlockHeader &blkHeader) {
   CDataStream ssBlkHeader(SER_NETWORK, PROTOCOL_VERSION);
   ssBlkHeader << blkHeader;
   return HexStr(ssBlkHeader.begin(), ssBlkHeader.end());
+}
+
+uint256 ComputeCoinbaseMerkleRoot(
+    const std::vector<char> &coinbaseBin, const vector<uint256> &merkleBranch) {
+
+  uint256 hashMerkleRoot = Hash(coinbaseBin.begin(), coinbaseBin.end());
+  for (const uint256 &step : merkleBranch) {
+    hashMerkleRoot = Hash(
+        BEGIN(hashMerkleRoot), END(hashMerkleRoot), BEGIN(step), END(step));
+  }
+
+  return hashMerkleRoot;
 }
 
 #if defined(CHAIN_TYPE_BCH) || defined(CHAIN_TYPE_ZEC)
@@ -238,7 +254,6 @@ int64_t GetBlockReward(int nHeight, const Consensus::Params &consensusParams) {
 #endif
 
 #ifdef CHAIN_TYPE_SBTC
-
 namespace BitcoinUtils {
 CTxDestination DecodeDestination(const std::string &str) {
   CBitcoinAddress addr(str);
@@ -251,6 +266,60 @@ bool IsValidDestinationString(const std::string &str) {
 }
 } // namespace BitcoinUtils
 #endif // CHAIN_TYPE_SBTC
+
+#ifdef CHAIN_TYPE_ZEC
+int32_t getSolutionVintSize() {
+  //
+  // put solution, see more:
+  // https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
+  //
+  const CChainParams &chainparams = Params();
+
+  if (chainparams.EquihashN() == 200 && chainparams.EquihashK() == 9) {
+    // for mainnet and testnet3, nEquihashN(200) and nEquihashK(9) is the same
+    // value. the client return the solution alwasy start with: "fd4005".
+    //
+    // 0xFD followed by the length as uint16_t, 0x4005 -> 0x0540 = 1344
+    // N = 200, K = 9, N / (K + 1) + 1 = 21
+    // 21 bits * 2^9 / 8 = 1344 bytes
+    //
+    // solution is two parts: 3 bytes(1344_vint) + 1344 bytes
+    return 3;
+  } else if (chainparams.EquihashN() == 48 && chainparams.EquihashK() == 5) {
+    // for Regression testnet: const size_t N = 48, K = 5;
+    // N = 48, K = 5, N / (K + 1) + 1 = 9
+    // 9 bits * 2^5 / 8 = 36 bytes = 0x24
+    // the client return the solution alwasy start with: "24", 1 bytes
+    return 1;
+  }
+  return 3; // default size
+}
+
+bool CheckEquihashSolution(
+    const CBlockHeader *pblock, const CChainParams &params) {
+  unsigned int n = params.EquihashN();
+  unsigned int k = params.EquihashK();
+
+  // Hash state
+  crypto_generichash_blake2b_state state;
+  EhZecInitialiseState(n, k, state);
+
+  // I = the block header minus nonce and solution.
+  CEquihashInput I{*pblock};
+  // I||V
+  CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+  ss << I;
+  ss << pblock->nNonce;
+
+  // H(I||V||...
+  crypto_generichash_blake2b_update(&state, (unsigned char *)&ss[0], ss.size());
+
+  bool isValid = false;
+  EhZecIsValidSolution(n, k, state, pblock->nSolution, isValid);
+
+  return isValid;
+}
+#endif
 
 static bool checkBitcoinRPCGetNetworkInfo(
     const string &rpcAddr, const string &rpcUserpass) {
@@ -349,4 +418,34 @@ int32_t getBlockHeightFromCoinbase(const string &coinbase1) {
   DLOG(INFO) << "getBlockHeightFromCoinbase heightHex: " << heightHex;
 
   return (int32_t)strtol(heightHex.c_str(), nullptr, 16);
+}
+
+string getNotifyHashStr(const uint256 &hash) {
+  // we need to convert to little-endian
+  // 00000000000000000328e9fea9914ad83b7404a838aa66aefb970e5689c2f63d
+  // 89c2f63dfb970e5638aa66ae3b7404a8a9914ad80328e9fe0000000000000000
+  string str;
+  for (int i = 0; i < 8; i++) {
+    uint32_t a = *(uint32_t *)(BEGIN(hash) + i * 4);
+    str += HexStr(BEGIN(a), END(a));
+  }
+  return str;
+}
+
+string getNotifyUint32Str(const uint32_t var) {
+  string str;
+
+  uint32_t a = *(uint32_t *)(BEGIN(var));
+  str += HexStr(BEGIN(a), END(a));
+
+  return str;
+}
+
+uint256 SwapUint(const uint256 &hash) {
+  uint256 h;
+  for (int i = 0; i < 8; i++) {
+    uint32_t a = *(uint32_t *)(BEGIN(hash) + i * 4);
+    *(uint32_t *)(BEGIN(h) + (7 - i) * 4) = SwapUint(a);
+  }
+  return h;
 }
