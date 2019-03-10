@@ -89,7 +89,7 @@ void StratumSessionBitcoin::sendMiningNotify(
     // short Job ID
     //
     const uint64_t niceHashJobId =
-        (uint64_t)time(nullptr) * 10 + ljob.shortJobId_;
+        (uint64_t)time(nullptr) * kMaxNumLocalJobs_ + ljob.shortJobId_;
     notifyStr.append(Strings::Format("% " PRIu64 "", niceHashJobId));
   } else {
     notifyStr.append(Strings::Format("%u", ljob.shortJobId_)); // short jobId
