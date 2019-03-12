@@ -246,6 +246,8 @@ bool StratumSession::autoRegCallback(const string &userName) {
         savedAuthorizeInfo_->fullName_,
         savedAuthorizeInfo_->password_,
         true);
+
+    savedAuthorizeInfo_ = nullptr;
     return true;
   }
 
@@ -263,9 +265,6 @@ void StratumSession::checkUserAndPwd(
                  << (isDead_ ? "session dead" : "state wrong")
                  << ", worker: " << fullName;
       return;
-    }
-    if (savedAuthorizeInfo_) {
-      savedAuthorizeInfo_ = nullptr;
     }
   }
 

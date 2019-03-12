@@ -97,13 +97,13 @@ public:
 
 class StratumSession : public IStratumSession {
 public:
-  // mining state
-  enum State {
-    CONNECTED = 0,
-    SUBSCRIBED = 1,
-    AUTHENTICATED = 2,
-    AUTO_REGISTING = 4
-  };
+  // Mining State
+  //
+  // Please put non-authenticated status in front of AUTHENTICATED.
+  // Otherwise code like this will go wrong:
+  // <code>if (state_ < AUTHENTICATED || exJobPtr == nullptr)</code>
+  //
+  enum State { CONNECTED, SUBSCRIBED, AUTO_REGISTING, AUTHENTICATED };
 
 protected:
   StratumServer &server_;
