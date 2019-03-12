@@ -31,7 +31,7 @@ template <class SHARE>
 ShareLogParserT<SHARE>::ShareLogParserT(
     const libconfig::Config &cfg, time_t timestamp)
   : date_(timestamp)
-  , hour_(timestamp / 3600)
+  , hour_((timestamp - timestamp % 86400) / 3600)
   , outputDir_(cfg.lookup("parquet.data_dir").operator string())
   , chainType_(cfg.lookup("sharelog.chain_type").operator string())
   , f_(nullptr)
@@ -229,10 +229,10 @@ int64_t ShareLogParserT<SHARE>::processGrowingShareLog() {
 
       return -1;
     }
-  }
 
-  if (!openParquet()) {
-    return false;
+    if (!openParquet()) {
+      return false;
+    }
   }
 
   uint32_t readNum = 0;
