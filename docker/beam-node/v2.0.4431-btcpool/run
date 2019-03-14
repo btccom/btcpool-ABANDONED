@@ -1,0 +1,9 @@
+#! /bin/bash
+#
+# run shell for bitcoind
+#
+# @copyright btc.com
+# @author yihao.peng@bitmain.com
+#
+cd /work/beam-node
+exec /work/beam/beam/beam-node
