@@ -155,6 +155,8 @@ int main(int argc, char **argv) {
 
   signal(SIGTERM, handler);
   signal(SIGINT, handler);
+  // ignore SIGPIPE, avoiding process be killed
+  signal(SIGPIPE, SIG_IGN);
 
   try {
     // check if we are using testnet3
