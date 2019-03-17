@@ -110,7 +110,7 @@ void StratumMinerBeam::handleRequest_Submit(
   share.set_version(ShareBeam::CURRENT_VERSION);
   share.set_inputprefix(inputPrefix);
   share.set_workerhashid(workerId_);
-  share.set_userid(worker.userId(exjob->chainId_));
+  share.set_userid(worker.userId(localJob->chainId_));
   share.set_sharediff(jobDiff.currentJobDiff_);
   share.set_blockbits(sjob->blockBits_);
   share.set_timestamp((uint64_t)time(nullptr));
@@ -155,7 +155,7 @@ void StratumMinerBeam::handleRequest_Submit(
       server.sendSolvedShare2Kafka(
           localJob->chainId_, share, sjob->input_, output, worker, blockHash);
       // mark jobs as stale
-      server.GetJobRepository(exjob->chainId_)->markAllJobsAsStale();
+      server.GetJobRepository(localJob->chainId_)->markAllJobsAsStale();
     }
   } else {
     // check if there is invalid share spamming

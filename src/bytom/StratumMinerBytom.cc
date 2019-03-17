@@ -191,7 +191,7 @@ void StratumMinerBytom::handleRequest_Submit(
   //  ShareBase portion
   share.set_version(ShareBytom::CURRENT_VERSION);
   share.set_workerhashid(workerId_);
-  share.set_userid(worker.userId(exjob->chainId_));
+  share.set_userid(worker.userId(localJob->chainId_));
   share.set_status(StratumStatus::REJECT_NO_REASON);
   share.set_timestamp((uint32_t)time(nullptr));
   IpAddress ip;

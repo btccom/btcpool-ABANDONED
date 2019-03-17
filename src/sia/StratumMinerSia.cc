@@ -161,7 +161,7 @@ void StratumMinerSia::handleRequest_Submit(
   ip.fromIpv4Int(clientIp);
   share.set_ip(ip.toString());
 
-  share.set_userid(worker.userId(exjob->chainId_));
+  share.set_userid(worker.userId(localJob->chainId_));
   share.set_sharediff(difficulty);
   share.set_timestamp((uint32_t)time(nullptr));
   share.set_status(StratumStatus::REJECT_NO_REASON);
@@ -175,7 +175,7 @@ void StratumMinerSia::handleRequest_Submit(
     server.sendSolvedShare2Kafka(localJob->chainId_, (const char *)bHeader, 80);
     diffController_->addAcceptedShare(share.sharediff());
     // mark jobs as stale
-    server.GetJobRepository(exjob->chainId_)->markAllJobsAsStale();
+    server.GetJobRepository(localJob->chainId_)->markAllJobsAsStale();
 
     LOG(INFO) << "sia solution found";
   }

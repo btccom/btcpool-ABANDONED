@@ -375,17 +375,15 @@ int ServerBitcoin::checkShare(
     const uint256 &jobTarget,
     const string &workFullName,
     string *userCoinbaseInfo) {
-  shared_ptr<StratumJobEx> exJobPtrShared =
-      GetJobRepository(chainId)->getStratumJobEx(share.jobid());
-  auto exJobPtr = std::static_pointer_cast<StratumJobExBitcoin>(exJobPtrShared);
-  if (exJobPtr == nullptr) {
+
+  auto exJobPtr = std::static_pointer_cast<StratumJobExBitcoin>(
+      GetJobRepository(chainId)->getStratumJobEx(share.jobid()));
+  if (exJobPtr == nullptr || exJobPtr->isStale()) {
     return StratumStatus::JOB_NOT_FOUND;
   }
+
   auto sjob = std::static_pointer_cast<StratumJobBitcoin>(exJobPtr->sjob_);
 
-  if (exJobPtr->isStale()) {
-    return StratumStatus::JOB_NOT_FOUND;
-  }
   if (nTime < sjob->minTime_) {
     return StratumStatus::TIME_TOO_OLD;
   }

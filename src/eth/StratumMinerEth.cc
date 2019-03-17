@@ -197,7 +197,7 @@ void StratumMinerEth::handleRequest_Submit(
   share.set_version(ShareEth::getVersion(chain));
   share.set_headerhash(headerPrefix);
   share.set_workerhashid(workerId_);
-  share.set_userid(worker.userId(exjob->chainId_));
+  share.set_userid(worker.userId(localJob->chainId_));
   share.set_sharediff(jobDiff.currentJobDiff_);
   share.set_networkdiff(networkDiff);
   share.set_timestamp((uint64_t)time(nullptr));
@@ -255,7 +255,7 @@ void StratumMinerEth::handleRequest_Submit(
           chain,
           boost::make_optional(!sjob->header_.empty(), extraNonce1));
       // mark jobs as stale
-      server.GetJobRepository(exjob->chainId_)->markAllJobsAsStale();
+      server.GetJobRepository(localJob->chainId_)->markAllJobsAsStale();
     }
   } else {
     // check if there is invalid share spamming

@@ -95,9 +95,8 @@ void StratumMinerDecred::handleRequest_Submit(
   auto &server = session.getServer();
   auto &worker = session.getWorker();
 
-  auto localJob = session.findLocalJob(shortJobId);
-  if (!localJob) {
-    // if can't find localJob, could do nothing
+  // a function to log rejected stale share
+  auto rejectStaleShare = [&]() {
     session.responseError(idStr, StratumStatus::JOB_NOT_FOUND);
 
     LOG(INFO) << "rejected share: "
@@ -105,7 +104,36 @@ void StratumMinerDecred::handleRequest_Submit(
               << ", worker: " << worker.fullName_ << ", Share(id: " << idStr
               << ", shortJobId: " << static_cast<uint16_t>(shortJobId)
               << ", nTime: " << ntime << "/" << date("%F %T", ntime) << ")";
+  };
+
+  auto localJob = session.findLocalJob(shortJobId);
+  if (!localJob) {
+    // if can't find localJob, could do nothing
+    rejectStaleShare();
     return;
+  }
+
+  auto jobRepo = server.GetJobRepository(localJob->chainId_);
+  auto exjob = jobRepo->getStratumJobEx(localJob->jobId_);
+  if (exjob == nullptr) {
+    // If can't find exjob, could do nothing too.
+    //
+    // This situation can occur after LocalJobs has been expanded to 256.
+    // But in this case, the miner apparently submitted a very outdated job.
+    // So we don't have to risk that the code might crash (subsequent code
+    // forgets to check for null pointers) and send it to kafka.
+    //
+    // Tips: an exjob is only removed after max_job_lifetime seconds past.
+    //
+    rejectStaleShare();
+    return;
+  }
+
+  auto sjob = std::static_pointer_cast<StratumJobDecred>(exjob->sjob_);
+
+  // 0 means miner use stratum job's default block time
+  if (ntime == 0) {
+    ntime = sjob->header_.timestamp.value();
   }
 
   auto iter = jobDiffs_.find(localJob);
@@ -113,29 +141,15 @@ void StratumMinerDecred::handleRequest_Submit(
     LOG(ERROR) << "can't find session's diff, worker: " << worker.fullName_;
     return;
   }
-  auto clientIp = session.getClientIp();
-
-  uint32_t height = 0;
-  auto jobRepo = server.GetJobRepository(localJob->chainId_);
-  auto exjob = jobRepo->getStratumJobEx(localJob->jobId_);
-  if (exjob) {
-    // 0 means miner use stratum job's default block time
-    auto sjob = std::static_pointer_cast<StratumJobDecred>(exjob->sjob_);
-    if (ntime == 0) {
-      ntime = sjob->header_.timestamp.value();
-    }
-
-    height = sjob->header_.height.value();
-  }
 
   ShareDecred share(
       workerId_,
-      worker.userId(exjob->chainId_),
-      clientIp,
+      worker.userId(localJob->chainId_),
+      session.getClientIp(),
       localJob->jobId_,
       iter->second,
       localJob->blkBits_,
-      height,
+      sjob->header_.height.value(),
       nonce,
       session.getSessionId());
 

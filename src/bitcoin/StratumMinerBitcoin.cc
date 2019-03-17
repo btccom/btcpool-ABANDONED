@@ -179,9 +179,8 @@ void StratumMinerBitcoin::handleRequest_Submit(
   const string extraNonce2Hex = Strings::Format("%016llx", extraNonce2);
   assert(extraNonce2Hex.length() / 2 == kExtraNonce2Size_);
 
-  auto localJob = session.findLocalJob(shortJobId);
-  if (localJob == nullptr) {
-    // if can't find localJob, could do nothing
+  // a function to log rejected stale share
+  auto rejectStaleShare = [&]() {
     handleShare(idStr, StratumStatus::JOB_NOT_FOUND, 0);
 
     LOG(INFO) << "rejected share: "
@@ -190,22 +189,36 @@ void StratumMinerBitcoin::handleRequest_Submit(
               << ", versionMask: " << Strings::Format("%08x", versionMask)
               << ", Share(id: " << idStr << ", shortJobId: " << (int)shortJobId
               << ", nTime: " << nTime << "/" << date("%F %T", nTime) << ")";
+  };
+
+  auto localJob = session.findLocalJob(shortJobId);
+  if (localJob == nullptr) {
+    // If can't find localJob, could do nothing.
+    rejectStaleShare();
     return;
   }
 
-  uint32_t height = 0;
   auto jobRepo = server.GetJobRepository(localJob->chainId_);
-  shared_ptr<StratumJobEx> exjob = jobRepo->getStratumJobEx(localJob->jobId_);
+  auto exjob = jobRepo->getStratumJobEx(localJob->jobId_);
+  if (exjob == nullptr) {
+    // If can't find exjob, could do nothing too.
+    //
+    // This situation can occur after LocalJobs has been expanded to 256.
+    // But in this case, the miner apparently submitted a very outdated job.
+    // So we don't have to risk that the code might crash (subsequent code
+    // forgets to check for null pointers) and send it to kafka.
+    //
+    // Tips: an exjob is only removed after max_job_lifetime seconds past.
+    //
+    rejectStaleShare();
+    return;
+  }
 
-  if (exjob.get() != NULL) {
-    // 0 means miner use stratum job's default block time
-    auto sjobBitcoin =
-        std::static_pointer_cast<StratumJobBitcoin>(exjob->sjob_);
-    if (nTime == 0) {
-      nTime = sjobBitcoin->nTime_;
-    }
+  auto sjobBitcoin = std::static_pointer_cast<StratumJobBitcoin>(exjob->sjob_);
 
-    height = sjobBitcoin->height_;
+  // 0 means miner use stratum job's default block time
+  if (nTime == 0) {
+    nTime = sjobBitcoin->nTime_;
   }
 
   auto iter = jobDiffs_.find(localJob);
@@ -218,11 +231,11 @@ void StratumMinerBitcoin::handleRequest_Submit(
   share.set_version(ShareBitcoin::CURRENT_VERSION);
   share.set_jobid(localJob->jobId_);
   share.set_workerhashid(workerId_);
-  share.set_userid(worker.userId(exjob->chainId_));
+  share.set_userid(worker.userId(localJob->chainId_));
   share.set_sharediff(iter->second);
   share.set_blkbits(localJob->blkBits_);
   share.set_timestamp((uint64_t)time(nullptr));
-  share.set_height(height);
+  share.set_height(sjobBitcoin->height_);
   share.set_nonce(nonce);
   share.set_versionmask(versionMask);
   share.set_sessionid(session.getSessionId());
