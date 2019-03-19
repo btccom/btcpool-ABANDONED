@@ -30,6 +30,8 @@
 
 #include "ssl/SSLUtils.h"
 
+#include <netinet/tcp.h>
+
 using namespace std;
 
 #ifndef WORK_WITH_STRATUM_SWITCHER
@@ -863,6 +865,11 @@ void StratumServer::listenerCallback(
     return;
   }
 #endif
+
+  // Theoretically we can do it on the listener fd, but this is to make
+  // sure we have the same behavior if some distro does not inherit the option.
+  int yes = 1;
+  setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(int));
 
   if (server->enableTLS_) {
     SSL *ssl = SSL_new(server->sslCTX_);
