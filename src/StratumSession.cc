@@ -393,7 +393,8 @@ void StratumSession::setClientAgent(const string &clientAgent) {
   isAgentClient_ =
       (0 ==
        clientAgent_.compare(0, BtccomAgentPrefix.size(), BtccomAgentPrefix));
-  isLongTimeout_ = (isAgentClient_ || clientAgent_ == PoolWatcherAgent);
+  isLongTimeout_ =
+      (isAgentClient_ || isNiceHashClient_ || clientAgent_ == PoolWatcherAgent);
 }
 
 bool StratumSession::validate(
