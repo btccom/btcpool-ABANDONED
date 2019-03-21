@@ -42,11 +42,11 @@ string StratumJobDecred::serializeToJson() const {
       ",\"target\":\"%s\""
       ",\"network\":%u}",
       jobId_,
-      getPrevHash().c_str(),
-      getCoinBase1().c_str(),
-      HexStr(BEGIN(header_.stakeVersion), END(header_.stakeVersion)).c_str(),
-      HexStr(BEGIN(header_.version), END(header_.version)).c_str(),
-      target_.ToString().c_str(),
+      getPrevHash(),
+      getCoinBase1(),
+      HexStr(BEGIN(header_.stakeVersion), END(header_.stakeVersion)),
+      HexStr(BEGIN(header_.version), END(header_.version)),
+      target_.ToString(),
       static_cast<uint32_t>(network_));
 }
 

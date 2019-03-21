@@ -121,18 +121,18 @@ void writeTime2File(const char *filename, uint32_t t);
 class Strings {
 public:
   template <typename... Args>
-  inline static string Format(const char *fmt, Args &&... args) {
+  inline static string Format(const string &fmt, Args &&... args) {
     return fmt::sprintf(fmt, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
-  inline static void Append(string &dest, const char *fmt, Args &&... args) {
+  inline static void Append(string &dest, const string &fmt, Args &&... args) {
     dest += fmt::sprintf(fmt, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
   inline static int
-  EvBufferAdd(struct evbuffer *buf, const char *fmt, Args &&... args) {
+  EvBufferAdd(struct evbuffer *buf, const string &fmt, Args &&... args) {
     auto str = fmt::sprintf(fmt, std::forward<Args>(args)...);
     return evbuffer_add(buf, str.data(), str.size());
   }

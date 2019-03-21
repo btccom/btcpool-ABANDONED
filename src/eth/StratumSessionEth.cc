@@ -128,11 +128,11 @@ void StratumSessionEth::sendMiningNotifyWithId(
         "{\"id\":%s,\"method\":\"mining.notify\","
         "\"params\":[\"%s\",\"%s\",\"%s\",\"%s\",%s],"
         "\"height\":%u}\n",
-        idStr.c_str(),
-        header.c_str(),
-        header.c_str(),
-        seed.c_str(),
-        strShareTarget.c_str(),
+        idStr,
+        header,
+        header,
+        seed,
+        strShareTarget,
         exJobPtr->isClean_ ? "true" : "false",
         ethJob->height_);
   } break;
@@ -149,11 +149,11 @@ void StratumSessionEth::sendMiningNotifyWithId(
         // a compatibility issue with AntMiner E3.
         "\"%06x\"],"
         "\"height\":%u}\n",
-        idStr.c_str(),
-        header.c_str(),
-        seed.c_str(),
+        idStr,
+        header,
+        seed,
         // Claymore use 58 bytes target
-        strShareTarget.substr(6, 58).c_str(),
+        strShareTarget.substr(6, 58),
         startNoncePrefix,
         ethJob->height_);
   } break;
@@ -168,7 +168,7 @@ void StratumSessionEth::sendMiningNotifyWithId(
       strNotify += Strings::Format(
           "{\"id\":%s,\"method\":\"mining.set_difficulty\","
           "\"params\":[%f]}\n",
-          idStr.c_str(),
+          idStr,
           Eth_DiffToNicehashDiff(currentJobDiff_));
       nicehashLastSentDiff_ = currentJobDiff_;
     }
@@ -186,10 +186,10 @@ void StratumSessionEth::sendMiningNotifyWithId(
         "{\"id\":%s,\"method\":\"mining.notify\","
         "\"params\":[\"%s\",\"%s\",\"%s\",%s],"
         "\"height\":%u}\n",
-        idStr.c_str(),
-        header.c_str(),
-        seed.c_str(),
-        header.c_str(),
+        idStr,
+        header,
+        seed,
+        header,
         exJobPtr->isClean_ ? "true" : "false",
         ethJob->height_);
   } break;
@@ -303,9 +303,9 @@ void StratumSessionEth::handleRequest_Subscribe(
         "\"%06x\","
         "\"EthereumStratum/1.0.0\""
         "],\"%s\"],\"error\":null}\n",
-        idStr.c_str(),
+        idStr,
         sessionId_,
-        noncePrefix.c_str());
+        noncePrefix);
     sendData(s);
   }
 #ifdef WORK_WITH_STRATUM_SWITCHER
@@ -441,7 +441,7 @@ void StratumSessionEth::rpc2ResponseFalse(const string &idStr, int errCode) {
   auto data = Strings::Format(
       "{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":false,\"data\":{\"code\":%d,"
       "\"message\":\"%s\"}}\n",
-      idStr.empty() ? "null" : idStr.c_str(),
+      idStr.empty() ? "null" : idStr,
       errCode,
       StratumStatus::toString(errCode));
   sendData(data);

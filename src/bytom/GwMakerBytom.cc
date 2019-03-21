@@ -74,9 +74,9 @@ string GwMakerHandlerBytom::constructRawMsg(JsonNode &r) {
       "\"hHash\":\"%s\","
       "\"sHash\":\"%s\"}",
       (uint32_t)time(nullptr),
-      def_.chainType_.c_str(),
-      def_.rpcAddr_.c_str(),
-      def_.rpcUserPwd_.c_str(),
-      header.c_str(),
-      seed.c_str());
+      def_.chainType_,
+      def_.rpcAddr_,
+      def_.rpcUserPwd_,
+      header,
+      seed);
 }

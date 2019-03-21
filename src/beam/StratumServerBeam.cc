@@ -198,16 +198,16 @@ void ServerBeam::sendSolvedShare2Kafka(
       ",\"workerFullName\":\"%s\","
       "\"blockHash\":\"%s\",\"chain\":\"%s\"}",
       share.nonce(),
-      input.c_str(),
-      output.c_str(),
+      input,
+      output,
       share.height(),
       share.blockbits(),
       worker.userId(chainId),
       worker.workerHashId_,
-      filterWorkerName(worker.fullName_).c_str(),
-      blockHash.ToString().c_str(),
+      filterWorkerName(worker.fullName_),
+      blockHash.ToString(),
       "BEAM");
-  ServerBase::sendSolvedShare2Kafka(chainId, msg.c_str(), msg.length());
+  ServerBase::sendSolvedShare2Kafka(chainId, msg.data(), msg.size());
 }
 
 unique_ptr<StratumSession> ServerBeam::createConnection(

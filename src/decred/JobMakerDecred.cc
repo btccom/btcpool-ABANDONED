@@ -89,11 +89,11 @@ string JobMakerHandlerDecred::makeStratumJobMsg() {
       ",\"target\":\"%s\""
       ",\"network\":%u}",
       jobId,
-      prevHash.c_str(),
-      coinBase1.c_str(),
-      coinBase2.c_str(),
-      version.c_str(),
-      work.target.c_str(),
+      prevHash,
+      coinBase1,
+      coinBase2,
+      version,
+      work.target,
       static_cast<uint32_t>(work.network));
 }
 

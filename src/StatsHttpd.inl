@@ -874,10 +874,10 @@ void StatsServerT<SHARE>::_flushWorkersAndUsersToDBThread() {
         status.accept1h_,
         status.reject1h_,
         status.acceptCount_,
-        status.lastShareIP_.toString().c_str(),
-        date("%F %T", status.lastShareTime_).c_str(),
-        nowStr.c_str(),
-        nowStr.c_str()));
+        status.lastShareIP_.toString(),
+        date("%F %T", status.lastShareTime_),
+        nowStr,
+        nowStr));
   }
 
   // get all users status
@@ -907,10 +907,10 @@ void StatsServerT<SHARE>::_flushWorkersAndUsersToDBThread() {
         status.accept1h_,
         status.reject1h_,
         status.acceptCount_,
-        status.lastShareIP_.toString().c_str(),
-        date("%F %T", status.lastShareTime_).c_str(),
-        nowStr.c_str(),
-        nowStr.c_str()));
+        status.lastShareIP_.toString(),
+        date("%F %T", status.lastShareTime_),
+        nowStr,
+        nowStr));
   }
 
   pthread_rwlock_unlock(&rwlock_);
@@ -1503,7 +1503,7 @@ bool StatsServerT<SHARE>::updateWorkerStatusToDB(
         groupId == 0 ? userId * -1 : groupId,
         workerName,
         minerAgent,
-        nowStr.c_str(),
+        nowStr,
         userId,
         workerId);
   } else {
@@ -1523,11 +1523,11 @@ bool StatsServerT<SHARE>::updateWorkerStatusToDB(
         userId * -1, // default group id
         workerName,
         minerAgent,
-        nowStr.c_str(),
-        nowStr.c_str(),
+        nowStr,
+        nowStr,
         workerName,
         minerAgent,
-        nowStr.c_str());
+        nowStr);
   }
 
   if (poolDBCommonEvents_->execute(sql) == false) {
@@ -1750,9 +1750,9 @@ void StatsServerT<SHARE>::getWorkerStatus(
         status.reject15m_,
         status.reject1h_,
         status.acceptCount_,
-        status.lastShareIP_.toString().c_str(),
+        status.lastShareIP_.toString(),
         status.lastShareTime_,
-        extraInfo.length() ? extraInfo.c_str() : "");
+        extraInfo);
     i++;
   }
 }

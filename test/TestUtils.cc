@@ -38,7 +38,7 @@ TEST(Utils, Strings_Format_1) {
     for (int j = 0; j < i; j++) {
       s += "A";
     }
-    string s1 = Strings::Format("%s", s.c_str());
+    string s1 = Strings::Format("%s", s);
     ASSERT_EQ(s1, s);
   }
 }
@@ -50,7 +50,7 @@ TEST(Utils, Strings_Append_1) {
       s += "A";
     }
     string s1;
-    Strings::Append(s1, "%s", s.c_str());
+    Strings::Append(s1, "%s", s);
     ASSERT_EQ(s1, s);
   }
 }
@@ -215,6 +215,19 @@ TEST(Utils, Strings_Append_2) {
         i8);
     ASSERT_EQ(dest, appendResult);
   }
+}
+
+TEST(Utils, Strings_Format_3) {
+  string a = "123";
+  string b = "456";
+  string c = "789";
+  string d = "012";
+  string e;
+  string f;
+
+  ASSERT_EQ(
+      Strings::Format("%s%s%s%s%s%s", a, b.c_str(), e, c, f, d.c_str()),
+      "123456789012");
 }
 
 TEST(Utils, date) {

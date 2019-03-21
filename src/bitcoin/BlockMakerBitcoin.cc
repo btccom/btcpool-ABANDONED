@@ -490,13 +490,13 @@ void BlockMakerBitcoin::_submitNamecoinBlockThread(
     if (isSupportSubmitAuxBlock) {
       request = Strings::Format(
           "{\"id\":1,\"method\":\"submitauxblock\",\"params\":[\"%s\",\"%s\"]}",
-          auxBlockHash.c_str(),
-          auxPow.c_str());
+          auxBlockHash,
+          auxPow);
     } else {
       request = Strings::Format(
           "{\"id\":1,\"method\":\"getauxblock\",\"params\":[\"%s\",\"%s\"]}",
-          auxBlockHash.c_str(),
-          auxPow.c_str());
+          auxBlockHash,
+          auxPow);
     }
 
     DLOG(INFO) << "submitauxblock request: " << request;
@@ -529,11 +529,11 @@ void BlockMakerBitcoin::_submitNamecoinBlockThread(
         "  `aux_pow`,`created_at`) "
         " VALUES (\"%s\",\"%s\",\"%s\",\"%s\"); ",
         def()->foundAuxBlockTable_.empty() ? "found_nmc_blocks"
-                                           : def()->foundAuxBlockTable_.c_str(),
-        bitcoinBlockHash.c_str(),
-        auxBlockHash.c_str(),
-        auxPow.c_str(),
-        nowStr.c_str());
+                                           : def()->foundAuxBlockTable_,
+        bitcoinBlockHash,
+        auxBlockHash,
+        auxPow,
+        nowStr);
     // try connect to DB
     MySQLConnection db(poolDB_);
     for (size_t i = 0; i < 3; i++) {
@@ -703,16 +703,16 @@ void BlockMakerBitcoin::_saveBlockToDBThread(
       foundBlock.userId_,
       foundBlock.workerId_,
       // filter again, just in case
-      filterWorkerName(foundBlock.workerFullName_).c_str(),
+      filterWorkerName(foundBlock.workerFullName_),
       foundBlock.jobId_,
       foundBlock.height_,
-      header.GetHash().ToString().c_str(),
+      header.GetHash().ToString(),
       coinbaseValue,
       blksize,
-      header.hashPrevBlock.ToString().c_str(),
+      header.hashPrevBlock.ToString(),
       header.nBits,
       header.nVersion,
-      nowStr.c_str());
+      nowStr);
 
   LOG(INFO) << "BlockMakerBitcoin::_saveBlockToDBThread: " << sql;
 

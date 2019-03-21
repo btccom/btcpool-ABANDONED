@@ -34,7 +34,7 @@ void StratumClientBeam::sendHelloData() {
       "\"id\":\"login\","
       "\"jsonrpc\":\"2.0\""
       "}\n",
-      workerFullName_.c_str()));
+      workerFullName_));
   state_ = SUBSCRIBED;
 }
 
@@ -45,7 +45,7 @@ string StratumClientBeam::constructShare() {
       "2339a3ae742d4f3d4efb6a473eeb58e85620a5befb4d93854d8bf6074a464670ffac6fba"
       "b57c73ff09280f4bdf592129f5b74ed85224a19b6908daae110e878a34ff2cfb2b\","
       "\"jsonrpc\":\"2.0\"}\n",
-      id_.c_str(),
+      id_,
       extraNonce2_);
 
   extraNonce2_++;

@@ -75,9 +75,9 @@ string StratumJobBeam::serializeToJson() const {
       jobId_,
       height_,
       blockBits_,
-      input_.c_str(),
-      rpcAddress_.c_str(),
-      rpcUserPwd_.c_str());
+      input_,
+      rpcAddress_,
+      rpcUserPwd_);
 }
 
 bool StratumJobBeam::unserializeFromJson(const char *s, size_t len) {

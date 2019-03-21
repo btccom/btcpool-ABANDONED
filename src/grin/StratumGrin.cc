@@ -65,7 +65,7 @@ string StratumJobGrin::serializeToJson() const {
       height_,
       difficulty_,
       nodeJobId_,
-      prePowStr_.c_str());
+      prePowStr_);
 }
 
 bool StratumJobGrin::unserializeFromJson(const char *s, size_t len) {

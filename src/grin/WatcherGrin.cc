@@ -193,7 +193,7 @@ void ClientContainerGrin::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
       height,
       nodeJobId,
       nonce,
-      proofs.c_str());
+      proofs);
 
   LOG(INFO) << "submitting block: " << submitJson;
   client->sendData(submitJson);
@@ -215,14 +215,14 @@ void ClientContainerGrin::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
       ", %d, '%u', '%s');",
       userId,
       workerId,
-      filterWorkerName(workerFullName).c_str(),
+      filterWorkerName(workerFullName),
       height,
-      blockHash.c_str(),
+      blockHash,
       edgeBits,
       nonce,
       (int64_t)GetBlockRewardGrin(height),
       nodeJobId,
-      nowStr.c_str());
+      nowStr);
   std::thread t([this, sql, blockHash]() {
     // try connect to DB
     MySQLConnection db(poolDB_);

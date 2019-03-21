@@ -52,7 +52,7 @@ TEST(Stratum, jobId2Time) {
   //           uint32_t        uint32_t
   //  const string jobIdStr = Strings::Format("%08x%s", (uint32_t)time(nullptr),
   //                                          gbtHash.ToString().substr(0,
-  //                                          8).c_str());
+  //                                          8));
   jobId = (1469002809ull << 32) | 0x00000000FFFFFFFFull;
   ASSERT_EQ(jobId2Time(jobId), 1469002809u);
 

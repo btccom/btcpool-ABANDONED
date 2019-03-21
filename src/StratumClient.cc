@@ -207,8 +207,8 @@ void StratumClient::handleLine(const string &line) {
     string s = Strings::Format(
         "{\"id\": 1, \"method\": \"mining.authorize\","
         "\"params\": [\"\%s\", \"%s\"]}\n",
-        workerFullName_.c_str(),
-        workerPasswd_.c_str());
+        workerFullName_,
+        workerPasswd_);
     sendData(s);
     return;
   }
@@ -229,9 +229,9 @@ string StratumClient::constructShare() {
   string s = Strings::Format(
       "{\"params\": [\"%s\",\"%s\",\"%s\",\"%08x\",\"%08x\"]"
       ",\"id\":4,\"method\": \"mining.submit\"}\n",
-      workerFullName_.c_str(),
-      latestJobId_.c_str(),
-      extraNonce2Str.c_str(),
+      workerFullName_,
+      latestJobId_,
+      extraNonce2Str,
       (uint32_t)time(nullptr) /* ntime */,
       (uint32_t)time(nullptr) /* nonce */);
   return s;
@@ -339,8 +339,8 @@ void StratumClientWrapper::run() {
   // create clients
   //
   for (size_t i = 0; i < numConnections_; i++) {
-    const string workerFullName = Strings::Format(
-        "%s.%s-%05d", userName_.c_str(), minerNamePrefix_.c_str(), i);
+    const string workerFullName =
+        Strings::Format("%s.%s-%05d", userName_, minerNamePrefix_, i);
     auto client = createClient(enableTLS_, base_, workerFullName, passwd_);
 
     if (!client->connect(sin_)) {

@@ -221,8 +221,8 @@ ZookeeperUniqIdT<IBITS>::ZookeeperUniqIdT(
       "\"uuid\":\"%s\","
       "\"data\":%s"
       "}",
-      uuid_.c_str(),
-      userData.empty() ? "null" : userData.c_str());
+      uuid_,
+      userData.empty() ? "null" : userData);
 }
 
 template <uint8_t IBITS>

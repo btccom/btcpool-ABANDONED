@@ -337,7 +337,7 @@ int32_t UserInfo::incrementalUpdateUsers(size_t chainId) {
   //
   const string url = Strings::Format(
       "%s?last_id=%d&last_time=%d",
-      chain.apiUrl_.c_str(),
+      chain.apiUrl_,
       chain.lastMaxUserId_,
       chain.lastTime_);
   string resp;
@@ -414,8 +414,8 @@ int32_t UserInfo::incrementalUpdateUsers(size_t chainId) {
   // WARNING: The API is incremental update, we use `?last_id=` to make sure
   //          always get the new data. Make sure you have use `last_id` in API.
   //
-  const string url = Strings::Format(
-      "%s?last_id=%d", chain.apiUrl_.c_str(), chain.lastMaxUserId_);
+  const string url =
+      Strings::Format("%s?last_id=%d", chain.apiUrl_, chain.lastMaxUserId_);
   string resp;
   if (!httpGET(url.c_str(), resp, 10000 /* timeout ms */)) {
     LOG(ERROR) << "http get request user list fail, url: " << url;
@@ -559,7 +559,7 @@ int32_t UserInfo::insertWorkerName(size_t chainId) {
         "\"worker_name\":\"%s\","
         "\"miner_agent\":\"%s\""
         "}}",
-        date("%F %T").c_str(),
+        date("%F %T"),
         itr->userId_,
         itr->workerId_,
         itr->workerName_,
@@ -622,7 +622,7 @@ bool UserInfo::tryAutoReg(
         "\"Worker\":\"%s\""
         "}",
         sessionId,
-        fullWorkerName.c_str());
+        fullWorkerName);
 
     string zkPath = zkAutoRegWatchDir_ + userName;
     zk_->createNode(zkPath, userInfo);

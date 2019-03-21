@@ -117,8 +117,8 @@ void StratumSessionGrin::responseError(const string &idStr, int code) {
       "{\"code\":%d"
       ",\"message\":\"%s\""
       "}}\n",
-      idStr.empty() ? "null" : idStr.c_str(),
-      currentMethod_.empty() ? "null" : currentMethod_.c_str(),
+      idStr.empty() ? "null" : idStr,
+      currentMethod_.empty() ? "null" : currentMethod_,
       static_cast<int32_t>(p.first),
       p.second);
   sendData(s);
@@ -132,8 +132,8 @@ void StratumSessionGrin::responseTrue(const string &idStr) {
       ",\"result\":\"ok\""
       ",\"error\":null"
       "}\n",
-      idStr.empty() ? "null" : idStr.c_str(),
-      currentMethod_.empty() ? "null" : currentMethod_.c_str());
+      idStr.empty() ? "null" : idStr,
+      currentMethod_.empty() ? "null" : currentMethod_);
   sendData(s);
 }
 
@@ -226,13 +226,13 @@ void StratumSessionGrin::sendMiningNotifyWithId(
       "{\"difficulty\":%u,\"height\":%u,\"job_id\":%u"
       ",\"pre_pow\":\"%s\""
       "}}\n",
-      idStr.empty() ? "\"Stratum\"" : idStr.c_str(),
+      idStr.empty() ? "\"Stratum\"" : idStr,
       idStr.empty() ? "job" : "getjobtemplate",
       idStr.empty() ? "params" : "result",
       currentDifficulty_,
       job->height_,
       prePowHash,
-      job->prePowStr_.c_str());
+      job->prePowStr_);
 
   DLOG(INFO) << strNotify;
   sendData(strNotify); // send notify string

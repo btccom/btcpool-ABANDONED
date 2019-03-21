@@ -180,7 +180,7 @@ void StratumSession::handleLine(const std::string &line) {
   JsonNode jnode;
   if (!JsonNode::parse(line.data(), line.data() + line.size(), jnode)) {
     LOG(ERROR) << "decode line fail, not a json string. string value: \""
-               << line.c_str() << "\"";
+               << line << "\"";
     return;
   }
   JsonNode jid = jnode["id"];
@@ -229,14 +229,14 @@ string StratumSession::getMinerInfoJson(const string &type) {
       "\"client_agent\":\"%s\",\"ip\":\"%s\","
       "\"session_id\":\"%08x\""
       "}}",
-      date("%F %T").c_str(),
-      type.c_str(),
+      date("%F %T"),
+      type,
       worker_.userId(),
-      worker_.userName_.c_str(),
+      worker_.userName_,
       worker_.workerHashId_,
-      worker_.workerName_.c_str(),
-      clientAgent_.c_str(),
-      clientIp_.c_str(),
+      worker_.workerName_,
+      clientAgent_,
+      clientIp_,
       sessionId_);
 }
 
@@ -492,7 +492,7 @@ void StratumSession::rpc1ResponseError(const string &idStr, int errCode) {
   //
   auto data = Strings::Format(
       "{\"id\":%s,\"result\":null,\"error\":[%d,\"%s\",null]}\n",
-      idStr.empty() ? "null" : idStr.c_str(),
+      idStr.empty() ? "null" : idStr,
       errCode,
       StratumStatus::toString(errCode));
   sendData(data);
@@ -522,7 +522,7 @@ void StratumSession::rpc1ResponseError(const string &idStr, int errCode) {
 
 void StratumSession::rpc2ResponseTrue(const string &idStr) {
   const string s = Strings::Format(
-      "{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":true}\n", idStr.c_str());
+      "{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":true}\n", idStr);
   sendData(s);
 }
 
@@ -551,7 +551,7 @@ void StratumSession::rpc2ResponseError(const string &idStr, int errCode) {
   auto data = Strings::Format(
       "{\"id\":%s,\"jsonrpc\":\"2.0\",\"error\":{\"code\":%d,\"message\":\"%"
       "s\"}}\n",
-      idStr.empty() ? "null" : idStr.c_str(),
+      idStr.empty() ? "null" : idStr,
       errCode,
       StratumStatus::toString(errCode));
   sendData(data);

@@ -417,7 +417,7 @@ void ShareLogParserT<SHARE>::generateHoursData(
         continue;
       }
       const string hourStr =
-          Strings::Format("%s%02d", date("%Y%m%d", date_).c_str(), i);
+          Strings::Format("%s%02d", date("%Y%m%d", date_), i);
       const int32_t hour = atoi(hourStr.c_str());
 
       const uint64_t accept = stats->shareAccept1h_[i]; // alias
@@ -431,15 +431,15 @@ void ShareLogParserT<SHARE>::generateHoursData(
 
       valuesStr = Strings::Format(
           "%s%d,%u,%u,%f,'%s',%0.0lf,'%s','%s'",
-          extraValues.c_str(),
+          extraValues,
           hour,
           accept,
           reject,
           rejectRate,
-          scoreStr.c_str(),
+          scoreStr,
           earn,
-          nowStr.c_str(),
-          nowStr.c_str());
+          nowStr,
+          nowStr);
     } // for scope lock
 
     if (table == "stats_workers_hour") {
@@ -462,8 +462,7 @@ void ShareLogParserT<SHARE>::flushHourOrDailyData(
 
   // in case two process use the same tmp table name, we add process id into
   // tmp table name.
-  const string tmpTableName =
-      Strings::Format("%s_tmp_%d", tableName.c_str(), getpid());
+  const string tmpTableName = Strings::Format("%s_tmp_%d", tableName, getpid());
 
   if (!poolDB_.ping()) {
     LOG(ERROR) << "can't connect to pool DB";
@@ -476,13 +475,11 @@ void ShareLogParserT<SHARE>::flushHourOrDailyData(
   }
 
   // drop tmp table
-  const string sqlDropTmpTable = Strings::Format(
-      "DROP TEMPORARY TABLE IF EXISTS `%s`;", tmpTableName.c_str());
+  const string sqlDropTmpTable =
+      Strings::Format("DROP TEMPORARY TABLE IF EXISTS `%s`;", tmpTableName);
   // create tmp table
   const string createTmpTable = Strings::Format(
-      "CREATE TEMPORARY TABLE `%s` like `%s`;",
-      tmpTableName.c_str(),
-      tableName.c_str());
+      "CREATE TEMPORARY TABLE `%s` like `%s`;", tmpTableName, tableName);
 
   if (!poolDB_.execute(sqlDropTmpTable)) {
     LOG(ERROR) << "DROP TEMPORARY TABLE `" << tmpTableName << "` failure";
@@ -499,7 +496,7 @@ void ShareLogParserT<SHARE>::flushHourOrDailyData(
   fields = Strings::Format(
       "%s `share_accept`,`share_reject`,`reject_rate`,"
       "`score`,`earn`,`created_at`,`updated_at`",
-      extraFields.c_str());
+      extraFields);
 
   if (!multiInsert(poolDB_, tmpTableName, fields, values)) {
     LOG(ERROR) << "multi-insert table." << tmpTableName << " failure";
@@ -518,8 +515,8 @@ void ShareLogParserT<SHARE>::flushHourOrDailyData(
       "  `score`        = `t2`.`score`, "
       "  `earn`         = `t2`.`earn`, "
       "  `updated_at`   = `t2`.`updated_at` ",
-      tableName.c_str(),
-      tmpTableName.c_str());
+      tableName,
+      tmpTableName);
   if (!poolDB_.update(mergeSQL)) {
     LOG(ERROR) << "merge mining_workers failure";
     return;
@@ -574,15 +571,15 @@ void ShareLogParserT<SHARE>::generateDailyData(
 
     valuesStr = Strings::Format(
         "%s%d,%u,%u,%f,'%s',%0.0lf,'%s','%s'",
-        extraValues.c_str(),
+        extraValues,
         day,
         accept,
         reject,
         rejectRate,
-        scoreStr.c_str(),
+        scoreStr,
         earn,
-        nowStr.c_str(),
-        nowStr.c_str());
+        nowStr,
+        nowStr);
   } // for scope lock
 
   if (table == "stats_workers_day") {
@@ -628,7 +625,7 @@ void ShareLogParserT<SHARE>::removeExpiredDataFromDB() {
     const string dayStr =
         date("%Y%m%d", time(nullptr) - 86400 * kDailyDataKeepDays_workers);
     sql = Strings::Format(
-        "DELETE FROM `stats_workers_day` WHERE `day` < '%s'", dayStr.c_str());
+        "DELETE FROM `stats_workers_day` WHERE `day` < '%s'", dayStr);
     if (poolDB_.execute(sql)) {
       LOG(INFO) << "delete expired workers daily data before '" << dayStr
                 << "', count: " << poolDB_.affectedRows();
@@ -643,8 +640,7 @@ void ShareLogParserT<SHARE>::removeExpiredDataFromDB() {
     const string hourStr =
         date("%Y%m%d%H", time(nullptr) - 3600 * kHourDataKeepDays_workers);
     sql = Strings::Format(
-        "DELETE FROM `stats_workers_hour` WHERE `hour` < '%s'",
-        hourStr.c_str());
+        "DELETE FROM `stats_workers_hour` WHERE `hour` < '%s'", hourStr);
     if (poolDB_.execute(sql)) {
       LOG(INFO) << "delete expired workers hour data before '" << hourStr
                 << "', count: " << poolDB_.affectedRows();
@@ -659,7 +655,7 @@ void ShareLogParserT<SHARE>::removeExpiredDataFromDB() {
     const string hourStr =
         date("%Y%m%d%H", time(nullptr) - 3600 * kHourDataKeepDays_users);
     sql = Strings::Format(
-        "DELETE FROM `stats_users_hour` WHERE `hour` < '%s'", hourStr.c_str());
+        "DELETE FROM `stats_users_hour` WHERE `hour` < '%s'", hourStr);
     if (poolDB_.execute(sql)) {
       LOG(INFO) << "delete expired users hour data before '" << hourStr
                 << "', count: " << poolDB_.affectedRows();

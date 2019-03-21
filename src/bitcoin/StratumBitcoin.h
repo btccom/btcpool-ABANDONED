@@ -199,11 +199,11 @@ public:
         "versionMask: %08x, "
         "status: %d/%s)",
         jobid(),
-        ip().c_str(),
+        ip(),
         userid(),
         workerhashid(),
         timestamp(),
-        date("%F %T", timestamp()).c_str(),
+        date("%F %T", timestamp()),
         height(),
         blkbits(),
         networkDifficulty,

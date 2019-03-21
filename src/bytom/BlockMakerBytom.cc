@@ -57,8 +57,7 @@ void BlockMakerBytom::processSolvedShare(rd_kafka_message_t *rkmessage) {
   }
 
   string bhString = r["header"].str();
-  string request =
-      Strings::Format("{\"block_header\": \"%s\"}\n", bhString.c_str());
+  string request = Strings::Format("{\"block_header\": \"%s\"}\n", bhString);
 
   submitBlockNonBlocking(request);
 
@@ -92,8 +91,8 @@ void BlockMakerBytom::_submitBlockThread(
     const string &rpcUserpass,
     const string &request) {
   string response;
-  LOG(INFO) << "submitting block to " << rpcAddress.c_str()
-            << " with request value: " << request.c_str();
+  LOG(INFO) << "submitting block to " << rpcAddress
+            << " with request value: " << request;
   rpcCall(
       rpcAddress.c_str(),
       rpcUserpass.c_str(),
@@ -135,12 +134,12 @@ void BlockMakerBytom::_saveBlockToDBThread(
       worker.userId_,
       worker.workerHashId_,
       // filter again, just in case
-      filterWorkerName(worker.fullName_).c_str(),
+      filterWorkerName(worker.fullName_),
       height,
-      header.c_str(),
+      header,
       GetBlockRewardBytom(height),
       networkDiff,
-      nowStr.c_str());
+      nowStr);
 
   // try connect to DB
   MySQLConnection db(poolDB_);

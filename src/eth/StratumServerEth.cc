@@ -547,19 +547,18 @@ void ServerEth::sendSolvedShare2Kafka(
       ",\"workerId\":%d"
       ",\"workerFullName\":\"%s\""
       ",\"chain\":\"%s\"}",
-      strNonce.c_str(),
-      strHeader.c_str(),
-      strMix.c_str(),
+      strNonce,
+      strHeader,
+      strMix,
       height,
       networkDiff,
-      sessionId ? Strings::Format(",\"extraNonce\":%u", *sessionId).c_str()
-                : "",
+      sessionId ? Strings::Format(",\"extraNonce\":%u", *sessionId) : "",
       worker.userId(chainId),
       worker.workerHashId_,
-      filterWorkerName(worker.fullName_).c_str(),
-      EthConsensus::getChainStr(chain).c_str());
+      filterWorkerName(worker.fullName_),
+      EthConsensus::getChainStr(chain));
   LOG(INFO) << "sending solved share: " << msg;
-  ServerBase::sendSolvedShare2Kafka(chainId, msg.c_str(), msg.length());
+  ServerBase::sendSolvedShare2Kafka(chainId, msg.data(), msg.size());
 }
 
 unique_ptr<StratumSession> ServerEth::createConnection(

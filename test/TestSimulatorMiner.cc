@@ -105,7 +105,7 @@ TEST(SIMULATOR, miner) {
     sbuf = Strings::Format(
         "{\"id\": 1, \"method\": \"mining.authorize\","
         "\"params\": [\"\%s.simulator_test\", \"\"]}\n",
-        userName.c_str());
+        userName);
     conn.send(sbuf);
     conn.getLine(line);
 
@@ -150,8 +150,8 @@ TEST(SIMULATOR, miner) {
         "{\"params\": "
         "[\"%s.simulator_test\",\"%s\",\"%016x\",\"%08x\",\"%08x\"]"
         ",\"id\":4,\"method\": \"mining.submit\"}\n",
-        userName.c_str(),
-        latestJobId.c_str(),
+        userName,
+        latestJobId,
         extraNonce2,
         nTime,
         nNonce);
@@ -172,8 +172,8 @@ TEST(SIMULATOR, miner) {
         "{\"params\": "
         "[\"%s.simulator_test\",\"%s\",\"%016x\",\"%08x\",\"%08x\"]"
         ",\"id\":4,\"method\": \"mining.submit\"}\n",
-        userName.c_str(),
-        latestJobId.c_str(),
+        userName,
+        latestJobId,
         extraNonce2,
         nTime,
         nNonce);
@@ -191,8 +191,8 @@ TEST(SIMULATOR, miner) {
         "{\"params\": "
         "[\"%s.simulator_test\",\"%s\",\"%016x\",\"%08x\",\"%08x\"]"
         ",\"id\":4,\"method\": \"mining.submit\"}\n",
-        userName.c_str(),
-        latestJobId.c_str(),
+        userName,
+        latestJobId,
         ++extraNonce2,
         nTime,
         nNonce);
@@ -210,8 +210,8 @@ TEST(SIMULATOR, miner) {
         "{\"params\": "
         "[\"%s.simulator_test\",\"%s\",\"%016x\",\"%08x\",\"%08x\"]"
         ",\"id\":4,\"method\": \"mining.submit\"}\n",
-        userName.c_str(),
-        latestJobId.c_str(),
+        userName,
+        latestJobId,
         ++extraNonce2,
         nTime,
         nNonce);
@@ -229,7 +229,7 @@ TEST(SIMULATOR, miner) {
         "{\"params\": "
         "[\"%s.simulator_test\",\"%s\",\"%016x\",\"%08x\",\"%08x\"]"
         ",\"id\":4,\"method\": \"mining.submit\"}\n",
-        userName.c_str(),
+        userName,
         "s982asd2das",
         ++extraNonce2,
         nTime,

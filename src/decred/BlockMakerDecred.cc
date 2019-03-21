@@ -92,21 +92,21 @@ void BlockMakerDecred::saveBlockToDB(const FoundBlockDecred &foundBlock) {
       foundBlock.userId_,
       foundBlock.workerId_,
       // filter again, just in case
-      filterWorkerName(foundBlock.workerFullName_).c_str(),
+      filterWorkerName(foundBlock.workerFullName_),
       foundBlock.jobId_,
       header.height.value(),
-      header.getHash().ToString().c_str(),
+      header.getHash().ToString(),
       GetBlockRewardDecredWork(
           header.height.value(),
           header.voters.value(),
           NetworkParamsDecred::get(foundBlock.network_)),
       header.size.value(),
-      header.prevBlock.ToString().c_str(),
+      header.prevBlock.ToString(),
       header.nBits.value(),
       header.version.value(),
       header.voters.value(),
       static_cast<uint32_t>(foundBlock.network_),
-      nowStr.c_str());
+      nowStr);
 
   LOG(INFO) << "BlockMakerDecred::saveBlockToDB: " << sql;
 

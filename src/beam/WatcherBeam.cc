@@ -173,9 +173,9 @@ void ClientContainerBeam::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
       "\"nonce\":\"%s\","
       "\"output\":\"%s\""
       "}\n",
-      job.jobId_.c_str(),
-      nonce.c_str(),
-      output.c_str());
+      job.jobId_,
+      nonce,
+      output);
 
   auto client =
       std::dynamic_pointer_cast<PoolWatchClientBeam>(clients_[job.clientId_]);
@@ -207,14 +207,14 @@ void ClientContainerBeam::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
       ", '%s');",
       userId,
       workerId,
-      filterWorkerName(workerFullName).c_str(),
+      filterWorkerName(workerFullName),
       height,
-      blockHash.c_str(),
-      input.c_str(),
-      nonce.c_str(),
+      blockHash,
+      input,
+      nonce,
       (int64_t)Beam_GetStaticBlockReward(height),
-      blockBits.c_str(),
-      nowStr.c_str());
+      blockBits,
+      nowStr);
   MysqlConnectInfo info = client->GetContainerBeam()->getMysqlInfo();
   std::thread t([sql, info, blockHash]() {
     // try connect to DB
@@ -260,7 +260,7 @@ bool ClientContainerBeam::sendJobToKafka(
 
   // submit to Kafka
   string jobStr = job.serializeToJson();
-  kafkaProducer_.produce(jobStr.c_str(), jobStr.size());
+  kafkaProducer_.produce(jobStr.data(), jobStr.size());
 
   LOG(INFO) << "sumbit to Kafka, msg len: " << jobStr.size();
   LOG(INFO) << "new job: " << jobStr;
@@ -301,7 +301,7 @@ void PoolWatchClientBeam::onConnected() {
       "\"method\":\"login\","
       "\"api_key\":\"%s\""
       "}\n",
-      workerName_.c_str());
+      workerName_);
   sendData(s);
   state_ = SUBSCRIBED;
 }
@@ -370,7 +370,7 @@ void PoolWatchClientBeam::handleStratumMessage(const string &line) {
       StratumJobBeam sjob;
       if (!sjob.initFromRawJob(
               line,
-              Strings::Format("%s:%u", poolHost_.c_str(), poolPort_),
+              Strings::Format("%s:%u", poolHost_, poolPort_),
               workerName_)) {
         LOG(ERROR) << "<" << poolName_ << "> init stratum job failed, "
                    << "raw job: " << line;

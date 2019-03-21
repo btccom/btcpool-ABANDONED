@@ -140,14 +140,14 @@ bool BlockMakerEth::submitBlock(
       "{\"jsonrpc\":\"2.0\",\"method\":\"eth_submitWork\",\"params\":[\"%s\","
       "\"%s\",\"%s\"%s],\"id\":2}"
       "]",
-      HexAddPrefix(nonce).c_str(),
-      HexAddPrefix(header).c_str(),
-      HexAddPrefix(mix).c_str(),
-      extraNonce ? Strings::Format(",%u", *extraNonce).c_str() : "",
-      HexAddPrefix(nonce).c_str(),
-      HexAddPrefix(header).c_str(),
-      HexAddPrefix(mix).c_str(),
-      extraNonce ? Strings::Format(",%u", *extraNonce).c_str() : "");
+      HexAddPrefix(nonce),
+      HexAddPrefix(header),
+      HexAddPrefix(mix),
+      extraNonce ? Strings::Format(",%u", *extraNonce) : "",
+      HexAddPrefix(nonce),
+      HexAddPrefix(header),
+      HexAddPrefix(mix),
+      extraNonce ? Strings::Format(",%u", *extraNonce) : "");
 
   bool ok = blockchainNodeRpcCall(
       rpcUrl.c_str(), rpcUserPass.c_str(), request.c_str(), response);
@@ -415,15 +415,15 @@ void BlockMakerEth::saveBlockToDB(
       worker.userId_,
       worker.workerHashId_,
       // filter again, just in case
-      filterWorkerName(worker.fullName_).c_str(),
-      chain.c_str(),
+      filterWorkerName(worker.fullName_),
+      chain,
       height,
-      blockHash.c_str(),
-      header.c_str(),
-      nonce.c_str(),
+      blockHash,
+      header,
+      nonce,
       EthConsensus::getStaticBlockReward(height, chain),
       networkDiff,
-      nowStr.c_str());
+      nowStr);
 
   // try connect to DB
   MySQLConnection db(poolDB_);

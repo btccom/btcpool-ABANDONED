@@ -95,13 +95,12 @@ void StratumSessionDecred::sendMiningNotify(
       prevHash[5].value(),
       prevHash[6].value(),
       prevHash[7].value(),
-      jobDecred->getCoinBase1().c_str(),
+      jobDecred->getCoinBase1(),
       HexStr(
           BEGIN(jobDecred->header_.stakeVersion),
-          END(jobDecred->header_.stakeVersion))
-          .c_str(),
-      HexStr(BEGIN(jobDecred->header_.version), END(jobDecred->header_.version))
-          .c_str(),
+          END(jobDecred->header_.stakeVersion)),
+      HexStr(
+          BEGIN(jobDecred->header_.version), END(jobDecred->header_.version)),
       jobDecred->header_.nBits.value(),
       jobDecred->header_.timestamp.value(),
       exJobPtr->isClean_ ? "true" : "false");
@@ -209,10 +208,10 @@ void StratumSessionDecred::handleRequest_Subscribe(
   const string s = Strings::Format(
       "{\"id\":%s,\"result\":[[[\"mining.set_difficulty\",\"%08x\"]"
       ",[\"mining.notify\",\"%08x\"]],\"%s\",%d],\"error\":null}\n",
-      idStr.c_str(),
+      idStr,
       sessionId_,
       sessionId_,
-      extraNonce1Str.c_str(),
+      extraNonce1Str,
       Strings::Value(StratumMiner::kExtraNonce2Size_));
   sendData(s);
 }

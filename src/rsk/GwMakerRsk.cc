@@ -74,12 +74,12 @@ string GwMakerHandlerRsk::constructRawMsg(JsonNode &r) {
       "\"feesPaidToMiner\":\"%s\","
       "\"notify\":\"%s\"}",
       (uint32_t)time(nullptr),
-      def_.chainType_.c_str(),
-      def_.rpcAddr_.c_str(),
-      def_.rpcUserPwd_.c_str(),
-      r["result"]["target"].str().c_str(),
-      r["result"]["parentBlockHash"].str().c_str(),
-      r["result"]["blockHashForMergedMining"].str().c_str(),
-      r["result"]["feesPaidToMiner"].str().c_str(),
+      def_.chainType_,
+      def_.rpcAddr_,
+      def_.rpcUserPwd_,
+      r["result"]["target"].str(),
+      r["result"]["parentBlockHash"].str(),
+      r["result"]["blockHashForMergedMining"].str(),
+      r["result"]["feesPaidToMiner"].str(),
       r["result"]["notify"].boolean() ? "true" : "false");
 }

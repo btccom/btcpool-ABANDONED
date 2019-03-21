@@ -44,8 +44,8 @@ string StratumJobSia::serializeToJson() const {
       "}",
       nTime_,
       jobId_,
-      networkTarget_.GetHex().c_str(),
-      blockHashForMergedMining_.c_str());
+      networkTarget_.GetHex(),
+      blockHashForMergedMining_);
 }
 
 ///////////////////////////////StratumJobSia///////////////////////////

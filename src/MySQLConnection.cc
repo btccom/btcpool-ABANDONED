@@ -240,8 +240,8 @@ bool multiInsert(
     const string &table,
     const string &fields,
     const vector<string> &values) {
-  string sqlPrefix = Strings::Format(
-      "INSERT INTO `%s`(%s) VALUES ", table.c_str(), fields.c_str());
+  string sqlPrefix =
+      Strings::Format("INSERT INTO `%s`(%s) VALUES ", table, fields);
 
   if (values.size() == 0 || fields.length() == 0 || table.length() == 0) {
     return false;
@@ -249,7 +249,7 @@ bool multiInsert(
 
   string sql = sqlPrefix;
   for (auto &it : values) {
-    sql += Strings::Format("(%s),", it.c_str());
+    sql += Strings::Format("(%s),", it);
     // overthan 16MB
     // notice: you need to make sure mysql.max_allowed_packet is over than 16MB
     if (sql.length() >= 16 * 1024 * 1024) {

@@ -81,7 +81,7 @@ void StratumSessionBeam::sendMiningNotify(
       "}\n",
       inputHash,
       shareBits,
-      job->input_.c_str(),
+      job->input_,
       job->height_);
 
   DLOG(INFO) << strNotify;
@@ -147,7 +147,7 @@ void StratumSessionBeam::responseAuthorizeSuccess(const string &idStr) {
       "\"code\":0,"
       "\"description\":\"Login successful\""
       "}\n",
-      idStr.c_str(),
+      idStr,
       sessionId_);
   sendData(response.data(), response.size());
 }
@@ -161,7 +161,7 @@ void StratumSessionBeam::responseError(const string &idStr, int code) {
       "\"code\":%d,"
       "\"description\":\"%s\""
       "}\n",
-      idStr.c_str(),
+      idStr,
       code,
       StratumStatus::toString(code));
   sendData(response.data(), response.size());
@@ -176,7 +176,7 @@ void StratumSessionBeam::responseTrue(const string &idStr) {
       "\"code\":1,"
       "\"description\":\"accepted\""
       "}\n",
-      idStr.c_str());
+      idStr);
   sendData(response.data(), response.size());
 }
 

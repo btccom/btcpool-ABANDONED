@@ -92,6 +92,6 @@ string JobMakerHandlerSia::makeStratumJobMsg() {
       "}",
       time_,
       jobId,
-      target_.c_str(),
-      header_.c_str());
+      target_,
+      header_);
 }

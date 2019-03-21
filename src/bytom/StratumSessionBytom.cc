@@ -43,14 +43,14 @@ void StratumSessionBytom::rpc2ResponseBoolean(
     const string s = Strings::Format(
         "{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":{\"status\":\"OK\"},"
         "\"error\":null}\n",
-        idStr.c_str());
+        idStr);
     sendData(s);
   } else {
     const string s = Strings::Format(
         "{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":null,\"error\":{\"code\":-1,"
         " \"message\":\"%s\"}}\n",
-        idStr.c_str(),
-        failMessage.c_str());
+        idStr,
+        failMessage);
     sendData(s);
   }
 }
@@ -130,31 +130,31 @@ void StratumSessionBytom::sendMiningNotify(
       "\"job_id\": \"%d\","
       "\"seed\": \"%s\","
       "\"target\": \"%s\"}",
-      versionStr.c_str(),
-      heightStr.c_str(),
-      sJob->blockHeader_.previousBlockHash.c_str(),
-      timestampStr.c_str(),
-      sJob->blockHeader_.transactionsMerkleRoot.c_str(),
-      sJob->blockHeader_.transactionStatusHash.c_str(),
-      nonceStr.c_str(),
-      bitsStr.c_str(),
+      versionStr,
+      heightStr,
+      sJob->blockHeader_.previousBlockHash,
+      timestampStr,
+      sJob->blockHeader_.transactionsMerkleRoot,
+      sJob->blockHeader_.transactionStatusHash,
+      nonceStr,
+      bitsStr,
       ljob.shortJobId_,
-      sJob->seed_.c_str(),
-      targetStr.c_str());
+      sJob->seed_,
+      targetStr);
 
   if (isFirstJob) {
     notifyStr = Strings::Format(
         "{\"id\": 1, \"jsonrpc\": \"2.0\", \"result\": {\"id\": \"%s\", "
         "\"job\": %s, \"status\": \"OK\"}, \"error\": null}",
-        server.isDevModeEnable_ ? "antminer_1" : worker_.fullName_.c_str(),
-        jobString.c_str());
+        server.isDevModeEnable_ ? "antminer_1" : worker_.fullName_,
+        jobString);
   } else {
     notifyStr = Strings::Format(
         "{\"jsonrpc\": \"2.0\", \"method\":\"job\", \"params\": %s}",
-        jobString.c_str());
+        jobString);
   }
   // LOG(INFO) << "Difficulty: " << ljob.jobDifficulty_ << "\nsendMiningNotify "
-  // << notifyStr.c_str();
+  // << notifyStr;
   sendData(notifyStr);
 }
 

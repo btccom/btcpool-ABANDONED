@@ -178,8 +178,7 @@ void StratumJobExBitcoin::init() {
   // we don't put jobId here, session will fill with the shortJobId
   miningNotify1_ = "{\"id\":null,\"method\":\"mining.notify\",\"params\":[\"";
 
-  miningNotify2_ =
-      Strings::Format("\",\"%s\",\"", sjob->prevHashBeStr_.c_str());
+  miningNotify2_ = Strings::Format("\",\"%s\",\"", sjob->prevHashBeStr_);
 
   // coinbase1_ may be modified when USER_DEFINED_COINBASE enabled,
   // so put it into a single variable.
@@ -190,8 +189,8 @@ void StratumJobExBitcoin::init() {
       ",[%s]"
       ",\"%08x\",\"%08x\",\"%08x\",%s"
       "]}\n",
-      sjob->coinbase2_.c_str(),
-      merkleBranchStr.c_str(),
+      sjob->coinbase2_,
+      merkleBranchStr,
       sjob->nVersion_,
       sjob->nBits_,
       sjob->nTime_,
@@ -202,8 +201,8 @@ void StratumJobExBitcoin::init() {
       ",[%s]"
       ",\"%08x\",\"%08x\",\"%08x\",true"
       "]}\n",
-      sjob->coinbase2_.c_str(),
-      merkleBranchStr.c_str(),
+      sjob->coinbase2_,
+      merkleBranchStr,
       sjob->nVersion_,
       sjob->nBits_,
       sjob->nTime_);
@@ -217,7 +216,7 @@ void StratumJobExBitcoin::generateCoinbaseTx(
     string *userCoinbaseInfo) {
   string coinbaseHex;
   const string extraNonceStr =
-      Strings::Format("%08x%s", extraNonce1, extraNonce2Hex.c_str());
+      Strings::Format("%08x%s", extraNonce1, extraNonce2Hex);
   auto sjob = std::static_pointer_cast<StratumJobBitcoin>(sjob_);
   string coinbase1 = sjob->coinbase1_;
 
@@ -618,11 +617,11 @@ int ServerBitcoin::checkShare(
         "\"rpc_userpass\":\"%s\""
         "}",
         share.jobid(),
-        sjob->nmcAuxBlockHash_.ToString().c_str(),
-        blockHeaderHex.c_str(),
-        coinbaseTxHex.c_str(),
-        sjob->nmcRpcAddr_.size() ? sjob->nmcRpcAddr_.c_str() : "",
-        sjob->nmcRpcUserpass_.size() ? sjob->nmcRpcUserpass_.c_str() : "");
+        sjob->nmcAuxBlockHash_.ToString(),
+        blockHeaderHex,
+        coinbaseTxHex,
+        sjob->nmcRpcAddr_,
+        sjob->nmcRpcUserpass_);
     // send found merged mining aux block to kafka
     sendAuxSolvedShare2Kafka(
         chainId, auxSolvedShare.data(), auxSolvedShare.size());

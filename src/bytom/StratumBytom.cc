@@ -42,8 +42,8 @@ string StratumJobBytom::serializeToJson() const {
       "}",
       nTime_,
       jobId_,
-      seed_.c_str(),
-      hHash_.c_str());
+      seed_,
+      hHash_);
 }
 
 bool StratumJobBytom::unserializeFromJson(const char *s, size_t len) {
@@ -97,9 +97,9 @@ string BlockHeaderBytom::serializeToJson() const {
       "}",
       version,
       height,
-      previousBlockHash.c_str(),
+      previousBlockHash,
       timestamp,
-      transactionsMerkleRoot.c_str(),
-      transactionStatusHash.c_str(),
+      transactionsMerkleRoot,
+      transactionStatusHash,
       bits);
 }

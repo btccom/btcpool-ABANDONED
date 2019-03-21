@@ -216,7 +216,7 @@ string GwMakerHandlerEth::constructRawMsg(JsonNode &r) {
   string header;
   if (work.size() >= 10 && work[9].type() == Utilities::JS::type::Str) {
     LOG(INFO) << "header for extra nonce: " << work[9];
-    header = Strings::Format(",\"header\":\"%s\"", work[9].str().c_str());
+    header = Strings::Format(",\"header\":\"%s\"", work[9].str());
   }
 
   LOG(INFO) << "chain: " << def_.chainType_ << ", topic: " << def_.rawGwTopic_
@@ -245,18 +245,18 @@ string GwMakerHandlerEth::constructRawMsg(JsonNode &r) {
       "%s"
       "}",
       (uint32_t)time(nullptr),
-      def_.chainType_.c_str(),
-      def_.rpcAddr_.c_str(),
-      def_.rpcUserPwd_.c_str(),
-      parentHash.c_str(),
-      work[2].str().c_str(),
-      work[0].str().c_str(),
-      work[1].str().c_str(),
+      def_.chainType_,
+      def_.rpcAddr_,
+      def_.rpcUserPwd_,
+      parentHash,
+      work[2].str(),
+      work[0].str(),
+      work[1].str(),
       height,
       uncles,
       transactions,
       gasUsedPercent,
-      header.c_str());
+      header);
 }
 
 string GwMakerHandlerEth::getBlockHeight() {

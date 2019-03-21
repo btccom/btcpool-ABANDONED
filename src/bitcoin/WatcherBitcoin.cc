@@ -205,7 +205,7 @@ bool ClientContainerBitcoin::sendEmptyGBT(
   string gbt;
   gbt += Strings::Format("{\"result\":{");
 
-  gbt += Strings::Format("\"previousblockhash\":\"%s\"", blockPrevHash.c_str());
+  gbt += Strings::Format("\"previousblockhash\":\"%s\"", blockPrevHash);
   gbt += Strings::Format(",\"height\":%d", blockHeight);
   const CChainParams &chainparams = Params();
   gbt += Strings::Format(
@@ -228,9 +228,9 @@ bool ClientContainerBitcoin::sendEmptyGBT(
       "\"gbthash\":\"%s\","
       "\"from_pool\":\"%s\"}",
       (uint32_t)time(nullptr),
-      EncodeBase64(gbt).c_str(),
-      gbtHash.ToString().c_str(),
-      poolName.c_str());
+      EncodeBase64(gbt),
+      gbtHash.ToString(),
+      poolName);
 
   // submit to Kafka
   kafkaProducer_.produce(sjob.c_str(), sjob.length());
@@ -437,7 +437,7 @@ void PoolWatchClientBitcoin::handleStratumMessage(const string &line) {
     string s = Strings::Format(
         "{\"id\": 1, \"method\": \"mining.authorize\","
         "\"params\": [\"%s\", \"\"]}\n",
-        workerName_.c_str());
+        workerName_);
     sendData(s);
     return;
   }

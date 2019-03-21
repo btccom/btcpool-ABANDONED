@@ -96,28 +96,26 @@ string StratumJobEth::serializeToJson() const {
       "}",
       jobId_,
 
-      EthConsensus::getChainStr(chain_).c_str(),
+      EthConsensus::getChainStr(chain_),
       height_,
-      parent_.c_str(),
+      parent_,
 
-      networkTarget_.GetHex().c_str(),
-      headerHash_.c_str(),
-      seedHash_.c_str(),
+      networkTarget_.GetHex(),
+      headerHash_,
+      seedHash_,
 
       uncles_,
       transactions_,
       gasUsedPercent_,
 
-      header_.empty()
-          ? ""
-          : Strings::Format(",\"header\":\"%s\"", header_.c_str()).c_str(),
+      header_.empty() ? "" : Strings::Format(",\"header\":\"%s\"", header_),
 
-      rpcAddress_.c_str(),
-      rpcUserPwd_.c_str(),
+      rpcAddress_,
+      rpcUserPwd_,
 
       // backward compatible
-      networkTarget_.GetHex().c_str(),
-      headerHash_.c_str());
+      networkTarget_.GetHex(),
+      headerHash_);
 }
 
 bool StratumJobEth::unserializeFromJson(const char *s, size_t len) {

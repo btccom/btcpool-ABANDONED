@@ -396,7 +396,7 @@ string score2Str(double s) {
 
   assert(p >= 0);
   f = Strings::Format("%%.%df", p > 25 ? 25 : p);
-  return Strings::Format(f.c_str(), s);
+  return Strings::Format(f, s);
 }
 
 bool fileExists(const char *file) {
@@ -418,10 +418,10 @@ getStatsFilePath(const char *chainType, const string &dataDir, time_t ts) {
   // filename: sharelog-2016-07-12.bin
   return Strings::Format(
       "%s%ssharelog%s-%s.bin",
-      dataDir.c_str(),
+      dataDir,
       needSlash ? "/" : "",
       chainType,
-      date("%F", ts).c_str());
+      date("%F", ts));
 }
 
 // A 37-character character set.

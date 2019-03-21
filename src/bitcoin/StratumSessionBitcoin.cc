@@ -188,7 +188,7 @@ void StratumSessionBitcoin::handleRequest_AgentGetCapabilities(
   string s = Strings::Format(
       "{\"id\":%s,\"result\":{\"capabilities\":" BTCAGENT_PROTOCOL_CAPABILITIES
       "}}\n",
-      idStr.c_str());
+      idStr);
   sendData(s);
 }
 
@@ -286,9 +286,7 @@ void StratumSessionBitcoin::handleRequest_MiningConfigure(
   // send result of mining.configure
   //
   string s = Strings::Format(
-      "{\"id\":%s,\"result\":{%s},\"error\":null}\n",
-      idStr.c_str(),
-      resultStr.c_str());
+      "{\"id\":%s,\"result\":{%s},\"error\":null}\n", idStr, resultStr);
   sendData(s);
 
   //
@@ -482,14 +480,14 @@ string StratumSessionBitcoin::getMinerInfoJson(const string &type) {
       "\"client_agent\":\"%s\",\"ip\":\"%s\","
       "\"session_id\":\"%08x\",\"version_mask\":\"%08x\""
       "}}",
-      date("%F %T").c_str(),
-      type.c_str(),
+      date("%F %T"),
+      type,
       worker_.userId(),
-      worker_.userName_.c_str(),
+      worker_.userName_,
       worker_.workerHashId_,
-      worker_.workerName_.c_str(),
-      clientAgent_.c_str(),
-      clientIp_.c_str(),
+      worker_.workerName_,
+      clientAgent_,
+      clientIp_,
       sessionId_,
       versionMask_);
 }

@@ -214,12 +214,12 @@ string GbtMaker::makeRawGbtMsg() {
       "\"block_template_base64\":\"%s\","
       "\"gbthash\":\"%s\"}",
       (uint32_t)time(nullptr),
-      EncodeBase64(gbt).c_str(),
-      gbtHash.ToString().c_str());
+      EncodeBase64(gbt),
+      gbtHash.ToString());
   //  return Strings::Format("{\"created_at_ts\":%u,"
   //                         "\"gbthash\":\"%s\"}",
   //                         (uint32_t)time(nullptr),
-  //                         gbtHash.ToString().c_str());
+  //                         gbtHash.ToString());
 }
 
 void GbtMaker::submitRawGbtMsg(bool checkTime) {
@@ -237,8 +237,8 @@ void GbtMaker::submitRawGbtMsg(bool checkTime) {
   lastGbtMakeTime_ = (uint32_t)time(nullptr);
 
   // submit to Kafka
-  LOG(INFO) << "sumbit to Kafka, msg len: " << rawGbtMsg.length();
-  kafkaProduceMsg(rawGbtMsg.c_str(), rawGbtMsg.length());
+  LOG(INFO) << "sumbit to Kafka, msg len: " << rawGbtMsg.size();
+  kafkaProduceMsg(rawGbtMsg.data(), rawGbtMsg.size());
 }
 
 #ifdef CHAIN_TYPE_BCH
@@ -300,9 +300,9 @@ string GbtMaker::makeRawGbtLightMsg() {
       "\"block_template_base64\":\"%s\","
       "\"gbthash\":\"%s\"}",
       (uint32_t)time(nullptr),
-      EncodeBase64(gbt).c_str(),
-      gbtHash.ToString().c_str());
-  LOG(INFO) << "makeRawGbtLightMsg result: " << result.c_str();
+      EncodeBase64(gbt),
+      gbtHash.ToString());
+  LOG(INFO) << "makeRawGbtLightMsg result: " << result;
 
   return result;
 }
@@ -319,12 +319,12 @@ void GbtMaker::submitRawGbtLightMsg(bool checkTime) {
     LOG(ERROR) << "get rawgbt light failure";
     return;
   }
-  LOG(INFO) << "rawGbtlight message: " << rawGbtLightMsg.c_str();
+  LOG(INFO) << "rawGbtlight message: " << rawGbtLightMsg;
   lastGbtLightMakeTime_ = (uint32_t)time(nullptr);
 
   // submit to Kafka
-  LOG(INFO) << "sumbit to Kafka, msg len: " << rawGbtLightMsg.length();
-  kafkaProduceMsg(rawGbtLightMsg.c_str(), rawGbtLightMsg.length());
+  LOG(INFO) << "sumbit to Kafka, msg len: " << rawGbtLightMsg.size();
+  kafkaProduceMsg(rawGbtLightMsg.data(), rawGbtLightMsg.size());
 }
 #endif // CHAIN_TYPE_BCH
 
@@ -557,14 +557,14 @@ string NMCAuxBlockMaker::makeAuxBlockMsg() {
       " \"rpc_addr\":\"%s\", \"rpc_userpass\":\"%s\""
       "}",
       (uint32_t)time(nullptr),
-      r["result"]["hash"].str().c_str(),
+      r["result"]["hash"].str(),
       r["result"]["height"].int32(),
       merkleSize,
       merkleNonce,
       r["result"]["chainid"].int32(),
-      r["result"]["bits"].str().c_str(),
-      rpcAddr_.c_str(),
-      rpcUserpass_.c_str());
+      r["result"]["bits"].str(),
+      rpcAddr_,
+      rpcUserpass_);
 
   LOG(INFO) << "createauxblock, height: " << r["result"]["height"].int32()
             << ", hash: " << r["result"]["hash"].str()
@@ -588,8 +588,8 @@ void NMCAuxBlockMaker::submitAuxblockMsg(bool checkTime) {
   lastCallTime_ = (uint32_t)time(nullptr);
 
   // submit to Kafka
-  LOG(INFO) << "sumbit to Kafka, msg len: " << auxMsg.length();
-  kafkaProduceMsg(auxMsg.c_str(), auxMsg.length());
+  LOG(INFO) << "sumbit to Kafka, msg len: " << auxMsg.size();
+  kafkaProduceMsg(auxMsg.data(), auxMsg.size());
 
   // save the timestamp to file, for monitor system
   if (!fileLastRpcCallTime_.empty()) {

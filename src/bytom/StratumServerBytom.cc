@@ -90,11 +90,11 @@ void ServerBytom::sendSolvedShare2Kafka(
       "\"height\":%u,\"networkDiff\":%u,\"userId\":%d,"
       "\"workerId\":%d,\"workerFullName\":\"%s\"}",
       nonce,
-      strHeader.c_str(),
+      strHeader,
       height,
       networkDiff,
       worker.userId(chainId),
       worker.workerHashId_,
-      filterWorkerName(worker.fullName_).c_str());
-  ServerBase::sendSolvedShare2Kafka(chainId, msg.c_str(), msg.length());
+      filterWorkerName(worker.fullName_));
+  ServerBase::sendSolvedShare2Kafka(chainId, msg.data(), msg.size());
 }

@@ -131,11 +131,11 @@ public:
         "blkBits: %08x/%d, nonce: %08x, shareDiff: %u, "
         "status: %d/%s)",
         jobid(),
-        ip().c_str(),
+        ip(),
         userid(),
         workerhashid(),
         timestamp(),
-        date("%F %T", timestamp()).c_str(),
+        date("%F %T", timestamp()),
         height(),
         blkbits(),
         networkDifficulty,

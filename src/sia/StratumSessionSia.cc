@@ -79,8 +79,8 @@ void StratumSessionSia::sendMiningNotify(
       "{\"id\":6,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
       "\"params\":[\"%u\",\"0x%s\",\"0x%s\"]}\n",
       ljob.shortJobId_,
-      siaJob->blockHashForMergedMining_.c_str(),
-      strShareTarget.c_str());
+      siaJob->blockHashForMergedMining_,
+      strShareTarget);
 
   sendData(strNotify); // send notify string
 
@@ -113,7 +113,7 @@ void StratumSessionSia::handleRequest_Subscribe(
   state_ = SUBSCRIBED;
 
   const string s = Strings::Format(
-      "{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":true}\n", idStr.c_str());
+      "{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":true}\n", idStr);
   sendData(s);
 }
 

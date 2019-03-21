@@ -152,39 +152,39 @@ string StratumJobBitcoin::serializeToJson() const {
       ",\"isRskCleanJob\":%s,\"mergedMiningClean\":%s"
       "}",
       jobId_,
-      gbtHash_.c_str(),
-      prevHash_.ToString().c_str(),
-      prevHashBeStr_.c_str(),
+      gbtHash_,
+      prevHash_.ToString(),
+      prevHashBeStr_,
       height_,
-      coinbase1_.c_str(),
-      coinbase2_.c_str(),
+      coinbase1_,
+      coinbase2_,
       // merkleBranch_ could be empty
-      merkleBranchStr.size() ? merkleBranchStr.c_str() : "",
+      merkleBranchStr,
       nVersion_,
       nBits_,
       nTime_,
       minTime_,
       coinbaseValue_,
-      witnessCommitment_.size() ? witnessCommitment_.c_str() : "",
+      witnessCommitment_,
 #ifdef CHAIN_TYPE_UBTC
-      rootStateHash_.size() ? rootStateHash_.c_str() : "",
+      rootStateHash_,
 #endif
 #ifdef CHAIN_TYPE_ZEC
       merkleRoot_.ToString().c_str(),
       finalSaplingRoot_.ToString().c_str(),
 #endif
       // nmc
-      nmcAuxBlockHash_.ToString().c_str(),
+      nmcAuxBlockHash_.ToString(),
       nmcAuxBits_,
       nmcHeight_,
-      nmcRpcAddr_.size() ? nmcRpcAddr_.c_str() : "",
-      nmcRpcUserpass_.size() ? nmcRpcUserpass_.c_str() : "",
+      nmcRpcAddr_,
+      nmcRpcUserpass_,
       // rsk
-      blockHashForMergedMining_.size() ? blockHashForMergedMining_.c_str() : "",
-      rskNetworkTarget_.GetHex().c_str(),
-      feesForMiner_.size() ? feesForMiner_.c_str() : "",
-      rskdRpcAddress_.size() ? rskdRpcAddress_.c_str() : "",
-      rskdRpcUserPwd_.c_str() ? rskdRpcUserPwd_.c_str() : "",
+      blockHashForMergedMining_,
+      rskNetworkTarget_.GetHex(),
+      feesForMiner_,
+      rskdRpcAddress_,
+      rskdRpcUserPwd_,
       isMergedMiningCleanJob_ ? "true" : "false",
       isMergedMiningCleanJob_ ? "true" : "false");
 }
@@ -584,9 +584,9 @@ bool StratumJobBitcoin::initFromGbt(
           // magic: 0xfa, 0xbe, 0x6d('m'), 0x6d('m')
           "fabe6d6d",
           // block_hash: Hash of the AuxPOW block header
-          nmcAuxBlockHash_.ToString().c_str(),
-          merkleSize.c_str(), // merkle_size : 1
-          merkleNonce.c_str() // merkle_nonce: 0
+          nmcAuxBlockHash_.ToString(),
+          merkleSize, // merkle_size : 1
+          merkleNonce // merkle_nonce: 0
       );
       vector<char> mergedMiningBin;
       Hex2Bin(mergedMiningCoinbase.c_str(), mergedMiningBin);

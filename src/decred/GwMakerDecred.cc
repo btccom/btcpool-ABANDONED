@@ -68,10 +68,10 @@ string GwMakerHandlerDecred::constructRawMsg(JsonNode &r) {
       "\"target\":\"%s\","
       "\"network\":%u}",
       (uint32_t)time(nullptr),
-      def_.chainType_.c_str(),
-      def_.rpcAddr_.c_str(),
-      def_.rpcUserPwd_.c_str(),
-      r1["result"]["data"].str().c_str(),
-      r1["result"]["target"].str().c_str(),
+      def_.chainType_,
+      def_.rpcAddr_,
+      def_.rpcUserPwd_,
+      r1["result"]["data"].str(),
+      r1["result"]["target"].str(),
       r0["result"].uint32());
 }

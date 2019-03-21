@@ -37,11 +37,11 @@ string StratumClientEth::constructShare() {
   string s = Strings::Format(
       "{\"id\": 4, \"method\": \"mining.submit\", "
       "\"params\": [\"%s\",\"%s\",\"0x%016x\",\"%s\",\"%s\"]}\n",
-      workerFullName_.c_str(),
-      latestJobId_.c_str(),
+      workerFullName_,
+      latestJobId_,
       extraNonce2_,
-      headerHash_.c_str(),
-      mixHash_.c_str());
+      headerHash_,
+      mixHash_);
 
   extraNonce2_++;
   return s;
@@ -106,8 +106,8 @@ void StratumClientEth::handleLine(const string &line) {
     string s = Strings::Format(
         "{\"id\": 1, \"method\": \"mining.authorize\","
         "\"params\": [\"\%s\", \"%s\"]}\n",
-        workerFullName_.c_str(),
-        workerPasswd_.c_str());
+        workerFullName_,
+        workerPasswd_);
     sendData(s);
     return;
   }
