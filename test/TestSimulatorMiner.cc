@@ -148,7 +148,7 @@ TEST(SIMULATOR, miner) {
   {
     sbuf = Strings::Format(
         "{\"params\": "
-        "[\"%s.simulator_test\",\"%s\",\"%016llx\",\"%08x\",\"%08x\"]"
+        "[\"%s.simulator_test\",\"%s\",\"%016x\",\"%08x\",\"%08x\"]"
         ",\"id\":4,\"method\": \"mining.submit\"}\n",
         userName.c_str(),
         latestJobId.c_str(),
@@ -170,7 +170,7 @@ TEST(SIMULATOR, miner) {
   {
     sbuf = Strings::Format(
         "{\"params\": "
-        "[\"%s.simulator_test\",\"%s\",\"%016llx\",\"%08x\",\"%08x\"]"
+        "[\"%s.simulator_test\",\"%s\",\"%016x\",\"%08x\",\"%08x\"]"
         ",\"id\":4,\"method\": \"mining.submit\"}\n",
         userName.c_str(),
         latestJobId.c_str(),
@@ -189,7 +189,7 @@ TEST(SIMULATOR, miner) {
     nTime = time(nullptr) - 86400;
     sbuf = Strings::Format(
         "{\"params\": "
-        "[\"%s.simulator_test\",\"%s\",\"%016llx\",\"%08x\",\"%08x\"]"
+        "[\"%s.simulator_test\",\"%s\",\"%016x\",\"%08x\",\"%08x\"]"
         ",\"id\":4,\"method\": \"mining.submit\"}\n",
         userName.c_str(),
         latestJobId.c_str(),
@@ -208,7 +208,7 @@ TEST(SIMULATOR, miner) {
     nTime = time(nullptr) + 3600 * 2;
     sbuf = Strings::Format(
         "{\"params\": "
-        "[\"%s.simulator_test\",\"%s\",\"%016llx\",\"%08x\",\"%08x\"]"
+        "[\"%s.simulator_test\",\"%s\",\"%016x\",\"%08x\",\"%08x\"]"
         ",\"id\":4,\"method\": \"mining.submit\"}\n",
         userName.c_str(),
         latestJobId.c_str(),
@@ -227,7 +227,7 @@ TEST(SIMULATOR, miner) {
     nTime = time(nullptr);
     sbuf = Strings::Format(
         "{\"params\": "
-        "[\"%s.simulator_test\",\"%s\",\"%016llx\",\"%08x\",\"%08x\"]"
+        "[\"%s.simulator_test\",\"%s\",\"%016x\",\"%08x\",\"%08x\"]"
         ",\"id\":4,\"method\": \"mining.submit\"}\n",
         userName.c_str(),
         "s982asd2das",

@@ -57,8 +57,8 @@ void usage() {
   fprintf(
       stderr,
       "Usage:\n\tsharelog_to_parquet -i \"<input-sharelog-v1-file.bin>\" -o "
-      "\"<output-parquet-file.bin>\" [-n %ld]\n",
-      DEFAULT_NUM_ROWS_PER_ROW_GROUP);
+      "\"<output-parquet-file.bin>\" [-n %d]\n",
+      (int)DEFAULT_NUM_ROWS_PER_ROW_GROUP);
 }
 
 class ParquetWriter {

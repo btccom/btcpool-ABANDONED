@@ -541,9 +541,9 @@ void ServerEth::sendSolvedShare2Kafka(
     const boost::optional<uint32_t> &sessionId) {
   string msg = Strings::Format(
       "{\"nonce\":\"%s\",\"header\":\"%s\",\"mix\":\"%s\""
-      ",\"height\":%lu,\"networkDiff\":%u"
+      ",\"height\":%u,\"networkDiff\":%u"
       "%s"
-      ",\"userId\":%ld"
+      ",\"userId\":%d"
       ",\"workerId\":%d"
       ",\"workerFullName\":\"%s\""
       ",\"chain\":\"%s\"}",

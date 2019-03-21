@@ -86,8 +86,8 @@ void ServerBytom::sendSolvedShare2Kafka(
     uint64_t networkDiff,
     const StratumWorker &worker) {
   string msg = Strings::Format(
-      "{\"nonce\":%lu,\"header\":\"%s\","
-      "\"height\":%lu,\"networkDiff\":%u,\"userId\":%ld,"
+      "{\"nonce\":%u,\"header\":\"%s\","
+      "\"height\":%u,\"networkDiff\":%u,\"userId\":%d,"
       "\"workerId\":%d,\"workerFullName\":\"%s\"}",
       nonce,
       strHeader.c_str(),

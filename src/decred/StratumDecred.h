@@ -198,7 +198,7 @@ public:
     return Strings::Format(
         "share(jobId: %u, ip: %s, userId: %d, "
         "workerId: %d, time: %u/%s, height: %u, "
-        "blkBits: %08x/%lf, shareDiff: %u, "
+        "blkBits: %08x/%f, shareDiff: %u, "
         "voters: %u, status: %d/%s)",
         jobid(),
         ip().c_str(),

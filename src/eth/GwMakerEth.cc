@@ -238,9 +238,9 @@ string GwMakerHandlerEth::constructRawMsg(JsonNode &r) {
       "\"target\":\"%s\","
       "\"hHash\":\"%s\","
       "\"sHash\":\"%s\","
-      "\"height\":%ld,"
-      "\"uncles\":%lu,"
-      "\"transactions\":%lu,"
+      "\"height\":%d,"
+      "\"uncles\":%u,"
+      "\"transactions\":%u,"
       "\"gasUsedPercent\":%f"
       "%s"
       "}",

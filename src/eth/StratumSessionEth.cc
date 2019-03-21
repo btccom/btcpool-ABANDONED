@@ -127,7 +127,7 @@ void StratumSessionEth::sendMiningNotifyWithId(
     strNotify = Strings::Format(
         "{\"id\":%s,\"method\":\"mining.notify\","
         "\"params\":[\"%s\",\"%s\",\"%s\",\"%s\",%s],"
-        "\"height\":%lu}\n",
+        "\"height\":%u}\n",
         idStr.c_str(),
         header.c_str(),
         header.c_str(),
@@ -148,7 +148,7 @@ void StratumSessionEth::sendMiningNotifyWithId(
         // nonce cannot start with 0x because of
         // a compatibility issue with AntMiner E3.
         "\"%06x\"],"
-        "\"height\":%lu}\n",
+        "\"height\":%u}\n",
         idStr.c_str(),
         header.c_str(),
         seed.c_str(),
@@ -167,7 +167,7 @@ void StratumSessionEth::sendMiningNotifyWithId(
       // }
       strNotify += Strings::Format(
           "{\"id\":%s,\"method\":\"mining.set_difficulty\","
-          "\"params\":[%lf]}\n",
+          "\"params\":[%f]}\n",
           idStr.c_str(),
           Eth_DiffToNicehashDiff(currentJobDiff_));
       nicehashLastSentDiff_ = currentJobDiff_;
@@ -185,7 +185,7 @@ void StratumSessionEth::sendMiningNotifyWithId(
     strNotify += Strings::Format(
         "{\"id\":%s,\"method\":\"mining.notify\","
         "\"params\":[\"%s\",\"%s\",\"%s\",%s],"
-        "\"height\":%lu}\n",
+        "\"height\":%u}\n",
         idStr.c_str(),
         header.c_str(),
         seed.c_str(),

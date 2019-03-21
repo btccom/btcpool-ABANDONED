@@ -408,7 +408,7 @@ void BlockMakerEth::saveBlockToDB(
       ", `height`, `hash`, `hash_no_nonce`, `nonce`"
       ", `rewards`"
       ", `network_diff`, `created_at`)"
-      " VALUES (%ld, %d"
+      " VALUES (%d, %d"
       ", '%s', '%s', %u"
       ", '%s', '%s', '%s'"
       ", %d, %u, '%s');",

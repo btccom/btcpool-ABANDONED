@@ -209,8 +209,8 @@ void ClientContainerGrin::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
       ", `rewards`, `job_id`"
       ", `created_at`) "
       "VALUES("
-      "  %ld, %d, '%s'"
-      ", %lu, '%s'"
+      "  %d, %d, '%s'"
+      ", %u, '%s'"
       ", '%u', '%016x'"
       ", %d, '%u', '%s');",
       userId,

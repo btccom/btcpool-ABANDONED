@@ -430,7 +430,7 @@ void ShareLogParserT<SHARE>::generateHoursData(
       const double earn = stats->earn1h_[i];
 
       valuesStr = Strings::Format(
-          "%s%d,%u,%u,%lf,'%s',%0.0lf,'%s','%s'",
+          "%s%d,%u,%u,%f,'%s',%0.0lf,'%s','%s'",
           extraValues.c_str(),
           hour,
           accept,
@@ -573,7 +573,7 @@ void ShareLogParserT<SHARE>::generateDailyData(
     const double earn = stats->earn1d_;
 
     valuesStr = Strings::Format(
-        "%s%d,%u,%u,%lf,'%s',%0.0lf,'%s','%s'",
+        "%s%d,%u,%u,%f,'%s',%0.0lf,'%s','%s'",
         extraValues.c_str(),
         day,
         accept,
@@ -897,7 +897,7 @@ void ShareLogParserServerT<SHARE>::getShareStats(
       Strings::EvBufferAdd(
           evb,
           "%s{\"hour\":%d,\"accept\":%u,\"reject\":%u"
-          ",\"reject_rate\":%lf,\"earn\":%0.0lf}",
+          ",\"reject_rate\":%f,\"earn\":%0.0lf}",
           (j == 0 ? "" : ","),
           hour,
           s->shareAccept_,
@@ -1062,12 +1062,12 @@ void ShareLogParserServerT<SHARE>::httpdServerStatus(
       "\"data\":{\"uptime\":\"%04u d %02u h %02u m %02u s\","
       "\"request\":%u,\"repbytes\":%u"
       ",\"pool\":{\"today\":{"
-      "\"hashrate_t\":%lf,\"accept\":%u"
+      "\"hashrate_t\":%f,\"accept\":%u"
       ",\"reject\":%u"
-      ",\"reject_rate\":%lf,\"earn\":%0.0lf},"
-      "\"curr_hour\":{\"hashrate_t\":%lf,\"accept\":%u"
+      ",\"reject_rate\":%f,\"earn\":%0.0lf},"
+      "\"curr_hour\":{\"hashrate_t\":%f,\"accept\":%u"
       ",\"reject\":%u"
-      ",\"reject_rate\":%lf,\"earn\":%0.0lf}}"
+      ",\"reject_rate\":%f,\"earn\":%0.0lf}}"
       "}}",
       s.uptime_ / 86400,
       (s.uptime_ % 86400) / 3600,

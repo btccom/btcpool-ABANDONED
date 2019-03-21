@@ -36,7 +36,7 @@ string StratumClientEth::constructShare() {
   // "0x52fdd9e9a796903c6b88af4192717e77d9a9c6fa6a1366540b65e6bcfa9069aa"]}
   string s = Strings::Format(
       "{\"id\": 4, \"method\": \"mining.submit\", "
-      "\"params\": [\"%s\",\"%s\",\"0x%016llx\",\"%s\",\"%s\"]}\n",
+      "\"params\": [\"%s\",\"%s\",\"0x%016x\",\"%s\",\"%s\"]}\n",
       workerFullName_.c_str(),
       latestJobId_.c_str(),
       extraNonce2_,

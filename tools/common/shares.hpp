@@ -187,7 +187,7 @@ struct ShareBitcoinV2 {
     return StringFormat(
         "share(jobId: %u, ip: %s, userId: %d, "
         "workerId: %d, time: %u/%s, height: %u, "
-        "blkBits: %08x/%lf, shareDiff: %u, "
+        "blkBits: %08x/%f, shareDiff: %u, "
         "status: %d/%s)",
         jobId_,
         ip_.toString().c_str(),

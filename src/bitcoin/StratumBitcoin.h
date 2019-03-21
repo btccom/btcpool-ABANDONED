@@ -194,7 +194,7 @@ public:
     return Strings::Format(
         "share(jobId: %u, ip: %s, userId: %d, "
         "workerId: %d, time: %u/%s, height: %u, "
-        "blkBits: %08x/%lf, shareDiff: %u, "
+        "blkBits: %08x/%f, shareDiff: %u, "
         "nonce: %08x, sessionId: %08x, "
         "versionMask: %08x, "
         "status: %d/%s)",

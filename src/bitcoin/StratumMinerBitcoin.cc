@@ -186,7 +186,7 @@ void StratumMinerBitcoin::handleExMessage_SubmitShare(
   // debug
   DLOG(INFO) << Strings::Format(
       "[agent] shortJobId: %02x, sessionId: %08x, "
-      "exNonce2: %016llx, nonce: %08x, time: %08x, versionMask: %08x",
+      "exNonce2: %016x, nonce: %08x, time: %08x, versionMask: %08x",
       shortJobId,
       (uint32_t)sessionId,
       fullExtraNonce2,
@@ -210,7 +210,7 @@ void StratumMinerBitcoin::handleRequest_Submit(
   auto &server = session.getServer();
   auto &worker = session.getWorker();
 
-  const string extraNonce2Hex = Strings::Format("%016llx", extraNonce2);
+  const string extraNonce2Hex = Strings::Format("%016x", extraNonce2);
   assert(extraNonce2Hex.length() / 2 == kExtraNonce2Size_);
 
   // a function to log rejected stale share

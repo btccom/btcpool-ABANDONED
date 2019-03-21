@@ -131,7 +131,7 @@ string StratumJobBitcoin::serializeToJson() const {
       ",\"height\":%d,\"coinbase1\":\"%s\",\"coinbase2\":\"%s\""
       ",\"merkleBranch\":\"%s\""
       ",\"nVersion\":%d,\"nBits\":%u,\"nTime\":%u"
-      ",\"minTime\":%u,\"coinbaseValue\":%lld"
+      ",\"minTime\":%u,\"coinbaseValue\":%d"
       ",\"witnessCommitment\":\"%s\""
 #ifdef CHAIN_TYPE_UBTC
       ",\"rootStateHash\":\"%s\""
