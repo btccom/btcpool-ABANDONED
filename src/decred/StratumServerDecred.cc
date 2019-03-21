@@ -110,7 +110,7 @@ class StratumProtocolDecredGoMiner : public StratumProtocolDecred {
 public:
   string getExtraNonce1String(uint32_t extraNonce1) const override {
     return Strings::Format(
-        "%08" PRIx32, boost::endian::endian_reverse(extraNonce1));
+        "%08x", boost::endian::endian_reverse(extraNonce1));
   }
 
   void setExtraNonces(
@@ -135,7 +135,7 @@ class StratumProtocolDecredTPruvot : public StratumProtocolDecred {
 public:
   string getExtraNonce1String(uint32_t extraNonce1) const override {
     return Strings::Format(
-        "%024" PRIx32, boost::endian::endian_reverse(extraNonce1));
+        "%024x", boost::endian::endian_reverse(extraNonce1));
   }
 
   void setExtraNonces(

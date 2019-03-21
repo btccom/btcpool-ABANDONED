@@ -209,13 +209,13 @@ bool ClientContainerBitcoin::sendEmptyGBT(
   gbt += Strings::Format(",\"height\":%d", blockHeight);
   const CChainParams &chainparams = Params();
   gbt += Strings::Format(
-      ",\"coinbasevalue\":%" PRId64 "",
+      ",\"coinbasevalue\":%d",
       GetBlockReward(blockHeight, chainparams.GetConsensus()));
   gbt += Strings::Format(",\"bits\":\"%08x\"", nBits);
   const uint32_t minTime = blockTime - 60 * 10; // just set 10 mins ago
-  gbt += Strings::Format(",\"mintime\":%" PRIu32 "", minTime);
-  gbt += Strings::Format(",\"curtime\":%" PRIu32 "", blockTime);
-  gbt += Strings::Format(",\"version\":%" PRIu32 "", blockVersion);
+  gbt += Strings::Format(",\"mintime\":%u", minTime);
+  gbt += Strings::Format(",\"curtime\":%u", blockTime);
+  gbt += Strings::Format(",\"version\":%u", blockVersion);
   gbt += Strings::Format(",\"transactions\":[]"); // empty transactions
 
   gbt += Strings::Format("}}");

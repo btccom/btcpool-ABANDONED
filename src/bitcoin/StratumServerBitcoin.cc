@@ -609,13 +609,13 @@ int ServerBitcoin::checkShare(
     DLOG(INFO) << "coinbaseTxHex: " << coinbaseTxHex;
 
     const string auxSolvedShare = Strings::Format(
-        "{\"job_id\":%" PRIu64
-        ","
-        " \"aux_block_hash\":\"%s\","
-        " \"block_header\":\"%s\","
-        " \"coinbase_tx\":\"%s\","
-        " \"rpc_addr\":\"%s\","
-        " \"rpc_userpass\":\"%s\""
+        "{"
+        "\"job_id\":%u,"
+        "\"aux_block_hash\":\"%s\","
+        "\"block_header\":\"%s\","
+        "\"coinbase_tx\":\"%s\","
+        "\"rpc_addr\":\"%s\","
+        "\"rpc_userpass\":\"%s\""
         "}",
         share.jobid(),
         sjob->nmcAuxBlockHash_.ToString().c_str(),

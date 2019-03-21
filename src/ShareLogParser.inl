@@ -391,7 +391,7 @@ void ShareLogParserT<SHARE>::generateHoursData(
   string table, extraValues;
   // worker
   if (userId != 0 && workerId != 0) {
-    extraValues = Strings::Format("% " PRId64 ",%d,", workerId, userId);
+    extraValues = Strings::Format("%d,%d,", workerId, userId);
     table = "stats_workers_hour";
   }
   // user
@@ -430,9 +430,7 @@ void ShareLogParserT<SHARE>::generateHoursData(
       const double earn = stats->earn1h_[i];
 
       valuesStr = Strings::Format(
-          "%s %d,%" PRIu64 ",%" PRIu64
-          ","
-          "  %lf,'%s',%0.0lf,'%s','%s'",
+          "%s%d,%u,%u,%lf,'%s',%0.0lf,'%s','%s'",
           extraValues.c_str(),
           hour,
           accept,
@@ -544,7 +542,7 @@ void ShareLogParserT<SHARE>::generateDailyData(
   string table, extraValues;
   // worker
   if (userId != 0 && workerId != 0) {
-    extraValues = Strings::Format("% " PRId64 ",%d,", workerId, userId);
+    extraValues = Strings::Format("%d,%d,", workerId, userId);
     table = "stats_workers_day";
   }
   // user
@@ -575,9 +573,7 @@ void ShareLogParserT<SHARE>::generateDailyData(
     const double earn = stats->earn1d_;
 
     valuesStr = Strings::Format(
-        "%s %d,%" PRIu64 ",%" PRIu64
-        ","
-        "  %lf,'%s',%0.0lf,'%s','%s'",
+        "%s%d,%u,%u,%lf,'%s',%0.0lf,'%s','%s'",
         extraValues.c_str(),
         day,
         accept,
@@ -887,7 +883,7 @@ void ShareLogParserServerT<SHARE>::getShareStats(
   // output json string
   for (size_t i = 0; i < keys.size(); i++) {
     Strings::EvBufferAdd(
-        evb, "%s\"%" PRId64 "\":[", (i == 0 ? "" : ","), keys[i].workerId_);
+        evb, "%s\"%d\":[", (i == 0 ? "" : ","), keys[i].workerId_);
 
     for (size_t j = 0; j < hours.size(); j++) {
       ShareStats *s = &shareStats[i * hours.size() + j];
@@ -900,9 +896,8 @@ void ShareLogParserServerT<SHARE>::getShareStats(
 
       Strings::EvBufferAdd(
           evb,
-          "%s{\"hour\":%d,\"accept\":%" PRIu64 ",\"reject\":%" PRIu64
-          ","
-          "\"reject_rate\":%lf,\"earn\":%0.0lf}",
+          "%s{\"hour\":%d,\"accept\":%u,\"reject\":%u"
+          ",\"reject_rate\":%lf,\"earn\":%0.0lf}",
           (j == 0 ? "" : ","),
           hour,
           s->shareAccept_,
@@ -1065,16 +1060,13 @@ void ShareLogParserServerT<SHARE>::httpdServerStatus(
       evb,
       "{\"err_no\":0,\"err_msg\":\"\","
       "\"data\":{\"uptime\":\"%04u d %02u h %02u m %02u s\","
-      "\"request\":%" PRIu64 ",\"repbytes\":%" PRIu64
-      ","
-      "\"pool\":{\"today\":{"
-      "\"hashrate_t\":%lf,\"accept\":%" PRIu64
-      ","
-      "\"reject\":%" PRIu64
+      "\"request\":%u,\"repbytes\":%u"
+      ",\"pool\":{\"today\":{"
+      "\"hashrate_t\":%lf,\"accept\":%u"
+      ",\"reject\":%u"
       ",\"reject_rate\":%lf,\"earn\":%0.0lf},"
-      "\"curr_hour\":{\"hashrate_t\":%lf,\"accept\":%" PRIu64
-      ","
-      "\"reject\":%" PRIu64
+      "\"curr_hour\":{\"hashrate_t\":%lf,\"accept\":%u"
+      ",\"reject\":%u"
       ",\"reject_rate\":%lf,\"earn\":%0.0lf}}"
       "}}",
       s.uptime_ / 86400,

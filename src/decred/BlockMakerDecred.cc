@@ -88,9 +88,7 @@ void BlockMakerDecred::saveBlockToDB(const FoundBlockDecred &foundBlock) {
       " (`puid`, `worker_id`, `worker_full_name`, `job_id`"
       "  ,`height`, `hash`, `rewards`, `size`, `prev_hash`"
       "  ,`bits`, `version`, `voters`, `network`, `created_at`)"
-      " VALUES (%d,%" PRId64 ",\"%s\", %" PRIu64
-      ",%d,\"%s\""
-      "  ,%" PRId64 ",%d,\"%s\",%u,%d,%u,%u,\"%s\"); ",
+      " VALUES (%d,%d,\"%s\",%u,%d,\"%s\",%d,%d,\"%s\",%u,%d,%u,%u,\"%s\");",
       foundBlock.userId_,
       foundBlock.workerId_,
       // filter again, just in case

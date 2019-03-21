@@ -131,9 +131,7 @@ void BlockMakerBytom::_saveBlockToDBThread(
       ", `worker_full_name`"
       ", `height`, `hash`, `rewards`"
       ", `network_diff`, `created_at`)"
-      " VALUES (%ld, %" PRId64
-      ", '%s'"
-      ", %lu, '%s', %" PRId64 ", %" PRIu64 ", '%s'); ",
+      " VALUES (%ld,%d,'%s',%lu,'%s',%d,%u,'%s');",
       worker.userId_,
       worker.workerHashId_,
       // filter again, just in case

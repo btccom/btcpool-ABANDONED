@@ -126,12 +126,9 @@ public:
         &combinedHeader, combinedheader().data(), sizeof(BytomCombinedHeader));
 
     return Strings::Format(
-        "share(jobId: %" PRIu64
-        ", ip: %s, userId: %d, "
-        "workerId: %" PRId64
-        ", time: %u/%s, height: %u, "
-        "blkBits: %08x/%" PRId64 ", nonce: %08x, shareDiff: %" PRIu64
-        ", "
+        "share(jobId: %u, ip: %s, userId: %d, "
+        "workerId: %d, time: %u/%s, height: %u, "
+        "blkBits: %08x/%d, nonce: %08x, shareDiff: %u, "
         "status: %d/%s)",
         jobid(),
         ip().c_str(),

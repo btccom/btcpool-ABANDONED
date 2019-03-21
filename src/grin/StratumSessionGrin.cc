@@ -223,7 +223,7 @@ void StratumSessionGrin::sendMiningNotifyWithId(
       ",\"jsonrpc\":\"2.0\""
       ",\"method\":\"%s\""
       ",\"%s\":"
-      "{\"difficulty\":%" PRIu64 ",\"height\":%" PRIu64 ",\"job_id\":%" PRIu32
+      "{\"difficulty\":%u,\"height\":%u,\"job_id\":%u"
       ",\"pre_pow\":\"%s\""
       "}}\n",
       idStr.empty() ? "\"Stratum\"" : idStr.c_str(),

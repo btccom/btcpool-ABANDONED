@@ -196,12 +196,9 @@ public:
             .powLimit.getdouble() /
         arith_uint256().SetCompact(blkbits()).getdouble();
     return Strings::Format(
-        "share(jobId: %" PRIu64
-        ", ip: %s, userId: %d, "
-        "workerId: %" PRId64
-        ", time: %u/%s, height: %u, "
-        "blkBits: %08x/%lf, shareDiff: %" PRIu64
-        ", "
+        "share(jobId: %u, ip: %s, userId: %d, "
+        "workerId: %d, time: %u/%s, height: %u, "
+        "blkBits: %08x/%lf, shareDiff: %u, "
         "voters: %u, status: %d/%s)",
         jobid(),
         ip().c_str(),

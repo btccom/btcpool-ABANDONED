@@ -86,8 +86,7 @@ string JobMakerHandlerSia::makeStratumJobMsg() {
 
   return Strings::Format(
       "{\"created_at_ts\":%u"
-      ",\"jobId\":%" PRIu64
-      ""
+      ",\"jobId\":%u"
       ",\"target\":\"%s\""
       ",\"hHash\":\"%s\""
       "}",

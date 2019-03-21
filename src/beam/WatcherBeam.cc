@@ -198,11 +198,11 @@ void ClientContainerBeam::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
       ", `rewards`, `block_bits`"
       ", `created_at`) "
       "VALUES("
-      "  %ld, %" PRId64
+      "  %ld, %d"
       ", '%s'"
       ", %lu, '%s'"
       ", '%s', '%s'"
-      ", %" PRId64
+      ", %d"
       ", '%s'"
       ", '%s');",
       userId,

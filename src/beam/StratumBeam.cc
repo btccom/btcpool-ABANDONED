@@ -64,7 +64,7 @@ bool StratumJobBeam::initFromRawJob(
 
 string StratumJobBeam::serializeToJson() const {
   return Strings::Format(
-      "{\"jobId\":%" PRIu64
+      "{\"jobId\":%u"
       ",\"chain\":\"BEAM\""
       ",\"height\":%u"
       ",\"blockBits\":\"%08x\""

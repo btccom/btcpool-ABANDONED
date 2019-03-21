@@ -699,9 +699,7 @@ void BlockMakerBitcoin::_saveBlockToDBThread(
       " (`puid`, `worker_id`, `worker_full_name`, `job_id`"
       "  ,`height`, `hash`, `rewards`, `size`, `prev_hash`"
       "  ,`bits`, `version`, `created_at`)"
-      " VALUES (%d,%" PRId64 ",\"%s\", %" PRIu64
-      ",%d,\"%s\""
-      "  ,%" PRId64 ",%d,\"%s\",%u,%d,\"%s\"); ",
+      " VALUES (%d,%d,\"%s\",%u,%d,\"%s\",%d,%d,\"%s\",%u,%d,\"%s\"); ",
       foundBlock.userId_,
       foundBlock.workerId_,
       // filter again, just in case

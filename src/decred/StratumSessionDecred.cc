@@ -83,9 +83,9 @@ void StratumSessionDecred::sendMiningNotify(
       jobDecred->header_.prevBlock.begin());
   auto notifyStr = Strings::Format(
       "{\"id\":null,\"jsonrpc\":\"2.0\",\"method\":\"mining.notify\","
-      "\"params\":[\"%04" PRIx8
+      "\"params\":[\"%04x"
       "\",\"%08x%08x%08x%08x%08x%08x%08x%08x\",\"%s00000000\",\"%s\",[],\"%s\","
-      "\"%" PRIx32 "\",\"%" PRIx32 "\",%s]}\n",
+      "\"%x\",\"%x\",%s]}\n",
       ljob.shortJobId_,
       prevHash[0].value(),
       prevHash[1].value(),

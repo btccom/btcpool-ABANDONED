@@ -101,12 +101,9 @@ public:
 
   string toString() const {
     return Strings::Format(
-        "share(height: %u, jobId: %" PRIu64
-        "..., ip: %s, userId: %d, "
-        "workerId: %" PRId64
-        ", time: %u/%s, "
-        "shareDiff: %" PRIu64 ", networkDiff: %" PRIu64 ", nonce: %016" PRIx64
-        ", "
+        "share(height: %u, jobId: %u..., ip: %s, userId: %d, "
+        "workerId: %d, time: %u/%s, "
+        "shareDiff: %u, networkDiff: %u, nonce: %016x, "
         "sessionId: %08x, status: %d/%s)",
         height(),
         jobid(),

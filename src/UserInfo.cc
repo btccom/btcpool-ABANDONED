@@ -336,7 +336,7 @@ int32_t UserInfo::incrementalUpdateUsers(size_t chainId) {
   //          `last_time` in API.
   //
   const string url = Strings::Format(
-      "%s?last_id=%d&last_time=%" PRId64,
+      "%s?last_id=%d&last_time=%d",
       chain.apiUrl_.c_str(),
       chain.lastMaxUserId_,
       chain.lastTime_);
@@ -555,8 +555,7 @@ int32_t UserInfo::insertWorkerName(size_t chainId) {
         "\"type\":\"worker_update\","
         "\"content\":{"
         "\"user_id\":%d,"
-        "\"worker_id\":%" PRId64
-        ","
+        "\"worker_id\":%d,"
         "\"worker_name\":\"%s\","
         "\"miner_agent\":\"%s\""
         "}}",

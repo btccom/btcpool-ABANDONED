@@ -540,21 +540,20 @@ void ServerEth::sendSolvedShare2Kafka(
     const EthConsensus::Chain chain,
     const boost::optional<uint32_t> &sessionId) {
   string msg = Strings::Format(
-      "{\"nonce\":\"%s\",\"header\":\"%s\",\"mix\":\"%s\","
-      "\"height\":%lu,\"networkDiff\":%" PRIu64
+      "{\"nonce\":\"%s\",\"header\":\"%s\",\"mix\":\"%s\""
+      ",\"height\":%lu,\"networkDiff\":%u"
       "%s"
-      ",\"userId\":%ld,"
-      "\"workerId\":%" PRId64
-      ",\"workerFullName\":\"%s\","
-      "\"chain\":\"%s\"}",
+      ",\"userId\":%ld"
+      ",\"workerId\":%d"
+      ",\"workerFullName\":\"%s\""
+      ",\"chain\":\"%s\"}",
       strNonce.c_str(),
       strHeader.c_str(),
       strMix.c_str(),
       height,
       networkDiff,
-      sessionId
-          ? Strings::Format(",\"extraNonce\":%" PRIu32, *sessionId).c_str()
-          : "",
+      sessionId ? Strings::Format(",\"extraNonce\":%u", *sessionId).c_str()
+                : "",
       worker.userId(chainId),
       worker.workerHashId_,
       filterWorkerName(worker.fullName_).c_str(),

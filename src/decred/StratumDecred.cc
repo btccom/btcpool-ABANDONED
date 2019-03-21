@@ -34,13 +34,13 @@ StratumJobDecred::StratumJobDecred()
 
 string StratumJobDecred::serializeToJson() const {
   return Strings::Format(
-      "{\"jobId\":%" PRIu64
+      "{\"jobId\":%u"
       ",\"prevHash\":\"%s\""
       ",\"coinBase1\":\"%s\""
       ",\"coinBase2\":\"%s\""
       ",\"version\":\"%s\""
       ",\"target\":\"%s\""
-      ",\"network\":%" PRIu32 "}",
+      ",\"network\":%u}",
       jobId_,
       getPrevHash().c_str(),
       getCoinBase1().c_str(),

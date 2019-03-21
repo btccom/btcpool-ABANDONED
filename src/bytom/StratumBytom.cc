@@ -36,8 +36,7 @@ StratumJobBytom::StratumJobBytom()
 string StratumJobBytom::serializeToJson() const {
   return Strings::Format(
       "{\"created_at_ts\":%u"
-      ",\"jobId\":%" PRIu64
-      ""
+      ",\"jobId\":%u"
       ",\"sHash\":\"%s\""
       ",\"hHash\":\"%s\""
       "}",
@@ -88,17 +87,13 @@ void StratumJobBytom::updateBlockHeaderFromHash() {
 
 string BlockHeaderBytom::serializeToJson() const {
   return Strings::Format(
-      "{\"Version\":%" PRIu64
-      ""
-      ",\"Height\":%" PRIu64
-      ""
+      "{\"Version\":%u"
+      ",\"Height\":%u"
       ",\"PreviousBlockHash\":\"%s\""
-      ",\"Timestamp\":%" PRIu64
-      ""
+      ",\"Timestamp\":%u"
       ",\"TransactionsMerkleRoot\":\"%s\""
       ",\"TransactionStatusHash\":\"%s\""
-      ",\"Bits\":%" PRIu64
-      ""
+      ",\"Bits\":%u"
       "}",
       version,
       height,

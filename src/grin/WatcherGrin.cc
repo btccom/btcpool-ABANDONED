@@ -185,8 +185,8 @@ void ClientContainerGrin::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
       ",\"jsonrpc\":\"2.0\""
       ",\"method\":\"submit\""
       ",\"params\":"
-      "{\"edge_bits\":%" PRIu32 ",\"height\":%" PRIu64 ",\"job_id\":%" PRIu64
-      ",\"nonce\":%" PRIu64
+      "{\"edge_bits\":%u,\"height\":%u,\"job_id\":%u"
+      ",\"nonce\":%u"
       ",\"pow\":%s"
       "}}\n",
       edgeBits,
@@ -209,14 +209,10 @@ void ClientContainerGrin::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
       ", `rewards`, `job_id`"
       ", `created_at`) "
       "VALUES("
-      "  %ld, %" PRId64
-      ", '%s'"
+      "  %ld, %d, '%s'"
       ", %lu, '%s'"
-      ", '%" PRIu32 "', '%016" PRIx64
-      "'"
-      ", %" PRId64 ", '%" PRIu64
-      "'"
-      ", '%s');",
+      ", '%u', '%016x'"
+      ", %d, '%u', '%s');",
       userId,
       workerId,
       filterWorkerName(workerFullName).c_str(),

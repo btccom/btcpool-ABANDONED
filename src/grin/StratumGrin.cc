@@ -57,8 +57,8 @@ bool StratumJobGrin::initFromRawJob(JsonNode &jparams) {
 
 string StratumJobGrin::serializeToJson() const {
   return Strings::Format(
-      "{\"jobId\":%" PRIu64 ",\"height\":%" PRIu64 ",\"difficulty\":%" PRIu64
-      ",\"nodeJobId\":%" PRIu64
+      "{\"jobId\":%u,\"height\":%u,\"difficulty\":%u"
+      ",\"nodeJobId\":%u"
       ",\"prePow\":\"%s\""
       "}",
       jobId_,

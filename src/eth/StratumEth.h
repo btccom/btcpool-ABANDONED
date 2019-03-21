@@ -181,12 +181,9 @@ public:
   string toString() const {
 
     return Strings::Format(
-        "share(height: %u, headerHash: %016" PRIx64
-        "..., ip: %s, userId: %d, "
-        "workerId: %" PRId64
-        ", time: %u/%s, "
-        "shareDiff: %" PRIu64 ", networkDiff: %" PRIu64 ", nonce: %016" PRIx64
-        ", "
+        "share(height: %u, headerHash: %016x..., ip: %s, userId: %d, "
+        "workerId: %d, time: %u/%s, "
+        "shareDiff: %u, networkDiff: %u, nonce: %016x, "
         "sessionId: %08x, status: %d/%s)",
         height(),
         headerhash(),

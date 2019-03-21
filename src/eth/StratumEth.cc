@@ -67,8 +67,7 @@ bool StratumJobEth::initFromGw(
 
 string StratumJobEth::serializeToJson() const {
   return Strings::Format(
-      "{\"jobId\":%" PRIu64
-      ""
+      "{\"jobId\":%u"
 
       ",\"chain\":\"%s\""
       ",\"height\":%u"

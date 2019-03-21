@@ -192,12 +192,9 @@ public:
     BitsToDifficulty(blkbits(), &networkDifficulty);
 
     return Strings::Format(
-        "share(jobId: %" PRIu64
-        ", ip: %s, userId: %d, "
-        "workerId: %" PRId64
-        ", time: %u/%s, height: %u, "
-        "blkBits: %08x/%lf, shareDiff: %" PRIu64
-        ", "
+        "share(jobId: %u, ip: %s, userId: %d, "
+        "workerId: %d, time: %u/%s, height: %u, "
+        "blkBits: %08x/%lf, shareDiff: %u, "
         "nonce: %08x, sessionId: %08x, "
         "versionMask: %08x, "
         "status: %d/%s)",

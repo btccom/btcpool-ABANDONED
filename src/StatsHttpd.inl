@@ -858,27 +858,26 @@ void StatsServerT<SHARE>::_flushWorkersAndUsersToDBThread() {
 
     const string nowStr = date("%F %T", time(nullptr));
 
-    values.push_back(
-        Strings::Format(
-            "%" PRId64 ",%d,%d,%" PRIu64 ",%" PRIu64 ","
-            "%" PRIu64 ",%" PRIu64 "," // accept_15m, reject_15m
-            "%" PRIu64 ",%" PRIu64 "," // accept_1h,  reject_1h
-            "%d,\"%s\","
-            "\"%s\",\"%s\",\"%s\"",
-            workerId,
-            userId,
-            -1 * userId, /* default group id */
-            status.accept1m_,
-            status.accept5m_,
-            status.accept15m_,
-            status.reject15m_,
-            status.accept1h_,
-            status.reject1h_,
-            status.acceptCount_,
-            status.lastShareIP_.toString().c_str(),
-            date("%F %T", status.lastShareTime_).c_str(),
-            nowStr.c_str(),
-            nowStr.c_str()));
+    values.push_back(Strings::Format(
+        "%d,%d,%d,%u,%u,"
+        "%u,%u," // accept_15m, reject_15m
+        "%u,%u," // accept_1h,  reject_1h
+        "%d,\"%s\","
+        "\"%s\",\"%s\",\"%s\"",
+        workerId,
+        userId,
+        -1 * userId, /* default group id */
+        status.accept1m_,
+        status.accept5m_,
+        status.accept15m_,
+        status.reject15m_,
+        status.accept1h_,
+        status.reject1h_,
+        status.acceptCount_,
+        status.lastShareIP_.toString().c_str(),
+        date("%F %T", status.lastShareTime_).c_str(),
+        nowStr.c_str(),
+        nowStr.c_str()));
   }
 
   // get all users status
@@ -892,27 +891,26 @@ void StatsServerT<SHARE>::_flushWorkersAndUsersToDBThread() {
 
     const string nowStr = date("%F %T", time(nullptr));
 
-    values.push_back(
-        Strings::Format(
-            "%" PRId64 ",%d,%d,%" PRIu64 ",%" PRIu64 ","
-            "%" PRIu64 ",%" PRIu64 "," // accept_15m, reject_15m
-            "%" PRIu64 ",%" PRIu64 "," // accept_1h,  reject_1h
-            "%d,\"%s\","
-            "\"%s\",\"%s\",\"%s\"",
-            workerId,
-            userId,
-            -1 * userId, /* default group id */
-            status.accept1m_,
-            status.accept5m_,
-            status.accept15m_,
-            status.reject15m_,
-            status.accept1h_,
-            status.reject1h_,
-            status.acceptCount_,
-            status.lastShareIP_.toString().c_str(),
-            date("%F %T", status.lastShareTime_).c_str(),
-            nowStr.c_str(),
-            nowStr.c_str()));
+    values.push_back(Strings::Format(
+        "%d,%d,%d,%u,%u,"
+        "%u,%u," // accept_15m, reject_15m
+        "%u,%u," // accept_1h,  reject_1h
+        "%d,\"%s\","
+        "\"%s\",\"%s\",\"%s\"",
+        workerId,
+        userId,
+        -1 * userId, /* default group id */
+        status.accept1m_,
+        status.accept5m_,
+        status.accept15m_,
+        status.reject15m_,
+        status.accept1h_,
+        status.reject1h_,
+        status.acceptCount_,
+        status.lastShareIP_.toString().c_str(),
+        date("%F %T", status.lastShareTime_).c_str(),
+        nowStr.c_str(),
+        nowStr.c_str()));
   }
 
   pthread_rwlock_unlock(&rwlock_);
@@ -1487,7 +1485,7 @@ bool StatsServerT<SHARE>::updateWorkerStatusToDB(
   // find the miner
   sql = Strings::Format(
       "SELECT `group_id` FROM `mining_workers` "
-      " WHERE `puid`=%d AND `worker_id`= %" PRId64 "",
+      " WHERE `puid`=%d AND `worker_id`=%d",
       userId,
       workerId);
   poolDBCommonEvents_->query(sql, res);
@@ -1501,7 +1499,7 @@ bool StatsServerT<SHARE>::updateWorkerStatusToDB(
         "UPDATE `mining_workers` SET `group_id`=%d, "
         " `worker_name`=\"%s\", `miner_agent`=\"%s\", "
         " `updated_at`=\"%s\" "
-        " WHERE `puid`=%d AND `worker_id`= %" PRId64 "",
+        " WHERE `puid`=%d AND `worker_id`=%d",
         groupId == 0 ? userId * -1 : groupId,
         workerName,
         minerAgent,
@@ -1516,7 +1514,7 @@ bool StatsServerT<SHARE>::updateWorkerStatusToDB(
         "INSERT INTO `mining_workers`(`puid`,`worker_id`,"
         " `group_id`,`worker_name`,`miner_agent`,"
         " `created_at`,`updated_at`) "
-        " VALUES(%d,%" PRId64
+        " VALUES(%d,%d"
         ",%d,\"%s\",\"%s\",\"%s\",\"%s\")"
         " ON DUPLICATE KEY UPDATE "
         " `worker_name`= \"%s\",`miner_agent`=\"%s\",`updated_at`=\"%s\" ",
@@ -1585,16 +1583,12 @@ void StatsServerT<SHARE>::httpdServerStatus(
 
   Strings::EvBufferAdd(
       evb,
-      "{\"err_no\":0,\"err_msg\":\"\","
-      "\"data\":{\"uptime\":\"%04u d %02u h %02u m %02u s\","
-      "\"request\":%" PRIu64 ",\"repbytes\":%" PRIu64
-      ","
-      "\"pool\":{\"accept\":[%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64
-      "],"
-      "\"reject\":[0,0,%" PRIu64 ",%" PRIu64 "],\"accept_count\":%" PRIu32
-      ","
-      "\"workers\":%" PRIu64 ",\"users\":%" PRIu64
-      ""
+      "{\"err_no\":0,\"err_msg\":\"\""
+      ",\"data\":{\"uptime\":\"%04u d %02u h %02u m %02u s\""
+      ",\"request\":%u,\"repbytes\":%u"
+      ",\"pool\":{\"accept\":[%u,%u,%u,%u]"
+      ",\"reject\":[0,0,%u,%u],\"accept_count\":%u"
+      ",\"workers\":%u,\"users\":%u"
       "}}}",
       s.uptime_ / 86400,
       (s.uptime_ % 86400) / 3600,
@@ -1744,12 +1738,9 @@ void StatsServerT<SHARE>::getWorkerStatus(
 
     Strings::EvBufferAdd(
         evb,
-        "%s\"%" PRId64 "\":{\"accept\":[%" PRIu64 ",%" PRIu64 ",%" PRIu64
-        ",%" PRIu64
-        "]"
-        ",\"reject\":[0,0,%" PRIu64 ",%" PRIu64 "],\"accept_count\":%" PRIu32
-        ""
-        ",\"last_share_ip\":\"%s\",\"last_share_time\":%" PRIu64 "%s}",
+        "%s\"%d\":{\"accept\":[%u,%u,%u,%u]"
+        ",\"reject\":[0,0,%u,%u],\"accept_count\":%u"
+        ",\"last_share_ip\":\"%s\",\"last_share_time\":%u%s}",
         (i == 0 ? "" : ","),
         (isMerge ? 0 : keys[i].workerId_),
         status.accept1m_,
@@ -1788,8 +1779,7 @@ void StatsServerT<SHARE>::httpdGetFlushDBTime(
 
   Strings::EvBufferAdd(
       evb,
-      "{\"err_no\":0,\"err_msg\":\"\",\"data\":{\"flush_db_time\":%" PRId64
-      "}}",
+      "{\"err_no\":0,\"err_msg\":\"\",\"data\":{\"flush_db_time\":%d}}",
       (int64_t)server->lastFlushTime_);
 
   server->responseBytes_ += evbuffer_get_length(evb);

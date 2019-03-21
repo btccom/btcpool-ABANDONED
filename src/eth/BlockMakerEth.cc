@@ -143,11 +143,11 @@ bool BlockMakerEth::submitBlock(
       HexAddPrefix(nonce).c_str(),
       HexAddPrefix(header).c_str(),
       HexAddPrefix(mix).c_str(),
-      extraNonce ? Strings::Format(",%" PRIu32, *extraNonce).c_str() : "",
+      extraNonce ? Strings::Format(",%u", *extraNonce).c_str() : "",
       HexAddPrefix(nonce).c_str(),
       HexAddPrefix(header).c_str(),
       HexAddPrefix(mix).c_str(),
-      extraNonce ? Strings::Format(",%" PRIu32, *extraNonce).c_str() : "");
+      extraNonce ? Strings::Format(",%u", *extraNonce).c_str() : "");
 
   bool ok = blockchainNodeRpcCall(
       rpcUrl.c_str(), rpcUserPass.c_str(), request.c_str(), response);
@@ -408,11 +408,10 @@ void BlockMakerEth::saveBlockToDB(
       ", `height`, `hash`, `hash_no_nonce`, `nonce`"
       ", `rewards`"
       ", `network_diff`, `created_at`)"
-      " VALUES (%ld, %" PRId64
-      ", '%s', '%s'"
-      ", %" PRIu32
+      " VALUES (%ld, %d"
+      ", '%s', '%s', %u"
       ", '%s', '%s', '%s'"
-      ", %" PRId64 ", %" PRIu64 ", '%s'); ",
+      ", %d, %u, '%s');",
       worker.userId_,
       worker.workerHashId_,
       // filter again, just in case

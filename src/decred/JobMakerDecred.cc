@@ -81,13 +81,13 @@ string JobMakerHandlerDecred::makeStratumJobMsg() {
   auto version = data.substr(OFFSET_AND_SIZE_DECRED(version));
 
   return Strings::Format(
-      "{\"jobId\":%" PRIu64
+      "{\"jobId\":%u"
       ",\"prevHash\":\"%s\""
       ",\"coinBase1\":\"%s\""
       ",\"coinBase2\":\"%s\""
       ",\"version\":\"%s\""
       ",\"target\":\"%s\""
-      ",\"network\":%" PRIu32 "}",
+      ",\"network\":%u}",
       jobId,
       prevHash.c_str(),
       coinBase1.c_str(),

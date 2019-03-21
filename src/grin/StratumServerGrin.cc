@@ -131,9 +131,9 @@ void StratumServerGrin::sendSolvedShare2Kafka(
   Bin2Hex(blockHash.begin(), blockHash.size(), blockHashStr);
   string msg = Strings::Format(
       "{\"prePow\":\"%s\""
-      ",\"height\":%" PRIu64 ",\"edgeBits\":%" PRIu32 ",\"nonce\":%" PRIu64
+      ",\"height\":%u,\"edgeBits\":%u,\"nonce\":%u"
       ",\"proofs\":[%s]"
-      ",\"userId\":%" PRId32 ",\"workerId\":%" PRId64
+      ",\"userId\":%d,\"workerId\":%d"
       ",\"workerFullName\":\"%s\""
       ",\"blockHash\":\"%s\""
       "}",

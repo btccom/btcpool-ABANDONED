@@ -224,8 +224,8 @@ string StratumSession::getMinerInfoJson(const string &type) {
       "\"type\":\"%s\","
       "\"content\":{"
       "\"user_id\":%d,\"user_name\":\"%s\","
-      "\"worker_id\":%" PRId64
-      ",\"worker_name\":\"%s\","
+      "\"worker_id\":%d,"
+      "\"worker_name\":\"%s\","
       "\"client_agent\":\"%s\",\"ip\":\"%s\","
       "\"session_id\":\"%08x\""
       "}}",

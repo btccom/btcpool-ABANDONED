@@ -40,8 +40,7 @@ void StratumClientBeam::sendHelloData() {
 
 string StratumClientBeam::constructShare() {
   string s = Strings::Format(
-      "{\"method\":\"solution\",\"id\":\"%s\",\"nonce\":\"%016" PRIx64
-      "\",\"output\":"
+      "{\"method\":\"solution\",\"id\":\"%s\",\"nonce\":\"%016x\",\"output\":"
       "\"1dc4ae5dd850fa32ef3316042735113cdb25be2b2a046b2acaa237e1076b66fee6204d"
       "2339a3ae742d4f3d4efb6a473eeb58e85620a5befb4d93854d8bf6074a464670ffac6fba"
       "b57c73ff09280f4bdf592129f5b74ed85224a19b6908daae110e878a34ff2cfb2b\","

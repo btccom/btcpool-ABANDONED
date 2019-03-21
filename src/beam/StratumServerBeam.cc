@@ -191,10 +191,10 @@ void ServerBeam::sendSolvedShare2Kafka(
     const StratumWorker &worker,
     const uint256 &blockHash) {
   string msg = Strings::Format(
-      "{\"nonce\":\"%016" PRIx64
+      "{\"nonce\":\"%016x"
       "\",\"input\":\"%s\",\"output\":\"%s\","
       "\"height\":%u,\"blockBits\":\"%08x\",\"userId\":%d,"
-      "\"workerId\":%" PRId64
+      "\"workerId\":%d"
       ",\"workerFullName\":\"%s\","
       "\"blockHash\":\"%s\",\"chain\":\"%s\"}",
       share.nonce(),
