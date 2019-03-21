@@ -45,7 +45,7 @@ private:
   string &currentMethod_;
 };
 
-enum class GrinErrorCode {
+enum class GrinErrorCode : int32_t {
   UNAUTHORIZED = -32500,
   LOW_DIFFICULTY = -32501,
   INVALID_SOLUTION = -32502,
@@ -119,7 +119,7 @@ void StratumSessionGrin::responseError(const string &idStr, int code) {
       "}}\n",
       idStr.empty() ? "null" : idStr.c_str(),
       currentMethod_.empty() ? "null" : currentMethod_.c_str(),
-      p.first,
+      static_cast<int32_t>(p.first),
       p.second);
   sendData(s);
 }

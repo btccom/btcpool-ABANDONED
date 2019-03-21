@@ -32,7 +32,7 @@
 #include "eth/CommonEth.h"
 #include "beam/CommonBeam.h"
 
-TEST(Utils, Strings_Format) {
+TEST(Utils, Strings_Format_1) {
   for (int i = 1; i < 1024; i++) {
     string s;
     for (int j = 0; j < i; j++) {
@@ -43,7 +43,7 @@ TEST(Utils, Strings_Format) {
   }
 }
 
-TEST(Utils, Strings_Append) {
+TEST(Utils, Strings_Append_1) {
   for (int i = 1; i < 1024; i++) {
     string s;
     for (int j = 0; j < i; j++) {
@@ -52,6 +52,168 @@ TEST(Utils, Strings_Append) {
     string s1;
     Strings::Append(s1, "%s", s.c_str());
     ASSERT_EQ(s1, s);
+  }
+}
+
+TEST(Utils, Strings_Format_2) {
+  uint64_t u64 = 18446744073709551100u;
+  uint32_t u32 = 4294963333u;
+  uint16_t u16 = 65401u;
+  uint8_t u8 = 253u;
+  int64_t i64 = -9223372036854775333;
+  int32_t i32 = -2147483123;
+  int16_t i16 = -12394;
+  int8_t i8 = -125;
+  float f32 = 3.1415925;
+  double f64 = 3.1415926535897;
+
+  string formatResult =
+      R"(18446744073709551100,4294963333,65401,253,-9223372036854775333,-2147483123,-12394,-125,3.1415925,3.1415926535897)";
+  ASSERT_EQ(
+      Strings::Format(
+          "%u,%u,%u,%u,%d,%d,%d,%d,%0.7f,%0.13f",
+          u64,
+          u32,
+          u16,
+          u8,
+          i64,
+          i32,
+          i16,
+          i8,
+          f32,
+          f64),
+      formatResult);
+  ASSERT_EQ(
+      Strings::Format(
+          "%lu,%lu,%lu,%lu,%ld,%ld,%ld,%ld,%0.7lf,%0.13lf",
+          u64,
+          u32,
+          u16,
+          u8,
+          i64,
+          i32,
+          i16,
+          i8,
+          f32,
+          f64),
+      formatResult);
+  ASSERT_EQ(
+      Strings::Format(
+          "%llu,%llu,%llu,%llu,%lld,%lld,%lld,%lld,%0.7llf,%0.13llf",
+          u64,
+          u32,
+          u16,
+          u8,
+          i64,
+          i32,
+          i16,
+          i8,
+          f32,
+          f64),
+      formatResult);
+
+  formatResult =
+      R"(18446744073709551100,4294963333,65401,253,-9223372036854775333,-2147483123,-12394,-125)";
+  ASSERT_EQ(
+      Strings::Format(
+          "%" PRIu8 ",%" PRIu16 ",%" PRIu32 ",%" PRIu64 ",%" PRId8 ",%" PRId16
+          ",%" PRId32 ",%" PRId64,
+          u64,
+          u32,
+          u16,
+          u8,
+          i64,
+          i32,
+          i16,
+          i8),
+      formatResult);
+
+  formatResult =
+      R"(fffffffffffffdfc,fffff085,0000ff79,000000fd,80000000000001db,000000008000020d,00000000ffffcf96,ffffff83)";
+  ASSERT_EQ(
+      Strings::Format(
+          "%016llx,%08x,%08x,%08x,%016" PRIx64 ",%016x,%016lx,%08x",
+          u64,
+          u32,
+          u16,
+          u8,
+          i64,
+          i32,
+          i16,
+          i8),
+      formatResult);
+}
+
+TEST(Utils, Strings_Append_2) {
+  uint64_t u64 = 18446744073709551100u;
+  uint32_t u32 = 4294963333u;
+  uint16_t u16 = 65401u;
+  uint8_t u8 = 253u;
+  int64_t i64 = -9223372036854775333;
+  int32_t i32 = -2147483123;
+  int16_t i16 = -12394;
+  int8_t i8 = -125;
+  float f32 = 3.1415925;
+  double f64 = 3.1415926535897;
+
+  string formatResult1 =
+      R"(18446744073709551100,4294963333,65401,253,-9223372036854775333,-2147483123,-12394,-125,3.1415925,3.1415926535897)";
+  {
+    string dest = formatResult1;
+    string appendResult = formatResult1 + formatResult1;
+    Strings::Append(
+        dest,
+        "%u,%u,%u,%u,%d,%d,%d,%d,%0.7f,%0.13f",
+        u64,
+        u32,
+        u16,
+        u8,
+        i64,
+        i32,
+        i16,
+        i8,
+        f32,
+        f64);
+    ASSERT_EQ(dest, appendResult);
+  }
+
+  string formatResult2 =
+      R"(18446744073709551100,4294963333,65401,253,-9223372036854775333,-2147483123,-12394,-125)";
+  {
+    string dest = formatResult1;
+    string appendResult = formatResult1 + formatResult2;
+    Strings::Append(
+        dest,
+        "%" PRIu8 ",%" PRIu16 ",%" PRIu32 ",%" PRIu64 ",%" PRId8 ",%" PRId16
+        ",%" PRId32 ",%" PRId64,
+        u64,
+        u32,
+        u16,
+        u8,
+        i64,
+        i32,
+        i16,
+        i8);
+    ASSERT_EQ(dest, appendResult);
+  }
+
+  string formatResult3 =
+      R"(fffffffffffffdfc,fffff085,0000ff79,000000fd,80000000000001db,000000008000020d,00000000ffffcf96,ffffff83)";
+  {
+    string dest = formatResult2;
+    string appendResult = formatResult2 + formatResult3;
+    Strings::Append(
+        dest,
+        "%016llx,%08x,%08x,%08x,%016" PRIx64 ",%016x,%016lx,%08x",
+        u64,
+        u32,
+        u16,
+        u8,
+        i64,
+        i32,
+        i16,
+        i8);
+    ASSERT_EQ(dest, appendResult);
   }
 }
 

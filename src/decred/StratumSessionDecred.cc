@@ -213,7 +213,7 @@ void StratumSessionDecred::handleRequest_Subscribe(
       sessionId_,
       sessionId_,
       extraNonce1Str.c_str(),
-      StratumMiner::kExtraNonce2Size_);
+      Strings::Value(StratumMiner::kExtraNonce2Size_));
   sendData(s);
 }
 

@@ -107,7 +107,7 @@ void BlockMakerDecred::saveBlockToDB(const FoundBlockDecred &foundBlock) {
       header.nBits.value(),
       header.version.value(),
       header.voters.value(),
-      foundBlock.network_,
+      static_cast<uint32_t>(foundBlock.network_),
       nowStr.c_str());
 
   LOG(INFO) << "BlockMakerDecred::saveBlockToDB: " << sql;

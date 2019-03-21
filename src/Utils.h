@@ -33,6 +33,10 @@
 #include <libconfig.h++>
 #include <glog/logging.h>
 
+#define FMT_HEADER_ONLY
+#include <fmt/format.h>
+#include <fmt/printf.h>
+
 #include "Common.h"
 #include "zmq.hpp"
 
@@ -115,8 +119,22 @@ void writeTime2File(const char *filename, uint32_t t);
 
 class Strings {
 public:
-  static string Format(const char *fmt, ...);
-  static void Append(string &dest, const char *fmt, ...);
+  template <typename... Args>
+  inline static string Format(const char *fmt, Args &&... args) {
+    return fmt::sprintf(fmt, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  inline static void Append(string &dest, const char *fmt, Args &&... args) {
+    dest += fmt::sprintf(fmt, std::forward<Args>(args)...);
+  }
+
+  // If you got a "undefined reference" for a const static member of a class,
+  // please wrap it with Strings::Value().
+  template <typename T>
+  inline static T Value(T t) {
+    return t;
+  }
 };
 
 string score2Str(double s);

@@ -397,7 +397,7 @@ void StratumSessionBitcoin::handleRequest_Subscribe(
       sessionId_,
       sessionId_,
       sessionId_,
-      StratumMiner::kExtraNonce2Size_);
+      Strings::Value(StratumMiner::kExtraNonce2Size_));
 #endif
 
   sendData(s);
