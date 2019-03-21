@@ -32,6 +32,7 @@
 
 #include <libconfig.h++>
 #include <glog/logging.h>
+#include <event2/buffer.h>
 
 #define FMT_HEADER_ONLY
 #include <fmt/format.h>
@@ -127,6 +128,13 @@ public:
   template <typename... Args>
   inline static void Append(string &dest, const char *fmt, Args &&... args) {
     dest += fmt::sprintf(fmt, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  inline static int
+  EvBufferAdd(struct evbuffer *buf, const char *fmt, Args &&... args) {
+    auto str = fmt::sprintf(fmt, std::forward<Args>(args)...);
+    return evbuffer_add(buf, str.data(), str.size());
   }
 
   // If you got a "undefined reference" for a const static member of a class,

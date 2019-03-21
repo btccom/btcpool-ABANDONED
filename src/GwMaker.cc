@@ -140,7 +140,7 @@ GwNotification::~GwNotification() {
 
 void GwNotification::httpdNotification(struct evhttp_request *req, void *arg) {
   struct evbuffer *evb = evbuffer_new();
-  evbuffer_add_printf(evb, "{\"err_no\":0,\"err_msg\":\"notify success\"}");
+  Strings::EvBufferAdd(evb, "{\"err_no\":0,\"err_msg\":\"notify success\"}");
   evhttp_send_reply(req, HTTP_OK, "OK", evb);
   evbuffer_free(evb);
 

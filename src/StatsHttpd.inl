@@ -1573,7 +1573,7 @@ void StatsServerT<SHARE>::httpdServerStatus(
 
   // service is initializing, return a error
   if (server->isInitializing_) {
-    evbuffer_add_printf(
+    Strings::EvBufferAdd(
         evb, "{\"err_no\":2,\"err_msg\":\"service is initializing...\"}");
     evhttp_send_reply(req, HTTP_OK, "OK", evb);
     evbuffer_free(evb);
@@ -1583,7 +1583,7 @@ void StatsServerT<SHARE>::httpdServerStatus(
 
   StatsServerT<SHARE>::ServerStatus s = server->getServerStatus();
 
-  evbuffer_add_printf(
+  Strings::EvBufferAdd(
       evb,
       "{\"err_no\":0,\"err_msg\":\"\","
       "\"data\":{\"uptime\":\"%04u d %02u h %02u m %02u s\","
@@ -1654,7 +1654,7 @@ void StatsServerT<SHARE>::httpdGetWorkerStatus(
 
   // service is initializing, return
   if (server->isInitializing_) {
-    evbuffer_add_printf(
+    Strings::EvBufferAdd(
         evb, "{\"err_no\":2,\"err_msg\":\"service is initializing...\"}");
     evhttp_send_reply(req, HTTP_OK, "OK", evb);
     evbuffer_free(evb);
@@ -1664,7 +1664,7 @@ void StatsServerT<SHARE>::httpdGetWorkerStatus(
 
   // query is empty, return
   if (query == nullptr) {
-    evbuffer_add_printf(evb, "{\"err_no\":1,\"err_msg\":\"invalid args\"}");
+    Strings::EvBufferAdd(evb, "{\"err_no\":1,\"err_msg\":\"invalid args\"}");
     evhttp_send_reply(req, HTTP_OK, "OK", evb);
     evbuffer_free(evb);
 
@@ -1679,14 +1679,14 @@ void StatsServerT<SHARE>::httpdGetWorkerStatus(
   const char *pIsMerge = evhttp_find_header(&params, "is_merge");
 
   if (pUserId == nullptr || pWorkerId == nullptr) {
-    evbuffer_add_printf(evb, "{\"err_no\":1,\"err_msg\":\"invalid args\"}");
+    Strings::EvBufferAdd(evb, "{\"err_no\":1,\"err_msg\":\"invalid args\"}");
     evhttp_send_reply(req, HTTP_OK, "OK", evb);
     goto finish;
   }
 
-  evbuffer_add_printf(evb, "{\"err_no\":0,\"err_msg\":\"\",\"data\":{");
+  Strings::EvBufferAdd(evb, "{\"err_no\":0,\"err_msg\":\"\",\"data\":{");
   server->getWorkerStatus(evb, pUserId, pWorkerId, pIsMerge);
-  evbuffer_add_printf(evb, "}}");
+  Strings::EvBufferAdd(evb, "}}");
 
   server->responseBytes_ += evbuffer_get_length(evb);
   evhttp_send_reply(req, HTTP_OK, "OK", evb);
@@ -1742,7 +1742,7 @@ void StatsServerT<SHARE>::getWorkerStatus(
       pthread_rwlock_unlock(&rwlock_);
     }
 
-    evbuffer_add_printf(
+    Strings::EvBufferAdd(
         evb,
         "%s\"%" PRId64 "\":{\"accept\":[%" PRIu64 ",%" PRIu64 ",%" PRIu64
         ",%" PRIu64
@@ -1778,7 +1778,7 @@ void StatsServerT<SHARE>::httpdGetFlushDBTime(
 
   // service is initializing, return
   if (server->isInitializing_) {
-    evbuffer_add_printf(
+    Strings::EvBufferAdd(
         evb, "{\"err_no\":2,\"err_msg\":\"service is initializing...\"}");
     evhttp_send_reply(req, HTTP_OK, "OK", evb);
     evbuffer_free(evb);
@@ -1786,7 +1786,7 @@ void StatsServerT<SHARE>::httpdGetFlushDBTime(
     return;
   }
 
-  evbuffer_add_printf(
+  Strings::EvBufferAdd(
       evb,
       "{\"err_no\":0,\"err_msg\":\"\",\"data\":{\"flush_db_time\":%" PRId64
       "}}",

@@ -886,7 +886,7 @@ void ShareLogParserServerT<SHARE>::getShareStats(
 
   // output json string
   for (size_t i = 0; i < keys.size(); i++) {
-    evbuffer_add_printf(
+    Strings::EvBufferAdd(
         evb, "%s\"%" PRId64 "\":[", (i == 0 ? "" : ","), keys[i].workerId_);
 
     for (size_t j = 0; j < hours.size(); j++) {
@@ -898,7 +898,7 @@ void ShareLogParserServerT<SHARE>::getShareStats(
         rejectRate =
             1.0 * s->shareReject_ / (s->shareAccept_ + s->shareReject_);
 
-      evbuffer_add_printf(
+      Strings::EvBufferAdd(
           evb,
           "%s{\"hour\":%d,\"accept\":%" PRIu64 ",\"reject\":%" PRIu64
           ","
@@ -910,7 +910,7 @@ void ShareLogParserServerT<SHARE>::getShareStats(
           rejectRate,
           s->earn_);
     }
-    evbuffer_add_printf(evb, "]");
+    Strings::EvBufferAdd(evb, "]");
   }
 }
 
@@ -981,7 +981,7 @@ void ShareLogParserServerT<SHARE>::httpdShareStats(
 
   // query is empty, return
   if (query == nullptr) {
-    evbuffer_add_printf(evb, "{\"err_no\":1,\"err_msg\":\"invalid args\"}");
+    Strings::EvBufferAdd(evb, "{\"err_no\":1,\"err_msg\":\"invalid args\"}");
     evhttp_send_reply(req, HTTP_OK, "OK", evb);
     evbuffer_free(evb);
 
@@ -996,14 +996,14 @@ void ShareLogParserServerT<SHARE>::httpdShareStats(
   const char *pHour = evhttp_find_header(&params, "hour");
 
   if (pUserId == nullptr || pWorkerId == nullptr || pHour == nullptr) {
-    evbuffer_add_printf(evb, "{\"err_no\":1,\"err_msg\":\"invalid args\"}");
+    Strings::EvBufferAdd(evb, "{\"err_no\":1,\"err_msg\":\"invalid args\"}");
     evhttp_send_reply(req, HTTP_OK, "OK", evb);
     goto finish;
   }
 
-  evbuffer_add_printf(evb, "{\"err_no\":0,\"err_msg\":\"\",\"data\":{");
+  Strings::EvBufferAdd(evb, "{\"err_no\":0,\"err_msg\":\"\",\"data\":{");
   server->getShareStats(evb, pUserId, pWorkerId, pHour);
-  evbuffer_add_printf(evb, "}}");
+  Strings::EvBufferAdd(evb, "}}");
 
   server->responseBytes_ += evbuffer_get_length(evb);
   evhttp_send_reply(req, HTTP_OK, "OK", evb);
@@ -1061,7 +1061,7 @@ void ShareLogParserServerT<SHARE>::httpdServerStatus(
   if (now % 3600 == 0)
     now += 2; // just in case the denominator is zero
 
-  evbuffer_add_printf(
+  Strings::EvBufferAdd(
       evb,
       "{\"err_no\":0,\"err_msg\":\"\","
       "\"data\":{\"uptime\":\"%04u d %02u h %02u m %02u s\","
