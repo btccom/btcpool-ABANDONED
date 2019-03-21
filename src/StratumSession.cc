@@ -490,15 +490,12 @@ void StratumSession::rpc1ResponseError(const string &idStr, int errCode) {
   //
   // {"id": 10, "result": null, "error":[21, "Job not found", null]}
   //
-  char buf[1024];
-  int len = snprintf(
-      buf,
-      sizeof(buf),
+  auto data = Strings::Format(
       "{\"id\":%s,\"result\":null,\"error\":[%d,\"%s\",null]}\n",
       idStr.empty() ? "null" : idStr.c_str(),
       errCode,
       StratumStatus::toString(errCode));
-  sendData(buf, len);
+  sendData(data);
 }
 
 /**
@@ -551,16 +548,13 @@ void StratumSession::rpc2ResponseTrue(const string &idStr) {
  */
 
 void StratumSession::rpc2ResponseError(const string &idStr, int errCode) {
-  char buf[1024];
-  int len = snprintf(
-      buf,
-      sizeof(buf),
+  auto data = Strings::Format(
       "{\"id\":%s,\"jsonrpc\":\"2.0\",\"error\":{\"code\":%d,\"message\":\"%"
       "s\"}}\n",
       idStr.empty() ? "null" : idStr.c_str(),
       errCode,
       StratumStatus::toString(errCode));
-  sendData(buf, len);
+  sendData(data);
 }
 
 void StratumSession::responseAuthorizeSuccess(const std::string &idStr) {

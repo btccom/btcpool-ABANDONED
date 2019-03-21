@@ -438,14 +438,11 @@ void StratumSessionEth::responseFalse(const string &idStr, int code) {
 }
 
 void StratumSessionEth::rpc2ResponseFalse(const string &idStr, int errCode) {
-  char buf[1024];
-  int len = snprintf(
-      buf,
-      sizeof(buf),
+  auto data = Strings::Format(
       "{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":false,\"data\":{\"code\":%d,"
       "\"message\":\"%s\"}}\n",
       idStr.empty() ? "null" : idStr.c_str(),
       errCode,
       StratumStatus::toString(errCode));
-  sendData(buf, len);
+  sendData(data);
 }
