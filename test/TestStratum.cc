@@ -262,59 +262,36 @@ TEST(Stratum, StratumJobBitcoin) {
   bool res;
 
   {
-    string gbt;
-    gbt += "{\"result\":{";
-    gbt += "  \"capabilities\": [";
-    gbt += "    \"proposal\"";
-    gbt += "  ],";
-    gbt += "  \"version\": 536870912,";
-    gbt +=
-        "  \"previousblockhash\": "
-        "\"000000004f2ea239532b2e77bb46c03b86643caac3fe92959a31fd2d03979c34\",";
-    gbt += "  \"transactions\": [";
-    gbt += "    {";
-    gbt +=
-        "      \"data\": "
-        "\"01000000010291939c5ae8191c2e7d4ce8eba7d6616a66482e3200037cb8b8c2d0af"
-        "45b445000000006a47304402204df709d9e149804e358de4b082e41d8bb21b3c9d3472"
-        "41b728b1362aafcb153602200d06d9b6f2eca899f43dcd62ec2efb2d9ce2e10adf0273"
-        "8bb908420d7db93ede012103cae98ab925e20dd6ae1f76e767e9e99bc47b3844095c68"
-        "600af9c775104fb36cffffffff0290f1770b000000001976a91400dc5fd62f6ee48eb8"
-        "ecda749eaec6824a780fdd88aca08601000000000017a914eb65573e5dd52d3d950396"
-        "ccbe1a47daf8f400338700000000\",";
-    gbt +=
-        "      \"hash\": "
-        "\"bd36bd4fff574b573152e7d4f64adf2bb1c9ab0080a12f8544c351f65aca79ff\",";
-    gbt += "      \"depends\": [";
-    gbt += "      ],";
-    gbt += "      \"fee\": 10000,";
-    gbt += "      \"sigops\": 1";
-    gbt += "    }";
-    gbt += "  ],";
-    gbt += "  \"coinbaseaux\": {";
-    gbt += "    \"flags\": \"\"";
-    gbt += "  },";
-    gbt += "  \"coinbasevalue\": 312659655,";
-    gbt +=
-        "  \"longpollid\": "
-        "\"000000004f2ea239532b2e77bb46c03b86643caac3fe92959a31fd2d03979c341911"
-        "\",";
-    gbt +=
-        "  \"target\": "
-        "\"000000000000018ae20000000000000000000000000000000000000000000000\",";
-    gbt += "  \"mintime\": 1469001544,";
-    gbt += "  \"mutable\": [";
-    gbt += "    \"time\",";
-    gbt += "    \"transactions\",";
-    gbt += "    \"prevblock\"";
-    gbt += "  ],";
-    gbt += "  \"noncerange\": \"00000000ffffffff\",";
-    gbt += "  \"sigoplimit\": 20000,";
-    gbt += "  \"sizelimit\": 1000000,";
-    gbt += "  \"curtime\": 1469006933,";
-    gbt += "  \"bits\": \"1a018ae2\",";
-    gbt += "  \"height\": 898487";
-    gbt += "}}";
+    string gbt = R"EOF(
+        {
+            "result": {
+                "capabilities": ["proposal"],
+                "version": 536870912,
+                "previousblockhash": "000000004f2ea239532b2e77bb46c03b86643caac3fe92959a31fd2d03979c34",
+                "transactions": [{
+                    "data": "01000000010291939c5ae8191c2e7d4ce8eba7d6616a66482e3200037cb8b8c2d0af45b445000000006a47304402204df709d9e149804e358de4b082e41d8bb21b3c9d347241b728b1362aafcb153602200d06d9b6f2eca899f43dcd62ec2efb2d9ce2e10adf02738bb908420d7db93ede012103cae98ab925e20dd6ae1f76e767e9e99bc47b3844095c68600af9c775104fb36cffffffff0290f1770b000000001976a91400dc5fd62f6ee48eb8ecda749eaec6824a780fdd88aca08601000000000017a914eb65573e5dd52d3d950396ccbe1a47daf8f400338700000000",
+                    "hash": "bd36bd4fff574b573152e7d4f64adf2bb1c9ab0080a12f8544c351f65aca79ff",
+                    "depends": [],
+                    "fee": 10000,
+                    "sigops": 1
+                }],
+                "coinbaseaux": {
+                    "flags": ""
+                },
+                "coinbasevalue": 312659655,
+                "longpollid": "000000004f2ea239532b2e77bb46c03b86643caac3fe92959a31fd2d03979c341911",
+                "target": "000000000000018ae20000000000000000000000000000000000000000000000",
+                "mintime": 1469001544,
+                "mutable": ["time", "transactions", "prevblock"],
+                "noncerange": "00000000ffffffff",
+                "sigoplimit": 20000,
+                "sizelimit": 1000000,
+                "curtime": 1469006933,
+                "bits": "1a018ae2",
+                "height": 898487
+            }
+        }
+    )EOF";
 
     blockVersion = 0;
     SelectParams(CBaseChainParams::TESTNET);
@@ -395,149 +372,59 @@ TEST(Stratum, StratumJobWithWitnessCommitment) {
   bool res;
 
   {
-    string gbt;
-    gbt += "{\"result\":";
-    gbt += "{";
-    gbt += "  \"capabilities\": [";
-    gbt += "    \"proposal\"";
-    gbt += "  ],";
-    gbt += "  \"version\": 536870912,";
-    gbt += "  \"rules\": [";
-    gbt += "    \"csv\",";
-    gbt += "    \"!segwit\"";
-    gbt += "  ],";
-    gbt += "  \"vbavailable\": {";
-    gbt += "  },";
-    gbt += "  \"vbrequired\": 0,";
-    gbt +=
-        "  \"previousblockhash\": "
-        "\"0000000000000047e5bda122407654b25d52e0f3eeb00c152f631f70e9803772\",";
-    gbt += "  \"transactions\": [";
-    gbt += "    {";
-    gbt +=
-        "      \"data\": "
-        "\"0100000002449f651247d5c09d3020c30616cb1807c268e2c2346d1de28442b89ef3"
-        "4c976d000000006a47304402203eae3868946a312ba712f9c9a259738fee6e3163b05d"
-        "206e0f5b6c7980";
-    gbt +=
-        "161756022017827f248432f7313769f120fb3b7a65137bf93496a1ae7d6a775879fbdf"
-        "b8cd0121027d7b71dab3bb16582c97fc0ccedeacd8f75ebee62fa9c388290294ee3bc3"
-        "e935feffffffcbc82a21497f8db";
-    gbt +=
-        "8d57d054fefea52aba502a074ed984efc81ec2ef211194aa6010000006a47304402207"
-        "f5462295e52fb4213f1e63802d8fe9ec020ac8b760535800564694ea87566a802205ee"
-        "01096fc9268eac483136ce08250";
-    gbt +=
-        "6ac951a7dbc9e4ae24dca07ca2a1fdf2f30121023b86e60ef66fe8ace403a0d77d27c8"
-        "0ba9ba5404ee796c47c03c73748e59d125feffffff0286c35b00000000001976a914ab"
-        "29f668d284fd2d65cec5f098432";
-    gbt +=
-        "c4ece01055488ac8093dc14000000001976a914ac19d3fd17710e6b9a331022fe92c69"
-        "3fdf6659588ac8dd70f00\",";
-    gbt +=
-        "      \"txid\": "
-        "\"c284853b65e7887c5fd9b635a932e2e0594d19849b22914a8e6fb180fea0954f\",";
-    gbt +=
-        "      \"hash\": "
-        "\"c284853b65e7887c5fd9b635a932e2e0594d19849b22914a8e6fb180fea0954f\",";
-    gbt += "      \"depends\": [";
-    gbt += "      ],";
-    gbt += "      \"fee\": 37400,";
-    gbt += "      \"sigops\": 8,";
-    gbt += "      \"weight\": 1488";
-    gbt += "    },";
-    gbt += "    {";
-    gbt +=
-        "      \"data\": "
-        "\"0100000001043f5e73755b5c6919b4e361f4cae84c8805452de3df265a6e2d3d71cb"
-        "cb385501000000da0047304402202b14552521cd689556d2e44d914caf2195da37b80d"
-        "e4f8cd0fad9adf";
-    gbt +=
-        "7ef768ef022026fcddd992f447c39c48c3ce50c5960e2f086ebad455159ffc3e36a562"
-        "4af2f501483045022100f2b893e495f41b22cd83df6908c2fa4f917fd7bce9f8da14e6"
-        "ab362042e11f7d022075bc2451e";
-    gbt +=
-        "1cf2ae2daec0f109a3aceb6558418863070f5e84c94526201850324014752210263217"
-        "8d046673c9729d828cfee388e121f497707f810c131e0d3fc0fe0bd66d62103a0951ec"
-        "7d3a9da9de171617026442fcd30";
-    gbt +=
-        "f34d66100fab539853b43f508787d452aeffffffff0240420f000000000017a9143e9a"
-        "6b79be836762c8ef591cf16b76af1327ced58790dfdf8c0000000017a9148ce5408cfe"
-        "addb7ccb2545ded41ef47810945";
-    gbt += "4848700000000\",";
-    gbt +=
-        "      \"txid\": "
-        "\"28b1a5c2f0bb667aea38e760b6d55163abc9be9f1f830d9969edfab902d17a0f\",";
-    gbt +=
-        "      \"hash\": "
-        "\"28b1a5c2f0bb667aea38e760b6d55163abc9be9f1f830d9969edfab902d17a0f\",";
-    gbt += "      \"depends\": [";
-    gbt += "      ],";
-    gbt += "      \"fee\": 20000,";
-    gbt += "      \"sigops\": 8,";
-    gbt += "      \"weight\": 1332";
-    gbt += "    },";
-    gbt += "    {";
-    gbt +=
-        "      \"data\": "
-        "\"01000000013faf73481d6b96c2385b9a4300f8974b1b30c34be30000c7dcef11f686"
-        "62de4501000000db00483045022100f9881f4c867b5545f6d7a730ae26f598107171d0"
-        "f68b860bd973db";
-    gbt +=
-        "b855e073a002207b511ead1f8be8a55c542ce5d7e91acfb697c7fa2acd2f322b47f177"
-        "875bffc901483045022100a37aa9998b9867633ab6484ad08b299de738a86ae997133d"
-        "827717e7ed73d953022011e3f99";
-    gbt +=
-        "d1bd1856f6a7dc0bf611de6d1b2efb60c14fc5931ba09da01558757f60147522102632"
-        "178d046673c9729d828cfee388e121f497707f810c131e0d3fc0fe0bd66d62103a0951"
-        "ec7d3a9da9de171617026442fcd";
-    gbt +=
-        "30f34d66100fab539853b43f508787d452aeffffffff0240420f000000000017a9148d"
-        "57003ecbaa310a365f8422602cc507a702197e87806868a90000000017a9148ce5408c"
-        "feaddb7ccb2545ded41ef478109";
-    gbt += "454848700000000\",";
-    gbt +=
-        "      \"txid\": "
-        "\"67878210e268d87b4e6587db8c6e367457cea04820f33f01d626adbe5619b3dd\",";
-    gbt +=
-        "      \"hash\": "
-        "\"67878210e268d87b4e6587db8c6e367457cea04820f33f01d626adbe5619b3dd\",";
-    gbt += "      \"depends\": [";
-    gbt += "      ],";
-    gbt += "      \"fee\": 20000,";
-    gbt += "      \"sigops\": 8,";
-    gbt += "      \"weight\": 1336";
-    gbt += "    },";
-    gbt += "  ],";
-    gbt += "  \"coinbaseaux\": {";
-    gbt += "    \"flags\": \"\"";
-    gbt += "  },";
-    gbt += "  \"coinbasevalue\": 319367518,";
-    gbt +=
-        "  \"longpollid\": "
-        "\"0000000000000047e5bda122407654b25d52e0f3eeb00c152f631f70e98037726045"
-        "97\",";
-    gbt +=
-        "  \"target\": "
-        "\"0000000000001714480000000000000000000000000000000000000000000000\",";
-    gbt += "  \"mintime\": 1480831053,";
-    gbt += "  \"mutable\": [";
-    gbt += "    \"time\",";
-    gbt += "    \"transactions\",";
-    gbt += "    \"prevblock\"";
-    gbt += "  ],";
-    gbt += "  \"noncerange\": \"00000000ffffffff\",";
-    gbt += "  \"sigoplimit\": 80000,";
-    gbt += "  \"sizelimit\": 4000000,";
-    gbt += "  \"weightlimit\": 4000000,";
-    gbt += "  \"curtime\": 1480834892,";
-    gbt += "  \"bits\": \"1a171448\",";
-    gbt += "  \"height\": 1038222,";
-    gbt +=
-        "  \"default_witness_commitment\": "
-        "\"6a24aa21a9ed842a6d6672504c2b7abb796fdd7cfbd7262977b71b945452e17fbac6"
-        "9ed22bf8\"";
-    gbt += "}}";
+    string gbt = R"EOF(
+        {
+            "result": {
+                "capabilities": ["proposal"],
+                "version": 536870912,
+                "rules": ["csv", "!segwit"],
+                "vbavailable": {},
+                "vbrequired": 0,
+                "previousblockhash": "0000000000000047e5bda122407654b25d52e0f3eeb00c152f631f70e9803772",
+                "transactions": [{
+                    "data": "0100000002449f651247d5c09d3020c30616cb1807c268e2c2346d1de28442b89ef34c976d000000006a47304402203eae3868946a312ba712f9c9a259738fee6e3163b05d206e0f5b6c7980161756022017827f248432f7313769f120fb3b7a65137bf93496a1ae7d6a775879fbdfb8cd0121027d7b71dab3bb16582c97fc0ccedeacd8f75ebee62fa9c388290294ee3bc3e935feffffffcbc82a21497f8db8d57d054fefea52aba502a074ed984efc81ec2ef211194aa6010000006a47304402207f5462295e52fb4213f1e63802d8fe9ec020ac8b760535800564694ea87566a802205ee01096fc9268eac483136ce082506ac951a7dbc9e4ae24dca07ca2a1fdf2f30121023b86e60ef66fe8ace403a0d77d27c80ba9ba5404ee796c47c03c73748e59d125feffffff0286c35b00000000001976a914ab29f668d284fd2d65cec5f098432c4ece01055488ac8093dc14000000001976a914ac19d3fd17710e6b9a331022fe92c693fdf6659588ac8dd70f00",
+                    "txid": "c284853b65e7887c5fd9b635a932e2e0594d19849b22914a8e6fb180fea0954f",
+                    "hash": "c284853b65e7887c5fd9b635a932e2e0594d19849b22914a8e6fb180fea0954f",
+                    "depends": [],
+                    "fee": 37400,
+                    "sigops": 8,
+                    "weight": 1488
+                }, {
+                    "data": "0100000001043f5e73755b5c6919b4e361f4cae84c8805452de3df265a6e2d3d71cbcb385501000000da0047304402202b14552521cd689556d2e44d914caf2195da37b80de4f8cd0fad9adf7ef768ef022026fcddd992f447c39c48c3ce50c5960e2f086ebad455159ffc3e36a5624af2f501483045022100f2b893e495f41b22cd83df6908c2fa4f917fd7bce9f8da14e6ab362042e11f7d022075bc2451e1cf2ae2daec0f109a3aceb6558418863070f5e84c945262018503240147522102632178d046673c9729d828cfee388e121f497707f810c131e0d3fc0fe0bd66d62103a0951ec7d3a9da9de171617026442fcd30f34d66100fab539853b43f508787d452aeffffffff0240420f000000000017a9143e9a6b79be836762c8ef591cf16b76af1327ced58790dfdf8c0000000017a9148ce5408cfeaddb7ccb2545ded41ef478109454848700000000",
+                    "txid": "28b1a5c2f0bb667aea38e760b6d55163abc9be9f1f830d9969edfab902d17a0f",
+                    "hash": "28b1a5c2f0bb667aea38e760b6d55163abc9be9f1f830d9969edfab902d17a0f",
+                    "depends": [],
+                    "fee": 20000,
+                    "sigops": 8,
+                    "weight": 1332
+                }, {
+                    "data": "01000000013faf73481d6b96c2385b9a4300f8974b1b30c34be30000c7dcef11f68662de4501000000db00483045022100f9881f4c867b5545f6d7a730ae26f598107171d0f68b860bd973dbb855e073a002207b511ead1f8be8a55c542ce5d7e91acfb697c7fa2acd2f322b47f177875bffc901483045022100a37aa9998b9867633ab6484ad08b299de738a86ae997133d827717e7ed73d953022011e3f99d1bd1856f6a7dc0bf611de6d1b2efb60c14fc5931ba09da01558757f60147522102632178d046673c9729d828cfee388e121f497707f810c131e0d3fc0fe0bd66d62103a0951ec7d3a9da9de171617026442fcd30f34d66100fab539853b43f508787d452aeffffffff0240420f000000000017a9148d57003ecbaa310a365f8422602cc507a702197e87806868a90000000017a9148ce5408cfeaddb7ccb2545ded41ef478109454848700000000",
+                    "txid": "67878210e268d87b4e6587db8c6e367457cea04820f33f01d626adbe5619b3dd",
+                    "hash": "67878210e268d87b4e6587db8c6e367457cea04820f33f01d626adbe5619b3dd",
+                    "depends": [],
+                    "fee": 20000,
+                    "sigops": 8,
+                    "weight": 1336
+                }],
+                "coinbaseaux": {
+                    "flags": ""
+                },
+                "coinbasevalue": 319367518,
+                "longpollid": "0000000000000047e5bda122407654b25d52e0f3eeb00c152f631f70e9803772604597",
+                "target": "0000000000001714480000000000000000000000000000000000000000000000",
+                "mintime": 1480831053,
+                "mutable": ["time", "transactions", "prevblock"],
+                "noncerange": "00000000ffffffff",
+                "sigoplimit": 80000,
+                "sizelimit": 4000000,
+                "weightlimit": 4000000,
+                "curtime": 1480834892,
+                "bits": "1a171448",
+                "height": 1038222,
+                "default_witness_commitment": "6a24aa21a9ed842a6d6672504c2b7abb796fdd7cfbd7262977b71b945452e17fbac69ed22bf8"
+            }
+        }
+    )EOF";
 
     blockVersion = 0;
     SelectParams(CBaseChainParams::TESTNET);
@@ -607,149 +494,59 @@ TEST(Stratum, StratumJobWithSegwitPayoutAddr) {
   bool res;
 
   {
-    string gbt;
-    gbt += "{\"result\":";
-    gbt += "{";
-    gbt += "  \"capabilities\": [";
-    gbt += "    \"proposal\"";
-    gbt += "  ],";
-    gbt += "  \"version\": 536870912,";
-    gbt += "  \"rules\": [";
-    gbt += "    \"csv\",";
-    gbt += "    \"!segwit\"";
-    gbt += "  ],";
-    gbt += "  \"vbavailable\": {";
-    gbt += "  },";
-    gbt += "  \"vbrequired\": 0,";
-    gbt +=
-        "  \"previousblockhash\": "
-        "\"0000000000000047e5bda122407654b25d52e0f3eeb00c152f631f70e9803772\",";
-    gbt += "  \"transactions\": [";
-    gbt += "    {";
-    gbt +=
-        "      \"data\": "
-        "\"0100000002449f651247d5c09d3020c30616cb1807c268e2c2346d1de28442b89ef3"
-        "4c976d000000006a47304402203eae3868946a312ba712f9c9a259738fee6e3163b05d"
-        "206e0f5b6c7980";
-    gbt +=
-        "161756022017827f248432f7313769f120fb3b7a65137bf93496a1ae7d6a775879fbdf"
-        "b8cd0121027d7b71dab3bb16582c97fc0ccedeacd8f75ebee62fa9c388290294ee3bc3"
-        "e935feffffffcbc82a21497f8db";
-    gbt +=
-        "8d57d054fefea52aba502a074ed984efc81ec2ef211194aa6010000006a47304402207"
-        "f5462295e52fb4213f1e63802d8fe9ec020ac8b760535800564694ea87566a802205ee"
-        "01096fc9268eac483136ce08250";
-    gbt +=
-        "6ac951a7dbc9e4ae24dca07ca2a1fdf2f30121023b86e60ef66fe8ace403a0d77d27c8"
-        "0ba9ba5404ee796c47c03c73748e59d125feffffff0286c35b00000000001976a914ab"
-        "29f668d284fd2d65cec5f098432";
-    gbt +=
-        "c4ece01055488ac8093dc14000000001976a914ac19d3fd17710e6b9a331022fe92c69"
-        "3fdf6659588ac8dd70f00\",";
-    gbt +=
-        "      \"txid\": "
-        "\"c284853b65e7887c5fd9b635a932e2e0594d19849b22914a8e6fb180fea0954f\",";
-    gbt +=
-        "      \"hash\": "
-        "\"c284853b65e7887c5fd9b635a932e2e0594d19849b22914a8e6fb180fea0954f\",";
-    gbt += "      \"depends\": [";
-    gbt += "      ],";
-    gbt += "      \"fee\": 37400,";
-    gbt += "      \"sigops\": 8,";
-    gbt += "      \"weight\": 1488";
-    gbt += "    },";
-    gbt += "    {";
-    gbt +=
-        "      \"data\": "
-        "\"0100000001043f5e73755b5c6919b4e361f4cae84c8805452de3df265a6e2d3d71cb"
-        "cb385501000000da0047304402202b14552521cd689556d2e44d914caf2195da37b80d"
-        "e4f8cd0fad9adf";
-    gbt +=
-        "7ef768ef022026fcddd992f447c39c48c3ce50c5960e2f086ebad455159ffc3e36a562"
-        "4af2f501483045022100f2b893e495f41b22cd83df6908c2fa4f917fd7bce9f8da14e6"
-        "ab362042e11f7d022075bc2451e";
-    gbt +=
-        "1cf2ae2daec0f109a3aceb6558418863070f5e84c94526201850324014752210263217"
-        "8d046673c9729d828cfee388e121f497707f810c131e0d3fc0fe0bd66d62103a0951ec"
-        "7d3a9da9de171617026442fcd30";
-    gbt +=
-        "f34d66100fab539853b43f508787d452aeffffffff0240420f000000000017a9143e9a"
-        "6b79be836762c8ef591cf16b76af1327ced58790dfdf8c0000000017a9148ce5408cfe"
-        "addb7ccb2545ded41ef47810945";
-    gbt += "4848700000000\",";
-    gbt +=
-        "      \"txid\": "
-        "\"28b1a5c2f0bb667aea38e760b6d55163abc9be9f1f830d9969edfab902d17a0f\",";
-    gbt +=
-        "      \"hash\": "
-        "\"28b1a5c2f0bb667aea38e760b6d55163abc9be9f1f830d9969edfab902d17a0f\",";
-    gbt += "      \"depends\": [";
-    gbt += "      ],";
-    gbt += "      \"fee\": 20000,";
-    gbt += "      \"sigops\": 8,";
-    gbt += "      \"weight\": 1332";
-    gbt += "    },";
-    gbt += "    {";
-    gbt +=
-        "      \"data\": "
-        "\"01000000013faf73481d6b96c2385b9a4300f8974b1b30c34be30000c7dcef11f686"
-        "62de4501000000db00483045022100f9881f4c867b5545f6d7a730ae26f598107171d0"
-        "f68b860bd973db";
-    gbt +=
-        "b855e073a002207b511ead1f8be8a55c542ce5d7e91acfb697c7fa2acd2f322b47f177"
-        "875bffc901483045022100a37aa9998b9867633ab6484ad08b299de738a86ae997133d"
-        "827717e7ed73d953022011e3f99";
-    gbt +=
-        "d1bd1856f6a7dc0bf611de6d1b2efb60c14fc5931ba09da01558757f60147522102632"
-        "178d046673c9729d828cfee388e121f497707f810c131e0d3fc0fe0bd66d62103a0951"
-        "ec7d3a9da9de171617026442fcd";
-    gbt +=
-        "30f34d66100fab539853b43f508787d452aeffffffff0240420f000000000017a9148d"
-        "57003ecbaa310a365f8422602cc507a702197e87806868a90000000017a9148ce5408c"
-        "feaddb7ccb2545ded41ef478109";
-    gbt += "454848700000000\",";
-    gbt +=
-        "      \"txid\": "
-        "\"67878210e268d87b4e6587db8c6e367457cea04820f33f01d626adbe5619b3dd\",";
-    gbt +=
-        "      \"hash\": "
-        "\"67878210e268d87b4e6587db8c6e367457cea04820f33f01d626adbe5619b3dd\",";
-    gbt += "      \"depends\": [";
-    gbt += "      ],";
-    gbt += "      \"fee\": 20000,";
-    gbt += "      \"sigops\": 8,";
-    gbt += "      \"weight\": 1336";
-    gbt += "    },";
-    gbt += "  ],";
-    gbt += "  \"coinbaseaux\": {";
-    gbt += "    \"flags\": \"\"";
-    gbt += "  },";
-    gbt += "  \"coinbasevalue\": 319367518,";
-    gbt +=
-        "  \"longpollid\": "
-        "\"0000000000000047e5bda122407654b25d52e0f3eeb00c152f631f70e98037726045"
-        "97\",";
-    gbt +=
-        "  \"target\": "
-        "\"0000000000001714480000000000000000000000000000000000000000000000\",";
-    gbt += "  \"mintime\": 1480831053,";
-    gbt += "  \"mutable\": [";
-    gbt += "    \"time\",";
-    gbt += "    \"transactions\",";
-    gbt += "    \"prevblock\"";
-    gbt += "  ],";
-    gbt += "  \"noncerange\": \"00000000ffffffff\",";
-    gbt += "  \"sigoplimit\": 80000,";
-    gbt += "  \"sizelimit\": 4000000,";
-    gbt += "  \"weightlimit\": 4000000,";
-    gbt += "  \"curtime\": 1480834892,";
-    gbt += "  \"bits\": \"1a171448\",";
-    gbt += "  \"height\": 1038222,";
-    gbt +=
-        "  \"default_witness_commitment\": "
-        "\"6a24aa21a9ed842a6d6672504c2b7abb796fdd7cfbd7262977b71b945452e17fbac6"
-        "9ed22bf8\"";
-    gbt += "}}";
+    string gbt = R"EOF(
+        {
+            "result": {
+                "capabilities": ["proposal"],
+                "version": 536870912,
+                "rules": ["csv", "!segwit"],
+                "vbavailable": {},
+                "vbrequired": 0,
+                "previousblockhash": "0000000000000047e5bda122407654b25d52e0f3eeb00c152f631f70e9803772",
+                "transactions": [{
+                    "data": "0100000002449f651247d5c09d3020c30616cb1807c268e2c2346d1de28442b89ef34c976d000000006a47304402203eae3868946a312ba712f9c9a259738fee6e3163b05d206e0f5b6c7980161756022017827f248432f7313769f120fb3b7a65137bf93496a1ae7d6a775879fbdfb8cd0121027d7b71dab3bb16582c97fc0ccedeacd8f75ebee62fa9c388290294ee3bc3e935feffffffcbc82a21497f8db8d57d054fefea52aba502a074ed984efc81ec2ef211194aa6010000006a47304402207f5462295e52fb4213f1e63802d8fe9ec020ac8b760535800564694ea87566a802205ee01096fc9268eac483136ce082506ac951a7dbc9e4ae24dca07ca2a1fdf2f30121023b86e60ef66fe8ace403a0d77d27c80ba9ba5404ee796c47c03c73748e59d125feffffff0286c35b00000000001976a914ab29f668d284fd2d65cec5f098432c4ece01055488ac8093dc14000000001976a914ac19d3fd17710e6b9a331022fe92c693fdf6659588ac8dd70f00",
+                    "txid": "c284853b65e7887c5fd9b635a932e2e0594d19849b22914a8e6fb180fea0954f",
+                    "hash": "c284853b65e7887c5fd9b635a932e2e0594d19849b22914a8e6fb180fea0954f",
+                    "depends": [],
+                    "fee": 37400,
+                    "sigops": 8,
+                    "weight": 1488
+                }, {
+                    "data": "0100000001043f5e73755b5c6919b4e361f4cae84c8805452de3df265a6e2d3d71cbcb385501000000da0047304402202b14552521cd689556d2e44d914caf2195da37b80de4f8cd0fad9adf7ef768ef022026fcddd992f447c39c48c3ce50c5960e2f086ebad455159ffc3e36a5624af2f501483045022100f2b893e495f41b22cd83df6908c2fa4f917fd7bce9f8da14e6ab362042e11f7d022075bc2451e1cf2ae2daec0f109a3aceb6558418863070f5e84c945262018503240147522102632178d046673c9729d828cfee388e121f497707f810c131e0d3fc0fe0bd66d62103a0951ec7d3a9da9de171617026442fcd30f34d66100fab539853b43f508787d452aeffffffff0240420f000000000017a9143e9a6b79be836762c8ef591cf16b76af1327ced58790dfdf8c0000000017a9148ce5408cfeaddb7ccb2545ded41ef478109454848700000000",
+                    "txid": "28b1a5c2f0bb667aea38e760b6d55163abc9be9f1f830d9969edfab902d17a0f",
+                    "hash": "28b1a5c2f0bb667aea38e760b6d55163abc9be9f1f830d9969edfab902d17a0f",
+                    "depends": [],
+                    "fee": 20000,
+                    "sigops": 8,
+                    "weight": 1332
+                }, {
+                    "data": "01000000013faf73481d6b96c2385b9a4300f8974b1b30c34be30000c7dcef11f68662de4501000000db00483045022100f9881f4c867b5545f6d7a730ae26f598107171d0f68b860bd973dbb855e073a002207b511ead1f8be8a55c542ce5d7e91acfb697c7fa2acd2f322b47f177875bffc901483045022100a37aa9998b9867633ab6484ad08b299de738a86ae997133d827717e7ed73d953022011e3f99d1bd1856f6a7dc0bf611de6d1b2efb60c14fc5931ba09da01558757f60147522102632178d046673c9729d828cfee388e121f497707f810c131e0d3fc0fe0bd66d62103a0951ec7d3a9da9de171617026442fcd30f34d66100fab539853b43f508787d452aeffffffff0240420f000000000017a9148d57003ecbaa310a365f8422602cc507a702197e87806868a90000000017a9148ce5408cfeaddb7ccb2545ded41ef478109454848700000000",
+                    "txid": "67878210e268d87b4e6587db8c6e367457cea04820f33f01d626adbe5619b3dd",
+                    "hash": "67878210e268d87b4e6587db8c6e367457cea04820f33f01d626adbe5619b3dd",
+                    "depends": [],
+                    "fee": 20000,
+                    "sigops": 8,
+                    "weight": 1336
+                }],
+                "coinbaseaux": {
+                    "flags": ""
+                },
+                "coinbasevalue": 319367518,
+                "longpollid": "0000000000000047e5bda122407654b25d52e0f3eeb00c152f631f70e9803772604597",
+                "target": "0000000000001714480000000000000000000000000000000000000000000000",
+                "mintime": 1480831053,
+                "mutable": ["time", "transactions", "prevblock"],
+                "noncerange": "00000000ffffffff",
+                "sigoplimit": 80000,
+                "sizelimit": 4000000,
+                "weightlimit": 4000000,
+                "curtime": 1480834892,
+                "bits": "1a171448",
+                "height": 1038222,
+                "default_witness_commitment": "6a24aa21a9ed842a6d6672504c2b7abb796fdd7cfbd7262977b71b945452e17fbac69ed22bf8"
+            }
+        }
+    )EOF";
 
     blockVersion = 0;
     SelectParams(CBaseChainParams::TESTNET);
@@ -818,77 +615,52 @@ TEST(Stratum, StratumJobWithRskWork) {
   uint32_t blockVersion = 0;
 
   {
-    string gbt;
-    gbt += "{\"result\":{";
-    gbt += "  \"capabilities\": [";
-    gbt += "    \"proposal\"";
-    gbt += "  ],";
-    gbt += "  \"version\": 536870912,";
-    gbt +=
-        "  \"previousblockhash\": "
-        "\"000000004f2ea239532b2e77bb46c03b86643caac3fe92959a31fd2d03979c34\",";
-    gbt += "  \"transactions\": [";
-    gbt += "    {";
-    gbt +=
-        "      \"data\": "
-        "\"01000000010291939c5ae8191c2e7d4ce8eba7d6616a66482e3200037cb8b8c2d0af"
-        "45b445000000006a47304402204df709d9e149804e358de4b082e41d8bb21b3c9d3472"
-        "41b728b1362aafcb153602200d06d9b6f2eca899f43dcd62ec2efb2d9ce2e10adf0273"
-        "8bb908420d7db93ede012103cae98ab925e20dd6ae1f76e767e9e99bc47b3844095c68"
-        "600af9c775104fb36cffffffff0290f1770b000000001976a91400dc5fd62f6ee48eb8"
-        "ecda749eaec6824a780fdd88aca08601000000000017a914eb65573e5dd52d3d950396"
-        "ccbe1a47daf8f400338700000000\",";
-    gbt +=
-        "      \"hash\": "
-        "\"bd36bd4fff574b573152e7d4f64adf2bb1c9ab0080a12f8544c351f65aca79ff\",";
-    gbt += "      \"depends\": [";
-    gbt += "      ],";
-    gbt += "      \"fee\": 10000,";
-    gbt += "      \"sigops\": 1";
-    gbt += "    }";
-    gbt += "  ],";
-    gbt += "  \"coinbaseaux\": {";
-    gbt += "    \"flags\": \"\"";
-    gbt += "  },";
-    gbt += "  \"coinbasevalue\": 312659655,";
-    gbt +=
-        "  \"longpollid\": "
-        "\"000000004f2ea239532b2e77bb46c03b86643caac3fe92959a31fd2d03979c341911"
-        "\",";
-    gbt +=
-        "  \"target\": "
-        "\"000000000000018ae20000000000000000000000000000000000000000000000\",";
-    gbt += "  \"mintime\": 1469001544,";
-    gbt += "  \"mutable\": [";
-    gbt += "    \"time\",";
-    gbt += "    \"transactions\",";
-    gbt += "    \"prevblock\"";
-    gbt += "  ],";
-    gbt += "  \"noncerange\": \"00000000ffffffff\",";
-    gbt += "  \"sigoplimit\": 20000,";
-    gbt += "  \"sizelimit\": 1000000,";
-    gbt += "  \"curtime\": 1469006933,";
-    gbt += "  \"bits\": \"1a018ae2\",";
-    gbt += "  \"height\": 898487";
-    gbt += "}}";
+    string gbt = R"EOF(
+        {
+            "result": {
+                "capabilities": ["proposal"],
+                "version": 536870912,
+                "previousblockhash": "000000004f2ea239532b2e77bb46c03b86643caac3fe92959a31fd2d03979c34",
+                "transactions": [{
+                    "data": "01000000010291939c5ae8191c2e7d4ce8eba7d6616a66482e3200037cb8b8c2d0af45b445000000006a47304402204df709d9e149804e358de4b082e41d8bb21b3c9d347241b728b1362aafcb153602200d06d9b6f2eca899f43dcd62ec2efb2d9ce2e10adf02738bb908420d7db93ede012103cae98ab925e20dd6ae1f76e767e9e99bc47b3844095c68600af9c775104fb36cffffffff0290f1770b000000001976a91400dc5fd62f6ee48eb8ecda749eaec6824a780fdd88aca08601000000000017a914eb65573e5dd52d3d950396ccbe1a47daf8f400338700000000",
+                    "hash": "bd36bd4fff574b573152e7d4f64adf2bb1c9ab0080a12f8544c351f65aca79ff",
+                    "depends": [],
+                    "fee": 10000,
+                    "sigops": 1
+                }],
+                "coinbaseaux": {
+                    "flags": ""
+                },
+                "coinbasevalue": 312659655,
+                "longpollid": "000000004f2ea239532b2e77bb46c03b86643caac3fe92959a31fd2d03979c341911",
+                "target": "000000000000018ae20000000000000000000000000000000000000000000000",
+                "mintime": 1469001544,
+                "mutable": ["time", "transactions", "prevblock"],
+                "noncerange": "00000000ffffffff",
+                "sigoplimit": 20000,
+                "sizelimit": 1000000,
+                "curtime": 1469006933,
+                "bits": "1a018ae2",
+                "height": 898487
+            }
+        }
+    )EOF";
 
     uint32_t creationTime = (uint32_t)time(nullptr);
     string rawgw;
     rawgw = Strings::Format(
-        "{\"created_at_ts\": %u,"
-        "\"rskdRpcAddress\":\"http://10.0.2.2:4444\","
-        "\"rskdRpcUserPwd\":\"user:pass\","
-        "\"target\":"
-        "\"0x5555555555555555555555555555555555555555555555555555555555555555\""
-        ","
-        "\"parentBlockHash\":"
-        "\"0x13532f616f89e3ac2e0a9ef7363be28e7f2ca39764684995fb30c0d96e664ae4\""
-        ","
-        "\"blockHashForMergedMining\":"
-        "\"0xe6b0a8e84e0ce68471ca28db4f51b71139b0ab78ae1c3e0ae8364604e9f8a15d\""
-        ","
-        "\"feesPaidToMiner\":\"0\","
-        "\"notify\":\"true\"}",
+        R"EOF(
+            {
+                "created_at_ts": %u,
+                "rskdRpcAddress": "http://10.0.2.2:4444",
+                "rskdRpcUserPwd": "user:pass",
+                "target": "0x5555555555555555555555555555555555555555555555555555555555555555",
+                "parentBlockHash": "0x13532f616f89e3ac2e0a9ef7363be28e7f2ca39764684995fb30c0d96e664ae4",
+                "blockHashForMergedMining": "0xe6b0a8e84e0ce68471ca28db4f51b71139b0ab78ae1c3e0ae8364604e9f8a15d",
+                "feesPaidToMiner": "0",
+                "notify": "true"
+            }
+        )EOF",
         creationTime);
 
     blockVersion = 0;
@@ -1002,12 +774,25 @@ TEST(Stratum, StratumJobWithRskWork) {
 #endif
 
 TEST(Stratum, StratumJobBeam) {
-  string sjobStr =
-      "{\"jobId\":6641843982926067808,"
-      "\"chain\":\"BEAM\",\"height\":34678,\"blockBits\":\"04411246\","
-      "\"input\":"
-      "\"28fe7ed7673b153ace1d5f9c52c3e108ec55a48d07ed499bdf6e7d2049049e7a\","
-      "\"rpcAddress\":\"http://127.0.0.1:8332\",\"rpcUserPwd\":\"aaabbbccc\"}";
+  string sjobStr = R"EOF(
+    {
+        "jobId": 6641843982926067808,
+        "chain": "BEAM",
+        "height": 34678,
+        "blockBits": "04411246",
+        "input": "28fe7ed7673b153ace1d5f9c52c3e108ec55a48d07ed499bdf6e7d2049049e7a",
+        "rpcAddress": "http://127.0.0.1:8332",
+        "rpcUserPwd": "aaabbbccc"
+    }
+  )EOF";
+
+  // remove blank characters
+  sjobStr.erase(
+      std::remove_if(
+          sjobStr.begin(),
+          sjobStr.end(),
+          [](unsigned char x) { return std::isspace(x); }),
+      sjobStr.end());
 
   StratumJobBeam sjob;
   ASSERT_EQ(sjob.unserializeFromJson(sjobStr.c_str(), sjobStr.size()), true);
