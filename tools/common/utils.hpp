@@ -31,6 +31,10 @@
 #include <time.h>
 #include <stdlib.h>
 
+#define FMT_HEADER_ONLY
+#include <fmt/format.h>
+#include <fmt/printf.h>
+
 static const char _hexchars[] = "0123456789abcdef";
 
 static inline int _hex2bin_char(const char c) {
@@ -62,24 +66,9 @@ std::string date(const char *format, const time_t timestamp) {
   return std::string(buffer);
 }
 
-std::string StringFormat(const char * fmt, ...) {
-  char tmp[512];
-  std::string dest;
-  va_list al;
-  va_start(al, fmt);
-  int len = vsnprintf(tmp, 512, fmt, al);
-  va_end(al);
-  if (len>511) {
-    char * destbuff = new char[len+1];
-    va_start(al, fmt);
-    len = vsnprintf(destbuff, len+1, fmt, al);
-    va_end(al);
-    dest.append(destbuff, len);
-    delete[] destbuff;
-  } else {
-    dest.append(tmp, len);
-  }
-  return dest;
+template <typename... Args>
+std::string StringFormat(const char *fmt, Args &&... args) {
+  return fmt::sprintf(fmt, std::forward<Args>(args)...);
 }
 
 void BitsToDifficulty(uint32_t bits, double *difficulty) {

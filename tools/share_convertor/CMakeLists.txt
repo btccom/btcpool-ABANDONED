@@ -5,7 +5,7 @@ set(PROJECT_ROOT "${CMAKE_SOURCE_DIR}/../..")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_ROOT}/cmake/Modules/")
 
 # set C++ standard
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 # stop building after the first error
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmax-errors=1")
 
@@ -66,9 +66,9 @@ endif()
 
 ###################################### Targets ######################################
 
-include_directories(${GLOG_INCLUDE_DIRS} ${KAFKA_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS}
-                    ${LIBCONFIGPP_INCLUDE_DIR} ${PTHREAD_INCLUDE_DIRS} ${OPENSSL_INCLUDE_DIR}
-                    ${PROJECT_ROOT}/src ${PROJECT_ROOT}/tools/common)
+include_directories(${PROJECT_ROOT}/3rdparty ${PROJECT_ROOT}/src ${PROJECT_ROOT}/tools/common
+                    ${GLOG_INCLUDE_DIRS} ${KAFKA_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS}
+                    ${LIBCONFIGPP_INCLUDE_DIR} ${PTHREAD_INCLUDE_DIRS} ${OPENSSL_INCLUDE_DIR})
 
 set(THIRD_LIBRARIES ${GLOG_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${Boost_LIBRARIES} 
                     ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} ${PTHREAD_LIBRARIES} ${ZLIB_LIBRARIES})
