@@ -225,6 +225,7 @@ public:
     KafkaProducer *kafkaProducerCommonEvents_;
 
     JobRepository *jobRepository_;
+    std::map<int32_t, size_t> shareStats_;
   };
 
   // ------------------- Development Options: -------------------

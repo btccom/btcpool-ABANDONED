@@ -583,3 +583,12 @@ void StratumSession::sendSetDifficulty(
 
   sendData(s);
 }
+
+void StratumSession::reportShare(
+    size_t chainId, int32_t status, uint64_t shareDiff) {
+  auto &chain = server_.chains_[chainId];
+  auto p = chain.shareStats_.emplace(status, 1);
+  if (!p.second) {
+    ++p.first->second;
+  }
+}

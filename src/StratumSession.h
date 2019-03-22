@@ -93,6 +93,8 @@ public:
   virtual void sendData(const std::string &str) = 0;
   virtual void sendSetDifficulty(LocalJob &localJob, uint64_t difficulty) = 0;
   virtual bool switchChain(size_t chainId) = 0;
+  virtual void
+  reportShare(size_t chainId, int32_t status, uint64_t shareDiff) = 0;
 };
 
 class StratumSession : public IStratumSession {
@@ -211,6 +213,8 @@ public:
   void sendSetDifficulty(LocalJob &localJob, uint64_t difficulty) override;
   virtual void sendMiningNotify(
       shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob = false) = 0;
+
+  void reportShare(size_t chainId, int32_t status, uint64_t shareDiff) override;
 };
 
 //  This base class is to help type safety of accessing server_ member variable.

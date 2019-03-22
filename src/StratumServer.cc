@@ -760,7 +760,7 @@ bool StratumServer::setup(const libconfig::Config &config) {
   if (statsEnabled) {
     string exporterAddress = "0.0.0.0";
     unsigned int exporterPort = 8080;
-    string exporterPath = "/";
+    string exporterPath = "/metrics";
     config.lookupValue("prometheus.address", exporterAddress);
     config.lookupValue("prometheus.port", exporterPort);
     config.lookupValue("prometheus.path", exporterPath);

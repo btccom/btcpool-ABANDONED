@@ -29,7 +29,8 @@
 #include "prometheus/Metric.h"
 
 StratumServerStats::StratumServerStats(StratumServer &server)
-  : server_{server} {
+  : server_{server}
+  , lastScrape_{std::chrono::steady_clock::now()} {
   metrics_.push_back(prometheus::CreateMetric(
       "sserver_identity",
       prometheus::Metric::Type::Gauge,
@@ -63,5 +64,25 @@ StratumServerStats::StratumServerStats(StratumServer &server)
 
 std::vector<std::shared_ptr<prometheus::Metric>>
 StratumServerStats::collectMetrics() {
-  return metrics_;
+  auto scrape = std::chrono::steady_clock::now();
+  auto duration =
+      std::chrono::duration_cast<std::chrono::seconds>(scrape - lastScrape_)
+          .count();
+  lastScrape_ = scrape;
+
+  std::vector<std::shared_ptr<prometheus::Metric>> metrics = metrics_;
+  for (auto &chain : server_.chains_) {
+    for (auto p : chain.shareStats_) {
+      metrics.push_back(prometheus::CreateMetric(
+          "sserver_shares_per_second_since_last_scrape",
+          prometheus::Metric::Type::Gauge,
+          "Shares processed by sserver per second since last scrape",
+          {{"chain", chain.name_},
+           {"status", StratumStatus::toString(p.first)}},
+          static_cast<double>(p.second) / duration));
+    }
+    chain.shareStats_.clear();
+  }
+
+  return metrics;
 }

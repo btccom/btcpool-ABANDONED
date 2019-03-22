@@ -66,6 +66,7 @@ bool StratumMiner::handleShare(
     int32_t status,
     uint64_t shareDiff,
     size_t chainId) {
+  session_.reportShare(chainId, status, shareDiff);
   auto &dispatcher = session_.getDispatcher();
   if (StratumStatus::isAccepted(status)) {
     diffController_->addAcceptedShare(shareDiff);
