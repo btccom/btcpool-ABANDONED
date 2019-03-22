@@ -22,6 +22,8 @@
  THE SOFTWARE.
  */
 #include "StratumServer.h"
+
+#include "StratumServerStats.h"
 #include "StratumSession.h"
 #include "DiffController.h"
 
@@ -388,6 +390,15 @@ StratumServer::~StratumServer() {
   // Destroy connections before event base
   connections_.clear();
 
+  if (statsExporter_) {
+    if (statsExporter_) {
+      statsExporter_->unregisterCollector(statsCollector_);
+    }
+
+    // Destroy exporter before event base
+    statsExporter_.reset();
+  }
+
   if (listener_ != nullptr) {
     evconnlistener_free(listener_);
   }
@@ -739,6 +750,29 @@ bool StratumServer::setup(const libconfig::Config &config) {
     // try get SSL CTX (load SSL cert and key)
     // any error will abort the process
     sslCTX_ = getSSLCTX(config);
+  }
+
+  // setup promethues exporter
+  bool statsEnabled = false;
+  config.lookupValue("prometheus.enabled", statsEnabled);
+  if (statsEnabled) {
+    string exporterAddress = "0.0.0.0";
+    unsigned int exporterPort = 8080;
+    string exporterPath = "/";
+    config.lookupValue("prometheus.address", exporterAddress);
+    config.lookupValue("prometheus.port", exporterPort);
+    config.lookupValue("prometheus.path", exporterPath);
+    statsCollector_ = std::make_shared<StratumServerStats>(*this);
+    statsExporter_ = prometheus::CreateExporter();
+    if (!statsExporter_->setup(exporterAddress, exporterPort, exporterPath)) {
+      LOG(WARNING) << "Failed to setup stratum server statistics exporter";
+    }
+    if (!statsExporter_->registerCollector(statsCollector_)) {
+      LOG(WARNING) << "Failed to register stratum server statistics collector";
+    }
+    if (!statsExporter_->run(base_)) {
+      LOG(WARNING) << "Failed to run stratum server statistics exporter";
+    }
   }
 
   // ------------------- Derived Class Setup -------------------

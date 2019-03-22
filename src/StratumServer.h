@@ -31,6 +31,10 @@
 #include "Zookeeper.h"
 #include "UserInfo.h"
 
+#include "prometheus/Exporter.h"
+#include "prometheus/Collector.h"
+#include "prometheus/Metric.h"
+
 #include <bitset>
 
 #include <openssl/ssl.h>
@@ -243,6 +247,9 @@ public:
   uint8_t serverId_;
 
   shared_ptr<Zookeeper> zk_;
+
+  shared_ptr<prometheus::Collector> statsCollector_;
+  unique_ptr<prometheus::IExporter> statsExporter_;
 
 protected:
   SSL_CTX *getSSLCTX(const libconfig::Config &config);
