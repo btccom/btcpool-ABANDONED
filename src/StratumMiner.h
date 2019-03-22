@@ -66,8 +66,11 @@ public:
   virtual void removeLocalJob(LocalJob &localJob) = 0;
 
 protected:
-  bool
-  handleShare(const std::string &idStr, int32_t status, uint64_t shareDiff);
+  bool handleShare(
+      const std::string &idStr,
+      int32_t status,
+      uint64_t shareDiff,
+      size_t chainId);
 
   IStratumSession &session_;
   std::unique_ptr<DiffController> diffController_;

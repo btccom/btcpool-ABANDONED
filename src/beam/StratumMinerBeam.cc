@@ -150,7 +150,8 @@ void StratumMinerBeam::handleRequest_Submit(
 
   // we send share to kafka by default, but if there are lots of invalid
   // shares in a short time, we just drop them.
-  if (handleShare(idStr, share.status(), share.sharediff())) {
+  if (handleShare(
+          idStr, share.status(), share.sharediff(), localJob->chainId_)) {
     if (StratumStatus::isSolved(share.status())) {
       server.sendSolvedShare2Kafka(
           localJob->chainId_, share, sjob->input_, output, worker, blockHash);

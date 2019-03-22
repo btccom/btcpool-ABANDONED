@@ -253,9 +253,9 @@ void StratumMinerBytom::handleRequest_Submit(
           Bytom_TargetCompactToDifficulty(sJob->blockHeader_.bits),
           worker);
       server.GetJobRepository(localJob->chainId_)->markAllJobsAsStale();
-      handleShare(idStr, share.status(), share.sharediff());
+      handleShare(idStr, share.status(), share.sharediff(), localJob->chainId_);
     } else if (powResult == StratumStatus::ACCEPT) {
-      handleShare(idStr, share.status(), share.sharediff());
+      handleShare(idStr, share.status(), share.sharediff(), localJob->chainId_);
     } else {
       std::string failMessage = "Unknown reason";
       switch (share.status()) {

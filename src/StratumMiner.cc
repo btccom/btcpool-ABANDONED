@@ -62,7 +62,10 @@ uint64_t StratumMiner::calcCurDiff() {
 }
 
 bool StratumMiner::handleShare(
-    const std::string &idStr, int32_t status, uint64_t shareDiff) {
+    const std::string &idStr,
+    int32_t status,
+    uint64_t shareDiff,
+    size_t chainId) {
   auto &dispatcher = session_.getDispatcher();
   if (StratumStatus::isAccepted(status)) {
     diffController_->addAcceptedShare(shareDiff);

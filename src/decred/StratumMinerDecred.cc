@@ -171,7 +171,8 @@ void StratumMinerDecred::handleRequest_Submit(
         share, exjob, extraNonce2, ntime, nonce, worker.fullName_));
   }
 
-  if (!handleShare(idStr, share.status(), share.sharediff())) {
+  if (!handleShare(
+          idStr, share.status(), share.sharediff(), localJob->chainId_)) {
     // add invalid share to counter
     invalidSharesCounter_.insert(static_cast<int64_t>(time(nullptr)), 1);
   }
