@@ -36,4 +36,5 @@ public:
 
 private:
   StratumServer &server_;
+  std::vector<std::shared_ptr<prometheus::Metric>> metrics_;
 };

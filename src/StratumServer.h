@@ -248,6 +248,7 @@ public:
 
   shared_ptr<Zookeeper> zk_;
 
+  friend class StratumServerStats;
   shared_ptr<prometheus::Collector> statsCollector_;
   unique_ptr<prometheus::IExporter> statsExporter_;
 

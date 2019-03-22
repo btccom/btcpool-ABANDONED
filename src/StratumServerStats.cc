@@ -24,11 +24,21 @@
 
 #include "StratumServerStats.h"
 
+#include "StratumServer.h"
+
+#include "prometheus/Metric.h"
+
 StratumServerStats::StratumServerStats(StratumServer &server)
   : server_{server} {
+  metrics_.push_back(prometheus::CreateMetric(
+      "sserver_sessions_total",
+      prometheus::Metric::Type::Gauge,
+      "Total number of sserver sessions",
+      {},
+      [this]() { return server_.connections_.size(); }));
 }
 
 std::vector<std::shared_ptr<prometheus::Metric>>
 StratumServerStats::collectMetrics() {
-  return {};
+  return metrics_;
 }
