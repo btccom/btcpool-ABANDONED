@@ -129,6 +129,7 @@ protected:
 
   time_t lastJobSendTime_;
   uint64_t lastJobId_;
+  uint64_t lastJobHeight_;
 
   thread threadConsume_;
   friend class StratumServerStats;

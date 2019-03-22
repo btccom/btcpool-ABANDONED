@@ -340,6 +340,7 @@ public:
   string serializeToJson() const override;
   bool unserializeFromJson(const char *s, size_t len) override;
   bool isEmptyBlock();
+  uint64_t height() const override { return height_; }
 };
 
 class ServerBitcoin;

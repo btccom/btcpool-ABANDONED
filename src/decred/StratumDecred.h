@@ -327,6 +327,7 @@ public:
   StratumJobDecred();
   string serializeToJson() const override;
   bool unserializeFromJson(const char *s, size_t len) override;
+  uint64_t height() const override { return header_.height.value(); }
   string getPrevHash() const;
   string getCoinBase1() const;
 };

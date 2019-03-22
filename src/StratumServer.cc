@@ -121,7 +121,8 @@ JobRepository::JobRepository(
   , kMaxJobsLifeTime_(300)
   , kMiningNotifyInterval_(30)
   , lastJobSendTime_(0)
-  , lastJobId_(0) {
+  , lastJobId_(0)
+  , lastJobHeight_(0) {
   assert(kMiningNotifyInterval_ < kMaxJobsLifeTime_);
 }
 
@@ -315,6 +316,7 @@ void JobRepository::sendMiningNotify(shared_ptr<StratumJobEx> exJob) {
     writeTime2File(fileLastNotifyTime_.c_str(), (uint32_t)lastJobSendTime_);
 
   lastJobId_ = exJob->sjob_->jobId_;
+  lastJobHeight_ = exJob->sjob_->height();
 }
 
 void JobRepository::tryCleanExpiredJobs() {

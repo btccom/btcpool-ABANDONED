@@ -258,6 +258,8 @@ public:
   StratumJobBytom();
   string serializeToJson() const override;
   bool unserializeFromJson(const char *s, size_t len) override;
+  uint64_t height() const override { return blockHeader_.height; }
+
   BlockHeaderBytom blockHeader_;
   string seed_;
   string hHash_;

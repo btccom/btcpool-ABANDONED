@@ -45,13 +45,19 @@ StratumServerStats::StratumServerStats(StratumServer &server)
 
   for (auto &chain : server_.chains_) {
     metrics_.push_back(prometheus::CreateMetric(
-        "sserver_idle_since_last_job_sent_seconds",
+        "sserver_idle_since_last_job_broadcast_seconds",
         prometheus::Metric::Type::Gauge,
-        "Idle time since last sserver job sent in seconds",
+        "Idle time since last sserver job broadcast in seconds",
         {{"chain", chain.name_}},
         [&chain]() {
           return time(nullptr) - chain.jobRepository_->lastJobSendTime_;
         }));
+    metrics_.push_back(prometheus::CreateMetric(
+        "sserver_last_job_broadcast_height",
+        prometheus::Metric::Type::Gauge,
+        "Block height of last sserver job broadcast",
+        {{"chain", chain.name_}},
+        [&chain]() { return chain.jobRepository_->lastJobHeight_; }));
   }
 }
 

@@ -181,6 +181,7 @@ public:
   virtual string serializeToJson() const = 0;
   virtual bool unserializeFromJson(const char *s, size_t len) = 0;
   virtual uint32_t jobTime() const { return jobId2Time(jobId_); }
+  virtual uint64_t height() const = 0;
 };
 
 // shares submitted by this session, for duplicate share check

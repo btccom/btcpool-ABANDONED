@@ -253,6 +253,7 @@ public:
   ~StratumJobSia();
   string serializeToJson() const override;
   bool unserializeFromJson(const char *s, size_t len) override;
+  uint64_t height() const override { return 0; }
   uint32_t jobTime() const override { return nTime_; }
 };
 
