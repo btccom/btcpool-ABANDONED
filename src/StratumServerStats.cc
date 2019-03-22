@@ -31,6 +31,12 @@
 StratumServerStats::StratumServerStats(StratumServer &server)
   : server_{server} {
   metrics_.push_back(prometheus::CreateMetric(
+      "sserver_identity",
+      prometheus::Metric::Type::Gauge,
+      "Identity number of sserver",
+      {},
+      [this]() { return server_.serverId_; }));
+  metrics_.push_back(prometheus::CreateMetric(
       "sserver_sessions_total",
       prometheus::Metric::Type::Gauge,
       "Total number of sserver sessions",
