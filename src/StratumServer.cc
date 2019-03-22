@@ -382,6 +382,9 @@ StratumServer::StratumServer()
 }
 
 StratumServer::~StratumServer() {
+  // Destroy connections before event base
+  connections_.clear();
+
   if (listener_ != nullptr) {
     evconnlistener_free(listener_);
   }
