@@ -42,6 +42,17 @@ StratumServerStats::StratumServerStats(StratumServer &server)
       "Total number of sserver sessions",
       {},
       [this]() { return server_.connections_.size(); }));
+
+  for (auto &chain : server_.chains_) {
+    metrics_.push_back(prometheus::CreateMetric(
+        "sserver_idle_since_last_job_sent_seconds",
+        prometheus::Metric::Type::Gauge,
+        "Idle time since last sserver job sent in seconds",
+        {{"chain", chain.name_}},
+        [&chain]() {
+          return time(nullptr) - chain.jobRepository_->lastJobSendTime_;
+        }));
+  }
 }
 
 std::vector<std::shared_ptr<prometheus::Metric>>

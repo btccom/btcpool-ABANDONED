@@ -131,6 +131,7 @@ protected:
   uint64_t lastJobId_;
 
   thread threadConsume_;
+  friend class StratumServerStats;
 
 private:
   void runThreadConsume();
