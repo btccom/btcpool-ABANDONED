@@ -492,8 +492,7 @@ foreach(SHARE_TYPE beam bitcoin bytom decred eth sia grin)
   list(APPEND LIB_SOURCES_SHARES ${CMAKE_CURRENT_BINARY_DIR}/src/${SHARE_TYPE}/${SHARE_TYPE}.pb.cc)
 endforeach(SHARE_TYPE)
 
-add_library(
-    prometheus STATIC
+set(LIB_SOURCES_PROMETHEUS
     src/prometheus/Exporter.cc
     src/prometheus/Metric.cc
 )
@@ -501,9 +500,10 @@ add_library(
 add_library(
     btcpool STATIC
     ${LIB_SOURCES}
+    ${LIB_SOURCES_PROMETHEUS}
     ${LIB_SOURCES_SHARES}
     ${LIB_SOURCES_CHAINS})
-target_link_libraries(btcpool PUBLIC beam cuckoo prometheus)
+target_link_libraries(btcpool PUBLIC beam cuckoo)
 
 file(GLOB_RECURSE TEST_SOURCES test/*.cc)
 add_executable(unittest ${TEST_SOURCES} 3rdparty/gmock-gtest-all.cc)
