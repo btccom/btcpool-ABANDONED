@@ -52,6 +52,23 @@ protected:
   std::map<std::string, std::string> labels_;
 };
 
+class MetricValue : public MetricBase {
+public:
+  MetricValue(
+      const std::string &name,
+      Metric::Type type,
+      const std::string &help,
+      const std::map<std::string, std::string> &labels,
+      double value)
+    : MetricBase{name, type, help, labels}
+    , value_{value} {}
+
+  double getValue() const { return value_; }
+
+private:
+  double value_;
+};
+
 class MetricFn : public MetricBase {
 public:
   MetricFn(
@@ -68,6 +85,15 @@ public:
 private:
   std::function<double()> valueFn_;
 };
+
+std::shared_ptr<Metric> CreateMetric(
+    const std::string &name,
+    Metric::Type type,
+    const std::string &help,
+    const std::map<std::string, std::string> &labels,
+    double value) {
+  return std::make_shared<MetricValue>(name, type, help, labels, value);
+}
 
 std::shared_ptr<Metric> CreateMetric(
     const std::string &name,

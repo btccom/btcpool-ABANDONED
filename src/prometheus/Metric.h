@@ -50,6 +50,13 @@ std::shared_ptr<Metric> CreateMetric(
     Metric::Type type,
     const std::string &help,
     const std::map<std::string, std::string> &labels,
+    double value);
+
+std::shared_ptr<Metric> CreateMetric(
+    const std::string &name,
+    Metric::Type type,
+    const std::string &help,
+    const std::map<std::string, std::string> &labels,
     std::function<double()> valueFn);
 
 } // namespace prometheus
