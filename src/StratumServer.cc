@@ -160,6 +160,9 @@ void JobRepository::stop() {
   }
   running_ = false;
   LOG(INFO) << "stop job repository";
+  if (threadConsume_.joinable()) {
+    threadConsume_.join();
+  }
 }
 
 bool JobRepository::setupThreadConsume() {
