@@ -22,27 +22,51 @@
  THE SOFTWARE.
 */
 
-#pragma once
-
-#include <functional>
-#include <map>
-#include <memory>
-#include <string>
+#include "Metric.h"
 
 namespace prometheus {
 
-class Metric {
+class MetricBase : public Metric {
+protected:
+  MetricBase(
+      const std::string &name,
+      Metric::Type type,
+      const std::string &help,
+      const std::map<std::string, std::string> &labels)
+    : name_{name}
+    , type_{type}
+    , help_{help}
+    , labels_{labels} {}
+
+  const std::string &getName() const override { return name_; }
+  Type getType() const override { return type_; }
+  const std::string &getHelp() const override { return help_; }
+  const std::map<std::string, std::string> &getLabels() const override {
+    return labels_;
+  }
+
+protected:
+  std::string name_;
+  Metric::Type type_;
+  std::string help_;
+  std::map<std::string, std::string> labels_;
+};
+
+class MetricFn : public MetricBase {
 public:
-  enum class Type {
-    Counter,
-    Gauge,
-  };
-  virtual ~Metric() = default;
-  virtual const std::string &getName() const = 0;
-  virtual Type getType() const = 0;
-  virtual double getValue() const = 0;
-  virtual const std::string &getHelp() const = 0;
-  virtual const std::map<std::string, std::string> &getLabels() const = 0;
+  MetricFn(
+      const std::string &name,
+      Metric::Type type,
+      const std::string &help,
+      const std::map<std::string, std::string> &labels,
+      std::function<double()> valueFn)
+    : MetricBase{name, type, help, labels}
+    , valueFn_{std::move(valueFn)} {}
+
+  double getValue() const { return valueFn_(); }
+
+private:
+  std::function<double()> valueFn_;
 };
 
 std::shared_ptr<Metric> CreateMetric(
@@ -50,6 +74,9 @@ std::shared_ptr<Metric> CreateMetric(
     Metric::Type type,
     const std::string &help,
     const std::map<std::string, std::string> &labels,
-    std::function<double()> valueFn);
+    std::function<double()> valueFn) {
+  return std::make_shared<MetricFn>(
+      name, type, help, labels, std::move(valueFn));
+}
 
 } // namespace prometheus

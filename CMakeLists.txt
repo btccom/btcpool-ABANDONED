@@ -495,6 +495,7 @@ endforeach(SHARE_TYPE)
 add_library(
     prometheus STATIC
     src/prometheus/Exporter.cc
+    src/prometheus/Metric.cc
 )
 
 add_library(
