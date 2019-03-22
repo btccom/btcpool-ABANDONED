@@ -236,6 +236,7 @@ class Node{
    }
 
     void reset() {
+      sorted_ = false;
       parent_ = nullptr;
       children_.reset();
       type_ = JS::type::Undefined;
@@ -251,7 +252,7 @@ class Node{
       children_ = node.children_;
     }
 
-    Node():type_(JS::type::Undefined),parent_(nullptr) {
+    Node():type_(JS::type::Undefined),sorted_(false),parent_(nullptr) {
     }
     
     JS::type type() const { return type_; }
