@@ -27,10 +27,10 @@ CREATE TABLE `found_blocks` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
-DROP TABLE IF EXISTS `found_nmc_blocks`;
-CREATE TABLE `found_nmc_blocks` (
+DROP TABLE IF EXISTS `found_aux_blocks`;
+CREATE TABLE `found_aux_blocks` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `bitcoin_block_hash` char(64) NOT NULL,
+  `parent_block_hash` char(64) NOT NULL,
   `aux_block_hash` char(64) NOT NULL,
   `aux_pow` text NOT NULL,
   `is_orphaned` tinyint(4) NOT NULL DEFAULT '0',
