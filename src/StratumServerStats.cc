@@ -27,6 +27,22 @@
 #include "StratumServer.h"
 
 #include "prometheus/Metric.h"
+#include "StratumSession.h"
+
+static const char *FormatSessionStatus(int status) {
+  switch (status) {
+  case StratumSession::CONNECTED:
+    return "connected";
+  case StratumSession::SUBSCRIBED:
+    return "subscribed";
+  case StratumSession::AUTO_REGISTING:
+    return "registering";
+  case StratumSession::AUTHENTICATED:
+    return "authenticated";
+  default:
+    return "unknown";
+  }
+}
 
 StratumServerStats::StratumServerStats(StratumServer &server)
   : server_{server}
@@ -37,12 +53,6 @@ StratumServerStats::StratumServerStats(StratumServer &server)
       "Identity number of sserver",
       {},
       [this]() { return server_.serverId_; }));
-  metrics_.push_back(prometheus::CreateMetricFn(
-      "sserver_sessions_total",
-      prometheus::Metric::Type::Gauge,
-      "Total number of sserver sessions",
-      {},
-      [this]() { return server_.connections_.size(); }));
 
   for (auto &chain : server_.chains_) {
     metrics_.push_back(prometheus::CreateMetricFn(
@@ -82,6 +92,20 @@ StratumServerStats::collectMetrics() {
           static_cast<double>(p.second) / duration));
     }
     chain.shareStats_.clear();
+  }
+
+  std::map<std::pair<size_t, StratumSession::State>, size_t> sessions_;
+  for (auto &session : server_.connections_) {
+    ++sessions_[{session->getChainId(), session->getState()}];
+  }
+  for (auto &s : sessions_) {
+    metrics.push_back(prometheus::CreateMetricValue(
+        "sserver_sessions_total",
+        prometheus::Metric::Type::Gauge,
+        "The number of sserver sessions per chain and status",
+        {{"chain", server_.chains_[s.first.first].name_},
+         {"status", FormatSessionStatus(s.first.second)}},
+        s.second));
   }
 
   return metrics;
