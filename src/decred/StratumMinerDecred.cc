@@ -56,7 +56,7 @@ void StratumMinerDecred::handleRequest_Submit(
     const string &idStr, const JsonNode &jparams) {
   auto &session = getSession();
   if (session.getState() != StratumSession::AUTHENTICATED) {
-    session.responseError(idStr, StratumStatus::UNAUTHORIZED);
+    handleShare(idStr, StratumStatus::UNAUTHORIZED, 0, session.getChainId());
 
     // there must be something wrong, send reconnect command
     string s = "{\"id\":null,\"method\":\"client.reconnect\",\"params\":[]}\n";
@@ -76,14 +76,14 @@ void StratumMinerDecred::handleRequest_Submit(
           [](const JsonNode &n) {
             return n.type() != Utilities::JS::type::Str || !IsHex(n.str());
           })) {
-    session.responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
+    handleShare(idStr, StratumStatus::ILLEGAL_PARARMS, 0, session.getChainId());
     return;
   }
 
   auto extraNonce2 = ParseHex(jparams.children()->at(2).str());
   if (extraNonce2.size() != kExtraNonce2Size_ &&
       extraNonce2.size() != 12) { // Extra nonce size
-    session.responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
+    handleShare(idStr, StratumStatus::ILLEGAL_PARARMS, 0, session.getChainId());
     return;
   }
 
@@ -138,6 +138,7 @@ void StratumMinerDecred::handleRequest_Submit(
 
   auto iter = jobDiffs_.find(localJob);
   if (iter == jobDiffs_.end()) {
+    handleShare(idStr, StratumStatus::JOB_NOT_FOUND, 0, localJob->chainId_);
     LOG(ERROR) << "can't find session's diff, worker: " << worker.fullName_;
     return;
   }

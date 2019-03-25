@@ -58,7 +58,7 @@ void StratumMinerGrin::handleRequest_Submit(
 
   auto &session = getSession();
   if (session.getState() != StratumSession::AUTHENTICATED) {
-    session.responseError(idStr, StratumStatus::UNAUTHORIZED);
+    handleShare(idStr, StratumStatus::UNAUTHORIZED, 0, session.getChainId());
     return;
   }
 
@@ -67,7 +67,7 @@ void StratumMinerGrin::handleRequest_Submit(
       jsonParams["job_id"].type() != Utilities::JS::type::Int ||
       jsonParams["nonce"].type() != Utilities::JS::type::Int ||
       jsonParams["pow"].type() != Utilities::JS::type::Array) {
-    session.responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
+    handleShare(idStr, StratumStatus::ILLEGAL_PARARMS, 0, session.getChainId());
     return;
   }
 
@@ -78,7 +78,8 @@ void StratumMinerGrin::handleRequest_Submit(
   vector<uint64_t> proofs;
   for (auto &p : jsonParams["pow"].array()) {
     if (p.type() != Utilities::JS::type::Int) {
-      session.responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
+      handleShare(
+          idStr, StratumStatus::ILLEGAL_PARARMS, 0, session.getChainId());
       return;
     } else {
       proofs.push_back(p.uint64());
@@ -88,7 +89,7 @@ void StratumMinerGrin::handleRequest_Submit(
   auto localJob = session.findLocalJob(prePowHash);
   // can't find local job
   if (localJob == nullptr) {
-    session.responseError(idStr, StratumStatus::JOB_NOT_FOUND);
+    handleShare(idStr, StratumStatus::JOB_NOT_FOUND, 0, session.getChainId());
     return;
   }
 
@@ -100,13 +101,14 @@ void StratumMinerGrin::handleRequest_Submit(
                                        ->getStratumJobEx(localJob->jobId_);
   // can't find stratum job
   if (exjob.get() == nullptr) {
-    session.responseError(idStr, StratumStatus::JOB_NOT_FOUND);
+    handleShare(idStr, StratumStatus::JOB_NOT_FOUND, 0, localJob->chainId_);
     return;
   }
   auto sjob = std::static_pointer_cast<StratumJobGrin>(exjob->sjob_);
 
   auto iter = jobDiffs_.find(localJob);
   if (iter == jobDiffs_.end()) {
+    handleShare(idStr, StratumStatus::JOB_NOT_FOUND, 0, localJob->chainId_);
     LOG(ERROR) << "can't find session's diff, worker: " << worker.fullName_;
     return;
   }
@@ -134,7 +136,11 @@ void StratumMinerGrin::handleRequest_Submit(
   LocalShare localShare(nonce, boost::hash_value(proofs), edgeBits);
   // can't add local share
   if (!localJob->addLocalShare(localShare)) {
-    session.responseError(idStr, StratumStatus::DUPLICATE_SHARE);
+    handleShare(
+        idStr,
+        StratumStatus::DUPLICATE_SHARE,
+        jobDiff.currentJobDiff_,
+        localJob->chainId_);
     // add invalid share to counter
     invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
     return;

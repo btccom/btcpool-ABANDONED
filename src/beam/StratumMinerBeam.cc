@@ -58,14 +58,14 @@ void StratumMinerBeam::handleRequest_Submit(
 
   auto &session = getSession();
   if (session.getState() != StratumSession::AUTHENTICATED) {
-    session.responseError(idStr, StratumStatus::UNAUTHORIZED);
+    handleShare(idStr, StratumStatus::UNAUTHORIZED, 0, session.getChainId());
     return;
   }
 
   if (jsonRoot["id"].type() != Utilities::JS::type::Str ||
       jsonRoot["nonce"].type() != Utilities::JS::type::Str ||
       jsonRoot["output"].type() != Utilities::JS::type::Str) {
-    session.responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
+    handleShare(idStr, StratumStatus::ILLEGAL_PARARMS, 0, session.getChainId());
     return;
   }
 
@@ -76,7 +76,7 @@ void StratumMinerBeam::handleRequest_Submit(
   auto localJob = session.findLocalJob(jobId);
   // can't find local job
   if (localJob == nullptr) {
-    session.responseFalse(idStr, StratumStatus::JOB_NOT_FOUND);
+    handleShare(idStr, StratumStatus::JOB_NOT_FOUND, 0, session.getChainId());
     return;
   }
 
@@ -88,7 +88,7 @@ void StratumMinerBeam::handleRequest_Submit(
                                        ->getStratumJobEx(localJob->jobId_);
   // can't find stratum job
   if (exjob.get() == nullptr) {
-    session.responseFalse(idStr, StratumStatus::JOB_NOT_FOUND);
+    handleShare(idStr, StratumStatus::JOB_NOT_FOUND, 0, session.getChainId());
     return;
   }
   auto sjob = std::static_pointer_cast<StratumJobBeam>(exjob->sjob_);
@@ -101,6 +101,7 @@ void StratumMinerBeam::handleRequest_Submit(
 
   auto iter = jobDiffs_.find(localJob);
   if (iter == jobDiffs_.end()) {
+    handleShare(idStr, StratumStatus::JOB_NOT_FOUND, 0, localJob->chainId_);
     LOG(ERROR) << "can't find session's diff, worker: " << worker.fullName_;
     return;
   }
@@ -126,7 +127,11 @@ void StratumMinerBeam::handleRequest_Submit(
   LocalShare localShare(nonce, outputHash, 0);
   // can't add local share
   if (!localJob->addLocalShare(localShare)) {
-    session.responseFalse(idStr, StratumStatus::DUPLICATE_SHARE);
+    handleShare(
+        idStr,
+        StratumStatus::DUPLICATE_SHARE,
+        jobDiff.currentJobDiff_,
+        localJob->chainId_);
     // add invalid share to counter
     invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
     return;
