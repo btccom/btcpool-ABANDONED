@@ -29,6 +29,16 @@
 #include "prometheus/Metric.h"
 #include "StratumSession.h"
 
+#include <boost/algorithm/string/case_conv.hpp>
+#include <algorithm>
+
+static std::string FormatStratumStatus(int32_t status) {
+  std::string result = StratumStatus::toString(status);
+  std::replace(result.begin(), result.end(), ' ', '_');
+  boost::algorithm::to_lower(result);
+  return filterWorkerName(result);
+}
+
 static const char *FormatSessionStatus(int status) {
   switch (status) {
   case StratumSession::CONNECTED:
@@ -87,8 +97,7 @@ StratumServerStats::collectMetrics() {
           "sserver_shares_per_second_since_last_scrape",
           prometheus::Metric::Type::Gauge,
           "Shares processed by sserver per second since last scrape",
-          {{"chain", chain.name_},
-           {"status", StratumStatus::toString(p.first)}},
+          {{"chain", chain.name_}, {"status", FormatStratumStatus(p.first)}},
           static_cast<double>(p.second) / duration));
     }
     chain.shareStats_.clear();
