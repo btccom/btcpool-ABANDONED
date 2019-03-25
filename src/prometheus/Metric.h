@@ -40,23 +40,11 @@ public:
   virtual ~Metric() = default;
   virtual const std::string &getName() const = 0;
   virtual Type getType() const = 0;
-  virtual double getValue() const = 0;
+  virtual std::string getValue() const = 0;
   virtual const std::string &getHelp() const = 0;
   virtual const std::map<std::string, std::string> &getLabels() const = 0;
 };
 
-std::shared_ptr<Metric> CreateMetric(
-    const std::string &name,
-    Metric::Type type,
-    const std::string &help,
-    const std::map<std::string, std::string> &labels,
-    double value);
-
-std::shared_ptr<Metric> CreateMetric(
-    const std::string &name,
-    Metric::Type type,
-    const std::string &help,
-    const std::map<std::string, std::string> &labels,
-    std::function<double()> valueFn);
-
 } // namespace prometheus
+
+#include "Metric.inl"

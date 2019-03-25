@@ -31,13 +31,13 @@
 StratumServerStats::StratumServerStats(StratumServer &server)
   : server_{server}
   , lastScrape_{std::chrono::steady_clock::now()} {
-  metrics_.push_back(prometheus::CreateMetric(
+  metrics_.push_back(prometheus::CreateMetricFn(
       "sserver_identity",
       prometheus::Metric::Type::Gauge,
       "Identity number of sserver",
       {},
       [this]() { return server_.serverId_; }));
-  metrics_.push_back(prometheus::CreateMetric(
+  metrics_.push_back(prometheus::CreateMetricFn(
       "sserver_sessions_total",
       prometheus::Metric::Type::Gauge,
       "Total number of sserver sessions",
@@ -45,7 +45,7 @@ StratumServerStats::StratumServerStats(StratumServer &server)
       [this]() { return server_.connections_.size(); }));
 
   for (auto &chain : server_.chains_) {
-    metrics_.push_back(prometheus::CreateMetric(
+    metrics_.push_back(prometheus::CreateMetricFn(
         "sserver_idle_since_last_job_broadcast_seconds",
         prometheus::Metric::Type::Gauge,
         "Idle time since last sserver job broadcast in seconds",
@@ -53,7 +53,7 @@ StratumServerStats::StratumServerStats(StratumServer &server)
         [&chain]() {
           return time(nullptr) - chain.jobRepository_->lastJobSendTime_;
         }));
-    metrics_.push_back(prometheus::CreateMetric(
+    metrics_.push_back(prometheus::CreateMetricFn(
         "sserver_last_job_broadcast_height",
         prometheus::Metric::Type::Gauge,
         "Block height of last sserver job broadcast",
@@ -73,7 +73,7 @@ StratumServerStats::collectMetrics() {
   std::vector<std::shared_ptr<prometheus::Metric>> metrics = metrics_;
   for (auto &chain : server_.chains_) {
     for (auto p : chain.shareStats_) {
-      metrics.push_back(prometheus::CreateMetric(
+      metrics.push_back(prometheus::CreateMetricValue(
           "sserver_shares_per_second_since_last_scrape",
           prometheus::Metric::Type::Gauge,
           "Shares processed by sserver per second since last scrape",

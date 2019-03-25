@@ -22,7 +22,8 @@
  THE SOFTWARE.
 */
 
-#include "Metric.h"
+#define FMT_HEADER_ONLY
+#include "fmt/format.h"
 
 namespace prometheus {
 
@@ -52,6 +53,7 @@ protected:
   std::map<std::string, std::string> labels_;
 };
 
+template <typename T>
 class MetricValue : public MetricBase {
 public:
   MetricValue(
@@ -59,16 +61,26 @@ public:
       Metric::Type type,
       const std::string &help,
       const std::map<std::string, std::string> &labels,
-      double value)
+      const T &value)
     : MetricBase{name, type, help, labels}
     , value_{value} {}
 
-  double getValue() const { return value_; }
+  MetricValue(
+      const std::string &name,
+      Metric::Type type,
+      const std::string &help,
+      const std::map<std::string, std::string> &labels,
+      T &&value)
+    : MetricBase{name, type, help, labels}
+    , value_{std::move(value)} {}
+
+  std::string getValue() const { return fmt::format("{}", value_); }
 
 private:
-  double value_;
+  T value_;
 };
 
+template <typename T>
 class MetricFn : public MetricBase {
 public:
   MetricFn(
@@ -76,32 +88,34 @@ public:
       Metric::Type type,
       const std::string &help,
       const std::map<std::string, std::string> &labels,
-      std::function<double()> valueFn)
+      std::function<T()> valueFn)
     : MetricBase{name, type, help, labels}
     , valueFn_{std::move(valueFn)} {}
 
-  double getValue() const { return valueFn_(); }
+  std::string getValue() const { return fmt::format("{}", valueFn_()); }
 
 private:
-  std::function<double()> valueFn_;
+  std::function<T()> valueFn_;
 };
 
-std::shared_ptr<Metric> CreateMetric(
+template <typename T>
+std::shared_ptr<Metric> CreateMetricValue(
     const std::string &name,
     Metric::Type type,
     const std::string &help,
     const std::map<std::string, std::string> &labels,
-    double value) {
-  return std::make_shared<MetricValue>(name, type, help, labels, value);
+    T value) {
+  return std::make_shared<MetricValue<T>>(name, type, help, labels, value);
 }
 
-std::shared_ptr<Metric> CreateMetric(
+template <typename F>
+std::shared_ptr<Metric> CreateMetricFn(
     const std::string &name,
     Metric::Type type,
     const std::string &help,
     const std::map<std::string, std::string> &labels,
-    std::function<double()> valueFn) {
-  return std::make_shared<MetricFn>(
+    F valueFn) {
+  return std::make_shared<MetricFn<decltype(valueFn())>>(
       name, type, help, labels, std::move(valueFn));
 }
 
