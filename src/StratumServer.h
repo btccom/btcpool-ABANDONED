@@ -228,6 +228,8 @@ public:
     std::map<int32_t, size_t> shareStats_;
   };
 
+  bool acceptStale_;
+
   // ------------------- Development Options: -------------------
   // WARNING: if enable simulator, all share will be accepted. only for test.
   bool isEnableSimulator_;

@@ -111,6 +111,7 @@ public:
   MOCK_METHOD2(sendSetDifficulty, void(LocalJob &, uint64_t));
   MOCK_METHOD1(switchChain, bool(size_t));
   MOCK_METHOD3(reportShare, void(size_t, int32_t, uint64_t));
+  MOCK_CONST_METHOD0(acceptStale, bool());
 };
 
 class StratumMinerMock : public StratumMiner {

@@ -593,3 +593,7 @@ void StratumSession::reportShare(
     ++p.first->second;
   }
 }
+
+bool StratumSession::acceptStale() const {
+  return server_.acceptStale_;
+}

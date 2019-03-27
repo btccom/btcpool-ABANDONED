@@ -377,6 +377,7 @@ StratumServer::StratumServer()
   , base_(nullptr)
   , listener_(nullptr)
   , tcpReadTimeout_(600)
+  , acceptStale_(true)
   , isEnableSimulator_(false)
   , isSubmitInvalidBlock_(false)
   , isDevModeEnable_(false)
@@ -443,6 +444,9 @@ bool StratumServer::setup(const libconfig::Config &config) {
   LOG(INFO) << "WORK_WITH_STRATUM_SWITCHER enabled, miners can only connect to "
                "the sserver via a stratum switcher.";
 #endif
+
+  config.lookupValue("sserver.accept_stale", acceptStale_);
+  LOG_IF(INFO, acceptStale_) << "[Option] stale shares will be accepted.";
 
   // ------------------- Development Options -------------------
 

@@ -95,6 +95,7 @@ public:
   virtual bool switchChain(size_t chainId) = 0;
   virtual void
   reportShare(size_t chainId, int32_t status, uint64_t shareDiff) = 0;
+  virtual bool acceptStale() const = 0;
 };
 
 class StratumSession : public IStratumSession {
@@ -175,6 +176,7 @@ public:
   uint16_t decodeSessionId(const std::string &exMessage) const override {
     return StratumMessageEx::AGENT_MAX_SESSION_ID;
   };
+  bool acceptStale() const override;
 
   StratumServer &getServer() { return server_; }
   StratumWorker &getWorker() { return worker_; }
