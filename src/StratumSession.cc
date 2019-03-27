@@ -77,9 +77,10 @@ StratumSession::StratumSession(
 }
 
 StratumSession::~StratumSession() {
-  LOG(INFO) << "close stratum session, ip: " << clientIp_ << ", name: \""
-            << worker_.fullName_ << "\""
-            << ", agent: \"" << clientAgent_ << "\"";
+  LOG_IF(INFO, state_ != CONNECTED)
+      << "close stratum session, ip: " << clientIp_ << ", name: \""
+      << worker_.fullName_ << "\""
+      << ", agent: \"" << clientAgent_ << "\"";
   evbuffer_free(buffer_);
   bufferevent_free(bev_);
 }

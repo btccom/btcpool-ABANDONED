@@ -967,6 +967,7 @@ void StratumServer::readCallback(struct bufferevent *bev, void *connection) {
 void StratumServer::eventCallback(
     struct bufferevent *bev, short events, void *connection) {
   auto conn = static_cast<StratumSession *>(connection);
+  auto state = conn->getState();
 
   if (conn->getServer().enableTLS_) {
     if (events & BEV_EVENT_CONNECTED) {
@@ -979,14 +980,17 @@ void StratumServer::eventCallback(
   }
 
   if (events & BEV_EVENT_EOF) {
-    LOG(INFO) << "socket closed";
+    LOG_IF(INFO, state != StratumSession::CONNECTED) << "socket closed";
   } else if (events & BEV_EVENT_ERROR) {
-    LOG(INFO) << "got an error on the socket: "
-              << evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR());
+    LOG_IF(INFO, state != StratumSession::CONNECTED)
+        << "got an error on the socket: "
+        << evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR());
   } else if (events & BEV_EVENT_TIMEOUT) {
-    LOG(INFO) << "socket read/write timeout, events: " << events;
+    LOG_IF(INFO, state != StratumSession::CONNECTED)
+        << "socket read/write timeout, events: " << events;
   } else {
-    LOG(ERROR) << "unhandled socket events: " << events;
+    LOG_IF(ERROR, state != StratumSession::CONNECTED)
+        << "unhandled socket events: " << events;
   }
   conn->getServer().removeConnection(*conn);
 }
