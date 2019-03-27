@@ -88,6 +88,7 @@ public:
   virtual uint16_t decodeSessionId(const std::string &exMessage) const = 0;
   virtual StratumMessageDispatcher &getDispatcher() = 0;
   virtual void responseTrue(const std::string &idStr) = 0;
+  virtual void responseTrueWithCode(const std::string &idStr, int code) = 0;
   virtual void responseError(const std::string &idStr, int code) = 0;
   virtual void sendData(const char *data, size_t len) = 0;
   virtual void sendData(const std::string &str) = 0;
@@ -204,6 +205,10 @@ public:
   // checkUserAndPwd(). We need override them to respond JSON-RPC 2.0 responses
   // in ETHProxy and Beam authentication.
   virtual void responseTrue(const std::string &idStr) override;
+  virtual void
+  responseTrueWithCode(const std::string &idStr, int code) override {
+    responseTrue(idStr);
+  }
   virtual void responseError(const std::string &idStr, int code) override;
   virtual void responseAuthorizeSuccess(const std::string &idStr);
 

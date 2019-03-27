@@ -52,6 +52,11 @@ void StratumMessageNullDispatcher::responseShareAccepted(const string &idStr) {
   NULL_DISPATCHER_LOG;
 }
 
+void StratumMessageNullDispatcher::responseShareAcceptedWithStatus(
+    const std::string &idStr, int32_t status) {
+  NULL_DISPATCHER_LOG;
+}
+
 void StratumMessageNullDispatcher::responseShareError(
     const string &idStr, int32_t status) {
   NULL_DISPATCHER_LOG;
@@ -95,6 +100,11 @@ void StratumMessageMinerDispatcher::handleExMessage(const string &exMessage) {
 
 void StratumMessageMinerDispatcher::responseShareAccepted(const string &idStr) {
   session_.responseTrue(idStr);
+}
+
+void StratumMessageMinerDispatcher::responseShareAcceptedWithStatus(
+    const std::string &idStr, int32_t status) {
+  session_.responseTrueWithCode(idStr, status);
 }
 
 void StratumMessageMinerDispatcher::responseShareError(

@@ -50,6 +50,8 @@ public:
       const JsonNode &jroot) = 0;
   virtual void handleExMessage(const std::string &exMessage) = 0;
   virtual void responseShareAccepted(const std::string &idStr) = 0;
+  virtual void
+  responseShareAcceptedWithStatus(const std::string &idStr, int32_t status) = 0;
   virtual void responseShareError(const std::string &idStr, int32_t status) = 0;
   virtual void setMinDiff(uint64_t minDiff) = 0;
   virtual void resetCurDiff(uint64_t curDiff) = 0;
@@ -66,6 +68,8 @@ public:
       const JsonNode &jroot) override;
   void handleExMessage(const std::string &exMessage) override;
   void responseShareAccepted(const std::string &idStr) override;
+  void responseShareAcceptedWithStatus(
+      const std::string &idStr, int32_t status) override;
   void responseShareError(const std::string &idStr, int32_t status) override;
   void setMinDiff(uint64_t minDiff) override;
   void resetCurDiff(uint64_t curDiff) override;
@@ -85,6 +89,8 @@ public:
       const JsonNode &jroot) override;
   void handleExMessage(const std::string &exMessage) override;
   void responseShareAccepted(const std::string &idStr) override;
+  void responseShareAcceptedWithStatus(
+      const std::string &idStr, int32_t status) override;
   void responseShareError(const std::string &idStr, int32_t status) override;
   void setMinDiff(uint64_t minDiff) override;
   void resetCurDiff(uint64_t curDiff) override;
@@ -109,6 +115,8 @@ public:
       const JsonNode &jroot) override;
   void handleExMessage(const std::string &exMessage) override;
   void responseShareAccepted(const std::string &idStr) override {}
+  void responseShareAcceptedWithStatus(
+      const std::string &idStr, int32_t status) override {}
   void responseShareError(const std::string &idStr, int32_t status) override {}
   void setMinDiff(uint64_t minDiff) override;
   void resetCurDiff(uint64_t curDiff) override;

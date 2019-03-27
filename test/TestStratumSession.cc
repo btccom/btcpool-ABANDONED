@@ -105,6 +105,7 @@ public:
   MOCK_CONST_METHOD1(decodeSessionId, uint16_t(const string &));
   MOCK_METHOD0(getDispatcher, StratumMessageDispatcher &());
   MOCK_METHOD1(responseTrue, void(const string &));
+  MOCK_METHOD2(responseTrueWithCode, void(const string &, int));
   MOCK_METHOD2(responseError, void(const string &, int));
   MOCK_METHOD2(sendData, void(const char *, size_t));
   MOCK_METHOD1(sendData, void(const string &));

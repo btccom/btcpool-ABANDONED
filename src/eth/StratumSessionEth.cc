@@ -413,6 +413,22 @@ void StratumSessionEth::responseTrue(const string &idStr) {
   }
 }
 
+void StratumSessionEth::responseTrueWithCode(const string &idStr, int code) {
+  string s;
+  if (StratumProtocolEth::ETHPROXY == ethProtocol_) {
+    s = Strings::Format(
+        "{\"id\":%s,\"jsonrpc\":\"2.0\",\"result\":true,\"message\":\"%s\"}\n",
+        idStr.c_str(),
+        StratumStatus::toString(code));
+  } else {
+    s = Strings::Format(
+        "{\"id\":%s,\"result\":true,\"error\":null,\"message\":\"%s\"}\n",
+        idStr.c_str(),
+        StratumStatus::toString(code));
+  }
+  sendData(s);
+}
+
 void StratumSessionEth::responseFalse(const string &idStr, int code) {
   if (StratumProtocolEth::ETHPROXY == ethProtocol_) {
     rpc2ResponseFalse(idStr, code);
