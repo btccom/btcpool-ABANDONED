@@ -51,35 +51,8 @@ static const uint32_t BITS_DIFF1 = 0x1d00ffff;
 
 static const uint32_t SHIFTS_DIFF1 = (BITS_DIFF1 >> 24) & 0xff;
 static const auto TARGET_DIFF1 = arith_uint256().SetCompact(BITS_DIFF1);
-
-static uint32_t _DiffToBits(uint64_t diff) {
-  uint64_t nbytes = (BITS_DIFF1 >> 24) & 0xff;
-  uint64_t value = BITS_DIFF1 & 0xffffffULL;
-
-  if (diff == 0) {
-    return 1;
-  }
-
-  while (diff % 256 == 0) {
-    nbytes -= 1;
-    diff /= 256;
-  }
-
-  if (value % diff == 0) {
-    value /= diff;
-  } else if ((value << 8) % diff == 0) {
-    nbytes -= 1;
-    value <<= 8;
-    value /= diff;
-  } else {
-    return 1;
-  }
-
-  if (value > 0x00ffffffULL) {
-    return 1; // overflow... should not happen
-  }
-  return (uint32_t)(value | (nbytes << 24));
-}
+static const auto MAX_TARGET = uint256S(
+    "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 
 static std::array<uint256, 64> GenerateDiff2TargetTable() {
   std::array<uint256, 64> table;
@@ -93,18 +66,22 @@ static std::array<uint256, 64> GenerateDiff2TargetTable() {
 static const auto kDiff2TargetTable = GenerateDiff2TargetTable();
 
 void DiffToTarget(uint64_t diff, uint256 &target, bool useTable) {
+  if (diff == 0) {
+    target = MAX_TARGET;
+    return;
+  }
+
   if (useTable) {
     // try to find by table
     const uint64_t p = (uint64_t)log2(diff);
-    if (p < (sizeof(kDiff2TargetTable) / sizeof(kDiff2TargetTable[0])) &&
-        diff == (1ull << p)) {
+    if (p < kDiff2TargetTable.size() && diff == (1ull << p)) {
       target = kDiff2TargetTable[p];
       return;
     }
   }
 
-  // if we use the above table, it's big enough, we don't need to calc anymore
-  BitsToTarget(_DiffToBits(diff), target);
+  // If it is not found in the table, it will be calculated.
+  target = ArithToUint256(TARGET_DIFF1 / diff);
 }
 
 void BitsToDifficulty(uint32_t bits, double *difficulty) {

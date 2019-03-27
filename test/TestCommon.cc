@@ -145,6 +145,23 @@ TEST(Common, DiffToTarget) {
   ASSERT_EQ(target, t2);
 }
 
+TEST(Common, DiffToTargetTable) {
+  uint256 t1, t2;
+
+  for (uint64_t i = 0; i < 10240; i++) {
+    DiffToTarget(i, t1, false);
+    DiffToTarget(i, t2, true);
+    ASSERT_EQ(t1, t2);
+  }
+
+  for (uint32_t i = 0; i < 64; i++) {
+    uint64_t diff = 1 << i;
+    DiffToTarget(diff, t1, false);
+    DiffToTarget(diff, t2, true);
+    ASSERT_EQ(t1, t2);
+  }
+}
+
 TEST(Common, uint256) {
   uint256 u1, u2;
 
