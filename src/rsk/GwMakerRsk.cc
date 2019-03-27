@@ -66,8 +66,8 @@ string GwMakerHandlerRsk::constructRawMsg(JsonNode &r) {
   return Strings::Format(
       "{\"created_at_ts\":%u,"
       "\"chainType\":\"%s\","
-      "\"rpcAddress\":\"%s\","
-      "\"rpcUserPwd\":\"%s\","
+      "\"rskdRpcAddress\":\"%s\","
+      "\"rskdRpcUserPwd\":\"%s\","
       "\"target\":\"%s\","
       "\"parentBlockHash\":\"%s\","
       "\"blockHashForMergedMining\":\"%s\","
