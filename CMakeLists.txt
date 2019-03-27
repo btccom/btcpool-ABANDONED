@@ -271,6 +271,8 @@ if (NOT EXISTS ${BITCOIN_LIBRARIE})
     execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./zcutil/build.sh ${MAKE_JOBS})
 
   else()
+    execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./autogen.sh)
+  
     if (NOT CHAIN_ENABLE_WALLET)
       execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./configure --with-gui=no --disable-wallet --disable-tests --disable-bench)
     else()
