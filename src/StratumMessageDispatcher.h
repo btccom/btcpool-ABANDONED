@@ -57,6 +57,11 @@ public:
   virtual void resetCurDiff(uint64_t curDiff) = 0;
   virtual void addLocalJob(LocalJob &localJob) = 0;
   virtual void removeLocalJob(LocalJob &localJob) = 0;
+
+  // Some states (such as agent workers) may need to be updated after
+  // switching chain
+  virtual void beforeSwitchChain(){};
+  virtual void afterSwitchChain(){};
 };
 
 class StratumMessageNullDispatcher : public StratumMessageDispatcher {
@@ -122,6 +127,9 @@ public:
   void resetCurDiff(uint64_t curDiff) override;
   void addLocalJob(LocalJob &localJob) override;
   void removeLocalJob(LocalJob &localJob) override;
+
+  void beforeSwitchChain() override;
+  void afterSwitchChain() override;
 
 protected:
   void handleExMessage_RegisterWorker(const std::string &exMessage);

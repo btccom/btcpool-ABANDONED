@@ -65,6 +65,10 @@ public:
   virtual uint64_t addLocalJob(LocalJob &localJob) = 0;
   virtual void removeLocalJob(LocalJob &localJob) = 0;
 
+  const int64_t workerId() { return workerId_; }
+  const std::string &workerName() { return workerName_; }
+  const std::string &clientAgent() { return clientAgent_; }
+
 protected:
   bool handleShare(
       const std::string &idStr,

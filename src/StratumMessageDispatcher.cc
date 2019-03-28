@@ -242,6 +242,28 @@ void StratumMessageAgentDispatcher::removeLocalJob(LocalJob &localJob) {
   }
 }
 
+void StratumMessageAgentDispatcher::beforeSwitchChain() {
+  // remove worker from the old chain
+  for (auto &itr : miners_) {
+    auto &miner = itr.second;
+    if (miner) {
+      session_.removeWorker(
+          miner->clientAgent(), miner->workerName(), miner->workerId());
+    }
+  }
+}
+
+void StratumMessageAgentDispatcher::afterSwitchChain() {
+  // add worker to the new chain
+  for (auto &itr : miners_) {
+    auto &miner = itr.second;
+    if (miner) {
+      session_.addWorker(
+          miner->clientAgent(), miner->workerName(), miner->workerId());
+    }
+  }
+}
+
 void StratumMessageAgentDispatcher::handleExMessage_RegisterWorker(
     const string &exMessage) {
   //
@@ -322,6 +344,11 @@ void StratumMessageAgentDispatcher::registerWorker(
 }
 
 void StratumMessageAgentDispatcher::unregisterWorker(uint32_t sessionId) {
+  auto &miner = miners_[sessionId];
+  if (miner) {
+    session_.removeWorker(
+        miner->clientAgent(), miner->workerName(), miner->workerId());
+  }
   miners_.erase(sessionId);
 }
 

@@ -218,26 +218,36 @@ void StratumSession::logAuthorizeResult(bool success, const string &password) {
   }
 }
 
-string StratumSession::getMinerInfoJson(const string &type) {
+string StratumSession::getMinerInfoJson(
+    const string &action,
+    const int64_t workerId,
+    const string &workerName,
+    const string &minerAgent,
+    const string &desc) {
   return Strings::Format(
       "{\"created_at\":\"%s\","
-      "\"type\":\"%s\","
+      "\"type\":\"worker_update\","
+      "\"action\":\"%s\","
       "\"content\":{"
-      "\"user_id\":%d,\"user_name\":\"%s\","
+      "\"user_id\":%d,"
+      "\"user_name\":\"%s\","
       "\"worker_id\":%d,"
       "\"worker_name\":\"%s\","
-      "\"client_agent\":\"%s\",\"ip\":\"%s\","
-      "\"session_id\":\"%08x\""
+      "\"miner_agent\":\"%s\","
+      "\"ip\":\"%s\","
+      "\"session_id\":\"%08x\","
+      "\"desc\":\"%s\""
       "}}",
       date("%F %T"),
-      type,
+      action,
       worker_.userId(),
       worker_.userName_,
-      worker_.workerHashId_,
-      worker_.workerName_,
-      clientAgent_,
+      workerId,
+      workerName,
+      minerAgent,
       clientIp_,
-      sessionId_);
+      sessionId_,
+      desc);
 }
 
 bool StratumSession::autoRegCallback(const string &userName) {
@@ -336,16 +346,37 @@ bool StratumSession::switchChain(size_t chainId) {
     return false;
   }
 
-  worker_.setChainIdAndUserId(chainId, userId);
-  server_.userInfo_->addWorker(
-      chainId,
-      worker_.userId(),
-      worker_.workerHashId_,
-      worker_.workerName_,
-      clientAgent_);
+  bool miningOnOldChain = worker_.chainId_ != chainId && worker_.userId() > 0;
+  if (miningOnOldChain) {
+    // sent events to old chain's kafka: worker_update
+    server_.sendCommonEvents2Kafka(
+        worker_.chainId_,
+        getMinerInfoJson(
+            "miner_dead",
+            worker_.workerHashId_,
+            worker_.workerName_,
+            clientAgent_,
+            "switch_chain"));
 
-  // sent events to kafka: miner_connect
-  server_.sendCommonEvents2Kafka(chainId, getMinerInfoJson("miner_connect"));
+    dispatcher_->beforeSwitchChain();
+  }
+
+  worker_.setChainIdAndUserId(chainId, userId);
+
+  // sent events to new chain's kafka: worker_update
+  server_.sendCommonEvents2Kafka(
+      chainId,
+      getMinerInfoJson(
+          "miner_connect",
+          worker_.workerHashId_,
+          worker_.workerName_,
+          clientAgent_,
+          miningOnOldChain ? "switch_chain" : "new_conn"));
+
+  if (miningOnOldChain) {
+    dispatcher_->afterSwitchChain();
+  }
+
   return true;
 }
 
@@ -427,8 +458,24 @@ void StratumSession::addWorker(
     LOG(ERROR) << "curr stratum session has NOT auth yet";
     return;
   }
-  server_.userInfo_->addWorker(
-      worker_.chainId_, worker_.userId(), workerId, workerName, clientAgent);
+  server_.sendCommonEvents2Kafka(
+      worker_.chainId_,
+      getMinerInfoJson(
+          "miner_connect", workerId, workerName, clientAgent, "from_btcagent"));
+}
+
+void StratumSession::removeWorker(
+    const std::string &clientAgent,
+    const std::string &workerName,
+    int64_t workerId) {
+  if (state_ != AUTHENTICATED) {
+    LOG(ERROR) << "curr stratum session has NOT auth yet";
+    return;
+  }
+  server_.sendCommonEvents2Kafka(
+      worker_.chainId_,
+      getMinerInfoJson(
+          "miner_dead", workerId, workerName, clientAgent, "from_btcagent"));
 }
 
 void StratumSession::markAsDead() {
@@ -438,7 +485,13 @@ void StratumSession::markAsDead() {
   // sent event to kafka: miner_dead
   if (worker_.userId() > 0) {
     server_.sendCommonEvents2Kafka(
-        worker_.chainId_, getMinerInfoJson("miner_dead"));
+        worker_.chainId_,
+        getMinerInfoJson(
+            "miner_dead",
+            worker_.workerHashId_,
+            worker_.workerName_,
+            clientAgent_,
+            "del_conn"));
   }
 }
 

@@ -468,30 +468,6 @@ void StratumSessionBitcoin::logAuthorizeResult(
   }
 }
 
-string StratumSessionBitcoin::getMinerInfoJson(const string &type) {
-  return Strings::Format(
-      "{"
-      "\"created_at\":\"%s\","
-      "\"type\":\"%s\","
-      "\"content\":{"
-      "\"user_id\":%d,\"user_name\":\"%s\","
-      "\"worker_id\":%d,"
-      "\"worker_name\":\"%s\","
-      "\"client_agent\":\"%s\",\"ip\":\"%s\","
-      "\"session_id\":\"%08x\",\"version_mask\":\"%08x\""
-      "}}",
-      date("%F %T"),
-      type,
-      worker_.userId(),
-      worker_.userName_,
-      worker_.workerHashId_,
-      worker_.workerName_,
-      clientAgent_,
-      clientIp_,
-      sessionId_,
-      versionMask_);
-}
-
 unique_ptr<StratumMessageDispatcher> StratumSessionBitcoin::createDispatcher() {
   if (isAgentClient_) {
     return std::make_unique<StratumMessageAgentDispatcher>(

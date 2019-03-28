@@ -81,6 +81,10 @@ public:
       const std::string &clientAgent,
       const std::string &workerName,
       int64_t workerId) = 0;
+  virtual void removeWorker(
+      const std::string &clientAgent,
+      const std::string &workerName,
+      int64_t workerId) = 0;
   virtual std::unique_ptr<StratumMiner> createMiner(
       const std::string &clientAgent,
       const std::string &workerName,
@@ -157,7 +161,12 @@ protected:
   void setClientAgent(const string &clientAgent);
 
   virtual void logAuthorizeResult(bool success, const string &password);
-  virtual string getMinerInfoJson(const string &type);
+  string getMinerInfoJson(
+      const string &action,
+      const int64_t workerId,
+      const string &workerName,
+      const string &minerAgent,
+      const string &desc);
 
   virtual bool validate(
       const JsonNode &jmethod, const JsonNode &jparams, const JsonNode &jroot);
@@ -191,6 +200,10 @@ public:
   bool isDead() const;
   void markAsDead();
   void addWorker(
+      const std::string &clientAgent,
+      const std::string &workerName,
+      int64_t workerId) override;
+  void removeWorker(
       const std::string &clientAgent,
       const std::string &workerName,
       int64_t workerId) override;

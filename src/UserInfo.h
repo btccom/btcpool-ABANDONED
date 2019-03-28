@@ -62,11 +62,6 @@ class UserInfo {
     int64_t lastTime_;
 #endif
 
-    // workerName
-    std::mutex *workerNameLock_;
-    std::deque<WorkerName> workerNameQ_;
-
-    thread threadInsertWorkerName_;
     thread threadUpdate_;
   };
 
@@ -91,9 +86,6 @@ class UserInfo {
   pthread_rwlock_t nameChainlock_;
   // username -> chainId
   std::unordered_map<string, size_t> nameChains_;
-
-  void runThreadInsertWorkerName(size_t chainId);
-  int32_t insertWorkerName(size_t chainId);
 
   void runThreadUpdate(size_t chainId);
   int32_t incrementalUpdateUsers(size_t chainId);
@@ -126,13 +118,6 @@ public:
 #ifdef USER_DEFINED_COINBASE
   string getCoinbaseInfo(size_t chainId, int32_t userId);
 #endif
-
-  void addWorker(
-      const size_t chainId,
-      const int32_t userId,
-      const int64_t workerId,
-      const string &workerName,
-      const string &minerAgent);
 
   bool autoRegEnabled() const { return enableAutoReg_; }
   bool tryAutoReg(string userName, uint32_t sessionId, string fullWorkerName);

@@ -77,9 +77,6 @@ UserInfo::UserInfo(StratumServer *server, const libconfig::Config &config)
         {}, // idCoinbaseInfos_
         0, // lastTime_
 #endif
-        new std::mutex(), // workerNameLock_
-        {}, // workerNameQ_
-        {}, // threadInsertWorkerName_
         {} // threadUpdate_
     });
 
@@ -125,12 +122,8 @@ UserInfo::~UserInfo() {
     if (chain.threadUpdate_.joinable())
       chain.threadUpdate_.join();
 
-    if (chain.threadInsertWorkerName_.joinable())
-      chain.threadInsertWorkerName_.join();
-
     pthread_rwlock_destroy(chain.nameIdlock_);
     delete chain.nameIdlock_;
-    delete chain.workerNameLock_;
   }
 }
 
@@ -490,88 +483,9 @@ bool UserInfo::setupThreads() {
     ChainVars &chain = chains_[chainId];
 
     chain.threadUpdate_ = thread(&UserInfo::runThreadUpdate, this, chainId);
-    chain.threadInsertWorkerName_ =
-        thread(&UserInfo::runThreadInsertWorkerName, this, chainId);
   }
 
   return true;
-}
-
-void UserInfo::addWorker(
-    const size_t chainId,
-    const int32_t userId,
-    const int64_t workerId,
-    const string &workerName,
-    const string &minerAgent) {
-  ChainVars &chain = chains_[chainId];
-  ScopeLock sl(*chain.workerNameLock_);
-
-  // insert to Q
-  chain.workerNameQ_.push_back(WorkerName());
-  chain.workerNameQ_.rbegin()->userId_ = userId;
-  chain.workerNameQ_.rbegin()->workerId_ = workerId;
-
-  // worker name
-  snprintf(
-      chain.workerNameQ_.rbegin()->workerName_,
-      sizeof(chain.workerNameQ_.rbegin()->workerName_),
-      "%s",
-      workerName.c_str());
-  // miner agent
-  snprintf(
-      chain.workerNameQ_.rbegin()->minerAgent_,
-      sizeof(chain.workerNameQ_.rbegin()->minerAgent_),
-      "%s",
-      minerAgent.c_str());
-}
-
-void UserInfo::runThreadInsertWorkerName(size_t chainId) {
-  while (running_) {
-    if (insertWorkerName(chainId) > 0) {
-      continue;
-    }
-    std::this_thread::sleep_for(1s);
-  }
-}
-
-int32_t UserInfo::insertWorkerName(size_t chainId) {
-  ChainVars &chain = chains_[chainId];
-  std::deque<WorkerName>::iterator itr = chain.workerNameQ_.end();
-  {
-    ScopeLock sl(*chain.workerNameLock_);
-    if (chain.workerNameQ_.size() == 0)
-      return 0;
-    itr = chain.workerNameQ_.begin();
-  }
-
-  if (itr == chain.workerNameQ_.end())
-    return 0;
-
-  // sent events to kafka: worker_update
-  {
-    string eventJson;
-    eventJson = Strings::Format(
-        "{\"created_at\":\"%s\","
-        "\"type\":\"worker_update\","
-        "\"content\":{"
-        "\"user_id\":%d,"
-        "\"worker_id\":%d,"
-        "\"worker_name\":\"%s\","
-        "\"miner_agent\":\"%s\""
-        "}}",
-        date("%F %T"),
-        itr->userId_,
-        itr->workerId_,
-        itr->workerName_,
-        itr->minerAgent_);
-    server_->sendCommonEvents2Kafka(chainId, eventJson);
-  }
-
-  {
-    ScopeLock sl(*chain.workerNameLock_);
-    chain.workerNameQ_.pop_front();
-  }
-  return 1;
 }
 
 void UserInfo::handleAutoRegEvent(

@@ -99,6 +99,7 @@ TEST(StratumSession, LocalJob) {
 class StratumSessionMock : public IStratumSession {
 public:
   MOCK_METHOD3(addWorker, void(const string &, const string &, int64_t));
+  MOCK_METHOD3(removeWorker, void(const string &, const string &, int64_t));
   MOCK_METHOD3(
       createMiner,
       unique_ptr<StratumMiner>(const string &, const string &, int64_t));
