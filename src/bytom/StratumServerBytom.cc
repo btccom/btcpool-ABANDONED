@@ -39,7 +39,7 @@ void JobRepositoryBytom::broadcastStratumJob(shared_ptr<StratumJob> sjobBase) {
   auto sjob = std::static_pointer_cast<StratumJobBytom>(sjobBase);
 
   bool isClean = false;
-  if (lastHeight_ > sjob->blockHeader_.height) {
+  if (sjob->blockHeader_.height > lastHeight_) {
     isClean = true;
     lastHeight_ = sjob->blockHeader_.height;
     LOG(INFO) << "received new height stratum job, height: "
