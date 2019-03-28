@@ -54,6 +54,10 @@ static const auto TARGET_DIFF1 = arith_uint256().SetCompact(BITS_DIFF1);
 static const auto MAX_TARGET = uint256S(
     "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 
+uint32_t GetDiff1Bits() {
+  return BITS_DIFF1;
+}
+
 static std::array<uint256, 64> GenerateDiff2TargetTable() {
   std::array<uint256, 64> table;
   uint32_t shifts = 0;

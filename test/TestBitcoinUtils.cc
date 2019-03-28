@@ -27,106 +27,97 @@
 
 #include "bitcoin/BitcoinUtils.h"
 
-////////////////////////////////  Block Rewards
-////////////////////////////////////
-TEST(BitcoinUtils, GetBlockReward) {
+/////////////////////////  Block Rewards /////////////////////////
+void TestBitcoinBlockReward(int height, int64_t expectedReward) {
   // using mainnet
   SelectParams(CBaseChainParams::MAIN);
   auto consensus = Params().GetConsensus();
   int64_t reward = 0;
 
-  reward = GetBlockReward(1, consensus);
-  ASSERT_EQ(reward, 5000000000); // 50 BTC
+  reward = GetBlockReward(height, consensus);
+  ASSERT_EQ(reward, expectedReward);
+}
 
-  reward = GetBlockReward(3333, consensus);
-  ASSERT_EQ(reward, 5000000000); // 50 BTC
-
-  reward = GetBlockReward(200009, consensus);
-  ASSERT_EQ(reward, 5000000000); // 50 BTC
-
-  reward = GetBlockReward(210000, consensus);
-  ASSERT_EQ(reward, 2500000000); // 25 BTC
-
-  reward = GetBlockReward(382525, consensus);
-  ASSERT_EQ(reward, 2500000000); // 25 BTC
-
-  reward = GetBlockReward(419999, consensus);
-  ASSERT_EQ(reward, 2500000000); // 25 BTC
-
-  reward = GetBlockReward(420000, consensus);
-  ASSERT_EQ(reward, 1250000000); // 12.5 BTC
-
-  reward = GetBlockReward(504031, consensus);
-  ASSERT_EQ(reward, 1250000000); // 12.5 BTC
-
-  reward = GetBlockReward(629999, consensus);
-#ifndef CHAIN_TYPE_UBTC
-  ASSERT_EQ(reward, 1250000000); // 12.5 BTC
+#ifdef CHAIN_TYPE_LTC
+TEST(BitcoinUtils, GetBlockRewardLitecoin) {
+  TestBitcoinBlockReward(1, 5000000000);
+  TestBitcoinBlockReward(3333, 5000000000);
+  TestBitcoinBlockReward(200009, 5000000000);
+  TestBitcoinBlockReward(210000, 5000000000);
+  TestBitcoinBlockReward(382525, 5000000000);
+  TestBitcoinBlockReward(419999, 5000000000);
+  TestBitcoinBlockReward(420000, 5000000000);
+  TestBitcoinBlockReward(504031, 5000000000);
+  TestBitcoinBlockReward(629999, 5000000000);
+  TestBitcoinBlockReward(630000, 5000000000);
+  TestBitcoinBlockReward(700000, 5000000000);
+  TestBitcoinBlockReward(5000000, 156250000);
+  TestBitcoinBlockReward(6719999, 39062500);
+  TestBitcoinBlockReward(6720000, 19531250);
+  TestBitcoinBlockReward(6929999, 19531250);
+  TestBitcoinBlockReward(6930000, 19531250);
+  TestBitcoinBlockReward(13300000, 152587);
+  TestBitcoinBlockReward(70000000, 0);
+}
+#elif defined(CHAIN_TYPE_ZEC)
+TEST(BitcoinUtils, GetBlockRewardZCash) {
+  TestBitcoinBlockReward(1, 50000);
+  TestBitcoinBlockReward(3333, 166650000);
+  TestBitcoinBlockReward(200009, 1000000000);
+  TestBitcoinBlockReward(210000, 1000000000);
+  TestBitcoinBlockReward(382525, 1000000000);
+  TestBitcoinBlockReward(419999, 1000000000);
+  TestBitcoinBlockReward(420000, 1000000000);
+  TestBitcoinBlockReward(504031, 1000000000);
+  TestBitcoinBlockReward(629999, 1000000000);
+  TestBitcoinBlockReward(630000, 1000000000);
+  TestBitcoinBlockReward(700000, 1000000000);
+  TestBitcoinBlockReward(5000000, 39062500);
+  TestBitcoinBlockReward(6719999, 9765625);
+  TestBitcoinBlockReward(6720000, 9765625);
+  TestBitcoinBlockReward(6929999, 4882812);
+  TestBitcoinBlockReward(6930000, 4882812);
+  TestBitcoinBlockReward(13300000, 38146);
+  TestBitcoinBlockReward(70000000, 0);
+}
 #else
-  ASSERT_EQ(reward, 100000000); // 1 UBTC
-#endif
+TEST(BitcoinUtils, GetBlockRewardBitcoin) {
+  TestBitcoinBlockReward(1, 5000000000); // 50 BTC
+  TestBitcoinBlockReward(3333, 5000000000); // 50 BTC
+  TestBitcoinBlockReward(200009, 5000000000); // 50 BTC
+  TestBitcoinBlockReward(210000, 2500000000); // 25 BTC
+  TestBitcoinBlockReward(382525, 2500000000); // 25 BTC
+  TestBitcoinBlockReward(419999, 2500000000); // 25 BTC
+  TestBitcoinBlockReward(420000, 1250000000); // 12.5 BTC
+  TestBitcoinBlockReward(504031, 1250000000); // 12.5 BTC
 
-  reward = GetBlockReward(630000, consensus);
-#ifndef CHAIN_TYPE_UBTC
-  ASSERT_EQ(reward, 625000000); // 6.25 BTC
+#ifdef CHAIN_TYPE_UBTC
+  TestBitcoinBlockReward(629999, 100000000); // 1 UBTC
+  TestBitcoinBlockReward(630000, 100000000); // 1 UBTC
+  TestBitcoinBlockReward(700000, 100000000); // 1 UBTC
+  TestBitcoinBlockReward(5000000, 25000000); // 0.25 UBTC
+  TestBitcoinBlockReward(6719999, 12500000); // 0.125 UBTC
+  TestBitcoinBlockReward(6720000, 12500000); // 0.125 UBTC
+  TestBitcoinBlockReward(6929999, 12500000); // 0.125 UBTC
+  TestBitcoinBlockReward(6930000, 12500000); // 0.125 UBTC
+  TestBitcoinBlockReward(13300000, 1562500); // 0.015625 UBTC
 #else
-  ASSERT_EQ(reward, 100000000); // 1 UBTC
-#endif
-
-  reward = GetBlockReward(700000, consensus);
-#ifndef CHAIN_TYPE_UBTC
-  ASSERT_EQ(reward, 625000000); // 6.25 BTC
-#else
-  ASSERT_EQ(reward, 100000000); // 1 UBTC
-#endif
-
-  reward = GetBlockReward(5000000, consensus);
-#ifndef CHAIN_TYPE_UBTC
-  ASSERT_EQ(reward, 596); // 596 satoshi
-#else
-  ASSERT_EQ(reward, 25000000); // 0.25 UBTC
-#endif
-
-  reward = GetBlockReward(6719999, consensus);
-#ifndef CHAIN_TYPE_UBTC
-  ASSERT_EQ(reward, 2); // 2 satoshi
-#else
-  ASSERT_EQ(reward, 12500000); // 0.125 UBTC
-#endif
-
+  TestBitcoinBlockReward(629999, 1250000000); // 12.5 BTC
+  TestBitcoinBlockReward(630000, 625000000); // 6.25 BTC
+  TestBitcoinBlockReward(700000, 625000000); // 6.25 BTC
+  TestBitcoinBlockReward(5000000, 596); // 596 satoshi
+  TestBitcoinBlockReward(6719999, 2); // 2 satoshi
   // The 32th halvings.
-  reward = GetBlockReward(6720000, consensus);
-#ifndef CHAIN_TYPE_UBTC
-  ASSERT_EQ(reward, 1); // 1 satoshi
-#else
-  ASSERT_EQ(reward, 12500000); // 0.125 UBTC
-#endif
-
-  reward = GetBlockReward(6929999, consensus);
-#ifndef CHAIN_TYPE_UBTC
-  ASSERT_EQ(reward, 1); // 1 satoshi
-#else
-  ASSERT_EQ(reward, 12500000); // 0.125 UBTC
-#endif
-
+  TestBitcoinBlockReward(6720000, 1); // 1 satoshi
+  TestBitcoinBlockReward(6929999, 1); // 1 satoshi
   // The 33th and the lastest halvings.
-  reward = GetBlockReward(6930000, consensus);
-#ifndef CHAIN_TYPE_UBTC
-  ASSERT_EQ(reward, 0); // 0 satoshi
-#else
-  ASSERT_EQ(reward, 12500000); // 0.125 UBTC
-#endif
-
+  TestBitcoinBlockReward(6930000, 0); // 0 satoshi
   // The 63th halvings (in fact does not exist).
   // Detects if the calculation method is affected by the int64_t sign bit.
   // If the method is affected by the sign bit, -2 may be returned.
-  reward = GetBlockReward(13300000, consensus);
-#ifndef CHAIN_TYPE_UBTC
-  ASSERT_EQ(reward, 0); // 0 satoshi
-#else
-  ASSERT_EQ(reward, 1562500); // 0.015625 UBTC
+  TestBitcoinBlockReward(13300000, 0); // 0 satoshi
 #endif
 
-  reward = GetBlockReward(70000000, consensus);
-  ASSERT_EQ(reward, 0); // 0 satoshi
+  TestBitcoinBlockReward(70000000, 0); // 0 satoshi
 }
+#endif

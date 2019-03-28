@@ -37,6 +37,8 @@ void DiffToTarget(uint64_t diff, uint256 &target, bool useTable = true);
 void BitsToDifficulty(uint32_t bits, double *difficulty);
 void BitsToDifficulty(uint32_t bits, uint64_t *difficulty);
 
+uint32_t GetDiff1Bits();
+
 ////////////////////////////// for Bitcoin //////////////////////////////
 
 #endif

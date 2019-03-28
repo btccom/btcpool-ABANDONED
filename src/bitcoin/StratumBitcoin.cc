@@ -521,12 +521,22 @@ bool StratumJobBitcoin::initFromGbt(
 
     CTxOut &poolReward = cbtx.vout[0];
     CTxOut &foundersReward = cbtx.vout[1];
+    auto rewardByHeight = GetBlockReward(height_, Params().GetConsensus());
 
     if (foundersReward.nValue > poolReward.nValue) {
       LOG(ERROR) << "wrong coinbase output value, foundersReward.nValue ("
                  << foundersReward.nValue << ") > poolReward.nValue ("
                  << poolReward.nValue << ")"
                  << ", tx data: " << coinbaseStr;
+      return false;
+    }
+
+    if (poolReward.nValue < rewardByHeight) {
+      LOG(ERROR) << "wrong coinbase output value, poolReward.nValue ("
+                 << poolReward.nValue << ") < GetBlockReward(" << height_
+                 << ") (" << rewardByHeight << ")"
+                 << ", tx data: " << coinbaseStr;
+      return false;
     }
 
     poolReward.scriptPubKey = GetScriptForDestination(poolPayoutAddr);

@@ -185,25 +185,64 @@ std::vector<uint256> BlockMerkleBranch(const CBlock &block, uint32_t position) {
 
 #endif
 
-#ifndef CHAIN_TYPE_UBTC
+#ifdef CHAIN_TYPE_ZEC
 
-/////////////////////// Block Reward of BTC, BCH, SBTC ///////////////////////
-int64_t GetBlockReward(int nHeight, const Consensus::Params &consensusParams) {
-  int halvings = nHeight / consensusParams.nSubsidyHalvingInterval;
+/////////////////////// Block Reward of ZCash ///////////////////////
+// @see https://www.zcashcommunity.com/mining/
+// The code copied and edited from
+// https://github.com/zcash/zcash/blob/be1d68ef763ce405d4d04d7f4d3dfbbdd9084687/src/main.cpp#L1732
+static int64_t
+GetFullBlockReward(int nHeight, const Consensus::Params &consensusParams) {
+  int64_t nSubsidy = 12.5 * COIN_TO_SATOSHIS;
+
+  // Mining slow start
+  // The subsidy is ramped up linearly, skipping the middle payout of
+  // MAX_SUBSIDY/2 to keep the monetary curve consistent with no slow start.
+  if (nHeight < consensusParams.nSubsidySlowStartInterval / 2) {
+    nSubsidy /= consensusParams.nSubsidySlowStartInterval;
+    nSubsidy *= nHeight;
+    return nSubsidy;
+  } else if (nHeight < consensusParams.nSubsidySlowStartInterval) {
+    nSubsidy /= consensusParams.nSubsidySlowStartInterval;
+    nSubsidy *= (nHeight + 1);
+    return nSubsidy;
+  }
+
+  assert(nHeight > consensusParams.SubsidySlowStartShift());
+  int halvings = (nHeight - consensusParams.SubsidySlowStartShift()) /
+      consensusParams.nSubsidyHalvingInterval;
   // Force block reward to zero when right shift is undefined.
-  if (halvings >= 64)
+  if (halvings >= 64) {
     return 0;
+  }
 
-  int64_t nSubsidy = 50 * COIN_TO_SATOSHIS;
-
-  // Block reward is cut in half every 210,000 blocks which will occur
-  // approximately every 4 years.
-  nSubsidy >>=
-      halvings; // this line is secure, it copied from bitcoin's validation.cpp
+  // Subsidy is cut in half every 840,000 blocks which will occur approximately
+  // every 4 years.
+  nSubsidy >>= halvings;
   return nSubsidy;
 }
 
-#else
+// Get block rewards that don't include founders rewards
+// The code copied and edited from
+// https://github.com/zcash/zcash/blob/be1d68ef763ce405d4d04d7f4d3dfbbdd9084687/src/main.cpp#L3701
+int64_t GetBlockReward(int nHeight, const Consensus::Params &consensusParams) {
+  int64_t reward = GetFullBlockReward(nHeight, consensusParams);
+
+  // Coinbase transaction must include an output sending 20% of
+  // the block reward to a founders reward script, until the last founders
+  // reward block is reached, with exception of the genesis block.
+  // The last founders reward block is defined as the block just before the
+  // first subsidy halving block, which occurs at halving_interval +
+  // slow_start_shift
+  if ((nHeight > 0) &&
+      (nHeight <= consensusParams.GetLastFoundersRewardBlockHeight())) {
+    reward -= reward / 5;
+  }
+
+  return reward;
+}
+
+#elif defined(CHAIN_TYPE_UBTC)
 
 /////////////////////// Block Reward of UBTC ///////////////////////
 // copied from UnitedBitcoin-v1.1.0.0
@@ -213,8 +252,9 @@ int64_t GetBlockReward(int nHeight, const Consensus::Params &consensusParams) {
   if (nHeight < Params().GetConsensus().ForkV1Height) {
     halvings = nHeight / consensusParams.nSubsidyHalvingInterval;
     // Force block reward to zero when right shift is undefined.
-    if (halvings >= 64)
+    if (halvings >= 64) {
       return 0;
+    }
 
     int64_t nSubsidy = 50 * COIN_TO_SATOSHIS;
     // Subsidy is cut in half every 210,000 blocks which will occur
@@ -238,8 +278,9 @@ int64_t GetBlockReward(int nHeight, const Consensus::Params &consensusParams) {
     }
 
     // Force block reward to zero when right shift is undefined.
-    if (halvings >= 64)
+    if (halvings >= 64) {
       return 0;
+    }
 
     int64_t nSubsidy = 50 * COIN_TO_SATOSHIS;
     // Subsidy is cut in half every 210,000 blocks which will occur
@@ -249,6 +290,25 @@ int64_t GetBlockReward(int nHeight, const Consensus::Params &consensusParams) {
 
     return nSubsidy;
   }
+}
+
+#else
+
+/////////////////////// Block Reward of BTC, BCH, SBTC ///////////////////////
+int64_t GetBlockReward(int nHeight, const Consensus::Params &consensusParams) {
+  int halvings = nHeight / consensusParams.nSubsidyHalvingInterval;
+  // Force block reward to zero when right shift is undefined.
+  if (halvings >= 64) {
+    return 0;
+  }
+
+  int64_t nSubsidy = 50 * COIN_TO_SATOSHIS;
+
+  // Block reward is cut in half every 210,000 blocks which will occur
+  // approximately every 4 years.
+  // this line is secure, it copied from bitcoin's validation.cpp
+  nSubsidy >>= halvings;
+  return nSubsidy;
 }
 
 #endif

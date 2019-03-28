@@ -94,56 +94,93 @@ TEST(Common, BitsToTarget) {
           "00000000000404CB000000000000000000000000000000000000000000000000"));
 }
 
-TEST(Common, DiffToTarget) {
-  uint256 target, t2;
-  DiffToTarget(1, target, false);
-  DiffToTarget(1, t2, true);
-  ASSERT_EQ(
-      target,
-      uint256S(
-          "00000000ffff0000000000000000000000000000000000000000000000000000"));
-  ASSERT_EQ(target, t2);
-
-  DiffToTarget(2, target, false);
-  DiffToTarget(2, t2, true);
-  ASSERT_EQ(
-      target,
-      uint256S(
-          "000000007fff8000000000000000000000000000000000000000000000000000"));
-  ASSERT_EQ(target, t2);
-
-  DiffToTarget(1 << 10, target, false);
-  DiffToTarget(1 << 10, t2, true);
-  ASSERT_EQ(
-      target,
-      uint256S(
-          "00000000003fffc0000000000000000000000000000000000000000000000000"));
-  ASSERT_EQ(target, t2);
-
-  DiffToTarget(1 << 20, target, false);
-  DiffToTarget(1 << 20, t2, true);
-  ASSERT_EQ(
-      target,
-      uint256S(
-          "0000000000000ffff00000000000000000000000000000000000000000000000"));
-  ASSERT_EQ(target, t2);
-
-  DiffToTarget(1 << 30, target, false);
-  DiffToTarget(1 << 30, t2, true);
-  ASSERT_EQ(
-      target,
-      uint256S(
-          "0000000000000003fffc00000000000000000000000000000000000000000000"));
-  ASSERT_EQ(target, t2);
-
-  DiffToTarget(1ll << 63, target, false);
-  DiffToTarget(1ll << 63, t2, true);
-  ASSERT_EQ(
-      target,
-      uint256S(
-          "000000000000000000000001fffe000000000000000000000000000000000000"));
-  ASSERT_EQ(target, t2);
+static void TestDiffToTarget(uint64_t diff, string target) {
+  uint256 targetWithoutTable, targetWithTable;
+  DiffToTarget(diff, targetWithoutTable, false);
+  DiffToTarget(diff, targetWithTable, true);
+  ASSERT_EQ(targetWithoutTable.ToString(), target);
+  ASSERT_EQ(targetWithTable.ToString(), target);
 }
+
+#ifdef CHAIN_TYPE_LTC
+TEST(Common, DiffToTargetLitecoin) {
+  TestDiffToTarget(
+      1ull, "0000ffff00000000000000000000000000000000000000000000000000000000");
+  TestDiffToTarget(
+      2ull, "00007fff80000000000000000000000000000000000000000000000000000000");
+  TestDiffToTarget(
+      3ull, "0000555500000000000000000000000000000000000000000000000000000000");
+  TestDiffToTarget(
+      4ull, "00003fffc0000000000000000000000000000000000000000000000000000000");
+  TestDiffToTarget(
+      1073741831ull,
+      "000000000003fffbff9000700c3ff3bea901572583da77e5941ae2e3cd0f2f15");
+  TestDiffToTarget(
+      1ull << 10,
+      "0000003fffc00000000000000000000000000000000000000000000000000000");
+  TestDiffToTarget(
+      1ull << 20,
+      "000000000ffff000000000000000000000000000000000000000000000000000");
+  TestDiffToTarget(
+      1ull << 30,
+      "000000000003fffc000000000000000000000000000000000000000000000000");
+  TestDiffToTarget(
+      1ull << 63,
+      "00000000000000000001fffe0000000000000000000000000000000000000000");
+}
+#elif defined(CHAIN_TYPE_ZEC)
+TEST(Common, DiffToTargetZCash) {
+  TestDiffToTarget(
+      1ull, "0007ffff00000000000000000000000000000000000000000000000000000000");
+  TestDiffToTarget(
+      2ull, "0003ffff80000000000000000000000000000000000000000000000000000000");
+  TestDiffToTarget(
+      3ull, "0002aaaa55555555555555555555555555555555555555555555555555555555");
+  TestDiffToTarget(
+      4ull, "0001ffffc0000000000000000000000000000000000000000000000000000000");
+  TestDiffToTarget(
+      1073741831ull,
+      "00000000001ffffbfc80007061fff3b54801582c1fda5b2c841e07218cb73854");
+  TestDiffToTarget(
+      1ull << 10,
+      "000001ffffc00000000000000000000000000000000000000000000000000000");
+  TestDiffToTarget(
+      1ull << 20,
+      "000000007ffff000000000000000000000000000000000000000000000000000");
+  TestDiffToTarget(
+      1ull << 30,
+      "00000000001ffffc000000000000000000000000000000000000000000000000");
+  TestDiffToTarget(
+      1ull << 63,
+      "0000000000000000000ffffe0000000000000000000000000000000000000000");
+}
+#else
+TEST(Common, DiffToTargetBitcoin) {
+  TestDiffToTarget(
+      1ull, "00000000ffff0000000000000000000000000000000000000000000000000000");
+  TestDiffToTarget(
+      2ull, "000000007fff8000000000000000000000000000000000000000000000000000");
+  TestDiffToTarget(
+      3ull, "0000000055550000000000000000000000000000000000000000000000000000");
+  TestDiffToTarget(
+      4ull, "000000003fffc000000000000000000000000000000000000000000000000000");
+  TestDiffToTarget(
+      1073741831ull,
+      "0000000000000003fffbff9000700c3ff3bea901572583da77e5941ae2e3cd0f");
+  TestDiffToTarget(
+      1ull << 10,
+      "00000000003fffc0000000000000000000000000000000000000000000000000");
+  TestDiffToTarget(
+      1ull << 20,
+      "0000000000000ffff00000000000000000000000000000000000000000000000");
+  TestDiffToTarget(
+      1ull << 30,
+      "0000000000000003fffc00000000000000000000000000000000000000000000");
+  TestDiffToTarget(
+      1ull << 63,
+      "000000000000000000000001fffe000000000000000000000000000000000000");
+}
+#endif
 
 TEST(Common, DiffToTargetTable) {
   uint256 t1, t2;
@@ -181,160 +218,36 @@ TEST(Common, uint256) {
 }
 
 TEST(Common, TargetToDiff) {
+#ifdef CHAIN_TYPE_LTC
+  uint64_t diff = 1068723138ULL;
+#elif defined(CHAIN_TYPE_ZEC)
+  uint64_t diff = 1068723138ULL;
+#else
   // 0x00000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF /
   // 0x00000000000404CB000000000000000000000000000000000000000000000000
   // = 16307.669773817162 (pdiff)
+  uint64_t diff = 16307ULL;
+#endif
+
   ASSERT_EQ(
       TargetToDiff(
           "0x00000000000404CB000000000000000000000000000000000000000000000000"),
-      16307ULL);
-
-  //  uint256 t;
-  //  DiffToTarget(pow(2, 0), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 1), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 2), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 3), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 4), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 5), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 6), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 7), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 8), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 9), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //
-  //  // 1024
-  //  DiffToTarget(pow(2, 10), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 11), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 12), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 13), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 14), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 15), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 16), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 17), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 18), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 19), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //
-  //  // 1,048,576
-  //  DiffToTarget(pow(2, 20), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 21), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 22), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 23), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 24), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 25), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 26), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 27), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 28), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 29), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //
-  //  // 1,073,741,824
-  //  DiffToTarget(pow(2, 30), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 31), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 32), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 33), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 34), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 35), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 36), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 37), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 38), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 39), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //
-  //  // 1,099,511,627,776
-  //  DiffToTarget(pow(2, 40), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 41), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 42), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 43), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 44), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 45), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 46), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 47), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 48), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 49), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //
-  //  DiffToTarget(pow(2, 50), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 51), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 52), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 53), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 54), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 55), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 56), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 57), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 58), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 59), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //
-  //  DiffToTarget(pow(2, 60), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 61), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 62), t);
-  //  printf("%s\n", t.ToString().c_str());
-  //  DiffToTarget(pow(2, 63), t);
-  //  printf("%s\n", t.ToString().c_str());
+      diff);
 }
 
 TEST(Common, BitsToDifficulty) {
+#ifdef CHAIN_TYPE_LTC
+  uint64_t diff = 10687231386271ull;
+#elif defined(CHAIN_TYPE_ZEC)
+  uint64_t diff = 10687231386271ull;
+#else
+  uint64_t diff = 163074209ull;
+#endif
+
   // 0x1b0404cb: https://en.bitcoin.it/wiki/Difficulty
   double d;
   BitsToDifficulty(0x1b0404cbu, &d); // diff = 16307.420939
-  ASSERT_EQ((uint64_t)(d * 10000.0), 163074209ull);
+  ASSERT_EQ((uint64_t)(d * 10000.0), diff);
 }
 
 TEST(Common, formatDifficulty) {

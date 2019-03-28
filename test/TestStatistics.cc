@@ -177,7 +177,7 @@ TEST(ShareStatsDay, ShareStatsDay) {
 
     // share -> socre = 1 : 1
     // https://btc.com/000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f
-    share.set_blkbits(0x1d00ffffu);
+    share.set_blkbits(GetDiff1Bits());
 
     // accept
     for (uint32_t i = 0; i < 24; i++) { // hour idx range: [0, 23]
@@ -238,19 +238,27 @@ TEST(ShareStatsDay, ShareStatsDay) {
       ASSERT_EQ(ss.shareAccept_, shareValue);
       ASSERT_EQ(ss.shareReject_, shareValue);
 
-#ifndef CHAIN_TYPE_UBTC
-      ASSERT_EQ((uint64_t)ss.earn_, 24697859UL); // satoshi
+#ifdef CHAIN_TYPE_LTC
+      ASSERT_EQ((uint64_t)ss.earn_, 1507UL);
+#elif defined(CHAIN_TYPE_ZEC)
+      ASSERT_EQ((uint64_t)ss.earn_, 301ULL);
+#elif defined(CHAIN_TYPE_UBTC)
+      ASSERT_EQ((uint64_t)ss.earn_, 1975828UL);
 #else
-      ASSERT_EQ((uint64_t)ss.earn_, 1975828UL); // satoshi, only for UBTC
+      ASSERT_EQ((uint64_t)ss.earn_, 24697859UL);
 #endif
     }
     stats.getShareStatsDay(&ss);
     ASSERT_EQ(ss.shareAccept_, shareValue * 24);
     ASSERT_EQ(ss.shareReject_, shareValue * 24);
-#ifndef CHAIN_TYPE_UBTC
-    ASSERT_EQ((uint64_t)ss.earn_, 592748626UL); // satoshi
+#ifdef CHAIN_TYPE_LTC
+    ASSERT_EQ((uint64_t)ss.earn_, 36178UL);
+#elif defined(CHAIN_TYPE_ZEC)
+    ASSERT_EQ((uint64_t)ss.earn_, 7235UL);
+#elif defined(CHAIN_TYPE_UBTC)
+    ASSERT_EQ((uint64_t)ss.earn_, 47419890UL);
 #else
-    ASSERT_EQ((uint64_t)ss.earn_, 47419890UL); // satoshi, only for UBTC
+    ASSERT_EQ((uint64_t)ss.earn_, 592748626UL);
 #endif
   }
 }
