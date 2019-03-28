@@ -513,30 +513,40 @@ bool StratumJobBitcoin::initFromGbt(
     }
 
     // ------------- outputs -------------
-    if (cbtx.vout.size() < 2) {
+    if (cbtx.vout.size() < 1) {
       LOG(ERROR) << "wrong coinbase output size: " << cbtx.vout.size()
                  << ", tx data: " << coinbaseStr;
       return false;
     }
 
     CTxOut &poolReward = cbtx.vout[0];
-    CTxOut &foundersReward = cbtx.vout[1];
-    auto rewardByHeight = GetBlockReward(height_, Params().GetConsensus());
+    auto consensusParams = Params().GetConsensus();
 
-    if (foundersReward.nValue > poolReward.nValue) {
-      LOG(ERROR) << "wrong coinbase output value, foundersReward.nValue ("
-                 << foundersReward.nValue << ") > poolReward.nValue ("
-                 << poolReward.nValue << ")"
-                 << ", tx data: " << coinbaseStr;
-      return false;
-    }
+    if (height_ <= consensusParams.GetLastFoundersRewardBlockHeight()) {
+      if (cbtx.vout.size() < 2) {
+        LOG(ERROR) << "wrong coinbase output size: " << cbtx.vout.size()
+                   << ", tx data: " << coinbaseStr;
+        return false;
+      }
 
-    if (poolReward.nValue < rewardByHeight) {
-      LOG(ERROR) << "wrong coinbase output value, poolReward.nValue ("
-                 << poolReward.nValue << ") < GetBlockReward(" << height_
-                 << ") (" << rewardByHeight << ")"
-                 << ", tx data: " << coinbaseStr;
-      return false;
+      CTxOut &foundersReward = cbtx.vout[1];
+      auto rewardByHeight = GetBlockReward(height_, consensusParams);
+
+      if (foundersReward.nValue > poolReward.nValue) {
+        LOG(ERROR) << "wrong coinbase output value, foundersReward.nValue ("
+                   << foundersReward.nValue << ") > poolReward.nValue ("
+                   << poolReward.nValue << ")"
+                   << ", tx data: " << coinbaseStr;
+        return false;
+      }
+
+      if (poolReward.nValue < rewardByHeight) {
+        LOG(ERROR) << "wrong coinbase output value, poolReward.nValue ("
+                   << poolReward.nValue << ") < GetBlockReward(" << height_
+                   << ") (" << rewardByHeight << ")"
+                   << ", tx data: " << coinbaseStr;
+        return false;
+      }
     }
 
     poolReward.scriptPubKey = GetScriptForDestination(poolPayoutAddr);
