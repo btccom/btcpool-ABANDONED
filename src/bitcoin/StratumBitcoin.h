@@ -27,6 +27,13 @@
 #include "Stratum.h"
 #include "CommonBitcoin.h"
 
+#if defined(CHAIN_TYPE_ZEC) && defined(NDEBUG)
+// fix "Zcash cannot be compiled without assertions."
+#undef NDEBUG
+#include <crypto/common.h>
+#define NDEBUG
+#endif
+
 #include <uint256.h>
 #include <primitives/block.h>
 

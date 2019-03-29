@@ -109,8 +109,7 @@ void JobRepositoryDecred::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
 class StratumProtocolDecredGoMiner : public StratumProtocolDecred {
 public:
   string getExtraNonce1String(uint32_t extraNonce1) const override {
-    return Strings::Format(
-        "%08x", boost::endian::endian_reverse(extraNonce1));
+    return Strings::Format("%08x", boost::endian::endian_reverse(extraNonce1));
   }
 
   void setExtraNonces(
@@ -134,8 +133,7 @@ public:
 class StratumProtocolDecredTPruvot : public StratumProtocolDecred {
 public:
   string getExtraNonce1String(uint32_t extraNonce1) const override {
-    return Strings::Format(
-        "%024x", boost::endian::endian_reverse(extraNonce1));
+    return Strings::Format("%024x", boost::endian::endian_reverse(extraNonce1));
   }
 
   void setExtraNonces(

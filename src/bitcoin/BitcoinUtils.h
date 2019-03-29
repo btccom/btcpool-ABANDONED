@@ -26,6 +26,13 @@
 
 #include <string>
 
+#if defined(CHAIN_TYPE_ZEC) && defined(NDEBUG)
+// fix "Zcash cannot be compiled without assertions."
+#undef NDEBUG
+#include <crypto/common.h>
+#define NDEBUG
+#endif
+
 #include <core_io.h>
 // #include <streams.h>
 #include <amount.h>
