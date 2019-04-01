@@ -28,6 +28,9 @@
 #include <zookeeper/zookeeper.h>
 #include <zookeeper/proto.h>
 
+#include <boost/signals2/connection.hpp>
+#include <boost/signals2/signal.hpp>
+
 #include <string>
 #include <atomic>
 #include <memory>
@@ -139,9 +142,14 @@ protected:
   vector<shared_ptr<ZookeeperLock>> locks_;
   vector<shared_ptr<ZookeeperUniqId>> uniqIds_;
 
+  boost::signals2::signal<void(bool)> connectionSignal_;
+
 public:
   Zookeeper(const string &brokers);
   virtual ~Zookeeper();
+
+  boost::signals2::connection
+  registerConnectionWatcher(std::function<void(bool)> watcher);
 
   void
   getLock(const string &lockPath, function<void()> lockLostCallback = nullptr);

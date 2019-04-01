@@ -360,6 +360,7 @@ void Zookeeper::globalWatcher(
     if (zk->connected_) {
       if (state == ZOO_CONNECTED_STATE) {
         LOG(INFO) << "Zookeeper: reconnected to broker.";
+        zk->connectionSignal_(true);
         zk->recoveryLock();
         zk->recoveryUniqId();
 
@@ -371,9 +372,11 @@ void Zookeeper::globalWatcher(
         LOG(ERROR) << "Zookeeper: lost the connection from broker.";
       } else if (state == ZOO_AUTH_FAILED_STATE) {
         LOG(ERROR) << "Zookeeper: the session auth failed. Try reconnect.";
+        zk->connectionSignal_(false);
         zk->recoverySession();
       } else if (state == ZOO_EXPIRED_SESSION_STATE) {
         LOG(ERROR) << "Zookeeper: the session is expired. Try reconnect.";
+        zk->connectionSignal_(false);
         zk->recoverySession();
       }
     } else {
@@ -404,6 +407,11 @@ Zookeeper::Zookeeper(const string &brokers)
   pthread_mutex_lock(&watchctx_.lock);
 
   connect();
+}
+
+boost::signals2::connection
+Zookeeper::registerConnectionWatcher(std::function<void(bool)> watcher) {
+  return connectionSignal_.connect(move(watcher));
 }
 
 void Zookeeper::connect() {
