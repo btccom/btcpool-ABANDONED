@@ -526,13 +526,20 @@ $ supervisorctl
 [StratumSwitcher](https://github.com/btccom/btcpool-go-modules/blob/master/stratumSwitcher) is a BTCPool's module that writed by golang. It provides a per user's mining-coin switching capability controlled by the user self or a pool administrator.
 
 There are 3 processes to provide the capability:
-* [StratumSwitcher](https://github.com/btccom/btcpool-go-modules/blob/master/stratumSwitcher)
+* ~~[StratumSwitcher](https://github.com/btccom/btcpool-go-modules/blob/master/stratumSwitcher)~~ (Deprecated. Use sserver itself to achieve the same features.)
 * [Switcher API Server](https://github.com/btccom/btcpool-go-modules/blob/master/switcherAPIServer)
 * [Init User Coin](https://github.com/btccom/btcpool-go-modules/blob/master/initUserCoin)
 
 A zookeeper is needed as a notification channel, and a [new user-coin-map API](https://github.com/btccom/btcpool-go-modules/blob/master/switcherAPIServer/README.md) need be provided to the `Switcher API Server`.
 
 The module currently has only Chinese documents. Welcome to translate it and initiate a pull request.
+
+> Tips: `sserver` currently has all features of `StratumSwitcher` built in and is more stable than `StratumSwitcher`. Therefore, it is not recommended to use `StratumSwitcher` anymore.
+> 
+> But you still need the `Switcher API Server` and `Init User Coin` from the [btcpool-go-modules](https://github.com/btccom/btcpool-go-modules) repo to achieve the chain switching.
+> 
+> Here is an example of a sserver configuration file that supports chain switching:
+> [sserver(multi-chains).cfg](../src/bitcoin/cfg/sserver(multi-chains).cfg).
 
 ## Upgrade btcpool
 
