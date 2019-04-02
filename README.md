@@ -16,12 +16,23 @@ The pool backend support these blockchains at current:
    * [BitcoinCash](https://bitcoincash.org/)
    * [UnitedBitcoin](https://ub.com/)
    * ~~[SuperBitcoin](http://supersmartbitcoin.com/)~~ (outdated and unmaintained)
+* Scrypt
+   * [Litecoin](https://litecoin.org/)
 * ETHash / Daggerhashimoto
    * [Ethereum](https://www.ethereum.org/)
    * [Ethereum Classic](https://ethereumclassic.org/)
-* Others
+* EquiHash
+   * [ZCash](https://z.cash/)
+   * [Beam](https://www.beam.mw/)
+   > Tips: ZCash and BEAM use different EquiHash parameters and are not compatible in mining.
+* Cuckoo Cycle
+   * [Grin](https://grin-tech.org/)
+   > Tips: Grin supports `Cuckaroo Cycle 29` and `Cuckatoo Cycle 31` at the same time, miners can choose an algorithm to mine.
+* Blake-256
    * [Decred](https://www.decred.org/)
+* Tensority
    * [Bytom](https://bytom.io/)
+* Others
    * ~~[Siacoin](https://www.sia.tech/)~~ (not finished and need test)
 
 It also support these merged mining blockchains of SHA256 blockchains:

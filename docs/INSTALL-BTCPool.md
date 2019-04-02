@@ -103,7 +103,7 @@ or link BTCPool with different blockchains.
 |         -        |        -       |      -        |        -       |
 | CMAKE_BUILD_TYPE | Release, Debug |    Release    |   Build type   |
 | JOBS | A number, between 1 to your CPU cores' number. | 1 | Concurrent jobs when building blockchain's source code that linking to BTCPool. |
-| CHAIN_TYPE | BTC, BCH, UBTC, SBTC | No default value, you must define it. | Blockchain's type that you want to BTCPool linking to. |
+| CHAIN_TYPE | BTC, BCH, BSV, UBTC, SBTC, LTC, ZEC | No default value, you must define it. | Blockchain's type that you want to BTCPool linking to. |
 | CHAIN_SRC_ROOT | A path of dir, such as `/work/bitcoin`. | No default value, you must define it. | The path of blockchain's source code that you want to BTCPool linking to. |
 | OPENSSL_ROOT_DIR | A path of dir, such as `/usr/local/opt/openssl`. | No definition is required by default, and cmake will automatically look for it. | The path of `openssl`'s source code. The macOS user may need to define it if cmake cannot find it automatically. |
 | POOL__WORK_WITH_STRATUM_SWITCHER | ON, OFF | OFF | Build a special version of pool's stratum server, so you can run it with a stratum switcher. See also: [Stratum Switcher](https://github.com/btccom/btcpool-go-modules/stratumSwitcher). |
@@ -301,6 +301,53 @@ cmake -DJOBS=4 -DCHAIN_TYPE=SBTC -DCHAIN_SRC_ROOT=/work/SuperBitcoin-0.17.1 -DPO
 make -j4
 ```
 
+**build BTCPool that linking to Litecoin**
+
+```bash
+mkdir /work
+cd /work
+wget -O litecoin-0.16.3.tar.gz https://github.com/litecoin-project/litecoin/archive/v0.16.3.tar.gz
+tar zxf litecoin-0.16.3.tar.gz
+
+git clone https://github.com/btccom/btcpool.git
+cd btcpool
+mkdir build
+cd build
+
+# Release build with 4 jobs:
+cmake -DJOBS=4 -DCHAIN_TYPE=LTC -DCHAIN_SRC_ROOT=/work/litecoin-0.16.3 ..
+make -j4
+
+# Debug build:
+cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=LTC -DCHAIN_SRC_ROOT=/work/litecoin-0.16.3 ..
+make -j4
+```
+
+**build BTCPool that linking to ZCash**
+
+```bash
+mkdir /work
+cd /work
+wget -O zcash-2.0.4.tar.gz https://github.com/zcash/zcash/archive/v2.0.4.tar.gz
+tar zxf zcash-2.0.4.tar.gz
+
+git clone https://github.com/btccom/btcpool.git
+cd btcpool
+mkdir build
+cd build
+
+# Release build with 4 jobs:
+cmake -DJOBS=4 -DCHAIN_TYPE=ZEC -DCHAIN_SRC_ROOT=/work/zcash-2.0.4 ..
+make -j4
+
+# Debug build:
+cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=ZEC -DCHAIN_SRC_ROOT=/work/zcash-2.0.4 ..
+make -j4
+```
+
+**How about ETH/ETC/Beam/Grin/Decred/Bytom?**
+
+Please use the build that linking to Bitcoin (`-DCHAIN_TYPE=BTC`).
 
 ---
 
@@ -315,121 +362,25 @@ cd /work/btcpool/build
 bash ../install/init_folders.sh
 ```
 
-### create kafka topics
-
-Login to one of kafka machines, than create topics for `btcpool`:
-
-```bash
-cd /work/kafka
-```
-> `10.0.0.1:2181` at below is one node's IP of your ZooKeeper cluster.
-
-Topics for Bitcoin or BitcoinCash
-> For compatibility with old deployments,  kafka topics of Bitcoin and BitcoinCash have the same names.
-> So these two blockchains **CANNOT** share the same kafka cluster.
-```bash
-# for Bitcoin or BitcoinCash mining
-./bin/kafka-topics.sh --create --topic RawGbt         --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
-./bin/kafka-topics.sh --create --topic StratumJob     --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1 
-./bin/kafka-topics.sh --create --topic SolvedShare    --zookeeper 10.0.0.1:2181 --replication-factor 3 --partitions 1 
-./bin/kafka-topics.sh --create --topic ShareLog       --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
-./bin/kafka-topics.sh --create --topic CommonEvents   --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
-# for Namecoin merge-mining
-./bin/kafka-topics.sh --create --topic NMCAuxBlock    --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
-./bin/kafka-topics.sh --create --topic NMCSolvedShare --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
-# for RSK merge-mining
-./bin/kafka-topics.sh --create --topic RawGw          --zookeeper 10.0.0.1:2181 --replication-factor 1 --partitions 1
-./bin/kafka-topics.sh --create --topic RskSolvedShare --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
-
-# do not keep 'RawGbt' message more than 6 hours
-./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name RawGbt       --add-config retention.ms=21600000
-# 'CommonEvents': 12 hours
-./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name CommonEvents --add-config retention.ms=43200000
-# 'RawGw': 6 hours
-./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name RawGw --add-config retention.ms=21600000
-```
-
-Topics for UnitedBitcoin
-> UnitedBitcoin **CAN** share the same kafka cluster with other blockchains.
-```bash
-# for UnitedBitcoin mining
-./bin/kafka-topics.sh --create --topic UBTC_RawGbt         --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
-./bin/kafka-topics.sh --create --topic UBTC_StratumJob     --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1 
-./bin/kafka-topics.sh --create --topic UBTC_SolvedShare    --zookeeper 10.0.0.1:2181 --replication-factor 3 --partitions 1 
-./bin/kafka-topics.sh --create --topic UBTC_ShareLog       --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
-./bin/kafka-topics.sh --create --topic UBTC_CommonEvents   --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
-# for Namecoin merge-mining
-./bin/kafka-topics.sh --create --topic UBTC_NMCAuxBlock    --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
-./bin/kafka-topics.sh --create --topic UBTC_NMCSolvedShare --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
-# for RSK merge-mining
-./bin/kafka-topics.sh --create --topic UBTC_RawGw          --zookeeper 10.0.0.1:2181 --replication-factor 1 --partitions 1
-./bin/kafka-topics.sh --create --topic UBTC_RskSolvedShare --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
-
-# do not keep 'RawGbt' message more than 6 hours
-./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name UBTC_RawGbt       --add-config retention.ms=21600000
-# 'CommonEvents': 12 hours
-./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name UBTC_CommonEvents --add-config retention.ms=43200000
-# 'RawGw': 6 hours
-./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name UBTC_RawGw --add-config retention.ms=21600000
-```
-
-Topics for SuperBitcoin
-> SuperBitcoin **CAN** share the same kafka cluster with other blockchains.
-```bash
-# for SuperBitcoin mining
-./bin/kafka-topics.sh --create --topic SBTC_RawGbt         --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
-./bin/kafka-topics.sh --create --topic SBTC_StratumJob     --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1 
-./bin/kafka-topics.sh --create --topic SBTC_SolvedShare    --zookeeper 10.0.0.1:2181 --replication-factor 3 --partitions 1 
-./bin/kafka-topics.sh --create --topic SBTC_ShareLog       --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
-./bin/kafka-topics.sh --create --topic SBTC_CommonEvents   --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
-# for Namecoin merge-mining
-./bin/kafka-topics.sh --create --topic SBTC_NMCAuxBlock    --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
-./bin/kafka-topics.sh --create --topic SBTC_NMCSolvedShare --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
-# for RSK merge-mining
-./bin/kafka-topics.sh --create --topic SBTC_RawGw          --zookeeper 10.0.0.1:2181 --replication-factor 1 --partitions 1
-./bin/kafka-topics.sh --create --topic SBTC_RskSolvedShare --zookeeper 10.0.0.1:2181 --replication-factor 2 --partitions 1
-
-# do not keep 'RawGbt' message more than 6 hours
-./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name SBTC_RawGbt       --add-config retention.ms=21600000
-# 'CommonEvents': 12 hours
-./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name SBTC_CommonEvents --add-config retention.ms=43200000
-# 'RawGw': 6 hours
-./bin/kafka-configs.sh --zookeeper 10.0.0.1:2181 --alter --entity-type topics -entity-name SBTC_RawGw --add-config retention.ms=21600000
-```
-
-Check kafka topics status:
-
-```
-# show topics
-$ ./bin/kafka-topics.sh --describe --zookeeper 10.0.0.1:2181
-
-# if create these topics success, the output likes:
-Topic:RawGbt   	PartitionCount:1       	ReplicationFactor:2    	Configs:
-       	Topic: RawGbt  	Partition: 0   	Leader: 1      	Replicas: 1,2  	Isr: 1,2
-Topic:ShareLog 	PartitionCount:1       	ReplicationFactor:2    	Configs:
-       	Topic: ShareLog	Partition: 0   	Leader: 2      	Replicas: 2,1  	Isr: 2,1
-Topic:SolvedShare      	PartitionCount:1       	ReplicationFactor:3    	Configs:
-       	Topic: SolvedShare     	Partition: 0   	Leader: 1      	Replicas: 1,2,3	Isr: 1,2,3
-Topic:StratumJob       	PartitionCount:1       	ReplicationFactor:2    	Configs:
-       	Topic: StratumJob      	Partition: 0   	Leader: 1      	Replicas: 1,2  	Isr: 1,2
-Topic:NMCAuxBlock        PartitionCount:1         ReplicationFactor:3      Configs:
-         Topic: NMCAuxBlock       Partition: 0     Leader: 3        Replicas: 3,1  Isr: 3,1
-Topic:NMCSolvedShare     PartitionCount:1         ReplicationFactor:3      Configs:
-         Topic: NMCSolvedShare    Partition: 0     Leader: 3        Replicas: 3,1  Isr: 3,1
-... (only part of all topics)
-```
-
 ### setup full-nodes
 Before starting btcpool's services, at least one bitcoin full-node needs to be setup. Which full-node to use depends on the blockchain you want to mining.
 
 Also start Rsk node or Namecoin node if merged mining for any of those chains.
 
-The following are the full-nodes that we recommend:
-* Bitcoin: [docker for Bitcoin Core](../docker/bitcoind/v0.15.1)
-* BitcoinCash: [docker for Bitcoin ABC](../docker/bitcoin-abc/v0.16.1)
-* UnitedBitcoin: [docker for UnitedBitcoin](../docker/united-bitcoin/v2.2.0.3)
-* SuperBitcoin: [docker for SuperBitcoin](../docker/super-bitcoin/v0.17.1)
+The following are some dockerfiles of full-nodes:
+
+* Bitcoin: [docker for Bitcoin Core](../docker/bitcoind)
+* BitcoinCash: [docker for Bitcoin ABC](../docker/bitcoin-abc)
+* UnitedBitcoin: [docker for UnitedBitcoin](../docker/united-bitcoin)
+* SuperBitcoin: [docker for SuperBitcoin](../docker/super-bitcoin)
+* Litecoin: [docker for Litecoin Core](../docker/litecoind)
+* Namecoin: [docker for Namecoin Core](../docker/namecoind)
 * RSK: [docker for RSKJ](https://github.com/rsksmart/rskj/wiki/install-rskj-using-docker)
+* Ethereum:
+   * [docker for Parity](../docker/eth-parity)
+   * [docker for Geth](../docker/eth-geth)
+* Decred: [docker for dcrd](../docker/dcrd)
+* Beam: [docker for Beam Node](../docker/beam-node)
 
 If you want to merge-mining more than one chains that follow [Bitcoin Merged Mining Specification](https://en.bitcoin.it/wiki/Merged_mining_specification) (likes Namecoin, ElastOS, etc), you can running a [Merged Mining Proxy](https://github.com/btccom/btcpool-go-modules/tree/master/mergedMiningProxy) and let the pool's `nmcauxmaker` connect to it.
 
@@ -445,7 +396,14 @@ mysql -h xxx -u xxx -p
 ```sql
 CREATE DATABASE bpool_local_db;
 USE bpool_local_db;
+-- for BTC/BCH/BSV/UBTC/SBTC/LTC/ZEC
 SOURCE bpool_local_db.sql;
+-- for other chains (use one of them)
+SOURCE bpool_local_db_BEAM.sql;
+SOURCE bpool_local_db_Bytom.sql;
+SOURCE bpool_local_db_Decred.sql;
+SOURCE bpool_local_db_ETH.sql;
+SOURCE bpool_local_db_Grin.sql;
 
 CREATE DATABASE bpool_local_stats_db;
 USE bpool_local_stats_db;
