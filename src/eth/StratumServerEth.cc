@@ -52,6 +52,7 @@ EthashCalculator::~EthashCalculator() {
     saveCacheToFile(cacheFile_);
   }
 
+  ScopeLock sl(lock_);
   for (auto itr : lightCaches_) {
     ethash_light_delete(itr.second);
   }
@@ -219,19 +220,6 @@ void EthashCalculator::buildDagCacheWithoutLock(uint64_t height) {
   // while the Debug build takes more than 60 seconds.
   LOG(INFO) << "DAG cache for block height " << height << " (epoch " << epoch
             << ") built within " << (time(nullptr) - beginTime) << " seconds";
-
-  // remove redundant caches
-  while (lightEpochs_.size() > kMaxCacheSize_) {
-    uint64_t epoch = lightEpochs_.front();
-    ethash_light_delete(lightCaches_[epoch]);
-
-    lightCaches_.erase(epoch);
-    lightEpochs_.pop();
-
-    LOG(INFO) << "remove redundant DAG cache: epoch " << epoch;
-  }
-
-  assert(lightCaches_.size() == lightEpochs_.size());
 }
 
 ethash_light_t EthashCalculator::getDagCacheWithoutLock(uint64_t height) {
@@ -243,14 +231,78 @@ ethash_light_t EthashCalculator::getDagCacheWithoutLock(uint64_t height) {
 }
 
 void EthashCalculator::buildDagCache(uint64_t height) {
+  uint64_t epoch = height / ETHASH_EPOCH_LENGTH;
+
+  bool currentEpochExists = false;
+  bool nextEpochExists = false;
+  {
+    ScopeLock sl(lock_);
+    currentEpochExists = lightCaches_[epoch] != nullptr;
+    nextEpochExists = lightCaches_[epoch + 1] != nullptr;
+  }
+
+  if (currentEpochExists && nextEpochExists) {
+    return;
+  }
+
+  auto buildLightWithLock = [this](uint64_t height, uint64_t epoch) {
+    LOG(INFO) << "building DAG cache for block height " << height << " (epoch "
+              << epoch << ")";
+    time_t beginTime = time(nullptr);
+
+    ethash_light_t light = ethash_light_new(height);
+
+    // Note: The performance of ethash_light_new() difference between Debug and
+    // Release builds is very large. The Release build may complete in 5
+    // seconds, while the Debug build takes more than 60 seconds.
+    LOG(INFO) << "DAG cache for block height " << height << " (epoch " << epoch
+              << ") built within " << (time(nullptr) - beginTime) << " seconds";
+
+    ScopeLock sl(lock_);
+    if (lightCaches_[epoch] != nullptr) {
+      // Other threads have added the same light.
+      ethash_light_delete(light);
+      return;
+    }
+
+    lightCaches_[epoch] = light;
+    lightEpochs_.push(epoch);
+  };
+
+  if (!currentEpochExists) {
+    buildLightWithLock(height, epoch);
+  }
+
+  if (!nextEpochExists) {
+    buildLightWithLock(height + ETHASH_EPOCH_LENGTH, epoch + 1);
+  }
+
+  // remove redundant caches
   ScopeLock sl(lock_);
-  buildDagCacheWithoutLock(height);
+  while (lightEpochs_.size() > kMaxCacheSize_) {
+    uint64_t epoch = lightEpochs_.front();
+    ethash_light_delete(lightCaches_[epoch]);
+
+    lightCaches_.erase(epoch);
+    lightEpochs_.pop();
+
+    LOG(INFO) << "remove redundant DAG cache: epoch " << epoch;
+  }
+  assert(lightCaches_.size() == lightEpochs_.size());
 }
 
 void EthashCalculator::rebuildDagCache(uint64_t height) {
-  ScopeLock sl(lock_);
   uint64_t epoch = height / ETHASH_EPOCH_LENGTH;
 
+  LOG(INFO) << "rebuilding DAG cache for block height " << height;
+  time_t beginTime = time(nullptr);
+
+  ethash_light_t light = ethash_light_new(height);
+
+  LOG(INFO) << "DAG cache for block height " << height << " rebuilt within "
+            << (time(nullptr) - beginTime) << " seconds";
+
+  ScopeLock sl(lock_);
   if (lightCaches_[epoch] != nullptr) {
     ethash_light_delete(lightCaches_[epoch]);
   } else {
@@ -258,14 +310,7 @@ void EthashCalculator::rebuildDagCache(uint64_t height) {
                << "): the old DAG cache should not be empty";
     lightEpochs_.push(epoch);
   }
-
-  LOG(INFO) << "rebuilding DAG cache for block height " << height;
-  time_t beginTime = time(nullptr);
-
-  lightCaches_[epoch] = ethash_light_new(height);
-
-  LOG(INFO) << "DAG cache for block height " << height << " rebuilt within "
-            << (time(nullptr) - beginTime) << " seconds";
+  lightCaches_[epoch] = light;
 }
 
 bool EthashCalculator::compute(
