@@ -110,6 +110,7 @@ size_t EthashCalculator::loadCacheFromFile(const string &cacheFile) {
   while (nullptr != (light = loadCacheFromFile(f))) {
     uint64_t epoch = light->block_number / ETHASH_EPOCH_LENGTH;
     lightCaches_[epoch] = light;
+    lightEpochs_.push(epoch);
     loadedNum++;
   }
 

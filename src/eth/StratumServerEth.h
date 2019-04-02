@@ -150,6 +150,6 @@ protected:
   const char *kLightCacheFilePathFormat = "./sserver-eth%u-dagcache.dat";
 
   EthashCalculator ethashCalc_;
-  uint32_t lastHeight_;
+  uint32_t lastHeight_ = 0;
 };
 #endif // STRATUM_SERVER_ETH_H_
