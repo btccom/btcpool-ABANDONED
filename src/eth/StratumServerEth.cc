@@ -344,14 +344,17 @@ shared_ptr<StratumJobEx> JobRepositoryEth::createStratumJobEx(
 void JobRepositoryEth::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
   auto sjobEth = std::static_pointer_cast<StratumJobEth>(sjob);
 
-  LOG(INFO) << "broadcast eth stratum job " << std::hex << sjobEth->jobId_;
-
   bool isClean = false;
-  if (sjobEth->height_ != lastHeight_) {
+  if (sjobEth->height_ > lastHeight_) {
     isClean = true;
     lastHeight_ = sjobEth->height_;
 
-    LOG(INFO) << "received new height stratum job, height: " << sjobEth->height_
+    LOG(INFO) << "received new height " << GetServer()->chainName(chainId_)
+              << " job " << sjobEth->jobId_ << ", height: " << sjobEth->height_
+              << ", headerHash: " << sjobEth->headerHash_;
+  } else {
+    LOG(INFO) << "received " << GetServer()->chainName(chainId_) << " job "
+              << sjobEth->jobId_ << ", height: " << sjobEth->height_
               << ", headerHash: " << sjobEth->headerHash_;
   }
 
@@ -366,12 +369,15 @@ void JobRepositoryEth::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
     }
   }
 
-  // insert new job
-  exJobs_[sjobEth->jobId_] = exJob;
+  if (isClean) {
+    // Send the job immediately.
+    // Sending a job immediately in this function is optional.
+    // Jobs can also be sent by checkAndSendMiningNotify().
+    sendMiningNotify(exJob);
+  }
 
-  // send job first
-  sendMiningNotify(exJob);
-  // then, build DAG cache for verification
+  // Create light for verification.
+  // This call should be made at least once and should not be optional.
   buildDagCacheNonBlocking(sjobEth->height_);
 }
 
