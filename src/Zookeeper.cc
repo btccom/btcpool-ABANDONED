@@ -338,6 +338,46 @@ bool ZookeeperUniqIdT<IBITS>::createIdNode(size_t id) {
 // Class template instantiation
 template class ZookeeperUniqIdT<8>;
 
+ZookeeperValueWatcher::ZookeeperValueWatcher(
+    Zookeeper &zk,
+    const string &path,
+    size_t sizeLimit,
+    std::function<void(const std::string &)> callback)
+  : zk_{zk}
+  , path_{path}
+  , sizeLimit_{sizeLimit}
+  , callback_{move(callback)}
+  , zkWatcher_{zk.registerConnectionWatcher(
+        [this](bool connected) { handleConnection(connected); })} {
+  watchValue();
+}
+
+void ZookeeperValueWatcher::handleConnection(bool connected) {
+  if (connected) {
+    watchValue();
+  }
+}
+
+void ZookeeperValueWatcher::watchValue() {
+  try {
+    zk_.watchNode(path_, &ZookeeperValueWatcher::watchCallback, this);
+    callback_(zk_.getValue(path_, sizeLimit_));
+  } catch (const std::exception &ex) {
+    LOG(ERROR) << "ZookeeperValueWatcher::watchValue() exception: "
+               << ex.what();
+  } catch (...) {
+    LOG(ERROR) << "ZookeeperValueWatcher::watchValue(): unknown exception";
+  }
+}
+
+void ZookeeperValueWatcher::watchCallback(
+    zhandle_t *zh, int type, int state, const char *path, void *data) {
+  if (type == ZOO_CREATED_EVENT || type == ZOO_DELETED_EVENT ||
+      type == ZOO_CHANGED_EVENT) {
+    static_cast<ZookeeperValueWatcher *>(data)->watchValue();
+  }
+}
+
 //------------------------------- Zookeeper -------------------------------
 
 void Zookeeper::globalWatcher(

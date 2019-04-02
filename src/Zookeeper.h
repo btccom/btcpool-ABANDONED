@@ -126,6 +126,28 @@ protected:
   bool createIdNode(size_t id);
 };
 
+class ZookeeperValueWatcher {
+public:
+  ZookeeperValueWatcher(
+      Zookeeper &zk,
+      const string &path,
+      size_t sizeLimit,
+      std::function<void(const std::string &)> callback);
+
+private:
+  static void watchCallback(
+      zhandle_t *zh, int type, int state, const char *path, void *data);
+  void handleConnection(bool connected);
+  void getValue();
+  void watchValue();
+
+  Zookeeper &zk_;
+  std::string path_;
+  size_t sizeLimit_;
+  std::function<void(const std::string &)> callback_;
+  boost::signals2::connection zkWatcher_;
+};
+
 class Zookeeper {
 protected:
   string brokers_;
