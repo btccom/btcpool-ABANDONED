@@ -60,7 +60,10 @@ public:
       size_t chainId,
       const char *kafkaBrokers,
       const char *consumerTopic,
-      const string &fileLastNotifyTime) override;
+      const string &fileLastNotifyTime,
+      bool niceHashForced,
+      uint64_t niceHashMinDiff,
+      const std::string &niceHashMinDiffZookeeperPath) override;
 
   unique_ptr<StratumSession> createConnection(
       struct bufferevent *bev,
@@ -124,7 +127,10 @@ public:
       ServerEth *server,
       const char *kafkaBrokers,
       const char *consumerTopic,
-      const string &fileLastNotifyTime);
+      const string &fileLastNotifyTime,
+      bool niceHashForced,
+      uint64_t niceHashMinDiff,
+      const std::string &niceHashMinDiffZookeeperPath);
   virtual ~JobRepositoryEth();
 
   bool compute(

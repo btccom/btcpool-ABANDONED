@@ -630,3 +630,11 @@ void StratumSession::reportShare(
 bool StratumSession::acceptStale() const {
   return server_.acceptStale_;
 }
+
+bool StratumSession::niceHashForced() const {
+  return server_.chains_[getChainId()].jobRepository_->niceHashForced();
+}
+
+uint64_t StratumSession::niceHashMinDiff() const {
+  return server_.chains_[getChainId()].jobRepository_->niceHashMinDiff();
+}

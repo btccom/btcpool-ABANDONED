@@ -50,9 +50,19 @@ JobRepositoryDecred::JobRepositoryDecred(
     ServerDecred *server,
     const char *kafkaBrokers,
     const char *consumerTopic,
-    const string &fileLastNotifyTime)
+    const string &fileLastNotifyTime,
+    bool niceHashForced,
+    uint64_t niceHashMinDiff,
+    const std::string &niceHashMinDiffZookeeperPath)
   : JobRepositoryBase<ServerDecred>(
-        chainId, server, kafkaBrokers, consumerTopic, fileLastNotifyTime)
+        chainId,
+        server,
+        kafkaBrokers,
+        consumerTopic,
+        fileLastNotifyTime,
+        niceHashForced,
+        niceHashMinDiff,
+        niceHashMinDiffZookeeperPath)
   , lastHeight_(0)
   , lastVoters_(0) {
 }
@@ -176,9 +186,19 @@ JobRepository *ServerDecred::createJobRepository(
     size_t chainId,
     const char *kafkaBrokers,
     const char *consumerTopic,
-    const string &fileLastNotifyTime) {
+    const string &fileLastNotifyTime,
+    bool niceHashForced,
+    uint64_t niceHashMinDiff,
+    const std::string &niceHashMinDiffZookeeperPath) {
   return new JobRepositoryDecred(
-      chainId, this, kafkaBrokers, consumerTopic, fileLastNotifyTime);
+      chainId,
+      this,
+      kafkaBrokers,
+      consumerTopic,
+      fileLastNotifyTime,
+      niceHashForced,
+      niceHashMinDiff,
+      niceHashMinDiffZookeeperPath);
 }
 
 int ServerDecred::checkShare(

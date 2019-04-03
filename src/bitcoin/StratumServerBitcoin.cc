@@ -423,9 +423,19 @@ JobRepository *ServerBitcoin::createJobRepository(
     size_t chainId,
     const char *kafkaBrokers,
     const char *consumerTopic,
-    const string &fileLastNotifyTime) {
+    const string &fileLastNotifyTime,
+    bool niceHashForced,
+    uint64_t niceHashMinDiff,
+    const std::string &niceHashMinDiffZookeeperPath) {
   return new JobRepositoryBitcoin(
-      chainId, this, kafkaBrokers, consumerTopic, fileLastNotifyTime);
+      chainId,
+      this,
+      kafkaBrokers,
+      consumerTopic,
+      fileLastNotifyTime,
+      niceHashForced,
+      niceHashMinDiff,
+      niceHashMinDiffZookeeperPath);
 }
 
 unique_ptr<StratumSession> ServerBitcoin::createConnection(

@@ -37,7 +37,10 @@ public:
       ServerDecred *server,
       const char *kafkaBrokers,
       const char *consumerTopic,
-      const string &fileLastNotifyTime);
+      const string &fileLastNotifyTime,
+      bool niceHashForced,
+      uint64_t niceHashMinDiff,
+      const std::string &niceHashMinDiffZookeeperPath);
 
   shared_ptr<StratumJob> createStratumJob() override;
   void broadcastStratumJob(shared_ptr<StratumJob> sjob) override;
@@ -66,7 +69,10 @@ protected:
       size_t chainId,
       const char *kafkaBrokers,
       const char *consumerTopic,
-      const string &fileLastNotifyTime) override;
+      const string &fileLastNotifyTime,
+      bool niceHashForced,
+      uint64_t niceHashMinDiff,
+      const std::string &niceHashMinDiffZookeeperPath) override;
 
 private:
   unique_ptr<StratumProtocolDecred> protocol_;

@@ -112,7 +112,10 @@ JobRepository::JobRepository(
     StratumServer *server,
     const char *kafkaBrokers,
     const char *consumerTopic,
-    const string &fileLastNotifyTime)
+    const string &fileLastNotifyTime,
+    bool niceHashForced,
+    uint64_t niceHashMinDiff,
+    const std::string &niceHashMinDiffZookeeperPath)
   : running_(true)
   , chainId_(chainId)
   , kafkaConsumer_(kafkaBrokers, consumerTopic, 0 /*patition*/)
@@ -122,8 +125,31 @@ JobRepository::JobRepository(
   , kMiningNotifyInterval_(30)
   , lastJobSendTime_(0)
   , lastJobId_(0)
-  , lastJobHeight_(0) {
+  , lastJobHeight_(0)
+  , niceHashForced_(niceHashForced)
+  , niceHashMinDiff_(niceHashMinDiff) {
   assert(kMiningNotifyInterval_ < kMaxJobsLifeTime_);
+  if (!niceHashMinDiffZookeeperPath.empty()) {
+    niceHashMinDiffWatcher_ = std::make_unique<ZookeeperValueWatcher>(
+        *server->zk_,
+        niceHashMinDiffZookeeperPath,
+        20,
+        [this](const std::string &value) {
+          try {
+            niceHashMinDiff_ = stoull(value, 0, 10);
+            LOG(INFO) << "NiceHash minimal difficulty from Zookeeper is "
+                      << niceHashMinDiff_;
+          } catch (std::invalid_argument) {
+            LOG(ERROR) << "NiceHash minimal difficulty from Zookeeper is "
+                          "invalid: "
+                       << value;
+          } catch (std::out_of_range) {
+            LOG(ERROR) << "NiceHash minimal difficulty from Zookeeper is out of"
+                          " range: "
+                       << value;
+          }
+        });
+  }
 }
 
 JobRepository::~JobRepository() {
@@ -556,8 +582,15 @@ bool StratumServer::setup(const libconfig::Config &config) {
                           const string &solvedShareTopic,
                           const string &commonEventsTopic,
                           const string &jobTopic,
-                          const string &fileLastMiningNotifyTime) {
+                          const string &fileLastMiningNotifyTime,
+                          const bool niceHashForced,
+                          uint64_t niceHashMinDiff,
+                          const string &niceHashMinDiffZookeeperPath) {
     size_t chainId = chains_.size();
+
+    LOG(INFO) << "chain = " << chainName
+              << ", niceHashForced = " << niceHashForced
+              << ", niceHashMinDiff = " << niceHashMinDiff;
 
     chains_.push_back(
         {chainName,
@@ -575,7 +608,10 @@ bool StratumServer::setup(const libconfig::Config &config) {
              chainId,
              kafkaBrokers.c_str(),
              jobTopic.c_str(),
-             fileLastMiningNotifyTime)});
+             fileLastMiningNotifyTime,
+             niceHashForced,
+             niceHashMinDiff,
+             niceHashMinDiffZookeeperPath)});
   };
 
   bool multiChains = false;
@@ -587,6 +623,22 @@ bool StratumServer::setup(const libconfig::Config &config) {
       string fileLastMiningNotifyTime; // optional
       chains.lookupValue("file_last_notify_time", fileLastMiningNotifyTime);
 
+      bool niceHashForced = false;
+      chains[i].lookupValue("nicehash.forced", niceHashForced);
+      uint64_t niceHashMinDiff = minDifficulty;
+      std::string niceHashMinDiffString;
+      if (chains[i].lookupValue(
+              "nicehash.min_difficulty", niceHashMinDiffString)) {
+        niceHashMinDiff = stoull(niceHashMinDiffString, 0, 16);
+      }
+      std::string niceHashMinDiffZookeeperPath;
+      chains[i].lookupValue(
+          "nicehash.min_difficulty_zookeeper_path",
+          niceHashMinDiffZookeeperPath);
+      if (!niceHashMinDiffZookeeperPath.empty()) {
+        initZookeeper(config);
+      }
+
       addChainVars(
           chains[i].lookup("name"),
           chains[i].lookup("kafka_brokers"),
@@ -594,7 +646,10 @@ bool StratumServer::setup(const libconfig::Config &config) {
           chains[i].lookup("solved_share_topic"),
           chains[i].lookup("common_events_topic"),
           chains[i].lookup("job_topic"),
-          fileLastMiningNotifyTime);
+          fileLastMiningNotifyTime,
+          niceHashForced,
+          niceHashMinDiff,
+          niceHashMinDiffZookeeperPath);
     }
     if (chains_.empty()) {
       LOG(FATAL) << "sserver.multi_chains enabled but chains empty!";
@@ -604,6 +659,22 @@ bool StratumServer::setup(const libconfig::Config &config) {
     config.lookupValue(
         "sserver.file_last_notify_time", fileLastMiningNotifyTime);
 
+    bool niceHashForced = false;
+    config.lookupValue("sserver.nicehash.forced", niceHashForced);
+    uint64_t niceHashMinDiff = minDifficulty;
+    std::string niceHashMinDiffString;
+    if (config.lookupValue(
+            "sserver.nicehash.min_difficulty", niceHashMinDiffString)) {
+      niceHashMinDiff = stoull(niceHashMinDiffString, 0, 16);
+    }
+    std::string niceHashMinDiffZookeeperPath;
+    config.lookupValue(
+        "sserver.nicehash.min_difficulty_zookeeper_path",
+        niceHashMinDiffZookeeperPath);
+    if (!niceHashMinDiffZookeeperPath.empty()) {
+      initZookeeper(config);
+    }
+
     addChainVars(
         "default",
         config.lookup("kafka.brokers"),
@@ -611,7 +682,10 @@ bool StratumServer::setup(const libconfig::Config &config) {
         config.lookup("sserver.solved_share_topic"),
         config.lookup("sserver.common_events_topic"),
         config.lookup("sserver.job_topic"),
-        fileLastMiningNotifyTime);
+        fileLastMiningNotifyTime,
+        niceHashForced,
+        niceHashMinDiff,
+        niceHashMinDiffZookeeperPath);
   }
 
   // ------------------- user info -------------------

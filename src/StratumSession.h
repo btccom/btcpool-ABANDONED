@@ -101,6 +101,8 @@ public:
   virtual void
   reportShare(size_t chainId, int32_t status, uint64_t shareDiff) = 0;
   virtual bool acceptStale() const = 0;
+  virtual bool niceHashForced() const = 0;
+  virtual uint64_t niceHashMinDiff() const = 0;
 };
 
 class StratumSession : public IStratumSession {
@@ -234,6 +236,8 @@ public:
       shared_ptr<StratumJobEx> exJobPtr, bool isFirstJob = false) = 0;
 
   void reportShare(size_t chainId, int32_t status, uint64_t shareDiff) override;
+  bool niceHashForced() const override;
+  uint64_t niceHashMinDiff() const override;
 };
 
 //  This base class is to help type safety of accessing server_ member variable.

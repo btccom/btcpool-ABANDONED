@@ -57,6 +57,9 @@ void StratumMiner::resetCurDiff(uint64_t curDiff) {
 }
 
 uint64_t StratumMiner::calcCurDiff() {
+  if (session_.niceHashForced() || isNiceHashClient_) {
+    diffController_->setMinDiff(session_.niceHashMinDiff());
+  }
   curDiff_ = diffController_->calcCurDiff();
   return curDiff_;
 }

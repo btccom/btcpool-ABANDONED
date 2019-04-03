@@ -82,7 +82,10 @@ protected:
       size_t chainId,
       const char *kafkaBrokers,
       const char *consumerTopic,
-      const string &fileLastNotifyTime) override;
+      const string &fileLastNotifyTime,
+      bool niceHashForced,
+      uint64_t niceHashMinDiff,
+      const std::string &niceHashMinDiffZookeeperPath) override;
 
   void sendAuxSolvedShare2Kafka(size_t chainId, const char *data, size_t len);
   void sendRskSolvedShare2Kafka(size_t chainId, const char *data, size_t len);

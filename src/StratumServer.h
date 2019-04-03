@@ -134,6 +134,10 @@ protected:
   thread threadConsume_;
   friend class StratumServerStats;
 
+  bool niceHashForced_;
+  std::atomic<uint64_t> niceHashMinDiff_;
+  std::unique_ptr<ZookeeperValueWatcher> niceHashMinDiffWatcher_;
+
 private:
   void runThreadConsume();
   void consumeStratumJob(rd_kafka_message_t *rkmessage);
@@ -146,7 +150,10 @@ public:
       StratumServer *server,
       const char *kafkaBrokers,
       const char *consumerTopic,
-      const string &fileLastNotifyTime);
+      const string &fileLastNotifyTime,
+      bool niceHashForced,
+      uint64_t niceHashMinDiff,
+      const std::string &niceHashMinDiffZookeeperPath);
   virtual ~JobRepository();
 
   void stop();
@@ -163,6 +170,9 @@ public:
   virtual shared_ptr<StratumJobEx>
   createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean);
   virtual void broadcastStratumJob(shared_ptr<StratumJob> sjob) = 0;
+
+  bool niceHashForced() const { return niceHashForced_; }
+  uint64_t niceHashMinDiff() const { return niceHashMinDiff_; }
 };
 
 //  This base class is to help type safety of accessing server_ member variable.
@@ -318,7 +328,10 @@ protected:
       size_t chainId,
       const char *kafkaBrokers,
       const char *consumerTopic,
-      const string &fileLastNotifyTime) = 0;
+      const string &fileLastNotifyTime,
+      bool niceHashForced,
+      uint64_t niceHashMinDiff,
+      const std::string &niceHashMinDiffZookeeperPath) = 0;
 };
 
 template <typename TJobRepository>

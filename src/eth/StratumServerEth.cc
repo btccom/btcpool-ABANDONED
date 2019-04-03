@@ -341,9 +341,19 @@ JobRepositoryEth::JobRepositoryEth(
     ServerEth *server,
     const char *kafkaBrokers,
     const char *consumerTopic,
-    const string &fileLastNotifyTime)
+    const string &fileLastNotifyTime,
+    bool niceHashForced,
+    uint64_t niceHashMinDiff,
+    const std::string &niceHashMinDiffZookeeperPath)
   : JobRepositoryBase(
-        chainId, server, kafkaBrokers, consumerTopic, fileLastNotifyTime)
+        chainId,
+        server,
+        kafkaBrokers,
+        consumerTopic,
+        fileLastNotifyTime,
+        niceHashForced,
+        niceHashMinDiff,
+        niceHashMinDiffZookeeperPath)
   , ethashCalc_(Strings::Format(kLightCacheFilePathFormat, (uint32_t)chainId)) {
 }
 
@@ -598,7 +608,17 @@ JobRepository *ServerEth::createJobRepository(
     size_t chainId,
     const char *kafkaBrokers,
     const char *consumerTopic,
-    const string &fileLastNotifyTime) {
+    const string &fileLastNotifyTime,
+    bool niceHashForced,
+    uint64_t niceHashMinDiff,
+    const std::string &niceHashMinDiffZookeeperPath) {
   return new JobRepositoryEth(
-      chainId, this, kafkaBrokers, consumerTopic, fileLastNotifyTime);
+      chainId,
+      this,
+      kafkaBrokers,
+      consumerTopic,
+      fileLastNotifyTime,
+      niceHashForced,
+      niceHashMinDiff,
+      niceHashMinDiffZookeeperPath);
 }

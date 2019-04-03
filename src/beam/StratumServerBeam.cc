@@ -40,9 +40,19 @@ JobRepositoryBeam::JobRepositoryBeam(
     ServerBeam *server,
     const char *kafkaBrokers,
     const char *consumerTopic,
-    const string &fileLastNotifyTime)
+    const string &fileLastNotifyTime,
+    bool niceHashForced,
+    uint64_t niceHashMinDiff,
+    const std::string &niceHashMinDiffZookeeperPath)
   : JobRepositoryBase(
-        chainId, server, kafkaBrokers, consumerTopic, fileLastNotifyTime)
+        chainId,
+        server,
+        kafkaBrokers,
+        consumerTopic,
+        fileLastNotifyTime,
+        niceHashForced,
+        niceHashMinDiff,
+        niceHashMinDiffZookeeperPath)
   , lastHeight_(0) {
 }
 
@@ -226,7 +236,17 @@ JobRepository *ServerBeam::createJobRepository(
     size_t chainId,
     const char *kafkaBrokers,
     const char *consumerTopic,
-    const string &fileLastNotifyTime) {
+    const string &fileLastNotifyTime,
+    bool niceHashForced,
+    uint64_t niceHashMinDiff,
+    const std::string &niceHashMinDiffZookeeperPath) {
   return new JobRepositoryBeam(
-      chainId, this, kafkaBrokers, consumerTopic, fileLastNotifyTime);
+      chainId,
+      this,
+      kafkaBrokers,
+      consumerTopic,
+      fileLastNotifyTime,
+      niceHashForced,
+      niceHashMinDiff,
+      niceHashMinDiffZookeeperPath);
 }

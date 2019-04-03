@@ -41,7 +41,10 @@ private:
       size_t chainId,
       const char *kafkaBrokers,
       const char *consumerTopic,
-      const string &fileLastNotifyTime) override;
+      const string &fileLastNotifyTime,
+      bool niceHashForced,
+      uint64_t niceHashMinDiff,
+      const std::string &niceHashMinDiffZookeeperPath) override;
 };
 
 class JobRepositorySia : public JobRepositoryBase<ServerSia> {
@@ -51,7 +54,10 @@ public:
       ServerSia *server,
       const char *kafkaBrokers,
       const char *consumerTopic,
-      const string &fileLastNotifyTime);
+      const string &fileLastNotifyTime,
+      bool niceHashForced,
+      uint64_t niceHashMinDiff,
+      const std::string &niceHashMinDiffZookeeperPath);
   ~JobRepositorySia();
   shared_ptr<StratumJob> createStratumJob() override {
     return std::make_shared<StratumJobSia>();

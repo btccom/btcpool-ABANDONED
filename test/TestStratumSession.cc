@@ -114,6 +114,8 @@ public:
   MOCK_METHOD1(switchChain, bool(size_t));
   MOCK_METHOD3(reportShare, void(size_t, int32_t, uint64_t));
   MOCK_CONST_METHOD0(acceptStale, bool());
+  MOCK_CONST_METHOD0(niceHashForced, bool());
+  MOCK_CONST_METHOD0(niceHashMinDiff, uint64_t());
 };
 
 class StratumMinerMock : public StratumMiner {

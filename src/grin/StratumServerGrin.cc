@@ -155,9 +155,18 @@ JobRepository *StratumServerGrin::createJobRepository(
     size_t chainId,
     const char *kafkaBrokers,
     const char *consumerTopic,
-    const string &fileLastNotifyTime) {
-  return new JobRepositoryGrin{
-      chainId, this, kafkaBrokers, consumerTopic, fileLastNotifyTime};
+    const string &fileLastNotifyTime,
+    bool niceHashForced,
+    uint64_t niceHashMinDiff,
+    const std::string &niceHashMinDiffZookeeperPath) {
+  return new JobRepositoryGrin{chainId,
+                               this,
+                               kafkaBrokers,
+                               consumerTopic,
+                               fileLastNotifyTime,
+                               niceHashForced,
+                               niceHashMinDiff,
+                               niceHashMinDiffZookeeperPath};
 }
 
 JobRepositoryGrin::JobRepositoryGrin(
@@ -165,12 +174,18 @@ JobRepositoryGrin::JobRepositoryGrin(
     StratumServerGrin *server,
     const char *kafkaBrokers,
     const char *consumerTopic,
-    const string &fileLastNotifyTime)
+    const string &fileLastNotifyTime,
+    bool niceHashForced,
+    uint64_t niceHashMinDiff,
+    const std::string &niceHashMinDiffZookeeperPath)
   : JobRepositoryBase{chainId,
                       server,
                       kafkaBrokers,
                       consumerTopic,
-                      fileLastNotifyTime}
+                      fileLastNotifyTime,
+                      niceHashForced,
+                      niceHashMinDiff,
+                      niceHashMinDiffZookeeperPath}
   , lastHeight_{0} {
 }
 

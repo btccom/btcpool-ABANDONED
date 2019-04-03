@@ -36,9 +36,19 @@ JobRepositorySia::JobRepositorySia(
     ServerSia *server,
     const char *kafkaBrokers,
     const char *consumerTopic,
-    const string &fileLastNotifyTime)
+    const string &fileLastNotifyTime,
+    bool niceHashForced,
+    uint64_t niceHashMinDiff,
+    const std::string &niceHashMinDiffZookeeperPath)
   : JobRepositoryBase(
-        chainId, server, kafkaBrokers, consumerTopic, fileLastNotifyTime) {
+        chainId,
+        server,
+        kafkaBrokers,
+        consumerTopic,
+        fileLastNotifyTime,
+        niceHashForced,
+        niceHashMinDiff,
+        niceHashMinDiffZookeeperPath) {
 }
 
 JobRepositorySia::~JobRepositorySia() {
@@ -73,7 +83,17 @@ JobRepository *ServerSia::createJobRepository(
     size_t chainId,
     const char *kafkaBrokers,
     const char *consumerTopic,
-    const string &fileLastNotifyTime) {
+    const string &fileLastNotifyTime,
+    bool niceHashForced,
+    uint64_t niceHashMinDiff,
+    const std::string &niceHashMinDiffZookeeperPath) {
   return new JobRepositorySia(
-      chainId, this, kafkaBrokers, consumerTopic, fileLastNotifyTime);
+      chainId,
+      this,
+      kafkaBrokers,
+      consumerTopic,
+      fileLastNotifyTime,
+      niceHashForced,
+      niceHashMinDiff,
+      niceHashMinDiffZookeeperPath);
 }
