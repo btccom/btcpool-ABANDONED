@@ -159,7 +159,6 @@ protected:
       const string &fullName,
       const string &password,
       bool isAutoRegCallback = false);
-  void setDefaultDifficultyFromPassword(const string &password);
   void setClientAgent(const string &clientAgent);
 
   virtual void logAuthorizeResult(bool success, const string &password);
