@@ -370,11 +370,29 @@ void JobRepositoryEth::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
     }
   }
 
+  // get the last job
+  shared_ptr<StratumJobEx> lastExJob = nullptr;
+  if (!exJobs_.empty()) {
+    lastExJob = exJobs_.rbegin()->second;
+  }
+
+  // insert new job
+  exJobs_[sjobEth->jobId_] = exJob;
+
   if (isClean) {
     // Send the job immediately.
     // Sending a job immediately in this function is optional.
     // Jobs can also be sent by checkAndSendMiningNotify().
     sendMiningNotify(exJob);
+  } else if (lastExJob != nullptr) {
+    auto lastSjob = std::static_pointer_cast<StratumJobEth>(lastExJob->sjob_);
+
+    // job update triggered by more uncles or more gas used
+    if ((lastSjob->uncles_ < sjobEth->uncles_) ||
+        (lastSjob->gasUsedPercent_ < 10.0 &&
+         lastSjob->gasUsedPercent_ < sjobEth->gasUsedPercent_)) {
+      sendMiningNotify(exJob);
+    }
   }
 
   // Create light for verification.
