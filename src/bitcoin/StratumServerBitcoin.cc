@@ -82,6 +82,12 @@ void JobRepositoryBitcoin::broadcastStratumJob(
     }
   }
 
+  // get the last job
+  shared_ptr<StratumJobEx> lastExJob = nullptr;
+  if (!exJobs_.empty()) {
+    lastExJob = exJobs_.rbegin()->second;
+  }
+
   // insert new job
   exJobs_[sjob->jobId_] = exJob;
 
@@ -91,19 +97,14 @@ void JobRepositoryBitcoin::broadcastStratumJob(
     return;
   }
 
-  // if last job is an empty block job(clean=true), we need to send a
-  // new non-empty job as quick as possible.
-  if (isClean == false && exJobs_.size() >= 2) {
-    auto itr = exJobs_.rbegin();
-    shared_ptr<StratumJobEx> exJob1 = itr->second;
-    itr++;
-    shared_ptr<StratumJobEx> exJob2 = itr->second;
+  // if last job is an empty block job, we need to send a new non-empty job
+  // as quick as possible.
+  if (lastExJob != nullptr) {
+    auto lastSjob =
+        std::static_pointer_cast<StratumJobBitcoin>(lastExJob->sjob_);
 
-    auto sjob1 = std::static_pointer_cast<StratumJobBitcoin>(exJob1->sjob_);
-    auto sjob2 = std::static_pointer_cast<StratumJobBitcoin>(exJob2->sjob_);
-
-    if (exJob2->isClean_ == true && sjob2->merkleBranch_.size() == 0 &&
-        sjob1->merkleBranch_.size() != 0) {
+    if (lastSjob->merkleBranch_.size() == 0 &&
+        sjob->merkleBranch_.size() != 0) {
       sendMiningNotify(exJob);
     }
   }
