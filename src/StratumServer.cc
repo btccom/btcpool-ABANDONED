@@ -617,25 +617,42 @@ bool StratumServer::setup(const libconfig::Config &config) {
   bool multiChains = false;
   config.lookupValue("sserver.multi_chains", multiChains);
 
+  bool niceHashForced = false;
+  config.lookupValue("sserver.nicehash.forced", niceHashForced);
+  uint64_t niceHashMinDiff = minDifficulty;
+  std::string niceHashMinDiffString;
+  if (config.lookupValue(
+          "sserver.nicehash.min_difficulty", niceHashMinDiffString)) {
+    niceHashMinDiff = stoull(niceHashMinDiffString, 0, 16);
+  }
+  std::string niceHashMinDiffZookeeperPath;
+  config.lookupValue(
+      "sserver.nicehash.min_difficulty_zookeeper_path",
+      niceHashMinDiffZookeeperPath);
+  if (!niceHashMinDiffZookeeperPath.empty()) {
+    initZookeeper(config);
+  }
+
   if (multiChains) {
     const Setting &chains = config.lookup("chains");
     for (int i = 0; i < chains.getLength(); i++) {
       string fileLastMiningNotifyTime; // optional
       chains.lookupValue("file_last_notify_time", fileLastMiningNotifyTime);
 
-      bool niceHashForced = false;
-      chains[i].lookupValue("nicehash.forced", niceHashForced);
-      uint64_t niceHashMinDiff = minDifficulty;
-      std::string niceHashMinDiffString;
+      bool chainNiceHashForced = niceHashForced;
+      chains[i].lookupValue("nicehash.forced", chainNiceHashForced);
+      uint64_t chainNiceHashMinDiff = niceHashMinDiff;
+      std::string chainNiceHashMinDiffString;
       if (chains[i].lookupValue(
-              "nicehash.min_difficulty", niceHashMinDiffString)) {
-        niceHashMinDiff = stoull(niceHashMinDiffString, 0, 16);
+              "nicehash.min_difficulty", chainNiceHashMinDiffString)) {
+        chainNiceHashMinDiff = stoull(chainNiceHashMinDiffString, 0, 16);
       }
-      std::string niceHashMinDiffZookeeperPath;
+      std::string chainNiceHashMinDiffZookeeperPath =
+          niceHashMinDiffZookeeperPath;
       chains[i].lookupValue(
           "nicehash.min_difficulty_zookeeper_path",
-          niceHashMinDiffZookeeperPath);
-      if (!niceHashMinDiffZookeeperPath.empty()) {
+          chainNiceHashMinDiffZookeeperPath);
+      if (!chainNiceHashMinDiffZookeeperPath.empty()) {
         initZookeeper(config);
       }
 
@@ -647,9 +664,9 @@ bool StratumServer::setup(const libconfig::Config &config) {
           chains[i].lookup("common_events_topic"),
           chains[i].lookup("job_topic"),
           fileLastMiningNotifyTime,
-          niceHashForced,
-          niceHashMinDiff,
-          niceHashMinDiffZookeeperPath);
+          chainNiceHashForced,
+          chainNiceHashMinDiff,
+          chainNiceHashMinDiffZookeeperPath);
     }
     if (chains_.empty()) {
       LOG(FATAL) << "sserver.multi_chains enabled but chains empty!";
@@ -658,22 +675,6 @@ bool StratumServer::setup(const libconfig::Config &config) {
     string fileLastMiningNotifyTime; // optional
     config.lookupValue(
         "sserver.file_last_notify_time", fileLastMiningNotifyTime);
-
-    bool niceHashForced = false;
-    config.lookupValue("sserver.nicehash.forced", niceHashForced);
-    uint64_t niceHashMinDiff = minDifficulty;
-    std::string niceHashMinDiffString;
-    if (config.lookupValue(
-            "sserver.nicehash.min_difficulty", niceHashMinDiffString)) {
-      niceHashMinDiff = stoull(niceHashMinDiffString, 0, 16);
-    }
-    std::string niceHashMinDiffZookeeperPath;
-    config.lookupValue(
-        "sserver.nicehash.min_difficulty_zookeeper_path",
-        niceHashMinDiffZookeeperPath);
-    if (!niceHashMinDiffZookeeperPath.empty()) {
-      initZookeeper(config);
-    }
 
     addChainVars(
         "default",
