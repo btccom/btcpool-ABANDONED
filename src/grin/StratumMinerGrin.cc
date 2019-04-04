@@ -154,7 +154,8 @@ void StratumMinerGrin::handleRequest_Submit(
       proofs,
       jobDiff.jobDiffs_,
       worker.fullName_,
-      blockHash);
+      blockHash,
+      isNiceHashClient_);
 
   if (StratumStatus::isAccepted(share.status())) {
     DLOG(INFO) << "share reached the diff: " << share.scaledShareDiff();
@@ -168,7 +169,13 @@ void StratumMinerGrin::handleRequest_Submit(
           idStr, share.status(), share.sharediff(), localJob->chainId_)) {
     if (StratumStatus::isSolved(share.status())) {
       server.sendSolvedShare2Kafka(
-          localJob->chainId_, share, exjob, proofs, worker, blockHash);
+          localJob->chainId_,
+          share,
+          exjob,
+          proofs,
+          worker,
+          blockHash,
+          isNiceHashClient_);
       // mark jobs as stale
       server.GetJobRepository(localJob->chainId_)->markAllJobsAsStale();
     }

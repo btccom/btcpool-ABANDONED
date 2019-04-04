@@ -199,6 +199,7 @@ public:
   string serializeToJson() const override;
   bool unserializeFromJson(const char *s, size_t len) override;
   uint64_t height() const override { return height_; }
+  string prePowStr(bool niceHashAgent) const;
 
   uint64_t height_;
   uint64_t nodeJobId_;

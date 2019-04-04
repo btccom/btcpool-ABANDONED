@@ -45,14 +45,16 @@ public:
       const vector<uint64_t> &proofs,
       const std::set<uint64_t> &jobDiffs,
       const string &workFullName,
-      uint256 &blockHash);
+      uint256 &blockHash,
+      bool niceHashAgent);
   void sendSolvedShare2Kafka(
       size_t chainId,
       const ShareGrin &share,
       shared_ptr<StratumJobEx> exjob,
       const vector<uint64_t> &proofs,
       const StratumWorker &worker,
-      const uint256 &blockHash);
+      const uint256 &blockHash,
+      bool niceHashAgent);
 
 protected:
   JobRepository *createJobRepository(

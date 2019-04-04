@@ -159,6 +159,11 @@ void ClientContainerGrin::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
   std::ostringstream oss;
   oss << jroot["proofs"];
   auto proofs = oss.str();
+  string timestamp;
+  if (jroot["timestamp"].type() == Utilities::JS::type::Int) {
+    timestamp =
+        Strings::Format(",\"timestamp\": %" PRId64, jroot["timestamp"].int64());
+  }
   LOG(INFO) << "received a new solved share, worker: " << workerFullName
             << ", prePow: " << prePow << ", height: " << height
             << ", edgeBits: " << edgeBits << ", nonce: " << nonce
@@ -188,12 +193,13 @@ void ClientContainerGrin::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
       "{\"edge_bits\":%u,\"height\":%u,\"job_id\":%u"
       ",\"nonce\":%u"
       ",\"pow\":%s"
-      "}}\n",
+      "%s}}\n",
       edgeBits,
       height,
       nodeJobId,
       nonce,
-      proofs);
+      proofs.c_str(),
+      timestamp.c_str());
 
   LOG(INFO) << "submitting block: " << submitJson;
   client->sendData(submitJson);

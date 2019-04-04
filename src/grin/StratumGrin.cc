@@ -96,3 +96,20 @@ bool StratumJobGrin::unserializeFromJson(const char *s, size_t len) {
 
   return true;
 }
+
+string StratumJobGrin::prePowStr(bool niceHashAgent) const {
+  if (niceHashAgent) {
+    // NiceHash would have a different job and the only header field we can
+    // modify is the timestamp
+    PrePowGrin prePow{prePow_};
+    prePow.timestamp = prePow.timestamp.value() + 1;
+    string prePowStr;
+    Bin2Hex(
+        reinterpret_cast<const uint8_t *>(&prePow),
+        sizeof(PrePowGrin),
+        prePowStr);
+    return prePowStr;
+  } else {
+    return prePowStr_;
+  }
+}

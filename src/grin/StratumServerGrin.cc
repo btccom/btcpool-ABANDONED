@@ -41,7 +41,8 @@ void StratumServerGrin::checkAndUpdateShare(
     const vector<uint64_t> &proofs,
     const std::set<uint64_t> &jobDiffs,
     const string &workFullName,
-    uint256 &blockHash) {
+    uint256 &blockHash,
+    bool niceHashAgent) {
   auto sjob = std::static_pointer_cast<StratumJobGrin>(exjob->sjob_);
 
   DLOG(INFO) << "checking share nonce: " << std::hex << share.nonce()
@@ -55,6 +56,9 @@ void StratumServerGrin::checkAndUpdateShare(
 
   PreProofGrin preProof;
   preProof.prePow = sjob->prePow_;
+  if (niceHashAgent) {
+    preProof.prePow.timestamp = preProof.prePow.timestamp.value() + 1;
+  }
   preProof.nonce = share.nonce();
   bool isValidSolution = VerifyPowGrin(preProof, share.edgebits(), proofs);
   if (!isValidSolution && !isEnableSimulator_) {
@@ -118,7 +122,8 @@ void StratumServerGrin::sendSolvedShare2Kafka(
     shared_ptr<StratumJobEx> exjob,
     const vector<uint64_t> &proofs,
     const StratumWorker &worker,
-    const uint256 &blockHash) {
+    const uint256 &blockHash,
+    bool niceHashAgent) {
   string proofArray;
   if (!proofs.empty()) {
     proofArray = std::accumulate(
@@ -131,6 +136,11 @@ void StratumServerGrin::sendSolvedShare2Kafka(
   auto sjob = std::static_pointer_cast<StratumJobGrin>(exjob->sjob_);
   string blockHashStr;
   Bin2Hex(blockHash.begin(), blockHash.size(), blockHashStr);
+  string timestampStr;
+  if (niceHashAgent) {
+    timestampStr = Strings::Format(
+        ",\"timestamp\":%" PRId64, sjob->prePow_.timestamp.value() + 1);
+  }
   string msg = Strings::Format(
       "{\"prePow\":\"%s\""
       ",\"height\":%u,\"edgeBits\":%u,\"nonce\":%u"
@@ -138,17 +148,18 @@ void StratumServerGrin::sendSolvedShare2Kafka(
       ",\"userId\":%d,\"workerId\":%d"
       ",\"workerFullName\":\"%s\""
       ",\"blockHash\":\"%s\""
-      "}",
-      sjob->prePowStr_,
+      "%s}",
+      sjob->prePowStr_.c_str(),
       sjob->height_,
       share.edgebits(),
       share.nonce(),
       proofArray,
       worker.userId(chainId),
       worker.workerHashId_,
-      filterWorkerName(worker.fullName_),
-      blockHashStr);
-  ServerBase::sendSolvedShare2Kafka(chainId, msg.data(), msg.size());
+      filterWorkerName(worker.fullName_).c_str(),
+      blockHashStr.c_str(),
+      timestampStr.c_str());
+  ServerBase::sendSolvedShare2Kafka(chainId, msg.c_str(), msg.length());
 }
 
 JobRepository *StratumServerGrin::createJobRepository(
