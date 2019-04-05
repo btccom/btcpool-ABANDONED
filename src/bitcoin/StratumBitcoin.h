@@ -97,7 +97,34 @@ public:
   }
 };
 
-struct ShareBitcoinBytesVersion {
+struct ShareBitcoinBytesV1 {
+public:
+  enum Result {
+    // make default 0 as REJECT, so code bug is unlikely to make false ACCEPT
+    // shares
+    REJECT = 0,
+    ACCEPT = 1
+  };
+
+  uint64_t jobId_ = 0;
+  int64_t workerHashId_ = 0;
+  uint32_t ip_ = 0;
+  int32_t userId_ = 0;
+  uint64_t shareDiff_ = 0;
+  uint32_t timestamp_ = 0;
+  uint32_t blkBits_ = 0;
+  int32_t result_ = 0;
+  // Even if the field does not exist,
+  // gcc will add the field as a padding
+  // under the default memory alignment parameter.
+  int32_t padding_ = 0;
+};
+
+static_assert(
+    sizeof(ShareBitcoinBytesV1) == 48,
+    "ShareBitcoinBytesV1 should be 48 bytes");
+
+struct ShareBitcoinBytesV2 {
   uint32_t version_ = 0;
   uint32_t checkSum_ = 0;
 
@@ -249,9 +276,9 @@ public:
         return false;
       }
     } else if (
-        version == BYTES_VERSION && size == sizeof(ShareBitcoinBytesVersion)) {
+        version == BYTES_VERSION && size == sizeof(ShareBitcoinBytesV2)) {
 
-      ShareBitcoinBytesVersion *share = (ShareBitcoinBytesVersion *)payload;
+      ShareBitcoinBytesV2 *share = (ShareBitcoinBytesV2 *)payload;
 
       if (share->checkSum() != share->checkSum_) {
         DLOG(INFO) << "checkSum mismatched! checkSum_: " << share->checkSum_
@@ -271,6 +298,38 @@ public:
       set_height(share->height_);
       set_nonce(share->nonce_);
       set_sessionid(share->sessionId_);
+
+    } else if (size == sizeof(ShareBitcoinBytesV1)) {
+      ShareBitcoinBytesV1 *share = (ShareBitcoinBytesV1 *)payload;
+
+      char ipStr[INET_ADDRSTRLEN];
+      inet_ntop(AF_INET, &(share->ip_), ipStr, INET_ADDRSTRLEN);
+
+      set_version(CURRENT_VERSION);
+      set_workerhashid(share->workerHashId_);
+      set_userid(share->userId_);
+      set_status(
+          share->result_ == ShareBitcoinBytesV1::ACCEPT
+              ? StratumStatus::ACCEPT
+              : StratumStatus::REJECT_NO_REASON);
+      set_timestamp(share->timestamp_);
+      set_ip(ipStr);
+      set_jobid(share->jobId_);
+      set_sharediff(share->shareDiff_);
+      set_blkbits(share->blkBits_);
+
+      // There is no height in ShareBitcoinBytesV1, so it can only be assumed.
+      // Note: BTCPool's SBTC support is outdated, so SBTC is not considered.
+
+#ifdef CHAIN_TYPE_UBTC
+      // UBTC's height and block rewards differ greatly from other SHA256
+      // blockchains (like BTC, BCH, BSV, ...)
+      set_height(758000);
+#else
+      // The block reward should be 12.5 on this height
+      set_height(570000);
+#endif
+
     } else {
       DLOG(INFO) << "unknow share received!";
       return false;
