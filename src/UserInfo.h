@@ -25,7 +25,7 @@
 
 #include <memory>
 #include <algorithm>
-#include <boost/thread.hpp>
+#include <shared_mutex>
 
 #include "utilities_js.hpp"
 
@@ -52,7 +52,7 @@ class UserInfo {
   struct ChainVars {
     string apiUrl_;
 
-    pthread_rwlock_t *nameIdlock_;
+    std::unique_ptr<std::shared_timed_mutex> nameIdlock_;
     // username -> userId
     std::unordered_map<string, int32_t> nameIds_;
     int32_t lastMaxUserId_;
@@ -83,7 +83,7 @@ class UserInfo {
   std::set<string> autoRegPendingUsers_;
   std::mutex autoRegPendingUsersLock_;
 
-  pthread_rwlock_t nameChainlock_;
+  std::shared_timed_mutex nameChainlock_;
   // username -> chainId
   std::unordered_map<string, size_t> nameChains_;
 

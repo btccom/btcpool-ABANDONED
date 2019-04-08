@@ -70,7 +70,7 @@ UserInfo::UserInfo(StratumServer *server, const libconfig::Config &config)
   auto addChainVars = [&](const string &apiUrl) {
     chains_.push_back({
         apiUrl,
-        new pthread_rwlock_t(), // rwlock_
+        std::make_unique<std::shared_timed_mutex>(), // rwlock_
         {}, // nameIds_
         0, // lastMaxUserId_
 #ifdef USER_DEFINED_COINBASE
@@ -79,8 +79,6 @@ UserInfo::UserInfo(StratumServer *server, const libconfig::Config &config)
 #endif
         {} // threadUpdate_
     });
-
-    pthread_rwlock_init(chains_.rbegin()->nameIdlock_, nullptr);
   };
 
   bool multiChains = false;
@@ -111,8 +109,6 @@ UserInfo::UserInfo(StratumServer *server, const libconfig::Config &config)
     // required (exception will be threw if inexists)
     addChainVars(config.lookup("users.list_id_api_url"));
   }
-
-  pthread_rwlock_init(&nameChainlock_, nullptr);
 }
 
 UserInfo::~UserInfo() {
@@ -121,9 +117,6 @@ UserInfo::~UserInfo() {
   for (ChainVars &chain : chains_) {
     if (chain.threadUpdate_.joinable())
       chain.threadUpdate_.join();
-
-    pthread_rwlock_destroy(chain.nameIdlock_);
-    delete chain.nameIdlock_;
   }
 }
 
@@ -166,9 +159,8 @@ bool UserInfo::getChainIdFromZookeeper(
       for (chainId = 0; chainId < server_->chains_.size(); chainId++) {
         if (chainName == server_->chains_[chainId].name_) {
           // add to cache
-          pthread_rwlock_wrlock(&nameChainlock_);
+          std::unique_lock<std::shared_timed_mutex> l{nameChainlock_};
           nameChains_[userName] = chainId;
-          pthread_rwlock_unlock(&nameChainlock_);
           return true;
         }
       }
@@ -199,16 +191,16 @@ void UserInfo::handleSwitchChainEvent(
   string userName = nodePath.substr(userInfo->zkUserChainMapDir_.size());
 
   // lookup cache
-  pthread_rwlock_rdlock(&userInfo->nameChainlock_);
+  std::shared_lock<std::shared_timed_mutex> l{userInfo->nameChainlock_};
   auto itr = userInfo->nameChains_.find(userName);
-  pthread_rwlock_unlock(&userInfo->nameChainlock_);
-
   if (itr == userInfo->nameChains_.end()) {
     LOG(INFO) << "No workers of user " << userName
               << " online, switching request will be ignored";
     return;
   }
   size_t currentChainId = itr->second;
+  l.unlock();
+
   size_t newChainId;
   if (!userInfo->getChainIdFromZookeeper(userName, newChainId)) {
     LOG(ERROR) << "UserInfo::handleZookeeperEvent(): cannot get chain id from "
@@ -231,12 +223,11 @@ void UserInfo::handleSwitchChainEvent(
           LOG(INFO) << "No workers of user " << userName
                     << " online, subsequent switching request will be ignored";
           // clear cache
-          pthread_rwlock_wrlock(&userInfo->nameChainlock_);
+          std::unique_lock<std::shared_timed_mutex> l{userInfo->nameChainlock_};
           auto itr = userInfo->nameChains_.find(userName);
           if (itr != userInfo->nameChains_.end()) {
             userInfo->nameChains_.erase(itr);
           }
-          pthread_rwlock_unlock(&userInfo->nameChainlock_);
         }
 
         LOG(INFO) << "User '" << userName << "' (" << switchedSessions
@@ -254,14 +245,14 @@ bool UserInfo::getChainId(string userName, size_t &chainId) {
 
   regularUserName(userName);
 
-  // lookup name -> chain cache map
-  pthread_rwlock_rdlock(&nameChainlock_);
-  auto itr = nameChains_.find(userName);
-  pthread_rwlock_unlock(&nameChainlock_);
-
-  if (itr != nameChains_.end()) {
-    chainId = itr->second;
-    return true;
+  {
+    // lookup name -> chain cache map
+    std::shared_lock<std::shared_timed_mutex> l{nameChainlock_};
+    auto itr = nameChains_.find(userName);
+    if (itr != nameChains_.end()) {
+      chainId = itr->second;
+      return true;
+    }
   }
 
   // lookup zookeeper
@@ -274,10 +265,8 @@ bool UserInfo::getChainId(string userName, size_t &chainId) {
   for (chainId = 0; chainId < chains_.size(); chainId++) {
     ChainVars &chain = chains_[chainId];
 
-    pthread_rwlock_rdlock(chain.nameIdlock_);
+    std::shared_lock<std::shared_timed_mutex> l{*chain.nameIdlock_};
     auto itr = chain.nameIds_.find(userName);
-    pthread_rwlock_unlock(chain.nameIdlock_);
-
     if (itr != chain.nameIds_.end()) {
       // chainId has been assigned to the correct value
       DLOG(INFO) << "userName: " << userName << ", chainId: " << chainId;
@@ -293,10 +282,8 @@ int32_t UserInfo::getUserId(size_t chainId, string userName) {
   ChainVars &chain = chains_[chainId];
   regularUserName(userName);
 
-  pthread_rwlock_rdlock(chain.nameIdlock_);
+  std::shared_lock<std::shared_timed_mutex> l{*chain.nameIdlock_};
   auto itr = chain.nameIds_.find(userName);
-  pthread_rwlock_unlock(chain.nameIdlock_);
-
   if (itr != chain.nameIds_.end()) {
     return itr->second;
   }
@@ -430,19 +417,20 @@ int32_t UserInfo::incrementalUpdateUsers(size_t chainId) {
     return 0;
   }
 
-  pthread_rwlock_wrlock(chain.nameIdlock_);
-  for (const auto &itr : *vUser) {
-    string userName(itr.key_start(), itr.key_end() - itr.key_start());
-    regularUserName(userName);
+  {
+    std::unique_lock<std::shared_timed_mutex> l{*chain.nameIdlock_};
+    for (const auto &itr : *vUser) {
+      string userName(itr.key_start(), itr.key_end() - itr.key_start());
+      regularUserName(userName);
 
-    const int32_t userId = itr.int32();
-    if (userId > chain.lastMaxUserId_) {
-      chain.lastMaxUserId_ = userId;
+      const int32_t userId = itr.int32();
+      if (userId > chain.lastMaxUserId_) {
+        chain.lastMaxUserId_ = userId;
+      }
+
+      chain.nameIds_.insert(std::make_pair(userName, userId));
     }
-
-    chain.nameIds_.insert(std::make_pair(userName, userId));
   }
-  pthread_rwlock_unlock(chain.nameIdlock_);
 
   return vUser->size();
 }
