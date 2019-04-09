@@ -8,15 +8,15 @@
 #
 
 ######### Build image #########
-ARG BUILD_ENV_TAG
-FROM btccom/btcpool_build:${BUILD_ENV_TAG} as build
+ARG BUILD_ENV_IMAGE
+FROM ${BUILD_ENV_IMAGE} as build
 LABEL maintainer="Hanjiang Yu <hanjiang.yu@bitmain.com>"
 
 ARG BUILD_JOBS=1
-ARG BUILD_TYPE
-ARG USER_DEFINED_COINBASE
-ARG USER_DEFINED_COINBASE_SIZE
-ARG WORK_WITH_STRATUM_SWITCHER
+ARG BUILD_TYPE=Release
+ARG USER_DEFINED_COINBASE=OFF
+ARG USER_DEFINED_COINBASE_SIZE=10
+ARG WORK_WITH_STRATUM_SWITCHER=OFF
 
 # Copy & build btcpool
 COPY . /tmp/btcpool
@@ -39,8 +39,24 @@ RUN cd /tmp/build && make package && mkdir -p /work/package && cp *.deb /work/pa
 FROM ubuntu:18.04
 LABEL maintainer="Hanjiang Yu <hanjiang.yu@bitmain.com>"
 
+# use aliyun source
+ADD ./docker/btcpool/deploy/sources-aliyun.com.list /etc/apt/sources.list
+
+# Install maintain & debug tools
+RUN apt-get update && apt-get install -y curl tmux telnet tcpdump tcpflow less net-tools htop gdb busybox && \
+    busybox --install -s
+
 # Copy deb packages
-COPY --from=build /work/package /work/package
+COPY --from=build /work/package /tmp/package
 
 # Install deb packages
-RUN apt-get update && apt-get install -y /work/package/*-main.deb
+RUN apt-get install -y /tmp/package/*.deb
+
+# Clean apt caches
+RUN apt-get autoremove && \
+    apt-get autoclean && \
+    rm -rf /tmp/package /var/lib/apt/lists/*
+
+# entrypoint
+COPY ./docker/btcpool/deploy/entrypoint.sh /
+ENTRYPOINT ["/bin/sh", "/entrypoint.sh"]
