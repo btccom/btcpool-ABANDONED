@@ -8,8 +8,8 @@
 #
 
 ######### Build image #########
-ARG BUILD_ENV_IMAGE
-FROM ${BUILD_ENV_IMAGE} as build
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE} as build
 LABEL maintainer="Hanjiang Yu <hanjiang.yu@bitmain.com>"
 
 ARG BUILD_JOBS=1

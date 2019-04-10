@@ -36,22 +36,22 @@ See [here](../base-image/).
 
 ```
 # BTC
-docker build -t btccom/btcpool-btc -f Dockerfile --build-arg BUILD_ENV_IMAGE=btccom/btcpool_build:btc-0.16.3 --build-arg BUILD_JOBS=$(nproc) ../../..
+docker build -t btccom/btcpool-btc --build-arg BASE_IMAGE=btccom/btcpool_build:btc-0.16.3 --build-arg BUILD_JOBS=$(nproc) ../../..
 
 # BCH
-docker build -t btccom/btcpool-bch -f Dockerfile --build-arg BUILD_ENV_IMAGE=btccom/btcpool_build:bch-0.18.5 --build-arg BUILD_JOBS=$(nproc) ../../..
+docker build -t btccom/btcpool-bch --build-arg BASE_IMAGE=btccom/btcpool_build:bch-0.18.5 --build-arg BUILD_JOBS=$(nproc) ../../..
 
 # UBTC
-docker build -t btccom/btcpool-ubtc -f Dockerfile --build-arg BUILD_ENV_IMAGE=btccom/btcpool_build:ubtc-2.3.0.1 --build-arg BUILD_JOBS=$(nproc) ../../..
+docker build -t btccom/btcpool-ubtc --build-arg BASE_IMAGE=btccom/btcpool_build:ubtc-2.3.0.1 --build-arg BUILD_JOBS=$(nproc) ../../..
 
 # SBTC (outdated)
-docker build -t btccom/btcpool-sbtc -f Dockerfile --build-arg BUILD_ENV_IMAGE=btccom/btcpool_build:sbtc-0.16.2 --build-arg BUILD_JOBS=$(nproc) ../../..
+docker build -t btccom/btcpool-sbtc --build-arg BASE_IMAGE=btccom/btcpool_build:sbtc-0.16.2 --build-arg BUILD_JOBS=$(nproc) ../../..
 
 # LTC
-docker build -t btccom/btcpool-ltc -f Dockerfile --build-arg BUILD_ENV_IMAGE=btccom/btcpool_build:ltc-0.16.3 --build-arg BUILD_JOBS=$(nproc) ../../..
+docker build -t btccom/btcpool-ltc --build-arg BASE_IMAGE=btccom/btcpool_build:ltc-0.16.3 --build-arg BUILD_JOBS=$(nproc) ../../..
 
 # ZEC
-docker build -t btccom/btcpool-zec -f Dockerfile --build-arg BUILD_ENV_IMAGE=btccom/btcpool_build:zec-2.0.4 --build-arg BUILD_JOBS=$(nproc) ../../..
+docker build -t btccom/btcpool-zec --build-arg BASE_IMAGE=btccom/btcpool_build:zec-2.0.4 --build-arg BUILD_JOBS=$(nproc) ../../..
 ```
 
 ## Run unittest
