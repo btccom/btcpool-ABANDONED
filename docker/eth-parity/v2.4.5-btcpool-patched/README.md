@@ -3,7 +3,7 @@ Docker for Parity Ethereum Node
 
 * OS: `Ubuntu 16.04 LTS`
 * Docker image: build by yourself
-* Parity version: 2.4.0 with patched `eth_getWork` and `eth_submitWork`
+* Parity version: 2.4.5 with patched `eth_getWork` and `eth_submitWork`
 
 ## Install Docker CE
 
@@ -36,9 +36,9 @@ service docker restart
 ## Build Docker Image
 
 ```
-git clone --depth=1 -b v2.4.0-btcpool https://github.com/btccom/parity-ethereum.git
+git clone --depth=1 -b v2.4.5-btcpool https://github.com/btccom/parity-ethereum.git
 cd parity-ethereum
-docker build -t parity:2.4.0-btcpool -f scripts/docker/alpine/Dockerfile .
+docker build -t parity:2.4.5-btcpool -f scripts/docker/alpine/Dockerfile .
 ```
 
 ## Create Config Files
@@ -230,7 +230,7 @@ enode://pubkey@ip:port
 
 ```
 # start docker
-docker run -it -v /work/ethereum/eth-parity/:/home/parity/.local/share/io.parity.ethereum/ -p 8545:8545 -p 30303:30303 --name eth-parity --restart always -d parity:2.4.0-btcpool
+docker run -it -v /work/ethereum/eth-parity/:/home/parity/.local/share/io.parity.ethereum/ -p 8545:8545 -p 30303:30303 --name eth-parity --restart always -d parity:2.4.5-btcpool
 
 # see the log
 tail -f /work/ethereum/eth-parity/parity.log
@@ -243,7 +243,7 @@ docker exec -it eth-parity /bin/bash
 
 ```
 # start docker
-docker run -it -v /work/ethereum/etc-parity/:/home/parity/.local/share/io.parity.ethereum/ -p 8555:8545 -p 30403:30303 --name etc-parity --restart always -d parity:2.4.0-btcpool
+docker run -it -v /work/ethereum/etc-parity/:/home/parity/.local/share/io.parity.ethereum/ -p 8555:8545 -p 30403:30303 --name etc-parity --restart always -d parity:2.4.5-btcpool
 
 # see the log
 tail -f /work/ethereum/etc-parity/parity.log
@@ -275,7 +275,7 @@ chown -R 1000:1000 /work/ethereum/eth-parity
 sed -i 's@/root/@/home/parity/@g' /work/ethereum/eth-parity/config.toml
 
 # Now you can run the new container
-docker run -it -v /work/ethereum/eth-parity/:/home/parity/.local/share/io.parity.ethereum/ -p 8545:8545 -p 30303:30303 --name eth-parity --restart always -d parity:2.4.0-btcpool
+docker run -it -v /work/ethereum/eth-parity/:/home/parity/.local/share/io.parity.ethereum/ -p 8545:8545 -p 30303:30303 --name eth-parity --restart always -d parity:2.4.5-btcpool
 
 # Check if Parity is running properly
 tail -F /work/ethereum/eth-parity/parity.log
@@ -283,7 +283,7 @@ tail -F /work/ethereum/eth-parity/parity.log
 # If it not running properly, you can debug it
 docker stop eth-parity
 docker rm eth-parity
-docker run -it -v /work/ethereum/eth-parity/:/home/parity/.local/share/io.parity.ethereum/ -p 8545:8545 -p 30303:30303 --name eth-parity --entrypoint=/bin/bash parity:2.4.0-btcpool
+docker run -it -v /work/ethereum/eth-parity/:/home/parity/.local/share/io.parity.ethereum/ -p 8545:8545 -p 30303:30303 --name eth-parity --entrypoint=/bin/bash parity:2.4.5-btcpool
 ```
 
 ### For Ethereum Classic
@@ -300,7 +300,7 @@ chown -R 1000:1000 /work/ethereum/etc-parity
 sed -i 's@/root/@/home/parity/@g' /work/ethereum/etc-parity/config.toml
 
 # Now you can run the new container
-docker run -it -v /work/ethereum/etc-parity/:/home/parity/.local/share/io.parity.ethereum/ -p 8545:8545 -p 30303:30303 --name etc-parity --restart always -d parity:2.4.0-btcpool
+docker run -it -v /work/ethereum/etc-parity/:/home/parity/.local/share/io.parity.ethereum/ -p 8545:8545 -p 30303:30303 --name etc-parity --restart always -d parity:2.4.5-btcpool
 
 # Check if Parity is running properly
 tail -F /work/ethereum/etc-parity/parity.log
@@ -308,5 +308,5 @@ tail -F /work/ethereum/etc-parity/parity.log
 # If it not running properly, you can debug it
 docker stop etc-parity
 docker rm etc-parity
-docker run -it -v /work/ethereum/etc-parity/:/home/parity/.local/share/io.parity.ethereum/ -p 8545:8545 -p 30303:30303 --name etc-parity --entrypoint=/bin/bash parity:2.4.0-btcpool
+docker run -it -v /work/ethereum/etc-parity/:/home/parity/.local/share/io.parity.ethereum/ -p 8545:8545 -p 30303:30303 --name etc-parity --entrypoint=/bin/bash parity:2.4.5-btcpool
 ```
