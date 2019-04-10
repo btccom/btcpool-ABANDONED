@@ -1,4 +1,4 @@
-BTCPool docker base images
+BTCPool Docker Base Images
 ============================
 
 ## Install Docker CE
@@ -29,7 +29,7 @@ vim /etc/docker/daemon.json
 service docker restart
 ```
 
-## Build Images
+## Build Base Images
 
 ```
 # BTC
@@ -46,4 +46,7 @@ docker build -t btccom/btcpool_build:sbtc-0.16.2 -f Dockerfile.sbtc --build-arg 
 
 # LTC
 docker build -t btccom/btcpool_build:ltc-0.16.3 -f Dockerfile.ltc --build-arg BUILD_JOBS=$(nproc) .
+
+# ZEC
+docker build -t btccom/btcpool_build:zec-2.0.4 -f Dockerfile.zec --build-arg BUILD_JOBS=$(nproc) .
 ```

@@ -1,4 +1,4 @@
-BTCPool docker deploy images
+BTCPool Docker Deploy Images
 ============================
 
 ## Install Docker CE
@@ -49,6 +49,9 @@ docker build -t btccom/btcpool-sbtc -f Dockerfile --build-arg BUILD_ENV_IMAGE=bt
 
 # LTC
 docker build -t btccom/btcpool-ltc -f Dockerfile --build-arg BUILD_ENV_IMAGE=btccom/btcpool_build:ltc-0.16.3 --build-arg BUILD_JOBS=$(nproc) ../../..
+
+# ZEC
+docker build -t btccom/btcpool-zec -f Dockerfile --build-arg BUILD_ENV_IMAGE=btccom/btcpool_build:zec-2.0.4 --build-arg BUILD_JOBS=$(nproc) ../../..
 ```
 
 ## Run unittest
@@ -68,4 +71,7 @@ docker run -it --rm btccom/btcpool-sbtc unittest
 
 # LTC
 docker run -it --rm btccom/btcpool-ltc unittest
+
+# ZEC
+docker run -it --rm btccom/btcpool-zec unittest
 ```

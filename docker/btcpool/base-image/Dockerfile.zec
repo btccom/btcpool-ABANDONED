@@ -42,7 +42,8 @@ RUN apt-get update && apt-get install -y \
     wget \
     yasm \
     zlib1g-dev \
-    && apt-get autoremove && apt-get clean q&& rm -rf /var/lib/apt/lists/*
+    libsodium-dev \
+    && apt-get autoremove && apt-get clean q && rm -rf /var/lib/apt/lists/*
 
 # Build libevent static library
 RUN cd /tmp && \
@@ -59,8 +60,8 @@ RUN cd /tmp && \
 # Build librdkafka static library
 RUN cd /tmp && wget https://github.com/edenhill/librdkafka/archive/0.9.1.tar.gz && \
     [ $(sha256sum 0.9.1.tar.gz | cut -d " " -f 1) = "5ad57e0c9a4ec8121e19f13f05bacc41556489dfe8f46ff509af567fdee98d82" ] && \
-    tar zxvf 0.9.1.tar.gz && cd librdkafka-0.9.1 && \
-    ./configure && make && make install && rm -rf /tmp/*
+    tar zxf 0.9.1.tar.gz && cd librdkafka-0.9.1 && \
+    ./configure && make -j${BUILD_JOBS} && make install && rm -rf /tmp/*
 
 # Remove dynamic libraries of librdkafka
 # In this way, the constructed deb package will
@@ -69,12 +70,9 @@ RUN cd /usr/local/lib && \
     find . | grep 'rdkafka' | grep '.so' | xargs rm
 
 # Build blockchain
-RUN mkdir /work && git clone https://github.com/superbitcoin/SuperBitcoin.git --branch v0.16.2 --depth 1 /work/blockchain && \
-    cd /work/blockchain && ./autogen.sh && ./configure --with-gui=no --disable-wallet --disable-tests --disable-bench && make && \
-    cd /work/blockchain/src/secp256k1 && ./autogen.sh && ./configure --enable-module-recovery && make
-
-# For forward compatible
-RUN ln -s /work/blockchain /work/bitcoin
+RUN mkdir -p /work/blockchain && cd /work/blockchain && wget https://github.com/zcash/zcash/archive/v2.0.4.tar.gz && \
+    [ $(sha256sum v2.0.4.tar.gz | cut -d " " -f 1) = "7353fdee034053fb4cd1a5588fc9476bd4094158d2edb6b8748e3bad1ffd2de4" ] && \
+    tar zxf v2.0.4.tar.gz --strip 1 && rm v2.0.4.tar.gz && ./zcutil/build.sh -j${BUILD_JOBS}
 
 # Used later by btcpool build
-ENV CHAIN_TYPE=SBTC
+ENV CHAIN_TYPE=ZEC
