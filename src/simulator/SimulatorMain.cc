@@ -146,7 +146,8 @@ int main(int argc, char **argv) {
         cfg.lookup("simulator.username"),
         cfg.lookup("simulator.minername_prefix"),
         passwd,
-        cfg.lookup("simulator.type"));
+        cfg.lookup("simulator.type"),
+        cfg);
     wrapper->run();
   } catch (const SettingException &e) {
     LOG(FATAL) << "config missing: " << e.getPath();

@@ -42,6 +42,10 @@
 
 #include <type_traits>
 
+namespace libconfig {
+class Config;
+}
+
 ///////////////////////////////// StratumClient ////////////////////////////////
 class StratumClient {
 protected:
@@ -67,7 +71,11 @@ public:
   atomic<State> state_;
 
   using Factory = function<unique_ptr<StratumClient>(
-      bool, struct event_base *, const string &, const string &)>;
+      bool,
+      struct event_base *,
+      const string &,
+      const string &,
+      const libconfig::Config &)>;
   static bool registerFactory(const string &chainType, Factory factory);
   template <typename T>
   static bool registerFactory(const string &chainType) {
@@ -79,9 +87,26 @@ public:
         [](bool enableTLS,
            struct event_base *base,
            const string &workerFullName,
-           const string &workerPasswd) {
+           const string &workerPasswd,
+           const libconfig::Config &config) {
           return std::make_unique<T>(
               enableTLS, base, workerFullName, workerPasswd);
+        });
+  }
+  template <typename T>
+  static bool registerFactoryWithConfig(const string &chainType) {
+    static_assert(
+        std::is_base_of<StratumClient, T>::value,
+        "Factory is not constructing the correct type");
+    return registerFactory(
+        chainType,
+        [](bool enableTLS,
+           struct event_base *base,
+           const string &workerFullName,
+           const string &workerPasswd,
+           const libconfig::Config &config) {
+          return std::make_unique<T>(
+              enableTLS, base, workerFullName, workerPasswd, config);
         });
   }
 
@@ -118,6 +143,7 @@ class StratumClientWrapper {
   string minerNamePrefix_;
   string passwd_; // miner password, used to set difficulty
   string type_;
+  const libconfig::Config &config_;
   std::vector<unique_ptr<StratumClient>> connections_;
 
   void submitShares();
@@ -131,7 +157,8 @@ public:
       const string &userName,
       const string &minerNamePrefix,
       const string &passwd,
-      const string &type);
+      const string &type,
+      const libconfig::Config &config);
   ~StratumClientWrapper();
 
   static void readCallback(struct bufferevent *bev, void *connection);

@@ -259,7 +259,8 @@ StratumClientWrapper::StratumClientWrapper(
     const string &userName,
     const string &minerNamePrefix,
     const string &passwd,
-    const string &type)
+    const string &type,
+    const libconfig::Config &config)
   : running_(true)
   , enableTLS_(enableTLS)
   , base_(event_base_new())
@@ -267,7 +268,8 @@ StratumClientWrapper::StratumClientWrapper(
   , userName_(userName)
   , minerNamePrefix_(minerNamePrefix)
   , passwd_(passwd)
-  , type_(type) {
+  , type_(type)
+  , config_(config) {
   memset(&sin_, 0, sizeof(sin_));
   sin_.sin_family = AF_INET;
   inet_pton(AF_INET, host, &(sin_.sin_addr));
@@ -401,7 +403,7 @@ unique_ptr<StratumClient> StratumClientWrapper::createClient(
     const string &workerPasswd) {
   auto iter = gStratumClientFactories.find(type_);
   if (iter != gStratumClientFactories.end() && iter->second) {
-    return iter->second(enableTLS, base, workerFullName, workerPasswd);
+    return iter->second(enableTLS, base, workerFullName, workerPasswd, config_);
   } else {
     return nullptr;
   }
