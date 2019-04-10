@@ -28,10 +28,21 @@
 
 class StratumClientGrin : public StratumClient {
 public:
-  StratumClientGrin(struct event_base *base, const string &workerFullName, const string &workerPassword);
+  StratumClientGrin(
+      bool enableTLS,
+      struct event_base *base,
+      const string &workerFullName,
+      const string &workerPasswd,
+      const libconfig::Config &config);
 
-  string constructShare() override;
+  void sendHelloData() override;
+  std::string constructShare() override;
 
 protected:
-  void handleLine(const string &line) override;
+  void handleLine(const std::string &line) override;
+
+private:
+  uint32_t id_;
+  uint64_t height_;
+  uint32_t edgeBits_;
 };

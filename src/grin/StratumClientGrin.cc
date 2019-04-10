@@ -49,31 +49,66 @@
  */
 
 #include "StratumClientGrin.h"
-#include "Utils.h"
 
-StratumClientGrin::StratumClientGrin(struct event_base *base, const string &workerFullName, const string &workerPassword)
-  : StratumClient{base, workerFullName, workerPassword} {
+#define FMT_HEADER_ONLY
+#include <fmt/format.h>
+
+#include <libconfig.h++>
+
+StratumClientGrin::StratumClientGrin(
+    bool enableTLS,
+    struct event_base *base,
+    const string &workerFullName,
+    const string &workerPasswd,
+    const libconfig::Config &config)
+  : StratumClient{enableTLS, base, workerFullName, workerPasswd}
+  , id_{0}
+  , height_{0}
+  , edgeBits_{29} {
+  config.lookupValue("simulator.edge_bits", edgeBits_);
+  if (edgeBits_ < 29 || edgeBits_ == 30) {
+    LOG(FATAL) << "Edge bits can only be 29 or 31+";
+  }
 }
 
-string StratumClientGrin::constructShare()
-{
-  //etherminer (STRATUM)
-  // {"id": 4, "method": "mining.submit",
-  // "params": ["0x7b9d694c26a210b9f0d35bb9bfdd70a413351111.fatrat1117",
-  // "ae778d304393d441bf8e1c47237261675caa3827997f671d8e5ec3bd5d862503",
-  // "0x4cc7c01bfbe51c67",
-  // "0xae778d304393d441bf8e1c47237261675caa3827997f671d8e5ec3bd5d862503",
-  // "0x52fdd9e9a796903c6b88af4192717e77d9a9c6fa6a1366540b65e6bcfa9069aa"]}
-  string s = Strings::Format("{\"id\": 4, \"method\": \"mining.submit\", "
-                             "\"params\": [\"%s\",\"%s\",\"0x%016llx\",\"%s\",\"%s\"]}\n",
-                             workerFullName_.c_str(),
-                             latestJobId_.c_str(),
-                             extraNonce2_,
-                             headerHash_.c_str(),
-                             mixHash_.c_str());
+void StratumClientGrin::sendHelloData() {
+  auto s = fmt::format(
+      "{{"
+      "\"id\":\"0\","
+      "\"jsonrpc\":\"2.0\","
+      "\"method\":\"login\","
+      "\"params\":{{"
+      "\"login\":\"{}\","
+      "\"pass\":\"{}\","
+      "\"agent\":\"__simulator__/0.1\""
+      "}}}}\n",
+      workerFullName_,
+      workerPasswd_);
+  sendData(s);
+}
 
-  extraNonce2_++;
-  return s;
+string StratumClientGrin::constructShare() {
+  return fmt::format(
+      "{{\"id\":\"0\","
+      "\"jsonrpc\":\"2.0\","
+      "\"method\":\"submit\","
+      "\"params\":{{"
+      "\"edge_bits\":{},"
+      "\"height\":{},"
+      "\"job_id\":{},"
+      "\"nonce\":{},"
+      "\"pow\":["
+      "4210040,10141596,13269632,24291934,28079062,84254573,84493890,"
+      "100560174,100657333,120128285,130518226,140371663,142109188,159800646,"
+      "163323737,171019100,176840047,191220010,192245584,198941444,209276164,"
+      "216952635,217795152,225662613,230166736,231315079,248639876,263910393,"
+      "293995691,298361937,326412694,330363619,414572127,424798984,426489226,"
+      "466671748,466924466,490048497,495035248,496623057,502828197,532838434"
+      "]}}}}\n",
+      edgeBits_,
+      height_,
+      id_,
+      extraNonce2_++);
 }
 
 void StratumClientGrin::handleLine(const string &line) {
@@ -84,66 +119,28 @@ void StratumClientGrin::handleLine(const string &line) {
     LOG(ERROR) << "decode line fail, not a json string";
     return;
   }
-  JsonNode jresult  = jnode["result"];
-  JsonNode jerror   = jnode["error"];
-  JsonNode jmethod  = jnode["method"];
+
+  JsonNode jmethod = jnode["method"];
+  JsonNode jparams = jnode["params"];
 
   if (jmethod.type() == Utilities::JS::type::Str) {
-    JsonNode jparams  = jnode["params"];
-    auto jparamsArr = jparams.array();
+    if (jmethod.str() == "job") {
+      // {
+      //    "id":"Stratum",
+      //    "jsonrpc":"2.0",
+      //    "method":"job",
+      //    "params":{
+      //       "difficulty":1,
+      //       "height":16375,
+      //       "job_id":5,
+      //       "pre_pow":"..."
+      //    }
+      // }
+      id_ = jparams["job_id"].uint32();
+      height_ = jparams["height"].uint64();
 
-    //Etherminer mining.notify
-    //{"id":6,"method":"mining.notify","params":
-    //["dd159c7ec5b056ad9e95e7c997829f667bc8e34c6d43fcb9e0c440ed94a85d80",
-    //"dd159c7ec5b056ad9e95e7c997829f667bc8e34c6d43fcb9e0c440ed94a85d80",
-    //"a8784097a4d03c2d2ac6a3a2beebd0606aa30a8536a700446b40800841c0162c",
-    //"0000000112e0be826d694b2e62d01511f12a6061fbaec8bc02357593e70e52ba",false]}
-    if (jmethod.str() == "mining.notify") {
-      latestJobId_ = jparamsArr[0].str();
-      headerHash_ = jparamsArr[1].str();
-      mixHash_ = jparamsArr[2].str();
-      target_ = jparamsArr[3].str();
-
-      DLOG(INFO) << "job id: " << latestJobId_ << ", header hash: " << headerHash_ << ", mix: " << mixHash_ << ", target: " << target_;
+      state_ = AUTHENTICATED;
+      return;
     }
-    else if (jmethod.str() == "mining.set_difficulty") {
-      latestDiff_ = jparamsArr[0].uint64();
-      DLOG(INFO) << "latestDiff_: " << latestDiff_;
-    }
-    else
-    {
-      LOG(ERROR) << "unknown method: " << line;
-    }
-    return;
-  }
-
-  if (state_ == AUTHENTICATED) {
-    //
-    // {"error": null, "id": 2, "result": true}
-    //
-    if (jerror.type()  != Utilities::JS::type::Null ||
-      jresult.type() != Utilities::JS::type::Bool ||
-      jresult.boolean() != true) {
-//      LOG(ERROR) << "json result is null, err: " << jerror.str() << ", line: " << line;
-    }
-    return;
-  }
-
-  if (state_ == CONNECTED) {
-    // login
-    state_ = SUBSCRIBED;
-    string s = Strings::Format(
-      "{\"id\": 1, \"method\": \"mining.authorize\","
-                               "\"params\": [\"\%s\", \"%s\"]}\n",
-                               workerFullName_.c_str(), workerPasswd_.c_str());
-    sendData(s);
-    return;
-  }
-
-  if (state_ == SUBSCRIBED && jresult.boolean() == true) {
-    state_ = AUTHENTICATED;
-    return;
   }
 }
-
- 

@@ -56,7 +56,8 @@ void StratumServerGrin::checkAndUpdateShare(
   PreProofGrin preProof;
   preProof.prePow = sjob->prePow_;
   preProof.nonce = share.nonce();
-  if (!VerifyPowGrin(preProof, share.edgebits(), proofs)) {
+  if (!VerifyPowGrin(preProof, share.edgebits(), proofs) &&
+      !isEnableSimulator_) {
     share.set_status(StratumStatus::INVALID_SOLUTION);
     return;
   }
