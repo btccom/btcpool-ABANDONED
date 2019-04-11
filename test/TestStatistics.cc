@@ -241,7 +241,7 @@ TEST(ShareStatsDay, ShareStatsDay) {
 #ifdef CHAIN_TYPE_LTC
       ASSERT_EQ((uint64_t)ss.earn_, 1507UL);
 #elif defined(CHAIN_TYPE_ZEC)
-      ASSERT_EQ((uint64_t)ss.earn_, 301ULL);
+      ASSERT_EQ((uint64_t)ss.earn_, 37ULL);
 #elif defined(CHAIN_TYPE_UBTC)
       ASSERT_EQ((uint64_t)ss.earn_, 1975828UL);
 #else
@@ -254,7 +254,7 @@ TEST(ShareStatsDay, ShareStatsDay) {
 #ifdef CHAIN_TYPE_LTC
     ASSERT_EQ((uint64_t)ss.earn_, 36178UL);
 #elif defined(CHAIN_TYPE_ZEC)
-    ASSERT_EQ((uint64_t)ss.earn_, 7235UL);
+    ASSERT_EQ((uint64_t)ss.earn_, 904UL);
 #elif defined(CHAIN_TYPE_UBTC)
     ASSERT_EQ((uint64_t)ss.earn_, 47419890UL);
 #else

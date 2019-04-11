@@ -199,6 +199,15 @@ TEST(Common, DiffToTargetTable) {
   }
 }
 
+TEST(Common, DiffTargetDiff) {
+  for (uint32_t i = 0; i < 64; i++) {
+    uint64_t diff = 1 << i;
+    uint256 target;
+    DiffToTarget(diff, target);
+    ASSERT_EQ(diff, TargetToDiff(target));
+  }
+}
+
 TEST(Common, uint256) {
   uint256 u1, u2;
 
@@ -221,7 +230,7 @@ TEST(Common, TargetToDiff) {
 #ifdef CHAIN_TYPE_LTC
   uint64_t diff = 1068723138ULL;
 #elif defined(CHAIN_TYPE_ZEC)
-  uint64_t diff = 1068723138ULL;
+  uint64_t diff = 8549899262ULL;
 #else
   // 0x00000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF /
   // 0x00000000000404CB000000000000000000000000000000000000000000000000
@@ -239,7 +248,7 @@ TEST(Common, BitsToDifficulty) {
 #ifdef CHAIN_TYPE_LTC
   uint64_t diff = 10687231386271ull;
 #elif defined(CHAIN_TYPE_ZEC)
-  uint64_t diff = 10687231386271ull;
+  uint64_t diff = 85498992627052ull;
 #else
   uint64_t diff = 163074209ull;
 #endif

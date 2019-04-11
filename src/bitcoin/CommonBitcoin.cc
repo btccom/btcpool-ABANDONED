@@ -25,11 +25,21 @@
 #include "CommonBitcoin.h"
 #include <arith_uint256.h>
 
+#ifdef CHAIN_TYPE_LTC
+static const uint32_t BITS_DIFF1 = 0x1f00ffff;
+#elif defined(CHAIN_TYPE_ZEC)
+static const uint32_t BITS_DIFF1 = 0x1f07ffff;
+#else
+static const uint32_t BITS_DIFF1 = 0x1d00ffff;
+#endif
+
+static const auto TARGET_DIFF1 = arith_uint256().SetCompact(BITS_DIFF1);
+static const auto MAX_TARGET = uint256S(
+    "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+
 uint64_t TargetToDiff(uint256 &target) {
   arith_uint256 t = UintToArith256(target);
-  uint64_t difficulty;
-  BitsToDifficulty(t.GetCompact(), &difficulty);
-  return difficulty;
+  return (TARGET_DIFF1 / t).GetLow64();
 }
 
 uint64_t TargetToDiff(const string &str) {
@@ -40,19 +50,6 @@ uint64_t TargetToDiff(const string &str) {
 void BitsToTarget(uint32_t bits, uint256 &target) {
   target = ArithToUint256(arith_uint256().SetCompact(bits));
 }
-
-#ifdef CHAIN_TYPE_LTC
-static const uint32_t BITS_DIFF1 = 0x1f00ffff;
-#elif defined(CHAIN_TYPE_ZEC)
-static const uint32_t BITS_DIFF1 = 0x1f07ffff;
-#else
-static const uint32_t BITS_DIFF1 = 0x1d00ffff;
-#endif
-
-static const uint32_t SHIFTS_DIFF1 = (BITS_DIFF1 >> 24) & 0xff;
-static const auto TARGET_DIFF1 = arith_uint256().SetCompact(BITS_DIFF1);
-static const auto MAX_TARGET = uint256S(
-    "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 
 uint32_t GetDiff1Bits() {
   return BITS_DIFF1;
@@ -89,21 +86,13 @@ void DiffToTarget(uint64_t diff, uint256 &target, bool useTable) {
 }
 
 void BitsToDifficulty(uint32_t bits, double *difficulty) {
-  uint32_t nShift = (bits >> 24) & 0xff;
-  double dDiff = (double)0x0000ffff / (double)(bits & 0x00ffffff);
-  while (nShift < SHIFTS_DIFF1) {
-    dDiff *= 256.0;
-    nShift++;
-  }
-  while (nShift > SHIFTS_DIFF1) {
-    dDiff /= 256.0;
-    nShift--;
-  }
-  *difficulty = dDiff;
+  arith_uint256 target;
+  target.SetCompact(bits);
+  *difficulty = TARGET_DIFF1.getdouble() / target.getdouble();
 }
 
 void BitsToDifficulty(uint32_t bits, uint64_t *difficulty) {
-  double diff;
-  BitsToDifficulty(bits, &diff);
-  *difficulty = (uint64_t)diff;
+  arith_uint256 target;
+  target.SetCompact(bits);
+  *difficulty = (TARGET_DIFF1 / target).GetLow64();
 }

@@ -95,7 +95,7 @@ TEST(Stratum, Share2) {
 #ifdef CHAIN_TYPE_LTC
   ASSERT_EQ(score2Str(s.score()), "0.000000301487541987111");
 #elif defined(CHAIN_TYPE_ZEC)
-  ASSERT_EQ(score2Str(s.score()), "0.000000301487541987111");
+  ASSERT_EQ(score2Str(s.score()), "0.0000000376854395858095");
 #else
   ASSERT_EQ(score2Str(s.score()), "0.0197582875516673");
 #endif
