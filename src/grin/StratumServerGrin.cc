@@ -56,8 +56,8 @@ void StratumServerGrin::checkAndUpdateShare(
   PreProofGrin preProof;
   preProof.prePow = sjob->prePow_;
   preProof.nonce = share.nonce();
-  if (!VerifyPowGrin(preProof, share.edgebits(), proofs) &&
-      !isEnableSimulator_) {
+  bool isValidSolution = VerifyPowGrin(preProof, share.edgebits(), proofs);
+  if (!isValidSolution && !isEnableSimulator_) {
     share.set_status(StratumStatus::INVALID_SOLUTION);
     return;
   }
@@ -77,13 +77,14 @@ void StratumServerGrin::checkAndUpdateShare(
              << ", network difficulty: " << sjob->difficulty_;
 
   // print out high diff share
-  if (scaledShareDiff / sjob->difficulty_ >= 1024) {
+  if (isValidSolution && scaledShareDiff / sjob->difficulty_ >= 1024) {
     LOG(INFO) << "high diff share, share difficulty: " << scaledShareDiff
               << ", network difficulty: " << sjob->difficulty_
               << ", worker: " << workFullName;
   }
 
-  if (isSubmitInvalidBlock_ || scaledShareDiff >= sjob->difficulty_) {
+  if (isSubmitInvalidBlock_ ||
+      (isValidSolution && scaledShareDiff >= sjob->difficulty_)) {
     LOG(INFO) << "solution found, share difficulty: " << scaledShareDiff
               << ", network difficulty: " << sjob->difficulty_
               << ", worker: " << workFullName;
