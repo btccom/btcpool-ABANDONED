@@ -10,17 +10,17 @@ Install BTC.COM Pool
 
 If you want to run BTCPool on a 32-bit operating system, you must fix the problem first. Or, choose a 64-bit operating system.
 
-## Build
+## Build as a Docker Image (recommend)
 
-[Need fix] If you are the first time build btcpool, you could run `bash install/install_btcpool.sh` instead of exec these shell commands one by one.
+See [this page](../docker/btcpool/deploy).
 
-```
-cd /work
-wget https://raw.githubusercontent.com/btccom/btcpool/master/install/install_btcpool.sh
-bash ./install_btcpool.sh
-```
+## Build Manually
 
 ### Install dependency
+
+#### CentOS 7
+
+See [this wiki](https://github.com/btccom/btcpool/wiki/Build-BTCPool-on-CentOS-7-%7C-%E5%9C%A8CentOS7%E4%B8%8A%E6%9E%84%E5%BB%BABTCPool).
 
 #### Ubuntu
 ```bash

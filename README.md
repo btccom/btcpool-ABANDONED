@@ -59,8 +59,7 @@ See Also:
   * [https://zookeeper.apache.org/](https://zookeeper.apache.org/)
 2. Install `Kafka`, or see [INSTALL-Kafka.md](docs/INSTALL-Kafka.md)
   * [https://kafka.apache.org/](https://kafka.apache.org/)
-3. Install `Bitcoind`, need to enable ZMQ
-4. Install `BTCPool`, see [INSTALL-BTCPool.md](docs/INSTALL-BTCPool.md)
+3. Install `BTCPool`, see [INSTALL-BTCPool.md](docs/INSTALL-BTCPool.md)
 
 ## Upgrade
 
