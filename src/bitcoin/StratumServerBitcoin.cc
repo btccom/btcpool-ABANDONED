@@ -524,8 +524,9 @@ int ServerBitcoin::checkShare(
   // print out high diff share, 2^10 = 1024
   if ((bnBlockHash >> 10) <= bnNetworkTarget) {
     LOG(INFO) << "high diff share, blkhash: " << blkHash.ToString()
-              << ", diff: " << TargetToDiff(blkHash)
-              << ", networkDiff: " << TargetToDiff(sjob->networkTarget_)
+              << ", diff: " << BitcoinDifficulty::TargetToDiff(blkHash)
+              << ", networkDiff: "
+              << BitcoinDifficulty::TargetToDiff(sjob->networkTarget_)
               << ", by: " << workFullName;
   }
 

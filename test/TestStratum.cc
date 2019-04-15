@@ -86,7 +86,7 @@ TEST(Stratum, Share) {
 TEST(Stratum, Share2) {
   ShareBitcoin s;
 
-  s.set_blkbits(GetDiff1Bits());
+  s.set_blkbits(BitcoinDifficulty::GetDiffOneBits());
   s.set_sharediff(1ll);
   ASSERT_EQ(s.score(), 1ll);
 

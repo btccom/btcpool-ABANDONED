@@ -68,9 +68,9 @@ void StratumSessionSia::sendMiningNotify(
   uint256 shareTarget;
   if (jobDifficulty == 0) {
     shareTarget = siaJob->networkTarget_;
-    jobDifficulty = TargetToDiff(shareTarget);
+    jobDifficulty = SiaDifficulty::TargetToDiff(shareTarget);
   } else {
-    DiffToTarget(jobDifficulty, shareTarget);
+    SiaDifficulty::DiffToTarget(jobDifficulty, shareTarget);
   }
   string strShareTarget = shareTarget.GetHex();
   LOG(INFO) << "new sia stratum job mining.notify: share difficulty="

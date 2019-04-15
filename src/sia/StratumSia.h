@@ -24,7 +24,7 @@
 #ifndef STRATUM_SIA_H_
 #define STRATUM_SIA_H_
 
-#include "bitcoin/CommonBitcoin.h"
+#include "sia/CommonSia.h"
 #include "Stratum.h"
 #include <uint256.h>
 #include "sia/sia.pb.h"
@@ -94,7 +94,7 @@ public:
     }
 
     double networkDifficulty = 0.0;
-    BitsToDifficulty(blkbits(), &networkDifficulty);
+    SiaDifficulty::BitsToDifficulty(blkbits(), &networkDifficulty);
 
     // Network diff may less than share diff on testnet or regression test
     // network. On regression test network, the network diff may be zero. But no
@@ -121,7 +121,7 @@ public:
 
   string toString() const {
     double networkDifficulty = 0.0;
-    BitsToDifficulty(blkbits(), &networkDifficulty);
+    SiaDifficulty::BitsToDifficulty(blkbits(), &networkDifficulty);
 
     return Strings::Format(
         "share(jobId: %u, ip: %s, userId: %d, "

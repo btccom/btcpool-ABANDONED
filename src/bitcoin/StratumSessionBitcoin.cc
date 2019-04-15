@@ -64,7 +64,7 @@ void StratumSessionBitcoin::sendSetDifficulty(
 #ifdef CHAIN_TYPE_ZEC
   // {"id": null, "method": "mining.set_target", "params": ["TARGET"]}
   uint256 target;
-  DiffToTarget(difficulty, target);
+  BitcoinDifficulty::DiffToTarget(difficulty, target);
 
   s = Strings::Format(
       "{\"id\":null,\"method\":\"mining.set_target\""
@@ -443,8 +443,8 @@ void StratumSessionBitcoin::handleRequest_SuggestTarget(
     return;
   }
 
-  suggestedDiff_ =
-      formatDifficulty(TargetToDiff(jparams.children()->at(0).str()));
+  suggestedDiff_ = formatDifficulty(
+      BitcoinDifficulty::TargetToDiff(jparams.children()->at(0).str()));
   responseTrue(idStr);
 }
 

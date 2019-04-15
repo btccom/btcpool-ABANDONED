@@ -288,7 +288,7 @@ void StratumMinerBitcoin::handleRequest_Submit(
 
   // calc jobTarget
   uint256 jobTarget;
-  DiffToTarget(share.sharediff(), jobTarget);
+  BitcoinDifficulty::DiffToTarget(share.sharediff(), jobTarget);
 
   // we send share to kafka by default, but if there are lots of invalid
   // shares in a short time, we just drop them.

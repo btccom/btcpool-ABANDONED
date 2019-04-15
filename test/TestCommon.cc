@@ -96,8 +96,8 @@ TEST(Common, BitsToTarget) {
 
 static void TestDiffToTarget(uint64_t diff, string target) {
   uint256 targetWithoutTable, targetWithTable;
-  DiffToTarget(diff, targetWithoutTable, false);
-  DiffToTarget(diff, targetWithTable, true);
+  BitcoinDifficulty::DiffToTarget(diff, targetWithoutTable, false);
+  BitcoinDifficulty::DiffToTarget(diff, targetWithTable, true);
   ASSERT_EQ(targetWithoutTable.ToString(), target);
   ASSERT_EQ(targetWithTable.ToString(), target);
 }
@@ -186,15 +186,15 @@ TEST(Common, DiffToTargetTable) {
   uint256 t1, t2;
 
   for (uint64_t i = 0; i < 10240; i++) {
-    DiffToTarget(i, t1, false);
-    DiffToTarget(i, t2, true);
+    BitcoinDifficulty::DiffToTarget(i, t1, false);
+    BitcoinDifficulty::DiffToTarget(i, t2, true);
     ASSERT_EQ(t1, t2);
   }
 
   for (uint32_t i = 0; i < 64; i++) {
     uint64_t diff = 1 << i;
-    DiffToTarget(diff, t1, false);
-    DiffToTarget(diff, t2, true);
+    BitcoinDifficulty::DiffToTarget(diff, t1, false);
+    BitcoinDifficulty::DiffToTarget(diff, t2, true);
     ASSERT_EQ(t1, t2);
   }
 }
@@ -203,8 +203,8 @@ TEST(Common, DiffTargetDiff) {
   for (uint32_t i = 0; i < 64; i++) {
     uint64_t diff = 1 << i;
     uint256 target;
-    DiffToTarget(diff, target);
-    ASSERT_EQ(diff, TargetToDiff(target));
+    BitcoinDifficulty::DiffToTarget(diff, target);
+    ASSERT_EQ(diff, BitcoinDifficulty::TargetToDiff(target));
   }
 }
 
@@ -239,7 +239,7 @@ TEST(Common, TargetToDiff) {
 #endif
 
   ASSERT_EQ(
-      TargetToDiff(
+      BitcoinDifficulty::TargetToDiff(
           "0x00000000000404CB000000000000000000000000000000000000000000000000"),
       diff);
 }
@@ -255,7 +255,7 @@ TEST(Common, BitsToDifficulty) {
 
   // 0x1b0404cb: https://en.bitcoin.it/wiki/Difficulty
   double d;
-  BitsToDifficulty(0x1b0404cbu, &d); // diff = 16307.420939
+  BitcoinDifficulty::BitsToDifficulty(0x1b0404cbu, &d); // diff = 16307.420939
   ASSERT_EQ((uint64_t)(d * 10000.0), diff);
 }
 
