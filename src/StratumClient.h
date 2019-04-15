@@ -34,6 +34,7 @@
 #include <event2/event.h>
 #include <event2/buffer.h>
 #include <event2/bufferevent.h>
+#include <event2/dns.h>
 
 #include <glog/logging.h>
 #include <arith_uint256.h>
@@ -52,6 +53,7 @@ protected:
   bool enableTLS_;
   struct bufferevent *bev_;
   struct evbuffer *inBuf_;
+  struct evdns_base *evdnsBase_;
 
   uint32_t sessionId_; // session ID
   int32_t extraNonce2Size_;
@@ -118,7 +120,7 @@ public:
       const string &workerPasswd);
   virtual ~StratumClient();
 
-  bool connect(struct sockaddr_in &sin);
+  bool connect(const string &host, uint16_t port);
   virtual void sendHelloData();
 
   void sendData(const char *data, size_t len);
@@ -133,8 +135,9 @@ public:
 class StratumClientWrapper {
   bool running_;
   bool enableTLS_;
+  string host_;
+  uint16_t port_;
   struct event_base *base_;
-  struct sockaddr_in sin_;
   struct event *timer_;
   struct event *sigterm_;
   struct event *sigint_;
@@ -151,7 +154,7 @@ class StratumClientWrapper {
 public:
   StratumClientWrapper(
       bool enableTLS,
-      const char *host,
+      const string &host,
       const uint32_t port,
       const uint32_t numConnections,
       const string &userName,

@@ -50,6 +50,11 @@ StratumClient::StratumClient(
   , isMining_(false) {
   inBuf_ = evbuffer_new();
 
+  evdnsBase_ = evdns_base_new(base, 1);
+  if (evdnsBase_ == nullptr) {
+    LOG(FATAL) << "DNS init failed";
+  }
+
   if (enableTLS_) {
     LOG(INFO) << "<" << workerFullName_ << "> TLS enabled";
 
@@ -95,16 +100,20 @@ StratumClient::StratumClient(
 StratumClient::~StratumClient() {
   evbuffer_free(inBuf_);
   bufferevent_free(bev_);
+  evdns_base_free(evdnsBase_, 0);
 }
 
-bool StratumClient::connect(struct sockaddr_in &sin) {
-  // bufferevent_socket_connect(): This function returns 0 if the connect
-  // was successfully launched, and -1 if an error occurred.
-  int res =
-      bufferevent_socket_connect(bev_, (struct sockaddr *)&sin, sizeof(sin));
+bool StratumClient::connect(const string &host, uint16_t port) {
+  LOG(INFO) << "Connection request to " << host << ":" << port;
+
+  // bufferevent_socket_connect_hostname(): This function returns 0 if the
+  // connect was successfully launched, and -1 if an error occurred.
+  int res = bufferevent_socket_connect_hostname(
+      bev_, evdnsBase_, AF_INET, host.c_str(), (int)port);
   if (res == 0) {
     return true;
   }
+
   return false;
 }
 
@@ -253,7 +262,7 @@ void StratumClient::sendData(const char *data, size_t len) {
 ////////////////////////////// StratumClientWrapper ////////////////////////////
 StratumClientWrapper::StratumClientWrapper(
     bool enableTLS,
-    const char *host,
+    const string &host,
     const uint32_t port,
     const uint32_t numConnections,
     const string &userName,
@@ -263,6 +272,8 @@ StratumClientWrapper::StratumClientWrapper(
     const libconfig::Config &config)
   : running_(true)
   , enableTLS_(enableTLS)
+  , host_(host)
+  , port_(port)
   , base_(event_base_new())
   , numConnections_(numConnections)
   , userName_(userName)
@@ -270,10 +281,6 @@ StratumClientWrapper::StratumClientWrapper(
   , passwd_(passwd)
   , type_(type)
   , config_(config) {
-  memset(&sin_, 0, sizeof(sin_));
-  sin_.sin_family = AF_INET;
-  inet_pton(AF_INET, host, &(sin_.sin_addr));
-  sin_.sin_port = htons(port);
 
   if (minerNamePrefix_.empty())
     minerNamePrefix_ = "simulator";
@@ -345,7 +352,7 @@ void StratumClientWrapper::run() {
         Strings::Format("%s.%s-%05d", userName_, minerNamePrefix_, i);
     auto client = createClient(enableTLS_, base_, workerFullName, passwd_);
 
-    if (!client->connect(sin_)) {
+    if (!client->connect(host_, port_)) {
       LOG(ERROR) << "client connnect failure: " << workerFullName;
       return;
     }
