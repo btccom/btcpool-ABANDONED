@@ -95,7 +95,7 @@ public:
   const libconfig::Setting &config_;
   string poolName_;
   string poolHost_;
-  int16_t poolPort_;
+  uint16_t poolPort_;
   string workerName_;
 
   time_t upTime_;

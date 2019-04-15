@@ -216,7 +216,7 @@ bool PoolWatchClient::connect() {
   // bufferevent_socket_connect_hostname(): This function returns 0 if the
   // connect was successfully launched, and -1 if an error occurred.
   int res = bufferevent_socket_connect_hostname(
-      bev_, evdnsBase_, AF_INET, poolHost_.c_str(), poolPort_);
+      bev_, evdnsBase_, AF_INET, poolHost_.c_str(), (int)poolPort_);
   if (res == 0) {
     return true;
   }
