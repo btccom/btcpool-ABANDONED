@@ -1,3 +1,10 @@
+deploy_image_common: &deploy_image_common
+  filters:
+    tags:
+      ignore: /.*base-image.*/
+    branches:
+      ignore: /.*/
+
 version: 2.1
 
 commands:
@@ -21,26 +28,6 @@ commands:
       - run:
           name: Push base image
           command: docker push $DOCKER_SERVER/$BASE_IMAGE_REPO:<<parameters.tag>>
-  build_and_push_deploy_image:
-    parameters:
-      base:
-        type: string
-    steps:
-      - checkout
-      - setup_remote_docker
-      - run:
-          name: Docker registry login
-          command: echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin $DOCKER_SERVER
-      - run:
-          name: Build deploy image
-          command: |
-            docker build --rm -f docker/btcpool/deploy/Dockerfile \
-              -t $DOCKER_SERVER/$DEPLOY_IMAGE_REPO:${CIRCLE_TAG}_<<parameters.base>> \
-              --build-arg BASE_IMAGE=$DOCKER_SERVER/$BASE_IMAGE_REPO:<<parameters.base>> \
-              --build-arg BUILD_JOBS=2 .
-      - run:
-          name: Push deploy image
-          command: docker push $DOCKER_SERVER/$DEPLOY_IMAGE_REPO:${CIRCLE_TAG}_<<parameters.base>>
   
 
 jobs:
@@ -126,42 +113,28 @@ jobs:
       - run:
           name: Run unit tests
           command: cd build && make test
-  build_and_push_deploy_image_bch:
+  build_and_push_deploy_image:
     docker:
       - image: circleci/golang
+    parameters:
+      base:
+        type: string
     steps:
-      - build_and_push_deploy_image:
-          base: bch-0.18.5
-  build_and_push_deploy_image_btc:
-    docker:
-      - image: circleci/golang
-    steps:
-      - build_and_push_deploy_image:
-          base: btc-0.16.3
-  build_and_push_deploy_image_sbtc:
-    docker:
-      - image: circleci/golang
-    steps:
-      - build_and_push_deploy_image:
-          base: sbtc-0.16.2
-  build_and_push_deploy_image_ubtc:
-    docker:
-      - image: circleci/golang
-    steps:
-      - build_and_push_deploy_image:
-          base: ubtc-2.3.0.1
-  build_and_push_deploy_image_ltc:
-    docker:
-      - image: circleci/golang
-    steps:
-      - build_and_push_deploy_image:
-          base: ltc-0.16.3
-  build_and_push_deploy_image_zec:
-    docker:
-      - image: circleci/golang
-    steps:
-      - build_and_push_deploy_image:
-          base: zec-2.0.4
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Docker registry login
+          command: echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin $DOCKER_SERVER
+      - run:
+          name: Build deploy image
+          command: |
+            docker build --rm -f docker/btcpool/deploy/Dockerfile \
+              -t $DOCKER_SERVER/$DEPLOY_IMAGE_REPO:${CIRCLE_TAG}_<<parameters.base>> \
+              --build-arg BASE_IMAGE=$DOCKER_SERVER/$BASE_IMAGE_REPO:<<parameters.base>> \
+              --build-arg BUILD_JOBS=2 .
+      - run:
+          name: Push deploy image
+          command: docker push $DOCKER_SERVER/$DEPLOY_IMAGE_REPO:${CIRCLE_TAG}_<<parameters.base>>
 
 workflows:
   version: 2
@@ -238,39 +211,21 @@ workflows:
             - check_clang_format
   build_and_push_deploy_images:
     jobs:
-      - build_and_push_deploy_image_bch:
-          filters:
-            tags:
-              ignore: /.*base-image.*/
-            branches:
-              ignore: /.*/
-      - build_and_push_deploy_image_btc:
-          filters:
-            tags:
-              ignore: /.*base-image.*/
-            branches:
-              ignore: /.*/
-      - build_and_push_deploy_image_sbtc:
-          filters:
-            tags:
-              ignore: /.*base-image.*/
-            branches:
-              ignore: /.*/
-      - build_and_push_deploy_image_ubtc:
-          filters:
-            tags:
-              ignore: /.*base-image.*/
-            branches:
-              ignore: /.*/
-      - build_and_push_deploy_image_ltc:
-          filters:
-            tags:
-              ignore: /.*base-image.*/
-            branches:
-              ignore: /.*/
-      - build_and_push_deploy_image_zec:
-          filters:
-            tags:
-              ignore: /.*base-image.*/
-            branches:
-              ignore: /.*/
+      - build_and_push_deploy_image:
+          <<: *deploy_image_common
+          base: bch-0.18.5
+      - build_and_push_deploy_image:
+          <<: *deploy_image_common
+          base: btc-0.16.3
+      - build_and_push_deploy_image:
+          <<: *deploy_image_common
+          base: sbtc-0.16.2
+      - build_and_push_deploy_image:
+          <<: *deploy_image_common
+          base: ubtc-2.3.0.1
+      - build_and_push_deploy_image:
+          <<: *deploy_image_common
+          base: ltc-0.16.3
+      - build_and_push_deploy_image:
+          <<: *deploy_image_common
+          base: zec-2.0.4
