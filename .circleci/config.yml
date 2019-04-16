@@ -15,10 +15,6 @@ commands:
       - run:
           name: Run unit tests
           command: cd build && make test
-      - run:
-          name: Send failure notification
-          command: if [ -n "$BEARYCHAT_WEBHOOK" ]; then curl $BEARYCHAT_WEBHOOK -H 'Content-Type:application/json' -d "{\"text\":\"[$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/$CIRCLE_JOB/$CIRCLE_BUILD_NUM]($CIRCLE_BUILD_URL) failed\"}"; fi
-          when: on_fail
 
 jobs:
   check_clang_format:
@@ -29,10 +25,6 @@ jobs:
       - run:
           name: Run clang-format
           command: ./run-clang-format.sh && git diff --exit-code
-      - run:
-          name: Send failure notification
-          command: if [ -n "$BEARYCHAT_WEBHOOK" ]; then curl $BEARYCHAT_WEBHOOK -H 'Content-Type:application/json' -d "{\"text\":\"[$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/$CIRCLE_JOB/$CIRCLE_BUILD_NUM]($CIRCLE_BUILD_URL) failed\"}"; fi
-          when: on_fail
   build_and_run_unit_tests_bch:
     docker:
       - image: btccom/btcpool_build:bch-0.18.5
