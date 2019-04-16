@@ -28,7 +28,7 @@ commands:
           name: Run CMake
           command: |
             mkdir build && cd build && \
-            cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_SRC_ROOT=/work/bitcoin -DCHAIN_TYPE=$CHAIN_TYPE -DJOBS=2  ..
+            cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_SRC_ROOT=/work/blockchain -DCHAIN_TYPE=$CHAIN_TYPE -DJOBS=2  ..
       - run:
           name: Build btcpool
           command: cd build && make -j2
@@ -129,6 +129,22 @@ jobs:
           password: $DOCKER_PASSWORD
     steps:
       - build_and_run_unit_tests_single_chain
+  build_and_run_unit_tests_ltc:
+    docker:
+      - image: $DOCKER_SERVER/$BASE_IMAGE_REPO:ltc-0.16.3
+        auth:
+          username: $DOCKER_USERNAME
+          password: $DOCKER_PASSWORD
+    steps:
+      - build_and_run_unit_tests_single_chain
+  build_and_run_unit_tests_zec:
+    docker:
+      - image: $DOCKER_SERVER/$BASE_IMAGE_REPO:zec-2.0.4
+        auth:
+          username: $DOCKER_USERNAME
+          password: $DOCKER_PASSWORD
+    steps:
+      - build_and_run_unit_tests_single_chain
 
 workflows:
   version: 2
@@ -189,5 +205,11 @@ workflows:
           requires:
             - check_clang_format
       - build_and_run_unit_tests_ubtc:
+          requires:
+            - check_clang_format
+      - build_and_run_unit_tests_ltc:
+          requires:
+            - check_clang_format
+      - build_and_run_unit_tests_zec:
           requires:
             - check_clang_format
