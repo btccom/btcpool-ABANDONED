@@ -12,15 +12,15 @@ commands:
       - setup_remote_docker
       - run:
           name: Docker registry login
-          command: echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin
+          command: echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin $DOCKER_SERVER
       - run:
           name: Build base image
           command: |
             cd docker/btcpool/base-image && \
-            docker build --rm -t $BASE_IMAGE_REPO:<<parameters.tag>> -f <<parameters.dockerfile>> .
+            docker build --rm -t $DOCKER_SERVER/$BASE_IMAGE_REPO:<<parameters.tag>> -f <<parameters.dockerfile>> .
       - run:
           name: Push base image
-          command: docker push $BASE_IMAGE_REPO:<<parameters.tag>>
+          command: docker push $DOCKER_SERVER/$BASE_IMAGE_REPO:<<parameters.tag>>
   build_and_run_unit_tests_single_chain:
     steps:
       - checkout
@@ -46,7 +46,7 @@ jobs:
           tag: lint
   check_clang_format:
     docker:
-      - image: $BASE_IMAGE_REPO:lint
+      - image: $DOCKER_SERVER/$BASE_IMAGE_REPO:lint
         auth:
           username: $DOCKER_USERNAME
           password: $DOCKER_PASSWORD
@@ -57,7 +57,7 @@ jobs:
           command: ./run-clang-format.sh && git diff --exit-code
   build_and_run_unit_tests_bch:
     docker:
-      - image: $BASE_IMAGE_REPO:bch-0.18.5
+      - image: $DOCKER_SERVER/$BASE_IMAGE_REPO:bch-0.18.5
         auth:
           username: $DOCKER_USERNAME
           password: $DOCKER_PASSWORD
@@ -65,7 +65,7 @@ jobs:
       - build_and_run_unit_tests_single_chain
   build_and_run_unit_tests_btc:
     docker:
-      - image: $BASE_IMAGE_REPO:btc-0.16.3
+      - image: $DOCKER_SERVER/$BASE_IMAGE_REPO:btc-0.16.3
         auth:
           username: $DOCKER_USERNAME
           password: $DOCKER_PASSWORD
@@ -73,7 +73,7 @@ jobs:
       - build_and_run_unit_tests_single_chain
   build_and_run_unit_tests_sbtc:
     docker:
-      - image: $BASE_IMAGE_REPO:sbtc-0.16.2
+      - image: $DOCKER_SERVER/$BASE_IMAGE_REPO:sbtc-0.16.2
         auth:
           username: $DOCKER_USERNAME
           password: $DOCKER_PASSWORD
@@ -81,7 +81,7 @@ jobs:
       - build_and_run_unit_tests_single_chain
   build_and_run_unit_tests_ubtc:
     docker:
-      - image: $BASE_IMAGE_REPO:ubtc-2.3.0.1
+      - image: $DOCKER_SERVER/$BASE_IMAGE_REPO:ubtc-2.3.0.1
         auth:
           username: $DOCKER_USERNAME
           password: $DOCKER_PASSWORD
