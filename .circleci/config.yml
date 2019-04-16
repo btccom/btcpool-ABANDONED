@@ -44,6 +44,48 @@ jobs:
       - build_and_push_base_image:
           dockerfile: Dockerfile.lint
           tag: lint
+  build_and_push_base_image_bch:
+    docker:
+      - image: circleci/golang
+    steps:
+      - build_and_push_base_image:
+          dockerfile: Dockerfile.bch
+          tag: bch-0.18.5
+  build_and_push_base_image_btc:
+    docker:
+      - image: circleci/golang
+    steps:
+      - build_and_push_base_image:
+          dockerfile: Dockerfile.btc
+          tag: btc-0.16.3
+  build_and_push_base_image_sbtc:
+    docker:
+      - image: circleci/golang
+    steps:
+      - build_and_push_base_image:
+          dockerfile: Dockerfile.sbtc
+          tag: sbtc-0.16.2
+  build_and_push_base_image_ubtc:
+    docker:
+      - image: circleci/golang
+    steps:
+      - build_and_push_base_image:
+          dockerfile: Dockerfile.ubtc
+          tag: ubtc-2.3.0.1
+  build_and_push_base_image_ltc:
+    docker:
+      - image: circleci/golang
+    steps:
+      - build_and_push_base_image:
+          dockerfile: Dockerfile.ltc
+          tag: ltc-0.16.3
+  build_and_push_base_image_zec:
+    docker:
+      - image: circleci/golang
+    steps:
+      - build_and_push_base_image:
+          dockerfile: Dockerfile.zec
+          tag: zec-2.0.4
   check_clang_format:
     docker:
       - image: $DOCKER_SERVER/$BASE_IMAGE_REPO:lint
@@ -93,6 +135,42 @@ workflows:
   build_and_push_base_images:
     jobs:
       - build_and_push_base_image_lint:
+          filters:
+            tags:
+              only: /.*base-image.*/
+            branches:
+              ignore: /.*/
+      - build_and_push_base_image_bch:
+          filters:
+            tags:
+              only: /.*base-image.*/
+            branches:
+              ignore: /.*/
+      - build_and_push_base_image_btc:
+          filters:
+            tags:
+              only: /.*base-image.*/
+            branches:
+              ignore: /.*/
+      - build_and_push_base_image_sbtc:
+          filters:
+            tags:
+              only: /.*base-image.*/
+            branches:
+              ignore: /.*/
+      - build_and_push_base_image_ubtc:
+          filters:
+            tags:
+              only: /.*base-image.*/
+            branches:
+              ignore: /.*/
+      - build_and_push_base_image_ltc:
+          filters:
+            tags:
+              only: /.*base-image.*/
+            branches:
+              ignore: /.*/
+      - build_and_push_base_image_zec:
           filters:
             tags:
               only: /.*base-image.*/
