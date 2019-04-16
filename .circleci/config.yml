@@ -21,20 +21,6 @@ commands:
       - run:
           name: Push base image
           command: docker push $DOCKER_SERVER/$BASE_IMAGE_REPO:<<parameters.tag>>
-  build_and_run_unit_tests_single_chain:
-    steps:
-      - checkout
-      - run:
-          name: Run CMake
-          command: |
-            mkdir build && cd build && \
-            cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_SRC_ROOT=/work/blockchain -DCHAIN_TYPE=$CHAIN_TYPE -DJOBS=2  ..
-      - run:
-          name: Build btcpool
-          command: cd build && make -j2
-      - run:
-          name: Run unit tests
-          command: cd build && make test
   build_and_push_deploy_image:
     parameters:
       base:
@@ -118,54 +104,28 @@ jobs:
       - run:
           name: Run clang-format
           command: ./run-clang-format.sh && git diff --exit-code
-  build_and_run_unit_tests_bch:
+  build_and_run_unit_tests:
+    parameters:
+      base:
+        type: string
     docker:
-      - image: $DOCKER_SERVER/$BASE_IMAGE_REPO:bch-0.18.5
+      - image: $DOCKER_SERVER/$BASE_IMAGE_REPO:<<parameters.base>>
         auth:
           username: $DOCKER_USERNAME
           password: $DOCKER_PASSWORD
     steps:
-      - build_and_run_unit_tests_single_chain
-  build_and_run_unit_tests_btc:
-    docker:
-      - image: $DOCKER_SERVER/$BASE_IMAGE_REPO:btc-0.16.3
-        auth:
-          username: $DOCKER_USERNAME
-          password: $DOCKER_PASSWORD
-    steps:
-      - build_and_run_unit_tests_single_chain
-  build_and_run_unit_tests_sbtc:
-    docker:
-      - image: $DOCKER_SERVER/$BASE_IMAGE_REPO:sbtc-0.16.2
-        auth:
-          username: $DOCKER_USERNAME
-          password: $DOCKER_PASSWORD
-    steps:
-      - build_and_run_unit_tests_single_chain
-  build_and_run_unit_tests_ubtc:
-    docker:
-      - image: $DOCKER_SERVER/$BASE_IMAGE_REPO:ubtc-2.3.0.1
-        auth:
-          username: $DOCKER_USERNAME
-          password: $DOCKER_PASSWORD
-    steps:
-      - build_and_run_unit_tests_single_chain
-  build_and_run_unit_tests_ltc:
-    docker:
-      - image: $DOCKER_SERVER/$BASE_IMAGE_REPO:ltc-0.16.3
-        auth:
-          username: $DOCKER_USERNAME
-          password: $DOCKER_PASSWORD
-    steps:
-      - build_and_run_unit_tests_single_chain
-  build_and_run_unit_tests_zec:
-    docker:
-      - image: $DOCKER_SERVER/$BASE_IMAGE_REPO:zec-2.0.4
-        auth:
-          username: $DOCKER_USERNAME
-          password: $DOCKER_PASSWORD
-    steps:
-      - build_and_run_unit_tests_single_chain
+      - checkout
+      - run:
+          name: Run CMake
+          command: |
+            mkdir build && cd build && \
+            cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_SRC_ROOT=/work/blockchain -DCHAIN_TYPE=$CHAIN_TYPE -DJOBS=2  ..
+      - run:
+          name: Build btcpool
+          command: cd build && make -j2
+      - run:
+          name: Run unit tests
+          command: cd build && make test
   build_and_push_deploy_image_bch:
     docker:
       - image: circleci/golang
@@ -252,22 +212,28 @@ workflows:
   build_and_run_unit_tests_all_chains:
     jobs:
       - check_clang_format
-      - build_and_run_unit_tests_bch:
+      - build_and_run_unit_tests:
+          base: bch-0.18.5
           requires:
             - check_clang_format
-      - build_and_run_unit_tests_btc:
+      - build_and_run_unit_tests:
+          base: btc-0.16.3
           requires:
             - check_clang_format
-      - build_and_run_unit_tests_sbtc:
+      - build_and_run_unit_tests:
+          base: sbtc-0.16.2
           requires:
             - check_clang_format
-      - build_and_run_unit_tests_ubtc:
+      - build_and_run_unit_tests:
+          base: ubtc-2.3.0.1
           requires:
             - check_clang_format
-      - build_and_run_unit_tests_ltc:
+      - build_and_run_unit_tests:
+          base: ltc-0.16.3
           requires:
             - check_clang_format
-      - build_and_run_unit_tests_zec:
+      - build_and_run_unit_tests:
+          base: zec-2.0.4
           requires:
             - check_clang_format
   build_and_push_deploy_images:
