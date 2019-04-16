@@ -40,7 +40,10 @@ jobs:
           tag: lint
   check_clang_format:
     docker:
-      - image: btccom/btcpool_build:lint
+      - image: $BASE_IMAGE_REPO:lint
+        auth:
+          username: $DOCKER_USERNAME
+          password: $DOCKER_PASSWORD
     steps:
       - checkout
       - run:
@@ -48,22 +51,34 @@ jobs:
           command: ./run-clang-format.sh && git diff --exit-code
   build_and_run_unit_tests_bch:
     docker:
-      - image: btccom/btcpool_build:bch-0.18.5
+      - image: $BASE_IMAGE_REPO:bch-0.18.5
+        auth:
+          username: $DOCKER_USERNAME
+          password: $DOCKER_PASSWORD
     steps:
       - build_and_run_unit_tests_single_chain
   build_and_run_unit_tests_btc:
     docker:
-      - image: btccom/btcpool_build:btc-0.16.3
+      - image: $BASE_IMAGE_REPO:btc-0.16.3
+        auth:
+          username: $DOCKER_USERNAME
+          password: $DOCKER_PASSWORD
     steps:
       - build_and_run_unit_tests_single_chain
   build_and_run_unit_tests_sbtc:
     docker:
-      - image: btccom/btcpool_build:sbtc-0.16.2
+      - image: $BASE_IMAGE_REPO:sbtc-0.16.2
+        auth:
+          username: $DOCKER_USERNAME
+          password: $DOCKER_PASSWORD
     steps:
       - build_and_run_unit_tests_single_chain
   build_and_run_unit_tests_ubtc:
     docker:
-      - image: btccom/btcpool_build:ubtc-2.3.0.1
+      - image: $BASE_IMAGE_REPO:ubtc-2.3.0.1
+        auth:
+          username: $DOCKER_USERNAME
+          password: $DOCKER_PASSWORD
     steps:
       - build_and_run_unit_tests_single_chain
 
