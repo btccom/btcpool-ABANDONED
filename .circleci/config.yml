@@ -95,7 +95,7 @@ workflows:
       - build_and_push_base_image_lint:
           filters:
             tags:
-              only: /^base-image-.*/
+              only: /.*base-image.*/
             branches:
               ignore: /.*/
   build_and_run_unit_tests_all_chains:
