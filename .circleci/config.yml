@@ -1,3 +1,10 @@
+base_image_common: &base_image_common
+  filters:
+    tags:
+      only: /.*base-image.*/
+    branches:
+      ignore: /.*/
+
 deploy_image_common: &deploy_image_common
   filters:
     tags:
@@ -7,13 +14,15 @@ deploy_image_common: &deploy_image_common
 
 version: 2.1
 
-commands:
+jobs:
   build_and_push_base_image:
     parameters:
       dockerfile:
         type: string
       tag:
         type: string
+    docker:
+      - image: circleci/golang
     steps:
       - checkout
       - setup_remote_docker
@@ -28,58 +37,6 @@ commands:
       - run:
           name: Push base image
           command: docker push $DOCKER_SERVER/$BASE_IMAGE_REPO:<<parameters.tag>>
-  
-
-jobs:
-  build_and_push_base_image_lint:
-    docker:
-      - image: circleci/golang
-    steps:
-      - build_and_push_base_image:
-          dockerfile: Dockerfile.lint
-          tag: lint
-  build_and_push_base_image_bch:
-    docker:
-      - image: circleci/golang
-    steps:
-      - build_and_push_base_image:
-          dockerfile: Dockerfile.bch
-          tag: bch-0.18.5
-  build_and_push_base_image_btc:
-    docker:
-      - image: circleci/golang
-    steps:
-      - build_and_push_base_image:
-          dockerfile: Dockerfile.btc
-          tag: btc-0.16.3
-  build_and_push_base_image_sbtc:
-    docker:
-      - image: circleci/golang
-    steps:
-      - build_and_push_base_image:
-          dockerfile: Dockerfile.sbtc
-          tag: sbtc-0.16.2
-  build_and_push_base_image_ubtc:
-    docker:
-      - image: circleci/golang
-    steps:
-      - build_and_push_base_image:
-          dockerfile: Dockerfile.ubtc
-          tag: ubtc-2.3.0.1
-  build_and_push_base_image_ltc:
-    docker:
-      - image: circleci/golang
-    steps:
-      - build_and_push_base_image:
-          dockerfile: Dockerfile.ltc
-          tag: ltc-0.16.3
-  build_and_push_base_image_zec:
-    docker:
-      - image: circleci/golang
-    steps:
-      - build_and_push_base_image:
-          dockerfile: Dockerfile.zec
-          tag: zec-2.0.4
   check_clang_format:
     docker:
       - image: $DOCKER_SERVER/$BASE_IMAGE_REPO:lint
@@ -140,48 +97,34 @@ workflows:
   version: 2
   build_and_push_base_images:
     jobs:
-      - build_and_push_base_image_lint:
-          filters:
-            tags:
-              only: /.*base-image.*/
-            branches:
-              ignore: /.*/
-      - build_and_push_base_image_bch:
-          filters:
-            tags:
-              only: /.*base-image.*/
-            branches:
-              ignore: /.*/
-      - build_and_push_base_image_btc:
-          filters:
-            tags:
-              only: /.*base-image.*/
-            branches:
-              ignore: /.*/
-      - build_and_push_base_image_sbtc:
-          filters:
-            tags:
-              only: /.*base-image.*/
-            branches:
-              ignore: /.*/
-      - build_and_push_base_image_ubtc:
-          filters:
-            tags:
-              only: /.*base-image.*/
-            branches:
-              ignore: /.*/
-      - build_and_push_base_image_ltc:
-          filters:
-            tags:
-              only: /.*base-image.*/
-            branches:
-              ignore: /.*/
-      - build_and_push_base_image_zec:
-          filters:
-            tags:
-              only: /.*base-image.*/
-            branches:
-              ignore: /.*/
+      - build_and_push_base_image:
+          <<: *base_image_common
+          dockerfile: Dockerfile.lint
+          tag: lint
+      - build_and_push_base_image:
+          <<: *base_image_common
+          dockerfile: Dockerfile.bch
+          tag: bch-0.18.5
+      - build_and_push_base_image:
+          <<: *base_image_common
+          dockerfile: Dockerfile.btc
+          tag: btc-0.16.3
+      - build_and_push_base_image:
+          <<: *base_image_common
+          dockerfile: Dockerfile.sbtc
+          tag: sbtc-0.16.2
+      - build_and_push_base_image:
+          <<: *base_image_common
+          dockerfile: Dockerfile.ubtc
+          tag: ubtc-2.3.0.1
+      - build_and_push_base_image:
+          <<: *base_image_common
+          dockerfile: Dockerfile.ltc
+          tag: ltc-0.16.3
+      - build_and_push_base_image:
+          <<: *base_image_common
+          dockerfile: Dockerfile.zec
+          tag: zec-2.0.4
   build_and_run_unit_tests_all_chains:
     jobs:
       - check_clang_format
