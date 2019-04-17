@@ -524,9 +524,11 @@ add_library(
     ${LIB_SOURCES_CHAINS})
 target_link_libraries(btcpool PUBLIC beam cuckoo)
 
-file(GLOB_RECURSE TEST_SOURCES test/*.cc)
-add_executable(unittest ${TEST_SOURCES} 3rdparty/gmock-gtest-all.cc)
-target_link_libraries(unittest btcpool ${THIRD_LIBRARIES})
+if(BUILD_TESTING)
+  file(GLOB_RECURSE TEST_SOURCES test/*.cc)
+  add_executable(unittest ${TEST_SOURCES} 3rdparty/gmock-gtest-all.cc)
+  target_link_libraries(unittest btcpool ${THIRD_LIBRARIES})
+endif()
 
 file(GLOB_RECURSE GBTMAKER_SOURCES src/gbtmaker/*.cc)
 add_executable(gbtmaker ${GBTMAKER_SOURCES})
@@ -594,11 +596,11 @@ set(INSTALL_TARGETS
         sserver
         statshttpd)
 
-# testcase
-set(INSTALL_TEST_TARGETS
-        unittest)
-
-gtest_discover_tests(unittest)
+if(BUILD_TESTING)
+  # testcase
+  set(INSTALL_TEST_TARGETS unittest)
+  gtest_discover_tests(unittest)
+endif()
 
 # tmp dir for install & packet
 set(PACKAGE_TMP_DIR ${CMAKE_BINARY_DIR}/package_tmp)
@@ -629,13 +631,15 @@ foreach(tgt ${INSTALL_TARGETS})
           DESTINATION ${POOL__INSTALL_PREFIX}/build)
 endforeach()
 
+if(BUILD_TESTING)
 # test targets
-foreach(tgt ${INSTALL_TEST_TARGETS})
-  # binary
-  install(PROGRAMS     ${CMAKE_BINARY_DIR}/${tgt}
-          COMPONENT   main
-          DESTINATION ${POOL__INSTALL_PREFIX}/build)
-endforeach()
+  foreach(tgt ${INSTALL_TEST_TARGETS})
+    # binary
+    install(PROGRAMS     ${CMAKE_BINARY_DIR}/${tgt}
+            COMPONENT   main
+            DESTINATION ${POOL__INSTALL_PREFIX}/build)
+  endforeach()
+endif()
 
 # documents
 install(FILES
