@@ -39,8 +39,10 @@ RUN cd /tmp/build && make package && mkdir -p /work/package && cp *.deb /work/pa
 FROM ubuntu:18.04
 LABEL maintainer="Hanjiang Yu <hanjiang.yu@bitmain.com>"
 
-# use aliyun source
-ADD ./docker/btcpool/deploy/sources-aliyun.com.list /etc/apt/sources.list
+ARG APT_MIRROR_URL
+
+COPY docker/btcpool/deploy/update_apt_sources.sh /tmp
+RUN /tmp/update_apt_sources.sh
 
 # Install maintain & debug tools
 RUN apt-get update && apt-get install -y curl tmux telnet tcpdump tcpflow less net-tools htop gdb busybox && \
