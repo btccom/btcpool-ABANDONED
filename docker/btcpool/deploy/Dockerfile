@@ -13,6 +13,7 @@ FROM ${BASE_IMAGE} as build
 LABEL maintainer="Hanjiang Yu <hanjiang.yu@bitmain.com>"
 
 ARG BUILD_JOBS=1
+ARG BUILD_TESTING=OFF
 ARG BUILD_TYPE=Release
 ARG USER_DEFINED_COINBASE=OFF
 ARG USER_DEFINED_COINBASE_SIZE=10
@@ -21,6 +22,7 @@ ARG WORK_WITH_STRATUM_SWITCHER=OFF
 # Copy & build btcpool
 COPY . /tmp/btcpool
 RUN mkdir -p /tmp/build && cd /tmp/build && cmake \
+    -DBUILD_TESTING=${BUILD_TESTING} \
     -DCHAIN_SRC_ROOT=/work/blockchain \
     -DCHAIN_TYPE=${CHAIN_TYPE} \
     -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
