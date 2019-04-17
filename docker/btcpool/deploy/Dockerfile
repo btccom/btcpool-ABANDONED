@@ -44,18 +44,25 @@ ARG APT_MIRROR_URL
 COPY docker/btcpool/deploy/update_apt_sources.sh /tmp
 RUN /tmp/update_apt_sources.sh
 
-# Install maintain & debug tools
-RUN apt-get update && apt-get install -y curl tmux telnet tcpdump tcpflow less net-tools htop gdb busybox && \
-    busybox --install -s
-
 # Copy deb packages
 COPY --from=build /work/package /tmp/package
 
-# Install deb packages
-RUN apt-get install -y /tmp/package/*.deb
-
-# Clean apt caches
-RUN apt-get autoremove && \
+# Install utilities & btcpool w/ debug symbols
+RUN apt-get update && \
+    apt-get install -y \
+    busybox \
+    curl \
+    gdb \
+    htop \
+    less \
+    net-tools \
+    tcpdump \
+    tcpflow \
+    telnet \
+    tmux && \
+    busybox --install -s && \
+    apt-get install -y /tmp/package/*.deb && \
+    apt-get autoremove && \
     apt-get autoclean && \
     rm -rf /tmp/package /var/lib/apt/lists/*
 
