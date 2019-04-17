@@ -28,21 +28,21 @@ jobs:
       - setup_remote_docker
       - run:
           name: Docker registry login
-          command: echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin $DOCKER_SERVER
+          command: echo "$BASE_IMAGE_PASSWORD" | docker login --username "$BASE_IMAGE_USERNAME" --password-stdin $BASE_IMAGE_SERVER
       - run:
           name: Build base image
           command: |
-            cd docker/btcpool/base-image && \
-            docker build --rm -t $DOCKER_SERVER/$BASE_IMAGE_REPO:<<parameters.tag>> -f <<parameters.dockerfile>> .
+            cd docker/btcpool/base-image
+            docker build --rm -t $BASE_IMAGE_SERVER/$BASE_IMAGE_REPO:<<parameters.tag>> -f <<parameters.dockerfile>> .
       - run:
           name: Push base image
-          command: docker push $DOCKER_SERVER/$BASE_IMAGE_REPO:<<parameters.tag>>
+          command: docker push $BASE_IMAGE_SERVER/$BASE_IMAGE_REPO:<<parameters.tag>>
   check_clang_format:
     docker:
-      - image: $DOCKER_SERVER/$BASE_IMAGE_REPO:lint
+      - image: $BASE_IMAGE_SERVER/$BASE_IMAGE_REPO:lint
         auth:
-          username: $DOCKER_USERNAME
-          password: $DOCKER_PASSWORD
+          username: $BASE_IMAGE_USERNAME
+          password: $BASE_IMAGE_PASSWORD
     steps:
       - checkout
       - run:
@@ -53,16 +53,17 @@ jobs:
       base:
         type: string
     docker:
-      - image: $DOCKER_SERVER/$BASE_IMAGE_REPO:<<parameters.base>>
+      - image: $BASE_IMAGE_SERVER/$BASE_IMAGE_REPO:<<parameters.base>>
         auth:
-          username: $DOCKER_USERNAME
-          password: $DOCKER_PASSWORD
+          username: $BASE_IMAGE_USERNAME
+          password: $BASE_IMAGE_PASSWORD
     steps:
       - checkout
       - run:
           name: Run CMake
           command: |
-            mkdir build && cd build && \
+            mkdir build
+            cd build
             cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_SRC_ROOT=/work/blockchain -DCHAIN_TYPE=$CHAIN_TYPE -DJOBS=2  ..
       - run:
           name: Build btcpool
@@ -80,18 +81,32 @@ jobs:
       - checkout
       - setup_remote_docker
       - run:
-          name: Docker registry login
-          command: echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin $DOCKER_SERVER
+          name: Docker registry login (base image)
+          command: echo "$BASE_IMAGE_PASSWORD" | docker login --username "$BASE_IMAGE_USERNAME" --password-stdin $BASE_IMAGE_SERVER
       - run:
           name: Build deploy image
           command: |
-            docker build --rm -f docker/btcpool/deploy/Dockerfile \
-              -t $DOCKER_SERVER/$DEPLOY_IMAGE_REPO:${CIRCLE_TAG}_<<parameters.base>> \
-              --build-arg BASE_IMAGE=$DOCKER_SERVER/$BASE_IMAGE_REPO:<<parameters.base>> \
+            docker build --rm -f docker/btcpool/deploy/Dockerfile -t ${CIRCLE_TAG}_<<parameters.base>> \
+              --build-arg BASE_IMAGE=$BASE_IMAGE_SERVER/$BASE_IMAGE_REPO:<<parameters.base>> \
               --build-arg BUILD_JOBS=2 .
       - run:
+          name: Docker registry login (deploy image)
+          command: |
+            for DEPLOY_IMAGE_SERVER in $DEPLOY_IMAGE_SERVERS; do
+              echo "$DEPLOY_IMAGE_PASSWORD" | docker login --username "$DEPLOY_IMAGE_USERNAME" --password-stdin $DEPLOY_IMAGE_SERVER
+            done
+      - run:
+          name: Tag deploy image
+          command: |
+            for DEPLOY_IMAGE_SERVER in $DEPLOY_IMAGE_SERVERS; do
+              docker tag ${CIRCLE_TAG}_<<parameters.base>> $DEPLOY_IMAGE_SERVER/$DEPLOY_IMAGE_REPO:${CIRCLE_TAG}_<<parameters.base>>
+            done
+      - run:
           name: Push deploy image
-          command: docker push $DOCKER_SERVER/$DEPLOY_IMAGE_REPO:${CIRCLE_TAG}_<<parameters.base>>
+          command: |
+            for DEPLOY_IMAGE_SERVER in $DEPLOY_IMAGE_SERVERS; do
+              docker push $DEPLOY_IMAGE_SERVER/$DEPLOY_IMAGE_REPO:${CIRCLE_TAG}_<<parameters.base>>
+            done
 
 workflows:
   version: 2
