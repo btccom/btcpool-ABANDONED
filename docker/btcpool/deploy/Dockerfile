@@ -45,14 +45,13 @@ COPY docker/btcpool/deploy/update_apt_sources.sh /tmp
 RUN /tmp/update_apt_sources.sh
 
 # Copy deb packages
-COPY --from=build /work/package /tmp/package
+COPY --from=build /work/package /work/package
 
 # Install utilities & btcpool w/ debug symbols
 RUN apt-get update && \
     apt-get install -y \
     busybox \
     curl \
-    gdb \
     htop \
     less \
     net-tools \
@@ -61,10 +60,10 @@ RUN apt-get update && \
     telnet \
     tmux && \
     busybox --install -s && \
-    apt-get install -y /tmp/package/*.deb && \
+    apt-get install -y /work/package/*-main.deb && \
     apt-get autoremove && \
-    apt-get autoclean && \
-    rm -rf /tmp/package /var/lib/apt/lists/*
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # entrypoint
 COPY ./docker/btcpool/deploy/entrypoint.sh /
