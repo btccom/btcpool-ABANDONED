@@ -13,8 +13,13 @@ echo "View result:"
 echo "    tail -F $LOGFILE"
 echo
 
-if [ "x$1" != "x" ]; then
-    /bin/bash ../testosteron/testosteron run $BASE_DIR/testcase/$1*
+if [ "x$*" != "x" ]; then
+    TESTCASES=("$@")
+    PATHS=()
+    for testcase in ${TESTCASES[@]}; do
+        PATHS+=($BASE_DIR/testcase/$testcase*)
+    done
+    /bin/bash ../testosteron/testosteron runsome ${PATHS[@]}
 else
     /bin/bash ../testosteron/testosteron rundir $BASE_DIR/testcase
 fi

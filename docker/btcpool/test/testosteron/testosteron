@@ -137,6 +137,17 @@ rundir(){
   exit 0
 }
 
+# <file1> ...  runs one or more tests
+runsome(){
+  if [ "x$*" == "x" ]; then
+    { _tprintf "$dir: no test cases specified"; exit 1; }
+  fi
+  FILES=("$@")
+  for file in "${FILES[@]}"; do run "$file"; done 
+  _overview
+  exit 0
+}
+
 # <file>       runs one test 
 run(){
   file="$(basename "$1")"; path="$(dirname "$1" )";
