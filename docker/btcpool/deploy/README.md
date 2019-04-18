@@ -52,6 +52,9 @@ docker build -t btccom/btcpool-ltc -f Dockerfile --build-arg BASE_IMAGE=btccom/b
 
 # ZEC
 docker build -t btccom/btcpool-zec -f Dockerfile --build-arg BASE_IMAGE=btccom/btcpool_build:zec-2.0.4 --build-arg BUILD_JOBS=$(nproc) ../../..
+
+# Other chains (ETH, Beam, Grin, Decred, Bytom, ...)
+# Please use BTC's image.
 ```
 
 ## Run unittest
@@ -74,4 +77,25 @@ docker run -it --rm btccom/btcpool-ltc unittest
 
 # ZEC
 docker run -it --rm btccom/btcpool-zec unittest
+
+# Other chains (ETH, Beam, Grin, Decred, Bytom, ...)
+# Same as BTC's command.
+```
+
+## Example: Running sserver
+
+An example to show how to run a BTCPool's module in docker.
+
+```
+mkdir /work/config
+cp '../../../src/eth/cfg/sserver(eth).cfg' '/work/config/sserver.cfg'
+
+# Run container as a foreground process
+docker run --rm --network=host -v=/work/config:/work/config btccom/btcpool-btc sserver -c /work/config/sserver.cfg
+
+# Run container as a daemon
+docker run --name=eth-sserver --network=host --restart=always -v=/work/config:/work/config -d btccom/btcpool-btc sserver -c /work/config/sserver.cfg
+
+# Show logs
+docker logs btc-sserver
 ```

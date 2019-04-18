@@ -1,0 +1,23 @@
+#!/bin/bash
+set -e
+
+DOCKER_COMPOSE="docker-compose --no-ansi"
+
+echo "build base image..."
+cd "$BASE_DIR/../../base-image"
+docker build -t btccom/btcpool_build:btc-0.16.3 -f Dockerfile.btc --build-arg BUILD_JOBS=$(nproc) . >>$STDOUT
+echo "done"
+
+echo "build BTCPool-BTC image..."
+cd "$BASE_DIR/../../deploy"
+docker build -t btccom/btcpool-btc -f Dockerfile --build-arg BASE_IMAGE=btccom/btcpool_build:btc-0.16.3  --build-arg BUILD_JOBS=$(nproc) ../../.. >>$STDOUT
+echo "done"
+
+echo "build docker compose..."
+cd "$BASE_DIR"
+$DOCKER_COMPOSE build >>$STDOUT
+echo "done"
+
+echo "clear old docker compose..."
+$DOCKER_COMPOSE down >>$STDOUT
+echo "done"

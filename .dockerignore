@@ -24,3 +24,18 @@ install/run_*/
 /src/config/*.h
 /src/*.pro.pb.h
 /src/*.pro.pb.cc
+
+# documents, tools and test scripts
+/docker/
+!/docker/btcpool/deploy/
+/docs/
+/tools/
+/Dockerfile
+/README.md
+/.dockerignore
+/.gitignore
+/.clang-format
+/run-clang-format.sh
+
+# git folder
+/.git/

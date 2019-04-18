@@ -57,6 +57,10 @@ RUN apt-get autoremove && \
     apt-get autoclean && \
     rm -rf /tmp/package /var/lib/apt/lists/*
 
-# entrypoint
+# startup scripts
 COPY ./docker/btcpool/deploy/entrypoint.sh /
-ENTRYPOINT ["/bin/sh", "/entrypoint.sh"]
+COPY ./docker/btcpool/deploy/wait-for-it.sh /
+RUN chmod +x /entrypoint.sh /wait-for-it.sh
+
+# entrypoint
+ENTRYPOINT ["/entrypoint.sh"]

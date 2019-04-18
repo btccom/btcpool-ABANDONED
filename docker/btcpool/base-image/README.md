@@ -49,4 +49,7 @@ docker build -t btccom/btcpool_build:ltc-0.16.3 -f Dockerfile.ltc --build-arg BU
 
 # ZEC
 docker build -t btccom/btcpool_build:zec-2.0.4 -f Dockerfile.zec --build-arg BUILD_JOBS=$(nproc) .
+
+# Other chains (ETH, Beam, Grin, Decred, Bytom, ...)
+# Please use BTC's base image.
 ```

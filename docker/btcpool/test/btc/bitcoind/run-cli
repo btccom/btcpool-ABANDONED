@@ -1,0 +1,11 @@
+#! /bin/bash
+#
+# run shell for bitcoin-cli
+#
+
+sleep 10
+
+bitcoin-cli -datadir=/work/bitcoin1 generatetoaddress 1 my2dxGb5jz43ktwGxg2doUaEb9WhZ9PQ7K
+bitcoin-cli -datadir=/work/bitcoin2 generatetoaddress 1 my2dxGb5jz43ktwGxg2doUaEb9WhZ9PQ7K
+
+sleep 50

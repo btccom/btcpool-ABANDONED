@@ -640,7 +640,6 @@ endforeach()
 # documents
 install(FILES
             LICENSE
-            README.md
         COMPONENT
             main
         DESTINATION
@@ -648,9 +647,7 @@ install(FILES
 
 # document dirss
 install(DIRECTORY
-            docs
             install
-            docker
         COMPONENT
             main
         DESTINATION
