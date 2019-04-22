@@ -246,14 +246,18 @@ if(CHAIN_TYPE STREQUAL "BCH")
     "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto_sse41.a")
 
 elseif(CHAIN_TYPE STREQUAL "ZEC")
+  execute_process(
+      COMMAND "${CHAIN_SRC_ROOT}/depends/config.guess"
+      OUTPUT_VARIABLE ZCASH_PLATFORM
+      OUTPUT_STRIP_TRAILING_WHITESPACE)
   set(BITCOIN_LIBRARIES
     "${CHAIN_SRC_ROOT}/src/libbitcoin_common.a"
     "${CHAIN_SRC_ROOT}/src/libbitcoin_util.a"
     "${CHAIN_SRC_ROOT}/src/libzcash.a"
     "${CHAIN_SRC_ROOT}/src/crypto/libbitcoin_crypto.a"
     "${CHAIN_SRC_ROOT}/src/snark/libsnark.a"
-    "${CHAIN_SRC_ROOT}/depends/x86_64-unknown-linux-gnu/lib/libsodium.a"
-    "${CHAIN_SRC_ROOT}/depends/x86_64-unknown-linux-gnu/lib/librustzcash.a")
+    "${CHAIN_SRC_ROOT}/depends/${ZCASH_PLATFORM}/lib/libsodium.a"
+    "${CHAIN_SRC_ROOT}/depends/${ZCASH_PLATFORM}/lib/librustzcash.a")
 
 else()
   set(BITCOIN_LIBRARIES ${BITCOIN_LIBRARIES}
@@ -268,7 +272,7 @@ if (NOT EXISTS ${BITCOIN_LIBRARIE})
   message(STATUS "building ${CHAIN_NAME}...")
 
   if(CHAIN_TYPE STREQUAL "ZEC")
-    execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./zcutil/build.sh ${MAKE_JOBS})
+    execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./zcutil/build.sh --disable-tests ${MAKE_JOBS})
 
   else()
     execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./autogen.sh)
