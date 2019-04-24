@@ -57,6 +57,7 @@ protected:
       const JsonNode &jroot) override;
   void handleRequest_Authorize(
       const std::string &idStr, const JsonNode &jparams, const JsonNode &jroot);
+  void setDefaultDifficultyFromPassword(const string &password) override {}
 
 public:
   std::unique_ptr<StratumMiner> createMiner(

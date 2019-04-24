@@ -332,6 +332,10 @@ void StratumSession::checkUserAndPwd(
   state_ = AUTHENTICATED;
   dispatcher_ = createDispatcher();
 
+  if (!password.empty()) {
+    setDefaultDifficultyFromPassword(password);
+  }
+
   // set read timeout to 10 mins, it's enought for most miners even usb miner.
   // if it's a pool watcher, set timeout to a week
   setReadTimeout(isLongTimeout_ ? 86400 * 7 : getServer().tcpReadTimeout());
@@ -382,6 +386,45 @@ bool StratumSession::switchChain(size_t chainId) {
   }
 
   return true;
+}
+
+void StratumSession::setDefaultDifficultyFromPassword(const string &password) {
+  // testcase: TEST(StratumSession, SetDiff)
+  using namespace boost::algorithm;
+
+  uint64_t d = 0u, md = 0u;
+  vector<string> arr; // key=value,key=value
+  split(arr, password, is_any_of(","));
+  if (arr.size() == 0)
+    return;
+
+  for (auto it = arr.begin(); it != arr.end(); it++) {
+    vector<string> arr2; // key,value
+    split(arr2, *it, is_any_of("="));
+    if (arr2.size() != 2 || arr2[1].empty()) {
+      continue;
+    }
+
+    if (arr2[0] == "d") {
+      // 'd' : start difficulty
+      d = strtoull(arr2[1].c_str(), nullptr, 10);
+    } else if (arr2[0] == "md") {
+      // 'md' : minimum difficulty
+      md = strtoull(arr2[1].c_str(), nullptr, 10);
+    }
+  }
+
+  // set min diff first
+  if (md > 0) {
+    // diff range correction is done in setMinDiff
+    dispatcher_->setMinDiff(formatDifficulty(md));
+  }
+
+  // than set current diff
+  if (d > 0) {
+    // diff range correction is done in resetCurDiff
+    dispatcher_->resetCurDiff(formatDifficulty(d));
+  }
 }
 
 void StratumSession::setClientAgent(const string &clientAgent) {

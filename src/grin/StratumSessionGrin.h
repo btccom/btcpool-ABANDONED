@@ -58,6 +58,7 @@ protected:
       const std::string &method,
       const JsonNode &jparams,
       const JsonNode &jroot) override;
+  void setDefaultDifficultyFromPassword(const string &password) override {}
 
 private:
   void
