@@ -24,6 +24,7 @@ outputTestData() {
     | while read line; do
         line=${line/@TIME@/$(date +%s)}
         echo $line
+        echo send new gbt at $(date) >&2
         sleep 1
     done
 }
@@ -31,6 +32,7 @@ outputTestData() {
 {
     echo "send RawGbts in the background..."
     outputTestData | $KAFKA_PRODUCER --topic RawGbt
+    echo "send RawGbts finished"
 } &
 
 echo "consome StratumJob from kafka (60s)..."
@@ -50,5 +52,5 @@ fi
 echo "Checking StratumJobs..."
 php "$BASE_DIR/helper/check-stratumjob.php" "$KAFKA_RESULT"
 
-#rm $KAFKA_RESULT
+rm $KAFKA_RESULT
 $DOCKER_COMPOSE down >>$STDOUT

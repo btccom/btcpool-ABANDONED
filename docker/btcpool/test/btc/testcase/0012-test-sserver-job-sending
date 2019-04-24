@@ -1,0 +1,57 @@
+#!/bin/bash
+set -e
+
+PID=$$
+SSERVER_RESULT="/tmp/btcpool-test-sserver.$PID.log"
+KAFKA_CONSUMER="docker exec btc_kafka_1 /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092"
+KAFKA_PRODUCER="docker exec -i btc_kafka_1 /opt/kafka/bin/kafka-console-producer.sh --broker-list kafka:9092"
+WAIT_FOR_IT="$BASE_DIR/../../deploy/wait-for-it.sh"
+DOCKER_COMPOSE="docker-compose --no-ansi"
+
+cd "$BASE_DIR"
+
+echo "clear old docker compose..."
+$DOCKER_COMPOSE down >>$STDOUT
+
+echo "start sserver (5s)..."
+$DOCKER_COMPOSE up sserver >>$STDOUT &
+sleep 5
+
+outputTestData() {
+    cat "$BASE_DIR/testdata/stratumjobs-1.log" \
+    | while read line; do
+        line=${line/@TIME@/$(date +%s)}
+        echo $line
+        echo send new job at $(date) >&2
+        sleep 10
+    done
+}
+
+{
+    echo "send StratumJob in the background..."
+    outputTestData | $KAFKA_PRODUCER --topic StratumJob
+    echo "send StratumJob finished..."
+} &
+
+echo "receiving jobs from sserver (120s)..."
+{
+    echo '{"id":1,"method":"mining.subscribe","params":["autotest/0.1"]}'
+    echo '{"id":2,"method":"mining.authorize","params":["hu60.test","123"]}'
+} | nc 127.0.0.1 3333 >$SSERVER_RESULT &
+NC_PID=$!
+sleep 120
+kill $NC_PID
+
+line=`cat $SSERVER_RESULT | grep '"mining.notify"' | wc -l`
+if [ $line -lt 20 ]; then
+    echo "There should be 20 jobs but only $line"
+    exit 1
+else
+    echo "Got $line jobs from sserver, OK."
+fi
+
+echo "Checking jobs..."
+php "$BASE_DIR/helper/check-sserver-jobs.php" "$SSERVER_RESULT"
+
+rm $SSERVER_RESULT
+$DOCKER_COMPOSE down >>$STDOUT

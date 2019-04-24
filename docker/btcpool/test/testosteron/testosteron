@@ -33,9 +33,9 @@
 SELF_PID=$$
 SELF_PATH="$(dirname "$(readlink -f "$0")" )"; cd "$SELF_PATH"
 if [ "x$LOGFILE" = "x" ]; then
-  LOGFILE="/tmp/testosteron.$PID.log"
+  LOGFILE="/tmp/testosteron.$SELF_PID.log"
 fi
-TMPFILE="/tmp/testosteron.$PID"
+TMPFILE="/tmp/testosteron.$SELF_PID"
 export LC_ALL=C # needed so unix 'sort' works properly with '-' and numbers
 # these vars keep track of most important things
 FAIL=0; PASS=0; FILES=()
