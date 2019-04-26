@@ -99,17 +99,21 @@ KafkaConsumer::KafkaConsumer(
 }
 
 KafkaConsumer::~KafkaConsumer() {
-  if (topic_ == nullptr) {
-    return;
-  }
+  if (consumer_ != nullptr) {
 
-  /* Stop consuming */
-  rd_kafka_consume_stop(topic_, partition_);
-  while (rd_kafka_outq_len(consumer_) > 0) {
-    rd_kafka_poll(consumer_, 10);
+    if (topic_ != nullptr) {
+      /* Stop consuming */
+      rd_kafka_consume_stop(topic_, partition_);
+
+      while (rd_kafka_outq_len(consumer_) > 0) {
+        rd_kafka_poll(consumer_, 10);
+      }
+
+      rd_kafka_topic_destroy(topic_); // Destroy topic
+    }
+
+    rd_kafka_destroy(consumer_); // Destroy the handle
   }
-  rd_kafka_topic_destroy(topic_); // Destroy topic
-  rd_kafka_destroy(consumer_); // Destroy the handle
 }
 
 //
@@ -225,28 +229,27 @@ KafkaHighLevelConsumer::KafkaHighLevelConsumer(
 }
 
 KafkaHighLevelConsumer::~KafkaHighLevelConsumer() {
-  rd_kafka_resp_err_t err;
-  if (topics_ == nullptr) {
-    return;
+  if (consumer_ != nullptr) {
+    /* Stop consuming */
+    rd_kafka_resp_err_t err = rd_kafka_consumer_close(consumer_);
+    if (err)
+      LOG(ERROR) << "failed to close consumer: " << rd_kafka_err2str(err);
+    else
+      LOG(INFO) << "consumer closed";
+
+    if (topics_ != nullptr) {
+      rd_kafka_topic_partition_list_destroy(topics_);
+    }
+    rd_kafka_destroy(consumer_);
+
+    /* Let background threads clean up and terminate cleanly. */
+    int run = 5;
+    while (run-- > 0 && rd_kafka_wait_destroyed(1000) == -1)
+      LOG(INFO) << "waiting for librdkafka to decommission";
+
+    if (run <= 0)
+      rd_kafka_dump(stdout, consumer_);
   }
-
-  /* Stop consuming */
-  err = rd_kafka_consumer_close(consumer_);
-  if (err)
-    LOG(ERROR) << "failed to close consumer: " << rd_kafka_err2str(err);
-  else
-    LOG(INFO) << "consumer closed";
-
-  rd_kafka_topic_partition_list_destroy(topics_);
-  rd_kafka_destroy(consumer_);
-
-  /* Let background threads clean up and terminate cleanly. */
-  int run = 5;
-  while (run-- > 0 && rd_kafka_wait_destroyed(1000) == -1)
-    LOG(INFO) << "waiting for librdkafka to decommission";
-
-  if (run <= 0)
-    rd_kafka_dump(stdout, consumer_);
 }
 
 bool KafkaHighLevelConsumer::setup() {
@@ -355,7 +358,8 @@ rd_kafka_message_t *KafkaHighLevelConsumer::consumer(int timeout_ms) {
   return rd_kafka_consumer_poll(consumer_, timeout_ms);
 }
 
-///////////////////////////////// KafkaProducer ////////////////////////////////
+///////////////////////////////// KafkaProducer
+///////////////////////////////////
 KafkaProducer::KafkaProducer(
     const char *brokers, const char *topic, int partition)
   : brokers_(brokers)
@@ -390,15 +394,20 @@ KafkaProducer::KafkaProducer(
 }
 
 KafkaProducer::~KafkaProducer() {
-  /* Poll to handle delivery reports */
-  rd_kafka_poll(producer_, 0);
+  if (producer_ != nullptr) {
+    /* Poll to handle delivery reports */
+    rd_kafka_poll(producer_, 0);
 
-  /* Wait for messages to be delivered */
-  while (rd_kafka_outq_len(producer_) > 0) {
-    rd_kafka_poll(producer_, 100);
+    /* Wait for messages to be delivered */
+    while (rd_kafka_outq_len(producer_) > 0) {
+      rd_kafka_poll(producer_, 100);
+    }
+
+    if (topic_ != nullptr) {
+      rd_kafka_topic_destroy(topic_); // Destroy topic
+    }
+    rd_kafka_destroy(producer_); // Destroy the handle
   }
-  rd_kafka_topic_destroy(topic_); // Destroy topic
-  rd_kafka_destroy(producer_); // Destroy the handle
 }
 
 bool KafkaProducer::setup(const std::map<string, string> *options) {
@@ -494,9 +503,9 @@ void KafkaProducer::produce(const void *payload, size_t len) {
   }
 }
 
-// Although the kafka producer is non-blocking, it will fail immediately in some
-// cases, such as the local queue is full. In this case, the sender can choose
-// to try again later.
+// Although the kafka producer is non-blocking, it will fail immediately in
+// some cases, such as the local queue is full. In this case, the sender can
+// choose to try again later.
 bool KafkaProducer::tryProduce(const void *payload, size_t len) {
   // rd_kafka_produce() is non-blocking
   // Returns 0 on success or -1 on error
