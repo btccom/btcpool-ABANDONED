@@ -95,6 +95,7 @@ void ClientContainerBitcoinProxy::runThreadSolvedShareConsume() {
     // timeout, most of time it's not nullptr and set an error:
     //          rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF
     if (rkmessage == nullptr) {
+      tryFlushSolvedShares();
       continue;
     }
 
@@ -280,7 +281,12 @@ void ClientContainerBitcoinProxy::consumeSolvedShare(
 #endif
 
     shareLogWriter->addShare(std::move(share));
+    tryFlushSolvedShares();
+  }
+}
 
+void ClientContainerBitcoinProxy::tryFlushSolvedShares() {
+  if (shareLogWriter) {
     time_t now = time(nullptr);
     if (now - lastFlushTime_ > kFlushDiskInterval) {
       shareLogWriter->flushToDisk();

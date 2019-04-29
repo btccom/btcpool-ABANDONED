@@ -59,6 +59,7 @@ protected:
   bool initInternal() override;
   void runThreadSolvedShareConsume();
   void consumeSolvedShare(rd_kafka_message_t *rkmessage);
+  void tryFlushSolvedShares();
 
 public:
   ClientContainerBitcoinProxy(const libconfig::Config &config);
