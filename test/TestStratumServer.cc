@@ -27,6 +27,7 @@
 #include "Utils.h"
 
 #include "StratumServer.h"
+#include "StratumMiner.h"
 #include "bitcoin/BitcoinUtils.h"
 #include "bitcoin/StratumBitcoin.h"
 #include "bitcoin/StratumServerBitcoin.h"
@@ -219,7 +220,7 @@ TEST(StratumServerBitcoin, CheckShare) {
   auto sjob = std::make_shared<StratumJobBitcoin>();
   sjob->unserializeFromJson(sjobJson.c_str(), sjobJson.size());
 
-  StratumJobExBitcoin exjob(0, sjob, true);
+  StratumJobExBitcoin exjob(0, sjob, true, StratumMiner::kExtraNonce2Size_);
 
   CBlockHeader header;
   std::vector<char> coinbaseBin;

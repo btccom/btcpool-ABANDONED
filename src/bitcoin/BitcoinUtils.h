@@ -144,4 +144,11 @@ inline uint64_t SwapUint(uint64_t v) {
 }
 uint256 SwapUint(const uint256 &hash);
 
+uint256 reverse8bit(uint256 &&hash);
+uint256 reverse8bit(uint256 &&hash);
+uint256 reverse32bit(uint256 &&hash);
+
+string reverse16bit(string &&hash);
+string reverse16bit(const string &hash);
+
 #endif // BITCOIN_UTILS_H_

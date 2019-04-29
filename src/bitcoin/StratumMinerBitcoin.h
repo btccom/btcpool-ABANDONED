@@ -30,6 +30,9 @@
 
 class StratumMinerBitcoin : public StratumMinerBase<StratumTraitsBitcoin> {
 public:
+  static const size_t kMinExtraNonce2Size_ = 4;
+  static const size_t kMaxExtraNonce2Size_ = 8;
+
   StratumMinerBitcoin(
       StratumSessionBitcoin &session,
       const DiffController &diffController,

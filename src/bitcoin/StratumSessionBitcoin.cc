@@ -379,7 +379,6 @@ void StratumSessionBitcoin::handleRequest_Subscribe(
   //  result[1] = ExtraNonce1, used for building the coinbase.
   //  result[2] = Extranonce2_size, the number of bytes that the miner users for
   //  its ExtraNonce2 counter
-  assert(StratumMiner::kExtraNonce2Size_ == 8);
 
 #ifdef CHAIN_TYPE_ZEC
   // {"id": 1, "result": ["SESSION_ID", "NONCE_1"], "error": null}
@@ -395,7 +394,7 @@ void StratumSessionBitcoin::handleRequest_Subscribe(
       sessionId_,
       sessionId_,
       sessionId_,
-      Strings::Value(StratumMiner::kExtraNonce2Size_));
+      Strings::Value(getServer().extraNonce2Size()));
 #endif
 
   sendData(s);
