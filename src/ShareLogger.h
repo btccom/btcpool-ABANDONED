@@ -39,14 +39,12 @@ public:
   virtual void run() = 0;
 };
 
-//////////////////////////////  ShareLogWriterT
-////////////////////////////////////
-// 1. consume topic 'ShareLog'
-// 2. write sharelog to Disk
+/////////////////////////  ShareLogWriterBase //////////////////////////
+// write sharelog to Disk
 //
 template <class SHARE>
-class ShareLogWriterT : public ShareLogWriter {
-  atomic<bool> running_;
+class ShareLogWriterBase {
+private:
   string dataDir_; // where to put sharelog data files
 
   // zlib/gzip compression level: -1 to 9.
@@ -59,12 +57,33 @@ class ShareLogWriterT : public ShareLogWriter {
   std::vector<SHARE> shares_;
 
   const string chainType_;
-  KafkaHighLevelConsumer hlConsumer_; // consume topic: shareLogTopic
 
   zstr::ofstream *getFileHandler(uint32_t ts);
-  void consumeShareLog(rd_kafka_message_t *rkmessage);
-  bool flushToDisk();
   void tryCloseOldHanders();
+
+public:
+  ShareLogWriterBase(
+      const char *chainType,
+      const string &dataDir,
+      const int compressionLevel = Z_DEFAULT_COMPRESSION);
+  ~ShareLogWriterBase();
+
+  void addShare(SHARE &&share);
+  size_t countShares();
+  bool flushToDisk();
+};
+
+/////////////////////////  ShareLogWriterT /////////////////////////
+// 1. consume topic 'ShareLog'
+// 2. write sharelog to Disk
+//
+template <class SHARE>
+class ShareLogWriterT : public ShareLogWriter,
+                        protected ShareLogWriterBase<SHARE> {
+  atomic<bool> running_;
+  KafkaHighLevelConsumer hlConsumer_; // consume topic: shareLogTopic
+
+  void consumeShareLog(rd_kafka_message_t *rkmessage);
 
 public:
   ShareLogWriterT(

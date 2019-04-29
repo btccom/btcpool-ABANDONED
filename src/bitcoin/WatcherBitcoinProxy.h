@@ -25,10 +25,12 @@
 
 #include "Watcher.h"
 #include "StratumBitcoin.h"
+#include "ShareLogger.h"
 #include "MySQLConnection.h"
 
 #include <queue>
 #include <atomic>
+#include <memory>
 
 class PoolWatchClientBitcoinProxy;
 
@@ -38,8 +40,12 @@ protected:
   struct JobCache {
     string upstreamJobId_;
     StratumJobBitcoin sJob_;
-    size_t clientId_;
+    size_t clientId_ = 0;
   };
+
+  const time_t kFlushDiskInterval = 10;
+  time_t lastFlushTime_ = 0;
+  std::unique_ptr<ShareLogWriterBase<ShareBitcoin>> shareLogWriter;
 
   KafkaConsumer kafkaSolvedShareConsumer_; // consume solved_share_topic
   thread threadSolvedShareConsume_;

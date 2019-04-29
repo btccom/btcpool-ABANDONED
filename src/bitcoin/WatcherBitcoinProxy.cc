@@ -35,6 +35,16 @@ ClientContainerBitcoinProxy::ClientContainerBitcoinProxy(
         kafkaBrokers_.c_str(),
         config.lookup("poolwatcher.solved_share_topic").c_str(),
         0 /*patition*/) {
+
+  bool enableSharelogger = false;
+  config.lookupValue("solved_sharelog_writer.enabled", enableSharelogger);
+
+  if (enableSharelogger) {
+    shareLogWriter = std::make_unique<ShareLogWriterBase<ShareBitcoin>>(
+        config.lookup("poolwatcher.type").c_str(),
+        config.lookup("solved_sharelog_writer.data_dir").c_str(),
+        config.lookup("solved_sharelog_writer.compression_level"));
+  }
 }
 
 ClientContainerBitcoinProxy::~ClientContainerBitcoinProxy() {
@@ -222,6 +232,37 @@ void ClientContainerBitcoinProxy::consumeSolvedShare(
   }
 
   client->submitShare(submitJson);
+
+  if (shareLogWriter) {
+    ShareBitcoin share;
+    share.set_version(ShareBitcoin::CURRENT_VERSION);
+    share.set_jobid(jobCache.sJob_.jobId_);
+    share.set_workerhashid(foundBlock.workerId_);
+    share.set_userid(foundBlock.userId_);
+    share.set_sharediff(jobCache.sJob_.proxyJobDifficulty_);
+    share.set_blkbits(blkHeader.nBits);
+    share.set_timestamp((uint64_t)time(nullptr));
+    share.set_height(foundBlock.height_);
+    share.set_versionmask(versionMask);
+    share.set_sessionid(jobCache.clientId_);
+    share.set_status(StratumStatus::ACCEPT);
+    share.set_ip("127.0.0.1");
+// set nonce
+#ifdef CHAIN_TYPE_ZEC
+    uint32_t nonceHash = djb2(blkHeader.nNonce.ToString().c_str());
+    share.set_nonce(nonceHash);
+#else
+    share.set_nonce(blkHeader.nNonce);
+#endif
+
+    shareLogWriter->addShare(std::move(share));
+
+    time_t now = time(nullptr);
+    if (now - lastFlushTime_ > kFlushDiskInterval) {
+      shareLogWriter->flushToDisk();
+      lastFlushTime_ = now;
+    }
+  }
 }
 
 PoolWatchClient *ClientContainerBitcoinProxy::createPoolWatchClient(

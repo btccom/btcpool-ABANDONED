@@ -42,7 +42,8 @@
 #include <memory>
 #include <boost/thread/shared_mutex.hpp>
 
-#define BTCCOM_WATCHER_AGENT "btc.com-watcher/0.2"
+// see PoolWatcherAgent in StratumSession.cc
+#define BTCCOM_WATCHER_AGENT "__PoolWatcher__"
 
 class PoolWatchClient;
 class ClientContainer;

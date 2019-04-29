@@ -24,24 +24,22 @@
 
 #include <glog/logging.h>
 
-//////////////////////////////  ShareLogWriterT  ///////////////////////////////
+///////////////////////// ShareLogWriterBase /////////////////////////
 template <class SHARE>
-ShareLogWriterT<SHARE>::ShareLogWriterT(
-    const char *chainType,
-    const char *kafkaBrokers,
-    const string &dataDir,
-    const string &kafkaGroupID,
-    const char *shareLogTopic,
-    const int compressionLevel)
-  : running_(true)
-  , dataDir_(dataDir)
+ShareLogWriterBase<SHARE>::ShareLogWriterBase(
+    const char *chainType, const string &dataDir, const int compressionLevel)
+  : dataDir_(dataDir)
   , compressionLevel_(compressionLevel)
-  , chainType_(chainType)
-  , hlConsumer_(kafkaBrokers, shareLogTopic, 0 /* patition */, kafkaGroupID) {
+  , chainType_(chainType) {
 }
 
 template <class SHARE>
-ShareLogWriterT<SHARE>::~ShareLogWriterT() {
+ShareLogWriterBase<SHARE>::~ShareLogWriterBase() {
+  // flush left shares
+  if (countShares() > 0) {
+    flushToDisk();
+  }
+
   // close file handlers
   for (auto &itr : fileHandlers_) {
     LOG(INFO) << "fclose file handler, date: " << date("%F", itr.first);
@@ -51,15 +49,7 @@ ShareLogWriterT<SHARE>::~ShareLogWriterT() {
 }
 
 template <class SHARE>
-void ShareLogWriterT<SHARE>::stop() {
-  if (!running_)
-    return;
-
-  running_ = false;
-}
-
-template <class SHARE>
-zstr::ofstream *ShareLogWriterT<SHARE>::getFileHandler(uint32_t ts) {
+zstr::ofstream *ShareLogWriterBase<SHARE>::getFileHandler(uint32_t ts) {
   string filePath;
 
   try {
@@ -86,6 +76,109 @@ zstr::ofstream *ShareLogWriterT<SHARE>::getFileHandler(uint32_t ts) {
     LOG(ERROR) << "open file fail: " << filePath;
     return nullptr;
   }
+}
+
+template <class SHARE>
+void ShareLogWriterBase<SHARE>::addShare(SHARE &&share) {
+  DLOG(INFO) << share.toString();
+
+  if (share.isValid()) {
+    shares_.push_back(share);
+  } else {
+    LOG(ERROR) << "invalid share";
+  }
+}
+
+template <class SHARE>
+size_t ShareLogWriterBase<SHARE>::countShares() {
+  return shares_.size();
+}
+
+template <class SHARE>
+void ShareLogWriterBase<SHARE>::tryCloseOldHanders() {
+  while (fileHandlers_.size() > 3) {
+    // Maps (and sets) are sorted, so the first element is the smallest,
+    // and the last element is the largest.
+    auto itr = fileHandlers_.begin();
+
+    LOG(INFO) << "fclose file handler, date: " << date("%F", itr->first);
+    delete itr->second;
+
+    fileHandlers_.erase(itr);
+  }
+}
+
+template <class SHARE>
+bool ShareLogWriterBase<SHARE>::flushToDisk() {
+  if (shares_.empty()) {
+    return true;
+  }
+
+  try {
+    std::set<zstr::ofstream *> usedHandlers;
+
+    DLOG(INFO) << "flushToDisk shares count: " << shares_.size();
+    for (const auto &share : shares_) {
+      const uint32_t ts = share.timestamp() - (share.timestamp() % 86400);
+      zstr::ofstream *f = getFileHandler(ts);
+      if (f == nullptr) {
+        return false;
+      }
+
+      usedHandlers.insert(f);
+
+      string message;
+      uint32_t size = 0;
+      if (!share.SerializeToBuffer(message, size)) {
+        DLOG(INFO) << "base.SerializeToArray failed!" << std::endl;
+        continue;
+      }
+      f->write((char *)&size, sizeof(uint32_t));
+      f->write((char *)message.data(), size);
+    }
+
+    shares_.clear();
+
+    for (auto &f : usedHandlers) {
+      DLOG(INFO) << "fflush() file to disk";
+      f->flush();
+    }
+
+    // should call this after write data
+    tryCloseOldHanders();
+
+    return true;
+
+  } catch (...) {
+    LOG(ERROR) << "write file fail";
+    return false;
+  }
+}
+
+//////////////////////////////  ShareLogWriterT  ///////////////////////////////
+template <class SHARE>
+ShareLogWriterT<SHARE>::ShareLogWriterT(
+    const char *chainType,
+    const char *kafkaBrokers,
+    const string &dataDir,
+    const string &kafkaGroupID,
+    const char *shareLogTopic,
+    const int compressionLevel)
+  : ShareLogWriterBase<SHARE>(chainType, dataDir, compressionLevel)
+  , running_(true)
+  , hlConsumer_(kafkaBrokers, shareLogTopic, 0 /* patition */, kafkaGroupID) {
+}
+
+template <class SHARE>
+ShareLogWriterT<SHARE>::~ShareLogWriterT() {
+}
+
+template <class SHARE>
+void ShareLogWriterT<SHARE>::stop() {
+  if (!running_)
+    return;
+
+  running_ = false;
 }
 
 template <class SHARE>
@@ -145,74 +238,7 @@ void ShareLogWriterT<SHARE>::consumeShareLog(rd_kafka_message_t *rkmessage) {
     return;
   }
 
-  shares_.push_back(share);
-
-  DLOG(INFO) << share.toString();
-  // LOG(INFO) << share.toString();
-  if (!share.isValid()) {
-    LOG(ERROR) << "invalid share";
-    shares_.pop_back();
-    return;
-  }
-}
-
-template <class SHARE>
-void ShareLogWriterT<SHARE>::tryCloseOldHanders() {
-  while (fileHandlers_.size() > 3) {
-    // Maps (and sets) are sorted, so the first element is the smallest,
-    // and the last element is the largest.
-    auto itr = fileHandlers_.begin();
-
-    LOG(INFO) << "fclose file handler, date: " << date("%F", itr->first);
-    delete itr->second;
-
-    fileHandlers_.erase(itr);
-  }
-}
-
-template <class SHARE>
-bool ShareLogWriterT<SHARE>::flushToDisk() {
-  if (shares_.empty())
-    return true;
-
-  try {
-    std::set<zstr::ofstream *> usedHandlers;
-
-    DLOG(INFO) << "flushToDisk shares count: " << shares_.size();
-    for (const auto &share : shares_) {
-      const uint32_t ts = share.timestamp() - (share.timestamp() % 86400);
-      zstr::ofstream *f = getFileHandler(ts);
-      if (f == nullptr)
-        return false;
-
-      usedHandlers.insert(f);
-
-      string message;
-      uint32_t size = 0;
-      if (!share.SerializeToBuffer(message, size)) {
-        DLOG(INFO) << "base.SerializeToArray failed!" << std::endl;
-        continue;
-      }
-      f->write((char *)&size, sizeof(uint32_t));
-      f->write((char *)message.data(), size);
-    }
-
-    shares_.clear();
-
-    for (auto &f : usedHandlers) {
-      DLOG(INFO) << "fflush() file to disk";
-      f->flush();
-    }
-
-    // should call this after write data
-    tryCloseOldHanders();
-
-    return true;
-
-  } catch (...) {
-    LOG(ERROR) << "write file fail";
-    return false;
-  }
+  this->addShare(std::move(share));
 }
 
 template <class SHARE>
@@ -234,9 +260,9 @@ void ShareLogWriterT<SHARE>::run() {
     //
     // flush data to disk
     //
-    if (shares_.size() > 0 &&
+    if (this->countShares() > 0 &&
         time(nullptr) > kFlushDiskInterval + lastFlushTime) {
-      flushToDisk();
+      this->flushToDisk();
       lastFlushTime = time(nullptr);
     }
 
@@ -260,6 +286,7 @@ void ShareLogWriterT<SHARE>::run() {
   }
 
   // flush left shares
-  if (shares_.size() > 0)
-    flushToDisk();
+  if (this->countShares() > 0) {
+    this->flushToDisk();
+  }
 }
