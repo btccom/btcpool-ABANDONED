@@ -120,6 +120,10 @@ void Bin2Hex(const uint8_t *in, size_t len, string &str) {
   }
 }
 
+void Bin2Hex(const vector<uint8_t> &in, string &str) {
+  Bin2Hex(in.data(), in.size(), str);
+}
+
 void Bin2Hex(const vector<char> &in, string &str) {
   Bin2Hex((uint8_t *)in.data(), in.size(), str);
 }

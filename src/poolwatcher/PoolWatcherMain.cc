@@ -152,6 +152,8 @@ int main(int argc, char **argv) {
 
   signal(SIGTERM, handler);
   signal(SIGINT, handler);
+  // ignore SIGPIPE, avoiding process be killed
+  signal(SIGPIPE, SIG_IGN);
 
   // check if we are using testnet3
   bool isTestnet3 = false;
@@ -184,10 +186,10 @@ int main(int argc, char **argv) {
   } catch (const SettingException &e) {
     LOG(FATAL) << "config missing: " << e.getPath();
     return 1;
-  } /*catch (const std::exception &e) {
+  } catch (const std::exception &e) {
     LOG(FATAL) << "exception: " << e.what();
     return 1;
-  }*/
+  }
 
   google::ShutdownGoogleLogging();
   return 0;

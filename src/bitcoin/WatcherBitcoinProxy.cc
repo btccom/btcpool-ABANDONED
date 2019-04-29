@@ -159,6 +159,7 @@ void ClientContainerBitcoinProxy::consumeSolvedShare(
         (uint8_t *)coinbaseTxBin.data(),
         (const uint8_t *)rkmessage->payload + sizeof(FoundBlock),
         coinbaseTxBin.size());
+
     // copy header
     foundBlock.headerData_.get(blkHeader);
   }
@@ -168,7 +169,11 @@ void ClientContainerBitcoinProxy::consumeSolvedShare(
   LOG(INFO) << "received a new solved share, worker: " << workerFullName
             << ", height: " << foundBlock.height_
             << ", jobId: " << foundBlock.jobId_
+#ifdef CHAIN_TYPE_ZEC
+            << ", nonce: " << blkHeader.nNonce.ToString();
+#else
             << ", nonce: " << blkHeader.nNonce;
+#endif
 
   JobCache jobCache;
   {
@@ -194,6 +199,23 @@ void ClientContainerBitcoinProxy::consumeSolvedShare(
       }
     }
   }
+
+#ifdef CHAIN_TYPE_ZEC
+
+  uint32_t versionMask = 0;
+  string solutionHex;
+  Bin2Hex(blkHeader.nSolution, solutionHex);
+
+  string submitJson = Strings::Format(
+      "{\"params\":[\"%s\",%s,\"%08x\",\"%s\",\"%s\"]"
+      ",\"id\":\"987\",\"method\":\"mining.submit\"}\n",
+      filterWorkerName(workerFullName),
+      jobCache.upstreamJobId_,
+      blkHeader.nTime,
+      blkHeader.nNonce.ToString(),
+      solutionHex);
+
+#else
 
   size_t coinbase1Size = jobCache.sJob_.coinbase1_.size() / 2;
   if (coinbaseTxBin.size() <
@@ -222,6 +244,8 @@ void ClientContainerBitcoinProxy::consumeSolvedShare(
       blkHeader.nTime,
       blkHeader.nNonce,
       versionMaskJson);
+
+#endif
 
   auto client = std::dynamic_pointer_cast<PoolWatchClientBitcoinProxy>(
       clients_[jobCache.clientId_]);
