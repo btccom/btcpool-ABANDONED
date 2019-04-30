@@ -162,10 +162,8 @@ public:
       return 0.0;
     }
 
-    double networkDifficulty =
-        NetworkParamsDecred::get((NetworkDecred)network())
-            .powLimit.getdouble() /
-        arith_uint256().SetCompact(blkbits()).getdouble();
+    double networkDifficulty = 1.0;
+    DecredDifficulty::BitsToDifficulty(blkbits(), &networkDifficulty);
 
     // Network diff may less than share diff on testnet or regression test
     // network. On regression test network, the network diff may be zero. But no
@@ -191,10 +189,8 @@ public:
   }
 
   string toString() const {
-    double networkDifficulty =
-        NetworkParamsDecred::get((NetworkDecred)network())
-            .powLimit.getdouble() /
-        arith_uint256().SetCompact(blkbits()).getdouble();
+    double networkDifficulty = 1.0;
+    DecredDifficulty::BitsToDifficulty(blkbits(), &networkDifficulty);
     return Strings::Format(
         "share(jobId: %u, ip: %s, userId: %d, "
         "workerId: %d, time: %u/%s, height: %u, "

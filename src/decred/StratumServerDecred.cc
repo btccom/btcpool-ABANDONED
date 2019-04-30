@@ -257,14 +257,14 @@ int ServerDecred::checkShare(
   }
 
   // check share diff
-  auto jobTarget =
-      NetworkParamsDecred::get(network_).powLimit / share.sharediff();
+  uint256 jobTarget;
+  DecredDifficulty::DiffToTarget(share.sharediff(), jobTarget);
 
   DLOG(INFO) << "blkHash: " << blkHash.ToString()
              << ", jobTarget: " << jobTarget.ToString()
              << ", networkTarget: " << sjob->target_.ToString();
 
-  if (isEnableSimulator_ == false && bnBlockHash > jobTarget) {
+  if (isEnableSimulator_ == false && bnBlockHash > UintToArith256(jobTarget)) {
     return StratumStatus::LOW_DIFFICULTY;
   }
 

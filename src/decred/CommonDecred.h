@@ -25,8 +25,9 @@
 #ifndef COMMON_DECRED_H_
 #define COMMON_DECRED_H_
 
+#include "Difficulty.h"
+
 #include <boost/endian/buffers.hpp>
-#include <arith_uint256.h>
 #include <uint256.h>
 #include <string>
 
@@ -81,7 +82,6 @@ inline bool operator<(NetworkDecred lhs, NetworkDecred rhs) {
 }
 
 struct NetworkParamsDecred {
-  arith_uint256 powLimit;
   int64_t baseSubsidy;
   int64_t mulSubsidy;
   int64_t divSubsidy;
@@ -94,5 +94,7 @@ struct NetworkParamsDecred {
 
   static const NetworkParamsDecred &get(NetworkDecred network);
 };
+
+using DecredDifficulty = Difficulty<0x1d00ffff>;
 
 #endif
