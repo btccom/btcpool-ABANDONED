@@ -230,7 +230,7 @@ void ClientContainerBitcoinProxy::consumeSolvedShare(
       jobCache.sJob_.proxyExtraNonce2Size_,
       extraNonce2);
 
-  uint32_t versionMask = jobCache.sJob_.nBits_ ^ blkHeader.nBits;
+  uint32_t versionMask = jobCache.sJob_.nVersion_ ^ blkHeader.nVersion;
   string versionMaskJson;
   if (versionMask != 0) {
     versionMaskJson = Strings::Format(",\"%08x\"", versionMask);
