@@ -563,16 +563,25 @@ int ServerBitcoin::checkShare(
     // send
     sendSolvedShare2Kafka(chainId, &foundBlock, coinbaseBin);
 
-    // mark jobs as stale
-    GetJobRepository(chainId)->markAllJobsAsStale();
+    if (sjob->proxyJobDifficulty_ > 0) {
+      LOG(INFO) << ">>>> solution found: " << blkHash.ToString()
+                << ", jobId: " << share.jobid()
+                << ", userId: " << share.userid() << ", by: " << workFullName
+                << " <<<<";
+    } else {
+      // mark jobs as stale
+      GetJobRepository(chainId)->markAllJobsAsStale();
 
-    LOG(INFO) << ">>>> found a new block: " << blkHash.ToString()
-              << ", jobId: " << share.jobid() << ", userId: " << share.userid()
-              << ", by: " << workFullName << " <<<<";
+      LOG(INFO) << ">>>> found a new block: " << blkHash.ToString()
+                << ", jobId: " << share.jobid()
+                << ", userId: " << share.userid() << ", by: " << workFullName
+                << " <<<<";
+    }
   }
 
   // print out high diff share, 2^10 = 1024
-  if ((bnBlockHash >> 10) <= bnNetworkTarget) {
+  if (sjob->proxyJobDifficulty_ == 0 &&
+      (bnBlockHash >> 10) <= bnNetworkTarget) {
     LOG(INFO) << "high diff share, blkhash: " << blkHash.ToString()
               << ", diff: " << TargetToDiff(blkHash)
               << ", networkDiff: " << TargetToDiff(sjob->networkTarget_)
