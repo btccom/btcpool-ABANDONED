@@ -67,20 +67,6 @@ enum class NetworkDecred : uint32_t {
   SimNet = 0x12141c16,
 };
 
-// Priority: mainnet > testnet > simnet > others
-inline bool operator<(NetworkDecred lhs, NetworkDecred rhs) {
-  switch (rhs) {
-  case NetworkDecred::MainNet:
-    return lhs != NetworkDecred::MainNet;
-  case NetworkDecred::TestNet:
-    return lhs != NetworkDecred::MainNet && lhs != NetworkDecred::TestNet;
-  case NetworkDecred::SimNet:
-    return lhs != NetworkDecred::MainNet && lhs != NetworkDecred::TestNet &&
-        lhs != NetworkDecred::SimNet;
-  }
-  return false;
-}
-
 struct NetworkParamsDecred {
   int64_t baseSubsidy;
   int64_t mulSubsidy;
