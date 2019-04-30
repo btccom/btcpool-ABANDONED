@@ -235,8 +235,8 @@ bool ShareLogParserT<SHARE>::processUnchangedShareLog() {
     string buf;
     buf.resize(96000000);
     uint32_t incompleteShareSize = 0;
-    while (f.peek() != EOF) {
 
+    while (f.peek() != EOF) {
       f.read(
           (char *)buf.data() + incompleteShareSize,
           buf.size() - incompleteShareSize);
@@ -255,19 +255,24 @@ bool ShareLogParserT<SHARE>::processUnchangedShareLog() {
 
           currentpos = currentpos + sizeof(uint32_t) + sharelength;
         } else {
-          LOG(INFO) << "not read enough length " << sharelength << std::endl;
+          // LOG(INFO) << "not read enough length " << sharelength << std::endl;
           break;
         }
       }
       incompleteShareSize = readNum - currentpos;
       if (incompleteShareSize > 0) {
-        LOG(INFO) << "incompleteShareSize_ " << incompleteShareSize
-                  << std::endl;
+        // LOG(INFO) << "incompleteShareSize_ " << incompleteShareSize
+        //           << std::endl;
         memcpy(
             (char *)buf.data(),
             (char *)buf.data() + currentpos,
             incompleteShareSize);
       }
+    }
+
+    if (incompleteShareSize > 0) {
+      LOG(ERROR) << "Sharelog is incomplete, found " << incompleteShareSize
+                 << " bytes fragment before EOF" << std::endl;
     }
     return true;
   } catch (...) {
