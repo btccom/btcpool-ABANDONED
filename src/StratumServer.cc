@@ -377,6 +377,8 @@ StratumServer::StratumServer()
   , base_(nullptr)
   , listener_(nullptr)
   , tcpReadTimeout_(600)
+  , disconnectInterval_(10)
+  , disconnectTimer_(nullptr)
   , acceptStale_(true)
   , isEnableSimulator_(false)
   , isSubmitInvalidBlock_(false)
@@ -400,6 +402,10 @@ StratumServer::~StratumServer() {
 
     // Destroy exporter before event base
     statsExporter_.reset();
+  }
+
+  if (disconnectTimer_ != nullptr) {
+    event_free(disconnectTimer_);
   }
 
   if (listener_ != nullptr) {
@@ -750,6 +756,11 @@ bool StratumServer::setup(const libconfig::Config &config) {
     return false;
   }
 
+  // initialize but don't activate the graceful shutdown disconnect timer event
+  config.lookupValue("sserver.disconnect_interval", disconnectInterval_);
+  disconnectTimer_ = event_new(
+      base_, -1, EV_PERSIST, &StratumServer::disconnectCallback, this);
+
   // check if TLS enabled
   config.lookupValue("sserver.enable_tls", enableTLS_);
   if (enableTLS_) {
@@ -801,6 +812,15 @@ void StratumServer::stop() {
     chain.jobRepository_->stop();
   }
   userInfo_->stop();
+}
+
+void StratumServer::stopGracefully() {
+  LOG(INFO) << "stop stratum server gracefully";
+
+  // Stop listening & trigger gracefully disconnecting timer
+  evconnlistener_disable(listener_);
+  timeval timeout{disconnectInterval_, 0};
+  event_add(disconnectTimer_, &timeout);
 }
 
 namespace {
@@ -962,6 +982,21 @@ void StratumServer::listenerCallback(
   bufferevent_enable(bev, EV_READ | EV_WRITE);
 
   server->addConnection(move(conn));
+}
+
+void StratumServer::disconnectCallback(int, short, void *context) {
+  auto server = static_cast<StratumServer *>(context);
+  if (server->connections_.empty()) {
+    server->stop();
+  } else {
+    auto iter = server->connections_.begin();
+    auto iend = server->connections_.end();
+    StratumSession::State state;
+    do {
+      state = (*iter)->getState();
+      iter = server->connections_.erase(iter);
+    } while (state < StratumSession::AUTHENTICATED && iter != iend);
+  }
 }
 
 void StratumServer::readCallback(struct bufferevent *bev, void *connection) {

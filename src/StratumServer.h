@@ -214,6 +214,8 @@ class StratumServer {
   struct evconnlistener *listener_;
   std::set<unique_ptr<StratumSession>> connections_;
   uint32_t tcpReadTimeout_; // seconds
+  uint32_t disconnectInterval_;
+  struct event *disconnectTimer_;
 
 public:
   struct ChainVars {
@@ -272,6 +274,7 @@ public:
   bool setup(const libconfig::Config &config);
   void run();
   void stop();
+  void stopGracefully();
 
   // Dispatch the task to the libevent loop
   void dispatch(std::function<void()> task);
@@ -299,6 +302,7 @@ public:
       struct sockaddr *saddr,
       int socklen,
       void *server);
+  static void disconnectCallback(evutil_socket_t, short, void *context);
   static void readCallback(struct bufferevent *, void *connection);
   static void eventCallback(struct bufferevent *, short, void *connection);
 

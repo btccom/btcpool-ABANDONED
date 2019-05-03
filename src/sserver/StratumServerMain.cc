@@ -56,7 +56,11 @@ StratumServer *gStratumServer = nullptr;
 
 void handler(int sig) {
   if (gStratumServer) {
-    gStratumServer->stop();
+    if (sig == SIGTERM) {
+      gStratumServer->stopGracefully();
+    } else {
+      gStratumServer->stop();
+    }
   }
 }
 
