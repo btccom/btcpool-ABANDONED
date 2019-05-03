@@ -296,7 +296,7 @@ bool StratumJobBitcoin::unserializeFromJson(const char *s, size_t len) {
   }
 
   if (proxyJobDifficulty_ > 0) {
-    DiffToTarget(proxyJobDifficulty_, networkTarget_);
+    BitcoinDifficulty::DiffToTarget(proxyJobDifficulty_, networkTarget_);
   } else {
     BitsToTarget(nBits_, networkTarget_);
   }
@@ -823,7 +823,7 @@ false // is clean
 
   proxyExtraNonce2Size_ = extraNonce2Size;
   proxyJobDifficulty_ = currentDifficulty;
-  DiffToTarget(proxyJobDifficulty_, networkTarget_);
+  BitcoinDifficulty::DiffToTarget(proxyJobDifficulty_, networkTarget_);
 
   prevHashBeStr_ = jparamsArr[1].str();
   coinbase1_ = jparamsArr[2].str() + extraNonce1;

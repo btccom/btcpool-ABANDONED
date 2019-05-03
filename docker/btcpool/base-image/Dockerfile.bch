@@ -9,10 +9,11 @@
 FROM ubuntu:18.04
 LABEL maintainer="Hanjiang Yu <hanjiang.yu@bitmain.com>"
 
+ARG APT_MIRROR_URL
 ARG BUILD_JOBS=1
 
-# use aliyun source
-ADD sources-aliyun.com.list /etc/apt/sources.list
+COPY update_apt_sources.sh /tmp
+RUN /tmp/update_apt_sources.sh
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \

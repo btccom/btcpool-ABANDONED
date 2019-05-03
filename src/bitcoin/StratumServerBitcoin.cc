@@ -583,8 +583,9 @@ int ServerBitcoin::checkShare(
   if (sjob->proxyJobDifficulty_ == 0 &&
       (bnBlockHash >> 10) <= bnNetworkTarget) {
     LOG(INFO) << "high diff share, blkhash: " << blkHash.ToString()
-              << ", diff: " << TargetToDiff(blkHash)
-              << ", networkDiff: " << TargetToDiff(sjob->networkTarget_)
+              << ", diff: " << BitcoinDifficulty::TargetToDiff(blkHash)
+              << ", networkDiff: "
+              << BitcoinDifficulty::TargetToDiff(sjob->networkTarget_)
               << ", by: " << workFullName;
   }
 

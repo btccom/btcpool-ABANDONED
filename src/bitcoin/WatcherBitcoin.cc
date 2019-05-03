@@ -355,8 +355,9 @@ void PoolWatchClientBitcoin::handleStratumMessage(const string &line) {
           // 2 times.
           // @see <https://www.bitcoinabc.org/2017-11-01-DAA/>
           double poolDiff, jobDiff;
-          BitsToDifficulty(poolStratumJob->nBits_, &poolDiff);
-          BitsToDifficulty(nBits, &jobDiff);
+          BitcoinDifficulty::BitsToDifficulty(
+              poolStratumJob->nBits_, &poolDiff);
+          BitcoinDifficulty::BitsToDifficulty(nBits, &jobDiff);
           double multiple = jobDiff / poolDiff;
           if (multiple < 0.5 || multiple > 2.0) {
             LOG(WARNING) << "<" << poolName_

@@ -43,8 +43,6 @@
 #include <key_io.h>
 #endif
 
-#include "CommonBitcoin.h"
-
 #if defined(CHAIN_TYPE_BCH) || defined(CHAIN_TYPE_BSV)
 
 // header that defined DecodeDestination & IsValidDestinationString
@@ -114,19 +112,21 @@ std::vector<uint256> BlockMerkleBranch(const CBlock &block, uint32_t position);
 #endif
 
 uint256 ComputeCoinbaseMerkleRoot(
-    const std::vector<char> &coinbaseBin, const vector<uint256> &merkleBranch);
+    const std::vector<char> &coinbaseBin,
+    const std::vector<uint256> &merkleBranch);
 
 std::string EncodeHexBlock(const CBlock &block);
 std::string EncodeHexBlockHeader(const CBlockHeader &blkHeader);
 
 int64_t GetBlockReward(int nHeight, const Consensus::Params &consensusParams);
 
-bool checkBitcoinRPC(const string &rpcAddr, const string &rpcUserpass);
+bool checkBitcoinRPC(
+    const std::string &rpcAddr, const std::string &rpcUserpass);
 
-int32_t getBlockHeightFromCoinbase(const string &coinbase1);
+int32_t getBlockHeightFromCoinbase(const std::string &coinbase1);
 
-string getNotifyHashStr(const uint256 &hash);
-string getNotifyUint32Str(const uint32_t var);
+std::string getNotifyHashStr(const uint256 &hash);
+std::string getNotifyUint32Str(const uint32_t var);
 
 inline uint16_t SwapUint(uint16_t v) {
   return (v >> 8) | (v << 8);
@@ -148,7 +148,7 @@ uint256 reverse8bit(uint256 &&hash);
 uint256 reverse8bit(uint256 &&hash);
 uint256 reverse32bit(uint256 &&hash);
 
-string reverse16bit(string &&hash);
-string reverse16bit(const string &hash);
+std::string reverse16bit(std::string &&hash);
+std::string reverse16bit(const std::string &hash);
 
 #endif // BITCOIN_UTILS_H_

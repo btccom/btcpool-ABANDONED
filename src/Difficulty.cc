@@ -1,7 +1,7 @@
 /*
  The MIT License (MIT)
 
- Copyright (c) [2016] [BTC.COM]
+ Copyright (c) [2019] [BTC.COM]
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -20,18 +20,10 @@
  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
-*/
-#ifndef POOL_COMMON_BITCOIN_H_
-#define POOL_COMMON_BITCOIN_H_
+ */
 
 #include "Difficulty.h"
 
-#ifdef CHAIN_TYPE_LTC
-using BitcoinDifficulty = Difficulty<0x1f00ffff>;
-#elif defined(CHAIN_TYPE_ZEC)
-using BitcoinDifficulty = Difficulty<0x1f07ffff>;
-#else
-using BitcoinDifficulty = Difficulty<0x1d00ffff>;
-#endif
-
-#endif
+void BitsToTarget(uint32_t bits, uint256 &target) {
+  target = ArithToUint256(arith_uint256{}.SetCompact(bits));
+}

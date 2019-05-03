@@ -190,7 +190,7 @@ public:
     }
 
     double networkDifficulty = 1.0; // 0.0;
-    BitsToDifficulty(blkbits(), &networkDifficulty);
+    BitcoinDifficulty::BitsToDifficulty(blkbits(), &networkDifficulty);
 
     if (networkDifficulty < (double)sharediff()) {
       return 1.0;
@@ -223,7 +223,7 @@ public:
   std::string toString() const {
 
     double networkDifficulty = 0.0;
-    BitsToDifficulty(blkbits(), &networkDifficulty);
+    BitcoinDifficulty::BitsToDifficulty(blkbits(), &networkDifficulty);
 
     return Strings::Format(
         "share(jobId: %u, ip: %s, userId: %d, "
