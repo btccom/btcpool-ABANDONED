@@ -138,13 +138,6 @@ make
 # Debug build:
 cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=BTC -DCHAIN_SRC_ROOT=/work/bitcoin-0.16.0 ..
 make
-
-# Build a special version of pool's stratum server, so you can run it with a stratum switcher:
-# Important: This version of sserver CANNOT run independently, `Illegal params` will throw
-# if you try to connect it directly without using StratumSwitcher.
-# Don't use `-DPOOL__WORK_WITH_STRATUM_SWITCHER=ON` if you don't know what StratumSwitcher is.
-cmake -DJOBS=4 -DCHAIN_TYPE=BTC -DCHAIN_SRC_ROOT=/work/bitcoin-0.16.0 -DPOOL__WORK_WITH_STRATUM_SWITCHER=ON ..
-make -j4
 ```
 
 **build BTCPool that linking to BitcoinCash ABC**
@@ -171,13 +164,6 @@ make
 # Debug build:
 cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=BCH -DCHAIN_SRC_ROOT=/work/bitcoin-abc-0.18.5 ..
 make
-
-# Build a special version of pool's stratum server, so you can run it with a stratum switcher:
-# Important: This version of sserver CANNOT run independently, `Illegal params` will throw
-# if you try to connect it directly without using StratumSwitcher.
-# Don't use `-DPOOL__WORK_WITH_STRATUM_SWITCHER=ON` if you don't know what StratumSwitcher is.
-cmake -DJOBS=4 -DCHAIN_TYPE=BCH -DCHAIN_SRC_ROOT=/work/bitcoin-abc-0.18.5 -DPOOL__WORK_WITH_STRATUM_SWITCHER=ON ..
-make -j4
 ```
 
 Note: `bitcoin-abc-0.17.1` and earlier are incompatible with current BTCPool, you will meet this error:
@@ -207,13 +193,6 @@ make
 # Debug build:
 cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=BSV -DCHAIN_SRC_ROOT=/work/bitcoin-sv-0.1.0 ..
 make
-
-# Build a special version of pool's stratum server, so you can run it with a stratum switcher:
-# Important: This version of sserver CANNOT run independently, `Illegal params` will throw
-# if you try to connect it directly without using StratumSwitcher.
-# Don't use `-DPOOL__WORK_WITH_STRATUM_SWITCHER=ON` if you don't know what StratumSwitcher is.
-cmake -DJOBS=4 -DCHAIN_TYPE=BSV -DCHAIN_SRC_ROOT=/work/bitcoin-sv-0.1.0 -DPOOL__WORK_WITH_STRATUM_SWITCHER=ON ..
-make -j4
 ```
 
 **build BTCPool that linking to UnitedBitcoin**
@@ -253,13 +232,6 @@ make
 # Debug build:
 cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-2.2.0.3 ..
 make
-
-# Build a special version of pool's stratum server, so you can run it with a stratum switcher:
-# Important: This version of sserver CANNOT run independently, `Illegal params` will throw
-# if you try to connect it directly without using StratumSwitcher.
-# Don't use `-DPOOL__WORK_WITH_STRATUM_SWITCHER=ON` if you don't know what StratumSwitcher is.
-cmake -DJOBS=4 -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-2.2.0.3 -DPOOL__WORK_WITH_STRATUM_SWITCHER=ON ..
-make -j4
 ```
 
 **build BTCPool that linking to SuperBitcoin**
@@ -292,13 +264,6 @@ make
 # Debug build:
 cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=SBTC -DCHAIN_SRC_ROOT=/work/SuperBitcoin-0.17.1 ..
 make
-
-# Build a special version of pool's stratum server, so you can run it with a stratum switcher:
-# Important: This version of sserver CANNOT run independently, `Illegal params` will throw
-# if you try to connect it directly without using StratumSwitcher.
-# Don't use `-DPOOL__WORK_WITH_STRATUM_SWITCHER=ON` if you don't know what StratumSwitcher is.
-cmake -DJOBS=4 -DCHAIN_TYPE=SBTC -DCHAIN_SRC_ROOT=/work/SuperBitcoin-0.17.1 -DPOOL__WORK_WITH_STRATUM_SWITCHER=ON ..
-make -j4
 ```
 
 **build BTCPool that linking to Litecoin**
