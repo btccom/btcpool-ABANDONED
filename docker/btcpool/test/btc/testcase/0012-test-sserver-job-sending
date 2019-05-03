@@ -5,7 +5,7 @@ PID=$$
 SSERVER_RESULT="/tmp/btcpool-test-sserver.$PID.log"
 KAFKA_CONSUMER="docker exec btc_kafka_1 /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092"
 KAFKA_PRODUCER="docker exec -i btc_kafka_1 /opt/kafka/bin/kafka-console-producer.sh --broker-list kafka:9092"
-WAIT_FOR_IT="$BASE_DIR/../../deploy/wait-for-it.sh"
+WAIT_FOR_IT="docker exec btc_sserver_1 /wait-for-it.sh"
 DOCKER_COMPOSE="docker-compose --no-ansi"
 
 cd "$BASE_DIR"
@@ -16,6 +16,7 @@ $DOCKER_COMPOSE down >>$STDOUT
 echo "start sserver (5s)..."
 $DOCKER_COMPOSE up sserver >>$STDOUT &
 sleep 5
+$WAIT_FOR_IT kafka:9092
 
 outputTestData() {
     cat "$BASE_DIR/testdata/stratumjobs-1.log" \
@@ -27,20 +28,23 @@ outputTestData() {
     done
 }
 
-{
-    echo "send StratumJob in the background..."
-    outputTestData | $KAFKA_PRODUCER --topic StratumJob
-    echo "send StratumJob finished..."
-} &
+echo "send StratumJob in the background..."
+outputTestData | $KAFKA_PRODUCER --topic StratumJob &
+KAFKA_PRODUCER_PID=$!
 
 echo "receiving jobs from sserver (120s)..."
 {
     echo '{"id":1,"method":"mining.subscribe","params":["autotest/0.1"]}'
     echo '{"id":2,"method":"mining.authorize","params":["hu60.test","123"]}'
-} | nc 127.0.0.1 3333 >$SSERVER_RESULT &
+} | nc 127.0.0.1 53333 >$SSERVER_RESULT &
 NC_PID=$!
 sleep 120
-kill $NC_PID
+kill $KAFKA_PRODUCER_PID || echo "Kafka producer exited"
+kill $NC_PID || {
+    echo "Connection to sserver closed too early"
+    head $SSERVER_RESULT
+    exit 1
+}
 
 line=`cat $SSERVER_RESULT | grep '"mining.notify"' | wc -l`
 if [ $line -lt 20 ]; then

@@ -5,7 +5,7 @@ PID=$$
 KAFKA_RESULT="/tmp/btcpool-test-gbtmaker.$PID.log"
 KAFKA_CONSUMER="docker exec btc_kafka_1 /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092"
 BITCOIN_CLI="docker exec btc_bitcoind_1 bitcoin-cli -datadir=/work/bitcoin1 -rpcclienttimeout=5"
-WAIT_FOR_IT="$BASE_DIR/../../deploy/wait-for-it.sh"
+WAIT_FOR_IT="docker exec btc_gbtmaker_1 /wait-for-it.sh"
 DOCKER_COMPOSE="docker-compose --no-ansi"
 
 cd "$BASE_DIR"
@@ -16,6 +16,7 @@ $DOCKER_COMPOSE down >>$STDOUT
 echo "start gbtmaker (5s)..."
 $DOCKER_COMPOSE up gbtmaker >>$STDOUT &
 sleep 5
+$WAIT_FOR_IT kafka:9092
 
 {
     echo "generate new blocks in the background..."

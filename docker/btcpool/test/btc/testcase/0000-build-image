@@ -3,14 +3,24 @@ set -e
 
 DOCKER_COMPOSE="docker-compose --no-ansi"
 
-echo "build base image..."
-cd "$BASE_DIR/../../base-image"
-docker build -t btccom/btcpool_build:btc-0.16.3 -f Dockerfile.btc --build-arg BUILD_JOBS=$(nproc) . >>$STDOUT
-echo "done"
+BUILD_ARGS="--build-arg BUILD_JOBS=$(nproc) --build-arg BUILD_TESTING=ON"
+if [ "x$APT_MIRROR_URL" != "x" ]; then
+    BUILD_ARGS="$BUILD_ARGS --build-arg APT_MIRROR_URL=$APT_MIRROR_URL"
+fi
+if [ "x$NO_CACHE" != "x" ]; then
+    BUILD_ARGS="$BUILD_ARGS --no-cache"
+fi
+
+if [ "$BUILD_BASE_IMAGE" != "" ]; then
+    echo "build base image..."
+    cd "$BASE_DIR/../../base-image"
+    docker build -t btccom/btcpool_build:btc-0.16.3 -f Dockerfile.btc $BUILD_ARGS . >>$STDOUT
+    echo "done"
+fi
 
 echo "build BTCPool-BTC image..."
 cd "$BASE_DIR/../../deploy"
-docker build -t btccom/btcpool-btc -f Dockerfile --build-arg BASE_IMAGE=btccom/btcpool_build:btc-0.16.3  --build-arg BUILD_JOBS=$(nproc) ../../.. >>$STDOUT
+docker build -t btccom/btcpool-btc -f Dockerfile $BUILD_ARGS --build-arg BASE_IMAGE=btccom/btcpool_build:btc-0.16.3 ../../.. >>$STDOUT
 echo "done"
 
 echo "build docker compose..."

@@ -3,7 +3,10 @@ FROM ubuntu:18.04
 ENV HOME /root
 ENV TERM xterm
 
-ADD ./sources-aliyun.com.list /etc/apt/sources.list
+ARG APT_MIRROR_URL
+
+COPY ./update_apt_sources.sh /tmp
+RUN /tmp/update_apt_sources.sh
 
 # install packages
 RUN apt-get update && \
