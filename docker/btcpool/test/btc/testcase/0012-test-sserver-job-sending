@@ -1,11 +1,13 @@
 #!/bin/bash
 set -e
+source "$BASE_DIR/helper/functions.sh"
 
 PID=$$
+MAIN_CONTAINER_NAME="btc_sserver_1"
 SSERVER_RESULT="/tmp/btcpool-test-sserver.$PID.log"
 KAFKA_CONSUMER="docker exec btc_kafka_1 /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092"
 KAFKA_PRODUCER="docker exec -i btc_kafka_1 /opt/kafka/bin/kafka-console-producer.sh --broker-list kafka:9092"
-WAIT_FOR_IT="docker exec btc_sserver_1 /wait-for-it.sh"
+WAIT_FOR_IT="WAIT_FOR_IT $MAIN_CONTAINER_NAME"
 DOCKER_COMPOSE="docker-compose --no-ansi"
 
 cd "$BASE_DIR"
