@@ -317,6 +317,12 @@ bool ClientContainerBitcoinProxy::sendJobToKafka(
     return false;
   }
 
+  std::lock_guard<std::mutex> lock(jobCacheLock_);
+  if (jobGbtHashSet_.find(job.gbtHash_) != jobGbtHashSet_.end()) {
+    LOG(INFO) << "ignore duplicated job, gbtHash: " << job.gbtHash_;
+    return false;
+  }
+
   // submit to Kafka
   string jobStr = job.serializeToJson();
   kafkaProducer_.produce(jobStr.data(), jobStr.size());
@@ -325,12 +331,14 @@ bool ClientContainerBitcoinProxy::sendJobToKafka(
   LOG(INFO) << "new job " << upstreamJobId << ": " << jobStr;
 
   // add to job cache
-  std::lock_guard<std::mutex> lock(jobCacheLock_);
   jobCacheMap_[job.jobId_] = {upstreamJobId, job, clientId};
+  jobGbtHashSet_.insert(job.gbtHash_);
 
   // clear job cache
   while (jobCacheMap_.size() > kMaxJobCacheSize_) {
-    jobCacheMap_.erase(jobCacheMap_.begin());
+    auto itr = jobCacheMap_.begin();
+    jobGbtHashSet_.erase(itr->second.sJob_.gbtHash_);
+    jobCacheMap_.erase(itr);
   }
 
   return true;

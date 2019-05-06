@@ -28,6 +28,7 @@
 #include "ShareLogger.h"
 #include "MySQLConnection.h"
 
+#include <set>
 #include <queue>
 #include <atomic>
 #include <memory>
@@ -52,6 +53,7 @@ protected:
 
   const size_t kMaxJobCacheSize_ = 256;
   map<uint64_t, JobCache> jobCacheMap_;
+  set<string> jobGbtHashSet_;
   std::mutex jobCacheLock_;
 
   PoolWatchClient *
