@@ -377,7 +377,7 @@ StratumServer::StratumServer()
   , base_(nullptr)
   , listener_(nullptr)
   , tcpReadTimeout_(600)
-  , disconnectInterval_(10)
+  , shutdownGracePeriod_(3600)
   , disconnectTimer_(nullptr)
   , acceptStale_(true)
   , isEnableSimulator_(false)
@@ -757,7 +757,7 @@ bool StratumServer::setup(const libconfig::Config &config) {
   }
 
   // initialize but don't activate the graceful shutdown disconnect timer event
-  config.lookupValue("sserver.disconnect_interval", disconnectInterval_);
+  config.lookupValue("sserver.shutdown_grace_period", shutdownGracePeriod_);
   disconnectTimer_ = event_new(
       base_, -1, EV_PERSIST, &StratumServer::disconnectCallback, this);
 
@@ -819,8 +819,16 @@ void StratumServer::stopGracefully() {
 
   // Stop listening & trigger gracefully disconnecting timer
   evconnlistener_disable(listener_);
-  timeval timeout{disconnectInterval_, 0};
-  event_add(disconnectTimer_, &timeout);
+  if (connections_.empty()) {
+    dispatch([this]() { stop(); });
+  } else {
+    timeval timeout;
+    timeout.tv_sec = shutdownGracePeriod_ / connections_.size();
+    timeout.tv_usec =
+        (shutdownGracePeriod_ - timeout.tv_sec * connections_.size()) *
+        1000000 / connections_.size();
+    event_add(disconnectTimer_, &timeout);
+  }
 }
 
 namespace {

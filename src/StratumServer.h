@@ -214,7 +214,7 @@ class StratumServer {
   struct evconnlistener *listener_;
   std::set<unique_ptr<StratumSession>> connections_;
   uint32_t tcpReadTimeout_; // seconds
-  uint32_t disconnectInterval_;
+  uint32_t shutdownGracePeriod_;
   struct event *disconnectTimer_;
 
 public:
