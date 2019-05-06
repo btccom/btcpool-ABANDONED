@@ -66,7 +66,8 @@ void StratumMinerGrin::handleRequest_Submit(
       jsonParams["height"].type() != Utilities::JS::type::Int ||
       jsonParams["job_id"].type() != Utilities::JS::type::Int ||
       jsonParams["nonce"].type() != Utilities::JS::type::Int ||
-      jsonParams["pow"].type() != Utilities::JS::type::Array) {
+      jsonParams["pow"].type() != Utilities::JS::type::Array ||
+      jsonParams["pow"].array().size() != 42) {
     handleShare(idStr, StratumStatus::ILLEGAL_PARARMS, 0, session.getChainId());
     return;
   }
