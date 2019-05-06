@@ -946,6 +946,11 @@ void StratumServer::listenerCallback(
   int yes = 1;
   setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(int));
 
+  // When we want to close the connection we want to send RST instead of FIN so
+  // that miners will be disconnected immediately.
+  linger lingerOn{1, 0};
+  setsockopt(fd, SOL_SOCKET, SO_LINGER, &lingerOn, sizeof(struct linger));
+
   if (server->enableTLS_) {
     SSL *ssl = SSL_new(server->sslCTX_);
     if (ssl == nullptr) {
