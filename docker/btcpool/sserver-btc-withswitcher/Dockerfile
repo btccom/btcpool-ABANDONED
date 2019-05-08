@@ -44,8 +44,9 @@ RUN mkdir -p /work
 #         from consume thread
 #         <https://github.com/btccom/btcpool/issues/75>
 RUN cd /work && \
-    git clone https://github.com/libevent/libevent.git && \
-    cd libevent && \
+    wget https://github.com/libevent/libevent/releases/download/release-2.1.9-beta/libevent-2.1.9-beta.tar.gz && \
+    tar zxf libevent-2.1.9-beta.tar.gz && \
+    cd libevent-2.1.9-beta && \
     ./autogen.sh && \
     ./configure --disable-shared && \
     make -j$JOBS && \
@@ -73,7 +74,7 @@ RUN cd /work && \
 
 # clone btcpool
 RUN cd /work && \
-    git clone -b master https://github.com/btccom/btcpool.git && \
+    git clone -b legacy https://github.com/btccom/btcpool.git && \
     mkdir /work/btcpool/build
 
 # cmake
