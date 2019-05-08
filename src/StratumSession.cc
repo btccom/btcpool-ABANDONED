@@ -227,8 +227,7 @@ bev_(bev), fd_(fd), server_(server)
 
   // usually stratum job interval is 30~60 seconds, 10 is enough for miners
   // should <= 10, we use short_job_id,  range: [0 ~ 9]. do NOT change it.
-  kMaxNumLocalJobs_ = 10;
-  assert(kMaxNumLocalJobs_ <= 10);
+  kMaxNumLocalJobs_ = 256;
 
   inBuf_  = evbuffer_new();
   isLongTimeout_    = false;
@@ -1018,7 +1017,7 @@ void StratumSession::sendSetDifficulty(const uint64_t difficulty) {
 
 uint8_t StratumSession::allocShortJobId() {
   // return range: [0, 9]
-  if (shortJobIdIdx_ >= 10) {
+  if (shortJobIdIdx_ >= kMaxNumLocalJobs_) {
     shortJobIdIdx_ = 0;
   }
   return shortJobIdIdx_++;
@@ -1073,7 +1072,7 @@ void StratumSession::sendMiningNotify(shared_ptr<StratumJobEx> exJobPtr, bool is
     // we need to send unique JobID to NiceHash Client, they have problems with
     // short Job ID
     //
-    const uint64_t niceHashJobId = (uint64_t)time(nullptr) * 10 + ljob.shortJobId_;
+    const uint64_t niceHashJobId = (uint64_t)time(nullptr) * kMaxNumLocalJobs_ + ljob.shortJobId_;
     notifyStr.append(Strings::Format("% " PRIu64"", niceHashJobId));
   } else {
     notifyStr.append(Strings::Format("%u", ljob.shortJobId_));  // short jobId
