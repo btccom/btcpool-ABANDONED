@@ -43,7 +43,7 @@ public:
         string consumeBrokers, string consumeTopic, string consumeGroupId,
         const MysqlConnectInfo &mysqlInfo
     )
-        : running_(false), messageNumber_(0)
+        : running_(false), messageNumber_(0), lastMessageTime_{0}
         , consumeBrokers_(consumeBrokers), consumeTopic_(consumeTopic), consumeGroupId_(consumeGroupId)
         , consumer_(consumeBrokers_.c_str(), consumeTopic_.c_str(), 0/* patition */, consumeGroupId_.c_str())
         , mysqlInfo_(mysqlInfo)
@@ -193,10 +193,15 @@ protected:
 
         // check fields
         if (r["type"].type()    != Utilities::JS::type::Str ||
-            r["content"].type() != Utilities::JS::type::Obj) {
+            r["content"].type() != Utilities::JS::type::Obj ||
+            r["created_at"].type() != Utilities::JS::type::Str) {
             LOG(ERROR) << "common event missing some fields";
             return false;
         }
+
+        string lastMessageTime = r["created_at"].str();
+        lastMessageTime.resize(19);
+        memcpy(lastMessageTime_, lastMessageTime.c_str(), 20);
 
         // update worker status
         if (r["type"].str() == "worker_update") {
@@ -307,11 +312,12 @@ protected:
     }
 
     void displayMessageNumber(size_t messageNumber, time_t time) {
-        LOG(INFO) << "Handled " << messageNumber << " messages in " << time << " seconds";
+        LOG(INFO) << "Handled " << messageNumber << " messages in " << time << " seconds, last message time: " << lastMessageTime_;
     }
 
     std::atomic<bool> running_;
     size_t messageNumber_; // don't need thread safe (for logs only)
+    char lastMessageTime_[20]; // xxxx-xx-xx xx:xx:xx
 
     string consumeBrokers_;
     string consumeTopic_;
