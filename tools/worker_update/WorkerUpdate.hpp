@@ -218,7 +218,9 @@ protected:
             return true;
         }
 
-        if (r["type"].str() == "miner_connect") {
+        // There is no worker_id in miner_connect event for legacy branch.
+        // TODO: compute worker_id for miner_connect event
+        /*if (r["type"].str() == "miner_connect") {
             // check fields
             if (r["content"]["user_id"].type()     != Utilities::JS::type::Int ||
                 r["content"]["worker_id"].type()   != Utilities::JS::type::Int ||
@@ -235,7 +237,7 @@ protected:
 
             updateWorkerStatusToDB(userId, workerId, workerName.c_str(), minerAgent.c_str());
             return true;
-        }
+        }*/
 
         return false;
     }
