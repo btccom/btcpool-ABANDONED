@@ -94,6 +94,7 @@ bool BlockMakerEth::submitBlock(
     const boost::optional<uint32_t> &extraNonce,
     const string &rpcUrl,
     const string &rpcUserPass,
+    bool parity,
     string &errMsg,
     string &blockHash,
     string &request,
@@ -134,20 +135,13 @@ bool BlockMakerEth::submitBlock(
   *
   */
   request = Strings::Format(
-      "["
-      "{\"jsonrpc\":\"2.0\",\"method\":\"parity_submitWorkDetail\",\"params\":["
-      "\"%s\",\"%s\",\"%s\"%s],\"id\":1},"
-      "{\"jsonrpc\":\"2.0\",\"method\":\"eth_submitWork\",\"params\":[\"%s\","
-      "\"%s\",\"%s\"%s],\"id\":2}"
-      "]",
-      HexAddPrefix(nonce),
-      HexAddPrefix(header),
-      HexAddPrefix(mix),
-      extraNonce ? Strings::Format(",%u", *extraNonce) : "",
-      HexAddPrefix(nonce),
-      HexAddPrefix(header),
-      HexAddPrefix(mix),
-      extraNonce ? Strings::Format(",%u", *extraNonce) : "");
+      "{\"jsonrpc\":\"2.0\",\"method\":\"%s\",\"params\":[\"%s\",\"%s\",\"%s\"%"
+      "s],\"id\":1}",
+      parity ? "parity_submitWorkDetail" : "eth_submitWork",
+      HexAddPrefix(nonce).c_str(),
+      HexAddPrefix(header).c_str(),
+      HexAddPrefix(mix).c_str(),
+      extraNonce ? Strings::Format(",%" PRIu32, *extraNonce).c_str() : "");
 
   bool ok = blockchainNodeRpcCall(
       rpcUrl.c_str(), rpcUserPass.c_str(), request.c_str(), response);
@@ -169,74 +163,51 @@ bool BlockMakerEth::submitBlock(
     return false;
   }
 
-  if (r.type() != Utilities::JS::type::Array || r.children()->size() != 2) {
-    LOG(WARNING)
-        << "node doesn't support multiple requests in the same JSON, node url: "
-        << rpcUrl << ", request: " << request << ", response: " << response;
+  if (r.type() != Utilities::JS::type::Obj &&
+      r["id"].type() != Utilities::JS::type::Int) {
+    LOG(WARNING) << "Result is not a valid JSON-RPC object, node url: "
+                 << rpcUrl << ", request: " << request
+                 << ", response: " << response;
     return false;
   }
 
-  auto results = r.children();
-  bool success = false;
-
-  for (auto res : *results) {
-    if (res.type() != Utilities::JS::type::Obj &&
-        res["id"].type() != Utilities::JS::type::Int) {
-      LOG(WARNING) << "Result is not a valid JSON-RPC object, node url: "
-                   << rpcUrl << ", request: " << request
-                   << ", response: " << response;
-      continue;
+  if (parity) {
+    //
+    // Success result of parity_submitWorkDetail. Example:
+    // {"jsonrpc":"2.0","result":"0x07a992176ab51ee50539c1ba287bef937fe49c9a96dafa03954fb6fefa594691","id":5}
+    //
+    if (r["result"].type() == Utilities::JS::type::Str) {
+      resultFound = true;
+      blockHash = r["result"].str();
+      return true;
     }
 
-    // id 1: parity_submitWorkDetail
-    //    2: eth_submitWork
-    if (res["id"].int64() == 1) {
-      //
-      // Success result of parity_submitWorkDetail. Example:
-      // {"jsonrpc":"2.0","result":"0x07a992176ab51ee50539c1ba287bef937fe49c9a96dafa03954fb6fefa594691","id":5}
-      //
-      if (res["result"].type() == Utilities::JS::type::Str) {
-        success = true;
-        resultFound = true;
-        blockHash = res["result"].str();
-        continue;
-      }
-
-      //
-      // Failure result of parity_submitWorkDetail. Example:
-      // {"jsonrpc":"2.0","error":{"code":-32005,"message":"Cannot submit
-      // work.","data":"PoW hash is invalid or out of date."},"id":5}
-      //
-      if (res["error"].type() == Utilities::JS::type::Obj &&
-          res["error"]["data"].type() == Utilities::JS::type::Str) {
-        errMsg = res["error"]["data"].str();
-        resultFound = true;
-        continue;
-      }
-
-      // Ignore "Method not found" error of RPC parity_submitWorkDetail
-    } else {
-      //
-      // Response of eth_submitWork. Example:
-      // {"jsonrpc":"2.0","result":false,"id":5}
-      //
-      if (res["result"].type() == Utilities::JS::type::Bool) {
-        if (res["result"].boolean() == true) {
-          success = true;
-        }
-        // Don't set `success = false` if the result is false,
-        // because parity_submitWorkDetail may have been successful
-
-        resultFound = true;
-        continue;
-      }
-
-      LOG(WARNING) << "Unexpected result, node url: " << rpcUrl
-                   << ", request: " << request << ", response: " << response;
+    //
+    // Failure result of parity_submitWorkDetail. Example:
+    // {"jsonrpc":"2.0","error":{"code":-32005,"message":"Cannot submit
+    // work.","data":"PoW hash is invalid or out of date."},"id":5}
+    //
+    if (r["error"].type() == Utilities::JS::type::Obj &&
+        r["error"]["data"].type() == Utilities::JS::type::Str) {
+      errMsg = r["error"]["data"].str();
+      resultFound = true;
     }
+
+    return false;
+  } else {
+    //
+    // Response of eth_submitWork. Example:
+    // {"jsonrpc":"2.0","result":false,"id":5}
+    //
+    if (r["result"].type() == Utilities::JS::type::Bool) {
+      resultFound = true;
+      return r["result"].boolean();
+    }
+
+    LOG(WARNING) << "Unexpected result, node url: " << rpcUrl
+                 << ", request: " << request << ", response: " << response;
+    return false;
   }
-
-  return success;
 }
 
 bool BlockMakerEth::checkRpcSubmitBlock() {
@@ -256,30 +227,49 @@ bool BlockMakerEth::checkRpcSubmitBlock() {
         boost::none,
         itr.rpcAddr_,
         itr.rpcUserPwd_,
+        true,
         errMsg,
         blockHash,
         request,
         response,
         resultFound);
 
-    if (!resultFound) {
-      LOG(FATAL) << "Node " << itr.rpcAddr_
-                 << " doesn't support both parity_submitBlockDetail and "
-                    "eth_submitBlock, cannot submit block to it!"
-                 << " Request: " << request << ", response: " << response;
-      return false;
-    }
-
-    if (!errMsg.empty()) {
+    if (resultFound) {
       LOG(INFO) << "Node " << itr.rpcAddr_
                 << " supports parity_submitBlockDetail. Block hash will be "
                    "recorded correctly if submit block to it."
                 << " Request: " << request << ", response: " << response;
+      itr.parity_ = true;
+      continue;
     } else {
-      LOG(WARNING) << "Node " << itr.rpcAddr_
-                   << " doesn't supports parity_submitBlockDetail. Block hash "
-                      "will be empty if submit block to it."
+      submitBlock(
+          "0x0000000000000000",
+          "0x0000000000000000000000000000000000000000000000000000000000000000",
+          "0x0000000000000000000000000000000000000000000000000000000000000000",
+          boost::none,
+          itr.rpcAddr_,
+          itr.rpcUserPwd_,
+          false,
+          errMsg,
+          blockHash,
+          request,
+          response,
+          resultFound);
+      if (resultFound) {
+        LOG(WARNING)
+            << "Node " << itr.rpcAddr_
+            << " doesn't supports parity_submitBlockDetail. Block hash "
+               "will be empty if submit block to it."
+            << " Request: " << request << ", response: " << response;
+        itr.parity_ = false;
+        continue;
+      } else {
+        LOG(FATAL) << "Node " << itr.rpcAddr_
+                   << " doesn't support both parity_submitBlockDetail and "
+                      "eth_submitBlock, cannot submit block to it!"
                    << " Request: " << request << ", response: " << response;
+        return false;
+      }
     }
   }
 
@@ -349,6 +339,7 @@ void BlockMakerEth::_submitBlockThread(
         extraNonce,
         node.rpcAddr_,
         node.rpcUserPwd_,
+        node.parity_,
         errMsg,
         blockHash,
         request,

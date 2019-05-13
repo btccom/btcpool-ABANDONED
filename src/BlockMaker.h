@@ -34,6 +34,7 @@
 struct NodeDefinition {
   string rpcAddr_;
   string rpcUserPwd_;
+  mutable bool parity_;
 };
 
 struct BlockMakerDefinition {

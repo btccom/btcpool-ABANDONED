@@ -77,19 +77,12 @@ private:
       const boost::optional<uint32_t> &extraNonce,
       const string &rpcUrl,
       const string &rpcUserPass,
+      bool parity,
       string &errMsg,
       string &blockHash,
       string &request,
       string &response,
       bool &resultFound);
-  static bool submitBlockDetail(
-      const string &nonce,
-      const string &header,
-      const string &mix,
-      const string &rpcUrl,
-      const string &rpcUserPass,
-      string &errMsg,
-      string &blockHash);
   bool checkRpcSubmitBlock();
 };
 
