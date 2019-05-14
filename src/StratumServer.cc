@@ -566,6 +566,14 @@ bool StratumServer::setup(const libconfig::Config &config) {
 
   config.lookupValue("sserver.tcp_read_timeout", tcpReadTimeout_); // optional
 
+  string longTimeoutAgent;
+  config.lookupValue("sserver.long_timeout_agent", longTimeoutAgent);
+  if (!longTimeoutAgent.empty()) {
+    longTimeoutPattern_ =
+        std::regex{longTimeoutAgent,
+                   std::regex_constants::grep | std::regex_constants::icase};
+  }
+
   // ------------------- Listen Options -------------------
 
   string listenIP = "0.0.0.0";

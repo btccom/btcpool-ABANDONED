@@ -36,6 +36,7 @@
 #include "prometheus/Metric.h"
 
 #include <bitset>
+#include <regex>
 
 #include <openssl/ssl.h>
 #include <event2/bufferevent.h>
@@ -268,6 +269,8 @@ public:
   friend class StratumServerStats;
   shared_ptr<prometheus::Collector> statsCollector_;
   unique_ptr<prometheus::IExporter> statsExporter_;
+
+  std::regex longTimeoutPattern_;
 
 protected:
   SSL_CTX *getSSLCTX(const libconfig::Config &config);
