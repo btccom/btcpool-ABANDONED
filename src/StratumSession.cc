@@ -436,7 +436,7 @@ void StratumSession::setClientAgent(const string &clientAgent) {
   isLongTimeout_ =
       (isAgentClient_ || isNiceHashClient_ ||
        clientAgent_ == PoolWatcherAgent ||
-       std::regex_match(clientAgent, getServer().longTimeoutPattern_));
+       std::regex_search(clientAgent, getServer().longTimeoutPattern_));
 }
 
 bool StratumSession::validate(
