@@ -102,6 +102,7 @@ elseif(CHAIN_TYPE STREQUAL "LTC")
   set(CHAIN_NAME "Litecoin")
   set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-litecoin")
   set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.ltc")
+  set(CHAIN_EXTRA_FLAGS "--enable-sse2")
 
 # ZCash
 elseif(CHAIN_TYPE STREQUAL "ZEC")
@@ -278,13 +279,14 @@ if (NOT EXISTS ${BITCOIN_LIBRARIE})
     execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./autogen.sh)
   
     if (NOT CHAIN_ENABLE_WALLET)
-      execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./configure --with-gui=no --disable-wallet --disable-tests --disable-bench)
+      execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./configure --with-gui=no --disable-wallet --disable-tests --disable-bench ${CHAIN_EXTRA_FLAGS})
     else()
-      execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./configure --with-gui=no --disable-tests --disable-bench)
+      execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND ./configure --with-gui=no --disable-tests --disable-bench ${CHAIN_EXTRA_FLAGS})
     endif()
 
     execute_process(WORKING_DIRECTORY "${CHAIN_SRC_ROOT}" COMMAND make ${MAKE_JOBS})
   endif()
+
 endif()
 
 foreach(BITCOIN_LIBRARIE ${BITCOIN_LIBRARIES})

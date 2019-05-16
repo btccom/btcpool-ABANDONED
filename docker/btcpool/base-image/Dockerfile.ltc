@@ -73,7 +73,7 @@ RUN cd /usr/local/lib && \
 RUN mkdir -p /work/blockchain && cd /work/blockchain && wget https://github.com/litecoin-project/litecoin/archive/v0.16.3.tar.gz && \
     [ $(sha256sum v0.16.3.tar.gz | cut -d " " -f 1) = "7788800eb4a433696a464563384cbdf83a47eebb8698325c75314171833227c8" ] && \
     tar zxf v0.16.3.tar.gz --strip 1 && rm v0.16.3.tar.gz && ./autogen.sh && mkdir -p /tmp/bitcoin && \
-    cd /tmp/bitcoin && /work/blockchain/configure --with-gui=no --disable-wallet --disable-tests --disable-bench && \
+    cd /tmp/bitcoin && /work/blockchain/configure --with-gui=no --disable-wallet --disable-tests --disable-bench --enable-sse2 && \
     make -j${BUILD_JOBS} -C src libbitcoin_common.a libbitcoin_consensus.a libbitcoin_util.a crypto/libbitcoin_crypto.a && \
     cp src/config/bitcoin-config.h /work/blockchain/src/config/ && cp src/libbitcoin_*.a /work/blockchain/src/ && cp src/crypto/libbitcoin_crypto.a /work/blockchain/src/crypto/ && \
     cd /work/blockchain/src/secp256k1 && ./autogen.sh && mkdir -p /tmp/secp256k1 && \
