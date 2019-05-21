@@ -57,7 +57,7 @@ struct Difficulty {
     return table;
   }
 
-  static uint64_t TargetToDiff(uint256 &target) {
+  static uint64_t TargetToDiff(const uint256 &target) {
     arith_uint256 t = UintToArith256(target);
     return (GetDiffOneTarget() / t).GetLow64();
   }
