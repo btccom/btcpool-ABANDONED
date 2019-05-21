@@ -36,6 +36,9 @@
 
 using namespace std;
 
+static const uint32_t MIN_SHARE_WORKER_QUEUE_SIZE = 256;
+static const uint32_t MIN_SHARE_WORKER_THREADS = 1;
+
 #ifndef WORK_WITH_STRATUM_SWITCHER
 
 //////////////////////////////// SessionIDManagerT
@@ -877,6 +880,15 @@ bool StratumServer::setup(const libconfig::Config &config) {
     }
   }
 
+  uint32_t shareWorkerQueueSize = 0;
+  config.lookupValue("sserver.share_worker_queue_size", shareWorkerQueueSize);
+  shareWorker_ = std::make_unique<WorkerPool>(
+      std::max(shareWorkerQueueSize, MIN_SHARE_WORKER_QUEUE_SIZE));
+
+  uint32_t shareWorkerThreads = 0;
+  config.lookupValue("sserver.share_worker_threads", shareWorkerThreads);
+  shareWorker_->start(std::max(shareWorkerThreads, MIN_SHARE_WORKER_THREADS));
+
   // ------------------- Derived Class Setup -------------------
   return setupInternal(config);
 }
@@ -896,6 +908,7 @@ void StratumServer::stop() {
     chain.jobRepository_->stop();
   }
   userInfo_->stop();
+  shareWorker_->stop();
 }
 
 void StratumServer::stopGracefully() {
@@ -944,6 +957,10 @@ private:
 
 void StratumServer::dispatch(std::function<void()> task) {
   new StratumServerTask{base_, move(task)};
+}
+
+void StratumServer::dispatchToShareWorker(std::function<void()> work) {
+  shareWorker_->dispatch(std::move(work));
 }
 
 size_t StratumServer::switchChain(string userName, size_t newChainId) {

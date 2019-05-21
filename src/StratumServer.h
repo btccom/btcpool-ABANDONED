@@ -35,6 +35,8 @@
 #include "prometheus/Collector.h"
 #include "prometheus/Metric.h"
 
+#include "WorkerPool.h"
+
 #include <bitset>
 #include <regex>
 
@@ -272,6 +274,8 @@ public:
 
   std::regex longTimeoutPattern_;
 
+  unique_ptr<WorkerPool> shareWorker_;
+
 protected:
   SSL_CTX *getSSLCTX(const libconfig::Config &config);
 
@@ -291,6 +295,8 @@ public:
 
   // Dispatch the task to the libevent loop
   void dispatch(std::function<void()> task);
+  // Dispatch the work to the share worker
+  void dispatchToShareWorker(std::function<void()> work);
 
   shared_ptr<Zookeeper> getZookeeper(const libconfig::Config &config) {
     initZookeeper(config);
