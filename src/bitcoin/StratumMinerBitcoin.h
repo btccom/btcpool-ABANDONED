@@ -46,6 +46,8 @@ public:
       const JsonNode &jparams,
       const JsonNode &jroot) override;
   void handleExMessage(const std::string &exMessage) override;
+  void handleCheckedShare(
+      const std::string &idStr, size_t chainId, const ShareBitcoin &share);
 
 private:
   void handleRequest_Submit(const std::string &idStr, const JsonNode &jparams);

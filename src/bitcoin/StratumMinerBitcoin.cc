@@ -296,10 +296,6 @@ void StratumMinerBitcoin::handleRequest_Submit(
   uint256 jobTarget;
   BitcoinDifficulty::DiffToTarget(share.sharediff(), jobTarget);
 
-  // we send share to kafka by default, but if there are lots of invalid
-  // shares in a short time, we just drop them.
-  bool isSendShareToKafka = true;
-
 #ifdef CHAIN_TYPE_ZEC
   LocalShare localShare(
       nonce.nonce.GetCheapHash(),
@@ -313,9 +309,10 @@ void StratumMinerBitcoin::handleRequest_Submit(
   // can't find local share
   if (!localJob->addLocalShare(localShare)) {
     share.set_status(StratumStatus::DUPLICATE_SHARE);
+    handleCheckedShare(idStr, localJob->chainId_, share);
   } else {
     // check block header
-    share.set_status(server.checkShare(
+    server.checkShare(
         localJob->chainId_,
         share,
         session.getSessionId(),
@@ -324,27 +321,41 @@ void StratumMinerBitcoin::handleRequest_Submit(
         nonce,
         versionMask,
         jobTarget,
-        worker.fullName_
+        worker.fullName_,
+        [this, idStr, chainId = localJob->chainId_, share](
+            int32_t status) mutable {
+          share.set_status(status);
+          handleCheckedShare(idStr, chainId, share);
+        }
 #ifdef USER_DEFINED_COINBASE
         ,
         &localJob->userCoinbaseInfo_
 #endif
-        ));
+    );
   }
+}
 
+void StratumMinerBitcoin::handleCheckedShare(
+    const std::string &idStr, size_t chainId, const ShareBitcoin &share) {
   DLOG(INFO) << share.toString();
 
-  if (!handleShare(
-          idStr, share.status(), share.sharediff(), localJob->chainId_)) {
+  // we send share to kafka by default, but if there are lots of invalid
+  // shares in a short time, we just drop them.
+  bool isSendShareToKafka = true;
+  auto &session = getSession();
+  auto &server = session.getServer();
+  auto &worker = session.getWorker();
+
+  if (!handleShare(idStr, share.status(), share.sharediff(), chainId)) {
     // add invalid share to counter
     invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
 
     // log all rejected share to answer "Why the rejection rate of my miner
     // increased?"
     LOG(INFO) << "rejected share: " << StratumStatus::toString(share.status())
-              << ", worker: " << worker.fullName_
-              << ", versionMask: " << Strings::Format("%08x", versionMask)
-              << ", " << share.toString();
+              << ", worker: " << worker.fullName_ << ", versionMask: "
+              << Strings::Format("%08x", share.versionmask()) << ", "
+              << share.toString();
 
     // check if thers is invalid share spamming
     int64_t invalidSharesNum = invalidSharesCounter_.sum(
@@ -362,7 +373,7 @@ void StratumMinerBitcoin::handleRequest_Submit(
       ShareBitcoinBytesV1 sharev1;
       sharev1.jobId_ = share.jobid();
       sharev1.workerHashId_ = share.workerhashid();
-      sharev1.ip_ = ip.toIpv4Int();
+      sharev1.ip_ = session.getClientIp();
       sharev1.userId_ = share.userid();
       sharev1.shareDiff_ = share.sharediff();
       sharev1.timestamp_ = share.timestamp();
@@ -371,8 +382,7 @@ void StratumMinerBitcoin::handleRequest_Submit(
           ? ShareBitcoinBytesV1::ACCEPT
           : ShareBitcoinBytesV1::REJECT;
 
-      server.sendShare2Kafka(
-          localJob->chainId_, (char *)&sharev1, sizeof(sharev1));
+      server.sendShare2Kafka(chainId, (char *)&sharev1, sizeof(sharev1));
     } else {
       std::string message;
       uint32_t size = 0;
@@ -380,7 +390,7 @@ void StratumMinerBitcoin::handleRequest_Submit(
         LOG(ERROR) << "share SerializeToBuffer failed!" << share.toString();
         return;
       }
-      server.sendShare2Kafka(localJob->chainId_, message.data(), size);
+      server.sendShare2Kafka(chainId, message.data(), size);
     }
   }
 }

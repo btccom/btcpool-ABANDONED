@@ -464,7 +464,7 @@ void ServerBitcoin::sendSolvedShare2Kafka(
   ServerBase::sendSolvedShare2Kafka(chainId, buf.data(), buf.size());
 }
 
-int ServerBitcoin::checkShare(
+void ServerBitcoin::checkShare(
     size_t chainId,
     const ShareBitcoin &share,
     const uint32_t extraNonce1,
@@ -474,26 +474,31 @@ int ServerBitcoin::checkShare(
     const uint32_t versionMask,
     const uint256 &jobTarget,
     const string &workFullName,
+    std::function<void(int32_t)> returnFn,
     string *userCoinbaseInfo) {
 
   auto exJobPtr = std::static_pointer_cast<StratumJobExBitcoin>(
       GetJobRepository(chainId)->getStratumJobEx(share.jobid()));
   if (exJobPtr == nullptr || exJobPtr->isStale()) {
-    return StratumStatus::JOB_NOT_FOUND;
+    returnFn(StratumStatus::JOB_NOT_FOUND);
+    return;
   }
 
   auto sjob = std::static_pointer_cast<StratumJobBitcoin>(exJobPtr->sjob_);
 
   if (nTime < sjob->minTime_) {
-    return StratumStatus::TIME_TOO_OLD;
+    returnFn(StratumStatus::TIME_TOO_OLD);
+    return;
   }
   if (nTime > sjob->nTime_ + 600) {
-    return StratumStatus::TIME_TOO_NEW;
+    returnFn(StratumStatus::TIME_TOO_NEW);
+    return;
   }
 
   // check version mask
   if (versionMask != 0 && ((~versionMask_) & versionMask) != 0) {
-    return StratumStatus::ILLEGAL_VERMASK;
+    returnFn(StratumStatus::ILLEGAL_VERMASK);
+    return;
   }
 
   CBlockHeader header;
@@ -512,196 +517,221 @@ int ServerBitcoin::checkShare(
       versionMask,
       userCoinbaseInfo);
 
+  dispatchToShareWorker([this,
+                         chainId,
+                         share,
+                         jobTarget,
+                         workFullName,
+                         returnFn = std::move(returnFn),
+                         sjob,
+                         header,
+                         coinbaseBin]() {
 #ifdef CHAIN_TYPE_LTC
-  uint256 blkHash = header.GetPoWHash();
+    uint256 blkHash = header.GetPoWHash();
 #else
-  uint256 blkHash = header.GetHash();
+    uint256 blkHash = header.GetHash();
 #endif
-  arith_uint256 bnBlockHash = UintToArith256(blkHash);
-  arith_uint256 bnNetworkTarget = UintToArith256(sjob->networkTarget_);
+    arith_uint256 bnBlockHash = UintToArith256(blkHash);
+    arith_uint256 bnNetworkTarget = UintToArith256(sjob->networkTarget_);
 
 #ifdef CHAIN_TYPE_ZEC
-  DLOG(INFO) << Strings::Format(
-      "CBlockHeader nVersion: %08x, hashPrevBlock: %s, hashMerkleRoot: %s, "
-      "hashFinalSaplingRoot: %s, nTime: %08x, nBits: %08x, nNonce: %s",
-      header.nVersion,
-      header.hashPrevBlock.ToString().c_str(),
-      header.hashMerkleRoot.ToString().c_str(),
-      header.hashFinalSaplingRoot.ToString().c_str(),
-      header.nTime,
-      header.nBits,
-      header.nNonce.ToString().c_str());
+    DLOG(INFO) << Strings::Format(
+        "CBlockHeader nVersion: %08x, hashPrevBlock: %s, hashMerkleRoot: %s, "
+        "hashFinalSaplingRoot: %s, nTime: %08x, nBits: %08x, nNonce: %s",
+        header.nVersion,
+        header.hashPrevBlock.ToString().c_str(),
+        header.hashMerkleRoot.ToString().c_str(),
+        header.hashFinalSaplingRoot.ToString().c_str(),
+        header.nTime,
+        header.nBits,
+        header.nNonce.ToString().c_str());
 
-  // check equihash solution
-  if (isEnableSimulator_ == false &&
-      CheckEquihashSolution(&header, Params()) == false) {
-    return StratumStatus::INVALID_SOLUTION;
-  }
+    // check equihash solution
+    if (isEnableSimulator_ == false &&
+        CheckEquihashSolution(&header, Params()) == false) {
+      returnFn(StratumStatus::INVALID_SOLUTION);
+      return;
+    }
 #endif
 
-  //
-  // found new block
-  //
-  if (isSubmitInvalidBlock_ == true || bnBlockHash <= bnNetworkTarget) {
     //
-    // build found block
+    // found new block
     //
-    FoundBlock foundBlock;
-    foundBlock.jobId_ = share.jobid();
-    foundBlock.workerId_ = share.workerhashid();
-    foundBlock.userId_ = share.userid();
-    foundBlock.height_ = sjob->height_;
-    foundBlock.headerData_.set(header);
-    snprintf(
-        foundBlock.workerFullName_,
-        sizeof(foundBlock.workerFullName_),
-        "%s",
-        workFullName.c_str());
+    if (isSubmitInvalidBlock_ == true || bnBlockHash <= bnNetworkTarget) {
+      //
+      // found new block
+      //
+      FoundBlock foundBlock;
+      foundBlock.jobId_ = share.jobid();
+      foundBlock.workerId_ = share.workerhashid();
+      foundBlock.userId_ = share.userid();
+      foundBlock.height_ = sjob->height_;
+      foundBlock.headerData_.set(header);
+      snprintf(
+          foundBlock.workerFullName_,
+          sizeof(foundBlock.workerFullName_),
+          "%s",
+          workFullName.c_str());
 
-    // send
-    sendSolvedShare2Kafka(chainId, &foundBlock, coinbaseBin);
+      // send
+      sendSolvedShare2Kafka(chainId, &foundBlock, coinbaseBin);
 
-    if (sjob->proxyJobDifficulty_ > 0) {
-      LOG(INFO) << ">>>> solution found: " << blkHash.ToString()
-                << ", jobId: " << share.jobid()
-                << ", userId: " << share.userid() << ", by: " << workFullName
-                << " <<<<";
-    } else {
-      // mark jobs as stale
-      GetJobRepository(chainId)->markAllJobsAsStale();
+      if (sjob->proxyJobDifficulty_ > 0) {
+        LOG(INFO) << ">>>> solution found: " << blkHash.ToString()
+                  << ", jobId: " << share.jobid()
+                  << ", userId: " << share.userid() << ", by: " << workFullName
+                  << " <<<<";
+      } else {
+        // mark jobs as stale
+        dispatch([this, chainId]() {
+          // mark jobs as stale
+          GetJobRepository(chainId)->markAllJobsAsStale();
+        });
 
-      LOG(INFO) << ">>>> found a new block: " << blkHash.ToString()
+        LOG(INFO) << ">>>> found a new block: " << blkHash.ToString()
+                  << ", jobId: " << share.jobid()
+                  << ", userId: " << share.userid() << ", by: " << workFullName
+                  << " <<<<";
+      }
+    }
+
+    // print out high diff share, 2^10 = 1024
+    if (sjob->proxyJobDifficulty_ == 0 &&
+        (bnBlockHash >> 10) <= bnNetworkTarget) {
+      LOG(INFO) << "high diff share, blkhash: " << blkHash.ToString()
+                << ", diff: " << BitcoinDifficulty::TargetToDiff(blkHash)
+                << ", networkDiff: "
+                << BitcoinDifficulty::TargetToDiff(sjob->networkTarget_)
+                << ", by: " << workFullName;
+    }
+
+    //
+    // found new RSK block
+    //
+    if (!sjob->blockHashForMergedMining_.empty() &&
+        (isSubmitInvalidBlock_ == true ||
+         bnBlockHash <= UintToArith256(sjob->rskNetworkTarget_))) {
+      //
+      // build data needed to submit block to RSK
+      //
+      RskSolvedShareData shareData;
+      shareData.jobId_ = share.jobid();
+      shareData.workerId_ = share.workerhashid();
+      shareData.userId_ = share.userid();
+      // height = matching bitcoin block height
+      shareData.height_ = sjob->height_;
+      snprintf(
+          shareData.feesForMiner_,
+          sizeof(shareData.feesForMiner_),
+          "%s",
+          sjob->feesForMiner_.c_str());
+      snprintf(
+          shareData.rpcAddress_,
+          sizeof(shareData.rpcAddress_),
+          "%s",
+          sjob->rskdRpcAddress_.c_str());
+      snprintf(
+          shareData.rpcUserPwd_,
+          sizeof(shareData.rpcUserPwd_),
+          "%s",
+          sjob->rskdRpcUserPwd_.c_str());
+      shareData.headerData_.set(header);
+      snprintf(
+          shareData.workerFullName_,
+          sizeof(shareData.workerFullName_),
+          "%s",
+          workFullName.c_str());
+
+      //
+      // send to kafka topic
+      //
+      string buf;
+      buf.resize(sizeof(RskSolvedShareData) + coinbaseBin.size());
+      uint8_t *p = (uint8_t *)buf.data();
+
+      // RskSolvedShareData
+      memcpy(p, (const uint8_t *)&shareData, sizeof(RskSolvedShareData));
+      p += sizeof(RskSolvedShareData);
+
+      // coinbase TX
+      memcpy(p, coinbaseBin.data(), coinbaseBin.size());
+
+      sendRskSolvedShare2Kafka(chainId, buf.data(), buf.size());
+
+      //
+      // log the finding
+      //
+      LOG(INFO) << ">>>> found a new RSK block: " << blkHash.ToString()
                 << ", jobId: " << share.jobid()
                 << ", userId: " << share.userid() << ", by: " << workFullName
                 << " <<<<";
     }
-  }
-
-  // print out high diff share, 2^10 = 1024
-  if (sjob->proxyJobDifficulty_ == 0 &&
-      (bnBlockHash >> 10) <= bnNetworkTarget) {
-    LOG(INFO) << "high diff share, blkhash: " << blkHash.ToString()
-              << ", diff: " << BitcoinDifficulty::TargetToDiff(blkHash)
-              << ", networkDiff: "
-              << BitcoinDifficulty::TargetToDiff(sjob->networkTarget_)
-              << ", by: " << workFullName;
-  }
-
-  //
-  // found new RSK block
-  //
-  if (!sjob->blockHashForMergedMining_.empty() &&
-      (isSubmitInvalidBlock_ == true ||
-       bnBlockHash <= UintToArith256(sjob->rskNetworkTarget_))) {
-    //
-    // build data needed to submit block to RSK
-    //
-    RskSolvedShareData shareData;
-    shareData.jobId_ = share.jobid();
-    shareData.workerId_ = share.workerhashid();
-    shareData.userId_ = share.userid();
-    // height = matching bitcoin block height
-    shareData.height_ = sjob->height_;
-    snprintf(
-        shareData.feesForMiner_,
-        sizeof(shareData.feesForMiner_),
-        "%s",
-        sjob->feesForMiner_.c_str());
-    snprintf(
-        shareData.rpcAddress_,
-        sizeof(shareData.rpcAddress_),
-        "%s",
-        sjob->rskdRpcAddress_.c_str());
-    snprintf(
-        shareData.rpcUserPwd_,
-        sizeof(shareData.rpcUserPwd_),
-        "%s",
-        sjob->rskdRpcUserPwd_.c_str());
-    shareData.headerData_.set(header);
-    snprintf(
-        shareData.workerFullName_,
-        sizeof(shareData.workerFullName_),
-        "%s",
-        workFullName.c_str());
 
     //
-    // send to kafka topic
+    // found namecoin block
     //
-    string buf;
-    buf.resize(sizeof(RskSolvedShareData) + coinbaseBin.size());
-    uint8_t *p = (uint8_t *)buf.data();
+    if (sjob->nmcAuxBits_ != 0 &&
+        (isSubmitInvalidBlock_ == true ||
+         bnBlockHash <= UintToArith256(sjob->nmcNetworkTarget_))) {
+      //
+      // build namecoin solved share message
+      //
+      string blockHeaderHex;
+      Bin2Hex((const uint8_t *)&header, sizeof(CBlockHeader), blockHeaderHex);
+      DLOG(INFO) << "blockHeaderHex: " << blockHeaderHex;
 
-    // RskSolvedShareData
-    memcpy(p, (const uint8_t *)&shareData, sizeof(RskSolvedShareData));
-    p += sizeof(RskSolvedShareData);
+      string coinbaseTxHex;
+      Bin2Hex(
+          (const uint8_t *)coinbaseBin.data(),
+          coinbaseBin.size(),
+          coinbaseTxHex);
+      DLOG(INFO) << "coinbaseTxHex: " << coinbaseTxHex;
 
-    // coinbase TX
-    memcpy(p, coinbaseBin.data(), coinbaseBin.size());
+      const string auxSolvedShare = Strings::Format(
+          "{"
+          "\"job_id\":%u,"
+          "\"aux_block_hash\":\"%s\","
+          "\"block_header\":\"%s\","
+          "\"coinbase_tx\":\"%s\","
+          "\"rpc_addr\":\"%s\","
+          "\"rpc_userpass\":\"%s\""
+          "}",
+          share.jobid(),
+          sjob->nmcAuxBlockHash_.ToString(),
+          blockHeaderHex,
+          coinbaseTxHex,
+          sjob->nmcRpcAddr_,
+          sjob->nmcRpcUserpass_);
+      // send found merged mining aux block to kafka
+      sendAuxSolvedShare2Kafka(
+          chainId, auxSolvedShare.data(), auxSolvedShare.size());
 
-    sendRskSolvedShare2Kafka(chainId, buf.data(), buf.size());
+      LOG(INFO) << ">>>> found namecoin block: " << sjob->nmcHeight_ << ", "
+                << sjob->nmcAuxBlockHash_.ToString()
+                << ", jobId: " << share.jobid()
+                << ", userId: " << share.userid() << ", by: " << workFullName
+                << " <<<<";
+    }
 
-    //
-    // log the finding
-    //
-    LOG(INFO) << ">>>> found a new RSK block: " << blkHash.ToString()
-              << ", jobId: " << share.jobid() << ", userId: " << share.userid()
-              << ", by: " << workFullName << " <<<<";
-  }
+    DLOG(INFO) << "blkHash: " << blkHash.ToString()
+               << ", jobTarget: " << jobTarget.ToString()
+               << ", networkTarget: " << sjob->networkTarget_.ToString();
 
-  //
-  // found namecoin block
-  //
-  if (sjob->nmcAuxBits_ != 0 &&
-      (isSubmitInvalidBlock_ == true ||
-       bnBlockHash <= UintToArith256(sjob->nmcNetworkTarget_))) {
-    //
-    // build namecoin solved share message
-    //
-    string blockHeaderHex;
-    Bin2Hex((const uint8_t *)&header, sizeof(CBlockHeader), blockHeaderHex);
-    DLOG(INFO) << "blockHeaderHex: " << blockHeaderHex;
+    // check share diff
+    if (isEnableSimulator_ == false &&
+        bnBlockHash > UintToArith256(jobTarget)) {
+      dispatch([returnFn = std::move(returnFn)]() {
+        returnFn(StratumStatus::LOW_DIFFICULTY);
+      });
+      return;
+    }
 
-    string coinbaseTxHex;
-    Bin2Hex(
-        (const uint8_t *)coinbaseBin.data(), coinbaseBin.size(), coinbaseTxHex);
-    DLOG(INFO) << "coinbaseTxHex: " << coinbaseTxHex;
-
-    const string auxSolvedShare = Strings::Format(
-        "{"
-        "\"job_id\":%u,"
-        "\"aux_block_hash\":\"%s\","
-        "\"block_header\":\"%s\","
-        "\"coinbase_tx\":\"%s\","
-        "\"rpc_addr\":\"%s\","
-        "\"rpc_userpass\":\"%s\""
-        "}",
-        share.jobid(),
-        sjob->nmcAuxBlockHash_.ToString(),
-        blockHeaderHex,
-        coinbaseTxHex,
-        sjob->nmcRpcAddr_,
-        sjob->nmcRpcUserpass_);
-    // send found merged mining aux block to kafka
-    sendAuxSolvedShare2Kafka(
-        chainId, auxSolvedShare.data(), auxSolvedShare.size());
-
-    LOG(INFO) << ">>>> found namecoin block: " << sjob->nmcHeight_ << ", "
-              << sjob->nmcAuxBlockHash_.ToString()
-              << ", jobId: " << share.jobid() << ", userId: " << share.userid()
-              << ", by: " << workFullName << " <<<<";
-  }
-
-  DLOG(INFO) << "blkHash: " << blkHash.ToString()
-             << ", jobTarget: " << jobTarget.ToString()
-             << ", networkTarget: " << sjob->networkTarget_.ToString();
-
-  // check share diff
-  if (isEnableSimulator_ == false && bnBlockHash > UintToArith256(jobTarget)) {
-    return StratumStatus::LOW_DIFFICULTY;
-  }
-
-  // reach here means an valid share
-  return StratumStatus::ACCEPT;
+    // reach here means an valid share
+    dispatch([returnFn = std::move(returnFn)]() {
+      returnFn(StratumStatus::ACCEPT);
+    });
+    return;
+  });
 }
 
 void ServerBitcoin::sendAuxSolvedShare2Kafka(

@@ -33,6 +33,7 @@ class CBlockHeader;
 class FoundBlock;
 class JobRepositoryBitcoin;
 class ShareBitcoin;
+class StratumMinerBitcoin;
 
 class ServerBitcoin : public ServerBase<JobRepositoryBitcoin> {
 protected:
@@ -65,7 +66,7 @@ public:
       const FoundBlock *foundBlock,
       const std::vector<char> &coinbaseBin);
 
-  int checkShare(
+  void checkShare(
       size_t chainId,
       const ShareBitcoin &share,
       const uint32_t extraNonce1,
@@ -75,6 +76,7 @@ public:
       const uint32_t versionMask,
       const uint256 &jobTarget,
       const string &workFullName,
+      std::function<void(int32_t)> returnFn,
       string *userCoinbaseInfo = nullptr);
 
 protected:
