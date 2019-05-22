@@ -215,7 +215,7 @@ void StratumClient::handleLine(const string &line) {
     state_ = SUBSCRIBED;
     string s = Strings::Format(
         "{\"id\": 1, \"method\": \"mining.authorize\","
-        "\"params\": [\"\%s\", \"%s\"]}\n",
+        "\"params\": [\"%s\", \"%s\"]}\n",
         workerFullName_,
         workerPasswd_);
     sendData(s);
