@@ -179,11 +179,22 @@ void StratumMinerEth::handleRequest_Submit(
     }
   }
 
-  uint64_t nonce = stoull(sNonce, nullptr, 16);
+  uint64_t nonce;
+  uint64_t headerPrefix;
+  try {
+    nonce = stoull(sNonce, nullptr, 16);
+    headerPrefix = stoull(sHeader.substr(2, 16), nullptr, 16);
+  } catch (const std::invalid_argument &) {
+    handleShare(idStr, StratumStatus::ILLEGAL_PARARMS, 0, session.getChainId());
+    return;
+  } catch (const std::out_of_range &) {
+    handleShare(idStr, StratumStatus::ILLEGAL_PARARMS, 0, session.getChainId());
+    return;
+  }
+
   uint32_t height = sjob->height_;
   uint64_t networkDiff = Eth_TargetToDifficulty(sjob->networkTarget_.GetHex());
   // Used to prevent duplicate shares. (sHeader has a prefix "0x")
-  uint64_t headerPrefix = stoull(sHeader.substr(2, 16), nullptr, 16);
   EthConsensus::Chain chain = sjob->chain_;
 
   auto iter = jobDiffs_.find(localJob);
