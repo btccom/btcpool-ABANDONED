@@ -30,6 +30,7 @@
 #include "bitcoin/BitcoinUtils.h"
 #include "bitcoin/StratumBitcoin.h"
 #include "rsk/RskWork.h"
+#include "vcash/VcashWork.h"
 #include "beam/StratumBeam.h"
 
 #include <chainparams.h>
@@ -357,6 +358,7 @@ TEST(Stratum, StratumJobBitcoin) {
         blockVersion,
         "",
         RskWork(),
+        VcashWork(),
         1,
         false);
     ASSERT_EQ(res, true);
@@ -491,6 +493,7 @@ TEST(Stratum, StratumJobWithWitnessCommitment) {
         blockVersion,
         "",
         RskWork(),
+        VcashWork(),
         1,
         false);
     ASSERT_EQ(res, true);
@@ -612,6 +615,7 @@ TEST(Stratum, StratumJobWithSegwitPayoutAddr) {
         blockVersion,
         "",
         RskWork(),
+        VcashWork(),
         1,
         false);
     ASSERT_EQ(res, true);
@@ -741,6 +745,7 @@ TEST(Stratum, StratumJobWithRskWork) {
         blockVersion,
         "",
         rskWork,
+        VcashWork(),
         1,
         true);
 

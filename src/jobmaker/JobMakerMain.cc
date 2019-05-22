@@ -164,6 +164,7 @@ createGbtJobMakerDefinition(const Setting &setting) {
   readFromSetting(setting, "rawgbt_topic", def->rawGbtTopic_);
   readFromSetting(setting, "auxpow_gw_topic", def->auxPowGwTopic_);
   readFromSetting(setting, "rsk_rawgw_topic", def->rskRawGwTopic_);
+  readFromSetting(setting, "vcash_rawgw_topic", def->vcashRawGwTopic_);
   readFromSetting(setting, "job_topic", def->jobTopic_);
 
   readFromSetting(setting, "job_interval", def->jobInterval_);

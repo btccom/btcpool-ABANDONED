@@ -495,6 +495,7 @@ add_library(cuckoo
 file(GLOB LIB_SOURCES
         src/*.cc
         src/rsk/*.cc
+        src/vcash/*.cc
         src/ssl/*.cc
     )
 file(GLOB LIB_SOURCES_CHAINS

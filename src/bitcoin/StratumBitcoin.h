@@ -38,6 +38,7 @@
 #include <primitives/block.h>
 
 #include "rsk/RskWork.h"
+#include "vcash/VcashWork.h"
 #include "script/standard.h"
 #include "bitcoin/bitcoin.pb.h"
 
@@ -428,6 +429,15 @@ public:
   string feesForMiner_;
   bool isMergedMiningCleanJob_ = false;
 
+  // vcash merged mining
+  string vcashBlockHashForMergedMining_;
+  uint256 vcashNetworkTarget_;
+  uint64_t baserewards_;
+  uint64_t transactionsfee_;
+  uint64_t vcashHeight_;
+  string vcashdRpcAddress_;
+  string vcashdRpcUserPwd_;
+
 public:
   StratumJobBitcoin();
   bool initFromGbt(
@@ -437,6 +447,7 @@ public:
       const uint32_t blockVersion,
       const string &nmcAuxBlockJson,
       const RskWork &latestRskBlockJson,
+      const VcashWork &latestVcashBlockJson,
       const uint8_t serverId,
       const bool isMergedMiningUpdate);
   bool initFromStratumJob(

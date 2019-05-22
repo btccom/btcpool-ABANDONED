@@ -45,6 +45,7 @@
 #include "eth/GwMakerEth.h"
 #include "rsk/GwMakerRsk.h"
 #include "sia/GwMakerSia.h"
+#include "vcash/GwMakerVcash.h"
 
 using namespace std;
 using namespace libconfig;
@@ -76,6 +77,8 @@ shared_ptr<GwMakerHandler> createGwMakerHandler(const GwMakerDefinition &def) {
     handler = make_shared<GwMakerHandlerBytom>();
   else if (def.chainType_ == "DCR")
     handler = make_shared<GwMakerHandlerDecred>();
+  else if (def.chainType_ == "VCASH")
+    handler = make_shared<GwMakerHandlerVcash>();
   else
     LOG(FATAL) << "unknown chain type: " << def.chainType_;
 

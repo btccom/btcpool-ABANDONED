@@ -382,6 +382,7 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(
   const string coinbaseTxHex = j["coinbase_tx"].str();
   const string rpcAddr = j["rpc_addr"].str();
   const string rpcUserpass = j["rpc_userpass"].str();
+
   assert(blockHeaderHex.size() == sizeof(CBlockHeader) * 2);
 
   CBlockHeader blkHeader;
@@ -423,6 +424,8 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(
   // build new block
   //
   CBlock newblk(blkHeader);
+  vector<uint256> vtxhashes;
+  vtxhashes.resize(1 + vtxs->size()); // coinbase + gbt txs
 
   // put coinbase tx
   {
@@ -431,6 +434,7 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(
     newblk.vtx.push_back(MakeTransactionRef());
     CDataStream c(sdata, SER_NETWORK, PROTOCOL_VERSION);
     c >> newblk.vtx[newblk.vtx.size() - 1];
+    vtxhashes[0] = newblk.vtx[newblk.vtx.size() - 1]->GetHash();
   }
 
   // put other txs
@@ -438,14 +442,82 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(
     newblk.vtx.insert(newblk.vtx.end(), vtxs->begin(), vtxs->end());
   }
 
-  //
-  // build aux POW
-  //
-  const string auxPow = _buildAuxPow(&newblk);
+  for (size_t i = 0; i < vtxs->size(); i++) {
+    vtxhashes[i + 1] =
+        (*vtxs)[i]->GetHash(); // vtxs is a shared_ptr<vector<CTransactionRef>>
+  }
 
-  // submit to namecoind
-  submitNamecoinBlockNonBlocking(
-      auxBlockHash, auxPow, newblk.GetHash().ToString(), rpcAddr, rpcUserpass);
+  std::shared_ptr<AuxBlockInfo> auxblockinfo;
+  {
+    ScopeLock sl(jobIdAuxBlockInfoLock_);
+    if (jobId2AuxHash_.find(jobId) != jobId2AuxHash_.end()) {
+      auxblockinfo = jobId2AuxHash_[jobId];
+      assert(auxblockinfo.get() != nullptr);
+    }
+  }
+
+#ifdef CHAIN_TYPE_LTC
+  uint256 bitcoinblockhash = blkHeader.GetPoWHash();
+#else
+  uint256 bitcoinblockhash = blkHeader.GetHash();
+#endif
+
+  // rpcAddr is empty when aux is not supported
+  if (!auxBlockHash.empty() &&
+      UintToArith256(bitcoinblockhash) <=
+          UintToArith256(auxblockinfo->auxNetworkTarget_)) {
+    //
+    // build aux POW
+    //
+    const string auxPow = _buildAuxPow(&newblk);
+
+    // submit to namecoind
+    submitNamecoinBlockNonBlocking(
+        auxBlockHash,
+        auxPow,
+        newblk.GetHash().ToString(),
+        rpcAddr,
+        rpcUserpass);
+  }
+
+  if (UintToArith256(bitcoinblockhash) <=
+      UintToArith256(auxblockinfo->vcashNetworkTarget_)) {
+
+    // build coinbase's merkle tree branch
+    string merkleHashesHex;
+    string hashHex;
+    vector<uint256> cbMerkleBranch = ComputeMerkleBranch(vtxhashes, 0);
+
+    Bin2Hex(
+        (uint8_t *)(vtxhashes[0].begin()),
+        sizeof(uint256),
+        hashHex); // coinbase hash
+    merkleHashesHex.append(hashHex);
+    for (size_t i = 0; i < cbMerkleBranch.size(); i++) {
+      merkleHashesHex.append("\x20"); // space character
+      Bin2Hex((uint8_t *)cbMerkleBranch[i].begin(), sizeof(uint256), hashHex);
+      merkleHashesHex.append(hashHex);
+    }
+
+    // block tx count
+    std::stringstream sstream;
+    sstream << std::hex << vtxhashes.size();
+    string totalTxCountHex(sstream.str());
+
+    string rpcAddress = rpcAddr;
+    if (rpcAddress.find_last_of('/') != string::npos)
+      rpcAddress = rpcAddress.substr(0, rpcAddress.find_last_of('/')) +
+          "/submitauxblock";
+
+    submitVcashBlockPartialMerkleNonBlocking(
+        rpcAddress,
+        rpcUserpass,
+        auxblockinfo->vcashBlockHash_.GetHex(),
+        blockHeaderHex,
+        coinbaseTxHex,
+        merkleHashesHex,
+        totalTxCountHex); // using thread
+  }
 }
 
 void BlockMakerBitcoin::submitNamecoinBlockNonBlocking(
@@ -879,6 +951,23 @@ void BlockMakerBitcoin::consumeStratumJob(rd_kafka_message_t *rkmessage) {
     }
   }
 
+  std::shared_ptr<AuxBlockInfo> auxblockinfo = std::make_shared<AuxBlockInfo>();
+  auxblockinfo->auxBlockHash_ = sjob->nmcAuxBlockHash_;
+  BitsToTarget(sjob->nmcAuxBits_, auxblockinfo->auxNetworkTarget_);
+
+  auxblockinfo->vcashBlockHash_ =
+      uint256S(sjob->vcashBlockHashForMergedMining_);
+  auxblockinfo->vcashNetworkTarget_ = sjob->vcashNetworkTarget_;
+
+  {
+    ScopeLock sl(jobIdAuxBlockInfoLock_);
+    jobId2AuxHash_[sjob->jobId_] = auxblockinfo;
+
+    while (jobId2AuxHash_.size() > kMaxStratumJobNum_) {
+      jobId2AuxHash_.erase(jobId2AuxHash_.begin());
+    }
+  }
+
   LOG(INFO) << "StratumJob, jobId: " << sjob->jobId_
             << ", gbtHash: " << gbtHash.ToString();
 
@@ -1191,7 +1280,6 @@ bool BlockMakerBitcoin::submitToRskNode() {
 
   return false;
 }
-
 void BlockMakerBitcoin::runThreadConsumeRskSolvedShare() {
   const int32_t timeoutMs = 1000;
 
@@ -1209,6 +1297,64 @@ void BlockMakerBitcoin::runThreadConsumeRskSolvedShare() {
 }
 //// End of methods added to merge mine for RSK
 #endif
+
+void BlockMakerBitcoin::submitVcashBlockPartialMerkleNonBlocking(
+    const string &rpcAddress,
+    const string &rpcUserPwd,
+    const string &blockHashHex,
+    const string &blockHeaderHex,
+    const string &coinbaseHex,
+    const string &merkleHashesHex,
+    const string &totalTxCount) {
+  boost::thread t(boost::bind(
+      &BlockMakerBitcoin::_submitVcashBlockPartialMerkleThread,
+      this,
+      rpcAddress,
+      rpcUserPwd,
+      blockHashHex,
+      blockHeaderHex,
+      coinbaseHex,
+      merkleHashesHex,
+      totalTxCount));
+}
+
+void BlockMakerBitcoin::_submitVcashBlockPartialMerkleThread(
+    const string &rpcAddress,
+    const string &rpcUserPwd,
+    const string &blockHashHex,
+    const string &blockHeaderHex,
+    const string &coinbaseHex,
+    const string &merkleHashesHex,
+    const string &totalTxCount) {
+  string request = Strings::Format(
+      "{"
+      "\"header_hash\":\"%s\","
+      "\"btc_header\":\"%s\","
+      "\"btc_coinbase\":\"%s\","
+      "\"btc_merkle_branch\":\"%s\""
+      "}",
+      blockHashHex.c_str(),
+      blockHeaderHex.c_str(),
+      coinbaseHex.c_str(),
+      merkleHashesHex.c_str());
+
+  LOG(INFO) << "submit block to: " << rpcAddress << "rpc content : " << request;
+  // try N times
+  for (size_t i = 0; i < 3; i++) {
+    string response;
+    bool res = blockchainNodeRpcCall(
+        rpcAddress.c_str(), rpcUserPwd.c_str(), request.c_str(), response);
+
+    // success
+    if (res) {
+      LOG(INFO) << "rpc call success, submit block response: " << response;
+      break;
+    }
+
+    // failure
+    LOG(ERROR) << "rpc call fail: " << response;
+  }
+}
 
 void BlockMakerBitcoin::run() {
   // setup threads

@@ -35,6 +35,7 @@
 #define NDEBUG
 #endif
 
+#include "vcash/VcashWork.h"
 #include <uint256.h>
 #include <base58.h>
 
@@ -46,6 +47,7 @@ class JobMakerHandlerBitcoin : public JobMakerHandler {
   mutex lock_; // lock when update rawgbtMap_
   mutex auxJsonLock_;
   mutex rskWorkAccessLock_;
+  mutex vcashWorkAccessLock_;
 
   // mining bitcoin blocks
   CTxDestination poolPayoutAddr_;
@@ -66,11 +68,18 @@ class JobMakerHandlerBitcoin : public JobMakerHandler {
   RskWork *currentRskWork_;
   bool isMergedMiningUpdate_; // a flag to mark RSK has an update
 
+  // merged mining for RSK
+  VcashWork *previousVcashWork_;
+  VcashWork *currentVcashWork_;
+  // bool isVcashMergedMiningUpdate_; // a flag to mark Vcash has an update
+
   bool addRawGbt(const string &msg);
   void clearTimeoutGbt();
   bool isReachTimeout();
 
   void clearTimeoutGw();
+  void clearVcashTimeoutGw();
+  bool triggerVcashUpdate();
   bool triggerRskUpdate();
 
   // return false if there is no best rawGbt or
@@ -96,6 +105,7 @@ public:
   bool processRawGbtMsg(const string &msg);
   bool processAuxPowMsg(const string &msg);
   bool processRskGwMsg(const string &msg);
+  bool processVcashGwMsg(const string &msg);
 
   virtual string makeStratumJobMsg() override;
 

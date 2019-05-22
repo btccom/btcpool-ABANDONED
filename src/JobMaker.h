@@ -87,6 +87,7 @@ struct GbtJobMakerDefinition : public JobMakerDefinition {
   string rawGbtTopic_;
   string auxPowGwTopic_;
   string rskRawGwTopic_;
+  string vcashRawGwTopic_;
 
   uint32_t maxJobDelay_;
   uint32_t gbtLifeTime_;

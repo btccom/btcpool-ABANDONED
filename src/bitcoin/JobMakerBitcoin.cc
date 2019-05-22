@@ -52,7 +52,9 @@ JobMakerHandlerBitcoin::JobMakerHandlerBitcoin()
   , latestNmcAuxBlockHeight_(0)
   , previousRskWork_(nullptr)
   , currentRskWork_(nullptr)
-  , isMergedMiningUpdate_(false) {
+  , isMergedMiningUpdate_(false)
+  , previousVcashWork_(nullptr)
+  , currentVcashWork_(nullptr) {
 }
 
 bool JobMakerHandlerBitcoin::init(shared_ptr<JobMakerDefinition> defPtr) {
@@ -124,6 +126,21 @@ bool JobMakerHandlerBitcoin::initConsumerHandlers(
     kafkaRskGwConsumer = handler.kafkaConsumer_;
   }
 
+  // mergemining vcash
+  shared_ptr<KafkaConsumer> kafkaVcashGwConsumer;
+  {
+    auto messageProcessor = std::bind(
+        &JobMakerHandlerBitcoin::processVcashGwMsg,
+        this,
+        std::placeholders::_1);
+    auto handler = createConsumerHandler(
+        kafkaBrokers, def()->vcashRawGwTopic_, 1, {}, messageProcessor, false);
+    if (handler.kafkaConsumer_ == nullptr)
+      return false;
+    handlers.push_back(handler);
+    kafkaVcashGwConsumer = handler.kafkaConsumer_;
+  }
+
   // sleep 3 seconds, wait for the latest N messages transfer from broker to
   // client
   std::this_thread::sleep_for(3s);
@@ -152,6 +169,19 @@ bool JobMakerHandlerBitcoin::initConsumerHandlers(
     if (rkmessage != nullptr && !rkmessage->err) {
       string msg((const char *)rkmessage->payload, rkmessage->len);
       processRskGwMsg(msg);
+      rd_kafka_message_destroy(rkmessage);
+    }
+  }
+
+  //
+  // consume the latest VCASH getwork message
+  //
+  {
+    rd_kafka_message_t *rkmessage;
+    rkmessage = kafkaVcashGwConsumer->consumer(1000 /* timeout ms */);
+    if (rkmessage != nullptr && !rkmessage->err) {
+      string msg((const char *)rkmessage->payload, rkmessage->len);
+      processVcashGwMsg(msg);
       rd_kafka_message_destroy(rkmessage);
     }
   }
@@ -290,6 +320,7 @@ bool JobMakerHandlerBitcoin::findBestRawGbt(string &bestRawGbt) {
   // clean expired gbt first
   clearTimeoutGbt();
   clearTimeoutGw();
+  clearVcashTimeoutGw();
 
   if (rawgbtMap_.size() == 0) {
     LOG(WARNING) << "RawGbt Map is empty";
@@ -408,6 +439,30 @@ void JobMakerHandlerBitcoin::clearTimeoutGw() {
   }
 }
 
+void JobMakerHandlerBitcoin::clearVcashTimeoutGw() {
+  VcashWork currentVcashWork;
+  VcashWork previousVcashWork;
+  {
+    ScopeLock sl(vcashWorkAccessLock_);
+    if (previousVcashWork_ == nullptr || currentVcashWork_ == nullptr) {
+      return;
+    }
+
+    const uint32_t ts_now = time(nullptr);
+    currentVcashWork = *currentVcashWork_;
+    if (currentVcashWork.getCreatedAt() + 600u < ts_now) {
+      delete currentVcashWork_;
+      currentVcashWork_ = nullptr;
+    }
+
+    previousVcashWork = *previousVcashWork_;
+    if (previousVcashWork.getCreatedAt() + 600u < ts_now) {
+      delete previousVcashWork_;
+      previousVcashWork_ = nullptr;
+    }
+  }
+}
+
 bool JobMakerHandlerBitcoin::triggerRskUpdate() {
   RskWork currentRskWork;
   RskWork previousRskWork;
@@ -426,6 +481,27 @@ bool JobMakerHandlerBitcoin::triggerRskUpdate() {
       (currentRskWork.getBlockHash() != previousRskWork.getBlockHash());
 
   return notifyFlagUpdate || differentHashUpdate;
+}
+
+bool JobMakerHandlerBitcoin::triggerVcashUpdate() {
+  VcashWork currentVcashWork;
+  VcashWork previousVcashWork;
+  {
+    ScopeLock sl(vcashWorkAccessLock_);
+    if (previousVcashWork_ == nullptr || currentVcashWork_ == nullptr) {
+      return false;
+    }
+    currentVcashWork = *currentVcashWork_;
+    previousVcashWork = *previousVcashWork_;
+  }
+
+  bool heightUpdate = def()->mergedMiningNotifyPolicy_ == 1 &&
+      currentVcashWork.getHeight() > previousVcashWork.getHeight();
+
+  bool differentHashUpdate = def()->mergedMiningNotifyPolicy_ == 2 &&
+      (currentVcashWork.getBlockHash() != previousVcashWork.getBlockHash());
+
+  return heightUpdate || differentHashUpdate;
 }
 
 bool JobMakerHandlerBitcoin::processRawGbtMsg(const string &msg) {
@@ -505,6 +581,31 @@ bool JobMakerHandlerBitcoin::processRskGwMsg(const string &rawGetWork) {
   return isMergedMiningUpdate_;
 }
 
+bool JobMakerHandlerBitcoin::processVcashGwMsg(const string &rawGetWork) {
+  // set json string
+  {
+    ScopeLock sl(vcashWorkAccessLock_);
+
+    VcashWork *vcashWork = new VcashWork();
+    if (vcashWork->initFromGw(rawGetWork)) {
+
+      if (previousVcashWork_ != nullptr) {
+        delete previousVcashWork_;
+        previousVcashWork_ = nullptr;
+      }
+
+      previousVcashWork_ = currentVcashWork_;
+      currentVcashWork_ = vcashWork;
+
+      DLOG(INFO) << "currentVcashBlockJson: " << rawGetWork;
+    } else {
+      delete vcashWork;
+    }
+  }
+  isMergedMiningUpdate_ = triggerVcashUpdate();
+  return isMergedMiningUpdate_;
+}
+
 string JobMakerHandlerBitcoin::makeStratumJob(const string &gbt) {
   DLOG(INFO) << "JobMakerHandlerBitcoin::makeStratumJob gbt: " << gbt;
   string latestNmcAuxBlockJson;
@@ -521,6 +622,14 @@ string JobMakerHandlerBitcoin::makeStratumJob(const string &gbt) {
     }
   }
 
+  VcashWork currentVcashBlockJson;
+  {
+    ScopeLock sl(vcashWorkAccessLock_);
+    if (currentVcashWork_ != nullptr) {
+      currentVcashBlockJson = *currentVcashWork_;
+    }
+  }
+
   StratumJobBitcoin sjob;
   if (!sjob.initFromGbt(
           gbt.c_str(),
@@ -529,6 +638,7 @@ string JobMakerHandlerBitcoin::makeStratumJob(const string &gbt) {
           def()->blockVersion_,
           latestNmcAuxBlockJson,
           currentRskBlockJson,
+          currentVcashBlockJson,
           def()->serverId_,
           isMergedMiningUpdate_)) {
     LOG(ERROR) << "init stratum job message from gbt str fail";

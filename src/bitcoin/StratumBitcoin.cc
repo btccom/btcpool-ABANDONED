@@ -144,6 +144,12 @@ string StratumJobBitcoin::serializeToJson() const {
       // namecoin and RSK
       // TODO: delete isRskCleanJob (keep it for forward compatible).
       ",\"isRskCleanJob\":%s,\"mergedMiningClean\":%s"
+      // vcash
+      ",\"vcashBlockHashForMergedMining\":\"%s\",\"vcashNetworkTarget\":\"0x%"
+      "s\""
+      ",\"vcashHeight\":%" PRIu64
+      ",\"vcashdRpcAddress\":\"%s\",\"vcashdRpcUserPwd\":\"%s\""
+      ",\"isVcashCleanJob\":%s"
       "}",
       jobId_,
       gbtHash_,
@@ -183,6 +189,16 @@ string StratumJobBitcoin::serializeToJson() const {
       rskdRpcAddress_,
       rskdRpcUserPwd_,
       isMergedMiningCleanJob_ ? "true" : "false",
+      isMergedMiningCleanJob_ ? "true" : "false",
+
+      // vcash
+      vcashBlockHashForMergedMining_.size()
+          ? vcashBlockHashForMergedMining_.c_str()
+          : "",
+      vcashNetworkTarget_.GetHex().c_str(),
+      vcashHeight_,
+      vcashdRpcAddress_.size() ? vcashdRpcAddress_.c_str() : "",
+      vcashdRpcUserPwd_.size() ? vcashdRpcUserPwd_.c_str() : "",
       isMergedMiningCleanJob_ ? "true" : "false");
 }
 
@@ -288,6 +304,26 @@ bool StratumJobBitcoin::unserializeFromJson(const char *s, size_t len) {
     rskdRpcUserPwd_ = j["rskdRpcUserPwd"].str();
   }
 
+  //
+  // Vcash, optional
+  //
+  if (j["vcashBlockHashForMergedMining"].type() == Utilities::JS::type::Str &&
+      j["vcashNetworkTarget"].type() == Utilities::JS::type::Str &&
+      j["vcashHeight"].type() == Utilities::JS::type::Int &&
+      j["vcashdRpcAddress"].type() == Utilities::JS::type::Str &&
+      j["vcashdRpcUserPwd"].type() == Utilities::JS::type::Str) {
+    vcashBlockHashForMergedMining_ = j["vcashBlockHashForMergedMining"].str();
+    vcashNetworkTarget_ = uint256S(j["vcashNetworkTarget"].str());
+    vcashHeight_ = j["vcashHeight"].uint64();
+    vcashdRpcAddress_ = j["vcashdRpcAddress"].str();
+    vcashdRpcUserPwd_ = j["vcashdRpcUserPwd"].str();
+
+    nmcNetworkTarget_ = (UintToArith256(nmcNetworkTarget_) >
+                         UintToArith256(vcashNetworkTarget_))
+        ? nmcNetworkTarget_
+        : vcashNetworkTarget_;
+  }
+
   const string merkleBranchStr = j["merkleBranch"].str();
   const size_t merkleBranchCount = merkleBranchStr.length() / 64;
   merkleBranch_.resize(merkleBranchCount);
@@ -311,6 +347,7 @@ bool StratumJobBitcoin::initFromGbt(
     const uint32_t blockVersion,
     const string &nmcAuxBlockJson,
     const RskWork &latestRskBlockJson,
+    const VcashWork &latestVcashBlockJson,
     const uint8_t serverId,
     const bool isMergedMiningUpdate) {
   uint256 gbtHash = Hash(gbt, gbt + strlen(gbt));
@@ -470,6 +507,26 @@ bool StratumJobBitcoin::initFromGbt(
     feesForMiner_ = latestRskBlockJson.getFees();
     rskdRpcAddress_ = latestRskBlockJson.getRpcAddress();
     rskdRpcUserPwd_ = latestRskBlockJson.getRpcUserPwd();
+  }
+
+  //
+  // vcash merged mining
+  //
+  if (latestVcashBlockJson.isInitialized()) {
+
+    // set vcash info
+    vcashBlockHashForMergedMining_ = latestVcashBlockJson.getBlockHash();
+    vcashNetworkTarget_ = uint256S(latestVcashBlockJson.getTarget());
+    baserewards_ = latestVcashBlockJson.getBaseRewards();
+    transactionsfee_ = latestVcashBlockJson.getTransactionsfee();
+    vcashHeight_ = latestVcashBlockJson.getHeight();
+    vcashdRpcAddress_ = latestVcashBlockJson.getRpcAddress();
+    vcashdRpcUserPwd_ = latestVcashBlockJson.getRpcUserPwd();
+
+    nmcNetworkTarget_ = (UintToArith256(nmcNetworkTarget_) >
+                         UintToArith256(vcashNetworkTarget_))
+        ? nmcNetworkTarget_
+        : vcashNetworkTarget_;
   }
 
   // make coinbase1 & coinbase2
@@ -670,7 +727,6 @@ bool StratumJobBitcoin::initFromGbt(
 
       cbOut.push_back(paymentTxOut);
     }
-
     //
     // output[1] (optional): witness commitment
     //
@@ -706,7 +762,6 @@ bool StratumJobBitcoin::initFromGbt(
       cbOut.push_back(rootStateTxOut);
     }
 #endif
-
     //
     // output[3] (optional): RSK merge mining
     //
@@ -728,6 +783,36 @@ bool StratumJobBitcoin::initFromGbt(
       rskTxOut.nValue = AMOUNT_TYPE(0);
 
       cbOut.push_back(rskTxOut);
+    }
+
+    //
+    // output[3] (optional): VCASH merge mining
+    //
+    if (latestVcashBlockJson.isInitialized()) {
+      DLOG(INFO) << "Vcash blockhash: " << vcashBlockHashForMergedMining_;
+      string vcashBlockTag = "\x6a\x24\xb9\xe1\x1b\x6d";
+      // OP_RETURN(0x6a) + Length(0x24) + MagicNum(0xb9e11b6d) + Vcash Header
+      // Hash
+      vector<char> vcashTag(vcashBlockTag.begin(), vcashBlockTag.end());
+      vector<char> binBuf;
+
+      Hex2Bin(vcashBlockHashForMergedMining_.c_str(), binBuf);
+
+      vcashTag.insert(std::end(vcashTag), std::begin(binBuf), std::end(binBuf));
+
+      CTxOut vcashTxOut;
+      vcashTxOut.scriptPubKey = CScript(
+          (unsigned char *)vcashTag.data(),
+          (unsigned char *)vcashTag.data() + vcashTag.size());
+      vcashTxOut.nValue = AMOUNT_TYPE(0);
+
+      cbOut.push_back(vcashTxOut);
+    }
+
+    if (nmcAuxBits_ == 0u && latestVcashBlockJson.isInitialized()) {
+      nmcAuxBits_ = latestVcashBlockJson.getBits();
+      nmcRpcAddr_ = vcashdRpcAddress_;
+      nmcRpcUserpass_ = vcashdRpcUserPwd_;
     }
 
     CMutableTransaction cbtx;

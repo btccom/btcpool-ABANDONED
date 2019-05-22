@@ -71,6 +71,16 @@ protected:
   KafkaConsumer kafkaConsumerRskSolvedShare_;
 #endif
 
+  struct AuxBlockInfo {
+    uint256 auxBlockHash_;
+    uint256 auxNetworkTarget_;
+    uint256 vcashBlockHash_;
+    uint256 vcashNetworkTarget_;
+  };
+
+  mutex jobIdAuxBlockInfoLock_;
+  std::map<uint64_t, shared_ptr<AuxBlockInfo>> jobId2AuxHash_;
+
   void insertRawGbt(
       const uint256 &gbtHash, shared_ptr<vector<CTransactionRef>> vtxs);
 
@@ -151,6 +161,22 @@ protected:
       const string &merkleHashesHex,
       const string &totalTxCount);
   void _submitRskBlockPartialMerkleThread(
+      const string &rpcAddress,
+      const string &rpcUserPwd,
+      const string &blockHashHex,
+      const string &blockHeaderHex,
+      const string &coinbaseHex,
+      const string &merkleHashesHex,
+      const string &totalTxCount);
+  void submitVcashBlockPartialMerkleNonBlocking(
+      const string &rpcAddress,
+      const string &rpcUserPwd,
+      const string &blockHashHex,
+      const string &blockHeaderHex,
+      const string &coinbaseHex,
+      const string &merkleHashesHex,
+      const string &totalTxCount);
+  void _submitVcashBlockPartialMerkleThread(
       const string &rpcAddress,
       const string &rpcUserPwd,
       const string &blockHashHex,
