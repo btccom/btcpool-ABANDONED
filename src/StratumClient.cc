@@ -91,9 +91,9 @@ StratumClient::StratumClient(
 
   // use random extraNonce2_
   // It will help Ethereum and other getwork chains to avoid duplicate shares
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_int_distribution<uint64_t> dis(0, 0xFFFFFFFFFFFFFFFFu);
+  static std::random_device rd;
+  static std::mt19937 gen(rd());
+  static std::uniform_int_distribution<uint64_t> dis(0, 0xFFFFFFFFFFFFFFFFu);
   extraNonce2_ = dis(gen);
 }
 
