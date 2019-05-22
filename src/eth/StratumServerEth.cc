@@ -247,6 +247,14 @@ void EthashCalculator::buildDagCache(uint64_t height) {
   }
 
   auto buildLightWithLock = [this](uint64_t height, uint64_t epoch) {
+    {
+      ScopeLock sl(lock_);
+      if (buildingLightCaches_.find(epoch) != buildingLightCaches_.end()) {
+        return;
+      }
+      buildingLightCaches_.insert(epoch);
+    }
+
     LOG(INFO) << "building DAG cache for block height " << height << " (epoch "
               << epoch << ")";
     time_t beginTime = time(nullptr);
@@ -260,6 +268,8 @@ void EthashCalculator::buildDagCache(uint64_t height) {
               << ") built within " << (time(nullptr) - beginTime) << " seconds";
 
     ScopeLock sl(lock_);
+    buildingLightCaches_.erase(epoch);
+
     if (lightCaches_[epoch] != nullptr) {
       // Other threads have added the same light.
       ethash_light_delete(light);

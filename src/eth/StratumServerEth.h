@@ -76,6 +76,7 @@ protected:
 
   std::mutex lock_;
   std::map<uint64_t /*epoch*/, ethash_light_t> lightCaches_;
+  std::set<uint64_t /*epoch*/> buildingLightCaches_;
   std::queue<uint64_t> lightEpochs_;
   string cacheFile_;
 
