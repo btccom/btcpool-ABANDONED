@@ -265,30 +265,64 @@ void StratumMinerEth::handleRequest_Submit(
   // by the miner is correct, because we recalculated it.
   // SolvedShare will be accepted correctly by the ETH node if
   // the difficulty is reached in our calculations.
-  uint256 shareMixHash;
-  share.set_status(server.checkShareAndUpdateDiff(
+  server.checkShareAndUpdateDiff(
       localJob->chainId_,
       share,
       localJob->jobId_,
       nonce,
       headerHash,
       jobDiff.jobDiffs_,
-      shareMixHash,
-      worker.fullName_));
+      worker.fullName_,
+      [this,
+       idStr,
+       chainId = localJob->chainId_,
+       share,
+       sHeader,
+       sNonce,
+       withExtraNonce1 = sjob->hasHeader(),
+       extraNonce2](
+          int32_t status, uint64_t diff, const uint256 &shareMixHash) mutable {
+        share.set_status(status);
+        if (diff > 0)
+          share.set_sharediff(diff);
+        handleCheckedShare(
+            idStr,
+            chainId,
+            share,
+            sHeader,
+            sNonce,
+            shareMixHash,
+            withExtraNonce1,
+            extraNonce2);
+      });
+}
 
+void StratumMinerEth::handleCheckedShare(
+    const std::string &idStr,
+    size_t chainId,
+    const ShareEth &share,
+    const std::string &headerHash,
+    const std::string &sNonce,
+    const uint256 &shareMixHash,
+    bool withExtraNonce,
+    const boost::optional<uint32_t> &extraNonce2) {
   if (StratumStatus::isAccepted(share.status())) {
     DLOG(INFO) << "share reached the diff: " << share.sharediff();
   } else {
     DLOG(INFO) << "share not reached the diff: " << share.sharediff();
   }
 
+  auto &session = getSession();
+  auto &server = session.getServer();
+  auto &worker = session.getWorker();
+  auto extraNonce1 = session.getSessionId();
+
   // we send share to kafka by default, but if there are lots of invalid
   // shares in a short time, we just drop them.
-  if (handleShare(
-          idStr, share.status(), share.sharediff(), localJob->chainId_)) {
+  if (handleShare(idStr, share.status(), share.sharediff(), chainId)) {
     if (StratumStatus::isSolved(share.status())) {
       string extraNonce;
-      if (sjob->hasHeader()) {
+      if (withExtraNonce) {
         if (extraNonce2) {
           extraNonce = fmt::format(
               ",\"extraNonce\":\"0x{:08x}{:08x}\"", extraNonce1, *extraNonce2);
@@ -297,17 +331,17 @@ void StratumMinerEth::handleRequest_Submit(
         }
       }
       server.sendSolvedShare2Kafka(
-          localJob->chainId_,
+          chainId,
           sNonce,
-          sjob->headerHash_,
+          headerHash,
           shareMixHash.GetHex(),
-          height,
-          networkDiff,
+          share.height(),
+          share.networkdiff(),
           worker,
-          chain,
+          share.getChain(),
           extraNonce);
       // mark jobs as stale
-      server.GetJobRepository(localJob->chainId_)->markAllJobsAsStale();
+      server.GetJobRepository(chainId)->markAllJobsAsStale();
     }
   } else {
     // check if there is invalid share spamming
@@ -330,5 +364,5 @@ void StratumMinerEth::handleRequest_Submit(
     return;
   }
 
-  server.sendShare2Kafka(localJob->chainId_, message.data(), size);
+  server.sendShare2Kafka(chainId, message.data(), size);
 }

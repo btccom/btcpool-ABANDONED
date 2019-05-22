@@ -36,15 +36,15 @@ class JobRepositoryEth;
 class ServerEth : public ServerBase<JobRepositoryEth> {
 public:
   bool setupInternal(const libconfig::Config &config) override;
-  int checkShareAndUpdateDiff(
+  void checkShareAndUpdateDiff(
       size_t chainId,
-      ShareEth &share,
+      const ShareEth &share,
       const uint64_t jobId,
       const uint64_t nonce,
       const uint256 &header,
       const std::set<uint64_t> &jobDiffs,
-      uint256 &returnedMixHash,
-      const string &workFullName);
+      const string &workFullName,
+      std::function<void(int32_t, uint64_t, const uint256 &)> returnFn);
   void sendSolvedShare2Kafka(
       size_t chainId,
       const string &strNonce,

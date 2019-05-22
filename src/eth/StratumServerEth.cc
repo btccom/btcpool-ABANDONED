@@ -464,107 +464,139 @@ bool ServerEth::setupInternal(const libconfig::Config &config) {
   return true;
 }
 
-int ServerEth::checkShareAndUpdateDiff(
+void ServerEth::checkShareAndUpdateDiff(
     size_t chainId,
-    ShareEth &share,
+    const ShareEth &share,
     const uint64_t jobId,
     const uint64_t nonce,
     const uint256 &header,
     const std::set<uint64_t> &jobDiffs,
-    uint256 &returnedMixHash,
-    const string &workFullName) {
+    const string &workFullName,
+    std::function<void(int32_t, uint64_t, const uint256 &)> returnFn) {
   JobRepositoryEth *jobRepo = GetJobRepository(chainId);
   if (nullptr == jobRepo) {
-    return StratumStatus::ILLEGAL_PARARMS;
+    returnFn(StratumStatus::ILLEGAL_PARARMS, 0, uint256{});
+    return;
   }
 
   shared_ptr<StratumJobEx> exJobPtr = jobRepo->getStratumJobEx(jobId);
   if (nullptr == exJobPtr) {
-    return StratumStatus::JOB_NOT_FOUND;
+    returnFn(StratumStatus::JOB_NOT_FOUND, 0, uint256{});
+    return;
   }
 
   auto sjob = std::static_pointer_cast<StratumJobEth>(exJobPtr->sjob_);
 
-  DLOG(INFO) << "checking share nonce: " << hex << nonce
-             << ", header: " << header.GetHex();
+  dispatchToShareWorker([this,
+                         jobRepo,
+                         sjob,
+                         header,
+                         nonce,
+                         share,
+                         jobDiffs,
+                         workFullName,
+                         stale = exJobPtr->isStale(),
+                         returnFn = std::move(returnFn)]() {
+    DLOG(INFO) << "checking share nonce: " << hex << nonce
+               << ", header: " << header.GetHex();
 
-  ethash_return_value_t r;
-  ethash_h256_t ethashHeader = {0};
-  Uint256ToEthash256(header, ethashHeader);
+    ethash_return_value_t r;
+    ethash_h256_t ethashHeader = {0};
+    Uint256ToEthash256(header, ethashHeader);
 
 #ifndef NDEBUG
-  // Calculate the time required of light verification.
-  timeval start, end;
-  long mtime, seconds, useconds;
-  gettimeofday(&start, NULL);
+    // Calculate the time required of light verification.
+    timeval start, end;
+    long mtime, seconds, useconds;
+    gettimeofday(&start, NULL);
 #endif
 
-  bool ret = jobRepo->compute(share.height(), ethashHeader, nonce, r);
+    bool ret = jobRepo->compute(share.height(), ethashHeader, nonce, r);
 
 #ifndef NDEBUG
-  gettimeofday(&end, NULL);
-  seconds = end.tv_sec - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-  mtime = ((seconds)*1000 + useconds / 1000.0) + 0.5;
-  // Note: The performance difference between Debug and Release builds is very
-  // large. The Release build may complete in 4 ms, while the Debug build takes
-  // 100 ms.
-  DLOG(INFO) << "ethash computing takes " << mtime << " ms";
+    gettimeofday(&end, NULL);
+    seconds = end.tv_sec - start.tv_sec;
+    useconds = end.tv_usec - start.tv_usec;
+    mtime = ((seconds)*1000 + useconds / 1000.0) + 0.5;
+    // Note: The performance difference between Debug and Release builds is
+    // very large. The Release build may complete in 4 ms, while the Debug
+    // build takes 100 ms.
+    DLOG(INFO) << "ethash computing takes " << mtime << " ms";
 #endif
 
-  if (!ret || !r.success) {
-    LOG(ERROR) << "ethash computing failed, try rebuild the DAG cache";
-    jobRepo->rebuildDagCacheNonBlocking(sjob->height_);
-    return StratumStatus::INTERNAL_ERROR;
-  }
-
-  returnedMixHash = Ethash256ToUint256(r.mix_hash);
-
-  uint256 shareTarget = Ethash256ToUint256(r.result);
-
-  // can not compare two uint256 directly because uint256 is little endian and
-  // uses memcmp
-  arith_uint256 bnShareTarget = UintToArith256(shareTarget);
-  arith_uint256 bnNetworkTarget = UintToArith256(sjob->networkTarget_);
-
-  DLOG(INFO) << "comapre share target: " << shareTarget.GetHex()
-             << ", network target: " << sjob->networkTarget_.GetHex();
-
-  // print out high diff share, 2^10 = 1024
-  if ((bnShareTarget >> 10) <= bnNetworkTarget) {
-    LOG(INFO) << "high diff share, share target: " << shareTarget.GetHex()
-              << ", network target: " << sjob->networkTarget_.GetHex()
-              << ", worker: " << workFullName;
-  }
-
-  if (isSubmitInvalidBlock_ || bnShareTarget <= bnNetworkTarget) {
-    LOG(INFO) << "solution found, share target: " << shareTarget.GetHex()
-              << ", network target: " << sjob->networkTarget_.GetHex()
-              << ", worker: " << workFullName;
-
-    if (exJobPtr->isStale()) {
-      LOG(INFO) << "stale solved share: " << share.toString();
-      return StratumStatus::SOLVED_STALE;
-    } else {
-      LOG(INFO) << "solved share: " << share.toString();
-      return StratumStatus::SOLVED;
+    if (!ret || !r.success) {
+      LOG(ERROR) << "ethash computing failed, try rebuild the DAG cache";
+      jobRepo->rebuildDagCacheNonBlocking(sjob->height_);
+      dispatch([returnFn = std::move(returnFn)]() {
+        returnFn(StratumStatus::INTERNAL_ERROR, 0, uint256{});
+      });
+      return;
     }
-  }
 
-  // higher difficulty is prior
-  for (auto itr = jobDiffs.rbegin(); itr != jobDiffs.rend(); itr++) {
-    auto jobTarget = uint256S(Eth_DifficultyToTarget(*itr));
+    auto returnedMixHash = Ethash256ToUint256(r.mix_hash);
+
+    uint256 shareTarget = Ethash256ToUint256(r.result);
+
+    // can not compare two uint256 directly because uint256 is little endian
+    // and uses memcmp
+    arith_uint256 bnShareTarget = UintToArith256(shareTarget);
+    arith_uint256 bnNetworkTarget = UintToArith256(sjob->networkTarget_);
+
     DLOG(INFO) << "comapre share target: " << shareTarget.GetHex()
-               << ", job target: " << jobTarget.GetHex();
+               << ", network target: " << sjob->networkTarget_.GetHex();
 
-    if (isEnableSimulator_ || bnShareTarget <= UintToArith256(jobTarget)) {
-      share.set_sharediff(*itr);
-      return exJobPtr->isStale() ? StratumStatus::ACCEPT_STALE
-                                 : StratumStatus::ACCEPT;
+    // print out high diff share, 2^10 = 1024
+    if ((bnShareTarget >> 10) <= bnNetworkTarget) {
+      LOG(INFO) << "high diff share, share target: " << shareTarget.GetHex()
+                << ", network target: " << sjob->networkTarget_.GetHex()
+                << ", worker: " << workFullName;
     }
-  }
 
-  return StratumStatus::LOW_DIFFICULTY;
+    if (isSubmitInvalidBlock_ || bnShareTarget <= bnNetworkTarget) {
+      LOG(INFO) << "solution found, share target: " << shareTarget.GetHex()
+                << ", network target: " << sjob->networkTarget_.GetHex()
+                << ", worker: " << workFullName;
+
+      if (stale) {
+        LOG(INFO) << "stale solved share: " << share.toString();
+        dispatch([returnFn = std::move(returnFn), returnedMixHash]() {
+          returnFn(StratumStatus::SOLVED_STALE, 0, returnedMixHash);
+        });
+        return;
+      } else {
+        LOG(INFO) << "solved share: " << share.toString();
+        dispatch([returnFn = std::move(returnFn), returnedMixHash]() {
+          returnFn(StratumStatus::SOLVED, 0, returnedMixHash);
+        });
+        return;
+      }
+    }
+
+    // higher difficulty is prior
+    for (auto itr = jobDiffs.rbegin(); itr != jobDiffs.rend(); itr++) {
+      auto jobTarget = uint256S(Eth_DifficultyToTarget(*itr));
+      DLOG(INFO) << "comapre share target: " << shareTarget.GetHex()
+                 << ", job target: " << jobTarget.GetHex();
+
+      if (isEnableSimulator_ || bnShareTarget <= UintToArith256(jobTarget)) {
+        dispatch([returnFn = std::move(returnFn),
+                  stale,
+                  diff = *itr,
+                  returnedMixHash]() {
+          returnFn(
+              stale ? StratumStatus::ACCEPT_STALE : StratumStatus::ACCEPT,
+              diff,
+              returnedMixHash);
+        });
+        return;
+      }
+    }
+
+    dispatch([returnFn = std::move(returnFn)]() {
+      returnFn(StratumStatus::LOW_DIFFICULTY, 0, uint256{});
+    });
+    return;
+  });
 }
 
 void ServerEth::sendSolvedShare2Kafka(
