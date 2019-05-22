@@ -60,6 +60,7 @@ protected:
   uint64_t extraNonce2_;
   string workerFullName_;
   string workerPasswd_;
+  uint32_t sharesPerTx_;
   bool isMining_;
   string latestJobId_;
   uint64_t latestDiff_;
@@ -92,22 +93,6 @@ public:
            const string &workerPasswd,
            const libconfig::Config &config) {
           return std::make_unique<T>(
-              enableTLS, base, workerFullName, workerPasswd);
-        });
-  }
-  template <typename T>
-  static bool registerFactoryWithConfig(const string &chainType) {
-    static_assert(
-        std::is_base_of<StratumClient, T>::value,
-        "Factory is not constructing the correct type");
-    return registerFactory(
-        chainType,
-        [](bool enableTLS,
-           struct event_base *base,
-           const string &workerFullName,
-           const string &workerPasswd,
-           const libconfig::Config &config) {
-          return std::make_unique<T>(
               enableTLS, base, workerFullName, workerPasswd, config);
         });
   }
@@ -117,7 +102,8 @@ public:
       bool enableTLS,
       struct event_base *base,
       const string &workerFullName,
-      const string &workerPasswd);
+      const string &workerPasswd,
+      const libconfig::Config &config);
   virtual ~StratumClient();
 
   bool connect(const string &host, uint16_t port);

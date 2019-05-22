@@ -43,10 +43,12 @@ StratumClient::StratumClient(
     bool enableTLS,
     struct event_base *base,
     const string &workerFullName,
-    const string &workerPasswd)
+    const string &workerPasswd,
+    const libconfig::Config &config)
   : enableTLS_(enableTLS)
   , workerFullName_(workerFullName)
   , workerPasswd_(workerPasswd)
+  , sharesPerTx_(0)
   , isMining_(false) {
   inBuf_ = evbuffer_new();
 
@@ -88,6 +90,11 @@ StratumClient::StratumClient(
 
   sessionId_ = 0u;
   extraNonce2Size_ = 8;
+
+  config.lookupValue("simulator.shares_per_tx", sharesPerTx_);
+  if (sharesPerTx_ == 0) {
+    sharesPerTx_ = 1;
+  }
 
   // use random extraNonce2_
   // It will help Ethereum and other getwork chains to avoid duplicate shares
@@ -250,7 +257,9 @@ void StratumClient::submitShare() {
   if (state_ != AUTHENTICATED)
     return;
 
-  sendData(constructShare());
+  for (uint32_t i = 0; i < sharesPerTx_; ++i) {
+    sendData(constructShare());
+  }
 }
 
 void StratumClient::sendData(const char *data, size_t len) {

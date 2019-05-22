@@ -60,7 +60,7 @@ StratumClientGrin::StratumClientGrin(
     const string &workerFullName,
     const string &workerPasswd,
     const libconfig::Config &config)
-  : StratumClient{enableTLS, base, workerFullName, workerPasswd}
+  : StratumClient{enableTLS, base, workerFullName, workerPasswd, config}
   , id_{0}
   , height_{0}
   , edgeBits_{29} {

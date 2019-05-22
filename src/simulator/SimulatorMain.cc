@@ -137,7 +137,7 @@ int main(int argc, char **argv) {
     StratumClient::registerFactory<StratumClient>("DCR");
     StratumClient::registerFactory<StratumClientEth>("ETH");
     StratumClient::registerFactory<StratumClientBeam>("BEAM");
-    StratumClient::registerFactoryWithConfig<StratumClientGrin>("GRIN");
+    StratumClient::registerFactory<StratumClientGrin>("GRIN");
 
     // new StratumClientWrapper
     auto wrapper = std::make_unique<StratumClientWrapper>(
