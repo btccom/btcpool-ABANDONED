@@ -42,6 +42,7 @@ public:
       const uint64_t jobId,
       const uint64_t nonce,
       const uint256 &header,
+      const boost::optional<uint256> &mixHash,
       const std::set<uint64_t> &jobDiffs,
       const string &workFullName,
       std::function<void(int32_t, uint64_t, const uint256 &)> returnFn);

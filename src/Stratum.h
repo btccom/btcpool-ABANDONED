@@ -64,6 +64,10 @@ public:
     // status
     SOLVED_STALE = 1713984938, // bin(01100110 00101001 01010101 10101010)
 
+    // share reached the network target but the correctness is not verified
+    SOLVED_PRELIMINARY =
+        1835617709, // // bin(01101101 01101001 01001101 10101101)
+
     REJECT_NO_REASON = 0,
 
     JOB_NOT_FOUND = 21,
@@ -103,7 +107,8 @@ public:
   }
 
   inline static bool isSolved(int status) {
-    return (status == SOLVED) || (status == SOLVED_STALE);
+    return (status == SOLVED) || (status == SOLVED_STALE) ||
+        (status == SOLVED_PRELIMINARY);
   }
 };
 

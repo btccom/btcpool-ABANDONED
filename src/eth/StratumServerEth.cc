@@ -470,6 +470,7 @@ void ServerEth::checkShareAndUpdateDiff(
     const uint64_t jobId,
     const uint64_t nonce,
     const uint256 &header,
+    const boost::optional<uint256> &mixHash,
     const std::set<uint64_t> &jobDiffs,
     const string &workFullName,
     std::function<void(int32_t, uint64_t, const uint256 &)> returnFn) {
@@ -486,6 +487,22 @@ void ServerEth::checkShareAndUpdateDiff(
   }
 
   auto sjob = std::static_pointer_cast<StratumJobEth>(exJobPtr->sjob_);
+
+  if (mixHash) {
+    ethash_h256_t ethashHeader, ethashMixHash, ethashTarget;
+    Uint256ToEthash256(header, ethashHeader);
+    Uint256ToEthash256(*mixHash, ethashMixHash);
+    Uint256ToEthash256(sjob->networkTarget_, ethashTarget);
+    if (ethash_quick_check_difficulty(
+            &ethashHeader, nonce, &ethashMixHash, &ethashTarget)) {
+      LOG(INFO) << "preliminary solution found, header hash: "
+                << header.GetHex() << ", nonce: " << nonce
+                << ", mix digest: " << mixHash->GetHex()
+                << ", network target: " << sjob->networkTarget_.GetHex()
+                << ", worker: " << workFullName;
+      returnFn(StratumStatus::SOLVED_PRELIMINARY, 0, *mixHash);
+    }
+  }
 
   dispatchToShareWorker([this,
                          jobRepo,

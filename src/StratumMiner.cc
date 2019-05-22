@@ -72,6 +72,11 @@ bool StratumMiner::handleShare(
     int32_t status,
     uint64_t shareDiff,
     size_t chainId) {
+  if (status == StratumStatus::SOLVED_PRELIMINARY) {
+    // full verification is not yet done, skip reporting
+    return true;
+  }
+
   session_.reportShare(chainId, status, shareDiff);
   auto &dispatcher = session_.getDispatcher();
   bool accepted = StratumStatus::isAccepted(status);

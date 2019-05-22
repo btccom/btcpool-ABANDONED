@@ -123,16 +123,18 @@ void StratumMinerEth::handleRequest_Submit(
     return;
   }
 
-  string jobId, sNonce, sHeader;
+  string jobId, sNonce, sHeader, sMixHash;
   switch (ethProtocol_) {
   case StratumProtocolEth::STRATUM: {
     jobId = params[1].str();
     sNonce = params[2].str();
     sHeader = params[3].str();
+    sMixHash = HexStripPrefix(params[4].str());
   } break;
   case StratumProtocolEth::ETHPROXY: {
     sNonce = params[0].str();
     sHeader = params[1].str();
+    sMixHash = HexStripPrefix(params[2].str());
     jobId = sHeader;
   } break;
   case StratumProtocolEth::NICEHASH_STRATUM: {
@@ -271,6 +273,8 @@ void StratumMinerEth::handleRequest_Submit(
       localJob->jobId_,
       nonce,
       headerHash,
+      boost::make_optional(
+          IsHex(sMixHash) && sMixHash.size() == 64, uint256S(sMixHash)),
       jobDiff.jobDiffs_,
       worker.fullName_,
       [this,
@@ -340,8 +344,12 @@ void StratumMinerEth::handleCheckedShare(
           worker,
           share.getChain(),
           extraNonce);
-      // mark jobs as stale
-      server.GetJobRepository(chainId)->markAllJobsAsStale();
+      if (share.status() == StratumStatus::SOLVED_PRELIMINARY) {
+        return;
+      } else {
+        // mark jobs as stale only when share is fully verified
+        server.GetJobRepository(chainId)->markAllJobsAsStale();
+      }
     }
   } else {
     // check if there is invalid share spamming
