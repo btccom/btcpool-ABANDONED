@@ -467,7 +467,7 @@ void ServerBitcoin::sendSolvedShare2Kafka(
 void ServerBitcoin::checkShare(
     size_t chainId,
     const ShareBitcoin &share,
-    const uint32_t extraNonce1,
+    const StratumSessionBitcoin &session,
     const string &extraNonce2Hex,
     const uint32_t nTime,
     const BitcoinNonceType nonce,
@@ -506,7 +506,7 @@ void ServerBitcoin::checkShare(
   exJobPtr->generateBlockHeader(
       &header,
       &coinbaseBin,
-      extraNonce1,
+      session.getSessionId(),
       extraNonce2Hex,
       sjob->merkleBranch_,
       sjob->prevHash_,
@@ -522,6 +522,7 @@ void ServerBitcoin::checkShare(
                          share,
                          jobTarget,
                          workFullName,
+                         alive = session.getAlive(),
                          returnFn = std::move(returnFn),
                          sjob,
                          header,
@@ -582,11 +583,12 @@ void ServerBitcoin::checkShare(
                   << ", userId: " << share.userid() << ", by: " << workFullName
                   << " <<<<";
       } else {
-        // mark jobs as stale
-        dispatch([this, chainId]() {
-          // mark jobs as stale
-          GetJobRepository(chainId)->markAllJobsAsStale();
-        });
+        dispatchSafely(
+            [this, chainId]() {
+              // mark jobs as stale
+              GetJobRepository(chainId)->markAllJobsAsStale();
+            },
+            alive);
 
         LOG(INFO) << ">>>> found a new block: " << blkHash.ToString()
                   << ", jobId: " << share.jobid()
@@ -720,16 +722,18 @@ void ServerBitcoin::checkShare(
     // check share diff
     if (isEnableSimulator_ == false &&
         bnBlockHash > UintToArith256(jobTarget)) {
-      dispatch([returnFn = std::move(returnFn)]() {
-        returnFn(StratumStatus::LOW_DIFFICULTY);
-      });
+      dispatchSafely(
+          [returnFn = std::move(returnFn)]() {
+            returnFn(StratumStatus::LOW_DIFFICULTY);
+          },
+          std::move(alive));
       return;
     }
 
     // reach here means an valid share
-    dispatch([returnFn = std::move(returnFn)]() {
-      returnFn(StratumStatus::ACCEPT);
-    });
+    dispatchSafely(
+        [returnFn = std::move(returnFn)]() { returnFn(StratumStatus::ACCEPT); },
+        std::move(alive));
     return;
   });
 }

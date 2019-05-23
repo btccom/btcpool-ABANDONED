@@ -315,7 +315,7 @@ void StratumMinerBitcoin::handleRequest_Submit(
     server.checkShare(
         localJob->chainId_,
         share,
-        session.getSessionId(),
+        session,
         extraNonce2Hex,
         nTime,
         nonce,

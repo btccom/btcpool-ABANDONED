@@ -34,6 +34,7 @@ class FoundBlock;
 class JobRepositoryBitcoin;
 class ShareBitcoin;
 class StratumMinerBitcoin;
+class StratumSessionBitcoin;
 
 class ServerBitcoin : public ServerBase<JobRepositoryBitcoin> {
 protected:
@@ -69,7 +70,7 @@ public:
   void checkShare(
       size_t chainId,
       const ShareBitcoin &share,
-      const uint32_t extraNonce1,
+      const StratumSessionBitcoin &session,
       const string &extraNonce2Hex,
       const uint32_t nTime,
       const BitcoinNonceType nonce,
