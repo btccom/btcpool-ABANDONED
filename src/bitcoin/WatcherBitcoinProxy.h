@@ -56,6 +56,14 @@ protected:
   set<string> jobGbtHashSet_;
   std::mutex jobCacheLock_;
 
+  // If the high priority pool (the first pool in the configuration file)
+  // does not update the job within the following seconds, accept the job
+  // from the low priority pools.
+  int poolInactiveInterval = 180;
+
+  time_t lastJobTime_ = 0;
+  size_t lastJobClient_ = 0;
+
   PoolWatchClient *
   createPoolWatchClient(const libconfig::Setting &config) override;
   bool initInternal() override;

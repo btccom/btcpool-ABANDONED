@@ -39,6 +39,9 @@ ClientContainerBitcoinProxy::ClientContainerBitcoinProxy(
   bool enableSharelogger = false;
   config.lookupValue("solved_sharelog_writer.enabled", enableSharelogger);
 
+  config.lookupValue(
+      "poolwatcher.pool_inactive_interval", poolInactiveInterval);
+
   if (enableSharelogger) {
     shareLogWriter = std::make_unique<ShareLogWriterBase<ShareBitcoin>>(
         config.lookup("poolwatcher.type").c_str(),
@@ -317,6 +320,14 @@ bool ClientContainerBitcoinProxy::sendJobToKafka(
     return false;
   }
 
+  time_t now = time(nullptr);
+  if (clientId > lastJobClient_ && now - lastJobTime_ < poolInactiveInterval) {
+    LOG(INFO) << "skip a job from low priority pool <" << client->poolName_
+              << ">, height: " << job.height_
+              << ", prev hash: " << job.prevHash_.ToString();
+    return false;
+  }
+
   std::lock_guard<std::mutex> lock(jobCacheLock_);
   if (jobGbtHashSet_.find(job.gbtHash_) != jobGbtHashSet_.end()) {
     LOG(INFO) << "ignore duplicated job, gbtHash: " << job.gbtHash_;
@@ -333,6 +344,9 @@ bool ClientContainerBitcoinProxy::sendJobToKafka(
   // add to job cache
   jobCacheMap_[job.jobId_] = {upstreamJobId, job, clientId};
   jobGbtHashSet_.insert(job.gbtHash_);
+
+  lastJobClient_ = clientId;
+  lastJobTime_ = now;
 
   // clear job cache
   while (jobCacheMap_.size() > kMaxJobCacheSize_) {
