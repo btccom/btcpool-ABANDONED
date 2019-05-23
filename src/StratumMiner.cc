@@ -43,12 +43,14 @@ StratumMiner::StratumMiner(
   , curDiff_(0)
   , clientAgent_(clientAgent)
   , isNiceHashClient_(isNiceHashAgent(clientAgent))
+  , overrideDifficulty_(false)
   , workerName_(workerName)
   , workerId_(workerId)
   , invalidSharesCounter_(INVALID_SHARE_SLIDING_WINDOWS_SIZE) {
 }
 
 void StratumMiner::setMinDiff(uint64_t minDiff) {
+  overrideDifficulty_ = true;
   diffController_->setMinDiff(minDiff);
 }
 
@@ -57,7 +59,8 @@ void StratumMiner::resetCurDiff(uint64_t curDiff) {
 }
 
 uint64_t StratumMiner::calcCurDiff() {
-  if (session_.niceHashForced() || isNiceHashClient_) {
+  if (!overrideDifficulty_ &&
+      (session_.niceHashForced() || isNiceHashClient_)) {
     diffController_->setMinDiff(session_.niceHashMinDiff());
   }
   curDiff_ = diffController_->calcCurDiff();

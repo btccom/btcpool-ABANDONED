@@ -83,6 +83,7 @@ protected:
   uint64_t curDiff_;
   std::string clientAgent_;
   bool isNiceHashClient_;
+  bool overrideDifficulty_;
   std::string workerName_;
   int64_t workerId_;
   // invalid share counter
