@@ -49,7 +49,9 @@ protected:
       int64_t workerId);
 
 public:
+  static const size_t kExtraNonce1Size_ = 4;
   static const size_t kExtraNonce2Size_ = 8;
+
   virtual ~StratumMiner() = default;
   virtual void handleRequest(
       const std::string &idStr,

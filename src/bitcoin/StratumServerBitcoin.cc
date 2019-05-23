@@ -24,6 +24,8 @@
 #include "StratumServerBitcoin.h"
 #include "StratumSessionBitcoin.h"
 #include "StratumBitcoin.h"
+#include "StratumMiner.h"
+#include "StratumMinerBitcoin.h"
 #include "BitcoinUtils.h"
 
 #include "rsk/RskSolvedShareData.h"
@@ -43,12 +45,24 @@ shared_ptr<StratumJob> JobRepositoryBitcoin::createStratumJob() {
 
 shared_ptr<StratumJobEx> JobRepositoryBitcoin::createStratumJobEx(
     shared_ptr<StratumJob> sjob, bool isClean) {
-  return std::make_shared<StratumJobExBitcoin>(chainId_, sjob, isClean);
+  return std::make_shared<StratumJobExBitcoin>(
+      chainId_, sjob, isClean, GetServer()->extraNonce2Size());
 }
 
 void JobRepositoryBitcoin::broadcastStratumJob(
     shared_ptr<StratumJob> sjobBase) {
   auto sjob = std::static_pointer_cast<StratumJobBitcoin>(sjobBase);
+
+  if (sjob->proxyExtraNonce2Size_ > 0 &&
+      sjob->proxyExtraNonce2Size_ <
+          StratumMiner::kExtraNonce1Size_ + GetServer()->extraNonce2Size()) {
+    LOG(ERROR) << "CANNOT MINING, job discarded: JobExtraNonce2Size("
+               << sjob->proxyExtraNonce2Size_ << ") < StratumExtraNonce1Size("
+               << StratumMiner::kExtraNonce1Size_
+               << ") + StratumExtraNonce2Size("
+               << GetServer()->extraNonce2Size() << ")";
+    return;
+  }
 
   bool isClean = false;
   if (static_cast<uint32_t>(sjob->height_) > lastHeight_) {
@@ -111,12 +125,15 @@ void JobRepositoryBitcoin::broadcastStratumJob(
 }
 
 StratumJobExBitcoin::StratumJobExBitcoin(
-    size_t chainId, shared_ptr<StratumJob> sjob, bool isClean)
+    size_t chainId,
+    shared_ptr<StratumJob> sjob,
+    bool isClean,
+    uint32_t extraNonce2Size)
   : StratumJobEx(chainId, sjob, isClean) {
-  init();
+  init(extraNonce2Size);
 }
 
-void StratumJobExBitcoin::init() {
+void StratumJobExBitcoin::init(uint32_t extraNonce2Size) {
   auto sjob = std::static_pointer_cast<StratumJobBitcoin>(sjob_);
 
 #ifdef CHAIN_TYPE_ZEC
@@ -185,6 +202,26 @@ void StratumJobExBitcoin::init() {
   // so put it into a single variable.
   coinbase1_ = sjob->coinbase1_.c_str();
 
+  ssize_t jobExtraNonce2Size = StratumMiner::kExtraNonce2Size_;
+  if (sjob->proxyExtraNonce2Size_ > 0) {
+    // we use 4 bytes as extraNonce1
+    jobExtraNonce2Size =
+        sjob->proxyExtraNonce2Size_ - StratumMiner::kExtraNonce1Size_;
+  }
+
+  if (jobExtraNonce2Size > extraNonce2Size) {
+    coinbase1_ += string((jobExtraNonce2Size - extraNonce2Size) * 2, '0');
+  } else if (jobExtraNonce2Size < extraNonce2Size) {
+    // This should not happen. Job should be discarded before this.
+    LOG(ERROR) << "CANNOT MINING, code need a fix: JobExtraNonce2Size("
+               << (sjob->proxyExtraNonce2Size_ > 0
+                       ? sjob->proxyExtraNonce2Size_
+                       : StratumMiner::kExtraNonce2Size_)
+               << ") < StratumExtraNonce1Size("
+               << StratumMiner::kExtraNonce1Size_
+               << ") + StratumExtraNonce2Size(" << extraNonce2Size << ")";
+  }
+
   miningNotify3_ = Strings::Format(
       "\",\"%s\""
       ",[%s]"
@@ -239,6 +276,8 @@ void StratumJobExBitcoin::generateCoinbaseTx(
   coinbaseHex.append(coinbase1);
   coinbaseHex.append(extraNonceStr);
   coinbaseHex.append(sjob->coinbase2_);
+
+  // DLOG(INFO) << "coinbase tx: " << coinbaseHex;
   Hex2Bin((const char *)coinbaseHex.c_str(), *coinbaseBin);
 }
 
@@ -287,7 +326,8 @@ void StratumJobExBitcoin::generateBlockHeader(
 ////////////////////////////////// ServerBitcoin ///////////////////////////////
 ServerBitcoin::ServerBitcoin()
   : ServerBase()
-  , versionMask_(0) {
+  , versionMask_(0)
+  , extraNonce2Size_(8) {
 }
 
 ServerBitcoin::~ServerBitcoin() {
@@ -305,8 +345,18 @@ uint32_t ServerBitcoin::getVersionMask() const {
   return versionMask_;
 }
 
+uint32_t ServerBitcoin::extraNonce2Size() const {
+  return extraNonce2Size_;
+}
+
 bool ServerBitcoin::setupInternal(const libconfig::Config &config) {
   config.lookupValue("sserver.version_mask", versionMask_);
+  config.lookupValue("sserver.extra_nonce2_size", extraNonce2Size_);
+  if (extraNonce2Size_ > StratumMinerBitcoin::kMaxExtraNonce2Size_ ||
+      extraNonce2Size_ < StratumMinerBitcoin::kMinExtraNonce2Size_) {
+    LOG(ERROR) << "Wrong extraNonce2Size (should be 4~8): " << extraNonce2Size_;
+    return false;
+  }
 
   auto addChainVars = [&](const string &kafkaBrokers,
                           const string &auxSolvedShareTopic,
@@ -513,16 +563,25 @@ int ServerBitcoin::checkShare(
     // send
     sendSolvedShare2Kafka(chainId, &foundBlock, coinbaseBin);
 
-    // mark jobs as stale
-    GetJobRepository(chainId)->markAllJobsAsStale();
+    if (sjob->proxyJobDifficulty_ > 0) {
+      LOG(INFO) << ">>>> solution found: " << blkHash.ToString()
+                << ", jobId: " << share.jobid()
+                << ", userId: " << share.userid() << ", by: " << workFullName
+                << " <<<<";
+    } else {
+      // mark jobs as stale
+      GetJobRepository(chainId)->markAllJobsAsStale();
 
-    LOG(INFO) << ">>>> found a new block: " << blkHash.ToString()
-              << ", jobId: " << share.jobid() << ", userId: " << share.userid()
-              << ", by: " << workFullName << " <<<<";
+      LOG(INFO) << ">>>> found a new block: " << blkHash.ToString()
+                << ", jobId: " << share.jobid()
+                << ", userId: " << share.userid() << ", by: " << workFullName
+                << " <<<<";
+    }
   }
 
   // print out high diff share, 2^10 = 1024
-  if ((bnBlockHash >> 10) <= bnNetworkTarget) {
+  if (sjob->proxyJobDifficulty_ == 0 &&
+      (bnBlockHash >> 10) <= bnNetworkTarget) {
     LOG(INFO) << "high diff share, blkhash: " << blkHash.ToString()
               << ", diff: " << BitcoinDifficulty::TargetToDiff(blkHash)
               << ", networkDiff: "

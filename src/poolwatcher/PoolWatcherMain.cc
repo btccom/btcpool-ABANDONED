@@ -38,6 +38,7 @@
 #include "config/bpool-version.h"
 #include "Utils.h"
 #include "bitcoin/WatcherBitcoin.h"
+#include "bitcoin/WatcherBitcoinProxy.h"
 #include "beam/WatcherBeam.h"
 #include "grin/WatcherGrin.h"
 
@@ -71,11 +72,18 @@ ClientContainer *createClientContainer(const libconfig::Config &cfg) {
 #else
   if (false)
 #endif
-    return new ClientContainerBitcoin(cfg);
-  else if ("BEAM" == type)
+  {
+    bool stratumProxy = false;
+    cfg.lookupValue("poolwatcher.stratum_proxy", stratumProxy);
+    if (stratumProxy)
+      return new ClientContainerBitcoinProxy(cfg);
+    else
+      return new ClientContainerBitcoin(cfg);
+  } else if ("BEAM" == type) {
     return new ClientContainerBeam(cfg);
-  else if ("GRIN" == type)
+  } else if ("GRIN" == type) {
     return new ClientContainerGrin(cfg);
+  }
 
   LOG(FATAL) << "Unknown PoolWatcher Type: " << type;
   return nullptr;
@@ -144,6 +152,8 @@ int main(int argc, char **argv) {
 
   signal(SIGTERM, handler);
   signal(SIGINT, handler);
+  // ignore SIGPIPE, avoiding process be killed
+  signal(SIGPIPE, SIG_IGN);
 
   // check if we are using testnet3
   bool isTestnet3 = false;

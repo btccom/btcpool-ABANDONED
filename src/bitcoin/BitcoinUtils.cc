@@ -509,3 +509,37 @@ uint256 SwapUint(const uint256 &hash) {
   }
   return h;
 }
+
+uint256 reverse8bit(uint256 &&hash) {
+  for (char *i = BEGIN(hash), *j = i + 31; i < j; i++, j--) {
+    char tmp = *i;
+    *i = *j;
+    *j = tmp;
+  }
+  return hash;
+}
+
+uint256 reverse32bit(uint256 &&hash) {
+  for (uint32_t *i = (uint32_t *)BEGIN(hash), *j = i + 7; i < j; i++, j--) {
+    uint32_t tmp = *i;
+    *i = *j;
+    *j = tmp;
+  }
+  return hash;
+}
+
+string reverse16bit(string &&hash) {
+  for (uint16_t *i = (uint16_t *)hash.data(), *j = i + (hash.size() / 2) - 1;
+       i < j;
+       i++, j--) {
+    uint16_t tmp = *i;
+    *i = *j;
+    *j = tmp;
+  }
+  return hash;
+}
+
+string reverse16bit(const string &hash) {
+  string newHash = hash;
+  return reverse16bit(std::move(newHash));
+}

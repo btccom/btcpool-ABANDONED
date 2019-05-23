@@ -22,7 +22,7 @@
  THE SOFTWARE.
  */
 #include "StratumBitcoin.h"
-
+#include "StratumMiner.h"
 #include "BitcoinUtils.h"
 
 #include <core_io.h>
@@ -103,15 +103,7 @@ static int64_t findExtraNonceStart(
   return -1;
 }
 
-StratumJobBitcoin::StratumJobBitcoin()
-  : height_(0)
-  , nVersion_(0)
-  , nBits_(0U)
-  , nTime_(0U)
-  , minTime_(0U)
-  , coinbaseValue_(0)
-  , nmcAuxBits_(0u)
-  , isMergedMiningCleanJob_(false) {
+StratumJobBitcoin::StratumJobBitcoin() {
 }
 
 string StratumJobBitcoin::serializeToJson() const {
@@ -140,6 +132,8 @@ string StratumJobBitcoin::serializeToJson() const {
       ",\"merkleRoot\":\"%s\""
       ",\"finalSaplingRoot\":\"%s\""
 #endif
+      // proxy stratum job, optional
+      ",\"proxyExtraNonce2Size\":%u,\"proxyJobDifficulty\":%u"
       // namecoin, optional
       ",\"nmcBlockHash\":\"%s\",\"nmcBits\":%u,\"nmcHeight\":%d"
       ",\"nmcRpcAddr\":\"%s\",\"nmcRpcUserpass\":\"%s\""
@@ -173,6 +167,9 @@ string StratumJobBitcoin::serializeToJson() const {
       merkleRoot_.ToString().c_str(),
       finalSaplingRoot_.ToString().c_str(),
 #endif
+      // proxy stratum job
+      proxyExtraNonce2Size_,
+      proxyJobDifficulty_,
       // nmc
       nmcAuxBlockHash_.ToString(),
       nmcAuxBits_,
@@ -248,6 +245,13 @@ bool StratumJobBitcoin::unserializeFromJson(const char *s, size_t len) {
   }
 #endif
 
+  // proxy stratum job, optional
+  if (j["proxyExtraNonce2Size"].type() == Utilities::JS::type::Int &&
+      j["proxyJobDifficulty"].type() == Utilities::JS::type::Int) {
+    proxyExtraNonce2Size_ = j["proxyExtraNonce2Size"].uint32();
+    proxyJobDifficulty_ = j["proxyJobDifficulty"].uint64();
+  }
+
   // for Namecoin and RSK merged mining, optional
   if (j["mergedMiningClean"].type() == Utilities::JS::type::Bool) {
     isMergedMiningCleanJob_ = j["mergedMiningClean"].boolean();
@@ -291,7 +295,11 @@ bool StratumJobBitcoin::unserializeFromJson(const char *s, size_t len) {
     merkleBranch_[i] = uint256S(merkleBranchStr.substr(i * 64, 64));
   }
 
-  BitsToTarget(nBits_, networkTarget_);
+  if (proxyJobDifficulty_ > 0) {
+    DiffToTarget(proxyJobDifficulty_, networkTarget_);
+  } else {
+    BitsToTarget(nBits_, networkTarget_);
+  }
 
   return true;
 }
@@ -626,7 +634,9 @@ bool StratumJobBitcoin::initFromGbt(
 #endif
 
     //  placeHolder: extra nonce1 (4bytes) + extra nonce2 (8bytes)
-    const vector<char> placeHolder(4 + 8, 0xEE);
+    const vector<char> placeHolder(
+        StratumMiner::kExtraNonce1Size_ + StratumMiner::kExtraNonce2Size_,
+        0xEE);
     // pub extra nonce place holder
     cbIn.scriptSig.insert(
         cbIn.scriptSig.end(), placeHolder.begin(), placeHolder.end());
@@ -749,6 +759,106 @@ bool StratumJobBitcoin::initFromGbt(
   } // make coinbase1 & coinbase2
 #endif
 
+  return true;
+}
+
+bool StratumJobBitcoin::initFromStratumJob(
+    vector<JsonNode> &jparamsArr,
+    uint64_t currentDifficulty,
+    const string &extraNonce1,
+    uint32_t extraNonce2Size) {
+  /*
+[
+"1", // job id
+"8eb660b39a615d8c30bec6ded52c7189113aadda008508...", // prevHashBeStr_
+"0200000001000000000000000000000000000000000000...", // coinbase1
+"ffffffff0106208a4a000000001976a914da5b5f794566...", // coinbase2
+[ // merkle branch
+  "cfa8950989b3cbf4447262d63ec6edfa198293010f8bb1cc6d8b2b146dc73b00",
+  "89778ea377892a8f119963659bae3e1e594c5137cfc8ab7703a71c9305c5ba9d",
+  "b6e066003c7ba3026067690a6f20b35226581bfe36cce75b979078d4a260e2b0",
+  "46dbb24024d458944e2009a2474ca5975ee203287fb768480befb340426367ac",
+  "ae2ced91a3b828e8fe178bd36852d722c6e8d5a570b1b72977c4e33c5e2d8e40",
+  "ebec0dfd3da58068b281c084e3194d0dfb1cc9564932ef6cc1e3d3e0434cbb2d",
+  "8374240c7e9846f4e3942310650bf041b2532cbffe2cb3055edf0200d67ce5fd",
+  "034854853e5295add7fb867c723fd925d2982cd44caacaeae167b661ae307ef5",
+  "57f8fa1b986f2af62f190a469fc4967231c27533d23b96ee605a55481faa2f3a",
+  "20684502470dfed35cbc6bf75a787017ee2786689828d86a8d75f0daa4329379"
+],
+"20000000", // version
+"1802f650", // bits
+"5cc59c40", // time
+false // is clean
+]
+*/
+  if (jparamsArr.size() < 9) {
+    LOG(WARNING) << "job missing params (expect 9 params but only "
+                 << jparamsArr.size() << ")";
+    return false;
+  }
+  if (jparamsArr[1].type() != Utilities::JS::type::Str ||
+      jparamsArr[1].size() != 64 ||
+      jparamsArr[2].type() != Utilities::JS::type::Str ||
+      jparamsArr[2].size() % 2 != 0 ||
+      jparamsArr[3].type() != Utilities::JS::type::Str ||
+      jparamsArr[3].size() % 2 != 0 ||
+      jparamsArr[4].type() != Utilities::JS::type::Array ||
+      jparamsArr[5].type() != Utilities::JS::type::Str ||
+      jparamsArr[5].size() != 8 ||
+      jparamsArr[6].type() != Utilities::JS::type::Str ||
+      jparamsArr[6].size() != 8 ||
+      jparamsArr[7].type() != Utilities::JS::type::Str ||
+      jparamsArr[7].size() != 8 ||
+      jparamsArr[8].type() != Utilities::JS::type::Bool) {
+    LOG(WARNING) << "unexpected job param types";
+    return false;
+  }
+  auto merkleBranchArr = jparamsArr[4].array();
+  for (const auto &item : merkleBranchArr) {
+    if (item.type() != Utilities::JS::type::Str || item.size() != 64) {
+      LOG(WARNING) << "unexpected merkle branch types";
+      return false;
+    }
+  }
+
+  proxyExtraNonce2Size_ = extraNonce2Size;
+  proxyJobDifficulty_ = currentDifficulty;
+  DiffToTarget(proxyJobDifficulty_, networkTarget_);
+
+  prevHashBeStr_ = jparamsArr[1].str();
+  coinbase1_ = jparamsArr[2].str() + extraNonce1;
+  coinbase2_ = jparamsArr[3].str();
+  nVersion_ = (int32_t)jparamsArr[5].uint32_hex();
+  nBits_ = jparamsArr[6].uint32_hex();
+  nTime_ = jparamsArr[7].uint32_hex();
+  minTime_ = nTime_ - 600;
+
+  for (const auto &item : merkleBranchArr) {
+    merkleBranch_.push_back(reverse8bit(uint256S(item.str())));
+  }
+
+  prevHash_ = reverse32bit(uint256S(prevHashBeStr_));
+
+  string coinbaseTxStr =
+      coinbase1_ + string(proxyExtraNonce2Size_ * 2, '0') + coinbase2_;
+
+  string fakeGbt = prevHashBeStr_ + coinbaseTxStr + jparamsArr[5].str() +
+      jparamsArr[6].str() + jparamsArr[7].str();
+
+  for (const auto &item : merkleBranchArr) {
+    fakeGbt += item.str();
+  }
+
+  uint256 gbtHash = Hash(fakeGbt.data(), fakeGbt.data() + fakeGbt.size());
+  auto hash =
+      reinterpret_cast<boost::endian::little_uint32_buf_t *>(gbtHash.begin());
+  jobId_ = (static_cast<uint64_t>(time(nullptr)) << 32) | hash->value();
+
+  gbtHash_ = gbtHash.ToString();
+  height_ = getBlockHeightFromCoinbase(coinbase1_);
+
+  // Make sserver send the job immediately
+  isMergedMiningCleanJob_ = true;
   return true;
 }
 

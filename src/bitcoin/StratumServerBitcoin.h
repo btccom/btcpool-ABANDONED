@@ -42,12 +42,14 @@ protected:
 
   vector<ChainVarsBitcoin> chainsBitcoin_;
   uint32_t versionMask_;
+  uint32_t extraNonce2Size_;
 
 public:
   ServerBitcoin();
   virtual ~ServerBitcoin();
 
   uint32_t getVersionMask() const;
+  uint32_t extraNonce2Size() const;
 
   bool setupInternal(const libconfig::Config &config) override;
 
@@ -111,7 +113,10 @@ public:
 
 public:
   StratumJobExBitcoin(
-      size_t chainId, shared_ptr<StratumJob> sjob, bool isClean);
+      size_t chainId,
+      shared_ptr<StratumJob> sjob,
+      bool isClean,
+      uint32_t extraNonce2Size);
 
   void generateBlockHeader(
       CBlockHeader *header,
@@ -126,7 +131,7 @@ public:
       const BitcoinNonceType nonce,
       const uint32_t versionMask,
       string *userCoinbaseInfo = nullptr);
-  void init();
+  void init(uint32_t extraNonce2Size);
 };
 
 #endif

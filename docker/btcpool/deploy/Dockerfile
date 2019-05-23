@@ -67,6 +67,10 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# entrypoint
+# startup scripts
 COPY ./docker/btcpool/deploy/entrypoint.sh /
-ENTRYPOINT ["/bin/sh", "/entrypoint.sh"]
+COPY ./docker/btcpool/deploy/wait-for-it.sh /
+RUN chmod +x /entrypoint.sh /wait-for-it.sh
+
+# entrypoint
+ENTRYPOINT ["/entrypoint.sh"]

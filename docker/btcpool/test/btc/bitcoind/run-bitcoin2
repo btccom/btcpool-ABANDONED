@@ -1,0 +1,10 @@
+#! /bin/bash
+#
+# run shell for bitcoind
+#
+export LC_ALL=C
+SROOT=$(cd $(dirname "$0"); pwd)
+cd $SROOT
+
+OPT_ZMQ="-zmqpubhashtx=tcp://0.0.0.0:18331 -zmqpubhashblock=tcp://0.0.0.0:18331"
+bitcoind -datadir="/work/bitcoin2" $OPT_ZMQ

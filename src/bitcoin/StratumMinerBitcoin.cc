@@ -210,8 +210,14 @@ void StratumMinerBitcoin::handleRequest_Submit(
   auto &server = session.getServer();
   auto &worker = session.getWorker();
 
-  const string extraNonce2Hex = Strings::Format("%016x", extraNonce2);
-  assert(extraNonce2Hex.length() / 2 == kExtraNonce2Size_);
+  // Prevent changing unused bits to bypass the duplicate share checking
+  if (server.extraNonce2Size() < sizeof(extraNonce2)) {
+    extraNonce2 &= (1ull << server.extraNonce2Size() * 8) - 1;
+  }
+
+  const string extraNonce2Hex = Strings::Format(
+      "%0" + std::to_string(server.extraNonce2Size() * 2) + "x", extraNonce2);
+  assert(extraNonce2Hex.size() == server.extraNonce2Size() * 2);
 
   // a function to log rejected stale share
   auto rejectStaleShare = [&](size_t chainId) {

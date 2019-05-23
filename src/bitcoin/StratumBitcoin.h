@@ -382,16 +382,16 @@ public:
   string gbtHash_; // gbt hash id
   uint256 prevHash_;
   string prevHashBeStr_; // little-endian hex, memory's order
-  int32_t height_;
+  int32_t height_ = 0;
   string coinbase1_; // bitcoin: coinbase1, zcash: full coinbase tx
   string coinbase2_; // bitcoin: coinbase2, zcash: empty
   vector<uint256> merkleBranch_;
 
-  int32_t nVersion_;
-  uint32_t nBits_;
-  uint32_t nTime_;
-  uint32_t minTime_;
-  int64_t coinbaseValue_;
+  int32_t nVersion_ = 0;
+  uint32_t nBits_ = 0;
+  uint32_t nTime_ = 0;
+  uint32_t minTime_ = 0;
+  int64_t coinbaseValue_ = 0;
   // if segwit is not active, it will be empty
   string witnessCommitment_;
 #ifdef CHAIN_TYPE_UBTC
@@ -406,13 +406,17 @@ public:
 
   uint256 networkTarget_;
 
+  // proxy stratum job
+  uint32_t proxyExtraNonce2Size_ = 0;
+  uint64_t proxyJobDifficulty_ = 0;
+
   // namecoin merged mining
-  uint32_t nmcAuxBits_;
+  uint32_t nmcAuxBits_ = 0;
   uint256 nmcAuxBlockHash_;
-  int32_t nmcAuxMerkleSize_;
-  int32_t nmcAuxMerkleNonce_;
+  int32_t nmcAuxMerkleSize_ = 0;
+  int32_t nmcAuxMerkleNonce_ = 0;
   uint256 nmcNetworkTarget_;
-  int32_t nmcHeight_;
+  int32_t nmcHeight_ = 0;
   string nmcRpcAddr_;
   string nmcRpcUserpass_;
 
@@ -422,7 +426,7 @@ public:
   string rskdRpcAddress_;
   string rskdRpcUserPwd_;
   string feesForMiner_;
-  bool isMergedMiningCleanJob_;
+  bool isMergedMiningCleanJob_ = false;
 
 public:
   StratumJobBitcoin();
@@ -435,6 +439,11 @@ public:
       const RskWork &latestRskBlockJson,
       const uint8_t serverId,
       const bool isMergedMiningUpdate);
+  bool initFromStratumJob(
+      vector<JsonNode> &jparamsArr,
+      uint64_t currentDifficulty,
+      const string &extraNonce1,
+      uint32_t extraNonce2Size);
   string serializeToJson() const override;
   bool unserializeFromJson(const char *s, size_t len) override;
   bool isEmptyBlock();
