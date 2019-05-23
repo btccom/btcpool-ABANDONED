@@ -270,6 +270,7 @@ void StratumMinerEth::handleRequest_Submit(
   server.checkShareAndUpdateDiff(
       localJob->chainId_,
       share,
+      session,
       localJob->jobId_,
       nonce,
       headerHash,
@@ -287,8 +288,9 @@ void StratumMinerEth::handleRequest_Submit(
        extraNonce2](
           int32_t status, uint64_t diff, const uint256 &shareMixHash) mutable {
         share.set_status(status);
-        if (diff > 0)
+        if (diff > 0) {
           share.set_sharediff(diff);
+        }
         handleCheckedShare(
             idStr,
             chainId,

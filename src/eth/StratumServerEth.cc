@@ -467,6 +467,7 @@ bool ServerEth::setupInternal(const libconfig::Config &config) {
 void ServerEth::checkShareAndUpdateDiff(
     size_t chainId,
     const ShareEth &share,
+    const StratumSessionEth &session,
     const uint64_t jobId,
     const uint64_t nonce,
     const uint256 &header,
@@ -513,6 +514,7 @@ void ServerEth::checkShareAndUpdateDiff(
                          jobDiffs,
                          workFullName,
                          stale = exJobPtr->isStale(),
+                         alive = session.getAlive(),
                          returnFn = std::move(returnFn)]() {
     DLOG(INFO) << "checking share nonce: " << hex << nonce
                << ", header: " << header.GetHex();
@@ -544,9 +546,11 @@ void ServerEth::checkShareAndUpdateDiff(
     if (!ret || !r.success) {
       LOG(ERROR) << "ethash computing failed, try rebuild the DAG cache";
       jobRepo->rebuildDagCacheNonBlocking(sjob->height_);
-      dispatch([returnFn = std::move(returnFn)]() {
-        returnFn(StratumStatus::INTERNAL_ERROR, 0, uint256{});
-      });
+      dispatchSafely(
+          [returnFn = std::move(returnFn)]() {
+            returnFn(StratumStatus::INTERNAL_ERROR, 0, uint256{});
+          },
+          std::move(alive));
       return;
     }
 
@@ -576,15 +580,19 @@ void ServerEth::checkShareAndUpdateDiff(
 
       if (stale) {
         LOG(INFO) << "stale solved share: " << share.toString();
-        dispatch([returnFn = std::move(returnFn), returnedMixHash]() {
-          returnFn(StratumStatus::SOLVED_STALE, 0, returnedMixHash);
-        });
+        dispatchSafely(
+            [returnFn = std::move(returnFn), returnedMixHash]() {
+              returnFn(StratumStatus::SOLVED_STALE, 0, returnedMixHash);
+            },
+            std::move(alive));
         return;
       } else {
         LOG(INFO) << "solved share: " << share.toString();
-        dispatch([returnFn = std::move(returnFn), returnedMixHash]() {
-          returnFn(StratumStatus::SOLVED, 0, returnedMixHash);
-        });
+        dispatchSafely(
+            [returnFn = std::move(returnFn), returnedMixHash]() {
+              returnFn(StratumStatus::SOLVED, 0, returnedMixHash);
+            },
+            std::move(alive));
         return;
       }
     }
@@ -596,22 +604,26 @@ void ServerEth::checkShareAndUpdateDiff(
                  << ", job target: " << jobTarget.GetHex();
 
       if (isEnableSimulator_ || bnShareTarget <= UintToArith256(jobTarget)) {
-        dispatch([returnFn = std::move(returnFn),
-                  stale,
-                  diff = *itr,
-                  returnedMixHash]() {
-          returnFn(
-              stale ? StratumStatus::ACCEPT_STALE : StratumStatus::ACCEPT,
-              diff,
-              returnedMixHash);
-        });
+        dispatchSafely(
+            [returnFn = std::move(returnFn),
+             stale,
+             diff = *itr,
+             returnedMixHash]() {
+              returnFn(
+                  stale ? StratumStatus::ACCEPT_STALE : StratumStatus::ACCEPT,
+                  diff,
+                  returnedMixHash);
+            },
+            std::move(alive));
         return;
       }
     }
 
-    dispatch([returnFn = std::move(returnFn)]() {
-      returnFn(StratumStatus::LOW_DIFFICULTY, 0, uint256{});
-    });
+    dispatchSafely(
+        [returnFn = std::move(returnFn)]() {
+          returnFn(StratumStatus::LOW_DIFFICULTY, 0, uint256{});
+        },
+        std::move(alive));
     return;
   });
 }

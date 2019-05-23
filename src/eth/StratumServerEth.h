@@ -39,6 +39,7 @@ public:
   void checkShareAndUpdateDiff(
       size_t chainId,
       const ShareEth &share,
+      const StratumSessionEth &session,
       const uint64_t jobId,
       const uint64_t nonce,
       const uint256 &header,
