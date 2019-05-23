@@ -956,7 +956,24 @@ private:
 } // namespace
 
 void StratumServer::dispatch(std::function<void()> task) {
+  if (!task) {
+    return;
+  }
+
   new StratumServerTask{base_, move(task)};
+}
+
+void StratumServer::dispatchSafely(
+    std::function<void()> task, std::weak_ptr<bool> alive) {
+  if (!task) {
+    return;
+  }
+
+  dispatch([task = std::move(task), alive = std::move(alive)]() {
+    if (!alive.expired()) {
+      task();
+    }
+  });
 }
 
 void StratumServer::dispatchToShareWorker(std::function<void()> work) {

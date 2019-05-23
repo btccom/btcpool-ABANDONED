@@ -143,6 +143,8 @@ protected:
 
   shared_ptr<AuthorizeInfo> savedAuthorizeInfo_;
 
+  shared_ptr<bool> alive_;
+
   void setup();
   void setReadTimeout(int32_t readTimeout);
 
@@ -198,6 +200,7 @@ public:
   size_t getChainId() const { return worker_.chainId_; }
   State getState() const { return state_; }
   string getUserName() const { return worker_.userName_; }
+  std::weak_ptr<bool> getAlive() const { return std::weak_ptr<bool>{alive_}; }
 
   bool isDead() const;
   void markAsDead();

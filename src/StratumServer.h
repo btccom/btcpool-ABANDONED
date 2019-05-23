@@ -295,6 +295,8 @@ public:
 
   // Dispatch the task to the libevent loop
   void dispatch(std::function<void()> task);
+  // Dispatch the task with alive check
+  void dispatchSafely(std::function<void()> task, std::weak_ptr<bool> alive);
   // Dispatch the work to the share worker
   void dispatchToShareWorker(std::function<void()> work);
 
