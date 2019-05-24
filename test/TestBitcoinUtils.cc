@@ -95,12 +95,14 @@ TEST(BitcoinUtils, GetBlockRewardBitcoin) {
   TestBitcoinBlockReward(629999, 100000000); // 1 UBTC
   TestBitcoinBlockReward(630000, 100000000); // 1 UBTC
   TestBitcoinBlockReward(700000, 100000000); // 1 UBTC
-  TestBitcoinBlockReward(5000000, 25000000); // 0.25 UBTC
-  TestBitcoinBlockReward(6719999, 12500000); // 0.125 UBTC
-  TestBitcoinBlockReward(6720000, 12500000); // 0.125 UBTC
-  TestBitcoinBlockReward(6929999, 12500000); // 0.125 UBTC
-  TestBitcoinBlockReward(6930000, 12500000); // 0.125 UBTC
-  TestBitcoinBlockReward(13300000, 1562500); // 0.015625 UBTC
+  TestBitcoinBlockReward(813499, 100000000); // 1 UBTC
+  TestBitcoinBlockReward(813500, 50000000); // 0.5 UBTC
+  TestBitcoinBlockReward(5000000, 12500000); // 0.25 UBTC
+  TestBitcoinBlockReward(6719999, 6250000); // 0.125 UBTC
+  TestBitcoinBlockReward(6720000, 6250000); // 0.125 UBTC
+  TestBitcoinBlockReward(6929999, 6250000); // 0.125 UBTC
+  TestBitcoinBlockReward(6930000, 6250000); // 0.125 UBTC
+  TestBitcoinBlockReward(13300000, 781250); // 0.015625 UBTC
 #else
   TestBitcoinBlockReward(629999, 1250000000); // 12.5 BTC
   TestBitcoinBlockReward(630000, 625000000); // 6.25 BTC

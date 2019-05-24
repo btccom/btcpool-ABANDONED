@@ -252,14 +252,42 @@ int64_t GetBlockReward(int nHeight, const Consensus::Params &consensusParams) {
   if (nHeight < Params().GetConsensus().ForkV1Height) {
     halvings = nHeight / consensusParams.nSubsidyHalvingInterval;
     // Force block reward to zero when right shift is undefined.
-    if (halvings >= 64) {
+    if (halvings >= 64)
       return 0;
-    }
 
-    int64_t nSubsidy = 50 * COIN_TO_SATOSHIS;
+    CAmount nSubsidy = 50 * COIN;
     // Subsidy is cut in half every 210,000 blocks which will occur
     // approximately every 4 years.
     nSubsidy >>= halvings;
+    return nSubsidy;
+  } else if (
+      nHeight >= Params().GetConsensus().ForkV1Height &&
+      nHeight < Params().GetConsensus().ForkV4Height) {
+    int halfPeriodLeft = consensusParams.ForkV1Height - 1 -
+        consensusParams.nSubsidyHalvingInterval * 2;
+    int halfPeriodRight =
+        (consensusParams.nSubsidyHalvingInterval - halfPeriodLeft) * 10;
+
+    int PeriodEndHeight = consensusParams.ForkV1Height - 1 +
+        (consensusParams.nSubsidyHalvingInterval - halfPeriodLeft) * 10;
+    if (nHeight <= PeriodEndHeight)
+      halvings = 2;
+    else {
+      halvings = 3 +
+          (nHeight - PeriodEndHeight - 1) /
+              (consensusParams.nSubsidyHalvingInterval * 10);
+    }
+
+    // Force block reward to zero when right shift is undefined.
+    if (halvings >= 64)
+      return 0;
+
+    CAmount nSubsidy = 50 * COIN;
+    // Subsidy is cut in half every 210,000 blocks which will occur
+    // approximately every 4 years.
+    nSubsidy >>= halvings;
+    nSubsidy = nSubsidy / 10 * 0.8;
+
     return nSubsidy;
   } else {
     int halfPeriodLeft = consensusParams.ForkV1Height - 1 -
@@ -278,15 +306,14 @@ int64_t GetBlockReward(int nHeight, const Consensus::Params &consensusParams) {
     }
 
     // Force block reward to zero when right shift is undefined.
-    if (halvings >= 64) {
+    if (halvings >= 64)
       return 0;
-    }
 
-    int64_t nSubsidy = 50 * COIN_TO_SATOSHIS;
+    CAmount nSubsidy = 50 * COIN;
     // Subsidy is cut in half every 210,000 blocks which will occur
     // approximately every 4 years.
     nSubsidy >>= halvings;
-    nSubsidy = nSubsidy / 10 * 0.8;
+    nSubsidy = nSubsidy / 10 * 0.4;
 
     return nSubsidy;
   }

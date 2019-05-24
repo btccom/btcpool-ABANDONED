@@ -127,7 +127,7 @@ cd btcpool
 mkdir build
 cd build
 
-# Release build with 4 jobs:
+# Release build:
 cmake -DJOBS=4 -DCHAIN_TYPE=BTC -DCHAIN_SRC_ROOT=/work/bitcoin-0.16.0 ..
 make -j$(nproc)
 
@@ -153,7 +153,7 @@ cd btcpool
 mkdir build
 cd build
 
-# Release build with 4 jobs:
+# Release build:
 cmake -DJOBS=4 -DCHAIN_TYPE=BCH -DCHAIN_SRC_ROOT=/work/bitcoin-abc-0.18.5 ..
 make -j$(nproc)
 
@@ -182,7 +182,7 @@ cd btcpool
 mkdir build
 cd build
 
-# Release build with 4 jobs:
+# Release build:
 cmake -DJOBS=4 -DCHAIN_TYPE=BSV -DCHAIN_SRC_ROOT=/work/bitcoin-sv-0.1.0 ..
 make -j$(nproc)
 
@@ -200,8 +200,10 @@ make -j$(nproc)
 ```bash
 mkdir /work
 cd /work
-wget -O UnitedBitcoin-2.5.0.1.tar.gz https://github.com/UnitedBitcoin/UnitedBitcoin/archive/v2.5.0.1.tar.gz
-tar zxf UnitedBitcoin-2.5.0.1.tar.gz
+# Notice: v2.5.0.1-1.tar.gz from UnitedBitcoin official is wrong (missing one commit),
+#         So here we use the release of our own fork.
+wget -O UnitedBitcoin-2.5.0.1-1.tar.gz https://github.com/btccom/UnitedBitcoin/archive/v2.5.0.1-1.tar.gz
+tar zxf UnitedBitcoin-2.5.0.1-1.tar.gz
 
 # install libdb that UnitedBitcoin's wallet required
 apt-get install -y software-properties-common
@@ -210,7 +212,7 @@ apt-get -y update
 apt-get install -y libdb4.8-dev libdb4.8++-dev
 
 # UnitedBitcoin will build failed with `--disable-wallet`, so we have to build it manually with wallet
-cd UnitedBitcoin-2.5.0.1
+cd UnitedBitcoin-2.5.0.1-1
 ./autogen.sh
 ./configure --disable-bench --disable-tests
 make -j$(nproc)
@@ -221,16 +223,16 @@ cd btcpool
 mkdir build
 cd build
 
-# Release build with 4 jobs:
-cmake -DJOBS=4 -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-2.5.0.1 ..
+# Release build:
+cmake -DJOBS=4 -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-2.5.0.1-1 ..
 make -j$(nproc)
 
 # Release build at macOS:
-cmake -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-2.5.0.1 -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl ..
+cmake -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-2.5.0.1-1 -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl ..
 make -j$(nproc)
 
 # Debug build:
-cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-2.5.0.1 ..
+cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-2.5.0.1-1 ..
 make -j$(nproc)
 ```
 
@@ -253,7 +255,7 @@ cd btcpool
 mkdir build
 cd build
 
-# Release build with 4 jobs:
+# Release build:
 cmake -DJOBS=4 -DCHAIN_TYPE=SBTC -DCHAIN_SRC_ROOT=/work/SuperBitcoin-0.17.1 ..
 make -j$(nproc)
 
@@ -279,7 +281,7 @@ cd btcpool
 mkdir build
 cd build
 
-# Release build with 4 jobs:
+# Release build:
 cmake -DJOBS=4 -DCHAIN_TYPE=LTC -DCHAIN_SRC_ROOT=/work/litecoin-0.16.3 ..
 make -j$(nproc)
 
@@ -301,7 +303,7 @@ cd btcpool
 mkdir build
 cd build
 
-# Release build with 4 jobs:
+# Release build:
 cmake -DJOBS=4 -DCHAIN_TYPE=ZEC -DCHAIN_SRC_ROOT=/work/zcash-2.0.4 ..
 make -j$(nproc)
 

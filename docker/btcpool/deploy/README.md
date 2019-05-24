@@ -42,7 +42,7 @@ docker build -t btccom/btcpool-btc -f Dockerfile --build-arg BASE_IMAGE=btccom/b
 docker build -t btccom/btcpool-bch -f Dockerfile --build-arg BASE_IMAGE=btccom/btcpool_build:bch-0.18.5 --build-arg BUILD_JOBS=$(nproc) ../../..
 
 # UBTC
-docker build -t btccom/btcpool-ubtc -f Dockerfile --build-arg BASE_IMAGE=btccom/btcpool_build:ubtc-2.3.0.1 --build-arg BUILD_JOBS=$(nproc) ../../..
+docker build -t btccom/btcpool-ubtc -f Dockerfile --build-arg BASE_IMAGE=btccom/btcpool_build:ubtc-2.5.0.1-1 --build-arg BUILD_JOBS=$(nproc) ../../..
 
 # SBTC (outdated)
 docker build -t btccom/btcpool-sbtc -f Dockerfile --build-arg BASE_IMAGE=btccom/btcpool_build:sbtc-0.16.2 --build-arg BUILD_JOBS=$(nproc) ../../..
