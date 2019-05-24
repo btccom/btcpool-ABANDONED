@@ -129,15 +129,15 @@ cd build
 
 # Release build with 4 jobs:
 cmake -DJOBS=4 -DCHAIN_TYPE=BTC -DCHAIN_SRC_ROOT=/work/bitcoin-0.16.0 ..
-make -j4
+make -j$(nproc)
 
 # Release build at macOS:
 cmake -DCHAIN_TYPE=BTC -DCHAIN_SRC_ROOT=/work/bitcoin-0.16.0 -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl ..
-make
+make -j$(nproc)
 
 # Debug build:
 cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=BTC -DCHAIN_SRC_ROOT=/work/bitcoin-0.16.0 ..
-make
+make -j$(nproc)
 ```
 
 **build BTCPool that linking to BitcoinCash ABC**
@@ -155,15 +155,15 @@ cd build
 
 # Release build with 4 jobs:
 cmake -DJOBS=4 -DCHAIN_TYPE=BCH -DCHAIN_SRC_ROOT=/work/bitcoin-abc-0.18.5 ..
-make -j4
+make -j$(nproc)
 
 # Release build at macOS:
 cmake -DCHAIN_TYPE=BCH -DCHAIN_SRC_ROOT=/work/bitcoin-abc-0.18.5 -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl ..
-make
+make -j$(nproc)
 
 # Debug build:
 cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=BCH -DCHAIN_SRC_ROOT=/work/bitcoin-abc-0.18.5 ..
-make
+make -j$(nproc)
 ```
 
 Note: `bitcoin-abc-0.17.1` and earlier are incompatible with current BTCPool, you will meet this error:
@@ -184,15 +184,15 @@ cd build
 
 # Release build with 4 jobs:
 cmake -DJOBS=4 -DCHAIN_TYPE=BSV -DCHAIN_SRC_ROOT=/work/bitcoin-sv-0.1.0 ..
-make -j4
+make -j$(nproc)
 
 # Release build at macOS:
 cmake -DCHAIN_TYPE=BSV -DCHAIN_SRC_ROOT=/work/bitcoin-sv-0.1.0 -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl ..
-make
+make -j$(nproc)
 
 # Debug build:
 cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=BSV -DCHAIN_SRC_ROOT=/work/bitcoin-sv-0.1.0 ..
-make
+make -j$(nproc)
 ```
 
 **build BTCPool that linking to UnitedBitcoin**
@@ -200,8 +200,8 @@ make
 ```bash
 mkdir /work
 cd /work
-wget -O UnitedBitcoin-2.2.0.3.tar.gz https://github.com/UnitedBitcoin/UnitedBitcoin/archive/v2.2.0.3.tar.gz
-tar zxf UnitedBitcoin-2.2.0.3.tar.gz
+wget -O UnitedBitcoin-2.5.0.1.tar.gz https://github.com/UnitedBitcoin/UnitedBitcoin/archive/v2.5.0.1.tar.gz
+tar zxf UnitedBitcoin-2.5.0.1.tar.gz
 
 # install libdb that UnitedBitcoin's wallet required
 apt-get install -y software-properties-common
@@ -210,10 +210,10 @@ apt-get -y update
 apt-get install -y libdb4.8-dev libdb4.8++-dev
 
 # UnitedBitcoin will build failed with `--disable-wallet`, so we have to build it manually with wallet
-cd UnitedBitcoin-2.2.0.3
+cd UnitedBitcoin-2.5.0.1
 ./autogen.sh
 ./configure --disable-bench --disable-tests
-make -j4
+make -j$(nproc)
 
 cd ..
 git clone https://github.com/btccom/btcpool.git
@@ -222,16 +222,16 @@ mkdir build
 cd build
 
 # Release build with 4 jobs:
-cmake -DJOBS=4 -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-2.2.0.3 ..
-make -j4
+cmake -DJOBS=4 -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-2.5.0.1 ..
+make -j$(nproc)
 
 # Release build at macOS:
-cmake -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-2.2.0.3 -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl ..
-make
+cmake -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-2.5.0.1 -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl ..
+make -j$(nproc)
 
 # Debug build:
-cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-2.2.0.3 ..
-make
+cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=UBTC -DCHAIN_SRC_ROOT=/work/UnitedBitcoin-2.5.0.1 ..
+make -j$(nproc)
 ```
 
 **build BTCPool that linking to SuperBitcoin**
@@ -255,15 +255,15 @@ cd build
 
 # Release build with 4 jobs:
 cmake -DJOBS=4 -DCHAIN_TYPE=SBTC -DCHAIN_SRC_ROOT=/work/SuperBitcoin-0.17.1 ..
-make -j4
+make -j$(nproc)
 
 # Release build at macOS:
 cmake -DCHAIN_TYPE=SBTC -DCHAIN_SRC_ROOT=/work/SuperBitcoin-0.17.1 -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl ..
-make
+make -j$(nproc)
 
 # Debug build:
 cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=SBTC -DCHAIN_SRC_ROOT=/work/SuperBitcoin-0.17.1 ..
-make
+make -j$(nproc)
 ```
 
 **build BTCPool that linking to Litecoin**
@@ -281,11 +281,11 @@ cd build
 
 # Release build with 4 jobs:
 cmake -DJOBS=4 -DCHAIN_TYPE=LTC -DCHAIN_SRC_ROOT=/work/litecoin-0.16.3 ..
-make -j4
+make -j$(nproc)
 
 # Debug build:
 cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=LTC -DCHAIN_SRC_ROOT=/work/litecoin-0.16.3 ..
-make -j4
+make -j$(nproc)
 ```
 
 **build BTCPool that linking to ZCash**
@@ -303,11 +303,11 @@ cd build
 
 # Release build with 4 jobs:
 cmake -DJOBS=4 -DCHAIN_TYPE=ZEC -DCHAIN_SRC_ROOT=/work/zcash-2.0.4 ..
-make -j4
+make -j$(nproc)
 
 # Debug build:
 cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_TYPE=ZEC -DCHAIN_SRC_ROOT=/work/zcash-2.0.4 ..
-make -j4
+make -j$(nproc)
 ```
 
 **How about ETH/ETC/Beam/Grin/Decred/Bytom?**
@@ -462,7 +462,7 @@ $ supervisorctl
 
 
 #
-# start your stratum server(see below) and add some miners to the pool, after make
+# start your stratum server(see below) and add some miners to the pool, after make -j$(nproc)
 # some shares than start 'slparser' & 'statshttpd'
 #
 cp slparser.conf      /etc/supervisor/conf.d
@@ -516,7 +516,7 @@ Get the latest codes and rebuild:
 cd /work/btcpool/build
 git pull
 cmake ..
-make
+make -j$(nproc)
 ```
 
 use `supervisorctl` to restart your services:
