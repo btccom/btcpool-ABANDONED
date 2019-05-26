@@ -40,6 +40,9 @@ using namespace std;
 
 class WorkerUpdate {
 public:
+    const size_t FLUSH_SIZE = 1;
+    const time_t FIX_GROUPID_INTERVAL = 120;
+
     WorkerUpdate(
         string consumeBrokers, string consumeTopic, string consumeGroupId,
         const MysqlConnectInfo &mysqlInfo
@@ -247,14 +250,25 @@ protected:
 
         return false;
     }
+
+    string sql_;
+    time_t lastFlushTime_ = 0;
     
     bool updateWorkerStatusToDB(
         const int32_t userId, const int64_t workerId,
         const char *workerName, const char *minerAgent) {
-        string sql;
-        char **row = nullptr;
         MySQLResult res;
         const string nowStr = date("%F %T", time(nullptr));
+
+        const string sqlBegin =
+            "INSERT INTO `mining_workers`(`puid`,`worker_id`,"
+            " `group_id`,`worker_name`,`miner_agent`,"
+            " `created_at`,`updated_at`) VALUES";
+        const string sqlEnd =
+            " ON DUPLICATE KEY UPDATE "
+            " `worker_name`= VALUES(`worker_name`),"
+            " `miner_agent`= VALUES(`miner_agent`),"
+            " `updated_at`= VALUES(`updated_at`)";
 
 		static map<int32_t, set<int64_t>> workerCache;
 
@@ -262,59 +276,25 @@ protected:
 			return true;
 		}
 
-        // find the miner
-        sql = StringFormat(
-            "SELECT `group_id`,`worker_name`,`miner_agent` FROM `mining_workers` "
-            " WHERE `puid`=%d AND `worker_id`= %" PRId64"",
-            userId, workerId);
-        mysqlConn_->query(sql, res);
+        string sqlValues = StringFormat(
+            "(%d,%" PRId64",%d,'%s','%s','%s','%s')",
+            userId, workerId,
+            userId * -1,  // default group id
+            workerName, minerAgent,
+            nowStr.c_str(), nowStr.c_str());
 
-        if (res.numRows() > 0 && (row = res.nextRow()) != nullptr) {
-            const int32_t currGroupId = atoi(row[0]);
-            const char *currWorkerName = row[1];
-            const char *currMinerAgent = row[2];
+        sql_ += sql_.empty() ? sqlBegin : ", ";
+        sql_ += sqlValues;
+        
+		workerCache[userId].insert(workerId);
 
-            if (currGroupId != 0 &&
-                currWorkerName != nullptr &&
-                currMinerAgent != nullptr &&
-                string(workerName) == string(currWorkerName) &&
-                string(minerAgent) == string(currMinerAgent)) {
-                return true;
-            }
-
-            // group Id == 0: means the miner's status is 'deleted'
-            // we need to move from 'deleted' group to 'default' group.
-            sql = StringFormat(
-                "UPDATE `mining_workers` SET `group_id`=%d, "
-                " `worker_name`=\"%s\", `miner_agent`=\"%s\", "
-                " `updated_at`=\"%s\" "
-                " WHERE `puid`=%d AND `worker_id`= %" PRId64"",
-                currGroupId == 0 ? userId * -1 : currGroupId,
-                workerName, minerAgent,
-                nowStr.c_str(),
-                userId, workerId
-            );
-        }
-        else {
-            // we have to use 'ON DUPLICATE KEY UPDATE', because 'statshttpd' may insert
-            // items to table.mining_workers between we 'select' and 'insert' gap.
-            // 'statshttpd' will always set an empty 'worker_name'.
-            sql = StringFormat(
-                "INSERT INTO `mining_workers`(`puid`,`worker_id`,"
-                " `group_id`,`worker_name`,`miner_agent`,"
-                " `created_at`,`updated_at`) "
-                " VALUES(%d,%" PRId64",%d,\"%s\",\"%s\",\"%s\",\"%s\")"
-                " ON DUPLICATE KEY UPDATE "
-                " `worker_name`= \"%s\",`miner_agent`=\"%s\",`updated_at`=\"%s\" ",
-                userId, workerId,
-                userId * -1,  // default group id
-                workerName, minerAgent,
-                nowStr.c_str(), nowStr.c_str(),
-                workerName, minerAgent,
-                nowStr.c_str());
+        if (sql_.size() < FLUSH_SIZE) {
+            return true;
         }
 
-        if (mysqlConn_->execute(sql) == false) {
+        sql_ += sqlEnd;
+
+        if (mysqlConn_->execute(sql_) == false) {
             LOG(ERROR) << "insert worker name failure";
 
             // try to reconnect mysql, so last update may success
@@ -322,9 +302,26 @@ protected:
                 LOG(ERROR) << "updateWorkerStatusToDB: can't connect to pool DB";
             }
 
+            sql_.clear();
             return false;
         }
-		workerCache[userId].insert(workerId);
+
+        time_t now = time(nullptr);
+        if (now - lastFlushTime_ > FIX_GROUPID_INTERVAL) {
+            sql_ = "UPDATE `mining_workers` SET `group_id`=-`puid`"
+                " WHERE `group_id`=0 AND `last_share_time` > "
+                + date("'%F %T'", now - 900);
+
+            if (mysqlConn_->execute(sql_)) {
+                LOG(ERROR) << "fix group_id success";
+            } else {
+                LOG(ERROR) << "fix group_id failure";
+            }
+        }
+
+
+        lastFlushTime_ = time(nullptr);
+        sql_.clear();
         return true;
     }
 
