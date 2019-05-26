@@ -257,13 +257,23 @@ protected:
 
         // find the miner
         sql = StringFormat(
-            "SELECT `group_id` FROM `mining_workers` "
+            "SELECT `group_id`,`worker_name`,`miner_agent` FROM `mining_workers` "
             " WHERE `puid`=%d AND `worker_id`= %" PRId64"",
             userId, workerId);
         mysqlConn_->query(sql, res);
 
         if (res.numRows() > 0 && (row = res.nextRow()) != nullptr) {
-            const int32_t groupId = atoi(row[0]);
+            const int32_t currGroupId = atoi(row[0]);
+            const char *currWorkerName = row[1];
+            const char *currMinerAgent = row[2];
+
+            if (currGroupId != 0 &&
+                currWorkerName != nullptr &&
+                currMinerAgent != nullptr &&
+                string(workerName) == string(currWorkerName) &&
+                string(minerAgent) == string(currMinerAgent)) {
+                return true;
+            }
 
             // group Id == 0: means the miner's status is 'deleted'
             // we need to move from 'deleted' group to 'default' group.
@@ -272,7 +282,7 @@ protected:
                 " `worker_name`=\"%s\", `miner_agent`=\"%s\", "
                 " `updated_at`=\"%s\" "
                 " WHERE `puid`=%d AND `worker_id`= %" PRId64"",
-                groupId == 0 ? userId * -1 : groupId,
+                currGroupId == 0 ? userId * -1 : currGroupId,
                 workerName, minerAgent,
                 nowStr.c_str(),
                 userId, workerId
@@ -327,3 +337,4 @@ protected:
     MysqlConnectInfo mysqlInfo_;
     shared_ptr<MySQLConnection> mysqlConn_;
 };
+
