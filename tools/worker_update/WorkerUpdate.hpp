@@ -25,6 +25,7 @@
 
 #include <string>
 #include <map>
+#include <set>
 #include <atomic>
 #include <thread>
 
@@ -35,7 +36,7 @@
 #include "utilities_js.hpp"
 #include "utils.hpp"
 
-using std::string;
+using namespace std;
 
 class WorkerUpdate {
 public:
@@ -255,6 +256,12 @@ protected:
         MySQLResult res;
         const string nowStr = date("%F %T", time(nullptr));
 
+		static map<int32_t, set<int64_t>> workerCache;
+
+		if (workerCache[userId].find(workerId) != workerCache[userId].end()) {
+			return true;
+		}
+
         // find the miner
         sql = StringFormat(
             "SELECT `group_id`,`worker_name`,`miner_agent` FROM `mining_workers` "
@@ -317,7 +324,7 @@ protected:
 
             return false;
         }
-
+		workerCache[userId].insert(workerId);
         return true;
     }
 
