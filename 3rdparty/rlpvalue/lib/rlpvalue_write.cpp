@@ -51,10 +51,9 @@ static std::string encodeLength(size_t n, unsigned char offset)
 		// assert(n too big);
 
 		std::string binlen = encodeBinary(n);
-		rs.append(binlen);
-
 		unsigned char ch = binlen.size() + offset + 55;
 		rs.assign((const char *) &ch, 1);
+        rs.append(binlen);
 	}
 
 	return rs;
