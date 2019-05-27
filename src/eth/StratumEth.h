@@ -29,6 +29,8 @@
 
 #include "rsk/RskWork.h"
 #include "eth/eth.pb.h"
+
+#include <rlpvalue.h>
 #include <uint256.h>
 
 // [[[[ IMPORTANT REMINDER! ]]]]
@@ -326,7 +328,8 @@ public:
   float gasUsedPercent_ = 0.0;
 
   string header_;
-  mutable vector<uint8_t> headerBin_;
+  RLPValue headerNoExtraData_;
+  string extraData_;
 
   string rpcAddress_;
   string rpcUserPwd_;

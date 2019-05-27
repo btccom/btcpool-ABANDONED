@@ -31,8 +31,11 @@
 
 #include <boost/endian/buffers.hpp>
 
+static const size_t ETH_HEADER_FIELDS = 13;
+
 ///////////////////////////////StratumJobEth///////////////////////////
-StratumJobEth::StratumJobEth() {
+StratumJobEth::StratumJobEth()
+  : headerNoExtraData_{RLPValue::VARR} {
 }
 
 bool StratumJobEth::initFromGw(
@@ -154,7 +157,26 @@ bool StratumJobEth::unserializeFromJson(const char *s, size_t len) {
   if (j["header"].type() == Utilities::JS::type::Str) {
     header_ = HexStripPrefix(j["header"].str());
     if (IsHex(header_)) {
-      headerBin_ = ParseHex(header_);
+      auto headerBin = ParseHex(header_);
+      size_t consumed = 0;
+      size_t wanted = 0;
+      RLPValue headerValue;
+      if (headerValue.read(
+              &headerBin.front(), headerBin.size(), consumed, wanted) &&
+          headerValue.size() == ETH_HEADER_FIELDS &&
+          headerValue[ETH_HEADER_FIELDS - 1].type() == RLPValue::VBUF) {
+        for (size_t i = 0; i < ETH_HEADER_FIELDS - 1; ++i) {
+          headerNoExtraData_.push_back(headerValue[i]);
+        }
+        extraData_ = headerValue[ETH_HEADER_FIELDS - 1].get_str();
+        if (extraData_.size() >= 4 &&
+            extraData_.find('\0', extraData_.size() - 4) != std::string::npos) {
+          // Remove the substitutable zeros
+          extraData_ = extraData_.substr(0, extraData_.size() - 4);
+        }
+      } else {
+        LOG(ERROR) << "Decoding RLP failed for block header";
+      }
     } else {
       header_.clear();
     }
@@ -173,10 +195,19 @@ string StratumJobEth::getHeaderHashWithExtraNonce(uint32_t extraNonce) const {
   if (header_.empty()) {
     return headerHash_;
   } else {
-    boost::endian::little_uint32_buf_t extraNonceBuf{extraNonce};
-    std::copy_n(extraNonceBuf.data(), 4, headerBin_.rbegin());
+    boost::endian::big_uint32_buf_t extraNonceBuf{extraNonce};
+    RLPValue headerValue{headerNoExtraData_};
+    std::string extraData{extraData_};
+    extraData.append(extraNonceBuf.data(), 4);
+    headerValue.push_back(RLPValue{extraData});
+    auto headerBin = headerValue.write();
+    DLOG(INFO) << "Header bytes: " << HexStr(headerBin);
     uint8_t hash[32];
-    sha3_256(hash, 32, headerBin_.data(), headerBin_.size());
+    sha3_256(
+        hash,
+        32,
+        reinterpret_cast<const uint8_t *>(headerBin.data()),
+        headerBin.size());
     string headerHash;
     Bin2Hex(hash, 32, headerHash);
     return headerHash;
