@@ -113,7 +113,7 @@ void StratumMinerGrin::handleRequest_Submit(
     LOG(ERROR) << "can't find session's diff, worker: " << worker.fullName_;
     return;
   }
-  auto &jobDiff = iter->second;
+  uint64_t shareDiff = iter->second;
 
   ShareGrin share;
   share.set_version(ShareGrin::CURRENT_VERSION);
@@ -122,7 +122,7 @@ void StratumMinerGrin::handleRequest_Submit(
   share.set_userid(worker.userId(localJob->chainId_));
   share.set_timestamp((uint64_t)time(nullptr));
   share.set_status(StratumStatus::REJECT_NO_REASON);
-  share.set_sharediff(jobDiff.currentJobDiff_);
+  share.set_sharediff(shareDiff);
   share.set_blockdiff(sjob->difficulty_);
   share.set_height(height);
   share.set_nonce(nonce);
@@ -138,10 +138,7 @@ void StratumMinerGrin::handleRequest_Submit(
   // can't add local share
   if (!localJob->addLocalShare(localShare)) {
     handleShare(
-        idStr,
-        StratumStatus::DUPLICATE_SHARE,
-        jobDiff.currentJobDiff_,
-        localJob->chainId_);
+        idStr, StratumStatus::DUPLICATE_SHARE, shareDiff, localJob->chainId_);
     // add invalid share to counter
     invalidSharesCounter_.insert((int64_t)time(nullptr), 1);
     return;
@@ -149,14 +146,7 @@ void StratumMinerGrin::handleRequest_Submit(
 
   uint256 blockHash;
   server.checkAndUpdateShare(
-      localJob->chainId_,
-      share,
-      exjob,
-      proofs,
-      jobDiff.jobDiffs_,
-      worker.fullName_,
-      blockHash,
-      isNiceHashClient_);
+      localJob->chainId_, share, exjob, proofs, worker.fullName_, blockHash);
 
   if (StratumStatus::isAccepted(share.status())) {
     DLOG(INFO) << "share reached the diff: " << share.scaledShareDiff();
@@ -170,13 +160,7 @@ void StratumMinerGrin::handleRequest_Submit(
           idStr, share.status(), share.sharediff(), localJob->chainId_)) {
     if (StratumStatus::isSolved(share.status())) {
       server.sendSolvedShare2Kafka(
-          localJob->chainId_,
-          share,
-          exjob,
-          proofs,
-          worker,
-          blockHash,
-          isNiceHashClient_);
+          localJob->chainId_, share, exjob, proofs, worker, blockHash);
       // mark jobs as stale
       server.GetJobRepository(localJob->chainId_)->markAllJobsAsStale();
     }

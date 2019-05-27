@@ -43,18 +43,15 @@ public:
       ShareGrin &share,
       shared_ptr<StratumJobEx> exjob,
       const vector<uint64_t> &proofs,
-      const std::set<uint64_t> &jobDiffs,
       const string &workFullName,
-      uint256 &blockHash,
-      bool niceHashAgent);
+      uint256 &blockHash);
   void sendSolvedShare2Kafka(
       size_t chainId,
       const ShareGrin &share,
       shared_ptr<StratumJobEx> exjob,
       const vector<uint64_t> &proofs,
       const StratumWorker &worker,
-      const uint256 &blockHash,
-      bool niceHashAgent);
+      const uint256 &blockHash);
 
 protected:
   JobRepository *createJobRepository(

@@ -235,7 +235,7 @@ void StratumSessionGrin::sendMiningNotifyWithId(
       currentDifficulty_,
       job->height_,
       prePowHash,
-      job->prePowStr(isNiceHashClient_).c_str());
+      job->prePowStr(currentDifficulty_));
 
   DLOG(INFO) << strNotify;
   sendData(strNotify); // send notify string

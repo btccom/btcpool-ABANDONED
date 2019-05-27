@@ -199,7 +199,7 @@ public:
   string serializeToJson() const override;
   bool unserializeFromJson(const char *s, size_t len) override;
   uint64_t height() const override { return height_; }
-  string prePowStr(bool niceHashAgent) const;
+  string prePowStr(uint64_t difficulty) const;
 
   uint64_t height_;
   uint64_t nodeJobId_;
@@ -214,19 +214,7 @@ class StratumSessionGrin;
 struct StratumTraitsGrin {
   using ServerType = StratumServerGrin;
   using SessionType = StratumSessionGrin;
-
-  struct JobDiffType {
-    // difficulty of this job (due to difficulty adjustment,
-    // there can be multiple diffs in the same job)
-    uint64_t currentJobDiff_;
-    std::set<uint64_t> jobDiffs_;
-
-    JobDiffType &operator=(uint64_t diff) {
-      jobDiffs_.insert(diff);
-      currentJobDiff_ = diff;
-      return *this;
-    }
-  };
+  using JobDiffType = uint64_t;
 
   struct LocalJobType : public LocalJob {
     LocalJobType(size_t chainId, uint64_t jobId, uint32_t prePowHash)

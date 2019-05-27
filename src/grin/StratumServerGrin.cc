@@ -39,10 +39,8 @@ void StratumServerGrin::checkAndUpdateShare(
     ShareGrin &share,
     shared_ptr<StratumJobEx> exjob,
     const vector<uint64_t> &proofs,
-    const std::set<uint64_t> &jobDiffs,
     const string &workFullName,
-    uint256 &blockHash,
-    bool niceHashAgent) {
+    uint256 &blockHash) {
   auto sjob = std::static_pointer_cast<StratumJobGrin>(exjob->sjob_);
 
   DLOG(INFO) << "checking share nonce: " << std::hex << share.nonce()
@@ -56,9 +54,8 @@ void StratumServerGrin::checkAndUpdateShare(
 
   PreProofGrin preProof;
   preProof.prePow = sjob->prePow_;
-  if (niceHashAgent) {
-    preProof.prePow.timestamp = preProof.prePow.timestamp.value() + 1;
-  }
+  preProof.prePow.timestamp =
+      preProof.prePow.timestamp.value() + DiffToShift(share.sharediff());
   preProof.nonce = share.nonce();
   bool isValidSolution = VerifyPowGrin(preProof, share.edgebits(), proofs);
   if (!isValidSolution && !isEnableSimulator_) {
@@ -98,18 +95,12 @@ void StratumServerGrin::checkAndUpdateShare(
     return;
   }
 
-  // higher difficulty is prior
-  for (auto itr = jobDiffs.rbegin(); itr != jobDiffs.rend(); itr++) {
-    uint64_t jobDiff = *itr;
-    uint64_t scaledJobDiff = jobDiff * share.scaling();
-    DLOG(INFO) << "compare share difficulty: " << scaledShareDiff
-               << ", job difficulty: " << scaledJobDiff;
+  DLOG(INFO) << "compare share difficulty: " << scaledShareDiff
+             << ", job difficulty: " << share.scaledShareDiff();
 
-    if (isEnableSimulator_ || scaledShareDiff >= scaledJobDiff) {
-      share.set_sharediff(jobDiff);
-      share.set_status(StratumStatus::ACCEPT);
-      return;
-    }
+  if (isEnableSimulator_ || scaledShareDiff >= share.scaledShareDiff()) {
+    share.set_status(StratumStatus::ACCEPT);
+    return;
   }
 
   share.set_status(StratumStatus::LOW_DIFFICULTY);
@@ -122,8 +113,7 @@ void StratumServerGrin::sendSolvedShare2Kafka(
     shared_ptr<StratumJobEx> exjob,
     const vector<uint64_t> &proofs,
     const StratumWorker &worker,
-    const uint256 &blockHash,
-    bool niceHashAgent) {
+    const uint256 &blockHash) {
   string proofArray;
   if (!proofs.empty()) {
     proofArray = std::accumulate(
@@ -137,9 +127,10 @@ void StratumServerGrin::sendSolvedShare2Kafka(
   string blockHashStr;
   Bin2Hex(blockHash.begin(), blockHash.size(), blockHashStr);
   string timestampStr;
-  if (niceHashAgent) {
+  uint64_t shift = DiffToShift(share.sharediff());
+  if (shift > 0) {
     timestampStr = Strings::Format(
-        ",\"timestamp\":%" PRId64, sjob->prePow_.timestamp.value() + 1);
+        ",\"timestamp\":%" PRId64, sjob->prePow_.timestamp.value() + shift);
   }
   string msg = Strings::Format(
       "{\"prePow\":\"%s\""

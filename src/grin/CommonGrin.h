@@ -94,3 +94,11 @@ uint64_t PowDifficultyGrin(
     const std::vector<uint64_t> &proofs);
 
 uint64_t GetBlockRewardGrin(uint64_t height);
+
+inline uint64_t DiffToShift(uint64_t diff) {
+  uint64_t shift = 0;
+  while (diff >>= 1) {
+    ++shift;
+  }
+  return shift;
+}
