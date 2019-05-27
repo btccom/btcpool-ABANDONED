@@ -41,7 +41,7 @@ using namespace std;
 class WorkerUpdate {
 public:
     const size_t FLUSH_SIZE = 1;
-    const time_t FIX_GROUPID_INTERVAL = 120;
+    const time_t FIX_GROUPID_INTERVAL = 60;
 
     WorkerUpdate(
         string consumeBrokers, string consumeTopic, string consumeGroupId,
@@ -252,13 +252,14 @@ protected:
     }
 
     string sql_;
-    time_t lastFlushTime_ = 0;
+    time_t lastFixGroupIdTime_ = 0;
     
     bool updateWorkerStatusToDB(
         const int32_t userId, const int64_t workerId,
         const char *workerName, const char *minerAgent) {
         MySQLResult res;
-        const string nowStr = date("%F %T", time(nullptr));
+        time_t now = time(nullptr);
+        const string nowStr = date("%F %T", now);
 
         const string sqlBegin =
             "INSERT INTO `mining_workers`(`puid`,`worker_id`,"
@@ -306,21 +307,18 @@ protected:
             return false;
         }
 
-        time_t now = time(nullptr);
-        if (now - lastFlushTime_ > FIX_GROUPID_INTERVAL) {
+        if (now - lastFixGroupIdTime_ > FIX_GROUPID_INTERVAL) {
             sql_ = "UPDATE `mining_workers` SET `group_id`=-`puid`"
-                " WHERE `group_id`=0 AND `last_share_time` > "
-                + date("'%F %T'", now - 900);
+                " WHERE `group_id`=0 AND `last_share_time` > CURRENT_TIMESTAMP()-900";
 
             if (mysqlConn_->execute(sql_)) {
                 LOG(ERROR) << "fix group_id success";
+                lastFixGroupIdTime_ = now;
             } else {
                 LOG(ERROR) << "fix group_id failure";
             }
         }
 
-
-        lastFlushTime_ = time(nullptr);
         sql_.clear();
         return true;
     }
@@ -341,4 +339,3 @@ protected:
     MysqlConnectInfo mysqlInfo_;
     shared_ptr<MySQLConnection> mysqlConn_;
 };
-
