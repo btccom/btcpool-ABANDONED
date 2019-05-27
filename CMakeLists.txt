@@ -431,6 +431,7 @@ endif()
 add_subdirectory(3rdparty/libblake2)
 add_subdirectory(3rdparty/libethash)
 add_subdirectory(3rdparty/libsph)
+add_subdirectory(3rdparty/rlpvalue)
 
 if(USE_CUDA)
   set(USE_CUDA_INCLUDE_DIRECTORY ${CUDA_INCLUDE_DIRECTORIES})
@@ -527,6 +528,7 @@ add_library(
     ${LIB_SOURCES_SHARES}
     ${LIB_SOURCES_CHAINS})
 target_link_libraries(btcpool PUBLIC beam cuckoo)
+target_link_libraries(btcpool PUBLIC rlpvalue)
 
 if(BUILD_TESTING)
   file(GLOB_RECURSE TEST_SOURCES test/*.cc)
