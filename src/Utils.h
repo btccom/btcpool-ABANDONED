@@ -35,7 +35,6 @@
 #include <glog/logging.h>
 #include <event2/buffer.h>
 
-#define FMT_HEADER_ONLY
 #include <fmt/format.h>
 #include <fmt/printf.h>
 

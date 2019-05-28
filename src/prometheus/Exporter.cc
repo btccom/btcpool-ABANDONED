@@ -27,7 +27,6 @@
 #include "Collector.h"
 #include "Metric.h"
 
-#define FMT_HEADER_ONLY
 #include <fmt/format.h>
 
 #include <event2/buffer.h>

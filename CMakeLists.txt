@@ -441,6 +441,8 @@ else()
   add_definitions(-DNO_CUDA)
 endif(USE_CUDA)
 
+add_definitions(-DFMT_HEADER_ONLY)
+
 include_directories(
   ${CMAKE_CURRENT_BINARY_DIR}/src
   3rdparty
