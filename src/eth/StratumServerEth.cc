@@ -566,7 +566,7 @@ void ServerEth::sendSolvedShare2Kafka(
     const uint64_t networkDiff,
     const StratumWorker &worker,
     const EthConsensus::Chain chain,
-    const boost::optional<uint32_t> &sessionId) {
+    const string &extraNonce) {
   string msg = Strings::Format(
       "{\"nonce\":\"%s\",\"header\":\"%s\",\"mix\":\"%s\""
       ",\"height\":%u,\"networkDiff\":%u"
@@ -580,7 +580,7 @@ void ServerEth::sendSolvedShare2Kafka(
       strMix,
       height,
       networkDiff,
-      sessionId ? Strings::Format(",\"extraNonce\":%u", *sessionId) : "",
+      extraNonce,
       worker.userId(chainId),
       worker.workerHashId_,
       filterWorkerName(worker.fullName_),

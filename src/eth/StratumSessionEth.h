@@ -65,12 +65,16 @@ public:
   // response a false with an error object as data
   void rpc2ResponseFalse(const string &idStr, int errCode);
 
+  void checkExtraNonce2(const JsonNode &jroot);
+  bool hasExtraNonce2() const { return extraNonce2_; }
+
 private:
   StratumProtocolEth ethProtocol_;
   // Record the difficulty of the last time sent to the miner in
   // NICEHASH_STRATUM protocol.
   uint64_t nicehashLastSentDiff_;
   uint64_t currentJobDiff_;
+  bool extraNonce2_;
 };
 
 #endif // #ifndef STRATUM_SESSION_ETH_H_

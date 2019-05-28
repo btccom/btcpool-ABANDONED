@@ -52,7 +52,7 @@ void StratumMinerEth::handleRequest(
   } else if (method == "eth_submitHashrate") {
     handleRequest_SubmitHashrate(idStr, jparams);
   } else if (method == "mining.submit" || method == "eth_submitWork") {
-    handleRequest_Submit(idStr, jparams);
+    handleRequest_Submit(idStr, jparams, jroot);
   }
 }
 
@@ -72,7 +72,7 @@ void StratumMinerEth::handleRequest_SubmitHashrate(
 }
 
 void StratumMinerEth::handleRequest_Submit(
-    const string &idStr, const JsonNode &jparams) {
+    const string &idStr, const JsonNode &jparams, const JsonNode &jroot) {
 
   auto &session = getSession();
   if (session.getState() != StratumSession::AUTHENTICATED) {
@@ -261,6 +261,20 @@ void StratumMinerEth::handleRequest_Submit(
   if (handleShare(
           idStr, share.status(), share.sharediff(), localJob->chainId_)) {
     if (StratumStatus::isSolved(share.status())) {
+      string extraNonce;
+      if (sjob->hasHeader()) {
+        if (session.hasExtraNonce2()) {
+          uint32_t extraNonce2 = 0;
+          auto &jsonRoot = const_cast<JsonNode &>(jroot);
+          if (jsonRoot["extra_nonce"].type() == Utilities::JS::type::Str) {
+            extraNonce2 = jsonRoot["extra_nonce"].uint32_hex();
+          }
+          extraNonce = fmt::format(
+              ",\"extraNonce\":\"0x{:08x}{:08x}\"", extraNonce1, extraNonce2);
+        } else {
+          extraNonce = fmt::format(",\"extraNonce\":\"0x{:08x}\"", extraNonce1);
+        }
+      }
       server.sendSolvedShare2Kafka(
           localJob->chainId_,
           sNonce,
@@ -270,7 +284,7 @@ void StratumMinerEth::handleRequest_Submit(
           networkDiff,
           worker,
           chain,
-          boost::make_optional(!sjob->header_.empty(), extraNonce1));
+          extraNonce);
       // mark jobs as stale
       server.GetJobRepository(localJob->chainId_)->markAllJobsAsStale();
     }

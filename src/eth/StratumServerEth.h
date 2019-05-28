@@ -31,8 +31,6 @@
 #include "StratumServer.h"
 #include "StratumEth.h"
 
-#include <boost/optional.hpp>
-
 class JobRepositoryEth;
 
 class ServerEth : public ServerBase<JobRepositoryEth> {
@@ -56,7 +54,7 @@ public:
       const uint64_t networkDiff,
       const StratumWorker &worker,
       const EthConsensus::Chain chain,
-      const boost::optional<uint32_t> &sessionId);
+      const string &extraNonce);
 
   JobRepository *createJobRepository(
       size_t chainId,

@@ -49,7 +49,7 @@ private:
       const string &chain,
       const uint64_t networkDiff,
       const StratumWorkerPlain &worker,
-      const boost::optional<uint32_t> &extraNonce);
+      const string &extraNonce);
   void _submitBlockThread(
       const string &nonce,
       const string &header,
@@ -59,7 +59,7 @@ private:
       const string &chain,
       const uint64_t networkDiff,
       const StratumWorkerPlain &worker,
-      const boost::optional<uint32_t> &extraNonce,
+      const string &extraNonce,
       std::atomic<bool> *syncSubmitSuccess);
   void saveBlockToDB(
       const string &nonce,
@@ -74,7 +74,7 @@ private:
       const string &nonce,
       const string &header,
       const string &mix,
-      const boost::optional<uint32_t> &extraNonce,
+      const string &extraNonce,
       const string &rpcUrl,
       const string &rpcUserPass,
       bool parity,

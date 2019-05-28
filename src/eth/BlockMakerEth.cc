@@ -26,6 +26,8 @@
 
 #include "utilities_js.hpp"
 
+#include <fmt/format.h>
+
 #include <chrono>
 #include <thread>
 
@@ -69,10 +71,15 @@ void BlockMakerEth::processSolvedShare(rd_kafka_message_t *rkmessage) {
   worker.workerHashId_ = r["workerId"].int64();
   worker.fullName_ = r["workerFullName"].str();
 
-  boost::optional<uint32_t> extraNonce;
+  std::string extraNonceStr;
   if (r["extraNonce"].type() == Utilities::JS::type::Int) {
-    extraNonce = r["extraNonce"].uint32();
-    LOG(INFO) << "submit a block with extra nonce " << *extraNonce;
+    auto extraNonce = r["extraNonce"].uint32();
+    extraNonceStr = fmt::format(",{}", extraNonce);
+    LOG(INFO) << "submit a block with extra nonce " << extraNonce;
+  } else if (r["extraNonce"].type() == Utilities::JS::type::Str) {
+    auto extraNonce = r["extraNonce"].str();
+    extraNonceStr = ",\"" + HexAddPrefix(extraNonce) + "\"";
+    LOG(INFO) << "submit a block with extra nonce " << extraNonce;
   }
 
   submitBlockNonBlocking(
@@ -84,14 +91,14 @@ void BlockMakerEth::processSolvedShare(rd_kafka_message_t *rkmessage) {
       r["chain"].str(),
       r["networkDiff"].uint64(),
       worker,
-      extraNonce);
+      extraNonceStr);
 }
 
 bool BlockMakerEth::submitBlock(
     const string &nonce,
     const string &header,
     const string &mix,
-    const boost::optional<uint32_t> &extraNonce,
+    const string &extraNonce,
     const string &rpcUrl,
     const string &rpcUserPass,
     bool parity,
@@ -141,7 +148,7 @@ bool BlockMakerEth::submitBlock(
       HexAddPrefix(nonce).c_str(),
       HexAddPrefix(header).c_str(),
       HexAddPrefix(mix).c_str(),
-      extraNonce ? Strings::Format(",%" PRIu32, *extraNonce).c_str() : "");
+      extraNonce.c_str());
 
   bool ok = blockchainNodeRpcCall(
       rpcUrl.c_str(), rpcUserPass.c_str(), request.c_str(), response);
@@ -224,7 +231,7 @@ bool BlockMakerEth::checkRpcSubmitBlock() {
         "0x0000000000000000",
         "0x0000000000000000000000000000000000000000000000000000000000000000",
         "0x0000000000000000000000000000000000000000000000000000000000000000",
-        boost::none,
+        "",
         itr.rpcAddr_,
         itr.rpcUserPwd_,
         true,
@@ -246,7 +253,7 @@ bool BlockMakerEth::checkRpcSubmitBlock() {
           "0x0000000000000000",
           "0x0000000000000000000000000000000000000000000000000000000000000000",
           "0x0000000000000000000000000000000000000000000000000000000000000000",
-          boost::none,
+          "",
           itr.rpcAddr_,
           itr.rpcUserPwd_,
           false,
@@ -285,7 +292,7 @@ void BlockMakerEth::submitBlockNonBlocking(
     const string &chain,
     const uint64_t networkDiff,
     const StratumWorkerPlain &worker,
-    const boost::optional<uint32_t> &extraNonce) {
+    const string &extraNonce) {
   std::vector<std::shared_ptr<std::thread>> threadPool;
   std::atomic<bool> syncSubmitSuccess(false);
 
@@ -322,7 +329,7 @@ void BlockMakerEth::_submitBlockThread(
     const string &chain,
     const uint64_t networkDiff,
     const StratumWorkerPlain &worker,
-    const boost::optional<uint32_t> &extraNonce,
+    const string &extraNonce,
     std::atomic<bool> *syncSubmitSuccess) {
   string blockHash;
 

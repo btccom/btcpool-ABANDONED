@@ -27,7 +27,6 @@
 #include <glog/logging.h>
 
 #include "bitcoin/CommonBitcoin.h"
-#include "libethash/sha3.h"
 
 #include <boost/endian/buffers.hpp>
 
@@ -170,7 +169,8 @@ bool StratumJobEth::unserializeFromJson(const char *s, size_t len) {
         }
         extraData_ = headerValue[ETH_HEADER_FIELDS - 1].get_str();
         if (extraData_.size() >= 4 &&
-            extraData_.find('\0', extraData_.size() - 4) != std::string::npos) {
+            extraData_.find_first_not_of('\0', extraData_.size() - 4) ==
+                std::string::npos) {
           // Remove the substitutable zeros
           extraData_ = extraData_.substr(0, extraData_.size() - 4);
         }
@@ -191,25 +191,23 @@ bool StratumJobEth::unserializeFromJson(const char *s, size_t len) {
   return true;
 }
 
-string StratumJobEth::getHeaderHashWithExtraNonce(uint32_t extraNonce) const {
+string StratumJobEth::getHeaderHashWithExtraNonce(
+    uint32_t extraNonce1, bool extraNonce2) const {
   if (header_.empty()) {
     return headerHash_;
   } else {
-    boost::endian::big_uint32_buf_t extraNonceBuf{extraNonce};
+    boost::endian::big_uint32_buf_t extraNonceBuf{extraNonce1};
     RLPValue headerValue{headerNoExtraData_};
     std::string extraData{extraData_};
     extraData.append(extraNonceBuf.data(), 4);
+    if (extraNonce2) {
+      extraData.append(4, '\0');
+    }
     headerValue.push_back(RLPValue{extraData});
-    auto headerBin = headerValue.write();
-    DLOG(INFO) << "Header bytes: " << HexStr(headerBin);
-    uint8_t hash[32];
-    sha3_256(
-        hash,
-        32,
-        reinterpret_cast<const uint8_t *>(headerBin.data()),
-        headerBin.size());
-    string headerHash;
-    Bin2Hex(hash, 32, headerHash);
-    return headerHash;
+    return headerValue.write();
   }
+}
+
+bool StratumJobEth::hasHeader() const {
+  return !headerNoExtraData_.empty();
 }

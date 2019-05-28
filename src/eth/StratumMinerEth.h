@@ -47,7 +47,8 @@ private:
   void handleRequest_GetWork(const string &idStr, const JsonNode &jparams);
   void
   handleRequest_SubmitHashrate(const string &idStr, const JsonNode &jparams);
-  void handleRequest_Submit(const string &idStr, const JsonNode &jparams);
+  void handleRequest_Submit(
+      const string &idStr, const JsonNode &jparams, const JsonNode &jroot);
 
   StratumProtocolEth ethProtocol_;
 };

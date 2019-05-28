@@ -28,6 +28,8 @@
 #include "StratumMinerEth.h"
 #include "DiffController.h"
 
+#include <libethash/sha3.h>
+
 // Remove the Ethereum address prefix from worker's full name
 // 0x00d8c82Eb65124Ea3452CaC59B64aCC230AA3482.test.aaa -> test.aaa
 static string stripEthAddrFromFullName(const string &fullNameStr) {
@@ -49,7 +51,8 @@ StratumSessionEth::StratumSessionEth(
   : StratumSessionBase(server, bev, saddr, extraNonce1)
   , ethProtocol_(StratumProtocolEth::ETHPROXY)
   , nicehashLastSentDiff_(0)
-  , currentJobDiff_(0) {
+  , currentJobDiff_(0)
+  , extraNonce2_(false) {
 }
 
 void StratumSessionEth::sendSetDifficulty(
@@ -82,7 +85,30 @@ void StratumSessionEth::sendMiningNotifyWithId(
     return;
   }
 
-  string header = ethJob->getHeaderHashWithExtraNonce(sessionId_);
+  string header;
+  string header2;
+  if (ethJob->hasHeader()) {
+    auto headerBin =
+        ethJob->getHeaderHashWithExtraNonce(sessionId_, extraNonce2_);
+    uint8_t hash[32];
+    sha3_256(
+        hash,
+        32,
+        reinterpret_cast<const uint8_t *>(headerBin.data()),
+        headerBin.size());
+    Bin2Hex(hash, 32, header);
+    if (extraNonce2_) {
+      // Cut 4 bytes from header - they will be filled by miner
+      Bin2Hex(
+          reinterpret_cast<const uint8_t *>(headerBin.data()),
+          headerBin.size(),
+          header2);
+      header2.substr(0, header2.size() - 8);
+      header2 = ",\"header\":\"" + HexAddPrefix(header2) + "\"";
+    }
+  } else {
+    header = ethJob->headerHash_;
+  }
   string seed = ethJob->seedHash_;
 
   // strip prefix "0x"
@@ -129,14 +155,15 @@ void StratumSessionEth::sendMiningNotifyWithId(
     strNotify = Strings::Format(
         "{\"id\":%s,\"method\":\"mining.notify\","
         "\"params\":[\"%s\",\"%s\",\"%s\",\"%s\",%s],"
-        "\"height\":%u}\n",
+        "\"height\":%lu%s}\n",
         idStr,
         header,
         header,
         seed,
         strShareTarget,
         exJobPtr->isClean_ ? "true" : "false",
-        ethJob->height_);
+        ethJob->height_,
+        header2);
   } break;
   case StratumProtocolEth::ETHPROXY: {
     // Clymore eth_getWork
@@ -150,14 +177,15 @@ void StratumSessionEth::sendMiningNotifyWithId(
         // nonce cannot start with 0x because of
         // a compatibility issue with AntMiner E3.
         "\"%06x\"],"
-        "\"height\":%u}\n",
+        "\"height\":%lu%s}\n",
         idStr,
         header,
         seed,
         // Claymore use 58 bytes target
         strShareTarget.substr(6, 58),
         startNoncePrefix,
-        ethJob->height_);
+        ethJob->height_,
+        header2);
   } break;
   case StratumProtocolEth::NICEHASH_STRATUM: {
     // send new difficulty
@@ -187,13 +215,14 @@ void StratumSessionEth::sendMiningNotifyWithId(
     strNotify += Strings::Format(
         "{\"id\":%s,\"method\":\"mining.notify\","
         "\"params\":[\"%s\",\"%s\",\"%s\",%s],"
-        "\"height\":%u}\n",
+        "\"height\":%lu%s}\n",
         idStr,
         header,
         seed,
         header,
         exJobPtr->isClean_ ? "true" : "false",
-        ethJob->height_);
+        ethJob->height_,
+        header2);
   } break;
   }
 
@@ -324,6 +353,7 @@ void StratumSessionEth::handleRequest_Subscribe(
     responseTrue(idStr);
   }
 
+  checkExtraNonce2(jroot);
   state_ = SUBSCRIBED;
 }
 
@@ -345,6 +375,7 @@ void StratumSessionEth::handleRequest_Authorize(
     // Subscribe is not required for ETHPROXY (without stratum switcher).
     // But if WORK_WITH_STRATUM_SWITCHER enabled, subscribe for ETHProxy is
     // required.
+    checkExtraNonce2(jroot);
     state_ = SUBSCRIBED;
   }
 
@@ -447,4 +478,11 @@ void StratumSessionEth::rpc2ResponseFalse(const string &idStr, int errCode) {
       errCode,
       StratumStatus::toString(errCode));
   sendData(data);
+}
+
+void StratumSessionEth::checkExtraNonce2(const JsonNode &jroot) {
+  JsonNode &jsonRoot = const_cast<JsonNode &>(jroot);
+  if (jsonRoot["extra_nonce"].type() == Utilities::JS::type::Bool) {
+    extraNonce2_ = jsonRoot["extra_nonce"].boolean();
+  }
 }

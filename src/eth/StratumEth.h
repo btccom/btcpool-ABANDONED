@@ -313,7 +313,9 @@ public:
       EthConsensus::Chain chain,
       uint8_t serverId);
 
-  string getHeaderHashWithExtraNonce(uint32_t extraNonce) const;
+  string
+  getHeaderHashWithExtraNonce(uint32_t extraNonce1, bool extraNonce2) const;
+  bool hasHeader() const;
 
   EthConsensus::Chain chain_ = EthConsensus::Chain::UNKNOWN;
   uint32_t height_ = 0;
