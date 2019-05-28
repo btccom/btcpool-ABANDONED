@@ -447,12 +447,15 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(
         (*vtxs)[i]->GetHash(); // vtxs is a shared_ptr<vector<CTransactionRef>>
   }
 
+  bool issupportvcashmergemining = false; 
+  //if the jobid is not exist , need submit to nmc
   std::shared_ptr<AuxBlockInfo> auxblockinfo;
   {
     ScopeLock sl(jobIdAuxBlockInfoLock_);
     if (jobId2AuxHash_.find(jobId) != jobId2AuxHash_.end()) {
       auxblockinfo = jobId2AuxHash_[jobId];
       assert(auxblockinfo.get() != nullptr);
+      issupportvcashmergemining = true ;
     }
   }
 
@@ -462,10 +465,11 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(
   uint256 bitcoinblockhash = blkHeader.GetHash();
 #endif
 
-  // rpcAddr is empty when aux is not supported
-  if (!auxBlockHash.empty() &&
+  // auxBlockHash is empty meaning that nmc is not supported
+  //when canot find auxblockinfo we need submit msg to nmc
+  if (!issupportvcashmergemining || (!auxBlockHash.empty() &&
       UintToArith256(bitcoinblockhash) <=
-          UintToArith256(auxblockinfo->auxNetworkTarget_)) {
+          UintToArith256(auxblockinfo->auxNetworkTarget_))) {
     //
     // build aux POW
     //
@@ -480,7 +484,7 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(
         rpcUserpass);
   }
 
-  if (UintToArith256(bitcoinblockhash) <=
+  if (issupportvcashmergemining && UintToArith256(bitcoinblockhash) <=
       UintToArith256(auxblockinfo->vcashNetworkTarget_)) {
 
     // build coinbase's merkle tree branch
