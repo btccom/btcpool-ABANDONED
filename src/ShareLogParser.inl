@@ -246,7 +246,7 @@ bool ShareLogParserT<SHARE>::processUnchangedShareLog() {
       while (currentpos + sizeof(uint32_t) < readNum) {
         uint32_t sharelength =
             *(uint32_t *)(buf.data() + currentpos); // get shareLength
-        //DLOG(INFO) << "sharelength = " << sharelength << std::endl;
+        // DLOG(INFO) << "sharelength = " << sharelength << std::endl;
         if (readNum >= currentpos + sizeof(uint32_t) + sharelength) {
 
           parseShareLog(

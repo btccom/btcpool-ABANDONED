@@ -4,7 +4,7 @@ source "$BASE_DIR/helper/functions.sh"
 
 PID=$$
 MAIN_CONTAINER_NAME="btc_sserver_1"
-SSERVER_RESULT="/tmp/btcpool-test-sserver.$PID.log"
+KAFKA_CONSUMER="docker exec btc_kafka_1 /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092"
 KAFKA_PRODUCER="docker exec -i btc_kafka_1 /opt/kafka/bin/kafka-console-producer.sh --broker-list kafka:9092"
 WAIT_FOR_IT="WAIT_FOR_IT $MAIN_CONTAINER_NAME"
 DOCKER_COMPOSE="docker-compose --no-ansi"
@@ -33,30 +33,9 @@ echo "send StratumJob in the background..."
 outputTestData | $KAFKA_PRODUCER --topic StratumJob &
 KAFKA_PRODUCER_PID=$!
 
-echo "receiving jobs from sserver (120s)..."
-{
-    echo '{"id":1,"method":"mining.subscribe","params":["autotest/0.1"]}'
-    echo '{"id":2,"method":"mining.authorize","params":["hu60.test","123"]}'
-} | nc 127.0.0.1 53333 >$SSERVER_RESULT &
-NC_PID=$!
-sleep 120
+echo "submit shares to sserver (120s)..."
+php "$BASE_DIR/helper/submit-shares.php" "$BASE_DIR/testdata/submit-shares-1.log" 127.0.0.1:53333
+
 kill $KAFKA_PRODUCER_PID || echo "Kafka producer exited"
-kill $NC_PID || {
-    echo "Connection to sserver closed too early"
-    head $SSERVER_RESULT
-    exit 1
-}
 
-line=`cat $SSERVER_RESULT | grep '"mining.notify"' | wc -l`
-if [ $line -lt 20 ]; then
-    echo "There should be 20 jobs but only $line"
-    exit 1
-else
-    echo "Got $line jobs from sserver, OK."
-fi
-
-echo "Checking jobs..."
-php "$BASE_DIR/helper/check-sserver-jobs.php" "$SSERVER_RESULT"
-
-rm $SSERVER_RESULT
 $DOCKER_COMPOSE down >>$STDOUT
