@@ -508,14 +508,14 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(
     sstream << std::hex << vtxhashes.size();
     string totalTxCountHex(sstream.str());
 
-    string rpcAddress = rpcAddr;
+    string rpcAddress = auxblockinfo->vcashRpcAddress_;
     if (rpcAddress.find_last_of('/') != string::npos)
       rpcAddress = rpcAddress.substr(0, rpcAddress.find_last_of('/')) +
           "/submitauxblock";
 
     submitVcashBlockPartialMerkleNonBlocking(
         rpcAddress,
-        rpcUserpass,
+        auxblockinfo->vcashRpcUserPwd_,
         auxblockinfo->vcashBlockHash_.GetHex(),
         blockHeaderHex,
         coinbaseTxHex,
@@ -524,27 +524,27 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(
   //
   // save to databse
   //
-  const string nowStr = date("%F %T");
-  string sql = Strings::Format(
-        "INSERT INTO `found_vcash_blocks` "
-        " (`bitcoin_block_hash`,`aux_block_hash`,"
-        " `created_at`) "
-        " VALUES (\"%s\",\"%s\",\"%s\"); ",
-        bitcoinblockhash.GetHex().c_str(),
-        auxblockinfo->vcashBlockHash_.GetHex().c_str(),
-        nowStr.c_str());
-    // try connect to DB
-    MySQLConnection db(poolDB_);
-    for (size_t i = 0; i < 3; i++) {
-      if (db.ping())
-        break;
-      else
-        std::this_thread::sleep_for(3s);
-    }
+  // const string nowStr = date("%F %T");
+  // string sql = Strings::Format(
+  //       "INSERT INTO `found_vcash_blocks` "
+  //       " (`bitcoin_block_hash`,`aux_block_hash`,"
+  //       " `created_at`) "
+  //       " VALUES (\"%s\",\"%s\",\"%s\"); ",
+  //       bitcoinblockhash.GetHex().c_str(),
+  //       auxblockinfo->vcashBlockHash_.GetHex().c_str(),
+  //       nowStr.c_str());
+  //   // try connect to DB
+  //   MySQLConnection db(poolDB_);
+  //   for (size_t i = 0; i < 3; i++) {
+  //     if (db.ping())
+  //       break;
+  //     else
+  //       std::this_thread::sleep_for(3s);
+  //   }
 
-    if (db.execute(sql) == false) {
-      LOG(ERROR) << "insert found block failure: " << sql;
-    }
+  //   if (db.execute(sql) == false) {
+  //     LOG(ERROR) << "insert found block failure: " << sql;
+  //   }
   }
 }
 
@@ -986,6 +986,8 @@ void BlockMakerBitcoin::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   auxblockinfo->vcashBlockHash_ =
       uint256S(sjob->vcashBlockHashForMergedMining_);
   auxblockinfo->vcashNetworkTarget_ = sjob->vcashNetworkTarget_;
+  auxblockinfo->vcashRpcAddress_ = sjob->vcashdRpcAddress_;
+  auxblockinfo->vcashRpcUserPwd_ = sjob->vcashdRpcUserPwd_;
 
   {
     ScopeLock sl(jobIdAuxBlockInfoLock_);

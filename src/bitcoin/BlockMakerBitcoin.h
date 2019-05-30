@@ -76,6 +76,8 @@ protected:
     uint256 auxNetworkTarget_;
     uint256 vcashBlockHash_;
     uint256 vcashNetworkTarget_;
+    string  vcashRpcAddress_;
+    string  vcashRpcUserPwd_;
   };
 
   mutex jobIdAuxBlockInfoLock_;
