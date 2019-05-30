@@ -191,21 +191,18 @@ bool StratumJobEth::unserializeFromJson(const char *s, size_t len) {
   return true;
 }
 
-string StratumJobEth::getHeaderHashWithExtraNonce(
-    uint32_t extraNonce1, bool extraNonce2) const {
-  if (header_.empty()) {
-    return headerHash_;
-  } else {
-    boost::endian::big_uint32_buf_t extraNonceBuf{extraNonce1};
-    RLPValue headerValue{headerNoExtraData_};
-    std::string extraData{extraData_};
-    extraData.append(extraNonceBuf.data(), 4);
-    if (extraNonce2) {
-      extraData.append(4, '\0');
-    }
-    headerValue.push_back(RLPValue{extraData});
-    return headerValue.write();
+string StratumJobEth::getHeaderWithExtraNonce(
+    uint32_t extraNonce1, const boost::optional<uint32_t> &extraNonce2) const {
+  boost::endian::big_uint32_buf_t extraNonce1Buf{extraNonce1};
+  RLPValue headerValue{headerNoExtraData_};
+  std::string extraData{extraData_};
+  extraData.append(extraNonce1Buf.data(), 4);
+  if (extraNonce2) {
+    boost::endian::big_uint32_buf_t extraNonce2Buf{*extraNonce2};
+    extraData.append(extraNonce2Buf.data(), 4);
   }
+  headerValue.push_back(RLPValue{extraData});
+  return headerValue.write();
 }
 
 bool StratumJobEth::hasHeader() const {

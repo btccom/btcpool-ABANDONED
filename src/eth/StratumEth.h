@@ -30,6 +30,8 @@
 #include "rsk/RskWork.h"
 #include "eth/eth.pb.h"
 
+#include <boost/optional.hpp>
+
 #include <rlpvalue.h>
 #include <uint256.h>
 
@@ -313,8 +315,8 @@ public:
       EthConsensus::Chain chain,
       uint8_t serverId);
 
-  string
-  getHeaderHashWithExtraNonce(uint32_t extraNonce1, bool extraNonce2) const;
+  string getHeaderWithExtraNonce(
+      uint32_t extraNonce1, const boost::optional<uint32_t> &extraNonce2) const;
   bool hasHeader() const;
 
   EthConsensus::Chain chain_ = EthConsensus::Chain::UNKNOWN;

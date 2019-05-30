@@ -21,6 +21,7 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
+#include <libethash/sha3.h>
 #include "StratumMinerEth.h"
 
 #include "StratumSessionEth.h"
@@ -234,6 +235,31 @@ void StratumMinerEth::handleRequest_Submit(
     return;
   }
 
+  boost::optional<uint32_t> extraNonce2;
+  uint256 headerHash;
+  if (session.hasExtraNonce2()) {
+    if (!sjob->hasHeader()) {
+      handleShare(idStr, StratumStatus::ILLEGAL_PARARMS, 0, localJob->chainId_);
+      return;
+    } else {
+      auto &jsonRoot = const_cast<JsonNode &>(jroot);
+      if (jsonRoot["extra_nonce"].type() == Utilities::JS::type::Str) {
+        extraNonce2 = jsonRoot["extra_nonce"].uint32_hex();
+      } else {
+        extraNonce2 = 0;
+      }
+      auto headerBin = sjob->getHeaderWithExtraNonce(extraNonce1, extraNonce2);
+      ethash_h256_t hash;
+      SHA3_256(
+          &hash,
+          reinterpret_cast<const uint8_t *>(headerBin.data()),
+          headerBin.size());
+      headerHash = Ethash256ToUint256(hash);
+    }
+  } else {
+    headerHash.SetHex(sHeader);
+  }
+
   // The mixHash is used to submit the work to the Ethereum node.
   // We don't need to pay attention to whether the mixHash submitted
   // by the miner is correct, because we recalculated it.
@@ -245,7 +271,7 @@ void StratumMinerEth::handleRequest_Submit(
       share,
       localJob->jobId_,
       nonce,
-      uint256S(sHeader),
+      headerHash,
       jobDiff.jobDiffs_,
       shareMixHash,
       worker.fullName_));
@@ -263,14 +289,9 @@ void StratumMinerEth::handleRequest_Submit(
     if (StratumStatus::isSolved(share.status())) {
       string extraNonce;
       if (sjob->hasHeader()) {
-        if (session.hasExtraNonce2()) {
-          uint32_t extraNonce2 = 0;
-          auto &jsonRoot = const_cast<JsonNode &>(jroot);
-          if (jsonRoot["extra_nonce"].type() == Utilities::JS::type::Str) {
-            extraNonce2 = jsonRoot["extra_nonce"].uint32_hex();
-          }
+        if (extraNonce2) {
           extraNonce = fmt::format(
-              ",\"extraNonce\":\"0x{:08x}{:08x}\"", extraNonce1, extraNonce2);
+              ",\"extraNonce\":\"0x{:08x}{:08x}\"", extraNonce1, *extraNonce2);
         } else {
           extraNonce = fmt::format(",\"extraNonce\":\"0x{:08x}\"", extraNonce1);
         }

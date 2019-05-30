@@ -88,8 +88,8 @@ void StratumSessionEth::sendMiningNotifyWithId(
   string header;
   string header2;
   if (ethJob->hasHeader()) {
-    auto headerBin =
-        ethJob->getHeaderHashWithExtraNonce(sessionId_, extraNonce2_);
+    auto headerBin = ethJob->getHeaderWithExtraNonce(
+        sessionId_, boost::make_optional<uint32_t>(extraNonce2_, 0));
     uint8_t hash[32];
     sha3_256(
         hash,
@@ -103,8 +103,8 @@ void StratumSessionEth::sendMiningNotifyWithId(
           reinterpret_cast<const uint8_t *>(headerBin.data()),
           headerBin.size(),
           header2);
-      header2.substr(0, header2.size() - 8);
-      header2 = ",\"header\":\"" + HexAddPrefix(header2) + "\"";
+      header2 = ",\"header\":\"" +
+          HexAddPrefix(header2.substr(0, header2.size() - 8)) + "\"";
     }
   } else {
     header = ethJob->headerHash_;
