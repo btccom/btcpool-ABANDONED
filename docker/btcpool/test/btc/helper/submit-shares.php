@@ -20,6 +20,8 @@ if (!$fp) {
 }
 
 writeToServer($fp, json_encode($testData['mining.subscribe'])."\n".json_encode($testData['mining.authorize'])."\n");
+$requestNum = 2;
+$responseNum = 0;
 
 for ($readLines=0; $readLines<100; $readLines++) {
     $line = fgets($fp);
@@ -47,7 +49,9 @@ for ($readLines=0; $readLines<100; $readLines++) {
                     $jsonLines .= json_encode($submitData)."\n";
                 }
                 writeToServer($fp, $jsonLines);
-                echo "[INFO] Submit ", count($testData['submit'][$hash]), " to server\n";
+                $shareNum = count($testData['submit'][$hash]);
+                echo "[INFO] Submit ", $shareNum, " to server\n";
+                $requestNum += $shareNum;
                 unset($testData['submit'][$hash]);
             }
         }
@@ -63,7 +67,9 @@ for ($readLines=0; $readLines<100; $readLines++) {
         exitln("Unexpected response of request '$id': ".json_encode($request['request'])."\nIt should be: ".json_encode($request['response'])."\nBut got this: $line");
     }
 
-    if (empty($testData['submit'])) {
+    $responseNum++;
+
+    if (empty($testData['submit']) && ($requestNum == $responseNum)) {
         break;
     }
 }
@@ -72,6 +78,11 @@ if (!empty($testData['submit'])) {
     exitln("Missing 'mining.notify' of these submissions: ".json_encode($testData['submit']));
 }
 
+if ($requestNum != $responseNum) {
+    exitln("Request number ($requestNum) != Response number ($responseNum)");
+}
+
+echo "[INFO] Sent $requestNum requests to server and got $responseNum responses\n";
 echo "[INFO] All checking past\n";
 
 fclose($fp);
