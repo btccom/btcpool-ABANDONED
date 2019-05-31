@@ -24,6 +24,7 @@
 #include "BlockMakerBitcoin.h"
 
 #include "StratumBitcoin.h"
+
 #include "BitcoinUtils.h"
 
 #include "rsk/RskSolvedShareData.h"
@@ -447,15 +448,15 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(
         (*vtxs)[i]->GetHash(); // vtxs is a shared_ptr<vector<CTransactionRef>>
   }
 
-  bool issupportvcashmergemining = false; 
-  //if the jobid is not exist , need submit to nmc
+  bool issupportvcashmergemining = false;
+  // if the jobid is not exist , need submit to nmc
   std::shared_ptr<AuxBlockInfo> auxblockinfo;
   {
     ScopeLock sl(jobIdAuxBlockInfoLock_);
     if (jobId2AuxHash_.find(jobId) != jobId2AuxHash_.end()) {
       auxblockinfo = jobId2AuxHash_[jobId];
       assert(auxblockinfo.get() != nullptr);
-      issupportvcashmergemining = true ;
+      issupportvcashmergemining = true;
     }
   }
 
@@ -466,10 +467,11 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(
 #endif
 
   // auxBlockHash is empty meaning that nmc is not supported
-  //when canot find auxblockinfo we need submit msg to nmc
-  if (!issupportvcashmergemining || (!auxBlockHash.empty() &&
-      UintToArith256(bitcoinblockhash) <=
-          UintToArith256(auxblockinfo->auxNetworkTarget_))) {
+  // when canot find auxblockinfo we need submit msg to nmc
+  if (!issupportvcashmergemining ||
+      (!auxBlockHash.empty() &&
+       UintToArith256(bitcoinblockhash) <=
+           UintToArith256(auxblockinfo->auxNetworkTarget_))) {
     //
     // build aux POW
     //
@@ -484,8 +486,9 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(
         rpcUserpass);
   }
 
-  if (issupportvcashmergemining && UintToArith256(bitcoinblockhash) <=
-      UintToArith256(auxblockinfo->vcashNetworkTarget_)) {
+  if (issupportvcashmergemining &&
+      UintToArith256(bitcoinblockhash) <=
+          UintToArith256(auxblockinfo->vcashNetworkTarget_)) {
 
     // build coinbase's merkle tree branch
     string merkleHashesHex;
@@ -496,10 +499,10 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(
         (uint8_t *)(vtxhashes[0].begin()),
         sizeof(uint256),
         hashHex); // coinbase hash
-    merkleHashesHex.append(hashHex);
+    // merkleHashesHex.append(hashHex);
     for (size_t i = 0; i < cbMerkleBranch.size(); i++) {
-      merkleHashesHex.append("\x20"); // space character
-      Bin2Hex((uint8_t *)cbMerkleBranch[i].begin(), sizeof(uint256), hashHex);
+      // merkleHashesHex.append("\x20"); // space character
+      Bin2HexR((uint8_t *)cbMerkleBranch[i].begin(), sizeof(uint256), hashHex);
       merkleHashesHex.append(hashHex);
     }
 
@@ -513,6 +516,14 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(
       rpcAddress = rpcAddress.substr(0, rpcAddress.find_last_of('/')) +
           "/submitauxblock";
 
+    uint256 hashMerkleRoot = vtxhashes[0];
+
+    for (const uint256 &step : cbMerkleBranch) {
+      hashMerkleRoot = Hash(
+          BEGIN(hashMerkleRoot), END(hashMerkleRoot), BEGIN(step), END(step));
+    }
+    LOG(INFO) << " bitcoin hashMerkleRoot : " << hashMerkleRoot.GetHex();
+
     submitVcashBlockPartialMerkleNonBlocking(
         rpcAddress,
         auxblockinfo->vcashRpcUserPwd_,
@@ -521,30 +532,30 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(
         coinbaseTxHex,
         merkleHashesHex,
         totalTxCountHex); // using thread
-  //
-  // save to databse
-  //
-  // const string nowStr = date("%F %T");
-  // string sql = Strings::Format(
-  //       "INSERT INTO `found_vcash_blocks` "
-  //       " (`bitcoin_block_hash`,`aux_block_hash`,"
-  //       " `created_at`) "
-  //       " VALUES (\"%s\",\"%s\",\"%s\"); ",
-  //       bitcoinblockhash.GetHex().c_str(),
-  //       auxblockinfo->vcashBlockHash_.GetHex().c_str(),
-  //       nowStr.c_str());
-  //   // try connect to DB
-  //   MySQLConnection db(poolDB_);
-  //   for (size_t i = 0; i < 3; i++) {
-  //     if (db.ping())
-  //       break;
-  //     else
-  //       std::this_thread::sleep_for(3s);
-  //   }
+    //
+    // save to databse
+    //
+    // const string nowStr = date("%F %T");
+    // string sql = Strings::Format(
+    //       "INSERT INTO `found_vcash_blocks` "
+    //       " (`bitcoin_block_hash`,`aux_block_hash`,"
+    //       " `created_at`) "
+    //       " VALUES (\"%s\",\"%s\",\"%s\"); ",
+    //       bitcoinblockhash.GetHex().c_str(),
+    //       auxblockinfo->vcashBlockHash_.GetHex().c_str(),
+    //       nowStr.c_str());
+    //   // try connect to DB
+    //   MySQLConnection db(poolDB_);
+    //   for (size_t i = 0; i < 3; i++) {
+    //     if (db.ping())
+    //       break;
+    //     else
+    //       std::this_thread::sleep_for(3s);
+    //   }
 
-  //   if (db.execute(sql) == false) {
-  //     LOG(ERROR) << "insert found block failure: " << sql;
-  //   }
+    //   if (db.execute(sql) == false) {
+    //     LOG(ERROR) << "insert found block failure: " << sql;
+    //   }
   }
 }
 
