@@ -417,7 +417,7 @@ bool StratumJobBitcoin::initFromGbt(
     prevHashBeStr_ += HexStr(BEGIN(a), END(a));
   }
 
-#ifdef CHAIN_TYPE_BCH
+#if defined(CHAIN_TYPE_BCH) || defined(CHAIN_TYPE_BSV)
   bool isLightVersion = jgbt["job_id"].type() == Utilities::JS::type::Str;
   // merkle branch, merkleBranch_ could be empty
   if (isLightVersion) {

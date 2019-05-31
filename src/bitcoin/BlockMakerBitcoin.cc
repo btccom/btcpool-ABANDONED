@@ -214,7 +214,7 @@ void BlockMakerBitcoin::addRawgbt(const char *str, size_t len) {
   }
   JsonNode jgbt = nodeGbt["result"];
 
-#ifdef CHAIN_TYPE_BCH
+#if defined(CHAIN_TYPE_BCH) || defined(CHAIN_TYPE_BSV)
   bool isLightVersion = jgbt["job_id"].type() == Utilities::JS::type::Str;
   if (isLightVersion) {
     ScopeLock ls(rawGbtlightLock_);
@@ -702,7 +702,7 @@ void BlockMakerBitcoin::processSolvedShare(rd_kafka_message_t *rkmessage) {
     }
   }
 
-#ifdef CHAIN_TYPE_BCH
+#if defined(CHAIN_TYPE_BCH) || defined(CHAIN_TYPE_BSV)
   std::string gbtlightJobId;
   {
     ScopeLock ls(rawGbtlightLock_);
@@ -756,7 +756,7 @@ void BlockMakerBitcoin::processSolvedShare(rd_kafka_message_t *rkmessage) {
 
   // submit to bitcoind
   const string blockHex = EncodeHexBlock(newblk);
-#ifdef CHAIN_TYPE_BCH
+#if defined(CHAIN_TYPE_BCH) || defined(CHAIN_TYPE_BSV)
   if (lightVersion) {
     LOG(INFO) << "submit block light: " << newblk.GetHash().ToString()
               << " with job_id: " << gbtlightJobId.c_str();
@@ -898,7 +898,7 @@ void BlockMakerBitcoin::_submitBlockThread(
   }
 }
 
-#ifdef CHAIN_TYPE_BCH
+#if defined(CHAIN_TYPE_BCH) || defined(CHAIN_TYPE_BSV)
 void BlockMakerBitcoin::submitBlockLightNonBlocking(
     const string &blockHex, const string &job_id) {
   for (const auto &itr : def()->nodes) {

@@ -154,7 +154,7 @@ GbtMaker::GbtMaker(
   , kafkaProducer_(
         kafkaBrokers_.c_str(), kafkaRawGbtTopic_.c_str(), 0 /* partition */)
   , isCheckZmq_(isCheckZmq) {
-#ifdef CHAIN_TYPE_BCH
+#if defined(CHAIN_TYPE_BCH) || defined(CHAIN_TYPE_BSV)
   lastGbtLightMakeTime_ = 0;
 #endif
 }
@@ -297,7 +297,7 @@ void GbtMaker::submitRawGbtMsg(bool checkTime) {
   kafkaProduceMsg(rawGbtMsg.data(), rawGbtMsg.size());
 }
 
-#ifdef CHAIN_TYPE_BCH
+#if defined(CHAIN_TYPE_BCH) || defined(CHAIN_TYPE_BSV)
 bool GbtMaker::bitcoindRpcGBTLight(string &response) {
   string request =
       "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getblocktemplatelight\","
@@ -394,7 +394,7 @@ void GbtMaker::threadListenBitcoind() {
       [this]() { submitRawGbtMsg(false); });
 }
 
-#ifdef CHAIN_TYPE_BCH
+#if defined(CHAIN_TYPE_BCH) || defined(CHAIN_TYPE_BSV)
 void GbtMaker::runLightGbt() {
   auto threadListenBitcoind =
       std::thread(&GbtMaker::threadListenBitcoind, this);
