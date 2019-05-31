@@ -99,6 +99,8 @@ void StratumSessionEth::sendMiningNotifyWithId(
     ljob = &addLocalJob(exJobPtr->chainId_, ethJob->jobId_, header);
   } else {
     dispatcher_->addLocalJob(*ljob);
+    // update the job id to the latest one
+    ljob->jobId_ = ethJob->jobId_;
   }
 
   string strShareTarget = Eth_DifficultyToTarget(currentJobDiff_);

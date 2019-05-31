@@ -214,6 +214,8 @@ void StratumSessionGrin::sendMiningNotifyWithId(
     ljob = &addLocalJob(exJobPtr->chainId_, job->jobId_, prePowHash);
   } else {
     dispatcher_->addLocalJob(*ljob);
+    // update the job id to the latest one
+    ljob->jobId_ = job->jobId_;
   }
 
   DLOG(INFO) << "new stratum job mining.notify: share difficulty="

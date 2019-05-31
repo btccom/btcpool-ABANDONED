@@ -63,6 +63,8 @@ void StratumSessionBeam::sendMiningNotify(
     ljob = &addLocalJob(exJobPtr->chainId_, job->jobId_, inputHash);
   } else {
     dispatcher_->addLocalJob(*ljob);
+    // update the job id to the latest one
+    ljob->jobId_ = job->jobId_;
   }
 
   uint32_t shareBits = Beam_DiffToBits(currentJobDiff_);
