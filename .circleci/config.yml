@@ -131,7 +131,7 @@ workflows:
       - build_and_push_base_image:
           <<: *base_image_common
           dockerfile: Dockerfile.ubtc
-          tag: ubtc-2.3.0.1
+          tag: ubtc-2.5.0.1
       - build_and_push_base_image:
           <<: *base_image_common
           dockerfile: Dockerfile.ltc
@@ -156,7 +156,7 @@ workflows:
           requires:
             - check_clang_format
       - build_and_run_unit_tests:
-          base: ubtc-2.3.0.1
+          base: ubtc-2.5.0.1
           requires:
             - check_clang_format
       - build_and_run_unit_tests:
@@ -180,7 +180,7 @@ workflows:
           base: sbtc-0.16.2
       - build_and_push_deploy_image:
           <<: *deploy_image_common
-          base: ubtc-2.3.0.1
+          base: ubtc-2.5.0.1
       - build_and_push_deploy_image:
           <<: *deploy_image_common
           base: ltc-0.16.3
