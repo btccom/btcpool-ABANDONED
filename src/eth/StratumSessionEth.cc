@@ -484,5 +484,9 @@ void StratumSessionEth::checkExtraNonce2(const JsonNode &jroot) {
   JsonNode &jsonRoot = const_cast<JsonNode &>(jroot);
   if (jsonRoot["extra_nonce"].type() == Utilities::JS::type::Bool) {
     extraNonce2_ = jsonRoot["extra_nonce"].boolean();
+    if (extraNonce2_) {
+      // User with extra nonce 2 is most likely a proxy
+      isLongTimeout_ = true;
+    }
   }
 }
