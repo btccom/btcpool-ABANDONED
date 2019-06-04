@@ -258,11 +258,12 @@ void ClientContainerBeam::updateBlockHash(string jobId, string blockHash) {
   // update block hash
   const string nowStr = date("%F %T");
   string sql = Strings::Format(
-      "UPDATE `found_blocks` SET `hash`='%s', `created_at`='%s' WHERE `hash`='%s'",
+      "UPDATE `found_blocks` SET `hash`='%s', `created_at`='%s' WHERE "
+      "`hash`='%s'",
       blockHash,
       nowStr,
       powHash);
-  
+
   std::thread t([this, sql, powHash, blockHash]() {
     // try connect to DB
     MySQLConnection db(poolDB_);
@@ -278,7 +279,8 @@ void ClientContainerBeam::updateBlockHash(string jobId, string blockHash) {
       return;
     }
 
-    LOG(INFO) << "update found block hash from " << powHash << " to " << blockHash << " success";
+    LOG(INFO) << "update found block hash from " << powHash << " to "
+              << blockHash << " success";
   });
   t.detach();
 }
@@ -418,7 +420,8 @@ void PoolWatchClientBeam::handleStratumMessage(const string &line) {
   }
 
   LOG(INFO) << "<" << poolName_ << "> recv(" << line.size() << "): " << line;
-  if (jnode["blockhash"].type() == Utilities::JS::type::Str && jid.type() == Utilities::JS::type::Str) {
+  if (jnode["blockhash"].type() == Utilities::JS::type::Str &&
+      jid.type() == Utilities::JS::type::Str) {
     string jobId = jid.str();
     string blockHash = jnode["blockhash"].str();
     containerBeam->updateBlockHash(jobId, blockHash);

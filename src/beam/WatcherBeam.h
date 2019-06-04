@@ -60,9 +60,10 @@ protected:
 public:
   ClientContainerBeam(const libconfig::Config &config);
   ~ClientContainerBeam();
-  
-  // The blockHash computed in sserver is actually powHash, not a hash that can be queried in a block browser.
-  // The PowHash written to the database is updated to the real blockHash here.
+
+  // The blockHash computed in sserver is actually powHash, not a hash that can
+  // be queried in a block browser. The PowHash written to the database is
+  // updated to the real blockHash here.
   void updateBlockHash(string jobId, string blockHash);
 
   bool sendJobToKafka(
