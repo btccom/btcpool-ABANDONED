@@ -847,3 +847,33 @@ TEST(Stratum, StratumJobBeam) {
   ASSERT_EQ(sjob.unserializeFromJson(sjobStr.c_str(), sjobStr.size()), true);
   ASSERT_EQ(sjob.serializeToJson(), sjobStr);
 }
+
+#ifdef CHAIN_TYPE_UBTC
+TEST(Stratum, ShareBitcoinBytesV1ToV3) {
+  ShareBitcoinBytesV1 sharev1;
+  sharev1.blkBits_ = 0x0700ffff;
+  sharev1.ip_ = 0x7f000001;
+  sharev1.jobId_ = 0x12345678abcdef01;
+  sharev1.result_ = 1;
+  sharev1.shareDiff_ = 16384;
+  sharev1.timestamp_ = 1558690600;
+  sharev1.userId_ = 123;
+  sharev1.workerHashId_ = 0x987654321;
+
+  ShareBitcoin sharev3;
+  ASSERT_TRUE(
+      sharev3.UnserializeWithVersion((uint8_t *)&sharev1, sizeof(sharev1)));
+  ASSERT_EQ(sharev3.height(), 758000u);
+  ASSERT_TRUE(sharev3.isValid());
+
+  sharev1.timestamp_ = 1558690700;
+  ASSERT_TRUE(
+      sharev3.UnserializeWithVersion((uint8_t *)&sharev1, sizeof(sharev1)));
+  ASSERT_EQ(sharev3.height(), 815000u);
+  ASSERT_TRUE(sharev3.isValid());
+
+  sharev3.set_height(758000u);
+  ASSERT_TRUE(sharev3.isValid());
+  ASSERT_EQ(sharev3.height(), 815000u);
+}
+#endif

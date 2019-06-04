@@ -217,6 +217,13 @@ public:
       return false;
     }
 
+#ifdef CHAIN_TYPE_UBTC
+    if (height() == 758000 && timestamp() > 1558690640) {
+      // fix wrong block rewards of UB hardfork 813500
+      ((ShareBitcoin *)this)->set_height(815000);
+    }
+#endif
+
     return true;
   }
 
@@ -324,7 +331,13 @@ public:
 #ifdef CHAIN_TYPE_UBTC
       // UBTC's height and block rewards differ greatly from other SHA256
       // blockchains (like BTC, BCH, BSV, ...)
-      set_height(758000);
+      if (share->timestamp_ > 1558690640) {
+        // hard fork 813500, block reward: 0.5
+        set_height(815000);
+      } else {
+        // before hard fork 813500, block reward: 1
+        set_height(758000);
+      }
 #else
       // The block reward should be 12.5 on this height
       set_height(570000);
