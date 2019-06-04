@@ -53,12 +53,24 @@
 #define COIN_TO_SATOSHIS (COIN / SATOSHI)
 #define AMOUNT_SATOSHIS(amt) (amt / SATOSHI)
 
+#define LIGHTGBT_JOB_ID "job_id"
+#define LIGHTGBT_PREV_HASH "previousblockhash"
+#define LIGHTGBT_BITS "bits"
+#define LIGHTGBT_TIME "curtime"
+#define LIGHTGBT_COINBASE_VALUE "coinbasevalue"
+#define LIGHTGBT_MERKLE "merkle"
 #else
 
 #define AMOUNT_TYPE Amount
 #define COIN_TO_SATOSHIS COIN.GetSatoshis()
 #define AMOUNT_SATOSHIS(amt) amt.GetSatoshis()
 
+#define LIGHTGBT_JOB_ID "id"
+#define LIGHTGBT_PREV_HASH "prevhash"
+#define LIGHTGBT_BITS "nBits"
+#define LIGHTGBT_TIME "time"
+#define LIGHTGBT_COINBASE_VALUE "coinbaseValue"
+#define LIGHTGBT_MERKLE "merkleProof"
 #endif
 
 namespace BitcoinUtils {

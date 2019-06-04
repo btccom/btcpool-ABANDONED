@@ -367,21 +367,57 @@ bool StratumJobBitcoin::initFromGbt(
 
   gbtHash_ = gbtHash.ToString();
 
+#if defined(CHAIN_TYPE_BCH) || defined(CHAIN_TYPE_BSV)
+  bool isLightVersion =
+      jgbt[LIGHTGBT_JOB_ID].type() == Utilities::JS::type::Str;
+  // merkle branch, merkleBranch_ could be empty
+  if (isLightVersion) {
+    prevHash_ = uint256S(jgbt[LIGHTGBT_PREV_HASH].str());
+    nBits_ = jgbt[LIGHTGBT_BITS].uint32_hex();
+    nTime_ = jgbt[LIGHTGBT_TIME].uint32();
+    coinbaseValue_ = jgbt[LIGHTGBT_COINBASE_VALUE].int64();
+    auto &gbtMerkle = jgbt[LIGHTGBT_MERKLE].array();
+    for (auto &mHex : gbtMerkle) {
+      uint256 m;
+      m.SetHex(mHex.str().c_str());
+      merkleBranch_.push_back(m);
+    }
+  } else
+#endif
+  // merkle branch, merkleBranch_ could be empty
+  {
+    prevHash_ = uint256S(jgbt["previousblockhash"].str());
+    nBits_ = jgbt["bits"].uint32_hex();
+    nTime_ = jgbt["curtime"].uint32();
+    coinbaseValue_ = jgbt["coinbasevalue"].int64();
+    // read txs hash/data
+    vector<uint256> vtxhashs; // txs without coinbase
+    for (JsonNode &node : jgbt["transactions"].array()) {
+#ifdef CHAIN_TYPE_ZEC
+      CTransaction tx;
+      DecodeHexTx(tx, node["data"].str());
+      vtxhashs.push_back(tx.GetHash());
+#else
+      CMutableTransaction tx;
+      DecodeHexTx(tx, node["data"].str());
+      vtxhashs.push_back(MakeTransactionRef(std::move(tx))->GetHash());
+#endif
+    }
+    // make merkleSteps and merkle branch
+    makeMerkleBranch(vtxhashs, merkleBranch_);
+  }
+
   // height etc.
   // fields in gbt json has already checked by GbtMaker
-  prevHash_ = uint256S(jgbt["previousblockhash"].str());
   height_ = jgbt["height"].int32();
   if (blockVersion != 0) {
     nVersion_ = blockVersion;
   } else {
     nVersion_ = jgbt["version"].uint32();
   }
-  nBits_ = jgbt["bits"].uint32_hex();
-  nTime_ = jgbt["curtime"].uint32();
-  minTime_ = jgbt["mintime"].uint32();
-#ifndef CHAIN_TYPE_ZEC
-  coinbaseValue_ = jgbt["coinbasevalue"].int64();
-#endif
+  minTime_ = jgbt["mintime"].type() == Utilities::JS::type::Int
+      ? jgbt["mintime"].uint32()
+      : nTime_;
 
   // default_witness_commitment must be at least 38 bytes
   if (jgbt["default_witness_commitment"].type() == Utilities::JS::type::Str &&
@@ -415,37 +451,6 @@ bool StratumJobBitcoin::initFromGbt(
     uint32_t a = *(uint32_t *)(BEGIN(prevHash_) + i * 4);
     a = HToBe(a);
     prevHashBeStr_ += HexStr(BEGIN(a), END(a));
-  }
-
-#if defined(CHAIN_TYPE_BCH) || defined(CHAIN_TYPE_BSV)
-  bool isLightVersion = jgbt["job_id"].type() == Utilities::JS::type::Str;
-  // merkle branch, merkleBranch_ could be empty
-  if (isLightVersion) {
-    auto &gbtMerkle = jgbt["merkle"].array();
-    for (auto &mHex : gbtMerkle) {
-      uint256 m;
-      m.SetHex(mHex.str().c_str());
-      merkleBranch_.push_back(m);
-    }
-  } else
-#endif
-  // merkle branch, merkleBranch_ could be empty
-  {
-    // read txs hash/data
-    vector<uint256> vtxhashs; // txs without coinbase
-    for (JsonNode &node : jgbt["transactions"].array()) {
-#ifdef CHAIN_TYPE_ZEC
-      CTransaction tx;
-      DecodeHexTx(tx, node["data"].str());
-      vtxhashs.push_back(tx.GetHash());
-#else
-      CMutableTransaction tx;
-      DecodeHexTx(tx, node["data"].str());
-      vtxhashs.push_back(MakeTransactionRef(std::move(tx))->GetHash());
-#endif
-    }
-    // make merkleSteps and merkle branch
-    makeMerkleBranch(vtxhashs, merkleBranch_);
   }
 
   // for Namecoin and RSK merged mining

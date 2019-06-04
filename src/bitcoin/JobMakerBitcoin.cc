@@ -251,11 +251,13 @@ bool JobMakerHandlerBitcoin::addRawGbt(const string &msg) {
 
 #if defined(CHAIN_TYPE_BCH) || defined(CHAIN_TYPE_BSV)
   bool isLightVersion =
-      nodeGbt["result"]["job_id"].type() == Utilities::JS::type::Str;
+      nodeGbt["result"][LIGHTGBT_JOB_ID].type() == Utilities::JS::type::Str;
   bool isEmptyBlock = false;
   if (isLightVersion) {
-    assert(nodeGbt["result"]["merkle"].type() == Utilities::JS::type::Array);
-    isEmptyBlock = nodeGbt["result"]["merkle"].array().size() == 0;
+    assert(
+        nodeGbt["result"][LIGHTGBT_MERKLE].type() ==
+        Utilities::JS::type::Array);
+    isEmptyBlock = nodeGbt["result"][LIGHTGBT_MERKLE].array().size() == 0;
   } else {
     assert(
         nodeGbt["result"]["transactions"].type() == Utilities::JS::type::Array);

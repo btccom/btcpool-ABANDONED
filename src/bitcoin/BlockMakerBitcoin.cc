@@ -215,12 +215,13 @@ void BlockMakerBitcoin::addRawgbt(const char *str, size_t len) {
   JsonNode jgbt = nodeGbt["result"];
 
 #if defined(CHAIN_TYPE_BCH) || defined(CHAIN_TYPE_BSV)
-  bool isLightVersion = jgbt["job_id"].type() == Utilities::JS::type::Str;
+  bool isLightVersion =
+      jgbt[LIGHTGBT_JOB_ID].type() == Utilities::JS::type::Str;
   if (isLightVersion) {
     ScopeLock ls(rawGbtlightLock_);
-    rawGbtlightMap_[gbtHash] = jgbt["job_id"].str();
+    rawGbtlightMap_[gbtHash] = jgbt[LIGHTGBT_JOB_ID].str();
     LOG(INFO) << "insert rawgbt light: " << gbtHash.ToString()
-              << ", job_id: " << jgbt["job_id"].str().c_str();
+              << ", job_id: " << jgbt[LIGHTGBT_JOB_ID].str().c_str();
     return;
   }
 #endif // CHAIN_TYPE_BCH
@@ -760,7 +761,18 @@ void BlockMakerBitcoin::processSolvedShare(rd_kafka_message_t *rkmessage) {
   if (lightVersion) {
     LOG(INFO) << "submit block light: " << newblk.GetHash().ToString()
               << " with job_id: " << gbtlightJobId.c_str();
+#ifdef CHAIN_TYPE_BSV
+    string coinbaseTxStr;
+    Bin2Hex(coinbaseTxBin, coinbaseTxStr);
+    submitBlockLightNonBlocking(
+        gbtlightJobId,
+        coinbaseTxStr,
+        blkHeader.nVersion,
+        blkHeader.nTime,
+        blkHeader.nNonce);
+#else
     submitBlockLightNonBlocking(blockHex, gbtlightJobId);
+#endif
   } else
 #endif // CHAIN_TYPE_BCH
   {
@@ -898,7 +910,7 @@ void BlockMakerBitcoin::_submitBlockThread(
   }
 }
 
-#if defined(CHAIN_TYPE_BCH) || defined(CHAIN_TYPE_BSV)
+#if defined(CHAIN_TYPE_BCH)
 void BlockMakerBitcoin::submitBlockLightNonBlocking(
     const string &blockHex, const string &job_id) {
   for (const auto &itr : def()->nodes) {
@@ -925,6 +937,65 @@ void BlockMakerBitcoin::_submitBlockLightThread(
   request += blockHex + "\", \"";
   request += job_id + "\"";
   request += "]}";
+  LOG(INFO) << "submit block light to: " << rpcAddress;
+  DLOG(INFO) << "submitblock request: " << request;
+  // try N times
+  for (size_t i = 0; i < 3; i++) {
+    string response;
+    bool res = blockchainNodeRpcCall(
+        rpcAddress.c_str(), rpcUserpass.c_str(), request.c_str(), response);
+    // success
+    if (res == true) {
+      LOG(INFO) << "rpc call success, submit block light response: "
+                << response;
+      break;
+    }
+    // failure
+    LOG(ERROR) << "rpc call fail: " << response;
+  }
+}
+#elif defined(CHAIN_TYPE_BSV)
+void BlockMakerBitcoin::submitBlockLightNonBlocking(
+    const string &job_id,
+    const string &coinbaseTx,
+    int32_t version,
+    uint32_t ntime,
+    uint32_t nonce) {
+  for (const auto &itr : def()->nodes) {
+    // use thread to submit
+    boost::thread t(boost::bind(
+        &BlockMakerBitcoin::_submitBlockLightThread,
+        this,
+        itr.rpcAddr_,
+        itr.rpcUserPwd_,
+        job_id,
+        coinbaseTx,
+        version,
+        ntime,
+        nonce));
+    t.detach();
+  }
+}
+void BlockMakerBitcoin::_submitBlockLightThread(
+    const string &rpcAddress,
+    const string &rpcUserpass,
+    const string &job_id,
+    const string &coinbaseTx,
+    int32_t version,
+    uint32_t ntime,
+    uint32_t nonce) {
+  string request = Strings::Format(
+      "{\"jsonrpc\":\"1.0\""
+      ",\"id\":\"1\""
+      ",\"method\":\"submitminingsolution\""
+      ",\"params\":[{\"id\":\"%s\""
+      ",\"coinbase\":\"%s\""
+      ",\"version\":%" PRId32 ",\"time\":%" PRIu32 ",\"nonce\":%" PRIu32 "}]}",
+      job_id.c_str(),
+      coinbaseTx.c_str(),
+      version,
+      ntime,
+      nonce);
   LOG(INFO) << "submit block light to: " << rpcAddress;
   DLOG(INFO) << "submitblock request: " << request;
   // try N times

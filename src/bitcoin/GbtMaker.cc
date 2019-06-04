@@ -299,9 +299,14 @@ void GbtMaker::submitRawGbtMsg(bool checkTime) {
 
 #if defined(CHAIN_TYPE_BCH) || defined(CHAIN_TYPE_BSV)
 bool GbtMaker::bitcoindRpcGBTLight(string &response) {
+#ifdef CHAIN_TYPE_BSV
+  string request =
+      "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getminingcandidate\"}";
+#else
   string request =
       "{\"jsonrpc\":\"1.0\",\"id\":\"1\",\"method\":\"getblocktemplatelight\","
       "\"params\":[{\"rules\" : [\"segwit\"]}]}";
+#endif
   bool res = blockchainNodeRpcCall(
       bitcoindRpcAddr_.c_str(),
       bitcoindRpcUserpass_.c_str(),
@@ -330,12 +335,14 @@ string GbtMaker::makeRawGbtLightMsg() {
 
   // check fields
   if (r["result"].type() != Utilities::JS::type::Obj ||
-      r["result"]["previousblockhash"].type() != Utilities::JS::type::Str ||
+      r["result"][LIGHTGBT_PREV_HASH].type() != Utilities::JS::type::Str ||
       r["result"]["height"].type() != Utilities::JS::type::Int ||
-      r["result"]["coinbasevalue"].type() != Utilities::JS::type::Int ||
-      r["result"]["bits"].type() != Utilities::JS::type::Str ||
+      r["result"][LIGHTGBT_COINBASE_VALUE].type() != Utilities::JS::type::Int ||
+      r["result"][LIGHTGBT_BITS].type() != Utilities::JS::type::Str ||
+#ifndef CHAIN_TYPE_BSV
       r["result"]["mintime"].type() != Utilities::JS::type::Int ||
-      r["result"]["curtime"].type() != Utilities::JS::type::Int ||
+#endif
+      r["result"][LIGHTGBT_TIME].type() != Utilities::JS::type::Int ||
       r["result"]["version"].type() != Utilities::JS::type::Int) {
     LOG(ERROR) << "gbt light check fields failure";
     return "";
@@ -343,10 +350,13 @@ string GbtMaker::makeRawGbtLightMsg() {
 
   const uint256 gbtHash = Hash(gbt.begin(), gbt.end());
   LOG(INFO) << "light gbt height: " << r["result"]["height"].uint32()
-            << ", prev_hash: " << r["result"]["previousblockhash"].str()
-            << ", coinbase_value: " << r["result"]["coinbasevalue"].uint64()
-            << ", bits: " << r["result"]["bits"].str()
+            << ", prev_hash: " << r["result"][LIGHTGBT_PREV_HASH].str()
+            << ", coinbase_value: "
+            << r["result"][LIGHTGBT_COINBASE_VALUE].uint64()
+            << ", bits: " << r["result"][LIGHTGBT_BITS].str()
+#ifndef CHAIN_TYPE_BSV
             << ", mintime: " << r["result"]["mintime"].uint32()
+#endif
             << ", version: " << r["result"]["version"].uint32() << "|0x"
             << Strings::Format("%08x", r["result"]["version"].uint32())
             << ", gbthash: " << gbtHash.ToString();

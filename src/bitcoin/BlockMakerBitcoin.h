@@ -123,7 +123,7 @@ protected:
       const CBlockHeader &header,
       const uint64_t coinbaseValue,
       const int32_t blksize);
-#if defined(CHAIN_TYPE_BCH) || defined(CHAIN_TYPE_BSV)
+#if defined(CHAIN_TYPE_BCH)
   void
   submitBlockLightNonBlocking(const string &blockHex, const string &job_id);
   void _submitBlockLightThread(
@@ -131,6 +131,21 @@ protected:
       const string &rpcUserpass,
       const string &job_id,
       const string &blockHex);
+#elif defined(CHAIN_TYPE_BSV)
+  void submitBlockLightNonBlocking(
+      const string &job_id,
+      const string &coinbaseTx,
+      int32_t version,
+      uint32_t ntime,
+      uint32_t nonce);
+  void _submitBlockLightThread(
+      const string &rpcAddress,
+      const string &rpcUserpass,
+      const string &job_id,
+      const string &coinbaseTx,
+      int32_t version,
+      uint32_t ntime,
+      uint32_t nonce);
 #endif // CHAIN_TYPE_BCH
 
   void submitBlockNonBlocking(const string &blockHex);
