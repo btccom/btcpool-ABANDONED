@@ -186,6 +186,7 @@ void ClientContainerBeam::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
   }
 
   client->submitShare(submitJson);
+  powHashMap_[job.jobId_] = blockHash;
 
   // save block to DB
   const string nowStr = date("%F %T");
@@ -215,10 +216,10 @@ void ClientContainerBeam::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
       (int64_t)Beam_GetStaticBlockReward(height),
       blockBits,
       nowStr);
-  MysqlConnectInfo info = client->GetContainerBeam()->getMysqlInfo();
-  std::thread t([sql, info, blockHash]() {
+
+  std::thread t([this, sql, blockHash]() {
     // try connect to DB
-    MySQLConnection db(info);
+    MySQLConnection db(poolDB_);
     for (size_t i = 0; i < 3; i++) {
       if (db.ping())
         break;
@@ -239,6 +240,47 @@ void ClientContainerBeam::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
 PoolWatchClient *
 ClientContainerBeam::createPoolWatchClient(const libconfig::Setting &config) {
   return new PoolWatchClientBeam(base_, this, config);
+}
+
+void ClientContainerBeam::updateBlockHash(string jobId, string blockHash) {
+  string powHash;
+  {
+    std::lock_guard<std::mutex> lock(jobCacheLock_);
+    auto itr = powHashMap_.find(jobId);
+    if (itr == powHashMap_.end()) {
+      LOG(ERROR) << "Cannot find the powHash of job " << jobId
+                 << ". Its blockHash: " << blockHash;
+      return;
+    }
+    powHash = itr->second;
+  }
+
+  // update block hash
+  const string nowStr = date("%F %T");
+  string sql = Strings::Format(
+      "UPDATE `found_blocks` SET `hash`='%s', `created_at`='%s' WHERE `hash`='%s'",
+      blockHash,
+      nowStr,
+      powHash);
+  
+  std::thread t([this, sql, powHash, blockHash]() {
+    // try connect to DB
+    MySQLConnection db(poolDB_);
+    for (size_t i = 0; i < 3; i++) {
+      if (db.ping())
+        break;
+      else
+        std::this_thread::sleep_for(3s);
+    }
+
+    if (db.execute(sql) == false) {
+      LOG(ERROR) << "update found block hash failure: " << sql;
+      return;
+    }
+
+    LOG(INFO) << "update found block hash from " << powHash << " to " << blockHash << " success";
+  });
+  t.detach();
 }
 
 bool ClientContainerBeam::sendJobToKafka(
@@ -267,17 +309,11 @@ bool ClientContainerBeam::sendJobToKafka(
 
   // add to job cache
   std::lock_guard<std::mutex> lock(jobCacheLock_);
-  jobCacheKeyQ_.push(job.input_);
   jobCacheMap_[job.input_] = {jobId, job, clientId};
 
   // clear job cache
-  while (jobCacheMap_.size() > kMaxJobCacheSize_) {
-    auto itr = jobCacheMap_.find(jobCacheKeyQ_.front());
-    jobCacheKeyQ_.pop();
-    if (itr != jobCacheMap_.end()) {
-      jobCacheMap_.erase(itr);
-    }
-  }
+  jobCacheMap_.clear(kMaxJobCacheSize_);
+  powHashMap_.clear(kMaxPowHashSize_);
 
   return true;
 }
@@ -382,4 +418,9 @@ void PoolWatchClientBeam::handleStratumMessage(const string &line) {
   }
 
   LOG(INFO) << "<" << poolName_ << "> recv(" << line.size() << "): " << line;
+  if (jnode["blockhash"].type() == Utilities::JS::type::Str && jid.type() == Utilities::JS::type::Str) {
+    string jobId = jid.str();
+    string blockHash = jnode["blockhash"].str();
+    containerBeam->updateBlockHash(jobId, blockHash);
+  }
 }

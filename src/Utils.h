@@ -27,6 +27,7 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <queue>
 
 #include <utilstrencodings.h>
 
@@ -183,5 +184,36 @@ uint64_t getAlphaNumRank(const string &str, size_t significand = 9);
 
 // Check if a worker is a NiceHash client.
 bool isNiceHashAgent(const string &clientAgent);
+
+/////////////////// A map that can clean up expired items //////////////////////
+template <typename K, typename V>
+class SeqMap {
+  std::unordered_map<K, V> map_;
+  std::queue<K> queue_;
+
+public:
+  V &operator[](const K &key) {
+    if (map_.find(key) == map_.end()) {
+      queue_.push(key);
+    }
+    return map_[key];
+  }
+
+  bool contains(const K &key) { return map_.find(key) != map_.end(); }
+  auto find(const K &key) { return map_.find(key); }
+  auto begin() { return map_.begin(); }
+  auto end() { return map_.end(); }
+  size_t size() { return map_.size(); }
+
+  void clear(size_t maxSize) {
+    while (queue_.size() > maxSize) {
+      auto itr = map_.find(queue_.front());
+      queue_.pop();
+      if (itr != map_.end()) {
+        map_.erase(itr);
+      }
+    }
+  }
+};
 
 #endif

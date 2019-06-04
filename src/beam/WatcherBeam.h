@@ -46,8 +46,9 @@ protected:
   thread threadSolvedShareConsume_;
 
   const size_t kMaxJobCacheSize_ = 5000;
-  std::queue<string> jobCacheKeyQ_;
-  map<string, JobCache> jobCacheMap_;
+  const size_t kMaxPowHashSize_ = 500;
+  SeqMap<string /*input*/, JobCache /*job*/> jobCacheMap_;
+  SeqMap<string /*jobId*/, string /*powHash*/> powHashMap_;
   std::mutex jobCacheLock_;
 
   PoolWatchClient *
@@ -59,6 +60,10 @@ protected:
 public:
   ClientContainerBeam(const libconfig::Config &config);
   ~ClientContainerBeam();
+  
+  // The blockHash computed in sserver is actually powHash, not a hash that can be queried in a block browser.
+  // The PowHash written to the database is updated to the real blockHash here.
+  void updateBlockHash(string jobId, string blockHash);
 
   bool sendJobToKafka(
       const string jobId,
