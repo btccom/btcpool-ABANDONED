@@ -22,7 +22,7 @@ RUN apt-get install -y libboost-all-dev curl wget unzip git cmake
 
 # build bitcoind
 RUN mkdir /work
-RUN cd /work && git clone -b mining --depth 1 https://github.com/btccom/beam.git
+RUN cd /work && git clone -b mining-btccom --depth 1 https://github.com/btccom/beam.git
 RUN cd /work/beam \
   && cmake -DCMAKE_BUILD_TYPE=Release -DBEAM_NO_QT_UI_WALLET=ON . \
   #&& make && make install
