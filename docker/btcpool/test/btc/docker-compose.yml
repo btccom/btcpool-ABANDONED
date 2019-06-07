@@ -25,6 +25,8 @@ services:
   userlist:
     build:
       context: ../userlist-api
+      args:
+        APT_MIRROR_URL: $APT_MIRROR_URL
 
   gbtmaker:
     depends_on:
@@ -49,7 +51,7 @@ services:
       - userlist
     image: btccom/btcpool-btc
     ports:
-      - 3333:3333
+      - 53333:3333
     volumes:
       - ./cfg:/work/config
     command: /wait-for-it.sh kafka:9092 -- /wait-for-it.sh userlist:80 -- sserver -c /work/config/sserver.cfg
@@ -60,7 +62,7 @@ services:
       - userlist
     image: btccom/btcpool-btc
     ports:
-      - 3334:3334
+      - 53334:3334
     volumes:
       - ./cfg:/work/config
     command: /wait-for-it.sh kafka:9092 -- /wait-for-it.sh userlist:80 -- sserver -c /work/config/sserver-simulator.cfg

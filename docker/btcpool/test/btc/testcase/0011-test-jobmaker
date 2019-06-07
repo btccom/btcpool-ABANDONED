@@ -1,11 +1,13 @@
 #!/bin/bash
 set -e
+source "$BASE_DIR/helper/functions.sh"
 
 PID=$$
+MAIN_CONTAINER_NAME="btc_jobmaker_1"
 KAFKA_RESULT="/tmp/btcpool-test-jobmaker.$PID.log"
 KAFKA_CONSUMER="docker exec btc_kafka_1 /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092"
 KAFKA_PRODUCER="docker exec -i btc_kafka_1 /opt/kafka/bin/kafka-console-producer.sh --broker-list kafka:9092"
-WAIT_FOR_IT="$BASE_DIR/../../deploy/wait-for-it.sh"
+WAIT_FOR_IT="WAIT_FOR_IT $MAIN_CONTAINER_NAME"
 DOCKER_COMPOSE="docker-compose --no-ansi"
 
 cd "$BASE_DIR"
@@ -16,6 +18,7 @@ $DOCKER_COMPOSE down >>$STDOUT
 echo "start jobmaker (5s)..."
 $DOCKER_COMPOSE up jobmaker >>$STDOUT &
 sleep 5
+$WAIT_FOR_IT kafka:9092
 
 outputTestData() {
     cat "$BASE_DIR/testdata/rawgbts-1.log" \
@@ -29,17 +32,20 @@ outputTestData() {
     done
 }
 
-{
-    echo "send RawGbts in the background..."
-    outputTestData | $KAFKA_PRODUCER --topic RawGbt
-    echo "send RawGbts finished"
-} &
+echo "send RawGbts in the background..."
+outputTestData | $KAFKA_PRODUCER --topic RawGbt &
+KAFKA_PRODUCER_PID=$!
 
 echo "consome StratumJob from kafka (60s)..."
 $KAFKA_CONSUMER --topic StratumJob --from-beginning >$KAFKA_RESULT &
 KAFKA_CONSUMER_PID=$!
 sleep 60
-kill $KAFKA_CONSUMER_PID
+kill $KAFKA_PRODUCER_PID || echo "Kafka producer exited"
+kill $KAFKA_CONSUMER_PID || {
+    echo "Kafka consumer exited too early"
+    head $SSERVER_RESULT
+    exit 1
+}
 
 line=`cat $KAFKA_RESULT | wc -l`
 if [ $line -lt 20 ]; then
