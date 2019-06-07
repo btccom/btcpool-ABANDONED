@@ -29,7 +29,7 @@ apt-get install -y build-essential autotools-dev libtool autoconf automake pkg-c
                    openssl libssl-dev libcurl4-openssl-dev libconfig++-dev \
                    libboost-all-dev libgmp-dev libmysqlclient-dev libzookeeper-mt-dev \
                    libzmq3-dev libgoogle-glog-dev libhiredis-dev zlib1g zlib1g-dev \
-                   libprotobuf-dev protobuf-compiler
+                   libsodium-dev libprotobuf-dev protobuf-compiler
 ```
 
 Notice: It is no longer recommended to install `libevent-dev` from the software source.
@@ -45,7 +45,7 @@ aptitude install build-essential autotools-dev libtool autoconf automake pkg-con
                    openssl libssl-dev libcurl4-openssl-dev libconfig++-dev \
                    libboost-all-dev libgmp-dev libmysqlclient-dev libzookeeper-mt-dev \
                    libzmq3-dev libgoogle-glog-dev libhiredis-dev zlib1g zlib1g-dev \
-                   libprotobuf-dev protobuf-compiler
+                   libsodium-dev libprotobuf-dev protobuf-compiler
 
 # Input `n` if the solution is `NOT INSTALL` some package.
 # Eventually aptitude will give a solution that downgrade some packages to allow all packages to be installed.
