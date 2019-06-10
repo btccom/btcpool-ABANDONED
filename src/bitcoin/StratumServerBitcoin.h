@@ -26,6 +26,7 @@
 
 #include "StratumServer.h"
 #include "StratumBitcoin.h"
+#include "StratumMiner.h"
 #include <uint256.h>
 
 class CBlockHeader;
@@ -41,15 +42,17 @@ protected:
   };
 
   vector<ChainVarsBitcoin> chainsBitcoin_;
-  uint32_t versionMask_;
-  uint32_t extraNonce2Size_;
+  uint32_t versionMask_ = 0;
+  uint32_t extraNonce2Size_ = StratumMiner::kExtraNonce2Size_;
+  bool useShareV1_ = false;
 
 public:
-  ServerBitcoin();
+  ServerBitcoin() = default;
   virtual ~ServerBitcoin();
 
-  uint32_t getVersionMask() const;
-  uint32_t extraNonce2Size() const;
+  inline uint32_t getVersionMask() const { return versionMask_; }
+  inline uint32_t extraNonce2Size() const { return extraNonce2Size_; }
+  inline bool useShareV1() const { return useShareV1_; }
 
   bool setupInternal(const libconfig::Config &config) override;
 

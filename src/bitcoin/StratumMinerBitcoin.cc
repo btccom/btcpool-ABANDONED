@@ -358,14 +358,27 @@ void StratumMinerBitcoin::handleRequest_Submit(
   }
 
   if (isSendShareToKafka) {
+    if (server.useShareV1()) {
+      ShareBitcoinBytesV1 sharev1;
+      sharev1.jobId_ = share.jobid();
+      sharev1.workerHashId_ = share.workerhashid();
+      sharev1.ip_ = ip.toIpv4Int();
+      sharev1.userId_ = share.userid();
+      sharev1.shareDiff_ = share.sharediff();
+      sharev1.timestamp_ = share.timestamp();
+      sharev1.blkBits_ = share.blkbits();
+      sharev1.result_ = StratumStatus::isAccepted(share.status()) ? 1 : 0;
 
-    std::string message;
-    uint32_t size = 0;
-    if (!share.SerializeToArrayWithVersion(message, size)) {
-      LOG(ERROR) << "share SerializeToBuffer failed!" << share.toString();
-      return;
+      server.sendShare2Kafka(
+          localJob->chainId_, (char *)&sharev1, sizeof(sharev1));
+    } else {
+      std::string message;
+      uint32_t size = 0;
+      if (!share.SerializeToArrayWithVersion(message, size)) {
+        LOG(ERROR) << "share SerializeToBuffer failed!" << share.toString();
+        return;
+      }
+      server.sendShare2Kafka(localJob->chainId_, message.data(), size);
     }
-
-    server.sendShare2Kafka(localJob->chainId_, message.data(), size);
   }
 }

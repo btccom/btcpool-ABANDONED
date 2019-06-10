@@ -324,12 +324,6 @@ void StratumJobExBitcoin::generateBlockHeader(
 }
 
 ////////////////////////////////// ServerBitcoin ///////////////////////////////
-ServerBitcoin::ServerBitcoin()
-  : ServerBase()
-  , versionMask_(0)
-  , extraNonce2Size_(8) {
-}
-
 ServerBitcoin::~ServerBitcoin() {
   for (ChainVarsBitcoin &chain : chainsBitcoin_) {
     if (chain.kafkaProducerAuxSolvedShare_ != nullptr) {
@@ -341,15 +335,9 @@ ServerBitcoin::~ServerBitcoin() {
   }
 }
 
-uint32_t ServerBitcoin::getVersionMask() const {
-  return versionMask_;
-}
-
-uint32_t ServerBitcoin::extraNonce2Size() const {
-  return extraNonce2Size_;
-}
-
 bool ServerBitcoin::setupInternal(const libconfig::Config &config) {
+  config.lookupValue("sserver.use_share_v1", useShareV1_);
+
   config.lookupValue("sserver.version_mask", versionMask_);
   config.lookupValue("sserver.extra_nonce2_size", extraNonce2Size_);
   if (extraNonce2Size_ > StratumMinerBitcoin::kMaxExtraNonce2Size_ ||
