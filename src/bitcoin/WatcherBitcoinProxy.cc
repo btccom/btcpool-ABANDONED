@@ -71,7 +71,7 @@ bool ClientContainerBitcoinProxy::initInternal() {
   }
 
   threadSolvedShareConsume_ =
-      thread(&ClientContainerBitcoinProxy::runThreadSolvedShareConsume, this);
+      std::thread(&ClientContainerBitcoinProxy::runThreadSolvedShareConsume, this);
   return true;
 }
 

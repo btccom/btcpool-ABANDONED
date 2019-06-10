@@ -62,7 +62,7 @@ bool ClientContainerBeam::initInternal() {
   }
 
   threadSolvedShareConsume_ =
-      thread(&ClientContainerBeam::runThreadSolvedShareConsume, this);
+      std::thread(&ClientContainerBeam::runThreadSolvedShareConsume, this);
   return true;
 }
 

@@ -566,7 +566,7 @@ void BlockMakerBitcoin::submitNamecoinBlockNonBlocking(
     const string &rpcAddress,
     const string &rpcUserpass) {
   // use thread to submit
-  boost::thread t(boost::bind(
+  std::thread t(std::bind(
       &BlockMakerBitcoin::_submitNamecoinBlockThread,
       this,
       auxBlockHash,
@@ -574,6 +574,7 @@ void BlockMakerBitcoin::submitNamecoinBlockNonBlocking(
       bitcoinBlockHash,
       rpcAddress,
       rpcUserpass));
+  t.detach();
 }
 
 void BlockMakerBitcoin::_submitNamecoinBlockThread(
@@ -789,13 +790,14 @@ void BlockMakerBitcoin::saveBlockToDBNonBlocking(
     const CBlockHeader &header,
     const uint64_t coinbaseValue,
     const int32_t blksize) {
-  boost::thread t(boost::bind(
+  std::thread t(std::bind(
       &BlockMakerBitcoin::_saveBlockToDBThread,
       this,
       foundBlock,
       header,
       coinbaseValue,
       blksize));
+  t.detach();
 }
 
 void BlockMakerBitcoin::_saveBlockToDBThread(
@@ -858,12 +860,13 @@ bool BlockMakerBitcoin::checkBitcoinds() {
 void BlockMakerBitcoin::submitBlockNonBlocking(const string &blockHex) {
   for (const auto &itr : def()->nodes) {
     // use thread to submit
-    boost::thread t(boost::bind(
+    std::thread t(std::bind(
         &BlockMakerBitcoin::_submitBlockThread,
         this,
         itr.rpcAddr_,
         itr.rpcUserPwd_,
         blockHex));
+    t.detach();
   }
 }
 
@@ -900,7 +903,7 @@ void BlockMakerBitcoin::submitBlockLightNonBlocking(
     const string &blockHex, const string &job_id) {
   for (const auto &itr : def()->nodes) {
     // use thread to submit
-    boost::thread t(boost::bind(
+    std::thread t(std::bind(
         &BlockMakerBitcoin::_submitBlockLightThread,
         this,
         itr.rpcAddr_,
@@ -1108,7 +1111,7 @@ void BlockMakerBitcoin::submitRskBlockPartialMerkleNonBlocking(
     const string &coinbaseHex,
     const string &merkleHashesHex,
     const string &totalTxCount) {
-  boost::thread t(boost::bind(
+  std::thread t(std::bind(
       &BlockMakerBitcoin::_submitRskBlockPartialMerkleThread,
       this,
       rpcAddress,
@@ -1118,6 +1121,7 @@ void BlockMakerBitcoin::submitRskBlockPartialMerkleNonBlocking(
       coinbaseHex,
       merkleHashesHex,
       totalTxCount));
+  t.detach();
 }
 
 void BlockMakerBitcoin::_submitRskBlockPartialMerkleThread(
@@ -1347,7 +1351,7 @@ void BlockMakerBitcoin::submitVcashBlockPartialMerkleNonBlocking(
     const string &coinbaseHex,
     const string &merkleHashesHex,
     const string &totalTxCount) {
-  boost::thread t(boost::bind(
+  std::thread t(std::bind(
       &BlockMakerBitcoin::_submitVcashBlockPartialMerkleThread,
       this,
       rpcAddress,
@@ -1357,6 +1361,7 @@ void BlockMakerBitcoin::submitVcashBlockPartialMerkleNonBlocking(
       coinbaseHex,
       merkleHashesHex,
       totalTxCount));
+  t.detach();
 }
 
 void BlockMakerBitcoin::_submitVcashBlockPartialMerkleThread(
@@ -1400,14 +1405,14 @@ void BlockMakerBitcoin::_submitVcashBlockPartialMerkleThread(
 void BlockMakerBitcoin::run() {
   // setup threads
   threadConsumeRawGbt_ =
-      thread(&BlockMakerBitcoin::runThreadConsumeRawGbt, this);
+      std::thread(&BlockMakerBitcoin::runThreadConsumeRawGbt, this);
   threadConsumeStratumJob_ =
-      thread(&BlockMakerBitcoin::runThreadConsumeStratumJob, this);
+      std::thread(&BlockMakerBitcoin::runThreadConsumeStratumJob, this);
 #ifndef CHAIN_TYPE_ZEC
-  threadConsumeNamecoinSolvedShare_ =
-      thread(&BlockMakerBitcoin::runThreadConsumeNamecoinSolvedShare, this);
+  threadConsumeNamecoinSolvedShare_ = std::thread(
+      &BlockMakerBitcoin::runThreadConsumeNamecoinSolvedShare, this);
   threadConsumeRskSolvedShare_ =
-      thread(&BlockMakerBitcoin::runThreadConsumeRskSolvedShare, this);
+      std::thread(&BlockMakerBitcoin::runThreadConsumeRskSolvedShare, this);
 #endif
   BlockMaker::run();
 }

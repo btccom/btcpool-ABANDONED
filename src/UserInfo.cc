@@ -470,7 +470,7 @@ bool UserInfo::setupThreads() {
   for (size_t chainId = 0; chainId < chains_.size(); chainId++) {
     ChainVars &chain = chains_[chainId];
 
-    chain.threadUpdate_ = thread(&UserInfo::runThreadUpdate, this, chainId);
+    chain.threadUpdate_ = std::thread(&UserInfo::runThreadUpdate, this, chainId);
   }
 
   return true;

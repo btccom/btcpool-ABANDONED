@@ -396,7 +396,8 @@ void GbtMaker::threadListenBitcoind() {
 
 #ifdef CHAIN_TYPE_BCH
 void GbtMaker::runLightGbt() {
-  thread threadListenBitcoind = thread(&GbtMaker::threadListenBitcoind, this);
+  auto threadListenBitcoind =
+      std::thread(&GbtMaker::threadListenBitcoind, this);
 
   while (running_) {
     std::this_thread::sleep_for(1s);
@@ -409,7 +410,8 @@ void GbtMaker::runLightGbt() {
 
 #endif
 void GbtMaker::run() {
-  thread threadListenBitcoind = thread(&GbtMaker::threadListenBitcoind, this);
+  auto threadListenBitcoind =
+      std::thread(&GbtMaker::threadListenBitcoind, this);
 
   while (running_) {
     std::this_thread::sleep_for(1s);
@@ -656,8 +658,8 @@ void NMCAuxBlockMaker::run() {
   //
   // listen namecoind zmq for detect new block coming
   //
-  thread threadListenNamecoind =
-      thread(&NMCAuxBlockMaker::threadListenNamecoind, this);
+  auto threadListenNamecoind =
+      std::thread(&NMCAuxBlockMaker::threadListenNamecoind, this);
 
   // createauxblock interval
   while (running_) {

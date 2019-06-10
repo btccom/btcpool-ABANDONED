@@ -1132,7 +1132,7 @@ void ShareLogParserServerT<SHARE>::runHttpd() {
 template <class SHARE>
 bool ShareLogParserServerT<SHARE>::setupThreadShareLogParser() {
   threadShareLogParser_ =
-      thread(&ShareLogParserServerT<SHARE>::runThreadShareLogParser, this);
+      std::thread(&ShareLogParserServerT<SHARE>::runThreadShareLogParser, this);
   return true;
 }
 

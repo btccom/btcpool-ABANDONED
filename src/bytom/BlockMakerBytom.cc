@@ -76,7 +76,7 @@ void BlockMakerBytom::processSolvedShare(rd_kafka_message_t *rkmessage) {
 void BlockMakerBytom::submitBlockNonBlocking(const string &request) {
   for (const auto &itr : def()->nodes) {
     // use thread to submit
-    boost::thread t(boost::bind(
+    std::thread t(std::bind(
         &BlockMakerBytom::_submitBlockThread,
         this,
         itr.rpcAddr_,
@@ -108,13 +108,14 @@ void BlockMakerBytom::saveBlockToDBNonBlocking(
     const uint32_t height,
     const uint64_t networkDiff,
     const StratumWorkerPlain &worker) {
-  boost::thread t(boost::bind(
+  std::thread t(std::bind(
       &BlockMakerBytom::_saveBlockToDBThread,
       this,
       header,
       height,
       networkDiff,
       worker));
+  t.detach();
 }
 
 void BlockMakerBytom::_saveBlockToDBThread(

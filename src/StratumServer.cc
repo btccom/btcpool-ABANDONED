@@ -185,7 +185,7 @@ bool JobRepository::setupThreadConsume() {
     return false;
   }
 
-  threadConsume_ = thread(&JobRepository::runThreadConsume, this);
+  threadConsume_ = std::thread(&JobRepository::runThreadConsume, this);
   return true;
 }
 

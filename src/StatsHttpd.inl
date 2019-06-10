@@ -365,17 +365,18 @@ void StatsServerT<SHARE>::flushWorkersAndUsersToRedis() {
   }
 
   isUpdateRedis_ = true;
-  boost::thread t(boost::bind(
+  std::thread t(boost::bind(
       &StatsServerT<SHARE>::_flushWorkersAndUsersToRedisThread, this));
+  t.detach();
 }
 
 template <class SHARE>
 void StatsServerT<SHARE>::_flushWorkersAndUsersToRedisThread() {
-  std::vector<boost::thread> threadPool;
+  std::vector<std::thread> threadPool;
 
   assert(redisGroup_.size() == redisConcurrency_);
   for (uint32_t i = 0; i < redisConcurrency_; i++) {
-    threadPool.push_back(boost::thread(boost::bind(
+    threadPool.push_back(std::thread(boost::bind(
         &StatsServerT<SHARE>::_flushWorkersAndUsersToRedisThread, this, i)));
   }
 
@@ -799,8 +800,9 @@ void StatsServerT<SHARE>::flushWorkersAndUsersToDB() {
   }
 
   isInserting_ = true;
-  boost::thread t(
-      boost::bind(&StatsServerT<SHARE>::_flushWorkersAndUsersToDBThread, this));
+  std::thread t(
+      std::bind(&StatsServerT<SHARE>::_flushWorkersAndUsersToDBThread, this));
+  t.detach();
 }
 
 template <class SHARE>
@@ -1167,9 +1169,9 @@ bool StatsServerT<SHARE>::setupThreadConsume() {
   }
 
   // run threads
-  threadConsume_ = thread(&StatsServerT<SHARE>::runThreadConsume, this);
+  threadConsume_ = std::thread(&StatsServerT<SHARE>::runThreadConsume, this);
   threadConsumeCommonEvents_ =
-      thread(&StatsServerT<SHARE>::runThreadConsumeCommonEvents, this);
+      std::thread(&StatsServerT<SHARE>::runThreadConsumeCommonEvents, this);
 
   return true;
 }

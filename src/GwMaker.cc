@@ -154,7 +154,7 @@ void GwNotification::httpdNotification(struct evhttp_request *req, void *arg) {
 }
 
 void GwNotification::setupHttpd() {
-  boost::thread t(boost::bind(&GwNotification::runHttpd, this));
+  std::thread t(std::bind(&GwNotification::runHttpd, this));
   t.detach();
 }
 

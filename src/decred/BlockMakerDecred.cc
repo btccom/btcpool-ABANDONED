@@ -42,11 +42,11 @@ void BlockMakerDecred::processSolvedShare(rd_kafka_message_t *rkmessage) {
   // TODO: Think about a better way to do it asynchronously for all block
   // makers...
   for (auto &node : def()->nodes) {
-    thread t(std::bind(
+    std::thread t(std::bind(
         &BlockMakerDecred::submitBlockHeader, this, node, foundBlock->header_));
     t.detach();
   }
-  thread d(std::bind(&BlockMakerDecred::saveBlockToDB, this, *foundBlock));
+  std::thread d(std::bind(&BlockMakerDecred::saveBlockToDB, this, *foundBlock));
   d.detach();
 }
 

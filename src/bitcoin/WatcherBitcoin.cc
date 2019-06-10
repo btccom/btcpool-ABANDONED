@@ -79,7 +79,7 @@ bool ClientContainerBitcoin::initInternal() {
     }
 
     threadStratumJobConsume_ =
-        thread(&ClientContainerBitcoin::runThreadStratumJobConsume, this);
+        std::thread(&ClientContainerBitcoin::runThreadStratumJobConsume, this);
   }
 
   return true;

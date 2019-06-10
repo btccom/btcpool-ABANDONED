@@ -66,7 +66,7 @@ bool ClientContainerGrin::initInternal() {
   }
 
   threadSolvedShareConsume_ =
-      thread(&ClientContainerGrin::runThreadSolvedShareConsume, this);
+      std::thread(&ClientContainerGrin::runThreadSolvedShareConsume, this);
   return true;
 }
 
