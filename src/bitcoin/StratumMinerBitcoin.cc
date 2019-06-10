@@ -367,7 +367,9 @@ void StratumMinerBitcoin::handleRequest_Submit(
       sharev1.shareDiff_ = share.sharediff();
       sharev1.timestamp_ = share.timestamp();
       sharev1.blkBits_ = share.blkbits();
-      sharev1.result_ = StratumStatus::isAccepted(share.status()) ? 1 : 0;
+      sharev1.result_ = StratumStatus::isAccepted(share.status())
+          ? ShareBitcoinBytesV1::ACCEPT
+          : ShareBitcoinBytesV1::REJECT;
 
       server.sendShare2Kafka(
           localJob->chainId_, (char *)&sharev1, sizeof(sharev1));
