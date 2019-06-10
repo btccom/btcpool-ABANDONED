@@ -282,7 +282,7 @@ void StratumMinerEth::handleRequest_Submit(
        idStr,
        chainId = localJob->chainId_,
        share,
-       sHeader,
+       headerHash = sjob->headerHash_,
        sNonce,
        withExtraNonce1 = sjob->hasHeader(),
        extraNonce2](
@@ -295,7 +295,7 @@ void StratumMinerEth::handleRequest_Submit(
             idStr,
             chainId,
             share,
-            sHeader,
+            headerHash,
             sNonce,
             shareMixHash,
             withExtraNonce1,
