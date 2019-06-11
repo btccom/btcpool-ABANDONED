@@ -768,7 +768,7 @@ bool StratumJobBitcoin::initFromGbt(
     if (latestRskBlockJson.isInitialized()) {
       DLOG(INFO) << "RSK blockhash: " << blockHashForMergedMining_;
       string rskBlockTag =
-          "\x52\x53\x4B\x42\x4C\x4F\x43\x4B\x3A"; // "RSKBLOCK:"
+          "\x6a\x29\x52\x53\x4B\x42\x4C\x4F\x43\x4B\x3A"; // "RSKBLOCK:"
       vector<char> rskTag(rskBlockTag.begin(), rskBlockTag.end());
       vector<char> binBuf;
 

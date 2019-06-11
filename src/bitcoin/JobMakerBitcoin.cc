@@ -476,8 +476,8 @@ bool JobMakerHandlerBitcoin::triggerRskUpdate() {
   }
 
   bool notifyFlagUpdate =
-      def()->mergedMiningNotifyPolicy_ == 1 && currentRskWork.getNotifyFlag();
-  bool differentHashUpdate = def()->mergedMiningNotifyPolicy_ == 2 &&
+      def()->rskmergedMiningNotifyPolicy_ == 1 && currentRskWork.getNotifyFlag();
+  bool differentHashUpdate = def()->rskmergedMiningNotifyPolicy_ == 2 &&
       (currentRskWork.getBlockHash() != previousRskWork.getBlockHash());
 
   bool isMergedMiningUpdate = notifyFlagUpdate || differentHashUpdate;
@@ -500,10 +500,10 @@ bool JobMakerHandlerBitcoin::triggerVcashUpdate() {
     previousVcashWork = *previousVcashWork_;
   }
 
-  bool heightUpdate = def()->mergedMiningNotifyPolicy_ == 1 &&
+  bool heightUpdate = def()->vcashmergedMiningNotifyPolicy_ == 1 &&
       currentVcashWork.getHeight() > previousVcashWork.getHeight();
 
-  bool differentHashUpdate = def()->mergedMiningNotifyPolicy_ == 2 &&
+  bool differentHashUpdate = def()->vcashmergedMiningNotifyPolicy_ == 2 &&
       (currentVcashWork.getBlockHash() != previousVcashWork.getBlockHash());
 
   bool isMergedMiningUpdate = heightUpdate || differentHashUpdate;
@@ -556,10 +556,10 @@ bool JobMakerHandlerBitcoin::processAuxPowMsg(const string &msg) {
     DLOG(INFO) << "latestAuxPowJson: " << latestNmcAuxBlockJson_;
   }
 
-  bool higherHeightUpdate = def()->mergedMiningNotifyPolicy_ == 1 &&
+  bool higherHeightUpdate = def()->auxmergedMiningNotifyPolicy_ == 1 &&
       currentNmcBlockHeight > latestNmcAuxBlockHeight;
 
-  bool differentHashUpdate = def()->mergedMiningNotifyPolicy_ == 2 &&
+  bool differentHashUpdate = def()->auxmergedMiningNotifyPolicy_ == 2 &&
       currentNmcBlockHash != latestNmcAuxBlockHash;
 
   isMergedMiningUpdate_ = higherHeightUpdate || differentHashUpdate;

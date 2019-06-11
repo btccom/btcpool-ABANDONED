@@ -93,7 +93,9 @@ struct GbtJobMakerDefinition : public JobMakerDefinition {
   uint32_t gbtLifeTime_;
   uint32_t emptyGbtLifeTime_;
 
-  uint32_t mergedMiningNotifyPolicy_;
+  uint32_t auxmergedMiningNotifyPolicy_;
+  uint32_t rskmergedMiningNotifyPolicy_;
+  uint32_t vcashmergedMiningNotifyPolicy_;
 };
 
 class JobMakerHandler {

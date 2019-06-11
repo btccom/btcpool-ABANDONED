@@ -172,9 +172,17 @@ createGbtJobMakerDefinition(const Setting &setting) {
   readFromSetting(setting, "gbt_life_time", def->gbtLifeTime_);
   readFromSetting(setting, "empty_gbt_life_time", def->emptyGbtLifeTime_);
 
-  def->mergedMiningNotifyPolicy_ = 1;
+  def->auxmergedMiningNotifyPolicy_ = 1;
   readFromSetting(
-      setting, "merged_mining_notify", def->mergedMiningNotifyPolicy_, true);
+      setting, "aux_merged_mining_notify", def->auxmergedMiningNotifyPolicy_, true);
+
+    def->rskmergedMiningNotifyPolicy_ = 1;
+  readFromSetting(
+      setting, "rsk_merged_mining_notify", def->rskmergedMiningNotifyPolicy_, true);
+
+    def->vcashmergedMiningNotifyPolicy_ = 1;
+  readFromSetting(
+      setting, "vcash_merged_mining_notify", def->vcashmergedMiningNotifyPolicy_, true);
 
   readFromSetting(setting, "zookeeper_lock_path", def->zookeeperLockPath_);
   readFromSetting(setting, "file_last_job_time", def->fileLastJobTime_, true);
