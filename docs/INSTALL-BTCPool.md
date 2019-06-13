@@ -379,7 +379,7 @@ SOURCE bpool_local_stats_db.sql;
 
 ### (optional) install Redis
 
-If you want to install Redis as your `statshttpd`'s optional storage, refer to [](INSTALL-Redis.md).
+If you want to install Redis as your `statshttpd`'s optional storage, refer to [INSTALL-Redis.md](INSTALL-Redis.md).
 
 ### User list API
 
