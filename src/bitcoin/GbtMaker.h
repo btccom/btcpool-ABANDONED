@@ -50,8 +50,6 @@ class GbtMaker {
   KafkaProducer kafkaProducer_;
   bool isCheckZmq_;
 
-  bool checkBitcoindZMQ();
-
   bool bitcoindRpcGBT(string &resp);
   string makeRawGbtMsg();
   void submitRawGbtMsg(bool checkTime);
@@ -109,7 +107,6 @@ class NMCAuxBlockMaker {
   string coinbaseAddress_; // nmc coinbase payout address
   bool useCreateAuxBlockInterface_;
 
-  bool checkNamecoindZMQ();
   bool callRpcCreateAuxBlock(string &resp);
   string makeAuxBlockMsg();
 
