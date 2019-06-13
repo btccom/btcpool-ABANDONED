@@ -82,54 +82,59 @@ static void ListenToZmqPublisher(
     const std::string &address,
     const std::string &msgType,
     const std::atomic<bool> &running,
+    uint32_t timeout,
     std::function<void()> callback) {
-  zmq::socket_t subscriber(context, ZMQ_SUB);
-  subscriber.connect(address);
-  subscriber.setsockopt(ZMQ_SUBSCRIBE, msgType.c_str(), msgType.size());
+  int timeoutMs = timeout * 1000;
+  LOG_IF(FATAL, timeoutMs <= 0) << "zmq timeout has to be positive!";
 
   while (running) {
-    zmq::message_t zType, zContent;
-    try {
-      // if we use block mode, can't quit this thread
-      if (subscriber.recv(&zType, ZMQ_DONTWAIT) == false) {
-        if (!running) {
+    zmq::socket_t subscriber(context, ZMQ_SUB);
+    subscriber.connect(address);
+    subscriber.setsockopt(ZMQ_SUBSCRIBE, msgType.c_str(), msgType.size());
+    subscriber.setsockopt(ZMQ_RCVTIMEO, &timeoutMs, sizeof(timeout));
+
+    while (running) {
+      zmq::message_t zType, zContent;
+      try {
+        // use block mode with receive timeout
+        if (subscriber.recv(&zType) == false) {
+          LOG(WARNING) << "zmq recv timeout, reconnecting to " << address;
           break;
         }
-        std::this_thread::sleep_for(20ms); // so we sleep and try again
-        continue;
+      } catch (zmq::error_t &e) {
+        LOG(ERROR) << address << " zmq recv exception: " << e.what();
+        break; // break big while
       }
-    } catch (zmq::error_t &e) {
-      LOG(ERROR) << address << " zmq recv exception: " << e.what();
-      break; // break big while
-    }
 
-    if (0 ==
-        msgType.compare(
-            0,
-            msgType.size(),
-            static_cast<char *>(zType.data()),
-            zType.size())) {
-      subscriber.recv(&zContent);
-      string content;
-      Bin2Hex(
-          static_cast<uint8_t *>(zContent.data()), zContent.size(), content);
-      LOG(INFO) << ">>>> " << address << " zmq recv " << msgType << ": "
-                << content << " <<<<";
-      LOG(INFO) << "get zmq message, call rpc getblocktemplate";
-      callback();
-    }
-    // Ignore any unknown fields to keep forward compatible.
-    // Message sender may add new fields in the future.
+      if (0 ==
+          msgType.compare(
+              0,
+              msgType.size(),
+              static_cast<char *>(zType.data()),
+              zType.size())) {
+        subscriber.recv(&zContent);
+        string content;
+        Bin2Hex(
+            static_cast<uint8_t *>(zContent.data()), zContent.size(), content);
+        LOG(INFO) << ">>>> " << address << " zmq recv " << msgType << ": "
+                  << content << " <<<<";
+        LOG(INFO) << "get zmq message, call rpc getblocktemplate";
+        callback();
+      }
+      // Ignore any unknown fields to keep forward compatible.
+      // Message sender may add new fields in the future.
 
-  } /* /while */
+    } /* /while */
 
-  subscriber.close();
+    subscriber.close();
+  }
   LOG(INFO) << "stop thread listen to bitcoind";
 }
 
 ///////////////////////////////////  GbtMaker  /////////////////////////////////
 GbtMaker::GbtMaker(
     const string &zmqBitcoindAddr,
+    uint32_t zmqTimeout,
     const string &bitcoindRpcAddr,
     const string &bitcoindRpcUserpass,
     const string &kafkaBrokers,
@@ -139,6 +144,7 @@ GbtMaker::GbtMaker(
   : running_(true)
   , zmqContext_(1 /*i/o threads*/)
   , zmqBitcoindAddr_(zmqBitcoindAddr)
+  , zmqTimeout_(zmqTimeout)
   , bitcoindRpcAddr_(bitcoindRpcAddr)
   , bitcoindRpcUserpass_(bitcoindRpcUserpass)
   , lastGbtMakeTime_(0)
@@ -383,6 +389,7 @@ void GbtMaker::threadListenBitcoind() {
       zmqBitcoindAddr_,
       BITCOIND_ZMQ_HASHBLOCK,
       running_,
+      zmqTimeout_,
       [this]() { submitRawGbtMsg(false); });
 }
 
@@ -415,6 +422,7 @@ void GbtMaker::run() {
 //////////////////////////////// NMCAuxBlockMaker //////////////////////////////
 NMCAuxBlockMaker::NMCAuxBlockMaker(
     const string &zmqNamecoindAddr,
+    uint32_t zmqTimeout,
     const string &rpcAddr,
     const string &rpcUserpass,
     const string &kafkaBrokers,
@@ -426,6 +434,7 @@ NMCAuxBlockMaker::NMCAuxBlockMaker(
   : running_(true)
   , zmqContext_(1 /*i/o threads*/)
   , zmqNamecoindAddr_(zmqNamecoindAddr)
+  , zmqTimeout_(zmqTimeout)
   , rpcAddr_(rpcAddr)
   , rpcUserpass_(rpcUserpass)
   , lastCallTime_(0)
@@ -575,6 +584,7 @@ void NMCAuxBlockMaker::threadListenNamecoind() {
       zmqNamecoindAddr_,
       NAMECOIND_ZMQ_HASHBLOCK,
       running_,
+      zmqTimeout_,
       [this]() { submitAuxblockMsg(false); });
 }
 

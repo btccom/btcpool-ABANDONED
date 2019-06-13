@@ -36,6 +36,7 @@ class GbtMaker {
 
   zmq::context_t zmqContext_;
   string zmqBitcoindAddr_;
+  uint32_t zmqTimeout_;
 
   string bitcoindRpcAddr_;
   string bitcoindRpcUserpass_;
@@ -67,6 +68,7 @@ class GbtMaker {
 public:
   GbtMaker(
       const string &zmqBitcoindAddr,
+      uint32_t zmqTimeout,
       const string &bitcoindRpcAddr,
       const string &bitcoindRpcUserpass,
       const string &kafkaBrokers,
@@ -93,6 +95,7 @@ class NMCAuxBlockMaker {
 
   zmq::context_t zmqContext_;
   string zmqNamecoindAddr_;
+  uint32_t zmqTimeout_;
 
   string rpcAddr_;
   string rpcUserpass_;
@@ -118,6 +121,7 @@ class NMCAuxBlockMaker {
 public:
   NMCAuxBlockMaker(
       const string &zmqNamecoindAddr,
+      uint32_t zmqTimeout,
       const string &rpcAddr,
       const string &rpcUserpass,
       const string &kafkaBrokers,

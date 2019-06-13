@@ -128,6 +128,7 @@ int main(int argc, char **argv) {
     cfg.lookupValue("gbtmaker.rpcinterval", rpcCallInterval);
     gGbtMaker = new GbtMaker(
         cfg.lookup("bitcoind.zmq_addr"),
+        cfg.lookup("bitcoind.zmq_timeout"),
         cfg.lookup("bitcoind.rpc_addr"),
         cfg.lookup("bitcoind.rpc_userpwd"),
         cfg.lookup("kafka.brokers"),

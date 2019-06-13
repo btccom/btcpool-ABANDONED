@@ -133,6 +133,7 @@ int main(int argc, char **argv) {
 
   gNMCAuxBlockMaker = new NMCAuxBlockMaker(
       cfg.lookup("namecoind.zmq_addr"),
+      cfg.lookup("namecoind.zmq_timeout"),
       cfg.lookup("namecoind.rpc_addr"),
       cfg.lookup("namecoind.rpc_userpwd"),
       cfg.lookup("kafka.brokers"),
