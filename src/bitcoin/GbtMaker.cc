@@ -36,14 +36,96 @@
 //
 // bitcoind zmq pub msg type: "hashblock", "hashtx", "rawblock", "rawtx"
 //
-#define BITCOIND_ZMQ_HASHBLOCK "hashblock"
-#define BITCOIND_ZMQ_HASHTX "hashtx"
+static const std::string BITCOIND_ZMQ_HASHBLOCK = "hashblock";
+static const std::string BITCOIND_ZMQ_HASHTX = "hashtx";
 
 //
 // namecoind zmq pub msg type: "hashblock", "hashtx", "rawblock", "rawtx"
 //
-#define NAMECOIND_ZMQ_HASHBLOCK "hashblock"
-#define NAMECOIND_ZMQ_HASHTX "hashtx"
+static const std::string NAMECOIND_ZMQ_HASHBLOCK = "hashblock";
+static const std::string NAMECOIND_ZMQ_HASHTX = "hashtx";
+
+static bool CheckZmqPublisher(
+    zmq::context_t &context,
+    const std::string &address,
+    const std::string &msgType) {
+  zmq::socket_t subscriber(context, ZMQ_SUB);
+  subscriber.connect(address);
+  subscriber.setsockopt(ZMQ_SUBSCRIBE, msgType.c_str(), msgType.size());
+  zmq::message_t ztype, zcontent;
+
+  LOG(INFO) << "check " << address << " zmq, waiting for zmq message '"
+            << msgType << "'...";
+  try {
+    subscriber.recv(&ztype);
+  } catch (zmq::error_t &e) {
+    LOG(ERROR) << address << " zmq recv exception: " << e.what();
+    return false;
+  }
+  const string type =
+      std::string(static_cast<char *>(ztype.data()), ztype.size());
+
+  if (type == msgType) {
+    subscriber.recv(&zcontent);
+    string content;
+    Bin2Hex(static_cast<uint8_t *>(zcontent.data()), zcontent.size(), content);
+    LOG(INFO) << address << " zmq recv " << type << ": " << content;
+    return true;
+  }
+
+  LOG(ERROR) << "unknown zmq message type from " << address << ": " << type;
+  return false;
+}
+
+static void ListenToZmqPublisher(
+    zmq::context_t &context,
+    const std::string &address,
+    const std::string &msgType,
+    const std::atomic<bool> &running,
+    std::function<void()> callback) {
+  zmq::socket_t subscriber(context, ZMQ_SUB);
+  subscriber.connect(address);
+  subscriber.setsockopt(ZMQ_SUBSCRIBE, msgType.c_str(), msgType.size());
+
+  while (running) {
+    zmq::message_t zType, zContent;
+    try {
+      // if we use block mode, can't quit this thread
+      if (subscriber.recv(&zType, ZMQ_DONTWAIT) == false) {
+        if (!running) {
+          break;
+        }
+        std::this_thread::sleep_for(20ms); // so we sleep and try again
+        continue;
+      }
+    } catch (zmq::error_t &e) {
+      LOG(ERROR) << address << " zmq recv exception: " << e.what();
+      break; // break big while
+    }
+
+    if (0 ==
+        msgType.compare(
+            0,
+            msgType.size(),
+            static_cast<char *>(zType.data()),
+            zType.size())) {
+      subscriber.recv(&zContent);
+      string content;
+      Bin2Hex(
+          static_cast<uint8_t *>(zContent.data()), zContent.size(), content);
+      LOG(INFO) << ">>>> " << address << " zmq recv " << msgType << ": "
+                << content << " <<<<";
+      LOG(INFO) << "get zmq message, call rpc getblocktemplate";
+      callback();
+    }
+    // Ignore any unknown fields to keep forward compatible.
+    // Message sender may add new fields in the future.
+
+  } /* /while */
+
+  subscriber.close();
+  LOG(INFO) << "stop thread listen to bitcoind";
+}
 
 ///////////////////////////////////  GbtMaker  /////////////////////////////////
 GbtMaker::GbtMaker(
@@ -95,45 +177,11 @@ bool GbtMaker::init() {
     return false;
   }
 
-  if (isCheckZmq_ && !checkBitcoindZMQ())
+  if (isCheckZmq_ &&
+      !CheckZmqPublisher(zmqContext_, zmqBitcoindAddr_, BITCOIND_ZMQ_HASHTX))
     return false;
 
   return true;
-}
-
-bool GbtMaker::checkBitcoindZMQ() {
-  //
-  // bitcoind MUST with option: -zmqpubhashtx
-  //
-  zmq::socket_t subscriber(zmqContext_, ZMQ_SUB);
-  subscriber.connect(zmqBitcoindAddr_);
-  subscriber.setsockopt(
-      ZMQ_SUBSCRIBE, BITCOIND_ZMQ_HASHTX, strlen(BITCOIND_ZMQ_HASHTX));
-  zmq::message_t ztype, zcontent;
-
-  LOG(INFO) << "check bitcoind zmq, waiting for zmq message 'hashtx'...";
-  try {
-    subscriber.recv(&ztype);
-  } catch (std::exception &e) {
-    LOG(ERROR) << "bitcoind zmq recv exception: " << e.what();
-    return false;
-  }
-  const string type =
-      std::string(static_cast<char *>(ztype.data()), ztype.size());
-
-  if (type == BITCOIND_ZMQ_HASHTX) {
-    subscriber.recv(&zcontent);
-    const string content =
-        std::string(static_cast<char *>(zcontent.data()), zcontent.size());
-
-    string hashHex;
-    Bin2Hex((const uint8_t *)content.data(), content.size(), hashHex);
-    LOG(INFO) << "bitcoind zmq recv hashtx: " << hashHex;
-    return true;
-  }
-
-  LOG(ERROR) << "unknown zmq message type from bitcoind: " << type;
-  return false;
 }
 
 void GbtMaker::stop() {
@@ -330,48 +378,12 @@ void GbtMaker::submitRawGbtLightMsg(bool checkTime) {
 #endif // CHAIN_TYPE_BCH
 
 void GbtMaker::threadListenBitcoind() {
-  zmq::socket_t subscriber(zmqContext_, ZMQ_SUB);
-  subscriber.connect(zmqBitcoindAddr_);
-  subscriber.setsockopt(
-      ZMQ_SUBSCRIBE, BITCOIND_ZMQ_HASHBLOCK, strlen(BITCOIND_ZMQ_HASHBLOCK));
-
-  while (running_) {
-    zmq::message_t zType, zContent;
-    try {
-      // if we use block mode, can't quit this thread
-      if (subscriber.recv(&zType, ZMQ_DONTWAIT) == false) {
-        if (!running_) {
-          break;
-        }
-        std::this_thread::sleep_for(20ms); // so we sleep and try again
-        continue;
-      }
-    } catch (std::exception &e) {
-      LOG(ERROR) << "bitcoind zmq recv exception: " << e.what();
-      break; // break big while
-    }
-    const string type =
-        std::string(static_cast<char *>(zType.data()), zType.size());
-
-    if (type == BITCOIND_ZMQ_HASHBLOCK) {
-      subscriber.recv(&zContent);
-      const string content =
-          std::string(static_cast<char *>(zContent.data()), zContent.size());
-
-      string hashHex;
-      Bin2Hex((const uint8_t *)content.data(), content.size(), hashHex);
-      LOG(INFO) << ">>>> bitcoind recv hashblock: " << hashHex << " <<<<";
-
-      LOG(INFO) << "get zmq message, call rpc getblocktemplate";
-      submitRawGbtMsg(false);
-    }
-    // Ignore any unknown fields to keep forward compatible.
-    // Message sender may add new fields in the future.
-
-  } /* /while */
-
-  subscriber.close();
-  LOG(INFO) << "stop thread listen to bitcoind";
+  ListenToZmqPublisher(
+      zmqContext_,
+      zmqBitcoindAddr_,
+      BITCOIND_ZMQ_HASHBLOCK,
+      running_,
+      [this]() { submitRawGbtMsg(false); });
 }
 
 #ifdef CHAIN_TYPE_BCH
@@ -428,41 +440,6 @@ NMCAuxBlockMaker::NMCAuxBlockMaker(
 }
 
 NMCAuxBlockMaker::~NMCAuxBlockMaker() {
-}
-
-bool NMCAuxBlockMaker::checkNamecoindZMQ() {
-  //
-  // namecoind MUST with option: -zmqpubhashtx
-  //
-  zmq::socket_t subscriber(zmqContext_, ZMQ_SUB);
-  subscriber.connect(zmqNamecoindAddr_);
-  subscriber.setsockopt(
-      ZMQ_SUBSCRIBE, NAMECOIND_ZMQ_HASHTX, strlen(NAMECOIND_ZMQ_HASHTX));
-  zmq::message_t ztype, zcontent;
-
-  LOG(INFO) << "check namecoind zmq, waiting for zmq message 'hashtx'...";
-  try {
-    subscriber.recv(&ztype);
-  } catch (std::exception &e) {
-    LOG(ERROR) << "namecoind zmq recv exception: " << e.what();
-    return false;
-  }
-  const string type =
-      std::string(static_cast<char *>(ztype.data()), ztype.size());
-
-  if (type == NAMECOIND_ZMQ_HASHTX) {
-    subscriber.recv(&zcontent);
-    const string content =
-        std::string(static_cast<char *>(zcontent.data()), zcontent.size());
-
-    string hashHex;
-    Bin2Hex((const uint8_t *)content.data(), content.size(), hashHex);
-    LOG(INFO) << "namecoind zmq recv hashtx: " << hashHex;
-    return true;
-  }
-
-  LOG(ERROR) << "unknown zmq message type from namecoind: " << type;
-  return false;
 }
 
 bool NMCAuxBlockMaker::callRpcCreateAuxBlock(string &resp) {
@@ -593,45 +570,12 @@ void NMCAuxBlockMaker::submitAuxblockMsg(bool checkTime) {
 }
 
 void NMCAuxBlockMaker::threadListenNamecoind() {
-  zmq::socket_t subscriber(zmqContext_, ZMQ_SUB);
-  subscriber.connect(zmqNamecoindAddr_);
-  subscriber.setsockopt(
-      ZMQ_SUBSCRIBE, NAMECOIND_ZMQ_HASHBLOCK, strlen(NAMECOIND_ZMQ_HASHBLOCK));
-
-  while (running_) {
-    zmq::message_t ztype, zcontent;
-    try {
-      if (subscriber.recv(&ztype, ZMQ_DONTWAIT) == false) {
-        if (!running_) {
-          break;
-        }
-        std::this_thread::sleep_for(50ms); // so we sleep and try again
-        continue;
-      }
-    } catch (std::exception &e) {
-      LOG(ERROR) << "namecoind zmq recv exception: " << e.what();
-      break; // break big while
-    }
-    const string type =
-        std::string(static_cast<char *>(ztype.data()), ztype.size());
-
-    if (type == NAMECOIND_ZMQ_HASHBLOCK) {
-      subscriber.recv(&zcontent);
-      const string content =
-          std::string(static_cast<char *>(zcontent.data()), zcontent.size());
-
-      string hashHex;
-      Bin2Hex((const uint8_t *)content.data(), content.size(), hashHex);
-      LOG(INFO) << ">>>> namecoind recv hashblock: " << hashHex << " <<<<";
-      submitAuxblockMsg(false);
-    }
-    // Ignore any unknown fields to keep forward compatible.
-    // Message sender may add new fields in the future.
-
-  } /* /while */
-
-  subscriber.close();
-  LOG(INFO) << "stop thread listen to namecoind";
+  ListenToZmqPublisher(
+      zmqContext_,
+      zmqNamecoindAddr_,
+      NAMECOIND_ZMQ_HASHBLOCK,
+      running_,
+      [this]() { submitAuxblockMsg(false); });
 }
 
 void NMCAuxBlockMaker::kafkaProduceMsg(const void *payload, size_t len) {
@@ -681,7 +625,8 @@ bool NMCAuxBlockMaker::init() {
               << "support rpc commands: createauxblock and submitauxblock";
   }
 
-  if (isCheckZmq_ && !checkNamecoindZMQ())
+  if (isCheckZmq_ &&
+      !CheckZmqPublisher(zmqContext_, zmqNamecoindAddr_, NAMECOIND_ZMQ_HASHTX))
     return false;
 
   return true;
