@@ -501,10 +501,10 @@ void BlockMakerBitcoin::_submitNamecoinBlockThread(
     string sql;
     sql = Strings::Format(
         "INSERT INTO `%s` "
-        " (`bitcoin_block_hash`,`aux_block_hash`,"
+        " (`parent_block_hash`,`aux_block_hash`,"
         "  `aux_pow`,`created_at`) "
         " VALUES (\"%s\",\"%s\",\"%s\",\"%s\"); ",
-        def()->foundAuxBlockTable_.empty() ? "found_nmc_blocks"
+        def()->foundAuxBlockTable_.empty() ? "found_aux_blocks"
                                            : def()->foundAuxBlockTable_.c_str(),
         bitcoinBlockHash.c_str(),
         auxBlockHash.c_str(),
