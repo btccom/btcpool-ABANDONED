@@ -34,7 +34,7 @@ class GbtMaker {
   atomic<bool> running_;
   mutex lock_;
 
-  zmq::context_t zmqContext_;
+  std::unique_ptr<zmq::context_t> zmqContext_;
   string zmqBitcoindAddr_;
   uint32_t zmqTimeout_;
 
@@ -93,7 +93,7 @@ class NMCAuxBlockMaker {
   atomic<bool> running_;
   mutex lock_;
 
-  zmq::context_t zmqContext_;
+  std::unique_ptr<zmq::context_t> zmqContext_;
   string zmqNamecoindAddr_;
   uint32_t zmqTimeout_;
 

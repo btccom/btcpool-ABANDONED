@@ -142,7 +142,7 @@ GbtMaker::GbtMaker(
     uint32_t kRpcCallInterval,
     bool isCheckZmq)
   : running_(true)
-  , zmqContext_(1 /*i/o threads*/)
+  , zmqContext_(std::make_unique<zmq::context_t>(1 /*i/o threads*/))
   , zmqBitcoindAddr_(zmqBitcoindAddr)
   , zmqTimeout_(zmqTimeout)
   , bitcoindRpcAddr_(bitcoindRpcAddr)
@@ -184,7 +184,7 @@ bool GbtMaker::init() {
   }
 
   if (isCheckZmq_ &&
-      !CheckZmqPublisher(zmqContext_, zmqBitcoindAddr_, BITCOIND_ZMQ_HASHTX))
+      !CheckZmqPublisher(*zmqContext_, zmqBitcoindAddr_, BITCOIND_ZMQ_HASHTX))
     return false;
 
   return true;
@@ -195,6 +195,7 @@ void GbtMaker::stop() {
     return;
   }
   running_ = false;
+  zmqContext_.reset();
   LOG(INFO) << "stop gbtmaker";
 }
 
@@ -385,7 +386,7 @@ void GbtMaker::submitRawGbtLightMsg(bool checkTime) {
 
 void GbtMaker::threadListenBitcoind() {
   ListenToZmqPublisher(
-      zmqContext_,
+      *zmqContext_,
       zmqBitcoindAddr_,
       BITCOIND_ZMQ_HASHBLOCK,
       running_,
@@ -432,7 +433,7 @@ NMCAuxBlockMaker::NMCAuxBlockMaker(
     bool isCheckZmq,
     const string &coinbaseAddress)
   : running_(true)
-  , zmqContext_(1 /*i/o threads*/)
+  , zmqContext_(std::make_unique<zmq::context_t>(1 /*i/o threads*/))
   , zmqNamecoindAddr_(zmqNamecoindAddr)
   , zmqTimeout_(zmqTimeout)
   , rpcAddr_(rpcAddr)
@@ -580,7 +581,7 @@ void NMCAuxBlockMaker::submitAuxblockMsg(bool checkTime) {
 
 void NMCAuxBlockMaker::threadListenNamecoind() {
   ListenToZmqPublisher(
-      zmqContext_,
+      *zmqContext_,
       zmqNamecoindAddr_,
       NAMECOIND_ZMQ_HASHBLOCK,
       running_,
@@ -636,7 +637,7 @@ bool NMCAuxBlockMaker::init() {
   }
 
   if (isCheckZmq_ &&
-      !CheckZmqPublisher(zmqContext_, zmqNamecoindAddr_, NAMECOIND_ZMQ_HASHTX))
+      !CheckZmqPublisher(*zmqContext_, zmqNamecoindAddr_, NAMECOIND_ZMQ_HASHTX))
     return false;
 
   return true;
@@ -647,6 +648,7 @@ void NMCAuxBlockMaker::stop() {
     return;
   }
   running_ = false;
+  zmqContext_.reset();
   LOG(INFO) << "stop namecoin auxblock maker";
 }
 
