@@ -475,15 +475,16 @@ bool JobMakerHandlerBitcoin::triggerRskUpdate() {
     previousRskWork = *previousRskWork_;
   }
 
-  bool notifyFlagUpdate =
-      def()->rskmergedMiningNotifyPolicy_ == 1 && currentRskWork.getNotifyFlag();
+  bool notifyFlagUpdate = def()->rskmergedMiningNotifyPolicy_ == 1 &&
+      currentRskWork.getNotifyFlag();
   bool differentHashUpdate = def()->rskmergedMiningNotifyPolicy_ == 2 &&
       (currentRskWork.getBlockHash() != previousRskWork.getBlockHash());
 
   bool isMergedMiningUpdate = notifyFlagUpdate || differentHashUpdate;
-  DLOG_IF(INFO, isMergedMiningUpdate) << "it's time to update MergedMining  because rsk : " 
-             << (notifyFlagUpdate ? " notifyFlagUpdate " : " ")
-             << (differentHashUpdate ? " differentHashUpdate " : " ");
+  DLOG_IF(INFO, isMergedMiningUpdate)
+      << "it's time to update MergedMining  because rsk : "
+      << (notifyFlagUpdate ? " notifyFlagUpdate " : " ")
+      << (differentHashUpdate ? " differentHashUpdate " : " ");
 
   return isMergedMiningUpdate;
 }
@@ -507,9 +508,10 @@ bool JobMakerHandlerBitcoin::triggerVcashUpdate() {
       (currentVcashWork.getBlockHash() != previousVcashWork.getBlockHash());
 
   bool isMergedMiningUpdate = heightUpdate || differentHashUpdate;
-  DLOG_IF(INFO, isMergedMiningUpdate) << "it's time to update MergedMining  because vcash : " 
-             << (heightUpdate ? " heightUpdate " : " ")
-             << (differentHashUpdate ? " differentHashUpdate " : " ");
+  DLOG_IF(INFO, isMergedMiningUpdate)
+      << "it's time to update MergedMining  because vcash : "
+      << (heightUpdate ? " heightUpdate " : " ")
+      << (differentHashUpdate ? " differentHashUpdate " : " ");
 
   return isMergedMiningUpdate;
 }
@@ -564,9 +566,10 @@ bool JobMakerHandlerBitcoin::processAuxPowMsg(const string &msg) {
 
   isMergedMiningUpdate_ = higherHeightUpdate || differentHashUpdate;
 
-  DLOG_IF(INFO, isMergedMiningUpdate_) << "it's time to update MergedMining  because aux : " 
-             << (higherHeightUpdate ? " higherHeightUpdate " : " ")
-             << (differentHashUpdate ? " differentHashUpdate " : " ");
+  DLOG_IF(INFO, isMergedMiningUpdate_)
+      << "it's time to update MergedMining  because aux : "
+      << (higherHeightUpdate ? " higherHeightUpdate " : " ")
+      << (differentHashUpdate ? " differentHashUpdate " : " ");
 
   return isMergedMiningUpdate_;
 }
