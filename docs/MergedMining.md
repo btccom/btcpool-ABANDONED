@@ -9,8 +9,9 @@ Please note that RSK and VCash merged mining do not use the AuxPow standard and 
 The [Bitcoin Merged Mining Specification](https://en.bitcoin.it/wiki/Merged_mining_specification) defines the AuxPow merged mining. In simple terms, it places the block hash of another blockchain into the parent blockchain's coinbase transaction input. If you want to merged mine multiple chains at the same time, you need to combine their hashes into a merkle tree and put the merkle root into the coinbase input.
 
 AuxPow merged mining is available in the following blockchains (incomplete):
+
 | Blockchain | Parent Chain Algorithm | Frequently-Used Parent Chain |
-|------------|------------------------|------------------------------|
+| :--------: | :--------------------: | :--------------------------: |
 | NameCoin   | SHA256                 | BTC, BCH, UBTC, BSV          |
 | ELastos    | SHA256                 | BTC, BCH, UBTC, BSV          |
 | Unobtanium | SHA256                 | BTC, BCH, UBTC, BSV          |
