@@ -1341,7 +1341,6 @@ void BlockMakerBitcoin::runThreadConsumeRskSolvedShare() {
   }
 }
 //// End of methods added to merge mine for RSK
-#endif
 
 void BlockMakerBitcoin::submitVcashBlockPartialMerkleNonBlocking(
     const string &rpcAddress,
@@ -1401,6 +1400,7 @@ void BlockMakerBitcoin::_submitVcashBlockPartialMerkleThread(
     LOG(ERROR) << "rpc call fail: " << response;
   }
 }
+#endif
 
 void BlockMakerBitcoin::run() {
   // setup threads
