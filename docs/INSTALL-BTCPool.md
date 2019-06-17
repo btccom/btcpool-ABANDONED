@@ -320,7 +320,7 @@ Please use the build that linking to Bitcoin (`-DCHAIN_TYPE=BTC`).
 
 ## Init btcpool
 
-### init the running folders
+### Init the Running Folders
 
 Now create folder for btcpool, if you are going to run all service in one machine you could run `install/init_folders.sh` as below.
 
@@ -329,7 +329,7 @@ cd /work/btcpool/build
 bash ../install/init_folders.sh
 ```
 
-### setup full-nodes
+### Setup Full-Nodes
 Before starting btcpool's services, at least one bitcoin full-node needs to be setup. Which full-node to use depends on the blockchain you want to mining.
 
 Also start Rsk node or Namecoin node if merged mining for any of those chains.
@@ -351,7 +351,11 @@ The following are some dockerfiles of full-nodes:
 
 If you want to merge-mining more than one chains that follow [Bitcoin Merged Mining Specification](https://en.bitcoin.it/wiki/Merged_mining_specification) (likes Namecoin, ElastOS, etc), you can running a [Merged Mining Proxy](https://github.com/btccom/btcpool-go-modules/tree/master/mergedMiningProxy) and let the pool's `nmcauxmaker` connect to it.
 
-### init MySQL databases & tables
+### Configure Merged Mining
+
+See [MergedMining.md](MergedMining.md) for more details of bitcoin/litecoin merged mining.
+
+### Init MySQL Databases & Tables
 The pool's `statshttpd`, `slparser` and `blkmaker` will write miners', users' & blockchains' information to mysql. We recommend that you create two databases and import the corresponding tables.
 
 ```bash
@@ -377,7 +381,7 @@ USE bpool_local_stats_db;
 SOURCE bpool_local_stats_db.sql;
 ```
 
-### (optional) install Redis
+### Install Redis (Optional)
 
 If you want to install Redis as your `statshttpd`'s optional storage, refer to [INSTALL-Redis.md](INSTALL-Redis.md).
 
