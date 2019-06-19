@@ -194,7 +194,9 @@ void UserInfo::handleSwitchChainEvent(
   UserInfo *userInfo = (UserInfo *)pUserInfo;
   string nodePath(path);
 
-  if (nodePath.size() - userInfo->zkUserChainMapDir_.size() < 1) {
+  if (static_cast<ssize_t>(nodePath.size()) -
+          static_cast<ssize_t>(userInfo->zkUserChainMapDir_.size()) <
+      1) {
     return;
   }
 
@@ -499,7 +501,9 @@ void UserInfo::handleAutoRegEvent(
   UserInfo *userInfo = (UserInfo *)pUserInfo;
   string nodePath(path);
 
-  if (nodePath.size() - userInfo->zkUserChainMapDir_.size() < 1) {
+  if (static_cast<ssize_t>(nodePath.size()) -
+          static_cast<ssize_t>(userInfo->zkUserChainMapDir_.size()) <
+      1) {
     return;
   }
 
