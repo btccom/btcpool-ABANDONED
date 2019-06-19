@@ -138,8 +138,12 @@ vector<string> ZookeeperLock::getLockNodes() {
 
 void ZookeeperLock::getLockWatcher(
     zhandle_t *zh, int type, int state, const char *path, void *pMutex) {
+  if (pMutex == nullptr) {
+    return;
+  }
   DLOG(INFO) << "ZookeeperLock::getLockWatcher: type:" << type
-             << ", state:" << state << ", path:" << path;
+             << ", state:" << state
+             << ", path:" << (path != nullptr ? path : "");
   pthread_mutex_unlock((pthread_mutex_t *)pMutex);
 }
 
@@ -339,8 +343,13 @@ template class ZookeeperUniqIdT<8>;
 void Zookeeper::globalWatcher(
     zhandle_t *zh, int type, int state, const char *path, void *pZookeeper) {
   try {
+    if (pZookeeper == nullptr) {
+      return;
+    }
+
     DLOG(INFO) << "Zookeeper::globalWatcher: type:" << type
-               << ", state:" << state << ", path:" << path;
+               << ", state:" << state
+               << ", path:" << (path != nullptr ? path : "");
 
     Zookeeper *zk = (Zookeeper *)pZookeeper;
 

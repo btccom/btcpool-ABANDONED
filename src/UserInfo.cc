@@ -184,10 +184,20 @@ bool UserInfo::getChainIdFromZookeeper(
 
 void UserInfo::handleSwitchChainEvent(
     zhandle_t *zh, int type, int state, const char *path, void *pUserInfo) {
+  if (path == nullptr || pUserInfo == nullptr) {
+    return;
+  }
+
   DLOG(INFO) << "UserInfo::handleSwitchChainEvent: type:" << type
              << ", state:" << state << ", path:" << path;
+
   UserInfo *userInfo = (UserInfo *)pUserInfo;
   string nodePath(path);
+
+  if (nodePath.size() - userInfo->zkUserChainMapDir_.size() < 1) {
+    return;
+  }
+
   string userName = nodePath.substr(userInfo->zkUserChainMapDir_.size());
 
   // lookup cache
@@ -479,11 +489,20 @@ bool UserInfo::setupThreads() {
 
 void UserInfo::handleAutoRegEvent(
     zhandle_t *zh, int type, int state, const char *path, void *pUserInfo) {
+  if (path == nullptr || pUserInfo == nullptr) {
+    return;
+  }
+
   DLOG(INFO) << "UserInfo::handleAutoRegEvent: type:" << type
              << ", state:" << state << ", path:" << path;
 
   UserInfo *userInfo = (UserInfo *)pUserInfo;
   string nodePath(path);
+
+  if (nodePath.size() - userInfo->zkUserChainMapDir_.size() < 1) {
+    return;
+  }
+
   string userName = nodePath.substr(userInfo->zkAutoRegWatchDir_.size());
 
   {
