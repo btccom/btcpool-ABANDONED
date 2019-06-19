@@ -136,7 +136,7 @@ JobRepository::JobRepository(
         20,
         [this](const std::string &value) {
           try {
-            niceHashMinDiff_ = stoull(value, 0, 10);
+            niceHashMinDiff_ = formatDifficulty(stoull(value, 0, 10));
             LOG(INFO) << "NiceHash minimal difficulty from Zookeeper is "
                       << niceHashMinDiff_;
           } catch (std::invalid_argument) {
@@ -631,7 +631,7 @@ bool StratumServer::setup(const libconfig::Config &config) {
   std::string niceHashMinDiffString;
   if (config.lookupValue(
           "sserver.nicehash.min_difficulty", niceHashMinDiffString)) {
-    niceHashMinDiff = stoull(niceHashMinDiffString, 0, 16);
+    niceHashMinDiff = formatDifficulty(stoull(niceHashMinDiffString, 0, 16));
   }
   std::string niceHashMinDiffZookeeperPath;
   config.lookupValue(
@@ -653,7 +653,8 @@ bool StratumServer::setup(const libconfig::Config &config) {
       std::string chainNiceHashMinDiffString;
       if (chains[i].lookupValue(
               "nicehash.min_difficulty", chainNiceHashMinDiffString)) {
-        chainNiceHashMinDiff = stoull(chainNiceHashMinDiffString, 0, 16);
+        chainNiceHashMinDiff =
+            formatDifficulty(stoull(chainNiceHashMinDiffString, 0, 16));
       }
       std::string chainNiceHashMinDiffZookeeperPath =
           niceHashMinDiffZookeeperPath;
