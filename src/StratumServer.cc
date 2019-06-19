@@ -478,13 +478,14 @@ bool StratumServer::setup(const libconfig::Config &config) {
   // ------------------- Diff Controller Options -------------------
 
   string defDiffStr = config.lookup("sserver.default_difficulty");
-  uint64_t defaultDifficulty = stoull(defDiffStr, nullptr, 16);
+  uint64_t defaultDifficulty =
+      formatDifficulty(stoull(defDiffStr, nullptr, 16));
 
   string maxDiffStr = config.lookup("sserver.max_difficulty");
-  uint64_t maxDifficulty = stoull(maxDiffStr, nullptr, 16);
+  uint64_t maxDifficulty = formatDifficulty(stoull(maxDiffStr, nullptr, 16));
 
   string minDiffStr = config.lookup("sserver.min_difficulty");
-  uint64_t minDifficulty = stoull(minDiffStr, nullptr, 16);
+  uint64_t minDifficulty = formatDifficulty(stoull(minDiffStr, nullptr, 16));
 
   uint32_t diffAdjustPeriod = 300;
   config.lookupValue("sserver.diff_adjust_period", diffAdjustPeriod);
