@@ -282,6 +282,14 @@ void StratumSession::checkUserAndPwd(
   // set id & names, will filter workername in this func
   worker_.setNames(fullName);
 
+  if (worker_.userName_.empty()) {
+    DLOG(INFO) << "got an empty user name";
+
+    logAuthorizeResult(false, password);
+    responseError(idStr, StratumStatus::INVALID_USERNAME);
+    return;
+  }
+
   size_t chainId = 0;
   bool found = server_.userInfo_->getChainId(worker_.userName_, chainId);
   if (!found) {
