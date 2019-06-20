@@ -91,6 +91,7 @@ class UserInfo {
   int32_t incrementalUpdateUsers(size_t chainId);
 
   bool getChainIdFromZookeeper(const string &userName, size_t &chainId);
+  void setZkReconnectHandle();
   static void handleSwitchChainEvent(
       zhandle_t *zh, int type, int state, const char *path, void *pUserInfo);
   static void handleAutoRegEvent(

@@ -104,6 +104,7 @@ UserInfo::UserInfo(StratumServer *server, const libconfig::Config &config)
       if (zkUserChainMapDir_[zkUserChainMapDir_.size() - 1] != '/') {
         zkUserChainMapDir_ += '/';
       }
+      setZkReconnectHandle();
     }
   } else {
     // required (exception will be threw if inexists)
@@ -153,8 +154,7 @@ bool UserInfo::getChainIdFromZookeeper(
 
     string nodePath = zkUserChainMapDir_ + userName;
     string chainName;
-    chainName.resize(64);
-    if (zk_->getValueW(nodePath, chainName, handleSwitchChainEvent, this)) {
+    if (zk_->getValueW(nodePath, chainName, 64, handleSwitchChainEvent, this)) {
       DLOG(INFO) << "zk userchain map: " << userName << " : " << chainName;
       for (chainId = 0; chainId < server_->chains_.size(); chainId++) {
         if (chainName == server_->chains_[chainId].name_) {
@@ -182,8 +182,24 @@ bool UserInfo::getChainIdFromZookeeper(
   return false;
 }
 
+void UserInfo::setZkReconnectHandle() {
+  zk_->registerReconnectHandle([this]() {
+    // Chain switching while holding a lock can result in a deadlock.
+    // So release the lock immediately after copying.
+    nameChainlock_.lock_shared();
+    std::unordered_map<string, size_t> nameChains = nameChains_;
+    nameChainlock_.unlock_shared();
+
+    // Check the current chain of all users
+    for (auto item : nameChains) {
+      string path = zkUserChainMapDir_ + item.first;
+      handleSwitchChainEvent(nullptr, 0, 0, path.c_str(), this);
+    }
+  });
+}
+
 void UserInfo::handleSwitchChainEvent(
-    zhandle_t *zh, int type, int state, const char *path, void *pUserInfo) {
+    zhandle_t *, int type, int state, const char *path, void *pUserInfo) {
   if (path == nullptr || pUserInfo == nullptr) {
     return;
   }

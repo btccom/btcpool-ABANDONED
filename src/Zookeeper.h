@@ -128,6 +128,7 @@ protected:
   string brokers_;
   zhandle_t *zh_; // zookeeper handle
   atomic<bool> connected_;
+  vector<function<void()>> reconnectHandles_;
 
   // Used to unlock the main thread when the connection is ready.
   struct watchctx_t {
@@ -172,6 +173,8 @@ public:
 
   bool removeLock(shared_ptr<ZookeeperLock> lock);
   bool removeUniqId(shared_ptr<ZookeeperUniqId> id);
+
+  void registerReconnectHandle(std::function<void()> func);
 
 protected:
   static void globalWatcher(

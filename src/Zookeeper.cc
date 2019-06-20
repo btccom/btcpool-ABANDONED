@@ -362,6 +362,11 @@ void Zookeeper::globalWatcher(
         LOG(INFO) << "Zookeeper: reconnected to broker.";
         zk->recoveryLock();
         zk->recoveryUniqId();
+
+        // Execute custom reconnect handles.
+        for (auto func : zk->reconnectHandles_) {
+          func();
+        }
       } else if (state == ZOO_CONNECTING_STATE) {
         LOG(ERROR) << "Zookeeper: lost the connection from broker.";
       } else if (state == ZOO_AUTH_FAILED_STATE) {
@@ -376,6 +381,12 @@ void Zookeeper::globalWatcher(
         LOG(INFO) << "Zookeeper: connected to broker.";
         zk->connected_ = true;
         pthread_cond_signal(&zk->watchctx_.cond);
+
+        // Execute custom reconnect handles.
+        // Run here after recoverySession() is complete.
+        for (auto func : zk->reconnectHandles_) {
+          func();
+        }
       }
     }
   } catch (const std::exception &ex) {
@@ -483,6 +494,10 @@ bool Zookeeper::removeUniqId(shared_ptr<ZookeeperUniqId> id) {
     }
   }
   return false;
+}
+
+void Zookeeper::registerReconnectHandle(std::function<void()> func) {
+  reconnectHandles_.push_back(func);
 }
 
 void Zookeeper::recoveryLock() {
