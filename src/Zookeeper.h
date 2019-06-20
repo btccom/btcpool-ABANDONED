@@ -153,9 +153,15 @@ public:
   bool getValueW(
       const string &nodePath,
       string &value,
+      size_t sizeLimit,
       ZookeeperWatcherCallback func,
       void *data);
   vector<string> getChildren(const string &parentPath);
+  bool getChildrenW(
+      const string &parentPath,
+      vector<string> &children,
+      ZookeeperWatcherCallback func,
+      void *data);
   void watchNode(string path, ZookeeperWatcherCallback func, void *data);
   void createNode(const string &nodePath, const string &value);
   void createLockNode(

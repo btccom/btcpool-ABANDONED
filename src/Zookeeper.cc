@@ -517,8 +517,8 @@ void Zookeeper::watchNode(
 
 string Zookeeper::getValue(const string &nodePath, size_t sizeLimit) {
   string data;
-  data.resize(sizeLimit);
 
+  data.resize(sizeLimit);
   int size = data.size();
   int stat =
       zoo_get(zh_, nodePath.c_str(), 0, (char *)data.data(), &size, nullptr);
@@ -536,8 +536,11 @@ string Zookeeper::getValue(const string &nodePath, size_t sizeLimit) {
 bool Zookeeper::getValueW(
     const string &nodePath,
     string &value,
+    size_t sizeLimit,
     ZookeeperWatcherCallback func,
     void *data) {
+
+  value.resize(sizeLimit);
   int size = value.size();
   int stat = zoo_wget(
       zh_, nodePath.c_str(), func, data, (char *)value.data(), &size, nullptr);
@@ -567,6 +570,24 @@ vector<string> Zookeeper::getChildren(const string &parentPath) {
   }
 
   return children;
+}
+
+bool Zookeeper::getChildrenW(
+    const string &parentPath,
+    vector<string> &children,
+    ZookeeperWatcherCallback func,
+    void *data) {
+  struct String_vector nodes = {0, nullptr};
+  int stat = zoo_wget_children(zh_, parentPath.c_str(), func, data, &nodes);
+
+  if (stat != ZOK) {
+    return false;
+  }
+
+  for (int i = 0; i < nodes.count; i++) {
+    children.push_back(nodes.data[i]);
+  }
+  return true;
 }
 
 void Zookeeper::createNode(const string &nodePath, const string &value) {
