@@ -114,56 +114,69 @@ workflows:
     jobs:
       - build_and_push_base_image:
           <<: *base_image_common
+          name: build_and_push_base_image@lint
           dockerfile: Dockerfile.lint
           tag: lint
       - build_and_push_base_image:
           <<: *base_image_common
+          name: build_and_push_base_image@bch-0.18.5
           dockerfile: Dockerfile.bch
           tag: bch-0.18.5
       - build_and_push_base_image:
           <<: *base_image_common
+          name: build_and_push_base_image@btc-0.16.3
           dockerfile: Dockerfile.btc
           tag: btc-0.16.3
       - build_and_push_base_image:
           <<: *base_image_common
+          name: build_and_push_base_image@sbtc-0.16.2
           dockerfile: Dockerfile.sbtc
           tag: sbtc-0.16.2
       - build_and_push_base_image:
           <<: *base_image_common
+          name: build_and_push_base_image@ubtc-2.5.0.1
           dockerfile: Dockerfile.ubtc
           tag: ubtc-2.5.0.1
       - build_and_push_base_image:
           <<: *base_image_common
+          name: build_and_push_base_image@ltc-0.16.3
           dockerfile: Dockerfile.ltc
           tag: ltc-0.16.3
       - build_and_push_base_image:
           <<: *base_image_common
+          name: build_and_push_base_image@zec-2.0.4
           dockerfile: Dockerfile.zec
           tag: zec-2.0.4
   build_and_run_unit_tests_all_chains:
     jobs:
       - check_clang_format
       - build_and_run_unit_tests:
+          name: build_and_run_unit_tests@bch-0.18.5
           base: bch-0.18.5
           requires:
             - check_clang_format
       - build_and_run_unit_tests:
+          name: build_and_run_unit_tests@btc-0.16.3
           base: btc-0.16.3
           requires:
             - check_clang_format
       - build_and_run_unit_tests:
+          name: build_and_run_unit_tests@sbtc-0.16.2
           base: sbtc-0.16.2
           requires:
             - check_clang_format
       - build_and_run_unit_tests:
+          name: build_and_run_unit_tests@ubtc-2.5.0.1
           base: ubtc-2.5.0.1
           requires:
             - check_clang_format
       - build_and_run_unit_tests:
+          name: build_and_run_unit_tests@ltc-0.16.3
           base: ltc-0.16.3
           requires:
             - check_clang_format
       - build_and_run_unit_tests:
+          name: build_and_run_unit_tests@zec-2.0.4
           base: zec-2.0.4
           requires:
             - check_clang_format
@@ -171,19 +184,25 @@ workflows:
     jobs:
       - build_and_push_deploy_image:
           <<: *deploy_image_common
+          name: build_and_push_deploy_image@bch-0.18.5
           base: bch-0.18.5
       - build_and_push_deploy_image:
           <<: *deploy_image_common
+          name: build_and_push_deploy_image@btc-0.16.3
           base: btc-0.16.3
       - build_and_push_deploy_image:
           <<: *deploy_image_common
+          name: build_and_push_deploy_image@sbtc-0.16.2
           base: sbtc-0.16.2
       - build_and_push_deploy_image:
           <<: *deploy_image_common
+          name: build_and_push_deploy_image@ubtc-2.5.0.1
           base: ubtc-2.5.0.1
       - build_and_push_deploy_image:
           <<: *deploy_image_common
+          name: build_and_push_deploy_image@ltc-0.16.3
           base: ltc-0.16.3
       - build_and_push_deploy_image:
           <<: *deploy_image_common
+          name: build_and_push_deploy_image@zec-2.0.4
           base: zec-2.0.4
