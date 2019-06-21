@@ -59,8 +59,7 @@ StratumSession::StratumSession(
   , worker_(server.chains_.size())
   , isDead_(false)
   , isLongTimeout_(false)
-  , savedAuthorizeInfo_(nullptr)
-  , alive_(std::make_shared<bool>(true)) {
+  , savedAuthorizeInfo_(nullptr) {
   assert(saddr->sa_family == AF_INET);
   auto ipv4 = reinterpret_cast<struct sockaddr_in *>(saddr);
   clientIpInt_ = ipv4->sin_addr.s_addr;

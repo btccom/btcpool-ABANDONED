@@ -270,7 +270,6 @@ void StratumMinerEth::handleRequest_Submit(
   server.checkShareAndUpdateDiff(
       localJob->chainId_,
       share,
-      session,
       localJob->jobId_,
       nonce,
       headerHash,
@@ -278,6 +277,7 @@ void StratumMinerEth::handleRequest_Submit(
           IsHex(sMixHash) && sMixHash.size() == 64, uint256S(sMixHash)),
       jobDiff.jobDiffs_,
       worker.fullName_,
+      alive_,
       [this,
        idStr,
        chainId = localJob->chainId_,

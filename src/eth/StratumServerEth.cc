@@ -467,13 +467,13 @@ bool ServerEth::setupInternal(const libconfig::Config &config) {
 void ServerEth::checkShareAndUpdateDiff(
     size_t chainId,
     const ShareEth &share,
-    const StratumSessionEth &session,
     const uint64_t jobId,
     const uint64_t nonce,
     const uint256 &header,
     const boost::optional<uint256> &mixHash,
     const std::set<uint64_t> &jobDiffs,
     const string &workFullName,
+    std::weak_ptr<bool> &&alive,
     std::function<void(int32_t, uint64_t, const uint256 &)> returnFn) {
   JobRepositoryEth *jobRepo = GetJobRepository(chainId);
   if (nullptr == jobRepo) {
@@ -514,7 +514,7 @@ void ServerEth::checkShareAndUpdateDiff(
                          jobDiffs,
                          workFullName,
                          stale = exJobPtr->isStale(),
-                         alive = session.getAlive(),
+                         alive = std::move(alive),
                          returnFn = std::move(returnFn)]() {
     DLOG(INFO) << "checking share nonce: " << hex << nonce
                << ", header: " << header.GetHex();

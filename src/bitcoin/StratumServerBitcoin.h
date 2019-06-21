@@ -70,13 +70,14 @@ public:
   void checkShare(
       size_t chainId,
       const ShareBitcoin &share,
-      const StratumSessionBitcoin &session,
+      uint32_t extraNonce1,
       const string &extraNonce2Hex,
       const uint32_t nTime,
       const BitcoinNonceType nonce,
       const uint32_t versionMask,
       const uint256 &jobTarget,
       const string &workFullName,
+      std::weak_ptr<bool> &&alive,
       std::function<void(int32_t)> returnFn,
       string *userCoinbaseInfo = nullptr);
 

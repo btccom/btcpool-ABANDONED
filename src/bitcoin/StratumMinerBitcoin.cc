@@ -315,13 +315,14 @@ void StratumMinerBitcoin::handleRequest_Submit(
     server.checkShare(
         localJob->chainId_,
         share,
-        session,
+        session.getSessionId(),
         extraNonce2Hex,
         nTime,
         nonce,
         versionMask,
         jobTarget,
         worker.fullName_,
+        alive_,
         [this, idStr, chainId = localJob->chainId_, share](
             int32_t status) mutable {
           share.set_status(status);

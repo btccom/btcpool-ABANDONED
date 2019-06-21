@@ -88,6 +88,7 @@ protected:
   int64_t workerId_;
   // invalid share counter
   StatsWindow<int64_t> invalidSharesCounter_;
+  shared_ptr<bool> alive_;
 };
 
 template <typename StratumTraits>

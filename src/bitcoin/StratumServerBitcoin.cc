@@ -467,13 +467,14 @@ void ServerBitcoin::sendSolvedShare2Kafka(
 void ServerBitcoin::checkShare(
     size_t chainId,
     const ShareBitcoin &share,
-    const StratumSessionBitcoin &session,
+    uint32_t extraNonce1,
     const string &extraNonce2Hex,
     const uint32_t nTime,
     const BitcoinNonceType nonce,
     const uint32_t versionMask,
     const uint256 &jobTarget,
     const string &workFullName,
+    std::weak_ptr<bool> &&alive,
     std::function<void(int32_t)> returnFn,
     string *userCoinbaseInfo) {
 
@@ -506,7 +507,7 @@ void ServerBitcoin::checkShare(
   exJobPtr->generateBlockHeader(
       &header,
       &coinbaseBin,
-      session.getSessionId(),
+      extraNonce1,
       extraNonce2Hex,
       sjob->merkleBranch_,
       sjob->prevHash_,
@@ -522,7 +523,7 @@ void ServerBitcoin::checkShare(
                          share,
                          jobTarget,
                          workFullName,
-                         alive = session.getAlive(),
+                         alive = move(alive),
                          returnFn = std::move(returnFn),
                          sjob,
                          header,

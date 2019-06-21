@@ -46,7 +46,8 @@ StratumMiner::StratumMiner(
   , overrideDifficulty_(false)
   , workerName_(workerName)
   , workerId_(workerId)
-  , invalidSharesCounter_(INVALID_SHARE_SLIDING_WINDOWS_SIZE) {
+  , invalidSharesCounter_(INVALID_SHARE_SLIDING_WINDOWS_SIZE)
+  , alive_(std::make_shared<bool>(true)) {
 }
 
 void StratumMiner::setMinDiff(uint64_t minDiff) {
