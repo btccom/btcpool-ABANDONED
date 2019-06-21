@@ -322,11 +322,41 @@ void StratumMinerBitcoin::handleRequest_Submit(
         versionMask,
         jobTarget,
         worker.fullName_,
-        alive_,
-        [this, idStr, chainId = localJob->chainId_, share](
-            int32_t status) mutable {
+        [this,
+         alive = std::weak_ptr<bool>{alive_},
+         idStr,
+         chainId = localJob->chainId_,
+         ip = session.getClientIp(),
+         share,
+         &server](int32_t status) mutable {
           share.set_status(status);
-          handleCheckedShare(idStr, chainId, share);
+          if (alive.expired() || handleCheckedShare(idStr, chainId, share)) {
+            if (server.useShareV1()) {
+              ShareBitcoinBytesV1 sharev1;
+              sharev1.jobId_ = share.jobid();
+              sharev1.workerHashId_ = share.workerhashid();
+              sharev1.ip_ = ip;
+              sharev1.userId_ = share.userid();
+              sharev1.shareDiff_ = share.sharediff();
+              sharev1.timestamp_ = share.timestamp();
+              sharev1.blkBits_ = share.blkbits();
+              sharev1.result_ = StratumStatus::isAccepted(share.status())
+                  ? ShareBitcoinBytesV1::ACCEPT
+                  : ShareBitcoinBytesV1::REJECT;
+
+              server.sendShare2Kafka(
+                  chainId, (char *)&sharev1, sizeof(sharev1));
+            } else {
+              std::string message;
+              uint32_t size = 0;
+              if (!share.SerializeToArrayWithVersion(message, size)) {
+                LOG(ERROR) << "share SerializeToBuffer failed!"
+                           << share.toString();
+                return;
+              }
+              server.sendShare2Kafka(chainId, message.data(), size);
+            }
+          }
         }
 #ifdef USER_DEFINED_COINBASE
         ,
@@ -336,7 +366,7 @@ void StratumMinerBitcoin::handleRequest_Submit(
   }
 }
 
-void StratumMinerBitcoin::handleCheckedShare(
+bool StratumMinerBitcoin::handleCheckedShare(
     const std::string &idStr, size_t chainId, const ShareBitcoin &share) {
   DLOG(INFO) << share.toString();
 
@@ -344,7 +374,6 @@ void StratumMinerBitcoin::handleCheckedShare(
   // shares in a short time, we just drop them.
   bool isSendShareToKafka = true;
   auto &session = getSession();
-  auto &server = session.getServer();
   auto &worker = session.getWorker();
 
   if (!handleShare(idStr, share.status(), share.sharediff(), chainId)) {
@@ -369,29 +398,5 @@ void StratumMinerBitcoin::handleCheckedShare(
     }
   }
 
-  if (isSendShareToKafka) {
-    if (server.useShareV1()) {
-      ShareBitcoinBytesV1 sharev1;
-      sharev1.jobId_ = share.jobid();
-      sharev1.workerHashId_ = share.workerhashid();
-      sharev1.ip_ = session.getClientIp();
-      sharev1.userId_ = share.userid();
-      sharev1.shareDiff_ = share.sharediff();
-      sharev1.timestamp_ = share.timestamp();
-      sharev1.blkBits_ = share.blkbits();
-      sharev1.result_ = StratumStatus::isAccepted(share.status())
-          ? ShareBitcoinBytesV1::ACCEPT
-          : ShareBitcoinBytesV1::REJECT;
-
-      server.sendShare2Kafka(chainId, (char *)&sharev1, sizeof(sharev1));
-    } else {
-      std::string message;
-      uint32_t size = 0;
-      if (!share.SerializeToArrayWithVersion(message, size)) {
-        LOG(ERROR) << "share SerializeToBuffer failed!" << share.toString();
-        return;
-      }
-      server.sendShare2Kafka(chainId, message.data(), size);
-    }
-  }
+  return isSendShareToKafka;
 }

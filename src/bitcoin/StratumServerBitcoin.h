@@ -77,7 +77,6 @@ public:
       const uint32_t versionMask,
       const uint256 &jobTarget,
       const string &workFullName,
-      std::weak_ptr<bool> &&alive,
       std::function<void(int32_t)> returnFn,
       string *userCoinbaseInfo = nullptr);
 
