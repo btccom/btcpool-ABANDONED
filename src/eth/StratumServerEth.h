@@ -43,18 +43,20 @@ public:
       const uint64_t nonce,
       const uint256 &header,
       const boost::optional<uint256> &mixHash,
+      const boost::optional<uint32_t> &extraNonce2,
       const std::set<uint64_t> &jobDiffs,
       const string &workFullName,
-      std::weak_ptr<bool> &&alive,
       std::function<void(int32_t, uint64_t, const uint256 &)> returnFn);
   void sendSolvedShare2Kafka(
       size_t chainId,
-      const string &strNonce,
-      const string &strHeader,
-      const string &strMix,
+      uint64_t nonce,
+      const uint256 &headerHash,
+      const uint256 &mixHash,
       const uint32_t height,
       const uint64_t networkDiff,
-      const StratumWorker &worker,
+      int32_t userId,
+      int64_t workerHashId,
+      const string &workerFullName,
       const EthConsensus::Chain chain,
       const string &extraNonce);
 

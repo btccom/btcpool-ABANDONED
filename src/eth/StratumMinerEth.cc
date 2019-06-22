@@ -275,43 +275,37 @@ void StratumMinerEth::handleRequest_Submit(
       headerHash,
       boost::make_optional(
           IsHex(sMixHash) && sMixHash.size() == 64, uint256S(sMixHash)),
+      extraNonce2,
       jobDiff.jobDiffs_,
       worker.fullName_,
-      alive_,
       [this,
+       alive = std::weak_ptr<bool>{alive_},
        idStr,
        chainId = localJob->chainId_,
        share,
-       headerHash = sjob->headerHash_,
-       sNonce,
-       withExtraNonce1 = sjob->hasHeader(),
-       extraNonce2](
+       &server](
           int32_t status, uint64_t diff, const uint256 &shareMixHash) mutable {
+        if (StratumStatus::isSolved(status)) {
+          server.GetJobRepository(chainId)->markAllJobsAsStale();
+        }
         share.set_status(status);
         if (diff > 0) {
           share.set_sharediff(diff);
         }
-        handleCheckedShare(
-            idStr,
-            chainId,
-            share,
-            headerHash,
-            sNonce,
-            shareMixHash,
-            withExtraNonce1,
-            extraNonce2);
+        if (alive.expired() || handleCheckedShare(idStr, chainId, share)) {
+          std::string message;
+          uint32_t size = 0;
+          if (!share.SerializeToArrayWithVersion(message, size)) {
+            LOG(ERROR) << "share SerializeToBuffer failed!" << share.toString();
+            return;
+          }
+          server.sendShare2Kafka(chainId, message.data(), size);
+        }
       });
 }
 
-void StratumMinerEth::handleCheckedShare(
-    const std::string &idStr,
-    size_t chainId,
-    const ShareEth &share,
-    const std::string &headerHash,
-    const std::string &sNonce,
-    const uint256 &shareMixHash,
-    bool withExtraNonce,
-    const boost::optional<uint32_t> &extraNonce2) {
+bool StratumMinerEth::handleCheckedShare(
+    const std::string &idStr, size_t chainId, const ShareEth &share) {
   if (StratumStatus::isAccepted(share.status())) {
     DLOG(INFO) << "share reached the diff: " << share.sharediff();
   } else {
@@ -319,41 +313,13 @@ void StratumMinerEth::handleCheckedShare(
   }
 
   auto &session = getSession();
-  auto &server = session.getServer();
   auto &worker = session.getWorker();
-  auto extraNonce1 = session.getSessionId();
+
+  DLOG(INFO) << share.toString();
 
   // we send share to kafka by default, but if there are lots of invalid
   // shares in a short time, we just drop them.
-  if (handleShare(idStr, share.status(), share.sharediff(), chainId)) {
-    if (StratumStatus::isSolved(share.status())) {
-      string extraNonce;
-      if (withExtraNonce) {
-        if (extraNonce2) {
-          extraNonce = fmt::format(
-              ",\"extraNonce\":\"0x{:08x}{:08x}\"", extraNonce1, *extraNonce2);
-        } else {
-          extraNonce = fmt::format(",\"extraNonce\":\"0x{:08x}\"", extraNonce1);
-        }
-      }
-      server.sendSolvedShare2Kafka(
-          chainId,
-          sNonce,
-          headerHash,
-          shareMixHash.GetHex(),
-          share.height(),
-          share.networkdiff(),
-          worker,
-          share.getChain(),
-          extraNonce);
-      if (share.status() == StratumStatus::SOLVED_PRELIMINARY) {
-        return;
-      } else {
-        // mark jobs as stale only when share is fully verified
-        server.GetJobRepository(chainId)->markAllJobsAsStale();
-      }
-    }
-  } else {
+  if (!handleShare(idStr, share.status(), share.sharediff(), chainId)) {
     // check if there is invalid share spamming
     int64_t invalidSharesNum = invalidSharesCounter_.sum(
         time(nullptr), INVALID_SHARE_SLIDING_WINDOWS_SIZE);
@@ -361,18 +327,9 @@ void StratumMinerEth::handleCheckedShare(
     if (invalidSharesNum >= INVALID_SHARE_SLIDING_WINDOWS_MAX_LIMIT) {
       LOG(WARNING) << "invalid share spamming, worker: " << worker.fullName_
                    << ", " << share.toString();
-      return;
+      return false;
     }
   }
 
-  DLOG(INFO) << share.toString();
-
-  std::string message;
-  uint32_t size = 0;
-  if (!share.SerializeToArrayWithVersion(message, size)) {
-    LOG(ERROR) << "share SerializeToBuffer failed!" << share.toString();
-    return;
-  }
-
-  server.sendShare2Kafka(chainId, message.data(), size);
+  return true;
 }

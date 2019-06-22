@@ -42,15 +42,8 @@ public:
       const std::string &method,
       const JsonNode &jparams,
       const JsonNode &jroot) override;
-  void handleCheckedShare(
-      const std::string &idStr,
-      size_t chainId,
-      const ShareEth &share,
-      const std::string &headerHash,
-      const std::string &sNonce,
-      const uint256 &shareMixHash,
-      bool withExtraNonce,
-      const boost::optional<uint32_t> &extraNonce2);
+  bool handleCheckedShare(
+      const std::string &idStr, size_t chainId, const ShareEth &share);
 
 private:
   void handleRequest_GetWork(const string &idStr, const JsonNode &jparams);

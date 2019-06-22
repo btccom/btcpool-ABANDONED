@@ -471,9 +471,9 @@ void ServerEth::checkShareAndUpdateDiff(
     const uint64_t nonce,
     const uint256 &header,
     const boost::optional<uint256> &mixHash,
+    const boost::optional<uint32_t> &extraNonce2,
     const std::set<uint64_t> &jobDiffs,
     const string &workFullName,
-    std::weak_ptr<bool> &&alive,
     std::function<void(int32_t, uint64_t, const uint256 &)> returnFn) {
   JobRepositoryEth *jobRepo = GetJobRepository(chainId);
   if (nullptr == jobRepo) {
@@ -488,6 +488,8 @@ void ServerEth::checkShareAndUpdateDiff(
   }
 
   auto sjob = std::static_pointer_cast<StratumJobEth>(exJobPtr->sjob_);
+  bool withExtraNonce = sjob->hasHeader();
+  bool preliminarySolution = false;
 
   if (mixHash) {
     ethash_h256_t ethashHeader, ethashMixHash, ethashTarget;
@@ -501,7 +503,32 @@ void ServerEth::checkShareAndUpdateDiff(
                 << ", mix digest: " << mixHash->GetHex()
                 << ", network target: " << sjob->networkTarget_.GetHex()
                 << ", worker: " << workFullName;
-      returnFn(StratumStatus::SOLVED_PRELIMINARY, 0, *mixHash);
+
+      std::string extraNonce;
+      if (withExtraNonce) {
+        if (extraNonce2) {
+          extraNonce = fmt::format(
+              ",\"extraNonce\":\"0x{:08x}{:08x}\"",
+              share.sessionid(),
+              *extraNonce2);
+        } else {
+          extraNonce =
+              fmt::format(",\"extraNonce\":\"0x{:08x}\"", share.sessionid());
+        }
+      }
+      sendSolvedShare2Kafka(
+          chainId,
+          nonce,
+          header,
+          *mixHash,
+          share.height(),
+          share.networkdiff(),
+          share.userid(),
+          share.workerhashid(),
+          workFullName,
+          share.getChain(),
+          extraNonce);
+      preliminarySolution = true;
     }
   }
 
@@ -514,7 +541,10 @@ void ServerEth::checkShareAndUpdateDiff(
                          jobDiffs,
                          workFullName,
                          stale = exJobPtr->isStale(),
-                         alive = std::move(alive),
+                         withExtraNonce,
+                         extraNonce2,
+                         preliminarySolution,
+                         chainId,
                          returnFn = std::move(returnFn)]() {
     DLOG(INFO) << "checking share nonce: " << hex << nonce
                << ", header: " << header.GetHex();
@@ -546,11 +576,9 @@ void ServerEth::checkShareAndUpdateDiff(
     if (!ret || !r.success) {
       LOG(ERROR) << "ethash computing failed, try rebuild the DAG cache";
       jobRepo->rebuildDagCacheNonBlocking(sjob->height_);
-      dispatchSafely(
-          [returnFn = std::move(returnFn)]() {
-            returnFn(StratumStatus::INTERNAL_ERROR, 0, uint256{});
-          },
-          std::move(alive));
+      dispatch([returnFn = std::move(returnFn)]() {
+        returnFn(StratumStatus::INTERNAL_ERROR, 0, uint256{});
+      });
       return;
     }
 
@@ -578,21 +606,44 @@ void ServerEth::checkShareAndUpdateDiff(
                 << ", network target: " << sjob->networkTarget_.GetHex()
                 << ", worker: " << workFullName;
 
+      if (!preliminarySolution) {
+        std::string extraNonce;
+        if (withExtraNonce) {
+          if (extraNonce2) {
+            extraNonce = fmt::format(
+                ",\"extraNonce\":\"0x{:08x}{:08x}\"",
+                share.sessionid(),
+                *extraNonce2);
+          } else {
+            extraNonce =
+                fmt::format(",\"extraNonce\":\"0x{:08x}\"", share.sessionid());
+          }
+        }
+        sendSolvedShare2Kafka(
+            chainId,
+            nonce,
+            header,
+            returnedMixHash,
+            share.height(),
+            share.networkdiff(),
+            share.userid(),
+            share.workerhashid(),
+            workFullName,
+            share.getChain(),
+            extraNonce);
+      }
+
       if (stale) {
         LOG(INFO) << "stale solved share: " << share.toString();
-        dispatchSafely(
-            [returnFn = std::move(returnFn), returnedMixHash]() {
-              returnFn(StratumStatus::SOLVED_STALE, 0, returnedMixHash);
-            },
-            std::move(alive));
+        dispatch([returnFn = std::move(returnFn), returnedMixHash]() {
+          returnFn(StratumStatus::SOLVED_STALE, 0, returnedMixHash);
+        });
         return;
       } else {
         LOG(INFO) << "solved share: " << share.toString();
-        dispatchSafely(
-            [returnFn = std::move(returnFn), returnedMixHash]() {
-              returnFn(StratumStatus::SOLVED, 0, returnedMixHash);
-            },
-            std::move(alive));
+        dispatch([returnFn = std::move(returnFn), returnedMixHash]() {
+          returnFn(StratumStatus::SOLVED, 0, returnedMixHash);
+        });
         return;
       }
     }
@@ -604,57 +655,55 @@ void ServerEth::checkShareAndUpdateDiff(
                  << ", job target: " << jobTarget.GetHex();
 
       if (isEnableSimulator_ || bnShareTarget <= UintToArith256(jobTarget)) {
-        dispatchSafely(
-            [returnFn = std::move(returnFn),
-             stale,
-             diff = *itr,
-             returnedMixHash]() {
-              returnFn(
-                  stale ? StratumStatus::ACCEPT_STALE : StratumStatus::ACCEPT,
-                  diff,
-                  returnedMixHash);
-            },
-            std::move(alive));
+        dispatch([returnFn = std::move(returnFn),
+                  stale,
+                  diff = *itr,
+                  returnedMixHash]() {
+          returnFn(
+              stale ? StratumStatus::ACCEPT_STALE : StratumStatus::ACCEPT,
+              diff,
+              returnedMixHash);
+        });
         return;
       }
     }
 
-    dispatchSafely(
-        [returnFn = std::move(returnFn)]() {
-          returnFn(StratumStatus::LOW_DIFFICULTY, 0, uint256{});
-        },
-        std::move(alive));
+    dispatch([returnFn = std::move(returnFn)]() {
+      returnFn(StratumStatus::LOW_DIFFICULTY, 0, uint256{});
+    });
     return;
   });
 }
 
 void ServerEth::sendSolvedShare2Kafka(
     size_t chainId,
-    const string &strNonce,
-    const string &strHeader,
-    const string &strMix,
+    uint64_t nonce,
+    const uint256 &headerHash,
+    const uint256 &mixHash,
     const uint32_t height,
     const uint64_t networkDiff,
-    const StratumWorker &worker,
+    int32_t userId,
+    int64_t workerHashId,
+    const string &workerFullName,
     const EthConsensus::Chain chain,
     const string &extraNonce) {
   string msg = Strings::Format(
-      "{\"nonce\":\"%s\",\"header\":\"%s\",\"mix\":\"%s\""
+      "{\"nonce\":\"%016x\",\"header\":\"%s\",\"mix\":\"%s\""
       ",\"height\":%u,\"networkDiff\":%u"
       "%s"
       ",\"userId\":%d"
       ",\"workerId\":%d"
       ",\"workerFullName\":\"%s\""
       ",\"chain\":\"%s\"}",
-      strNonce,
-      strHeader,
-      strMix,
+      nonce,
+      headerHash.GetHex().c_str(),
+      mixHash.GetHex().c_str(),
       height,
       networkDiff,
       extraNonce,
-      worker.userId(chainId),
-      worker.workerHashId_,
-      filterWorkerName(worker.fullName_),
+      userId,
+      workerHashId,
+      filterWorkerName(workerFullName),
       EthConsensus::getChainStr(chain));
   LOG(INFO) << "sending solved share: " << msg;
   ServerBase::sendSolvedShare2Kafka(chainId, msg.data(), msg.size());
