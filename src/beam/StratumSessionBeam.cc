@@ -160,7 +160,7 @@ void StratumSessionBeam::responseError(const string &idStr, int code) {
       "\"id\":%s,"
       "\"jsonrpc\":\"2.0\","
       "\"method\":\"result\","
-      "\"code\":%d,"
+      "\"code\":-%d,"
       "\"description\":\"%s\""
       "}\n",
       idStr,
