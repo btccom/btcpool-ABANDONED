@@ -91,6 +91,8 @@ const char *StratumStatus::toString(int err) {
 
   case INVALID_SOLUTION:
     return "Invalid Solution";
+  case WRONG_NONCE_PREFIX:
+    return "Wrong Nonce Prefix";
 
 #ifdef WORK_WITH_STRATUM_SWITCHER
   case CLIENT_IS_NOT_SWITCHER:

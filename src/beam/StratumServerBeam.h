@@ -32,6 +32,8 @@
 class JobRepositoryBeam;
 
 class ServerBeam : public ServerBase<JobRepositoryBeam> {
+  bool noncePrefixCheck_ = true;
+
 public:
   bool setupInternal(const libconfig::Config &config) override;
   void checkAndUpdateShare(
@@ -60,6 +62,8 @@ public:
       struct bufferevent *bev,
       struct sockaddr *saddr,
       const uint32_t sessionID) override;
+
+  bool noncePrefixCheck() { return noncePrefixCheck_; }
 };
 
 class JobRepositoryBeam : public JobRepositoryBase<ServerBeam> {

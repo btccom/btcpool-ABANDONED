@@ -104,6 +104,8 @@ bool ServerBeam::setupInternal(const libconfig::Config &config) {
   sessionIDManager_->setAllocInterval(256);
 #endif
 
+  config.lookupValue("sserver.nonce_prefix_check", noncePrefixCheck_);
+
   return true;
 }
 
@@ -122,6 +124,11 @@ void ServerBeam::checkAndUpdateShare(
 
   if (exjob->isStale()) {
     share.set_status(StratumStatus::JOB_NOT_FOUND);
+    return;
+  }
+
+  if (noncePrefixCheck_ && (share.nonce() >> 40) != share.sessionid()) {
+    share.set_status(StratumStatus::WRONG_NONCE_PREFIX);
     return;
   }
 
