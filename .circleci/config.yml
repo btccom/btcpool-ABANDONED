@@ -88,7 +88,9 @@ jobs:
           command: |
             docker build --rm -f docker/btcpool/deploy/Dockerfile -t ${CIRCLE_TAG}_<<parameters.base>> \
               --build-arg BASE_IMAGE=$BASE_IMAGE_SERVER/$BASE_IMAGE_REPO:<<parameters.base>> \
-              --build-arg BUILD_JOBS=2 .
+              --build-arg BUILD_JOBS=2 \
+              --build-arg GIT_DESCRIBE=$(git describe --tag --long) \
+              .
       - run:
           name: Docker registry login (deploy image)
           command: |
