@@ -34,24 +34,49 @@ See [here](../base-image/).
 
 ## Build Deploy Images
 
+### Use `build.sh`
 ```
 # BTC
-docker build -t btccom/btcpool-btc -f Dockerfile --build-arg BASE_IMAGE=btccom/btcpool_build:btc-0.16.3  --build-arg BUILD_JOBS=$(nproc) ../../..
+./build.sh -t btccom/btcpool-btc -b btccom/btcpool_build:btc-0.16.3 -j$(nproc)
 
 # BCH
-docker build -t btccom/btcpool-bch -f Dockerfile --build-arg BASE_IMAGE=btccom/btcpool_build:bch-0.18.5 --build-arg BUILD_JOBS=$(nproc) ../../..
+./build.sh -t btccom/btcpool-bch -b btccom/btcpool_build:bch-0.18.5 -j$(nproc)
 
 # UBTC
-docker build -t btccom/btcpool-ubtc -f Dockerfile --build-arg BASE_IMAGE=btccom/btcpool_build:ubtc-2.5.0.1-1 --build-arg BUILD_JOBS=$(nproc) ../../..
+./build.sh -t btccom/btcpool-ubtc -b btccom/btcpool_build:ubtc-2.5.0.1-1 -j$(nproc)
 
 # SBTC (outdated)
-docker build -t btccom/btcpool-sbtc -f Dockerfile --build-arg BASE_IMAGE=btccom/btcpool_build:sbtc-0.16.2 --build-arg BUILD_JOBS=$(nproc) ../../..
+./build.sh -t btccom/btcpool-sbtc -b btccom/btcpool_build:sbtc-0.16.2 -j$(nproc)
 
 # LTC
-docker build -t btccom/btcpool-ltc -f Dockerfile --build-arg BASE_IMAGE=btccom/btcpool_build:ltc-0.16.3 --build-arg BUILD_JOBS=$(nproc) ../../..
+./build.sh -t btccom/btcpool-ltc -b btccom/btcpool_build:ltc-0.16.3 -j$(nproc)
 
 # ZEC
-docker build -t btccom/btcpool-zec -f Dockerfile --build-arg BASE_IMAGE=btccom/btcpool_build:zec-2.0.4 --build-arg BUILD_JOBS=$(nproc) ../../..
+./build.sh -t btccom/btcpool-zec -b btccom/btcpool_build:zec-2.0.4 -j$(nproc)
+
+# Other chains (ETH, Beam, Grin, Decred, Bytom, ...)
+# Please use BTC's image.
+```
+
+### Use `docker build`
+```
+# BTC
+docker build -t btccom/btcpool-btc -f Dockerfile --build-arg BASE_IMAGE=btccom/btcpool_build:btc-0.16.3 --build-arg BUILD_JOBS=$(nproc) --build-arg GIT_DESCRIBE=$(git describe --tag --long) ../../..
+
+# BCH
+docker build -t btccom/btcpool-bch -f Dockerfile --build-arg BASE_IMAGE=btccom/btcpool_build:bch-0.18.5 --build-arg BUILD_JOBS=$(nproc) --build-arg GIT_DESCRIBE=$(git describe --tag --long) ../../..
+
+# UBTC
+docker build -t btccom/btcpool-ubtc -f Dockerfile --build-arg BASE_IMAGE=btccom/btcpool_build:ubtc-2.5.0.1-1 --build-arg BUILD_JOBS=$(nproc) --build-arg GIT_DESCRIBE=$(git describe --tag --long) ../../..
+
+# SBTC (outdated)
+docker build -t btccom/btcpool-sbtc -f Dockerfile --build-arg BASE_IMAGE=btccom/btcpool_build:sbtc-0.16.2 --build-arg BUILD_JOBS=$(nproc) --build-arg GIT_DESCRIBE=$(git describe --tag --long) ../../..
+
+# LTC
+docker build -t btccom/btcpool-ltc -f Dockerfile --build-arg BASE_IMAGE=btccom/btcpool_build:ltc-0.16.3 --build-arg BUILD_JOBS=$(nproc) --build-arg GIT_DESCRIBE=$(git describe --tag --long) ../../..
+
+# ZEC
+docker build -t btccom/btcpool-zec -f Dockerfile --build-arg BASE_IMAGE=btccom/btcpool_build:zec-2.0.4 --build-arg BUILD_JOBS=$(nproc) --build-arg GIT_DESCRIBE=$(git describe --tag --long) ../../..
 
 # Other chains (ETH, Beam, Grin, Decred, Bytom, ...)
 # Please use BTC's image.

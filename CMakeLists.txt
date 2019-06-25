@@ -374,35 +374,37 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/.git")
     OUTPUT_VARIABLE BPOOL_GIT_DESCRIBE
     OUTPUT_STRIP_TRAILING_WHITESPACE
   )
-  if (BPOOL_GIT_DESCRIBE)
-    message("-- Git describe: ${BPOOL_GIT_DESCRIBE}")
+endif()
 
-    # Split git describe likes `v2.3.2-0-g2d76329` to list
-    # Remove prefix `v`
-    string(REGEX REPLACE "^[^0-9]+" "" BPOOL_GIT_DESCRIBE ${BPOOL_GIT_DESCRIBE})
-    # Split to list
-    string(REPLACE "." ";" BPOOL_GIT_DESCRIBE_LIST ${BPOOL_GIT_DESCRIBE})
+if (BPOOL_GIT_DESCRIBE)
+  message("-- Git describe: ${BPOOL_GIT_DESCRIBE}")
 
-    list(GET BPOOL_GIT_DESCRIBE_LIST 0 BPOOL_VERSION_MAJOR)
-    list(REMOVE_AT BPOOL_GIT_DESCRIBE_LIST 0)
-    list(GET BPOOL_GIT_DESCRIBE_LIST 0 BPOOL_VERSION_MINOR)
-    list(REMOVE_AT BPOOL_GIT_DESCRIBE_LIST 0)
-    # The tag may be `v2.2.1.1-bitcoin-0-gb9fb89d`
-    # So the BPOOL_VERSION_PATCH should be `1.1-bitcoin-0-gb9fb89d`
-    # We need to merge the remaining items with `.`
-    string(REPLACE ";" "." BPOOL_VERSION_PATCH "${BPOOL_GIT_DESCRIBE_LIST}")
-  else()
-    message("-- Git describe is empty, the base version will be used.")
-    message("-- It is recommended to add a tag to the current commit.")
-    execute_process(
-        COMMAND git log -1 --format=%h
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        OUTPUT_VARIABLE BPOOL_GIT_COMMIT_HASH
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-    if(BPOOL_GIT_COMMIT_HASH)
-      set(BPOOL_VERSION_PATCH "${BPOOL_VERSION_PATCH}-${BPOOL_GIT_COMMIT_HASH}")
-    endif()
+  # Split git describe likes `v2.3.2-0-g2d76329` to list
+  # Remove prefix `v`
+  string(REGEX REPLACE "^[^0-9]+" "" BPOOL_GIT_DESCRIBE ${BPOOL_GIT_DESCRIBE})
+  # Split to list
+  string(REPLACE "." ";" BPOOL_GIT_DESCRIBE_LIST ${BPOOL_GIT_DESCRIBE})
+
+  list(GET BPOOL_GIT_DESCRIBE_LIST 0 BPOOL_VERSION_MAJOR)
+  list(REMOVE_AT BPOOL_GIT_DESCRIBE_LIST 0)
+  list(GET BPOOL_GIT_DESCRIBE_LIST 0 BPOOL_VERSION_MINOR)
+  list(REMOVE_AT BPOOL_GIT_DESCRIBE_LIST 0)
+  # The tag may be `v2.2.1.1-bitcoin-0-gb9fb89d`
+  # So the BPOOL_VERSION_PATCH should be `1.1-bitcoin-0-gb9fb89d`
+  # We need to merge the remaining items with `.`
+  string(REPLACE ";" "." BPOOL_VERSION_PATCH "${BPOOL_GIT_DESCRIBE_LIST}")
+
+elseif(EXISTS "${CMAKE_SOURCE_DIR}/.git")
+  message("-- Git describe is empty, the base version will be used.")
+  message("-- It is recommended to add a tag to the current commit.")
+  execute_process(
+      COMMAND git log -1 --format=%h
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      OUTPUT_VARIABLE BPOOL_GIT_COMMIT_HASH
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  if(BPOOL_GIT_COMMIT_HASH)
+    set(BPOOL_VERSION_PATCH "${BPOOL_VERSION_PATCH}-${BPOOL_GIT_COMMIT_HASH}")
   endif()
 endif()
 
