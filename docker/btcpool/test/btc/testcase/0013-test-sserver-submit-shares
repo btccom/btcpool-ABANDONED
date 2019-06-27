@@ -7,6 +7,7 @@ MAIN_CONTAINER_NAME="btc_sserver_1"
 KAFKA_CONSUMER="docker exec btc_kafka_1 /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092"
 KAFKA_PRODUCER="docker exec -i btc_kafka_1 /opt/kafka/bin/kafka-console-producer.sh --broker-list kafka:9092"
 WAIT_FOR_IT="WAIT_FOR_IT $MAIN_CONTAINER_NAME"
+WAIT_FOR_PORT="WAIT_FOR_PORT $MAIN_CONTAINER_NAME"
 DOCKER_COMPOSE="docker-compose --no-ansi"
 
 cd "$BASE_DIR"
@@ -16,8 +17,8 @@ $DOCKER_COMPOSE down >>$STDOUT
 
 echo "start sserver (5s)..."
 $DOCKER_COMPOSE up sserver >>$STDOUT &
-sleep 5
 $WAIT_FOR_IT kafka:9092
+$WAIT_FOR_PORT 3333
 
 outputTestData() {
     cat "$BASE_DIR/testdata/stratumjobs-1.log" \

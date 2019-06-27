@@ -17,7 +17,6 @@ $DOCKER_COMPOSE down >>$STDOUT
 
 echo "start gbtmaker (5s)..."
 $DOCKER_COMPOSE up gbtmaker >>$STDOUT &
-sleep 5
 $WAIT_FOR_IT kafka:9092
 
 {
