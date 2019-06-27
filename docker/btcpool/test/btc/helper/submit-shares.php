@@ -23,7 +23,7 @@ writeToServer($fp, json_encode($testData['mining.subscribe'])."\n".json_encode($
 $requestNum = 2;
 $responseNum = 0;
 
-for ($readLines=0; $readLines<100; $readLines++) {
+for ($readLines=0; $readLines<120; $readLines++) {
     $line = fgets($fp);
     $line = trim($line);
     $data = json_decode($line, true);
@@ -50,7 +50,7 @@ for ($readLines=0; $readLines<100; $readLines++) {
                 }
                 writeToServer($fp, $jsonLines);
                 $shareNum = count($testData['submit'][$hash]);
-                echo "[INFO] Submit ", $shareNum, " to server\n";
+                echo "[INFO] Submit ", $shareNum, " shares to server\n";
                 $requestNum += $shareNum;
                 unset($testData['submit'][$hash]);
             }
@@ -70,6 +70,7 @@ for ($readLines=0; $readLines<100; $readLines++) {
     $responseNum++;
 
     if (empty($testData['submit']) && ($requestNum == $responseNum)) {
+        echo "[INFO] Read $readLines lines from server\n";
         break;
     }
 }
