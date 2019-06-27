@@ -42,13 +42,13 @@ for ($readLines=0; $readLines<120; $readLines++) {
             }
 
             if (!empty($testData['submit'][$hash])) {
-                $jsonLines = '';
                 foreach ($testData['submit'][$hash] as $submit) {
                     $submitData = $testData['request'][$submit['id']]['request'];
                     $submitData['params'][1] = $jobId;
-                    $jsonLines .= json_encode($submitData)."\n";
+                    $json = json_encode($submitData)."\n";
+                    writeToServer($fp, $json);
+                    usleep(100000);
                 }
-                writeToServer($fp, $jsonLines);
                 $shareNum = count($testData['submit'][$hash]);
                 echo "[INFO] Submit ", $shareNum, " shares to server\n";
                 $requestNum += $shareNum;
