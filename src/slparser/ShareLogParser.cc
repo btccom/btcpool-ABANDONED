@@ -169,7 +169,7 @@ int main(int argc, char **argv) {
         LOG(ERROR) << "processUnchangedShareLog fail";
         break;
       }
-      if (!slparser.flushToDB()) {
+      if (!slparser.flushToDB(false)) {
         LOG(ERROR) << "processUnchangedShareLog fail";
         break;
       }

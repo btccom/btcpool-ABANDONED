@@ -2375,7 +2375,7 @@ void ShareLogParser::removeExpiredDataFromDB() {
   }
 }
 
-bool ShareLogParser::flushToDB() {
+bool ShareLogParser::flushToDB(bool removeExpiredData) {
   const time_t beginningTime = time(nullptr);
 
   if (!poolDB_.ping()) {
@@ -2445,7 +2445,9 @@ bool ShareLogParser::flushToDB() {
             << ", time: " << (time(nullptr) - beginningTime) << "s";
 
   // clean expired data
-  removeExpiredDataFromDB();
+  if (removeExpiredData) {
+    removeExpiredDataFromDB();
+  }
 
   return true;
 }

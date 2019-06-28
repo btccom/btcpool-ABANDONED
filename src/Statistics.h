@@ -549,7 +549,7 @@ public:
   bool init();
 
   // flush data to DB
-  bool flushToDB();
+  bool flushToDB(bool removeExpiredData = true);
 
   // get share stats day handler
   shared_ptr<ShareStatsDay> getShareStatsDayHandler(const WorkerKey &key);
