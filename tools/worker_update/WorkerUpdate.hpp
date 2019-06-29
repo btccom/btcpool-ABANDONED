@@ -313,6 +313,7 @@ protected:
 
             if (mysqlConn_->execute(sql_)) {
                 LOG(ERROR) << "fix group_id success";
+                workerCache.clear();
                 lastFixGroupIdTime_ = now;
             } else {
                 LOG(ERROR) << "fix group_id failure";
