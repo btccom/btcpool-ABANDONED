@@ -41,7 +41,7 @@ using namespace std;
 class WorkerUpdate {
 public:
     const size_t FLUSH_SIZE = 1;
-    const time_t FIX_GROUPID_INTERVAL = 60;
+    const time_t FIX_GROUPID_INTERVAL = 600;
 
     WorkerUpdate(
         string consumeBrokers, string consumeTopic, string consumeGroupId,
