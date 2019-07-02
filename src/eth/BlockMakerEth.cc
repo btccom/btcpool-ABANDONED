@@ -293,12 +293,9 @@ void BlockMakerEth::submitBlockNonBlocking(
     const uint64_t networkDiff,
     const StratumWorkerPlain &worker,
     const string &extraNonce) {
-  std::vector<std::shared_ptr<std::thread>> threadPool;
-  std::atomic<bool> syncSubmitSuccess(false);
-
   // run threads
   for (size_t i = 0; i < nodes.size(); i++) {
-    auto t = std::make_shared<std::thread>(std::bind(
+    auto t = std::thread(std::bind(
         &BlockMakerEth::_submitBlockThread,
         this,
         nonce,
@@ -309,14 +306,8 @@ void BlockMakerEth::submitBlockNonBlocking(
         chain,
         networkDiff,
         worker,
-        extraNonce,
-        &syncSubmitSuccess));
-    threadPool.push_back(t);
-  }
-
-  // waiting for threads to end
-  for (auto &t : threadPool) {
-    t->join();
+        extraNonce));
+    t.detach();
   }
 }
 
@@ -329,8 +320,7 @@ void BlockMakerEth::_submitBlockThread(
     const string &chain,
     const uint64_t networkDiff,
     const StratumWorkerPlain &worker,
-    const string &extraNonce,
-    std::atomic<bool> *syncSubmitSuccess) {
+    const string &extraNonce) {
   string blockHash;
 
   // unused vars
@@ -364,18 +354,15 @@ void BlockMakerEth::_submitBlockThread(
     LOG(WARNING) << "submit block failed, chain: " << chain
                  << ", height: " << height << ", hash_no_nonce: " << header
                  << ", err_msg: " << errMsg;
-    return false;
+
+    // If the node has given a clear result (error message), retrying is
+    // uesless.
+    return resultFound;
   };
 
   int retryTime = 5;
   while (retryTime > 0) {
-    if (*syncSubmitSuccess) {
-      LOG(INFO) << "_submitBlockThread(" << node.rpcAddr_ << "): "
-                << "other thread submit success, skip";
-      return;
-    }
     if (submitBlockOnce()) {
-      *syncSubmitSuccess = true;
       break;
     }
     std::this_thread::sleep_for(
@@ -409,19 +396,25 @@ void BlockMakerEth::saveBlockToDB(
       " VALUES (%d, %d"
       ", '%s', '%s', %u"
       ", '%s', '%s', '%s'"
-      ", %d, %u, '%s');",
+      ", %d, %u, '%s')",
       worker.userId_,
       worker.workerHashId_,
       // filter again, just in case
       filterWorkerName(worker.fullName_),
       chain,
       height,
-      blockHash,
-      header,
-      nonce,
+      HexAddPrefix(blockHash),
+      HexAddPrefix(header),
+      HexAddPrefix(nonce),
       EthConsensus::getStaticBlockReward(height, chain),
       networkDiff,
       nowStr);
+
+  if (!blockHash.empty()) {
+    // Other thread may have written a record without the hash, so update it
+    // here.
+    sql += " ON DUPLICATE KEY UPDATE `hash` = VALUES(`hash`)";
+  }
 
   // try connect to DB
   MySQLConnection db(poolDB_);

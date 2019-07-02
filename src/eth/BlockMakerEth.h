@@ -59,8 +59,7 @@ private:
       const string &chain,
       const uint64_t networkDiff,
       const StratumWorkerPlain &worker,
-      const string &extraNonce,
-      std::atomic<bool> *syncSubmitSuccess);
+      const string &extraNonce);
   void saveBlockToDB(
       const string &nonce,
       const string &header,

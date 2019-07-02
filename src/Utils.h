@@ -62,6 +62,9 @@ inline string HexStripPrefix(const string &hex) {
 
 // add prefix 0x to a hex string
 inline string HexAddPrefix(const string &hex) {
+  if (hex.empty()) {
+    return hex;
+  }
   if (hex.size() >= 2 && hex[0] == '0' && (hex[1] == 'x' || hex[1] == 'X')) {
     return hex;
   }
