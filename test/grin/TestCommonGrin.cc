@@ -28,7 +28,7 @@
 
 #include "gtest/gtest.h"
 
-TEST(CommonGrin, VerifyPowGrinSecondary_V1_19) {
+TEST(CommonGrin, VerifyPowGrinSecondary_V1_19_1) {
   siphash_keys hash{
       0x23796193872092ea,
       0xf1017d8a68c4b745,
@@ -43,10 +43,10 @@ TEST(CommonGrin, VerifyPowGrinSecondary_V1_19) {
       0x66199, 0x686c7, 0x6d5f3, 0x6da7a, 0x6dbdf, 0x6f6bf, 0x6ffbb,
       0x7580e, 0x78594, 0x785ac, 0x78b1d, 0x7b80d, 0x7c11c, 0x7da35,
   };
-  ASSERT_TRUE(VerifyPowGrinSecondary(solution, hash, 19));
+  ASSERT_TRUE(VerifyPowGrinSecondary(solution, hash, 19, 1));
 }
 
-TEST(CommonGrin, VerifyPowGrinSecondary_V2_19) {
+TEST(CommonGrin, VerifyPowGrinSecondary_V1_19_2) {
   siphash_keys hash{
       0x6a54f2a35ab7e976,
       0x68818717ff5cd30e,
@@ -61,5 +61,42 @@ TEST(CommonGrin, VerifyPowGrinSecondary_V2_19) {
       0x515c5, 0x56f97, 0x5aa10, 0x5bc1b, 0x5c56d, 0x5d552, 0x60a2e,
       0x66646, 0x6c3aa, 0x70709, 0x71d13, 0x762a3, 0x79d88, 0x7e3ae,
   };
-  ASSERT_TRUE(VerifyPowGrinSecondary(solution, hash, 19));
+  ASSERT_TRUE(VerifyPowGrinSecondary(solution, hash, 19, 1));
+}
+
+TEST(CommonGrin, VerifyPowGrinSecondary_V2_19) {
+  siphash_keys hash{
+      0x89f81d7da5e674df,
+      0x7586b93105a5fd13,
+      0x6fbe212dd4e8c001,
+      0x8800c93a8431f938,
+  };
+  std::vector<uint64_t> solution{
+      0xa00,   0x3ffb,  0xa474,  0xdc27,  0x182e6, 0x242cc, 0x24de4,
+      0x270a2, 0x28356, 0x2951f, 0x2a6ae, 0x2c889, 0x355c7, 0x3863b,
+      0x3bd7e, 0x3cdbc, 0x3ff95, 0x430b6, 0x4ba1a, 0x4bd7e, 0x4c59f,
+      0x4f76d, 0x52064, 0x5378c, 0x540a3, 0x5af6b, 0x5b041, 0x5e9d3,
+      0x64ec7, 0x6564b, 0x66763, 0x66899, 0x66e80, 0x68e4e, 0x69133,
+      0x6b20a, 0x6c2d7, 0x6fd3b, 0x79a8a, 0x79e29, 0x7ae52, 0x7defe,
+  };
+  ASSERT_TRUE(VerifyPowGrinSecondary(solution, hash, 19, 2));
+}
+
+TEST(CommonGrin, VerifyPowGrinSecondary_V2_29) {
+  siphash_keys hash{
+      0xe2f917b2d79492ed,
+      0xf51088eaaa3a07a0,
+      0xaf4d4288d36a4fa8,
+      0xc8cdfd30a54e0581,
+  };
+  std::vector<uint64_t> solution{
+      0x1a9629,   0x1fb257,   0x5dc22a,   0xf3d0b0,   0x200c474,  0x24bd68f,
+      0x48ad104,  0x4a17170,  0x4ca9a41,  0x55f983f,  0x6076c91,  0x6256ffc,
+      0x63b60a1,  0x7fd5b16,  0x985bff8,  0xaae71f3,  0xb71f7b4,  0xb989679,
+      0xc09b7b8,  0xd7601da,  0xd7ab1b6,  0xef1c727,  0xf1e702b,  0xfd6d961,
+      0xfdf0007,  0x10248134, 0x114657f6, 0x11f52612, 0x12887251, 0x13596b4b,
+      0x15e8d831, 0x16b4c9e5, 0x17097420, 0x1718afca, 0x187fc40c, 0x19359788,
+      0x1b41d3f1, 0x1bea25a7, 0x1d28df0f, 0x1ea6c4a0, 0x1f9bf79f, 0x1fa005c6,
+  };
+  ASSERT_TRUE(VerifyPowGrinSecondary(solution, hash, 29, 2));
 }

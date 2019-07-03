@@ -25,6 +25,7 @@
 #include "CommonGrin.h"
 
 #include "cuckoo/cuckaroo.h"
+#include "cuckoo/cuckarood.h"
 #include "cuckoo/cuckatoo.h"
 #include "cuckoo/siphash.h"
 #include "libblake2/blake2.h"
@@ -63,8 +64,16 @@ bool VerifyPowGrinPrimary(
 
 // verify that edges are ascending and form a cycle in header-generated graph
 bool VerifyPowGrinSecondary(
-    const std::vector<uint64_t> &edges, siphash_keys &keys, uint32_t edgeBits) {
-  return verify_cuckaroo(edges, keys, edgeBits);
+    const std::vector<uint64_t> &edges,
+    siphash_keys &keys,
+    uint32_t edgeBits,
+    uint16_t version) {
+  switch (version) {
+  case 2:
+    return verify_cuckarood(edges, keys, edgeBits);
+  default:
+    return verify_cuckaroo(edges, keys, edgeBits);
+  }
 }
 
 bool VerifyPowGrin(
@@ -80,7 +89,8 @@ bool VerifyPowGrin(
       preProofKeys, sizeof(preProofKeys), &preProof, sizeof(preProof), 0, 0);
   siphashKeys.setkeys(preProofKeys);
   return edgeBits == SECOND_POW_EDGE_BITS
-      ? VerifyPowGrinSecondary(proofs, siphashKeys, edgeBits)
+      ? VerifyPowGrinSecondary(
+            proofs, siphashKeys, edgeBits, preProof.prePow.version.value())
       : VerifyPowGrinPrimary(proofs, siphashKeys, edgeBits);
 }
 

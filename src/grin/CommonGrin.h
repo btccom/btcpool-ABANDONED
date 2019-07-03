@@ -70,7 +70,10 @@ class siphash_keys;
 bool VerifyPowGrinPrimary(
     const std::vector<uint64_t> &edges, siphash_keys &keys, uint32_t edgeBits);
 bool VerifyPowGrinSecondary(
-    const std::vector<uint64_t> &edges, siphash_keys &keys, uint32_t edgeBits);
+    const std::vector<uint64_t> &edges,
+    siphash_keys &keys,
+    uint32_t edgeBits,
+    uint16_t version);
 bool VerifyPowGrin(
     const PreProofGrin &preProof,
     uint32_t edgeBits,

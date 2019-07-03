@@ -491,6 +491,7 @@ target_link_libraries(beam PUBLIC equihash)
 
 add_library(cuckoo
   3rdparty/cuckoo/cuckaroo.cpp
+  3rdparty/cuckoo/cuckarood.cpp
   3rdparty/cuckoo/cuckatoo.cpp
   3rdparty/cuckoo/siphash.cpp)
 

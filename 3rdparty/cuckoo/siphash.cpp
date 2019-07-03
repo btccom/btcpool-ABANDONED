@@ -9,7 +9,7 @@ void siphash_keys::setkeys(const char *keybuf) {
 }
 
 uint64_t siphash_keys::siphash24(const uint64_t nonce) const {
-  siphash_state v(*this);
+  siphash_state<> v(*this);
   v.hash24(nonce);
   return v.xor_lanes();
 }
