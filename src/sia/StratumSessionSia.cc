@@ -85,7 +85,7 @@ void StratumSessionSia::sendMiningNotify(
   sendData(strNotify); // send notify string
 
   // clear localJobs_
-  clearLocalJobs();
+  clearLocalJobs(exJobPtr->isClean_);
 }
 
 void StratumSessionSia::handleRequest(

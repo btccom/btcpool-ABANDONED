@@ -257,6 +257,7 @@ protected:
       "Local job type is not derived from LocalJob");
   std::deque<LocalJobType> localJobs_;
   size_t kMaxNumLocalJobs_;
+  static constexpr size_t kNumLocalJobsToKeep_ = 4;
 
 public:
   size_t maxNumLocalJobs() const { return kMaxNumLocalJobs_; }
@@ -281,8 +282,9 @@ public:
     return localJob;
   }
 
-  void clearLocalJobs() {
-    while (localJobs_.size() >= kMaxNumLocalJobs_) {
+  void clearLocalJobs(bool isClean) {
+    size_t numOfJobsToKeep = isClean ? kNumLocalJobsToKeep_ : kMaxNumLocalJobs_;
+    while (localJobs_.size() > numOfJobsToKeep) {
       dispatcher_->removeLocalJob(localJobs_.front());
       localJobs_.pop_front();
     }

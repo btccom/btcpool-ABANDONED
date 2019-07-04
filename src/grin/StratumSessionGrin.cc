@@ -239,5 +239,5 @@ void StratumSessionGrin::sendMiningNotifyWithId(
   DLOG(INFO) << strNotify;
   sendData(strNotify); // send notify string
 
-  clearLocalJobs();
+  clearLocalJobs(exJobPtr->isClean_);
 }

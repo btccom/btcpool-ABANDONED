@@ -155,7 +155,7 @@ void StratumSessionBitcoin::sendMiningNotify(
   sendData(notifyStr); // send notify string
 
   // clear localJobs_
-  clearLocalJobs();
+  clearLocalJobs(exJob->isClean_);
 }
 
 void StratumSessionBitcoin::handleRequest(

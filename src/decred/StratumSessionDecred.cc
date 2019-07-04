@@ -107,7 +107,7 @@ void StratumSessionDecred::sendMiningNotify(
   sendData(notifyStr);
 
   // clear localJobs_
-  clearLocalJobs();
+  clearLocalJobs(exJobPtr->isClean_);
 }
 
 void StratumSessionDecred::handleRequest(

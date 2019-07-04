@@ -234,7 +234,7 @@ void StratumSessionEth::sendMiningNotifyWithId(
     LOG(ERROR) << "Eth notify string is empty";
 
   // clear localEthJobs_
-  clearLocalJobs();
+  clearLocalJobs(exJobPtr->isClean_);
 }
 
 void StratumSessionEth::handleRequest(

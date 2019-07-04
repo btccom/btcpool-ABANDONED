@@ -90,7 +90,7 @@ void StratumSessionBeam::sendMiningNotify(
   sendData(strNotify); // send notify string
 
   // clear localBeamJobs_
-  clearLocalJobs();
+  clearLocalJobs(exJobPtr->isClean_);
 }
 
 bool StratumSessionBeam::validate(
