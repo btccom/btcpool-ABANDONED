@@ -53,13 +53,14 @@ aptitude install build-essential autotools-dev libtool autoconf automake pkg-con
 
 * build libevent from its master branch
 
-Notice: **the release and stable version of libevent will cause a dead lock bug in sserver** ([issue #75](https://github.com/btccom/btcpool/issues/75)), so use the code from the master branch. 
+Notice: **libevent before release-2.1.9-beta will cause a dead lock bug in sserver** ([issue #75](https://github.com/btccom/btcpool/issues/75)). Please use **release-2.1.9-beta** and later.
 ```
-git clone https://github.com/libevent/libevent.git
-cd libevent
+wget https://github.com/libevent/libevent/releases/download/release-2.1.10-stable/libevent-2.1.10-stable.tar.gz
+tar zxf libevent-2.1.10-stable.tar.gz
+cd libevent-2.1.10-stable
 ./autogen.sh
 ./configure --disable-shared
-make && make install
+make -j$(nproc) && make install
 ```
 
 * build librdkafka-v0.9.1
@@ -68,7 +69,7 @@ make && make install
 wget https://github.com/edenhill/librdkafka/archive/0.9.1.tar.gz
 tar zxvf 0.9.1.tar.gz
 cd librdkafka-0.9.1
-./configure && make && make install
+./configure && make -j$(nproc) && make install
 
 # if you want to keep static libraries only
 rm -v /usr/local/lib/librdkafka*.so /usr/local/lib/librdkafka*.so.*
