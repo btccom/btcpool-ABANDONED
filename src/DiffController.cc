@@ -52,7 +52,7 @@ void DiffController::resetCurDiff(uint64_t curDiff) {
   shares_.mapMultiply(0);
 }
 
-void DiffController::addAcceptedShare(const uint64_t share) {
+void DiffController::addShare(const uint64_t share) {
   const int64_t k = time(nullptr) / kRecordSeconds_;
   sharesNum_.insert(k, 1.0);
   shares_.insert(k, share);

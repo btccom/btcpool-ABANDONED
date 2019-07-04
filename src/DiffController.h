@@ -117,7 +117,7 @@ public:
   uint64_t calcCurDiff();
 
   // we need to add every share, so we can calc worker's hashrate
-  void addAcceptedShare(const uint64_t share);
+  void addShare(const uint64_t share);
 
   // maybe worker has it's own min diff
   void setMinDiff(uint64_t minDiff);
