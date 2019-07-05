@@ -104,8 +104,12 @@ public:
         (status == SOLVED) || (status == SOLVED_STALE);
   }
 
-  inline static bool isStale(int status) {
+  inline static bool isAcceptedStale(int status) {
     return (status == ACCEPT_STALE) || (status == SOLVED_STALE);
+  }
+
+  inline static bool isRejectedStale(int status) {
+    return (status == STALE_SHARE);
   }
 
   inline static bool isSolved(int status) {

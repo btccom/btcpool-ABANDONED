@@ -160,7 +160,7 @@ public:
     }
 
     // Share of the uncle block has a lower reward.
-    if (StratumStatus::isStale(status())) {
+    if (StratumStatus::isAcceptedStale(status())) {
       result *= EthConsensus::getUncleBlockRewardRatio(height(), getChain());
     }
 

@@ -104,7 +104,7 @@ void ShareStatsDay<SHARE>::processShare(
   ScopeLock sl(lock_);
 
   if (StratumStatus::isAccepted(share.status()) &&
-      (acceptStale || !StratumStatus::isStale(share.status()))) {
+      (acceptStale || !StratumStatus::isAcceptedStale(share.status()))) {
     shareAccept1h_[hourIdx] += share.sharediff();
     shareAccept1d_ += share.sharediff();
 
