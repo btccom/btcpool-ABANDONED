@@ -36,8 +36,8 @@ template <class SHARE>
 WorkerShares<SHARE>::WorkerShares(const int64_t workerId, const int32_t userId)
   : workerId_(workerId)
   , userId_(userId)
-  , acceptShareSec_(STATS_SLIDING_WINDOW_SECONDS)
-  , rejectShareMin_(STATS_SLIDING_WINDOW_SECONDS / 60) {
+  , acceptShares_(acceptShareTime(STATS_SLIDING_WINDOW_SECONDS))
+  , rejectShares_(rejectShareTime(STATS_SLIDING_WINDOW_SECONDS)) {
   assert(STATS_SLIDING_WINDOW_SECONDS >= 3600);
 }
 
@@ -52,9 +52,9 @@ void WorkerShares<SHARE>::processShare(const SHARE &share, bool acceptStale) {
   if (StratumStatus::isAccepted(share.status()) &&
       (acceptStale || !StratumStatus::isStale(share.status()))) {
     acceptCount_++;
-    acceptShareSec_.insert(share.timestamp(), share.sharediff());
+    acceptShares_.insert(acceptShareTime(share.timestamp()), share.sharediff());
   } else {
-    rejectShareMin_.insert(share.timestamp() / 60, share.sharediff());
+    rejectShares_.insert(rejectShareTime(share.timestamp()), share.sharediff());
   }
 
   lastShareIP_.fromString(share.ip());
@@ -63,21 +63,8 @@ void WorkerShares<SHARE>::processShare(const SHARE &share, bool acceptStale) {
 
 template <class SHARE>
 WorkerStatus WorkerShares<SHARE>::getWorkerStatus() {
-  ScopeLock sl(lock_);
-  const time_t now = time(nullptr);
   WorkerStatus s;
-
-  s.accept5m_ = acceptShareSec_.sum(now, 300);
-  s.accept15m_ = acceptShareSec_.sum(now, 900);
-  s.reject15m_ = rejectShareMin_.sum(now / 60, 15);
-
-  s.accept1h_ = acceptShareSec_.sum(now, 3600);
-  s.reject1h_ = rejectShareMin_.sum(now / 60, 60);
-
-  s.acceptCount_ = acceptCount_;
-  s.lastShareIP_ = lastShareIP_;
-  s.lastShareTime_ = lastShareTime_;
-
+  getWorkerStatus(s);
   return s;
 }
 
@@ -86,12 +73,12 @@ void WorkerShares<SHARE>::getWorkerStatus(WorkerStatus &s) {
   ScopeLock sl(lock_);
   const time_t now = time(nullptr);
 
-  s.accept5m_ = acceptShareSec_.sum(now, 300);
-  s.accept15m_ = acceptShareSec_.sum(now, 900);
-  s.reject15m_ = rejectShareMin_.sum(now / 60, 15);
+  s.accept5m_ = acceptShares_.sum(acceptShareTime(now), acceptShareTime(300));
+  s.accept15m_ = acceptShares_.sum(acceptShareTime(now), acceptShareTime(900));
+  s.reject15m_ = rejectShares_.sum(rejectShareTime(now), rejectShareTime(900));
 
-  s.accept1h_ = acceptShareSec_.sum(now, 3600);
-  s.reject1h_ = rejectShareMin_.sum(now / 60, 60);
+  s.accept1h_ = acceptShares_.sum(acceptShareTime(now), acceptShareTime(3600));
+  s.reject1h_ = rejectShares_.sum(rejectShareTime(now), rejectShareTime(3600));
 
   s.acceptCount_ = acceptCount_;
   s.lastShareIP_ = lastShareIP_;

@@ -72,8 +72,13 @@ class WorkerShares {
   IpAddress lastShareIP_;
   uint64_t lastShareTime_ = 0;
 
-  StatsWindow<uint64_t> acceptShareSec_;
-  StatsWindow<uint64_t> rejectShareMin_;
+  StatsWindow<uint64_t> acceptShares_; // record accuracy: 10s
+  StatsWindow<uint64_t> rejectShares_; // record accuracy: 60s
+
+  // Adjust the following values to change the accuracy.
+  // Please note that high accuracy will result in more memory usage.
+  inline static time_t acceptShareTime(time_t seconds) { return seconds / 10; }
+  inline static time_t rejectShareTime(time_t seconds) { return seconds / 60; }
 
 public:
   WorkerShares(const int64_t workerId, const int32_t userId);
