@@ -172,6 +172,9 @@ protected:
   KafkaConsumer kafkaConsumerCommonEvents_; // consume topic: 'CommonEvents'
   thread threadConsumeCommonEvents_;
 
+  // you can disable it and use the standalone worker_update tool.
+  bool updateWorkerName_ = true;
+
   MySQLConnection *poolDB_ = nullptr; // flush workers to table.mining_workers
   MySQLConnection *poolDBCommonEvents_ =
       nullptr; // insert or update workers from table.mining_workers

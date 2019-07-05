@@ -145,6 +145,7 @@ StatsServerT<SHARE>::StatsServerT(
 
   cfg.lookupValue("statshttpd.file_last_flush_time", fileLastFlushTime_);
   cfg.lookupValue("statshttpd.accept_stale", acceptStale_);
+  cfg.lookupValue("statshttpd.update_worker_name", updateWorkerName_);
 
   bool useMysql = true;
   cfg.lookupValue("statshttpd.use_mysql", useMysql);
@@ -163,7 +164,9 @@ StatsServerT<SHARE>::StatsServerT(
         cfg.lookup("pooldb.dbname"));
 
     poolDB_ = new MySQLConnection(poolDBInfo);
-    poolDBCommonEvents_ = new MySQLConnection(poolDBInfo);
+    if (updateWorkerName_) {
+      poolDBCommonEvents_ = new MySQLConnection(poolDBInfo);
+    }
   }
 
   if (useRedis) {
@@ -179,7 +182,9 @@ StatsServerT<SHARE>::StatsServerT(
     cfg.lookupValue("redis.index_policy", redisIndexPolicy_);
     cfg.lookupValue("redis.concurrency", redisConcurrency_);
 
-    redisCommonEvents_ = new RedisConnection(redisInfo);
+    if (updateWorkerName_) {
+      redisCommonEvents_ = new RedisConnection(redisInfo);
+    }
 
     for (uint32_t i = 0; i < redisConcurrency_; i++) {
       RedisConnection *redis = new RedisConnection(redisInfo);
@@ -1157,10 +1162,12 @@ bool StatsServerT<SHARE>::setupThreadConsume() {
       LOG(ERROR) << "kafka brokers is not alive";
       return false;
     }
+
+    threadConsume_ = std::thread(&StatsServerT<SHARE>::runThreadConsume, this);
   }
 
   // kafkaConsumerCommonEvents_
-  {
+  if (updateWorkerName_) {
     // assume we have 100,000 online workers
     const int32_t kConsumeLatestN = 100000;
 
@@ -1180,12 +1187,10 @@ bool StatsServerT<SHARE>::setupThreadConsume() {
       LOG(ERROR) << "common events kafka brokers is not alive";
       return false;
     }
-  }
 
-  // run threads
-  threadConsume_ = std::thread(&StatsServerT<SHARE>::runThreadConsume, this);
-  threadConsumeCommonEvents_ =
-      std::thread(&StatsServerT<SHARE>::runThreadConsumeCommonEvents, this);
+    threadConsumeCommonEvents_ =
+        std::thread(&StatsServerT<SHARE>::runThreadConsumeCommonEvents, this);
+  }
 
   return true;
 }
