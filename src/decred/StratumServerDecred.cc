@@ -208,8 +208,11 @@ int ServerDecred::checkShare(
     uint32_t ntime,
     uint32_t nonce,
     const string &workerFullName) {
-  if (!exJobPtr || exJobPtr->isStale()) {
+  if (!exJobPtr) {
     return StratumStatus::JOB_NOT_FOUND;
+  }
+  if (exJobPtr->isStale()) {
+    return StratumStatus::STALE_SHARE;
   }
 
   auto sjob = std::static_pointer_cast<StratumJobDecred>(exJobPtr->sjob_);

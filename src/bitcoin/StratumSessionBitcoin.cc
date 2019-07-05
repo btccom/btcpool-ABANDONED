@@ -507,3 +507,12 @@ unique_ptr<StratumMiner> StratumSessionBitcoin::createMiner(
 
   return miner;
 }
+
+void StratumSessionBitcoin::responseError(const string &idStr, int errCode) {
+  // Keep compatibility with miners. Prevent miners from abnormal due to unknown
+  // error codes.
+  if (errCode == StratumStatus::STALE_SHARE) {
+    errCode = StratumStatus::JOB_NOT_FOUND;
+  }
+  rpc1ResponseError(idStr, errCode);
+}

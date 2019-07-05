@@ -133,7 +133,7 @@ void ServerBeam::checkAndUpdateShare(
              << ", input: " << sjob->input_ << ", output: " << output;
 
   if (exjob->isStale()) {
-    share.set_status(StratumStatus::JOB_NOT_FOUND);
+    share.set_status(StratumStatus::STALE_SHARE);
     return;
   }
 

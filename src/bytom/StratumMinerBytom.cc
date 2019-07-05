@@ -228,7 +228,7 @@ void StratumMinerBytom::handleRequest_Submit(
   share.set_combinedheader(&combinedHeader, sizeof(combinedHeader));
 
   if (exjob->isStale()) {
-    share.set_status(StratumStatus::JOB_NOT_FOUND);
+    share.set_status(StratumStatus::STALE_SHARE);
     session.rpc2ResponseBoolean(idStr, false, "Block expired");
   } else {
     EncodeBlockHeader_return encoded = EncodeBlockHeader(

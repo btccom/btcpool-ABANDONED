@@ -50,7 +50,7 @@ void StratumServerGrin::checkAndUpdateShare(
              << ", edge_bits: " << share.edgebits();
 
   if (exjob->isStale()) {
-    share.set_status(StratumStatus::JOB_NOT_FOUND);
+    share.set_status(StratumStatus::STALE_SHARE);
     return;
   }
 

@@ -220,7 +220,7 @@ void StratumMinerBitcoin::handleRequest_Submit(
   assert(extraNonce2Hex.size() == server.extraNonce2Size() * 2);
 
   // a function to log rejected stale share
-  auto rejectStaleShare = [&](size_t chainId) {
+  auto rejectJobNotFound = [&](size_t chainId) {
     handleShare(idStr, StratumStatus::JOB_NOT_FOUND, 0, chainId);
 
     LOG(INFO) << "rejected share: "
@@ -234,7 +234,7 @@ void StratumMinerBitcoin::handleRequest_Submit(
   auto localJob = session.findLocalJob(shortJobId);
   if (localJob == nullptr) {
     // If can't find localJob, could do nothing.
-    rejectStaleShare(session.getChainId());
+    rejectJobNotFound(session.getChainId());
     return;
   }
 
@@ -250,7 +250,7 @@ void StratumMinerBitcoin::handleRequest_Submit(
     //
     // Tips: an exjob is only removed after max_job_lifetime seconds past.
     //
-    rejectStaleShare(localJob->chainId_);
+    rejectJobNotFound(localJob->chainId_);
     return;
   }
 

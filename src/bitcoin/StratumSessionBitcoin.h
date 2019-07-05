@@ -69,6 +69,8 @@ public:
       const std::string &workerName,
       int64_t workerId) override;
 
+  void responseError(const string &idStr, int errCode) override;
+
 private:
   uint8_t allocShortJobId();
 

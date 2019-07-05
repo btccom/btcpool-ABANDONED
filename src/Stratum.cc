@@ -94,6 +94,9 @@ const char *StratumStatus::toString(int err) {
   case WRONG_NONCE_PREFIX:
     return "Wrong Nonce Prefix";
 
+  case STALE_SHARE:
+    return "Stale share";
+
 #ifdef WORK_WITH_STRATUM_SWITCHER
   case CLIENT_IS_NOT_SWITCHER:
     return "Client is not a stratum switcher";

@@ -96,7 +96,7 @@ void StratumMinerDecred::handleRequest_Submit(
   auto &worker = session.getWorker();
 
   // a function to log rejected stale share
-  auto rejectStaleShare = [&]() {
+  auto rejectJobNotFound = [&]() {
     session.responseError(idStr, StratumStatus::JOB_NOT_FOUND);
 
     LOG(INFO) << "rejected share: "
@@ -109,7 +109,7 @@ void StratumMinerDecred::handleRequest_Submit(
   auto localJob = session.findLocalJob(shortJobId);
   if (!localJob) {
     // if can't find localJob, could do nothing
-    rejectStaleShare();
+    rejectJobNotFound();
     return;
   }
 
@@ -125,7 +125,7 @@ void StratumMinerDecred::handleRequest_Submit(
     //
     // Tips: an exjob is only removed after max_job_lifetime seconds past.
     //
-    rejectStaleShare();
+    rejectJobNotFound();
     return;
   }
 
