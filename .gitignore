@@ -5,8 +5,8 @@
 .DS_Store
 
 # Building files
-build
-build*/
+/build
+/build*/
 
 # Installs runs 
 install/run_*/

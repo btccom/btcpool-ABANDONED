@@ -1,0 +1,2 @@
+#!/bin/bash
+docker build --build-arg BASE_IMAGE=$BASE_IMAGE --build-arg GIT_DESCRIBE=$(git describe --tag --long) -t $IMAGE_NAME -f $DOCKERFILE_PATH .
