@@ -41,7 +41,6 @@
 class WorkerStatus {
 public:
   // share, base on sliding window
-  uint64_t accept1m_ = 0;
   uint64_t accept5m_ = 0;
 
   uint64_t accept15m_ = 0;
@@ -139,7 +138,6 @@ protected:
   struct WorkerIndexBuffer {
     size_t size_ = 0;
 
-    std::vector<string> accept1m_;
     std::vector<string> accept5m_;
     std::vector<string> accept15m_;
     std::vector<string> reject15m_;
