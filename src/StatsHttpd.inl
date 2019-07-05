@@ -35,9 +35,7 @@
 template <class SHARE>
 WorkerShares<SHARE>::WorkerShares(const int64_t workerId, const int32_t userId)
   : workerId_(workerId)
-  , userId_(userId)
-  , acceptShares_(acceptShareTime(STATS_SLIDING_WINDOW_SECONDS))
-  , rejectShares_(rejectShareTime(STATS_SLIDING_WINDOW_SECONDS)) {
+  , userId_(userId) {
   assert(STATS_SLIDING_WINDOW_SECONDS >= 3600);
 }
 
@@ -53,8 +51,11 @@ void WorkerShares<SHARE>::processShare(const SHARE &share, bool acceptStale) {
       (acceptStale || !StratumStatus::isAcceptedStale(share.status()))) {
     acceptCount_++;
     acceptShares_.insert(acceptShareTime(share.timestamp()), share.sharediff());
+  } else if (StratumStatus::isRejectedStale(share.status())) {
+    staleShares_.insert(rejectShareTime(share.timestamp()), share.sharediff());
   } else {
-    rejectShares_.insert(rejectShareTime(share.timestamp()), share.sharediff());
+    rejectShares_[share.status()].insert(
+        rejectShareTime(share.timestamp()), share.sharediff());
   }
 
   lastShareIP_.fromString(share.ip());
@@ -75,10 +76,37 @@ void WorkerShares<SHARE>::getWorkerStatus(WorkerStatus &s) {
 
   s.accept5m_ = acceptShares_.sum(acceptShareTime(now), acceptShareTime(300));
   s.accept15m_ = acceptShares_.sum(acceptShareTime(now), acceptShareTime(900));
-  s.reject15m_ = rejectShares_.sum(rejectShareTime(now), rejectShareTime(900));
-
   s.accept1h_ = acceptShares_.sum(acceptShareTime(now), acceptShareTime(3600));
-  s.reject1h_ = rejectShares_.sum(rejectShareTime(now), rejectShareTime(3600));
+
+  s.stale15m_ = staleShares_.sum(rejectShareTime(now), rejectShareTime(900));
+  s.stale1h_ = staleShares_.sum(rejectShareTime(now), rejectShareTime(3600));
+
+  s.reject15m_ = 0;
+  s.reject1h_ = 0;
+  s.rejectDetail15m_ = "{";
+  s.rejectDetail1h_ = "{";
+
+  for (auto &itr : rejectShares_) {
+    auto reject15m = itr.second.sum(rejectShareTime(now), rejectShareTime(900));
+    auto reject1h = itr.second.sum(rejectShareTime(now), rejectShareTime(3600));
+
+    s.reject15m_ += reject15m;
+    s.reject1h_ += reject1h;
+
+    s.rejectDetail15m_ += "\"" + std::to_string(itr.first) +
+        "\":" + std::to_string(reject15m) + ",";
+    s.rejectDetail1h_ += "\"" + std::to_string(itr.first) +
+        "\":" + std::to_string(reject1h) + ",";
+  }
+
+  // remove the end of ","
+  if (s.rejectDetail15m_.size() > 1)
+    s.rejectDetail15m_.resize(s.rejectDetail15m_.size() - 1);
+  if (s.rejectDetail1h_.size() > 1)
+    s.rejectDetail1h_.resize(s.rejectDetail1h_.size() - 1);
+
+  s.rejectDetail15m_ += "}";
+  s.rejectDetail1h_ += "}";
 
   s.acceptCount_ = acceptCount_;
   s.lastShareIP_ = lastShareIP_;
@@ -466,16 +494,34 @@ void StatsServerT<SHARE>::flushWorkersToRedis(uint32_t threadStep) {
     string key = getRedisKeyMiningWorker(userId, workerId);
 
     // update info
-    redis->prepare({"HMSET",           key,
-                    "accept_5m",       std::to_string(status.accept5m_),
-                    "accept_15m",      std::to_string(status.accept15m_),
-                    "reject_15m",      std::to_string(status.reject15m_),
-                    "accept_1h",       std::to_string(status.accept1h_),
-                    "reject_1h",       std::to_string(status.reject1h_),
-                    "accept_count",    std::to_string(status.acceptCount_),
-                    "last_share_ip",   status.lastShareIP_.toString(),
-                    "last_share_time", std::to_string(status.lastShareTime_),
-                    "updated_at",      std::to_string(time(nullptr))});
+    redis->prepare({"HMSET",
+                    key,
+                    "accept_5m",
+                    std::to_string(status.accept5m_),
+                    "accept_15m",
+                    std::to_string(status.accept15m_),
+                    "stale_15m",
+                    std::to_string(status.stale15m_),
+                    "reject_15m",
+                    std::to_string(status.reject15m_),
+                    "reject_detail_15m",
+                    status.rejectDetail15m_,
+                    "accept_1h",
+                    std::to_string(status.accept1h_),
+                    "stale_1h",
+                    std::to_string(status.stale1h_),
+                    "reject_1h",
+                    std::to_string(status.reject1h_),
+                    "reject_detail_1h",
+                    status.rejectDetail1h_,
+                    "accept_count",
+                    std::to_string(status.acceptCount_),
+                    "last_share_ip",
+                    status.lastShareIP_.toString(),
+                    "last_share_time",
+                    std::to_string(status.lastShareTime_),
+                    "updated_at",
+                    std::to_string(time(nullptr))});
     // set key expire
     if (redisKeyExpire_ > 0) {
       redis->prepare({"EXPIRE", key, std::to_string(redisKeyExpire_)});
@@ -570,6 +616,13 @@ void StatsServerT<SHARE>::flushIndexToRedis(
         {"ZADD", getRedisKeyIndex(userId, "accept_15m")});
     flushIndexToRedis(redis, buffer.accept15m_);
   }
+  // stale_15m
+  if (redisIndexPolicy_ & REDIS_INDEX_STALE_15M) {
+    buffer.stale15m_.insert(
+        buffer.stale15m_.begin(),
+        {"ZADD", getRedisKeyIndex(userId, "stale_15m")});
+    flushIndexToRedis(redis, buffer.stale15m_);
+  }
   // reject_15m
   if (redisIndexPolicy_ & REDIS_INDEX_REJECT_15M) {
     buffer.reject15m_.insert(
@@ -583,6 +636,13 @@ void StatsServerT<SHARE>::flushIndexToRedis(
         buffer.accept1h_.begin(),
         {"ZADD", getRedisKeyIndex(userId, "accept_1h")});
     flushIndexToRedis(redis, buffer.accept1h_);
+  }
+  // stale_1h
+  if (redisIndexPolicy_ & REDIS_INDEX_STALE_1H) {
+    buffer.stale1h_.insert(
+        buffer.stale1h_.begin(),
+        {"ZADD", getRedisKeyIndex(userId, "stale_1h")});
+    flushIndexToRedis(redis, buffer.stale1h_);
   }
   // reject_1h
   if (redisIndexPolicy_ & REDIS_INDEX_REJECT_1H) {
@@ -629,6 +689,11 @@ void StatsServerT<SHARE>::addIndexToBuffer(
     buffer.accept15m_.push_back(std::to_string(status.accept15m_));
     buffer.accept15m_.push_back(std::to_string(workerId));
   }
+  // stale_15m
+  if (redisIndexPolicy_ & REDIS_INDEX_STALE_15M) {
+    buffer.stale15m_.push_back(std::to_string(status.stale15m_));
+    buffer.stale15m_.push_back(std::to_string(workerId));
+  }
   // reject_15m
   if (redisIndexPolicy_ & REDIS_INDEX_REJECT_15M) {
     buffer.reject15m_.push_back(std::to_string(status.reject15m_));
@@ -638,6 +703,11 @@ void StatsServerT<SHARE>::addIndexToBuffer(
   if (redisIndexPolicy_ & REDIS_INDEX_ACCEPT_1H) {
     buffer.accept1h_.push_back(std::to_string(status.accept1h_));
     buffer.accept1h_.push_back(std::to_string(workerId));
+  }
+  // stale_1h
+  if (redisIndexPolicy_ & REDIS_INDEX_STALE_1H) {
+    buffer.stale1h_.push_back(std::to_string(status.stale1h_));
+    buffer.stale1h_.push_back(std::to_string(workerId));
   }
   // reject_1h
   if (redisIndexPolicy_ & REDIS_INDEX_REJECT_1H) {
@@ -717,8 +787,10 @@ void StatsServerT<SHARE>::flushUsersToRedis(uint32_t threadStep) {
                     "worker_count",    std::to_string(workerCount),
                     "accept_5m",       std::to_string(status.accept5m_),
                     "accept_15m",      std::to_string(status.accept15m_),
+                    "stale_15m",       std::to_string(status.stale15m_),
                     "reject_15m",      std::to_string(status.reject15m_),
                     "accept_1h",       std::to_string(status.accept1h_),
+                    "stale_1h",        std::to_string(status.stale1h_),
                     "reject_1h",       std::to_string(status.reject1h_),
                     "accept_count",    std::to_string(status.acceptCount_),
                     "last_share_ip",   status.lastShareIP_.toString(),
@@ -801,30 +873,31 @@ void StatsServerT<SHARE>::_flushWorkersAndUsersToDBThread() {
   // merge two table items
   // table.`mining_workers` unique index: `puid` + `worker_id`
   //
-  const string mergeSQL =
-      "INSERT INTO `mining_workers` "
-      " SELECT * FROM `mining_workers_tmp` "
-      " ON DUPLICATE KEY "
-      " UPDATE "
-      "  `mining_workers`.`accept_5m`      =`mining_workers_tmp`.`accept_5m`, "
-      "  `mining_workers`.`accept_15m`     =`mining_workers_tmp`.`accept_15m`, "
-      "  `mining_workers`.`reject_15m`     =`mining_workers_tmp`.`reject_15m`, "
-      "  `mining_workers`.`accept_1h`      =`mining_workers_tmp`.`accept_1h`, "
-      "  `mining_workers`.`reject_1h`      =`mining_workers_tmp`.`reject_1h`, "
-      "  `mining_workers`.`accept_count`   "
-      "=`mining_workers_tmp`.`accept_count`,"
-      "  `mining_workers`.`last_share_ip`  "
-      "=`mining_workers_tmp`.`last_share_ip`,"
-      "  "
-      "`mining_workers`.`last_share_time`=`mining_workers_tmp`.`last_share_"
-      "time`,"
-      "  `mining_workers`.`updated_at`     =`mining_workers_tmp`.`updated_at` ";
+  const string mergeSQL = R"(
+    INSERT INTO `mining_workers`
+    SELECT * FROM `mining_workers_tmp`
+    ON DUPLICATE KEY UPDATE
+      `mining_workers`.`accept_5m` = `mining_workers_tmp`.`accept_5m`,
+      `mining_workers`.`accept_15m` = `mining_workers_tmp`.`accept_15m`,
+      `mining_workers`.`stale_15m` = `mining_workers_tmp`.`stale_15m`,
+      `mining_workers`.`reject_15m` = `mining_workers_tmp`.`reject_15m`,
+      `mining_workers`.`reject_detail_15m` = `mining_workers_tmp`.`reject_detail_15m`,
+      `mining_workers`.`accept_1h` = `mining_workers_tmp`.`accept_1h`,
+      `mining_workers`.`stale_1h` = `mining_workers_tmp`.`stale_1h`,
+      `mining_workers`.`reject_1h` = `mining_workers_tmp`.`reject_1h`,
+      `mining_workers`.`reject_detail_1h` = `mining_workers_tmp`.`reject_detail_1h`,
+      `mining_workers`.`accept_count` = `mining_workers_tmp`.`accept_count`,
+      `mining_workers`.`last_share_ip` = `mining_workers_tmp`.`last_share_ip`,
+      `mining_workers`.`last_share_time` = `mining_workers_tmp`.`last_share_time`,
+      `mining_workers`.`updated_at` = `mining_workers_tmp`.`updated_at`
+  )";
   // fields for table.mining_workers
   const string fields =
-      "`worker_id`,`puid`,`group_id`, `accept_5m`,"
-      "`accept_15m`, `reject_15m`, `accept_1h`,`reject_1h`, `accept_count`, "
-      "`last_share_ip`,"
-      " `last_share_time`, `created_at`, `updated_at`";
+      "`worker_id`, `puid`, `group_id`, `accept_5m`, "
+      "`accept_15m`, `stale_15m`, `reject_15m`, `reject_detail_15m`, "
+      "`accept_1h`, `stale_1h`, `reject_1h`, reject_detail_1h, "
+      "`accept_count`, `last_share_ip`, "
+      "`last_share_time`, `created_at`, `updated_at`";
   // values for multi-insert sql
   vector<string> values;
   size_t workerCounter = 0;
@@ -851,8 +924,8 @@ void StatsServerT<SHARE>::_flushWorkersAndUsersToDBThread() {
 
     values.push_back(Strings::Format(
         "%d,%d,%d,%u,"
-        "%u,%u," // accept_15m, reject_15m
-        "%u,%u," // accept_1h,  reject_1h
+        "%u,%u,%u,'%s'," // accept_15m, stale_15m, reject_15m, reject_detail_15m
+        "%u,%u,%u,'%s'," // accept_1h,  stale_1h,  reject_1h,  reject_detail_1h
         "%d,\"%s\","
         "\"%s\",\"%s\",\"%s\"",
         workerId,
@@ -860,9 +933,13 @@ void StatsServerT<SHARE>::_flushWorkersAndUsersToDBThread() {
         -1 * userId, /* default group id */
         status.accept5m_,
         status.accept15m_,
+        status.stale15m_,
         status.reject15m_,
+        status.rejectDetail15m_,
         status.accept1h_,
+        status.stale1h_,
         status.reject1h_,
+        status.rejectDetail1h_,
         status.acceptCount_,
         status.lastShareIP_.toString(),
         date("%F %T", status.lastShareTime_),
@@ -883,8 +960,8 @@ void StatsServerT<SHARE>::_flushWorkersAndUsersToDBThread() {
 
     values.push_back(Strings::Format(
         "%d,%d,%d,%u,"
-        "%u,%u," // accept_15m, reject_15m
-        "%u,%u," // accept_1h,  reject_1h
+        "%u,%u,%u,'%s'," // accept_15m, stale_15m, reject_15m, reject_detail_15m
+        "%u,%u,%u,'%s'," // accept_1h,  stale_1h,  reject_1h,  reject_detail_1h
         "%d,\"%s\","
         "\"%s\",\"%s\",\"%s\"",
         workerId,
@@ -892,9 +969,13 @@ void StatsServerT<SHARE>::_flushWorkersAndUsersToDBThread() {
         -1 * userId, /* default group id */
         status.accept5m_,
         status.accept15m_,
+        status.stale15m_,
         status.reject15m_,
+        status.rejectDetail15m_,
         status.accept1h_,
+        status.stale1h_,
         status.reject1h_,
+        status.rejectDetail1h_,
         status.acceptCount_,
         status.lastShareIP_.toString(),
         date("%F %T", status.lastShareTime_),
@@ -1034,6 +1115,8 @@ template <class SHARE>
 WorkerStatus StatsServerT<SHARE>::mergeWorkerStatus(
     const vector<WorkerStatus> &workerStatus) {
   WorkerStatus s;
+  s.rejectDetail15m_ = "{}";
+  s.rejectDetail1h_ = "{}";
 
   if (workerStatus.size() == 0)
     return s;
@@ -1041,8 +1124,10 @@ WorkerStatus StatsServerT<SHARE>::mergeWorkerStatus(
   for (size_t i = 0; i < workerStatus.size(); i++) {
     s.accept5m_ += workerStatus[i].accept5m_;
     s.accept15m_ += workerStatus[i].accept15m_;
+    s.stale15m_ += workerStatus[i].stale15m_;
     s.reject15m_ += workerStatus[i].reject15m_;
     s.accept1h_ += workerStatus[i].accept1h_;
+    s.stale1h_ += workerStatus[i].stale1h_;
     s.reject1h_ += workerStatus[i].reject1h_;
     s.acceptCount_ += workerStatus[i].acceptCount_;
 
@@ -1051,6 +1136,7 @@ WorkerStatus StatsServerT<SHARE>::mergeWorkerStatus(
       s.lastShareIP_ = workerStatus[i].lastShareIP_;
     }
   }
+
   return s;
 }
 
@@ -1575,7 +1661,10 @@ void StatsServerT<SHARE>::httpdServerStatus(
       ",\"data\":{\"uptime\":\"%04u d %02u h %02u m %02u s\""
       ",\"request\":%u,\"repbytes\":%u"
       ",\"pool\":{\"accept\":[0,%u,%u,%u]"
-      ",\"reject\":[0,0,%u,%u],\"accept_count\":%u"
+      ",\"stale\":[0,0,%u,%u]"
+      ",\"reject\":[0,0,%u,%u]"
+      ",\"reject_detail\":[{},{},%s,%s]"
+      ",\"accept_count\":%u"
       ",\"workers\":%u,\"users\":%u"
       "}}}",
       s.uptime_ / 86400,
@@ -1588,9 +1677,16 @@ void StatsServerT<SHARE>::httpdServerStatus(
       s.poolStatus_.accept5m_,
       s.poolStatus_.accept15m_,
       s.poolStatus_.accept1h_,
+      // stale
+      s.poolStatus_.stale15m_,
+      s.poolStatus_.stale1h_,
       // reject
       s.poolStatus_.reject15m_,
       s.poolStatus_.reject1h_,
+      // reject detail
+      s.poolStatus_.rejectDetail15m_,
+      s.poolStatus_.rejectDetail1h_,
+      // others
       s.poolStatus_.acceptCount_,
       s.workerCount_,
       s.userCount_);
@@ -1726,15 +1822,22 @@ void StatsServerT<SHARE>::getWorkerStatus(
     Strings::EvBufferAdd(
         evb,
         "%s\"%d\":{\"accept\":[0,%u,%u,%u]"
-        ",\"reject\":[0,0,%u,%u],\"accept_count\":%u"
+        ",\"stale\":[0,0,%u,%u]"
+        ",\"reject\":[0,0,%u,%u]"
+        ",\"reject_detail\":[{},{},%s,%s]"
+        ",\"accept_count\":%u"
         ",\"last_share_ip\":\"%s\",\"last_share_time\":%u%s}",
         (i == 0 ? "" : ","),
         (isMerge ? 0 : keys[i].workerId_),
         status.accept5m_,
         status.accept15m_,
         status.accept1h_,
+        status.stale15m_,
+        status.stale1h_,
         status.reject15m_,
         status.reject1h_,
+        status.rejectDetail15m_,
+        status.rejectDetail1h_,
         status.acceptCount_,
         status.lastShareIP_.toString(),
         status.lastShareTime_,

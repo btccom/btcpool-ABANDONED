@@ -31,6 +31,7 @@
 #include "Statistics.h"
 #include "Network.h"
 
+#include <map>
 #include <event2/event.h>
 
 #define STATS_SLIDING_WINDOW_SECONDS 3600
@@ -44,9 +45,11 @@ public:
   uint64_t accept5m_ = 0;
 
   uint64_t accept15m_ = 0;
+  uint64_t stale15m_ = 0;
   uint64_t reject15m_ = 0;
 
   uint64_t accept1h_ = 0;
+  uint64_t stale1h_ = 0;
   uint64_t reject1h_ = 0;
 
   uint32_t acceptCount_ = 0;
@@ -54,9 +57,8 @@ public:
   IpAddress lastShareIP_ = 0;
   uint64_t lastShareTime_ = 0;
 
-  WorkerStatus() = default;
-  WorkerStatus(const WorkerStatus &r) = default;
-  WorkerStatus &operator=(const WorkerStatus &r) = default;
+  string rejectDetail15m_;
+  string rejectDetail1h_;
 };
 
 ////////////////////////////////  WorkerShares  ////////////////////////////////
@@ -72,8 +74,24 @@ class WorkerShares {
   IpAddress lastShareIP_;
   uint64_t lastShareTime_ = 0;
 
-  StatsWindow<uint64_t> acceptShares_; // record accuracy: 10s
-  StatsWindow<uint64_t> rejectShares_; // record accuracy: 60s
+  class AcceptShareWindow : public StatsWindow<uint64_t> {
+  public:
+    AcceptShareWindow()
+      : StatsWindow<uint64_t>(
+            WorkerShares::acceptShareTime(STATS_SLIDING_WINDOW_SECONDS)) {}
+  };
+
+  class RejectShareWindow : public StatsWindow<uint64_t> {
+  public:
+    RejectShareWindow()
+      : StatsWindow<uint64_t>(
+            WorkerShares::rejectShareTime(STATS_SLIDING_WINDOW_SECONDS)) {}
+  };
+
+  AcceptShareWindow acceptShares_; // record accuracy: 10s
+  RejectShareWindow staleShares_; // record accuracy: 60s
+  std::map<uint32_t /* reason */, RejectShareWindow /* shares */>
+      rejectShares_; // record accuracy: 60s
 
   // Adjust the following values to change the accuracy.
   // Please note that high accuracy will result in more memory usage.
@@ -137,7 +155,9 @@ protected:
     REDIS_INDEX_LAST_SHARE_IP = 128,
     REDIS_INDEX_LAST_SHARE_TIME = 256,
     REDIS_INDEX_WORKER_NAME = 512,
-    REDIS_INDEX_MINER_AGENT = 1024
+    REDIS_INDEX_MINER_AGENT = 1024,
+    REDIS_INDEX_STALE_15M = 2048,
+    REDIS_INDEX_STALE_1H = 4096
   };
 
   struct WorkerIndexBuffer {
@@ -145,8 +165,10 @@ protected:
 
     std::vector<string> accept5m_;
     std::vector<string> accept15m_;
+    std::vector<string> stale15m_;
     std::vector<string> reject15m_;
     std::vector<string> accept1h_;
+    std::vector<string> stale1h_;
     std::vector<string> reject1h_;
     std::vector<string> acceptCount_;
     std::vector<string> lastShareIP_;
