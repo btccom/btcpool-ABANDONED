@@ -22,8 +22,8 @@ $WAIT_FOR_IT kafka:9092
 {
     echo "generate new blocks in the background..."
     for i in {1..5}; do
-        $BITCOIN_CLI generatetoaddress 1 my2dxGb5jz43ktwGxg2doUaEb9WhZ9PQ7K >>$STDOUT
         sleep 1
+        $BITCOIN_CLI generatetoaddress 1 my2dxGb5jz43ktwGxg2doUaEb9WhZ9PQ7K >>$STDOUT
     done
     echo "generate new blocks finished."
 } &
