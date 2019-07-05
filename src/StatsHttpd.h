@@ -65,13 +65,13 @@ public:
 template <class SHARE>
 class WorkerShares {
   mutex lock_;
-  int64_t workerId_;
-  int32_t userId_;
+  int64_t workerId_ = 0;
+  int32_t userId_ = 0;
 
-  uint32_t acceptCount_;
+  uint32_t acceptCount_ = 0;
 
   IpAddress lastShareIP_;
-  uint64_t lastShareTime_;
+  uint64_t lastShareTime_ = 0;
 
   StatsWindow<uint64_t> acceptShareSec_;
   StatsWindow<uint64_t> rejectShareMin_;
@@ -106,12 +106,13 @@ public:
 //
 template <class SHARE>
 class StatsServerT : public StatsServer {
+protected:
   struct ServerStatus {
-    uint32_t uptime_;
-    uint64_t requestCount_;
-    uint64_t workerCount_;
-    uint64_t userCount_;
-    uint64_t responseBytes_;
+    uint32_t uptime_ = 0;
+    uint64_t requestCount_ = 0;
+    uint64_t workerCount_ = 0;
+    uint64_t userCount_ = 0;
+    uint64_t responseBytes_ = 0;
     WorkerStatus poolStatus_;
   };
 
@@ -136,7 +137,7 @@ class StatsServerT : public StatsServer {
   };
 
   struct WorkerIndexBuffer {
-    size_t size_;
+    size_t size_ = 0;
 
     std::vector<string> accept1m_;
     std::vector<string> accept5m_;
@@ -152,7 +153,7 @@ class StatsServerT : public StatsServer {
   atomic<bool> running_;
   atomic<int64_t> totalWorkerCount_;
   atomic<int64_t> totalUserCount_;
-  time_t uptime_;
+  time_t uptime_ = 0;
 
   pthread_rwlock_t rwlock_; // for workerSet_
   std::unordered_map<
@@ -171,20 +172,21 @@ class StatsServerT : public StatsServer {
   KafkaConsumer kafkaConsumerCommonEvents_; // consume topic: 'CommonEvents'
   thread threadConsumeCommonEvents_;
 
-  MySQLConnection *poolDB_; // flush workers to table.mining_workers
-  MySQLConnection *
-      poolDBCommonEvents_; // insert or update workers from table.mining_workers
+  MySQLConnection *poolDB_ = nullptr; // flush workers to table.mining_workers
+  MySQLConnection *poolDBCommonEvents_ =
+      nullptr; // insert or update workers from table.mining_workers
 
-  RedisConnection *redisCommonEvents_; // writing workers' meta infomations
+  RedisConnection *redisCommonEvents_ =
+      nullptr; // writing workers' meta infomations
   std::vector<RedisConnection *> redisGroup_; // flush hashrate to this group
-  uint32_t redisConcurrency_; // how many threads are writing to Redis at the
-                              // same time
+  uint32_t redisConcurrency_ = 1; // how many threads are writing to Redis at
+                                  // the same time
   string redisKeyPrefix_;
-  int redisKeyExpire_;
-  uint32_t redisPublishPolicy_; // @see statshttpd.cfg
-  uint32_t redisIndexPolicy_; // @see statshttpd.cfg
+  int redisKeyExpire_ = 0;
+  uint32_t redisPublishPolicy_ = 0; // @see statshttpd.cfg
+  uint32_t redisIndexPolicy_ = 0; // @see statshttpd.cfg
 
-  time_t kFlushDBInterval_;
+  time_t kFlushDBInterval_ = 20;
   atomic<bool> isInserting_; // flag mark if we are flushing db
   atomic<bool> isUpdateRedis_; // flag mark if we are flushing redis
 
@@ -199,13 +201,18 @@ class StatsServerT : public StatsServer {
   shared_ptr<DuplicateShareChecker<SHARE>>
       dupShareChecker_; // Used to detect duplicate share attacks.
 
-  bool acceptStale_; // Whether stale shares are accepted
+  bool acceptStale_ = false; // Whether stale shares are accepted
 
   // httpd
-  struct event_base *base_;
+  struct event_base *base_ = nullptr;
   string httpdHost_;
-  unsigned short httpdPort_;
+  unsigned short httpdPort_ = 8080;
 
+public:
+  atomic<uint64_t> requestCount_;
+  atomic<uint64_t> responseBytes_;
+
+protected:
   void runThreadConsume();
   void consumeShareLog(rd_kafka_message_t *rkmessage);
 
@@ -269,27 +276,9 @@ class StatsServerT : public StatsServer {
   string getRedisKeyIndex(const int32_t userId, const string &indexName);
 
 public:
-  atomic<uint64_t> requestCount_;
-  atomic<uint64_t> responseBytes_;
-
-public:
   StatsServerT(
-      const char *kafkaBrokers,
-      const char *kafkaShareTopic,
-      const char *kafkaCommonEventsTopic,
-      const string &httpdHost,
-      unsigned short httpdPort,
-      const MysqlConnectInfo *poolDBInfo,
-      const RedisConnectInfo *redisInfo,
-      const uint32_t redisConcurrency,
-      const string &redisKeyPrefix,
-      const int redisKeyExpire,
-      const int redisPublishPolicy,
-      const int redisIndexPolicy,
-      const time_t kFlushDBInterval,
-      const string &fileLastFlushTime,
-      shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker,
-      bool acceptStale);
+      const libconfig::Config &cfg,
+      shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker);
   virtual ~StatsServerT();
 
   bool init();

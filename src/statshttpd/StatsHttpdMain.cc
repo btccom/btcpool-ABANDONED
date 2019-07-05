@@ -76,139 +76,38 @@ void usage() {
       "Usage:\tstatshttpd -c \"statshttpd.cfg\" [-l <log_dir|stderr>]\n");
 }
 
-std::shared_ptr<StatsServer> newStatsServer(
-    const string &chainType,
-    const char *kafkaBrokers,
-    const char *kafkaShareTopic,
-    const char *kafkaCommonEventsTopic,
-    const string &httpdHost,
-    unsigned short httpdPort,
-    const MysqlConnectInfo *poolDBInfo,
-    const RedisConnectInfo *redisInfo,
-    const uint32_t redisConcurrency,
-    const string &redisKeyPrefix,
-    const int redisKeyExpire,
-    const int redisPublishPolicy,
-    const int redisIndexPolicy,
-    const time_t kFlushDBInterval,
-    const string &fileLastFlushTime,
-    const int dupShareTrackingHeight,
-    bool acceptStale,
-    const libconfig::Config &cfg) {
+std::shared_ptr<StatsServer> newStatsServer(const libconfig::Config &cfg) {
+  int32_t dupShareTrackingHeight = 3;
+
+  string chainType = cfg.lookup("statshttpd.chain_type");
+  cfg.lookupValue(
+      "dup_share_checker.tracking_height_number", dupShareTrackingHeight);
+
 #if defined(CHAIN_TYPE_STR)
   if (CHAIN_TYPE_STR == chainType)
 #else
   if (false)
 #endif
   {
-    return std::make_shared<StatsServerBitcoin>(
-        kafkaBrokers,
-        kafkaShareTopic,
-        kafkaCommonEventsTopic,
-        httpdHost,
-        httpdPort,
-        poolDBInfo,
-        redisInfo,
-        redisConcurrency,
-        redisKeyPrefix,
-        redisKeyExpire,
-        redisPublishPolicy,
-        redisIndexPolicy,
-        kFlushDBInterval,
-        fileLastFlushTime,
-        nullptr,
-        acceptStale);
+    return std::make_shared<StatsServerBitcoin>(cfg, nullptr);
   } else if (chainType == "ETH") {
     return std::make_shared<StatsServerEth>(
-        kafkaBrokers,
-        kafkaShareTopic,
-        kafkaCommonEventsTopic,
-        httpdHost,
-        httpdPort,
-        poolDBInfo,
-        redisInfo,
-        redisConcurrency,
-        redisKeyPrefix,
-        redisKeyExpire,
-        redisPublishPolicy,
-        redisIndexPolicy,
-        kFlushDBInterval,
-        fileLastFlushTime,
-        std::make_shared<DuplicateShareCheckerEth>(dupShareTrackingHeight),
-        acceptStale);
+        cfg,
+        std::make_shared<DuplicateShareCheckerEth>(dupShareTrackingHeight));
   } else if (chainType == "BTM") {
     return std::make_shared<StatsServerBytom>(
-        kafkaBrokers,
-        kafkaShareTopic,
-        kafkaCommonEventsTopic,
-        httpdHost,
-        httpdPort,
-        poolDBInfo,
-        redisInfo,
-        redisConcurrency,
-        redisKeyPrefix,
-        redisKeyExpire,
-        redisPublishPolicy,
-        redisIndexPolicy,
-        kFlushDBInterval,
-        fileLastFlushTime,
-        std::make_shared<DuplicateShareCheckerBytom>(dupShareTrackingHeight),
-        acceptStale);
+        cfg,
+        std::make_shared<DuplicateShareCheckerBytom>(dupShareTrackingHeight));
   } else if (chainType == "DCR") {
-    return std::make_shared<StatsServerDecred>(
-        kafkaBrokers,
-        kafkaShareTopic,
-        kafkaCommonEventsTopic,
-        httpdHost,
-        httpdPort,
-        poolDBInfo,
-        redisInfo,
-        redisConcurrency,
-        redisKeyPrefix,
-        redisKeyExpire,
-        redisPublishPolicy,
-        redisIndexPolicy,
-        kFlushDBInterval,
-        fileLastFlushTime,
-        nullptr,
-        acceptStale);
+    return std::make_shared<StatsServerDecred>(cfg, nullptr);
   } else if (chainType == "BEAM") {
     return std::make_shared<StatsServerBeam>(
-        kafkaBrokers,
-        kafkaShareTopic,
-        kafkaCommonEventsTopic,
-        httpdHost,
-        httpdPort,
-        poolDBInfo,
-        redisInfo,
-        redisConcurrency,
-        redisKeyPrefix,
-        redisKeyExpire,
-        redisPublishPolicy,
-        redisIndexPolicy,
-        kFlushDBInterval,
-        fileLastFlushTime,
-        std::make_shared<DuplicateShareCheckerBeam>(dupShareTrackingHeight),
-        acceptStale);
+        cfg,
+        std::make_shared<DuplicateShareCheckerBeam>(dupShareTrackingHeight));
   } else if (chainType == "GRIN") {
     return std::make_shared<StatsServerGrin>(
-        kafkaBrokers,
-        kafkaShareTopic,
-        kafkaCommonEventsTopic,
-        httpdHost,
-        httpdPort,
-        poolDBInfo,
-        redisInfo,
-        redisConcurrency,
-        redisKeyPrefix,
-        redisKeyExpire,
-        redisPublishPolicy,
-        redisIndexPolicy,
-        kFlushDBInterval,
-        fileLastFlushTime,
-        std::make_shared<DuplicateShareCheckerGrin>(dupShareTrackingHeight),
-        acceptStale,
-        cfg);
+        cfg,
+        std::make_shared<DuplicateShareCheckerGrin>(dupShareTrackingHeight));
   } else {
     LOG(FATAL) << "newStatsServer: unknown chain type " << chainType;
     return nullptr;
@@ -280,74 +179,7 @@ int main(int argc, char **argv) {
   signal(SIGINT, handler);
 
   try {
-    bool useMysql = true;
-    cfg.lookupValue("statshttpd.use_mysql", useMysql);
-    bool useRedis = false;
-    cfg.lookupValue("statshttpd.use_redis", useRedis);
-
-    MysqlConnectInfo *poolDBInfo = nullptr;
-    if (useMysql) {
-      int32_t poolDBPort = 3306;
-      cfg.lookupValue("pooldb.port", poolDBPort);
-      poolDBInfo = new MysqlConnectInfo(
-          cfg.lookup("pooldb.host"),
-          poolDBPort,
-          cfg.lookup("pooldb.username"),
-          cfg.lookup("pooldb.password"),
-          cfg.lookup("pooldb.dbname"));
-    }
-
-    RedisConnectInfo *redisInfo = nullptr;
-    string redisKeyPrefix;
-    int redisKeyExpire = 0;
-    int redisPublishPolicy = 0;
-    int redisIndexPolicy = 0;
-    uint32_t redisConcurrency = 1;
-
-    if (useRedis) {
-      int32_t redisPort = 6379;
-      cfg.lookupValue("redis.port", redisPort);
-      redisInfo = new RedisConnectInfo(
-          cfg.lookup("redis.host"), redisPort, cfg.lookup("redis.password"));
-
-      cfg.lookupValue("redis.key_prefix", redisKeyPrefix);
-      cfg.lookupValue("redis.key_expire", redisKeyExpire);
-      cfg.lookupValue("redis.publish_policy", redisPublishPolicy);
-      cfg.lookupValue("redis.index_policy", redisIndexPolicy);
-      cfg.lookupValue("redis.concurrency", redisConcurrency);
-    }
-
-    string fileLastFlushTime;
-
-    int32_t port = 8080;
-    int32_t flushInterval = 20;
-    bool acceptStale = false;
-    int32_t dupShareTrackingHeight = 3;
-    cfg.lookupValue("statshttpd.port", port);
-    cfg.lookupValue("statshttpd.flush_db_interval", flushInterval);
-    cfg.lookupValue("statshttpd.file_last_flush_time", fileLastFlushTime);
-    cfg.lookupValue("statshttpd.accept_stale", acceptStale);
-    cfg.lookupValue(
-        "dup_share_checker.tracking_height_number", dupShareTrackingHeight);
-    gStatsServer = newStatsServer(
-        cfg.lookup("statshttpd.chain_type"),
-        cfg.lookup("kafka.brokers").c_str(),
-        cfg.lookup("statshttpd.share_topic").c_str(),
-        cfg.lookup("statshttpd.common_events_topic").c_str(),
-        cfg.lookup("statshttpd.ip").c_str(),
-        (unsigned short)port,
-        poolDBInfo,
-        redisInfo,
-        redisConcurrency,
-        redisKeyPrefix,
-        redisKeyExpire,
-        redisPublishPolicy,
-        redisIndexPolicy,
-        (time_t)flushInterval,
-        fileLastFlushTime,
-        dupShareTrackingHeight,
-        acceptStale,
-        cfg);
+    gStatsServer = newStatsServer(cfg);
     if (gStatsServer->init()) {
       gStatsServer->run();
     }

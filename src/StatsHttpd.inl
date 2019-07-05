@@ -36,9 +36,6 @@ template <class SHARE>
 WorkerShares<SHARE>::WorkerShares(const int64_t workerId, const int32_t userId)
   : workerId_(workerId)
   , userId_(userId)
-  , acceptCount_(0)
-  , lastShareIP_(0)
-  , lastShareTime_(0)
   , acceptShareSec_(STATS_SLIDING_WINDOW_SECONDS)
   , rejectShareMin_(STATS_SLIDING_WINDOW_SECONDS / 60) {
   assert(STATS_SLIDING_WINDOW_SECONDS >= 3600);
@@ -113,62 +110,79 @@ bool WorkerShares<SHARE>::isExpired() {
 ////////////////////////////////  StatsServerT  ////////////////////////////////
 template <class SHARE>
 StatsServerT<SHARE>::StatsServerT(
-    const char *kafkaBrokers,
-    const char *kafkaShareTopic,
-    const char *kafkaCommonEventsTopic,
-    const string &httpdHost,
-    unsigned short httpdPort,
-    const MysqlConnectInfo *poolDBInfo,
-    const RedisConnectInfo *redisInfo,
-    const uint32_t redisConcurrency,
-    const string &redisKeyPrefix,
-    const int redisKeyExpire,
-    const int redisPublishPolicy,
-    const int redisIndexPolicy,
-    const time_t kFlushDBInterval,
-    const string &fileLastFlushTime,
-    shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker,
-    bool acceptStale)
+    const libconfig::Config &cfg,
+    shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker)
   : running_(true)
   , totalWorkerCount_(0)
   , totalUserCount_(0)
   , uptime_(time(nullptr))
   , poolWorker_(0u /* worker id */, 0 /* user id */)
-  , kafkaConsumer_(kafkaBrokers, kafkaShareTopic, 0 /* patition */)
+  , kafkaConsumer_(
+        cfg.lookup("kafka.brokers").c_str(),
+        cfg.lookup("statshttpd.share_topic").c_str(),
+        0 /* patition */)
   , kafkaConsumerCommonEvents_(
-        kafkaBrokers, kafkaCommonEventsTopic, 0 /* patition */)
-  , poolDB_(nullptr)
-  , poolDBCommonEvents_(nullptr)
-  , redisCommonEvents_(nullptr)
-  , redisConcurrency_(redisConcurrency)
-  , redisKeyPrefix_(redisKeyPrefix)
-  , redisKeyExpire_(redisKeyExpire)
-  , redisPublishPolicy_(redisPublishPolicy)
-  , redisIndexPolicy_(redisIndexPolicy)
-  , kFlushDBInterval_(kFlushDBInterval)
+        cfg.lookup("kafka.brokers").c_str(),
+        cfg.lookup("statshttpd.common_events_topic").c_str(),
+        0 /* patition */)
   , isInserting_(false)
   , isUpdateRedis_(false)
   , lastShareTime_(0)
   , isInitializing_(true)
   , lastFlushTime_(0)
-  , fileLastFlushTime_(fileLastFlushTime)
   , dupShareChecker_(dupShareChecker)
-  , acceptStale_(acceptStale)
-  , base_(nullptr)
-  , httpdHost_(httpdHost)
-  , httpdPort_(httpdPort)
   , requestCount_(0)
   , responseBytes_(0) {
-  if (poolDBInfo != nullptr) {
-    poolDB_ = new MySQLConnection(*poolDBInfo);
-    poolDBCommonEvents_ = new MySQLConnection(*poolDBInfo);
+
+  httpdHost_ = cfg.lookup("statshttpd.ip").c_str();
+  int port = httpdPort_;
+  cfg.lookupValue("statshttpd.port", port);
+  httpdPort_ = (uint16_t)port;
+
+  int flushInterval = kFlushDBInterval_;
+  cfg.lookupValue("statshttpd.flush_db_interval", flushInterval);
+  kFlushDBInterval_ = flushInterval;
+
+  cfg.lookupValue("statshttpd.file_last_flush_time", fileLastFlushTime_);
+  cfg.lookupValue("statshttpd.accept_stale", acceptStale_);
+
+  bool useMysql = true;
+  cfg.lookupValue("statshttpd.use_mysql", useMysql);
+  bool useRedis = false;
+  cfg.lookupValue("statshttpd.use_redis", useRedis);
+
+  if (useMysql) {
+    int32_t poolDBPort = 3306;
+    cfg.lookupValue("pooldb.port", poolDBPort);
+
+    MysqlConnectInfo poolDBInfo(
+        cfg.lookup("pooldb.host"),
+        poolDBPort,
+        cfg.lookup("pooldb.username"),
+        cfg.lookup("pooldb.password"),
+        cfg.lookup("pooldb.dbname"));
+
+    poolDB_ = new MySQLConnection(poolDBInfo);
+    poolDBCommonEvents_ = new MySQLConnection(poolDBInfo);
   }
 
-  if (redisInfo != nullptr) {
-    redisCommonEvents_ = new RedisConnection(*redisInfo);
+  if (useRedis) {
+    int32_t redisPort = 6379;
+    cfg.lookupValue("redis.port", redisPort);
 
-    for (uint32_t i = 0; i < redisConcurrency; i++) {
-      RedisConnection *redis = new RedisConnection(*redisInfo);
+    RedisConnectInfo redisInfo(
+        cfg.lookup("redis.host"), redisPort, cfg.lookup("redis.password"));
+
+    cfg.lookupValue("redis.key_prefix", redisKeyPrefix_);
+    cfg.lookupValue("redis.key_expire", redisKeyExpire_);
+    cfg.lookupValue("redis.publish_policy", redisPublishPolicy_);
+    cfg.lookupValue("redis.index_policy", redisIndexPolicy_);
+    cfg.lookupValue("redis.concurrency", redisConcurrency_);
+
+    redisCommonEvents_ = new RedisConnection(redisInfo);
+
+    for (uint32_t i = 0; i < redisConcurrency_; i++) {
+      RedisConnection *redis = new RedisConnection(redisInfo);
       redisGroup_.push_back(redis);
     }
   }
