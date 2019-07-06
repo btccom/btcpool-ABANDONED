@@ -24,3 +24,31 @@ add `stale_15m` BIGINT default 0 NOT NULL after `accept_15m`,
 add `stale_1h` BIGINT default 0 NOT NULL after `accept_1h`,
 add `reject_detail_15m` varchar(255) default '' NOT NULL after `reject_15m`,
 add `reject_detail_1h` varchar(255) default '' NOT NULL after `reject_1h`;
+
+--
+-- 2019-07-06
+-- add `share_stale`, `reject_detail` to table `stats_*`
+--
+ALTER TABLE `stats_pool_day`
+add `share_stale` BIGINT default 0 NOT NULL after `share_accept`,
+add `reject_detail` varchar(255) default '' NOT NULL after `share_reject`;
+
+ALTER TABLE `stats_pool_hour`
+add `share_stale` BIGINT default 0 NOT NULL after `share_accept`,
+add `reject_detail` varchar(255) default '' NOT NULL after `share_reject`;
+
+ALTER TABLE `stats_users_day`
+add `share_stale` BIGINT default 0 NOT NULL after `share_accept`,
+add `reject_detail` varchar(255) default '' NOT NULL after `share_reject`;
+
+ALTER TABLE `stats_users_hour`
+add `share_stale` BIGINT default 0 NOT NULL after `share_accept`,
+add `reject_detail` varchar(255) default '' NOT NULL after `share_reject`;
+
+ALTER TABLE `stats_workers_day`
+add `share_stale` BIGINT default 0 NOT NULL after `share_accept`,
+add `reject_detail` varchar(255) default '' NOT NULL after `share_reject`;
+
+ALTER TABLE `stats_workers_hour`
+add `share_stale` BIGINT default 0 NOT NULL after `share_accept`,
+add `reject_detail` varchar(255) default '' NOT NULL after `share_reject`;

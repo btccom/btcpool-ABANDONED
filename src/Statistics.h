@@ -95,33 +95,57 @@ public:
 /////////////////////////////////  ShareStats  /////////////////////////////////
 class ShareStats {
 public:
-  uint64_t shareAccept_;
-  uint64_t shareReject_;
-  double rejectRate_;
-  double earn_;
-
-  ShareStats()
-    : shareAccept_(0U)
-    , shareReject_(0U)
-    , rejectRate_(0.0)
-    , earn_(0.0) {}
+  uint64_t shareAccept_ = 0;
+  uint64_t shareStale_ = 0;
+  uint64_t shareReject_ = 0;
+  string rejectDetail_;
+  double rejectRate_ = 0;
+  double earn_ = 0;
 };
 
 ///////////////////////////////  ShareStatsDay  ////////////////////////////////
+static uint64_t sumRejectShares(
+    const std::map<uint32_t /* reason */, uint64_t /* share */> &rejectShares) {
+  uint64_t sum = 0;
+  for (const auto &itr : rejectShares) {
+    sum += itr.second;
+  }
+  return sum;
+}
+
+static string generateRejectDetail(
+    const std::map<uint32_t /* reason */, uint64_t /* share */> &rejectShares) {
+  string rejectDetail = "{";
+
+  for (const auto &itr : rejectShares) {
+    rejectDetail += "\"" + std::to_string(itr.first) +
+        "\":" + std::to_string(itr.second) + ",";
+  }
+
+  // remove the end of ","
+  if (rejectDetail.size() > 1)
+    rejectDetail.resize(rejectDetail.size() - 1);
+
+  rejectDetail += "}";
+  return rejectDetail;
+}
+
 // thread-safe
 template <class SHARE>
 class ShareStatsDay {
 public:
   // hours
   uint64_t shareAccept1h_[24] = {0};
-  uint64_t shareReject1h_[24] = {0};
+  uint64_t shareStale1h_[24] = {0};
+  std::map<uint32_t /* reason */, uint64_t /* share */> shareRejects1h_[24];
   double score1h_[24] = {0.0}; // For reference only, it is no longer the basis
                                // for earnings calculation
   double earn1h_[24] = {0.0};
 
   // daily
   uint64_t shareAccept1d_ = 0;
-  uint64_t shareReject1d_ = 0;
+  uint64_t shareStale1d_ = 0;
+  std::map<uint32_t /* reason */, uint64_t /* share */> shareRejects1d_;
   double score1d_ = 0; // For reference only, it is no longer the basis for
                        // earnings calculation
   double earn1d_ = 0;

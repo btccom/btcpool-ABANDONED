@@ -387,11 +387,18 @@ void ShareLogParserT<SHARE>::generateHoursData(
     vector<string> *valuesWorkersHour,
     vector<string> *valuesUsersHour,
     vector<string> *valuesPoolHour) {
-  assert(
-      sizeof(stats->shareAccept1h_) / sizeof(stats->shareAccept1h_[0]) == 24);
-  assert(
-      sizeof(stats->shareReject1h_) / sizeof(stats->shareReject1h_[0]) == 24);
-  assert(sizeof(stats->score1h_) / sizeof(stats->score1h_[0]) == 24);
+  static_assert(
+      sizeof(stats->shareAccept1h_) / sizeof(stats->shareAccept1h_[0]) == 24,
+      "shareAccept1h_ should have 24 members");
+  static_assert(
+      sizeof(stats->shareStale1h_) / sizeof(stats->shareStale1h_[0]) == 24,
+      "shareStale1h_ should have 24 members");
+  static_assert(
+      sizeof(stats->shareRejects1h_) / sizeof(stats->shareRejects1h_[0]) == 24,
+      "shareRejects1h_ should have 24 members");
+  static_assert(
+      sizeof(stats->score1h_) / sizeof(stats->score1h_[0]) == 24,
+      "score1h_ should have 24 members");
 
   string table, extraValues;
   // worker
@@ -426,7 +433,10 @@ void ShareLogParserT<SHARE>::generateHoursData(
       const int32_t hour = atoi(hourStr.c_str());
 
       const uint64_t accept = stats->shareAccept1h_[i]; // alias
-      const uint64_t reject = stats->shareReject1h_[i];
+      const uint64_t stale = stats->shareStale1h_[i]; // alias
+      const uint64_t reject = sumRejectShares(stats->shareRejects1h_[i]);
+      const string rejectDetail =
+          generateRejectDetail(stats->shareRejects1h_[i]);
       double rejectRate = 0.0;
       if (reject)
         rejectRate = (double)reject / (accept + reject);
@@ -435,11 +445,13 @@ void ShareLogParserT<SHARE>::generateHoursData(
       const double earn = stats->earn1h_[i];
 
       valuesStr = Strings::Format(
-          "%s%d,%u,%u,%f,'%s',%0.0lf,'%s','%s'",
+          "%s%d,%u,%u,%u,'%s',%f,'%s',%0.0lf,'%s','%s'",
           extraValues,
           hour,
           accept,
+          stale,
           reject,
+          rejectDetail,
           rejectRate,
           scoreStr,
           earn,
@@ -499,7 +511,8 @@ void ShareLogParserT<SHARE>::flushHourOrDailyData(
 
   // fields for table.stats_xxxxx_hour
   fields = Strings::Format(
-      "%s `share_accept`,`share_reject`,`reject_rate`,"
+      "%s `share_accept`,`share_stale`,"
+      "`share_reject`,`reject_detail`,`reject_rate`,"
       "`score`,`earn`,`created_at`,`updated_at`",
       extraFields);
 
@@ -515,7 +528,9 @@ void ShareLogParserT<SHARE>::flushHourOrDailyData(
       " ON DUPLICATE KEY "
       " UPDATE "
       "  `share_accept` = `t2`.`share_accept`, "
+      "  `share_stale`  = `t2`.`share_stale`, "
       "  `share_reject` = `t2`.`share_reject`, "
+      "  `reject_detail`= `t2`.`reject_detail`, "
       "  `reject_rate`  = `t2`.`reject_rate`, "
       "  `score`        = `t2`.`score`, "
       "  `earn`         = `t2`.`earn`, "
@@ -566,7 +581,9 @@ void ShareLogParserT<SHARE>::generateDailyData(
     const int32_t day = atoi(date("%Y%m%d", date_).c_str());
 
     const uint64_t accept = stats->shareAccept1d_; // alias
-    const uint64_t reject = stats->shareReject1d_;
+    const uint64_t stale = stats->shareStale1d_; // alias
+    const uint64_t reject = sumRejectShares(stats->shareRejects1d_);
+    const string rejectDetail = generateRejectDetail(stats->shareRejects1d_);
     double rejectRate = 0.0;
     if (reject)
       rejectRate = (double)reject / (accept + reject);
@@ -575,11 +592,13 @@ void ShareLogParserT<SHARE>::generateDailyData(
     const double earn = stats->earn1d_;
 
     valuesStr = Strings::Format(
-        "%s%d,%u,%u,%f,'%s',%0.0lf,'%s','%s'",
+        "%s%d,%u,%u,%u,'%s',%f,'%s',%0.0lf,'%s','%s'",
         extraValues,
         day,
         accept,
+        stale,
         reject,
+        rejectDetail,
         rejectRate,
         scoreStr,
         earn,
@@ -890,20 +909,17 @@ void ShareLogParserServerT<SHARE>::getShareStats(
       ShareStats *s = &shareStats[i * hours.size() + j];
       const int32_t hour = hours[j];
 
-      double rejectRate = 0.0;
-      if (s->shareReject_ != 0)
-        rejectRate =
-            1.0 * s->shareReject_ / (s->shareAccept_ + s->shareReject_);
-
       Strings::EvBufferAdd(
           evb,
-          "%s{\"hour\":%d,\"accept\":%u,\"reject\":%u"
-          ",\"reject_rate\":%f,\"earn\":%0.0lf}",
+          "%s{\"hour\":%d,\"accept\":%u,\"stale\":%u,\"reject\":%u"
+          ",\"reject_detail\":%s,\"reject_rate\":%f,\"earn\":%0.0lf}",
           (j == 0 ? "" : ","),
           hour,
           s->shareAccept_,
+          s->shareStale_,
           s->shareReject_,
-          rejectRate,
+          s->rejectDetail_,
+          s->rejectRate_,
           s->earn_);
     }
     Strings::EvBufferAdd(evb, "]");
@@ -1045,14 +1061,6 @@ void ShareLogParserServerT<SHARE>::httpdServerStatus(
   ShareLogParserServerT<SHARE>::ServerStatus s;
   server->getServerStatus(s);
 
-  double rejectRate0 = 0.0, rejectRate1 = 0.0;
-  if (s.stats[0].shareReject_)
-    rejectRate0 = s.stats[0].shareReject_ /
-        (s.stats[0].shareAccept_ + s.stats[0].shareReject_);
-  if (s.stats[1].shareReject_)
-    rejectRate1 = s.stats[1].shareReject_ /
-        (s.stats[1].shareAccept_ + s.stats[1].shareReject_);
-
   time_t now = time(nullptr);
   if (now % 3600 == 0)
     now += 2; // just in case the denominator is zero
@@ -1064,10 +1072,10 @@ void ShareLogParserServerT<SHARE>::httpdServerStatus(
       "\"request\":%u,\"repbytes\":%u"
       ",\"pool\":{\"today\":{"
       "\"hashrate_t\":%f,\"accept\":%u"
-      ",\"reject\":%u"
+      ",\"stale\":%u,\"reject\":%u,\"reject_detail\":%s"
       ",\"reject_rate\":%f,\"earn\":%0.0lf},"
       "\"curr_hour\":{\"hashrate_t\":%f,\"accept\":%u"
-      ",\"reject\":%u"
+      ",\"stale\":%u,\"reject\":%u,\"reject_detail\":%s"
       ",\"reject_rate\":%f,\"earn\":%0.0lf}}"
       "}}",
       s.uptime_ / 86400,
@@ -1079,14 +1087,18 @@ void ShareLogParserServerT<SHARE>::httpdServerStatus(
       // pool today
       share2HashrateT(s.stats[0].shareAccept_, now % 86400),
       s.stats[0].shareAccept_,
+      s.stats[0].shareStale_,
       s.stats[0].shareReject_,
-      rejectRate0,
+      s.stats[0].rejectDetail_,
+      s.stats[0].rejectRate_,
       s.stats[0].earn_,
       // pool current hour
       share2HashrateT(s.stats[1].shareAccept_, now % 3600),
       s.stats[1].shareAccept_,
+      s.stats[1].shareStale_,
       s.stats[1].shareReject_,
-      rejectRate1,
+      s.stats[0].rejectDetail_,
+      s.stats[1].rejectRate_,
       s.stats[1].earn_);
 
   server->responseBytes_ += evbuffer_get_length(evb);

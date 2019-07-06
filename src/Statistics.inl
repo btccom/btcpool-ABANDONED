@@ -117,9 +117,12 @@ void ShareStatsDay<SHARE>::processShare(
     earn1h_[hourIdx] += earn;
     earn1d_ += earn;
 
+  } else if (StratumStatus::isRejectedStale(share.status())) {
+    shareStale1h_[hourIdx] += share.sharediff();
+    shareStale1d_ += share.sharediff();
   } else {
-    shareReject1h_[hourIdx] += share.sharediff();
-    shareReject1d_ += share.sharediff();
+    shareRejects1h_[hourIdx][share.status()] += share.sharediff();
+    shareRejects1d_[share.status()] += share.sharediff();
   }
   modifyHoursFlag_ |= (0x01u << hourIdx);
 }
@@ -132,7 +135,9 @@ void ShareStatsDay<SHARE>::getShareStatsHour(
     return;
 
   stats->shareAccept_ = shareAccept1h_[hourIdx];
-  stats->shareReject_ = shareReject1h_[hourIdx];
+  stats->shareStale_ = shareStale1h_[hourIdx];
+  stats->shareReject_ = sumRejectShares(shareRejects1h_[hourIdx]);
+  stats->rejectDetail_ = generateRejectDetail(shareRejects1h_[hourIdx]);
   stats->earn_ = earn1h_[hourIdx];
 
   if (stats->shareReject_)
@@ -147,7 +152,9 @@ template <class SHARE>
 void ShareStatsDay<SHARE>::getShareStatsDay(ShareStats *stats) {
   ScopeLock sl(lock_);
   stats->shareAccept_ = shareAccept1d_;
-  stats->shareReject_ = shareReject1d_;
+  stats->shareStale_ = shareStale1d_;
+  stats->shareReject_ = sumRejectShares(shareRejects1d_);
+  stats->rejectDetail_ = generateRejectDetail(shareRejects1d_);
   stats->earn_ = earn1d_;
 
   if (stats->shareReject_)
