@@ -64,6 +64,7 @@ std::pair<GrinErrorCode, const char *> StratumStatusToGrinError(int code) {
   case StratumStatus::INVALID_SOLUTION:
     return std::make_pair(
         GrinErrorCode::INVALID_SOLUTION, "Failed to validate solution");
+  case StratumStatus::JOB_NOT_FOUND_OR_STALE:
   case StratumStatus::JOB_NOT_FOUND:
   case StratumStatus::STALE_SHARE:
     return std::make_pair(

@@ -70,7 +70,7 @@ public:
 
     REJECT_NO_REASON = 0,
 
-    JOB_NOT_FOUND = 21,
+    JOB_NOT_FOUND_OR_STALE = 21,
     DUPLICATE_SHARE = 22,
     LOW_DIFFICULTY = 23,
     UNAUTHORIZED = 24,
@@ -88,7 +88,8 @@ public:
     INVALID_SOLUTION = 34,
     WRONG_NONCE_PREFIX = 35,
 
-    STALE_SHARE = 36,
+    JOB_NOT_FOUND = 36,
+    STALE_SHARE = 37,
 
 #ifdef WORK_WITH_STRATUM_SWITCHER
     CLIENT_IS_NOT_SWITCHER = 400,
@@ -109,7 +110,7 @@ public:
   }
 
   inline static bool isRejectedStale(int status) {
-    return (status == STALE_SHARE);
+    return (status == JOB_NOT_FOUND_OR_STALE) || (status == STALE_SHARE);
   }
 
   inline static bool isSolved(int status) {

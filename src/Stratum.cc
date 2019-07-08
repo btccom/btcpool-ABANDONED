@@ -61,7 +61,7 @@ const char *StratumStatus::toString(int err) {
   case REJECT_NO_REASON:
     return "Share rejected";
 
-  case JOB_NOT_FOUND:
+  case JOB_NOT_FOUND_OR_STALE:
     return "Job not found (=stale)";
   case DUPLICATE_SHARE:
     return "Duplicate share";
@@ -94,6 +94,8 @@ const char *StratumStatus::toString(int err) {
   case WRONG_NONCE_PREFIX:
     return "Wrong Nonce Prefix";
 
+  case JOB_NOT_FOUND:
+    return "Job not found";
   case STALE_SHARE:
     return "Stale share";
 
