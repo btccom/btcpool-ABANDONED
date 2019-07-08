@@ -69,7 +69,7 @@ class ShareLogParser {
 public:
   virtual ~ShareLogParser() {}
   virtual bool init() = 0;
-  virtual bool flushToDB() = 0;
+  virtual bool flushToDB(bool removeExpiredData = true) = 0;
   virtual bool processUnchangedShareLog() = 0;
 };
 ///////////////////////////////  ShareLogParserT ///////////////////////////////
@@ -151,7 +151,7 @@ public:
   bool init();
 
   // flush data to DB
-  bool flushToDB();
+  bool flushToDB(bool removeExpiredData = true) override;
 
   // get share stats day handler
   shared_ptr<ShareStatsDay<SHARE>>

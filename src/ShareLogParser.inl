@@ -688,7 +688,7 @@ void ShareLogParserT<SHARE>::removeExpiredDataFromDB() {
 }
 
 template <class SHARE>
-bool ShareLogParserT<SHARE>::flushToDB() {
+bool ShareLogParserT<SHARE>::flushToDB(bool removeExpiredData) {
   if (!poolDB_.ping()) {
     LOG(ERROR) << "connect db fail";
     return false;
@@ -770,7 +770,9 @@ bool ShareLogParserT<SHARE>::flushToDB() {
   LOG(INFO) << "flush to DB... done, items: " << counter;
 
   // clean expired data
-  removeExpiredDataFromDB();
+  if (removeExpiredData) {
+    removeExpiredDataFromDB();
+  }
 
   return true;
 }
