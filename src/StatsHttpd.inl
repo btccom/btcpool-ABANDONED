@@ -159,6 +159,7 @@ StatsServerT<SHARE>::StatsServerT(
   cfg.lookupValue("statshttpd.file_last_flush_time", fileLastFlushTime_);
   cfg.lookupValue("statshttpd.accept_stale", acceptStale_);
   cfg.lookupValue("statshttpd.update_worker_name", updateWorkerName_);
+  cfg.lookupValue("statshttpd.expected_online_workers", expectedOnlineWorkers);
 
   bool useMysql = true;
   cfg.lookupValue("statshttpd.use_mysql", useMysql);
@@ -1195,9 +1196,10 @@ bool StatsServerT<SHARE>::setupThreadConsume() {
     //
     // assume we have 100,000 online workers and every share per 10 seconds,
     // so in 60 mins there will be 100000/10*3600 = 36,000,000 shares.
-    // data size will be 36,000,000 * sizeof(SHARE) = 1,728,000,000 Bytes.
+    // data size will be 36,000,000 * sizeof(SHARE) = 1,728,000,000 Bytes
+    // (Not accurate because ProtoBuf has the variable length).
     //
-    const int32_t kConsumeLatestN = 100000 / 10 * 3600; // 36,000,000
+    const int32_t kConsumeLatestN = expectedOnlineWorkers * 3600 / 10;
 
     map<string, string> consumerOptions;
     // fetch.wait.max.ms:
@@ -1222,7 +1224,7 @@ bool StatsServerT<SHARE>::setupThreadConsume() {
   // kafkaConsumerCommonEvents_
   if (updateWorkerName_) {
     // assume we have 100,000 online workers
-    const int32_t kConsumeLatestN = 100000;
+    const int32_t kConsumeLatestN = expectedOnlineWorkers;
 
     map<string, string> consumerOptions;
     // fetch.wait.max.ms:

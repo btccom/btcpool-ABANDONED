@@ -199,6 +199,8 @@ protected:
 
   // you can disable it and use the standalone worker_update tool.
   bool updateWorkerName_ = true;
+  // Used to initialize the offset of kafka consumers
+  int expectedOnlineWorkers = 100000;
 
   MySQLConnection *poolDB_ = nullptr; // flush workers to table.mining_workers
   MySQLConnection *poolDBCommonEvents_ =
