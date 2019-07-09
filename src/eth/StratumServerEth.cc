@@ -519,7 +519,7 @@ void ServerEth::checkShareAndUpdateDiff(
       sendSolvedShare2Kafka(
           chainId,
           nonce,
-          header,
+          sjob->headerHash_,
           *mixHash,
           share.height(),
           share.networkdiff(),
@@ -622,7 +622,7 @@ void ServerEth::checkShareAndUpdateDiff(
         sendSolvedShare2Kafka(
             chainId,
             nonce,
-            header,
+            sjob->headerHash_,
             returnedMixHash,
             share.height(),
             share.networkdiff(),
@@ -678,7 +678,7 @@ void ServerEth::checkShareAndUpdateDiff(
 void ServerEth::sendSolvedShare2Kafka(
     size_t chainId,
     uint64_t nonce,
-    const uint256 &headerHash,
+    const string &headerHash,
     const uint256 &mixHash,
     const uint32_t height,
     const uint64_t networkDiff,
@@ -696,7 +696,7 @@ void ServerEth::sendSolvedShare2Kafka(
       ",\"workerFullName\":\"%s\""
       ",\"chain\":\"%s\"}",
       nonce,
-      headerHash.GetHex().c_str(),
+      headerHash,
       mixHash.GetHex().c_str(),
       height,
       networkDiff,

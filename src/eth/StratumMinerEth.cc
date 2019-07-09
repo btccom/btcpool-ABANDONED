@@ -259,7 +259,17 @@ void StratumMinerEth::handleRequest_Submit(
       headerHash = Ethash256ToUint256(hash);
     }
   } else {
-    headerHash.SetHex(sHeader);
+    if (sjob->hasHeader()) {
+      auto headerBin = sjob->getHeaderWithExtraNonce(extraNonce1, extraNonce2);
+      ethash_h256_t hash;
+      SHA3_256(
+          &hash,
+          reinterpret_cast<const uint8_t *>(headerBin.data()),
+          headerBin.size());
+      headerHash = Ethash256ToUint256(hash);
+    } else {
+      headerHash.SetHex(sHeader);
+    }
   }
 
   // The mixHash is used to submit the work to the Ethereum node.

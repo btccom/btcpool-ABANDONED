@@ -50,7 +50,7 @@ public:
   void sendSolvedShare2Kafka(
       size_t chainId,
       uint64_t nonce,
-      const uint256 &headerHash,
+      const string &headerHash,
       const uint256 &mixHash,
       const uint32_t height,
       const uint64_t networkDiff,
