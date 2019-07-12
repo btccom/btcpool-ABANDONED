@@ -110,7 +110,7 @@ string StratumJobEth::serializeToJson() const {
       transactions_,
       gasUsedPercent_,
 
-      !hasHeader() ? "" : Strings::Format(",\"header\":\"%s\"", header_),
+      !header_.empty() ? "" : Strings::Format(",\"header\":\"%s\"", header_),
 
       rpcAddress_,
       rpcUserPwd_,
