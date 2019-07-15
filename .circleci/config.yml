@@ -48,29 +48,17 @@ jobs:
       - run:
           name: Run clang-format
           command: ./run-clang-format.sh && git diff --exit-code
-  build_and_run_unit_tests:
-    parameters:
-      base:
-        type: string
-    docker:
-      - image: $BASE_IMAGE_SERVER/$BASE_IMAGE_REPO:<<parameters.base>>
-        auth:
-          username: $BASE_IMAGE_USERNAME
-          password: $BASE_IMAGE_PASSWORD
+  build_and_run_tests:
+    machine:
+      image: ubuntu-1604:201903-01
     steps:
       - checkout
       - run:
-          name: Run CMake
+          name: Build & Run Tests
           command: |
-            mkdir build
-            cd build
-            cmake -DCMAKE_BUILD_TYPE=Debug -DCHAIN_SRC_ROOT=/work/blockchain -DCHAIN_TYPE=$CHAIN_TYPE -DJOBS=2  ..
-      - run:
-          name: Build btcpool
-          command: cd build && make -j2
-      - run:
-          name: Run unit tests
-          command: cd build && make test
+            cd docker/btcpool/test/${CIRCLE_JOB#"build_and_run_tests@"}
+            ./run-test.sh
+          no_output_timeout: 20m
   build_and_push_deploy_image:
     docker:
       - image: circleci/golang
@@ -144,27 +132,21 @@ workflows:
           name: build_and_push_base_image@zec-2.0.4
           dockerfile: Dockerfile.zec
           tag: zec-2.0.4
-  build_and_run_unit_tests_all_chains:
+  build_and_run_all_tests:
     jobs:
       - check_clang_format
-      - build_and_run_unit_tests:
-          name: build_and_run_unit_tests@bch-0.18.5
-          base: bch-0.18.5
-      - build_and_run_unit_tests:
-          name: build_and_run_unit_tests@bsv-0.2.0
-          base: bsv-0.2.0
-      - build_and_run_unit_tests:
-          name: build_and_run_unit_tests@btc-0.16.3
-          base: btc-0.16.3
-      - build_and_run_unit_tests:
-          name: build_and_run_unit_tests@ubtc-2.5.0.1
-          base: ubtc-2.5.0.1
-      - build_and_run_unit_tests:
-          name: build_and_run_unit_tests@ltc-0.16.3
-          base: ltc-0.16.3
-      - build_and_run_unit_tests:
-          name: build_and_run_unit_tests@zec-2.0.4
-          base: zec-2.0.4
+      - build_and_run_tests:
+          name: build_and_run_tests@bch
+      - build_and_run_tests:
+          name: build_and_run_tests@bsv
+      - build_and_run_tests:
+          name: build_and_run_tests@btc
+      - build_and_run_tests:
+          name: build_and_run_tests@ubtc
+      - build_and_run_tests:
+          name: build_and_run_tests@ltc
+      - build_and_run_tests:
+          name: build_and_run_tests@zec
   build_and_push_deploy_images:
     jobs:
       - build_and_push_deploy_image:
