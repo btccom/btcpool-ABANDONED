@@ -413,6 +413,7 @@ void PoolWatchClientBeam::handleStratumMessage(const string &line) {
         LOG(ERROR) << "<" << poolName_ << "> init stratum job failed, "
                    << "raw job: " << line;
       }
+      sjob.jobId_ = container_->generateJobId();
 
       containerBeam->sendJobToKafka(jid.str(), sjob, this);
       return;

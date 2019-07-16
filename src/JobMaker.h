@@ -28,6 +28,7 @@
 #include "Kafka.h"
 
 #include "Zookeeper.h"
+#include "Utils.h"
 
 #include <deque>
 #include <vector>
@@ -104,6 +105,7 @@ public:
 
   virtual bool init(shared_ptr<JobMakerDefinition> def) {
     def_ = def;
+    gen_ = std::make_unique<IdGenerator>(def->serverId_);
     return true;
   }
 
@@ -122,11 +124,11 @@ public:
       JobMakerMessageProcessor messageProcessor,
       bool jobKeepAlive = true);
 
-  uint64_t generateJobId(uint32_t hash) const;
   void setServerId(uint8_t id);
 
 protected:
   shared_ptr<JobMakerDefinition> def_;
+  unique_ptr<IdGenerator> gen_;
 };
 
 class GwJobMakerHandler : public JobMakerHandler {

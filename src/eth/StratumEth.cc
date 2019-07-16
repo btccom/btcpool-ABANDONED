@@ -57,12 +57,6 @@ bool StratumJobEth::initFromGw(
     rpcUserPwd_ = work.getRpcUserPwd();
 
     header_ = work.getHeader();
-
-    // generate job id
-    string header = headerHash_.substr(2, 64);
-    // jobId: timestamp + hash of header + server id
-    jobId_ = (static_cast<uint64_t>(time(nullptr)) << 32) |
-        (djb2(header.c_str()) & 0xFFFFFF00) | serverId;
   }
   return seedHash_.size() && headerHash_.size();
 }

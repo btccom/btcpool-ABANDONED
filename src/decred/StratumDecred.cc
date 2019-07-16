@@ -27,8 +27,7 @@
 #include "utilities_js.hpp"
 #include <boost/endian/conversion.hpp>
 
-StratumJobDecred::StratumJobDecred()
-  : StratumJob() {
+StratumJobDecred::StratumJobDecred() {
   memset(&header_, 0, sizeof(BlockHeaderDecred));
 }
 

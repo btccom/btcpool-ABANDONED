@@ -218,4 +218,14 @@ public:
   }
 };
 
+class IdGenerator {
+public:
+  explicit IdGenerator(uint8_t serverId);
+  uint64_t next();
+
+private:
+  uint32_t lastTimestamp_;
+  uint32_t lastIdLow_;
+};
+
 #endif

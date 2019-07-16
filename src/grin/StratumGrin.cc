@@ -47,11 +47,6 @@ bool StratumJobGrin::initFromRawJob(JsonNode &jparams) {
   Hex2Bin(prePowStr_.c_str(), prePowStr_.length(), prePowBin);
   memcpy(&prePow_, prePowBin.data(), prePowBin.size());
 
-  // jobId: timestamp + input_prefix, we need to make sure jobId is unique in a
-  // some time jobId can convert to uint64_t
-  uint32_t hash = djb2(prePowStr_.c_str());
-  jobId_ = (static_cast<uint64_t>(time(nullptr)) << 32) | hash;
-
   return true;
 }
 

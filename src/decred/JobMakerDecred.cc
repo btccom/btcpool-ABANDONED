@@ -71,7 +71,7 @@ string JobMakerHandlerDecred::makeStratumJobMsg() {
 
   auto &work = *works_.get<ByBestBlockDecred>().rbegin();
   auto &data = work.data;
-  auto jobId = generateJobId(djb2(data.c_str()));
+  auto jobId = gen_->next();
   auto prevHash = data.substr(OFFSET_AND_SIZE_DECRED(prevBlock));
   auto merkelRootOffset = offsetof(BlockHeaderDecred, merkelRoot);
   auto coinBase1 = data.substr(

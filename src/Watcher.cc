@@ -62,7 +62,8 @@ ClientContainer::ClientContainer(const libconfig::Config &config)
   , kafkaProducer_(
         kafkaBrokers_.c_str(),
         config.lookup("poolwatcher.rawgbt_topic").c_str(),
-        0 /* partition */) {
+        0 /* partition */)
+  , gen_{0} {
   // Enable multithreading and flag BEV_OPT_THREADSAFE.
   // Without it, bufferevent_socket_new() will return NULL with flag
   // BEV_OPT_THREADSAFE.

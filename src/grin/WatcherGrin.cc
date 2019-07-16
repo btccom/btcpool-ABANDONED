@@ -315,6 +315,7 @@ void PoolWatchClientGrin::handleStratumMessage(const string &line) {
         LOG(ERROR) << "<" << poolName_ << "> init stratum job failed, "
                    << "raw job: " << line;
       } else {
+        sjob.jobId_ = container_->generateJobId();
         static_cast<ClientContainerGrin *>(container_)
             ->sendJobToKafka(sjob, this);
       }

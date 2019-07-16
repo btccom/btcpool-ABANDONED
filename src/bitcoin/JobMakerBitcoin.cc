@@ -660,11 +660,11 @@ string JobMakerHandlerBitcoin::makeStratumJob(const string &gbt) {
           latestNmcAuxBlockJson,
           currentRskBlockJson,
           currentVcashBlockJson,
-          def()->serverId_,
           isMergedMiningUpdate_)) {
     LOG(ERROR) << "init stratum job message from gbt str fail";
     return "";
   }
+  sjob.jobId_ = gen_->next();
   const string jobMsg = sjob.serializeToJson();
 
   // set last send time

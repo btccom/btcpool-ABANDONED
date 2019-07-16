@@ -74,8 +74,8 @@ string JobMakerHandlerBytom::makeStratumJobMsg() {
     return "";
 
   StratumJobBytom job;
+  job.jobId_ = gen_->next();
   job.nTime_ = time_;
-  job.jobId_ = generateJobId(djb2(header_.c_str()));
   job.seed_ = seed_;
   job.hHash_ = header_;
   return job.serializeToJson();

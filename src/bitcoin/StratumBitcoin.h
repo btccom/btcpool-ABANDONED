@@ -448,7 +448,6 @@ public:
       const string &nmcAuxBlockJson,
       const RskWork &latestRskBlockJson,
       const VcashWork &latestVcashBlockJson,
-      const uint8_t serverId,
       const bool isMergedMiningUpdate);
   bool initFromStratumJob(
       vector<JsonNode> &jparamsArr,

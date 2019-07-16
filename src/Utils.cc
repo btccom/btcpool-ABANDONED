@@ -532,3 +532,20 @@ bool isNiceHashAgent(const string &clientAgent) {
   }
   return false;
 }
+
+IdGenerator::IdGenerator(uint8_t serverId)
+  : lastTimestamp_{0}
+  , lastIdLow_{serverId} {
+}
+
+uint64_t IdGenerator::next() {
+  // Generate a monotonic job id
+  uint32_t currentJobTimestamp = time(nullptr);
+  if (currentJobTimestamp <= lastTimestamp_) {
+    lastIdLow_ += 0x00000100;
+  } else {
+    lastIdLow_ &= 0x000000FF;
+    lastTimestamp_ = currentJobTimestamp;
+  }
+  return (static_cast<uint64_t>(currentJobTimestamp) << 32) | lastIdLow_;
+}

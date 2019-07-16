@@ -246,13 +246,9 @@ JobMakerConsumerHandler JobMakerHandler::createConsumerHandler(
   return result;
 }
 
-uint64_t JobMakerHandler::generateJobId(uint32_t hash) const {
-  return (static_cast<uint64_t>(time(nullptr)) << 32) | (hash & 0xFFFFFF00) |
-      (def_->serverId_ & 0xFF);
-}
-
 void JobMakerHandler::setServerId(uint8_t id) {
   def_->serverId_ = id;
+  gen_ = std::make_unique<IdGenerator>(id);
 }
 
 ////////////////////////////////GwJobMakerHandler//////////////////////////////////

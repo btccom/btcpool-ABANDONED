@@ -359,7 +359,6 @@ TEST(Stratum, StratumJobBitcoin) {
         "",
         RskWork(),
         VcashWork(),
-        1,
         false);
     ASSERT_EQ(res, true);
 
@@ -494,7 +493,6 @@ TEST(Stratum, StratumJobWithWitnessCommitment) {
         "",
         RskWork(),
         VcashWork(),
-        1,
         false);
     ASSERT_EQ(res, true);
 
@@ -616,7 +614,6 @@ TEST(Stratum, StratumJobWithSegwitPayoutAddr) {
         "",
         RskWork(),
         VcashWork(),
-        1,
         false);
     ASSERT_EQ(res, true);
 
@@ -746,7 +743,6 @@ TEST(Stratum, StratumJobWithRskWork) {
         "",
         rskWork,
         VcashWork(),
-        1,
         true);
 
     // check rsk required data copied properly to the stratum job

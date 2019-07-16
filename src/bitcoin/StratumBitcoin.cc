@@ -348,7 +348,6 @@ bool StratumJobBitcoin::initFromGbt(
     const string &nmcAuxBlockJson,
     const RskWork &latestRskBlockJson,
     const VcashWork &latestVcashBlockJson,
-    const uint8_t serverId,
     const bool isMergedMiningUpdate) {
   uint256 gbtHash = Hash(gbt, gbt + strlen(gbt));
   JsonNode r;
@@ -357,14 +356,6 @@ bool StratumJobBitcoin::initFromGbt(
     return false;
   }
   JsonNode jgbt = r["result"];
-
-  // jobId: timestamp + gbtHash, we need to make sure jobId is unique in a some
-  // time jobId can convert to uint64_t
-  auto hash =
-      reinterpret_cast<boost::endian::little_uint32_buf_t *>(gbtHash.begin());
-  jobId_ = (static_cast<uint64_t>(time(nullptr)) << 32) |
-      (hash->value() & 0xFFFFFF00) | serverId;
-
   gbtHash_ = gbtHash.ToString();
 
 #if defined(CHAIN_TYPE_BCH) || defined(CHAIN_TYPE_BSV)
@@ -940,10 +931,6 @@ false // is clean
   }
 
   uint256 gbtHash = Hash(fakeGbt.data(), fakeGbt.data() + fakeGbt.size());
-  auto hash =
-      reinterpret_cast<boost::endian::little_uint32_buf_t *>(gbtHash.begin());
-  jobId_ = (static_cast<uint64_t>(time(nullptr)) << 32) | hash->value();
-
   gbtHash_ = gbtHash.ToString();
   height_ = getBlockHeightFromCoinbase(coinbase1_);
 

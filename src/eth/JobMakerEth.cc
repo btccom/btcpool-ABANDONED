@@ -125,6 +125,7 @@ string JobMakerHandlerEth::makeStratumJobMsg() {
     return "";
   }
 
+  sjob.jobId_ = gen_->next();
   workOfLastJob_ = work;
   return sjob.serializeToJson();
 }

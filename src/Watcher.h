@@ -60,6 +60,8 @@ protected:
   string kafkaBrokers_;
   KafkaProducer kafkaProducer_; // produce GBT message
 
+  IdGenerator gen_;
+
   virtual PoolWatchClient *
   createPoolWatchClient(const libconfig::Setting &config) = 0;
   virtual bool initInternal() = 0;
@@ -74,6 +76,7 @@ public:
   void stop();
 
   void removeAndCreateClient(PoolWatchClient *client);
+  uint64_t generateJobId() { return gen_.next(); }
 };
 
 ///////////////////////////////// PoolWatchClient //////////////////////////////

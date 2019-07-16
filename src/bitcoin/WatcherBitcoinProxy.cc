@@ -422,6 +422,7 @@ void PoolWatchClientBitcoinProxy::handleStratumMessage(const string &line) {
         return;
       }
 
+      sjob.jobId_ = container_->generateJobId();
       string upstreamJobId = "null";
       if (jparamsArr[0].type() == Utilities::JS::type::Str) {
         upstreamJobId = "\"" + jparamsArr[0].str() + "\"";
