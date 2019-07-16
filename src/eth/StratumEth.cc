@@ -79,9 +79,9 @@ string StratumJobEth::serializeToJson() const {
       ",\"headerHash\":\"%s\""
       ",\"sHash\":\"%s\""
 
-      ",\"uncles\":\"%u\""
-      ",\"transactions\":\"%u\""
-      ",\"gasUsedPercent\":\"%f\""
+      ",\"uncles\":%u"
+      ",\"transactions\":%u"
+      ",\"gasUsedPercent\":%f"
 
       "%s"
 
