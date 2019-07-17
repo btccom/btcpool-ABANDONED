@@ -175,7 +175,8 @@ void StratumMinerSia::handleRequest_Submit(
     server.sendSolvedShare2Kafka(localJob->chainId_, (const char *)bHeader, 80);
     diffController_->addShare(share.sharediff());
     // mark jobs as stale
-    server.GetJobRepository(localJob->chainId_)->markAllJobsAsStale();
+    server.GetJobRepository(localJob->chainId_)
+        ->markAllJobsAsStale(sjob->height());
 
     LOG(INFO) << "sia solution found";
   }

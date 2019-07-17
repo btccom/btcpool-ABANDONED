@@ -586,9 +586,9 @@ void ServerBitcoin::checkShare(
                   << ", userId: " << share.userid() << ", by: " << workFullName
                   << " <<<<";
       } else {
-        dispatch([this, chainId]() {
+        dispatch([this, chainId, height = sjob->height_]() {
           // mark jobs as stale
-          GetJobRepository(chainId)->markAllJobsAsStale();
+          GetJobRepository(chainId)->markAllJobsAsStale(height);
         });
 
         LOG(INFO) << ">>>> found a new block: " << blkHash.ToString()

@@ -161,7 +161,7 @@ public:
 
   void stop();
   bool setupThreadConsume();
-  void markAllJobsAsStale();
+  void markAllJobsAsStale(uint64_t height);
 
   void setMaxJobLifeTime(const time_t maxJobLifeTime);
   void setMiningNotifyInterval(time_t miningNotifyInterval);

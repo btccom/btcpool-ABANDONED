@@ -252,7 +252,8 @@ void StratumMinerBytom::handleRequest_Submit(
           share.height(),
           Bytom_TargetCompactToDifficulty(sJob->blockHeader_.bits),
           worker);
-      server.GetJobRepository(localJob->chainId_)->markAllJobsAsStale();
+      server.GetJobRepository(localJob->chainId_)
+          ->markAllJobsAsStale(sJob->height());
       handleShare(idStr, share.status(), share.sharediff(), localJob->chainId_);
     } else if (powResult == StratumStatus::ACCEPT) {
       handleShare(idStr, share.status(), share.sharediff(), localJob->chainId_);

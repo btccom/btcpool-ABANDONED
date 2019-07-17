@@ -320,9 +320,12 @@ JobRepository::createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean) {
   return std::make_shared<StratumJobEx>(chainId_, sjob, isClean);
 }
 
-void JobRepository::markAllJobsAsStale() {
+void JobRepository::markAllJobsAsStale(uint64_t height) {
   for (auto it : exJobs_) {
-    it.second->markStale();
+    auto &exjob = it.second;
+    if (exjob->sjob_ && exjob->sjob_->height() <= height) {
+      exjob->markStale();
+    }
   }
 }
 

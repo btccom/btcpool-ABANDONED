@@ -247,7 +247,7 @@ int ServerDecred::checkShare(
         exJobPtr->chainId_, (const char *)&foundBlock, sizeof(foundBlock));
 
     // mark jobs as stale
-    GetJobRepository(exJobPtr->chainId_)->markAllJobsAsStale();
+    GetJobRepository(exJobPtr->chainId_)->markAllJobsAsStale(sjob->height());
 
     LOG(INFO) << ">>>> found a new block: " << blkHash.ToString()
               << ", jobId: " << share.jobid() << ", userId: " << share.userid()

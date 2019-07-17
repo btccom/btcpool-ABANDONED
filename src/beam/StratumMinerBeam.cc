@@ -161,7 +161,8 @@ void StratumMinerBeam::handleRequest_Submit(
       server.sendSolvedShare2Kafka(
           localJob->chainId_, share, sjob->input_, output, worker, blockHash);
       // mark jobs as stale
-      server.GetJobRepository(localJob->chainId_)->markAllJobsAsStale();
+      server.GetJobRepository(localJob->chainId_)
+          ->markAllJobsAsStale(sjob->height());
     }
   } else {
     // check if there is invalid share spamming
