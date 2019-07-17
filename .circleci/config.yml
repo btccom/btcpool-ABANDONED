@@ -150,28 +150,18 @@ workflows:
       - build_and_run_unit_tests:
           name: build_and_run_unit_tests@bch-0.18.5
           base: bch-0.18.5
-          requires:
-            - check_clang_format
       - build_and_run_unit_tests:
           name: build_and_run_unit_tests@btc-0.16.3
           base: btc-0.16.3
-          requires:
-            - check_clang_format
       - build_and_run_unit_tests:
           name: build_and_run_unit_tests@ubtc-2.5.0.1
           base: ubtc-2.5.0.1
-          requires:
-            - check_clang_format
       - build_and_run_unit_tests:
           name: build_and_run_unit_tests@ltc-0.16.3
           base: ltc-0.16.3
-          requires:
-            - check_clang_format
       - build_and_run_unit_tests:
           name: build_and_run_unit_tests@zec-2.0.4
           base: zec-2.0.4
-          requires:
-            - check_clang_format
   build_and_push_deploy_images:
     jobs:
       - build_and_push_deploy_image:
