@@ -44,11 +44,6 @@
 #endif
 
 class JobMakerHandlerBitcoin : public JobMakerHandler {
-  mutex lock_; // lock when update rawgbtMap_
-  mutex auxJsonLock_;
-  mutex rskWorkAccessLock_;
-  mutex vcashWorkAccessLock_;
-
   // mining bitcoin blocks
   CTxDestination poolPayoutAddr_;
   uint32_t currBestHeight_;

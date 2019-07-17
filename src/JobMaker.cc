@@ -123,7 +123,7 @@ bool JobMaker::consumeKafkaMsg(
 
   string msg((const char *)rkmessage->payload, rkmessage->len);
 
-  if (consumerHandler.messageProcessor_(msg)) {
+  if (consumerHandler.messageProcessor_(msg, topic)) {
     LOG(INFO) << "handleMsg returns true, new stratum job";
     produceStratumJob();
     return true;
@@ -177,11 +177,6 @@ void JobMaker::runThreadKafkaConsume(JobMakerConsumerHandler &consumerHandler) {
       // want.
     }
 
-    // don't trigger timeout if jobKeepAlive_ be false.
-    if (!consumerHandler.jobKeepAlive_) {
-      continue;
-    }
-
     uint32_t timeDiff;
     if (rkmessage == nullptr ||
         (!jobUpdated &&
@@ -207,7 +202,7 @@ void JobMaker::run() {
   // wait consumer threads exit
   for (auto pWorker : kafkaConsumerWorkers_) {
     if (pWorker->joinable()) {
-      LOG(INFO) << "wait for worker " << pWorker->get_id() << "exiting";
+      LOG(INFO) << "wait for worker " << pWorker->get_id() << " exiting";
       pWorker->join();
       LOG(INFO) << "worker exited";
     }
@@ -219,8 +214,7 @@ JobMakerConsumerHandler JobMakerHandler::createConsumerHandler(
     const string &topic,
     int64_t offset,
     vector<pair<string, string>> consumerOptions,
-    JobMakerMessageProcessor messageProcessor,
-    bool jobKeepAlive) {
+    JobMakerMessageProcessor messageProcessor) {
   std::map<string, string> usedConsumerOptions;
   //  default
   usedConsumerOptions["fetch.wait.max.ms"] = "5";
@@ -237,10 +231,8 @@ JobMakerConsumerHandler JobMakerHandler::createConsumerHandler(
   } else if (!consumer->checkAlive()) {
     LOG(FATAL) << "kafka consumer " << topic << " is NOT alive";
   } else {
-    result.kafkaTopic_ = topic;
     result.kafkaConsumer_ = consumer;
     result.messageProcessor_ = messageProcessor;
-    result.jobKeepAlive_ = jobKeepAlive;
   }
 
   return result;

@@ -335,7 +335,8 @@ bool KafkaQueueConsumer::setup(
     std::get<2>(t) = topic;
 
     /* Start consuming */
-    if (rd_kafka_consume_start(topic, std::get<1>(t), offset) == -1) {
+    if (rd_kafka_consume_start_queue(topic, std::get<1>(t), offset, queue_) ==
+        -1) {
       LOG(ERROR) << "failed to start consuming: " << rd_kafka_last_error();
       return false;
     }

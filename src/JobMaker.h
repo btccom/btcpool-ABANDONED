@@ -42,16 +42,12 @@ using std::shared_ptr;
 //     msg: kafka message.
 // Return:
 //     if true, JobMaker will try generate a new job.
-using JobMakerMessageProcessor = std::function<bool(const string &msg)>;
+using JobMakerMessageProcessor =
+    std::function<bool(const string &, const string &)>;
 
 struct JobMakerConsumerHandler {
-  string kafkaTopic_;
   shared_ptr<KafkaConsumer> kafkaConsumer_;
   JobMakerMessageProcessor messageProcessor_;
-
-  // When be false, jobmaker will not trigger a timeout when the consumer
-  // has not received the new message for a long time.
-  bool jobKeepAlive_;
 };
 
 struct JobMakerDefinition {
@@ -121,8 +117,7 @@ public:
       const string &topic,
       int64_t offset,
       vector<pair<string, string>> consumerOptions,
-      JobMakerMessageProcessor messageProcessor,
-      bool jobKeepAlive = true);
+      JobMakerMessageProcessor messageProcessor);
 
   void setServerId(uint8_t id);
 
