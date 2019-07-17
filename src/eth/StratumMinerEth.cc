@@ -295,7 +295,8 @@ void StratumMinerEth::handleRequest_Submit(
        share,
        &server](
           int32_t status, uint64_t diff, const uint256 &shareMixHash) mutable {
-        if (StratumStatus::isSolved(status)) {
+        if (StratumStatus::SOLVED == status) {
+          // stale shares shall not trigger the following cleanup
           server.GetJobRepository(chainId)->markAllJobsAsStale();
         }
         share.set_status(status);
