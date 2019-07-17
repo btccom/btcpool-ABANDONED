@@ -153,8 +153,6 @@ workflows:
       - build_and_run_unit_tests:
           name: build_and_run_unit_tests@bsv-0.2.0
           base: bsv-0.2.0
-          requires:
-            - check_clang_format
       - build_and_run_unit_tests:
           name: build_and_run_unit_tests@btc-0.16.3
           base: btc-0.16.3
