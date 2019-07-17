@@ -107,6 +107,39 @@ public:
   rd_kafka_message_t *consumer(int timeout_ms) override;
 };
 
+// Queue Consumer
+class KafkaQueueConsumer : public KafkaConsumer {
+  string brokers_;
+  map<string, string> defaultOptions_;
+
+  rd_kafka_conf_t *conf_;
+  rd_kafka_t *consumer_;
+  rd_kafka_queue_t *queue_;
+  std::vector<std::tuple<std::string, int, rd_kafka_topic_t *>> topics_;
+
+public:
+  KafkaQueueConsumer(
+      const std::string &brokers,
+      const std::vector<std::tuple<std::string, int>> &topics);
+  ~KafkaQueueConsumer();
+
+  bool checkAlive() override;
+
+  //
+  // offset:
+  //     RD_KAFKA_OFFSET_BEGINNING
+  //     RD_KAFKA_OFFSET_END
+  //     RD_KAFKA_OFFSET_STORED
+  //     RD_KAFKA_OFFSET_TAIL(CNT)
+  //
+  bool setup(int64_t offset, const std::map<string, string> *options = nullptr)
+      override;
+  //
+  // don't forget to call rd_kafka_message_destroy() after consumer()
+  //
+  rd_kafka_message_t *consumer(int timeout_ms) override;
+};
+
 //////////////////////////// KafkaHighLevelConsumer ////////////////////////////
 // High Level Consumer
 class KafkaHighLevelConsumer {

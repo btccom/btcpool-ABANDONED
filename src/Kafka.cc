@@ -211,6 +211,171 @@ rd_kafka_message_t *KafkaSimpleConsumer::consumer(int timeout_ms) {
   return rd_kafka_consume(topic_, partition_, timeout_ms);
 }
 
+KafkaQueueConsumer::KafkaQueueConsumer(
+    const std::string &brokers,
+    const std::vector<std::tuple<std::string, int>> &topics)
+  : brokers_(brokers)
+  , conf_(rd_kafka_conf_new())
+  , consumer_(nullptr)
+  , queue_(nullptr) {
+  rd_kafka_conf_set_log_cb(conf_, kafkaLogger); // set logger
+  LOG(INFO) << "consumer librdkafka version: " << rd_kafka_version_str();
+
+  // Maximum transmit message size.
+  defaultOptions_["message.max.bytes"] = RDKAFKA_MESSAGE_MAX_BYTES;
+  // compression codec to use for compressing message sets
+  defaultOptions_["compression.codec"] = RDKAFKA_COMPRESSION_CODEC;
+
+  // Maximum number of kilobytes per topic+partition in the local consumer
+  // queue. This value may be overshot by fetch.message.max.bytes.
+  defaultOptions_["queued.max.messages.kbytes"] =
+      RDKAFKA_QUEUED_MAX_MESSAGES_KBYTES;
+
+  // Maximum number of bytes per topic+partition to request when
+  // fetching messages from the broker
+  defaultOptions_["fetch.message.max.bytes"] = RDKAFKA_FETCH_MESSAGE_MAX_BYTES;
+
+  // Maximum time the broker may wait to fill the response with fetch.min.bytes
+  defaultOptions_["fetch.wait.max.ms"] = RDKAFKA_CONSUMER_FETCH_WAIT_MAX_MS;
+
+  for (auto &t : topics) {
+    topics_.emplace_back(std::get<0>(t), std::get<1>(t), nullptr);
+  }
+}
+
+KafkaQueueConsumer::~KafkaQueueConsumer() {
+  if (consumer_ != nullptr) {
+    for (auto &t : topics_) {
+      auto topic = std::get<2>(t);
+      auto partition = std::get<1>(t);
+      if (topic != nullptr) {
+        /* Stop consuming */
+        rd_kafka_consume_stop(topic, partition);
+      }
+    }
+
+    while (rd_kafka_outq_len(consumer_) > 0) {
+      rd_kafka_poll(consumer_, 10);
+    }
+
+    for (auto &t : topics_) {
+      auto topic = std::get<2>(t);
+      if (topic != nullptr) {
+        rd_kafka_topic_destroy(topic); // Destroy topic
+      }
+    }
+    rd_kafka_queue_destroy(queue_); // Destroy the handle
+  }
+}
+
+//
+// offset:
+//     RD_KAFKA_OFFSET_BEGINNING
+//     RD_KAFKA_OFFSET_END
+//     RD_KAFKA_OFFSET_STORED
+//     RD_KAFKA_OFFSET_TAIL(CNT)
+//
+bool KafkaQueueConsumer::setup(
+    int64_t offset, const std::map<string, string> *options) {
+  char errstr[1024];
+
+  // rdkafka options:
+  if (options != nullptr) {
+    // merge options
+    for (const auto &itr : *options) {
+      defaultOptions_[itr.first] = itr.second;
+    }
+  }
+
+  for (const auto &itr : defaultOptions_) {
+    if (rd_kafka_conf_set(
+            conf_,
+            itr.first.c_str(),
+            itr.second.c_str(),
+            errstr,
+            sizeof(errstr)) != RD_KAFKA_CONF_OK) {
+      LOG(ERROR) << "kafka set conf failure: " << errstr
+                 << ", key: " << itr.first << ", val: " << itr.second;
+      return false;
+    }
+  }
+
+  /* create consumer_ */
+  if (!(consumer_ =
+            rd_kafka_new(RD_KAFKA_CONSUMER, conf_, errstr, sizeof(errstr)))) {
+    LOG(ERROR) << "kafka create consumer failure: " << errstr;
+    return false;
+  }
+
+  if (!(queue_ = rd_kafka_queue_new(consumer_))) {
+    LOG(ERROR) << "kafka create consumer queue failure";
+    return false;
+  }
+
+#ifndef NDEBUG
+  rd_kafka_set_log_level(consumer_, 7 /* LOG_DEBUG */);
+#else
+  rd_kafka_set_log_level(consumer_, 0);
+#endif
+
+  /* Add brokers */
+  LOG(INFO) << "add brokers: " << brokers_;
+  if (rd_kafka_brokers_add(consumer_, brokers_.c_str()) == 0) {
+    LOG(ERROR) << "kafka add brokers failure";
+    return false;
+  }
+
+  for (auto &t : topics_) {
+    /* Create topic */
+    auto &topicStr = std::get<0>(t);
+    rd_kafka_topic_conf_t *topicConf = rd_kafka_topic_conf_new();
+
+    LOG(INFO) << "create topic handle: " << topicStr;
+    auto topic = rd_kafka_topic_new(consumer_, topicStr.c_str(), topicConf);
+    std::get<2>(t) = topic;
+
+    /* Start consuming */
+    if (rd_kafka_consume_start(topic, std::get<1>(t), offset) == -1) {
+      LOG(ERROR) << "failed to start consuming: " << rd_kafka_last_error();
+      return false;
+    }
+  }
+
+  return true;
+}
+
+bool KafkaQueueConsumer::checkAlive() {
+  if (consumer_ == nullptr) {
+    return false;
+  }
+
+  // check kafka meta, maybe there is better solution to check brokers
+  rd_kafka_resp_err_t err;
+  const struct rd_kafka_metadata *metadata;
+
+  for (auto &t : topics_) {
+    /* Fetch metadata */
+    auto topic = std::get<2>(t);
+    err = rd_kafka_metadata(
+        consumer_, topic ? 0 : 1, topic, &metadata, 3000 /* timeout_ms */);
+    if (err != RD_KAFKA_RESP_ERR_NO_ERROR) {
+      LOG(FATAL) << "Failed to acquire metadata: " << rd_kafka_err2str(err);
+      return false;
+    }
+  }
+
+  rd_kafka_metadata_destroy(metadata); // no need to print out meta data
+
+  return true;
+}
+
+//
+// don't forget to call rd_kafka_message_destroy() after consumer()
+//
+rd_kafka_message_t *KafkaQueueConsumer::consumer(int timeout_ms) {
+  return rd_kafka_consume_queue(queue_, timeout_ms);
+}
+
 //////////////////////////// KafkaHighLevelConsumer ////////////////////////////
 KafkaHighLevelConsumer::KafkaHighLevelConsumer(
     const char *brokers,
