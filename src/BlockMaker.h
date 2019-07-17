@@ -63,7 +63,7 @@ protected:
   shared_ptr<BlockMakerDefinition> def_;
   atomic<bool> running_;
 
-  KafkaConsumer kafkaConsumerSolvedShare_;
+  KafkaSimpleConsumer kafkaConsumerSolvedShare_;
 
   MysqlConnectInfo poolDB_; // save blocks to table.found_blocks
 

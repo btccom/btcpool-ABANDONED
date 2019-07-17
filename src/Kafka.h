@@ -65,8 +65,18 @@
 #define RDKAFKA_HIGH_LEVEL_CONSUMER_FETCH_WAIT_MAX_MS "50"
 
 ///////////////////////////////// KafkaConsumer ////////////////////////////////
-// Simple Consumer
+
 class KafkaConsumer {
+public:
+  virtual ~KafkaConsumer() = default;
+  virtual bool checkAlive() = 0;
+  virtual bool
+  setup(int64_t offset, const std::map<string, string> *options = nullptr) = 0;
+  virtual rd_kafka_message_t *consumer(int timeout_ms) = 0;
+};
+
+// Simple Consumer
+class KafkaSimpleConsumer : public KafkaConsumer {
   string brokers_;
   string topicStr_;
   int partition_;
@@ -77,10 +87,10 @@ class KafkaConsumer {
   rd_kafka_topic_t *topic_;
 
 public:
-  KafkaConsumer(const char *brokers, const char *topic, int partition);
-  ~KafkaConsumer();
+  KafkaSimpleConsumer(const char *brokers, const char *topic, int partition);
+  ~KafkaSimpleConsumer();
 
-  bool checkAlive();
+  bool checkAlive() override;
 
   //
   // offset:
@@ -89,11 +99,12 @@ public:
   //     RD_KAFKA_OFFSET_STORED
   //     RD_KAFKA_OFFSET_TAIL(CNT)
   //
-  bool setup(int64_t offset, const std::map<string, string> *options = nullptr);
+  bool setup(int64_t offset, const std::map<string, string> *options = nullptr)
+      override;
   //
   // don't forget to call rd_kafka_message_destroy() after consumer()
   //
-  rd_kafka_message_t *consumer(int timeout_ms);
+  rd_kafka_message_t *consumer(int timeout_ms) override;
 };
 
 //////////////////////////// KafkaHighLevelConsumer ////////////////////////////

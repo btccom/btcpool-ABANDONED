@@ -30,7 +30,7 @@
 ///////////////////////////////// ClientContainer //////////////////////////////
 class ClientContainerBitcoin : public ClientContainer {
   bool disableChecking_;
-  KafkaConsumer kafkaStratumJobConsumer_; // consume topic: 'StratumJob'
+  KafkaSimpleConsumer kafkaStratumJobConsumer_; // consume topic: 'StratumJob'
   thread threadStratumJobConsume_;
 
   boost::shared_mutex stratumJobMutex_;

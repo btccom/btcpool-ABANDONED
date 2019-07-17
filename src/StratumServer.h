@@ -122,7 +122,7 @@ protected:
   size_t chainId_;
   std::map<uint64_t /* jobId */, shared_ptr<StratumJobEx>> exJobs_;
 
-  KafkaConsumer kafkaConsumer_; // consume topic: 'StratumJob'
+  KafkaSimpleConsumer kafkaConsumer_; // consume topic: 'StratumJob'
   StratumServer *server_; // call server to send new job
 
   string fileLastNotifyTime_;

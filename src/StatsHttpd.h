@@ -207,10 +207,11 @@ protected:
       userWorkerCount_;
   WorkerShares<SHARE> poolWorker_; // worker status for the pool
 
-  KafkaConsumer kafkaConsumer_; // consume topic: 'ShareLog'
+  KafkaSimpleConsumer kafkaConsumer_; // consume topic: 'ShareLog'
   thread threadConsume_;
 
-  KafkaConsumer kafkaConsumerCommonEvents_; // consume topic: 'CommonEvents'
+  KafkaSimpleConsumer
+      kafkaConsumerCommonEvents_; // consume topic: 'CommonEvents'
   thread threadConsumeCommonEvents_;
 
   // you can disable it and use the standalone worker_update tool.

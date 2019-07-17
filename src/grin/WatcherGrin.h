@@ -49,7 +49,7 @@ private:
   void runThreadSolvedShareConsume();
   void consumeSolvedShare(rd_kafka_message_t *rkmessage);
 
-  KafkaConsumer kafkaSolvedShareConsumer_; // consume solved_share_topic
+  KafkaSimpleConsumer kafkaSolvedShareConsumer_; // consume solved_share_topic
   thread threadSolvedShareConsume_;
 
   struct JobCache {

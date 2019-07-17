@@ -230,8 +230,8 @@ JobMakerConsumerHandler JobMakerHandler::createConsumerHandler(
   }
 
   JobMakerConsumerHandler result;
-  auto consumer =
-      std::make_shared<KafkaConsumer>(kafkaBrokers.c_str(), topic.c_str(), 0);
+  auto consumer = std::make_shared<KafkaSimpleConsumer>(
+      kafkaBrokers.c_str(), topic.c_str(), 0);
   if (!consumer->setup(RD_KAFKA_OFFSET_TAIL(offset), &usedConsumerOptions)) {
     LOG(ERROR) << "kafka consumer " << topic << " setup failure";
   } else if (!consumer->checkAlive()) {

@@ -42,7 +42,7 @@ protected:
 
   MySQLExecQueue poolDB_; // save blocks to table `found_blocks`
 
-  KafkaConsumer kafkaSolvedShareConsumer_; // consume solved_share_topic
+  KafkaSimpleConsumer kafkaSolvedShareConsumer_; // consume solved_share_topic
   thread threadSolvedShareConsume_;
 
   const size_t kMaxJobCacheSize_ = 5000;

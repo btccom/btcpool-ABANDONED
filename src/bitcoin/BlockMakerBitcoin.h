@@ -64,11 +64,11 @@ protected:
   bpt::ptime lastSubmittedBlockTime;
   uint32_t submittedRskBlocks;
 
-  KafkaConsumer kafkaConsumerRawGbt_;
-  KafkaConsumer kafkaConsumerStratumJob_;
+  KafkaSimpleConsumer kafkaConsumerRawGbt_;
+  KafkaSimpleConsumer kafkaConsumerStratumJob_;
 #ifndef CHAIN_TYPE_ZEC
-  KafkaConsumer kafkaConsumerNamecoinSolvedShare_;
-  KafkaConsumer kafkaConsumerRskSolvedShare_;
+  KafkaSimpleConsumer kafkaConsumerNamecoinSolvedShare_;
+  KafkaSimpleConsumer kafkaConsumerRskSolvedShare_;
 #endif
 
   struct AuxBlockInfo {

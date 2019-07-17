@@ -48,7 +48,7 @@ protected:
   time_t lastFlushTime_ = 0;
   std::unique_ptr<ShareLogWriterBase<ShareBitcoin>> shareLogWriter;
 
-  KafkaConsumer kafkaSolvedShareConsumer_; // consume solved_share_topic
+  KafkaSimpleConsumer kafkaSolvedShareConsumer_; // consume solved_share_topic
   thread threadSolvedShareConsume_;
 
   const size_t kMaxJobCacheSize_ = 256;

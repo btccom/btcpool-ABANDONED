@@ -69,7 +69,7 @@ static void rebalance_cb(
 }
 
 ///////////////////////////////// KafkaConsumer ////////////////////////////////
-KafkaConsumer::KafkaConsumer(
+KafkaSimpleConsumer::KafkaSimpleConsumer(
     const char *brokers, const char *topic, int partition)
   : brokers_(brokers)
   , topicStr_(topic)
@@ -98,7 +98,7 @@ KafkaConsumer::KafkaConsumer(
   defaultOptions_["fetch.wait.max.ms"] = RDKAFKA_CONSUMER_FETCH_WAIT_MAX_MS;
 }
 
-KafkaConsumer::~KafkaConsumer() {
+KafkaSimpleConsumer::~KafkaSimpleConsumer() {
   if (consumer_ != nullptr) {
 
     if (topic_ != nullptr) {
@@ -123,7 +123,7 @@ KafkaConsumer::~KafkaConsumer() {
 //     RD_KAFKA_OFFSET_STORED
 //     RD_KAFKA_OFFSET_TAIL(CNT)
 //
-bool KafkaConsumer::setup(
+bool KafkaSimpleConsumer::setup(
     int64_t offset, const std::map<string, string> *options) {
   char errstr[1024];
 
@@ -184,7 +184,7 @@ bool KafkaConsumer::setup(
   return true;
 }
 
-bool KafkaConsumer::checkAlive() {
+bool KafkaSimpleConsumer::checkAlive() {
   if (consumer_ == nullptr) {
     return false;
   }
@@ -207,7 +207,7 @@ bool KafkaConsumer::checkAlive() {
 //
 // don't forget to call rd_kafka_message_destroy() after consumer()
 //
-rd_kafka_message_t *KafkaConsumer::consumer(int timeout_ms) {
+rd_kafka_message_t *KafkaSimpleConsumer::consumer(int timeout_ms) {
   return rd_kafka_consume(topic_, partition_, timeout_ms);
 }
 
