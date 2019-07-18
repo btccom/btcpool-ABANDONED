@@ -533,34 +533,38 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(
         coinbaseTxHex,
         merkleHashesHex,
         totalTxCountHex); // using thread
-    
-    //save vcash to databse
-  DLOG(INFO) << "found_vcash_block_table : " 
-             << (def()->foundVcashBlockTable_.empty()? "" : def()->foundVcashBlockTable_);
+
+    // save vcash to databse
+    DLOG(INFO) << "found_vcash_block_table : "
+               << (def()->foundVcashBlockTable_.empty()
+                       ? ""
+                       : def()->foundVcashBlockTable_);
     if (!def()->foundVcashBlockTable_.empty()) {
       const string nowStr = date("%F %T");
 
       string sql = Strings::Format(
-            "INSERT INTO `%s` "
-            " (`bitcoin_block_hash`,`aux_block_hash`,"
-            " `created_at`) "
-            " VALUES (\"%s\",\"%s\",\"%s\"); ",
-            def()->foundVcashBlockTable_.c_str(),
-            bitcoinblockhash.GetHex().c_str(),
-            auxblockinfo->vcashBlockHash_.GetHex().c_str(),
-            nowStr.c_str());
-        // try connect to DB
-        MySQLConnection db(poolDB_);
-        for (size_t i = 0; i < 3; i++) {
-          if (db.ping())
-            break;
-          else
-            std::this_thread::sleep_for(3s);
-        }
+          "INSERT INTO `%s` "
+          " (`bitcoin_block_hash`,`aux_block_hash`,"
+          " `created_at`) "
+          " VALUES (\"%s\",\"%s\",\"%s\"); ",
+          def()->foundVcashBlockTable_.c_str(),
+          bitcoinblockhash.GetHex().c_str(),
+          auxblockinfo->vcashBlockHash_.GetHex().c_str(),
+          nowStr.c_str());
 
-        if (db.execute(sql) == false) {
-          LOG(ERROR) << "insert found block failure: " << sql;
-        }
+      DLOG(INFO) << "insert-vcashblock sql : " << sql;
+      // try connect to DB
+      MySQLConnection db(poolDB_);
+      for (size_t i = 0; i < 3; i++) {
+        if (db.ping())
+          break;
+        else
+          std::this_thread::sleep_for(3s);
+      }
+
+      if (db.execute(sql) == false) {
+        LOG(ERROR) << "insert found block failure: " << sql;
+      }
     }
   }
 }
@@ -631,15 +635,18 @@ void BlockMakerBitcoin::_submitNamecoinBlockThread(
       }
 
       // failure
-      LOG(ERROR) << "rpc call fail: " << response;
+      LOG(ERROR) << "rpc call fail: " << response
+                 << "\nrpc request : " << request;
     }
   }
 
   //
   // save to databse
   //
-  DLOG(INFO) << "found_aux_block_table : " 
-             << (def()->foundAuxBlockTable_.empty()? "" : def()->foundAuxBlockTable_);
+  DLOG(INFO) << "found_aux_block_table : "
+             << (def()->foundAuxBlockTable_.empty()
+                     ? ""
+                     : def()->foundAuxBlockTable_);
   if (!def()->foundAuxBlockTable_.empty()) {
     const string nowStr = date("%F %T");
     string sql;
@@ -654,7 +661,7 @@ void BlockMakerBitcoin::_submitNamecoinBlockThread(
         auxBlockHash,
         auxPow,
         nowStr);
-  DLOG(INFO) << "insert auxblock sql : " << sql; 
+    DLOG(INFO) << "insert-auxblock sql : " << sql;
     // try connect to DB
     MySQLConnection db(poolDB_);
     for (size_t i = 0; i < 3; i++) {
@@ -914,7 +921,8 @@ void BlockMakerBitcoin::_submitBlockThread(
     }
 
     // failure
-    LOG(ERROR) << "rpc call fail: " << response;
+    LOG(ERROR) << "rpc call fail: " << response
+               << "\nrpc request : " << request;
   }
 }
 
@@ -959,7 +967,8 @@ void BlockMakerBitcoin::_submitBlockLightThread(
       break;
     }
     // failure
-    LOG(ERROR) << "rpc call fail: " << response;
+    LOG(ERROR) << "rpc call fail: " << response
+               << "\nrpc request : " << request;
   }
 }
 #elif defined(CHAIN_TYPE_BSV)
@@ -1018,7 +1027,8 @@ void BlockMakerBitcoin::_submitBlockLightThread(
       break;
     }
     // failure
-    LOG(ERROR) << "rpc call fail: " << response;
+    LOG(ERROR) << "rpc call fail: " << response
+               << "\nrpc request : " << request;
   }
 }
 #endif // CHAIN_TYPE_BCH
@@ -1234,7 +1244,8 @@ void BlockMakerBitcoin::_submitRskBlockPartialMerkleThread(
     }
 
     // failure
-    LOG(ERROR) << "rpc call fail: " << response;
+    LOG(ERROR) << "rpc call fail: " << response
+               << "\nrpc request : " << request;
   }
 }
 
@@ -1462,7 +1473,8 @@ void BlockMakerBitcoin::_submitVcashBlockPartialMerkleThread(
       coinbaseHex.c_str(),
       merkleHashesHex.c_str());
 
-  LOG(INFO) << "submit block to: " << rpcAddress << "rpc content : " << request;
+  DLOG(INFO) << "submit block to: " << rpcAddress
+             << "rpc content : " << request;
   // try N times
   for (size_t i = 0; i < 3; i++) {
     string response;
@@ -1476,7 +1488,8 @@ void BlockMakerBitcoin::_submitVcashBlockPartialMerkleThread(
     }
 
     // failure
-    LOG(ERROR) << "rpc call fail: " << response;
+    LOG(ERROR) << "submit vcash block failed: " << response
+               << "\nrpc request : " << request;
   }
 }
 #endif
