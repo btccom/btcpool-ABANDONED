@@ -533,30 +533,35 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(
         coinbaseTxHex,
         merkleHashesHex,
         totalTxCountHex); // using thread
-    //
-    // save to databse
-    //
-    // const string nowStr = date("%F %T");
-    // string sql = Strings::Format(
-    //       "INSERT INTO `found_vcash_blocks` "
-    //       " (`bitcoin_block_hash`,`aux_block_hash`,"
-    //       " `created_at`) "
-    //       " VALUES (\"%s\",\"%s\",\"%s\"); ",
-    //       bitcoinblockhash.GetHex().c_str(),
-    //       auxblockinfo->vcashBlockHash_.GetHex().c_str(),
-    //       nowStr.c_str());
-    //   // try connect to DB
-    //   MySQLConnection db(poolDB_);
-    //   for (size_t i = 0; i < 3; i++) {
-    //     if (db.ping())
-    //       break;
-    //     else
-    //       std::this_thread::sleep_for(3s);
-    //   }
+    
+    //save vcash to databse
+  DLOG(INFO) << "found_vcash_block_table : " 
+             << (def()->foundVcashBlockTable_.empty()? "" : def()->foundVcashBlockTable_);
+    if (!def()->foundVcashBlockTable_.empty()) {
+      const string nowStr = date("%F %T");
 
-    //   if (db.execute(sql) == false) {
-    //     LOG(ERROR) << "insert found block failure: " << sql;
-    //   }
+      string sql = Strings::Format(
+            "INSERT INTO `%s` "
+            " (`bitcoin_block_hash`,`aux_block_hash`,"
+            " `created_at`) "
+            " VALUES (\"%s\",\"%s\",\"%s\"); ",
+            def()->foundVcashBlockTable_.c_str(),
+            bitcoinblockhash.GetHex().c_str(),
+            auxblockinfo->vcashBlockHash_.GetHex().c_str(),
+            nowStr.c_str());
+        // try connect to DB
+        MySQLConnection db(poolDB_);
+        for (size_t i = 0; i < 3; i++) {
+          if (db.ping())
+            break;
+          else
+            std::this_thread::sleep_for(3s);
+        }
+
+        if (db.execute(sql) == false) {
+          LOG(ERROR) << "insert found block failure: " << sql;
+        }
+    }
   }
 }
 
@@ -633,6 +638,8 @@ void BlockMakerBitcoin::_submitNamecoinBlockThread(
   //
   // save to databse
   //
+  DLOG(INFO) << "found_aux_block_table : " 
+             << (def()->foundAuxBlockTable_.empty()? "" : def()->foundAuxBlockTable_);
   if (!def()->foundAuxBlockTable_.empty()) {
     const string nowStr = date("%F %T");
     string sql;
@@ -642,11 +649,12 @@ void BlockMakerBitcoin::_submitNamecoinBlockThread(
         "  `aux_pow`,`created_at`) "
         " VALUES (\"%s\",\"%s\",\"%s\",\"%s\"); ",
         def()->foundAuxBlockTable_.empty() ? "found_nmc_blocks"
-                                           : def()->foundAuxBlockTable_,
+                                           : def()->foundAuxBlockTable_.c_str(),
         bitcoinBlockHash,
         auxBlockHash,
         auxPow,
         nowStr);
+  DLOG(INFO) << "insert auxblock sql : " << sql; 
     // try connect to DB
     MySQLConnection db(poolDB_);
     for (size_t i = 0; i < 3; i++) {

@@ -43,7 +43,7 @@ struct BlockMakerDefinition {
   vector<NodeDefinition> nodes;
   string solvedShareTopic_;
   string foundAuxBlockTable_;
-  // String vcashFoundBlockTable_;
+  string foundVcashBlockTable_;
 
   virtual ~BlockMakerDefinition() {}
 };
