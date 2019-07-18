@@ -126,7 +126,7 @@ uint32_t GraphWeightGrin(uint64_t height, uint32_t edgeBits) {
   auto bitsOverMin =
       edgeBits <= DEFAULT_MIN_EDGE_BITS ? 0 : edgeBits - DEFAULT_MIN_EDGE_BITS;
   auto expiryHeight = (1 << bitsOverMin) * YEAR_HEIGHT;
-  if (height >= expiryHeight) {
+  if (edgeBits < 32 && height >= expiryHeight) {
     auto weeks = 1 + (height - expiryHeight) / WEEK_HEIGHT;
     xprEdgeBits = xprEdgeBits > weeks ? xprEdgeBits - weeks : 0;
   }
