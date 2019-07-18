@@ -74,7 +74,7 @@ void BlockMakerEth::processSolvedShare(rd_kafka_message_t *rkmessage) {
   std::string extraNonceStr;
   if (r["extraNonce"].type() == Utilities::JS::type::Int) {
     auto extraNonce = r["extraNonce"].uint32();
-    extraNonceStr = fmt::format(",{}", extraNonce);
+    extraNonceStr = fmt::format(",\"0x{:08x}\"", extraNonce);
     LOG(INFO) << "submit a block with extra nonce " << extraNonce;
   } else if (r["extraNonce"].type() == Utilities::JS::type::Str) {
     auto extraNonce = r["extraNonce"].str();
