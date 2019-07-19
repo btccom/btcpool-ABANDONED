@@ -81,6 +81,10 @@ StratumSession::~StratumSession() {
       << "close stratum session, ip: " << clientIp_ << ", name: \""
       << worker_.fullName_ << "\""
       << ", agent: \"" << clientAgent_ << "\"";
+
+  // Release actual miner objects first as they depends on other members of
+  // session
+  dispatcher_.reset();
   evbuffer_free(buffer_);
   bufferevent_free(bev_);
 }
