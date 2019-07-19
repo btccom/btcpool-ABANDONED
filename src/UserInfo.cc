@@ -476,20 +476,20 @@ void UserInfo::runThreadUpdate(size_t chainId) {
   //
 
   const time_t updateInterval = 10; // seconds
-  time_t lastUpdateTime = time(nullptr);
+  time_t lastUpdateTime = 0;
 
   while (running_) {
+    if (lastUpdateTime + updateInterval > time(nullptr)) {
+      std::this_thread::sleep_for(500ms);
+      continue;
+    }
+
     int32_t res = incrementalUpdateUsers(chainId);
     lastUpdateTime = time(nullptr);
 
     if (res > 0) {
       LOG(INFO) << "chain " << server_->chainName(chainId)
                 << " update users count: " << res;
-    }
-
-    if (lastUpdateTime + updateInterval > time(nullptr)) {
-      std::this_thread::sleep_for(500ms);
-      continue;
     }
   }
 }
