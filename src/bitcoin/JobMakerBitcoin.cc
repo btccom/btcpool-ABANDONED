@@ -277,14 +277,12 @@ bool JobMakerHandlerBitcoin::addRawGbt(const string &msg) {
       const uint64_t bestKey = rawgbtMap_.rbegin()->first;
       const uint32_t bestTime = gbtKeyGetTime(bestKey);
       const uint32_t bestHeight = gbtKeyGetHeight(bestKey);
-      const bool bestIsEmpty = gbtKeyIsEmptyBlock(bestKey);
 
       // To prevent the job's block height ups and downs
       // when the block height of two bitcoind is not synchronized.
       // The block height downs must past twice the time of stratumJobInterval_
       // without the higher height GBT received.
-      if (height < bestHeight && !bestIsEmpty &&
-          gbtTime - bestTime < 2 * def()->jobInterval_) {
+      if (height < bestHeight && gbtTime - bestTime < 2 * def()->jobInterval_) {
         LOG(WARNING) << "skip low height GBT. height: " << height
                      << ", best height: " << bestHeight
                      << ", elapsed time after best GBT: "
