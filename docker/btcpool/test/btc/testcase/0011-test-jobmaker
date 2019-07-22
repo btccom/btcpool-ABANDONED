@@ -24,10 +24,14 @@ outputTestData() {
         "$BASE_DIR/testdata/rawgbts-2.log" \
         "$BASE_DIR/testdata/rawgbts-3.log" \
     | while read line; do
-        line=${line/@TIME@/$(date +%s)}
-        echo $line
-        echo send new gbt at $(date) >&2
-        sleep 1
+        if [[ $line =~ '^[0-9]+$' ]]; then
+            sleep $line
+        else
+            line=${line/@TIME@/$(date +%s)}
+            echo $line
+            echo send new gbt at $(date) >&2
+            sleep 1
+        fi
     done
 }
 
