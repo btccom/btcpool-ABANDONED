@@ -479,30 +479,30 @@ void ServerBitcoin::checkShare(
 
   auto exJobPtr = std::static_pointer_cast<StratumJobExBitcoin>(
       GetJobRepository(chainId)->getStratumJobEx(share.jobid()));
+  int32_t shareStatus = StratumStatus::UNKNOWN; // init shareStatus
+
   if (exJobPtr == nullptr) {
     returnFn(StratumStatus::JOB_NOT_FOUND);
     return;
   }
+
   if (exJobPtr->isStale()) {
-    returnFn(StratumStatus::STALE_SHARE);
-    return;
+    shareStatus = StratumStatus::STALE_SHARE;
   }
 
   auto sjob = std::static_pointer_cast<StratumJobBitcoin>(exJobPtr->sjob_);
 
-  if (nTime < sjob->minTime_) {
-    returnFn(StratumStatus::TIME_TOO_OLD);
-    return;
+  if (StratumStatus::UNKNOWN == shareStatus && nTime < sjob->minTime_) {
+    shareStatus = StratumStatus::TIME_TOO_OLD;
   }
-  if (nTime > sjob->nTime_ + 600) {
-    returnFn(StratumStatus::TIME_TOO_NEW);
-    return;
+  if (StratumStatus::UNKNOWN == shareStatus && nTime > sjob->nTime_ + 600) {
+    shareStatus = StratumStatus::TIME_TOO_NEW;
   }
 
   // check version mask
-  if (versionMask != 0 && ((~versionMask_) & versionMask) != 0) {
-    returnFn(StratumStatus::ILLEGAL_VERMASK);
-    return;
+  if (StratumStatus::UNKNOWN == shareStatus && versionMask != 0 &&
+      ((~versionMask_) & versionMask) != 0) {
+    shareStatus = StratumStatus::ILLEGAL_VERMASK;
   }
 
   CBlockHeader header;
@@ -525,11 +525,13 @@ void ServerBitcoin::checkShare(
                          chainId,
                          share,
                          jobTarget,
+                         shareStatus,
                          workFullName,
                          returnFn = std::move(returnFn),
                          sjob,
                          header,
                          coinbaseBin]() {
+    int32_t shareStatusReturn = shareStatus;
 #ifdef CHAIN_TYPE_LTC
     uint256 blkHash = header.GetPoWHash();
 #else
@@ -553,7 +555,12 @@ void ServerBitcoin::checkShare(
     // check equihash solution
     if (isEnableSimulator_ == false &&
         CheckEquihashSolution(&header, Params()) == false) {
-      returnFn(StratumStatus::INVALID_SOLUTION);
+      if (StratumStatus::UNKNOWN == shareStatusReturn) {
+        shareStatusReturn = StratumStatus::INVALID_SOLUTION;
+      }
+      dispatch([shareStatusReturn, returnFn = std::move(returnFn)]() {
+        returnFn(shareStatusReturn);
+      });
       return;
     }
 #endif
@@ -561,7 +568,8 @@ void ServerBitcoin::checkShare(
     //
     // found new block
     //
-    if (isSubmitInvalidBlock_ == true || bnBlockHash <= bnNetworkTarget) {
+    if (StratumStatus::UNKNOWN == shareStatusReturn &&
+        (isSubmitInvalidBlock_ == true || bnBlockHash <= bnNetworkTarget)) {
       //
       // found new block
       //
@@ -721,17 +729,18 @@ void ServerBitcoin::checkShare(
                << ", networkTarget: " << sjob->networkTarget_.ToString();
 
     // check share diff
-    if (isEnableSimulator_ == false &&
+    if (StratumStatus::UNKNOWN == shareStatusReturn &&
+        isEnableSimulator_ == false &&
         bnBlockHash > UintToArith256(jobTarget)) {
-      dispatch([returnFn = std::move(returnFn)]() {
-        returnFn(StratumStatus::LOW_DIFFICULTY);
-      });
-      return;
+      shareStatusReturn = StratumStatus::LOW_DIFFICULTY;
     }
 
-    // reach here means an valid share
-    dispatch([returnFn = std::move(returnFn)]() {
-      returnFn(StratumStatus::ACCEPT);
+    // reach here and shareStatusReturn is initvalue means an valid share
+    if (StratumStatus::UNKNOWN == shareStatusReturn)
+      shareStatusReturn = StratumStatus::ACCEPT;
+
+    dispatch([shareStatusReturn, returnFn = std::move(returnFn)]() {
+      returnFn(shareStatusReturn);
     });
     return;
   });
