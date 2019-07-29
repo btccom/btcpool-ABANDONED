@@ -233,7 +233,7 @@ int main(int argc, char **argv) {
           cfg.lookup("kafka.out_topic"));
     }
 
-    if (!gKafkaRepeater->init()) {
+    if (!gKafkaRepeater->init(cfg.lookup("kafka"))) {
       LOG(FATAL) << "kafka repeater init failed";
       return 1;
     }
