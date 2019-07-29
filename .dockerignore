@@ -29,7 +29,6 @@ install/run_*/
 /docker/
 !/docker/btcpool/deploy/
 /docs/
-/tools/
 /Dockerfile
 /README.md
 /.dockerignore

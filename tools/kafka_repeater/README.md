@@ -24,3 +24,119 @@ cp ../kafka_repeater.cfg .
 mkdir log
 ./kafka_repeater -c kafka_repeater.cfg -l log
 ```
+
+### SSL Authorize (only for out_brokers)
+
+```cfg
+kafka = {
+    in_brokers = "127.0.0.1:9092";
+    in_topic = "BtcShare";
+    # Used to record progress / offsets.
+    # Change it to reset the progress (will forward from the beginning).
+    # The two repeater cannot have the same group id, otherwise the result is undefined.
+    in_group_id = "btc_forward_1";
+
+    out_brokers = "remote-host:9092";
+    out_topic = "Share";
+
+    # authorize settings (only for out_brokers)
+    #
+    # To generate a key and a self-signed certificate, run:
+    # openssl genrsa -out client.key 2048
+    # openssl req -new -key client.key -out client.crt.req
+    # openssl x509 -req -days 365 -in client.crt.req -signkey client.key -out client.crt
+    # cp client.crt ca.crt
+    #
+    security = {
+        protocol = "ssl";
+    };
+    ssl = {
+        ca = {
+            location = "ca.crt";
+        };
+        certificate = {
+            location = "client.crt";
+        };
+        key = {
+            location = "client.key";
+            password = "";
+        };
+    };
+};
+
+...
+```
+
+## Docker
+
+### Build
+
+```
+docker build -t kafka-repeater --build-arg APT_MIRROR_URL=http://mirrors.aliyun.com/ubuntu -f Dockerfile ../..
+```
+
+### Run
+
+#### Forward only
+
+```
+docker run -it --restart always -d \
+    --name kafka-repeater \
+    -e kafka_in_brokers="local-kafka:9092" \
+    -e kafka_in_topic="testin" \
+    -e kafka_in_group_id="testgrp" \
+    -e kafka_out_brokers="remote-kafka:9092" \
+    -e kafka_out_topic="testout" \
+    kafka-repeater
+```
+
+
+#### Forward to a kafka cluster that requiring SSL authentication
+
+```
+docker run -it --restart always -d \
+    --name kafka-repeater \
+    -e kafka_in_brokers="local-kafka:9092" \
+    -e kafka_in_topic="testin" \
+    -e kafka_in_group_id="testgrp" \
+    -e kafka_out_brokers="remote-kafka:9092" \
+    -e kafka_out_topic="testout" \
+    -e kafka_out_use_ssl="true" \
+    -e kafka_ssl_ca_content="<cert-text>" \
+    -e kafka_ssl_certificate_content="<cert-text>" \
+    -e kafka_ssl_key_content="<cert-text>" \
+    -e kafka_ssl_key_password="" \
+    kafka-repeater
+```
+
+`<cert-text>`: Open your certificate and paste the text it contains here. You may need to escape the newline as `\n`.
+
+#### Full parameters
+
+```
+docker run -it --restart always -d \
+    --name kafka-repeater \
+    -e log_repeated_number_display_interval="10" \
+    -e kafka_in_brokers="local-kafka:9092" \
+    -e kafka_in_topic="testin" \
+    -e kafka_in_group_id="testgrp" \
+    -e kafka_out_brokers="remote-kafka:9092" \
+    -e kafka_out_topic="testout" \
+    -e kafka_out_use_ssl="false" \
+    -e kafka_ssl_ca_content="<cert-text>" \
+    -e kafka_ssl_certificate_content="<cert-text>" \
+    -e kafka_ssl_key_content="<cert-text>" \
+    -e kafka_ssl_key_password="" \
+    -e message_convertor="<convertor>" \
+    -e share_diff_changer_job_brokers="local-kafka:9092" \
+    -e share_diff_changer_job_topic="testjob" \
+    -e share_diff_changer_job_group_id="testgrp" \
+    kafka-repeater
+```
+
+`<convertor>`: One of the following:
+* share_diff_changer_bitcoin_v1
+* share_diff_changer_bitcoin_v2_to_v1
+* share_printer_bitcoin_v1
+* message_printer_print_hex
+* Any other value or empty (means forwarding only)

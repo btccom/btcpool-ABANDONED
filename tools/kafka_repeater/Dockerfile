@@ -1,0 +1,74 @@
+#
+# Dockerfile
+#
+# @author hanjiang.yu@bitmain.com
+# @copyright btc.com
+# @since 2018-12-01
+#
+#
+FROM ubuntu:18.04 as build
+LABEL maintainer="Yihao Peng <yihao.peng@bitmain.com>"
+
+ARG APT_MIRROR_URL
+ARG BUILD_JOBS=1
+
+COPY docker/btcpool/deploy/update_apt_sources.sh /tmp/
+RUN /tmp/update_apt_sources.sh
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    autoconf \
+    automake \
+    build-essential \
+    cmake \
+    libboost-all-dev \
+    libconfig++-dev \
+    libgoogle-glog-dev \
+    libssl-dev \
+    libtool \
+    libzookeeper-mt-dev \
+    pkg-config \
+    python \
+    wget \
+    zlib1g-dev \
+    && apt-get autoremove && apt-get clean q&& rm -rf /var/lib/apt/lists/*
+
+# Build librdkafka static library
+# Remove dynamic libraries of librdkafka
+# In this way, the constructed deb package will
+# not have dependencies that not from software sources.
+RUN cd /tmp && wget https://github.com/edenhill/librdkafka/archive/0.9.1.tar.gz && \
+    [ $(sha256sum 0.9.1.tar.gz | cut -d " " -f 1) = "5ad57e0c9a4ec8121e19f13f05bacc41556489dfe8f46ff509af567fdee98d82" ] && \
+    tar zxf 0.9.1.tar.gz && cd librdkafka-0.9.1 && \
+    ./configure && make && make install && rm -rf /tmp/* && \
+    cd /usr/local/lib && \
+    find . | grep 'rdkafka' | grep '.so' | xargs rm
+
+COPY . /work/btcpool
+
+RUN mkdir /work/build && cd /work/build && \
+    cmake -DPOOL__GENERATE_DEB_PACKAGE=ON /work/btcpool/tools/kafka_repeater && \
+    make package -j$BUILD_JOBS
+
+######### Release image #########
+FROM ubuntu:18.04
+LABEL maintainer="Yihao Peng <yihao.peng@bitmain.com>"
+
+ARG APT_MIRROR_URL
+
+COPY docker/btcpool/deploy/update_apt_sources.sh /tmp/
+RUN /tmp/update_apt_sources.sh
+
+# Copy deb packages and scripts
+COPY --from=build /work/build/*.deb /work/package/
+COPY --from=build /work/btcpool/install/cfg-generator /work/cfg-generator
+COPY tools/kafka_repeater/entrypoint.sh /
+
+# Install utilities & btcpool w/ debug symbols
+RUN apt-get update && \
+    apt-get install -y php-cli /work/package/*.deb && \
+    apt-get autoremove && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+ENTRYPOINT ["/entrypoint.sh"]
