@@ -1,6 +1,9 @@
 #!/usr/bin/env php
 <?php
 require_once __DIR__.'/../lib/init.php';
+// PHP syntax for templates
+// https://www.php.net/manual/control-structures.alternative-syntax.php
+// https://www.php.net/manual/language.basic-syntax.phpmode.php
 ?>
 #
 # kafka repeater cfg
@@ -21,14 +24,26 @@ kafka = {
     out_topic = "<?=notNullTrim('kafka_out_topic')?>";
 
 <?php
-if (isTrue('kafka_out_use_ssl')) {
-    $ca = notNull('kafka_ssl_ca_content');
-    $certificate = notNull('kafka_ssl_certificate_content');
-    $key = notNull('kafka_ssl_key_content');
+$protocol = 'plaintext';
 
-    file_put_contents('/tmp/ca.crt', $ca);
-    file_put_contents('/tmp/client.crt', $certificate);
-    file_put_contents('/tmp/client.key', $key);
+if (isTrue('kafka_out_use_ssl')):
+    $protocol = 'ssl';
+
+    $ca = optional('kafka_ssl_ca_content');
+    $certificate = optional('kafka_ssl_certificate_content');
+    $key = optional('kafka_ssl_key_content');
+
+    if (notEmpty($ca)) file_put_contents('/tmp/ca.crt', $ca);
+    if (notEmpty($certificate)) file_put_contents('/tmp/client.crt', $certificate);
+    if (notEmpty($key)) file_put_contents('/tmp/client.key', $key);
+endif;
+
+$usr = optional('kafka_sasl_username');
+$pwd = optional('kafka_sasl_password');
+
+if (notEmpty($usr)):
+    $protocol = 'sasl_'.$protocol;
+endif;
 ?>
     # authorize settings (only for out_brokers)
     #
@@ -39,23 +54,34 @@ if (isTrue('kafka_out_use_ssl')) {
     # cp client.crt ca.crt
     #
     security = {
-        protocol = "ssl";
+        protocol = "<?=$protocol?>";
     };
+<?php if (isTrue('kafka_out_use_ssl')): ?>
     ssl = {
+    <?php if (notEmpty($ca)): ?>
         ca = {
             location = "/tmp/ca.crt";
         };
+    <?php endif; ?>
+    <?php if (notEmpty($certificate)): ?>
         certificate = {
             location = "/tmp/client.crt";
         };
+    <?php endif; ?>
+    <?php if (notEmpty($key)): ?>
         key = {
             location = "/tmp/client.key";
             password = "<?=optional('kafka_ssl_key_password')?>";
         };
+    <?php endif; ?>
     };
-<?php
-} // kafka_out_use_ssl
-?>
+<?php endif; // kafka_out_use_ssl ?>
+<?php if (notEmpty($usr)): ?>
+    sasl = {
+        username = "<?=$usr?>";
+        password = "<?=$pwd?>";
+    };
+<?php endif; // usr pwd ?>
 };
 
 ###
@@ -81,7 +107,7 @@ share_convertor = {
 if (in_array($convertor, [
     'share_diff_changer_bitcoin_v1',
     'share_diff_changer_bitcoin_v2_to_v1'
-])) {
+])):
 ?>
 share_diff_changer = {
     job_brokers = "<?=notNullTrim('share_diff_changer_job_brokers')?>";
@@ -105,10 +131,10 @@ share_diff_changer = {
     #
     # Since the difficulty changing of bitcoin (including BCH) is not very fast,
     # setting a time offset within 1 minute will not have a significant effect on users' earning.
-    job_time_offset = 30;
+    job_time_offset = <?=optionalTrim('share_diff_changer_job_time_offset', '30')?>;
 };
 <?php
-} // share_diff_changer
+endif; // share_diff_changer
 ?>
 
 # Print shares only, no forwarding

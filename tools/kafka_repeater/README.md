@@ -25,7 +25,7 @@ mkdir log
 ./kafka_repeater -c kafka_repeater.cfg -l log
 ```
 
-### SSL Authorize (only for out_brokers)
+### SSL+SASL Authorize (only for out_brokers)
 
 ```cfg
 kafka = {
@@ -48,19 +48,27 @@ kafka = {
     # cp client.crt ca.crt
     #
     security = {
-        protocol = "ssl";
+        # plaintext, sasl_plaintext, ssl, sasl_ssl
+        protocol = "ssl_sasl";
     };
     ssl = {
         ca = {
             location = "ca.crt";
         };
+        # Can be omitted if client verification is not performed
         certificate = {
             location = "client.crt";
         };
+        # Can be omitted if client verification is not performed
         key = {
             location = "client.key";
             password = "";
         };
+    };
+    # Can be omitted if SASL authorization is not performed
+    sasl = {
+        username = "test";
+        password = "123";
     };
 };
 
@@ -111,6 +119,26 @@ docker run -it --restart always -d \
 
 `<cert-text>`: Open your certificate and paste the text it contains here. You may need to escape the newline as `\n`.
 
+#### Forward to a kafka cluster that requiring SSL+SASL authentication
+
+```
+docker run -it --restart always -d \
+    --name kafka-repeater \
+    -e kafka_in_brokers="local-kafka:9092" \
+    -e kafka_in_topic="testin" \
+    -e kafka_in_group_id="testgrp" \
+    -e kafka_out_brokers="remote-kafka:9092" \
+    -e kafka_out_topic="testout" \
+    -e kafka_out_use_ssl="true" \
+    -e kafka_ssl_ca_content="<cert-text>" \
+    -e kafka_sasl_username="test" \
+    -e kafka_sasl_password="123" \
+    kafka-repeater
+```
+
+`<cert-text>`: Open your certificate and paste the text it contains here. You may need to escape the newline as `\n`.
+
+
 #### Full parameters
 
 ```
@@ -127,10 +155,13 @@ docker run -it --restart always -d \
     -e kafka_ssl_certificate_content="<cert-text>" \
     -e kafka_ssl_key_content="<cert-text>" \
     -e kafka_ssl_key_password="" \
+    -e kafka_sasl_username="test" \
+    -e kafka_sasl_password="123" \
     -e message_convertor="<convertor>" \
     -e share_diff_changer_job_brokers="local-kafka:9092" \
     -e share_diff_changer_job_topic="testjob" \
     -e share_diff_changer_job_group_id="testgrp" \
+    -e share_diff_changer_job_time_offset="30" \
     kafka-repeater
 ```
 

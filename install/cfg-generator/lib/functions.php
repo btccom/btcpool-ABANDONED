@@ -70,6 +70,10 @@ function isTrue($envName) {
     return (bool)$value;
 }
 
+function notEmpty($var) {
+    return !empty($var);
+}
+
 function toString($obj) {
     return json_encode($obj, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 }

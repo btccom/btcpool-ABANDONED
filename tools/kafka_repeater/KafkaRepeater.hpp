@@ -84,6 +84,8 @@ public:
     loadOption(cfg, "ssl.certificate.location", options);
     loadOption(cfg, "ssl.key.location", options);
     loadOption(cfg, "ssl.key.password", options);
+    loadOption(cfg, "sasl.username", options);
+    loadOption(cfg, "sasl.password", options);
 
     if (!producer_.setup(&options)) {
       LOG(ERROR) << "kafka producer setup failure";
