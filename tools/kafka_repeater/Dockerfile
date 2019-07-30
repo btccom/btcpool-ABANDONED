@@ -27,6 +27,7 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     libtool \
     libzookeeper-mt-dev \
+    libsasl2-dev \
     pkg-config \
     python \
     wget \

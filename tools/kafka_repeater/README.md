@@ -9,6 +9,23 @@ kafka Repeater
 ### build
 
 ```bash
+apt-get update && apt-get install -y \
+    autoconf \
+    automake \
+    build-essential \
+    cmake \
+    libboost-all-dev \
+    libconfig++-dev \
+    libgoogle-glog-dev \
+    libssl-dev \
+    libtool \
+    libzookeeper-mt-dev \
+    libsasl2-dev \
+    pkg-config \
+    python \
+    wget \
+    zlib1g-dev
+
 mkdir build
 cd build
 cmake ..
