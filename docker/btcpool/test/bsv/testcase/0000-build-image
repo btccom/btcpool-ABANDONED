@@ -1,0 +1,35 @@
+#!/bin/bash
+set -e
+
+DOCKER_COMPOSE="docker-compose --no-ansi"
+
+BUILD_ARGS="--build-arg BUILD_JOBS=$(nproc) --build-arg BUILD_TESTING=ON"
+if [ "x$APT_MIRROR_URL" != "x" ]; then
+    BUILD_ARGS="$BUILD_ARGS --build-arg APT_MIRROR_URL=$APT_MIRROR_URL"
+fi
+if [ "x$NO_CACHE" != "x" ]; then
+    BUILD_ARGS="$BUILD_ARGS --no-cache"
+fi
+
+if [ "$BUILD_BASE_IMAGE" != "" ]; then
+    echo "build base image..."
+    cd "$BASE_DIR/../../base-image"
+    docker build -t $BASE_IMAGE -f Dockerfile.btc $BUILD_ARGS . >>$STDOUT
+    echo "done"
+fi
+
+echo "build btcpool-$TEST_SUITE image..."
+cd "$BASE_DIR/../../deploy"
+docker build -t btccom/btcpool-$TEST_SUITE -f Dockerfile $BUILD_ARGS --build-arg BASE_IMAGE=$BASE_IMAGE ../../.. >>$STDOUT
+echo "done"
+
+if [ -f "$BASE_DIR/docker-compose.yml" ]; then
+    echo "build docker compose..."
+    cd "$BASE_DIR"
+    $DOCKER_COMPOSE build >>$STDOUT
+    echo "done"
+
+    echo "clear old docker compose..."
+    $DOCKER_COMPOSE down >>$STDOUT
+    echo "done"
+fi
