@@ -1,30 +1,5 @@
-#
-# Dockerfile
-#
-# @author yihao.peng@bitmain.com
-#
-FROM phusion/baseimage:0.10.2
-MAINTAINER YihaoPeng <yihao.peng@bitmain.com>
-
-ENV HOME /root
-ENV TERM xterm
-CMD ["/sbin/my_init"]
-
-# use aliyun source
-ADD sources-aliyun.com.list /etc/apt/sources.list
-
-RUN apt-get update
-RUN apt-get install -y build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils python3
-RUN apt-get install -y libboost-all-dev libzmq3-dev curl wget net-tools
-
-# build bitcoind
-RUN mkdir ~/source
-RUN cd ~/source && wget https://github.com/bitcoin/bitcoin/archive/v0.16.3.tar.gz
-RUN cd ~/source \
-  && tar zxf v0.16.3.tar.gz && cd bitcoin-0.16.3 \
-  && ./autogen.sh \
-  && ./configure --disable-wallet --disable-tests \
-  && make -j$(nproc) && make install
+FROM btccom/bitcoind:0.16.3
+RUN rm -rf /etc/service/bitcoind
 
 # mkdir bitcoind data dir
 RUN mkdir -p /work/bitcoin1 /work/bitcoin2
