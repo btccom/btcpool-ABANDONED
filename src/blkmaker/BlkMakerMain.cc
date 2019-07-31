@@ -140,8 +140,7 @@ shared_ptr<BlockMakerDefinition> createDefinition(const Setting &setting) {
   readFromSetting(setting, "solved_share_topic", def->solvedShareTopic_);
   readFromSetting(
       setting, "found_aux_block_table", def->foundAuxBlockTable_, true);
-  readFromSetting(
-      setting, "found_vcash_block_table", def->foundVcashBlockTable_, true);
+  readFromSetting(setting, "aux_chain_name", def->auxChainName_, true);
 
   const Setting &nodes = setting["nodes"];
   for (int i = 0; i < nodes.getLength(); ++i) {

@@ -82,6 +82,8 @@ protected:
 
   mutex jobIdAuxBlockInfoLock_;
   std::map<uint64_t, shared_ptr<AuxBlockInfo>> jobId2AuxHash_;
+  mutex jobId2RskMMHashLock_;
+  std::map<uint64_t, uint256> jobId2RskHashForMergeMining_;
 
   void insertRawGbt(
       const uint256 &gbtHash, shared_ptr<vector<CTransactionRef>> vtxs);
@@ -176,7 +178,8 @@ protected:
       const string &blockHeaderHex,
       const string &coinbaseHex,
       const string &merkleHashesHex,
-      const string &totalTxCount);
+      const string &totalTxCount,
+      const string &rskHashForMergeMiningHex);
   void _submitRskBlockPartialMerkleThread(
       const string &rpcAddress,
       const string &rpcUserPwd,
@@ -184,23 +187,33 @@ protected:
       const string &blockHeaderHex,
       const string &coinbaseHex,
       const string &merkleHashesHex,
-      const string &totalTxCount);
-  void submitVcashBlockPartialMerkleNonBlocking(
+      const string &totalTxCount,
+      const string &rskHashForMergeMiningHex);
+  void submitVcashBlockNonBlocking(
       const string &rpcAddress,
       const string &rpcUserPwd,
       const string &blockHashHex,
       const string &blockHeaderHex,
       const string &coinbaseHex,
       const string &merkleHashesHex,
-      const string &totalTxCount);
-  void _submitVcashBlockPartialMerkleThread(
+      const string &totalTxCount,
+      const string &bitcoinblockhash);
+  void _submitVcashBlockThread(
       const string &rpcAddress,
       const string &rpcUserPwd,
       const string &blockHashHex,
       const string &blockHeaderHex,
       const string &coinbaseHex,
       const string &merkleHashesHex,
-      const string &totalTxCount);
+      const string &totalTxCount,
+      const string &bitcoinblockhash);
+  void insertAuxBlock2Mysql(
+      const string auxtablename,
+      const string chainnane,
+      const string auxblockhash,
+      const string parentblockhask,
+      const string submitresponse,
+      const string auxpow = "");
   bool submitToRskNode();
 #endif
 
