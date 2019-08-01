@@ -3,11 +3,6 @@ set -e
 source "$BASE_DIR/helper/functions.sh"
 
 PID=$$
-MAIN_CONTAINER_NAME="btc_gbtmaker_1"
-KAFKA_RESULT="/tmp/btcpool-test-gbtmaker.$PID.log"
-KAFKA_CONSUMER="docker exec btc_kafka_1 /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092"
-BITCOIN_CLI="docker exec btc_bitcoind_1 bitcoin-cli -datadir=/work/bitcoin1 -rpcclienttimeout=5"
-WAIT_FOR_IT="WAIT_FOR_IT $MAIN_CONTAINER_NAME"
 DOCKER_COMPOSE="docker-compose --no-ansi"
 
 cd "$BASE_DIR"
@@ -16,7 +11,16 @@ echo "clear old docker compose..."
 $DOCKER_COMPOSE down >>$STDOUT
 
 echo "start gbtmaker (5s)..."
-$DOCKER_COMPOSE up gbtmaker >>$STDOUT &
+$DOCKER_COMPOSE up -d gbtmaker >>$STDOUT
+
+MAIN_CONTAINER_NAME="$($DOCKER_COMPOSE ps -q gbtmaker)"
+KAFKA_RESULT="/tmp/btcpool-test-gbtmaker.$PID.log"
+KAFKA_CONSUMER="docker exec $($DOCKER_COMPOSE ps -q kafka) /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092"
+BITCOIN_CLI="docker exec $($DOCKER_COMPOSE ps -q bitcoind) bitcoin-cli -datadir=/work/bitcoin1 -rpcclienttimeout=5"
+WAIT_FOR_IT="WAIT_FOR_IT $MAIN_CONTAINER_NAME"
+
+echo $MAIN_CONTAINER_NAME
+
 $WAIT_FOR_IT kafka:9092
 
 {

@@ -3,11 +3,6 @@ set -e
 source "$BASE_DIR/helper/functions.sh"
 
 PID=$$
-MAIN_CONTAINER_NAME="btc_sserver_1"
-SSERVER_RESULT="/tmp/btcpool-test-sserver.$PID.log"
-KAFKA_PRODUCER="docker exec -i btc_kafka_1 /opt/kafka/bin/kafka-console-producer.sh --broker-list kafka:9092"
-WAIT_FOR_IT="WAIT_FOR_IT $MAIN_CONTAINER_NAME"
-WAIT_FOR_PORT="WAIT_FOR_PORT $MAIN_CONTAINER_NAME"
 DOCKER_COMPOSE="docker-compose --no-ansi"
 
 cd "$BASE_DIR"
@@ -16,7 +11,14 @@ echo "clear old docker compose..."
 $DOCKER_COMPOSE down >>$STDOUT
 
 echo "start sserver (5s)..."
-$DOCKER_COMPOSE up sserver >>$STDOUT &
+$DOCKER_COMPOSE up -d sserver >>$STDOUT
+
+MAIN_CONTAINER_NAME="$($DOCKER_COMPOSE ps -q sserver)"
+SSERVER_RESULT="/tmp/btcpool-test-sserver.$PID.log"
+KAFKA_PRODUCER="docker exec -i $($DOCKER_COMPOSE ps -q kafka) /opt/kafka/bin/kafka-console-producer.sh --broker-list kafka:9092"
+WAIT_FOR_IT="WAIT_FOR_IT $MAIN_CONTAINER_NAME"
+WAIT_FOR_PORT="WAIT_FOR_PORT $MAIN_CONTAINER_NAME"
+
 $WAIT_FOR_IT kafka:9092
 $WAIT_FOR_PORT 3333
 
