@@ -47,7 +47,7 @@ include_directories(${PROJECT_ROOT}/3rdparty ${PROJECT_ROOT}/src ${PROJECT_ROOT}
 
 set(THIRD_LIBRARIES ${GLOG_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${Boost_LIBRARIES} 
                     ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} ${PTHREAD_LIBRARIES} ${ZLIB_LIBRARIES}
-                    ${SASL2_LIBRARIES})
+                    ${SASL2_LIBRARIES} -ldl)
 
 file(GLOB SOURCES
     ${PROJECT_ROOT}/src/Kafka.cc

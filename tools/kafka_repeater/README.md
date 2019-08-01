@@ -26,6 +26,16 @@ apt-get update && apt-get install -y \
     wget \
     zlib1g-dev
 
+# Build librdkafka static library
+# Remove dynamic libraries of librdkafka
+# In this way, the constructed deb package will
+# not have dependencies that not from software sources.
+wget https://github.com/edenhill/librdkafka/archive/v1.1.0.tar.gz
+tar zxf v1.1.0.tar.gz
+cd librdkafka-1.1.0
+./configure && make && make install
+cd /usr/local/lib && find . | grep 'rdkafka' | grep '.so' | xargs rm
+
 mkdir build
 cd build
 cmake ..
@@ -87,6 +97,8 @@ kafka = {
         username = "test";
         password = "123";
     };
+    # debug options
+    debug = "all";
 };
 
 ...
@@ -148,6 +160,8 @@ docker run -it --restart always -d \
     -e kafka_out_topic="testout" \
     -e kafka_out_use_ssl="true" \
     -e kafka_ssl_ca_content="<cert-text>" \
+    -e kafka_ssl_certificate_content="<cert-text>" \
+    -e kafka_ssl_key_content="<cert-text>" \
     -e kafka_sasl_username="test" \
     -e kafka_sasl_password="123" \
     kafka-repeater

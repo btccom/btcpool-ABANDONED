@@ -38,9 +38,9 @@ RUN apt-get update && apt-get install -y \
 # Remove dynamic libraries of librdkafka
 # In this way, the constructed deb package will
 # not have dependencies that not from software sources.
-RUN cd /tmp && wget https://github.com/edenhill/librdkafka/archive/0.9.1.tar.gz && \
-    [ $(sha256sum 0.9.1.tar.gz | cut -d " " -f 1) = "5ad57e0c9a4ec8121e19f13f05bacc41556489dfe8f46ff509af567fdee98d82" ] && \
-    tar zxf 0.9.1.tar.gz && cd librdkafka-0.9.1 && \
+RUN cd /tmp && wget https://github.com/edenhill/librdkafka/archive/v1.1.0.tar.gz && \
+    [ $(sha256sum v1.1.0.tar.gz | cut -d " " -f 1) = "123b47404c16bcde194b4bd1221c21fdce832ad12912bd8074f88f64b2b86f2b" ] && \
+    tar zxf v1.1.0.tar.gz && cd librdkafka-1.1.0 && \
     ./configure && make && make install && rm -rf /tmp/* && \
     cd /usr/local/lib && \
     find . | grep 'rdkafka' | grep '.so' | xargs rm
