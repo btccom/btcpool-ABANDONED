@@ -54,6 +54,9 @@ jobs:
     steps:
       - checkout
       - run:
+          name:  Install Prerequisites
+          command: sudo apt-get update && DEBIAN_FRONTEND=noninteractive sudo apt-get install -y php-cli
+      - run:
           name: Build & Run Tests
           command: |
             cd docker/btcpool/test/${CIRCLE_JOB#"build_and_run_tests@"}
