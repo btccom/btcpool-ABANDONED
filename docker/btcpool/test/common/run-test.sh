@@ -29,8 +29,10 @@ if [ "x$*" != "x" ]; then
         PATHS+=($BASE_DIR/testcase/$testcase*)
     done
     /bin/bash ../testosteron/testosteron runsome ${PATHS[@]}
+    TESTOSTERON_EXIT_CODE=$?
 else
     /bin/bash ../testosteron/testosteron rundir $BASE_DIR/testcase
+    TESTOSTERON_EXIT_CODE=$?
 fi
 
 if [ -f "$BASE_DIR/docker-compose.yml" ]; then
@@ -38,3 +40,5 @@ if [ -f "$BASE_DIR/docker-compose.yml" ]; then
     cd "$BASE_DIR"
     docker-compose down
 fi
+
+exit $TESTOSTERON_EXIT_CODE
