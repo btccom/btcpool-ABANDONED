@@ -57,7 +57,9 @@ public:
     , produceBrokers_(produceBrokers)
     , produceTopic_(produceTopic)
     , producer_(
-          produceBrokers_.c_str(), produceTopic_.c_str(), 0 /* patition */) {}
+          produceBrokers_.c_str(),
+          produceTopic_.c_str(),
+          RD_KAFKA_PARTITION_UA) {}
 
   static inline void loadOption(
       const libconfig::Setting &cfg,
