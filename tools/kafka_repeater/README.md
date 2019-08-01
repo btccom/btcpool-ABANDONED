@@ -66,7 +66,7 @@ kafka = {
     #
     security = {
         # plaintext, sasl_plaintext, ssl, sasl_ssl
-        protocol = "ssl_sasl";
+        protocol = "sasl_ssl";
     };
     ssl = {
         ca = {

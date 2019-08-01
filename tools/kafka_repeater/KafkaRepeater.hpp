@@ -79,6 +79,8 @@ public:
     std::map<string, string> options;
     // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
     options["queue.buffering.max.ms"] = "1";
+    options["sasl.mechanisms"] = "PLAIN";
+    loadOption(cfg, "debug", options);
     loadOption(cfg, "security.protocol", options);
     loadOption(cfg, "ssl.ca.location", options);
     loadOption(cfg, "ssl.certificate.location", options);
