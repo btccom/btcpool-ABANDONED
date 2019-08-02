@@ -45,7 +45,7 @@ echo "receiving jobs from sserver (120s)..."
 {
     echo '{"id":1,"method":"mining.subscribe","params":["autotest/0.1"]}'
     echo '{"id":2,"method":"mining.authorize","params":["hu60.test","123"]}'
-} | nc 127.0.0.1 53333 >$SSERVER_RESULT &
+} | nc -q -1 127.0.0.1 53333 >$SSERVER_RESULT &
 NC_PID=$!
 sleep 120
 kill $KAFKA_PRODUCER_PID || echo "Kafka producer exited"
