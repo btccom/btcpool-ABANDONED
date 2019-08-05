@@ -333,6 +333,7 @@ find_package(LibGMP REQUIRED)
 find_package(LibHiredis REQUIRED)
 find_package(LibPthread REQUIRED)
 find_package(KafkaC REQUIRED)
+find_package(Sasl2) # Optional dependency of librdkafka
 
 if(USE_CUDA)
   find_package(CUDA 9.1)
@@ -472,6 +473,12 @@ set(THIRD_LIBRARIES ethash blake2 sph ${BH_SHARED_LIBRARY} ${USE_CUDA_LIBRARIES}
                     ${MYSQL_LIBRARIES} ${LIBZMQ_LIBRARIES} ${Hiredis_LIBRARIES} ${CURL_LIBRARIES} ${Boost_LIBRARIES} ${LIBCONFIGPP_LIBRARY}
                     ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB} ${GMP_LIBRARIES} ${LIBEVENT_OPENSSL_LIB} ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY}
                     ${PTHREAD_LIBRARIES} ${PROTOBUF_LIBRARIES})
+
+# Optional dependency of librdkafka
+if(SASL2_FOUND)
+  include_directories(${SASL2_INCLUDE_DIR})
+  set(THIRD_LIBRARIES ${THIRD_LIBRARIES} ${SASL2_LIBRARIES})
+endif()
 
 if(CHAIN_TYPE STREQUAL "ZEC")
   include_directories(${OpenMP_INCLUDE_PATH})
