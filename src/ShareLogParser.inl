@@ -206,7 +206,7 @@ void ShareLogParserT<SHARE>::parseShare(SHARE &share) {
 
   pthread_rwlock_wrlock(&rwlock_);
   if (workersStats_.find(wkey) == workersStats_.end()) {
-    workersStats_[wkey] = std::make_shared<ShareStatsDay<SHARE>>();
+    workersStats_[wkey] = std::make_shared<ShareStatsDayNormalized<SHARE>>();
   }
   if (workersStats_.find(ukey) == workersStats_.end()) {
     workersStats_[ukey] = std::make_shared<ShareStatsDay<SHARE>>();

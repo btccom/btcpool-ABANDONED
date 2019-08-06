@@ -100,13 +100,14 @@ T StatsWindow<T>::sum(int64_t beginRingIdx) {
 ///////////////////////////////  ShareStatsDay  ////////////////////////////////
 template <class SHARE>
 void ShareStatsDay<SHARE>::processShare(
-    uint32_t hourIdx, const SHARE &share, bool acceptStale) {
+    uint32_t hourIdx, SHARE &share, bool acceptStale) {
   ScopeLock sl(lock_);
 
   if (StratumStatus::isAccepted(share.status()) &&
       (acceptStale || !StratumStatus::isAcceptedStale(share.status()))) {
     shareAccept1h_[hourIdx] += share.sharediff();
     shareAccept1d_ += share.sharediff();
+    updateAcceptDiff(share.sharediff());
 
     double score = share.score();
     double reward = getShareReward(share);
@@ -121,6 +122,7 @@ void ShareStatsDay<SHARE>::processShare(
     shareStale1h_[hourIdx] += share.sharediff();
     shareStale1d_ += share.sharediff();
   } else {
+    updateRejectDiff(share);
     shareRejects1h_[hourIdx][share.status()] += share.sharediff();
     shareRejects1d_[share.status()] += share.sharediff();
   }
@@ -163,4 +165,18 @@ void ShareStatsDay<SHARE>::getShareStatsDay(ShareStats *stats) {
          (stats->shareAccept_ + stats->shareReject_));
   else
     stats->rejectRate_ = 0.0;
+}
+
+template <class SHARE>
+void ShareStatsDayNormalized<SHARE>::updateAcceptDiff(uint64_t diff) {
+  if (diff > 0) {
+    lastAcceptDiff_ = diff;
+  }
+}
+
+template <class SHARE>
+void ShareStatsDayNormalized<SHARE>::updateRejectDiff(SHARE &share) const {
+  if (share.sharediff() > lastAcceptDiff_ * 4) {
+    share.set_sharediff(lastAcceptDiff_ * 4);
+  }
 }

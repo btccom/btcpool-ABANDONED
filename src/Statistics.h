@@ -155,13 +155,26 @@ public:
   mutex lock_;
 
   ShareStatsDay() = default;
+  virtual ~ShareStatsDay() = default;
   ShareStatsDay(const ShareStatsDay &r) = default;
   ShareStatsDay &operator=(const ShareStatsDay &r) = default;
 
-  void processShare(uint32_t hourIdx, const SHARE &share, bool acceptStale);
+  void processShare(uint32_t hourIdx, SHARE &share, bool acceptStale);
   double getShareReward(const SHARE &share);
   void getShareStatsHour(uint32_t hourIdx, ShareStats *stats);
   void getShareStatsDay(ShareStats *stats);
+
+private:
+  virtual void updateAcceptDiff(uint64_t diff) {}
+  virtual void updateRejectDiff(SHARE &share) const {}
+};
+
+template <class SHARE>
+class ShareStatsDayNormalized : public ShareStatsDay<SHARE> {
+private:
+  uint64_t lastAcceptDiff_ = 1;
+  virtual void updateAcceptDiff(uint64_t diff) override;
+  virtual void updateRejectDiff(SHARE &share) const override;
 };
 
 ///////////////////////////////  DuplicateShareCheckerT
