@@ -596,16 +596,16 @@ void ServerBitcoin::checkShare(
                   << ", userId: " << share.userid() << ", by: " << workFullName
                   << " <<<<";
       }
+    }
 
-      // print out high diff share, 2^10 = 1024
-      if (sjob->proxyJobDifficulty_ == 0 &&
-          (bnBlockHash >> 10) <= bnNetworkTarget) {
-        LOG(INFO) << "high diff share, blkhash: " << blkHash.ToString()
-                  << ", diff: " << BitcoinDifficulty::TargetToDiff(blkHash)
-                  << ", networkDiff: "
-                  << BitcoinDifficulty::TargetToDiff(sjob->networkTarget_)
-                  << ", by: " << workFullName;
-      }
+    // print out high diff share, 2^10 = 1024
+    if (sjob->proxyJobDifficulty_ == 0 &&
+        (bnBlockHash >> 10) <= bnNetworkTarget) {
+      LOG(INFO) << "high diff share, blkhash: " << blkHash.ToString()
+                << ", diff: " << BitcoinDifficulty::TargetToDiff(blkHash)
+                << ", networkDiff: "
+                << BitcoinDifficulty::TargetToDiff(sjob->networkTarget_)
+                << ", by: " << workFullName;
     }
 
     //
