@@ -100,14 +100,30 @@ class WorkerShares {
 
 public:
   WorkerShares(const int64_t workerId, const int32_t userId);
+  virtual ~WorkerShares() = default;
 
   //  void serialize(...);
   //  bool unserialize(const ...);
 
-  void processShare(const SHARE &share, bool acceptStale);
+  void processShare(SHARE &share, bool acceptStale);
   WorkerStatus getWorkerStatus();
   void getWorkerStatus(WorkerStatus &status);
   bool isExpired();
+
+private:
+  virtual void updateAcceptDiff(uint64_t diff){};
+  virtual void updateRejectDiff(SHARE &share) const {};
+};
+
+template <class SHARE>
+class WorkerSharesNormalized : public WorkerShares<SHARE> {
+public:
+  using WorkerShares<SHARE>::WorkerShares;
+
+private:
+  uint64_t lastAcceptDiff_ = 1;
+  virtual void updateAcceptDiff(uint64_t diff) override;
+  virtual void updateRejectDiff(SHARE &share) const override;
 };
 
 ////////////////////////////////  StatsServer  ////////////////////////////////
@@ -264,8 +280,8 @@ protected:
       const string &score,
       const string &value);
 
-  void _processShare(WorkerKey &key, const SHARE &share);
-  void processShare(const SHARE &share);
+  void _processShare(WorkerKey &key, SHARE &share);
+  void processShare(SHARE &share);
   virtual bool filterShare(const SHARE &share) { return true; }
   void getWorkerStatusBatch(
       const vector<WorkerKey> &keys, vector<WorkerStatus> &workerStatus);

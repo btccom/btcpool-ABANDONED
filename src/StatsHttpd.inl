@@ -40,7 +40,7 @@ WorkerShares<SHARE>::WorkerShares(const int64_t workerId, const int32_t userId)
 }
 
 template <class SHARE>
-void WorkerShares<SHARE>::processShare(const SHARE &share, bool acceptStale) {
+void WorkerShares<SHARE>::processShare(SHARE &share, bool acceptStale) {
   ScopeLock sl(lock_);
   const time_t now = time(nullptr);
   if (now > share.timestamp() + STATS_SLIDING_WINDOW_SECONDS) {
@@ -51,9 +51,12 @@ void WorkerShares<SHARE>::processShare(const SHARE &share, bool acceptStale) {
       (acceptStale || !StratumStatus::isAcceptedStale(share.status()))) {
     acceptCount_++;
     acceptShares_.insert(acceptShareTime(share.timestamp()), share.sharediff());
+    updateAcceptDiff(share.sharediff());
   } else if (StratumStatus::isAnyStale(share.status())) {
+    updateRejectDiff(share);
     staleShares_.insert(rejectShareTime(share.timestamp()), share.sharediff());
   } else {
+    updateRejectDiff(share);
     rejectShares_[share.status()].insert(
         rejectShareTime(share.timestamp()), share.sharediff());
   }
@@ -118,6 +121,20 @@ bool WorkerShares<SHARE>::isExpired() {
   ScopeLock sl(lock_);
   return (lastShareTime_ + STATS_SLIDING_WINDOW_SECONDS) <
       (uint32_t)time(nullptr);
+}
+
+template <class SHARE>
+void WorkerSharesNormalized<SHARE>::updateAcceptDiff(uint64_t diff) {
+  if (diff > 0) {
+    lastAcceptDiff_ = diff;
+  }
+}
+
+template <class SHARE>
+void WorkerSharesNormalized<SHARE>::updateRejectDiff(SHARE &share) const {
+  if (share.sharediff() > lastAcceptDiff_ * 4) {
+    share.set_sharediff(lastAcceptDiff_ * 4);
+  }
 }
 
 ////////////////////////////////  StatsServerT  ////////////////////////////////
@@ -328,7 +345,7 @@ void StatsServerT<SHARE>::stop() {
 }
 
 template <class SHARE>
-void StatsServerT<SHARE>::processShare(const SHARE &share) {
+void StatsServerT<SHARE>::processShare(SHARE &share) {
   const time_t now = time(nullptr);
 
   lastShareTime_ = share.timestamp();
@@ -341,14 +358,14 @@ void StatsServerT<SHARE>::processShare(const SHARE &share) {
     DLOG(INFO) << "filtered share: " << share.toString();
     return;
   }
-  poolWorker_.processShare(share, acceptStale_);
 
   WorkerKey key(share.userid(), share.workerhashid());
   _processShare(key, share);
+  poolWorker_.processShare(share, acceptStale_);
 }
 
 template <class SHARE>
-void StatsServerT<SHARE>::_processShare(WorkerKey &key, const SHARE &share) {
+void StatsServerT<SHARE>::_processShare(WorkerKey &key, SHARE &share) {
   const int32_t userId = key.userId_;
 
   pthread_rwlock_rdlock(&rwlock_);
@@ -361,8 +378,8 @@ void StatsServerT<SHARE>::_processShare(WorkerKey &key, const SHARE &share) {
   if (workerItr != workerSet_.end()) {
     workerItr->second->processShare(share, acceptStale_);
   } else {
-    workerShare =
-        make_shared<WorkerShares<SHARE>>(share.workerhashid(), share.userid());
+    workerShare = make_shared<WorkerSharesNormalized<SHARE>>(
+        share.workerhashid(), share.userid());
     workerShare->processShare(share, acceptStale_);
   }
 
