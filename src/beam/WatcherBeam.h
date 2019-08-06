@@ -40,7 +40,7 @@ protected:
     size_t clientId_;
   };
 
-  MysqlConnectInfo poolDB_; // save blocks to table `found_blocks`
+  MySQLExecQueue poolDB_; // save blocks to table `found_blocks`
 
   KafkaConsumer kafkaSolvedShareConsumer_; // consume solved_share_topic
   thread threadSolvedShareConsume_;
@@ -70,8 +70,6 @@ public:
       const string jobId,
       const StratumJobBeam &job,
       PoolWatchClientBeam *client);
-
-  MysqlConnectInfo &getMysqlInfo() { return poolDB_; }
 };
 
 ///////////////////////////////// PoolWatchClient //////////////////////////////

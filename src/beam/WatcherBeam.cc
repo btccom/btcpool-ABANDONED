@@ -29,12 +29,12 @@
 ///////////////////////////////// ClientContainer //////////////////////////////
 ClientContainerBeam::ClientContainerBeam(const libconfig::Config &config)
   : ClientContainer(config)
-  , poolDB_(
+  , poolDB_(MysqlConnectInfo(
         config.lookup("pooldb.host").c_str(),
         (int)config.lookup("pooldb.port"),
         config.lookup("pooldb.username").c_str(),
         config.lookup("pooldb.password").c_str(),
-        config.lookup("pooldb.dbname").c_str())
+        config.lookup("pooldb.dbname").c_str()))
   , kafkaSolvedShareConsumer_(
         kafkaBrokers_.c_str(),
         config.lookup("poolwatcher.solved_share_topic").c_str(),
@@ -185,9 +185,6 @@ void ClientContainerBeam::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
     return;
   }
 
-  client->submitShare(submitJson);
-  powHashMap_[job.jobId_] = blockHash;
-
   // save block to DB
   const string nowStr = date("%F %T");
   string sql = Strings::Format(
@@ -216,25 +213,11 @@ void ClientContainerBeam::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
       (int64_t)Beam_GetStaticBlockReward(height),
       blockBits,
       nowStr);
+  poolDB_.addSQL(sql);
 
-  std::thread t([this, sql, blockHash]() {
-    // try connect to DB
-    MySQLConnection db(poolDB_);
-    for (size_t i = 0; i < 3; i++) {
-      if (db.ping())
-        break;
-      else
-        std::this_thread::sleep_for(3s);
-    }
-
-    if (db.execute(sql) == false) {
-      LOG(ERROR) << "insert found block failure: " << sql;
-      return;
-    }
-
-    LOG(INFO) << "insert found block " << blockHash << " success";
-  });
-  t.detach();
+  powHashMap_[job.jobId_] = blockHash;
+  client->submitShare(submitJson);
+  LOG(INFO) << "submit block " << blockHash;
 }
 
 PoolWatchClient *
@@ -263,26 +246,8 @@ void ClientContainerBeam::updateBlockHash(string jobId, string blockHash) {
       blockHash,
       nowStr,
       powHash);
-
-  std::thread t([this, sql, powHash, blockHash]() {
-    // try connect to DB
-    MySQLConnection db(poolDB_);
-    for (size_t i = 0; i < 3; i++) {
-      if (db.ping())
-        break;
-      else
-        std::this_thread::sleep_for(3s);
-    }
-
-    if (db.execute(sql) == false) {
-      LOG(ERROR) << "update found block hash failure: " << sql;
-      return;
-    }
-
-    LOG(INFO) << "update found block hash from " << powHash << " to "
-              << blockHash << " success";
-  });
-  t.detach();
+  poolDB_.addSQL(sql);
+  LOG(INFO) << "update block hash from " << powHash << " to " << blockHash;
 }
 
 bool ClientContainerBeam::sendJobToKafka(

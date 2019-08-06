@@ -21,12 +21,16 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-#ifndef MYSQL_CONNECTION_H_
-#define MYSQL_CONNECTION_H_
+#pragma once
 
 #include <string>
 #include <vector>
 #include <set>
+#include <queue>
+#include <mutex>
+#include <atomic>
+#include <thread>
+#include <condition_variable>
 
 using std::string;
 using std::vector;
@@ -138,4 +142,24 @@ bool multiInsert(
     const string &fields,
     const vector<string> &values);
 
-#endif
+/**
+ * Execute SQL statements in order
+ */
+class MySQLExecQueue {
+protected:
+  MysqlConnectInfo dbInfo_;
+  std::queue<std::string> sqlQueue_;
+  std::mutex sqlQueueLock_;
+  std::condition_variable notify_;
+  std::atomic<bool> running_;
+  std::thread thread_;
+
+  void run();
+  void stop();
+  void execSQL(const string &sql);
+
+public:
+  MySQLExecQueue(const MysqlConnectInfo &dbInfo);
+  ~MySQLExecQueue();
+  void addSQL(const string &sql);
+};

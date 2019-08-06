@@ -270,3 +270,73 @@ bool multiInsert(
 
   return true;
 }
+
+MySQLExecQueue::MySQLExecQueue(const MysqlConnectInfo &dbInfo)
+  : dbInfo_(dbInfo) {
+  run();
+}
+
+MySQLExecQueue::~MySQLExecQueue() {
+  stop();
+}
+
+void MySQLExecQueue::addSQL(const string &sql) {
+  std::unique_lock<std::mutex> lock(sqlQueueLock_);
+  sqlQueue_.push(sql);
+  lock.unlock();
+  notify_.notify_one();
+}
+
+void MySQLExecQueue::run() {
+  running_ = true;
+
+  thread_ = std::thread([this]() {
+    LOG(INFO) << "MySQLExecQueue running...";
+
+    for (;;) {
+      std::unique_lock<std::mutex> lock(sqlQueueLock_);
+      while (sqlQueue_.empty() && running_) {
+        notify_.wait(lock);
+      }
+      if (!running_) {
+        break;
+      }
+      string sql = sqlQueue_.front();
+      sqlQueue_.pop();
+      lock.unlock();
+      execSQL(sql);
+    }
+
+    // Execute the remaining SQL and then stop
+    std::unique_lock<std::mutex> lock(sqlQueueLock_);
+    while (!sqlQueue_.empty()) {
+      execSQL(sqlQueue_.front());
+      sqlQueue_.pop();
+    }
+    lock.unlock();
+
+    LOG(INFO) << "MySQLExecQueue stopped";
+  });
+}
+
+void MySQLExecQueue::execSQL(const string &sql) {
+  // try connect to DB
+  MySQLConnection db(dbInfo_);
+  for (size_t i = 0; i < 3; i++) {
+    if (db.ping())
+      break;
+    else
+      std::this_thread::sleep_for(3s);
+  }
+
+  if (db.execute(sql) == false) {
+    LOG(ERROR) << "executing sql failure: " << sql;
+  }
+}
+
+void MySQLExecQueue::stop() {
+  running_ = false;
+  if (thread_.joinable()) {
+    thread_.join();
+  }
+}
