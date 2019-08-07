@@ -45,7 +45,8 @@ bool Beam_ComputeHash(
     const string &input,
     const uint64_t nonce,
     const string &output,
-    beam::Difficulty::Raw &hash);
+    beam::Difficulty::Raw &hash,
+    uint32_t hashVersion);
 
 uint256 Beam_Uint256Conv(const beam::Difficulty::Raw &raw);
 beam::Difficulty::Raw Beam_Uint256Conv(const uint256 &target);

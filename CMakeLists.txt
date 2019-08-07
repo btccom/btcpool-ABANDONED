@@ -486,12 +486,12 @@ if(CHAIN_TYPE STREQUAL "ZEC")
 endif()
 
 add_library(beam
-    3rdparty/beam/crypto/equihash_impl.cpp
+    3rdparty/beam/crypto/equihashR_impl.cpp
     3rdparty/beam/core/difficulty.cpp
     3rdparty/beam/core/ecc.cpp
     3rdparty/beam/core/uintBig.cpp
     3rdparty/beam/core/static_members.cpp
-    3rdparty/beam/pow/equihash.cpp
+    3rdparty/beam/pow/beamHash.cpp
     3rdparty/beam/utility/common.cpp)
 target_compile_options(beam PRIVATE -Wno-unused-function)
 target_include_directories(beam PUBLIC 3rdparty/beam)

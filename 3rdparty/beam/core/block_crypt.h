@@ -25,7 +25,7 @@ namespace beam
 
 		struct PoW
 		{
-			// equihash parameters.
+			// equihash parameters. 
 			// Parameters recommended by BTG are 144/5, to make it asic-resistant (~1GB average, spikes about 1.5GB). On CPU solve time about 1 minutes
 			// The following are the parameters for testnet, to make it of similar size, and much faster solve time, to test concurrency and difficulty adjustment
 			static const uint32_t N = 150;
@@ -45,8 +45,8 @@ namespace beam
 			NonceType m_Nonce; // 8 bytes. The overall solution size is 96 bytes.
 			Difficulty m_Difficulty;
 
-			bool IsValid(const void* pInput, uint32_t nSizeInput) const;
-			bool ComputeHash(const void* pInput, uint32_t nSizeInput, ECC::Hash::Value &hv) const;
+			bool IsValid(const void* pInput, uint32_t nSizeInput, uint32_t) const;
+			bool ComputeHash(const void* pInput, uint32_t nSizeInput, ECC::Hash::Value &hv, uint32_t) const;
 
 		private:
 			struct Helper;

@@ -300,7 +300,8 @@ TEST(Utils, BeamEquiHash_1) {
   uint32_t bits = 76766076ul;
   beam::Difficulty::Raw hash;
 
-  ASSERT_TRUE(Beam_ComputeHash(input, nonce, output, hash));
+  ASSERT_TRUE(
+      Beam_ComputeHash(input, nonce, output, hash, 1 /* BEAM Hash I */));
   ASSERT_EQ(
       Beam_Uint256Conv(hash).ToString(),
       "007bb47a19e35751a5f42f45949e76358843e774caac0efa6441ede89443cc06");
@@ -325,7 +326,8 @@ TEST(Utils, BeamEquiHash_2) {
   uint32_t bits = 76433405ul;
   beam::Difficulty::Raw hash;
 
-  ASSERT_TRUE(Beam_ComputeHash(input, nonce, output, hash));
+  ASSERT_TRUE(
+      Beam_ComputeHash(input, nonce, output, hash, 1 /* BEAM Hash I */));
   ASSERT_EQ(
       Beam_Uint256Conv(hash).ToString(),
       "631812289123ed3f64a10d2c3afa942fdfa76fc12ae1c9459f1da21c46205901");

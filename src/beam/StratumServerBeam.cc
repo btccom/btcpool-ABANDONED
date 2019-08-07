@@ -115,6 +115,11 @@ bool ServerBeam::setupInternal(const libconfig::Config &config) {
 #endif
 
   config.lookupValue("sserver.nonce_prefix_check", noncePrefixCheck_);
+  LOG(INFO) << "Nonce Prefix Check: "
+            << (noncePrefixCheck_ ? "enabled" : "disabled");
+
+  config.lookupValue("sserver.beamhash2_fork_height", beamHash2ForkHeight_);
+  LOG(INFO) << "BEAM Hash II fork height: " << beamHash2ForkHeight_;
 
   return true;
 }
@@ -143,8 +148,12 @@ void ServerBeam::checkAndUpdateShare(
   }
 
   beam::Difficulty::Raw shareHash;
-  bool isValidSulution =
-      Beam_ComputeHash(sjob->input_, share.nonce(), output, shareHash);
+  bool isValidSulution = Beam_ComputeHash(
+      sjob->input_,
+      share.nonce(),
+      output,
+      shareHash,
+      share.height() < beamHash2ForkHeight_ ? 1 : 2);
   if (!isValidSulution && !isEnableSimulator_) {
     share.set_status(StratumStatus::INVALID_SOLUTION);
     return;

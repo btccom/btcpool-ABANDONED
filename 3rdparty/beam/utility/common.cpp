@@ -224,6 +224,18 @@ namespace std
 		TestNoError(m_F);
 	}
 
+	uint64_t FStream::Tell()
+	{
+		if (!IsOpen())
+			return 0;
+
+		iostream::pos_type ret = m_F.tellg();
+		if (iostream::pos_type(-1) == ret)
+			ThrowLastError();
+
+		return ret;
+	}
+
 } // namespace std
 
 #if defined(BEAM_USE_STATIC)
@@ -266,7 +278,7 @@ void MiniDumpWriteGuarded(EXCEPTION_POINTERS* pExc)
 
 	MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hFile, MiniDumpNormal, &mdei, NULL, NULL);
 
-	verify(CloseHandle(hFile));
+    BEAM_VERIFY(CloseHandle(hFile));
 
 }
 

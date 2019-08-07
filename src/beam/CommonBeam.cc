@@ -84,7 +84,8 @@ bool Beam_ComputeHash(
     const string &input,
     const uint64_t nonce,
     const string &output,
-    beam::Difficulty::Raw &hash) {
+    beam::Difficulty::Raw &hash,
+    uint32_t hashVersion) {
   boost::endian::big_uint64_t nonceBigEndian = nonce;
 
   vector<char> inputBin, outputBin;
@@ -109,7 +110,7 @@ bool Beam_ComputeHash(
       (const char *)&nonceBigEndian,
       beam::Block::PoW::NonceType::nBytes);
 
-  if (!pow.ComputeHash(inputBin.data(), inputBin.size(), hash)) {
+  if (!pow.ComputeHash(inputBin.data(), inputBin.size(), hash, hashVersion)) {
     return false;
   }
 
