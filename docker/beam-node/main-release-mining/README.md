@@ -72,19 +72,19 @@ stratum_port=3333
 stratum_secrets_path=.
 
 # Owner viewer key
-key_owner=<please-fill-it>
+owner_key=<please-fill-it>
 
 # Standalone miner key
-key_mine=<please-fill-it>
+miner_key=<please-fill-it>
 
 # password for keys
 pass=<please-fill-it>
 ```
-### got `key_owner` and `key_mine`
+### got `owner_key` and `miner_key`
 Use [beam-wallet-cli](https://github.com/BeamMW/beam/releases) with these commands:
 ```
-./beam-wallet export_miner_key --subkey=1
 ./beam-wallet export_owner_key
+./beam-wallet export_miner_key --subkey=1
 ```
 
 Or see [this document](https://beam-docs.readthedocs.io/en/latest/rtd_pages/user_mining_beam.html#mining-using-external-miner) for details.
