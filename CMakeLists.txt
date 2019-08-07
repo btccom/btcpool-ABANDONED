@@ -485,9 +485,8 @@ if(CHAIN_TYPE STREQUAL "ZEC")
   set(THIRD_LIBRARIES ${THIRD_LIBRARIES} ${OpenMP_CXX_LIBRARIES})
 endif()
 
-add_library(equihash 3rdparty/equihash/crypto/equihash_impl.cpp)
-
 add_library(beam
+    3rdparty/beam/crypto/equihash_impl.cpp
     3rdparty/beam/core/difficulty.cpp
     3rdparty/beam/core/ecc.cpp
     3rdparty/beam/core/uintBig.cpp
@@ -496,7 +495,6 @@ add_library(beam
     3rdparty/beam/utility/common.cpp)
 target_compile_options(beam PRIVATE -Wno-unused-function)
 target_include_directories(beam PUBLIC 3rdparty/beam)
-target_link_libraries(beam PUBLIC equihash)
 
 add_library(cuckoo
   3rdparty/cuckoo/cuckaroo.cpp
