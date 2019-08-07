@@ -34,6 +34,8 @@ CREATE TABLE `found_nmc_blocks` (
   `aux_block_hash` char(64) NOT NULL,
   `aux_pow` text NOT NULL,
   `is_orphaned` tinyint(4) NOT NULL DEFAULT '0',
+  `chain_name` varchar(20) NOT NULL DEFAULT '',
+  `submit_response` varchar(255) NOT NULL DEFAULT '', 
   `created_at` datetime NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `aux_block_hash` (`aux_block_hash`)

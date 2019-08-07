@@ -1495,7 +1495,7 @@ void BlockMakerBitcoin::insertAuxBlock2Mysql(
     const string auxtablename,
     const string chainnane,
     const string auxblockhash,
-    const string parentblockhask,
+    const string parentblockhash,
     const string submitresponse,
     const string auxpow) {
 
@@ -1506,7 +1506,7 @@ void BlockMakerBitcoin::insertAuxBlock2Mysql(
       " `submit_response`, `aux_pow`,`created_at`) "
       " VALUES (\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"); ",
       auxtablename.c_str(),
-      parentblockhask.c_str(),
+      parentblockhash.c_str(),
       auxblockhash.c_str(),
       chainnane.c_str(),
       submitresponse.c_str(),

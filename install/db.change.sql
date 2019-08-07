@@ -52,3 +52,12 @@ add `reject_detail` varchar(255) default '' NOT NULL after `share_reject`;
 ALTER TABLE `stats_workers_hour`
 add `share_stale` BIGINT default 0 NOT NULL after `share_accept`,
 add `reject_detail` varchar(255) default '' NOT NULL after `share_reject`;
+
+
+--
+-- 2019-08-07
+-- add `chain_name`, `submit_response` to table `found_nmc_blocks`
+--
+ALTER TABLE `found_nmc_blocks`
+add `chain_name` varchar(20) NOT NULL default '' after `is_orphaned`,
+add `submit_response` varchar(255) NOT NULL default '' after `is_orphaned`;
