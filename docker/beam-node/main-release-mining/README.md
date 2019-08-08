@@ -54,9 +54,6 @@ log_level=info
 # file log level [info|debug|verbose]
 file_log_level=info
 
-# number of mining threads(there is no mining if 0)
-mining_threads=0
-
 # nodes to connect to
 # WARNING: Use domain name in peer list is unsafe because of this issue:
 #          <https://github.com/BeamMW/beam/issues/288>
