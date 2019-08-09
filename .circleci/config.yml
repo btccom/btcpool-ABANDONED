@@ -61,6 +61,14 @@ jobs:
           command: |
             cd docker/btcpool/test/${CIRCLE_JOB#"build_and_run_tests@"}
             ./run-test.sh
+  reservoir_run_tests:
+    docker:
+      - image: circleci/golang
+    steps:
+      - checkout
+      - run:
+          name: Go tests
+          command: cd reservoir && go test ./...
   build_and_push_deploy_image:
     docker:
       - image: circleci/golang
@@ -137,6 +145,7 @@ workflows:
   build_and_run_all_tests:
     jobs:
       - check_clang_format
+      - reservoir_run_tests
       - build_and_run_tests:
           name: build_and_run_tests@bch
       - build_and_run_tests:
