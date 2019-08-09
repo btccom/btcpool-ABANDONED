@@ -18,6 +18,8 @@
 
 #include "libblake2/blake2.h"
 
+#include <boost/static_assert.hpp>
+
 #include <cstring>
 #include <exception>
 #include <stdexcept>
@@ -232,8 +234,8 @@ template<unsigned int N, unsigned int K, unsigned int R>
 class EquihashR : public PoWScheme
 {
 private:
-    static_assert(K < N);
-    static_assert((N/(K+1)) + 1 < 8*sizeof(eh_index));
+    BOOST_STATIC_ASSERT(K < N);
+    BOOST_STATIC_ASSERT((N/(K+1)) + 1 < 8*sizeof(eh_index));
 
 public:
     enum : size_t { IndicesPerHashOutput=512/N };
