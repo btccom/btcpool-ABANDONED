@@ -1504,7 +1504,7 @@ void BlockMakerBitcoin::insertAuxBlock2Mysql(
       "INSERT INTO `%s` "
       " (`bitcoin_block_hash`,`aux_block_hash`,`chain_name`,"
       " `submit_response`, `aux_pow`,`created_at`) "
-      " VALUES (\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"); ",
+      " VALUES (\'%s\',\'%s\',\'%s\',\'%s\',\'%s\',\'%s\'); ",
       auxtablename.c_str(),
       parentblockhash.c_str(),
       auxblockhash.c_str(),
