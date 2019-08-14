@@ -206,6 +206,7 @@ public:
   auto begin() { return map_.begin(); }
   auto end() { return map_.end(); }
   size_t size() { return map_.size(); }
+  bool empty() { return map_.empty(); }
 
   void clear(size_t maxSize) {
     while (queue_.size() > maxSize) {

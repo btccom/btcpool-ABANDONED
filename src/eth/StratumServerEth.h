@@ -30,6 +30,7 @@
 #include <queue>
 #include "StratumServer.h"
 #include "StratumEth.h"
+#include "Utils.h"
 
 class JobRepositoryEth;
 
@@ -80,9 +81,8 @@ protected:
   const size_t kMaxCacheSize_ = 3;
 
   std::mutex lock_;
-  std::map<uint64_t /*epoch*/, ethash_light_t> lightCaches_;
+  SeqMap<uint64_t /*epoch*/, ethash_light_t> lightCaches_;
   std::set<uint64_t /*epoch*/> buildingLightCaches_;
-  std::queue<uint64_t> lightEpochs_;
   string cacheFile_;
 
   // save ethash_light_t to file
