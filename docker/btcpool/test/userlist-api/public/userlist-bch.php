@@ -6,24 +6,16 @@ header('Content-Type: application/json');
 $last_id = (int) $_GET['last_id'];
 
 $users = [
-    'aaa' => 1,
-    'bbb' => 2,
-    'user3' => 3,
-    'mmm' => 4,
-    'user5' => 5,
-    'ddd' => 6,
-    'hu60' => 7,
-	'taaa' => 31,
-    'tbbb' => 32,
-    'tuser3' => 33,
-    'tmmm' => 34,
-    'tuser5' => 35,
-    'tddd' => 36,
-    'thu60' => 37,
-    'daad_ltc' => 41,
-    'DdDdDdDdD' => 42,
-    'userListAPITest_bch' => 43,
+    'hu60' => 333,
+    'DdDdDdDdD' => 4789,
 ];
+
+$reqTimes = (int)@file_get_contents('/tmp/reqTimes.log');
+file_put_contents('/tmp/reqTimes.log', ++$reqTimes);
+
+if ($reqTimes < 3) {
+    unset($users['DdDdDdDdD']);
+}
 
 $requestedUsers = [];
 foreach ($users as $name=>$id) {

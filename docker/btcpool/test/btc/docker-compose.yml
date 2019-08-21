@@ -62,10 +62,34 @@ services:
       - userlist
     image: btccom/btcpool-${TEST_SUITE}
     ports:
-      - 53334:3334
+      - 53334:3333
     volumes:
       - ./cfg:/work/config
     command: /wait-for-it.sh kafka:9092 -- /wait-for-it.sh userlist:80 -- sserver -c /work/config/sserver-simulator.cfg
+
+  sserver-casesen:
+    depends_on:
+      - zookeeper
+      - kafka
+      - userlist
+    image: btccom/btcpool-${TEST_SUITE}
+    ports:
+      - 53335:3333
+    volumes:
+      - ./cfg:/work/config
+    command: /wait-for-it.sh zookeeper:2181 -- /wait-for-it.sh kafka:9092 -- /wait-for-it.sh userlist:80 -- sserver -c /work/config/sserver-casesen.cfg
+  
+  sserver-mchain:
+    depends_on:
+      - zookeeper
+      - kafka
+      - userlist
+    image: btccom/btcpool-${TEST_SUITE}
+    ports:
+      - 53336:3333
+    volumes:
+      - ./cfg:/work/config
+    command: /wait-for-it.sh zookeeper:2181 -- /wait-for-it.sh kafka:9092 -- /wait-for-it.sh userlist:80 -- sserver -c /work/config/sserver-mchain.cfg
 
   blkmaker:
     depends_on:

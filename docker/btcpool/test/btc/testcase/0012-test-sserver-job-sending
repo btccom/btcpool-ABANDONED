@@ -32,11 +32,6 @@ outputTestData() {
     done
 }
 
-{
-    echo "send StratumJob in the background..."
-    outputTestData | $KAFKA_PRODUCER --topic StratumJob
-    echo "send StratumJob finished..."
-} &
 echo "send StratumJob in the background..."
 outputTestData | $KAFKA_PRODUCER --topic StratumJob &
 KAFKA_PRODUCER_PID=$!
@@ -55,7 +50,7 @@ kill $NC_PID || {
     exit 1
 }
 
-line=`cat $SSERVER_RESULT | grep '"mining.notify"' | wc -l`
+line=`cat $SSERVER_RESULT | grep '"method":"mining.notify"' | wc -l`
 if [ $line -lt 20 ]; then
     echo "There should be 20 jobs but only $line"
     exit 1
