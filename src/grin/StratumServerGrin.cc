@@ -63,11 +63,7 @@ void StratumServerGrin::checkAndUpdateShare(
     return;
   }
 
-  blockHash = PowHashGrin(
-      share.height(),
-      share.edgebits(),
-      preProof.prePow.secondaryScaling.value(),
-      proofs);
+  blockHash = PowHashGrin(share.edgebits(), proofs);
   share.set_hashprefix(blockHash.GetCheapHash());
   uint64_t scaledShareDiff = PowDifficultyGrin(
       share.height(),

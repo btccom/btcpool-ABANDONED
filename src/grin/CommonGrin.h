@@ -79,11 +79,7 @@ bool VerifyPowGrin(
     uint32_t edgeBits,
     const std::vector<uint64_t> &proofs);
 
-uint256 PowHashGrin(
-    uint64_t height,
-    uint32_t edgeBits,
-    uint32_t secondaryScaling,
-    const std::vector<uint64_t> &proofs);
+uint256 PowHashGrin(uint32_t edgeBits, const std::vector<uint64_t> &proofs);
 uint32_t GraphWeightGrin(uint64_t height, uint32_t edgeBits);
 uint32_t
 PowScalingGrin(uint64_t height, uint32_t edgeBits, uint32_t secondaryScaling);

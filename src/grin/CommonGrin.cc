@@ -32,6 +32,7 @@
 
 #include <boost/multiprecision/cpp_int.hpp>
 #include <limits>
+#include <Utils.h>
 
 static const uint8_t BASE_EDGE_BITS = 24;
 static const uint8_t DEFAULT_MIN_EDGE_BITS = 31;
@@ -94,11 +95,7 @@ bool VerifyPowGrin(
       : VerifyPowGrinPrimary(proofs, siphashKeys, edgeBits);
 }
 
-uint256 PowHashGrin(
-    uint64_t height,
-    uint32_t edgeBits,
-    uint32_t secondaryScaling,
-    const std::vector<uint64_t> &proofs) {
+uint256 PowHashGrin(uint32_t edgeBits, const std::vector<uint64_t> &proofs) {
   // Compress the proofs to a bit vector
   std::vector<uint8_t> proofBits((proofs.size() * edgeBits + 7) / 8, 0);
   uint64_t edgeMask = (static_cast<uint64_t>(1) << edgeBits) - 1;
