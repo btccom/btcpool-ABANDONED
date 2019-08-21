@@ -276,15 +276,17 @@ void StratumSession::checkUserAndPwd(
     bool isAutoRegCallback) {
   if (isAutoRegCallback) {
     if (isDead_ || state_ != AUTO_REGISTING) {
-      DLOG(INFO) << "cannot authorized from auto registing, "
-                 << (isDead_ ? "session dead" : "state wrong")
-                 << ", worker: " << fullName;
+      LOG(INFO) << "cannot authorized from auto registing, "
+                << (isDead_ ? "session dead" : "state wrong")
+                << ", worker: " << fullName;
       return;
     }
   }
 
   // set id & names, will filter workername in this func
-  worker_.setNames(fullName);
+  worker_.setNames(fullName, [this](string &userName) {
+    server_.userInfo_->regularUserName(userName);
+  });
 
   if (worker_.userName_.empty()) {
     DLOG(INFO) << "got an empty user name";
@@ -354,7 +356,8 @@ bool StratumSession::switchChain(size_t chainId) {
   const int32_t userId =
       server_.userInfo_->getUserId(chainId, worker_.userName_);
   if (userId <= 0) {
-    DLOG(INFO) << "cannot find user id";
+    LOG(ERROR) << "cannot find user id, chainId: " << chainId
+               << ", userName: " << worker_.userName_;
     return false;
   }
 

@@ -984,14 +984,16 @@ void StratumServer::dispatchToShareWorker(std::function<void()> work) {
 }
 
 size_t StratumServer::switchChain(string userName, size_t newChainId) {
-  size_t switchedSessions = 0;
+  size_t onlineSessions = 0;
   for (auto &itr : connections_) {
-    if (itr->getChainId() != newChainId && itr->getUserName() == userName) {
-      itr->switchChain(newChainId);
-      switchedSessions++;
+    if (itr->getUserName() == userName) {
+      onlineSessions++;
+      if (itr->getChainId() != newChainId) {
+        itr->switchChain(newChainId);
+      }
     }
   }
-  return switchedSessions;
+  return onlineSessions;
 }
 
 size_t StratumServer::autoRegCallback(const string &userName) {

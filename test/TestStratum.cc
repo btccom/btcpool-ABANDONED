@@ -138,7 +138,7 @@ TEST(Stratum, StratumWorker) {
   //
   // echo -n '123' |openssl dgst -sha256 -binary |openssl dgst -sha256
   //
-  w.setNames("abcd.123");
+  w.setNames("abcd.123", [](string &) {});
   ASSERT_EQ(w.fullName_, "abcd.123");
   ASSERT_EQ(w.userName_, "abcd");
   ASSERT_EQ(w.workerName_, "123");
@@ -150,7 +150,7 @@ TEST(Stratum, StratumWorker) {
   memcpy((uint8_t *)&workerId, (uint8_t *)&u, 8);
   ASSERT_EQ(w.workerHashId_, workerId);
 
-  w.setNames("abcdefg");
+  w.setNames("abcdefg", [](string &) {});
   ASSERT_EQ(w.fullName_, "abcdefg.__default__");
   ASSERT_EQ(w.userName_, "abcdefg");
   ASSERT_EQ(w.workerName_, "__default__");
@@ -162,17 +162,17 @@ TEST(Stratum, StratumWorker) {
   ASSERT_EQ(w.workerHashId_, workerId);
 
   // check allow chars
-  w.setNames("abcdefg.azAZ09-._:|^/");
+  w.setNames("abcdefg.azAZ09-._:|^/", [](string &) {});
   ASSERT_EQ(w.workerName_, "azAZ09-._:|^/");
   ASSERT_EQ(w.fullName_, "abcdefg.azAZ09-._:|^/");
 
   // some of them are bad chars
-  w.setNames("abcdefg.~!@#$%^&*()+={}|[]\\<>?,./");
+  w.setNames("abcdefg.~!@#$%^&*()+={}|[]\\<>?,./", [](string &) {});
   ASSERT_EQ(w.workerName_, "^|./");
   ASSERT_EQ(w.fullName_, "abcdefg.^|./");
 
   // all bad chars
-  w.setNames("abcdefg.~!@#$%&*()+={}[]\\<>?,");
+  w.setNames("abcdefg.~!@#$%&*()+={}[]\\<>?,", [](string &) {});
   ASSERT_EQ(w.workerName_, "__default__");
   ASSERT_EQ(w.fullName_, "abcdefg.__default__");
 }

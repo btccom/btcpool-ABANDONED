@@ -24,6 +24,8 @@
 #ifndef STRATUM_H_
 #define STRATUM_H_
 
+#include <functional>
+
 #include "Common.h"
 #include "Utils.h"
 #include "Network.h"
@@ -150,7 +152,8 @@ public:
   StratumWorker(const size_t chainSize);
 
   void setChainIdAndUserId(const size_t chainId, const int32_t userId);
-  void setNames(const string &fullName);
+  void setNames(
+      const string &fullName, std::function<void(string &)> userNormalizer);
 
   int32_t userId() const { return userIds_[chainId_]; }
   int32_t userId(const size_t chainId) const { return userIds_[chainId]; }

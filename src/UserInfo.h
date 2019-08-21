@@ -114,8 +114,8 @@ public:
   // return the first one's id that find the user.
   //
   // If only one chain, chainId=0 and true will always be returned.
-  bool getChainId(string userName, size_t &chainId);
-  int32_t getUserId(size_t chainId, string userName);
+  bool getChainId(const string &userName, size_t &chainId);
+  int32_t getUserId(size_t chainId, const string &userName);
 #ifdef USER_DEFINED_COINBASE
   string getCoinbaseInfo(size_t chainId, int32_t userId);
 #endif

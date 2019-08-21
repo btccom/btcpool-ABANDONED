@@ -242,12 +242,19 @@ void UserInfo::handleSwitchChainEvent(
     return;
   }
 
+  const int32_t newUserId = userInfo->getUserId(newChainId, userName);
+  if (newUserId <= 0) {
+    LOG(INFO) << "Ignore switching request: cannot find user id, chainId: "
+              << newChainId << ", userName: " << userName;
+    return;
+  }
+
   userInfo->server_->dispatch(
       [userInfo, userName, currentChainId, newChainId]() {
-        size_t switchedSessions =
+        size_t onlineSessions =
             userInfo->server_->switchChain(userName, newChainId);
 
-        if (switchedSessions == 0) {
+        if (onlineSessions == 0) {
           LOG(INFO) << "No workers of user " << userName
                     << " online, subsequent switching request will be ignored";
           // clear cache
@@ -258,20 +265,18 @@ void UserInfo::handleSwitchChainEvent(
           }
         }
 
-        LOG(INFO) << "User '" << userName << "' (" << switchedSessions
+        LOG(INFO) << "User '" << userName << "' (" << onlineSessions
                   << " miners) switched chain: "
                   << userInfo->server_->chainName(currentChainId) << " -> "
                   << userInfo->server_->chainName(newChainId);
       });
 }
 
-bool UserInfo::getChainId(string userName, size_t &chainId) {
+bool UserInfo::getChainId(const string &userName, size_t &chainId) {
   if (chains_.size() == 1) {
     chainId = 0;
     return true;
   }
-
-  regularUserName(userName);
 
   {
     // lookup name -> chain cache map
@@ -306,9 +311,8 @@ bool UserInfo::getChainId(string userName, size_t &chainId) {
   return false;
 }
 
-int32_t UserInfo::getUserId(size_t chainId, string userName) {
+int32_t UserInfo::getUserId(size_t chainId, const string &userName) {
   ChainVars &chain = chains_[chainId];
-  regularUserName(userName);
 
   std::shared_lock<std::shared_timed_mutex> l{*chain.nameIdlock_};
   auto itr = chain.nameIds_.find(userName);
@@ -543,7 +547,6 @@ bool UserInfo::tryAutoReg(
   try {
     fullWorkerName = filterWorkerName(fullWorkerName);
     userName = filterWorkerName(userName);
-    regularUserName(userName);
 
     {
       ScopeLock lock(autoRegPendingUsersLock_);

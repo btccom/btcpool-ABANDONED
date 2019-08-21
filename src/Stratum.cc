@@ -139,7 +139,8 @@ void StratumWorker::setChainIdAndUserId(
   chainId_ = chainId;
 }
 
-void StratumWorker::setNames(const string &fullName) {
+void StratumWorker::setNames(
+    const string &fullName, std::function<void(string &)> userNormalizer) {
   resetNames();
 
   auto pos = fullName.find(".");
@@ -153,6 +154,9 @@ void StratumWorker::setNames(const string &fullName) {
   // the user name and worker name will insert to DB, so must be filter
   userName_ = filterWorkerName(userName_);
   workerName_ = filterWorkerName(workerName_);
+
+  // normalization (case conversion, etc.)
+  userNormalizer(userName_);
 
   // max length for worker name is 20
   if (workerName_.length() > 20) {

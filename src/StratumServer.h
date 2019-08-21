@@ -307,7 +307,7 @@ public:
 
   const uint32_t tcpReadTimeout() { return tcpReadTimeout_; }
   const string &chainName(size_t chainId) { return chains_[chainId].name_; }
-  size_t /* switched sessions */
+  size_t /* online sessions */
   switchChain(string userName, size_t newChainId);
   size_t /* auto reg sessions */
   autoRegCallback(const string &userName);
