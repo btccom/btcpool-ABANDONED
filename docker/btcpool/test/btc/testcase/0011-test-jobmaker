@@ -46,7 +46,7 @@ echo "consome StratumJob from kafka (60s)..."
 $KAFKA_CONSUMER --topic StratumJob --from-beginning >$KAFKA_RESULT &
 KAFKA_CONSUMER_PID=$!
 sleep 60
-kill $KAFKA_PRODUCER_PID || echo "Kafka producer exited"
+kill $KAFKA_PRODUCER_PID &>/dev/null || echo "Kafka producer exited"
 kill $KAFKA_CONSUMER_PID || {
     echo "Kafka consumer exited too early"
     head $SSERVER_RESULT

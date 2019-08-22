@@ -8,7 +8,15 @@ $last_id = (int) $_GET['last_id'];
 $users = [
     'hu60' => 7,
     'DdDdDdDdD' => 42,
+    'testbch_btc' => 128,
 ];
+
+$reqTimes = (int)@file_get_contents('/tmp/reqTimes.btc.log');
+file_put_contents('/tmp/reqTimes.btc.log', ++$reqTimes);
+
+if ($reqTimes < 5) {
+    unset($users['testbch_btc']);
+}
 
 $requestedUsers = [];
 foreach ($users as $name=>$id) {

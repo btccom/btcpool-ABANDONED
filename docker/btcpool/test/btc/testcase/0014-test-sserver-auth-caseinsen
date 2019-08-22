@@ -19,6 +19,7 @@ WAIT_FOR_PORT="WAIT_FOR_PORT $MAIN_CONTAINER_NAME"
 
 $WAIT_FOR_IT kafka:9092
 $WAIT_FOR_PORT 3333
+sleep 1 # Waiting for sserver to fetch the user list api
 
 tryLogin() {
     {
@@ -30,9 +31,11 @@ tryLogin() {
 
         if [ "$line" = '{"id":2,"result":true,"error":null}' ]; then
             echo -e "'$1'\tauthorize success: $line"
+            killall nc &>/dev/null
             return 0
         else
             echo -e "'$1'\tauthorize failed: $line"
+            killall nc &>/dev/null
             return 1
         fi
     }

@@ -7,11 +7,12 @@ $last_id = (int) $_GET['last_id'];
 
 $users = [
     'hu60' => 333,
+    'testbch_bch' => 389,
     'DdDdDdDdD' => 4789,
 ];
 
-$reqTimes = (int)@file_get_contents('/tmp/reqTimes.log');
-file_put_contents('/tmp/reqTimes.log', ++$reqTimes);
+$reqTimes = (int)@file_get_contents('/tmp/reqTimes.bch.log');
+file_put_contents('/tmp/reqTimes.bch.log', ++$reqTimes);
 
 if ($reqTimes < 3) {
     unset($users['DdDdDdDdD']);

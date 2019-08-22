@@ -23,6 +23,7 @@ WAIT_FOR_PORT="WAIT_FOR_PORT $MAIN_CONTAINER_NAME"
 $WAIT_FOR_IT zookeeper:2181
 $WAIT_FOR_IT kafka:9092
 $WAIT_FOR_PORT 3333
+sleep 1 # Waiting for sserver to fetch the user list api
 
 outputBtcTestData() {
     cat "$BASE_DIR/testdata/stratumjobs-btc-1.log" \
@@ -46,14 +47,24 @@ outputBchTestData() {
 
 echo "init zookeeper nodes"
 {
+    # parent nodes
     echo 'create /sserver ""'
     echo 'create /sserver/userchain ""'
     echo 'create /sserver/userchain/bitcoin ""'
+    
+    # user chains
     echo 'create /sserver/userchain/bitcoin/hu60 "btc"'
     echo 'create /sserver/userchain/bitcoin/ddddddddd "btc"'
+    echo 'create /sserver/userchain/bitcoin/testbch "bch"'
+
     # Deliberately set to bch to test case insensitive
     echo 'create /sserver/userchain/bitcoin/ddDDddDDd "bch"'
     echo 'create /sserver/userchain/bitcoin/DdDdDdDdD "bch"'
+
+    # To test the user suffix stripping
+    echo 'create /sserver/userchain/bitcoin/testbch_btc "btc"'
+    echo 'create /sserver/userchain/bitcoin/testbch_bch "bch"'
+
     echo 'quit'
 } | $ZOOKEEPER_CLI 2>/dev/null
 
@@ -78,23 +89,33 @@ echo "receiving user DdDdDdDdD jobs from sserver (120s)..."
 } | nc -q -1 127.0.0.1 53336 >$SSERVER_RESULT.DdDdDdDdD &
 NC_DdDdDdDdD_PID=$!
 
+echo "receiving user testbch jobs from sserver (120s)..."
+{
+    echo '{"id":1,"method":"mining.subscribe","params":["autotest/0.1"]}'
+    # Deliberate use of testbch_btc
+    echo '{"id":2,"method":"mining.authorize","params":["testbch_btc.test","123"]}'
+} | nc -q -1 127.0.0.1 53336 >$SSERVER_RESULT.testbch &
+NC_testbch_PID=$!
+
 echo "switch chains..."
 {
     for i in {1..6}; do
         sleep 10
         echo 'set /sserver/userchain/bitcoin/hu60 "bch"'
         echo 'set /sserver/userchain/bitcoin/ddddddddd "bch"'
+        echo 'set /sserver/userchain/bitcoin/testbch "btc"'
 
         sleep 10
         echo 'set /sserver/userchain/bitcoin/hu60 "btc"'
         echo 'set /sserver/userchain/bitcoin/ddddddddd "btc"'
+        echo 'set /sserver/userchain/bitcoin/testbch "bch"'
     done
     sleep 10
     echo 'quit'
 } | $ZOOKEEPER_CLI 2>/dev/null
 
-kill $KAFKA_PRODUCER_BTC_PID || echo "Kafka producer BTC exited"
-kill $KAFKA_PRODUCER_BCH_PID || echo "Kafka producer BCH exited"
+kill $KAFKA_PRODUCER_BTC_PID &>/dev/null || echo "Kafka producer BTC exited"
+kill $KAFKA_PRODUCER_BCH_PID &>/dev/null || echo "Kafka producer BCH exited"
 
 kill $NC_hu60_PID || {
     echo "Connection to sserver closed too early (user hu60)"
@@ -105,6 +126,12 @@ kill $NC_hu60_PID || {
 kill $NC_DdDdDdDdD_PID || {
     echo "Connection to sserver closed too early (user DdDdDdDdD)"
     head $SSERVER_RESULT.DdDdDdDdD
+    exit 1
+}
+
+kill $NC_testbch_PID || {
+    echo "Connection to sserver closed too early (user testbch)"
+    head $SSERVER_RESULT.testbch
     exit 1
 }
 
@@ -124,10 +151,20 @@ else
     echo "Got $line jobs from sserver, OK. (user DdDdDdDdD)"
 fi
 
+line=`cat $SSERVER_RESULT.testbch | grep '"method":"mining.notify"' | wc -l`
+if [ $line -lt 20 ]; then
+    echo "There should be 20 jobs but only $line (user testbch)"
+    exit 1
+else
+    echo "Got $line jobs from sserver, OK. (user testbch)"
+fi
+
 echo "Checking jobs (user hu60)..."
 php "$BASE_DIR/helper/check-sserver-jobs.php" "$SSERVER_RESULT.hu60"
 echo "Checking jobs (user DdDdDdDdD)..."
 php "$BASE_DIR/helper/check-sserver-jobs.php" "$SSERVER_RESULT.DdDdDdDdD"
+echo "Checking jobs (user testbch)..."
+php "$BASE_DIR/helper/check-sserver-jobs.php" "$SSERVER_RESULT.testbch"
 
 cmpChainJobs() {
     index="$1"
@@ -187,6 +224,19 @@ cat "$SSERVER_RESULT.DdDdDdDdD" | grep '"method":"mining.notify"' | awk -F'"' '{
     read line; cmpChainJobs 9 "$line" 2 aa
     read line; cmpChainJobs 10 "$line" 2 bb
     read line; cmpChainJobs 11 "$line" 2 aa
+}
+
+echo "Checking chains (user testbch)..."
+cat "$SSERVER_RESULT.testbch" | grep '"method":"mining.notify"' | awk -F'"' '{print $12}' | awk '{print substr($1,56,2)}' | uniq -c | {
+    read line; cmpChainJobs 1 "$line" 12 bb
+    read line; cmpChainJobs 2 "$line" 2 aa
+    read line; cmpChainJobs 3 "$line" 2 bb
+    read line; cmpChainJobs 4 "$line" 2 aa
+    read line; cmpChainJobs 5 "$line" 2 bb
+    read line; cmpChainJobs 6 "$line" 2 aa
+    read line; cmpChainJobs 7 "$line" 2 bb
+    read line; cmpChainJobs 8 "$line" 2 aa
+    read line; cmpChainJobs 9 "$line" 2 bb
 }
 
 rm $SSERVER_RESULT.*

@@ -21,6 +21,7 @@ WAIT_FOR_PORT="WAIT_FOR_PORT $MAIN_CONTAINER_NAME"
 
 $WAIT_FOR_IT kafka:9092
 $WAIT_FOR_PORT 3333
+sleep 1 # Waiting for sserver to fetch the user list api
 
 outputTestData() {
     cat "$BASE_DIR/testdata/stratumjobs-1.log" \
@@ -39,6 +40,6 @@ KAFKA_PRODUCER_PID=$!
 echo "submit shares to sserver (120s)..."
 php "$BASE_DIR/helper/submit-shares.php" "$BASE_DIR/testdata/submit-shares-1.log" 127.0.0.1:53333
 
-kill $KAFKA_PRODUCER_PID || echo "Kafka producer exited"
+kill $KAFKA_PRODUCER_PID &>/dev/null || echo "Kafka producer exited"
 
 $DOCKER_COMPOSE down >>$STDOUT
