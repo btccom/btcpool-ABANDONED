@@ -157,7 +157,7 @@ PoolWatchClient::PoolWatchClient(
   , upTime_(time(nullptr)) {
   config.lookupValue("enable_tls", enableTLS_);
 
-  evdnsBase_ = evdns_base_new(base, 1);
+  evdnsBase_ = evdns_base_new(base, EVDNS_BASE_INITIALIZE_NAMESERVERS);
   if (evdnsBase_ == nullptr) {
     LOG(FATAL) << "DNS init failed";
   }

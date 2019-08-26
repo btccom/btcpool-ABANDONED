@@ -52,7 +52,7 @@ StratumClient::StratumClient(
   , isMining_(false) {
   inBuf_ = evbuffer_new();
 
-  evdnsBase_ = evdns_base_new(base, 1);
+  evdnsBase_ = evdns_base_new(base, EVDNS_BASE_INITIALIZE_NAMESERVERS);
   if (evdnsBase_ == nullptr) {
     LOG(FATAL) << "DNS init failed";
   }
