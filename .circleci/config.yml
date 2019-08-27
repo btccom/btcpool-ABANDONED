@@ -69,6 +69,38 @@ jobs:
       - run:
           name: Go tests
           command: cd reservoir && go test ./...
+  reservoir_deploy_image:
+    docker:
+      - image: circleci/golang
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Generate version
+          command: sed -i "s/0.0.0/${CIRCLE_TAG}/" reservoir/version.go
+      - run:
+          name: Build deploy image
+          command: |
+            cd reservoir
+            docker build -t ${CIRCLE_TAG}_go .
+      - run:
+          name: Docker registry login (deploy image)
+          command: |
+            for DEPLOY_IMAGE_SERVER in $DEPLOY_IMAGE_SERVERS; do
+              echo "$DEPLOY_IMAGE_PASSWORD" | docker login --username "$DEPLOY_IMAGE_USERNAME" --password-stdin $DEPLOY_IMAGE_SERVER
+            done
+      - run:
+          name: Tag deploy image
+          command: |
+            for DEPLOY_IMAGE_SERVER in $DEPLOY_IMAGE_SERVERS; do
+              docker tag ${CIRCLE_TAG}_go $DEPLOY_IMAGE_SERVER/$DEPLOY_IMAGE_REPO:${CIRCLE_TAG}_go
+            done
+      - run:
+          name: Push deploy image
+          command: |
+            for DEPLOY_IMAGE_SERVER in $DEPLOY_IMAGE_SERVERS; do
+              docker push $DEPLOY_IMAGE_SERVER/$DEPLOY_IMAGE_REPO:${CIRCLE_TAG}_go
+            done
   build_and_push_deploy_image:
     docker:
       - image: circleci/golang
@@ -160,6 +192,8 @@ workflows:
           name: build_and_run_tests@zec
   build_and_push_deploy_images:
     jobs:
+      - reservoir_deploy_image:
+          <<: *deploy_image_common
       - build_and_push_deploy_image:
           <<: *deploy_image_common
           name: build_and_push_deploy_image@bch-0.18.5
