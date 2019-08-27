@@ -578,7 +578,8 @@ void ServerBitcoin::checkShare(
       FoundBlock foundBlock;
       foundBlock.jobId_ = share.jobid();
       foundBlock.workerId_ = share.workerhashid();
-      foundBlock.userId_ = share.userid();
+      foundBlock.userId_ =
+          singleUserMode() ? singleUserId(chainId) : share.userid();
       foundBlock.height_ = sjob->height_;
       foundBlock.headerData_.set(header);
       snprintf(

@@ -153,7 +153,10 @@ public:
 
   void setChainIdAndUserId(const size_t chainId, const int32_t userId);
   void setNames(
-      const string &fullName, std::function<void(string &)> userNormalizer);
+      const string &fullName,
+      std::function<void(string &)> userNormalizer,
+      bool singleUserMode = false,
+      const string &singleUserName = "");
 
   int32_t userId() const { return userIds_[chainId_]; }
   int32_t userId(const size_t chainId) const { return userIds_[chainId]; }

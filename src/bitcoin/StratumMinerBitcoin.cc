@@ -292,6 +292,11 @@ void StratumMinerBitcoin::handleRequest_Submit(
   share.set_nonce(nonce);
 #endif
 
+  if (server.singleUserMode()) {
+    share.set_extuserid(share.userid());
+    share.set_userid(server.singleUserId(localJob->chainId_));
+  }
+
   // calc jobTarget
   uint256 jobTarget;
   BitcoinDifficulty::DiffToTarget(share.sharediff(), jobTarget);

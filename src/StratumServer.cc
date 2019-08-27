@@ -599,7 +599,8 @@ bool StratumServer::setup(const libconfig::Config &config) {
                           const string &fileLastMiningNotifyTime,
                           const bool niceHashForced,
                           uint64_t niceHashMinDiff,
-                          const string &niceHashMinDiffZookeeperPath) {
+                          const string &niceHashMinDiffZookeeperPath,
+                          int32_t singleUserId) {
     size_t chainId = chains_.size();
 
     LOG(INFO) << "chain = " << chainName
@@ -625,7 +626,9 @@ bool StratumServer::setup(const libconfig::Config &config) {
              fileLastMiningNotifyTime,
              niceHashForced,
              niceHashMinDiff,
-             niceHashMinDiffZookeeperPath)});
+             niceHashMinDiffZookeeperPath),
+         {},
+         singleUserId});
   };
 
   bool multiChains = false;
@@ -671,6 +674,9 @@ bool StratumServer::setup(const libconfig::Config &config) {
         initZookeeper(config);
       }
 
+      int singleUserId = 0;
+      chains[i].lookupValue("single_user_puid", singleUserId);
+
       addChainVars(
           chains[i].lookup("name"),
           chains[i].lookup("kafka_brokers"),
@@ -681,7 +687,8 @@ bool StratumServer::setup(const libconfig::Config &config) {
           fileLastMiningNotifyTime,
           chainNiceHashForced,
           chainNiceHashMinDiff,
-          chainNiceHashMinDiffZookeeperPath);
+          chainNiceHashMinDiffZookeeperPath,
+          singleUserId);
     }
     if (chains_.empty()) {
       LOG(FATAL) << "sserver.multi_chains enabled but chains empty!";
@@ -690,6 +697,9 @@ bool StratumServer::setup(const libconfig::Config &config) {
     string fileLastMiningNotifyTime; // optional
     config.lookupValue(
         "sserver.file_last_notify_time", fileLastMiningNotifyTime);
+
+    int singleUserId = 0;
+    config.lookupValue("users.single_user_puid", singleUserId);
 
     addChainVars(
         "default",
@@ -701,8 +711,13 @@ bool StratumServer::setup(const libconfig::Config &config) {
         fileLastMiningNotifyTime,
         niceHashForced,
         niceHashMinDiff,
-        niceHashMinDiffZookeeperPath);
+        niceHashMinDiffZookeeperPath,
+        singleUserId);
   }
+
+  // single user mode
+  config.lookupValue("users.single_user_mode", singleUserMode_);
+  config.lookupValue("users.single_user_name", singleUserName_);
 
   // ------------------- user info -------------------
   // It should at below of addChainVars() or sserver may crashed

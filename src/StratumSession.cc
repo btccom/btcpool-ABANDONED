@@ -244,8 +244,9 @@ string StratumSession::getMinerInfoJson(
       "}}",
       date("%F %T"),
       action,
-      worker_.userId(),
-      worker_.userName_,
+      server_.singleUserMode() ? server_.singleUserId(getChainId())
+                               : worker_.userId(),
+      server_.singleUserMode() ? server_.singleUserName() : worker_.userName_,
       workerId,
       workerName,
       minerAgent,
@@ -284,9 +285,13 @@ void StratumSession::checkUserAndPwd(
   }
 
   // set id & names, will filter workername in this func
-  worker_.setNames(fullName, [this](string &userName) {
-    server_.userInfo_->regularUserName(userName);
-  });
+  worker_.setNames(
+      fullName,
+      [this](string &userName) {
+        server_.userInfo_->regularUserName(userName);
+      },
+      server_.singleUserMode(),
+      server_.singleUserName());
 
   if (worker_.userName_.empty()) {
     DLOG(INFO) << "got an empty user name";

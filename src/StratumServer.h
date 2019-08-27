@@ -241,6 +241,8 @@ public:
 
     JobRepository *jobRepository_;
     std::map<int32_t, size_t> shareStats_;
+
+    int32_t singleUserId_;
   };
 
   bool acceptStale_;
@@ -265,6 +267,9 @@ public:
   vector<ChainVars> chains_;
   shared_ptr<DiffController> defaultDifficultyController_;
   uint8_t serverId_;
+
+  bool singleUserMode_ = false;
+  string singleUserName_;
 
   shared_ptr<Zookeeper> zk_;
 
@@ -333,6 +338,12 @@ public:
 
   virtual unique_ptr<StratumSession> createConnection(
       struct bufferevent *bev, struct sockaddr *saddr, uint32_t sessionID) = 0;
+
+  bool singleUserMode() const { return singleUserMode_; }
+  string singleUserName() const { return singleUserName_; }
+  int32_t singleUserId(size_t chainId) {
+    return chains_[chainId].singleUserId_;
+  }
 
 protected:
   virtual JobRepository *createJobRepository(

@@ -140,7 +140,10 @@ void StratumWorker::setChainIdAndUserId(
 }
 
 void StratumWorker::setNames(
-    const string &fullName, std::function<void(string &)> userNormalizer) {
+    const string &fullName,
+    std::function<void(string &)> userNormalizer,
+    bool singleUserMode,
+    const string &singleUserName) {
   resetNames();
 
   auto pos = fullName.find(".");
@@ -167,8 +170,14 @@ void StratumWorker::setNames(
     workerName_ = DEFAULT_WORKER_NAME;
   }
 
-  workerHashId_ = calcWorkerId(workerName_);
   fullName_ = userName_ + "." + workerName_;
+
+  if (singleUserMode) {
+    workerName_ = fullName_;
+    fullName_ = singleUserName + "." + fullName_;
+  }
+
+  workerHashId_ = calcWorkerId(workerName_);
 }
 
 int64_t StratumWorker::calcWorkerId(const string &workerName) {
