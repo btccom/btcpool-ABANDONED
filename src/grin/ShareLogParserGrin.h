@@ -33,13 +33,9 @@ using ShareLogDumperGrin = ShareLogDumperT<ShareGrin>;
 class ShareLogParserGrin : public ShareLogParserT<ShareGrin> {
 public:
   ShareLogParserGrin(
-      const char *chainType,
-      const string &dataDir,
+      const libconfig::Config &config,
       time_t timestamp,
-      const MysqlConnectInfo &poolDBInfo,
-      shared_ptr<DuplicateShareChecker<ShareGrin>> dupShareChecker,
-      bool acceptStale,
-      const libconfig::Config &config);
+      shared_ptr<DuplicateShareChecker<ShareGrin>> dupShareChecker);
 
 private:
   bool filterShare(const ShareGrin &share) override;
@@ -50,15 +46,8 @@ private:
 class ShareLogParserServerGrin : public ShareLogParserServerT<ShareGrin> {
 public:
   ShareLogParserServerGrin(
-      const char *chainType,
-      const string &dataDir,
-      const string &httpdHost,
-      unsigned short httpdPort,
-      const MysqlConnectInfo &poolDBInfo,
-      const uint32_t kFlushDBInterval,
-      shared_ptr<DuplicateShareChecker<ShareGrin>> dupShareChecker,
-      bool acceptStale,
-      const libconfig::Config &config);
+      const libconfig::Config &config,
+      shared_ptr<DuplicateShareChecker<ShareGrin>> dupShareChecker);
 
 private:
   shared_ptr<ShareLogParserT<ShareGrin>>

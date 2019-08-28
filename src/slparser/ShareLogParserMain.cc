@@ -86,7 +86,7 @@ void usage() {
 
 std::shared_ptr<ShareLogDumper> newShareLogDumper(
     const string &chainType,
-    const string &dataDir,
+    const libconfig::Config &cfg,
     time_t timestamp,
     const std::set<int32_t> &uids) {
 #if defined(CHAIN_TYPE_STR)
@@ -95,24 +95,17 @@ std::shared_ptr<ShareLogDumper> newShareLogDumper(
   if (false)
 #endif
   {
-    return std::make_shared<ShareLogDumperBitcoin>(
-        chainType.c_str(), dataDir, timestamp, uids);
+    return std::make_shared<ShareLogDumperBitcoin>(cfg, timestamp, uids);
   } else if (chainType == "ETH") {
-    return std::make_shared<ShareLogDumperEth>(
-        chainType.c_str(), dataDir, timestamp, uids);
+    return std::make_shared<ShareLogDumperEth>(cfg, timestamp, uids);
   } else if (chainType == "BTM") {
-    return std::make_shared<ShareLogDumperBytom>(
-        chainType.c_str(), dataDir, timestamp, uids);
+    return std::make_shared<ShareLogDumperBytom>(cfg, timestamp, uids);
   } else if (chainType == "DCR") {
-    return std::make_shared<ShareLogDumperDecred>(
-        chainType.c_str(), dataDir, timestamp, uids);
+    return std::make_shared<ShareLogDumperDecred>(cfg, timestamp, uids);
   } else if (chainType == "BEAM") {
-    return std::make_shared<ShareLogDumperBeam>(
-        chainType.c_str(), dataDir, timestamp, uids);
+    return std::make_shared<ShareLogDumperBeam>(cfg, timestamp, uids);
   } else if (chainType == "GRIN") {
-    return std::make_shared<ShareLogDumperGrin>(
-        chainType.c_str(), dataDir, timestamp, uids);
-  } else {
+    return std::make_shared<ShareLogDumperGrin>(cfg, timestamp, uids);
     LOG(FATAL) << "newShareLogDumper: unknown chain type " << chainType;
     return nullptr;
   }
@@ -120,11 +113,8 @@ std::shared_ptr<ShareLogDumper> newShareLogDumper(
 
 std::shared_ptr<ShareLogParser> newShareLogParser(
     const string &chainType,
-    const string &dataDir,
     time_t timestamp,
-    const MysqlConnectInfo &poolDBInfo,
     const int dupShareTrackingHeight,
-    bool acceptStale,
     const libconfig::Config &cfg) {
 #if defined(CHAIN_TYPE_STR)
   if (CHAIN_TYPE_STR == chainType)
@@ -132,54 +122,29 @@ std::shared_ptr<ShareLogParser> newShareLogParser(
   if (false)
 #endif
   {
-    return std::make_shared<ShareLogParserBitcoin>(
-        chainType.c_str(),
-        dataDir,
-        timestamp,
-        poolDBInfo,
-        nullptr,
-        acceptStale);
+    return std::make_shared<ShareLogParserBitcoin>(cfg, timestamp, nullptr);
   } else if (chainType == "ETH") {
     return std::make_shared<ShareLogParserEth>(
-        chainType.c_str(),
-        dataDir,
+        cfg,
         timestamp,
-        poolDBInfo,
-        std::make_shared<DuplicateShareCheckerEth>(dupShareTrackingHeight),
-        acceptStale);
+        std::make_shared<DuplicateShareCheckerEth>(dupShareTrackingHeight));
   } else if (chainType == "BTM") {
     return std::make_shared<ShareLogParserBytom>(
-        chainType.c_str(),
-        dataDir,
+        cfg,
         timestamp,
-        poolDBInfo,
-        std::make_shared<DuplicateShareCheckerBytom>(dupShareTrackingHeight),
-        acceptStale);
+        std::make_shared<DuplicateShareCheckerBytom>(dupShareTrackingHeight));
   } else if (chainType == "DCR") {
-    return std::make_shared<ShareLogParserDecred>(
-        chainType.c_str(),
-        dataDir,
-        timestamp,
-        poolDBInfo,
-        nullptr,
-        acceptStale);
+    return std::make_shared<ShareLogParserDecred>(cfg, timestamp, nullptr);
   } else if (chainType == "BEAM") {
     return std::make_shared<ShareLogParserBeam>(
-        chainType.c_str(),
-        dataDir,
+        cfg,
         timestamp,
-        poolDBInfo,
-        std::make_shared<DuplicateShareCheckerBeam>(dupShareTrackingHeight),
-        acceptStale);
+        std::make_shared<DuplicateShareCheckerBeam>(dupShareTrackingHeight));
   } else if (chainType == "GRIN") {
     return std::make_shared<ShareLogParserGrin>(
-        chainType.c_str(),
-        dataDir,
+        cfg,
         timestamp,
-        poolDBInfo,
-        std::make_shared<DuplicateShareCheckerGrin>(dupShareTrackingHeight),
-        acceptStale,
-        cfg);
+        std::make_shared<DuplicateShareCheckerGrin>(dupShareTrackingHeight));
   } else {
     LOG(FATAL) << "newShareLogParser: unknown chain type " << chainType;
     return nullptr;
@@ -188,13 +153,7 @@ std::shared_ptr<ShareLogParser> newShareLogParser(
 
 std::shared_ptr<ShareLogParserServer> newShareLogParserServer(
     const string &chainType,
-    const string &dataDir,
-    const string &httpdHost,
-    unsigned short httpdPort,
-    const MysqlConnectInfo &poolDBInfo,
-    const uint32_t kFlushDBInterval,
     const int dupShareTrackingHeight,
-    bool acceptStale,
     const libconfig::Config &cfg) {
 #if defined(CHAIN_TYPE_STR)
   if (CHAIN_TYPE_STR == chainType)
@@ -202,66 +161,25 @@ std::shared_ptr<ShareLogParserServer> newShareLogParserServer(
   if (false)
 #endif
   {
-    return std::make_shared<ShareLogParserServerBitcoin>(
-        chainType.c_str(),
-        dataDir,
-        httpdHost,
-        httpdPort,
-        poolDBInfo,
-        kFlushDBInterval,
-        nullptr,
-        acceptStale);
+    return std::make_shared<ShareLogParserServerBitcoin>(cfg, nullptr);
   } else if (chainType == "ETH") {
     return std::make_shared<ShareLogParserServerEth>(
-        chainType.c_str(),
-        dataDir,
-        httpdHost,
-        httpdPort,
-        poolDBInfo,
-        kFlushDBInterval,
-        std::make_shared<DuplicateShareCheckerEth>(dupShareTrackingHeight),
-        acceptStale);
+        cfg,
+        std::make_shared<DuplicateShareCheckerEth>(dupShareTrackingHeight));
   } else if (chainType == "BTM") {
     return std::make_shared<ShareLogParserServerBytom>(
-        chainType.c_str(),
-        dataDir,
-        httpdHost,
-        httpdPort,
-        poolDBInfo,
-        kFlushDBInterval,
-        std::make_shared<DuplicateShareCheckerBytom>(dupShareTrackingHeight),
-        acceptStale);
+        cfg,
+        std::make_shared<DuplicateShareCheckerBytom>(dupShareTrackingHeight));
   } else if (chainType == "DCR") {
-    return std::make_shared<ShareLogParserServerDecred>(
-        chainType.c_str(),
-        dataDir,
-        httpdHost,
-        httpdPort,
-        poolDBInfo,
-        kFlushDBInterval,
-        nullptr,
-        acceptStale);
+    return std::make_shared<ShareLogParserServerDecred>(cfg, nullptr);
   } else if (chainType == "BEAM") {
     return std::make_shared<ShareLogParserServerBeam>(
-        chainType.c_str(),
-        dataDir,
-        httpdHost,
-        httpdPort,
-        poolDBInfo,
-        kFlushDBInterval,
-        std::make_shared<DuplicateShareCheckerBeam>(dupShareTrackingHeight),
-        acceptStale);
+        cfg,
+        std::make_shared<DuplicateShareCheckerBeam>(dupShareTrackingHeight));
   } else if (chainType == "GRIN") {
     return std::make_shared<ShareLogParserServerGrin>(
-        chainType.c_str(),
-        dataDir,
-        httpdHost,
-        httpdPort,
-        poolDBInfo,
-        kFlushDBInterval,
-        std::make_shared<DuplicateShareCheckerGrin>(dupShareTrackingHeight),
-        acceptStale,
-        cfg);
+        cfg,
+        std::make_shared<DuplicateShareCheckerGrin>(dupShareTrackingHeight));
   } else {
     LOG(FATAL) << "newShareLogParserServer: unknown chain type " << chainType;
     return nullptr;
@@ -340,25 +258,8 @@ int main(int argc, char **argv) {
       SelectParams(CBaseChainParams::MAIN);
     }
 
-    // DB info
-    MysqlConnectInfo *poolDBInfo = nullptr;
-    {
-      int32_t poolDBPort = 3306;
-      cfg.lookupValue("pooldb.port", poolDBPort);
-      poolDBInfo = new MysqlConnectInfo(
-          cfg.lookup("pooldb.host"),
-          poolDBPort,
-          cfg.lookup("pooldb.username"),
-          cfg.lookup("pooldb.password"),
-          cfg.lookup("pooldb.dbname"));
-    }
-
     // chain type
     string chainType = cfg.lookup("sharelog.chain_type");
-
-    // whether stale shares are accepted
-    bool acceptStale = false;
-    cfg.lookupValue("sharelog.accept_stale", acceptStale);
 
     // Track duplicate shares within N blocks.
     int32_t dupShareTrackingHeight = 3;
@@ -386,8 +287,8 @@ int main(int argc, char **argv) {
       if (optPUID > 0)
         uids.insert(optPUID);
 
-      std::shared_ptr<ShareLogDumper> sldumper = newShareLogDumper(
-          chainType, cfg.lookup("sharelog.data_dir"), ts, uids);
+      std::shared_ptr<ShareLogDumper> sldumper =
+          newShareLogDumper(chainType, cfg, ts, uids);
       sldumper->dump2stdout();
 
       google::ShutdownGoogleLogging();
@@ -405,14 +306,8 @@ int main(int argc, char **argv) {
           optDate % 100);
       const time_t ts = str2time(tsStr.c_str(), "%F %T");
 
-      std::shared_ptr<ShareLogParser> slparser = newShareLogParser(
-          chainType,
-          cfg.lookup("sharelog.data_dir"),
-          ts,
-          *poolDBInfo,
-          dupShareTrackingHeight,
-          acceptStale,
-          cfg);
+      std::shared_ptr<ShareLogParser> slparser =
+          newShareLogParser(chainType, ts, dupShareTrackingHeight, cfg);
       do {
         if (slparser->init() == false) {
           LOG(ERROR) << "init failure";
@@ -445,20 +340,8 @@ int main(int argc, char **argv) {
     signal(SIGTERM, handler);
     signal(SIGINT, handler);
 
-    int32_t port = 8081;
-    cfg.lookupValue("slparserhttpd.port", port);
-    uint32_t kFlushDBInterval = 20;
-    cfg.lookupValue("slparserhttpd.flush_db_interval", kFlushDBInterval);
-    gShareLogParserServer = newShareLogParserServer(
-        chainType,
-        cfg.lookup("sharelog.data_dir"),
-        cfg.lookup("slparserhttpd.ip"),
-        port,
-        *poolDBInfo,
-        kFlushDBInterval,
-        dupShareTrackingHeight,
-        acceptStale,
-        cfg);
+    gShareLogParserServer =
+        newShareLogParserServer(chainType, dupShareTrackingHeight, cfg);
     gShareLogParserServer->run();
   } catch (const SettingException &e) {
     LOG(FATAL) << "config missing: " << e.getPath();

@@ -167,12 +167,18 @@ inline double share2HashrateP(uint64_t share, uint32_t timeDiff) {
 bool fileExists(const char *file);
 bool fileNonEmpty(const char *file);
 
-template <typename S, typename V>
+template <typename V, class S>
 void readFromSetting(
     const S &setting, const string &key, V &value, bool optional = false) {
   if (!setting.lookupValue(key, value) && !optional) {
     LOG(FATAL) << "config section missing key: " << key;
   }
+}
+
+template <typename V, class S>
+V configLookup(const S &setting, const string &key, V defaultValue) {
+  setting.lookupValue(key, defaultValue);
+  return defaultValue;
 }
 
 string

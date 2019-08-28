@@ -54,8 +54,7 @@ class ShareLogDumperT : public ShareLogDumper {
 
 public:
   ShareLogDumperT(
-      const char *chainType,
-      const string &dataDir,
+      const libconfig::Config &cfg,
       time_t timestamp,
       const std::set<int32_t> &uids);
   ~ShareLogDumperT();
@@ -140,12 +139,9 @@ class ShareLogParserT : public ShareLogParser {
 
 public:
   ShareLogParserT(
-      const char *chainType,
-      const string &dataDir,
+      const libconfig::Config &cfg,
       time_t timestamp,
-      const MysqlConnectInfo &poolDBInfo,
-      shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker,
-      bool acceptStale);
+      shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker);
   virtual ~ShareLogParserT();
 
   bool init();
@@ -194,6 +190,8 @@ protected:
   };
 
   //-----------------
+  const libconfig::Config &cfg_;
+
   atomic<bool> running_;
   pthread_rwlock_t rwlock_;
   time_t uptime_;
@@ -202,12 +200,9 @@ protected:
   shared_ptr<ShareLogParserT<SHARE>> shareLogParser_;
   const string chainType_;
   string dataDir_;
-  MysqlConnectInfo poolDBInfo_; // save stats data
   time_t kFlushDBInterval_;
   shared_ptr<DuplicateShareChecker<SHARE>>
       dupShareChecker_; // Used to detect duplicate share attacks.
-
-  bool acceptStale_; // Whether stale shares are accepted
 
   // httpd
   struct event_base *base_;
@@ -241,14 +236,8 @@ public:
 
 public:
   ShareLogParserServerT(
-      const char *chainType,
-      const string &dataDir,
-      const string &httpdHost,
-      unsigned short httpdPort,
-      const MysqlConnectInfo &poolDBInfo,
-      const uint32_t kFlushDBInterval,
-      shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker,
-      bool acceptStale);
+      const libconfig::Config &cfg,
+      shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker);
   virtual ~ShareLogParserServerT();
 
   void stop();

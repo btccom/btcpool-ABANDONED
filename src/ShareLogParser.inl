@@ -29,13 +29,15 @@
 ///////////////////////////////  ShareLogDumperT ///////////////////////////////
 template <class SHARE>
 ShareLogDumperT<SHARE>::ShareLogDumperT(
-    const char *chainType,
-    const string &dataDir,
+    const libconfig::Config &cfg,
     time_t timestamp,
     const std::set<int32_t> &uids)
   : uids_(uids)
   , isDumpAll_(false) {
-  filePath_ = getStatsFilePath(chainType, dataDir, timestamp);
+  filePath_ = getStatsFilePath(
+      cfg.lookup("sharelog.chain_type"),
+      cfg.lookup("sharelog.data_dir"),
+      timestamp);
 
   if (uids_.empty())
     isDumpAll_ = true;
@@ -125,20 +127,22 @@ void ShareLogDumperT<SHARE>::parseShare(const SHARE *share) {
 ///////////////////////////////  ShareLogParserT ///////////////////////////////
 template <class SHARE>
 ShareLogParserT<SHARE>::ShareLogParserT(
-    const char *chainType,
-    const string &dataDir,
+    const libconfig::Config &cfg,
     time_t timestamp,
-    const MysqlConnectInfo &poolDBInfo,
-    shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker,
-    bool acceptStale)
+    shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker)
   : date_(timestamp)
-  , chainType_(chainType)
+  , chainType_(cfg.lookup("sharelog.chain_type").operator string())
   , f_(nullptr)
   , buf_(nullptr)
   , incompleteShareSize_(0)
-  , poolDB_(poolDBInfo)
+  , poolDB_({cfg.lookup("pooldb.host").operator string(),
+             configLookup<int32_t>(cfg, "pooldb.port", 3306),
+             cfg.lookup("pooldb.username").operator string(),
+             cfg.lookup("pooldb.password").operator string(),
+             cfg.lookup("pooldb.dbname").operator string()})
   , dupShareChecker_(dupShareChecker)
-  , acceptStale_(acceptStale) {
+  , acceptStale_(configLookup(cfg, "sharelog.accept_stale", false)) {
+
   pthread_rwlock_init(&rwlock_, nullptr);
 
   {
@@ -147,7 +151,8 @@ ShareLogParserT<SHARE>::ShareLogParserT(
     workersStats_[pkey] = std::make_shared<ShareStatsDay<SHARE>>();
   }
 
-  filePath_ = getStatsFilePath(chainType, dataDir, timestamp);
+  filePath_ = getStatsFilePath(
+      chainType_.c_str(), cfg.lookup("sharelog.data_dir"), timestamp);
 
   // prealloc memory
   // buf_ = (uint8_t *)malloc(kMaxElementsNum_ * sizeof(SHARE));
@@ -781,24 +786,17 @@ bool ShareLogParserT<SHARE>::flushToDB(bool removeExpiredData) {
 ///////////////////////////////
 template <class SHARE>
 ShareLogParserServerT<SHARE>::ShareLogParserServerT(
-    const char *chainType,
-    const string &dataDir,
-    const string &httpdHost,
-    unsigned short httpdPort,
-    const MysqlConnectInfo &poolDBInfo,
-    const uint32_t kFlushDBInterval,
-    shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker,
-    bool acceptStale)
-  : running_(true)
-  , chainType_(chainType)
-  , dataDir_(dataDir)
-  , poolDBInfo_(poolDBInfo)
-  , kFlushDBInterval_(kFlushDBInterval)
+    const libconfig::Config &cfg,
+    shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker)
+  : cfg_(cfg)
+  , running_(true)
+  , chainType_(cfg.lookup("sharelog.chain_type").operator string())
+  , dataDir_(cfg.lookup("sharelog.data_dir").operator string())
+  , kFlushDBInterval_(configLookup(cfg, "slparserhttpd.flush_db_interval", 20))
   , dupShareChecker_(dupShareChecker)
-  , acceptStale_(acceptStale)
   , base_(nullptr)
-  , httpdHost_(httpdHost)
-  , httpdPort_(httpdPort)
+  , httpdHost_(cfg.lookup("slparserhttpd.ip").operator string())
+  , httpdPort_(configLookup(cfg, "slparserhttpd.port", 8081))
   , requestCount_(0)
   , responseBytes_(0) {
   const time_t now = time(nullptr);
@@ -856,12 +854,7 @@ template <class SHARE>
 shared_ptr<ShareLogParserT<SHARE>>
 ShareLogParserServerT<SHARE>::createShareLogParser(time_t datets) {
   return std::make_shared<ShareLogParserT<SHARE>>(
-      chainType_.c_str(),
-      dataDir_,
-      datets,
-      poolDBInfo_,
-      dupShareChecker_,
-      acceptStale_);
+      cfg_, datets, dupShareChecker_);
 }
 
 template <class SHARE>
