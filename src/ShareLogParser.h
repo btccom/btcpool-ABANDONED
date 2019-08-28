@@ -49,6 +49,10 @@ class ShareLogDumperT : public ShareLogDumper {
   std::set<int32_t> uids_; // if empty dump all user's shares
   bool isDumpAll_;
 
+  // single user mode
+  bool singleUserMode_ = false;
+  int32_t singleUserId_ = 0;
+
   void parseShareLog(const uint8_t *buf, size_t len);
   void parseShare(const SHARE *share);
 
@@ -106,6 +110,10 @@ class ShareLogParserT : public ShareLogParser {
       dupShareChecker_; // Used to detect duplicate share attacks.
 
   bool acceptStale_; // Whether stale shares are accepted
+
+  // single user mode
+  bool singleUserMode_ = false;
+  int32_t singleUserId_ = 0;
 
   inline int32_t getHourIdx(uint32_t ts) {
     // %H	Hour in 24h format (00-23)

@@ -34,6 +34,14 @@ ShareLogDumperT<SHARE>::ShareLogDumperT(
     const std::set<int32_t> &uids)
   : uids_(uids)
   , isDumpAll_(false) {
+
+  // single user mode
+  cfg.lookupValue("sharelog.single_user_mode", singleUserMode_);
+  cfg.lookupValue("sharelog.single_user_puid", singleUserId_);
+  if (singleUserMode_) {
+    LOG(INFO) << "[Option] Single User Mode Enabled, puid: " << singleUserId_;
+  }
+
   filePath_ = getStatsFilePath(
       cfg.lookup("sharelog.chain_type"),
       cfg.lookup("sharelog.data_dir"),
@@ -108,6 +116,16 @@ void ShareLogDumperT<SHARE>::parseShareLog(const uint8_t *buf, size_t len) {
     LOG(INFO) << "parse share from base message failed! ";
     return;
   }
+
+  if (singleUserMode_) {
+    if (!share.has_extuserid() || share.userid() != singleUserId_) {
+      // Ignore irrelevant shares
+      return;
+    }
+    // Change the user id for statistical purposes
+    share.set_userid(share.extuserid());
+  }
+
   parseShare(&share);
 }
 
@@ -142,6 +160,13 @@ ShareLogParserT<SHARE>::ShareLogParserT(
              cfg.lookup("pooldb.dbname").operator string()})
   , dupShareChecker_(dupShareChecker)
   , acceptStale_(configLookup(cfg, "sharelog.accept_stale", false)) {
+
+  // single user mode
+  cfg.lookupValue("sharelog.single_user_mode", singleUserMode_);
+  cfg.lookupValue("sharelog.single_user_puid", singleUserId_);
+  if (singleUserMode_) {
+    LOG(INFO) << "[Option] Single User Mode Enabled, puid: " << singleUserId_;
+  }
 
   pthread_rwlock_init(&rwlock_, nullptr);
 
@@ -187,6 +212,16 @@ void ShareLogParserT<SHARE>::parseShareLog(const uint8_t *buf, size_t len) {
     LOG(INFO) << "parse share from base message failed! ";
     return;
   }
+
+  if (singleUserMode_) {
+    if (!share.has_extuserid() || share.userid() != singleUserId_) {
+      // Ignore irrelevant shares
+      return;
+    }
+    // Change the user id for statistical purposes
+    share.set_userid(share.extuserid());
+  }
+
   parseShare(share);
 }
 
