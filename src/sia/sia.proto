@@ -38,4 +38,5 @@ message SiaMsg{
   optional uint32 height = 10;
   optional uint32 nonce = 11;
   optional uint32 sessionid = 12;
+  optional sint32 extuserid = 13; // Extended uid in single-user mode. May not be set.
 }

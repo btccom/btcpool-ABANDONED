@@ -162,6 +162,7 @@ public:
   int32_t userId(const size_t chainId) const { return userIds_[chainId]; }
 
   static string getUserName(const string &fullName);
+  static string getWorkerName(const string &fullName);
   static int64_t calcWorkerId(const string &workerName);
 };
 

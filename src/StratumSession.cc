@@ -241,6 +241,7 @@ string StratumSession::getMinerInfoJson(
       "\"ip\":\"%s\","
       "\"session_id\":\"%08x\","
       "\"desc\":\"%s\""
+      "%s" // Optional field for single user mode
       "}}",
       date("%F %T"),
       action,
@@ -252,7 +253,10 @@ string StratumSession::getMinerInfoJson(
       minerAgent,
       clientIp_,
       sessionId_,
-      desc);
+      desc,
+      server_.singleUserMode()
+          ? Strings::Format(",\"ext_user_id\":%d", worker_.userId())
+          : "");
 }
 
 bool StratumSession::autoRegCallback(const string &userName) {

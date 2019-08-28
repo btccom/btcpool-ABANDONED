@@ -718,6 +718,15 @@ bool StratumServer::setup(const libconfig::Config &config) {
   // single user mode
   config.lookupValue("users.single_user_mode", singleUserMode_);
   config.lookupValue("users.single_user_name", singleUserName_);
+  if (singleUserMode_) {
+    string chainPuids = "";
+    for (auto chain : chains_) {
+      chainPuids +=
+          ", " + chain.name_ + " puid: " + std::to_string(chain.singleUserId_);
+    }
+    LOG(INFO) << "[Option] Single User Mode Enabled, userName: "
+              << singleUserName_ << chainPuids;
+  }
 
   // ------------------- user info -------------------
   // It should at below of addChainVars() or sserver may crashed

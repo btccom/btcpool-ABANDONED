@@ -133,6 +133,14 @@ string StratumWorker::getUserName(const string &fullName) {
   return fullName.substr(0, pos);
 }
 
+string StratumWorker::getWorkerName(const string &fullName) {
+  auto pos = fullName.find(".");
+  if (pos == fullName.npos) {
+    return "";
+  }
+  return fullName.substr(pos + 1);
+}
+
 void StratumWorker::setChainIdAndUserId(
     const size_t chainId, const int32_t userId) {
   userIds_[chainId] = userId;

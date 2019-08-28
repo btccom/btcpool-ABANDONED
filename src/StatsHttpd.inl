@@ -178,6 +178,12 @@ StatsServerT<SHARE>::StatsServerT(
   cfg.lookupValue("statshttpd.update_worker_name", updateWorkerName_);
   cfg.lookupValue("statshttpd.expected_online_workers", expectedOnlineWorkers);
 
+  cfg.lookupValue("statshttpd.single_user_mode", singleUserMode_);
+  cfg.lookupValue("statshttpd.single_user_puid", singleUserId_);
+  if (singleUserMode_) {
+    LOG(INFO) << "[Option] Single User Mode Enabled, puid: " << singleUserId_;
+  }
+
   bool useMysql = true;
   cfg.lookupValue("statshttpd.use_mysql", useMysql);
   bool useRedis = false;
@@ -1194,10 +1200,20 @@ void StatsServerT<SHARE>::consumeShareLog(rd_kafka_message_t *rkmessage) {
     return;
   }
 
+  if (singleUserMode_) {
+    if (!share.has_extuserid() || share.userid() != singleUserId_) {
+      // Ignore irrelevant shares
+      return;
+    }
+    // Change the user id for statistical purposes
+    share.set_userid(share.extuserid());
+  }
+
   if (!share.isValid()) {
     LOG(ERROR) << "invalid share: " << share.toString();
     return;
   }
+
   if (dupShareChecker_ && !dupShareChecker_->addShare(share)) {
     LOG(INFO) << "duplicate share attack: " << share.toString();
     share.set_status(StratumStatus::DUPLICATE_SHARE);
@@ -1442,6 +1458,17 @@ void StatsServerT<SHARE>::consumeCommonEvents(rd_kafka_message_t *rkmessage) {
     int64_t workerId = r["content"]["worker_id"].int64();
     string workerName = filterWorkerName(r["content"]["worker_name"].str());
     string minerAgent = filterWorkerName(r["content"]["miner_agent"].str());
+
+    if (singleUserMode_) {
+      if (userId != singleUserId_ ||
+          r["content"]["ext_user_id"].type() != Utilities::JS::type::Int) {
+        // Ignore irrelevant shares
+        return;
+      }
+      userId = r["content"]["ext_user_id"].int32();
+      // remove user name prefix (example: "user2.12x34" -> "12x34")
+      workerName = StratumWorker::getWorkerName(workerName);
+    }
 
     if (poolDBCommonEvents_ != nullptr) {
       updateWorkerStatusToDB(

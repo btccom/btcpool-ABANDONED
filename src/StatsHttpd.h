@@ -249,6 +249,10 @@ protected:
 
   bool acceptStale_ = false; // Whether stale shares are accepted
 
+  // single user mode
+  bool singleUserMode_ = false;
+  int32_t singleUserId_ = 0;
+
   // httpd
   struct event_base *base_ = nullptr;
   string httpdHost_;
