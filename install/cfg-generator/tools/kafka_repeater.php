@@ -4,14 +4,14 @@ require_once __DIR__.'/../lib/init.php';
 // PHP syntax for templates
 // https://www.php.net/manual/control-structures.alternative-syntax.php
 // https://www.php.net/manual/language.basic-syntax.phpmode.php
-?>
+
 #
 # kafka repeater cfg
 #
 # @since 2018-17
 # @copyright btc.com
 #
-
+?>
 kafka = {
     in_brokers = "<?=notNullTrim('kafka_in_brokers')?>";
     in_topic = "<?=notNullTrim('kafka_in_topic')?>";

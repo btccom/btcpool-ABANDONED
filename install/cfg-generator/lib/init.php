@@ -20,3 +20,15 @@ class EnvAutoLoader implements ArrayAccess {
 }
 
 $_ENV = new EnvAutoLoader();
+
+
+// For PHP <= 7.3.0 :
+if (! function_exists("array_key_last")) {
+    function array_key_last($array) {
+        if (!is_array($array) || empty($array)) {
+            return NULL;
+        }
+       
+        return array_keys($array)[count($array)-1];
+    }
+}
