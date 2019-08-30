@@ -65,14 +65,16 @@ void JobRepositoryBitcoin::broadcastStratumJob(
   }
 
   bool isClean = false;
-  if (static_cast<uint32_t>(sjob->height_) > lastHeight_) {
+  uint32_t height = sjob->height_;
+  if (height > lastHeight_) {
     isClean = true;
-    lastHeight_ = sjob->height_;
+    lastHeight_ = height;
     LOG(INFO) << "received new height stratum job, height: " << sjob->height_
               << ", prevhash: " << sjob->prevHash_.ToString();
   }
 
-  bool isMergedMiningClean = sjob->isMergedMiningCleanJob_;
+  bool isMergedMiningClean =
+      sjob->isMergedMiningCleanJob_ && height >= lastHeight_;
 
   //
   // The `clean_jobs` field should be `true` ONLY IF a new block found in
@@ -118,7 +120,7 @@ void JobRepositoryBitcoin::broadcastStratumJob(
         std::static_pointer_cast<StratumJobBitcoin>(lastExJob->sjob_);
 
     if (lastSjob->merkleBranch_.size() == 0 &&
-        sjob->merkleBranch_.size() != 0) {
+        sjob->merkleBranch_.size() != 0 && height >= lastHeight_) {
       sendMiningNotify(exJob);
     }
   }

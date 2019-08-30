@@ -1,0 +1,67 @@
+#!/bin/bash
+set -e
+source "$BASE_DIR/helper/functions.sh"
+
+PID=$$
+DOCKER_COMPOSE="docker-compose --no-ansi"
+
+cd "$BASE_DIR"
+
+echo "clear old docker compose..."
+$DOCKER_COMPOSE down >>$STDOUT
+
+echo "start sserver (5s)..."
+$DOCKER_COMPOSE up -d sserver >>$STDOUT
+
+MAIN_CONTAINER_NAME="$($DOCKER_COMPOSE ps -q sserver)"
+SSERVER_RESULT="/tmp/btcpool-test-sserver.$PID.log"
+KAFKA_PRODUCER="docker exec -i $($DOCKER_COMPOSE ps -q kafka) /opt/kafka/bin/kafka-console-producer.sh --broker-list kafka:9092"
+WAIT_FOR_IT="WAIT_FOR_IT $MAIN_CONTAINER_NAME"
+WAIT_FOR_PORT="WAIT_FOR_PORT $MAIN_CONTAINER_NAME"
+
+$WAIT_FOR_IT kafka:9092
+$WAIT_FOR_PORT 3333
+sleep 1 # Waiting for sserver to fetch the user list api
+
+outputTestData() {
+    cat "$BASE_DIR/testdata/stratumjobs-2makers.log" \
+    | while read line; do
+        line=${line/@TIME@/$(date +%s)}
+        echo $line
+        echo send new job at $(date) >&2
+        sleep 1
+    done
+}
+
+echo "send StratumJob in the background..."
+outputTestData | $KAFKA_PRODUCER --topic StratumJob &
+KAFKA_PRODUCER_PID=$!
+
+
+echo "receiving jobs from sserver (5s)..."
+{
+    echo '{"id":1,"method":"mining.subscribe","params":["autotest/0.1"]}'
+    echo '{"id":2,"method":"mining.authorize","params":["hu60.test","123"]}'
+} | nc -q -1 127.0.0.1 53333 >$SSERVER_RESULT &
+NC_PID=$!
+sleep 5
+kill $KAFKA_PRODUCER_PID &>/dev/null || echo "Kafka producer exited"
+kill $NC_PID || {
+    echo "Connection to sserver closed too early"
+    head $SSERVER_RESULT
+    exit 1
+}
+
+line=`cat $SSERVER_RESULT | grep '"method":"mining.notify"' | wc -l`
+if [ $line -ne 1 ]; then
+    echo "There should be 1 jobs but $line"
+    exit 1
+else
+    echo "Got $line jobs from sserver, OK."
+fi
+
+echo "Checking jobs..."
+php "$BASE_DIR/helper/check-sserver-jobs.php" "$SSERVER_RESULT"
+
+rm $SSERVER_RESULT
+$DOCKER_COMPOSE down >>$STDOUT
