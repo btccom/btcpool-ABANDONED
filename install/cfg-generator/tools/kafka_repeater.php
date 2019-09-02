@@ -38,8 +38,8 @@ if (isTrue('kafka_out_use_ssl')):
     if (notEmpty($key)) file_put_contents('/tmp/client.key', $key);
 endif;
 
-$usr = optional('kafka_sasl_username');
-$pwd = optional('kafka_sasl_password');
+$usr = optionalTrim('kafka_sasl_username');
+$pwd = optionalTrim('kafka_sasl_password');
 
 if (notEmpty($usr)):
     $protocol = 'sasl_'.$protocol;
@@ -71,7 +71,7 @@ endif;
     <?php if (notEmpty($key)): ?>
         key = {
             location = "/tmp/client.key";
-            password = "<?=optional('kafka_ssl_key_password')?>";
+            password = "<?=optionalTrim('kafka_ssl_key_password')?>";
         };
     <?php endif; ?>
     };
