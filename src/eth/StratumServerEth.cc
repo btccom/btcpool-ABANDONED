@@ -353,7 +353,7 @@ void JobRepositoryEth::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
   auto sjobEth = std::static_pointer_cast<StratumJobEth>(sjob);
 
   bool isClean = false;
-  uint32_t height = sjob->height_;
+  uint32_t height = sjobEth->height_;
   if (height > lastHeight_) {
     isClean = true;
     // lastHeight_ = sjobEth->height_;
