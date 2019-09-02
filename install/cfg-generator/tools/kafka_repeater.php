@@ -8,7 +8,7 @@ require_once __DIR__.'/../lib/init.php';
 #
 # kafka repeater cfg
 #
-# @since 2018-17
+# @since 2019-07
 # @copyright btc.com
 #
 ?>
