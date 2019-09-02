@@ -53,11 +53,13 @@ statshttpd = {
 
   # Whether stale shares are accepted
   accept_stale = <?=optionalBool('statshttpd_accept_stale', false)?>;
+};
 
+users = {
   # Enable single user mode.
   # Count shares from sserver that enabled single-user mode.
-  single_user_mode = <?=optionalBool('statshttpd_single_user_mode', false, $statshttpd_single_user_mode)?>;
-  single_user_puid = <?=mayOptionalTrim(!$statshttpd_single_user_mode, "statshttpd_single_user_puid", '0')?>;
+  single_user_mode = <?=optionalBool('users_single_user_mode', false, $users_single_user_mode)?>;
+  single_user_puid = <?=mayOptionalTrim(!$users_single_user_mode, "users_single_user_puid", '0')?>;
 };
 
 <?php if ($statshttpd_use_mysql): ?>

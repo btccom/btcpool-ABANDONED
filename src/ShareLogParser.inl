@@ -36,8 +36,8 @@ ShareLogDumperT<SHARE>::ShareLogDumperT(
   , isDumpAll_(false) {
 
   // single user mode
-  cfg.lookupValue("sharelog.single_user_mode", singleUserMode_);
-  cfg.lookupValue("sharelog.single_user_puid", singleUserId_);
+  cfg.lookupValue("users.single_user_mode", singleUserMode_);
+  cfg.lookupValue("users.single_user_puid", singleUserId_);
   if (singleUserMode_) {
     LOG(INFO) << "[Option] Single User Mode Enabled, puid: " << singleUserId_;
   }
@@ -162,8 +162,8 @@ ShareLogParserT<SHARE>::ShareLogParserT(
   , acceptStale_(configLookup(cfg, "sharelog.accept_stale", false)) {
 
   // single user mode
-  cfg.lookupValue("sharelog.single_user_mode", singleUserMode_);
-  cfg.lookupValue("sharelog.single_user_puid", singleUserId_);
+  cfg.lookupValue("users.single_user_mode", singleUserMode_);
+  cfg.lookupValue("users.single_user_puid", singleUserId_);
   if (singleUserMode_) {
     LOG(INFO) << "[Option] Single User Mode Enabled, puid: " << singleUserId_;
   }

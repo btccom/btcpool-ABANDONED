@@ -178,8 +178,8 @@ StatsServerT<SHARE>::StatsServerT(
   cfg.lookupValue("statshttpd.update_worker_name", updateWorkerName_);
   cfg.lookupValue("statshttpd.expected_online_workers", expectedOnlineWorkers);
 
-  cfg.lookupValue("statshttpd.single_user_mode", singleUserMode_);
-  cfg.lookupValue("statshttpd.single_user_puid", singleUserId_);
+  cfg.lookupValue("users.single_user_mode", singleUserMode_);
+  cfg.lookupValue("users.single_user_puid", singleUserId_);
   if (singleUserMode_) {
     LOG(INFO) << "[Option] Single User Mode Enabled, puid: " << singleUserId_;
   }
