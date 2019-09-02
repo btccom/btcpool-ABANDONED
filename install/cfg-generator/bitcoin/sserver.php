@@ -6,9 +6,9 @@ require_once __DIR__.'/../lib/init.php';
 // https://www.php.net/manual/language.basic-syntax.phpmode.php
 
 #
-# kafka repeater cfg
+# sserver.cfg generator
 #
-# @since 2018-17
+# @since 2019-09
 # @copyright btc.com
 #
 ?>
@@ -170,7 +170,7 @@ foreach ($chains as $key=>$chain_name):
     users_list_id_api_url = "<?=notNullTrim("chains_${chain_name}_users_list_id_api_url")?>";
 
     # write last mining notify job send time to file, for monitor
-    file_last_notify_time = "<?=optionalTrim("chains_${chain_name}_file_last_notify_time", "./sserver_lastnotifytime_${chain_name}.txt")?>";
+    file_last_notify_time = "<?=optionalTrim("chains_${chain_name}_file_last_notify_time")?>";
 
     # kafka brokers
     kafka_brokers = "<?=notNullTrim("chains_${chain_name}_kafka_brokers")?>";
