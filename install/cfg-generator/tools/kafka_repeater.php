@@ -29,9 +29,9 @@ $protocol = 'plaintext';
 if (isTrue('kafka_out_use_ssl')):
     $protocol = 'ssl';
 
-    $ca = notNull('kafka_ssl_ca_content');
-    $certificate = notNull('kafka_ssl_certificate_content');
-    $key = notNull('kafka_ssl_key_content');
+    $ca = notNullTrim('kafka_ssl_ca_content');
+    $certificate = notNullTrim('kafka_ssl_certificate_content');
+    $key = notNullTrim('kafka_ssl_key_content');
 
     if (notEmpty($ca)) file_put_contents('/tmp/ca.crt', $ca);
     if (notEmpty($certificate)) file_put_contents('/tmp/client.crt', $certificate);

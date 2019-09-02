@@ -41,7 +41,7 @@ sharelog = {
 pooldb = {
   host = "<?=notNullTrim('pooldb_host')?>";
   port = <?=optionalTrim('pooldb_port', '3306')?>;
-  username = "<?=notNull('pooldb_username')?>";
-  password = "<?=notNull('pooldb_password')?>";
+  username = "<?=notNullTrim('pooldb_username')?>";
+  password = "<?=notNullTrim('pooldb_password')?>";
   dbname = "<?=notNullTrim('pooldb_dbname')?>";
 };
