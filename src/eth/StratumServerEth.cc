@@ -353,9 +353,11 @@ void JobRepositoryEth::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
   auto sjobEth = std::static_pointer_cast<StratumJobEth>(sjob);
 
   bool isClean = false;
-  if (sjobEth->height_ > lastHeight_) {
+  uint32_t height = sjob->height_;
+  if (height > lastHeight_) {
     isClean = true;
-    lastHeight_ = sjobEth->height_;
+    // lastHeight_ = sjobEth->height_;
+    lastHeight_ = height;
 
     LOG(INFO) << "received new height " << GetServer()->chainName(chainId_)
               << " job " << sjobEth->jobId_ << ", height: " << sjobEth->height_
@@ -395,9 +397,10 @@ void JobRepositoryEth::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
     auto lastSjob = std::static_pointer_cast<StratumJobEth>(lastExJob->sjob_);
 
     // job update triggered by more uncles or more gas used
-    if ((lastSjob->uncles_ < sjobEth->uncles_) ||
-        (lastSjob->gasUsedPercent_ < 10.0 &&
-         lastSjob->gasUsedPercent_ < sjobEth->gasUsedPercent_)) {
+    if (((lastSjob->uncles_ < sjobEth->uncles_) ||
+         (lastSjob->gasUsedPercent_ < 10.0 &&
+          lastSjob->gasUsedPercent_ < sjobEth->gasUsedPercent_))
+        && height >= lastHeight_) {
       sendMiningNotify(exJob);
     }
   }

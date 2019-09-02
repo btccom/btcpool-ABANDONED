@@ -106,7 +106,7 @@ void JobRepositoryDecred::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
 
   // We want to update jobs immediately if there are more voters for the same
   // height block
-  if (isClean || moreVoters) {
+  if (isClean || (moreVoters && height >= lastHeight_)) {
     lastVoters_ = voters;
     sendMiningNotify(jobEx);
   }
