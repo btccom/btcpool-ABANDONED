@@ -596,29 +596,19 @@ uint64_t JobMakerHandlerBitcoin::makeGbtKey(
     uint32_t gbtTime, bool isEmptyBlock, uint32_t height) {
   assert(height < 0x7FFFFFFFU);
 
-  //
-  // gbtKey:
-  //  -----------------------------------------------------------------------------------------
-  // |               32 bits               |               31 bits | 1 bit | |
-  // xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx | xxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx |
-  // x            | |               gbtTime               |               height
-  // | nonEmptyFlag |
-  //  -----------------------------------------------------------------------------------------
-  // use nonEmptyFlag (aka: !isEmptyBlock) so the key of a non-empty block
-  // will large than the key of an empty block.
-  //
-  return (((uint64_t)gbtTime) << 32) | (((uint64_t)height) << 1) |
-      ((uint64_t)(!isEmptyBlock));
+  // gbtKey: 31 bit height + 1 bit non-empty flag + 32 bit timestamp
+  return (((uint64_t)gbtTime)) | (((uint64_t)height) << 33) |
+      (((uint64_t)(!isEmptyBlock)) << 32);
 }
 
 uint32_t JobMakerHandlerBitcoin::gbtKeyGetTime(uint64_t gbtKey) {
-  return (uint32_t)(gbtKey >> 32);
+  return (uint32_t)gbtKey;
 }
 
 uint32_t JobMakerHandlerBitcoin::gbtKeyGetHeight(uint64_t gbtKey) {
-  return (uint32_t)((gbtKey >> 1) & 0x7FFFFFFFULL);
+  return (uint32_t)((gbtKey >> 33) & 0x7FFFFFFFULL);
 }
 
 bool JobMakerHandlerBitcoin::gbtKeyIsEmptyBlock(uint64_t gbtKey) {
-  return !((bool)(gbtKey & 1ULL));
+  return !((bool)((gbtKey >> 32) & 1ULL));
 }
