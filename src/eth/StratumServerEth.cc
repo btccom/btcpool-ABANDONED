@@ -399,8 +399,8 @@ void JobRepositoryEth::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
     // job update triggered by more uncles or more gas used
     if (((lastSjob->uncles_ < sjobEth->uncles_) ||
          (lastSjob->gasUsedPercent_ < 10.0 &&
-          lastSjob->gasUsedPercent_ < sjobEth->gasUsedPercent_))
-        && height >= lastHeight_) {
+          lastSjob->gasUsedPercent_ < sjobEth->gasUsedPercent_)) &&
+        height >= lastHeight_) {
       sendMiningNotify(exJob);
     }
   }
