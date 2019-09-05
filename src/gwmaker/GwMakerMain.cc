@@ -231,8 +231,6 @@ int main(int argc, char **argv) {
   } catch (const SettingException &e) {
     LOG(FATAL) << "config missing: " << e.getPath();
     return 1;
-  } catch (const std::exception &e) {
-    LOG(FATAL) << "exception: " << e.what();
   }
 
   LOG(INFO) << "gwmaker exit";
