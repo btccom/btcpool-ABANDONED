@@ -22,9 +22,7 @@ namespace JS {
 enum class type { Null, Obj, Array, Str, Int, Real, Bool, Undefined };
 
 class Node{
-  public:
-
-
+  private:
     //returns the end of the string, or the end iterator
     static const char* parse_string(const char* begin, const char* end) {
       //stop when there's an escaped character or when the string ends
@@ -62,6 +60,7 @@ class Node{
       return i;
     }
 
+  public:
     static bool parse(const char* begin, const char* end, Node &root) {
       //stop on [n]ull,[t]rue,[f]alse,["]string,number,array, or object
       static std::array<char,19> stop = {'n','"','0','1','2','3','4','5','6','7','8','9','-','t','f','[',']','{','}'};
@@ -91,6 +90,7 @@ class Node{
         if (parent != nullptr && parent->type_ == JS::type::Obj) {
           //parse the key and continue
           node.key_start_ = ++i;
+          node.key_end_ = node.key_start_; // for illegal safety
           if( (i = Node::parse_string(i,end)) == end) {
             root.reset_soft();
             return false;
@@ -116,9 +116,11 @@ class Node{
         } else if ( *i == 't' || *i == 'f') {
           node.type_ = JS::type::Bool;
           node.start_ = i;
+          node.end_ = node.start_;  // for illegal safety
           ++i;
         } else if ( *i == '"') {
           node.start_ = ++i;
+          node.end_ = node.start_;  // for illegal safety
           if( (i = Node::parse_string(i,end)) == end) {
             root.reset_soft();
             return false;
@@ -128,6 +130,7 @@ class Node{
           ++i;
         } else {
           node.start_ = i;
+          node.end_ = node.start_;  // for illegal safety
           if(*i == '-') { ++i;}
           if(i == end) {
             root.reset_soft();
@@ -176,6 +179,7 @@ class Node{
       return false;
     }
 
+  private:
     void sort_objects() {
       if(type_ == JS::type::Obj || type_ == JS::type::Array) {
         if(type_ == JS::type::Obj && sorted_ == false) {
@@ -188,6 +192,7 @@ class Node{
       }
     }
 
+  public:
     std::ostream& print(std::ostream &out) const{
       return Node::print(out,*this);
     }
@@ -225,6 +230,7 @@ class Node{
       return out;
     }
 
+  private:
     void detach() {
       parent_ = nullptr;
     }
@@ -252,27 +258,47 @@ class Node{
       children_ = node.children_;
     }
 
-    Node():type_(JS::type::Undefined),sorted_(false),parent_(nullptr) {
+  public:
+    Node() {
     }
     
     JS::type type() const { return type_; }
 
+  private:
     const char* start() const { return start_; }
     const char* end() const { return end_; }
+  
+  public:
     size_t size() const{ return std::distance(start_,end_); }
 
+  private:
     const char* key_start() const { return key_start_; }
     const char* key_end() const { return key_end_; }
+
+  public:
     size_t key_size() const{ return std::distance(key_start_,key_end_); }
     
-    Node* parent() const{ return parent_; }
+    Node* parent() const{
+      if (parent_ == nullptr) {
+        static Node emptyNode;
+        return &emptyNode;
+      }
+      return parent_;
+    }
 
-    std::shared_ptr<std::vector<Node> > children() const{ return children_; }
+    std::shared_ptr<std::vector<Node> > children() const{
+      if (!children_) {
+        static auto emptyVectorPtr = std::make_shared<std::vector<Node>>();
+        return emptyVectorPtr;
+      }
+      return children_;
+    }
   
     Node node() {
       return *this;
     }
 
+  public:
     bool operator <(const JS::Node& rhs) const{
       return std::lexicographical_compare(
                       key_start_,key_end_
@@ -302,6 +328,7 @@ class Node{
       return Node();
     }
 
+  private:
     bool keys_equal(const Node &rhs) const {
       return std::lexicographical_compare(
                       key_start_,key_end_
@@ -317,6 +344,7 @@ class Node{
     }
 
 
+  public:
     bool has_key() const { return parent_ != nullptr && parent_->type_ == JS::type::Obj; }
     bool sorted() const { return sorted_;}
     int8_t int8() const{ return *start_; }
@@ -330,22 +358,35 @@ class Node{
     uint64_t uint64() const { return strtoull(start_,nullptr,10); }
     uint64_t uint64_hex() const { return strtoull(start_,nullptr,16); }
     float real() const { return strtof(start_,nullptr); }
+    std::string key() const { return std::string(key_start_,key_end_); }
     std::string str() const { return std::string(start_,end_); }
     bool boolean() const { return (*start_ == 't' ) ? true : false; }
 
-    const std::vector<Node>& obj() const { return *children_; }
-    std::vector<Node>& obj() { return *children_; }
-    const std::vector<Node>& array() const { return *children_; }
-    std::vector<Node>& array() { return *children_; }
+    const std::vector<Node>& obj() const {
+      if (!children_) {
+        static const std::vector<Node> emptyObj;
+        return emptyObj;
+      }
+      return *children_;
+    }
+    std::vector<Node>& obj() {
+      if (!children_) {
+        static std::vector<Node> emptyObj;
+        return emptyObj;
+      }
+      return *children_;
+    }
+    inline const std::vector<Node>& array() const { return obj(); }
+    inline std::vector<Node>& array() { return obj(); }
 
   private:
-    JS::type type_;
-    const char* key_start_;
-    const char* key_end_;
-    const char* start_;
-    const char* end_;
-    bool sorted_;
-    Node* parent_;
+    JS::type type_ = JS::type::Undefined;
+    const char* key_start_ = "";
+    const char* key_end_ = "";
+    const char* start_ = "";
+    const char* end_ = "";
+    bool sorted_ = false;
+    Node* parent_ = nullptr;
     std::shared_ptr<std::vector<Node> > children_;
 
 };

@@ -379,7 +379,7 @@ int32_t UserInfo::incrementalUpdateUsers(size_t chainId) {
   pthread_rwlock_wrlock(&chain.nameIdlock_);
   for (JsonNode &itr : *vUser) {
 
-    string userName(itr.key_start(), itr.key_end() - itr.key_start());
+    string userName = itr.key();
     regularUserName(userName);
 
     if (itr.type() != Utilities::JS::type::Obj) {
@@ -452,7 +452,7 @@ int32_t UserInfo::incrementalUpdateUsers(size_t chainId) {
   {
     std::unique_lock<std::shared_timed_mutex> l{*chain.nameIdlock_};
     for (const auto &itr : *vUser) {
-      string userName(itr.key_start(), itr.key_end() - itr.key_start());
+      string userName = itr.key();
       regularUserName(userName);
 
       const int32_t userId = itr.int32();
