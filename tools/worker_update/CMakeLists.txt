@@ -5,7 +5,7 @@ set(PROJECT_ROOT "${CMAKE_SOURCE_DIR}/../..")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_ROOT}/cmake/Modules/")
 
 # set C++ standard
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 # stop building after the first error
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmax-errors=1")
 
@@ -72,15 +72,17 @@ string(REPLACE "-lcrypto" "" MYSQL_LIBRARIES ${MYSQL_LIBRARIES})
 string(REPLACE "-lssl" "" MYSQL_LIBRARIES ${MYSQL_LIBRARIES})
 string(STRIP ${MYSQL_LIBRARIES} MYSQL_LIBRARIES)
 
+find_package(Sasl2)
+
 
 ###################################### Targets ######################################
 
-include_directories(${GLOG_INCLUDE_DIRS} ${KAFKA_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS}
-                    ${MYSQL_INCLUDE_DIR} ${LIBCONFIGPP_INCLUDE_DIR} ${PTHREAD_INCLUDE_DIRS}
+include_directories(${PROJECT_ROOT}/3rdparty ${GLOG_INCLUDE_DIRS} ${KAFKA_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS}
+                    ${MYSQL_INCLUDE_DIR} ${LIBCONFIGPP_INCLUDE_DIR} ${PTHREAD_INCLUDE_DIRS} ${SASL2_INCLUDE_DIR}
                     ${OPENSSL_INCLUDE_DIR} ${PROJECT_ROOT}/src ${PROJECT_ROOT}/tools/common)
 
 set(THIRD_LIBRARIES ${GLOG_LIBRARIES} ${KAFKA_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${Boost_LIBRARIES} ${MYSQL_LIBRARIES}
-                    ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} ${PTHREAD_LIBRARIES} ${ZLIB_LIBRARIES})
+                    ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} ${PTHREAD_LIBRARIES} ${ZLIB_LIBRARIES} ${SASL2_LIBRARIES} -ldl)
 
 file(GLOB SOURCES
     ${PROJECT_ROOT}/src/Kafka.cc

@@ -92,16 +92,14 @@ void BitsToDifficulty(uint32_t bits, uint64_t *difficulty) {
 }
 
 // filter for woker name and miner agent
-string filterWorkerName(const string &workerName) {
-  string s;
+std::string filterWorkerName(const std::string &workerName) {
+  std::string s;
   s.reserve(workerName.size());
 
   for (const auto &c : workerName) {
-    if (('a' <= c && c <= 'z') ||
-        ('A' <= c && c <= 'Z') ||
-        ('0' <= c && c <= '9') ||
-        c == '-' || c == '.' || c == '_' || c == ':' ||
-        c == '|' || c == '^' || c == '/') {
+    if (('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') ||
+        ('0' <= c && c <= '9') || c == '-' || c == '.' || c == '_' ||
+        c == ':' || c == '|' || c == '^' || c == '/') {
       s += c;
     }
   }

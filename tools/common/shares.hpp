@@ -31,8 +31,6 @@
 #include "Network.h"
 #include "utils.hpp"
 
-using std::string;
-
 struct ShareBitcoinV1 {
 public:
   enum Result {
@@ -55,7 +53,7 @@ public:
   // under the default memory alignment parameter.
   int32_t padding_ = 0;
 
-  string toString() const {
+  std::string toString() const {
     char ipStr[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &(ip_), ipStr, INET_ADDRSTRLEN);
     return StringFormat(
@@ -113,7 +111,7 @@ public:
     return (status == SOLVED) || (status == SOLVED_STALE);
   }
 
-  inline static string toString(int status) {
+  inline static std::string toString(int status) {
     return isAccepted(status) ? "accept" : "reject";
   }
 };
@@ -180,7 +178,7 @@ struct ShareBitcoinV2 {
     return true;
   }
 
-  string toString() const {
+  std::string toString() const {
     double networkDifficulty = 0.0;
     BitsToDifficulty(blkBits_, &networkDifficulty);
 
