@@ -87,11 +87,17 @@ class UserInfo {
   // username -> chainId
   std::unordered_map<string, size_t> nameChains_;
 
+  int nameChainsCheckIntervalSeconds_ = 300;
+  std::thread nameChainsCheckingThread_;
+
   void runThreadUpdate(size_t chainId);
   int32_t incrementalUpdateUsers(size_t chainId);
+  void checkNameChains();
+  bool /*isInterrupted*/ interruptibleSleep(time_t seconds);
 
   bool getChainIdFromZookeeper(const string &userName, size_t &chainId);
   void setZkReconnectHandle();
+  void handleSwitchChainEvent(const string &userName);
   static void handleSwitchChainEvent(
       zhandle_t *zh, int type, int state, const char *path, void *pUserInfo);
   static void handleAutoRegEvent(
