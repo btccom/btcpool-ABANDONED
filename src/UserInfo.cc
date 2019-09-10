@@ -164,10 +164,14 @@ bool UserInfo::getChainIdFromZookeeper(
       DLOG(INFO) << "zk userchain map: " << userName << " : " << chainName;
       for (chainId = 0; chainId < server_->chains_.size(); chainId++) {
         if (chainName == server_->chains_[chainId].name_) {
-          ChainVars &chain = chains_[chainId];
-          std::shared_lock<std::shared_timed_mutex> l{*chain.nameIdlock_};
-          auto itr = chain.nameIds_.find(userName);
-          if (itr != chain.nameIds_.end()) {
+          bool found = false;
+          {
+            ChainVars &chain = chains_[chainId];
+            std::shared_lock<std::shared_timed_mutex> l{*chain.nameIdlock_};
+            auto itr = chain.nameIds_.find(userName);
+            found = itr != chain.nameIds_.end();
+          }
+          if (found) {
             // add to cache
             std::unique_lock<std::shared_timed_mutex> l{nameChainlock_};
             nameChains_[userName] = chainId;
