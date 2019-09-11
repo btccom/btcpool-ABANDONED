@@ -36,7 +36,7 @@ uint256 Beam_BitsToTarget(uint32_t bits);
 uint32_t Beam_TargetToBits(const uint256 &target);
 
 uint256 Beam_DiffToTarget(uint64_t diff);
-double Beam_TargetToDiff(const uint256 &target);
+uint64_t Beam_TargetToDiff(const uint256 &target);
 
 double Beam_BitsToDiff(uint32_t bits);
 uint32_t Beam_DiffToBits(uint64_t diff);

@@ -27,9 +27,9 @@
 #include "DiffController.h"
 
 #include <boost/thread.hpp>
-#include <arith_uint256.h>
 
 #include "CommonBeam.h"
+#include "bitcoin/BitcoinUtils.h"
 
 using namespace std;
 
@@ -158,7 +158,7 @@ void ServerBeam::checkAndUpdateShare(
     share.set_status(StratumStatus::INVALID_SOLUTION);
     return;
   }
-  computedShareHash = Beam_Uint256Conv(shareHash);
+  computedShareHash = SwapUint(Beam_Uint256Conv(shareHash));
 
   beam::Difficulty networkDiff(share.blockbits());
   uint256 networkTarget = Beam_BitsToTarget(share.blockbits());

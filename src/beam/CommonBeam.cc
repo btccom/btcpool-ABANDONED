@@ -23,10 +23,15 @@
  */
 #include <boost/endian/arithmetic.hpp>
 #include <vector>
+#include <arith_uint256.h>
 #include "CommonBeam.h"
 #include "Utils.h"
 
 using std::vector;
+
+static arith_uint256 kMaxUint256(
+    "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+static uint64_t kMaxUint64 = 0xffffffffffffffffull;
 
 /*
  * Core data types used in BEAM:
@@ -44,29 +49,34 @@ using std::vector;
  * (sum of difficulties).
  */
 
+// BEAM's block bits are compression for difficulty, not for target.
+
 uint256 Beam_BitsToTarget(uint32_t bits) {
-  beam::Difficulty::Raw raw;
-  beam::Difficulty diff(bits);
-  diff.Unpack(raw);
-  return Beam_Uint256Conv(raw);
+  return Beam_DiffToTarget(Beam_BitsToDiff(bits));
 }
 
 uint32_t Beam_TargetToBits(const uint256 &target) {
-  beam::Difficulty diff;
-  diff.Pack(Beam_Uint256Conv(target));
-  return diff.m_Packed;
+  return Beam_DiffToBits(Beam_TargetToDiff(target));
 }
 
 uint256 Beam_DiffToTarget(uint64_t diff) {
-  beam::Difficulty::Raw raw;
-  beam::Difficulty beamDiff;
-  beamDiff.Pack(diff);
-  beamDiff.Unpack(raw);
-  return Beam_Uint256Conv(raw);
+  if (0 == diff) {
+    return ArithToUint256(kMaxUint256);
+  }
+
+  arith_uint256 target = kMaxUint256 / diff;
+  return ArithToUint256(target);
 }
 
-double Beam_TargetToDiff(const uint256 &target) {
-  return beam::Difficulty::ToFloat(Beam_Uint256Conv(target));
+uint64_t Beam_TargetToDiff(const uint256 &targetBin) {
+  arith_uint256 target = UintToArith256(targetBin);
+
+  if (target == 0) {
+    return kMaxUint64;
+  }
+
+  arith_uint256 diff = kMaxUint256 / target;
+  return diff.GetLow64();
 }
 
 double Beam_BitsToDiff(uint32_t bits) {
