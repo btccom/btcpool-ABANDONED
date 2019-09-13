@@ -27,6 +27,7 @@
 #include "DiffController.h"
 
 #include <boost/thread.hpp>
+#include <arith_uint256.h>
 
 #include "CommonBeam.h"
 #include "bitcoin/BitcoinUtils.h"
@@ -159,6 +160,7 @@ void ServerBeam::checkAndUpdateShare(
     return;
   }
   computedShareHash = SwapUint(Beam_Uint256Conv(shareHash));
+  share.set_bitsreached(UintToArith256(computedShareHash).bits());
 
   beam::Difficulty networkDiff(share.blockbits());
   uint256 networkTarget = Beam_BitsToTarget(share.blockbits());

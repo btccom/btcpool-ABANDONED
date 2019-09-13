@@ -56,7 +56,7 @@ public:
   unique_ptr<StratumSession> createConnection(
       bufferevent *bev, sockaddr *saddr, uint32_t sessionID) override;
 
-  int checkShare(
+  void checkAndUpdateShare(
       ShareDecred &share,
       shared_ptr<StratumJobEx> exJobPtr,
       const vector<uint8_t> &extraNonce2,

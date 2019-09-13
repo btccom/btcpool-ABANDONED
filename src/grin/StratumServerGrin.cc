@@ -28,6 +28,7 @@
 #include "CommonGrin.h"
 
 #include <algorithm>
+#include <arith_uint256.h>
 
 unique_ptr<StratumSession> StratumServerGrin::createConnection(
     struct bufferevent *bev, struct sockaddr *saddr, uint32_t sessionID) {
@@ -65,6 +66,7 @@ void StratumServerGrin::checkAndUpdateShare(
 
   blockHash = PowHashGrin(share.edgebits(), proofs);
   share.set_hashprefix(blockHash.GetCheapHash());
+  share.set_bitsreached(UintToArith256(blockHash).bits());
   uint64_t scaledShareDiff = PowDifficultyGrin(
       share.height(),
       share.edgebits(),

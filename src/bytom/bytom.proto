@@ -38,4 +38,5 @@ message BytomMsg{
   optional sint32 userid = 10;
   optional sint32 status = 11;
   optional sint32 extuserid = 12; // Extended uid in single-user mode. May not be set.
+  optional uint32 bitsreached = 13;
 }

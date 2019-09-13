@@ -476,7 +476,7 @@ void ServerBitcoin::checkShare(
     const uint32_t versionMask,
     const uint256 &jobTarget,
     const string &workFullName,
-    std::function<void(int32_t)> returnFn,
+    std::function<void(int32_t status, uint32_t bitsReached)> returnFn,
     string *userCoinbaseInfo) {
 
   auto exJobPtr = std::static_pointer_cast<StratumJobExBitcoin>(
@@ -484,7 +484,7 @@ void ServerBitcoin::checkShare(
   int32_t shareStatus = StratumStatus::UNKNOWN; // init shareStatus
 
   if (exJobPtr == nullptr) {
-    returnFn(StratumStatus::JOB_NOT_FOUND);
+    returnFn(StratumStatus::JOB_NOT_FOUND, 0);
     return;
   }
 
@@ -541,6 +541,7 @@ void ServerBitcoin::checkShare(
 #endif
     arith_uint256 bnBlockHash = UintToArith256(blkHash);
     arith_uint256 bnNetworkTarget = UintToArith256(sjob->networkTarget_);
+    uint32_t bitsReached = bnBlockHash.bits();
 
 #ifdef CHAIN_TYPE_ZEC
     DLOG(INFO) << Strings::Format(
@@ -560,9 +561,10 @@ void ServerBitcoin::checkShare(
       if (StratumStatus::UNKNOWN == shareStatusReturn) {
         shareStatusReturn = StratumStatus::INVALID_SOLUTION;
       }
-      dispatch([shareStatusReturn, returnFn = std::move(returnFn)]() {
-        returnFn(shareStatusReturn);
-      });
+      dispatch(
+          [shareStatusReturn, bitsReached, returnFn = std::move(returnFn)]() {
+            returnFn(shareStatusReturn, bitsReached);
+          });
       return;
     }
 #endif
@@ -742,9 +744,10 @@ void ServerBitcoin::checkShare(
     if (StratumStatus::UNKNOWN == shareStatusReturn)
       shareStatusReturn = StratumStatus::ACCEPT;
 
-    dispatch([shareStatusReturn, returnFn = std::move(returnFn)]() {
-      returnFn(shareStatusReturn);
-    });
+    dispatch(
+        [shareStatusReturn, bitsReached, returnFn = std::move(returnFn)]() {
+          returnFn(shareStatusReturn, bitsReached);
+        });
     return;
   });
 }

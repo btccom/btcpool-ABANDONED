@@ -47,7 +47,8 @@ public:
       const boost::optional<uint32_t> &extraNonce2,
       const std::set<uint64_t> &jobDiffs,
       const string &workFullName,
-      std::function<void(int32_t, uint64_t, const uint256 &)> returnFn);
+      std::function<void(int32_t status, uint64_t diff, uint32_t bitsReached)>
+          returnFn);
   void sendSolvedShare2Kafka(
       size_t chainId,
       uint64_t nonce,

@@ -333,8 +333,12 @@ void StratumMinerBitcoin::handleRequest_Submit(
          chainId = localJob->chainId_,
          ip = session.getClientIp(),
          share,
-         &server](int32_t status) mutable {
+         &server](int32_t status, uint32_t bitsReached) mutable {
           share.set_status(status);
+          if (bitsReached > 0) {
+            share.set_bitsreached(bitsReached);
+          }
+
           if (alive.expired() || handleCheckedShare(idStr, chainId, share)) {
             if (server.useShareV1()) {
               ShareBitcoinBytesV1 sharev1;

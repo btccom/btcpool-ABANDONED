@@ -201,7 +201,7 @@ JobRepository *ServerDecred::createJobRepository(
       niceHashMinDiffZookeeperPath);
 }
 
-int ServerDecred::checkShare(
+void ServerDecred::checkAndUpdateShare(
     ShareDecred &share,
     shared_ptr<StratumJobEx> exJobPtr,
     const vector<uint8_t> &extraNonce2,
@@ -209,17 +209,20 @@ int ServerDecred::checkShare(
     uint32_t nonce,
     const string &workerFullName) {
   if (!exJobPtr) {
-    return StratumStatus::JOB_NOT_FOUND;
+    share.set_status(StratumStatus::JOB_NOT_FOUND);
+    return;
   }
   if (exJobPtr->isStale()) {
-    return StratumStatus::STALE_SHARE;
+    share.set_status(StratumStatus::STALE_SHARE);
+    return;
   }
 
   auto sjob = std::static_pointer_cast<StratumJobDecred>(exJobPtr->sjob_);
   share.set_network((uint32_t)sjob->network_);
   share.set_voters(sjob->header_.voters.value());
   if (ntime > sjob->header_.timestamp.value() + 600) {
-    return StratumStatus::TIME_TOO_NEW;
+    share.set_status(StratumStatus::TIME_TOO_NEW);
+    return;
   }
 
   FoundBlockDecred foundBlock(
@@ -237,6 +240,8 @@ int ServerDecred::checkShare(
   uint256 blkHash = header.getHash();
   auto bnBlockHash = UintToArith256(blkHash);
   auto bnNetworkTarget = UintToArith256(sjob->target_);
+
+  share.set_bitsreached(bnBlockHash.bits());
 
   //
   // found new block
@@ -270,9 +275,10 @@ int ServerDecred::checkShare(
              << ", networkTarget: " << sjob->target_.ToString();
 
   if (isEnableSimulator_ == false && bnBlockHash > jobTarget) {
-    return StratumStatus::LOW_DIFFICULTY;
+    share.set_status(StratumStatus::LOW_DIFFICULTY);
+    return;
   }
 
   // reach here means an valid share
-  return StratumStatus::ACCEPT;
+  share.set_status(StratumStatus::ACCEPT);
 }

@@ -293,8 +293,7 @@ void StratumMinerEth::handleRequest_Submit(
        idStr,
        chainId = localJob->chainId_,
        share,
-       &server](
-          int32_t status, uint64_t diff, const uint256 &shareMixHash) mutable {
+       &server](int32_t status, uint64_t diff, uint32_t bitsReached) mutable {
         if (StratumStatus::SOLVED == status) {
           // stale shares shall not trigger the following cleanup
           server.GetJobRepository(chainId)->markAllJobsAsStale(share.height());
@@ -302,6 +301,9 @@ void StratumMinerEth::handleRequest_Submit(
         share.set_status(status);
         if (diff > 0) {
           share.set_sharediff(diff);
+        }
+        if (bitsReached > 0) {
+          share.set_bitsreached(bitsReached);
         }
         if (alive.expired() || handleCheckedShare(idStr, chainId, share)) {
           std::string message;

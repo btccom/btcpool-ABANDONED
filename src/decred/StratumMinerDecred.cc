@@ -168,8 +168,8 @@ void StratumMinerDecred::handleRequest_Submit(
   if (!localJob->addLocalShare(localShare)) {
     share.set_status(StratumStatus::DUPLICATE_SHARE);
   } else {
-    share.set_status(server.checkShare(
-        share, exjob, extraNonce2, ntime, nonce, worker.fullName_));
+    server.checkAndUpdateShare(
+        share, exjob, extraNonce2, ntime, nonce, worker.fullName_);
   }
 
   if (!handleShare(

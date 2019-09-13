@@ -41,4 +41,5 @@ message DecredMsg{
   optional uint32 network = 13;
   optional uint32 voters = 14;
   optional sint32 extuserid = 15; // Extended uid in single-user mode. May not be set.
+  optional uint32 bitsreached = 16;
 }

@@ -40,4 +40,5 @@ message BeamMsg{
   optional uint32 sessionid = 12;
   optional uint32 outputhash = 13;
   optional sint32 extuserid = 14; // Extended uid in single-user mode. May not be set.
+  optional uint32 bitsreached = 15;
 }

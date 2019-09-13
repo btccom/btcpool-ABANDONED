@@ -39,4 +39,5 @@ message EthMsg{
   optional uint64 nonce = 11;
   optional uint32 sessionid = 12;
   optional sint32 extuserid = 13; // Extended uid in single-user mode. May not be set.
+  optional uint32 bitsreached = 14;
 }
