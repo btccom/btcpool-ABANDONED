@@ -61,7 +61,6 @@ jobs:
           command: |
             cd docker/btcpool/test/${CIRCLE_JOB#"build_and_run_tests@"}
             ./run-test.sh
-          no_output_timeout: 30m
   build_and_push_deploy_image:
     docker:
       - image: circleci/golang
