@@ -77,8 +77,7 @@ public:
       const uint32_t versionMask,
       const uint256 &jobTarget,
       const string &workFullName,
-      std::function<void(int32_t status, uint32_t bitsReached)>
-          returnFn,
+      std::function<void(int32_t status, uint32_t bitsReached)> returnFn,
       string *userCoinbaseInfo = nullptr);
 
 protected:

@@ -271,7 +271,8 @@ protected:
   int32_t *userIds_ = nullptr;
   int32_t *status_ = nullptr;
   int64_t *timestamps_ = nullptr;
-  // ip
+  parquet::ByteArray *ip_ = nullptr;
+  std::string *ipStr_ = nullptr;
   int64_t *jobIds_ = nullptr;
   int64_t *shareDiff_ = nullptr;
   float *networkDiff_ = nullptr;
@@ -289,7 +290,8 @@ public:
     userIds_ = new int32_t[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
     status_ = new int32_t[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
     timestamps_ = new int64_t[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
-    // ip
+    ip_ = new parquet::ByteArray[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
+    ipStr_ = new std::string[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
     jobIds_ = new int64_t[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
     shareDiff_ = new int64_t[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
     networkDiff_ = new float[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
@@ -316,6 +318,10 @@ public:
       delete[] status_;
     if (timestamps_)
       delete[] timestamps_;
+    if (ip_)
+      delete[] ip_;
+    if (ipStr_)
+      delete[] ipStr_;
     if (jobIds_)
       delete[] jobIds_;
     if (shareDiff_)
@@ -350,8 +356,8 @@ protected:
         PrimitiveNode::Make("status", Repetition::REQUIRED, Type::INT32));
     fields.push_back(
         PrimitiveNode::Make("timestamp", Repetition::REQUIRED, Type::INT64));
-    /*fields.push_back(PrimitiveNode::Make(
-        "ip", Repetition::REQUIRED, Type::BYTE_ARRAY, LogicalType::UTF8));*/
+    fields.push_back(PrimitiveNode::Make(
+        "ip", Repetition::REQUIRED, Type::BYTE_ARRAY, LogicalType::UTF8));
     fields.push_back(
         PrimitiveNode::Make("job_id", Repetition::REQUIRED, Type::INT64));
     fields.push_back(
@@ -403,9 +409,9 @@ protected:
     static_cast<parquet::Int64Writer *>(rgWriter->NextColumn())
         ->WriteBatch(shareNum_, nullptr, nullptr, timestamps_);
 
-    // ip_long
-    /*static_cast<parquet::Int32Writer *>(rgWriter->NextColumn())
-        ->WriteBatch(shareNum_, nullptr, nullptr, ipLong_);*/
+    // ip
+    static_cast<parquet::ByteArrayWriter *>(rgWriter->NextColumn())
+        ->WriteBatch(shareNum_, nullptr, nullptr, ip_);
 
     // job_id
     static_cast<parquet::Int64Writer *>(rgWriter->NextColumn())
@@ -451,12 +457,17 @@ protected:
 
 public:
   void addShare(const ShareBitcoin &share) {
+    static IpAddress ipAddr;
+    ipAddr.fromString(share.ip());
+
     indexs_[shareNum_] = ++index_;
     workerIds_[shareNum_] = share.workerhashid();
     userIds_[shareNum_] = share.userid();
     status_[shareNum_] = share.status();
     timestamps_[shareNum_] = share.timestamp();
-    // ip
+    ipStr_[shareNum_] = share.ip();
+    ip_[shareNum_].len = ipStr_[shareNum_].size();
+    ip_[shareNum_].ptr = (const uint8_t *)ipStr_[shareNum_].data();
     jobIds_[shareNum_] = share.jobid();
     shareDiff_[shareNum_] = share.sharediff();
     networkDiff_[shareNum_] = difficulty(share.blkbits());
