@@ -28,38 +28,35 @@ ENDIF()
 
 ###################################### Libs ######################################
 
-find_package(LibConfig)
-if(NOT LIBCONFIGPP_FOUND)
-  message(FATAL_ERROR "LibConfig++ not found!")
-endif()
+find_package(LibConfig REQUIRED)
+find_package(Glog REQUIRED)
+find_package(LibPthread REQUIRED)
+find_package(ZLIB REQUIRED)
+find_package(Protobuf REQUIRED)
 
-find_package(Glog)
-if(NOT GLOG_FOUND)
-message(FATAL_ERROR "Glog not found!")
-endif()
 
-find_package(LibPthread)
-if(NOT PTHREAD_FOUND)
-  message(FATAL_ERROR "libpthread not found!")
-endif()
-
-find_package(ZLIB)
-if(NOT ZLIB_FOUND)
-  message(FATAL_ERROR "ZLib not found!")
-endif()
+# build proto files
+set(PROTOBUF_FILES)
+foreach(SHARE_TYPE bitcoin)
+  file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/src/${SHARE_TYPE})
+  execute_process(
+      COMMAND ${PROTOBUF_PROTOC_EXECUTABLE} --cpp_out=${CMAKE_CURRENT_BINARY_DIR}/src/${SHARE_TYPE} ${SHARE_TYPE}.proto
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../src/${SHARE_TYPE})
+  list(APPEND PROTOBUF_FILES ${CMAKE_CURRENT_BINARY_DIR}/src/${SHARE_TYPE}/${SHARE_TYPE}.pb.cc)
+endforeach(SHARE_TYPE)
 
 
 ###################################### Targets ######################################
 
 include_directories(${PROJECT_ROOT}/3rdparty ${PROJECT_ROOT}/src ${PROJECT_ROOT}/tools/common
-                    ${GLOG_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS}
-                    ${LIBCONFIGPP_INCLUDE_DIR} ${PTHREAD_INCLUDE_DIRS})
+                    ${GLOG_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS} ${Protobuf_INCLUDE_DIRS}
+                    ${LIBCONFIGPP_INCLUDE_DIR} ${PTHREAD_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR}/src)
 
-set(THIRD_LIBRARIES ${GLOG_LIBRARIES} ${LIBCONFIGPP_LIBRARY}
+set(THIRD_LIBRARIES ${GLOG_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${PROTOBUF_LIBRARIES}
                     ${PTHREAD_LIBRARIES} ${ZLIB_LIBRARIES}
                     parquet arrow)
 
 file(GLOB SOURCES *.cc)
 
-add_executable(sharelog_to_parquet ${SOURCES})
+add_executable(sharelog_to_parquet ${SOURCES} ${PROTOBUF_FILES})
 target_link_libraries(sharelog_to_parquet ${THIRD_LIBRARIES})

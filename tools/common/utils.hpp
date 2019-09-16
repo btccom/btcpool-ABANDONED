@@ -106,3 +106,44 @@ std::string filterWorkerName(const std::string &workerName) {
 
   return s;
 }
+
+bool fileNonEmpty(const char *file) {
+  struct stat buf;
+  return (stat(file, &buf) == 0) && (buf.st_size > 0);
+}
+
+std::string getStatsFilePath(
+    const std::string &chainType, const std::string &dataDir, time_t ts) {
+  bool needSlash = false;
+  if (dataDir.length() > 0 && *dataDir.rbegin() != '/') {
+    needSlash = true;
+  }
+  // filename: sharelog-2016-07-12.bin
+  return StringFormat(
+      "%s%ssharelog%s-%s.bin",
+      dataDir,
+      needSlash ? "/" : "",
+      chainType,
+      date("%F", ts));
+}
+
+std::string getParquetFilePath(
+    const std::string &chainType, const std::string &dataDir, time_t hour) {
+  bool needSlash = false;
+  if (dataDir.length() > 0 && *dataDir.rbegin() != '/') {
+    needSlash = true;
+  }
+  // filename: sharelog-2016-07-12.bin
+  return StringFormat(
+      "%s%ssharelog%s-%s.parquet",
+      dataDir,
+      needSlash ? "/" : "",
+      chainType,
+      date("%F-%H", hour * 3600));
+}
+
+time_t str2time(const char *str, const char *format) {
+  struct tm tm;
+  strptime(str, format, &tm);
+  return timegm(&tm);
+}
