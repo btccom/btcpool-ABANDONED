@@ -61,15 +61,15 @@ jobs:
           command: |
             cd docker/btcpool/test/${CIRCLE_JOB#"build_and_run_tests@"}
             ./run-test.sh
-  reservoir_run_tests:
+  golang_run_tests:
     docker:
       - image: circleci/golang
     steps:
       - checkout
       - run:
           name: Go tests
-          command: cd reservoir && go test ./...
-  reservoir_deploy_image:
+          command: cd golang && go test ./...
+  golang_deploy_image:
     docker:
       - image: circleci/golang
     steps:
@@ -77,11 +77,11 @@ jobs:
       - setup_remote_docker
       - run:
           name: Generate version
-          command: sed -i "s/0.0.0/${CIRCLE_TAG}/" reservoir/version.go
+          command: sed -i "s/0.0.0/${CIRCLE_TAG}/" golang/version.go
       - run:
           name: Build deploy image
           command: |
-            cd reservoir
+            cd golang
             docker build -t ${CIRCLE_TAG}_go .
       - run:
           name: Docker registry login (deploy image)
@@ -177,7 +177,7 @@ workflows:
   build_and_run_all_tests:
     jobs:
       - check_clang_format
-      - reservoir_run_tests
+      - golang_run_tests
       - build_and_run_tests:
           name: build_and_run_tests@bch
       - build_and_run_tests:
@@ -192,7 +192,7 @@ workflows:
           name: build_and_run_tests@zec
   build_and_push_deploy_images:
     jobs:
-      - reservoir_deploy_image:
+      - golang_deploy_image:
           <<: *deploy_image_common
       - build_and_push_deploy_image:
           <<: *deploy_image_common

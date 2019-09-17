@@ -7,8 +7,8 @@ import (
 	"github.com/golang/glog"
 	"github.com/urfave/cli"
 
-	"github.com/btccom/btcpool/reservoir"
-	"github.com/btccom/btcpool/reservoir/nodebridge/eth"
+	"github.com/btccom/btcpool/golang"
+	"github.com/btccom/btcpool/golang/nodebridge/eth"
 )
 
 func main() {
@@ -18,7 +18,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "nodebridge"
 	app.Usage = "Bridges between the mining pool and the blockchain node"
-	app.Version = reservoir.Version
+	app.Version = golang.Version
 	app.Commands = []cli.Command{
 		eth.Command,
 	}

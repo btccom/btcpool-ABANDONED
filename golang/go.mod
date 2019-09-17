@@ -1,4 +1,4 @@
-module github.com/btccom/btcpool/reservoir
+module github.com/btccom/btcpool/golang
 
 go 1.12
 
