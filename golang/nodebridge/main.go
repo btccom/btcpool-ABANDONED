@@ -8,6 +8,7 @@ import (
 	"github.com/urfave/cli"
 
 	"github.com/btccom/btcpool/golang"
+	"github.com/btccom/btcpool/golang/nodebridge/dcr"
 	"github.com/btccom/btcpool/golang/nodebridge/eth"
 )
 
@@ -20,6 +21,7 @@ func main() {
 	app.Usage = "Bridges between the mining pool and the blockchain node"
 	app.Version = golang.Version
 	app.Commands = []cli.Command{
+		dcr.Command,
 		eth.Command,
 	}
 
