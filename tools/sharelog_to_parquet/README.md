@@ -47,10 +47,41 @@ make
 ### run
 
 ```bash
-share_convertor -i /work/sharelog/sharelog-2018-08-21.bin -o sharelog-2018-08-21.parquet -n 1000000
+# Generate parquet files based on today and later's sharelog
+sharelog_to_parquet -c sharelog_to_parquet.cfg
+
+# Generate parquet files based on an early sharelog
+sharelog_to_parquet -c sharelog_to_parquet.cfg -d 20190916
 ```
 
-Params:
-* `-i` Input sharelog file
-* `-o` Output parquet file
-* `-n` Number of row in each parquet row group
+
+## Docker
+
+### Build
+
+```
+docker build -t sharelog-to-parquet --build-arg APT_MIRROR_URL=http://mirrors.aliyun.com/ubuntu -f Dockerfile ../..
+```
+
+### Run
+
+```
+# Generate parquet files based on today and later's sharelog
+docker run -it --restart always -d \
+    --name sharelog-to-parquet \
+    -v "/work/sharelog:/work/sharelog" \
+    -v "/work/parquet:/work/parquet" \
+    -e sharelog_chain_type="BTC" \
+    -e sharelog_data_dir="/work/sharelog" \
+    -e parquet_data_dir="/work/parquet" \
+    sharelog-to-parquet
+
+# Generate parquet files based on an early sharelog
+docker run -it --rm \
+    -v "/work/sharelog:/work/sharelog" \
+    -v "/work/parquet:/work/parquet" \
+    -e sharelog_chain_type="BTC" \
+    -e sharelog_data_dir="/work/sharelog" \
+    -e parquet_data_dir="/work/parquet" \
+    sharelog-to-parquet -d 20190916
+```
