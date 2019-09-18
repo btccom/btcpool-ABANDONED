@@ -312,7 +312,7 @@ TEST(Utils, BeamEquiHash_1) {
   uint256 target = Beam_BitsToTarget(bits);
   ASSERT_EQ(
       target.ToString(),
-      "c0b7351900000000000000000000000000000000000000000000000000000000");
+      "0a3d70a3d70a3d70a3d70a3d70a3d70a3d70a3d70a3d70a3d70a3d70a3d70a3d");
 }
 
 TEST(Utils, BeamEquiHash_2) {
@@ -338,7 +338,7 @@ TEST(Utils, BeamEquiHash_2) {
   uint256 target = Beam_BitsToTarget(bits);
   ASSERT_EQ(
       target.ToString(),
-      "d07fe41800000000000000000000000000000000000000000000000000000000");
+      "0aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 }
 
 TEST(Utils, BeamDiffToBits) {
@@ -352,17 +352,17 @@ TEST(Utils, BeamDiff1ToTarget) {
   uint256 target = Beam_DiffToTarget((uint64_t)1);
   ASSERT_EQ(
       target.ToString(),
-      "0000000100000000000000000000000000000000000000000000000000000000");
+      "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 
   target = Beam_DiffToTarget((uint64_t)2);
   ASSERT_EQ(
       target.ToString(),
-      "0000000200000000000000000000000000000000000000000000000000000000");
+      "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 
   target = Beam_DiffToTarget((uint64_t)1024);
   ASSERT_EQ(
       target.ToString(),
-      "0000000004000000000000000000000000000000000000000000000000000000");
+      "003fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 }
 
 TEST(Utils, EthashCompute) {
