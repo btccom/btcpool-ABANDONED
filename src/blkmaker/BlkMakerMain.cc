@@ -265,6 +265,10 @@ int main(int argc, char **argv) {
   signal(SIGTERM, handler);
   signal(SIGINT, handler);
 
+  bool sslVerifyPeer = true;
+  cfg.lookupValue("curl.ssl_verify_peer", sslVerifyPeer);
+  setSslVerifyPeer(sslVerifyPeer);
+
   MysqlConnectInfo *poolDBInfo = nullptr;
   {
     int32_t poolDBPort = 3306;
