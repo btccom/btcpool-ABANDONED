@@ -1,8 +1,16 @@
 package dcr
 
 import (
+	"context"
+	"os"
+	"os/signal"
+	"strings"
+	"sync"
+	"syscall"
 	"time"
 
+	"github.com/Shopify/sarama"
+	"github.com/golang/glog"
 	"github.com/urfave/cli"
 )
 
@@ -10,7 +18,7 @@ var (
 	rpcAddress     string
 	rpcUsername    string
 	rpcPassword    string
-	rpcCertiticate string
+	rpcCertificate string
 	rpcInterval    time.Duration
 	kafkaBrokers   string
 	rawGwTopic     string
@@ -21,7 +29,7 @@ var (
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:        "rpc_addr",
-				Usage:       "Node RPC address in <protocol>//<address>:<port> format",
+				Usage:       "Node RPC address in <address>:<port> format",
 				Destination: &rpcAddress,
 				Required:    true,
 			},
@@ -40,7 +48,7 @@ var (
 			cli.StringFlag{
 				Name:        "rpc_cert",
 				Usage:       "Node RPC certificate",
-				Destination: &rpcCertiticate,
+				Destination: &rpcCertificate,
 				Required:    true,
 			},
 			cli.DurationFlag{
@@ -67,5 +75,44 @@ var (
 )
 
 func run(ctx *cli.Context) error {
+	config := sarama.NewConfig()
+	producer, err := sarama.NewAsyncProducer(strings.Split(kafkaBrokers, ","), config)
+	if err != nil {
+		return err
+	}
+
+	var wg sync.WaitGroup
+	context, cancel := context.WithCancel(context.Background())
+
+	wg.Add(1)
+	go func(wg *sync.WaitGroup) {
+		defer wg.Done()
+		for err := range producer.Errors() {
+			glog.Error(err)
+		}
+	}(&wg)
+
+	wg.Add(1)
+	go func(wg *sync.WaitGroup) {
+		defer wg.Done()
+		for {
+			err := rpcLoop(context, wg, producer)
+			if err != nil {
+				glog.Error(err)
+			} else {
+				return
+			}
+		}
+	}(&wg)
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	<-sigCh
+
+	glog.Info("Shutting down")
+	cancel()
+	producer.Close()
+	wg.Wait()
+
 	return nil
 }
