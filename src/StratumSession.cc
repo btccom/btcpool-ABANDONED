@@ -213,6 +213,8 @@ void StratumSession::handleLine(const std::string &line) {
   DLOG(INFO) << "recv(" << line.size() << "): " << line;
 
   if (state_ == CONNECTED && proxyStrategy_->check(line)) {
+    // PROXY header shall appear only once
+    proxyStrategy_ = std::make_unique<ProxyStrategy>();
     return;
   }
 
