@@ -43,6 +43,38 @@ static const uint32_t WriteTimeout = 120;
 static const string PoolWatcherAgent = "__PoolWatcher__";
 static const string BtccomAgentPrefix = "btccom-agent/";
 
+class ProxyStrategyDecodeAddress : public ProxyStrategy {
+public:
+  explicit ProxyStrategyDecodeAddress(StratumSession &session)
+    : session_{session} {}
+  bool check(const std::string &line) override {
+    std::vector<std::string> tokens;
+    boost::algorithm::split(
+        tokens,
+        line,
+        boost::algorithm::is_space(),
+        boost::algorithm::token_compress_on);
+    // TODO: add IPv6 support when the pool supports IPv6
+    if (!tokens.empty() && tokens[0] == "PROXY") {
+      if (tokens.size() >= 3 && tokens[1] == "TCP4") {
+        struct in_addr address;
+        if (1 == evutil_inet_pton(AF_INET, tokens[2].c_str(), &address)) {
+          LOG(INFO) << "PROXY protocol detected, client ip: " << tokens[2];
+          session_.setIpAddress(address);
+        }
+      }
+
+      // Stop further processing even if it is a malformed PROXY line
+      return true;
+    }
+
+    return false;
+  }
+
+private:
+  StratumSession &session_;
+};
+
 StratumSession::StratumSession(
     StratumServer &server,
     struct bufferevent *bev,
@@ -59,15 +91,11 @@ StratumSession::StratumSession(
   , worker_(server.chains_.size())
   , isDead_(false)
   , isLongTimeout_(false)
-  , savedAuthorizeInfo_(nullptr) {
+  , savedAuthorizeInfo_(nullptr)
+  , proxyStrategy_(std::make_unique<ProxyStrategy>()) {
   assert(saddr->sa_family == AF_INET);
   auto ipv4 = reinterpret_cast<struct sockaddr_in *>(saddr);
-  clientIpInt_ = ipv4->sin_addr.s_addr;
-  clientIp_.resize(INET_ADDRSTRLEN);
-  evutil_inet_ntop(
-      AF_INET, &ipv4->sin_addr, &clientIp_.front(), INET_ADDRSTRLEN);
-  // remove the padding bytes
-  clientIp_ = clientIp_.c_str();
+  setIpAddress(ipv4->sin_addr);
 
   // make a null dispatcher here to guard against invalid access
   dispatcher_ = std::make_unique<StratumMessageNullDispatcher>();
@@ -91,6 +119,9 @@ StratumSession::~StratumSession() {
 
 void StratumSession::setup() {
   setReadTimeout(ReadTimeout);
+  if (getServer().proxyProtocol()) {
+    proxyStrategy_ = std::make_unique<ProxyStrategyDecodeAddress>(*this);
+  }
 }
 
 void StratumSession::setReadTimeout(int32_t readTimeout) {
@@ -180,6 +211,10 @@ bool StratumSession::tryReadLine(std::string &line) {
 
 void StratumSession::handleLine(const std::string &line) {
   DLOG(INFO) << "recv(" << line.size() << "): " << line;
+
+  if (state_ == CONNECTED && proxyStrategy_->check(line)) {
+    return;
+  }
 
   JsonNode jnode;
   if (!JsonNode::parse(line.data(), line.data() + line.size(), jnode)) {
@@ -655,4 +690,12 @@ bool StratumSession::niceHashForced() const {
 
 uint64_t StratumSession::niceHashMinDiff() const {
   return server_.chains_[getChainId()].jobRepository_->niceHashMinDiff();
+}
+
+void StratumSession::setIpAddress(const struct in_addr &address) {
+  clientIpInt_ = address.s_addr;
+  clientIp_.resize(INET_ADDRSTRLEN);
+  evutil_inet_ntop(AF_INET, &address, &clientIp_.front(), INET_ADDRSTRLEN);
+  // remove the padding bytes
+  clientIp_ = clientIp_.c_str();
 }

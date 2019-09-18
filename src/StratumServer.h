@@ -271,6 +271,8 @@ public:
   bool singleUserMode_ = false;
   string singleUserName_;
 
+  bool proxyProtocol_ = false;
+
   shared_ptr<Zookeeper> zk_;
 
   friend class StratumServerStats;
@@ -344,6 +346,8 @@ public:
   int32_t singleUserId(size_t chainId) {
     return chains_[chainId].singleUserId_;
   }
+
+  bool proxyProtocol() const { return proxyProtocol_; }
 
 protected:
   virtual JobRepository *createJobRepository(

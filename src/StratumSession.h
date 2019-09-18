@@ -105,6 +105,12 @@ public:
   virtual uint64_t niceHashMinDiff() const = 0;
 };
 
+class ProxyStrategy {
+public:
+  virtual ~ProxyStrategy() = default;
+  virtual bool check(const std::string &line) { return false; }
+};
+
 class StratumSession : public IStratumSession {
 public:
   // Mining State
@@ -142,6 +148,8 @@ protected:
   };
 
   shared_ptr<AuthorizeInfo> savedAuthorizeInfo_;
+
+  std::unique_ptr<ProxyStrategy> proxyStrategy_;
 
   void setup();
   void setReadTimeout(int32_t readTimeout);
@@ -238,6 +246,8 @@ public:
   void reportShare(size_t chainId, int32_t status, uint64_t shareDiff) override;
   bool niceHashForced() const override;
   uint64_t niceHashMinDiff() const override;
+
+  void setIpAddress(const struct in_addr &address);
 };
 
 //  This base class is to help type safety of accessing server_ member variable.

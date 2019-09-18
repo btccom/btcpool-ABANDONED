@@ -728,6 +728,10 @@ bool StratumServer::setup(const libconfig::Config &config) {
               << singleUserName_ << chainPuids;
   }
 
+  // Proxy protocol support
+  config.lookupValue("sserver.proxy_protocol", proxyProtocol_);
+  LOG_IF(INFO, proxyProtocol_) << "PROXY protocol support enabled";
+
   // ------------------- user info -------------------
   // It should at below of addChainVars() or sserver may crashed
   // because of IndexOutOfBoundsException in chains_.
