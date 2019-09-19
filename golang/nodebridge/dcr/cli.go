@@ -25,7 +25,7 @@ var (
 
 	Command = cli.Command{
 		Name:  "dcr",
-		Usage: "Node bridge for ETH/ETC network",
+		Usage: "Node bridge for DCR network",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:        "rpc_addr",
