@@ -31,7 +31,7 @@ func rpcGetWork(wg *sync.WaitGroup, client *rpc.Client, workCh chan<- [10]string
 }
 
 func rpcLoop(ctx context.Context, wg *sync.WaitGroup, producer sarama.AsyncProducer) error {
-	client, err := rpc.Dial(rpcAddress)
+	client, err := rpc.DialContext(ctx, rpcAddress)
 	if err != nil {
 		glog.Errorf("Failed to dail %s: %v", rpcAddress, err)
 		return err
@@ -39,7 +39,7 @@ func rpcLoop(ctx context.Context, wg *sync.WaitGroup, producer sarama.AsyncProdu
 	defer client.Close()
 
 	workCh := make(chan [10]string)
-	subscription, err := client.Subscribe(context.Background(), ethNamespace, workCh, subNewWorks)
+	subscription, err := client.Subscribe(ctx, ethNamespace, workCh, subNewWorks)
 	if err != nil {
 		glog.Errorf("Failed to subscribe to new works: %v", err)
 		return err
