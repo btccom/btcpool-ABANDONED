@@ -43,11 +43,12 @@ func rpcLoop(ctx context.Context, wg *sync.WaitGroup, producer sarama.AsyncProdu
 		},
 	}
 	connCfg := &rpcclient.ConnConfig{
-		Host:         rpcAddress,
-		Endpoint:     "ws",
-		User:         rpcUsername,
-		Pass:         rpcPassword,
-		Certificates: certs,
+		Host:                rpcAddress,
+		Endpoint:            "ws",
+		User:                rpcUsername,
+		Pass:                rpcPassword,
+		Certificates:        certs,
+		DisableConnectOnNew: true,
 	}
 
 	client, err := rpcclient.New(connCfg, &ntfnHandlers)
@@ -56,6 +57,12 @@ func rpcLoop(ctx context.Context, wg *sync.WaitGroup, producer sarama.AsyncProdu
 		return err
 	}
 	defer client.WaitForShutdown()
+
+	err = client.Connect(ctx, true)
+	if err != nil {
+		glog.Errorf("Failed to create RPC client: %v", err)
+		return err
+	}
 
 	network, err := client.GetCurrentNet()
 	if err != nil {

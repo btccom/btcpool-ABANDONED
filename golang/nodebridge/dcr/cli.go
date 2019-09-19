@@ -82,7 +82,7 @@ func run(ctx *cli.Context) error {
 	}
 
 	var wg sync.WaitGroup
-	context, cancel := context.WithCancel(context.Background())
+	runCtx, cancel := context.WithCancel(context.Background())
 
 	wg.Add(1)
 	go func(wg *sync.WaitGroup) {
@@ -96,9 +96,10 @@ func run(ctx *cli.Context) error {
 	go func(wg *sync.WaitGroup) {
 		defer wg.Done()
 		for {
-			err := rpcLoop(context, wg, producer)
-			if err != nil {
-				glog.Error(err)
+			err := rpcLoop(runCtx, wg, producer)
+			if err != nil && err != context.Canceled {
+				glog.Error("Sleep 5 seconds before reconnecting")
+				time.Sleep(5 * time.Second)
 			} else {
 				return
 			}
