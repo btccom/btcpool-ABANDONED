@@ -27,6 +27,9 @@
 
 #include "bitcoin/bitcoin.pb.h"
 #include "StratumStatus.h"
+#include "Difficulty.hpp"
+
+using BitcoinDifficulty = Difficulty<0x1d00ffff>;
 
 struct ShareBitcoinBytesV1 {
 public:
@@ -237,32 +240,6 @@ public:
 
 //----------------------------------------------------
 
-// bits to difficulty, from <https://en.bitcoin.it/wiki/Difficulty>
-
-inline float fast_log(float val) {
-  int *const exp_ptr = reinterpret_cast<int *>(&val);
-  int x = *exp_ptr;
-  const int log_2 = ((x >> 23) & 255) - 128;
-  x &= ~(255 << 23);
-  x += 127 << 23;
-  *exp_ptr = x;
-
-  val = ((-1.0f / 3) * val + 2) * val - 2.0f / 3;
-  return ((val + log_2) * 0.69314718f);
-}
-
-static float difficulty(unsigned int bits) {
-  if (bits == 0) {
-    return 0;
-  }
-  static double max_body = fast_log(0x00ffff), scaland = fast_log(256);
-  return exp(
-      max_body - fast_log(bits & 0x00ffffff) +
-      scaland * (0x1d - ((bits & 0xff000000) >> 24)));
-}
-
-//----------------------------------------------------
-
 template <>
 class ParquetWriterT<ShareBitcoin> : public ParquetWriter {
 protected:
@@ -275,13 +252,13 @@ protected:
   std::string *ipStr_ = nullptr;
   int64_t *jobIds_ = nullptr;
   int64_t *shareDiff_ = nullptr;
-  float *networkDiff_ = nullptr;
+  double *networkDiff_ = nullptr;
   int32_t *height_ = nullptr;
   int32_t *nonce_ = nullptr;
   int32_t *sessionId_ = nullptr;
   int32_t *versionMask_ = nullptr;
   int32_t *extUserId_ = nullptr;
-  float *diffReached_ = nullptr;
+  double *diffReached_ = nullptr;
 
 public:
   ParquetWriterT() {
@@ -294,13 +271,13 @@ public:
     ipStr_ = new std::string[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
     jobIds_ = new int64_t[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
     shareDiff_ = new int64_t[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
-    networkDiff_ = new float[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
+    networkDiff_ = new double[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
     height_ = new int32_t[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
     nonce_ = new int32_t[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
     sessionId_ = new int32_t[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
     versionMask_ = new int32_t[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
     extUserId_ = new int32_t[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
-    diffReached_ = new float[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
+    diffReached_ = new double[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
   }
 
   ~ParquetWriterT() {
@@ -362,8 +339,8 @@ protected:
         PrimitiveNode::Make("job_id", Repetition::REQUIRED, Type::INT64));
     fields.push_back(
         PrimitiveNode::Make("share_diff", Repetition::REQUIRED, Type::INT64));
-    fields.push_back(
-        PrimitiveNode::Make("network_diff", Repetition::REQUIRED, Type::FLOAT));
+    fields.push_back(PrimitiveNode::Make(
+        "network_diff", Repetition::REQUIRED, Type::DOUBLE));
     fields.push_back(
         PrimitiveNode::Make("height", Repetition::REQUIRED, Type::INT32));
     fields.push_back(
@@ -374,8 +351,8 @@ protected:
         PrimitiveNode::Make("version_mask", Repetition::REQUIRED, Type::INT32));
     fields.push_back(
         PrimitiveNode::Make("ext_user_id", Repetition::REQUIRED, Type::INT32));
-    fields.push_back(
-        PrimitiveNode::Make("diff_reached", Repetition::REQUIRED, Type::FLOAT));
+    fields.push_back(PrimitiveNode::Make(
+        "diff_reached", Repetition::REQUIRED, Type::DOUBLE));
 
     // Create a GroupNode named 'share_bitcoin' using the primitive nodes
     // defined above This GroupNode is the root node of the schema tree
@@ -422,7 +399,7 @@ protected:
         ->WriteBatch(shareNum_, nullptr, nullptr, shareDiff_);
 
     // network_diff
-    static_cast<parquet::FloatWriter *>(rgWriter->NextColumn())
+    static_cast<parquet::DoubleWriter *>(rgWriter->NextColumn())
         ->WriteBatch(shareNum_, nullptr, nullptr, networkDiff_);
 
     // height
@@ -446,7 +423,7 @@ protected:
         ->WriteBatch(shareNum_, nullptr, nullptr, extUserId_);
 
     // diff_reached
-    static_cast<parquet::FloatWriter *>(rgWriter->NextColumn())
+    static_cast<parquet::DoubleWriter *>(rgWriter->NextColumn())
         ->WriteBatch(shareNum_, nullptr, nullptr, diffReached_);
 
     // Save current RowGroup
@@ -470,13 +447,15 @@ public:
     ip_[shareNum_].ptr = (const uint8_t *)ipStr_[shareNum_].data();
     jobIds_[shareNum_] = share.jobid();
     shareDiff_[shareNum_] = share.sharediff();
-    networkDiff_[shareNum_] = difficulty(share.blkbits());
+    networkDiff_[shareNum_] =
+        BitcoinDifficulty::BitsToDifficulty(share.blkbits());
     height_[shareNum_] = share.height();
     nonce_[shareNum_] = share.nonce();
     sessionId_[shareNum_] = share.sessionid();
     versionMask_[shareNum_] = share.versionmask();
     extUserId_[shareNum_] = share.extuserid();
-    diffReached_[shareNum_] = difficulty(share.bitsreached());
+    diffReached_[shareNum_] =
+        BitcoinDifficulty::BitsToDifficulty(share.bitsreached());
 
     shareNum_++;
 

@@ -25,6 +25,8 @@ ELSE()
   set(CMAKE_CXX_FLAGS "-g -Wall")
 ENDIF()
 
+add_definitions(-DHAVE_CONFIG_H)
+
 
 ###################################### Libs ######################################
 
@@ -48,7 +50,7 @@ endforeach(SHARE_TYPE)
 
 ###################################### Targets ######################################
 
-include_directories(${PROJECT_ROOT}/3rdparty ${PROJECT_ROOT}/src ${PROJECT_ROOT}/tools/common
+include_directories(. ${PROJECT_ROOT}/3rdparty ${PROJECT_ROOT}/src ${PROJECT_ROOT}/tools/common
                     ${GLOG_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS} ${Protobuf_INCLUDE_DIRS}
                     ${LIBCONFIGPP_INCLUDE_DIR} ${PTHREAD_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR}/src)
 
@@ -56,7 +58,7 @@ set(THIRD_LIBRARIES ${GLOG_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${PROTOBUF_LIBRARIE
                     ${PTHREAD_LIBRARIES} ${ZLIB_LIBRARIES}
                     parquet arrow)
 
-file(GLOB SOURCES *.cc)
+file(GLOB SOURCES *.cc *.cpp)
 
 add_executable(sharelog_to_parquet ${SOURCES} ${PROTOBUF_FILES})
 target_link_libraries(sharelog_to_parquet ${THIRD_LIBRARIES})
