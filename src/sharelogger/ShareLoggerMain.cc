@@ -46,6 +46,7 @@
 #include "decred/ShareLoggerDecred.h"
 #include "beam/ShareLoggerBeam.h"
 #include "grin/ShareLoggerGrin.h"
+#include "ckb/ShareLoggerCkb.h"
 
 using namespace std;
 using namespace libconfig;
@@ -127,6 +128,14 @@ newShareLogWriter(const string &kafkaBrokers, const Setting &def) {
 
   else if (chainType == "GRIN") {
     return make_shared<ShareLogWriterGrin>(
+        chainType.c_str(),
+        kafkaBrokers.c_str(),
+        def.lookup("data_dir").c_str(),
+        def.lookup("kafka_group_id").c_str(),
+        def.lookup("share_topic"),
+        compressionLevel);
+  } else if (chainType == "CKB") {
+    return make_shared<ShareLogWriterCkb>(
         chainType.c_str(),
         kafkaBrokers.c_str(),
         def.lookup("data_dir").c_str(),

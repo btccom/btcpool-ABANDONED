@@ -43,6 +43,7 @@
 #include "bytom/BlockMakerBytom.h"
 #include "sia/BlockMakerSia.h"
 #include "decred/BlockMakerDecred.h"
+#include "ckb/BlockMakerCkb.h"
 
 using namespace std;
 using namespace libconfig;
@@ -94,6 +95,8 @@ BlockMaker *createBlockMaker(
     maker = new BlockMakerBytom(def, broker.c_str(), *poolDBInfo);
   else if ("DCR" == def->chainType_)
     maker = new BlockMakerDecred(def, broker.c_str(), *poolDBInfo);
+  else if ("CKB" == def->chainType_)
+    maker = new BlockMakerCkb(def, broker.c_str(), *poolDBInfo);
 
   return maker;
 }

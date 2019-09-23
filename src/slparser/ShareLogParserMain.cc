@@ -58,6 +58,9 @@
 #include "grin/StatisticsGrin.h"
 #include "grin/ShareLogParserGrin.h"
 
+#include "ckb/StatisticsCkb.h"
+#include "ckb/ShareLogParserCkb.h"
+
 #include "chainparamsbase.h"
 #include "chainparams.h"
 
@@ -106,6 +109,9 @@ std::shared_ptr<ShareLogDumper> newShareLogDumper(
     return std::make_shared<ShareLogDumperBeam>(cfg, timestamp, uids);
   } else if (chainType == "GRIN") {
     return std::make_shared<ShareLogDumperGrin>(cfg, timestamp, uids);
+  } else if (chainType == "CKB") {
+    return std::make_shared<ShareLogDumperCkb>(cfg, timestamp, uids);
+  } else {
     LOG(FATAL) << "newShareLogDumper: unknown chain type " << chainType;
     return nullptr;
   }
@@ -145,6 +151,8 @@ std::shared_ptr<ShareLogParser> newShareLogParser(
         cfg,
         timestamp,
         std::make_shared<DuplicateShareCheckerGrin>(dupShareTrackingHeight));
+  } else if (chainType == "CKB") {
+    return std::make_shared<ShareLogParserCkb>(cfg, timestamp, nullptr);
   } else {
     LOG(FATAL) << "newShareLogParser: unknown chain type " << chainType;
     return nullptr;
@@ -180,6 +188,8 @@ std::shared_ptr<ShareLogParserServer> newShareLogParserServer(
     return std::make_shared<ShareLogParserServerGrin>(
         cfg,
         std::make_shared<DuplicateShareCheckerGrin>(dupShareTrackingHeight));
+  } else if (chainType == "CKB") {
+    return std::make_shared<ShareLogParserServerCkb>(cfg, nullptr);
   } else {
     LOG(FATAL) << "newShareLogParserServer: unknown chain type " << chainType;
     return nullptr;

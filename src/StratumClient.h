@@ -64,6 +64,7 @@ protected:
   bool isMining_;
   string latestJobId_;
   uint64_t latestDiff_;
+  arith_uint256 latestTarget_;
 
   bool tryReadLine(string &line);
   virtual void handleLine(const string &line);

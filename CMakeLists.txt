@@ -452,6 +452,7 @@ include_directories(
   ${CMAKE_CURRENT_BINARY_DIR}/src
   3rdparty
   3rdparty/equihash
+  3rdparty/eaglesong
   src
   test
   ${CHAIN_SRC_ROOT}/src
@@ -508,6 +509,10 @@ file(GLOB LIB_SOURCES
         src/vcash/*.cc
         src/ssl/*.cc
     )
+
+add_library(eaglesong
+  3rdparty/eaglesong/eaglesong.cc)
+
 file(GLOB LIB_SOURCES_CHAINS
         src/eth/*.cc
         src/bytom/*.cc 
@@ -516,10 +521,11 @@ file(GLOB LIB_SOURCES_CHAINS
         src/decred/*.cc
         src/beam/*.cc
         src/grin/*.cc
+        src/ckb/*.cc
     )
 
 set(LIB_SOURCES_SHARES)
-foreach(SHARE_TYPE beam bitcoin bytom decred eth sia grin)
+foreach(SHARE_TYPE beam bitcoin bytom decred eth sia grin ckb)
   file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/src/${SHARE_TYPE})
   add_custom_command(
       COMMAND ${PROTOBUF_PROTOC_EXECUTABLE} --cpp_out=${CMAKE_CURRENT_BINARY_DIR}/src/${SHARE_TYPE} ${SHARE_TYPE}.proto
@@ -540,7 +546,7 @@ add_library(
     ${LIB_SOURCES_PROMETHEUS}
     ${LIB_SOURCES_SHARES}
     ${LIB_SOURCES_CHAINS})
-target_link_libraries(btcpool PUBLIC beam cuckoo)
+target_link_libraries(btcpool PUBLIC beam cuckoo eaglesong)
 target_link_libraries(btcpool PUBLIC rlpvalue)
 
 if(BUILD_TESTING)

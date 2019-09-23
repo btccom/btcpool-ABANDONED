@@ -58,6 +58,9 @@
 #include "grin/StatisticsGrin.h"
 #include "grin/StatsHttpdGrin.h"
 
+#include "ckb/StatisticsCkb.h"
+#include "ckb/StatsHttpdCkb.h"
+
 using namespace std;
 using namespace libconfig;
 
@@ -108,6 +111,8 @@ std::shared_ptr<StatsServer> newStatsServer(const libconfig::Config &cfg) {
     return std::make_shared<StatsServerGrin>(
         cfg,
         std::make_shared<DuplicateShareCheckerGrin>(dupShareTrackingHeight));
+  } else if (chainType == "CKB") {
+    return std::make_shared<StatsServerCkb>(cfg, nullptr);
   } else {
     LOG(FATAL) << "newStatsServer: unknown chain type " << chainType;
     return nullptr;

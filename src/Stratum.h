@@ -261,6 +261,7 @@ struct LocalJob {
   bool addLocalShare(const LocalShare &localShare) {
     return submitShares_.insert(localShare).second;
   }
-};
 
+  bool operator==(uint64_t jobId) const { return jobId_ == jobId; }
+};
 #endif

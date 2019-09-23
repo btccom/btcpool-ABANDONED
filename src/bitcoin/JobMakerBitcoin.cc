@@ -89,6 +89,7 @@ bool JobMakerHandlerBitcoin::initConsumerHandlers(
       std::make_tuple(def()->auxPowGwTopic_, 0),
       std::make_tuple(def()->rskRawGwTopic_, 0),
       std::make_tuple(def()->vcashRawGwTopic_, 0)};
+
   auto kafkaConsumer =
       std::make_shared<KafkaQueueConsumer>(kafkaBrokers, topics);
   std::map<string, string> options{{"fetch.wait.max.ms", "5"}};

@@ -46,6 +46,7 @@
 #include "bytom/JobMakerBytom.h"
 #include "sia/JobMakerSia.h"
 #include "decred/JobMakerDecred.h"
+#include "ckb/JobMakerCkb.h"
 
 #include <chainparams.h>
 
@@ -70,7 +71,7 @@ void usage() {
 bool isGwChain(const string &chainType) {
   return (
       "ETH" == chainType || "SIA" == chainType || "BTM" == chainType ||
-      "DCR" == chainType);
+      "DCR" == chainType || "CKB" == chainType);
 }
 
 shared_ptr<JobMakerHandler>
@@ -85,6 +86,8 @@ createGwJobMakerHandler(shared_ptr<GwJobMakerDefinition> def) {
     handler = make_shared<JobMakerHandlerBytom>();
   else if (def->chainType_ == "DCR")
     handler = make_shared<JobMakerHandlerDecred>();
+  else if (def->chainType_ == "CKB")
+    handler = make_shared<JobMakerHandlerCkb>();
   else
     LOG(FATAL) << "unknown chain type: " << def->chainType_;
 

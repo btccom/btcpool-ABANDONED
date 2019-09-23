@@ -32,6 +32,8 @@ The pool backend support these blockchains at current:
    * [Decred](https://www.decred.org/)
 * Tensority
    * [Bytom](https://bytom.io/)
+* Eaglesong
+   * [Ckb](https://www.nervos.org/)
 * Others
    * ~~[Siacoin](https://www.sia.tech/)~~ (not finished and need test)
 
