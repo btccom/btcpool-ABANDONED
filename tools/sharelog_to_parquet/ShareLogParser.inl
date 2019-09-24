@@ -196,8 +196,8 @@ bool ShareLogParserT<SHARE>::processUnchangedShareLog() {
 
     generateEmptyParquets();
     return true;
-  } catch (...) {
-    LOG(ERROR) << "open file fail: " << filePath_;
+  } catch (const zstr::Exception &ex) {
+    LOG(ERROR) << "open file fail: " << filePath_ << ", exception: " << ex.what();
     return false;
   }
 }
@@ -450,3 +450,8 @@ using ShareLogParserBitcoin = ShareLogParserT<ShareBitcoin>;
 using ShareLogParserServerBitcoin = ShareLogParserServerT<ShareBitcoin>;
 template class ShareLogParserT<ShareBitcoin>;
 template class ShareLogParserServerT<ShareBitcoin>;
+
+using ShareLogParserBeam = ShareLogParserT<ShareBeam>;
+using ShareLogParserServerBeam = ShareLogParserServerT<ShareBeam>;
+template class ShareLogParserT<ShareBeam>;
+template class ShareLogParserServerT<ShareBeam>;

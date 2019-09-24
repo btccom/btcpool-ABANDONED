@@ -33,6 +33,13 @@
 #include <string>
 
 void BitsToTarget(uint32_t bits, uint256 &target) {
+  // The previous sharelog stored arith_uint256::bits() in the bits_reached field.
+  if (bits <= 0xffL) {
+    target = ArithToUint256((arith_uint256("1") << bits) - 1);
+    return;
+  }
+
+  // The new sharelog will store arith_uint256::GetCompact() to improve precision.
   target = ArithToUint256(arith_uint256{}.SetCompact(bits));
 }
 
@@ -72,7 +79,7 @@ struct Difficulty {
   static void
   DiffToTarget(uint64_t diff, uint256 &target, bool useTable = true) {
     static const auto MaxTarget = uint256S(
-        "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+      "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
     if (diff == 0) {
       target = MaxTarget;
       return;
@@ -93,18 +100,41 @@ struct Difficulty {
   }
 
   static void BitsToDifficulty(uint32_t bits, double *difficulty) {
+    // The previous sharelog stored arith_uint256::bits() in the bits_reached field.
+    if (bits <= 0xffL) {
+      arith_uint256 target = (arith_uint256("1") << bits) - 1;
+      difficulty = GetDiffOneTarget().getdouble() / target.getdouble();
+      return;
+    }
+
+    // The new sharelog will store arith_uint256::GetCompact() to improve precision.
     arith_uint256 target;
     target.SetCompact(bits);
     *difficulty = GetDiffOneTarget().getdouble() / target.getdouble();
   }
 
   static void BitsToDifficulty(uint32_t bits, uint64_t *difficulty) {
+    // The previous sharelog stored arith_uint256::bits() in the bits_reached field.
+    if (bits <= 0xffL) {
+      arith_uint256 target = (arith_uint256("1") << bits) - 1;
+      difficulty = (GetDiffOneTarget() / target).GetLow64();
+      return;
+    }
+
+    // The new sharelog will store arith_uint256::GetCompact() to improve precision.
     arith_uint256 target;
     target.SetCompact(bits);
     *difficulty = (GetDiffOneTarget() / target).GetLow64();
   }
 
   static double BitsToDifficulty(uint32_t bits) {
+    // The previous sharelog stored arith_uint256::bits() in the bits_reached field.
+    if (bits <= 0xffL) {
+      arith_uint256 target = (arith_uint256("1") << bits) - 1;
+      return GetDiffOneTarget().getdouble() / target.getdouble();
+    }
+
+    // The new sharelog will store arith_uint256::GetCompact() to improve precision.
     arith_uint256 target;
     target.SetCompact(bits);
     return GetDiffOneTarget().getdouble() / target.getdouble();

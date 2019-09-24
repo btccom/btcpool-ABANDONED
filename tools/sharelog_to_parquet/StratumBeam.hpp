@@ -27,111 +27,93 @@
 #include <cmath>
 #include <glog/logging.h>
 
-#include "bitcoin/bitcoin.pb.h"
+#include "beam/beam.pb.h"
 #include "StratumStatus.h"
-#include "Difficulty.hpp"
+#include "uint256.h"
+#include "arith_uint256.h"
 
-using BitcoinDifficulty = Difficulty<0x1d00ffff>;
 using namespace std;
 
-struct ShareBitcoinBytesV1 {
+class BeamDifficulty {
+private:
+  static void Unpack(uint32_t packed, uint32_t &order, uint32_t &mantissa) {
+    order = (packed >> 24);
+
+    const uint32_t nLeadingBit = 1U << 24;
+    mantissa = nLeadingBit | (packed & (nLeadingBit - 1));
+  }
+
 public:
-  enum Result {
-    // make default 0 as REJECT, so code bug is unlikely to make false ACCEPT
-    // shares
-    REJECT = 0,
-    ACCEPT = 1
-  };
+  // BEAM's bits are compression of the difficulty
+  static double BeamBitsToDifficulty(uint32_t beamBits) {
+    if (beamBits == 0) {
+      return 0;
+    }
 
-  uint64_t jobId_ = 0;
-  int64_t workerHashId_ = 0;
-  uint32_t ip_ = 0;
-  int32_t userId_ = 0;
-  uint64_t shareDiff_ = 0;
-  uint32_t timestamp_ = 0;
-  uint32_t blkBits_ = 0;
-  int32_t result_ = 0;
-  // Even if the field does not exist,
-  // gcc will add the field as a padding
-  // under the default memory alignment parameter.
-  int32_t padding_ = 0;
-};
+    uint32_t order, mantissa;
+    Unpack(beamBits, order, mantissa);
 
-static_assert(
-    sizeof(ShareBitcoinBytesV1) == 48,
-    "ShareBitcoinBytesV1 should be 48 bytes");
+    int nOrderCorrected = order - 24; // must be signed
+    return ldexp(mantissa, nOrderCorrected);
+  }
 
-struct ShareBitcoinBytesV2 {
-  uint32_t version_ = 0;
-  uint32_t checkSum_ = 0;
+  // Bitcoin-style bits are compression of the target
+  static double BitcoinStyleBitsToDifficulty(uint32_t bitcoinStyleBits) {
+    static arith_uint256 kMaxUint256(
+        "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+    
+    if (bitcoinStyleBits == 0) {
+      return 0.0;
+    }
 
-  int64_t workerHashId_ = 0;
-  int32_t userId_ = 0;
-  int32_t status_ = 0;
-  int64_t timestamp_ = 0;
-  IpAddress ip_ = 0;
+    // The previous sharelog stored arith_uint256::bits().
+    if (bitcoinStyleBits <= 0xffL) {
+      arith_uint256 target = (arith_uint256("1") << bitcoinStyleBits) - 1;
+      return (kMaxUint256 / target).getdouble();
+    }
 
-  uint64_t jobId_ = 0;
-  uint64_t shareDiff_ = 0;
-  uint32_t blkBits_ = 0;
-  uint32_t height_ = 0;
-  uint32_t nonce_ = 0;
-  uint32_t sessionId_ = 0;
-
-  uint32_t checkSum() const {
-    uint64_t c = 0;
-
-    c += (uint64_t)version_;
-    c += (uint64_t)workerHashId_;
-    c += (uint64_t)userId_;
-    c += (uint64_t)status_;
-    c += (uint64_t)timestamp_;
-    c += (uint64_t)ip_.addrUint64[0];
-    c += (uint64_t)ip_.addrUint64[1];
-    c += (uint64_t)jobId_;
-    c += (uint64_t)shareDiff_;
-    c += (uint64_t)blkBits_;
-    c += (uint64_t)height_;
-    c += (uint64_t)nonce_;
-    c += (uint64_t)sessionId_;
-
-    return ((uint32_t)c) + ((uint32_t)(c >> 32));
+    // The new sharelog will store arith_uint256::GetCompact() to improve precision.
+    arith_uint256 target;
+    target.SetCompact(bitcoinStyleBits);
+    return (kMaxUint256 / target).getdouble();
   }
 };
 
-class ShareBitcoin : public sharebase::BitcoinMsg {
+class ShareBeam : public sharebase::BeamMsg {
 public:
-  ShareBitcoin() {
-    set_version(CURRENT_VERSION);
+  const static uint32_t CURRENT_VERSION =
+      0x0bea0001u; // first 0bea: BEAM, second 0001: version 1
+
+  ShareBeam() {
+    set_version(0);
     set_workerhashid(0);
     set_userid(0);
     set_status(0);
     set_timestamp(0);
     set_ip("0.0.0.0");
-    set_jobid(0);
+    set_inputprefix(0);
     set_sharediff(0);
-    set_blkbits(0);
+    set_blockbits(0);
     set_height(0);
     set_nonce(0);
     set_sessionid(0);
-    set_versionmask(0);
   }
-
-  ShareBitcoin(const ShareBitcoin &r) = default;
-  ShareBitcoin &operator=(const ShareBitcoin &r) = default;
+  ShareBeam(const ShareBeam &r) = default;
+  ShareBeam &operator=(const ShareBeam &r) = default;
 
   bool SerializeToBuffer(string &data, uint32_t &size) const {
     size = ByteSize();
     data.resize(size);
+
     if (!SerializeToArray((uint8_t *)data.data(), size)) {
-      DLOG(INFO) << "share SerializeToArray failed!";
+      DLOG(INFO) << "base.SerializeToArray failed!" << std::endl;
       return false;
     }
+
     return true;
   }
 
   bool UnserializeWithVersion(const uint8_t *data, uint32_t size) {
-
     if (nullptr == data || size <= 0) {
       return false;
     }
@@ -146,59 +128,27 @@ public:
         DLOG(INFO) << "share ParseFromArray failed!";
         return false;
       }
-    } else if (
-        version == BYTES_VERSION && size == sizeof(ShareBitcoinBytesV2)) {
-
-      ShareBitcoinBytesV2 *share = (ShareBitcoinBytesV2 *)payload;
-
-      if (share->checkSum() != share->checkSum_) {
-        DLOG(INFO) << "checkSum mismatched! checkSum_: " << share->checkSum_
-                   << ", checkSum(): " << share->checkSum();
-        return false;
-      }
-
-      set_version(CURRENT_VERSION);
-      set_workerhashid(share->workerHashId_);
-      set_userid(share->userId_);
-      set_status(share->status_);
-      set_timestamp(share->timestamp_);
-      set_ip(share->ip_.toString());
-      set_jobid(share->jobId_);
-      set_sharediff(share->shareDiff_);
-      set_blkbits(share->blkBits_);
-      set_height(share->height_);
-      set_nonce(share->nonce_);
-      set_sessionid(share->sessionId_);
-
-    } else if (size == sizeof(ShareBitcoinBytesV1)) {
-      ShareBitcoinBytesV1 *share = (ShareBitcoinBytesV1 *)payload;
-
-      char ipStr[INET_ADDRSTRLEN];
-      inet_ntop(AF_INET, &(share->ip_), ipStr, INET_ADDRSTRLEN);
-
-      set_version(CURRENT_VERSION);
-      set_workerhashid(share->workerHashId_);
-      set_userid(share->userId_);
-      set_status(
-          share->result_ == ShareBitcoinBytesV1::ACCEPT
-              ? StratumStatus::ACCEPT
-              : StratumStatus::REJECT_NO_REASON);
-      set_timestamp(share->timestamp_);
-      set_ip(ipStr);
-      set_jobid(share->jobId_);
-      set_sharediff(share->shareDiff_);
-      set_blkbits(share->blkBits_);
-
-      // There is no height in ShareBitcoinBytesV1, so it can only be assumed.
-      // Note: BTCPool's SBTC support is outdated, so SBTC is not considered.
-
-      // The block reward should be 12.5 on this height
-      set_height(570000);
     } else {
-      DLOG(INFO) << "unknow share received!";
+      DLOG(INFO) << "unknow share received! data size: " << size;
       return false;
     }
 
+    return true;
+  }
+
+  bool SerializeToArrayWithLength(string &data, uint32_t &size) const {
+    size = ByteSize();
+    data.resize(size + sizeof(uint32_t));
+
+    *((uint32_t *)data.data()) = size;
+    uint8_t *payload = (uint8_t *)data.data();
+
+    if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
+      DLOG(INFO) << "base.SerializeToArray failed!";
+      return false;
+    }
+
+    size += sizeof(uint32_t);
     return true;
   }
 
@@ -218,33 +168,13 @@ public:
     return true;
   }
 
-  bool SerializeToArrayWithLength(string &data, uint32_t &size) const {
-    size = ByteSize();
-    data.resize(size + sizeof(uint32_t));
-
-    *((uint32_t *)data.data()) = size;
-    uint8_t *payload = (uint8_t *)data.data();
-
-    if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
-      DLOG(INFO) << "SerializeToArray failed!";
-      return false;
-    }
-
-    size += sizeof(uint32_t);
-    return true;
-  }
-
   size_t getsharelength() { return IsInitialized() ? ByteSize() : 0; }
-
-public:
-  const static uint32_t BYTES_VERSION = 0x00010003u;
-  const static uint32_t CURRENT_VERSION = 0x00010004u;
 };
 
 //----------------------------------------------------
 
 template <>
-class ParquetWriterT<ShareBitcoin> : public ParquetWriter {
+class ParquetWriterT<ShareBeam> : public ParquetWriter {
 protected:
   int64_t *indexs_ = nullptr;
   int64_t *workerIds_ = nullptr;
@@ -257,9 +187,9 @@ protected:
   int64_t *shareDiff_ = nullptr;
   double *networkDiff_ = nullptr;
   int32_t *height_ = nullptr;
-  int32_t *nonce_ = nullptr;
+  int64_t *nonce_ = nullptr;
   int32_t *sessionId_ = nullptr;
-  int32_t *versionMask_ = nullptr;
+  int32_t *outputHash_ = nullptr;
   int32_t *extUserId_ = nullptr;
   double *diffReached_ = nullptr;
 
@@ -276,9 +206,9 @@ public:
     shareDiff_ = new int64_t[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
     networkDiff_ = new double[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
     height_ = new int32_t[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
-    nonce_ = new int32_t[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
+    nonce_ = new int64_t[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
     sessionId_ = new int32_t[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
-    versionMask_ = new int32_t[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
+    outputHash_ = new int32_t[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
     extUserId_ = new int32_t[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
     diffReached_ = new double[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
   }
@@ -314,8 +244,8 @@ public:
       delete[] nonce_;
     if (sessionId_)
       delete[] sessionId_;
-    if (versionMask_)
-      delete[] versionMask_;
+    if (outputHash_)
+      delete[] outputHash_;
     if (extUserId_)
       delete[] extUserId_;
     if (diffReached_)
@@ -347,11 +277,11 @@ protected:
     fields.push_back(
         PrimitiveNode::Make("height", Repetition::REQUIRED, Type::INT32));
     fields.push_back(
-        PrimitiveNode::Make("nonce", Repetition::REQUIRED, Type::INT32));
+        PrimitiveNode::Make("nonce", Repetition::REQUIRED, Type::INT64));
     fields.push_back(
         PrimitiveNode::Make("session_id", Repetition::REQUIRED, Type::INT32));
     fields.push_back(
-        PrimitiveNode::Make("version_mask", Repetition::REQUIRED, Type::INT32));
+        PrimitiveNode::Make("output_hash", Repetition::REQUIRED, Type::INT32));
     fields.push_back(
         PrimitiveNode::Make("ext_user_id", Repetition::REQUIRED, Type::INT32));
     fields.push_back(PrimitiveNode::Make(
@@ -360,7 +290,7 @@ protected:
     // Create a GroupNode named 'share_bitcoin' using the primitive nodes
     // defined above This GroupNode is the root node of the schema tree
     return std::static_pointer_cast<GroupNode>(
-        GroupNode::Make("share_bitcoin", Repetition::REQUIRED, fields));
+        GroupNode::Make("share_beam", Repetition::REQUIRED, fields));
   }
 
   void flushShares() {
@@ -410,7 +340,7 @@ protected:
         ->WriteBatch(shareNum_, nullptr, nullptr, height_);
 
     // nonce
-    static_cast<parquet::Int32Writer *>(rgWriter->NextColumn())
+    static_cast<parquet::Int64Writer *>(rgWriter->NextColumn())
         ->WriteBatch(shareNum_, nullptr, nullptr, nonce_);
 
     // session_id
@@ -419,7 +349,7 @@ protected:
 
     // version_mask
     static_cast<parquet::Int32Writer *>(rgWriter->NextColumn())
-        ->WriteBatch(shareNum_, nullptr, nullptr, versionMask_);
+        ->WriteBatch(shareNum_, nullptr, nullptr, outputHash_);
 
     // ext_user_id
     static_cast<parquet::Int32Writer *>(rgWriter->NextColumn())
@@ -436,7 +366,7 @@ protected:
   }
 
 public:
-  void addShare(const ShareBitcoin &share) {
+  void addShare(const ShareBeam &share) {
     static IpAddress ipAddr;
     ipAddr.fromString(share.ip());
 
@@ -448,17 +378,17 @@ public:
     ipStr_[shareNum_] = share.ip();
     ip_[shareNum_].len = ipStr_[shareNum_].size();
     ip_[shareNum_].ptr = (const uint8_t *)ipStr_[shareNum_].data();
-    jobIds_[shareNum_] = share.jobid();
+    jobIds_[shareNum_] = share.inputprefix();
     shareDiff_[shareNum_] = share.sharediff();
     networkDiff_[shareNum_] =
-        BitcoinDifficulty::BitsToDifficulty(share.blkbits());
+        BeamDifficulty::BeamBitsToDifficulty(share.blockbits());
     height_[shareNum_] = share.height();
     nonce_[shareNum_] = share.nonce();
     sessionId_[shareNum_] = share.sessionid();
-    versionMask_[shareNum_] = share.versionmask();
+    outputHash_[shareNum_] = share.outputhash();
     extUserId_[shareNum_] = share.extuserid();
     diffReached_[shareNum_] =
-        BitcoinDifficulty::BitsToDifficulty(share.bitsreached());
+        BeamDifficulty::BitcoinStyleBitsToDifficulty(share.bitsreached());
 
     shareNum_++;
 

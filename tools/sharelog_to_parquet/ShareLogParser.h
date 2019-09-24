@@ -29,6 +29,7 @@
 
 #include "ParquetWritter.hpp"
 #include "StratumBitcoin.hpp"
+#include "StratumBeam.hpp"
 
 using namespace std;
 

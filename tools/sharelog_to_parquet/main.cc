@@ -38,6 +38,7 @@
 #include "shares.hpp"
 #include "ShareLogParser.h"
 #include "StratumBitcoin.hpp"
+#include "StratumBeam.hpp"
 
 using namespace std;
 using namespace libconfig;
@@ -67,6 +68,8 @@ std::shared_ptr<ShareLogParser> newShareLogParser(
     const string &chainType, time_t timestamp, const libconfig::Config &cfg) {
   if (chainType == "BTC") {
     return std::make_shared<ShareLogParserBitcoin>(cfg, timestamp);
+  } else if (chainType == "BEAM") {
+    return std::make_shared<ShareLogParserBeam>(cfg, timestamp);
   } else {
     LOG(FATAL) << "newShareLogParser: unknown chain type " << chainType;
     return nullptr;
@@ -77,6 +80,8 @@ std::shared_ptr<ShareLogParserServer>
 newShareLogParserServer(const string &chainType, const libconfig::Config &cfg) {
   if (chainType == "BTC") {
     return std::make_shared<ShareLogParserServerBitcoin>(cfg);
+  } else if (chainType == "BEAM") {
+    return std::make_shared<ShareLogParserServerBeam>(cfg);
   } else {
     LOG(FATAL) << "newShareLogParserServer: unknown chain type " << chainType;
     return nullptr;
