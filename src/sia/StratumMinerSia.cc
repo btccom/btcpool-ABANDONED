@@ -168,7 +168,7 @@ void StratumMinerSia::handleRequest_Submit(
 
   arith_uint256 shareTarget(str);
   arith_uint256 networkTarget = UintToArith256(sjob->networkTarget_);
-  share.set_bitsreached(shareTarget.bits());
+  share.set_bitsreached(shareTarget.GetCompact());
 
   if (shareTarget < networkTarget) {
     // valid share

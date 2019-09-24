@@ -581,7 +581,7 @@ void ServerEth::checkShareAndUpdateDiff(
     // and uses memcmp
     arith_uint256 bnShareTarget = UintToArith256(shareTarget);
     arith_uint256 bnNetworkTarget = UintToArith256(sjob->networkTarget_);
-    uint32_t bitsReached = bnShareTarget.bits();
+    uint32_t bitsReached = bnShareTarget.GetCompact();
 
     DLOG(INFO) << "comapre share target: " << shareTarget.GetHex()
                << ", network target: " << sjob->networkTarget_.GetHex();

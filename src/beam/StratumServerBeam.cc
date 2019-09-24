@@ -160,7 +160,7 @@ void ServerBeam::checkAndUpdateShare(
     return;
   }
   computedShareHash = SwapUint(Beam_Uint256Conv(shareHash));
-  share.set_bitsreached(UintToArith256(computedShareHash).bits());
+  share.set_bitsreached(UintToArith256(computedShareHash).GetCompact());
 
   beam::Difficulty networkDiff(share.blockbits());
   uint256 networkTarget = Beam_BitsToTarget(share.blockbits());

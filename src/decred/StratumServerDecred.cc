@@ -241,7 +241,7 @@ void ServerDecred::checkAndUpdateShare(
   auto bnBlockHash = UintToArith256(blkHash);
   auto bnNetworkTarget = UintToArith256(sjob->target_);
 
-  share.set_bitsreached(bnBlockHash.bits());
+  share.set_bitsreached(bnBlockHash.GetCompact());
 
   //
   // found new block

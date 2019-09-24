@@ -541,7 +541,7 @@ void ServerBitcoin::checkShare(
 #endif
     arith_uint256 bnBlockHash = UintToArith256(blkHash);
     arith_uint256 bnNetworkTarget = UintToArith256(sjob->networkTarget_);
-    uint32_t bitsReached = bnBlockHash.bits();
+    uint32_t bitsReached = bnBlockHash.GetCompact();
 
 #ifdef CHAIN_TYPE_ZEC
     DLOG(INFO) << Strings::Format(
