@@ -85,10 +85,10 @@ bool JobMakerHandlerBitcoin::init(shared_ptr<JobMakerDefinition> defPtr) {
 bool JobMakerHandlerBitcoin::initConsumerHandlers(
     const string &kafkaBrokers, vector<JobMakerConsumerHandler> &handlers) {
   std::vector<std::tuple<std::string, int>> topics{
-      {def()->rawGbtTopic_, 0},
-      {def()->auxPowGwTopic_, 0},
-      {def()->rskRawGwTopic_, 0},
-      {def()->vcashRawGwTopic_, 0}};
+      std::make_tuple(def()->rawGbtTopic_, 0),
+      std::make_tuple(def()->auxPowGwTopic_, 0),
+      std::make_tuple(def()->rskRawGwTopic_, 0),
+      std::make_tuple(def()->vcashRawGwTopic_, 0)};
   auto kafkaConsumer =
       std::make_shared<KafkaQueueConsumer>(kafkaBrokers, topics);
   std::map<string, string> options{{"fetch.wait.max.ms", "5"}};
