@@ -33,7 +33,8 @@ The pool backend support these blockchains at current:
 * Tensority
    * [Bytom](https://bytom.io/)
 * Eaglesong
-   * [Ckb](https://www.nervos.org/)
+   * [Ckb](https://www.nervos.org/) (finished but the test is not enough)
+   > Tips: only Tested with bminer and nbminer. need to be updated after the new version of ckb is released. 
 * Others
    * ~~[Siacoin](https://www.sia.tech/)~~ (not finished and need test)
 
