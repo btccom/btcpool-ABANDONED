@@ -31,7 +31,6 @@ template <class SHARE>
 ShareLogParserT<SHARE>::ShareLogParserT(
     const libconfig::Config &cfg, time_t timestamp)
   : date_(timestamp)
-  , hour_((timestamp - timestamp % 86400) / 3600)
   , outputDir_(cfg.lookup("parquet.data_dir").operator string())
   , chainType_(cfg.lookup("sharelog.chain_type").operator string())
   , f_(nullptr)
@@ -70,7 +69,6 @@ bool ShareLogParserT<SHARE>::openParquet() {
   if (!stat.ok()) {
     LOG(ERROR) << "cannot create parquet file " << parquetPath
                << ", message: " << stat.message();
-    openFileFailed_ = true;
     return false;
   }
   LOG(INFO) << "writing parquet file " << parquetPath;
@@ -81,6 +79,11 @@ template <class SHARE>
 bool ShareLogParserT<SHARE>::init() {
   // there is nothing to do
   return true;
+}
+
+template <class SHARE>
+void ShareLogParserT<SHARE>::closeParquet() {
+  parquetWriter_.close();
 }
 
 template <class SHARE>
@@ -106,10 +109,8 @@ void ShareLogParserT<SHARE>::parseShareLog(const uint8_t *buf, size_t len) {
 template <class SHARE>
 void ShareLogParserT<SHARE>::parseShare(SHARE &share) {
   time_t shareHour = share.timestamp() / 3600;
-  // Use loop to generate one file per hour, some may be empty files (if there
-  // is no share in that hour).
-  while (shareHour > hour_) {
-    hour_++;
+  if (shareHour > hour_) {
+    hour_ = shareHour;
     if (!openParquet()) {
       LOG(FATAL) << "cannot open parquet file, writer aborted!";
     }
@@ -119,34 +120,14 @@ void ShareLogParserT<SHARE>::parseShare(SHARE &share) {
 }
 
 template <class SHARE>
-void ShareLogParserT<SHARE>::generateEmptyParquets() {
-  time_t hourEnd = (date_ + 82800 /*23h*/) / 3600;
-
-  // Generate empty parquet files for the period when there is no share
-  while (!openFileFailed_ && hour_ < hourEnd) {
-    hour_++;
-    openParquet();
-  }
-  parquetWriter_.close();
-}
-
-template <class SHARE>
 bool ShareLogParserT<SHARE>::processUnchangedShareLog() {
   try {
-    openFileFailed_ = true;
-
     // open file
     LOG(INFO) << "open file: " << filePath_;
     zstr::ifstream f(filePath_, std::ios::binary);
 
     if (!f) {
       LOG(ERROR) << "open file fail: " << filePath_;
-      return false;
-    }
-
-    openFileFailed_ = false;
-
-    if (!openParquet()) {
       return false;
     }
 
@@ -194,18 +175,22 @@ bool ShareLogParserT<SHARE>::processUnchangedShareLog() {
                  << " bytes fragment before EOF" << std::endl;
     }
 
-    generateEmptyParquets();
+    closeParquet();
+
     return true;
   } catch (const zstr::Exception &ex) {
-    LOG(ERROR) << "open file fail: " << filePath_ << ", exception: " << ex.what();
+    LOG(ERROR) << "open file fail: " << filePath_
+               << ", exception: " << ex.what();
+    return false;
+  } catch (const strict_fstream::Exception &ex) {
+    LOG(ERROR) << "open file fail: " << filePath_
+               << ", exception: " << ex.what();
     return false;
   }
 }
 
 template <class SHARE>
 int64_t ShareLogParserT<SHARE>::processGrowingShareLog() {
-  openFileFailed_ = true;
-
   if (f_ == nullptr) {
     bool fileOpened = true;
     try {
@@ -221,17 +206,11 @@ int64_t ShareLogParserT<SHARE>::processGrowingShareLog() {
       fileOpened = false;
     }
 
-    if (fileOpened) {
-      openFileFailed_ = false;
-    } else {
+    if (!fileOpened) {
       delete f_;
       f_ = nullptr;
 
       return -1;
-    }
-
-    if (!openParquet()) {
-      return false;
     }
   }
 
@@ -403,6 +382,10 @@ void ShareLogParserServerT<SHARE>::runThreadShareLogParser() {
     }
 
   } /* while */
+
+  if (shareLogParser_) {
+    shareLogParser_->closeParquet();
+  }
 
   LOG(INFO) << "thread sharelog parser stop";
 }

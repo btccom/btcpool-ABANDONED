@@ -55,7 +55,6 @@ class ShareLogParserT : public ShareLogParser {
   string outputDir_;
   const string chainType_;
   ParquetWriterT<SHARE> parquetWriter_;
-  bool openFileFailed_ = false;
 
   //
   // for processGrowingShareLog()
@@ -78,7 +77,6 @@ class ShareLogParserT : public ShareLogParser {
 
   void parseShareLog(const uint8_t *buf, size_t len);
   void parseShare(SHARE &share);
-  void generateEmptyParquets();
   bool openParquet();
 
 public:
@@ -86,6 +84,7 @@ public:
   virtual ~ShareLogParserT();
 
   bool init();
+  void closeParquet();
 
   // read unchanged share data bin file, for example yestoday's file. it will
   // use mmap() to get high performance. call only once will process
