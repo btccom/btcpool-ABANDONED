@@ -22,11 +22,85 @@
  THE SOFTWARE.
  */
 #include "StatisticsCkb.h"
-// #include "CoinbaseRewards.h"
+#include "Utils.h"
+#include "utilities_js.hpp"
+
+static std::map<uint64_t/*height*/, double/*rewards*/> height2reword;
+static uint64_t lastTipNum = 0;
 
 template <>
 double ShareStatsDay<ShareCkb>::getShareReward(const ShareCkb &share) {
-  return 0.0;
+  // if share's height existed in map ,return directly.
+  if (height2reword.find(share.height()) != height2reword.end()) {
+    std::map<uint64_t, double>::iterator iter;
+    for (iter = height2reword.begin();
+         iter != height2reword.end() && iter->first < share.height();
+         iter++) {
+      iter = height2reword.erase(iter);
+    }
+    return height2reword[share.height()];
+  }
+
+  string getTipNum =
+      "{\"id\" : 2, \"jsonrpc\" : \"2.0\", \"method\" : "
+      "\"get_tip_block_number\", \"params\" : []}";
+  string response = "", blockHash = "";
+  double blockreward = 0.0;
+  // wait for N+11 block submited
+  if (height2reword.size() == 0 || share.height() + 11 > lastTipNum) {
+    for (;;) {
+      bool res = blockchainNodeRpcCall(
+          rpcUrl_.c_str(), "", getTipNum.c_str(), response);
+      if (res) {
+        JsonNode r;
+        if (JsonNode::parse(
+                response.c_str(), response.c_str() + response.length(), r) &&
+            std::strtoull(r["result"].str().c_str(), 0, 16) >=
+                share.height() + 11) {
+          lastTipNum = std::strtoull(r["result"].str().c_str(), 0, 16);
+          LOG(INFO) << "share height : " << share.height()
+                    << " network height : " << lastTipNum;
+          break;
+        }
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+    }
+  }
+  // get N+11th blockhash
+  string getBlockHash = Strings::Format(
+      "{ \"id\" : 2, \"jsonrpc\" : \"2.0\",\"method\" : "
+      "\"get_header_by_number\", \"params\" : [\"0x%x\"]}",
+      share.height() + 11);
+  bool res = blockchainNodeRpcCall(
+      rpcUrl_.c_str(), "", getBlockHash.c_str(), response);
+  if (res) {
+    JsonNode r;
+    if (JsonNode::parse(
+            response.c_str(), response.c_str() + response.length(), r)) {
+      blockHash = r["result"]["hash"].str();
+      LOG(INFO) << "block height : " << share.height() + 11
+                << " block hash : " << blockHash;
+    }
+  }
+  // get N+11th blockRewards
+  string getBlockReward = Strings::Format(
+      "{ \"id\" : 2, \"jsonrpc\" : \"2.0\",\"method\" : "
+      "\"get_cellbase_output_capacity_details\", \"params\" : [\"%s\"]}",
+      blockHash.c_str());
+
+  res = blockchainNodeRpcCall(
+      rpcUrl_.c_str(), "", getBlockReward.c_str(), response);
+  if (res) {
+    JsonNode r;
+    if (JsonNode::parse(
+            response.c_str(), response.c_str() + response.length(), r)) {
+      string reward_t = r["result"]["total"].str();
+      uint64_t blockreward_t = std::strtoull(reward_t.c_str(), 0, 16);
+      blockreward = blockreward_t;
+      height2reword.insert({share.height(), blockreward});
+    }
+  }
+  return blockreward;
 }
 
 template class ShareStatsDay<ShareCkb>;

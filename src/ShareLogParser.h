@@ -93,6 +93,7 @@ class ShareLogParserT : public ShareLogParser {
   time_t date_; // date_ % 86400 == 0
   string filePath_; // sharelog data file path
   const string chainType_;
+  string rpcUrl_;
 
   //
   // for processGrowingShareLog()
