@@ -171,7 +171,8 @@ void ShareStatsDay<SHARE>::getShareStatsDay(ShareStats *stats) {
     stats->rejectRate_ = 0.0;
 }
 template <class SHARE>
-ShareStatsDayNormalized<SHARE>::ShareStatsDayNormalized(const string rpcurl) : ShareStatsDay<SHARE>(rpcurl) {
+ShareStatsDayNormalized<SHARE>::ShareStatsDayNormalized(const string rpcurl)
+  : ShareStatsDay<SHARE>(rpcurl) {
 }
 
 template <class SHARE>

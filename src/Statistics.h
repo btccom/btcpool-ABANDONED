@@ -176,6 +176,7 @@ class ShareStatsDayNormalized : public ShareStatsDay<SHARE> {
 public:
   ShareStatsDayNormalized() = default;
   ShareStatsDayNormalized(const string rpcurl);
+
 private:
   uint64_t lastAcceptDiff_ = 1;
   virtual void updateAcceptDiff(uint64_t diff) override;

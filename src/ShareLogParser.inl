@@ -175,8 +175,8 @@ ShareLogParserT<SHARE>::ShareLogParserT(
     WorkerKey pkey(0, 0);
     if ("CKB" == chainType_) {
       rpcUrl_ = cfg.lookup("sharelog.rpcurl").operator string();
-      LOG(INFO) << "chaintype : "<< chainType_ << " RPCURL : " << rpcUrl_;
-      workersStats_[pkey] =std::make_shared<ShareStatsDay<SHARE>>(rpcUrl_);
+      LOG(INFO) << "chaintype : " << chainType_ << " RPCURL : " << rpcUrl_;
+      workersStats_[pkey] = std::make_shared<ShareStatsDay<SHARE>>(rpcUrl_);
     } else {
       workersStats_[pkey] = std::make_shared<ShareStatsDay<SHARE>>();
     }
@@ -253,16 +253,17 @@ void ShareLogParserT<SHARE>::parseShare(SHARE &share) {
   pthread_rwlock_wrlock(&rwlock_);
   if ("CKB" == chainType_) {
     if (workersStats_.find(wkey) == workersStats_.end()) {
-      workersStats_[wkey] = std::make_shared<ShareStatsDayNormalized<SHARE>>(rpcUrl_);
+      workersStats_[wkey] =
+          std::make_shared<ShareStatsDayNormalized<SHARE>>(rpcUrl_);
     }
-    if (workersStats_.find(ukey) == workersStats_.end()) { 
-      workersStats_[ukey] =std::make_shared<ShareStatsDay<SHARE>>(rpcUrl_);
+    if (workersStats_.find(ukey) == workersStats_.end()) {
+      workersStats_[ukey] = std::make_shared<ShareStatsDay<SHARE>>(rpcUrl_);
     }
   } else {
     if (workersStats_.find(wkey) == workersStats_.end()) {
       workersStats_[wkey] = std::make_shared<ShareStatsDayNormalized<SHARE>>();
     }
-    if (workersStats_.find(ukey) == workersStats_.end()) { 
+    if (workersStats_.find(ukey) == workersStats_.end()) {
       workersStats_[ukey] = std::make_shared<ShareStatsDay<SHARE>>();
     }
   }

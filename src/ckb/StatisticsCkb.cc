@@ -25,7 +25,7 @@
 #include "Utils.h"
 #include "utilities_js.hpp"
 
-static std::map<uint64_t/*height*/, double/*rewards*/> height2reword;
+static std::map<uint64_t /*height*/, double /*rewards*/> height2reword;
 static uint64_t lastTipNum = 0;
 
 template <>
