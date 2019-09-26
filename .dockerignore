@@ -1,0 +1,40 @@
+# IDE files
+.vs/
+.vscode/
+.idea/
+.DS_Store
+
+# Building files
+build
+build*/
+
+# Installs runs 
+install/run_*/
+
+# datas
+/patches/
+/data/
+
+# GNU global files
+/GPATH
+/GRTAGS
+/GTAGS
+
+# generated configuration files
+/src/config/*.h
+/src/*.pro.pb.h
+/src/*.pro.pb.cc
+
+# documents, tools and test scripts
+/docker/
+!/docker/btcpool/deploy/
+/docs/
+/Dockerfile
+/README.md
+/.dockerignore
+/.gitignore
+/.clang-format
+/run-clang-format.sh
+
+# git folder
+/.git/

@@ -1,0 +1,6 @@
+/work/bitcoin1/debug.log /work/bitcoin1/testnet3/debug.log /work/bitcoin2/debug.log /work/bitcoin2/testnet3/debug.log {
+    daily
+    rotate 3
+    missingok
+    copytruncate
+}

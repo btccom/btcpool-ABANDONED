@@ -24,35 +24,14 @@
 #ifndef STRATUM_H_
 #define STRATUM_H_
 
+#include <functional>
+
 #include "Common.h"
 #include "Utils.h"
-
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <queue>
-
-#include <event2/event.h>
-#include <event2/buffer.h>
-#include <event2/bufferevent.h>
-
-#include <glog/logging.h>
-
-#include "bitcoin/uint256.h"
-#include "bitcoin/base58.h"
-
-// TODO: update when next Halving
-#define BLOCK_REWARD 1250000000ll
-
-//
-// max coinbase tx size, bytes
-// WARNING: currently there is only 1 input and 1 or 2 output(if segwit has actived
-//          there will be 2 outputs), so 250 bytes is enough
-//
-#define COINBASE_TX_MAX_SIZE   250
+#include "Network.h"
 
 // default worker name
-#define DEFAULT_WORKER_NAME    "__default__"
-
+#define DEFAULT_WORKER_NAME "__default__"
 
 inline uint32_t jobId2Time(uint64_t jobId) {
   return (uint32_t)((jobId >> 32) & 0x00000000FFFFFFFFULL);
@@ -64,152 +43,128 @@ inline string filterWorkerName(const char *workerName) {
   return filterWorkerName(std::string(workerName));
 }
 
-////////////////////////////////// FoundBlock //////////////////////////////////
-class FoundBlock {
-public:
-  uint64_t jobId_;
-  int64_t  workerId_;  // found by who
-  int32_t  userId_;
-  int32_t  height_;
-  uint8_t  header80_[80];
-  char     workerFullName_[40];  // <UserName>.<WorkerName>
-
-  FoundBlock(): jobId_(0), workerId_(0), userId_(0), height_(0) {
-    memset(header80_,       0, sizeof(header80_));
-    memset(workerFullName_, 0, sizeof(workerFullName_));
-  }
-};
-
-///////////////////////////////////// Share ////////////////////////////////////
-class Share {
-public:
-  enum Result {
-    // make default 0 as REJECT, so code bug is unlikely to make false ACCEPT shares
-    REJECT    = 0,
-    ACCEPT    = 1
-  };
-  
-  uint64_t jobId_;
-  int64_t  workerHashId_;
-  uint32_t ip_;
-  int32_t  userId_;
-  uint64_t share_;
-  uint32_t timestamp_;
-  uint32_t blkBits_;
-  int32_t  result_;
-
-  Share():jobId_(0), workerHashId_(0), ip_(0), userId_(0), share_(0),
-  timestamp_(0), blkBits_(0), result_(0) {}
-
-  Share(const Share &r) {
-    jobId_        = r.jobId_;
-    workerHashId_ = r.workerHashId_;
-    ip_           = r.ip_;
-    userId_       = r.userId_;
-    share_        = r.share_;
-    timestamp_    = r.timestamp_;
-    blkBits_      = r.blkBits_;
-    result_       = r.result_;
-  }
-
-  Share& operator=(const Share &r) {
-    jobId_        = r.jobId_;
-    workerHashId_ = r.workerHashId_;
-    ip_           = r.ip_;
-    userId_       = r.userId_;
-    share_        = r.share_;
-    timestamp_    = r.timestamp_;
-    blkBits_      = r.blkBits_;
-    result_       = r.result_;
-    return *this;
-  }
-
-  double score() const {
-    if (share_ == 0 || blkBits_ == 0) { return 0.0; }
-    double networkDifficulty = 0.0;
-    BitsToDifficulty(blkBits_, &networkDifficulty);
-
-    // Network diff may less than share diff on testnet or regression test network.
-    // On regression test network, the network diff may be zero.
-    // But no matter how low the network diff is, you can only dig one block at a time.
-    if (networkDifficulty < (double)share_) { return 1.0; }
-
-    return (double)share_ / networkDifficulty;
-  }
-
-  bool isValid() const {
-    uint32_t jobTime = jobId2Time(jobId_);
-
-    /* TODO: increase timestamp check before 2020-01-01 */
-    if (userId_ > 0 && workerHashId_ != 0 && share_ > 0 &&
-        timestamp_ > 1467816952U /* 2016-07-06 14:55:52 UTC+0 */ &&
-        timestamp_ < 1577836800U /* 2020-01-01 00:00:00 UTC+0 */ &&
-        jobTime    > 1467816952U /* 2016-07-06 14:55:52 UTC+0 */ &&
-        jobTime    < 1577836800U /* 2020-01-01 00:00:00 UTC+0 */) {
-      return true;
-    }
-    return false;
-  }
-
-  string toString() const {
-    char ipStr[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &(ip_), ipStr, INET_ADDRSTRLEN);
-    return Strings::Format("share(jobId: %" PRIu64", ip: %s, userId: %d, "
-                           "workerId: %" PRId64", timeStamp: %u/%s, share: %" PRIu64", "
-                           "blkBits: %08x, result: %d)",
-                           jobId_, ipStr, userId_, workerHashId_,
-                           timestamp_, date("%F %T", timestamp_).c_str(),
-                           share_, blkBits_, result_);
-  }
-};
-
 //////////////////////////////// StratumError ////////////////////////////////
-class StratumError {
+class StratumStatus {
 public:
   enum {
-    NO_ERROR        = 0,
+    // make ACCEPT and SOLVED be two singular value,
+    // so code bug is unlikely to make false ACCEPT shares
 
-    UNKNOWN         = 20,
-    JOB_NOT_FOUND   = 21,
+    // share reached the job target (but may not reached the network target)
+    ACCEPT = 1798084231, // bin(01101011 00101100 10010110 10000111)
+
+    // share reached the job target but the job is stale
+    // if uncle block is allowed in the chain, share can be accept as this
+    // status
+    ACCEPT_STALE = 950395421, // bin(00111000 10100101 11100010 00011101)
+
+    // share reached the network target
+    SOLVED = 1422486894, // bin(‭01010100 11001001 01101101 01101110‬)
+
+    // share reached the network target but the job is stale
+    // if uncle block is allowed in the chain, share can be accept as this
+    // status
+    SOLVED_STALE = 1713984938, // bin(01100110 00101001 01010101 10101010)
+
+    // share reached the network target but the correctness is not verified
+    SOLVED_PRELIMINARY =
+        1835617709, // // bin(01101101 01101001 01001101 10101101)
+
+    REJECT_NO_REASON = 0,
+
+    JOB_NOT_FOUND_OR_STALE = 21,
     DUPLICATE_SHARE = 22,
-    LOW_DIFFICULTY  = 23,
-    UNAUTHORIZED    = 24,
-    NOT_SUBSCRIBED  = 25,
+    LOW_DIFFICULTY = 23,
+    UNAUTHORIZED = 24,
+    NOT_SUBSCRIBED = 25,
 
-    ILLEGAL_METHOD   = 26,
-    ILLEGAL_PARARMS  = 27,
-    IP_BANNED        = 28,
+    ILLEGAL_METHOD = 26,
+    ILLEGAL_PARARMS = 27,
+    IP_BANNED = 28,
     INVALID_USERNAME = 29,
-    INTERNAL_ERROR   = 30,
-    TIME_TOO_OLD     = 31,
-    TIME_TOO_NEW     = 32
+    INTERNAL_ERROR = 30,
+    TIME_TOO_OLD = 31,
+    TIME_TOO_NEW = 32,
+    ILLEGAL_VERMASK = 33,
+
+    INVALID_SOLUTION = 34,
+    WRONG_NONCE_PREFIX = 35,
+
+    JOB_NOT_FOUND = 36,
+    STALE_SHARE = 37,
+
+#ifdef WORK_WITH_STRATUM_SWITCHER
+    CLIENT_IS_NOT_SWITCHER = 400,
+#endif
+
+    UNKNOWN = 2147483647 // bin(01111111 11111111 11111111 11111111)
   };
-  static const char * toString(int err);
+
+  static const char *toString(int err);
+
+  inline static bool isAccepted(int status) {
+    return (status == ACCEPT) || (status == ACCEPT_STALE) ||
+        (status == SOLVED) || (status == SOLVED_STALE);
+  }
+
+  inline static bool isAcceptedStale(int status) {
+    return (status == ACCEPT_STALE) || (status == SOLVED_STALE);
+  }
+
+  inline static bool isRejectedStale(int status) {
+    return (status == JOB_NOT_FOUND_OR_STALE) || (status == STALE_SHARE);
+  }
+
+  inline static bool isAnyStale(int status) {
+    return isAcceptedStale(status) || isRejectedStale(status);
+  }
+
+  inline static bool isSolved(int status) {
+    return (status == SOLVED) || (status == SOLVED_STALE) ||
+        (status == SOLVED_PRELIMINARY);
+  }
 };
-
-
 
 //////////////////////////////// StratumWorker ////////////////////////////////
-class StratumWorker {
+class StratumWorkerPlain {
 public:
   int32_t userId_;
-  int64_t workerHashId_;  // substr(0, 8, HASH(wokerName))
+  int64_t workerHashId_;
 
-  string fullName_;    // fullName = username.workername
+  string fullName_;
   string userName_;
-  string workerName_;  // workername, max is: 20
-
-  void reset();
-
-public:
-  StratumWorker();
-  void setUserIDAndNames(const int32_t userId, const string &fullName);
-  string getUserName(const string &fullName) const ;
-
-  static int64_t calcWorkerId(const string &workerName);
+  string workerName_;
 };
 
+class StratumWorker {
+public:
+  std::atomic<size_t> chainId_;
+  vector<int32_t> userIds_;
+  int64_t workerHashId_; // substr(0, 8, HASH(wokerName))
 
+  string fullName_; // fullName = username.workername
+  string userName_;
+  string workerName_; // workername, max is: 20
+
+  void resetNames();
+
+public:
+  StratumWorker(const size_t chainSize);
+
+  void setChainIdAndUserId(const size_t chainId, const int32_t userId);
+  void setNames(
+      const string &fullName,
+      std::function<void(string &)> userNormalizer,
+      bool singleUserMode = false,
+      const string &singleUserName = "");
+
+  int32_t userId() const { return userIds_[chainId_]; }
+  int32_t userId(const size_t chainId) const { return userIds_[chainId]; }
+
+  static string getUserName(const string &fullName);
+  static string getWorkerName(const string &fullName);
+  static int64_t calcWorkerId(const string &workerName);
+};
 
 ////////////////////////////////// StratumJob //////////////////////////////////
 //
@@ -241,44 +196,72 @@ public:
   // jobId: timestamp + gbtHash, hex string, we need to make sure jobId is
   // unique in a some time, jobId can convert to uint64_t
   uint64_t jobId_;
-  string   gbtHash_;        // gbt hash id
-  uint256  prevHash_;
-  string   prevHashBeStr_;  // little-endian hex, memory's order
-  int32_t  height_;
-  string   coinbase1_;
-  string   coinbase2_;
-  vector<uint256> merkleBranch_;
 
-  int32_t  nVersion_;
-  uint32_t nBits_;
-  uint32_t nTime_;
-  uint32_t minTime_;
-  int64_t  coinbaseValue_;
-  // if segwit is not active, it will be empty
-  string   witnessCommitment_;
-
-  uint256 networkTarget_;
-
-  // namecoin merged mining
-  uint32_t nmcAuxBits_;
-  uint256  nmcAuxBlockHash_;
-  uint256  nmcNetworkTarget_;
-  int32_t  nmcHeight_;
-  string   nmcRpcAddr_;
-  string   nmcRpcUserpass_;
-
-
+protected:
+  StratumJob(); //  protected so cannot create it.
 public:
-  StratumJob();
+  virtual ~StratumJob();
 
-  string serializeToJson() const;
-  bool unserializeFromJson(const char *s, size_t len);
-
-  bool initFromGbt(const char *gbt, const string &poolCoinbaseInfo,
-                   const CBitcoinAddress &poolPayoutAddr,
-                   const uint32_t blockVersion,
-                   const string &nmcAuxBlockJson);
-  bool isEmptyBlock();
+  virtual string serializeToJson() const = 0;
+  virtual bool unserializeFromJson(const char *s, size_t len) = 0;
+  virtual uint32_t jobTime() const { return jobId2Time(jobId_); }
+  virtual uint64_t height() const = 0;
 };
 
+// shares submitted by this session, for duplicate share check
+// TODO: Move bitcoin-specific fields to the subclass
+struct LocalShare {
+  uint64_t exNonce2_; // extra nonce2 fixed 8 bytes
+  uint32_t nonce_; // nonce in block header
+  uint32_t time_; // nTime in block header
+  uint32_t versionMask_; // block version mask
+
+  LocalShare(
+      uint64_t exNonce2, uint32_t nonce, uint32_t time, uint32_t versionMask)
+    : exNonce2_(exNonce2)
+    , nonce_(nonce)
+    , time_(time)
+    , versionMask_(versionMask) {}
+
+  LocalShare(uint64_t exNonce2, uint32_t nonce, uint32_t time)
+    : exNonce2_(exNonce2)
+    , nonce_(nonce)
+    , time_(time)
+    , versionMask_(0) {}
+
+  LocalShare &operator=(const LocalShare &other) {
+    exNonce2_ = other.exNonce2_;
+    nonce_ = other.nonce_;
+    time_ = other.time_;
+    versionMask_ = other.versionMask_;
+    return *this;
+  }
+
+  bool operator<(const LocalShare &r) const {
+    if (exNonce2_ < r.exNonce2_ ||
+        (exNonce2_ == r.exNonce2_ && nonce_ < r.nonce_) ||
+        (exNonce2_ == r.exNonce2_ && nonce_ == r.nonce_ && time_ < r.time_) ||
+        (exNonce2_ == r.exNonce2_ && nonce_ == r.nonce_ && time_ == r.time_ &&
+         versionMask_ < r.versionMask_)) {
+      return true;
+    }
+    return false;
+  }
+};
+
+struct LocalJob {
+  size_t chainId_;
+  uint64_t jobId_;
+  std::set<LocalShare> submitShares_;
+
+  LocalJob(size_t chainId, uint64_t jobId)
+    : chainId_(chainId)
+    , jobId_(jobId) {}
+
+  bool addLocalShare(const LocalShare &localShare) {
+    return submitShares_.insert(localShare).second;
+  }
+
+  bool operator==(uint64_t jobId) const { return jobId_ == jobId; }
+};
 #endif

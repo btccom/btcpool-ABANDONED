@@ -23,40 +23,57 @@
  */
 #include "StratumServer.h"
 
-#include "Common.h"
-#include "Kafka.h"
-#include "MySQLConnection.h"
-#include "Utils.h"
+#include "StratumServerStats.h"
+#include "StratumSession.h"
+#include "DiffController.h"
 
-#include "bitcoin/arith_uint256.h"
-#include "bitcoin/utilstrencodings.h"
-#include "bitcoin/hash.h"
+#include <boost/thread.hpp>
+#include <event2/thread.h>
 
-#include "utilities_js.hpp"
+#include "ssl/SSLUtils.h"
 
+#include <netinet/tcp.h>
+
+using namespace std;
+
+static const uint32_t MIN_SHARE_WORKER_QUEUE_SIZE = 256;
+static const uint32_t MIN_SHARE_WORKER_THREADS = 1;
 
 #ifndef WORK_WITH_STRATUM_SWITCHER
 
-//////////////////////////////// SessionIDManager //////////////////////////////
-SessionIDManager::SessionIDManager(const uint8_t serverId) :
-serverId_(serverId), count_(0), allocIdx_(0)
-{
+//////////////////////////////// SessionIDManagerT
+/////////////////////////////////
+template <uint8_t IBITS>
+SessionIDManagerT<IBITS>::SessionIDManagerT(const uint8_t serverId)
+  : serverId_(serverId)
+  , count_(0)
+  , allocIdx_(0)
+  , allocInterval_(0) {
+  static_assert(IBITS <= 24, "IBITS cannot large than 24");
   sessionIds_.reset();
 }
 
-bool SessionIDManager::ifFull() {
+template <uint8_t IBITS>
+bool SessionIDManagerT<IBITS>::ifFull() {
   ScopeLock sl(lock_);
   return _ifFull();
 }
 
-bool SessionIDManager::_ifFull() {
-  if (count_ >= (int32_t)(MAX_SESSION_INDEX_SERVER + 1)) {
+template <uint8_t IBITS>
+bool SessionIDManagerT<IBITS>::_ifFull() {
+  if (count_ > kSessionIdMask) {
     return true;
   }
   return false;
 }
 
-bool SessionIDManager::allocSessionId(uint32_t *sessionID) {
+template <uint8_t IBITS>
+void SessionIDManagerT<IBITS>::setAllocInterval(uint32_t interval) {
+  allocInterval_ = interval;
+}
+
+template <uint8_t IBITS>
+bool SessionIDManagerT<IBITS>::allocSessionId(uint32_t *sessionID) {
   ScopeLock sl(lock_);
 
   if (_ifFull())
@@ -64,43 +81,78 @@ bool SessionIDManager::allocSessionId(uint32_t *sessionID) {
 
   // find an empty bit
   while (sessionIds_.test(allocIdx_) == true) {
-    allocIdx_++;
-    if (allocIdx_ > MAX_SESSION_INDEX_SERVER) {
-      allocIdx_ = 0;
-    }
+    allocIdx_ = (allocIdx_ + 1) & kSessionIdMask;
   }
 
   // set to true
   sessionIds_.set(allocIdx_, true);
   count_++;
 
-  *sessionID = (((uint32_t)serverId_ << 24) | allocIdx_);
+  *sessionID = (((uint32_t)serverId_ << IBITS) | allocIdx_);
+  allocIdx_ = (allocIdx_ + allocInterval_) & kSessionIdMask;
   return true;
 }
 
-void SessionIDManager::freeSessionId(uint32_t sessionId) {
+template <uint8_t IBITS>
+void SessionIDManagerT<IBITS>::freeSessionId(uint32_t sessionId) {
   ScopeLock sl(lock_);
 
-  const uint32_t idx = (sessionId & 0x00FFFFFFu);
+  const uint32_t idx = (sessionId & kSessionIdMask);
   sessionIds_.set(idx, false);
   count_--;
 }
 
+// Class template instantiation
+template class SessionIDManagerT<8>;
+template class SessionIDManagerT<16>;
+template class SessionIDManagerT<24>;
+
 #endif // #ifndef WORK_WITH_STRATUM_SWITCHER
 
-
 ////////////////////////////////// JobRepository ///////////////////////////////
-JobRepository::JobRepository(const char *kafkaBrokers,
-                             const string &fileLastNotifyTime,
-                             Server *server):
-running_(true),
-kafkaConsumer_(kafkaBrokers, KAFKA_TOPIC_STRATUM_JOB, 0/*patition*/),
-server_(server), fileLastNotifyTime_(fileLastNotifyTime),
-kMaxJobsLifeTime_(300),
-kMiningNotifyInterval_(30),  // TODO: make as config arg
-lastJobSendTime_(0)
-{
+JobRepository::JobRepository(
+    size_t chainId,
+    StratumServer *server,
+    const char *kafkaBrokers,
+    const char *consumerTopic,
+    const string &fileLastNotifyTime,
+    bool niceHashForced,
+    uint64_t niceHashMinDiff,
+    const std::string &niceHashMinDiffZookeeperPath)
+  : running_(true)
+  , chainId_(chainId)
+  , kafkaConsumer_(kafkaBrokers, consumerTopic, 0 /*patition*/)
+  , server_(server)
+  , fileLastNotifyTime_(fileLastNotifyTime)
+  , kMaxJobsLifeTime_(300)
+  , kMiningNotifyInterval_(30)
+  , lastJobSendTime_(0)
+  , lastJobId_(0)
+  , lastJobHeight_(0)
+  , niceHashForced_(niceHashForced)
+  , niceHashMinDiff_(niceHashMinDiff) {
   assert(kMiningNotifyInterval_ < kMaxJobsLifeTime_);
+  if (!niceHashMinDiffZookeeperPath.empty()) {
+    niceHashMinDiffWatcher_ = std::make_unique<ZookeeperValueWatcher>(
+        *server->zk_,
+        niceHashMinDiffZookeeperPath,
+        20,
+        [this](const std::string &value) {
+          try {
+            niceHashMinDiff_ = formatDifficulty(stoull(value, 0, 10));
+            LOG(INFO) << "NiceHash minimal difficulty from Zookeeper is "
+                      << niceHashMinDiff_;
+          } catch (std::invalid_argument) {
+            LOG(ERROR) << "NiceHash minimal difficulty from Zookeeper is "
+                          "invalid: "
+                       << value;
+          } catch (std::out_of_range) {
+            LOG(ERROR) << "NiceHash minimal difficulty from Zookeeper is out of"
+                          " range: "
+                       << value;
+          }
+        });
+  }
 }
 
 JobRepository::~JobRepository() {
@@ -108,8 +160,17 @@ JobRepository::~JobRepository() {
     threadConsume_.join();
 }
 
+void JobRepository::setMaxJobLifeTime(const time_t maxJobLifeTime) {
+  LOG(INFO) << "set max job lifetime to " << maxJobLifeTime << "s";
+  kMaxJobsLifeTime_ = maxJobLifeTime;
+}
+
+void JobRepository::setMiningNotifyInterval(time_t miningNotifyInterval) {
+  LOG(INFO) << "set mining notify interval to " << miningNotifyInterval << "s";
+  kMiningNotifyInterval_ = miningNotifyInterval;
+}
+
 shared_ptr<StratumJobEx> JobRepository::getStratumJobEx(const uint64_t jobId) {
-  ScopeLock sl(lock_);
   auto itr = exJobs_.find(jobId);
   if (itr != exJobs_.end()) {
     return itr->second;
@@ -118,7 +179,6 @@ shared_ptr<StratumJobEx> JobRepository::getStratumJobEx(const uint64_t jobId) {
 }
 
 shared_ptr<StratumJobEx> JobRepository::getLatestStratumJobEx() {
-  ScopeLock sl(lock_);
   if (exJobs_.size()) {
     return exJobs_.rbegin()->second;
   }
@@ -132,6 +192,9 @@ void JobRepository::stop() {
   }
   running_ = false;
   LOG(INFO) << "stop job repository";
+  if (threadConsume_.joinable()) {
+    threadConsume_.join();
+  }
 }
 
 bool JobRepository::setupThreadConsume() {
@@ -140,8 +203,8 @@ bool JobRepository::setupThreadConsume() {
   // we need to consume the latest one
   map<string, string> consumerOptions;
   consumerOptions["fetch.wait.max.ms"] = "10";
-  if (kafkaConsumer_.setup(RD_KAFKA_OFFSET_TAIL(kConsumeLatestN),
-                           &consumerOptions) == false) {
+  if (kafkaConsumer_.setup(
+          RD_KAFKA_OFFSET_TAIL(kConsumeLatestN), &consumerOptions) == false) {
     LOG(INFO) << "setup consumer fail";
     return false;
   }
@@ -151,7 +214,7 @@ bool JobRepository::setupThreadConsume() {
     return false;
   }
 
-  threadConsume_ = thread(&JobRepository::runThreadConsume, this);
+  threadConsume_ = std::thread(&JobRepository::runThreadConsume, this);
   return true;
 }
 
@@ -165,19 +228,34 @@ void JobRepository::runThreadConsume() {
 
     // timeout, most of time it's not nullptr and set an error:
     //          rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF
-    if (rkmessage == nullptr) {
-      continue;
+    if (rkmessage != nullptr) {
+      // consume stratum job
+      //
+      // It will create a StratumJob and try to broadcast it immediately with
+      // broadcastStratumJob(shared_ptr<StratumJob>). A derived class needs to
+      // implement the abstract method
+      // broadcastStratumJob(shared_ptr<StratumJob>) to decide whether to add
+      // the StratumJob to the map exJobs_ and whether to send the job to miners
+      // immediately. Derived classes do not need to implement a scheduled
+      // sending mechanism, checkAndSendMiningNotify() will provide a default
+      // implementation.
+      consumeStratumJob(rkmessage);
+
+      // Return message to rdkafka
+      rd_kafka_message_destroy(rkmessage);
     }
 
-    // consume stratum job
-    consumeStratumJob(rkmessage);
-    rd_kafka_message_destroy(rkmessage);  /* Return message to rdkafka */
+    server_->dispatch([this]() {
+      // check if we need to send mining notify
+      // It's a default implementation of scheduled sending / regular updating
+      // of stratum jobs. If no job is sent for a long time via
+      // broadcastStratumJob(), a job will be sent via this method.
+      checkAndSendMiningNotify();
 
-    // check if we need to send mining notify
-    checkAndSendMiningNotify();
-
-    tryCleanExpiredJobs();
+      tryCleanExpiredJobs();
+    });
   }
+
   LOG(INFO) << "stop job repository consume thread";
 }
 
@@ -187,16 +265,18 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
     if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
       // Reached the end of the topic+partition queue on the broker.
       // Not really an error.
-      //      LOG(INFO) << "consumer reached end of " << rd_kafka_topic_name(rkmessage->rkt)
+      //      LOG(INFO) << "consumer reached end of " <<
+      //      rd_kafka_topic_name(rkmessage->rkt)
       //      << "[" << rkmessage->partition << "] "
       //      << " message queue at offset " << rkmessage->offset;
       // acturlly
       return;
     }
 
-    LOG(ERROR) << "consume error for topic " << rd_kafka_topic_name(rkmessage->rkt)
-    << "[" << rkmessage->partition << "] offset " << rkmessage->offset
-    << ": " << rd_kafka_message_errstr(rkmessage);
+    LOG(ERROR) << "consume error for topic "
+               << rd_kafka_topic_name(rkmessage->rkt) << "["
+               << rkmessage->partition << "] offset " << rkmessage->offset
+               << ": " << rd_kafka_message_errstr(rkmessage);
 
     if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
         rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
@@ -205,377 +285,104 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
     return;
   }
 
-  StratumJob *sjob = new StratumJob();
-  bool res = sjob->unserializeFromJson((const char *)rkmessage->payload,
-                                       rkmessage->len);
+  shared_ptr<StratumJob> sjob = createStratumJob();
+  bool res = sjob->unserializeFromJson(
+      (const char *)rkmessage->payload, rkmessage->len);
   if (res == false) {
     LOG(ERROR) << "unserialize stratum job fail";
-    delete sjob;
     return;
   }
   // make sure the job is not expired.
-  if (jobId2Time(sjob->jobId_) + 60 < time(nullptr)) {
-    LOG(ERROR) << "too large delay from kafka to receive topic 'StratumJob'";
-    delete sjob;
-    return;
-  }
-  // here you could use Map.find() without lock, it's sure
-  // that everyone is using this Map readonly now
-  if (exJobs_.find(sjob->jobId_) != exJobs_.end()) {
-    LOG(ERROR) << "jobId already existed";
-    delete sjob;
+  time_t now = time(nullptr);
+  if (sjob->jobTime() + kMaxJobsLifeTime_ < now) {
+    LOG(ERROR)
+        << "too large delay from kafka to receive topic 'StratumJob' job time="
+        << sjob->jobTime() << ", max delay=" << kMaxJobsLifeTime_
+        << ", now=" << now;
     return;
   }
 
-  bool isClean = false;
-  if (latestPrevBlockHash_ != sjob->prevHash_) {
-    isClean = true;
-    latestPrevBlockHash_ = sjob->prevHash_;
-    LOG(INFO) << "received new height statum job, height: " << sjob->height_
-    << ", prevhash: " << sjob->prevHash_.ToString();
-  }
-
-  shared_ptr<StratumJobEx> exJob = std::make_shared<StratumJobEx>(sjob, isClean);
-  {
-    ScopeLock sl(lock_);
-
-    if (isClean) {
-      // mark all jobs as stale, should do this before insert new job
-      for (auto it : exJobs_) {
-        it.second->markStale();
-      }
+  server_->dispatch([this, sjob]() {
+    // here you could use Map.find() without lock, it's sure
+    // that everyone is using this Map readonly now
+    auto existingJob = getStratumJobEx(sjob->jobId_);
+    if (existingJob != nullptr) {
+      LOG(ERROR) << "jobId already existed";
+      return;
     }
 
-    // insert new job
-    exJobs_[sjob->jobId_] = exJob;
-  }
-
-  // if job has clean flag, call server to send job
-  if (isClean) {
-    sendMiningNotify(exJob);
-    return;
-  }
-
-  // if last job is an empty block job(clean=true), we need to send a
-  // new non-empty job as quick as possible.
-  if (isClean == false && exJobs_.size() >= 2) {
-    auto itr = exJobs_.rbegin();
-    shared_ptr<StratumJobEx> exJob1 = itr->second;
-    itr++;
-    shared_ptr<StratumJobEx> exJob2 = itr->second;
-
-    if (exJob2->isClean_ == true &&
-        exJob2->sjob_->merkleBranch_.size() == 0 &&
-        exJob1->sjob_->merkleBranch_.size() != 0) {
-      sendMiningNotify(exJob);
-    }
-  }
+    broadcastStratumJob(sjob);
+  });
 }
 
-void JobRepository::markAllJobsAsStale() {
-  ScopeLock sl(lock_);
+shared_ptr<StratumJobEx>
+JobRepository::createStratumJobEx(shared_ptr<StratumJob> sjob, bool isClean) {
+  return std::make_shared<StratumJobEx>(chainId_, sjob, isClean);
+}
+
+void JobRepository::markAllJobsAsStale(uint64_t height) {
   for (auto it : exJobs_) {
-    it.second->markStale();
+    auto &exjob = it.second;
+    if (exjob->sjob_ && exjob->sjob_->height() <= height) {
+      exjob->markStale();
+    }
   }
 }
 
 void JobRepository::checkAndSendMiningNotify() {
   // last job is 'expried', send a new one
   if (exJobs_.size() &&
-      lastJobSendTime_ + kMiningNotifyInterval_ <= time(nullptr))
-  {
+      lastJobSendTime_ + kMiningNotifyInterval_ <= time(nullptr)) {
     shared_ptr<StratumJobEx> exJob = exJobs_.rbegin()->second;
     sendMiningNotify(exJob);
   }
 }
 
 void JobRepository::sendMiningNotify(shared_ptr<StratumJobEx> exJob) {
-  static uint64_t lastJobId = 0;
-  if (lastJobId == exJob->sjob_->jobId_) {
-    LOG(ERROR) << "no new jobId, ignore to send mining notify";
-    return;
-  }
-
   // send job to all clients
   server_->sendMiningNotifyToAll(exJob);
   lastJobSendTime_ = time(nullptr);
-  lastJobId = exJob->sjob_->jobId_;
 
   // write last mining notify time to file
-  if (!fileLastNotifyTime_.empty())
+  if (lastJobId_ != exJob->sjob_->jobId_ && !fileLastNotifyTime_.empty())
     writeTime2File(fileLastNotifyTime_.c_str(), (uint32_t)lastJobSendTime_);
+
+  lastJobId_ = exJob->sjob_->jobId_;
+  lastJobHeight_ = exJob->sjob_->height();
 }
 
 void JobRepository::tryCleanExpiredJobs() {
-  ScopeLock sl(lock_);
-
   const uint32_t nowTs = (uint32_t)time(nullptr);
-  while (exJobs_.size()) {
+  // Keep at least one job to keep normal mining when the jobmaker fails
+  while (exJobs_.size() > 1) {
     // Maps (and sets) are sorted, so the first element is the smallest,
     // and the last element is the largest.
     auto itr = exJobs_.begin();
 
     const time_t jobTime = (time_t)(itr->first >> 32);
     if (nowTs < jobTime + kMaxJobsLifeTime_) {
-      break;  // not expired
+      break; // not expired
     }
+
+    LOG(INFO) << "remove expired stratum job, id: " << itr->first
+              << ", time: " << date("%F %T", jobTime);
 
     // remove expired job
     exJobs_.erase(itr);
-
-    LOG(INFO) << "remove expired stratum job, id: " << itr->first
-    << ", time: " << date("%F %T", jobTime);
   }
 }
-
-
-//////////////////////////////////// UserInfo /////////////////////////////////
-UserInfo::UserInfo(const string &apiUrl, Server *server):
-running_(true), apiUrl_(apiUrl), lastMaxUserId_(0),
-server_(server)
-{
-  pthread_rwlock_init(&rwlock_, nullptr);
-}
-
-UserInfo::~UserInfo() {
-  stop();
-
-  if (threadUpdate_.joinable())
-    threadUpdate_.join();
-
-  if (threadInsertWorkerName_.joinable())
-    threadInsertWorkerName_.join();
-
-  pthread_rwlock_destroy(&rwlock_);
-}
-
-void UserInfo::stop() {
-  if (!running_)
-    return;
-
-  running_ = false;
-}
-
-int32_t UserInfo::getUserId(const string userName) {
-  pthread_rwlock_rdlock(&rwlock_);
-  auto itr = nameIds_.find(userName);
-  pthread_rwlock_unlock(&rwlock_);
-
-  if (itr != nameIds_.end()) {
-    return itr->second;
-  }
-  return 0;  // not found
-}
-
-int32_t UserInfo::incrementalUpdateUsers() {
-  //
-  // WARNING: The API is incremental update, we use `?last_id=` to make sure
-  //          always get the new data. Make sure you have use `last_id` in API.
-  //
-  const string url = Strings::Format("%s?last_id=%d", apiUrl_.c_str(), lastMaxUserId_);
-  string resp;
-  if (!httpGET(url.c_str(), resp, 10000/* timeout ms */)) {
-    LOG(ERROR) << "http get request user list fail, url: " << url;
-    return -1;
-  }
-
-  JsonNode r;
-  if (!JsonNode::parse(resp.c_str(), resp.c_str() + resp.length(), r)) {
-    LOG(ERROR) << "decode json fail, json: " << resp;
-    return -1;
-  }
-  if (r["data"].type() == Utilities::JS::type::Undefined) {
-    LOG(ERROR) << "invalid data, should key->value, type: " << (int)r["data"].type();
-    return -1;
-  }
-  auto vUser = r["data"].children();
-  if (vUser->size() == 0) {
-    return 0;
-  }
-
-  pthread_rwlock_wrlock(&rwlock_);
-  for (const auto &itr : *vUser) {
-    const string  userName(itr.key_start(), itr.key_end() - itr.key_start());
-    const int32_t userId   = itr.int32();
-    if (userId > lastMaxUserId_) {
-      lastMaxUserId_ = userId;
-    }
-    nameIds_.insert(std::make_pair(userName, userId));
-  }
-  pthread_rwlock_unlock(&rwlock_);
-
-  return vUser->size();
-}
-
-void UserInfo::runThreadUpdate() {
-  const time_t updateInterval = 10;  // seconds
-  time_t lastUpdateTime = time(nullptr);
-
-  while (running_) {
-    if (lastUpdateTime + updateInterval > time(nullptr)) {
-      usleep(500000);  // 500ms
-      continue;
-    }
-
-    int32_t res = incrementalUpdateUsers();
-    lastUpdateTime = time(nullptr);
-
-    if (res > 0)
-      LOG(INFO) << "update users count: " << res;
-  }
-}
-
-bool UserInfo::setupThreads() {
-  //
-  // get all user list, incremental update model.
-  //
-  // We use `offset` in incrementalUpdateUsers(), will keep update uitl no more
-  // new users. Most of http API have timeout limit, so can't return lots of
-  // data in one request.
-  //
-  while (1) {
-    int32_t res = incrementalUpdateUsers();
-    if (res == 0)
-      break;
-
-    if (res == -1) {
-      LOG(ERROR) << "update user list failure";
-      return false;
-    }
-
-    LOG(INFO) << "update users count: " << res;
-  }
-
-  threadUpdate_ = thread(&UserInfo::runThreadUpdate, this);
-  threadInsertWorkerName_ = thread(&UserInfo::runThreadInsertWorkerName, this);
-  return true;
-}
-
-void UserInfo::addWorker(const int32_t userId, const int64_t workerId,
-                         const string &workerName, const string &minerAgent) {
-  ScopeLock sl(workerNameLock_);
-
-  // insert to Q
-  workerNameQ_.push_back(WorkerName());
-  workerNameQ_.rbegin()->userId_   = userId;
-  workerNameQ_.rbegin()->workerId_ = workerId;
-
-  // worker name
-  snprintf(workerNameQ_.rbegin()->workerName_,
-           sizeof(workerNameQ_.rbegin()->workerName_),
-           "%s", workerName.c_str());
-  // miner agent
-  snprintf(workerNameQ_.rbegin()->minerAgent_,
-           sizeof(workerNameQ_.rbegin()->minerAgent_),
-           "%s", minerAgent.c_str());
-}
-
-void UserInfo::runThreadInsertWorkerName() {
-  while (running_) {
-    if (insertWorkerName() > 0) {
-      continue;
-    }
-    sleep(1);
-  }
-}
-
-int32_t UserInfo::insertWorkerName() {
-  std::deque<WorkerName>::iterator itr = workerNameQ_.end();
-  {
-    ScopeLock sl(workerNameLock_);
-    if (workerNameQ_.size() == 0)
-      return 0;
-    itr = workerNameQ_.begin();
-  }
-
-  if (itr == workerNameQ_.end())
-    return 0;
-
-
-  // sent events to kafka: worker_update
-  {
-    string eventJson;
-    eventJson = Strings::Format("{\"created_at\":\"%s\","
-                                 "\"type\":\"worker_update\","
-                                 "\"content\":{"
-                                     "\"user_id\":%d,"
-                                     "\"worker_id\":%ld,"
-                                     "\"worker_name\":\"%s\","
-                                     "\"miner_agent\":\"%s\""
-                                "}}",
-                                date("%F %T").c_str(),
-                                itr->userId_,
-                                itr->workerId_,
-                                itr->workerName_,
-                                itr->minerAgent_);
-    server_->sendCommonEvents2Kafka(eventJson);
-  }
-
-
-  {
-    ScopeLock sl(workerNameLock_);
-    workerNameQ_.pop_front();
-  }
-  return 1;
-}
-
-
 
 ////////////////////////////////// StratumJobEx ////////////////////////////////
-StratumJobEx::StratumJobEx(StratumJob *sjob, bool isClean):
-state_(0), isClean_(isClean), sjob_(sjob)
-{
-  assert(sjob != nullptr);
-  makeMiningNotifyStr();
+StratumJobEx::StratumJobEx(
+    size_t chainId, shared_ptr<StratumJob> sjob, bool isClean)
+  : state_(0)
+  , chainId_(chainId)
+  , isClean_(isClean)
+  , sjob_(sjob) {
+  assert(sjob);
 }
 
 StratumJobEx::~StratumJobEx() {
-  if (sjob_) {
-    delete sjob_;
-    sjob_ = nullptr;
-  }
-}
-
-void StratumJobEx::makeMiningNotifyStr() {
-  string merkleBranchStr;
-  {
-    // '"'+ 64 + '"' + ',' = 67 bytes
-    merkleBranchStr.reserve(sjob_->merkleBranch_.size() * 67);
-    for (size_t i = 0; i < sjob_->merkleBranch_.size(); i++) {
-      //
-      // do NOT use GetHex() or uint256.ToString(), need to dump the memory
-      //
-      string merklStr;
-      Bin2Hex(sjob_->merkleBranch_[i].begin(), 32, merklStr);
-      merkleBranchStr.append("\"" + merklStr + "\",");
-    }
-    if (merkleBranchStr.length()) {
-      merkleBranchStr.resize(merkleBranchStr.length() - 1);  // remove last ','
-    }
-  }
-
-  // we don't put jobId here, session will fill with the shortJobId
-  miningNotify1_ = "{\"id\":null,\"method\":\"mining.notify\",\"params\":[\"";
-
-  miningNotify2_ = Strings::Format("\",\"%s\",\"%s\",\"%s\""
-                                   ",[%s]"
-                                   ",\"%08x\",\"%08x\",\"%08x\",%s"
-                                   "]}\n",
-                                   sjob_->prevHashBeStr_.c_str(),
-                                   sjob_->coinbase1_.c_str(), sjob_->coinbase2_.c_str(),
-                                   merkleBranchStr.c_str(),
-                                   sjob_->nVersion_, sjob_->nBits_, sjob_->nTime_,
-                                   isClean_ ? "true" : "false");
-
-  // always set clean to true, reset of them is the same with miningNotify2_
-  miningNotify2Clean_ = Strings::Format("\",\"%s\",\"%s\",\"%s\""
-                                   ",[%s]"
-                                   ",\"%08x\",\"%08x\",\"%08x\",true"
-                                   "]}\n",
-                                   sjob_->prevHashBeStr_.c_str(),
-                                   sjob_->coinbase1_.c_str(), sjob_->coinbase2_.c_str(),
-                                   merkleBranchStr.c_str(),
-                                   sjob_->nVersion_, sjob_->nBits_, sjob_->nTime_);
 }
 
 void StratumJobEx::markStale() {
@@ -588,129 +395,73 @@ bool StratumJobEx::isStale() {
   return (state_ == 1);
 }
 
-void StratumJobEx::generateCoinbaseTx(std::vector<char> *coinbaseBin,
-                                      const uint32_t extraNonce1,
-                                      const string &extraNonce2Hex) {
-  string coinbaseHex;
-  const string extraNonceStr = Strings::Format("%08x%s", extraNonce1, extraNonce2Hex.c_str());
-  coinbaseHex.append(sjob_->coinbase1_);
-  coinbaseHex.append(extraNonceStr);
-  coinbaseHex.append(sjob_->coinbase2_);
-  Hex2Bin((const char *)coinbaseHex.c_str(), *coinbaseBin);
+///////////////////////////////////// StratumServer
+//////////////////////////////////////
+
+SSL_CTX *StratumServer::getSSLCTX(const libconfig::Config &config) {
+  return get_server_SSL_CTX(
+      config.lookup("sserver.tls_cert_file").c_str(),
+      config.lookup("sserver.tls_key_file").c_str());
 }
 
-void StratumJobEx::generateBlockHeader(CBlockHeader *header,
-                                       std::vector<char> *coinbaseBin,
-                                       const uint32_t extraNonce1,
-                                       const string &extraNonce2Hex,
-                                       const vector<uint256> &merkleBranch,
-                                       const uint256 &hashPrevBlock,
-                                       const uint32_t nBits, const int32_t nVersion,
-                                       const uint32_t nTime, const uint32_t nonce) {
-  generateCoinbaseTx(coinbaseBin, extraNonce1, extraNonce2Hex);
-
-  header->hashPrevBlock = hashPrevBlock;
-  header->nVersion      = nVersion;
-  header->nBits         = nBits;
-  header->nTime         = nTime;
-  header->nNonce        = nonce;
-
-  // hashMerkleRoot
-  header->hashMerkleRoot = Hash(coinbaseBin->begin(), coinbaseBin->end());
-
-  for (const uint256 & step : merkleBranch) {
-    header->hashMerkleRoot = Hash(BEGIN(header->hashMerkleRoot),
-                                  END  (header->hashMerkleRoot),
-                                  BEGIN(step),
-                                  END  (step));
-  }
-}
-
-////////////////////////////////// StratumServer ///////////////////////////////
-StratumServer::StratumServer(const char *ip, const unsigned short port,
-                             const char *kafkaBrokers, const string &userAPIUrl,
-                             const uint8_t serverId, const string &fileLastNotifyTime,
-                             bool isEnableSimulator, bool isSubmitInvalidBlock,
-                             const int32_t shareAvgSeconds)
-:running_(true), server_(shareAvgSeconds),
-ip_(ip), port_(port), serverId_(serverId),
-fileLastNotifyTime_(fileLastNotifyTime),
-kafkaBrokers_(kafkaBrokers), userAPIUrl_(userAPIUrl),
-isEnableSimulator_(isEnableSimulator), isSubmitInvalidBlock_(isSubmitInvalidBlock)
-{
+StratumServer::StratumServer()
+  : enableTLS_(false)
+  , base_(nullptr)
+  , listener_(nullptr)
+  , tcpReadTimeout_(600)
+  , shutdownGracePeriod_(3600)
+  , disconnectTimer_(nullptr)
+  , acceptStale_(true)
+  , isEnableSimulator_(false)
+  , isSubmitInvalidBlock_(false)
+  , isDevModeEnable_(false)
+  , devFixedDifficulty_(1.0)
+#ifndef WORK_WITH_STRATUM_SWITCHER
+  , sessionIDManager_(nullptr)
+#endif
+  , userInfo_(nullptr)
+  , serverId_(0) {
 }
 
 StratumServer::~StratumServer() {
-}
+  // Destroy connections before event base
+  connections_.clear();
 
-bool StratumServer::init() {
-  if (!server_.setup(ip_.c_str(), port_, kafkaBrokers_.c_str(),
-                     userAPIUrl_, serverId_, fileLastNotifyTime_,
-                     isEnableSimulator_, isSubmitInvalidBlock_)) {
-    LOG(ERROR) << "fail to setup server";
-    return false;
+  if (statsExporter_) {
+    if (statsExporter_) {
+      statsExporter_->unregisterCollector(statsCollector_);
+    }
+
+    // Destroy exporter before event base
+    statsExporter_.reset();
   }
-  return true;
-}
 
-void StratumServer::stop() {
-  if (!running_) {
-    return;
+  if (disconnectTimer_ != nullptr) {
+    event_free(disconnectTimer_);
   }
-  running_ = false;
-  server_.stop();
-  LOG(INFO) << "stop stratum server";
-}
 
-void StratumServer::run() {
-  server_.run();
-}
-
-///////////////////////////////////// Server ///////////////////////////////////
-Server::Server(const int32_t shareAvgSeconds):
-base_(nullptr), signal_event_(nullptr), listener_(nullptr),
-kafkaProducerShareLog_(nullptr),
-kafkaProducerSolvedShare_(nullptr),
-kafkaProducerNamecoinSolvedShare_(nullptr),
-kafkaProducerCommonEvents_(nullptr),
-isEnableSimulator_(false), isSubmitInvalidBlock_(false),
-
-#ifndef WORK_WITH_STRATUM_SWITCHER
-sessionIDManager_(nullptr),
-#endif
-
-kShareAvgSeconds_(shareAvgSeconds),
-jobRepository_(nullptr), userInfo_(nullptr)
-{
-}
-
-Server::~Server() {
-  if (signal_event_ != nullptr) {
-    event_free(signal_event_);
-  }
   if (listener_ != nullptr) {
     evconnlistener_free(listener_);
   }
   if (base_ != nullptr) {
     event_base_free(base_);
   }
-  if (kafkaProducerShareLog_ != nullptr) {
-    delete kafkaProducerShareLog_;
-  }
-  if (kafkaProducerSolvedShare_ != nullptr) {
-    delete kafkaProducerSolvedShare_;
-  }
-  if (kafkaProducerNamecoinSolvedShare_ != nullptr) {
-    delete kafkaProducerNamecoinSolvedShare_;
-  }
-  if (kafkaProducerCommonEvents_ != nullptr) {
-    delete kafkaProducerCommonEvents_;
-  }
-  if (jobRepository_ != nullptr) {
-    delete jobRepository_;
-  }
   if (userInfo_ != nullptr) {
     delete userInfo_;
+  }
+  for (ChainVars &chain : chains_) {
+    if (chain.kafkaProducerShareLog_ != nullptr) {
+      delete chain.kafkaProducerShareLog_;
+    }
+    if (chain.kafkaProducerSolvedShare_ != nullptr) {
+      delete chain.kafkaProducerSolvedShare_;
+    }
+    if (chain.kafkaProducerCommonEvents_ != nullptr) {
+      delete chain.kafkaProducerCommonEvents_;
+    }
+    if (chain.jobRepository_ != nullptr) {
+      delete chain.jobRepository_;
+    }
   }
 
 #ifndef WORK_WITH_STRATUM_SWITCHER
@@ -720,68 +471,329 @@ Server::~Server() {
 #endif
 }
 
-bool Server::setup(const char *ip, const unsigned short port,
-                   const char *kafkaBrokers,
-                   const string &userAPIUrl,
-                   const uint8_t serverId, const string &fileLastNotifyTime,
-                   bool isEnableSimulator, bool isSubmitInvalidBlock) {
-  if (isEnableSimulator) {
-    isEnableSimulator_ = true;
-    LOG(WARNING) << "Simulator is enabled, all share will be accepted";
+void StratumServer::initZookeeper(const libconfig::Config &config) {
+  if (!zk_) {
+    zk_ = std::make_shared<Zookeeper>(config.lookup("zookeeper.brokers"));
+  }
+}
+
+bool StratumServer::setup(const libconfig::Config &config) {
+#ifdef WORK_WITH_STRATUM_SWITCHER
+  LOG(INFO) << "WORK_WITH_STRATUM_SWITCHER enabled, miners can only connect to "
+               "the sserver via a stratum switcher.";
+#endif
+
+  config.lookupValue("sserver.accept_stale", acceptStale_);
+  LOG_IF(INFO, acceptStale_) << "[Option] stale shares will be accepted.";
+
+  // ------------------- Development Options -------------------
+
+  config.lookupValue("sserver.enable_simulator", isEnableSimulator_);
+  if (isEnableSimulator_) {
+    LOG(WARNING)
+        << "[Dev Option] Simulator is enabled, all share will be accepted. "
+        << "This option should not be enabled in a production environment!";
   }
 
-  if (isSubmitInvalidBlock) {
-    isSubmitInvalidBlock_ = true;
-    LOG(WARNING) << "submit invalid block is enabled, all block will be submited";
+  config.lookupValue(
+      "sserver.enable_submit_invalid_block", isSubmitInvalidBlock_);
+  if (isSubmitInvalidBlock_) {
+    LOG(WARNING)
+        << "[Dev Option] Submit invalid block is enabled, all shares will "
+           "become solved shares. "
+        << "This option should not be enabled in a production environment!";
   }
 
-  kafkaProducerSolvedShare_ = new KafkaProducer(kafkaBrokers,
-                                                KAFKA_TOPIC_SOLVED_SHARE,
-                                                RD_KAFKA_PARTITION_UA);
-  kafkaProducerNamecoinSolvedShare_ = new KafkaProducer(kafkaBrokers,
-                                                        KAFKA_TOPIC_NMC_SOLVED_SHARE,
-                                                        RD_KAFKA_PARTITION_UA);
-  kafkaProducerShareLog_ = new KafkaProducer(kafkaBrokers,
-                                             KAFKA_TOPIC_SHARE_LOG,
-                                             RD_KAFKA_PARTITION_UA);
-  kafkaProducerCommonEvents_ = new KafkaProducer(kafkaBrokers,
-                                                 KAFKA_TOPIC_COMMON_EVENTS,
-                                                 RD_KAFKA_PARTITION_UA);
+  config.lookupValue("sserver.enable_dev_mode", isDevModeEnable_);
+  if (isDevModeEnable_) {
+    config.lookupValue("sserver.dev_fixed_difficulty", devFixedDifficulty_);
+    LOG(WARNING)
+        << "[Dev Option] Development mode is enabled with fixed difficulty: "
+        << devFixedDifficulty_
+        << ". This option should not be enabled in a production environment!";
+  }
 
-  // job repository
-  jobRepository_ = new JobRepository(kafkaBrokers, fileLastNotifyTime, this);
-  if (!jobRepository_->setupThreadConsume()) {
+  // ------------------- Diff Controller Options -------------------
+
+  string defDiffStr = config.lookup("sserver.default_difficulty");
+  uint64_t defaultDifficulty =
+      formatDifficulty(stoull(defDiffStr, nullptr, 16));
+
+  string maxDiffStr = config.lookup("sserver.max_difficulty");
+  uint64_t maxDifficulty = formatDifficulty(stoull(maxDiffStr, nullptr, 16));
+
+  string minDiffStr = config.lookup("sserver.min_difficulty");
+  uint64_t minDifficulty = formatDifficulty(stoull(minDiffStr, nullptr, 16));
+
+  uint32_t diffAdjustPeriod = 300;
+  config.lookupValue("sserver.diff_adjust_period", diffAdjustPeriod);
+
+  uint32_t shareAvgSeconds = 10; // default share interval time 10 seconds
+  config.lookupValue("sserver.share_avg_seconds", shareAvgSeconds);
+
+  if (0 == defaultDifficulty || 0 == maxDifficulty || 0 == minDifficulty ||
+      0 == diffAdjustPeriod) {
+    LOG(ERROR) << "difficulty settings are not expected: def="
+               << defaultDifficulty << ", min=" << minDifficulty
+               << ", max=" << maxDifficulty
+               << ", adjustPeriod=" << diffAdjustPeriod;
     return false;
   }
 
-  // user info
-  userInfo_ = new UserInfo(userAPIUrl, this);
+  if (diffAdjustPeriod < shareAvgSeconds) {
+    LOG(ERROR)
+        << "`diff_adjust_period` should not less than `share_avg_seconds`";
+    return false;
+  }
+
+  defaultDifficultyController_ = make_shared<DiffController>(
+      defaultDifficulty,
+      maxDifficulty,
+      minDifficulty,
+      shareAvgSeconds,
+      diffAdjustPeriod);
+
+  // ------------------- Other Options -------------------
+
+  uint32_t maxJobLifetime = 300;
+  config.lookupValue(
+      "sserver.max_job_delay", maxJobLifetime); // the old option name
+  config.lookupValue(
+      "sserver.max_job_lifetime",
+      maxJobLifetime); // the new name, overwrite the old if exist
+  if (maxJobLifetime < 300) {
+    LOG(WARNING)
+        << "[Bad Option] sserver.max_job_lifetime (" << maxJobLifetime
+        << " seconds) is too short, recommended to be 300 seconds or longer.";
+  }
+
+  uint32_t miningNotifyInterval = 30; // optional
+  config.lookupValue("sserver.mining_notify_interval", miningNotifyInterval);
+
+  config.lookupValue("sserver.tcp_read_timeout", tcpReadTimeout_); // optional
+
+  string longTimeoutAgent;
+  config.lookupValue("sserver.long_timeout_agent", longTimeoutAgent);
+  if (!longTimeoutAgent.empty()) {
+    longTimeoutPattern_ =
+        std::regex{longTimeoutAgent,
+                   std::regex_constants::grep | std::regex_constants::icase};
+  }
+
+  // ------------------- Listen Options -------------------
+
+  string listenIP = "0.0.0.0";
+  config.lookupValue("sserver.ip", listenIP);
+
+  int32_t listenPort = 3333;
+  config.lookupValue("sserver.port", listenPort);
+
+  // ------------------- Kafka Options -------------------
+
+  auto addChainVars = [&](const string &chainName,
+                          const string &kafkaBrokers,
+                          const string &shareTopic,
+                          const string &solvedShareTopic,
+                          const string &commonEventsTopic,
+                          const string &jobTopic,
+                          const string &fileLastMiningNotifyTime,
+                          const bool niceHashForced,
+                          uint64_t niceHashMinDiff,
+                          const string &niceHashMinDiffZookeeperPath,
+                          int32_t singleUserId) {
+    size_t chainId = chains_.size();
+
+    LOG(INFO) << "chain = " << chainName
+              << ", niceHashForced = " << niceHashForced
+              << ", niceHashMinDiff = " << niceHashMinDiff;
+
+    chains_.push_back(
+        {chainName,
+         new KafkaProducer(
+             kafkaBrokers.c_str(), shareTopic.c_str(), RD_KAFKA_PARTITION_UA),
+         new KafkaProducer(
+             kafkaBrokers.c_str(),
+             solvedShareTopic.c_str(),
+             RD_KAFKA_PARTITION_UA),
+         new KafkaProducer(
+             kafkaBrokers.c_str(),
+             commonEventsTopic.c_str(),
+             RD_KAFKA_PARTITION_UA),
+         createJobRepository(
+             chainId,
+             kafkaBrokers.c_str(),
+             jobTopic.c_str(),
+             fileLastMiningNotifyTime,
+             niceHashForced,
+             niceHashMinDiff,
+             niceHashMinDiffZookeeperPath),
+         {},
+         singleUserId});
+  };
+
+  bool multiChains = false;
+  config.lookupValue("sserver.multi_chains", multiChains);
+
+  bool niceHashForced = false;
+  config.lookupValue("sserver.nicehash.forced", niceHashForced);
+  uint64_t niceHashMinDiff = minDifficulty;
+  std::string niceHashMinDiffString;
+  if (config.lookupValue(
+          "sserver.nicehash.min_difficulty", niceHashMinDiffString)) {
+    niceHashMinDiff = formatDifficulty(stoull(niceHashMinDiffString, 0, 16));
+  }
+  std::string niceHashMinDiffZookeeperPath;
+  config.lookupValue(
+      "sserver.nicehash.min_difficulty_zookeeper_path",
+      niceHashMinDiffZookeeperPath);
+  if (!niceHashMinDiffZookeeperPath.empty()) {
+    initZookeeper(config);
+  }
+
+  if (multiChains) {
+    const Setting &chains = config.lookup("chains");
+    for (int i = 0; i < chains.getLength(); i++) {
+      string fileLastMiningNotifyTime; // optional
+      chains.lookupValue("file_last_notify_time", fileLastMiningNotifyTime);
+
+      bool chainNiceHashForced = niceHashForced;
+      chains[i].lookupValue("nicehash.forced", chainNiceHashForced);
+      uint64_t chainNiceHashMinDiff = niceHashMinDiff;
+      std::string chainNiceHashMinDiffString;
+      if (chains[i].lookupValue(
+              "nicehash.min_difficulty", chainNiceHashMinDiffString)) {
+        chainNiceHashMinDiff =
+            formatDifficulty(stoull(chainNiceHashMinDiffString, 0, 16));
+      }
+      std::string chainNiceHashMinDiffZookeeperPath =
+          niceHashMinDiffZookeeperPath;
+      chains[i].lookupValue(
+          "nicehash.min_difficulty_zookeeper_path",
+          chainNiceHashMinDiffZookeeperPath);
+      if (!chainNiceHashMinDiffZookeeperPath.empty()) {
+        initZookeeper(config);
+      }
+
+      int singleUserId = 0;
+      chains[i].lookupValue("single_user_puid", singleUserId);
+
+      addChainVars(
+          chains[i].lookup("name"),
+          chains[i].lookup("kafka_brokers"),
+          chains[i].lookup("share_topic"),
+          chains[i].lookup("solved_share_topic"),
+          chains[i].lookup("common_events_topic"),
+          chains[i].lookup("job_topic"),
+          fileLastMiningNotifyTime,
+          chainNiceHashForced,
+          chainNiceHashMinDiff,
+          chainNiceHashMinDiffZookeeperPath,
+          singleUserId);
+    }
+    if (chains_.empty()) {
+      LOG(FATAL) << "sserver.multi_chains enabled but chains empty!";
+    }
+  } else {
+    string fileLastMiningNotifyTime; // optional
+    config.lookupValue(
+        "sserver.file_last_notify_time", fileLastMiningNotifyTime);
+
+    int singleUserId = 0;
+    config.lookupValue("users.single_user_puid", singleUserId);
+
+    addChainVars(
+        "default",
+        config.lookup("kafka.brokers"),
+        config.lookup("sserver.share_topic"),
+        config.lookup("sserver.solved_share_topic"),
+        config.lookup("sserver.common_events_topic"),
+        config.lookup("sserver.job_topic"),
+        fileLastMiningNotifyTime,
+        niceHashForced,
+        niceHashMinDiff,
+        niceHashMinDiffZookeeperPath,
+        singleUserId);
+  }
+
+  // single user mode
+  config.lookupValue("users.single_user_mode", singleUserMode_);
+  config.lookupValue("users.single_user_name", singleUserName_);
+  if (singleUserMode_) {
+    string chainPuids = "";
+    for (auto chain : chains_) {
+      chainPuids +=
+          ", " + chain.name_ + " puid: " + std::to_string(chain.singleUserId_);
+    }
+    LOG(INFO) << "[Option] Single User Mode Enabled, userName: "
+              << singleUserName_ << chainPuids;
+  }
+
+  // Proxy protocol support
+  config.lookupValue("sserver.proxy_protocol", proxyProtocol_);
+  LOG_IF(INFO, proxyProtocol_) << "PROXY protocol support enabled";
+
+  // ------------------- user info -------------------
+  // It should at below of addChainVars() or sserver may crashed
+  // because of IndexOutOfBoundsException in chains_.
+  userInfo_ = new UserInfo(this, config);
   if (!userInfo_->setupThreads()) {
     return false;
   }
 
 #ifndef WORK_WITH_STRATUM_SWITCHER
-  sessionIDManager_ = new SessionIDManager(serverId);
+  // ------------------- server id -------------------
+  int serverId;
+  config.lookupValue("sserver.id", serverId);
+  if (serverId > 0xFF) {
+    LOG(ERROR) << "invalid server id, range: [0, 255]";
+    return false;
+  }
+
+  serverId_ = (uint8_t)serverId;
+  if (serverId_ == 0) {
+    // assign ID from zookeeper
+    initZookeeper(config);
+    serverId_ =
+        zk_->getUniqIdUint8(config.lookup("sserver.zookeeper_lock_path"));
+  }
+
+  sessionIDManager_ = new SessionIDManagerT<24>(serverId_);
 #endif
+
+  // ------------------- Init JobRepository -------------------
+  for (ChainVars &chain : chains_) {
+    chain.jobRepository_->setMaxJobLifeTime(maxJobLifetime);
+    chain.jobRepository_->setMiningNotifyInterval(miningNotifyInterval);
+    if (!chain.jobRepository_->setupThreadConsume()) {
+      LOG(ERROR) << "init JobRepository for chain " << chain.name_ << " failed";
+      return false;
+    }
+  }
+
+  // ------------------- Init Kafka -------------------
 
   // kafkaProducerShareLog_
   {
     map<string, string> options;
     // we could delay 'sharelog' in producer
-    // 10000000 * sizeof(Share) ~= 480 MB
+    // 10000000 * sizeof(ShareBitcoin) ~= 480 MB
     options["queue.buffering.max.messages"] = "10000000";
     // send every second
     options["queue.buffering.max.ms"] = "1000";
-    // 10000 * sizeof(Share) ~= 480 KB
+    // 10000 * sizeof(ShareBitcoin) ~= 480 KB
     options["batch.num.messages"] = "10000";
 
-    if (!kafkaProducerShareLog_->setup(&options)) {
-      LOG(ERROR) << "kafka kafkaProducerShareLog_ setup failure";
-      return false;
-    }
-    if (!kafkaProducerShareLog_->checkAlive()) {
-      LOG(ERROR) << "kafka kafkaProducerShareLog_ is NOT alive";
-      return false;
+    for (ChainVars &chain : chains_) {
+      if (!chain.kafkaProducerShareLog_->setup(&options)) {
+        LOG(ERROR) << "kafka kafkaProducerShareLog_ for chain " << chain.name_
+                   << " setup failure";
+        return false;
+      }
+      if (!chain.kafkaProducerShareLog_->checkAlive()) {
+        LOG(ERROR) << "kafka kafkaProducerShareLog_ for chain " << chain.name_
+                   << " is NOT alive";
+        return false;
+      }
     }
   }
 
@@ -790,28 +802,18 @@ bool Server::setup(const char *ip, const unsigned short port,
     map<string, string> options;
     // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
     options["queue.buffering.max.ms"] = "1";
-    if (!kafkaProducerSolvedShare_->setup(&options)) {
-      LOG(ERROR) << "kafka kafkaProducerSolvedShare_ setup failure";
-      return false;
-    }
-    if (!kafkaProducerSolvedShare_->checkAlive()) {
-      LOG(ERROR) << "kafka kafkaProducerSolvedShare_ is NOT alive";
-      return false;
-    }
-  }
 
-  // kafkaProducerNamecoinSolvedShare_
-  {
-    map<string, string> options;
-    // set to 1 (0 is an illegal value here), deliver msg as soon as possible.
-    options["queue.buffering.max.ms"] = "1";
-    if (!kafkaProducerNamecoinSolvedShare_->setup(&options)) {
-      LOG(ERROR) << "kafka kafkaProducerNamecoinSolvedShare_ setup failure";
-      return false;
-    }
-    if (!kafkaProducerNamecoinSolvedShare_->checkAlive()) {
-      LOG(ERROR) << "kafka kafkaProducerNamecoinSolvedShare_ is NOT alive";
-      return false;
+    for (ChainVars &chain : chains_) {
+      if (!chain.kafkaProducerSolvedShare_->setup(&options)) {
+        LOG(ERROR) << "kafka kafkaProducerSolvedShare_ for chain "
+                   << chain.name_ << " setup failure";
+        return false;
+      }
+      if (!chain.kafkaProducerSolvedShare_->checkAlive()) {
+        LOG(ERROR) << "kafka kafkaProducerSolvedShare_ for chain "
+                   << chain.name_ << " is NOT alive";
+        return false;
+      }
     }
   }
 
@@ -819,62 +821,220 @@ bool Server::setup(const char *ip, const unsigned short port,
   {
     map<string, string> options;
     options["queue.buffering.max.messages"] = "500000";
-    options["queue.buffering.max.ms"] = "1000";  // send every second
-    options["batch.num.messages"]     = "10000";
+    options["queue.buffering.max.ms"] = "1000"; // send every second
+    options["batch.num.messages"] = "10000";
 
-    if (!kafkaProducerCommonEvents_->setup(&options)) {
-      LOG(ERROR) << "kafka kafkaProducerCommonEvents_ setup failure";
-      return false;
-    }
-    if (!kafkaProducerCommonEvents_->checkAlive()) {
-      LOG(ERROR) << "kafka kafkaProducerCommonEvents_ is NOT alive";
-      return false;
+    for (ChainVars &chain : chains_) {
+      if (!chain.kafkaProducerCommonEvents_->setup(&options)) {
+        LOG(ERROR) << "kafka kafkaProducerCommonEvents_ for chain "
+                   << chain.name_ << " setup failure";
+        return false;
+      }
+      if (!chain.kafkaProducerCommonEvents_->checkAlive()) {
+        LOG(ERROR) << "kafka kafkaProducerCommonEvents_ for chain "
+                   << chain.name_ << " is NOT alive";
+        return false;
+      }
     }
   }
 
+  // ------------------- TCP Listen -------------------
+
+  // Enable multithreading and flag BEV_OPT_THREADSAFE.
+  // Without it, bufferevent_socket_new() will return NULL with flag
+  // BEV_OPT_THREADSAFE.
+  evthread_use_pthreads();
+
   base_ = event_base_new();
-  if(!base_) {
+  if (!base_) {
     LOG(ERROR) << "server: cannot create base";
     return false;
   }
 
   memset(&sin_, 0, sizeof(sin_));
   sin_.sin_family = AF_INET;
-  sin_.sin_port   = htons(port);
+  sin_.sin_port = htons(listenPort);
   sin_.sin_addr.s_addr = htonl(INADDR_ANY);
-  if (ip && inet_pton(AF_INET, ip, &sin_.sin_addr) == 0) {
-    LOG(ERROR) << "invalid ip: " << ip;
+  if (listenIP.empty() ||
+      inet_pton(AF_INET, listenIP.c_str(), &sin_.sin_addr) == 0) {
+    LOG(ERROR) << "invalid ip: " << listenIP;
     return false;
   }
 
-  listener_ = evconnlistener_new_bind(base_,
-                                      Server::listenerCallback,
-                                      (void*)this,
-                                      LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE,
-                                      -1, (struct sockaddr*)&sin_, sizeof(sin_));
-  if(!listener_) {
-    LOG(ERROR) << "cannot create listener: " << ip << ":" << port;
+  listener_ = evconnlistener_new_bind(
+      base_,
+      StratumServer::listenerCallback,
+      (void *)this,
+      LEV_OPT_REUSEABLE | LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE_PORT,
+      -1,
+      (struct sockaddr *)&sin_,
+      sizeof(sin_));
+  if (!listener_) {
+    LOG(ERROR) << "cannot create listener: " << listenIP << ":" << listenPort;
     return false;
   }
-  return true;
+
+  // initialize but don't activate the graceful shutdown disconnect timer event
+  config.lookupValue("sserver.shutdown_grace_period", shutdownGracePeriod_);
+  disconnectTimer_ = event_new(
+      base_, -1, EV_PERSIST, &StratumServer::disconnectCallback, this);
+
+  // check if TLS enabled
+  config.lookupValue("sserver.enable_tls", enableTLS_);
+  if (enableTLS_) {
+    LOG(INFO) << "TLS enabled";
+    // try get SSL CTX (load SSL cert and key)
+    // any error will abort the process
+    sslCTX_ = getSSLCTX(config);
+  }
+
+  // setup promethues exporter
+  bool statsEnabled = false;
+  config.lookupValue("prometheus.enabled", statsEnabled);
+  if (statsEnabled) {
+    string exporterAddress = "0.0.0.0";
+    unsigned int exporterPort = 8080;
+    string exporterPath = "/metrics";
+    config.lookupValue("prometheus.address", exporterAddress);
+    config.lookupValue("prometheus.port", exporterPort);
+    config.lookupValue("prometheus.path", exporterPath);
+    statsCollector_ = std::make_shared<StratumServerStats>(*this);
+    statsExporter_ = prometheus::CreateExporter();
+    if (!statsExporter_->setup(exporterAddress, exporterPort, exporterPath)) {
+      LOG(WARNING) << "Failed to setup stratum server statistics exporter";
+    }
+    if (!statsExporter_->registerCollector(statsCollector_)) {
+      LOG(WARNING) << "Failed to register stratum server statistics collector";
+    }
+    if (!statsExporter_->run(base_)) {
+      LOG(WARNING) << "Failed to run stratum server statistics exporter";
+    }
+  }
+
+  uint32_t shareWorkerQueueSize = 0;
+  config.lookupValue("sserver.share_worker_queue_size", shareWorkerQueueSize);
+  shareWorker_ = std::make_unique<WorkerPool>(
+      std::max(shareWorkerQueueSize, MIN_SHARE_WORKER_QUEUE_SIZE));
+
+  uint32_t shareWorkerThreads = 0;
+  config.lookupValue("sserver.share_worker_threads", shareWorkerThreads);
+  shareWorker_->start(std::max(shareWorkerThreads, MIN_SHARE_WORKER_THREADS));
+
+  // ------------------- Derived Class Setup -------------------
+  return setupInternal(config);
 }
 
-void Server::run() {
-  if(base_ != NULL) {
+void StratumServer::run() {
+  LOG(INFO) << "stratum server running";
+  if (base_ != NULL) {
     //    event_base_loop(base_, EVLOOP_NONBLOCK);
     event_base_dispatch(base_);
   }
 }
 
-void Server::stop() {
-  LOG(INFO) << "stop tcp server event loop";
+void StratumServer::stop() {
+  LOG(INFO) << "stop stratum server";
   event_base_loopexit(base_, NULL);
-
-  jobRepository_->stop();
+  for (ChainVars &chain : chains_) {
+    chain.jobRepository_->stop();
+  }
   userInfo_->stop();
+  shareWorker_->stop();
 }
 
-void Server::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {
+void StratumServer::stopGracefully() {
+  LOG(INFO) << "stop stratum server gracefully";
+
+  // Stop listening & trigger gracefully disconnecting timer
+  evconnlistener_disable(listener_);
+  if (connections_.empty()) {
+    dispatch([this]() { stop(); });
+  } else {
+    timeval timeout;
+    timeout.tv_sec = shutdownGracePeriod_ / connections_.size();
+    timeout.tv_usec =
+        (shutdownGracePeriod_ - timeout.tv_sec * connections_.size()) *
+        1000000 / connections_.size();
+    event_add(disconnectTimer_, &timeout);
+  }
+}
+
+namespace {
+
+class StratumServerTask {
+public:
+  StratumServerTask(event_base *base, std::function<void()> task)
+    : task_{move(task)}
+    , event_{event_new(base, -1, 0, &StratumServerTask::execute, this)} {
+    event_add(event_, nullptr);
+    event_active(event_, EV_TIMEOUT, 0);
+  }
+
+  static void execute(evutil_socket_t, short, void *context) {
+    delete static_cast<StratumServerTask *>(context);
+  }
+
+private:
+  ~StratumServerTask() {
+    task_();
+    event_free(event_);
+  }
+
+  std::function<void()> task_;
+  struct event *event_;
+};
+
+} // namespace
+
+void StratumServer::dispatch(std::function<void()> task) {
+  if (!task) {
+    return;
+  }
+
+  new StratumServerTask{base_, move(task)};
+}
+
+void StratumServer::dispatchSafely(
+    std::function<void()> task, std::weak_ptr<bool> alive) {
+  if (!task) {
+    return;
+  }
+
+  dispatch([task = std::move(task), alive = std::move(alive)]() {
+    if (!alive.expired()) {
+      task();
+    }
+  });
+}
+
+void StratumServer::dispatchToShareWorker(std::function<void()> work) {
+  shareWorker_->dispatch(std::move(work));
+}
+
+size_t StratumServer::switchChain(string userName, size_t newChainId) {
+  size_t onlineSessions = 0;
+  for (auto &itr : connections_) {
+    if (itr->getUserName() == userName) {
+      onlineSessions++;
+      if (itr->getChainId() != newChainId) {
+        itr->switchChain(newChainId);
+      }
+    }
+  }
+  return onlineSessions;
+}
+
+size_t StratumServer::autoRegCallback(const string &userName) {
+  size_t sessions = 0;
+  for (auto &itr : connections_) {
+    if (itr->autoRegCallback(userName)) {
+      sessions++;
+    }
+  }
+  return sessions;
+}
+
+void StratumServer::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {
   //
   // http://www.sgi.com/tech/stl/Map.html
   //
@@ -884,52 +1044,43 @@ void Server::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {
   // of course, for iterators that actually point to the element that is
   // being erased.
   //
-
-  ScopeLock sl(connsLock_);
-  std::map<evutil_socket_t, StratumSession *>::iterator itr = connections_.begin();
+  auto itr = connections_.begin();
   while (itr != connections_.end()) {
-    StratumSession *conn = itr->second;  // alias
-
+    auto &conn = *itr;
     if (conn->isDead()) {
 #ifndef WORK_WITH_STRATUM_SWITCHER
       sessionIDManager_->freeSessionId(conn->getSessionId());
 #endif
-
-      delete conn;
       itr = connections_.erase(itr);
     } else {
-      conn->sendMiningNotify(exJobPtr);
+      if (conn->getChainId() == exJobPtr->chainId_) {
+        conn->sendMiningNotify(exJobPtr);
+      }
       ++itr;
     }
   }
 }
 
-void Server::addConnection(evutil_socket_t fd, StratumSession *connection) {
-  ScopeLock sl(connsLock_);
-  connections_.insert(std::pair<evutil_socket_t, StratumSession *>(fd, connection));
+void StratumServer::addConnection(unique_ptr<StratumSession> connection) {
+  connections_.insert(move(connection));
 }
 
-void Server::removeConnection(evutil_socket_t fd) {
+void StratumServer::removeConnection(StratumSession &connection) {
   //
   // if we are here, means the related evbuffer has already been locked.
   // don't lock connsLock_ in this function, it will cause deadlock.
   //
-  auto itr = connections_.find(fd);
-  if (itr == connections_.end()) {
-    return;
-  }
-
-  // mark to delete
-  itr->second->markAsDead();
+  connection.markAsDead();
 }
 
-void Server::listenerCallback(struct evconnlistener* listener,
-                              evutil_socket_t fd,
-                              struct sockaddr *saddr,
-                              int socklen, void* data)
-{
-  Server *server = static_cast<Server *>(data);
-  struct event_base  *base = (struct event_base*)server->base_;
+void StratumServer::listenerCallback(
+    struct evconnlistener *listener,
+    evutil_socket_t fd,
+    struct sockaddr *saddr,
+    int socklen,
+    void *data) {
+  StratumServer *server = static_cast<StratumServer *>(data);
+  struct event_base *base = (struct event_base *)server->base_;
   struct bufferevent *bev;
   uint32_t sessionID = 0u;
 
@@ -941,195 +1092,125 @@ void Server::listenerCallback(struct evconnlistener* listener,
   }
 #endif
 
-  bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE|BEV_OPT_THREADSAFE);
-  if(bev == nullptr) {
-    LOG(ERROR) << "error constructing bufferevent!";
+  // Theoretically we can do it on the listener fd, but this is to make
+  // sure we have the same behavior if some distro does not inherit the option.
+  int yes = 1;
+  setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(int));
+
+  // When we want to close the connection we want to send RST instead of FIN so
+  // that miners will be disconnected immediately.
+  linger lingerOn{1, 0};
+  setsockopt(fd, SOL_SOCKET, SO_LINGER, &lingerOn, sizeof(struct linger));
+
+  if (server->enableTLS_) {
+    SSL *ssl = SSL_new(server->sslCTX_);
+    if (ssl == nullptr) {
+      LOG(ERROR) << "Error calling SSL_new!";
+      server->stop();
+      return;
+    }
+
+    bev = bufferevent_openssl_socket_new(
+        base,
+        fd,
+        ssl,
+        BUFFEREVENT_SSL_ACCEPTING,
+        BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
+  } else {
+    bev = bufferevent_socket_new(
+        base, fd, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
+  }
+
+  // If it was NULL with flag BEV_OPT_THREADSAFE,
+  // please call evthread_use_pthreads() before you call event_base_new().
+  if (bev == nullptr) {
+    LOG(ERROR) << "Error constructing bufferevent! Maybe you forgot call "
+                  "evthread_use_pthreads() before event_base_new().";
     server->stop();
     return;
   }
 
   // create stratum session
-  StratumSession* conn = new StratumSession(fd, bev, server, saddr,
-                                            server->kShareAvgSeconds_,
-                                            sessionID);
+  auto conn = server->createConnection(bev, saddr, sessionID);
+  if (!conn->initialize()) {
+    return;
+  }
   // set callback functions
-  bufferevent_setcb(bev,
-                    Server::readCallback, nullptr,
-                    Server::eventCallback, (void*)conn);
+  bufferevent_setcb(
+      bev,
+      StratumServer::readCallback,
+      nullptr,
+      StratumServer::eventCallback,
+      conn.get());
   // By default, a newly created bufferevent has writing enabled.
-  bufferevent_enable(bev, EV_READ|EV_WRITE);
+  bufferevent_enable(bev, EV_READ | EV_WRITE);
 
-  server->addConnection(fd, conn);
+  server->addConnection(move(conn));
 }
 
-void Server::readCallback(struct bufferevent* bev, void *connection) {
-  StratumSession *conn = static_cast<StratumSession *>(connection);
+void StratumServer::disconnectCallback(int, short, void *context) {
+  auto server = static_cast<StratumServer *>(context);
+  if (server->connections_.empty()) {
+    server->stop();
+  } else {
+    auto iter = server->connections_.begin();
+    auto iend = server->connections_.end();
+    StratumSession::State state;
+    do {
+      state = (*iter)->getState();
+      iter = server->connections_.erase(iter);
+    } while (state < StratumSession::AUTHENTICATED && iter != iend);
+  }
+}
+
+void StratumServer::readCallback(struct bufferevent *bev, void *connection) {
+  auto conn = static_cast<StratumSession *>(connection);
   conn->readBuf(bufferevent_get_input(bev));
 }
 
-void Server::eventCallback(struct bufferevent* bev, short events,
-                              void *connection) {
-  StratumSession *conn = static_cast<StratumSession *>(connection);
-  Server       *server = static_cast<Server *>(conn->server_);
+void StratumServer::eventCallback(
+    struct bufferevent *bev, short events, void *connection) {
+  auto conn = static_cast<StratumSession *>(connection);
+  auto state = conn->getState();
 
-  // should not be 'BEV_EVENT_CONNECTED'
-  assert((events & BEV_EVENT_CONNECTED) != BEV_EVENT_CONNECTED);
+  if (conn->getServer().enableTLS_) {
+    if (events & BEV_EVENT_CONNECTED) {
+      DLOG(INFO) << "TLS connected";
+      return;
+    }
+  } else {
+    // should not be 'BEV_EVENT_CONNECTED'
+    assert((events & BEV_EVENT_CONNECTED) != BEV_EVENT_CONNECTED);
+  }
 
   if (events & BEV_EVENT_EOF) {
-    LOG(INFO) << "socket closed";
+    LOG_IF(INFO, state != StratumSession::CONNECTED) << "socket closed";
+  } else if (events & BEV_EVENT_ERROR) {
+    LOG_IF(INFO, state != StratumSession::CONNECTED)
+        << "got an error on the socket: "
+        << evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR());
+  } else if (events & BEV_EVENT_TIMEOUT) {
+    LOG_IF(INFO, state != StratumSession::CONNECTED)
+        << "socket read/write timeout, events: " << events;
+  } else {
+    LOG_IF(ERROR, state != StratumSession::CONNECTED)
+        << "unhandled socket events: " << events;
   }
-  else if (events & BEV_EVENT_ERROR) {
-    LOG(INFO) << "got an error on the socket: "
-    << evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR());
-  }
-  else if (events & BEV_EVENT_TIMEOUT) {
-    LOG(INFO) << "socket read/write timeout, events: " << events;
-  }
-  else {
-    LOG(ERROR) << "unhandled socket events: " << events;
-  }
-  server->removeConnection(conn->fd_);
+  conn->getServer().removeConnection(*conn);
 }
 
-int Server::checkShare(const Share &share,
-                       const uint32 extraNonce1, const string &extraNonce2Hex,
-                       const uint32_t nTime, const uint32_t nonce,
-                       const uint256 &jobTarget, const string &workFullName) {
-  shared_ptr<StratumJobEx> exJobPtr = jobRepository_->getStratumJobEx(share.jobId_);
-  if (exJobPtr == nullptr) {
-    return StratumError::JOB_NOT_FOUND;
-  }
-  StratumJob *sjob = exJobPtr->sjob_;
-
-  if (exJobPtr->isStale()) {
-    return StratumError::JOB_NOT_FOUND;
-  }
-  if (nTime <= sjob->minTime_) {
-    return StratumError::TIME_TOO_OLD;
-  }
-  if (nTime > sjob->nTime_ + 600) {
-    return StratumError::TIME_TOO_NEW;
-  }
-
-  CBlockHeader header;
-  std::vector<char> coinbaseBin;
-  exJobPtr->generateBlockHeader(&header, &coinbaseBin,
-                                extraNonce1, extraNonce2Hex,
-                                sjob->merkleBranch_, sjob->prevHash_,
-                                sjob->nBits_, sjob->nVersion_, nTime, nonce);
-  uint256 blkHash = header.GetHash();
-
-  arith_uint256 bnBlockHash     = UintToArith256(blkHash);
-  arith_uint256 bnNetworkTarget = UintToArith256(sjob->networkTarget_);
-
-  //
-  // found new block
-  //
-  if (isSubmitInvalidBlock_ == true || bnBlockHash <= bnNetworkTarget) {
-    //
-    // build found block
-    //
-    FoundBlock foundBlock;
-    foundBlock.jobId_    = share.jobId_;
-    foundBlock.workerId_ = share.workerHashId_;
-    foundBlock.userId_   = share.userId_;
-    foundBlock.height_   = sjob->height_;
-    memcpy(foundBlock.header80_, (const uint8_t *)&header, sizeof(CBlockHeader));
-    snprintf(foundBlock.workerFullName_, sizeof(foundBlock.workerFullName_),
-             "%s", workFullName.c_str());
-    // send
-    sendSolvedShare2Kafka(&foundBlock, coinbaseBin);
-
-    // mark jobs as stale
-    jobRepository_->markAllJobsAsStale();
-
-    LOG(INFO) << ">>>> found a new block: " << blkHash.ToString()
-    << ", jobId: " << share.jobId_ << ", userId: " << share.userId_
-    << ", by: " << workFullName << " <<<<";
-  }
-
-  // print out high diff share, 2^10 = 1024
-  if ((bnBlockHash >> 10) <= bnNetworkTarget) {
-    LOG(INFO) << "high diff share, blkhash: " << blkHash.ToString()
-    << ", diff: " << TargetToDiff(blkHash)
-    << ", networkDiff: " << TargetToDiff(sjob->networkTarget_)
-    << ", by: " << workFullName;
-  }
-
-  //
-  // found namecoin block
-  //
-  if (sjob->nmcAuxBits_ != 0 &&
-      (isSubmitInvalidBlock_ == true || bnBlockHash <= UintToArith256(sjob->nmcNetworkTarget_))) {
-    //
-    // build namecoin solved share message
-    //
-    string blockHeaderHex;
-    Bin2Hex((const uint8_t *)&header, sizeof(CBlockHeader), blockHeaderHex);
-    DLOG(INFO) << "blockHeaderHex: " << blockHeaderHex;
-
-    string coinbaseTxHex;
-    Bin2Hex((const uint8_t *)coinbaseBin.data(), coinbaseBin.size(), coinbaseTxHex);
-    DLOG(INFO) << "coinbaseTxHex: " << coinbaseTxHex;
-
-    const string nmcAuxSolvedShare = Strings::Format("{\"job_id\":%" PRIu64","
-                                                     " \"aux_block_hash\":\"%s\","
-                                                     " \"block_header\":\"%s\","
-                                                     " \"coinbase_tx\":\"%s\","
-                                                     " \"rpc_addr\":\"%s\","
-                                                     " \"rpc_userpass\":\"%s\""
-                                                     "}",
-                                                     share.jobId_,
-                                                     sjob->nmcAuxBlockHash_.ToString().c_str(),
-                                                     blockHeaderHex.c_str(),
-                                                     coinbaseTxHex.c_str(),
-                                                     sjob->nmcRpcAddr_.size()     ? sjob->nmcRpcAddr_.c_str()     : "",
-                                                     sjob->nmcRpcUserpass_.size() ? sjob->nmcRpcUserpass_.c_str() : "");
-    // send found namecoin aux block to kafka
-    kafkaProducerNamecoinSolvedShare_->produce(nmcAuxSolvedShare.data(),
-                                               nmcAuxSolvedShare.size());
-
-    LOG(INFO) << ">>>> found namecoin block: " << sjob->nmcHeight_ << ", "
-    << sjob->nmcAuxBlockHash_.ToString()
-    << ", jobId: " << share.jobId_ << ", userId: " << share.userId_
-    << ", by: " << workFullName << " <<<<";
-  }
-
-  // check share diff
-  if (isEnableSimulator_ == false && bnBlockHash >= UintToArith256(jobTarget)) {
-    return StratumError::LOW_DIFFICULTY;
-  }
-
-  DLOG(INFO) << "blkHash: " << blkHash.ToString() << ", jobTarget: "
-  << jobTarget.ToString() << ", networkTarget: " << sjob->networkTarget_.ToString();
-
-  // reach here means an valid share
-  return StratumError::NO_ERROR;
+void StratumServer::sendShare2Kafka(
+    size_t chainId, const char *data, size_t len) {
+  chains_[chainId].kafkaProducerShareLog_->produce(data, len);
 }
 
-void Server::sendShare2Kafka(const uint8_t *data, size_t len) {
-  kafkaProducerShareLog_->produce(data, len);
+void StratumServer::sendSolvedShare2Kafka(
+    size_t chainId, const char *data, size_t len) {
+  chains_[chainId].kafkaProducerSolvedShare_->produce(data, len);
 }
 
-void Server::sendSolvedShare2Kafka(const FoundBlock *foundBlock,
-                                   const std::vector<char> &coinbaseBin) {
-  //
-  // solved share message:  FoundBlock + coinbase_Tx
-  //
-  string buf;
-  buf.resize(sizeof(FoundBlock) + coinbaseBin.size());
-  uint8_t *p = (uint8_t *)buf.data();
-
-  // FoundBlock
-  memcpy(p, (const uint8_t *)foundBlock, sizeof(FoundBlock));
-  p += sizeof(FoundBlock);
-
-  // coinbase TX
-  memcpy(p, coinbaseBin.data(), coinbaseBin.size());
-
-  kafkaProducerSolvedShare_->produce(buf.data(), buf.size());
-}
-
-void Server::sendCommonEvents2Kafka(const string &message) {
-  kafkaProducerCommonEvents_->produce(message.data(), message.size());
+void StratumServer::sendCommonEvents2Kafka(
+    size_t chainId, const string &message) {
+  chains_[chainId].kafkaProducerCommonEvents_->produce(
+      message.data(), message.size());
 }

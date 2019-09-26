@@ -36,8 +36,9 @@
 
 #include "zmq.hpp"
 
+#include "config/bpool-version.h"
 #include "Utils.h"
-#include "GbtMaker.h"
+#include "bitcoin/GbtMaker.h"
 
 using namespace std;
 using namespace libconfig;
@@ -51,12 +52,15 @@ void handler(int sig) {
 }
 
 void usage() {
-  fprintf(stderr, "Usage:\n\tnmcauxmaker -c \"nmcauxmaker.cfg\" -l \"log_nmcauxmaker\"\n");
+  fprintf(stderr, BIN_VERSION_STRING("nmcauxmaker"));
+  fprintf(
+      stderr,
+      "Usage:\tnmcauxmaker -c \"nmcauxmaker.cfg\" [-l <log_dir|stderr>]\n");
 }
 
 int main(int argc, char **argv) {
   char *optLogDir = NULL;
-  char *optConf   = NULL;
+  char *optConf = NULL;
   int c;
 
   if (argc <= 1) {
@@ -65,52 +69,58 @@ int main(int argc, char **argv) {
   }
   while ((c = getopt(argc, argv, "c:l:h")) != -1) {
     switch (c) {
-      case 'c':
-        optConf = optarg;
-        break;
-      case 'l':
-        optLogDir = optarg;
-        break;
-      case 'h': default:
-        usage();
-        exit(0);
+    case 'c':
+      optConf = optarg;
+      break;
+    case 'l':
+      optLogDir = optarg;
+      break;
+    case 'h':
+    default:
+      usage();
+      exit(0);
     }
   }
 
   // Initialize Google's logging library.
   google::InitGoogleLogging(argv[0]);
-  FLAGS_log_dir         = string(optLogDir);
+  if (optLogDir == NULL || strcmp(optLogDir, "stderr") == 0) {
+    FLAGS_logtostderr = 1;
+  } else {
+    FLAGS_log_dir = string(optLogDir);
+  }
   // Log messages at a level >= this flag are automatically sent to
   // stderr in addition to log files.
-  FLAGS_stderrthreshold = 3;    // 3: FATAL
-  FLAGS_max_log_size    = 100;  // max log file size 100 MB
-  FLAGS_logbuflevel     = -1;   // don't buffer logs
+  FLAGS_stderrthreshold = 3; // 3: FATAL
+  FLAGS_max_log_size = 100; // max log file size 100 MB
+  FLAGS_logbuflevel = -1; // don't buffer logs
   FLAGS_stop_logging_if_full_disk = true;
 
+  LOG(INFO) << BIN_VERSION_STRING("nmcauxmaker");
+
   // Read the file. If there is an error, report it and exit.
-  Config cfg;
-  try
-  {
+  libconfig::Config cfg;
+  try {
     cfg.readFile(optConf);
-  } catch(const FileIOException &fioex) {
+  } catch (const FileIOException &fioex) {
     std::cerr << "I/O error while reading file." << std::endl;
-    return(EXIT_FAILURE);
-  } catch(const ParseException &pex) {
+    return (EXIT_FAILURE);
+  } catch (const ParseException &pex) {
     std::cerr << "Parse error at " << pex.getFile() << ":" << pex.getLine()
-    << " - " << pex.getError() << std::endl;
-    return(EXIT_FAILURE);
+              << " - " << pex.getError() << std::endl;
+    return (EXIT_FAILURE);
   }
 
   // lock cfg file:
   //    you can't run more than one process with the same config file
-  boost::interprocess::file_lock pidFileLock(optConf);
+  /*boost::interprocess::file_lock pidFileLock(optConf);
   if (pidFileLock.try_lock() == false) {
     LOG(FATAL) << "lock cfg file fail";
     return(EXIT_FAILURE);
-  }
+  }*/
 
   signal(SIGTERM, handler);
-  signal(SIGINT,  handler);
+  signal(SIGINT, handler);
 
   bool isCheckZmq = true;
   cfg.lookupValue("nmcauxmaker.is_check_zmq", isCheckZmq);
@@ -121,12 +131,17 @@ int main(int argc, char **argv) {
   string coinbaseAddress;
   cfg.lookupValue("nmcauxmaker.payout_address", coinbaseAddress);
 
-  gNMCAuxBlockMaker = new NMCAuxBlockMaker(cfg.lookup("namecoind.zmq_addr"),
-                                           cfg.lookup("namecoind.rpc_addr"),
-                                           cfg.lookup("namecoind.rpc_userpwd"),
-                                           cfg.lookup("kafka.brokers"),
-                                           rpcCallInterval, fileLastRpcCallTime,
-                                           isCheckZmq, coinbaseAddress);
+  gNMCAuxBlockMaker = new NMCAuxBlockMaker(
+      cfg.lookup("namecoind.zmq_addr"),
+      cfg.lookup("namecoind.zmq_timeout"),
+      cfg.lookup("namecoind.rpc_addr"),
+      cfg.lookup("namecoind.rpc_userpwd"),
+      cfg.lookup("kafka.brokers"),
+      cfg.lookup("nmcauxmaker.auxpow_gw_topic"),
+      rpcCallInterval,
+      fileLastRpcCallTime,
+      isCheckZmq,
+      coinbaseAddress);
 
   try {
     if (!gNMCAuxBlockMaker->init()) {
@@ -135,8 +150,8 @@ int main(int argc, char **argv) {
       gNMCAuxBlockMaker->run();
     }
     delete gNMCAuxBlockMaker;
-  } catch (std::exception & e) {
-    LOG(FATAL) << "exception: " << e.what();
+  } catch (const SettingException &e) {
+    LOG(FATAL) << "config missing: " << e.getPath();
     return 1;
   }
 

@@ -1,0 +1,45 @@
+#!/bin/bash
+set -e
+source "$BASE_DIR/helper/functions.sh"
+
+PID=$$
+DOCKER_COMPOSE="docker-compose --no-ansi"
+
+cd "$BASE_DIR"
+
+echo "clear old docker compose..."
+$DOCKER_COMPOSE down >>$STDOUT
+
+echo "start sserver (5s)..."
+$DOCKER_COMPOSE up -d sserver >>$STDOUT
+
+MAIN_CONTAINER_NAME="$($DOCKER_COMPOSE ps -q sserver)"
+KAFKA_CONSUMER="docker exec $($DOCKER_COMPOSE ps -q kafka) /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092"
+KAFKA_PRODUCER="docker exec -i $($DOCKER_COMPOSE ps -q kafka) /opt/kafka/bin/kafka-console-producer.sh --broker-list kafka:9092"
+WAIT_FOR_IT="WAIT_FOR_IT $MAIN_CONTAINER_NAME"
+WAIT_FOR_PORT="WAIT_FOR_PORT $MAIN_CONTAINER_NAME"
+
+$WAIT_FOR_IT kafka:9092
+$WAIT_FOR_PORT 3333
+sleep 1 # Waiting for sserver to fetch the user list api
+
+outputTestData() {
+    cat "$BASE_DIR/testdata/stratumjobs-1.log" \
+    | while read line; do
+        line=${line/@TIME@/$(date +%s)}
+        echo $line
+        echo send new job at $(date) >&2
+        sleep 5
+    done
+}
+
+echo "send StratumJob in the background..."
+outputTestData | $KAFKA_PRODUCER --topic StratumJob &
+KAFKA_PRODUCER_PID=$!
+
+echo "submit shares to sserver (120s)..."
+php "$BASE_DIR/helper/submit-shares.php" "$BASE_DIR/testdata/submit-shares-1.log" 127.0.0.1:53333
+
+kill $KAFKA_PRODUCER_PID &>/dev/null || echo "Kafka producer exited"
+
+$DOCKER_COMPOSE down >>$STDOUT

@@ -29,95 +29,146 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <deque>
+#include <vector>
 
 #include <event2/event.h>
 #include <event2/buffer.h>
 #include <event2/bufferevent.h>
+#include <event2/dns.h>
 
 #include <glog/logging.h>
-
-#include "bitcoin/uint256.h"
+#include <arith_uint256.h>
+#include <uint256.h>
 #include "utilities_js.hpp"
 
+#include <type_traits>
+
+namespace libconfig {
+class Config;
+}
 
 ///////////////////////////////// StratumClient ////////////////////////////////
 class StratumClient {
+protected:
+  bool enableTLS_;
   struct bufferevent *bev_;
   struct evbuffer *inBuf_;
+  struct evdns_base *evdnsBase_;
 
-  uint32_t extraNonce1_;  // session ID
-  int32_t  extraNonce2Size_;
+  uint32_t sessionId_; // session ID
+  int32_t extraNonce2Size_;
   uint64_t extraNonce2_;
   string workerFullName_;
+  string workerPasswd_;
+  uint32_t sharesPerTx_;
   bool isMining_;
-  string   latestJobId_;
-  uint32_t latestDiff_;
+  string latestJobId_;
+  uint64_t latestDiff_;
+  arith_uint256 latestTarget_;
 
   bool tryReadLine(string &line);
-  void handleLine(const string &line);
+  virtual void handleLine(const string &line);
 
 public:
   // mining state
-  enum State {
-    INIT          = 0,
-    CONNECTED     = 1,
-    SUBSCRIBED    = 2,
-    AUTHENTICATED = 3
-  };
+  enum State { INIT = 0, CONNECTED = 1, SUBSCRIBED = 2, AUTHENTICATED = 3 };
   atomic<State> state_;
 
-public:
-  StratumClient(struct event_base *base, const string &workerFullName);
-  ~StratumClient();
+  using Factory = function<unique_ptr<StratumClient>(
+      bool,
+      struct event_base *,
+      const string &,
+      const string &,
+      const libconfig::Config &)>;
+  static bool registerFactory(const string &chainType, Factory factory);
+  template <typename T>
+  static bool registerFactory(const string &chainType) {
+    static_assert(
+        std::is_base_of<StratumClient, T>::value,
+        "Factory is not constructing the correct type");
+    return registerFactory(
+        chainType,
+        [](bool enableTLS,
+           struct event_base *base,
+           const string &workerFullName,
+           const string &workerPasswd,
+           const libconfig::Config &config) {
+          return std::make_unique<T>(
+              enableTLS, base, workerFullName, workerPasswd, config);
+        });
+  }
 
-  bool connect(struct sockaddr_in &sin);
+public:
+  StratumClient(
+      bool enableTLS,
+      struct event_base *base,
+      const string &workerFullName,
+      const string &workerPasswd,
+      const libconfig::Config &config);
+  virtual ~StratumClient();
+
+  bool connect(const string &host, uint16_t port);
+  virtual void sendHelloData();
 
   void sendData(const char *data, size_t len);
-  inline void sendData(const string &str) {
-    sendData(str.data(), str.size());
-  }
+  inline void sendData(const string &str) { sendData(str.data(), str.size()); }
 
   void readBuf(struct evbuffer *buf);
   void submitShare();
+  virtual string constructShare();
 };
-
-
 
 ////////////////////////////// StratumClientWrapper ////////////////////////////
 class StratumClientWrapper {
-  atomic<bool> running_;
+  bool running_;
+  bool enableTLS_;
+  string host_;
+  uint16_t port_;
   struct event_base *base_;
-  struct sockaddr_in sin_;
+  struct event *timer_;
+  struct event *sigterm_;
+  struct event *sigint_;
   uint32_t numConnections_;
-  string userName_;   // miner usename
+  string userName_; // miner usename
   string minerNamePrefix_;
+  string passwd_; // miner password, used to set difficulty
+  string type_;
+  const libconfig::Config &config_;
+  std::vector<unique_ptr<StratumClient>> connections_;
 
-  std::set<StratumClient *> connections_;
-
-  thread threadSubmitShares_;
-  void runThreadSubmitShares();
+  void submitShares();
 
 public:
-  StratumClientWrapper(const char *host, const uint32_t port,
-                       const uint32_t numConnections,
-                       const string &userName, const string &minerNamePrefix);
+  StratumClientWrapper(
+      bool enableTLS,
+      const string &host,
+      const uint32_t port,
+      const uint32_t numConnections,
+      const string &userName,
+      const string &minerNamePrefix,
+      const string &passwd,
+      const string &type,
+      const libconfig::Config &config);
   ~StratumClientWrapper();
 
-  static void readCallback (struct bufferevent* bev, void *connection);
+  static void readCallback(struct bufferevent *bev, void *connection);
   static void eventCallback(struct bufferevent *bev, short events, void *ptr);
+  static void timerCallback(evutil_socket_t fd, short event, void *ptr);
+  static void signalCallback(evutil_socket_t fd, short event, void *ptr);
 
   void stop();
   void run();
 
-  void submitShares();
+  unique_ptr<StratumClient> createClient(
+      bool enableTLS,
+      struct event_base *base,
+      const string &workerFullName,
+      const string &workerPasswd);
 };
-
-
 
 //////////////////////////////// TCPClientWrapper //////////////////////////////
 // simple tcp wrapper, use for test
 class TCPClientWrapper {
-  struct sockaddr_in servAddr_;  // server addr
   int sockfd_;
   struct evbuffer *inBuf_;
 
@@ -129,9 +180,7 @@ public:
 
   bool connect(const char *host, const int port);
   void send(const char *data, const size_t len);
-  inline void send(const string &s) {
-    send(s.data(), s.size());
-  }
+  inline void send(const string &s) { send(s.data(), s.size()); }
   void getLine(string &line);
 };
 

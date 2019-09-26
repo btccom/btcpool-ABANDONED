@@ -29,92 +29,61 @@
 #include "MySQLConnection.h"
 #include "Stratum.h"
 
-#include <deque>
 #include <vector>
-#include <unordered_map>
 
-#include "bitcoin/uint256.h"
-#include "bitcoin/base58.h"
+struct NodeDefinition {
+  string rpcAddr_;
+  string rpcUserPwd_;
+  mutable bool parity_;
+};
 
+struct BlockMakerDefinition {
+  string chainType_;
+  bool enabled_;
+  vector<NodeDefinition> nodes;
+  string solvedShareTopic_;
+  string foundAuxBlockTable_;
+  string auxChainName_;
+
+  virtual ~BlockMakerDefinition() {}
+};
+
+struct BlockMakerDefinitionBitcoin : public BlockMakerDefinition {
+  string rawGbtTopic_;
+  string stratumJobTopic_;
+  string auxPowSolvedShareTopic_; // merged mining solved share topic
+  string rskSolvedShareTopic_;
+
+  virtual ~BlockMakerDefinitionBitcoin() {}
+};
 
 ////////////////////////////////// BlockMaker //////////////////////////////////
 class BlockMaker {
+protected:
+  shared_ptr<BlockMakerDefinition> def_;
   atomic<bool> running_;
 
-  mutex rawGbtLock_;
-  size_t kMaxRawGbtNum_;  // how many rawgbt should we keep
-  // key: gbthash
-  std::deque<uint256> rawGbtQ_;
-  // key: gbthash, value: block template json
-  std::map<uint256, shared_ptr<vector<CTransaction> > > rawGbtMap_;
+  KafkaSimpleConsumer kafkaConsumerSolvedShare_;
 
-  mutex jobIdMapLock_;
-  size_t kMaxStratumJobNum_;
-  // key: jobId, value: gbthash
-  std::map<uint64_t, uint256> jobId2GbtHash_;
+  MysqlConnectInfo poolDB_; // save blocks to table.found_blocks
 
-  KafkaConsumer kafkaConsumerRawGbt_;
-  KafkaConsumer kafkaConsumerStratumJob_;
-  KafkaConsumer kafkaConsumerSovledShare_;
-  KafkaConsumer kafkaConsumerNamecoinSovledShare_;
-
-  // submit new block to bitcoind
-  // pair: <RpcAddress, RpcUserpass>
-  std::vector<std::pair<string, string>> bitcoindRpcUri_;
-
-  MysqlConnectInfo poolDB_;      // save blocks to table.found_blocks
-
-  void insertRawGbt(const uint256 &gbtHash,
-                    shared_ptr<vector<CTransaction>> vtxs);
-
-  thread threadConsumeRawGbt_;
-  thread threadConsumeStratumJob_;
-  thread threadConsumeNamecoinSovledShare_;
-
-  void runThreadConsumeRawGbt();
-  void runThreadConsumeSovledShare();
-  void runThreadConsumeStratumJob();
-  void runThreadConsumeNamecoinSovledShare();
-
-  void consumeRawGbt     (rd_kafka_message_t *rkmessage);
-  void consumeStratumJob (rd_kafka_message_t *rkmessage);
-  void consumeSovledShare(rd_kafka_message_t *rkmessage);
-  void consumeNamecoinSovledShare(rd_kafka_message_t *rkmessage);
-
-  void addRawgbt(const char *str, size_t len);
-
-  void saveBlockToDBNonBlocking(const FoundBlock &foundBlock,
-                                const CBlockHeader &header,
-                                const uint64_t coinbaseValue, const int32_t blksize);
-  void _saveBlockToDBThread(const FoundBlock &foundBlock,
-                            const CBlockHeader &header,
-                            const uint64_t coinbaseValue, const int32_t blksize);
-
-  void submitBlockNonBlocking(const string &blockHex);
-  void _submitBlockThread(const string &rpcAddress, const string &rpcUserpass,
-                          const string &blockHex);
-  bool checkBitcoinds();
-
-  void submitNamecoinBlockNonBlocking(const string &auxBlockHash,
-                                      const string &auxPow,
-                                      const string &bitcoinBlockHash,
-                                      const string &rpcAddress,
-                                      const string &rpcUserpass);
-  void _submitNamecoinBlockThread(const string &auxBlockHash,
-                                  const string &auxPow,
-                                  const string &bitcoinBlockHash,
-                                  const string &rpcAddress,
-                                  const string &rpcUserpass);
+  void runThreadConsumeSolvedShare();
+  void consumeSolvedShare(rd_kafka_message_t *rkmessage);
+  virtual void processSolvedShare(rd_kafka_message_t *rkmessage) = 0;
 
 public:
-  BlockMaker(const char *kafkaBrokers, const MysqlConnectInfo &poolDB);
-  ~BlockMaker();
+  BlockMaker(
+      shared_ptr<BlockMakerDefinition> def,
+      const char *kafkaBrokers,
+      const MysqlConnectInfo &poolDB);
+  virtual ~BlockMaker();
 
-  void addBitcoind(const string &rpcAddress, const string &rpcUserpass);
+  // read-only definition
+  inline shared_ptr<const BlockMakerDefinition> def() { return def_; }
 
-  bool init();
-  void stop();
-  void run();
+  virtual bool init();
+  virtual void stop();
+  virtual void run();
 };
 
 #endif

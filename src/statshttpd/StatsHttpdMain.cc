@@ -36,13 +36,35 @@
 
 #include "zmq.hpp"
 
+#include "config/bpool-version.h"
 #include "Utils.h"
-#include "Statistics.h"
+#include "StatsHttpd.h"
+#include "RedisConnection.h"
+
+#include "bitcoin/StatisticsBitcoin.h"
+#include "bitcoin/StatsHttpdBitcoin.h"
+
+#include "eth/StatisticsEth.h"
+#include "eth/StatsHttpdEth.h"
+
+#include "bytom/StatisticsBytom.h"
+#include "bytom/StatsHttpdBytom.h"
+
+#include "decred/StatsHttpdDecred.h"
+
+#include "beam/StatisticsBeam.h"
+#include "beam/StatsHttpdBeam.h"
+
+#include "grin/StatisticsGrin.h"
+#include "grin/StatsHttpdGrin.h"
+
+#include "ckb/StatisticsCkb.h"
+#include "ckb/StatsHttpdCkb.h"
 
 using namespace std;
 using namespace libconfig;
 
-StatsServer *gStatsServer = nullptr;
+std::shared_ptr<StatsServer> gStatsServer = nullptr;
 
 void handler(int sig) {
   if (gStatsServer) {
@@ -51,12 +73,55 @@ void handler(int sig) {
 }
 
 void usage() {
-  fprintf(stderr, "Usage:\n\tstatshttpd -c \"statshttpd.cfg\" -l \"log_dir\"\n");
+  fprintf(stderr, BIN_VERSION_STRING("statshttpd"));
+  fprintf(
+      stderr,
+      "Usage:\tstatshttpd -c \"statshttpd.cfg\" [-l <log_dir|stderr>]\n");
+}
+
+std::shared_ptr<StatsServer> newStatsServer(const libconfig::Config &cfg) {
+  int32_t dupShareTrackingHeight = 3;
+
+  string chainType = cfg.lookup("statshttpd.chain_type");
+  cfg.lookupValue(
+      "dup_share_checker.tracking_height_number", dupShareTrackingHeight);
+
+#if defined(CHAIN_TYPE_STR)
+  if (CHAIN_TYPE_STR == chainType)
+#else
+  if (false)
+#endif
+  {
+    return std::make_shared<StatsServerBitcoin>(cfg, nullptr);
+  } else if (chainType == "ETH") {
+    return std::make_shared<StatsServerEth>(
+        cfg,
+        std::make_shared<DuplicateShareCheckerEth>(dupShareTrackingHeight));
+  } else if (chainType == "BTM") {
+    return std::make_shared<StatsServerBytom>(
+        cfg,
+        std::make_shared<DuplicateShareCheckerBytom>(dupShareTrackingHeight));
+  } else if (chainType == "DCR") {
+    return std::make_shared<StatsServerDecred>(cfg, nullptr);
+  } else if (chainType == "BEAM") {
+    return std::make_shared<StatsServerBeam>(
+        cfg,
+        std::make_shared<DuplicateShareCheckerBeam>(dupShareTrackingHeight));
+  } else if (chainType == "GRIN") {
+    return std::make_shared<StatsServerGrin>(
+        cfg,
+        std::make_shared<DuplicateShareCheckerGrin>(dupShareTrackingHeight));
+  } else if (chainType == "CKB") {
+    return std::make_shared<StatsServerCkb>(cfg, nullptr);
+  } else {
+    LOG(FATAL) << "newStatsServer: unknown chain type " << chainType;
+    return nullptr;
+  }
 }
 
 int main(int argc, char **argv) {
   char *optLogDir = NULL;
-  char *optConf   = NULL;
+  char *optConf = NULL;
   int c;
 
   if (argc <= 1) {
@@ -65,82 +130,66 @@ int main(int argc, char **argv) {
   }
   while ((c = getopt(argc, argv, "c:l:h")) != -1) {
     switch (c) {
-      case 'c':
-        optConf = optarg;
-        break;
-      case 'l':
-        optLogDir = optarg;
-        break;
-      case 'h': default:
-        usage();
-        exit(0);
+    case 'c':
+      optConf = optarg;
+      break;
+    case 'l':
+      optLogDir = optarg;
+      break;
+    case 'h':
+    default:
+      usage();
+      exit(0);
     }
   }
 
   // Initialize Google's logging library.
   google::InitGoogleLogging(argv[0]);
-  FLAGS_log_dir         = string(optLogDir);
+  if (optLogDir == NULL || strcmp(optLogDir, "stderr") == 0) {
+    FLAGS_logtostderr = 1;
+  } else {
+    FLAGS_log_dir = string(optLogDir);
+  }
   // Log messages at a level >= this flag are automatically sent to
   // stderr in addition to log files.
-  FLAGS_stderrthreshold = 3;    // 3: FATAL
-  FLAGS_max_log_size    = 100;  // max log file size 100 MB
-  FLAGS_logbuflevel     = -1;   // don't buffer logs
+  FLAGS_stderrthreshold = 3; // 3: FATAL
+  FLAGS_max_log_size = 100; // max log file size 100 MB
+  FLAGS_logbuflevel = -1; // don't buffer logs
   FLAGS_stop_logging_if_full_disk = true;
 
+  LOG(INFO) << BIN_VERSION_STRING("statshttpd");
+
   // Read the file. If there is an error, report it and exit.
-  Config cfg;
-  try
-  {
+  libconfig::Config cfg;
+  try {
     cfg.readFile(optConf);
-  } catch(const FileIOException &fioex) {
+  } catch (const FileIOException &fioex) {
     std::cerr << "I/O error while reading file." << std::endl;
-    return(EXIT_FAILURE);
-  } catch(const ParseException &pex) {
+    return (EXIT_FAILURE);
+  } catch (const ParseException &pex) {
     std::cerr << "Parse error at " << pex.getFile() << ":" << pex.getLine()
-    << " - " << pex.getError() << std::endl;
-    return(EXIT_FAILURE);
+              << " - " << pex.getError() << std::endl;
+    return (EXIT_FAILURE);
   }
 
   // lock cfg file:
   //    you can't run more than one process with the same config file
-  boost::interprocess::file_lock pidFileLock(optConf);
+  /*boost::interprocess::file_lock pidFileLock(optConf);
   if (pidFileLock.try_lock() == false) {
     LOG(FATAL) << "lock cfg file fail";
     return(EXIT_FAILURE);
-  }
+  }*/
 
   signal(SIGTERM, handler);
-  signal(SIGINT,  handler);
+  signal(SIGINT, handler);
 
   try {
-    MysqlConnectInfo *poolDBInfo = nullptr;
-    {
-      int32_t poolDBPort = 3306;
-      cfg.lookupValue("pooldb.port", poolDBPort);
-      poolDBInfo = new MysqlConnectInfo(cfg.lookup("pooldb.host"), poolDBPort,
-                                        cfg.lookup("pooldb.username"),
-                                        cfg.lookup("pooldb.password"),
-                                        cfg.lookup("pooldb.dbname"));
-    }
-    
-    string fileLastFlushTime;
-
-    int32_t port = 8080;
-    int32_t flushInterval = 20;
-    cfg.lookupValue("statshttpd.port", port);
-    cfg.lookupValue("statshttpd.flush_db_interval", flushInterval);
-    cfg.lookupValue("statshttpd.file_last_flush_time",   fileLastFlushTime);
-    gStatsServer = new StatsServer(cfg.lookup("kafka.brokers").c_str(),
-                                   cfg.lookup("statshttpd.ip").c_str(),
-                                   (unsigned short)port, *poolDBInfo,
-                                   (time_t)flushInterval, fileLastFlushTime);
+    gStatsServer = newStatsServer(cfg);
     if (gStatsServer->init()) {
-    	gStatsServer->run();
+      gStatsServer->run();
     }
-    delete gStatsServer;
-  }
-  catch (std::exception & e) {
-    LOG(FATAL) << "exception: " << e.what();
+  } catch (const SettingException &e) {
+    LOG(FATAL) << "config missing: " << e.getPath();
     return 1;
   }
 

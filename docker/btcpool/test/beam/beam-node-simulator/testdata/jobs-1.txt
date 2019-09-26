@@ -1,0 +1,10 @@
+{"difficulty":64573701,"height":147,"id":"11","input":"4f72019ae0d44ab8a1e7863742b8a363055d2fddc7d22605f9a91fa36b2fbbdf","jsonrpc":"2.0","method":"job"}
+{"difficulty":64635260,"height":148,"id":"12","input":"e8423c0c86f6762ec77ed69bc7d0f456fa3c6890e71799bb595a7bc5356d3b31","jsonrpc":"2.0","method":"job"}
+{"difficulty":64706788,"height":149,"id":"13","input":"a141e751806e7cc29902874fb21c3b3c337194d90cdfc9ad63d62d5e38e823d1","jsonrpc":"2.0","method":"job"}
+{"difficulty":64774315,"height":150,"id":"14","input":"7d5c6a01ef169144c2a8042ad33e340307371f159940a4a1d26a8f6e592b2267","jsonrpc":"2.0","method":"job"}
+{"difficulty":64920916,"height":151,"id":"15","input":"84c12edd2f03c568e67a53a6e1847737bb45bbad01cabf821a85ed8d7abb102d","jsonrpc":"2.0","method":"job"}
+{"difficulty":64623174,"height":152,"id":"16","input":"4e98dd2b41f529b1ed3dc426f3dd2c3f41b27ae871ebcb07997efca6ce7ea19c","jsonrpc":"2.0","method":"job"}
+{"difficulty":64654044,"height":153,"id":"17","input":"76137f9f2803be698ba81a3356e9229c2006f4d923a12a4de7ba211204d552a3","jsonrpc":"2.0","method":"job"}
+{"difficulty":64741750,"height":154,"id":"18","input":"48b2d53f546cc1eb07d49461c1e5a7cda02a6f2dc421ba9804ff83b2124f3fcf","jsonrpc":"2.0","method":"job"}
+{"difficulty":64815940,"height":155,"id":"19","input":"906a2b00c613fb455a0bacb9affbccbfcdd77a6c863175866829af9395b7dd83","jsonrpc":"2.0","method":"job"}
+{"difficulty":64900482,"height":156,"id":"20","input":"47ba81021c9c0d6c331fd9e021e35b8d301c76428638e1a27bcbb04049c9f2d6","jsonrpc":"2.0","method":"job"}

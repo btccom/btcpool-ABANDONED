@@ -1,0 +1,68 @@
+#!/bin/bash
+set -e
+source "$BASE_DIR/helper/functions.sh"
+
+PID=$$
+DOCKER_COMPOSE="docker-compose --no-ansi"
+
+cd "$BASE_DIR"
+
+echo "clear old docker compose..."
+$DOCKER_COMPOSE down >>$STDOUT
+
+echo "start jobmaker (5s)..."
+$DOCKER_COMPOSE up -d jobmaker >>$STDOUT
+
+MAIN_CONTAINER_NAME="$($DOCKER_COMPOSE ps -q jobmaker)"
+KAFKA_RESULT="/tmp/btcpool-test-jobmaker.$PID.log"
+KAFKA_CONSUMER="docker exec $($DOCKER_COMPOSE ps -q kafka) /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092"
+KAFKA_PRODUCER="docker exec -i $($DOCKER_COMPOSE ps -q kafka) /opt/kafka/bin/kafka-console-producer.sh --broker-list kafka:9092"
+WAIT_FOR_IT="WAIT_FOR_IT $MAIN_CONTAINER_NAME"
+
+$WAIT_FOR_IT kafka:9092
+
+outputTestData() {
+    cat "$BASE_DIR/testdata/rawgbts-1.log" \
+        "$BASE_DIR/testdata/rawgbts-2.log" \
+        "$BASE_DIR/testdata/rawgbts-3.log" \
+    | while read line; do
+        if [[ "$line" =~ ^sleep\ ([1-9][0-9]*)$ ]]; then
+            echo sleep ${BASH_REMATCH[1]}s >&2
+            sleep ${BASH_REMATCH[1]}
+        else
+            line=${line/@TIME@/$(date +%s)}
+            echo $line
+            echo send new gbt at $(date) >&2
+            sleep 1
+        fi
+    done
+}
+
+echo "send RawGbts in the background..."
+outputTestData | $KAFKA_PRODUCER --topic RawGbt &
+KAFKA_PRODUCER_PID=$!
+
+echo "consome StratumJob from kafka (75s)..."
+$KAFKA_CONSUMER --topic StratumJob --from-beginning >$KAFKA_RESULT &
+KAFKA_CONSUMER_PID=$!
+sleep 75
+kill $KAFKA_PRODUCER_PID &>/dev/null || echo "Kafka producer exited"
+kill $KAFKA_CONSUMER_PID || {
+    echo "Kafka consumer exited too early"
+    head $SSERVER_RESULT
+    exit 1
+}
+
+line=`cat $KAFKA_RESULT | wc -l`
+if [ $line -lt 20 ]; then
+    echo "There should be 20 StratumJobs but only $line"
+    exit 1
+else
+    echo "Got $line StratumJobs from Kafka, OK."
+fi
+
+echo "Checking StratumJobs..."
+php "$BASE_DIR/helper/check-stratumjob.php" "$KAFKA_RESULT"
+
+rm $KAFKA_RESULT
+$DOCKER_COMPOSE down >>$STDOUT

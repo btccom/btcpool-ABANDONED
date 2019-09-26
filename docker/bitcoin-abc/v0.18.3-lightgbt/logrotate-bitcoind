@@ -1,0 +1,6 @@
+/root/.bitcoin/debug.log {
+    daily
+    rotate 3
+    missingok
+    copytruncate
+}

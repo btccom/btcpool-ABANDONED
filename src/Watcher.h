@@ -32,110 +32,97 @@
 #include <event2/buffer.h>
 #include <event2/bufferevent.h>
 #include <event2/listener.h>
+#include <event2/bufferevent_ssl.h>
+#include <event2/dns.h>
+#include <libconfig.h++>
 
 #include <bitset>
 #include <map>
 #include <set>
+#include <memory>
 #include <boost/thread/shared_mutex.hpp>
 
-#include "utilities_js.hpp"
-#include "bitcoin/base58.h"
-
-#include "Stratum.h"
-
-#define BTCCOM_WATCHER_AGENT   "btc.com-watcher/0.2"
-
+// see PoolWatcherAgent in StratumSession.cc
+#define BTCCOM_WATCHER_AGENT "__PoolWatcher__"
 
 class PoolWatchClient;
 class ClientContainer;
 
-
 ///////////////////////////////// ClientContainer //////////////////////////////
 class ClientContainer {
+protected:
   atomic<bool> running_;
-  vector<PoolWatchClient *> clients_;
+  vector<shared_ptr<PoolWatchClient>> clients_;
 
   // libevent2
   struct event_base *base_;
-  struct event *signal_event_;
 
   string kafkaBrokers_;
-  KafkaProducer kafkaProducer_;  // produce GBT message
-  KafkaConsumer kafkaStratumJobConsumer_;  // consume topic: 'StratumJob'
+  KafkaProducer kafkaProducer_; // produce GBT message
 
-  StratumJob *poolStratumJob_; // the last stratum job from the pool itself
-  boost::shared_mutex stratumJobMutex_;
-  thread threadStratumJobConsume_;
+  IdGenerator gen_;
 
-  void runThreadStratumJobConsume();
-  void consumeStratumJob(rd_kafka_message_t *rkmessage);
+  virtual PoolWatchClient *
+  createPoolWatchClient(const libconfig::Setting &config) = 0;
+  virtual bool initInternal() = 0;
 
 public:
-  ClientContainer(const string &kafkaBrokers);
-  ~ClientContainer();
+  ClientContainer(const libconfig::Config &config);
+  virtual ~ClientContainer();
 
-  bool addPools(const string &poolName, const string &poolHost,
-                const int16_t poolPort, const string &workerName);
+  bool addPools(const libconfig::Setting &config);
   bool init();
   void run();
   void stop();
 
   void removeAndCreateClient(PoolWatchClient *client);
-
-  bool makeEmptyGBT(int32_t blockHeight, uint32_t nBits,
-                    const string &blockPrevHash,
-                    uint32_t blockTime, uint32_t blockVersion);
-
-  static void readCallback (struct bufferevent *bev, void *ptr);
-  static void eventCallback(struct bufferevent *bev, short events, void *ptr);
-
-  boost::shared_lock<boost::shared_mutex> getPoolStratumJobReadLock();
-  const StratumJob * getPoolStratumJob();
+  uint64_t generateJobId() { return gen_.next(); }
 };
-
 
 ///////////////////////////////// PoolWatchClient //////////////////////////////
 class PoolWatchClient {
+protected:
+  bool enableTLS_;
+  struct evdns_base *evdnsBase_;
+  struct event *reconnectEvent_;
   struct bufferevent *bev_;
 
-  uint32_t extraNonce1_;
-  uint32_t extraNonce2Size_;
-
-  string lastPrevBlockHash_;
-
   bool handleMessage();
-  void handleStratumMessage(const string &line);
-  bool handleExMessage(struct evbuffer *inBuf);
+  virtual void handleStratumMessage(const string &line) = 0;
 
 public:
-  enum State {
-    INIT          = 0,
-    CONNECTED     = 1,
-    SUBSCRIBED    = 2,
-    AUTHENTICATED = 3
-  };
+  enum State { INIT = 0, CONNECTED = 1, SUBSCRIBED = 2, AUTHENTICATED = 3 };
+
   State state_;
   ClientContainer *container_;
 
-  string  poolName_;
-  string  poolHost_;
-  int16_t poolPort_;
-  string  workerName_;
+  const libconfig::Setting &config_;
+  string poolName_;
+  string poolHost_;
+  uint16_t poolPort_;
+  string workerName_;
+
+  time_t upTime_;
+
+protected:
+  PoolWatchClient(
+      struct event_base *base,
+      ClientContainer *container,
+      const libconfig::Setting &config);
 
 public:
-  PoolWatchClient(struct event_base *base, ClientContainer *container,
-                  const string &poolName,
-                  const string &poolHost, const int16_t poolPort,
-                  const string &workerName);
-  ~PoolWatchClient();
+  virtual ~PoolWatchClient();
 
   bool connect();
+  virtual void onConnected() = 0;
 
   void recvData();
   void sendData(const char *data, size_t len);
-  inline void sendData(const string &str) {
-    sendData(str.data(), str.size());
-  }
+  inline void sendData(const string &str) { sendData(str.data(), str.size()); }
+
+  static void readCallback(struct bufferevent *bev, void *ptr);
+  static void eventCallback(struct bufferevent *bev, short events, void *ptr);
+  static void reconnectCallback(evutil_socket_t fd, short events, void *ptr);
 };
 
 #endif

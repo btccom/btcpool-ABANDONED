@@ -1,0 +1,67 @@
+#!/bin/bash
+set -e
+source "$BASE_DIR/helper/functions.sh"
+
+PID=$$
+DOCKER_COMPOSE="docker-compose --no-ansi"
+
+cd "$BASE_DIR"
+
+echo "clear old docker compose..."
+$DOCKER_COMPOSE down >>$STDOUT
+
+echo "start poolwatcher (5s)..."
+$DOCKER_COMPOSE up -d poolwatcher >>$STDOUT
+
+MAIN_CONTAINER_NAME="$($DOCKER_COMPOSE ps -q poolwatcher)"
+TEST_RESULT="/tmp/btcpool-test-poolwatcher.$PID.log"
+KAFKA_CONSUMER="docker exec $($DOCKER_COMPOSE ps -q kafka) /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092"
+KAFKA_PRODUCER="docker exec -i $($DOCKER_COMPOSE ps -q kafka) /opt/kafka/bin/kafka-console-producer.sh --broker-list kafka:9092"
+MYSQL_CLIENT="docker exec -i $($DOCKER_COMPOSE ps -q mysql) mysql -uroot -proot -Dbpool_local_db_beam"
+WAIT_FOR_IT="WAIT_FOR_IT $MAIN_CONTAINER_NAME"
+
+$WAIT_FOR_IT zookeeper:2181
+$WAIT_FOR_IT kafka:9092
+$WAIT_FOR_IT mysql:3306
+
+submitSolvedShares() {
+    $KAFKA_CONSUMER --topic StratumJob --from-beginning | {
+        for ((i=1; ; i++)); do
+            read line
+            echo $line # stdout
+            echo "[job $i] $line" 1>&2 # stderr
+        done
+        return
+    } | php ./helper/echo-solved-shares.php ./testdata/solved-share-1.txt | {
+        for ((i=1; ; i++)); do
+            read line
+            echo $line # stdout
+            echo "[sol $i] $line" 1>&2 # stderr
+        done
+        return
+    } | $KAFKA_PRODUCER --topic SolvedShare
+}
+
+submitSolvedShares &
+SUBMIT_PID=$!
+
+sleep 20
+
+kill $SUBMIT_PID || {
+    echo "function submitSolvedShares exited too early"
+    exit 1
+}
+
+echo "dumping found_blocks..."
+$MYSQL_CLIENT <<EOF | tee "$TEST_RESULT"
+select hash from found_blocks;
+quit
+EOF
+
+echo "comparing found_blocks..."
+diff "$TEST_RESULT" "./testdata/found_blocks_hash-1.txt" || {
+    echo "Block hash does not match!"
+    exit 1
+}
+
+echo "Test pass: all block hashes match"

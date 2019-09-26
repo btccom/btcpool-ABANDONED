@@ -1,0 +1,53 @@
+#!/bin/bash
+set -e
+source "$BASE_DIR/helper/functions.sh"
+
+PID=$$
+DOCKER_COMPOSE="docker-compose --no-ansi"
+
+cd "$BASE_DIR"
+
+echo "clear old docker compose..."
+$DOCKER_COMPOSE down >>$STDOUT
+
+echo "start gbtmaker (5s)..."
+$DOCKER_COMPOSE up -d gbtmaker >>$STDOUT
+
+MAIN_CONTAINER_NAME="$($DOCKER_COMPOSE ps -q gbtmaker)"
+KAFKA_RESULT="/tmp/btcpool-test-gbtmaker.$PID.log"
+KAFKA_CONSUMER="docker exec $($DOCKER_COMPOSE ps -q kafka) /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092"
+BITCOIN_CLI="docker exec $($DOCKER_COMPOSE ps -q bitcoind) bitcoin-cli -datadir=/work/bitcoin1 -rpcclienttimeout=5"
+WAIT_FOR_IT="WAIT_FOR_IT $MAIN_CONTAINER_NAME"
+
+echo $MAIN_CONTAINER_NAME
+
+$WAIT_FOR_IT kafka:9092
+
+{
+    echo "generate new blocks in the background..."
+    for i in {1..5}; do
+        sleep 1
+        $BITCOIN_CLI generatetoaddress 1 my2dxGb5jz43ktwGxg2doUaEb9WhZ9PQ7K >>$STDOUT
+    done
+    echo "generate new blocks finished."
+} &
+
+echo "consome RawGbt from kafka (10s)..."
+$KAFKA_CONSUMER --topic RawGbt --from-beginning >$KAFKA_RESULT &
+KAFKA_CONSUMER_PID=$!
+sleep 10
+kill $KAFKA_CONSUMER_PID
+
+line=`cat $KAFKA_RESULT | wc -l`
+if [ $line -lt 5 ]; then
+    echo "There should be 5 RawGbts but only $line"
+    exit 1
+else
+    echo "Got $line RawGbts from Kafka, OK."
+fi
+
+echo "Checking RawGbts..."
+php "$BASE_DIR/helper/check-rawgbt.php" "$KAFKA_RESULT"
+
+rm $KAFKA_RESULT
+$DOCKER_COMPOSE down >>$STDOUT

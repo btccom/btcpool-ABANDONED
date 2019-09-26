@@ -1,0 +1,92 @@
+version: '3'
+services:
+
+  zookeeper:
+    image: wurstmeister/zookeeper
+
+  kafka:
+    depends_on:
+      - zookeeper
+    image: wurstmeister/kafka
+    environment:
+      KAFKA_ADVERTISED_HOST_NAME: kafka
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+
+  mysql:
+    build:
+      context: ../mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+
+  userlist:
+    build:
+      context: ../userlist-api
+      args:
+        APT_MIRROR_URL: $APT_MIRROR_URL
+
+  sserver:
+    depends_on:
+      - kafka
+      - userlist
+    image: btccom/btcpool-${TEST_SUITE}
+    ports:
+      - 53333:3333
+    volumes:
+      - ./cfg:/work/config
+    command: /wait-for-it.sh kafka:9092 -- /wait-for-it.sh userlist:80 -- sserver -c /work/config/sserver.cfg
+
+  sserver-simulator:
+    depends_on:
+      - kafka
+      - userlist
+    image: btccom/btcpool-${TEST_SUITE}
+    ports:
+      - 53334:3334
+    volumes:
+      - ./cfg:/work/config
+    command: /wait-for-it.sh kafka:9092 -- /wait-for-it.sh userlist:80 -- sserver -c /work/config/sserver-simulator.cfg
+
+  poolwatcher:
+    depends_on:
+      - kafka
+      - beam-node-simulator
+      - mysql
+    image: btccom/btcpool-${TEST_SUITE}
+    volumes:
+      - ./cfg:/work/config
+    command: /wait-for-it.sh kafka:9092 -- /wait-for-it.sh beam-node-simulator:9808 -- /wait-for-it.sh mysql:3306 -- poolwatcher -c /work/config/poolwatcher.cfg
+
+  statshttpd:
+    depends_on:
+      - kafka
+      - mysql
+    image: btccom/btcpool-${TEST_SUITE}
+    volumes:
+      - ./cfg:/work/config
+    command: /wait-for-it.sh kafka:9092 -- /wait-for-it.sh mysql:3306 -- statshttpd -c /work/config/statshttpd.cfg
+
+  sharelogger:
+    depends_on:
+      - kafka
+    image: btccom/btcpool-${TEST_SUITE}
+    volumes:
+      - ./cfg:/work/config
+      - sharelog:/work/sharelog
+    command: /wait-for-it.sh kafka:9092 -- sharelogger -c /work/config/sharelogger.cfg
+
+  slparser:
+    depends_on:
+      - mysql
+    image: btccom/btcpool-${TEST_SUITE}
+    volumes:
+      - ./cfg:/work/config
+      - sharelog:/work/sharelog
+    command: /wait-for-it.sh mysql:3306 -- slparser -c /work/config/slparser.cfg
+  
+  # Names without point (.) cannot be parsed correctly in libevent_dns
+  beam-node-simulator:
+    build:
+      context: ./beam-node-simulator
+
+volumes:
+  sharelog: {}

@@ -21,10 +21,20 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-#ifndef MYSQL_CONNECTION_H_
-#define MYSQL_CONNECTION_H_
+#pragma once
 
-#include "Common.h"
+#include <string>
+#include <vector>
+#include <set>
+#include <queue>
+#include <mutex>
+#include <atomic>
+#include <thread>
+#include <condition_variable>
+
+using std::string;
+using std::vector;
+using std::set;
 
 extern "C" struct st_mysql;
 typedef struct st_mysql MYSQL;
@@ -36,44 +46,50 @@ typedef struct st_mysql_res MYSQL_RES;
  * auto free
  */
 struct MySQLResult {
-  struct st_mysql_res * result;
+  struct st_mysql_res *result;
   MySQLResult();
-  MySQLResult(MYSQL_RES * result);
-  void reset(MYSQL_RES * result);
+  MySQLResult(MYSQL_RES *result);
+  void reset(MYSQL_RES *result);
   ~MySQLResult();
-  uint64 numRows();
-  uint32 fields();
-  char ** nextRow();
+  uint64_t numRows();
+  uint32_t fields();
+  char **nextRow();
 };
 
 class MysqlConnectInfo {
 public:
-  string  host_;
+  string host_;
   int32_t port_;
-  string  username_;
-  string  password_;
-  string  dbName_;
+  string username_;
+  string password_;
+  string dbName_;
 
-  MysqlConnectInfo(const string &host, int32_t port, const string &userName,
-                   const string &password, const string &dbName):
-  host_(host), port_(port), username_(userName), password_(password), dbName_(dbName)
-  {
-  }
+  MysqlConnectInfo(
+      const string &host,
+      int32_t port,
+      const string &userName,
+      const string &password,
+      const string &dbName)
+    : host_(host)
+    , port_(port)
+    , username_(userName)
+    , password_(password)
+    , dbName_(dbName) {}
 
   MysqlConnectInfo(const MysqlConnectInfo &r) {
-    host_     = r.host_;
-    port_     = r.port_;
+    host_ = r.host_;
+    port_ = r.port_;
     username_ = r.username_;
     password_ = r.password_;
-    dbName_   = r.dbName_;
+    dbName_ = r.dbName_;
   }
 
-  MysqlConnectInfo& operator=(const MysqlConnectInfo &r) {
-    host_     = r.host_;
-    port_     = r.port_;
+  MysqlConnectInfo &operator=(const MysqlConnectInfo &r) {
+    host_ = r.host_;
+    port_ = r.port_;
     username_ = r.username_;
     password_ = r.password_;
-    dbName_   = r.dbName_;
+    dbName_ = r.dbName_;
     return *this;
   }
 };
@@ -92,7 +108,7 @@ protected:
   string password_;
   string dbName_;
 
-  struct st_mysql * conn;
+  struct st_mysql *conn;
 
 public:
   MySQLConnection(const MysqlConnectInfo &connectInfo);
@@ -101,29 +117,49 @@ public:
   bool open();
   void close();
   bool ping();
+  bool reconnect();
 
-  bool execute(const char * sql);
-  bool execute(const string &sql) {
-    return execute(sql.c_str());
-  }
+  bool execute(const char *sql);
+  bool execute(const string &sql) { return execute(sql.c_str()); }
 
-  bool query(const char * sql, MySQLResult & result);
-  bool query(const string & sql, MySQLResult & result) {
+  bool query(const char *sql, MySQLResult &result);
+  bool query(const string &sql, MySQLResult &result) {
     return query(sql.c_str(), result);
   }
 
   // return -1 on failure
-  int64_t update(const char * sql);
-  int64_t update(const string & sql) {
-    return update(sql.c_str());
-  }
-  uint64 affectedRows();
-  uint64 getInsertId();
+  int64_t update(const char *sql);
+  int64_t update(const string &sql) { return update(sql.c_str()); }
+  uint64_t affectedRows();
+  uint64_t getInsertId();
 
   string getVariable(const char *name);
 };
 
-bool multiInsert(MySQLConnection &db, const string &table,
-                 const string &fields, const vector<string> &values);
+bool multiInsert(
+    MySQLConnection &db,
+    const string &table,
+    const string &fields,
+    const vector<string> &values);
 
-#endif
+/**
+ * Execute SQL statements in order
+ */
+class MySQLExecQueue {
+protected:
+  MysqlConnectInfo dbInfo_;
+  std::queue<std::string> sqlQueue_;
+  std::mutex sqlQueueLock_;
+  std::condition_variable notify_;
+  std::atomic<bool> running_;
+  std::thread thread_;
+
+  void run();
+  void stop();
+  void execSQL(const string &sql);
+
+public:
+  MySQLExecQueue(const MysqlConnectInfo &dbInfo);
+  ~MySQLExecQueue();
+  void addSQL(const string &sql);
+};

@@ -1,0 +1,88 @@
+#!/bin/bash
+set -e
+source "$BASE_DIR/helper/functions.sh"
+
+PID=$$
+DOCKER_COMPOSE="docker-compose --no-ansi"
+
+cd "$BASE_DIR"
+
+echo "clear old docker compose..."
+$DOCKER_COMPOSE down >>$STDOUT
+
+echo "start sserver-casesen (5s)..."
+$DOCKER_COMPOSE up -d sserver-casesen >>$STDOUT
+
+MAIN_CONTAINER_NAME="$($DOCKER_COMPOSE ps -q sserver-casesen)"
+WAIT_FOR_IT="WAIT_FOR_IT $MAIN_CONTAINER_NAME"
+WAIT_FOR_PORT="WAIT_FOR_PORT $MAIN_CONTAINER_NAME"
+
+$WAIT_FOR_IT kafka:9092
+$WAIT_FOR_PORT 3333
+sleep 1 # Waiting for sserver to fetch the user list api
+
+tryLogin() {
+    {
+        echo '{"id":1,"method":"mining.subscribe","params":["autotest/0.1"]}'
+        echo '{"id":2,"method":"mining.authorize","params":["'"$1"'","123"]}'
+    } | nc -q 0 127.0.0.1 53335 | {
+        read line # ignore subscribe response
+        read line # authorize response
+
+        if [ "$line" = '{"id":2,"result":true,"error":null}' ]; then
+            echo -e "'$1'\tauthorize success: $line"
+            killall nc &>/dev/null
+            return 0
+        else
+            echo -e "'$1'\tauthorize failed: $line"
+            killall nc &>/dev/null
+            return 1
+        fi
+    }
+}
+
+echo "------- authorize should be success -------"
+
+tryLogin 'hu60'
+tryLogin 'hu60.ttt'
+tryLogin 'hu\\60.xx'
+
+tryLogin 'daad'
+tryLogin 'daad_ltc'
+tryLogin 'daad.323x412'
+tryLogin 'daad_ltc.B5*xs2'
+
+tryLogin 'DdDdDdDdD'
+tryLogin 'DdDdDdDdD.2378.235456'
+
+tryLogin 'userListAPITest_bch'
+tryLogin 'userListAPITest_'
+
+echo "------- authorize should be failed -------"
+
+! tryLogin 'HU60'
+! tryLogin 'HU60.A/124'
+! tryLogin 'HU\\60.xx'
+
+! tryLogin 'ddddddddd'
+! tryLogin 'DDDDDDDDD'
+! tryLogin 'dDdDdDdDd'
+! tryLogin 'ddddddddd.CIQW@2A'
+! tryLogin 'DDDDDDDDD.MMM2j342'
+! tryLogin 'dDdDdDdDd.15723Q@!c'
+! tryLogin 'dDdDd#@DdDd.xx'
+
+! tryLogin 'userListapitest_bch'
+! tryLogin 'userListapitest_BCH'
+! tryLogin 'USERLISTAPITEST_BCH'
+! tryLogin 'USERLISTAPITEST_'
+
+! tryLogin 'daad_btc_ltc'
+! tryLogin 'DdDdDdDdDd'
+! tryLogin 'userListapi.test'
+! tryLogin 'userListapi_test'
+! tryLogin "dDd\0DdDdDd"
+! tryLogin 'HU/60.xx'
+
+echo "------- everything is OK -------"
+$DOCKER_COMPOSE down >>$STDOUT

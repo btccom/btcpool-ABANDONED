@@ -1,0 +1,220 @@
+base_image_common: &base_image_common
+  filters:
+    tags:
+      only: /.*base-image.*/
+    branches:
+      ignore: /.*/
+
+deploy_image_common: &deploy_image_common
+  filters:
+    tags:
+      ignore: /.*base-image.*/
+    branches:
+      ignore: /.*/
+
+version: 2.1
+
+jobs:
+  build_and_push_base_image:
+    parameters:
+      dockerfile:
+        type: string
+      tag:
+        type: string
+    docker:
+      - image: circleci/golang
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Docker registry login
+          command: echo "$BASE_IMAGE_PASSWORD" | docker login --username "$BASE_IMAGE_USERNAME" --password-stdin $BASE_IMAGE_SERVER
+      - run:
+          name: Build base image
+          command: |
+            cd docker/btcpool/base-image
+            docker build --rm -t $BASE_IMAGE_SERVER/$BASE_IMAGE_REPO:<<parameters.tag>> -f <<parameters.dockerfile>> .
+      - run:
+          name: Push base image
+          command: docker push $BASE_IMAGE_SERVER/$BASE_IMAGE_REPO:<<parameters.tag>>
+  check_clang_format:
+    docker:
+      - image: $BASE_IMAGE_SERVER/$BASE_IMAGE_REPO:lint
+        auth:
+          username: $BASE_IMAGE_USERNAME
+          password: $BASE_IMAGE_PASSWORD
+    steps:
+      - checkout
+      - run:
+          name: Run clang-format
+          command: ./run-clang-format.sh && git diff --exit-code
+  build_and_run_tests:
+    machine:
+      image: ubuntu-1604:201903-01
+    steps:
+      - checkout
+      - run:
+          name:  Install Prerequisites
+          command: sudo apt-get update && DEBIAN_FRONTEND=noninteractive sudo apt-get install -y php-cli
+      - run:
+          name: Build & Run Tests
+          command: |
+            cd docker/btcpool/test/${CIRCLE_JOB#"build_and_run_tests@"}
+            ./run-test.sh
+  golang_run_tests:
+    docker:
+      - image: circleci/golang
+    steps:
+      - checkout
+      - run:
+          name: Go tests
+          command: cd golang && go test ./...
+  golang_deploy_image:
+    docker:
+      - image: circleci/golang
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Generate version
+          command: sed -i "s/0.0.0/${CIRCLE_TAG}/" golang/version.go
+      - run:
+          name: Build deploy image
+          command: |
+            cd golang
+            docker build -t ${CIRCLE_TAG}_go .
+      - run:
+          name: Docker registry login (deploy image)
+          command: |
+            for DEPLOY_IMAGE_SERVER in $DEPLOY_IMAGE_SERVERS; do
+              echo "$DEPLOY_IMAGE_PASSWORD" | docker login --username "$DEPLOY_IMAGE_USERNAME" --password-stdin $DEPLOY_IMAGE_SERVER
+            done
+      - run:
+          name: Tag deploy image
+          command: |
+            for DEPLOY_IMAGE_SERVER in $DEPLOY_IMAGE_SERVERS; do
+              docker tag ${CIRCLE_TAG}_go $DEPLOY_IMAGE_SERVER/$DEPLOY_IMAGE_REPO:${CIRCLE_TAG}_go
+            done
+      - run:
+          name: Push deploy image
+          command: |
+            for DEPLOY_IMAGE_SERVER in $DEPLOY_IMAGE_SERVERS; do
+              docker push $DEPLOY_IMAGE_SERVER/$DEPLOY_IMAGE_REPO:${CIRCLE_TAG}_go
+            done
+  build_and_push_deploy_image:
+    docker:
+      - image: circleci/golang
+    parameters:
+      base:
+        type: string
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Docker registry login (base image)
+          command: echo "$BASE_IMAGE_PASSWORD" | docker login --username "$BASE_IMAGE_USERNAME" --password-stdin $BASE_IMAGE_SERVER
+      - run:
+          name: Build deploy image
+          command: |
+            docker build --rm -f docker/btcpool/deploy/Dockerfile -t ${CIRCLE_TAG}_<<parameters.base>> \
+              --build-arg BASE_IMAGE=$BASE_IMAGE_SERVER/$BASE_IMAGE_REPO:<<parameters.base>> \
+              --build-arg BUILD_JOBS=2 \
+              --build-arg GIT_DESCRIBE=$(git describe --tag --long) \
+              .
+      - run:
+          name: Docker registry login (deploy image)
+          command: |
+            for DEPLOY_IMAGE_SERVER in $DEPLOY_IMAGE_SERVERS; do
+              echo "$DEPLOY_IMAGE_PASSWORD" | docker login --username "$DEPLOY_IMAGE_USERNAME" --password-stdin $DEPLOY_IMAGE_SERVER
+            done
+      - run:
+          name: Tag deploy image
+          command: |
+            for DEPLOY_IMAGE_SERVER in $DEPLOY_IMAGE_SERVERS; do
+              docker tag ${CIRCLE_TAG}_<<parameters.base>> $DEPLOY_IMAGE_SERVER/$DEPLOY_IMAGE_REPO:${CIRCLE_TAG}_<<parameters.base>>
+            done
+      - run:
+          name: Push deploy image
+          command: |
+            for DEPLOY_IMAGE_SERVER in $DEPLOY_IMAGE_SERVERS; do
+              docker push $DEPLOY_IMAGE_SERVER/$DEPLOY_IMAGE_REPO:${CIRCLE_TAG}_<<parameters.base>>
+            done
+
+workflows:
+  version: 2
+  build_and_push_base_images:
+    jobs:
+      - build_and_push_base_image:
+          <<: *base_image_common
+          name: build_and_push_base_image@lint
+          dockerfile: Dockerfile.lint
+          tag: lint
+      - build_and_push_base_image:
+          <<: *base_image_common
+          name: build_and_push_base_image@bch-0.18.5
+          dockerfile: Dockerfile.bch
+          tag: bch-0.18.5
+      - build_and_push_base_image:
+          <<: *base_image_common
+          name: build_and_push_base_image@btc-0.16.3
+          dockerfile: Dockerfile.btc
+          tag: btc-0.16.3
+      - build_and_push_base_image:
+          <<: *base_image_common
+          name: build_and_push_base_image@ubtc-2.5.0.1
+          dockerfile: Dockerfile.ubtc
+          tag: ubtc-2.5.0.1
+      - build_and_push_base_image:
+          <<: *base_image_common
+          name: build_and_push_base_image@ltc-0.16.3
+          dockerfile: Dockerfile.ltc
+          tag: ltc-0.16.3
+      - build_and_push_base_image:
+          <<: *base_image_common
+          name: build_and_push_base_image@zec-2.0.4
+          dockerfile: Dockerfile.zec
+          tag: zec-2.0.4
+  build_and_run_all_tests:
+    jobs:
+      - check_clang_format
+      - golang_run_tests
+      - build_and_run_tests:
+          name: build_and_run_tests@bch
+      - build_and_run_tests:
+          name: build_and_run_tests@bsv
+      - build_and_run_tests:
+          name: build_and_run_tests@btc
+      - build_and_run_tests:
+          name: build_and_run_tests@ubtc
+      - build_and_run_tests:
+          name: build_and_run_tests@ltc
+      - build_and_run_tests:
+          name: build_and_run_tests@zec
+  build_and_push_deploy_images:
+    jobs:
+      - golang_deploy_image:
+          <<: *deploy_image_common
+      - build_and_push_deploy_image:
+          <<: *deploy_image_common
+          name: build_and_push_deploy_image@bch-0.18.5
+          base: bch-0.18.5
+      - build_and_push_deploy_image:
+          <<: *deploy_image_common
+          name: build_and_push_deploy_image@bsv-0.2.0
+          base: bsv-0.2.0
+      - build_and_push_deploy_image:
+          <<: *deploy_image_common
+          name: build_and_push_deploy_image@btc-0.16.3
+          base: btc-0.16.3
+      - build_and_push_deploy_image:
+          <<: *deploy_image_common
+          name: build_and_push_deploy_image@ubtc-2.5.0.1
+          base: ubtc-2.5.0.1
+      - build_and_push_deploy_image:
+          <<: *deploy_image_common
+          name: build_and_push_deploy_image@ltc-0.16.3
+          base: ltc-0.16.3
+      - build_and_push_deploy_image:
+          <<: *deploy_image_common
+          name: build_and_push_deploy_image@zec-2.0.4
+          base: zec-2.0.4

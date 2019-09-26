@@ -27,37 +27,89 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <queue>
 
-#include "bitcoin/base58.h"
-#include "bitcoin/util.h"
-#include "bitcoin/utilstrencodings.h"
-#include "bitcoin/streams.h"
+#include <utilstrencodings.h>
 
-#include "zmq.hpp"
+#include <libconfig.h++>
+#include <glog/logging.h>
+#include <event2/buffer.h>
+
+#include <fmt/format.h>
+#include <fmt/printf.h>
 
 #include "Common.h"
+#include "zmq.hpp"
 
+using libconfig::Setting;
+
+bool Hex2BinReverse(const char *in, size_t size, vector<char> &out);
 bool Hex2Bin(const char *in, size_t size, vector<char> &out);
 bool Hex2Bin(const char *in, vector<char> &out);
-void Bin2Hex(const uint8 *in, size_t len, string &str);
+void Bin2Hex(const uint8_t *in, size_t len, string &str);
+void Bin2Hex(const vector<uint8_t> &in, string &str);
 void Bin2Hex(const vector<char> &in, string &str);
+void Bin2HexR(const uint8_t *in, size_t len, string &str);
 void Bin2HexR(const vector<char> &in, string &str);
 
-//bool DecodeBinTx(CTransaction& tx, const unsigned char *data, size_t len);
-//bool DecodeBinBlk(CBlock& block, const unsigned char *data, size_t len);
+// remove prefix 0x of a hex string
+inline string HexStripPrefix(const string &hex) {
+  if (hex.size() >= 2 && hex[0] == '0' && (hex[1] == 'x' || hex[1] == 'X')) {
+    return hex.substr(2);
+  }
+  return hex;
+}
 
-std::string s_recv(zmq::socket_t & socket);
-bool s_send(zmq::socket_t & socket, const std::string & string);
-bool s_sendmore (zmq::socket_t & socket, const std::string & string);
+// add prefix 0x to a hex string
+inline string HexAddPrefix(const string &hex) {
+  if (hex.empty()) {
+    return hex;
+  }
+  if (hex.size() >= 2 && hex[0] == '0' && (hex[1] == 'x' || hex[1] == 'X')) {
+    return hex;
+  }
+  return string("0x") + hex;
+}
 
+// bool DecodeBinTx(CTransaction& tx, const unsigned char *data, size_t len);
+// bool DecodeBinBlk(CBlock& block, const unsigned char *data, size_t len);
 
-bool httpGET (const char *url, string &response, long timeoutMs);
-bool httpGET (const char *url, const char *userpwd,
-              string &response, long timeoutMs);
-bool httpPOST(const char *url, const char *userpwd,
-              const char *postData, string &response, long timeoutMs);
-bool bitcoindRpcCall(const char *url, const char *userpwd, const char *reqData,
-                     string &response);
+std::string s_recv(zmq::socket_t &socket);
+bool s_send(zmq::socket_t &socket, const std::string &string);
+bool s_sendmore(zmq::socket_t &socket, const std::string &string);
+
+void setSslVerifyPeer(bool verifyPeer);
+bool httpGET(const char *url, string &response, long timeoutMs);
+bool httpGET(
+    const char *url, const char *userpwd, string &response, long timeoutMs);
+bool httpPOST(
+    const char *url,
+    const char *userpwd,
+    const char *postData,
+    string &response,
+    long timeoutMs,
+    const char *contentType);
+bool httpPOST(
+    const char *url,
+    const char *userpwd,
+    const char *postData,
+    string &response,
+    long timeoutMs,
+    const char *contentType,
+    const char *agent);
+bool blockchainNodeRpcCall(
+    const char *url,
+    const char *userpwd,
+    const char *reqData,
+    string &response);
+
+bool rpcCall(
+    const char *url,
+    const char *userpwd,
+    const char *reqData,
+    int len,
+    string &response,
+    const char *agent);
 
 string date(const char *format, const time_t timestamp);
 inline string date(const char *format) {
@@ -72,8 +124,29 @@ void writeTime2File(const char *filename, uint32_t t);
 
 class Strings {
 public:
-  static string Format(const char * fmt, ...);
-  static void Append(string & dest, const char * fmt, ...);
+  template <typename... Args>
+  inline static string Format(const string &fmt, Args &&... args) {
+    return fmt::sprintf(fmt, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  inline static void Append(string &dest, const string &fmt, Args &&... args) {
+    dest += fmt::sprintf(fmt, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  inline static int
+  EvBufferAdd(struct evbuffer *buf, const string &fmt, Args &&... args) {
+    auto str = fmt::sprintf(fmt, std::forward<Args>(args)...);
+    return evbuffer_add(buf, str.data(), str.size());
+  }
+
+  // If you got a "undefined reference" for a const static member of a class,
+  // please wrap it with Strings::Value().
+  template <typename T>
+  inline static T Value(T t) {
+    return t;
+  }
 };
 
 string score2Str(double s);
@@ -91,6 +164,75 @@ inline double share2HashrateP(uint64_t share, uint32_t timeDiff) {
   return share2HashrateG(share, timeDiff) / 1000000.0;
 }
 
-bool fileExists(const char* file);
+bool fileExists(const char *file);
+bool fileNonEmpty(const char *file);
+
+template <typename V, class S>
+void readFromSetting(
+    const S &setting, const string &key, V &value, bool optional = false) {
+  if (!setting.lookupValue(key, value) && !optional) {
+    LOG(FATAL) << "config section missing key: " << key;
+  }
+}
+
+template <typename V, class S>
+V configLookup(const S &setting, const string &key, V defaultValue) {
+  setting.lookupValue(key, defaultValue);
+  return defaultValue;
+}
+
+string
+getStatsFilePath(const char *chainType, const string &dataDir, time_t ts);
+
+// redis sorted-set uses double as its rank.
+// 37^9  = 1.299617398e+14 < 2^52 = 4.503599627e+15
+// 37^10 = 4.808584372e+15 > 2^52 = 4.503599627e+15
+// so max significand is 9 if you convert the rank as double.
+uint64_t getAlphaNumRank(const string &str, size_t significand = 9);
+
+// Check if a worker is a NiceHash client.
+bool isNiceHashAgent(const string &clientAgent);
+
+/////////////////// A map that can clean up expired items //////////////////////
+template <typename K, typename V>
+class SeqMap {
+  std::unordered_map<K, V> map_;
+  std::queue<K> queue_;
+
+public:
+  V &operator[](const K &key) {
+    if (map_.find(key) == map_.end()) {
+      queue_.push(key);
+    }
+    return map_[key];
+  }
+
+  bool contains(const K &key) { return map_.find(key) != map_.end(); }
+  auto find(const K &key) { return map_.find(key); }
+  auto begin() { return map_.begin(); }
+  auto end() { return map_.end(); }
+  size_t size() { return map_.size(); }
+  bool empty() { return map_.empty(); }
+
+  void clear(size_t maxSize) {
+    while (queue_.size() > maxSize) {
+      auto itr = map_.find(queue_.front());
+      queue_.pop();
+      if (itr != map_.end()) {
+        map_.erase(itr);
+      }
+    }
+  }
+};
+
+class IdGenerator {
+public:
+  explicit IdGenerator(uint8_t serverId);
+  uint64_t next();
+
+private:
+  uint32_t lastTimestamp_;
+  uint32_t lastIdLow_;
+};
 
 #endif

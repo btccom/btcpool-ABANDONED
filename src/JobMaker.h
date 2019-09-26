@@ -26,71 +26,161 @@
 
 #include "Common.h"
 #include "Kafka.h"
-#include "Stratum.h"
 
-#include "bitcoin/uint256.h"
-#include "bitcoin/base58.h"
+#include "Zookeeper.h"
+#include "Utils.h"
 
-#include <map>
 #include <deque>
+#include <vector>
+#include <memory>
+
+using std::vector;
+using std::shared_ptr;
+
+// Consume a kafka message and decide whether to generate a new job.
+// Params:
+//     msg: kafka message.
+// Return:
+//     if true, JobMaker will try generate a new job.
+using JobMakerMessageProcessor =
+    std::function<bool(const string &, const string &)>;
+
+struct JobMakerConsumerHandler {
+  shared_ptr<KafkaConsumer> kafkaConsumer_;
+  JobMakerMessageProcessor messageProcessor_;
+};
+
+struct JobMakerDefinition {
+  virtual ~JobMakerDefinition() {}
+
+  string chainType_;
+  bool enabled_;
+
+  string jobTopic_;
+  uint32_t jobInterval_;
+  uint32_t serverId_;
+
+  string zookeeperLockPath_;
+  string fileLastJobTime_;
+};
+
+struct GwJobMakerDefinition : public JobMakerDefinition {
+  virtual ~GwJobMakerDefinition() {}
+
+  string rawGwTopic_;
+  uint32_t maxJobDelay_;
+  uint32_t workLifeTime_;
+};
+
+struct GbtJobMakerDefinition : public JobMakerDefinition {
+  virtual ~GbtJobMakerDefinition() {}
+
+  bool testnet_;
+
+  string payoutAddr_;
+  string coinbaseInfo_;
+  uint32_t blockVersion_;
+
+  string rawGbtTopic_;
+  string auxPowGwTopic_;
+  string rskRawGwTopic_;
+  string vcashRawGwTopic_;
+
+  uint32_t maxJobDelay_;
+  uint32_t gbtLifeTime_;
+  uint32_t emptyGbtLifeTime_;
+
+  uint32_t auxmergedMiningNotifyPolicy_;
+  uint32_t rskmergedMiningNotifyPolicy_;
+  uint32_t vcashmergedMiningNotifyPolicy_;
+};
+
+class JobMakerHandler {
+public:
+  virtual ~JobMakerHandler() {}
+
+  virtual bool init(shared_ptr<JobMakerDefinition> def) {
+    def_ = def;
+    gen_ = std::make_unique<IdGenerator>(def->serverId_);
+    return true;
+  }
+
+  virtual bool initConsumerHandlers(
+      const string &kafkaBrokers,
+      vector<JobMakerConsumerHandler> &handlers) = 0;
+  virtual string makeStratumJobMsg() = 0;
+
+  // read-only definition
+  inline shared_ptr<const JobMakerDefinition> def() { return def_; }
+  JobMakerConsumerHandler createConsumerHandler(
+      const string &kafkaBrokers,
+      const string &topic,
+      int64_t offset,
+      vector<pair<string, string>> consumerOptions,
+      JobMakerMessageProcessor messageProcessor);
+
+  void setServerId(uint8_t id);
+
+protected:
+  shared_ptr<JobMakerDefinition> def_;
+  unique_ptr<IdGenerator> gen_;
+};
+
+class GwJobMakerHandler : public JobMakerHandler {
+public:
+  virtual ~GwJobMakerHandler() {}
+
+  virtual bool initConsumerHandlers(
+      const string &kafkaBrokers,
+      vector<JobMakerConsumerHandler> &handlers) override;
+
+  // return true if need to produce stratum job
+  virtual bool processMsg(const string &msg) = 0;
+
+  // read-only definition
+  inline shared_ptr<const GwJobMakerDefinition> def() {
+    return std::dynamic_pointer_cast<const GwJobMakerDefinition>(def_);
+  }
+};
 
 class JobMaker {
+protected:
+  shared_ptr<JobMakerHandler> handler_;
   atomic<bool> running_;
-  mutex lock_;
+
+  // assign server id from zookeeper
+  shared_ptr<Zookeeper> zk_;
+  string zkBrokers_;
 
   string kafkaBrokers_;
   KafkaProducer kafkaProducer_;
-  KafkaConsumer kafkaRawGbtConsumer_;
 
-  KafkaConsumer kafkaNmcAuxConsumer_;  // merged mining for namecoin
-  mutex auxJsonlock_;
-  string latestNmcAuxBlockJson_;
+  vector<JobMakerConsumerHandler> kafkaConsumerHandlers_;
+  vector<shared_ptr<thread>> kafkaConsumerWorkers_;
 
-  uint32_t currBestHeight_;
-  uint32_t lastJobSendTime_;
-  bool isLastJobEmptyBlock_;
-  uint32_t stratumJobInterval_;
+  time_t lastJobTime_;
 
-  string poolCoinbaseInfo_;
-  CBitcoinAddress poolPayoutAddr_;
-
-  uint32_t kGbtLifeTime_;
-  uint32_t kEmptyGbtLifeTime_;
-  string fileLastJobTime_;
-
-  std::map<uint64_t/* @see makeGbtKey() */, string> rawgbtMap_;  // sorted gbt by timestamp
-
-  deque<uint256> lastestGbtHash_;
-  uint32_t blockVersion_;
-
-  thread threadConsumeNmcAuxBlock_;
-
-  void consumeNmcAuxBlockMsg(rd_kafka_message_t *rkmessage);
-  void consumeRawGbtMsg(rd_kafka_message_t *rkmessage, bool needToSend);
-  void addRawgbt(const char *str, size_t len);
-
-  void clearTimeoutGbt();
-  bool isReachTimeout();
-  void sendStratumJob(const char *gbt);
-
-  void checkAndSendStratumJob();
-  void runThreadConsumeNmcAuxBlock();
-
-  inline uint64_t makeGbtKey(uint32_t gbtTime, bool isEmptyBlock, uint32_t height);
-  inline uint32_t gbtKeyGetTime(uint64_t gbtKey);
-  inline uint32_t gbtKeyGetHeight(uint64_t gbtKey);
-  inline bool gbtKeyIsEmptyBlock(uint64_t gbtKey);
+protected:
+  bool consumeKafkaMsg(
+      rd_kafka_message_t *rkmessage, JobMakerConsumerHandler &consumerHandler);
 
 public:
-  JobMaker(const string &kafkaBrokers, uint32_t stratumJobInterval,
-           const string &payoutAddr, uint32_t gbtLifeTime,
-           uint32_t emptyGbtLifeTime, const string &fileLastJobTime,
-           uint32_t blockVersion, const string &poolCoinbaseInfo);
-  ~JobMaker();
+  void produceStratumJob();
+  void runThreadKafkaConsume(JobMakerConsumerHandler &consumerHandler);
+
+public:
+  JobMaker(
+      shared_ptr<JobMakerHandler> handle,
+      const string &kafkaBrokers,
+      const string &zookeeperBrokers);
+  virtual ~JobMaker();
 
   bool init();
   void stop();
   void run();
+
+private:
+  bool setupKafkaProducer();
 };
 
 #endif

@@ -1,5 +1,26 @@
+# IDE files
 .vs/
 .vscode/
-/build*/
+.idea/
+.DS_Store
+
+# Building files
+build
+build*/
+
+# Installs runs 
+install/run_*/
+
+# datas
 /patches/
 /data/
+
+# GNU global files
+/GPATH
+/GRTAGS
+/GTAGS
+
+# generated configuration files
+/src/config/*.h
+/src/*.pro.pb.h
+/src/*.pro.pb.cc

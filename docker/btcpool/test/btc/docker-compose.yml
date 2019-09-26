@@ -1,0 +1,131 @@
+version: '3'
+services:
+
+  zookeeper:
+    image: wurstmeister/zookeeper
+
+  kafka:
+    depends_on:
+      - zookeeper
+    image: wurstmeister/kafka
+    environment:
+      KAFKA_ADVERTISED_HOST_NAME: kafka
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+
+  mysql:
+    build:
+      context: ../mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+
+  bitcoind:
+    build:
+      context: bitcoind
+
+  userlist:
+    build:
+      context: ../userlist-api
+      args:
+        APT_MIRROR_URL: $APT_MIRROR_URL
+
+  gbtmaker:
+    depends_on:
+      - kafka
+      - bitcoind
+    image: btccom/btcpool-${TEST_SUITE}
+    volumes:
+      - ./cfg:/work/config
+    command: /wait-for-it.sh kafka:9092 -- /wait-for-it.sh bitcoind:8332 -- gbtmaker -c /work/config/gbtmaker.cfg
+
+  jobmaker:
+    depends_on:
+      - kafka
+    image: btccom/btcpool-${TEST_SUITE}
+    volumes:
+      - ./cfg:/work/config
+    command: /wait-for-it.sh kafka:9092 -- jobmaker -c /work/config/jobmaker.cfg
+
+  sserver:
+    depends_on:
+      - kafka
+      - userlist
+    image: btccom/btcpool-${TEST_SUITE}
+    ports:
+      - 53333:3333
+    volumes:
+      - ./cfg:/work/config
+    command: /wait-for-it.sh kafka:9092 -- /wait-for-it.sh userlist:80 -- sserver -c /work/config/sserver.cfg
+
+  sserver-simulator:
+    depends_on:
+      - kafka
+      - userlist
+    image: btccom/btcpool-${TEST_SUITE}
+    ports:
+      - 53334:3333
+    volumes:
+      - ./cfg:/work/config
+    command: /wait-for-it.sh kafka:9092 -- /wait-for-it.sh userlist:80 -- sserver -c /work/config/sserver-simulator.cfg
+
+  sserver-casesen:
+    depends_on:
+      - zookeeper
+      - kafka
+      - userlist
+    image: btccom/btcpool-${TEST_SUITE}
+    ports:
+      - 53335:3333
+    volumes:
+      - ./cfg:/work/config
+    command: /wait-for-it.sh zookeeper:2181 -- /wait-for-it.sh kafka:9092 -- /wait-for-it.sh userlist:80 -- sserver -c /work/config/sserver-casesen.cfg
+  
+  sserver-mchain:
+    depends_on:
+      - zookeeper
+      - kafka
+      - userlist
+    image: btccom/btcpool-${TEST_SUITE}
+    ports:
+      - 53336:3333
+    volumes:
+      - ./cfg:/work/config
+    command: /wait-for-it.sh zookeeper:2181 -- /wait-for-it.sh kafka:9092 -- /wait-for-it.sh userlist:80 -- sserver -c /work/config/sserver-mchain.cfg
+
+  blkmaker:
+    depends_on:
+      - kafka
+      - bitcoind
+    image: btccom/btcpool-${TEST_SUITE}
+    volumes:
+      - ./cfg:/work/config
+    command: /wait-for-it.sh kafka:9092 -- /wait-for-it.sh bitcoind:8332 -- blkmaker -c /work/config/blkmaker.cfg
+
+  statshttpd:
+    depends_on:
+      - kafka
+      - mysql
+    image: btccom/btcpool-${TEST_SUITE}
+    volumes:
+      - ./cfg:/work/config
+    command: /wait-for-it.sh kafka:9092 -- /wait-for-it.sh mysql:3306 -- statshttpd -c /work/config/statshttpd.cfg
+
+  sharelogger:
+    depends_on:
+      - kafka
+    image: btccom/btcpool-${TEST_SUITE}
+    volumes:
+      - ./cfg:/work/config
+      - sharelog:/work/sharelog
+    command: /wait-for-it.sh kafka:9092 -- sharelogger -c /work/config/sharelogger.cfg
+
+  slparser:
+    depends_on:
+      - mysql
+    image: btccom/btcpool-${TEST_SUITE}
+    volumes:
+      - ./cfg:/work/config
+      - sharelog:/work/sharelog
+    command: /wait-for-it.sh mysql:3306 -- slparser -c /work/config/slparser.cfg
+
+volumes:
+  sharelog: {}
