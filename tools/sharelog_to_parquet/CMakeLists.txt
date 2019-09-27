@@ -39,7 +39,7 @@ find_package(Protobuf REQUIRED)
 
 # build proto files
 set(PROTOBUF_FILES)
-foreach(SHARE_TYPE bitcoin beam)
+foreach(SHARE_TYPE bitcoin beam eth)
   file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/src/${SHARE_TYPE})
   execute_process(
       COMMAND ${PROTOBUF_PROTOC_EXECUTABLE} --cpp_out=${CMAKE_CURRENT_BINARY_DIR}/src/${SHARE_TYPE} ${SHARE_TYPE}.proto

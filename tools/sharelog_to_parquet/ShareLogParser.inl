@@ -438,3 +438,8 @@ using ShareLogParserBeam = ShareLogParserT<ShareBeam>;
 using ShareLogParserServerBeam = ShareLogParserServerT<ShareBeam>;
 template class ShareLogParserT<ShareBeam>;
 template class ShareLogParserServerT<ShareBeam>;
+
+using ShareLogParserEth = ShareLogParserT<ShareEth>;
+using ShareLogParserServerEth = ShareLogParserServerT<ShareEth>;
+template class ShareLogParserT<ShareEth>;
+template class ShareLogParserServerT<ShareEth>;

@@ -30,6 +30,7 @@
 #include "ParquetWritter.hpp"
 #include "StratumBitcoin.hpp"
 #include "StratumBeam.hpp"
+#include "StratumEth.hpp"
 
 using namespace std;
 

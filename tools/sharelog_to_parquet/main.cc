@@ -70,6 +70,8 @@ std::shared_ptr<ShareLogParser> newShareLogParser(
     return std::make_shared<ShareLogParserBitcoin>(cfg, timestamp);
   } else if (chainType == "BEAM") {
     return std::make_shared<ShareLogParserBeam>(cfg, timestamp);
+  } else if (chainType == "ETH") {
+    return std::make_shared<ShareLogParserEth>(cfg, timestamp);
   } else {
     LOG(FATAL) << "newShareLogParser: unknown chain type " << chainType;
     return nullptr;
@@ -82,6 +84,8 @@ newShareLogParserServer(const string &chainType, const libconfig::Config &cfg) {
     return std::make_shared<ShareLogParserServerBitcoin>(cfg);
   } else if (chainType == "BEAM") {
     return std::make_shared<ShareLogParserServerBeam>(cfg);
+  } else if (chainType == "ETH") {
+    return std::make_shared<ShareLogParserServerEth>(cfg);
   } else {
     LOG(FATAL) << "newShareLogParserServer: unknown chain type " << chainType;
     return nullptr;

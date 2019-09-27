@@ -27,36 +27,15 @@
 #include <cmath>
 #include <glog/logging.h>
 
-#include "beam/beam.pb.h"
+#include "eth/eth.pb.h"
 #include "StratumStatus.h"
 #include "uint256.h"
 #include "arith_uint256.h"
 
 using namespace std;
 
-class BeamDifficulty {
-private:
-  static void Unpack(uint32_t packed, uint32_t &order, uint32_t &mantissa) {
-    order = (packed >> 24);
-
-    const uint32_t nLeadingBit = 1U << 24;
-    mantissa = nLeadingBit | (packed & (nLeadingBit - 1));
-  }
-
+class EthDifficulty {
 public:
-  // BEAM's bits are compression of the difficulty
-  static double BeamBitsToDifficulty(uint32_t beamBits) {
-    if (beamBits == 0) {
-      return 0;
-    }
-
-    uint32_t order, mantissa;
-    Unpack(beamBits, order, mantissa);
-
-    int nOrderCorrected = order - 24; // must be signed
-    return ldexp(mantissa, nOrderCorrected);
-  }
-
   // Bitcoin-style bits are compression of the target
   static double BitcoinStyleBitsToDifficulty(uint32_t bitcoinStyleBits) {
     static arith_uint256 kMaxUint256(
@@ -80,27 +59,72 @@ public:
   }
 };
 
-class ShareBeam : public sharebase::BeamMsg {
+class ShareEthBytesVersion {
 public:
-  const static uint32_t CURRENT_VERSION =
-      0x0bea0001u; // first 0bea: BEAM, second 0001: version 1
+  uint32_t version_ = 0; // 0
+  uint32_t checkSum_ = 0; // 4
 
-  ShareBeam() {
+  int64_t workerHashId_ = 0; // 8
+  int32_t userId_ = 0; // 16
+  int32_t status_ = 0; // 20
+  int64_t timestamp_ = 0; // 24
+  IpAddress ip_ = 0; // 32
+
+  uint64_t headerHash_ = 0; // 48
+  uint64_t shareDiff_ = 0; // 56
+  uint64_t networkDiff_ = 0; // 64
+  uint64_t nonce_ = 0; // 72
+  uint32_t sessionId_ = 0; // 80
+  uint32_t height_ = 0; // 84
+
+  uint32_t checkSum() const {
+    uint64_t c = 0;
+
+    c += (uint64_t)version_;
+    c += (uint64_t)workerHashId_;
+    c += (uint64_t)userId_;
+    c += (uint64_t)status_;
+    c += (uint64_t)timestamp_;
+    c += (uint64_t)ip_.addrUint64[0];
+    c += (uint64_t)ip_.addrUint64[1];
+    c += (uint64_t)headerHash_;
+    c += (uint64_t)shareDiff_;
+    c += (uint64_t)networkDiff_;
+    c += (uint64_t)nonce_;
+    c += (uint64_t)sessionId_;
+    c += (uint64_t)height_;
+
+    return ((uint32_t)c) + ((uint32_t)(c >> 32));
+  }
+};
+
+class ShareEth : public sharebase::EthMsg {
+public:
+  const static uint32_t CURRENT_VERSION_FOUNDATION =
+      0x00110003u; // first 0011: ETH, second 0002: version 3
+  const static uint32_t CURRENT_VERSION_CLASSIC =
+      0x00160003u; // first 0016: ETC, second 0002: version 3
+  const static uint32_t BYTES_VERSION_FOUNDATION =
+      0x00110002u; // first 0011: ETH, second 0002: version 3
+  const static uint32_t BYTES_VERSION_CLASSIC =
+      0x00160002u; // first 0016: ETC, second 0002: version 3
+
+  ShareEth() {
     set_version(0);
     set_workerhashid(0);
     set_userid(0);
     set_status(0);
     set_timestamp(0);
     set_ip("0.0.0.0");
-    set_inputprefix(0);
+    set_headerhash(0);
     set_sharediff(0);
-    set_blockbits(0);
+    set_networkdiff(0);
     set_height(0);
     set_nonce(0);
     set_sessionid(0);
   }
-  ShareBeam(const ShareBeam &r) = default;
-  ShareBeam &operator=(const ShareBeam &r) = default;
+  ShareEth(const ShareEth &r) = default;
+  ShareEth &operator=(const ShareEth &r) = default;
 
   bool SerializeToBuffer(string &data, uint32_t &size) const {
     size = ByteSize();
@@ -115,6 +139,7 @@ public:
   }
 
   bool UnserializeWithVersion(const uint8_t *data, uint32_t size) {
+
     if (nullptr == data || size <= 0) {
       return false;
     }
@@ -122,14 +147,46 @@ public:
     const uint8_t *payload = data;
     uint32_t version = *((uint32_t *)payload);
 
-    if (version == CURRENT_VERSION) {
+    if (version == CURRENT_VERSION_FOUNDATION ||
+        version == CURRENT_VERSION_CLASSIC) {
+
       if (!ParseFromArray(
               (const uint8_t *)(payload + sizeof(uint32_t)),
               size - sizeof(uint32_t))) {
         DLOG(INFO) << "share ParseFromArray failed!";
         return false;
       }
+    } else if (
+        (version == BYTES_VERSION_FOUNDATION ||
+         version == BYTES_VERSION_CLASSIC) &&
+        size == sizeof(ShareEthBytesVersion)) {
+
+      ShareEthBytesVersion *share = (ShareEthBytesVersion *)payload;
+
+      if (share->checkSum() != share->checkSum_) {
+        DLOG(INFO) << "checkSum mismatched! checkSum_: " << share->checkSum_
+                   << ", checkSum(): " << share->checkSum();
+        return false;
+      }
+
+      set_version(
+          share->version_ == BYTES_VERSION_CLASSIC
+              ? CURRENT_VERSION_CLASSIC
+              : CURRENT_VERSION_FOUNDATION);
+      set_workerhashid(share->workerHashId_);
+      set_userid(share->userId_);
+      set_status(share->status_);
+      set_timestamp(share->timestamp_);
+      set_ip(share->ip_.toString());
+      set_headerhash(share->headerHash_);
+      set_sharediff(share->shareDiff_);
+      set_networkdiff(share->networkDiff_);
+      set_nonce(share->nonce_);
+      set_sessionid(share->sessionId_);
+      set_height(share->height_);
+
     } else {
+
       DLOG(INFO) << "unknow share received! data size: " << size;
       return false;
     }
@@ -175,7 +232,7 @@ public:
 //----------------------------------------------------
 
 template <>
-class ParquetWriterT<ShareBeam> : public ParquetWriter {
+class ParquetWriterT<ShareEth> : public ParquetWriter {
 protected:
   int64_t *indexs_ = nullptr;
   int64_t *workerIds_ = nullptr;
@@ -209,7 +266,6 @@ public:
     height_ = new int32_t[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
     nonce_ = new int64_t[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
     sessionId_ = new int32_t[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
-    outputHash_ = new int32_t[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
     extUserId_ = new int32_t[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
     diffReached_ = new double[DEFAULT_NUM_ROWS_PER_ROW_GROUP];
   }
@@ -245,8 +301,6 @@ public:
       delete[] nonce_;
     if (sessionId_)
       delete[] sessionId_;
-    if (outputHash_)
-      delete[] outputHash_;
     if (extUserId_)
       delete[] extUserId_;
     if (diffReached_)
@@ -282,8 +336,6 @@ protected:
     fields.push_back(
         PrimitiveNode::Make("session_id", Repetition::REQUIRED, Type::INT32));
     fields.push_back(
-        PrimitiveNode::Make("output_hash", Repetition::REQUIRED, Type::INT32));
-    fields.push_back(
         PrimitiveNode::Make("ext_user_id", Repetition::REQUIRED, Type::INT32));
     fields.push_back(PrimitiveNode::Make(
         "diff_reached", Repetition::REQUIRED, Type::DOUBLE));
@@ -291,7 +343,7 @@ protected:
     // Create a GroupNode named 'share_bitcoin' using the primitive nodes
     // defined above This GroupNode is the root node of the schema tree
     return std::static_pointer_cast<GroupNode>(
-        GroupNode::Make("share_beam", Repetition::REQUIRED, fields));
+        GroupNode::Make("share_eth", Repetition::REQUIRED, fields));
   }
 
   void flushShares() {
@@ -348,10 +400,6 @@ protected:
     static_cast<parquet::Int32Writer *>(rgWriter->NextColumn())
         ->WriteBatch(shareNum_, nullptr, nullptr, sessionId_);
 
-    // output_hash
-    static_cast<parquet::Int32Writer *>(rgWriter->NextColumn())
-        ->WriteBatch(shareNum_, nullptr, nullptr, outputHash_);
-
     // ext_user_id
     static_cast<parquet::Int32Writer *>(rgWriter->NextColumn())
         ->WriteBatch(shareNum_, nullptr, nullptr, extUserId_);
@@ -367,7 +415,7 @@ protected:
   }
 
 public:
-  void addShare(const ShareBeam &share) {
+  void addShare(const ShareEth &share) {
     static IpAddress ipAddr;
     ipAddr.fromString(share.ip());
 
@@ -379,17 +427,15 @@ public:
     ipStr_[shareNum_] = share.ip();
     ip_[shareNum_].len = ipStr_[shareNum_].size();
     ip_[shareNum_].ptr = (const uint8_t *)ipStr_[shareNum_].data();
-    jobIds_[shareNum_] = share.inputprefix();
+    jobIds_[shareNum_] = share.headerhash();
     shareDiff_[shareNum_] = share.sharediff();
-    networkDiff_[shareNum_] =
-        BeamDifficulty::BeamBitsToDifficulty(share.blockbits());
+    networkDiff_[shareNum_] = share.networkdiff();
     height_[shareNum_] = share.height();
     nonce_[shareNum_] = share.nonce();
     sessionId_[shareNum_] = share.sessionid();
-    outputHash_[shareNum_] = share.outputhash();
     extUserId_[shareNum_] = share.extuserid();
     diffReached_[shareNum_] =
-        BeamDifficulty::BitcoinStyleBitsToDifficulty(share.bitsreached());
+        EthDifficulty::BitcoinStyleBitsToDifficulty(share.bitsreached());
 
     shareNum_++;
 
