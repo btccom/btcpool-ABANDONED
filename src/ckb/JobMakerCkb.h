@@ -39,6 +39,7 @@ private:
   inline uint64_t makeWorkKey(const StratumJobCkb &job);
 
   std::map<uint64_t, shared_ptr<StratumJobCkb>> workMap_;
+  std::map<uint64_t, shared_ptr<StratumJobCkb>> jobid2work_;
   uint32_t lastReceivedHeight_ = 0;
 };
 

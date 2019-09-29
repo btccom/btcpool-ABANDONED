@@ -42,6 +42,7 @@ bool JobMakerHandlerCkb::processMsg(const string &msg) {
     DLOG(INFO) << "key already exist in workMap: " << key;
     return false;
   }
+  jobid2work_.insert({job->jobId_, *job});
 
   std::pair<std::map<uint64_t, shared_ptr<StratumJobCkb>>::iterator, bool> ret;
   ret = workMap_.insert(std::make_pair(key, job));
@@ -91,6 +92,7 @@ void JobMakerHandlerCkb::clearTimeoutMsg() {
 
       // c++11: returns an iterator to the next element in the map
       itr = workMap_.erase(itr);
+      jobid2work_.erase(jobid2work_.find(job->jobId_));
     }
   }
 }
@@ -100,7 +102,7 @@ string JobMakerHandlerCkb::makeStratumJobMsg() {
     return "";
   }
 
-  shared_ptr<StratumJobCkb> sjob = workMap_.rbegin()->second;
+  shared_ptr<StratumJobCkb> sjob = jobid2work_.rbegin()->second;
   DLOG(INFO) << "sjob :" << sjob->serializeToJson();
   return sjob->serializeToJson();
 }
