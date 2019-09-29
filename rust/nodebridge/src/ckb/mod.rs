@@ -222,33 +222,25 @@ fn submit_block(rpc_client: Client, job: &MiningJob, solved_share: &SolvedShare,
         .submit_block(job.work_id, block.data().into())
         .then(move |result| match result {
             Ok(hash_returned) => {
-                match hash_returned {
-                    Some(_) => {
-                        info!("Submitted block {}", &hash);
-                        let fut = rpc_client
-                            .get_cellbase_output_capacity_details(hash.clone())
-                            .then(move |result| match result {
-                                Ok(reward) => {
-                                    update_block_reward(
-                                        &db_url,
-                                        &hash,
-                                        &Ok(reward.unwrap_or_default().total.into()),
-                                    );
-                                    Ok(())
-                                }
-                                Err(e) => {
-                                    update_block_reward(&db_url, &hash, &Err(e));
-                                    Err(())
-                                }
-                            });
-                        tokio::spawn(fut);
-                        Ok(())
-                    }
-                    None => {
-                        error!("Failed to submit block {}", &hash);
-                        Err(())
-                    }
-                }
+                info!("Submit block {} returned {}", &hash, hash_returned);
+                let fut = rpc_client
+                    .get_cellbase_output_capacity_details(hash.clone())
+                    .then(move |result| match result {
+                        Ok(reward) => {
+                            update_block_reward(
+                                &db_url,
+                                &hash,
+                                &Ok(reward.unwrap_or_default().total.into()),
+                            );
+                            Ok(())
+                        }
+                        Err(e) => {
+                            update_block_reward(&db_url, &hash, &Err(e));
+                            Err(())
+                        }
+                    });
+                tokio::spawn(fut);
+                Ok(())
             }
             Err(e) => {
                 error!("Failed to submit block {}: {}", &hash, e);

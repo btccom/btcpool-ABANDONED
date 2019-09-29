@@ -23,9 +23,9 @@ impl Client {
         &self,
         work_id: u64,
         block: Block,
-    ) -> impl Future<Item = Option<H256>, Error = RpcError> {
+    ) -> impl Future<Item = H256, Error = RpcError> {
         self.0
-            .call_method("submit_block", "Option<H256>", (work_id.to_string(), block))
+            .call_method("submit_block", "H256", (work_id.to_string(), block))
     }
 
     pub fn get_cellbase_output_capacity_details(
