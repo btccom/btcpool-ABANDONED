@@ -31,7 +31,7 @@
 #include "bytom/bh_shared.h"
 
 #ifndef NO_CUDA
-#include "cutil/src/GpuTs.h"
+#include "bytom/cutil/src/GpuTs.h"
 #endif // NO_CUDA
 
 /////////////////////////////StratumMinerBytom////////////////////////////
