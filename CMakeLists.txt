@@ -453,6 +453,7 @@ include_directories(
   3rdparty
   3rdparty/equihash
   3rdparty/eaglesong
+  3rdparty/hextodec
   src
   test
   ${CHAIN_SRC_ROOT}/src
@@ -513,6 +514,9 @@ file(GLOB LIB_SOURCES
 add_library(eaglesong
   3rdparty/eaglesong/eaglesong.cc)
 
+add_library(hextodec
+  3rdparty/hextodec/hextodec.cc)
+
 file(GLOB LIB_SOURCES_CHAINS
         src/eth/*.cc
         src/bytom/*.cc 
@@ -546,7 +550,7 @@ add_library(
     ${LIB_SOURCES_PROMETHEUS}
     ${LIB_SOURCES_SHARES}
     ${LIB_SOURCES_CHAINS})
-target_link_libraries(btcpool PUBLIC beam cuckoo eaglesong)
+target_link_libraries(btcpool PUBLIC beam cuckoo eaglesong hextodec)
 target_link_libraries(btcpool PUBLIC rlpvalue)
 
 if(BUILD_TESTING)

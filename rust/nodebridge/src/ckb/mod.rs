@@ -4,7 +4,7 @@ use std::{str, thread};
 use chrono::prelude::*;
 use ckb_jsonrpc_types::BlockTemplate;
 use ckb_types::prelude::{Builder, Entity, Pack};
-use ckb_types::H256;
+use ckb_types::{H256};
 use failure::Error;
 use futures::future::{loop_fn, Loop};
 use futures::sync::mpsc::{channel, Sender};
@@ -156,9 +156,9 @@ fn create_block_record(
     height: u64,
     block_hash: &H256,
     pow_hash: &H256,
-    nonce: u64,
+    nonce: u128,
     parent_hash: &H256,
-    difficulty: u32,
+    compact_target: &u32,
 ) {
     let stmt = format!(
         "INSERT INTO `found_blocks` (`puid`,`worker_id`,`worker_full_name`,`height`,`hash`,`hash_no_nonce`,`nonce`,`prev_hash`,`network_diff`,`created_at`) VALUES({},{},'0x{}',{},'0x{}','0x{}','0x{:016x}','0x{}',{},'{}')",
@@ -170,7 +170,7 @@ fn create_block_record(
         pow_hash,
         nonce,
         parent_hash,
-        difficulty,
+        compact_target,
         Utc::now().format("%F %T"),
     );
     execute_query(url, stmt);
@@ -214,7 +214,7 @@ fn submit_block(rpc_client: Client, job: &MiningJob, solved_share: &SolvedShare,
         &solved_share.pow_hash,
         solved_share.nonce,
         &job.parent_hash,
-        job.compact_target,
+        &job.compact_target,
     );
 
     info!("Submitting block {}", &hash);

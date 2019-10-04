@@ -30,7 +30,7 @@ impl From<BlockTemplate> for MiningJob {
         let work_id = block_template.work_id.into();
         let height = block_template.number.into();
         let timestamp = block_template.current_time.into();
-        let compact_target = block_template.compact_target.clone();
+        let compact_target = block_template.compact_target.into();
         let parent_hash = block_template.parent_hash.clone();
         let block: Block = block_template.into();
         let (target, _,) = 
@@ -59,7 +59,7 @@ pub struct SolvedShare {
     pub timestamp: u64,
     pub pow_hash: H256,
     pub target: U256,
-    pub nonce: u64,
+    pub nonce: u128,
     pub job_id: u64,
     #[serde(rename = "userId")]
     pub user_id: i32,

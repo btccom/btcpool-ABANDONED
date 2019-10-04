@@ -17,4 +17,5 @@ message CkbMsg{
   optional sint32 extuserid = 13; // Extended uid in single-user mode. May not be set
   optional string username = 14;
   optional string workername = 15;
+  optional string ckbnonce = 16;
 }
