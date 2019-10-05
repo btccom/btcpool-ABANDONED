@@ -26,20 +26,54 @@
 #include <stdint.h>
 #include <string>
 
+#include "common/utils.hpp"
+
 using namespace std;
 
 struct PoolInfo {
-  bool enableTLS_ = false;
-  string host_;
-  uint16_t port_;
+  string name_;
+  string url_;
   string user_;
   string pwd_;
   string worker_;
+
+  string toString() const {
+    return StringFormat(
+        "name: %s, url: %s, user: %s, pwd: %s, worker: %s",
+        name_,
+        url_,
+        user_,
+        pwd_,
+        worker_);
+  }
+
+  bool enableTLS() const { return url_.find("tls://") == 0; }
+
+  string host() const {
+    string url = enableTLS() ? url_.substr(6) : url_;
+    size_t pos = url.rfind(':');
+    if (pos == url.npos) {
+      return url;
+    }
+    return url.substr(0, pos);
+  }
+
+  uint16_t port() const {
+    size_t pos = url_.rfind(':');
+    if (pos == url_.npos) {
+      return 0;
+    }
+    return (uint16_t)strtoul(url_.substr(pos + 1).c_str(), nullptr, 10);
+  }
 };
-struct PoolMatch {
+struct MatchRule {
   string field_;
   string value_;
   PoolInfo pool_;
+
+  string toString() const {
+    return StringFormat("(\"%s\" == '%s') -> %s", field_, value_, pool_.name_);
+  }
 };
 
 struct StratumWorker {
@@ -49,16 +83,25 @@ struct StratumWorker {
   string workerName_;
   string password_;
 
+  string toString() const {
+    return StringFormat(
+        "wallet: %s, user: %s, worker: %s, pwd: %s",
+        wallet_,
+        userName_,
+        workerName_,
+        password_);
+  }
+
   void setNames(string fullName, const string &password) {
     fullName_ = fullName;
     password_ = password;
 
     userName_ = getUserName(fullName);
     if (userName_.size() == 42 && userName_[0] == '0' &&
-      (userName_[1] == 'x' || userName_[1] == 'X')) {
-        wallet_ = userName_;
-        fullName = fullName.substr(userName_.size() + 1);
-        userName_ = getUserName(fullName);
+        (userName_[1] == 'x' || userName_[1] == 'X')) {
+      wallet_ = userName_;
+      fullName = fullName.substr(userName_.size() + 1);
+      userName_ = getUserName(fullName);
     }
     workerName_ = getWorkerName(fullName);
   }

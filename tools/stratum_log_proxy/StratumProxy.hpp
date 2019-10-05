@@ -36,6 +36,7 @@
 #include <mutex>
 #include <set>
 #include <map>
+#include <vector>
 #include <memory>
 #include <atomic>
 
@@ -60,18 +61,70 @@ using namespace libconfig;
 
 class StratumProxy {
 protected:
-  struct Session {
+  struct SessionBase {
     string ip_;
-    uint16_t port_;
+    uint16_t port_ = 0;
     StratumWorker worker_;
     PoolInfo poolInfo_;
 
+    string fieldReplace(const string &fieldTemplate) const {
+      string result;
+      size_t pos = 0;
+      while (pos < fieldTemplate.size()) {
+        size_t start = fieldTemplate.find('{', pos);
+        if (start == fieldTemplate.npos) {
+          result += fieldTemplate.substr(pos);
+          break;
+        }
+
+        size_t end = fieldTemplate.find('}', start);
+        if (end == fieldTemplate.npos) {
+          result += fieldTemplate.substr(pos);
+          break;
+        }
+
+        result += fieldTemplate.substr(pos, start - pos);
+        result += fieldValue(fieldTemplate.substr(start + 1, end - start - 1));
+        pos = end + 1;
+      }
+      return result;
+    }
+
+    string fieldValue(const string &fieldName) const {
+      if (fieldName == "ip") {
+        return ip_;
+      }
+      if (fieldName == "port") {
+        return to_string(port_);
+      }
+      if (fieldName == "fullname") {
+        return worker_.fullName_;
+      }
+      if (fieldName == "wallet") {
+        return worker_.wallet_;
+      }
+      if (fieldName == "user") {
+        return worker_.userName_;
+      }
+      if (fieldName == "worker") {
+        return worker_.workerName_;
+      }
+      if (fieldName == "pwd") {
+        return worker_.password_;
+      }
+      // Match failed, return original value
+      return "{" + fieldName + "}";
+    }
+  };
+
+  struct Session : SessionBase {
     struct evdns_base *evdnsBase_ = nullptr;
     struct bufferevent *downSession_ = nullptr;
     struct bufferevent *upSession_ = nullptr;
 
-    atomic<bool> downSessionConnected_;
-    atomic<bool> upSessionConnected_;
+    bool downSessionConnected_;
+    bool upSessionConnected_;
+    bool minerLogin_ = false;
 
     struct evbuffer *downBuffer_ = nullptr;
     struct evbuffer *upBuffer_ = nullptr;
@@ -93,30 +146,86 @@ protected:
       evdnsBase_ =
           evdns_base_new(server->base_, EVDNS_BASE_INITIALIZE_NAMESERVERS);
       if (evdnsBase_ == nullptr) {
-        LOG(FATAL) << "DNS init failed";
+        LOG(FATAL) << toString() << "DNS init failed";
       }
 
       analyzer_ = make_shared<StratumAnalyzer>();
-      analyzer_->setOnSubmitLogin(bind(&Session::onSubmitLogin, this, placeholders::_1));
+      analyzer_->setOnSubmitLogin(
+          bind(&Session::onSubmitLogin, this, placeholders::_1));
 
-      LOG(INFO) << "session created";
+      LOG(INFO) << toString() << "session created";
     }
 
     ~Session() {
-      evbuffer_free(downBuffer_);
-      evbuffer_free(upBuffer_);
+      if (downBuffer_)
+        evbuffer_free(downBuffer_);
+      if (upBuffer_)
+        evbuffer_free(upBuffer_);
 
-      if (downSession_) bufferevent_free(downSession_);
-      if (upSession_) bufferevent_free(upSession_);
+      if (downSession_)
+        bufferevent_free(downSession_);
+      if (upSession_)
+        bufferevent_free(upSession_);
 
-      LOG(INFO) << "session destroyed";
+      LOG(INFO) << toString() << "session destroyed";
+    }
+
+    string toString() const {
+      return StringFormat(
+          "[%s@%s:%u -> %s.%s@%s] ",
+          worker_.fullName_,
+          ip_,
+          port_,
+          poolInfo_.user_,
+          poolInfo_.worker_,
+          poolInfo_.url_);
     }
 
     void onSubmitLogin(StratumWorker worker) {
       worker_ = worker;
-      LOG(INFO) << "miner login, wallet: " << worker_.wallet_ << ", user: " << worker_.userName_
-        << ", worker: " << worker_.workerName_ << ", pwd: " << worker_.password_;
-      
+      minerLogin_ = true;
+      LOG(INFO) << toString() << "miner login, " << worker_.toString();
+
+      // rule matching
+      bool match = false;
+      for (auto rule : server_->matchRules_) {
+        string field = fieldReplace(rule.field_);
+        match = field == rule.value_;
+        DLOG(INFO) << toString() << "[rule matching] " << field
+                   << (match ? " == " : " != ") << rule.value_;
+        if (match) {
+          poolInfo_ = rule.pool_;
+          break;
+        }
+      }
+
+      if (!match) {
+        DLOG(INFO) << toString()
+                   << "[rule matching] Match failed, use default pool";
+        poolInfo_ = server_->defaultPool_;
+      }
+
+      poolInfo_.url_ = fieldReplace(poolInfo_.url_);
+      poolInfo_.user_ = fieldReplace(poolInfo_.user_);
+      poolInfo_.pwd_ = fieldReplace(poolInfo_.pwd_);
+      poolInfo_.worker_ = fieldReplace(poolInfo_.worker_);
+
+      LOG(INFO) << toString() << "[connect] miner: " << worker_.fullName_
+                << ", pool " << poolInfo_.toString();
+
+      analyzer_->updateMinerInfo(poolInfo_);
+      string buffer = analyzer_->getSubmitLoginLine();
+      DLOG(INFO) << toString() << toString() << "upload-replaced("
+                 << buffer.size() << "): " << buffer;
+
+      buffer += analyzer_->getUploadIncompleteLine();
+      evbuffer_add(upBuffer_, buffer.data(), buffer.size());
+
+      if (!server_->connectUpstream(this)) {
+        server_->removeSession(this);
+        return;
+      }
+
       analyzer_->run();
     }
 
@@ -128,9 +237,8 @@ protected:
       evbuffer_copyout(buffer, (char *)content.data(), content.size());
       session->analyzer_->addUploadText(content);
 
-#ifndef NDEBUG
-      LOG(INFO) << "upload(" << content.size() << "): " << content;
-#endif
+      DLOG(INFO) << session->toString() << "upload(" << content.size()
+                 << "): " << content;
 
       session->downSessionConnected_ = true;
       if (session->upSessionConnected_) {
@@ -139,6 +247,8 @@ protected:
             session->upBuffer_, evbuffer_get_length(session->upBuffer_));
 
         bufferevent_write_buffer(session->upSession_, buffer);
+      } else if (session->minerLogin_) {
+        evbuffer_add_buffer(session->upBuffer_, buffer);
       } else {
         session->analyzer_->runOnce();
       }
@@ -154,9 +264,8 @@ protected:
       evbuffer_copyout(buffer, (char *)content.data(), content.size());
       session->analyzer_->addDownloadText(content);
 
-#ifndef NDEBUG
-      LOG(INFO) << "download(" << content.size() << "): " << content;
-#endif
+      DLOG(INFO) << session->toString() << "download(" << content.size()
+                 << "): " << content;
 
       session->upSessionConnected_ = true;
       if (session->downSessionConnected_) {
@@ -168,7 +277,7 @@ protected:
       } else {
         evbuffer_add_buffer(session->downBuffer_, buffer);
       }
-      
+
       evbuffer_drain(buffer, evbuffer_get_length(buffer));
     }
 
@@ -177,7 +286,7 @@ protected:
       auto session = static_cast<Session *>(data);
 
       if (events & BEV_EVENT_CONNECTED) {
-        LOG(INFO) << "downSession connected";
+        LOG(INFO) << session->toString() << "downSession connected";
         session->downSessionConnected_ = true;
         bufferevent_write_buffer(session->downSession_, session->downBuffer_);
         evbuffer_drain(
@@ -186,15 +295,18 @@ protected:
       }
 
       if (events & BEV_EVENT_EOF) {
-        LOG(INFO) << "downSession socket closed";
+        LOG(INFO) << session->toString() << "downSession socket closed";
       } else if (events & BEV_EVENT_ERROR) {
-        LOG(INFO) << "downSession got an error on the socket: "
+        LOG(INFO) << session->toString()
+                  << "downSession got an error on the socket: "
                   << evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR());
       } else if (events & BEV_EVENT_TIMEOUT) {
-        LOG(INFO) << "downSession socket read/write timeout, events: "
+        LOG(INFO) << session->toString()
+                  << "downSession socket read/write timeout, events: "
                   << events;
       } else {
-        LOG(WARNING) << "downSession unhandled socket events: " << events;
+        LOG(WARNING) << session->toString()
+                     << "downSession unhandled socket events: " << events;
       }
 
       session->downSessionConnected_ = false;
@@ -206,7 +318,7 @@ protected:
       auto session = static_cast<Session *>(data);
 
       if (events & BEV_EVENT_CONNECTED) {
-        LOG(INFO) << "upSession connected";
+        LOG(INFO) << session->toString() << "upSession connected";
         session->upSessionConnected_ = true;
         bufferevent_write_buffer(session->upSession_, session->upBuffer_);
         evbuffer_drain(
@@ -215,14 +327,17 @@ protected:
       }
 
       if (events & BEV_EVENT_EOF) {
-        LOG(INFO) << "upSession socket closed";
+        LOG(INFO) << session->toString() << "upSession socket closed";
       } else if (events & BEV_EVENT_ERROR) {
-        LOG(INFO) << "upSession got an error on the socket: "
+        LOG(INFO) << session->toString()
+                  << "upSession got an error on the socket: "
                   << evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR());
       } else if (events & BEV_EVENT_TIMEOUT) {
-        LOG(INFO) << "upSession socket read/write timeout, events: " << events;
+        LOG(INFO) << session->toString()
+                  << "upSession socket read/write timeout, events: " << events;
       } else {
-        LOG(WARNING) << "upSession unhandled socket events: " << events;
+        LOG(WARNING) << session->toString()
+                     << "upSession unhandled socket events: " << events;
       }
 
       session->upSessionConnected_ = false;
@@ -238,6 +353,8 @@ protected:
   struct event_base *base_ = nullptr;
   struct evconnlistener *listener_ = nullptr;
   map<string, PoolInfo> pools_;
+  PoolInfo defaultPool_;
+  vector<MatchRule> matchRules_;
 
   set<Session *> sessions_;
   mutex sessionsLock_;
@@ -296,26 +413,51 @@ public:
       return false;
     }
 
-    // ------------------- TCP Connect -------------------
+    // ------------------- pools -------------------
     const auto &pools = config_.lookup("pools");
     for (int i = 0; i < pools.getLength(); i++) {
-      pools_[pools[i].lookup("name").operator string()] = {
-        pools[i].lookup("enable_tls").operator bool(),
-        pools[i].lookup("host").operator string(),
-        (uint16_t)pools[i].lookup("port").operator unsigned int(),
-        pools[i].lookup("user").operator string(),
-        pools[i].lookup("pwd").operator string(),
-        pools[i].lookup("worker").operator string()
-      };
+      string poolName = pools[i].lookup("name").operator string();
+      pools_[poolName] = {poolName,
+                          pools[i].lookup("url").operator string(),
+                          pools[i].lookup("user").operator string(),
+                          pools[i].lookup("pwd").operator string(),
+                          pools[i].lookup("worker").operator string()};
     }
 
-  for (const auto &itr : pools_) {
-    if (itr.second.host_.empty() || itr.second.port_ == 0) {
-      LOG(ERROR) << "invalid pools addr/port: " << itr.second.host_ << ":"
-                 << itr.second.port_;
+    for (const auto &itr : pools_) {
+      LOG(INFO) << "[add pool] " << itr.second.toString();
+      if (itr.second.host().empty() || itr.second.port() == 0) {
+        if (SessionBase().fieldReplace(itr.second.url_) == itr.second.url_) {
+          LOG(ERROR) << "invalid pools url: " << itr.second.url_;
+          return false;
+        }
+      }
+    }
+
+    string defaultPoolName = config_.lookup("match.default");
+    if (pools_.find(defaultPoolName) == pools_.end()) {
+      LOG(ERROR) << "default pool " << defaultPoolName << " is not exists";
       return false;
     }
-  }
+
+    defaultPool_ = pools_[defaultPoolName];
+    LOG(INFO) << "[default pool] " << defaultPool_.toString();
+
+    const auto &rules = config_.lookup("match.rules");
+    for (int i = 0; i < rules.getLength(); i++) {
+      string poolName = rules[i].lookup("pool").operator string();
+      if (pools_.find(poolName) == pools_.end()) {
+        LOG(ERROR) << "pool " << poolName << " in match rules is not exists";
+        return false;
+      }
+      matchRules_.emplace_back(
+          MatchRule{rules[i].lookup("field").operator string(),
+                    rules[i].lookup("value").operator string(),
+                    pools_[poolName]});
+    }
+    for (auto rule : matchRules_) {
+      LOG(INFO) << "[add rule] " << rule.toString();
+    }
 
     return true;
   }
@@ -403,10 +545,13 @@ public:
     bufferevent_enable(downBev, EV_READ | EV_WRITE);
   }
 
-  bool connectUpstream(Session *session, struct bufferevent *&upBev, const PoolInfo &serverInfo) {
+  bool connectUpstream(Session *session) {
+    struct bufferevent *&upBev = session->upSession_;
+    const PoolInfo &serverInfo = session->poolInfo_;
+
     upBev = nullptr;
 
-    if (serverInfo.enableTLS_) {
+    if (serverInfo.enableTLS()) {
       SSL *upSSL = SSL_new(get_client_SSL_CTX_With_Cache());
       if (upSSL == nullptr) {
         LOG(ERROR) << "Error calling SSL_new!";
@@ -445,10 +590,10 @@ public:
         upBev,
         session->evdnsBase_,
         AF_INET,
-        serverInfo.host_.c_str(),
-        serverInfo.port_);
+        serverInfo.host().c_str(),
+        serverInfo.port());
     if (res != 0) {
-      LOG(WARNING) << "upSession connecting failed";
+      LOG(WARNING) << session->toString() << "upSession connecting failed";
       return false;
     }
 

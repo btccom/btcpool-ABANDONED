@@ -34,10 +34,10 @@
 #include "StratumBase.hpp"
 
 using namespace std;
-using nljson = nlohmann::json;
-using nlexception = nlohmann::detail::exception;
+using JSON = nlohmann::json;
+using JSONException = nlohmann::detail::exception;
 
-class StratumAnalyzer: public std::enable_shared_from_this<StratumAnalyzer> {
+class StratumAnalyzer : public std::enable_shared_from_this<StratumAnalyzer> {
 public:
   using OnSubmitLogin = function<void(StratumWorker)>;
 
@@ -46,12 +46,6 @@ protected:
     bool upload_;
     time_t time_;
     string line_;
-
-    Record(bool &&upload, time_t &&time, string &&line)
-      : upload_(move(upload))
-      , time_(move(time))
-      , line_(move(line))
-      {}
   };
 
   string uploadIncompleteLine_;
@@ -63,6 +57,7 @@ protected:
   thread runningThread_;
 
   OnSubmitLogin onSubmitLogin_;
+  JSON loginRequestId_;
 
   string ip_;
   uint16_t port_;
@@ -70,33 +65,55 @@ protected:
   PoolInfo poolInfo_;
 
 public:
-  void setOnSubmitLogin(OnSubmitLogin func) {
-    onSubmitLogin_ = func;
-  }
+  void setOnSubmitLogin(OnSubmitLogin func) { onSubmitLogin_ = func; }
 
-  void updateMinerInfo(const PoolInfo &info) {
-    poolInfo_ = info;
+  void updateMinerInfo(const PoolInfo &info) { poolInfo_ = info; }
+
+  string getSubmitLoginLine() {
+    JSON json = {{"id", loginRequestId_},
+                 {"method", "eth_submitLogin"},
+                 {"params", {poolInfo_.user_, poolInfo_.pwd_}}};
+    if (!poolInfo_.worker_.empty()) {
+      json["worker"] = poolInfo_.worker_;
+    }
+    return json.dump() + "\n";
   }
 
   string getUploadIncompleteLine() {
-    return uploadIncompleteLine_;
+    string result;
+    for (const auto &itr : lines_) {
+      result += itr.line_;
+    }
+    result += uploadIncompleteLine_;
+    return result;
+  }
+
+  string toString() const {
+    return StringFormat(
+        "[%s@%s:%u -> %s.%s@%s] ",
+        worker_.fullName_,
+        ip_,
+        port_,
+        poolInfo_.user_,
+        poolInfo_.worker_,
+        poolInfo_.url_);
   }
 
   StratumAnalyzer()
     : running_(false) {}
-  
-  ~StratumAnalyzer() {
-    stop();
-  }
+
+  ~StratumAnalyzer() { stop(); }
 
   void addUploadText(const string &text) {
     lock_guard<mutex> scopeLock(recordLock_);
     uploadIncompleteLine_ += text;
 
     size_t pos = uploadIncompleteLine_.npos;
-    while ((pos = uploadIncompleteLine_.find("\n")) != uploadIncompleteLine_.npos) {
-      lines_.emplace_back(true, time(nullptr), uploadIncompleteLine_.substr(0, pos));
-      uploadIncompleteLine_ = uploadIncompleteLine_.substr(pos + 1);
+    while ((pos = uploadIncompleteLine_.find("\n")) !=
+           uploadIncompleteLine_.npos) {
+      lines_.emplace_back(
+          Record{true, time(nullptr), uploadIncompleteLine_.substr(0, ++pos)});
+      uploadIncompleteLine_ = uploadIncompleteLine_.substr(pos);
     }
   }
 
@@ -105,8 +122,10 @@ public:
     downloadIncompleteLine_ += text;
 
     size_t pos = downloadIncompleteLine_.npos;
-    while ((pos = downloadIncompleteLine_.find("\n")) != downloadIncompleteLine_.npos) {
-      lines_.emplace_back(false, time(nullptr), downloadIncompleteLine_.substr(0, pos));
+    while ((pos = downloadIncompleteLine_.find("\n")) !=
+           downloadIncompleteLine_.npos) {
+      lines_.emplace_back(
+          Record{false, time(nullptr), downloadIncompleteLine_.substr(0, pos)});
       downloadIncompleteLine_ = downloadIncompleteLine_.substr(pos + 1);
     }
   }
@@ -117,19 +136,24 @@ public:
       running_ = true;
       while (running_) {
         this_thread::sleep_for(5s);
-        runOnce();
+        recordLock_.lock();
+        vector<Record> lines = lines_;
+        lines_.clear();
+        recordLock_.unlock();
+
+        for (const Record &record : lines) {
+          parseRecord(record);
+        }
       }
     });
   }
 
   void runOnce() {
-    recordLock_.lock();
-    vector<Record> lines = lines_;
-    lines_.clear();
-    recordLock_.unlock();
-
-    for (const Record &record : lines) {
-      parseRecord(record);
+    lock_guard<mutex> scopeLock(recordLock_);
+    while (lines_.size() > 0) {
+      auto line = lines_[0];
+      lines_.erase(lines_.begin());
+      parseRecord(line);
     }
   }
 
@@ -142,10 +166,10 @@ public:
 
   void parseRecord(const Record &record) {
     try {
-      auto json = nljson::parse(record.line_);
+      auto json = JSON::parse(record.line_);
       if (!json.is_object()) {
-        LOG(INFO) << (record.upload_ ? "[upload]" : "[download]")
-          << " invalid json: " << record.line_;
+        LOG(INFO) << toString() << (record.upload_ ? "[upload]" : "[download]")
+                  << " invalid json: " << record.line_;
         return;
       }
 
@@ -163,24 +187,28 @@ public:
             }
           }
         } else {
-          LOG(INFO) << "[upload] missing method, json: " << record.line_;
+          LOG(INFO) << toString()
+                    << "[upload] missing method, json: " << record.line_;
         }
 
       } else {
         // download: pool -> miner
       }
-    } catch (const nlexception &ex) {
-      LOG(INFO) << (record.upload_ ? "[upload]" : "[download]")
-        << " json parser exception: " << ex.what() << ", json: " << record.line_;
+    } catch (const JSONException &ex) {
+      LOG(INFO) << toString() << (record.upload_ ? "[upload]" : "[download]")
+                << " json parser exception: " << ex.what()
+                << ", json: " << record.line_;
     }
   }
 
-  void parseSubmitLogin(nljson &&json) {
+  void parseSubmitLogin(JSON &&json) {
     auto params = json["params"];
     if (!params.is_array() || params.size() < 1) {
-      LOG(INFO) << "[upload] missing params, json: " << json;
+      LOG(INFO) << toString() << "[upload] missing params, json: " << json;
       return;
     }
+
+    loginRequestId_ = json["id"];
 
     string user = params[0].get<string>();
     string password;
