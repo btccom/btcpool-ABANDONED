@@ -35,6 +35,7 @@
 #include <utility>
 #include <mutex>
 #include <set>
+#include <map>
 #include <memory>
 #include <atomic>
 
@@ -51,6 +52,8 @@
 #include <event2/bufferevent_ssl.h>
 
 #include "SSLUtils.h"
+#include "StratumBase.hpp"
+#include "StratumAnalyzer.hpp"
 
 using namespace std;
 using namespace libconfig;
@@ -58,25 +61,31 @@ using namespace libconfig;
 class StratumProxy {
 protected:
   struct Session {
+    string ip_;
+    uint16_t port_;
+    StratumWorker worker_;
+    PoolInfo poolInfo_;
+
     struct evdns_base *evdnsBase_ = nullptr;
     struct bufferevent *downSession_ = nullptr;
     struct bufferevent *upSession_ = nullptr;
 
-    atomic<bool> downSessionConnected;
-    atomic<bool> upSessionConnected;
+    atomic<bool> downSessionConnected_;
+    atomic<bool> upSessionConnected_;
 
     struct evbuffer *downBuffer_ = nullptr;
     struct evbuffer *upBuffer_ = nullptr;
 
     StratumProxy *server_ = nullptr;
+    shared_ptr<StratumAnalyzer> analyzer_;
 
     Session(
         struct bufferevent *down, struct bufferevent *up, StratumProxy *server)
       : downSession_(down)
       , upSession_(up)
       , server_(server) {
-      downSessionConnected = false;
-      upSessionConnected = false;
+      downSessionConnected_ = false;
+      upSessionConnected_ = false;
 
       downBuffer_ = evbuffer_new();
       upBuffer_ = evbuffer_new();
@@ -87,6 +96,9 @@ protected:
         LOG(FATAL) << "DNS init failed";
       }
 
+      analyzer_ = make_shared<StratumAnalyzer>();
+      analyzer_->setOnSubmitLogin(bind(&Session::onSubmitLogin, this, placeholders::_1));
+
       LOG(INFO) << "session created";
     }
 
@@ -94,10 +106,18 @@ protected:
       evbuffer_free(downBuffer_);
       evbuffer_free(upBuffer_);
 
-      bufferevent_free(downSession_);
-      bufferevent_free(upSession_);
+      if (downSession_) bufferevent_free(downSession_);
+      if (upSession_) bufferevent_free(upSession_);
 
       LOG(INFO) << "session destroyed";
+    }
+
+    void onSubmitLogin(StratumWorker worker) {
+      worker_ = worker;
+      LOG(INFO) << "miner login, wallet: " << worker_.wallet_ << ", user: " << worker_.userName_
+        << ", worker: " << worker_.workerName_ << ", pwd: " << worker_.password_;
+      
+      analyzer_->run();
     }
 
     static void downReadCallback(struct bufferevent *bev, void *data) {
@@ -106,18 +126,24 @@ protected:
 
       string content(evbuffer_get_length(buffer), 0);
       evbuffer_copyout(buffer, (char *)content.data(), content.size());
-      LOG(INFO) << "upload(" << content.size() << "): " << content;
+      session->analyzer_->addUploadText(content);
 
-      session->downSessionConnected = true;
-      if (session->upSessionConnected) {
+#ifndef NDEBUG
+      LOG(INFO) << "upload(" << content.size() << "): " << content;
+#endif
+
+      session->downSessionConnected_ = true;
+      if (session->upSessionConnected_) {
         bufferevent_write_buffer(session->upSession_, session->upBuffer_);
         evbuffer_drain(
             session->upBuffer_, evbuffer_get_length(session->upBuffer_));
 
         bufferevent_write_buffer(session->upSession_, buffer);
       } else {
-        evbuffer_add_buffer(session->upBuffer_, buffer);
+        session->analyzer_->runOnce();
       }
+
+      evbuffer_drain(buffer, evbuffer_get_length(buffer));
     }
 
     static void upReadCallback(struct bufferevent *bev, void *data) {
@@ -126,10 +152,14 @@ protected:
 
       string content(evbuffer_get_length(buffer), 0);
       evbuffer_copyout(buffer, (char *)content.data(), content.size());
-      LOG(INFO) << "download(" << content.size() << "): " << content;
+      session->analyzer_->addDownloadText(content);
 
-      session->upSessionConnected = true;
-      if (session->downSessionConnected) {
+#ifndef NDEBUG
+      LOG(INFO) << "download(" << content.size() << "): " << content;
+#endif
+
+      session->upSessionConnected_ = true;
+      if (session->downSessionConnected_) {
         bufferevent_write_buffer(session->downSession_, session->downBuffer_);
         evbuffer_drain(
             session->downBuffer_, evbuffer_get_length(session->downBuffer_));
@@ -138,6 +168,8 @@ protected:
       } else {
         evbuffer_add_buffer(session->downBuffer_, buffer);
       }
+      
+      evbuffer_drain(buffer, evbuffer_get_length(buffer));
     }
 
     static void
@@ -146,7 +178,7 @@ protected:
 
       if (events & BEV_EVENT_CONNECTED) {
         LOG(INFO) << "downSession connected";
-        session->downSessionConnected = true;
+        session->downSessionConnected_ = true;
         bufferevent_write_buffer(session->downSession_, session->downBuffer_);
         evbuffer_drain(
             session->downBuffer_, evbuffer_get_length(session->downBuffer_));
@@ -165,7 +197,7 @@ protected:
         LOG(WARNING) << "downSession unhandled socket events: " << events;
       }
 
-      session->downSessionConnected = false;
+      session->downSessionConnected_ = false;
       session->server_->removeSession(session);
     }
 
@@ -175,7 +207,7 @@ protected:
 
       if (events & BEV_EVENT_CONNECTED) {
         LOG(INFO) << "upSession connected";
-        session->upSessionConnected = true;
+        session->upSessionConnected_ = true;
         bufferevent_write_buffer(session->upSession_, session->upBuffer_);
         evbuffer_drain(
             session->upBuffer_, evbuffer_get_length(session->upBuffer_));
@@ -193,7 +225,7 @@ protected:
         LOG(WARNING) << "upSession unhandled socket events: " << events;
       }
 
-      session->upSessionConnected = false;
+      session->upSessionConnected_ = false;
       session->server_->removeSession(session);
     }
   };
@@ -201,13 +233,11 @@ protected:
   const Config &config_;
 
   bool enableTLS_ = false;
-  bool upstreamEnableTLS_ = false;
   SSL_CTX *sslCTX_ = nullptr;
   struct sockaddr_in sinListen_;
   struct event_base *base_ = nullptr;
   struct evconnlistener *listener_ = nullptr;
-  string upstreamHost_;
-  uint16_t upstreamPort_;
+  map<string, PoolInfo> pools_;
 
   set<Session *> sessions_;
   mutex sessionsLock_;
@@ -216,7 +246,6 @@ public:
   StratumProxy(const Config &config)
     : config_(config) {
     config.lookupValue("proxy.enable_tls", enableTLS_);
-    config.lookupValue("upstream.enable_tls", upstreamEnableTLS_);
 
     if (enableTLS_) {
       // try get SSL CTX (load SSL cert and key)
@@ -268,14 +297,25 @@ public:
     }
 
     // ------------------- TCP Connect -------------------
-    upstreamHost_ = config_.lookup("upstream.addr").operator string();
-    upstreamPort_ = config_.lookup("upstream.port").operator unsigned int();
+    const auto &pools = config_.lookup("pools");
+    for (int i = 0; i < pools.getLength(); i++) {
+      pools_[pools[i].lookup("name").operator string()] = {
+        pools[i].lookup("enable_tls").operator bool(),
+        pools[i].lookup("host").operator string(),
+        (uint16_t)pools[i].lookup("port").operator unsigned int(),
+        pools[i].lookup("user").operator string(),
+        pools[i].lookup("pwd").operator string(),
+        pools[i].lookup("worker").operator string()
+      };
+    }
 
-    if (upstreamHost_.empty() || upstreamPort_ == 0) {
-      LOG(ERROR) << "invalid upstream addr/port: " << upstreamHost_ << ":"
-                 << upstreamPort_;
+  for (const auto &itr : pools_) {
+    if (itr.second.host_.empty() || itr.second.port_ == 0) {
+      LOG(ERROR) << "invalid pools addr/port: " << itr.second.host_ << ":"
+                 << itr.second.port_;
       return false;
     }
+  }
 
     return true;
   }
@@ -312,7 +352,7 @@ public:
       int socklen,
       void *data) {
     StratumProxy *server = static_cast<StratumProxy *>(data);
-    struct event_base *base = (struct event_base *)server->base_;
+    struct event_base *base = server->base_;
 
     // ---------------------- downSession ----------------------
     struct bufferevent *downBev = nullptr;
@@ -345,41 +385,8 @@ public:
       return;
     }
 
-    // ---------------------- upSession ----------------------
-    struct bufferevent *upBev = nullptr;
-
-    if (server->upstreamEnableTLS_) {
-      SSL *upSSL = SSL_new(get_client_SSL_CTX_With_Cache());
-      if (upSSL == nullptr) {
-        LOG(ERROR) << "Error calling SSL_new!";
-        bufferevent_free(downBev);
-        server->stop();
-        return;
-      }
-
-      upBev = bufferevent_openssl_socket_new(
-          base,
-          -1,
-          upSSL,
-          BUFFEREVENT_SSL_CONNECTING,
-          BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
-    } else {
-      upBev = bufferevent_socket_new(
-          base, -1, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
-    }
-
-    // If it was NULL with flag BEV_OPT_THREADSAFE,
-    // please call evthread_use_pthreads() before you call event_base_new().
-    if (upBev == nullptr) {
-      LOG(ERROR) << "Error constructing bufferevent! Maybe you forgot call "
-                    "evthread_use_pthreads() before event_base_new().";
-      bufferevent_free(downBev);
-      server->stop();
-      return;
-    }
-
     // ---------------------- add session ----------------------
-    auto session = new Session(downBev, upBev, server);
+    auto session = new Session(downBev, nullptr, server);
     {
       lock_guard<mutex> sl(server->sessionsLock_);
       server->sessions_.insert(session);
@@ -394,6 +401,36 @@ public:
         session);
     // By default, a newly created bufferevent has writing enabled.
     bufferevent_enable(downBev, EV_READ | EV_WRITE);
+  }
+
+  bool connectUpstream(Session *session, struct bufferevent *&upBev, const PoolInfo &serverInfo) {
+    upBev = nullptr;
+
+    if (serverInfo.enableTLS_) {
+      SSL *upSSL = SSL_new(get_client_SSL_CTX_With_Cache());
+      if (upSSL == nullptr) {
+        LOG(ERROR) << "Error calling SSL_new!";
+        return false;
+      }
+
+      upBev = bufferevent_openssl_socket_new(
+          base_,
+          -1,
+          upSSL,
+          BUFFEREVENT_SSL_CONNECTING,
+          BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
+    } else {
+      upBev = bufferevent_socket_new(
+          base_, -1, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
+    }
+
+    // If it was NULL with flag BEV_OPT_THREADSAFE,
+    // please call evthread_use_pthreads() before you call event_base_new().
+    if (upBev == nullptr) {
+      LOG(ERROR) << "Error constructing bufferevent! Maybe you forgot call "
+                    "evthread_use_pthreads() before event_base_new().";
+      return false;
+    }
 
     bufferevent_setcb(
         upBev,
@@ -408,11 +445,13 @@ public:
         upBev,
         session->evdnsBase_,
         AF_INET,
-        server->upstreamHost_.c_str(),
-        server->upstreamPort_);
+        serverInfo.host_.c_str(),
+        serverInfo.port_);
     if (res != 0) {
       LOG(WARNING) << "upSession connecting failed";
-      server->removeSession(session);
+      return false;
     }
+
+    return true;
   }
 };

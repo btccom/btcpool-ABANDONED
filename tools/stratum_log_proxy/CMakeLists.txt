@@ -38,7 +38,7 @@ find_package(LibEvent REQUIRED)
 ###################################### Targets ######################################
 
 include_directories(${GLOG_INCLUDE_DIRS} ${LIBCONFIGPP_INCLUDE_DIR} ${PTHREAD_INCLUDE_DIRS} ${OPENSSL_INCLUDE_DIR}
-                    ${LIBEVENT_INCLUDE_DIR} ${PROJECT_ROOT}/src/ssl)
+                    ${LIBEVENT_INCLUDE_DIR} ${PROJECT_ROOT}/src/ssl ${PROJECT_ROOT}/3rdparty)
 
 set(THIRD_LIBRARIES ${GLOG_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB} ${LIBEVENT_OPENSSL_LIB}
                     ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} ${PTHREAD_LIBRARIES})
