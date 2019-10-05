@@ -43,8 +43,8 @@ public:
 
 protected:
   struct Record {
-    bool upload_;
-    time_t time_;
+    bool upload_ = 0;
+    time_t time_ = 0;
     string line_;
   };
 
@@ -60,7 +60,7 @@ protected:
   JSON loginRequestId_;
 
   string ip_;
-  uint16_t port_;
+  uint16_t port_ = 0;
   StratumWorker worker_;
   PoolInfo poolInfo_;
 
@@ -89,18 +89,27 @@ public:
   }
 
   string toString() const {
-    return StringFormat(
-        "[%s@%s:%u -> %s.%s@%s] ",
-        worker_.fullName_,
-        ip_,
-        port_,
-        poolInfo_.user_,
-        poolInfo_.worker_,
-        poolInfo_.url_);
+    string result = StringFormat("%s:%u", ip_, port_);
+    if (!worker_.fullName_.empty())
+      result += " / " + worker_.fullName_;
+
+    string pool = poolInfo_.url_;
+    if (!poolInfo_.user_.empty() || !poolInfo_.worker_.empty()) {
+      pool += " / " + poolInfo_.user_;
+      if (!poolInfo_.worker_.empty())
+        pool += "." + poolInfo_.worker_;
+    }
+
+    if (!pool.empty())
+      result += " -> " + pool;
+
+    return "[" + result + "] ";
   }
 
-  StratumAnalyzer()
-    : running_(false) {}
+  StratumAnalyzer(const string &ip, uint16_t port)
+    : running_(false)
+    , ip_(ip)
+    , port_(port) {}
 
   ~StratumAnalyzer() { stop(); }
 

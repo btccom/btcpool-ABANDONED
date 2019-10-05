@@ -30,6 +30,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <netinet/tcp.h>
 
 #include <iostream>
 #include <utility>
@@ -117,13 +118,43 @@ protected:
     }
   };
 
+  static void
+  get_ip_port(const struct sockaddr *sa, string &ip, uint16_t &port) {
+    switch (sa->sa_family) {
+    case AF_INET:
+      ip.resize(INET_ADDRSTRLEN);
+      inet_ntop(
+          AF_INET,
+          &(((struct sockaddr_in *)sa)->sin_addr),
+          (char *)ip.data(),
+          ip.size());
+      port = ((struct sockaddr_in *)sa)->sin_port;
+      break;
+
+    case AF_INET6:
+      ip.resize(INET6_ADDRSTRLEN);
+      inet_ntop(
+          AF_INET6,
+          &(((struct sockaddr_in6 *)sa)->sin6_addr),
+          (char *)ip.data(),
+          ip.size());
+      port = ((struct sockaddr_in6 *)sa)->sin6_port;
+      break;
+    }
+
+    size_t pos = ip.find('\0');
+    if (pos != ip.npos) {
+      ip.resize(pos);
+    }
+  }
+
   struct Session : SessionBase {
     struct evdns_base *evdnsBase_ = nullptr;
     struct bufferevent *downSession_ = nullptr;
     struct bufferevent *upSession_ = nullptr;
 
-    bool downSessionConnected_;
-    bool upSessionConnected_;
+    bool downSessionConnected_ = false;
+    bool upSessionConnected_ = false;
     bool minerLogin_ = false;
 
     struct evbuffer *downBuffer_ = nullptr;
@@ -133,12 +164,11 @@ protected:
     shared_ptr<StratumAnalyzer> analyzer_;
 
     Session(
-        struct bufferevent *down, struct bufferevent *up, StratumProxy *server)
+        struct bufferevent *down, struct sockaddr *saddr, StratumProxy *server)
       : downSession_(down)
-      , upSession_(up)
       , server_(server) {
-      downSessionConnected_ = false;
-      upSessionConnected_ = false;
+
+      get_ip_port(saddr, ip_, port_);
 
       downBuffer_ = evbuffer_new();
       upBuffer_ = evbuffer_new();
@@ -149,7 +179,7 @@ protected:
         LOG(FATAL) << toString() << "DNS init failed";
       }
 
-      analyzer_ = make_shared<StratumAnalyzer>();
+      analyzer_ = make_shared<StratumAnalyzer>(ip_, port_);
       analyzer_->setOnSubmitLogin(
           bind(&Session::onSubmitLogin, this, placeholders::_1));
 
@@ -171,14 +201,21 @@ protected:
     }
 
     string toString() const {
-      return StringFormat(
-          "[%s@%s:%u -> %s.%s@%s] ",
-          worker_.fullName_,
-          ip_,
-          port_,
-          poolInfo_.user_,
-          poolInfo_.worker_,
-          poolInfo_.url_);
+      string result = StringFormat("%s:%u", ip_, port_);
+      if (!worker_.fullName_.empty())
+        result += " / " + worker_.fullName_;
+
+      string pool = poolInfo_.url_;
+      if (!poolInfo_.user_.empty() || !poolInfo_.worker_.empty()) {
+        pool += " / " + poolInfo_.user_;
+        if (!poolInfo_.worker_.empty())
+          pool += "." + poolInfo_.worker_;
+      }
+
+      if (!pool.empty())
+        result += " -> " + pool;
+
+      return "[" + result + "] ";
     }
 
     void onSubmitLogin(StratumWorker worker) {
@@ -496,6 +533,17 @@ public:
     StratumProxy *server = static_cast<StratumProxy *>(data);
     struct event_base *base = server->base_;
 
+    // Theoretically we can do it on the listener fd, but this is to make
+    // sure we have the same behavior if some distro does not inherit the
+    // option.
+    int yes = 1;
+    setsockopt(socket, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(int));
+
+    // When we want to close the connection we want to send RST instead of FIN
+    // so that miners will be disconnected immediately.
+    linger lingerOn{1, 0};
+    setsockopt(socket, SOL_SOCKET, SO_LINGER, &lingerOn, sizeof(struct linger));
+
     // ---------------------- downSession ----------------------
     struct bufferevent *downBev = nullptr;
 
@@ -528,7 +576,7 @@ public:
     }
 
     // ---------------------- add session ----------------------
-    auto session = new Session(downBev, nullptr, server);
+    auto session = new Session(downBev, saddr, server);
     {
       lock_guard<mutex> sl(server->sessionsLock_);
       server->sessions_.insert(session);
