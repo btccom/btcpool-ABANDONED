@@ -25,8 +25,10 @@
 
 #include <stdint.h>
 #include <string>
+#include <unordered_map>
+#include <queue>
 
-#include "common/utils.hpp"
+#include "utils.hpp"
 
 using namespace std;
 
@@ -120,5 +122,48 @@ struct StratumWorker {
       return "";
     }
     return fullName.substr(pos + 1);
+  }
+};
+
+/////////////////// A map that can clean up expired items //////////////////////
+template <typename K, typename V>
+class SeqMap {
+  std::unordered_map<K, V> map_;
+  std::queue<K> queue_;
+
+public:
+  V &operator[](const K &key) {
+    if (map_.find(key) == map_.end()) {
+      queue_.push(key);
+    }
+    return map_[key];
+  }
+
+  bool contains(const K &key) { return map_.find(key) != map_.end(); }
+  auto find(const K &key) { return map_.find(key); }
+  auto begin() { return map_.begin(); }
+  auto end() { return map_.end(); }
+  size_t size() { return map_.size(); }
+  bool empty() { return map_.empty(); }
+
+  void clear(size_t maxSize) {
+    while (queue_.size() > maxSize) {
+      auto itr = map_.find(queue_.front());
+      queue_.pop();
+      if (itr != map_.end()) {
+        map_.erase(itr);
+      }
+    }
+  }
+
+  bool pop(pair<K, V> &result) {
+    auto itr = map_.find(queue_.front());
+    queue_.pop();
+    if (itr != map_.end()) {
+      result = *itr;
+      map_.erase(itr);
+      return true;
+    }
+    return false;
   }
 };

@@ -25,6 +25,8 @@ ELSE()
   set(CMAKE_CXX_FLAGS "-g -Wall")
 ENDIF()
 
+add_definitions(-DHAVE_CONFIG_H)
+
 
 ###################################### Libs ######################################
 
@@ -38,13 +40,14 @@ find_package(LibEvent REQUIRED)
 ###################################### Targets ######################################
 
 include_directories(${GLOG_INCLUDE_DIRS} ${LIBCONFIGPP_INCLUDE_DIR} ${PTHREAD_INCLUDE_DIRS} ${OPENSSL_INCLUDE_DIR}
-                    ${LIBEVENT_INCLUDE_DIR} ${PROJECT_ROOT}/src/ssl ${PROJECT_ROOT}/3rdparty ${PROJECT_ROOT}/tools)
+                    ${LIBEVENT_INCLUDE_DIR} ${PROJECT_ROOT}/src/ssl ${PROJECT_ROOT}/3rdparty ${PROJECT_ROOT}/tools/common)
 
 set(THIRD_LIBRARIES ${GLOG_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBEVENT_LIB} ${LIBEVENT_PTHREADS_LIB} ${LIBEVENT_OPENSSL_LIB}
                     ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} ${PTHREAD_LIBRARIES})
 
 file(GLOB SOURCES
     ${PROJECT_ROOT}/src/ssl/*.cc
+    ${PROJECT_ROOT}/tools/common/*.cpp
     *.cc
 )
 

@@ -32,20 +32,72 @@
 #include <nlohmann/json.hpp>
 
 #include "StratumBase.hpp"
+#include "uint256.h"
+#include "arith_uint256.h"
 
 using namespace std;
 using JSON = nlohmann::json;
 using JSONException = nlohmann::detail::exception;
 
+static uint64_t Eth_TargetToDifficulty(const string &targetStr) {
+  static const arith_uint256 kMaxUint256(
+      "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+  static const uint64_t kMaxUint64 = 0xffffffffffffffffull;
+
+  arith_uint256 target = UintToArith256(uint256S(targetStr));
+  if (target == 0) {
+    return kMaxUint64;
+  }
+  arith_uint256 diff = kMaxUint256 / target;
+  return diff.GetLow64();
+}
+
 class StratumAnalyzer : public std::enable_shared_from_this<StratumAnalyzer> {
 public:
   using OnSubmitLogin = function<void(StratumWorker)>;
+
+  const size_t MAX_JOB_SIZE = 100;
+  const size_t MAX_SUBMIT_SIZE = 100;
 
 protected:
   struct Record {
     bool upload_ = 0;
     time_t time_ = 0;
     string line_;
+  };
+
+  struct Job {
+    JSON id_;
+    string powHash_;
+    string dagSeed_;
+    string noncePrefix_;
+    uint64_t diff_;
+    uint64_t height_ = 0;
+    time_t time_ = 0;
+
+    string toString() {
+      return StringFormat(
+          "id: %s, powHash: %s, dagSeed: %s, noncePrefix: %s, diff: %u, "
+          "height: %u, time: %s",
+          id_.dump(),
+          powHash_,
+          dagSeed_,
+          noncePrefix_,
+          diff_,
+          height_,
+          date("%F %T", time_));
+    }
+  };
+
+  struct Submit {
+    JSON id_;
+    string powHash_;
+    string mixDigest_;
+    string response_;
+    uint64_t nonce_;
+    uint64_t diff_;
+    uint64_t height_ = 0;
+    time_t time_ = 0;
   };
 
   string uploadIncompleteLine_;
@@ -63,6 +115,9 @@ protected:
   uint16_t port_ = 0;
   StratumWorker worker_;
   PoolInfo poolInfo_;
+
+  SeqMap<string /*powHash*/, Job> jobs_;
+  SeqMap<JSON /*id*/, Job> submits_;
 
 public:
   void setOnSubmitLogin(OnSubmitLogin func) { onSubmitLogin_ = func; }
@@ -144,7 +199,7 @@ public:
     runningThread_ = std::thread([this, self]() {
       running_ = true;
       while (running_) {
-        this_thread::sleep_for(5s);
+        this_thread::sleep_for(1s);
         recordLock_.lock();
         vector<Record> lines = lines_;
         lines_.clear();
@@ -201,7 +256,19 @@ public:
         }
 
       } else {
-        // download: pool -> miner
+        // There is no easy way to determine which response is a job. The job
+        // may come from a server proactive notification (id == 0) or a response
+        // of eth_getWork call (id != 0).
+        if (json["result"].is_array() && json["result"].size() >= 3 &&
+            json["result"][0].is_string() &&
+            json["result"][0].get<string>().size() == 66 &&
+            json["result"][1].is_string() &&
+            json["result"][1].get<string>().size() == 66 &&
+            json["result"][2].is_string() &&
+            // it may be 60 or 66 bytes
+            json["result"][2].get<string>().size() >= 60) {
+          parseJobNotify(move(json));
+        }
       }
     } catch (const JSONException &ex) {
       LOG(INFO) << toString() << (record.upload_ ? "[upload]" : "[download]")
@@ -224,10 +291,32 @@ public:
     if (params.size() >= 2) {
       password = json["params"][1].get<string>();
     }
-    if (json["worker"].is_string() && json["worker"].size() > 0) {
+    if (json["worker"].is_string() && json["worker"].get<string>().size() > 0) {
       user += "." + json["worker"].get<string>();
     }
 
     worker_.setNames(user, password);
+  }
+
+  void parseJobNotify(JSON &&json) {
+    const auto &params = json["result"];
+
+    Job job;
+    job.time_ = time(nullptr);
+    job.id_ = json["id"];
+    job.powHash_ = params[0].get<string>();
+    job.dagSeed_ = params[1].get<string>();
+    job.diff_ = Eth_TargetToDifficulty(params[2].get<string>());
+    if (params.size() >= 4 && params[3].is_string()) {
+      job.noncePrefix_ = params[3].get<string>();
+    }
+    if (json["height"].is_number_unsigned()) {
+      job.height_ = json["height"].get<uint64_t>();
+    }
+
+    jobs_[job.powHash_] = job;
+    DLOG(INFO) << toString() << "[job] " << job.toString();
+
+    jobs_.clear(MAX_JOB_SIZE);
   }
 };
