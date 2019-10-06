@@ -337,6 +337,7 @@ void MySQLExecQueue::execSQL(const string &sql) {
 
 void MySQLExecQueue::stop() {
   running_ = false;
+  notify_.notify_one();
   if (thread_.joinable()) {
     thread_.join();
   }

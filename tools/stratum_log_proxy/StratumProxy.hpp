@@ -575,6 +575,7 @@ public:
   }
 
   void stop() {
+    mysqlExecQueue_->stop();
     event_base_loopexit(base_, NULL);
     LOG(INFO) << "proxy stopped";
   }
@@ -586,11 +587,9 @@ public:
     if (base_ != nullptr) {
       event_base_free(base_);
     }
-
     for (auto session : sessions_) {
       removeSession(session);
     }
-
     if (mysqlExecQueue_ != nullptr) {
       delete mysqlExecQueue_;
     }

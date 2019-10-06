@@ -158,13 +158,13 @@ protected:
   std::thread thread_;
 
   void run();
-  void stop();
   void execSQL(const string &sql);
 
 public:
   MySQLExecQueue(const MysqlConnectInfo &dbInfo);
   ~MySQLExecQueue();
   void addSQL(const string &sql);
+  void stop();
 };
 
 // -------------------------------------------------
@@ -482,6 +482,7 @@ void MySQLExecQueue::execSQL(const string &sql) {
 
 void MySQLExecQueue::stop() {
   running_ = false;
+  notify_.notify_one();
   if (thread_.joinable()) {
     thread_.join();
   }
