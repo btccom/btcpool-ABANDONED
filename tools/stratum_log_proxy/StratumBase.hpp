@@ -152,7 +152,8 @@ class SeqMap {
 
 public:
   V &operator[](const K &key) {
-    if (map_.find(key) == map_.end()) {
+    if (map_.find(key) == map_.end() &&
+        (queue_.empty() || queue_.back() != key)) {
       queue_.push(key);
     }
     return map_[key];
