@@ -140,7 +140,7 @@ protected:
   PoolInfo poolInfo_;
 
   SeqMap<string /*powHash*/, Job> jobs_;
-  SeqMap<JSON /*id*/, Share> shares_;
+  LinkMap<JSON /*id*/, Share> shares_;
 
   MySQLExecQueue &mysqlExecQueue_;
   string minerInfoSql_;
@@ -261,11 +261,9 @@ public:
 
       runOnce();
       while (shares_.size() > 0) {
-        pair<JSON, Share> shareRecord;
-        if (shares_.pop(shareRecord)) {
-          shareRecord.second.response_ = "proxy close";
-          writeShare(shareRecord.second);
-        }
+        auto share = shares_.pop().second;
+        share.response_ = "proxy close";
+        writeShare(share);
       }
     });
   }
@@ -417,35 +415,28 @@ public:
                    << share.toString();
     }
 
-    if (shares_.contains(share.id_)) {
-      LOG(WARNING)
-          << toString()
-          << "[share submit] multiple eth_submitWork have the same id: "
-          << share.id_.dump();
-      shares_[share.id_].response_ = "none";
-      writeShare(shares_[share.id_]);
-    }
-
-    shares_[share.id_] = share;
+    shares_.push(share.id_, share);
     if (logOptions_.shareSubmit_)
       LOG(INFO) << toString() << "[share submit] " << share.toString();
 
     while (shares_.size() > MAX_CACHED_SHARE_NUM) {
-      pair<JSON, Share> shareRecord;
-      if (shares_.pop(shareRecord)) {
-        shareRecord.second.response_ = "timeout";
-        LOG(WARNING)
-            << toString()
-            << "[share submit] pool did not respond to the submission: "
-            << shareRecord.second.id_.dump();
-        writeShare(shareRecord.second);
-      }
+      auto share = shares_.pop().second;
+      share.response_ = "no response";
+      LOG(WARNING) << toString()
+                   << "[share submit] pool did not respond to the submission: "
+                   << share.id_.dump();
+      writeShare(share);
     }
   }
 
   void parseSubmitResponse(JSON &json) {
-    Share share = shares_[json["id"]];
-    shares_.erase(json["id"]);
+    Share share;
+    if (!shares_.pop(json["id"], share)) {
+      LOG(ERROR)
+          << toString()
+          << "something went wrong, cannot find share from shares_, response: "
+          << json.dump();
+    }
 
     try {
       if (json["data"].is_object() && json["data"]["message"].is_string()) {

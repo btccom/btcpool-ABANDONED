@@ -27,6 +27,7 @@
 #include <string>
 #include <unordered_map>
 #include <queue>
+#include <list>
 
 #include "utils.hpp"
 
@@ -160,13 +161,9 @@ public:
   }
 
   bool contains(const K &key) { return map_.find(key) != map_.end(); }
-  auto find(const K &key) { return map_.find(key); }
-  auto begin() { return map_.begin(); }
-  auto end() { return map_.end(); }
   size_t size() {
     return queue_.size() >= map_.size() ? queue_.size() : map_.size();
   }
-  bool empty() { return map_.empty(); }
   void erase(const K &key) { map_.erase(key); }
 
   void clear(size_t maxSize) {
@@ -186,6 +183,46 @@ public:
       result = *itr;
       map_.erase(itr);
       return true;
+    }
+    return false;
+  }
+};
+
+template <typename K, typename V>
+class LinkMap {
+  std::unordered_map<K, ssize_t> map_;
+  std::list<pair<K, V>> list_;
+
+public:
+  void push(K key, V value) {
+    list_.emplace_back(key, value);
+    map_[key]++;
+  }
+
+  bool contains(const K &key) { return map_.find(key) != map_.end(); }
+  size_t size() { return list_.size(); }
+
+  pair<K, V> pop() {
+    auto result = list_.front();
+    list_.erase(list_.begin());
+    map_[result.first]--;
+    if (map_[result.first] <= 0) {
+      map_.erase(result.first);
+    }
+    return result;
+  }
+
+  bool pop(K key, V &value) {
+    for (auto itr = list_.begin(); itr != list_.end(); itr++) {
+      if (itr->first == key) {
+        value = itr->second;
+        list_.erase(itr);
+        map_[key]--;
+        if (map_[key] <= 0) {
+          map_.erase(key);
+        }
+        return true;
+      }
     }
     return false;
   }
