@@ -144,6 +144,7 @@ protected:
 
   MySQLExecQueue &mysqlExecQueue_;
   string minerInfoSql_;
+  const LogOptions &logOptions_;
 
 public:
   void setOnSubmitLogin(OnSubmitLogin func) { onSubmitLogin_ = func; }
@@ -204,11 +205,15 @@ public:
   }
 
   StratumAnalyzer(
-      const string &ip, uint16_t port, MySQLExecQueue &mysqlExecQueue)
+      const string &ip,
+      uint16_t port,
+      MySQLExecQueue &mysqlExecQueue,
+      const LogOptions &logOptions)
     : running_(false)
     , ip_(ip)
     , port_(port)
-    , mysqlExecQueue_(mysqlExecQueue) {}
+    , mysqlExecQueue_(mysqlExecQueue)
+    , logOptions_(logOptions) {}
 
   ~StratumAnalyzer() { stop(); }
 
@@ -285,8 +290,9 @@ public:
     try {
       auto json = JSON::parse(record.line_);
       if (!json.is_object()) {
-        LOG(INFO) << toString() << (record.upload_ ? "[upload]" : "[download]")
-                  << " invalid json: " << record.line_;
+        LOG(WARNING) << toString()
+                     << (record.upload_ ? "[upload]" : "[download]")
+                     << " invalid json: " << record.line_;
         return;
       }
 
@@ -373,7 +379,8 @@ public:
     }
 
     jobs_[job.powHash_] = job;
-    DLOG(INFO) << toString() << "[job] " << job.toString();
+    if (logOptions_.jobNotify_)
+      LOG(INFO) << toString() << "[job] " << job.toString();
 
     jobs_.clear(MAX_CACHED_JOB_NUM);
   }
@@ -420,7 +427,8 @@ public:
     }
 
     shares_[share.id_] = share;
-    DLOG(INFO) << toString() << "[share submit] " << share.toString();
+    if (logOptions_.shareSubmit_)
+      LOG(INFO) << toString() << "[share submit] " << share.toString();
 
     while (shares_.size() > MAX_CACHED_SHARE_NUM) {
       pair<JSON, Share> shareRecord;
@@ -459,7 +467,8 @@ public:
                    << ", json: " << share.response_;
     }
 
-    DLOG(INFO) << toString() << "[share response] " << share.toString();
+    if (logOptions_.shareResponse_)
+      LOG(INFO) << toString() << "[share response] " << share.toString();
     writeShare(share);
   }
 

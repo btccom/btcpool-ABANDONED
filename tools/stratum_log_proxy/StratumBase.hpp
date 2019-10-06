@@ -32,6 +32,25 @@
 
 using namespace std;
 
+struct LogOptions {
+  // TCP connections
+  bool connect_ = true;
+  bool disconnect_ = true;
+  bool upload_ = true;
+  bool download_ = true;
+  // Stratum
+  bool sessionEvent_ = true;
+  bool authorize_ = true;
+  bool jobNotify_ = true;
+  bool shareSubmit_ = true;
+  bool shareResponse_ = true;
+  // Proxy
+  bool addPool_ = true;
+  bool addRule_ = true;
+  bool poolConnect_ = true;
+  bool ruleMatching_ = true;
+};
+
 struct PoolInfo {
   string name_;
   string url_;

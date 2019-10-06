@@ -165,11 +165,16 @@ protected:
 
     StratumProxy *server_ = nullptr;
     shared_ptr<StratumAnalyzer> analyzer_;
+    const LogOptions &logOptions_;
 
     Session(
-        struct bufferevent *down, struct sockaddr *saddr, StratumProxy *server)
+        struct bufferevent *down,
+        struct sockaddr *saddr,
+        StratumProxy *server,
+        const LogOptions &logOptions)
       : downSession_(down)
-      , server_(server) {
+      , server_(server)
+      , logOptions_(logOptions) {
 
       get_ip_port(saddr, ip_, port_);
 
@@ -182,12 +187,13 @@ protected:
         LOG(FATAL) << toString() << "DNS init failed";
       }
 
-      analyzer_ =
-          make_shared<StratumAnalyzer>(ip_, port_, *server_->mysqlExecQueue_);
+      analyzer_ = make_shared<StratumAnalyzer>(
+          ip_, port_, *server_->mysqlExecQueue_, logOptions_);
       analyzer_->setOnSubmitLogin(
           bind(&Session::onSubmitLogin, this, placeholders::_1));
 
-      LOG(INFO) << toString() << "session created";
+      if (logOptions_.sessionEvent_)
+        LOG(INFO) << toString() << "session created";
     }
 
     ~Session() {
@@ -201,7 +207,8 @@ protected:
       if (upSession_)
         bufferevent_free(upSession_);
 
-      LOG(INFO) << toString() << "session destroyed";
+      if (logOptions_.sessionEvent_)
+        LOG(INFO) << toString() << "session destroyed";
     }
 
     string toString() const {
@@ -225,15 +232,17 @@ protected:
     void onSubmitLogin(StratumWorker worker) {
       worker_ = worker;
       minerLoginState_ = MinerLoginState::FAILED;
-      LOG(INFO) << toString() << "miner login, " << worker_.toString();
+      if (logOptions_.authorize_)
+        LOG(INFO) << toString() << "miner login, " << worker_.toString();
 
       // rule matching
       bool match = false;
       for (auto rule : server_->matchRules_) {
         string field = fieldReplace(rule.field_);
         match = field == rule.value_;
-        DLOG(INFO) << toString() << "[rule matching] " << field
-                   << (match ? " == " : " != ") << rule.value_;
+        if (logOptions_.ruleMatching_)
+          LOG(INFO) << toString() << "[rule matching] " << field
+                    << (match ? " == " : " != ") << rule.value_;
         if (match) {
           poolInfo_ = rule.pool_;
           break;
@@ -241,8 +250,9 @@ protected:
       }
 
       if (!match) {
-        DLOG(INFO) << toString()
-                   << "[rule matching] Match failed, use default pool";
+        if (logOptions_.ruleMatching_)
+          LOG(INFO) << toString()
+                    << "[rule matching] Match failed, use default pool";
         poolInfo_ = server_->defaultPool_;
       }
 
@@ -251,13 +261,15 @@ protected:
       poolInfo_.pwd_ = fieldReplace(poolInfo_.pwd_);
       poolInfo_.worker_ = fieldReplace(poolInfo_.worker_);
 
-      LOG(INFO) << toString() << "[connect] miner: " << worker_.fullName_
-                << ", pool " << poolInfo_.toString();
+      if (logOptions_.poolConnect_)
+        LOG(INFO) << toString() << "[connect] miner: " << worker_.fullName_
+                  << ", pool " << poolInfo_.toString();
 
       analyzer_->updateMinerInfo(poolInfo_);
       string buffer = analyzer_->getSubmitLoginLine();
-      DLOG(INFO) << toString() << toString() << "upload-replaced("
-                 << buffer.size() << "): " << buffer;
+      if (logOptions_.upload_)
+        LOG(INFO) << toString() << toString() << "upload-replaced("
+                  << buffer.size() << "): " << buffer;
 
       buffer += analyzer_->getUploadIncompleteLine();
       evbuffer_add(upBuffer_, buffer.data(), buffer.size());
@@ -273,13 +285,15 @@ protected:
     static void downReadCallback(struct bufferevent *bev, void *data) {
       auto session = static_cast<Session *>(data);
       auto buffer = bufferevent_get_input(bev);
+      const auto &logOptions_ = session->logOptions_;
 
       string content(evbuffer_get_length(buffer), 0);
       evbuffer_copyout(buffer, (char *)content.data(), content.size());
       session->analyzer_->addUploadText(content);
 
-      DLOG(INFO) << session->toString() << "upload(" << content.size()
-                 << "): " << content;
+      if (logOptions_.upload_)
+        LOG(INFO) << session->toString() << "upload(" << content.size()
+                  << "): " << content;
 
       session->downSessionConnected_ = true;
       if (session->upSessionConnected_) {
@@ -304,13 +318,15 @@ protected:
     static void upReadCallback(struct bufferevent *bev, void *data) {
       auto session = static_cast<Session *>(data);
       auto buffer = bufferevent_get_input(bev);
+      const auto &logOptions_ = session->logOptions_;
 
       string content(evbuffer_get_length(buffer), 0);
       evbuffer_copyout(buffer, (char *)content.data(), content.size());
       session->analyzer_->addDownloadText(content);
 
-      DLOG(INFO) << session->toString() << "download(" << content.size()
-                 << "): " << content;
+      if (logOptions_.download_)
+        LOG(INFO) << session->toString() << "download(" << content.size()
+                  << "): " << content;
 
       session->upSessionConnected_ = true;
       if (session->downSessionConnected_) {
@@ -329,9 +345,11 @@ protected:
     static void
     downEventCallback(struct bufferevent *bev, short events, void *data) {
       auto session = static_cast<Session *>(data);
+      const auto &logOptions_ = session->logOptions_;
 
       if (events & BEV_EVENT_CONNECTED) {
-        LOG(INFO) << session->toString() << "downSession connected";
+        if (logOptions_.connect_)
+          LOG(INFO) << session->toString() << "downSession connected";
         session->downSessionConnected_ = true;
         bufferevent_write_buffer(session->downSession_, session->downBuffer_);
         evbuffer_drain(
@@ -340,15 +358,18 @@ protected:
       }
 
       if (events & BEV_EVENT_EOF) {
-        LOG(INFO) << session->toString() << "downSession socket closed";
+        if (logOptions_.disconnect_)
+          LOG(INFO) << session->toString() << "downSession socket closed";
       } else if (events & BEV_EVENT_ERROR) {
-        LOG(INFO) << session->toString()
-                  << "downSession got an error on the socket: "
-                  << evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR());
+        if (logOptions_.disconnect_)
+          LOG(INFO) << session->toString()
+                    << "downSession got an error on the socket: "
+                    << evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR());
       } else if (events & BEV_EVENT_TIMEOUT) {
-        LOG(INFO) << session->toString()
-                  << "downSession socket read/write timeout, events: "
-                  << events;
+        if (logOptions_.disconnect_)
+          LOG(INFO) << session->toString()
+                    << "downSession socket read/write timeout, events: "
+                    << events;
       } else {
         LOG(WARNING) << session->toString()
                      << "downSession unhandled socket events: " << events;
@@ -361,9 +382,11 @@ protected:
     static void
     upEventCallback(struct bufferevent *bev, short events, void *data) {
       auto session = static_cast<Session *>(data);
+      const auto &logOptions_ = session->logOptions_;
 
       if (events & BEV_EVENT_CONNECTED) {
-        LOG(INFO) << session->toString() << "upSession connected";
+        if (logOptions_.connect_)
+          LOG(INFO) << session->toString() << "upSession connected";
         session->upSessionConnected_ = true;
         bufferevent_write_buffer(session->upSession_, session->upBuffer_);
         evbuffer_drain(
@@ -372,14 +395,18 @@ protected:
       }
 
       if (events & BEV_EVENT_EOF) {
-        LOG(INFO) << session->toString() << "upSession socket closed";
+        if (logOptions_.disconnect_)
+          LOG(INFO) << session->toString() << "upSession socket closed";
       } else if (events & BEV_EVENT_ERROR) {
-        LOG(INFO) << session->toString()
-                  << "upSession got an error on the socket: "
-                  << evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR());
+        if (logOptions_.disconnect_)
+          LOG(INFO) << session->toString()
+                    << "upSession got an error on the socket: "
+                    << evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR());
       } else if (events & BEV_EVENT_TIMEOUT) {
-        LOG(INFO) << session->toString()
-                  << "upSession socket read/write timeout, events: " << events;
+        if (logOptions_.disconnect_)
+          LOG(INFO) << session->toString()
+                    << "upSession socket read/write timeout, events: "
+                    << events;
       } else {
         LOG(WARNING) << session->toString()
                      << "upSession unhandled socket events: " << events;
@@ -405,12 +432,32 @@ protected:
   mutex sessionsLock_;
 
   MySQLExecQueue *mysqlExecQueue_ = nullptr;
+  LogOptions logOptions_;
 
 public:
   StratumProxy(const Config &config)
     : config_(config) {
-    config.lookupValue("proxy.enable_tls", enableTLS_);
+    //---------------------------------
+    // Log options
+    // TCP connections
+    config.lookupValue("log.connect", logOptions_.connect_);
+    config.lookupValue("log.disconnect", logOptions_.disconnect_);
+    config.lookupValue("log.upload", logOptions_.upload_);
+    config.lookupValue("log.download", logOptions_.download_);
+    // Stratum
+    config.lookupValue("log.session_event", logOptions_.sessionEvent_);
+    config.lookupValue("log.authorize", logOptions_.authorize_);
+    config.lookupValue("log.job_notify", logOptions_.jobNotify_);
+    config.lookupValue("log.share_submit", logOptions_.shareSubmit_);
+    config.lookupValue("log.share_response", logOptions_.shareResponse_);
+    // Proxy
+    config.lookupValue("log.add_pool", logOptions_.addPool_);
+    config.lookupValue("log.add_rule", logOptions_.addRule_);
+    config.lookupValue("log.pool_connect", logOptions_.poolConnect_);
+    config.lookupValue("log.rule_matching", logOptions_.ruleMatching_);
+    //---------------------------------
 
+    config.lookupValue("proxy.enable_tls", enableTLS_);
     if (enableTLS_) {
       // try get SSL CTX (load SSL cert and key)
       // any error will abort the process
@@ -482,7 +529,8 @@ public:
     }
 
     for (const auto &itr : pools_) {
-      LOG(INFO) << "[add pool] " << itr.second.toString();
+      if (logOptions_.addPool_)
+        LOG(INFO) << "[add pool] " << itr.second.toString();
       if (itr.second.host().empty() || itr.second.port() == 0) {
         if (SessionBase().fieldReplace(itr.second.url_) == itr.second.url_) {
           LOG(ERROR) << "invalid pools url: " << itr.second.url_;
@@ -498,7 +546,8 @@ public:
     }
 
     defaultPool_ = pools_[defaultPoolName];
-    LOG(INFO) << "[default pool] " << defaultPool_.toString();
+    if (logOptions_.addPool_)
+      LOG(INFO) << "[default pool] " << defaultPool_.toString();
 
     const auto &rules = config_.lookup("match.rules");
     for (int i = 0; i < rules.getLength(); i++) {
@@ -513,7 +562,8 @@ public:
                     pools_[poolName]});
     }
     for (auto rule : matchRules_) {
-      LOG(INFO) << "[add rule] " << rule.toString();
+      if (logOptions_.addRule_)
+        LOG(INFO) << "[add rule] " << rule.toString();
     }
 
     return true;
@@ -604,7 +654,7 @@ public:
     }
 
     // ---------------------- add session ----------------------
-    auto session = new Session(downBev, saddr, server);
+    auto session = new Session(downBev, saddr, server, server->logOptions_);
     {
       lock_guard<mutex> sl(server->sessionsLock_);
       server->sessions_.insert(session);
