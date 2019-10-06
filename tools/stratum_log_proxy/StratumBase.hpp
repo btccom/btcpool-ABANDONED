@@ -143,8 +143,11 @@ public:
   auto find(const K &key) { return map_.find(key); }
   auto begin() { return map_.begin(); }
   auto end() { return map_.end(); }
-  size_t size() { return map_.size(); }
+  size_t size() {
+    return queue_.size() >= map_.size() ? queue_.size() : map_.size();
+  }
   bool empty() { return map_.empty(); }
+  void erase(const K &key) { map_.erase(key); }
 
   void clear(size_t maxSize) {
     while (queue_.size() > maxSize) {

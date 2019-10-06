@@ -155,7 +155,9 @@ protected:
 
     bool downSessionConnected_ = false;
     bool upSessionConnected_ = false;
-    bool minerLogin_ = false;
+
+    enum class MinerLoginState { NONE, SUCCESS, FAILED };
+    MinerLoginState minerLoginState_ = MinerLoginState::NONE;
 
     struct evbuffer *downBuffer_ = nullptr;
     struct evbuffer *upBuffer_ = nullptr;
@@ -220,7 +222,7 @@ protected:
 
     void onSubmitLogin(StratumWorker worker) {
       worker_ = worker;
-      minerLogin_ = true;
+      minerLoginState_ = MinerLoginState::FAILED;
       LOG(INFO) << toString() << "miner login, " << worker_.toString();
 
       // rule matching
@@ -259,11 +261,11 @@ protected:
       evbuffer_add(upBuffer_, buffer.data(), buffer.size());
 
       if (!server_->connectUpstream(this)) {
-        server_->removeSession(this);
         return;
       }
 
       analyzer_->run();
+      minerLoginState_ = MinerLoginState::SUCCESS;
     }
 
     static void downReadCallback(struct bufferevent *bev, void *data) {
@@ -284,10 +286,14 @@ protected:
             session->upBuffer_, evbuffer_get_length(session->upBuffer_));
 
         bufferevent_write_buffer(session->upSession_, buffer);
-      } else if (session->minerLogin_) {
+      } else if (session->minerLoginState_ == MinerLoginState::SUCCESS) {
         evbuffer_add_buffer(session->upBuffer_, buffer);
       } else {
         session->analyzer_->runOnce();
+        if (session->minerLoginState_ == MinerLoginState::FAILED) {
+          session->server_->removeSession(session);
+          return;
+        }
       }
 
       evbuffer_drain(buffer, evbuffer_get_length(buffer));

@@ -56,8 +56,8 @@ class StratumAnalyzer : public std::enable_shared_from_this<StratumAnalyzer> {
 public:
   using OnSubmitLogin = function<void(StratumWorker)>;
 
-  const size_t MAX_JOB_SIZE = 100;
-  const size_t MAX_SUBMIT_SIZE = 100;
+  const size_t MAX_CACHED_JOB_NUM = 50;
+  const size_t MAX_CACHED_SHARE_NUM = 20;
 
 protected:
   struct Record {
@@ -75,7 +75,7 @@ protected:
     uint64_t height_ = 0;
     time_t time_ = 0;
 
-    string toString() {
+    string toString() const {
       return StringFormat(
           "id: %s, powHash: %s, dagSeed: %s, noncePrefix: %s, diff: %u, "
           "height: %u, time: %s",
@@ -89,7 +89,7 @@ protected:
     }
   };
 
-  struct Submit {
+  struct Share {
     JSON id_;
     string powHash_;
     string mixDigest_;
@@ -98,6 +98,21 @@ protected:
     uint64_t diff_;
     uint64_t height_ = 0;
     time_t time_ = 0;
+
+    string toString() const {
+      return StringFormat(
+          "id: %s, powHash: %s, mixDigest: %s, response: %s, nonce: %016x, "
+          "diff: %u, "
+          "height: %u, time: %s",
+          id_.dump(),
+          powHash_,
+          mixDigest_,
+          response_,
+          nonce_,
+          diff_,
+          height_,
+          date("%F %T", time_));
+    }
   };
 
   string uploadIncompleteLine_;
@@ -117,7 +132,7 @@ protected:
   PoolInfo poolInfo_;
 
   SeqMap<string /*powHash*/, Job> jobs_;
-  SeqMap<JSON /*id*/, Job> submits_;
+  SeqMap<JSON /*id*/, Share> shares_;
 
 public:
   void setOnSubmitLogin(OnSubmitLogin func) { onSubmitLogin_ = func; }
@@ -209,6 +224,15 @@ public:
           parseRecord(record);
         }
       }
+
+      runOnce();
+      while (shares_.size() > 0) {
+        pair<JSON, Share> shareRecord;
+        if (shares_.pop(shareRecord)) {
+          shareRecord.second.response_ = "proxy close";
+          writeShare(shareRecord.second);
+        }
+      }
     });
   }
 
@@ -242,8 +266,10 @@ public:
         if (json["method"].is_string()) {
           string method = json["method"].get<string>();
 
-          if (method == "eth_submitLogin") {
-            parseSubmitLogin(move(json));
+          if (method == "eth_submitWork") {
+            parseSubmitShare(json, record);
+          } else if (method == "eth_submitLogin") {
+            parseSubmitLogin(json);
 
             if (onSubmitLogin_) {
               onSubmitLogin_(worker_);
@@ -251,14 +277,14 @@ public:
             }
           }
         } else {
-          LOG(INFO) << toString()
-                    << "[upload] missing method, json: " << record.line_;
+          LOG(WARNING) << toString()
+                       << "[upload] missing method, json: " << record.line_;
         }
 
       } else {
         // There is no easy way to determine which response is a job. The job
-        // may come from a server proactive notification (id == 0) or a response
-        // of eth_getWork call (id != 0).
+        // may come from a server proactive notification (id == 0) or a
+        // response of eth_getWork call (id != 0).
         if (json["result"].is_array() && json["result"].size() >= 3 &&
             json["result"][0].is_string() &&
             json["result"][0].get<string>().size() == 66 &&
@@ -267,20 +293,23 @@ public:
             json["result"][2].is_string() &&
             // it may be 60 or 66 bytes
             json["result"][2].get<string>().size() >= 60) {
-          parseJobNotify(move(json));
+          parseJobNotify(json, record);
+        } else if (shares_.contains(json["id"])) {
+          parseSubmitResponse(json);
         }
       }
     } catch (const JSONException &ex) {
-      LOG(INFO) << toString() << (record.upload_ ? "[upload]" : "[download]")
-                << " json parser exception: " << ex.what()
-                << ", json: " << record.line_;
+      LOG(WARNING) << toString() << (record.upload_ ? "[upload]" : "[download]")
+                   << " json parser exception: " << ex.what()
+                   << ", json: " << record.line_;
     }
   }
 
-  void parseSubmitLogin(JSON &&json) {
+  void parseSubmitLogin(JSON &json) {
     auto params = json["params"];
     if (!params.is_array() || params.size() < 1) {
-      LOG(INFO) << toString() << "[upload] missing params, json: " << json;
+      LOG(WARNING) << toString()
+                   << "[eth_submitLogin] missing params, json: " << json;
       return;
     }
 
@@ -298,11 +327,11 @@ public:
     worker_.setNames(user, password);
   }
 
-  void parseJobNotify(JSON &&json) {
+  void parseJobNotify(JSON &json, const Record &record) {
     const auto &params = json["result"];
 
     Job job;
-    job.time_ = time(nullptr);
+    job.time_ = record.time_;
     job.id_ = json["id"];
     job.powHash_ = params[0].get<string>();
     job.dagSeed_ = params[1].get<string>();
@@ -317,6 +346,95 @@ public:
     jobs_[job.powHash_] = job;
     DLOG(INFO) << toString() << "[job] " << job.toString();
 
-    jobs_.clear(MAX_JOB_SIZE);
+    jobs_.clear(MAX_CACHED_JOB_NUM);
+  }
+
+  void parseSubmitShare(JSON &json, const Record &record) {
+    auto params = json["params"];
+    if (!params.is_array() || params.size() < 2) {
+      LOG(WARNING) << toString()
+                   << "[eth_submitWork] missing params, json: " << json;
+      return;
+    }
+    if (!params[0].is_string() || !params[1].is_string()) {
+      LOG(WARNING) << toString()
+                   << "[eth_submitWork] missing params, json: " << json;
+      return;
+    }
+
+    Share share;
+    share.time_ = record.time_;
+    share.id_ = json["id"];
+    share.nonce_ = strtoull(params[0].get<string>().c_str(), nullptr, 16);
+    share.powHash_ = params[1].get<string>();
+    if (params.size() >= 3 && params[2].is_string()) {
+      share.mixDigest_ = params[2].get<string>();
+    }
+
+    if (jobs_.contains(share.powHash_)) {
+      const Job &job = jobs_[share.powHash_];
+      share.diff_ = job.diff_;
+      share.height_ = job.height_;
+    } else {
+      LOG(WARNING) << toString()
+                   << "[share submit] cannot find the job of submit "
+                   << share.toString();
+    }
+
+    if (shares_.contains(share.id_)) {
+      LOG(WARNING)
+          << toString()
+          << "[share submit] multiple eth_submitWork have the same id: "
+          << share.id_.dump();
+      shares_[share.id_].response_ = "none";
+      writeShare(shares_[share.id_]);
+    }
+
+    shares_[share.id_] = share;
+    DLOG(INFO) << toString() << "[share submit] " << share.toString();
+
+    while (shares_.size() > MAX_CACHED_SHARE_NUM) {
+      pair<JSON, Share> shareRecord;
+      if (shares_.pop(shareRecord)) {
+        shareRecord.second.response_ = "timeout";
+        LOG(WARNING)
+            << toString()
+            << "[share submit] pool did not respond to the submission: "
+            << shareRecord.second.id_.dump();
+        writeShare(shareRecord.second);
+      }
+    }
+  }
+
+  void parseSubmitResponse(JSON &json) {
+    Share share = shares_[json["id"]];
+    shares_.erase(json["id"]);
+
+    try {
+      if (json["data"].is_object() && json["data"]["message"].is_string()) {
+        share.response_ = json["data"]["message"].get<string>();
+      } else if (
+          json["error"].is_object() && json["error"]["message"].is_string()) {
+        share.response_ = json["error"]["message"].get<string>();
+      } else if (json["error"].is_array() && json["error"][1].is_string()) {
+        share.response_ = json["error"][1].get<string>();
+      } else if (json["result"].is_boolean()) {
+        share.response_ = json["result"].get<bool>() ? "success" : "falied";
+      } else {
+        share.response_ = json.dump();
+      }
+    } catch (const JSONException &ex) {
+      share.response_ = json.dump();
+      LOG(WARNING) << toString()
+                   << "[share response] json parser exception: " << ex.what()
+                   << ", json: " << share.response_;
+    }
+
+    DLOG(INFO) << toString() << "[share response] " << share.toString();
+    writeShare(share);
+  }
+
+  void writeShare(const Share &share) {
+    // TODO: write to mysql
   }
 };
