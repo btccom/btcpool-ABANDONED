@@ -29,8 +29,10 @@
 #include <atomic>
 #include <thread>
 #include <functional>
+#include <algorithm>
 #include <nlohmann/json.hpp>
 
+#include "MySQLConnection.hpp"
 #include "StratumBase.hpp"
 #include "uint256.h"
 #include "arith_uint256.h"
@@ -50,6 +52,12 @@ static uint64_t Eth_TargetToDifficulty(const string &targetStr) {
   }
   arith_uint256 diff = kMaxUint256 / target;
   return diff.GetLow64();
+}
+
+// replace ' to "
+static string quote(string value) {
+  std::replace(value.begin(), value.end(), '\'', '"');
+  return value;
 }
 
 class StratumAnalyzer : public std::enable_shared_from_this<StratumAnalyzer> {
@@ -134,10 +142,29 @@ protected:
   SeqMap<string /*powHash*/, Job> jobs_;
   SeqMap<JSON /*id*/, Share> shares_;
 
+  MySQLExecQueue &mysqlExecQueue_;
+  string minerInfoSql_;
+
 public:
   void setOnSubmitLogin(OnSubmitLogin func) { onSubmitLogin_ = func; }
 
-  void updateMinerInfo(const PoolInfo &info) { poolInfo_ = info; }
+  void updateMinerInfo(const PoolInfo &info) {
+    poolInfo_ = info;
+    minerInfoSql_ = StringFormat(
+        "'%s',%u,'%s','%s','%s','%s','%s','%s','%s','%s','%s','%s'",
+        quote(ip_),
+        port_,
+        quote(worker_.fullName_),
+        quote(worker_.wallet_),
+        quote(worker_.userName_),
+        quote(worker_.workerName_),
+        quote(worker_.password_),
+        quote(poolInfo_.name_),
+        quote(poolInfo_.url_),
+        quote(poolInfo_.user_),
+        quote(poolInfo_.worker_),
+        quote(poolInfo_.pwd_));
+  }
 
   string getSubmitLoginLine() {
     JSON json = {{"id", loginRequestId_},
@@ -176,10 +203,12 @@ public:
     return "[" + result + "] ";
   }
 
-  StratumAnalyzer(const string &ip, uint16_t port)
+  StratumAnalyzer(
+      const string &ip, uint16_t port, MySQLExecQueue &mysqlExecQueue)
     : running_(false)
     , ip_(ip)
-    , port_(port) {}
+    , port_(port)
+    , mysqlExecQueue_(mysqlExecQueue) {}
 
   ~StratumAnalyzer() { stop(); }
 
@@ -435,6 +464,20 @@ public:
   }
 
   void writeShare(const Share &share) {
-    // TODO: write to mysql
+    string sql = StringFormat(
+        "INSERT INTO shares(job_id,pow_hash,mix_digest,response,nonce,"
+        "diff,height,timestamp,ip,port,miner_fullname,miner_wallet,"
+        "miner_user,miner_worker,miner_pwd,pool_name,pool_url,pool_user,"
+        "pool_worker,pool_pwd) VALUES('%s','%s','%s','%s',%u,%u,%u,%u,%s)",
+        quote(share.id_.dump()),
+        quote(share.powHash_),
+        quote(share.mixDigest_),
+        quote(share.response_),
+        share.nonce_,
+        share.diff_,
+        share.height_,
+        share.time_,
+        minerInfoSql_);
+    mysqlExecQueue_.addSQL(sql);
   }
 };

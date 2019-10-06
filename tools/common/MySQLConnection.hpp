@@ -27,6 +27,9 @@
 #include <vector>
 #include <set>
 #include <queue>
+#include <chrono>
+#include <thread>
+#include <condition_variable>
 #include <mysql.h>
 #include <glog/logging.h>
 #include "utils.hpp"
@@ -34,6 +37,7 @@
 using std::string;
 using std::vector;
 using std::set;
+using namespace std::chrono_literals;
 
 extern "C" struct st_mysql;
 typedef struct st_mysql MYSQL;

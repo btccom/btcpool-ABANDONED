@@ -53,6 +53,7 @@
 #include <event2/thread.h>
 #include <event2/bufferevent_ssl.h>
 
+#include "MySQLConnection.hpp"
 #include "SSLUtils.h"
 #include "StratumBase.hpp"
 #include "StratumAnalyzer.hpp"
@@ -181,7 +182,8 @@ protected:
         LOG(FATAL) << toString() << "DNS init failed";
       }
 
-      analyzer_ = make_shared<StratumAnalyzer>(ip_, port_);
+      analyzer_ =
+          make_shared<StratumAnalyzer>(ip_, port_, *server_->mysqlExecQueue_);
       analyzer_->setOnSubmitLogin(
           bind(&Session::onSubmitLogin, this, placeholders::_1));
 
@@ -402,6 +404,8 @@ protected:
   set<Session *> sessions_;
   mutex sessionsLock_;
 
+  MySQLExecQueue *mysqlExecQueue_ = nullptr;
+
 public:
   StratumProxy(const Config &config)
     : config_(config) {
@@ -414,6 +418,16 @@ public:
           config.lookup("proxy.tls_cert_file").c_str(),
           config.lookup("proxy.tls_key_file").c_str());
     }
+
+    int32_t dbPort = 3306;
+    config.lookupValue("mysql.port", dbPort);
+    auto dbInfo = MysqlConnectInfo(
+        config.lookup("mysql.host"),
+        dbPort,
+        config.lookup("mysql.username"),
+        config.lookup("mysql.password"),
+        config.lookup("mysql.dbname"));
+    mysqlExecQueue_ = new MySQLExecQueue(dbInfo);
   }
 
   bool setup() {
@@ -521,6 +535,14 @@ public:
     }
     if (base_ != nullptr) {
       event_base_free(base_);
+    }
+
+    for (auto session : sessions_) {
+      removeSession(session);
+    }
+
+    if (mysqlExecQueue_ != nullptr) {
+      delete mysqlExecQueue_;
     }
   }
 

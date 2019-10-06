@@ -1,4 +1,4 @@
-Decrypt TLS via a Proxy
+Log Ethereum shares to MySQL with the Proxy
 ==================
 
 * Decrypt TLS via the man-in-the-middle attack.
@@ -15,15 +15,5 @@ make
 ### run
 
 ```bash
-cp ../stratum_log_proxy.cfg .
-
-openssl genrsa -out proxy.key 2048
-openssl req -new -key proxy.key -out proxy.crt.req
-openssl x509 -req -days 365 -in proxy.crt.req -signkey proxy.key -out proxy.crt
-
-./tls_decrypt_proxy -c stratum_log_proxy.cfg
-./tls_decrypt_proxy -c stratum_log_proxy.cfg -l stderr
-
-mkdir log
-./tls_decrypt_proxy -c stratum_log_proxy.cfg -l log
+#TODO: finish it
 ```
