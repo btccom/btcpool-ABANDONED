@@ -19,7 +19,7 @@ if [ "$BUILD_BASE_IMAGE" != "" ]; then
 fi
 
 echo "build btcpool-$TEST_SUITE image..."
-cd "$BASE_DIR/../../deploy"
+cd "$BASE_DIR/.."
 docker build -t btccom/btcpool-$TEST_SUITE -f Dockerfile $BUILD_ARGS --build-arg BASE_IMAGE=$BASE_IMAGE ../../.. | tee -a $STDOUT
 echo "done"
 
