@@ -79,7 +79,7 @@ protected:
     string powHash_;
     string dagSeed_;
     string noncePrefix_;
-    uint64_t diff_;
+    uint64_t diff_ = 1;
     uint64_t height_ = 0;
     time_t time_ = 0;
 
@@ -102,8 +102,8 @@ protected:
     string powHash_;
     string mixDigest_;
     string response_;
-    uint64_t nonce_;
-    uint64_t diff_;
+    uint64_t nonce_ = 0;
+    uint64_t diff_ = 1;
     uint64_t height_ = 0;
     time_t time_ = 0;
 
@@ -261,7 +261,7 @@ public:
 
       runOnce();
       while (shares_.size() > 0) {
-        auto share = shares_.pop().second;
+        auto share = shares_.pop();
         share.response_ = "proxy close";
         writeShare(share);
       }
@@ -419,14 +419,13 @@ public:
     if (logOptions_.shareSubmit_)
       LOG(INFO) << toString() << "[share submit] " << share.toString();
 
-    while (shares_.size() > MAX_CACHED_SHARE_NUM) {
-      auto share = shares_.pop().second;
+    shares_.clearOld(MAX_CACHED_SHARE_NUM,[this](Share share) mutable {
       share.response_ = "no response";
       LOG(WARNING) << toString()
-                   << "[share submit] pool did not respond to the submission: "
-                   << share.id_.dump();
+                   << "[share submit] pool did not respond to the submit "
+                   << share.toString();
       writeShare(share);
-    }
+    });
   }
 
   void parseSubmitResponse(JSON &json) {

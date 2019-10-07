@@ -28,6 +28,7 @@
 #include <unordered_map>
 #include <queue>
 #include <list>
+#include <functional>
 
 #include "utils.hpp"
 
@@ -190,32 +191,41 @@ public:
 
 template <typename K, typename V>
 class LinkMap {
-  std::unordered_map<K, ssize_t> map_;
-  std::list<pair<K, V>> list_;
+  struct Record {
+    K key_;
+    V value_;
+    size_t age_ = 0;
+  };
+
+  std::unordered_map<K, ssize_t /*reference count*/> map_;
+  std::list<Record> list_;
 
 public:
   void push(K key, V value) {
-    list_.emplace_back(key, value);
+    for (auto &itr : list_) {
+      itr.age_++;
+    }
+    list_.emplace_back(Record{key, value, 0});
     map_[key]++;
   }
 
   bool contains(const K &key) { return map_.find(key) != map_.end(); }
   size_t size() { return list_.size(); }
 
-  pair<K, V> pop() {
+  V pop() {
     auto result = list_.front();
     list_.erase(list_.begin());
-    map_[result.first]--;
-    if (map_[result.first] <= 0) {
-      map_.erase(result.first);
+    map_[result.key_]--;
+    if (map_[result.key_] <= 0) {
+      map_.erase(result.key_);
     }
-    return result;
+    return result.value_;
   }
 
   bool pop(K key, V &value) {
     for (auto itr = list_.begin(); itr != list_.end(); itr++) {
-      if (itr->first == key) {
-        value = itr->second;
+      if (itr->key_ == key) {
+        value = itr->value_;
         list_.erase(itr);
         map_[key]--;
         if (map_[key] <= 0) {
@@ -225,5 +235,20 @@ public:
       }
     }
     return false;
+  }
+
+  void clearOld(size_t minAge, function<void(V)> callBack) {
+    for (auto itr = list_.begin(); itr != list_.end();) {
+      if (itr->age_ >= minAge) {
+        callBack(itr->value_);
+        map_[itr->key_]--;
+        if (map_[itr->key_] <= 0) {
+          map_.erase(itr->key_);
+        }
+        itr = list_.erase(itr);
+      } else {
+        itr++;
+      }
+    }
   }
 };
