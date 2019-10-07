@@ -21,6 +21,8 @@ services:
   bitcoind:
     build:
       context: bitcoind
+    environment:
+      - GENERATE_BLOCK=$GENERATE_BLOCK
 
   userlist:
     build:

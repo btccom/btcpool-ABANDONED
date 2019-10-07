@@ -26,6 +26,6 @@ ADD run-bitcoin2 /etc/service/bitcoin2/run
 RUN chmod +x /etc/service/bitcoin2/run
 
 # service for bitcoin-cli
-#RUN mkdir /etc/service/bitcoin-cli
-#ADD run-cli /etc/service/bitcoin-cli/run
-#RUN chmod +x /etc/service/bitcoin-cli/run
+RUN mkdir /etc/service/bitcoin-cli
+ADD run-cli /etc/service/bitcoin-cli/run
+RUN chmod +x /etc/service/bitcoin-cli/run

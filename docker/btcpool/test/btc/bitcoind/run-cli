@@ -3,9 +3,17 @@
 # run shell for bitcoin-cli
 #
 
-sleep 10
+if ! [ "$GENERATE_BLOCK" = "1" ]; then
+    # sleep and exit
+    exec sleep 2147483647
+fi
 
-bitcoin-cli -datadir=/work/bitcoin1 generatetoaddress 1 my2dxGb5jz43ktwGxg2doUaEb9WhZ9PQ7K
-bitcoin-cli -datadir=/work/bitcoin2 generatetoaddress 1 my2dxGb5jz43ktwGxg2doUaEb9WhZ9PQ7K
+# Generate a block for bitcoind to prevent the getblocktemplate call from failing
+while ! bitcoin-cli -datadir=/work/bitcoin1 generatetoaddress 1 my2dxGb5jz43ktwGxg2doUaEb9WhZ9PQ7K; do
+    sleep 1
+done
+while ! bitcoin-cli -datadir=/work/bitcoin2 generatetoaddress 1 my2dxGb5jz43ktwGxg2doUaEb9WhZ9PQ7K; do
+    sleep 1
+done
 
-sleep 50
+sleep 3600
