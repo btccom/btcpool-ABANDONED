@@ -1,4 +1,4 @@
-deploy_image_common: &deploy_image_common
+dep_img_comm: &dep_img_comm
   filters:
     tags:
       ignore: /.*base-image.*/
@@ -8,7 +8,7 @@ deploy_image_common: &deploy_image_common
 version: 2.1
 
 jobs:
-  check_clang_format:
+  clang_format:
     docker:
       - image: $BASE_IMAGE_SERVER/$BASE_IMAGE_REPO:lint
         auth:
@@ -19,7 +19,7 @@ jobs:
       - run:
           name: Run clang-format
           command: ./run-clang-format.sh && git diff --exit-code
-  build_and_run_tests:
+  test_cases:
     machine:
       image: ubuntu-1604:201903-01
     steps:
@@ -30,9 +30,9 @@ jobs:
       - run:
           name: Build & Run Tests
           command: |
-            cd docker/btcpool/test/${CIRCLE_JOB#"build_and_run_tests@"}
+            cd docker/btcpool/test/${CIRCLE_JOB#"test_cases@"}
             ./run-test.sh
-  golang_run_tests:
+  golang_tests:
     docker:
       - image: circleci/golang
     steps:
@@ -40,7 +40,7 @@ jobs:
       - run:
           name: Go tests
           command: cd golang && go test ./...
-  golang_deploy_image:
+  golang_dep_img:
     docker:
       - image: circleci/golang
     steps:
@@ -72,7 +72,7 @@ jobs:
             for DEPLOY_IMAGE_SERVER in $DEPLOY_IMAGE_SERVERS; do
               docker push $DEPLOY_IMAGE_SERVER/$DEPLOY_IMAGE_REPO:${CIRCLE_TAG}_go
             done
-  build_and_push_deploy_image:
+  push_dep_img:
     docker:
       - image: circleci/golang
     parameters:
@@ -113,47 +113,47 @@ jobs:
 
 workflows:
   version: 2
-  build_and_run_all_tests:
+  run_tests:
     jobs:
-      - check_clang_format
-      - golang_run_tests
-      - build_and_run_tests:
-          name: build_and_run_tests@bch
-      - build_and_run_tests:
-          name: build_and_run_tests@bsv
-      - build_and_run_tests:
-          name: build_and_run_tests@btc
-      - build_and_run_tests:
-          name: build_and_run_tests@ubtc
-      - build_and_run_tests:
-          name: build_and_run_tests@ltc
-      - build_and_run_tests:
-          name: build_and_run_tests@zec
-  build_and_push_deploy_images:
+      - clang_format
+      - golang_tests
+      - test_cases:
+          name: test_cases@bch
+      - test_cases:
+          name: test_cases@bsv
+      - test_cases:
+          name: test_cases@btc
+      - test_cases:
+          name: test_cases@ubtc
+      - test_cases:
+          name: test_cases@ltc
+      - test_cases:
+          name: test_cases@zec
+  push_dep_imgs:
     jobs:
-      - golang_deploy_image:
-          <<: *deploy_image_common
-      - build_and_push_deploy_image:
-          <<: *deploy_image_common
-          name: build_and_push_deploy_image@bch-0.18.5
+      - golang_dep_img:
+          <<: *dep_img_comm
+      - push_dep_img:
+          <<: *dep_img_comm
+          name: push_dep_img@bch-0.18.5
           base: bch-0.18.5
-      - build_and_push_deploy_image:
-          <<: *deploy_image_common
-          name: build_and_push_deploy_image@bsv-0.2.0
+      - push_dep_img:
+          <<: *dep_img_comm
+          name: push_dep_img@bsv-0.2.0
           base: bsv-0.2.0
-      - build_and_push_deploy_image:
-          <<: *deploy_image_common
-          name: build_and_push_deploy_image@btc-0.16.3
+      - push_dep_img:
+          <<: *dep_img_comm
+          name: push_dep_img@btc-0.16.3
           base: btc-0.16.3
-      - build_and_push_deploy_image:
-          <<: *deploy_image_common
-          name: build_and_push_deploy_image@ubtc-2.5.0.1
+      - push_dep_img:
+          <<: *dep_img_comm
+          name: push_dep_img@ubtc-2.5.0.1
           base: ubtc-2.5.0.1
-      - build_and_push_deploy_image:
-          <<: *deploy_image_common
-          name: build_and_push_deploy_image@ltc-0.16.3
+      - push_dep_img:
+          <<: *dep_img_comm
+          name: push_dep_img@ltc-0.16.3
           base: ltc-0.16.3
-      - build_and_push_deploy_image:
-          <<: *deploy_image_common
-          name: build_and_push_deploy_image@zec-2.0.4
+      - push_dep_img:
+          <<: *dep_img_comm
+          name: push_dep_img@zec-2.0.4
           base: zec-2.0.4
