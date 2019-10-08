@@ -1,9 +1,9 @@
 #
 # Dockerfile
 #
-# @author hanjiang.yu@bitmain.com
+# @author yihao.peng@bitmain.com
 # @copyright btc.com
-# @since 2018-12-01
+# @since 2019-10-08
 #
 #
 FROM ubuntu:18.04 as build
@@ -28,7 +28,7 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     pkg-config \
     wget \
- && apt-get autoremove -y && apt-get clean && rm -rf /var/lib/apt/lists/*
+    && apt-get autoremove -y && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Build libevent static library
 RUN cd /tmp && \
@@ -64,9 +64,9 @@ COPY tools/stratum_log_proxy/entrypoint.sh /
 
 # Install utilities & btcpool w/ debug symbols
 RUN apt-get update  \
- && apt-get install -y /work/package/*.deb \
- && apt-get autoremove -y \
- && apt-get clean \
- && rm -rf /var/lib/apt/lists/*
+    && apt-get install -y /work/package/*.deb \
+    && apt-get autoremove -y \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 ENTRYPOINT ["/entrypoint.sh"]

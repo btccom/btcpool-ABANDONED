@@ -162,7 +162,7 @@ func main() {
 		*min++
 		if *min <= *max {
 			glog.Infof("Get block %v", *min)
-			request := fmt.Sprintf("{\"id\":5,\"method\":\"eth_getBlockByNumber\",\"params\":[\"0x%x\",false]}", *min)
+			request := fmt.Sprintf("{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"eth_getBlockByNumber\",\"params\":[\"0x%x\",false]}", *min)
 			if glog.V(2) {
 				glog.Info("send: ", request)
 			}
@@ -230,7 +230,7 @@ func main() {
 
 	if *new {
 		glog.Infof("Waiting for the node to push a new block...")
-		request := "{\"id\":1,\"method\":\"eth_subscribe\",\"params\":[\"newHeads\"]}"
+		request := "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"eth_subscribe\",\"params\":[\"newHeads\"]}"
 		if glog.V(2) {
 			glog.Info("send: ", request)
 		}
