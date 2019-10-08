@@ -7,6 +7,21 @@
 # Building files
 build
 build*/
+tools/kafka_repeater/build
+tools/kafka_repeater/build*/
+tools/sharelog_to_parquet/build
+tools/sharelog_to_parquet/build*/
+tools/share_convertor/build
+tools/share_convertor/build*/
+tools/stratum_log_proxy/build
+tools/stratum_log_proxy/build*/
+tools/stratum_log_proxy/cfg
+tools/stratum_log_proxy/cfg*/
+tools/tls_decrypt_proxy/build
+tools/tls_decrypt_proxy/build*/
+tools/worker_update/build
+tools/worker_update/build*/
+
 
 # Installs runs 
 install/run_*/

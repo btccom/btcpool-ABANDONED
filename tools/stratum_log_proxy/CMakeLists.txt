@@ -59,7 +59,7 @@ set(THIRD_LIBRARIES ${GLOG_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBEVENT_LIB} ${L
 file(GLOB SOURCES
     ${PROJECT_ROOT}/src/ssl/*.cc
     ${PROJECT_ROOT}/tools/common/*.cpp
-    *.cc
+    src/*.hpp src/*.cc
 )
 
 add_executable(stratum_log_proxy ${SOURCES})
