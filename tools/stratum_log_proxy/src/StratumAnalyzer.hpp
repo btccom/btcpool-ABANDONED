@@ -168,7 +168,8 @@ public:
   }
 
   string getSubmitLoginLine() {
-    JSON json = {{"id", loginRequestId_},
+    JSON json = {{"jsonrpc", "2.0"},
+                 {"id", loginRequestId_},
                  {"method", "eth_submitLogin"},
                  {"params", {poolInfo_.user_, poolInfo_.pwd_}}};
     if (!poolInfo_.worker_.empty()) {
@@ -419,7 +420,7 @@ public:
     if (logOptions_.shareSubmit_)
       LOG(INFO) << toString() << "[share submit] " << share.toString();
 
-    shares_.clearOld(MAX_CACHED_SHARE_NUM,[this](Share share) mutable {
+    shares_.clearOld(MAX_CACHED_SHARE_NUM, [this](Share share) mutable {
       share.response_ = "no response";
       LOG(WARNING) << toString()
                    << "[share submit] pool did not respond to the submit "
