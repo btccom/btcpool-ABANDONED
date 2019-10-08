@@ -1,3 +1,5 @@
+package main
+
 // LICENSE:
 //		GNU LESSER GENERAL PUBLIC LICENSE Version 3
 //
@@ -7,14 +9,15 @@
 // 		The file and its executables exist independently in the repository and are not dependent or dependent on other parts.
 // 		You can find the full text of the GNU LGPLv3 license here: https://www.gnu.org/licenses/lgpl-3.0.txt
 //
-package main
 
 import (
+	"bufio"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"os/signal"
@@ -31,6 +34,8 @@ var node = flag.String("node", "localhost:8546", "Websocket address:port of Ethe
 var new = flag.Bool("new", false, "Get the newly generated block")
 var min = flag.Uint64("min", 0, "Get past blocks: min height")
 var max = flag.Uint64("max", 0, "Get past blocks: max height")
+var sqlFile = flag.String("sqlfile", "", "Loop execution of the specified SQL file")
+var interval = flag.Uint64("interval", 15, "The interval at which the specified SQL file is executed (seconds)")
 
 type Uint64 uint64
 
@@ -101,6 +106,42 @@ func main() {
 	defer insertStmt.Close()
 
 	glog.Info("connected to MySQL")
+
+	if len(*sqlFile) > 0 {
+		// ------------- SQL loop execution -------------
+		go func() {
+			glog.Infof("Execute %v every %v seconds", *sqlFile, *interval)
+			for {
+				time.Sleep(time.Duration(*interval) * time.Second)
+				f, err := os.Open(*sqlFile)
+				if err != nil {
+					glog.Warning("open sql failed: ", *sqlFile)
+					continue
+				}
+				defer f.Close()
+
+				rd := bufio.NewReader(f)
+				for {
+					line, err := rd.ReadString('\n')
+					if err != nil || io.EOF == err {
+						break
+					}
+					if glog.V(2) {
+						glog.Info("[SQL exec] ", line)
+					}
+					result, err := db.Exec(line)
+					if err == nil {
+						if glog.V(1) {
+							row, _ := result.RowsAffected()
+							glog.Infof("[SQL result] updated %v row", row)
+						}
+					} else {
+						glog.Warning("[SQL error] ", err)
+					}
+				}
+			}
+		}()
+	}
 
 	// ------------- websocket connection -------------
 	interrupt := make(chan os.Signal, 1)
