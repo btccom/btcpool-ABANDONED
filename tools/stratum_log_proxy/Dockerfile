@@ -54,13 +54,11 @@ LABEL maintainer="Yihao Peng <yihao.peng@bitmain.com>"
 
 ARG APT_MIRROR_URL
 
-COPY docker/btcpool/deploy/update_apt_sources.sh /tmp/
+COPY docker/btcpool/deploy/update_apt_sources.sh docker/btcpool/deploy/wait-for-it.sh /tmp/
 RUN /tmp/update_apt_sources.sh
 
 # Copy deb packages and scripts
 COPY --from=build /work/build/*.deb /work/package/
-#COPY --from=build /work/btcpool/install/cfg-generator /work/cfg-generator
-COPY tools/stratum_log_proxy/entrypoint.sh /
 
 # Install utilities & btcpool w/ debug symbols
 RUN apt-get update  \
@@ -69,4 +67,4 @@ RUN apt-get update  \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["stratum_log_proxy"]

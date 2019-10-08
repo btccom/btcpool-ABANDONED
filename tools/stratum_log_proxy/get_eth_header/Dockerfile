@@ -23,4 +23,6 @@ ARG APT_MIRROR_URL
 
 COPY --from=build /work/get_eth_header/get_eth_header /usr/local/bin/get_eth_header
 
+COPY update_apt_sources.sh wait-for-it.sh /tmp/
+
 ENTRYPOINT ["get_eth_header"]

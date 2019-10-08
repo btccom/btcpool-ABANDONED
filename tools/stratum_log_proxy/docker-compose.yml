@@ -1,0 +1,72 @@
+version: '3'
+services:
+  mysql:
+    image: mariadb
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    command: --log-error=/var/log/mysql/mysql.log
+    volumes:
+      - ./data/mysql/data:/var/lib/mysql
+      - ./data/mysql/sql:/docker-entrypoint-initdb.d
+      - ./data/mysql/log:/var/log/mysql
+    restart: always
+
+  eth-node:
+    image: ethereum/client-go:stable
+    entrypoint: sh
+    command: -c 'exec geth --syncmode light --rpc --rpcaddr 0.0.0.0 --ws --wsaddr 0.0.0.0 --verbosity 3 --nousb 2>>/root/log/geth.log'
+    volumes:
+      - ./data/eth-node/data:/root/.ethereum
+      - ./data/eth-node/log:/root/log
+    restart: always
+
+  block-update:
+    depends_on:
+      - mysql
+      - eth-node
+    image: get-eth-header
+    entrypoint: sh
+    command: -c '/tmp/wait-for-it.sh -t 60 mysql:3306; exec get_eth_header -log_dir /root/log -v 1 -mysql "root:root@tcp(mysql:3306)/proxy" -node eth-node:8546 -sqlfile /root/sql/update-share-info.sql'
+    volumes:
+      - ./data/block-update/log:/root/log
+      - ./data/block-update/sql:/root/sql
+    restart: always
+
+  proxy:
+    depends_on:
+      - mysql
+    image: stratum-log-proxy
+    entrypoint: sh
+    command: -c '/tmp/wait-for-it.sh -t 60 mysql:3306; exec stratum_log_proxy -c /root/cfg/stratum_log_proxy.cfg -l /root/log'
+    volumes:
+      - ./data/proxy/log:/root/log
+      - ./data/proxy/cfg:/root/cfg
+    ports:
+      - 3333:3333
+    restart: always
+
+  grafana:
+    depends_on:
+      - mysql
+    image: grafana/grafana
+    environment:
+      GF_LOG_MODE: file
+    volumes:
+      - ./data/grafana/data:/var/lib/grafana
+      - ./data/grafana/log:/var/log/grafana
+    ports:
+      - 3000:3000
+    restart: always
+
+  phpmyadmin:
+    depends_on:
+      - mysql
+    image: phpmyadmin/phpmyadmin
+    environment:
+      PMA_HOST: mysql
+    entrypoint: bash
+    command: -c 'exec /docker-entrypoint.sh apache2-foreground &>>/var/log/phpmyadmin/phpmyadmin.log'
+    volumes:
+      - ./data/phpmyadmin/log:/var/log/phpmyadmin
+    ports:
+      - 3100:80

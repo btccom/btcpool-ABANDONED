@@ -17,6 +17,10 @@ tools/stratum_log_proxy/build
 tools/stratum_log_proxy/build*/
 tools/stratum_log_proxy/cfg
 tools/stratum_log_proxy/cfg*/
+tools/stratum_log_proxy/img
+tools/stratum_log_proxy/img*/
+tools/stratum_log_proxy/data
+tools/stratum_log_proxy/data*/
 tools/tls_decrypt_proxy/build
 tools/tls_decrypt_proxy/build*/
 tools/worker_update/build

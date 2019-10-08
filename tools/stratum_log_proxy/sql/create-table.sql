@@ -3,6 +3,9 @@ SET AUTOCOMMIT = 0;
 START TRANSACTION;
 SET time_zone = "+00:00";
 
+CREATE DATABASE `proxy`;
+USE `proxy`;
+
 CREATE TABLE `shares` (
  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
  `job_id` varchar(255) NOT NULL,
@@ -11,7 +14,7 @@ CREATE TABLE `shares` (
  `response` varchar(255) NOT NULL,
  `nonce` bigint(20) unsigned NOT NULL,
  `diff` bigint(20) unsigned NOT NULL,
- `network_diff` bigint(20) unsigned NOT NULL,
+ `network_diff` bigint(20) UNSIGNED NOT NULL DEFAULT 0,
  `height` bigint(20) unsigned NOT NULL,
  `timestamp` bigint(20) unsigned NOT NULL,
  `ip` varchar(255) NOT NULL,
@@ -46,7 +49,7 @@ CREATE TABLE `blocks` (
  `nonce` bigint(20) unsigned NOT NULL,
  PRIMARY KEY (`height`),
  KEY `time` (`time`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE VIEW `nearblocks` AS SELECT
 `t1`.`height` AS `height`,
