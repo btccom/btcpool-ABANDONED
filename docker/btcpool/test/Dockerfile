@@ -39,7 +39,7 @@ RUN mkdir -p /work/btcpool/build && cd /work/btcpool/build && cmake \
 RUN cd /work/btcpool/build && make -j${BUILD_JOBS}
 
 # startup scripts
-COPY ./docker/btcpool/test/common/entrypoint.sh ./docker/btcpool/test/common/wait-for-it.sh /
+COPY ./docker/btcpool/deploy/entrypoint.sh ./docker/btcpool/deploy/wait-for-it.sh /
 
 # entrypoint
 ENTRYPOINT ["/entrypoint.sh"]
