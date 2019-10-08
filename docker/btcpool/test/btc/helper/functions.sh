@@ -27,7 +27,7 @@ WAIT_FOR_PORT() {
     container_name="$1"
     port="$2"
     WAIT_FOR_CONTAINER "$container_name"
-    while [ "$(docker exec "$container_name" netstat -lntp | grep ":$port" | wc -l)" = "0" ]; do
+    while [ "$(docker exec "$container_name" grep "$(printf ':%04X 00000000:0000 0A' $port)" /proc/net/tcp | wc -l)" = "0" ]; do
         echo "waiting for port $port..."
         sleep 1
     done
