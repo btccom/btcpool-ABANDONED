@@ -86,15 +86,13 @@ void StratumServerCkb::checkAndUpdateShare(
     auto jobTarget = UintToArith256(target);
 
     if (isEnableSimulator_ || bnblocktarget <= jobTarget) {
-      LOG(INFO) << "compare share hash: " << bnblocktarget.GetHex()
-                << ", job target: " << jobTarget.GetHex();
       share.set_sharediff(jobDiff);
       share.set_status(StratumStatus::ACCEPT);
       return;
     }
   }
 
-  LOG(INFO) << "reject share : share_pow_hash " << sjob->pow_hash_
+  DLOG(INFO) << "reject share : share_pow_hash " << sjob->pow_hash_
             << "\nnonce : " << std::hex << share.nonce()
             << "\nshare hash2 : " << bnblocktarget.GetHex();
 
@@ -194,7 +192,7 @@ shared_ptr<StratumJob> JobRepositoryCkb::createStratumJob() {
 void JobRepositoryCkb::broadcastStratumJob(shared_ptr<StratumJob> sjob) {
   auto sjobckb = std::static_pointer_cast<StratumJobCkb>(sjob);
 
-  LOG(INFO) << "broadcast stratum job " << std::hex << sjobckb->jobId_;
+  DLOG(INFO) << "broadcast stratum job " << std::hex << sjobckb->jobId_;
 
   bool isClean = false;
   if (sjobckb->height_ > lastHeight_) {

@@ -40,7 +40,7 @@ void StratumSessionCkb::sendSetDifficulty(
     LocalJob &localJob, uint64_t difficulty) {
   //{"id":null,"method":"mining.set_difficulty","params":[1.999969]}
   currentDifficulty_ = difficulty;
-  LOG(INFO) << "difficulty : " << difficulty;
+  DLOG(INFO) << "difficulty : " << difficulty;
   uint256 jobtarget;
   CkbDifficulty::DiffToTarget(currentDifficulty_, jobtarget);
 
@@ -157,7 +157,7 @@ void StratumSessionCkb::handleRequest_Subscribe(
     responseError(idStr, StratumStatus::UNKNOWN);
     return;
   }
-  LOG(INFO) << "receive handleRequest_Subscribe jparams : " << jparams;
+  DLOG(INFO) << "receive handleRequest_Subscribe jparams : " << jparams;
 
   state_ = SUBSCRIBED;
   //{"id":1,"method":"mining.subscribe","params":["ckbminer-v1.0.0",null,"ckb.uupool.cn","10861"]}
@@ -172,13 +172,13 @@ void StratumSessionCkb::handleRequest_Subscribe(
       idStr.c_str(),
       sessionId_,
       12);
-  LOG(INFO) << "send mining  :" << s;
+  DLOG(INFO) << "send mining  :" << s;
   sendData(s);
 }
 
 void StratumSessionCkb::handleRequest_Authorize(
     const string &idStr, const JsonNode &jparams) {
-  LOG(INFO) << "receive handleRequest_Authorize jparams : " << jparams;
+  DLOG(INFO) << "receive handleRequest_Authorize jparams : " << jparams;
   if (state_ != SUBSCRIBED) {
     responseError(idStr, StratumStatus::NOT_SUBSCRIBED);
     return;
