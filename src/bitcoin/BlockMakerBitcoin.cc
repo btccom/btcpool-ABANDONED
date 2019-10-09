@@ -455,7 +455,7 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(
     ScopeLock sl(jobIdAuxBlockInfoLock_);
     if (jobId2AuxHash_.find(jobId) != jobId2AuxHash_.end()) {
       auxblockinfo = jobId2AuxHash_[jobId];
-    } 
+    }
   }
 
 #ifdef CHAIN_TYPE_LTC
@@ -464,7 +464,8 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(
   uint256 bitcoinblockhash = blkHeader.GetHash();
 #endif
 
-  if (jobId2AuxHash_.empty() || (!auxblockinfo->nmcBlockHash_.IsNull() &&
+  if (jobId2AuxHash_.find(jobId) == jobId2AuxHash_.end() ||
+      (!auxblockinfo->nmcBlockHash_.IsNull() &&
        UintToArith256(bitcoinblockhash) <=
            UintToArith256(auxblockinfo->nmcNetworkTarget_))) {
     //
@@ -480,7 +481,7 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(
         rpcAddr,
         rpcUserpass);
   } else {
-    DLOG(INFO) << "nmc block hash : " << auxblockinfo->nmcBlockHash_.GetHex()  
+    DLOG(INFO) << "nmc block hash : " << auxblockinfo->nmcBlockHash_.GetHex()
                << " cannot submit to node.";
   }
 
@@ -531,7 +532,8 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(
         totalTxCountHex,
         bitcoinblockhash.GetHex()); // using thread
   } else {
-    DLOG(INFO) << "vcash block hash : " << auxblockinfo->vcashBlockHash_.GetHex()  
+    DLOG(INFO) << "vcash block hash : "
+               << auxblockinfo->vcashBlockHash_.GetHex()
                << " cannot submit to node.";
   }
 }
@@ -1471,7 +1473,8 @@ void BlockMakerBitcoin::_submitVcashBlockThread(
 
     // success
     if (res) {
-      LOG(INFO) << "rpc call success, submit vcash block response: " << response;
+      LOG(INFO) << "rpc call success, submit vcash block response: "
+                << response;
       break;
     }
 
