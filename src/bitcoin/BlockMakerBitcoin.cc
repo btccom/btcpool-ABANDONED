@@ -449,16 +449,13 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(
         (*vtxs)[i]->GetHash(); // vtxs is a shared_ptr<vector<CTransactionRef>>
   }
 
-  bool issupportvcashmergemining = false;
   // if the jobid is not exist , need submit to nmc
   std::shared_ptr<AuxBlockInfo> auxblockinfo;
   {
     ScopeLock sl(jobIdAuxBlockInfoLock_);
     if (jobId2AuxHash_.find(jobId) != jobId2AuxHash_.end()) {
       auxblockinfo = jobId2AuxHash_[jobId];
-      assert(auxblockinfo.get() != nullptr);
-      issupportvcashmergemining = true;
-    }
+    } 
   }
 
 #ifdef CHAIN_TYPE_LTC
@@ -467,12 +464,9 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(
   uint256 bitcoinblockhash = blkHeader.GetHash();
 #endif
 
-  // auxBlockHash is empty meaning that nmc is not supported
-  // when canot find auxblockinfo we need submit msg to nmc
-  if (!issupportvcashmergemining ||
-      (!auxBlockHash.empty() &&
+  if (jobId2AuxHash_.empty() || (!auxblockinfo->nmcBlockHash_.IsNull() &&
        UintToArith256(bitcoinblockhash) <=
-           UintToArith256(auxblockinfo->auxNetworkTarget_))) {
+           UintToArith256(auxblockinfo->nmcNetworkTarget_))) {
     //
     // build aux POW
     //
@@ -480,14 +474,17 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(
 
     // submit to namecoind
     submitNamecoinBlockNonBlocking(
-        auxBlockHash,
+        auxblockinfo->nmcBlockHash_.GetHex(),
         auxPow,
         newblk.GetHash().ToString(),
         rpcAddr,
         rpcUserpass);
+  } else {
+    DLOG(INFO) << "nmc block hash : " << auxblockinfo->nmcBlockHash_.GetHex()  
+               << " cannot submit to node.";
   }
 
-  if (issupportvcashmergemining &&
+  if (!auxblockinfo->vcashBlockHash_.IsNull() &&
       UintToArith256(bitcoinblockhash) <=
           UintToArith256(auxblockinfo->vcashNetworkTarget_)) {
 
@@ -523,7 +520,6 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(
       hashMerkleRoot = Hash(
           BEGIN(hashMerkleRoot), END(hashMerkleRoot), BEGIN(step), END(step));
     }
-    LOG(INFO) << " bitcoin hashMerkleRoot : " << hashMerkleRoot.GetHex();
 
     submitVcashBlockNonBlocking(
         rpcAddress,
@@ -534,6 +530,9 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(
         merkleHashesHex,
         totalTxCountHex,
         bitcoinblockhash.GetHex()); // using thread
+  } else {
+    DLOG(INFO) << "vcash block hash : " << auxblockinfo->vcashBlockHash_.GetHex()  
+               << " cannot submit to node.";
   }
 }
 
@@ -1045,8 +1044,8 @@ void BlockMakerBitcoin::consumeStratumJob(rd_kafka_message_t *rkmessage) {
   }
 
   std::shared_ptr<AuxBlockInfo> auxblockinfo = std::make_shared<AuxBlockInfo>();
-  auxblockinfo->auxBlockHash_ = sjob->nmcAuxBlockHash_;
-  BitsToTarget(sjob->nmcAuxBits_, auxblockinfo->auxNetworkTarget_);
+  auxblockinfo->nmcBlockHash_ = sjob->nmcAuxBlockHash_;
+  BitsToTarget(sjob->nmcAuxBits_, auxblockinfo->nmcNetworkTarget_);
 
   auxblockinfo->vcashBlockHash_ =
       uint256S(sjob->vcashBlockHashForMergedMining_);
@@ -1462,7 +1461,7 @@ void BlockMakerBitcoin::_submitVcashBlockThread(
       coinbaseHex.c_str(),
       merkleHashesHex.c_str());
 
-  DLOG(INFO) << "submit block to: " << rpcAddress
+  DLOG(INFO) << "submit vcash block to: " << rpcAddress
              << "rpc content : " << request;
   // try N times
   string response;
@@ -1472,7 +1471,7 @@ void BlockMakerBitcoin::_submitVcashBlockThread(
 
     // success
     if (res) {
-      LOG(INFO) << "rpc call success, submit block response: " << response;
+      LOG(INFO) << "rpc call success, submit vcash block response: " << response;
       break;
     }
 

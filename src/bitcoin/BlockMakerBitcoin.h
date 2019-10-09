@@ -72,8 +72,8 @@ protected:
 #endif
 
   struct AuxBlockInfo {
-    uint256 auxBlockHash_;
-    uint256 auxNetworkTarget_;
+    uint256 nmcBlockHash_;
+    uint256 nmcNetworkTarget_;
     uint256 vcashBlockHash_;
     uint256 vcashNetworkTarget_;
     string vcashRpcAddress_;
