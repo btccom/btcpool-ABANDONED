@@ -456,8 +456,7 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(
     if (jobId2AuxHash_.find(jobId) != jobId2AuxHash_.end()) {
       auxblockinfo = jobId2AuxHash_[jobId];
     } else {
-      DLOG(INFO) << "cannot find jobid("
-                 << jobId << ") in jobId2AuxHash_";
+      DLOG(INFO) << "cannot find jobid(" << jobId << ") in jobId2AuxHash_";
     }
   }
 
@@ -536,20 +535,19 @@ void BlockMakerBitcoin::consumeNamecoinSolvedShare(
         bitcoinblockhash.GetHex()); // using thread
   } else {
     DLOG(INFO) << "vcash block hash : "
-               << ((!auxblockinfo || auxblockinfo->vcashBlockHash_.IsNull()) ? "is null" :
-              auxblockinfo->vcashBlockHash_.GetHex())
+               << ((!auxblockinfo || auxblockinfo->vcashBlockHash_.IsNull())
+                       ? "is null"
+                       : auxblockinfo->vcashBlockHash_.GetHex())
                << " cannot submit to node.";
   }
 
-  if(auxblockinfo) {
+  if (auxblockinfo) {
     DLOG(INFO) << " vcash network target : "
                << auxblockinfo->vcashNetworkTarget_.GetHex()
                << " nmc network target : "
                << auxblockinfo->nmcNetworkTarget_.GetHex()
-               << " bitcoin block hash : "
-               << bitcoinblockhash.GetHex();
+               << " bitcoin block hash : " << bitcoinblockhash.GetHex();
   }
-
 }
 
 void BlockMakerBitcoin::submitNamecoinBlockNonBlocking(

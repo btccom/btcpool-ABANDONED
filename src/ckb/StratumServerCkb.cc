@@ -93,8 +93,8 @@ void StratumServerCkb::checkAndUpdateShare(
   }
 
   DLOG(INFO) << "reject share : share_pow_hash " << sjob->pow_hash_
-            << "\nnonce : " << std::hex << share.nonce()
-            << "\nshare hash2 : " << bnblocktarget.GetHex();
+             << "\nnonce : " << std::hex << share.nonce()
+             << "\nshare hash2 : " << bnblocktarget.GetHex();
 
   share.set_status(StratumStatus::LOW_DIFFICULTY);
   return;
