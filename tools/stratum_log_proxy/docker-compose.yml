@@ -14,7 +14,7 @@ services:
   eth-node:
     image: ethereum/client-go:stable
     entrypoint: sh
-    command: -c 'exec geth --syncmode light --rpc --rpcaddr 0.0.0.0 --ws --wsaddr 0.0.0.0 --verbosity 3 --nousb 2>>/root/log/geth.log'
+    command: -c 'exec geth --syncmode light --rpc --rpcaddr 0.0.0.0 --ws --wsaddr 0.0.0.0 --verbosity 4 -maxpeers 200 --nousb 2>>/root/log/geth.log'
     volumes:
       - ./data/eth-node/data:/root/.ethereum
       - ./data/eth-node/log:/root/log
@@ -26,7 +26,7 @@ services:
       - eth-node
     image: get-eth-header
     entrypoint: sh
-    command: -c '/tmp/wait-for-it.sh -t 60 mysql:3306; exec get_eth_header -log_dir /root/log -v 1 -mysql "root:root@tcp(mysql:3306)/proxy" -node eth-node:8546 -sqlfile /root/sql/update-share-info.sql'
+    command: -c '/tmp/wait-for-it.sh -t 60 mysql:3306; /tmp/wait-for-it.sh -t 60 eth-node:8546; exec get_eth_header -log_dir /root/log -v 1 -mysql "root:root@tcp(mysql:3306)/proxy" -node eth-node:8546 -sqlfile /root/sql/update-share-info.sql'
     volumes:
       - ./data/block-update/log:/root/log
       - ./data/block-update/sql:/root/sql

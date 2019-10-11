@@ -325,8 +325,8 @@ public:
             json["result"][1].is_string() &&
             json["result"][1].get<string>().size() == 66 &&
             json["result"][2].is_string() &&
-            // it may be 60 or 66 bytes
-            json["result"][2].get<string>().size() >= 60) {
+            // it should be 0x...
+            json["result"][2].get<string>().size() > 2) {
           parseJobNotify(json, record);
         } else if (shares_.contains(json["id"])) {
           parseSubmitResponse(json);
