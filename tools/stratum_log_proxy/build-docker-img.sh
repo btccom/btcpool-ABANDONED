@@ -23,6 +23,7 @@ echo "pull phpmyadmin"
 docker pull phpmyadmin/phpmyadmin
 
 echo 'export docker images to ./img/'
+[ -e "../img" ] || mkdir ../img
 cd ../img
 docker save stratum-log-proxy | gzip > stratum-log-proxy.img.gz
 docker save get-eth-header | gzip > get-eth-header.img.gz

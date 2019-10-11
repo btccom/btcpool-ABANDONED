@@ -380,7 +380,7 @@ public:
     jobs_[job.powHash_] = job;
     if (logOptions_.jobNotify_)
       LOG(INFO) << toString() << "[job] " << job.toString();
-
+    writeJob(job);
     jobs_.clear(MAX_CACHED_JOB_NUM);
   }
 
@@ -461,6 +461,23 @@ public:
     if (logOptions_.shareResponse_)
       LOG(INFO) << toString() << "[share response] " << share.toString();
     writeShare(share);
+  }
+
+  void writeJob(const Job &job) {
+    string sql = StringFormat(
+        "INSERT INTO jobs(job_id,pow_hash,dag_seed,nonce_prefix,"
+        "diff,height,timestamp,ip,port,miner_fullname,miner_wallet,"
+        "miner_user,miner_worker,miner_pwd,pool_name,pool_url,pool_user,"
+        "pool_worker,pool_pwd) VALUES('%s','%s','%s','%s',%u,%u,%u,%s)",
+        quote(job.id_.dump()),
+        quote(job.powHash_),
+        quote(job.dagSeed_),
+        quote(job.noncePrefix_),
+        job.diff_,
+        job.height_,
+        job.time_,
+        minerInfoSql_);
+    mysqlExecQueue_.addSQL(sql);
   }
 
   void writeShare(const Share &share) {
