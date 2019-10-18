@@ -153,8 +153,10 @@ public:
   // mark which hour data has been modified: 23, 22, ...., 0
   uint32_t modifyHoursFlag_;
   mutex lock_;
+  string rpcUrl_;
 
   ShareStatsDay() = default;
+  ShareStatsDay(const string rpcurl);
   virtual ~ShareStatsDay() = default;
   ShareStatsDay(const ShareStatsDay &r) = default;
   ShareStatsDay &operator=(const ShareStatsDay &r) = default;
@@ -171,6 +173,10 @@ private:
 
 template <class SHARE>
 class ShareStatsDayNormalized : public ShareStatsDay<SHARE> {
+public:
+  ShareStatsDayNormalized() = default;
+  ShareStatsDayNormalized(const string rpcurl);
+
 private:
   uint64_t lastAcceptDiff_ = 1;
   virtual void updateAcceptDiff(uint64_t diff) override;

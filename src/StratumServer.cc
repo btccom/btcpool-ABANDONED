@@ -307,7 +307,7 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
     // that everyone is using this Map readonly now
     auto existingJob = getStratumJobEx(sjob->jobId_);
     if (existingJob != nullptr) {
-      LOG(ERROR) << "jobId already existed";
+      LOG(ERROR) << "jobId already existed" << sjob->jobId_;
       return;
     }
 

@@ -25,7 +25,7 @@
 
 #include "StratumSessionCkb.h"
 #include "CommonCkb.h"
-
+#include "hextodec.h"
 #include <algorithm>
 
 unique_ptr<StratumSession> StratumServerCkb::createConnection(
@@ -51,7 +51,8 @@ void StratumServerCkb::checkAndUpdateShare(
     return;
   }
   uint256 pow_hash = uint256S(sjob->pow_hash_.c_str());
-  auto bnblocktarget = CKB::GetEaglesongHash2(pow_hash, share.nonce());
+  // auto bnblocktarget = CKB::GetEaglesongHash2(pow_hash, share.nonce());
+  auto bnblocktarget = CKB::GetEaglesongHash128(pow_hash, share.ckbnonce());
   blockHash = ArithToUint256(bnblocktarget);
 
   uint256 target = uint256S(sjob->target_.c_str());
@@ -92,6 +93,11 @@ void StratumServerCkb::checkAndUpdateShare(
       return;
     }
   }
+
+  LOG(INFO) << "reject share : share_pow_hash " << sjob->pow_hash_
+            << "\nnonce : " << std::hex << share.nonce()
+            << "\nshare hash2 : " << bnblocktarget.GetHex();
+
   share.set_status(StratumStatus::LOW_DIFFICULTY);
   return;
 }
@@ -104,6 +110,15 @@ void StratumServerCkb::sendSolvedShare2Kafka(
     const uint256 &blockHash) {
   auto sjob = std::static_pointer_cast<StratumJobCkb>(exjob->sjob_);
 
+  const BaseConverter &hex2dec = BaseConverter::HexToDecimalConverter();
+  vector<char> bin;
+  std::string decckbnonce = "";
+  Hex2BinReverse(share.ckbnonce().c_str(), share.ckbnonce().size(), bin);
+  Bin2Hex((const uint8_t *)bin.data(), bin.size(), decckbnonce);
+  transform(
+      decckbnonce.begin(), decckbnonce.end(), decckbnonce.begin(), ::toupper);
+  decckbnonce = hex2dec.Convert(decckbnonce);
+
   string msg = Strings::Format(
       "{\"job_id\":%" PRIu64
       ",\"pow_hash\":\"%s\""
@@ -115,7 +130,8 @@ void StratumServerCkb::sendSolvedShare2Kafka(
       ""
       ",\"timestamp\":%" PRIu64
       ""
-      ",\"nonce\":%" PRIu64 ",\"userId\":%" PRId32 ",\"workerId\":%" PRId64
+      ",\"nonce\":%s"
+      ",\"userId\":%" PRId32 ",\"workerId\":%" PRId64
       ",\"workerFullName\":\"%s\""
       "}",
       share.jobid(),
@@ -124,7 +140,7 @@ void StratumServerCkb::sendSolvedShare2Kafka(
       sjob->height_,
       sjob->target_.c_str(),
       sjob->timestamp_,
-      share.nonce(),
+      decckbnonce.c_str(),
       worker.userId(chainId),
       worker.workerHashId_,
       filterWorkerName(worker.fullName_).c_str());

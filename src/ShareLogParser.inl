@@ -152,6 +152,7 @@ ShareLogParserT<SHARE>::ShareLogParserT(
   , chainType_(cfg.lookup("sharelog.chain_type").operator string())
   , f_(nullptr)
   , buf_(nullptr)
+  , kMaxElementsNum_(1000000)
   , incompleteShareSize_(0)
   , poolDB_({cfg.lookup("pooldb.host").operator string(),
              configLookup<int32_t>(cfg, "pooldb.port", 3306),
@@ -173,7 +174,15 @@ ShareLogParserT<SHARE>::ShareLogParserT(
   {
     // for the pool
     WorkerKey pkey(0, 0);
-    workersStats_[pkey] = std::make_shared<ShareStatsDay<SHARE>>();
+    if ("CKB" == chainType_) {
+      rpcUrl_ = cfg.lookup("sharelog.rpcurl").operator string();
+      cfg.lookupValue("sharelog.max_elements_num", kMaxElementsNum_); 
+      LOG(INFO) << "chaintype : " << chainType_ << " RPCURL : " << rpcUrl_ 
+                << "max_elements_num : " << kMaxElementsNum_;
+      workersStats_[pkey] = std::make_shared<ShareStatsDay<SHARE>>(rpcUrl_);
+    } else {
+      workersStats_[pkey] = std::make_shared<ShareStatsDay<SHARE>>();
+    }
   }
 
   filePath_ = getStatsFilePath(
@@ -245,11 +254,21 @@ void ShareLogParserT<SHARE>::parseShare(SHARE &share) {
   WorkerKey pkey(0, 0);
 
   pthread_rwlock_wrlock(&rwlock_);
-  if (workersStats_.find(wkey) == workersStats_.end()) {
-    workersStats_[wkey] = std::make_shared<ShareStatsDayNormalized<SHARE>>();
-  }
-  if (workersStats_.find(ukey) == workersStats_.end()) {
-    workersStats_[ukey] = std::make_shared<ShareStatsDay<SHARE>>();
+  if ("CKB" == chainType_) {
+    if (workersStats_.find(wkey) == workersStats_.end()) {
+      workersStats_[wkey] =
+          std::make_shared<ShareStatsDayNormalized<SHARE>>(rpcUrl_);
+    }
+    if (workersStats_.find(ukey) == workersStats_.end()) {
+      workersStats_[ukey] = std::make_shared<ShareStatsDay<SHARE>>(rpcUrl_);
+    }
+  } else {
+    if (workersStats_.find(wkey) == workersStats_.end()) {
+      workersStats_[wkey] = std::make_shared<ShareStatsDayNormalized<SHARE>>();
+    }
+    if (workersStats_.find(ukey) == workersStats_.end()) {
+      workersStats_[ukey] = std::make_shared<ShareStatsDay<SHARE>>();
+    }
   }
   pthread_rwlock_unlock(&rwlock_);
 
@@ -1208,6 +1227,11 @@ void ShareLogParserServerT<SHARE>::runThreadShareLogParser() {
       if (shareNum <= 0) {
         nonShareCounter++;
         break;
+      }
+      if("CKB" == chainType_ && time(nullptr) > lastFlushDBTime + kFlushDBInterval_) {
+        DLOG(INFO) << "flush sharelog to DB";
+        shareLogParser->flushToDB(); // will wait util all data flush to DB
+        lastFlushDBTime = time(nullptr);
       }
       nonShareCounter = 0;
       DLOG(INFO) << "process share: " << shareNum;

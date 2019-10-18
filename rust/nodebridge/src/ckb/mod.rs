@@ -4,7 +4,7 @@ use std::{str, thread};
 use chrono::prelude::*;
 use ckb_jsonrpc_types::BlockTemplate;
 use ckb_types::prelude::{Builder, Entity, Pack};
-use ckb_types::{H256, U256};
+use ckb_types::{H256};
 use failure::Error;
 use futures::future::{loop_fn, Loop};
 use futures::sync::mpsc::{channel, Sender};
@@ -156,9 +156,9 @@ fn create_block_record(
     height: u64,
     block_hash: &H256,
     pow_hash: &H256,
-    nonce: u64,
+    nonce: u128,
     parent_hash: &H256,
-    difficulty: &U256,
+    compact_target: &u32,
 ) {
     let stmt = format!(
         "INSERT INTO `found_blocks` (`puid`,`worker_id`,`worker_full_name`,`height`,`hash`,`hash_no_nonce`,`nonce`,`prev_hash`,`network_diff`,`created_at`) VALUES({},{},'0x{}',{},'0x{}','0x{}','0x{:016x}','0x{}',{},'{}')",
@@ -170,7 +170,7 @@ fn create_block_record(
         pow_hash,
         nonce,
         parent_hash,
-        difficulty,
+        compact_target,
         Utc::now().format("%F %T"),
     );
     execute_query(url, stmt);
@@ -214,7 +214,7 @@ fn submit_block(rpc_client: Client, job: &MiningJob, solved_share: &SolvedShare,
         &solved_share.pow_hash,
         solved_share.nonce,
         &job.parent_hash,
-        &job.difficulty,
+        &job.compact_target,
     );
 
     info!("Submitting block {}", &hash);
@@ -222,33 +222,25 @@ fn submit_block(rpc_client: Client, job: &MiningJob, solved_share: &SolvedShare,
         .submit_block(job.work_id, block.data().into())
         .then(move |result| match result {
             Ok(hash_returned) => {
-                match hash_returned {
-                    Some(_) => {
-                        info!("Submitted block {}", &hash);
-                        let fut = rpc_client
-                            .get_cellbase_output_capacity_details(hash.clone())
-                            .then(move |result| match result {
-                                Ok(reward) => {
-                                    update_block_reward(
-                                        &db_url,
-                                        &hash,
-                                        &Ok(reward.unwrap_or_default().total.into()),
-                                    );
-                                    Ok(())
-                                }
-                                Err(e) => {
-                                    update_block_reward(&db_url, &hash, &Err(e));
-                                    Err(())
-                                }
-                            });
-                        tokio::spawn(fut);
-                        Ok(())
-                    }
-                    None => {
-                        error!("Failed to submit block {}", &hash);
-                        Err(())
-                    }
-                }
+                info!("Submit block {} returned {}", &hash, hash_returned);
+                let fut = rpc_client
+                    .get_cellbase_output_capacity_details(hash.clone())
+                    .then(move |result| match result {
+                        Ok(reward) => {
+                            update_block_reward(
+                                &db_url,
+                                &hash,
+                                &Ok(reward.unwrap_or_default().total.into()),
+                            );
+                            Ok(())
+                        }
+                        Err(e) => {
+                            update_block_reward(&db_url, &hash, &Err(e));
+                            Err(())
+                        }
+                    });
+                tokio::spawn(fut);
+                Ok(())
             }
             Err(e) => {
                 error!("Failed to submit block {}: {}", &hash, e);

@@ -26,18 +26,6 @@
 #include "eaglesong/eaglesong.h"
 #include "utilstrencodings.h"
 #include <iostream>
-arith_uint256 CKB::GetEaglesongHash(uint256 pow_hash, uint64_t nonce) {
-  std::reverse(pow_hash.begin(), pow_hash.end());
-  boost::endian::little_uint64_buf_t nonce_t(nonce);
-  uint8_t input[40] = {0};
-  uint8_t output[32] = {0};
-  std::string hash_s;
-  memcpy(input, (uint8_t *)(&nonce_t), sizeof(nonce_t));
-  memcpy(input + 8, pow_hash.begin(), 32);
-  EaglesongHash(output, input, 40);
-  Bin2Hex(output, 32, hash_s);
-  return UintToArith256(uint256S(hash_s.c_str()));
-}
 
 arith_uint256
 CKB::GetEaglesongHash2(uint256 pow_hash, uint64_t nonce) { // 3e29d5eaf71970c0
@@ -47,7 +35,18 @@ CKB::GetEaglesongHash2(uint256 pow_hash, uint64_t nonce) { // 3e29d5eaf71970c0
   std::string hash_s = nonce_s + pow_hash.GetHex();
   std::vector<char> hashvec;
   Hex2Bin(hash_s.c_str(), hashvec);
+
   EaglesongHash(output, (uint8_t *)(hashvec.data()), 40);
+  Bin2Hex(output, 32, hash_s);
+  return UintToArith256(uint256S(hash_s.c_str()));
+}
+
+arith_uint256 CKB::GetEaglesongHash128(uint256 pow_hash, string nonce) {
+  uint8_t output[32] = {0};
+  std::string hash_s = pow_hash.GetHex() + nonce; // 32 + 16
+  std::vector<char> hashvec;
+  Hex2Bin(hash_s.c_str(), hashvec);
+  EaglesongHash(output, (uint8_t *)(hashvec.data()), 48);
   Bin2Hex(output, 32, hash_s);
   return UintToArith256(uint256S(hash_s.c_str()));
 }

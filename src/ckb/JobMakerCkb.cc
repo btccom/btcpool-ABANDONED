@@ -49,7 +49,7 @@ bool JobMakerHandlerCkb::processMsg(const string &msg) {
     DLOG(INFO) << "insert key into workMap failed: " << key;
     return false;
   }
-
+  jobid2work_.insert(std::make_pair(job->jobId_, job));
   clearTimeoutMsg();
 
   if (job->height_ < lastReceivedHeight_) {
@@ -89,6 +89,7 @@ void JobMakerHandlerCkb::clearTimeoutMsg() {
                 << ", height:" << height
                 << ", headerHash:" << itr->second->pow_hash_;
 
+      jobid2work_.erase(jobid2work_.find(itr->second->jobId_));
       // c++11: returns an iterator to the next element in the map
       itr = workMap_.erase(itr);
     }
@@ -100,7 +101,9 @@ string JobMakerHandlerCkb::makeStratumJobMsg() {
     return "";
   }
 
-  shared_ptr<StratumJobCkb> sjob = workMap_.rbegin()->second;
+  shared_ptr<StratumJobCkb> sjob = jobid2work_.rbegin()->second;
+  DLOG(INFO) << "send job : " << sjob->jobId_
+             << "job pow_hash :  " << sjob->pow_hash_;
   DLOG(INFO) << "sjob :" << sjob->serializeToJson();
   return sjob->serializeToJson();
 }

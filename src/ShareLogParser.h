@@ -93,6 +93,7 @@ class ShareLogParserT : public ShareLogParser {
   time_t date_; // date_ % 86400 == 0
   string filePath_; // sharelog data file path
   const string chainType_;
+  string rpcUrl_;
 
   //
   // for processGrowingShareLog()
@@ -100,7 +101,7 @@ class ShareLogParserT : public ShareLogParser {
   zstr::ifstream *f_; // file handler
   uint8_t *buf_; // fread buffer
   // 48 * 1000000 = 48,000,000 ~ 48 MB
-  static const size_t kMaxElementsNum_ = 1000000; // num of shares
+  int32_t kMaxElementsNum_; // num of shares
   size_t incompleteShareSize_;
   uint32_t bufferlength_;
 

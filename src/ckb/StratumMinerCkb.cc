@@ -70,7 +70,8 @@ void StratumMinerCkb::handleRequest_Submit(
   }
   //{"id":102,"method":"mining.submit","params":["ckb1qyq2znu0gempdahctxsm49sa9jdzq9vnka7qt9ntff.worker1","17282f3f","eaf71970c0"]}
   // params: [username, jobId, nonce2]
-  uint64_t extraNonce2 = jsonParams.children()->at(2).uint64_hex();
+  uint64_t extraNonce2 = 0;
+  string extranonce = jsonParams.children()->at(2).str();
   uint64_t JobId = jsonParams.children()->at(1).uint64_hex();
 
   auto localJob = session.findLocalJob(JobId);
@@ -113,9 +114,23 @@ void StratumMinerCkb::handleRequest_Submit(
   share.set_sharediff(jobDiff.currentJobDiff_);
   share.set_blockbits(UintToArith256(uint256S(sjob->target_)).GetCompact());
   share.set_height(sjob->height_);
-  uint64_t nonce = sessionId & 0x00FFFFFF;
-  nonce = (nonce << 40) + extraNonce2;
-  share.set_nonce(htobe64(nonce));
+
+  if (extranonce.length() >= 16) {
+    extraNonce2 = strtoull(&extranonce[extranonce.length() - 16], nullptr, 16);
+  } else {
+    extraNonce2 = strtoull(extranonce.c_str(), nullptr, 16);
+  }
+  share.set_nonce(extraNonce2);
+
+  string extranonce1_s;
+  uint32_t sessionId_t = htobe32(sessionId);
+  Bin2Hex((uint8_t *)&sessionId_t, 4, extranonce1_s);
+
+  string ckbnonce = extranonce1_s + extranonce;
+  share.set_ckbnonce(ckbnonce);
+  DLOG(INFO) << "sessionid : " << std::hex << sessionId
+             << "\nextranonce : " << extraNonce2 << "\nckbnonce : " << ckbnonce;
+
   share.set_sessionid(sessionId); // TODO: fix it, set as real session id.
   share.set_username(worker.userName_);
   share.set_workername(workerName());
@@ -124,7 +139,7 @@ void StratumMinerCkb::handleRequest_Submit(
   ip.fromIpv4Int(session.getClientIp());
   share.set_ip(ip.toString());
 
-  LocalShare localShare(extraNonce2, nonce, JobId);
+  LocalShare localShare(extraNonce2, sessionId, JobId);
   // can't add local share
   if (!localJob->addLocalShare(localShare)) {
     handleShare(

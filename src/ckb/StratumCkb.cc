@@ -66,11 +66,11 @@ string StratumJobCkb::serializeToJson() const {
       ""
       ",\"jobid\":%" PRIu64
       ""
-      ",\"pow_hash\":\"%s\","
-      ",\"parent_hash\":\"%s\","
-      "\"height\":%" PRIu64
+      ",\"pow_hash\":\"%s\""
+      ",\"parent_hash\":\"%s\""
+      ",\"height\":%" PRIu64
       ""
-      "\"target\":\"%s\","
+      ",\"target\":\"%s\""
       ""
       ",\"timestamp\":%" PRIu64
       ""

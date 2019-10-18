@@ -168,10 +168,10 @@ void StratumSessionCkb::handleRequest_Subscribe(
 
   //{"id":1,"result":[null,"3e29d5", 5],"error":null}// nonce1, size of nonce2
   const string s = Strings::Format(
-      "{\"id\":%s,\"result\":[\"null\",\"%06x\",%d],\"error\":null}\n",
+      "{\"id\":%s,\"result\":[\"null\",\"%08x\",%d],\"error\":null}\n",
       idStr.c_str(),
-      sessionId_ & 0x00FFFFFF,
-      StratumMiner::kExtraNonce2Size_ - 3);
+      sessionId_,
+      12);
   LOG(INFO) << "send mining  :" << s;
   sendData(s);
 }

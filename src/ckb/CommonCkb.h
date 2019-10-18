@@ -31,6 +31,6 @@
 using CkbDifficulty = Difficulty<0x2100ffff>;
 
 namespace CKB {
-arith_uint256 GetEaglesongHash(uint256 pow_hash, uint64_t nonce);
 arith_uint256 GetEaglesongHash2(uint256 pow_hash, uint64_t nonce);
+arith_uint256 GetEaglesongHash128(uint256 pow_hash, std::string nonce);
 } // namespace CKB
