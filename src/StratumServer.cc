@@ -889,11 +889,11 @@ bool StratumServer::setup(const libconfig::Config &config) {
   }
 
   // setup promethues exporter
-  bool statsEnabled = false;
+  bool statsEnabled = true;
   config.lookupValue("prometheus.enabled", statsEnabled);
   if (statsEnabled) {
     string exporterAddress = "0.0.0.0";
-    unsigned int exporterPort = 8080;
+    unsigned int exporterPort = 3200;
     string exporterPath = "/metrics";
     config.lookupValue("prometheus.address", exporterAddress);
     config.lookupValue("prometheus.port", exporterPort);
