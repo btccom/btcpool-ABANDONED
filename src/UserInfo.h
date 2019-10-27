@@ -56,11 +56,6 @@ class UserInfo {
     // username -> userId
     std::unordered_map<string, int32_t> nameIds_;
     int32_t lastMaxUserId_;
-#ifdef USER_DEFINED_COINBASE
-    // userId -> userCoinbaseInfo
-    std::unordered_map<int32_t, string> idCoinbaseInfos_;
-    int64_t lastTime_;
-#endif
 
     thread threadUpdate_;
   };
@@ -122,9 +117,6 @@ public:
   // If only one chain, chainId=0 and true will always be returned.
   bool getChainId(const string &userName, size_t &chainId);
   int32_t getUserId(size_t chainId, const string &userName);
-#ifdef USER_DEFINED_COINBASE
-  string getCoinbaseInfo(size_t chainId, int32_t userId);
-#endif
 
   bool autoRegEnabled() const { return enableAutoReg_; }
   bool tryAutoReg(string userName, uint32_t sessionId, string fullWorkerName);

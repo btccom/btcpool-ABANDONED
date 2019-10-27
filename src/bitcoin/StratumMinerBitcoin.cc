@@ -365,12 +365,7 @@ void StratumMinerBitcoin::handleRequest_Submit(
               server.sendShare2Kafka(chainId, message.data(), message.size());
             }
           }
-        }
-#ifdef USER_DEFINED_COINBASE
-        ,
-        &localJob->userCoinbaseInfo_
-#endif
-    );
+        });
   }
 }
 

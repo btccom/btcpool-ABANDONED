@@ -75,10 +75,6 @@ UserInfo::UserInfo(StratumServer *server, const libconfig::Config &config)
         std::make_unique<std::shared_timed_mutex>(), // rwlock_
         {}, // nameIds_
         0, // lastMaxUserId_
-#ifdef USER_DEFINED_COINBASE
-        {}, // idCoinbaseInfos_
-        0, // lastTime_
-#endif
         {} // threadUpdate_
     });
   };
@@ -347,103 +343,6 @@ int32_t UserInfo::getUserId(size_t chainId, const string &userName) {
   return 0; // not found
 }
 
-#ifdef USER_DEFINED_COINBASE
-////////////////////// User defined coinbase enabled //////////////////////
-
-// getCoinbaseInfo
-string UserInfo::getCoinbaseInfo(size_t chainId, int32_t userId) {
-  ChainVars &chain = chains_[chainId];
-  pthread_rwlock_rdlock(&chain.nameIdlock_);
-  auto itr = chain.idCoinbaseInfos_.find(userId);
-  pthread_rwlock_unlock(&chain.nameIdlock_);
-
-  if (itr != chain.idCoinbaseInfos_.end()) {
-    return itr->second;
-  }
-  return ""; // not found
-}
-
-int32_t UserInfo::incrementalUpdateUsers(size_t chainId) {
-  ChainVars &chain = chains_[chainId];
-
-  //
-  // WARNING: The API is incremental update, we use `?last_id=*&last_time=*` to
-  // make sure
-  //          always get the new data. Make sure you have use `last_id` and
-  //          `last_time` in API.
-  //
-  const string url = Strings::Format(
-      "%s?last_id=%d&last_time=%d",
-      chain.apiUrl_,
-      chain.lastMaxUserId_,
-      chain.lastTime_);
-  string resp;
-  if (!httpGET(url.c_str(), resp, 10000 /* timeout ms */)) {
-    LOG(ERROR) << "http get request user list fail, url: " << url;
-    return -1;
-  }
-
-  JsonNode r;
-  if (!JsonNode::parse(resp.c_str(), resp.c_str() + resp.length(), r)) {
-    LOG(ERROR) << "decode json fail, json: " << resp;
-    return -1;
-  }
-  if (r["data"].type() == Utilities::JS::type::Undefined) {
-    LOG(ERROR) << "invalid data, should key->value, type: "
-               << (int)r["data"].type();
-    return -1;
-  }
-  JsonNode data = r["data"];
-
-  auto vUser = data["users"].children();
-  if (vUser->size() == 0) {
-    return 0;
-  }
-  chain.lastTime_ = data["time"].int64();
-
-  pthread_rwlock_wrlock(&chain.nameIdlock_);
-  for (JsonNode &itr : *vUser) {
-
-    string userName = itr.key();
-    regularUserName(userName);
-
-    if (itr.type() != Utilities::JS::type::Obj) {
-      LOG(ERROR) << "invalid data, should key  - value" << std::endl;
-      return -1;
-    }
-
-    int32 userId = itr["puid"].int32();
-    string coinbaseInfo = itr["coinbase"].str();
-
-    // resize coinbaseInfo to USER_DEFINED_COINBASE_SIZE bytes
-    if (coinbaseInfo.size() > USER_DEFINED_COINBASE_SIZE) {
-      coinbaseInfo.resize(USER_DEFINED_COINBASE_SIZE);
-    } else {
-      // padding '\x20' at both beginning and ending of coinbaseInfo
-      int beginPaddingLen =
-          (USER_DEFINED_COINBASE_SIZE - coinbaseInfo.size()) / 2;
-      coinbaseInfo.insert(0, beginPaddingLen, '\x20');
-      coinbaseInfo.resize(USER_DEFINED_COINBASE_SIZE, '\x20');
-    }
-
-    if (userId > chain.lastMaxUserId_) {
-      chain.lastMaxUserId_ = userId;
-    }
-    chain.nameIds_[userName] = userId;
-
-    // get user's coinbase info
-    LOG(INFO) << "user id: " << userId << ", coinbase info: " << coinbaseInfo;
-    chain.idCoinbaseInfos_[userId] = coinbaseInfo;
-  }
-  pthread_rwlock_unlock(&chain.nameIdlock_);
-
-  return vUser->size();
-}
-
-/////////////////// End of user defined coinbase enabled ///////////////////
-#else
-////////////////////// User defined coinbase disabled //////////////////////
-
 int32_t UserInfo::incrementalUpdateUsers(size_t chainId) {
   ChainVars &chain = chains_[chainId];
 
@@ -491,9 +390,6 @@ int32_t UserInfo::incrementalUpdateUsers(size_t chainId) {
 
   return vUser->size();
 }
-
-/////////////////// End of user defined coinbase disabled ///////////////////
-#endif
 
 void UserInfo::runThreadUpdate(size_t chainId) {
   //

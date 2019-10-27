@@ -211,8 +211,6 @@ void StratumJobExBitcoin::init(uint32_t extraNonce2Size) {
 
   miningNotify2_ = Strings::Format("\",\"%s\",\"", sjob->prevHashBeStr_);
 
-  // coinbase1_ may be modified when USER_DEFINED_COINBASE enabled,
-  // so put it into a single variable.
   coinbase1_ = sjob->coinbase1_.c_str();
 
   ssize_t jobExtraNonce2Size = StratumMiner::kExtraNonce2Size_;
@@ -270,21 +268,6 @@ void StratumJobExBitcoin::generateCoinbaseTx(
       Strings::Format("%08x%s", extraNonce1, extraNonce2Hex);
   auto sjob = std::static_pointer_cast<StratumJobBitcoin>(sjob_);
   string coinbase1 = sjob->coinbase1_;
-
-#ifdef USER_DEFINED_COINBASE
-  if (userCoinbaseInfo != nullptr) {
-    string userCoinbaseHex;
-    Bin2Hex(
-        (uint8 *)(*userCoinbaseInfo).c_str(),
-        (*userCoinbaseInfo).size(),
-        userCoinbaseHex);
-    // replace the last `userCoinbaseHex.size()` bytes to `userCoinbaseHex`
-    coinbase1.replace(
-        coinbase1.size() - userCoinbaseHex.size(),
-        userCoinbaseHex.size(),
-        userCoinbaseHex);
-  }
-#endif
 
   coinbaseHex.append(coinbase1);
   coinbaseHex.append(extraNonceStr);

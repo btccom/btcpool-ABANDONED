@@ -22,12 +22,6 @@ It is used with the `userlist-autoreg.php` above.
 [autoreg.php](autoreg.php)
 
 
-### User List with `POOL__USER_DEFINED_COINBASE=ON`
-
-[user-list-coinbase-withtime](user-list-coinbase-withtime)
-
-
-
 `UserCoinMapURL` in [Switcher API Server](https://github.com/btccom/btcpool-go-modules/tree/master/switcherAPIServer)
 ------------------
 

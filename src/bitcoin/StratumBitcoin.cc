@@ -676,16 +676,6 @@ bool StratumJobBitcoin::initFromGbt(
           cbIn.scriptSig.end(), mergedMiningBin.begin(), mergedMiningBin.end());
     }
 
-#ifdef USER_DEFINED_COINBASE
-    // reserved for user defined coinbase info
-    string userCoinbaseInfoPadding;
-    userCoinbaseInfoPadding.resize(USER_DEFINED_COINBASE_SIZE, '\x20');
-    cbIn.scriptSig.insert(
-        cbIn.scriptSig.end(),
-        userCoinbaseInfoPadding.begin(),
-        userCoinbaseInfoPadding.end());
-#endif
-
     //  placeHolder: extra nonce1 (4bytes) + extra nonce2 (8bytes)
     const vector<char> placeHolder(
         StratumMiner::kExtraNonce1Size_ + StratumMiner::kExtraNonce2Size_,

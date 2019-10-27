@@ -99,13 +99,6 @@ void StratumSessionBitcoin::sendMiningNotify(
   auto &ljob = addLocalJob(
       exJob->chainId_, sjob->jobId_, allocShortJobId(), sjob->nBits_);
 
-#ifdef USER_DEFINED_COINBASE
-  // add the User's coinbaseInfo to the coinbase1's tail
-  string userCoinbaseInfo =
-      GetServer()->userInfo_->getCoinbaseInfo(worker_.userId());
-  ljob.userCoinbaseInfo_ = userCoinbaseInfo;
-#endif
-
   string notifyStr;
   notifyStr.reserve(2048);
 
@@ -129,19 +122,6 @@ void StratumSessionBitcoin::sendMiningNotify(
   notifyStr.append(exJob->miningNotify2_);
 
   string coinbase1 = exJob->coinbase1_;
-
-#ifdef USER_DEFINED_COINBASE
-  string userCoinbaseHex;
-  Bin2Hex(
-      (const uint8_t *)ljob.userCoinbaseInfo_.c_str(),
-      ljob.userCoinbaseInfo_.size(),
-      userCoinbaseHex);
-  // replace the last `userCoinbaseHex.size()` bytes to `userCoinbaseHex`
-  coinbase1.replace(
-      coinbase1.size() - userCoinbaseHex.size(),
-      userCoinbaseHex.size(),
-      userCoinbaseHex);
-#endif
 
   // coinbase1
   notifyStr.append(coinbase1);
