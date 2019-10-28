@@ -58,6 +58,7 @@ protected:
   getResponseTemplate(const string &type, const string &action, const JSON &id);
 
   void handleMessage(rd_kafka_message_t *rkmessage);
+  bool checkFilter(JSON filter);
 
 public:
   Management(const libconfig::Config &cfg, StratumServer &server_);

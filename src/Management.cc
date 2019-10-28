@@ -185,12 +185,22 @@ void Management::handleMessage(rd_kafka_message_t *rkmessage) {
     DLOG(INFO) << "[Management] new message, type: " << type
                << ", action: " << action << ", id: " << id;
 
+    // filter matching
+    if (json["filter"].is_object()) {
+      if (!checkFilter(json["filter"])) {
+        DLOG(INFO) << "[Management] does not match the filter, skip";
+        return;
+      }
+      DLOG(INFO) << "[Management] match the filter, continue";
+    }
+
     // Get server status
     if (type == "sserver_cmd") {
       if (action == "get_status") {
         JSON response = getConfigureAndStatus("sserver_response", "get_status");
         response["id"] = id;
         sendMessage(response.dump());
+        LOG(INFO) << "[Management] sent server status";
         return;
       }
 
@@ -260,8 +270,14 @@ void Management::handleMessage(rd_kafka_message_t *rkmessage) {
   }
 }
 
-void sendAutoSwitchChainResponse(
-    size_t oldChain, size_t newChain, size_t users, size_t miners) {
+bool Management::checkFilter(JSON filter) {
+  if (filter["server_id"].is_object()) {
+    auto myId = filter["server_id"][std::to_string(server_.serverId_)];
+    if (myId.is_boolean() && myId.get<bool>()) {
+      return true;
+    }
+  }
+  return false;
 }
 
 void Management::sendMessage(std::string msg) {
@@ -270,10 +286,12 @@ void Management::sendMessage(std::string msg) {
 
 void Management::sendOnlineNotification() {
   sendMessage(getConfigureAndStatus("sserver_notify", "online").dump());
+  LOG(INFO) << "[Management] sent server online notify";
 }
 
 void Management::sendOfflineNotification() {
   sendMessage(getConfigureAndStatus("sserver_notify", "offline").dump());
+  LOG(INFO) << "[Management] sent server offline notify";
 }
 
 void Management::sendExceptionReport(const std::exception &ex) {
@@ -282,6 +300,7 @@ void Management::sendExceptionReport(const std::exception &ex) {
       {"what", ex.what()},
   };
   sendMessage(json.dump());
+  LOG(INFO) << "[Management] sent server exception";
 }
 
 JSON Management::getConfigureAndStatus(
