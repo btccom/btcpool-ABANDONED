@@ -24,6 +24,7 @@
  */
 #pragma once
 
+#include <time.h>
 #include <string>
 #include <atomic>
 #include <thread>
@@ -39,6 +40,7 @@ class StratumServer;
 class Management {
 protected:
   std::atomic<bool> running_;
+  time_t uptime_ = 0;
   string chainType_;
 
   bool autoSwitchChain_ = false;

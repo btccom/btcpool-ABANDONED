@@ -91,23 +91,25 @@ StratumServerStats::collectMetrics() {
   lastScrape_ = scrape;
 
   std::vector<std::shared_ptr<prometheus::Metric>> metrics = metrics_;
-  for (auto &chain : server_.chains_) {
+  for (size_t i = 0; i < server_.chains_.size(); i++) {
+    auto const &chain = server_.chains_[i];
+    auto &lastStats = lastShareStats_[i];
     for (auto p : chain.shareStats_) {
       metrics.push_back(prometheus::CreateMetricValue(
           "sserver_shares_per_second_since_last_scrape",
           prometheus::Metric::Type::Gauge,
           "Shares processed by sserver per second since last scrape",
           {{"chain", chain.name_}, {"status", FormatStratumStatus(p.first)}},
-          static_cast<double>(p.second) / duration));
+          static_cast<double>(p.second - lastStats[p.first]) / duration));
     }
-    chain.shareStats_.clear();
+    lastShareStats_[i] = chain.shareStats_;
   }
 
-  std::map<std::pair<size_t, StratumSession::State>, size_t> sessions_;
+  std::map<std::pair<size_t, StratumSession::State>, size_t> sessions;
   for (auto &session : server_.connections_) {
-    ++sessions_[{session->getChainId(), session->getState()}];
+    ++sessions[{session->getChainId(), session->getState()}];
   }
-  for (auto &s : sessions_) {
+  for (auto &s : sessions) {
     metrics.push_back(prometheus::CreateMetricValue(
         "sserver_sessions_total",
         prometheus::Metric::Type::Gauge,

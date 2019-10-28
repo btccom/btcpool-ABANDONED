@@ -25,6 +25,7 @@
 #include <glog/logging.h>
 #include "Management.h"
 #include "StratumServer.h"
+#include "StratumSession.h"
 #include "DiffController.h"
 #include "Utils.h"
 
@@ -40,6 +41,7 @@ Management::Management(const libconfig::Config &cfg, StratumServer &server)
         cfg.lookup("management.processor_topic").c_str(),
         RD_KAFKA_PARTITION_UA)
   , server_(server) {
+  uptime_ = time(nullptr);
 
   cfg.lookupValue("management.auto_switch_chain", autoSwitchChain_);
   cfg.lookupValue("sserver.type", chainType_);
@@ -197,10 +199,13 @@ void Management::handleMessage(rd_kafka_message_t *rkmessage) {
     // Get server status
     if (type == "sserver_cmd") {
       if (action == "get_status") {
-        JSON response = getConfigureAndStatus("sserver_response", "get_status");
-        response["id"] = id;
-        sendMessage(response.dump());
-        LOG(INFO) << "[Management] sent server status";
+        server_.dispatch([this, id]() {
+          JSON response =
+              getConfigureAndStatus("sserver_response", "get_status");
+          response["id"] = id;
+          sendMessage(response.dump());
+          LOG(INFO) << "[Management] sent server status";
+        });
         return;
       }
 
@@ -214,7 +219,7 @@ void Management::handleMessage(rd_kafka_message_t *rkmessage) {
 
         string chainName = json["chain_name"].get<string>();
         ssize_t chainId = -1;
-        for (ssize_t i = 0; i < server_.chains_.size(); i++) {
+        for (ssize_t i = 0; i < (ssize_t)server_.chains_.size(); i++) {
           if (server_.chains_[i].name_ == chainName) {
             chainId = i;
             break;
@@ -228,7 +233,7 @@ void Management::handleMessage(rd_kafka_message_t *rkmessage) {
         }
 
         // no change
-        if (chainId == currentAutoChainId_) {
+        if (chainId == (ssize_t)currentAutoChainId_) {
           DLOG(INFO) << "[Auto Switch Chain] no change of the chain";
           return;
         }
@@ -303,12 +308,28 @@ void Management::sendExceptionReport(const std::exception &ex) {
   LOG(INFO) << "[Management] sent server exception";
 }
 
+static const char *FormatSessionStatus(int status) {
+  switch (status) {
+  case StratumSession::CONNECTED:
+    return "connected";
+  case StratumSession::SUBSCRIBED:
+    return "subscribed";
+  case StratumSession::AUTO_REGISTING:
+    return "registering";
+  case StratumSession::AUTHENTICATED:
+    return "authenticated";
+  default:
+    return "unknown";
+  }
+}
+
 JSON Management::getConfigureAndStatus(
     const string &type, const string &action) {
   JSON chains = JSON::object();
   JSON chainStatus = JSON::object();
   for (size_t i = 0; i < server_.chains_.size(); i++) {
     auto itr = server_.chains_[i];
+
     chains[itr.name_] = {
         {"name", itr.name_},
         {"users_list_id_api_url", server_.userInfo_->chains_[i].apiUrl_},
@@ -319,9 +340,18 @@ JSON Management::getConfigureAndStatus(
         {"common_events_topic", itr.kafkaProducerCommonEvents_->getTopic()},
         {"single_user_id", itr.singleUserId_},
     };
+
+    std::map<string, size_t> shareStats;
+    for (const auto &stats : itr.shareStats_) {
+      shareStats[std::to_string(stats.first)] = stats.second;
+    }
+
     chainStatus[itr.name_] = {
         {"name", itr.name_},
-        {"share_status", itr.shareStats_},
+        {"share_status", shareStats},
+        {"last_job_time", itr.jobRepository_->lastJobSendTime_},
+        {"last_job_height", itr.jobRepository_->lastJobHeight_},
+        {"last_job_id", itr.jobRepository_->lastJobId_},
     };
   }
 
@@ -386,6 +416,12 @@ JSON Management::getConfigureAndStatus(
        server_.userInfo_->nameChainsCheckIntervalSeconds_},
   };
 
+  std::map<string, std::map<string, size_t>> sessions;
+  for (auto &session : server_.connections_) {
+    ++(sessions[server_.chainName(session->getChainId())]
+               [FormatSessionStatus(session->getState())]);
+  }
+
   JSON json = {
       {"created_at", date("%F %T")},
       {"type", type},
@@ -398,9 +434,11 @@ JSON Management::getConfigureAndStatus(
        }},
       {"status",
        {
+           {"uptime", uptime_},
            {"connections",
             {
                 {"count", server_.connections_.size()},
+                {"state", sessions},
             }},
            {"chains", chainStatus},
        }},

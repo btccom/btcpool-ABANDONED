@@ -27,6 +27,7 @@
 #include "prometheus/Collector.h"
 
 #include <chrono>
+#include <map>
 
 class StratumServer;
 
@@ -40,4 +41,6 @@ private:
   StratumServer &server_;
   std::vector<std::shared_ptr<prometheus::Metric>> metrics_;
   std::chrono::steady_clock::time_point lastScrape_;
+
+  std::map<size_t, std::map<int32_t, size_t>> lastShareStats_;
 };
