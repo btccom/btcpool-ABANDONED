@@ -28,6 +28,7 @@
 #include <shared_mutex>
 
 #include "utilities_js.hpp"
+#include "Management.h"
 
 class StratumServer;
 
@@ -84,6 +85,8 @@ class UserInfo {
 
   int nameChainsCheckIntervalSeconds_ = 300;
   std::thread nameChainsCheckingThread_;
+
+  friend class Management;
 
   void runThreadUpdate(size_t chainId);
   int32_t incrementalUpdateUsers(size_t chainId);

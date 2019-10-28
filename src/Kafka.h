@@ -90,6 +90,10 @@ public:
   KafkaSimpleConsumer(const char *brokers, const char *topic, int partition);
   ~KafkaSimpleConsumer();
 
+  string getBrokers() const { return brokers_; }
+  string getTopic() const { return topicStr_; }
+  int getPartition() const { return partition_; }
+
   bool checkAlive() override;
 
   //
@@ -122,6 +126,15 @@ public:
       const std::string &brokers,
       const std::vector<std::tuple<std::string, int>> &topics);
   ~KafkaQueueConsumer();
+
+  string getBrokers() const { return brokers_; }
+  std::vector<std::tuple<std::string, int>> getTopics() const {
+    std::vector<std::tuple<std::string, int>> results;
+    for (auto itr : topics_) {
+      results.push_back({std::get<0>(itr), std::get<1>(itr)});
+    }
+    return results;
+  }
 
   bool checkAlive() override;
 
@@ -160,6 +173,11 @@ public:
       const string &groupStr);
   ~KafkaHighLevelConsumer();
 
+  string getBrokers() const { return brokers_; }
+  string getTopic() const { return topicStr_; }
+  string getGroup() const { return groupStr_; }
+  int getPartition() const { return partition_; }
+
   //  bool checkAlive();  // I don't know which function should be used to check
   bool setup();
 
@@ -183,6 +201,10 @@ class KafkaProducer {
 public:
   KafkaProducer(const char *brokers, const char *topic, int partition);
   ~KafkaProducer();
+
+  string getBrokers() const { return brokers_; }
+  string getTopic() const { return topicStr_; }
+  int getPartition() const { return partition_; }
 
   bool setup(const std::map<string, string> *options = nullptr);
   bool checkAlive();

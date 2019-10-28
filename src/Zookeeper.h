@@ -134,6 +134,8 @@ public:
       size_t sizeLimit,
       std::function<void(const std::string &)> callback);
 
+  string getPath() const { return path_; }
+
 private:
   static void watchCallback(
       zhandle_t *zh, int type, int state, const char *path, void *data);

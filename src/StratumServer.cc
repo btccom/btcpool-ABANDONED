@@ -26,6 +26,7 @@
 #include "StratumServerStats.h"
 #include "StratumSession.h"
 #include "DiffController.h"
+#include "Management.h"
 
 #include <boost/thread.hpp>
 #include <event2/thread.h>
@@ -920,11 +921,24 @@ bool StratumServer::setup(const libconfig::Config &config) {
   config.lookupValue("sserver.share_worker_threads", shareWorkerThreads);
   shareWorker_->start(std::max(shareWorkerThreads, MIN_SHARE_WORKER_THREADS));
 
+  bool enableManagement = true;
+  config.lookupValue("management.enable", enableManagement);
+  if (enableManagement) {
+    management_ = std::make_unique<Management>(config, *this);
+    if (!management_->setup()) {
+      LOG(ERROR) << "Management setup failed";
+      return false;
+    }
+  }
+
   // ------------------- Derived Class Setup -------------------
   return setupInternal(config);
 }
 
 void StratumServer::run() {
+  if (management_) {
+    management_->run();
+  }
   LOG(INFO) << "stratum server running";
   if (base_ != NULL) {
     //    event_base_loop(base_, EVLOOP_NONBLOCK);
@@ -940,6 +954,9 @@ void StratumServer::stop() {
   }
   userInfo_->stop();
   shareWorker_->stop();
+  if (management_) {
+    management_->stop();
+  }
 }
 
 void StratumServer::stopGracefully() {

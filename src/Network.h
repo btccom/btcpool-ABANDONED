@@ -26,7 +26,11 @@
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <unistd.h>
+#include <ifaddrs.h>
 #include <string>
+#include <vector>
+#include <map>
 
 ///////////////////////////////////// IPv4/IPv6 compatible address structure
 ///////////////////////////////////////
@@ -123,6 +127,68 @@ union IpAddress {
       return true;
     }
     return false;
+  }
+
+  static void
+  getIpPortFromStruct(const struct sockaddr *sa, string &ip, uint16_t &port) {
+    switch (sa->sa_family) {
+    case AF_INET:
+      ip.resize(INET_ADDRSTRLEN);
+      inet_ntop(
+          AF_INET,
+          &(((struct sockaddr_in *)sa)->sin_addr),
+          (char *)ip.data(),
+          ip.size());
+      port = ((struct sockaddr_in *)sa)->sin_port;
+      break;
+
+    case AF_INET6:
+      ip.resize(INET6_ADDRSTRLEN);
+      inet_ntop(
+          AF_INET6,
+          &(((struct sockaddr_in6 *)sa)->sin6_addr),
+          (char *)ip.data(),
+          ip.size());
+      port = ((struct sockaddr_in6 *)sa)->sin6_port;
+      break;
+    }
+
+    size_t pos = ip.find('\0');
+    if (pos != ip.npos) {
+      ip.resize(pos);
+    }
+  }
+
+  static std::
+      map<std::string /*interface name*/, std::vector<std::string> /*ip list*/>
+      getInterfaceAddrs() {
+    std::map<
+        std::string /*interface name*/,
+        std::vector<std::string> /*ip list*/>
+        result;
+
+    struct ifaddrs *ifList;
+    if (getifaddrs(&ifList) < 0) {
+      return result;
+    }
+
+    string ip;
+    uint16_t port;
+    for (struct ifaddrs *ifa = ifList; ifa != nullptr; ifa = ifa->ifa_next) {
+      getIpPortFromStruct(ifa->ifa_addr, ip, port);
+      if (!ip.empty() && ip != "127.0.0.1" && ip != "::1") {
+        result[ifa->ifa_name].push_back(ip);
+      }
+    }
+
+    return result;
+  }
+
+  static string getHostName() {
+    std::string hostname(256, '\0');
+    gethostname((char *)hostname.data(), hostname.size());
+    hostname.resize(strlen(hostname.c_str())); // remove trailing '\0'
+    return hostname;
   }
 };
 

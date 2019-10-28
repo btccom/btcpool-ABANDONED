@@ -1,0 +1,326 @@
+
+/*
+ The MIT License (MIT)
+
+ Copyright (c) [2019] [BTC.COM]
+
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of this software and associated documentation files (the "Software"), to deal
+ in the Software without restriction, including without limitation the rights
+ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ copies of the Software, and to permit persons to whom the Software is
+ furnished to do so, subject to the following conditions:
+
+ The above copyright notice and this permission notice shall be included in
+ all copies or substantial portions of the Software.
+
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ THE SOFTWARE.
+ */
+#include <glog/logging.h>
+#include "Management.h"
+#include "StratumServer.h"
+#include "DiffController.h"
+#include "Utils.h"
+
+Management::Management(const libconfig::Config &cfg, StratumServer &server)
+  : running_(false)
+  , controllerTopicConsumer_(
+        cfg.lookup("management.kafka_brokers").c_str(),
+        cfg.lookup("management.controller_topic").c_str(),
+        0 /*patition*/)
+  , processorTopicProducer_(
+        cfg.lookup("management.kafka_brokers").c_str(),
+        cfg.lookup("management.processor_topic").c_str(),
+        RD_KAFKA_PARTITION_UA)
+  , server_(server) {
+
+  cfg.lookupValue("management.auto_switch_chain", autoSwitchChain_);
+  cfg.lookupValue("sserver.type", chainType_);
+}
+
+bool Management::setup() {
+  // ------------------- Init Kafka -------------------
+  {
+    const int32_t kConsumeLatestN = 1;
+
+    // we need to consume the latest one
+    map<string, string> consumerOptions;
+    consumerOptions["fetch.wait.max.ms"] = "10";
+    if (controllerTopicConsumer_.setup(
+            RD_KAFKA_OFFSET_TAIL(kConsumeLatestN), &consumerOptions) == false) {
+      LOG(INFO) << "setup consumer fail";
+      return false;
+    }
+
+    if (!controllerTopicConsumer_.checkAlive()) {
+      LOG(ERROR) << "kafka brokers is not alive";
+      return false;
+    }
+  }
+
+  // processorTopicProducer_
+  {
+    map<string, string> options;
+    // We want the message to be delivered immediately, reducing the cache.
+    options["queue.buffering.max.messages"] = "10";
+    options["queue.buffering.max.ms"] = "1000";
+    options["batch.num.messages"] = "10";
+
+    if (!processorTopicProducer_.setup(&options)) {
+      LOG(ERROR) << "kafka processorTopicProducer_ setup failure";
+      return false;
+    }
+    if (!processorTopicProducer_.checkAlive()) {
+      LOG(ERROR) << "kafka processorTopicProducer_ is NOT alive";
+      return false;
+    }
+  }
+
+  return true;
+}
+
+void Management::stop() {
+  running_ = false;
+  if (consumerThread_.joinable()) {
+    consumerThread_.join();
+  }
+}
+
+void Management::run() {
+  running_ = true;
+  consumerThread_ = std::thread([this]() {
+    try {
+      LOG(INFO) << "Management thread running...";
+      sendOnlineNotification();
+
+      const int32_t kTimeoutMs = 5000;
+      while (running_) {
+        rd_kafka_message_t *rkmessage;
+        rkmessage = controllerTopicConsumer_.consumer(kTimeoutMs);
+
+        // timeout, most of time it's not nullptr and set an error:
+        //          rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF
+        if (rkmessage != nullptr) {
+          // consume stratum job
+          //
+          // It will create a StratumJob and try to broadcast it immediately
+          // with broadcastStratumJob(shared_ptr<StratumJob>). A derived class
+          // needs to implement the abstract method
+          // broadcastStratumJob(shared_ptr<StratumJob>) to decide whether to
+          // add the StratumJob to the map exJobs_ and whether to send the job
+          // to miners immediately. Derived classes do not need to implement a
+          // scheduled sending mechanism, checkAndSendMiningNotify() will
+          // provide a default implementation.
+          handleMessage(rkmessage);
+
+          // Return message to rdkafka
+          rd_kafka_message_destroy(rkmessage);
+        }
+      }
+
+      sendOfflineNotification();
+      LOG(INFO) << "Management thread stopped";
+
+    } catch (const std::exception &ex) {
+      LOG(ERROR) << "Management thread exception: " << ex.what();
+      sendExceptionReport(ex);
+
+      // Recovery from failure
+      if (running_) {
+        LOG(INFO) << "Restart management thread after 5 seconds...";
+        std::this_thread::sleep_for(5s);
+        running_ = false;
+        run();
+      }
+    }
+  });
+}
+
+void Management::handleMessage(rd_kafka_message_t *rkmessage) {
+  try {
+    // check error
+    if (rkmessage->err) {
+      if (rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
+        // Reached the end of the topic+partition queue on the broker.
+        // Not really an error.
+        //      LOG(INFO) << "consumer reached end of " <<
+        //      rd_kafka_topic_name(rkmessage->rkt)
+        //      << "[" << rkmessage->partition << "] "
+        //      << " message queue at offset " << rkmessage->offset;
+        // acturlly
+        return;
+      }
+
+      LOG(ERROR) << "consume error for topic "
+                 << rd_kafka_topic_name(rkmessage->rkt) << "["
+                 << rkmessage->partition << "] offset " << rkmessage->offset
+                 << ": " << rd_kafka_message_errstr(rkmessage);
+
+      if (rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION ||
+          rkmessage->err == RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC) {
+        LOG(FATAL) << "consume fatal";
+      }
+
+      return;
+    }
+
+    JSON json =
+        JSON::parse(string((const char *)rkmessage->payload, rkmessage->len));
+    if (!json["type"].is_string() || !json["action"].is_string()) {
+      return;
+    }
+    string type = json["type"].get<string>();
+    string action = json["action"].get<string>();
+    JSON id = json["id"];
+
+    if (type == "sserver_cmd") {
+      if (action == "get_status") {
+        JSON response = getConfigureAndStatus("sserver_response", "get_status");
+        response["id"] = id;
+        sendMessage(response.dump());
+      }
+    }
+
+  } catch (const std::exception &ex) {
+    LOG(ERROR) << "Management thread exception: " << ex.what();
+    sendExceptionReport(ex);
+  }
+}
+
+void Management::sendMessage(std::string msg) {
+  processorTopicProducer_.produce(msg.data(), msg.size());
+}
+
+void Management::sendOnlineNotification() {
+  sendMessage(getConfigureAndStatus("sserver_notify", "online").dump());
+}
+
+void Management::sendOfflineNotification() {
+  sendMessage(getConfigureAndStatus("sserver_notify", "offline").dump());
+}
+
+void Management::sendExceptionReport(const std::exception &ex) {
+  JSON json = getConfigureAndStatus("sserver_notify", "exception");
+  json["exception"] = {
+      {"what", ex.what()},
+  };
+  sendMessage(json.dump());
+}
+
+JSON Management::getConfigureAndStatus(
+    const string &type, const string &action) {
+  JSON chains = JSON::object();
+  JSON chainStatus = JSON::object();
+  for (size_t i = 0; i < server_.chains_.size(); i++) {
+    auto itr = server_.chains_[i];
+    chains[itr.name_] = {
+        {"name", itr.name_},
+        {"users_list_id_api_url", server_.userInfo_->chains_[i].apiUrl_},
+        {"kafka_brokers", itr.kafkaProducerCommonEvents_->getBrokers()},
+        {"job_topic", itr.jobRepository_->kafkaConsumer_.getTopic()},
+        {"share_topic", itr.kafkaProducerShareLog_->getTopic()},
+        {"solved_share_topic", itr.kafkaProducerSolvedShare_->getTopic()},
+        {"common_events_topic", itr.kafkaProducerCommonEvents_->getTopic()},
+        {"single_user_id", itr.singleUserId_},
+    };
+    chainStatus[itr.name_] = {
+        {"name", itr.name_},
+        {"share_status", itr.shareStats_},
+    };
+  }
+
+  string ip;
+  uint16_t port = 0;
+  IpAddress::getIpPortFromStruct((sockaddr *)&(server_.sin_), ip, port);
+
+  string niceHashMinDiffPath =
+      server_.chains_[0].jobRepository_->niceHashMinDiffWatcher_
+      ? server_.chains_[0].jobRepository_->niceHashMinDiffWatcher_->getPath()
+      : "";
+
+  JSON nicehash = {
+      {"forced", server_.chains_[0].jobRepository_->niceHashForced_},
+      {"min_difficulty",
+       server_.chains_[0].jobRepository_->niceHashMinDiff_.load()},
+      {"min_difficulty_zookeeper_path", niceHashMinDiffPath},
+  };
+
+  JSON sserver = {
+      {"type", chainType_},
+      {"id", server_.serverId_},
+      {"ip", ip},
+      {"port", port},
+      {"share_avg_seconds",
+       server_.defaultDifficultyController_->kRecordSeconds_},
+      {"max_job_lifetime",
+       server_.chains_[0].jobRepository_->kMaxJobsLifeTime_},
+      {"mining_notify_interval",
+       server_.chains_[0].jobRepository_->kMiningNotifyInterval_},
+      {"default_difficulty", server_.defaultDifficultyController_->curDiff_},
+      {"max_difficulty", server_.defaultDifficultyController_->kMaxDiff_},
+      {"min_difficulty", server_.defaultDifficultyController_->kMinDiff_},
+      {"diff_adjust_period",
+       server_.defaultDifficultyController_->kDiffWindow_},
+      {"shutdown_grace_period", server_.shutdownGracePeriod_},
+      {"nicehash", nicehash},
+      {"multi_chains", server_.chains_.size() > 0},
+      {"enable_simulator", server_.isEnableSimulator_},
+      {"enable_submit_invalid_block", server_.isSubmitInvalidBlock_},
+      {"enable_dev_mode", server_.isDevModeEnable_},
+      {"dev_fixed_difficulty", server_.devFixedDifficulty_},
+  };
+
+  JSON management = {
+      {"kafka_brokers", processorTopicProducer_.getBrokers()},
+      {"controller_topic", controllerTopicConsumer_.getTopic()},
+      {"processor_topic", processorTopicProducer_.getTopic()},
+      {"auto_switch_chain", autoSwitchChain_},
+  };
+
+  JSON users = {
+      {"case_insensitive", server_.userInfo_->caseInsensitive_},
+      {"zookeeper_userchain_map", server_.userInfo_->zkUserChainMapDir_},
+      {"strip_user_suffix", server_.userInfo_->stripUserSuffix_},
+      {"user_suffix_separator", server_.userInfo_->userSuffixSeparator_},
+      {"enable_auto_reg", server_.userInfo_->enableAutoReg_},
+      {"auto_reg_max_pending_users",
+       server_.userInfo_->autoRegMaxPendingUsers_},
+      {"zookeeper_auto_reg_watch_dir", server_.userInfo_->zkAutoRegWatchDir_},
+      {"namechains_check_interval",
+       server_.userInfo_->nameChainsCheckIntervalSeconds_},
+  };
+
+  JSON json = {
+      {"created_at", date("%F %T")},
+      {"type", type},
+      {"action", action},
+      {"host",
+       {
+           {"hostname", IpAddress::getHostName()},
+           {"ip", IpAddress::getInterfaceAddrs()},
+       }},
+      {"status",
+       {
+           {"connections",
+            {
+                {"count", server_.connections_.size()},
+            }},
+           {"chains", chainStatus},
+       }},
+      {"config",
+       {
+           {"sserver", sserver},
+           {"chains", chains},
+           {"users", users},
+           {"management", management},
+       }},
+  };
+
+  return json;
+}

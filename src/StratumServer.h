@@ -57,6 +57,7 @@ class StratumJobEx;
 class StratumServerWrapper;
 class StratumSession;
 class DiffController;
+class Management;
 
 #ifndef WORK_WITH_STRATUM_SWITCHER
 
@@ -136,6 +137,7 @@ protected:
 
   thread threadConsume_;
   friend class StratumServerStats;
+  friend class Management;
 
   bool niceHashForced_;
   std::atomic<uint64_t> niceHashMinDiff_;
@@ -230,6 +232,8 @@ class StratumServer {
   uint32_t shutdownGracePeriod_;
   struct event *disconnectTimer_;
 
+  unique_ptr<Management> management_;
+
 public:
   struct ChainVars {
     string name_;
@@ -276,6 +280,7 @@ public:
   shared_ptr<Zookeeper> zk_;
 
   friend class StratumServerStats;
+  friend class Management;
   shared_ptr<prometheus::Collector> statsCollector_;
   unique_ptr<prometheus::IExporter> statsExporter_;
 
