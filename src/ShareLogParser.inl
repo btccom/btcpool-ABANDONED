@@ -176,8 +176,8 @@ ShareLogParserT<SHARE>::ShareLogParserT(
     WorkerKey pkey(0, 0);
     if ("CKB" == chainType_) {
       rpcUrl_ = cfg.lookup("sharelog.rpcurl").operator string();
-      cfg.lookupValue("sharelog.max_elements_num", kMaxElementsNum_); 
-      LOG(INFO) << "chaintype : " << chainType_ << " RPCURL : " << rpcUrl_ 
+      cfg.lookupValue("sharelog.max_elements_num", kMaxElementsNum_);
+      LOG(INFO) << "chaintype : " << chainType_ << " RPCURL : " << rpcUrl_
                 << "max_elements_num : " << kMaxElementsNum_;
       workersStats_[pkey] = std::make_shared<ShareStatsDay<SHARE>>(rpcUrl_);
     } else {
@@ -1228,7 +1228,8 @@ void ShareLogParserServerT<SHARE>::runThreadShareLogParser() {
         nonShareCounter++;
         break;
       }
-      if("CKB" == chainType_ && time(nullptr) > lastFlushDBTime + kFlushDBInterval_) {
+      if ("CKB" == chainType_ &&
+          time(nullptr) > lastFlushDBTime + kFlushDBInterval_) {
         DLOG(INFO) << "flush sharelog to DB";
         shareLogParser->flushToDB(); // will wait util all data flush to DB
         lastFlushDBTime = time(nullptr);
