@@ -4,10 +4,10 @@ set -e
 DOCKER_COMPOSE="docker-compose --no-ansi"
 
 BUILD_ARGS="--build-arg BUILD_JOBS=$(nproc) --build-arg BUILD_TESTING=ON"
-if [ "x$APT_MIRROR_URL" != "x" ]; then
+if [ "$APT_MIRROR_URL" != "" ]; then
     BUILD_ARGS="$BUILD_ARGS --build-arg APT_MIRROR_URL=$APT_MIRROR_URL"
 fi
-if [ "x$NO_CACHE" != "x" ]; then
+if [ "$NO_CACHE" = "1" ]; then
     BUILD_ARGS="$BUILD_ARGS --no-cache"
 fi
 
@@ -18,8 +18,13 @@ if [ "$BUILD_BASE_IMAGE" != "" ]; then
     echo "done"
 fi
 
+if [ "$DEBUG" = "1" ]; then
+    BUILD_ARGS="$BUILD_ARGS --build-arg BUILD_TYPE=Debug"
+fi
+
 echo "build btcpool-$TEST_SUITE image..."
 cd "$BASE_DIR/.."
+echo "build args: $BUILD_ARGS"
 docker build -t btccom/btcpool-$TEST_SUITE -f Dockerfile $BUILD_ARGS --build-arg BASE_IMAGE=$BASE_IMAGE ../../.. | tee -a $STDOUT
 echo "done"
 

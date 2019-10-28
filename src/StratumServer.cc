@@ -1041,6 +1041,18 @@ size_t StratumServer::switchChain(string userName, size_t newChainId) {
   return onlineSessions;
 }
 
+size_t StratumServer::autoSwitchChain(size_t newChainId) {
+  size_t switchedSessions = 0;
+  for (auto &itr : connections_) {
+    if (userInfo_->userAutoSwitchChainEnabled(itr->getUserName()) &&
+        itr->getChainId() != newChainId) {
+      switchedSessions++;
+      itr->switchChain(newChainId);
+    }
+  }
+  return switchedSessions;
+}
+
 size_t StratumServer::autoRegCallback(const string &userName) {
   size_t sessions = 0;
   for (auto &itr : connections_) {

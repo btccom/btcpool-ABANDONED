@@ -54,11 +54,17 @@ protected:
   void sendOfflineNotification();
   void sendExceptionReport(const std::exception &ex);
   JSON getConfigureAndStatus(const string &type, const string &action);
+  JSON
+  getResponseTemplate(const string &type, const string &action, const JSON &id);
+
+  void handleMessage(rd_kafka_message_t *rkmessage);
 
 public:
   Management(const libconfig::Config &cfg, StratumServer &server_);
   bool setup();
   void run();
   void stop();
-  void handleMessage(rd_kafka_message_t *rkmessage);
+
+  bool autoSwitchChainEnabled() const { return autoSwitchChain_; }
+  size_t currentAutoChainId() const { return currentAutoChainId_; }
 };

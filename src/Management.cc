@@ -30,6 +30,7 @@
 
 Management::Management(const libconfig::Config &cfg, StratumServer &server)
   : running_(false)
+  , currentAutoChainId_(0)
   , controllerTopicConsumer_(
         cfg.lookup("management.kafka_brokers").c_str(),
         cfg.lookup("management.controller_topic").c_str(),
@@ -172,25 +173,95 @@ void Management::handleMessage(rd_kafka_message_t *rkmessage) {
 
     JSON json =
         JSON::parse(string((const char *)rkmessage->payload, rkmessage->len));
-    if (!json["type"].is_string() || !json["action"].is_string()) {
+    if (!json.is_object() || !json["type"].is_string() ||
+        !json["action"].is_string()) {
+      DLOG(WARNING) << "[Management] json missing the field 'type' or 'action'";
       return;
     }
     string type = json["type"].get<string>();
     string action = json["action"].get<string>();
     JSON id = json["id"];
 
+    DLOG(INFO) << "[Management] new message, type: " << type
+               << ", action: " << action << ", id: " << id;
+
+    // Get server status
     if (type == "sserver_cmd") {
       if (action == "get_status") {
         JSON response = getConfigureAndStatus("sserver_response", "get_status");
         response["id"] = id;
         sendMessage(response.dump());
+        return;
       }
+
+      // Automatic switching chain
+      if (action == "auto_switch_chain") {
+        if (!json["chain_name"].is_string()) {
+          LOG(WARNING) << "[Auto Switch Chain] missing chain_name in command: "
+                       << json.dump();
+          return;
+        }
+
+        string chainName = json["chain_name"].get<string>();
+        ssize_t chainId = -1;
+        for (ssize_t i = 0; i < server_.chains_.size(); i++) {
+          if (server_.chains_[i].name_ == chainName) {
+            chainId = i;
+            break;
+          }
+        }
+
+        // not found
+        if (chainId == -1) {
+          LOG(WARNING) << "[Auto Switch Chain] cannot find chain " << chainName;
+          return;
+        }
+
+        // no change
+        if (chainId == currentAutoChainId_) {
+          DLOG(INFO) << "[Auto Switch Chain] no change of the chain";
+          return;
+        }
+
+        LOG(INFO) << "[Auto Switch Chain] chain switching: "
+                  << server_.chainName(currentAutoChainId_) << " -> "
+                  << server_.chainName(chainId);
+
+        currentAutoChainId_ = chainId;
+        server_.userInfo_->autoSwitchChain(
+            currentAutoChainId_,
+            [this, id](
+                size_t oldChain,
+                size_t newChain,
+                size_t users,
+                size_t miners) mutable {
+              JSON response = getResponseTemplate(
+                  "sserver_response", "auto_switch_chain", id);
+              response["result"] = true;
+              response["old_chain_name"] = server_.chainName(oldChain);
+              response["new_chain_name"] = server_.chainName(newChain);
+              ;
+              response["switched_users"] = users;
+              response["switched_connections"] = miners;
+              sendMessage(response.dump());
+            });
+        return;
+      }
+
+      DLOG(INFO) << "[Management] unknown action: " << action;
+      return;
     }
+
+    DLOG(INFO) << "[Management] unknown type: " << type;
 
   } catch (const std::exception &ex) {
     LOG(ERROR) << "Management thread exception: " << ex.what();
     sendExceptionReport(ex);
   }
+}
+
+void sendAutoSwitchChainResponse(
+    size_t oldChain, size_t newChain, size_t users, size_t miners) {
 }
 
 void Management::sendMessage(std::string msg) {
@@ -300,6 +371,7 @@ JSON Management::getConfigureAndStatus(
       {"created_at", date("%F %T")},
       {"type", type},
       {"action", action},
+      {"server_id", server_.serverId_},
       {"host",
        {
            {"hostname", IpAddress::getHostName()},
@@ -322,5 +394,17 @@ JSON Management::getConfigureAndStatus(
        }},
   };
 
+  return json;
+}
+
+JSON Management::getResponseTemplate(
+    const string &type, const string &action, const JSON &id) {
+  JSON json = {
+      {"created_at", date("%F %T")},
+      {"type", type},
+      {"action", action},
+      {"server_id", server_.serverId_},
+      {"id", id},
+  };
   return json;
 }

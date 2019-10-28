@@ -26,6 +26,7 @@
 #include <memory>
 #include <algorithm>
 #include <shared_mutex>
+#include <functional>
 
 #include "utilities_js.hpp"
 #include "Management.h"
@@ -37,14 +38,12 @@ class StratumServer;
 // 2. insert worker name to db
 class UserInfo {
   struct WorkerName {
-    int32_t userId_;
-    int64_t workerId_;
+    int32_t userId_ = 0;
+    int64_t workerId_ = 0;
     char workerName_[21];
     char minerAgent_[31];
 
-    WorkerName()
-      : userId_(0)
-      , workerId_(0) {
+    WorkerName() {
       memset(workerName_, 0, sizeof(workerName_));
       memset(minerAgent_, 0, sizeof(minerAgent_));
     }
@@ -56,12 +55,19 @@ class UserInfo {
     std::unique_ptr<std::shared_timed_mutex> nameIdlock_;
     // username -> userId
     std::unordered_map<string, int32_t> nameIds_;
-    int32_t lastMaxUserId_;
+    int32_t lastMaxUserId_ = 0;
 
     thread threadUpdate_;
   };
 
+  struct UserChainInfo {
+    size_t chainId_ = 0;
+    bool autoSwitchChain_ = false;
+  };
+
   //--------------------
+  const string AUTO_CHAIN_NAME = "auto";
+
   atomic<bool> running_;
 
   bool caseInsensitive_;
@@ -80,8 +86,8 @@ class UserInfo {
   std::mutex autoRegPendingUsersLock_;
 
   std::shared_timed_mutex nameChainlock_;
-  // username -> chainId
-  std::unordered_map<string, size_t> nameChains_;
+  // username -> { chainId_, autoSwitchChain_ }
+  std::unordered_map<string, UserChainInfo> nameChains_;
 
   int nameChainsCheckIntervalSeconds_ = 300;
   std::thread nameChainsCheckingThread_;
@@ -100,6 +106,11 @@ class UserInfo {
       zhandle_t *zh, int type, int state, const char *path, void *pUserInfo);
   static void handleAutoRegEvent(
       zhandle_t *zh, int type, int state, const char *path, void *pUserInfo);
+  void autoSwitchChain(
+      size_t newChainId,
+      std::function<
+          void(size_t oldChain, size_t newChain, size_t users, size_t miners)>
+          callback);
 
 public:
   UserInfo(StratumServer *server, const libconfig::Config &config);
@@ -123,4 +134,6 @@ public:
 
   bool autoRegEnabled() const { return enableAutoReg_; }
   bool tryAutoReg(string userName, uint32_t sessionId, string fullWorkerName);
+
+  bool userAutoSwitchChainEnabled(const string &userName);
 };

@@ -321,6 +321,8 @@ public:
   const string &chainName(size_t chainId) { return chains_[chainId].name_; }
   size_t /* online sessions */
   switchChain(string userName, size_t newChainId);
+  size_t /* switched sessions */
+  autoSwitchChain(size_t newChainId);
   size_t /* auto reg sessions */
   autoRegCallback(const string &userName);
 
@@ -351,6 +353,8 @@ public:
   int32_t singleUserId(size_t chainId) {
     return chains_[chainId].singleUserId_;
   }
+
+  Management &management() { return *management_; }
 
   bool proxyProtocol() const { return proxyProtocol_; }
 

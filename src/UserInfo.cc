@@ -158,6 +158,17 @@ bool UserInfo::getChainIdFromZookeeper(
     string chainName;
     if (zk_->getValueW(nodePath, chainName, 64, handleSwitchChainEvent, this)) {
       DLOG(INFO) << "zk userchain map: " << userName << " : " << chainName;
+
+      // auto switch chain
+      if (server_->management().autoSwitchChainEnabled() &&
+          chainName == AUTO_CHAIN_NAME) {
+        chainId = server_->management().currentAutoChainId();
+        // add to cache
+        std::unique_lock<std::shared_timed_mutex> l{nameChainlock_};
+        nameChains_[userName] = {chainId, true};
+        return true;
+      }
+
       for (chainId = 0; chainId < server_->chains_.size(); chainId++) {
         if (chainName == server_->chains_[chainId].name_) {
           bool found = false;
@@ -170,7 +181,7 @@ bool UserInfo::getChainIdFromZookeeper(
           if (found) {
             // add to cache
             std::unique_lock<std::shared_timed_mutex> l{nameChainlock_};
-            nameChains_[userName] = chainId;
+            nameChains_[userName] = {chainId, false};
             return true;
           } else {
             LOG(ERROR) << "Userlist for chain " << server_->chainName(chainId)
@@ -205,7 +216,7 @@ void UserInfo::setZkReconnectHandle() {
     // Chain switching while holding a lock can result in a deadlock.
     // So release the lock immediately after copying.
     nameChainlock_.lock_shared();
-    std::unordered_map<string, size_t> nameChains = nameChains_;
+    auto nameChains = nameChains_;
     nameChainlock_.unlock_shared();
 
     // Check the current chain of all users
@@ -247,7 +258,8 @@ void UserInfo::handleSwitchChainEvent(const string &userName) {
               << " online, switching request will be ignored";
     return;
   }
-  size_t currentChainId = itr->second;
+  size_t currentChainId = itr->second.chainId_;
+  bool oldAutoChainStatus = itr->second.autoSwitchChain_;
   l.unlock();
 
   size_t newChainId = 0;
@@ -256,8 +268,15 @@ void UserInfo::handleSwitchChainEvent(const string &userName) {
                   "zookeeper, switching request will be ignored";
     return;
   }
+  bool newAutoChainStatus = itr->second.autoSwitchChain_;
+  if (oldAutoChainStatus != newAutoChainStatus) {
+    LOG(INFO) << "[auto chain] "
+              << (newAutoChainStatus ? "enabled" : "disabled")
+              << " auto switch chain, user: " << userName;
+  }
   if (currentChainId == newChainId) {
-    LOG(INFO) << "Ignore empty switching request for user '" << userName
+    LOG(INFO) << (newAutoChainStatus ? "[auto chain] " : "")
+              << "Ignore empty switching request for user '" << userName
               << "': " << server_->chainName(currentChainId) << " -> "
               << server_->chainName(newChainId);
     return;
@@ -265,29 +284,66 @@ void UserInfo::handleSwitchChainEvent(const string &userName) {
 
   const int32_t newUserId = getUserId(newChainId, userName);
   if (newUserId <= 0) {
-    LOG(INFO) << "Ignore switching request: cannot find user id, chainId: "
+    LOG(INFO) << (newAutoChainStatus ? "[auto chain] " : "")
+              << "Ignore switching request: cannot find user id, chainId: "
               << newChainId << ", userName: " << userName;
     return;
   }
 
-  server_->dispatch([this, userName, currentChainId, newChainId]() {
-    size_t onlineSessions = server_->switchChain(userName, newChainId);
+  server_->dispatch(
+      [this, userName, currentChainId, newChainId, newAutoChainStatus]() {
+        size_t onlineSessions = server_->switchChain(userName, newChainId);
 
-    if (onlineSessions == 0) {
-      LOG(INFO) << "No workers of user " << userName
-                << " online, subsequent switching request will be ignored";
-      // clear cache
-      std::unique_lock<std::shared_timed_mutex> l{nameChainlock_};
-      auto itr = nameChains_.find(userName);
-      if (itr != nameChains_.end()) {
-        nameChains_.erase(itr);
+        if (onlineSessions == 0) {
+          LOG(INFO) << (newAutoChainStatus ? "[auto chain] " : "")
+                    << "No workers of user " << userName
+                    << " online, subsequent switching request will be ignored";
+          // clear cache
+          std::unique_lock<std::shared_timed_mutex> l{nameChainlock_};
+          auto itr = nameChains_.find(userName);
+          if (itr != nameChains_.end()) {
+            nameChains_.erase(itr);
+          }
+        }
+
+        LOG(INFO) << (newAutoChainStatus ? "[auto chain] " : "") << "User '"
+                  << userName << "' (" << onlineSessions
+                  << " miners) switched chain: "
+                  << server_->chainName(currentChainId) << " -> "
+                  << server_->chainName(newChainId);
+      });
+}
+
+void UserInfo::autoSwitchChain(
+    size_t newChainId,
+    std::function<
+        void(size_t oldChain, size_t newChain, size_t users, size_t miners)>
+        callback) {
+  // update caches
+  size_t oldChainId = 0;
+  size_t users = 0;
+  {
+    std::unique_lock<std::shared_timed_mutex> l{nameChainlock_};
+    for (auto &itr : nameChains_) {
+      if (itr.second.autoSwitchChain_) {
+        if (users == 0) {
+          oldChainId = itr.second.chainId_;
+        }
+        itr.second.chainId_ = newChainId;
+        users++;
       }
     }
+  }
 
-    LOG(INFO) << "User '" << userName << "' (" << onlineSessions
-              << " miners) switched chain: "
-              << server_->chainName(currentChainId) << " -> "
-              << server_->chainName(newChainId);
+  // do the switch
+  server_->dispatch([this, oldChainId, newChainId, users, callback]() {
+    size_t switchedSessions = server_->autoSwitchChain(newChainId);
+
+    LOG(INFO) << "[auto chain] " << users << " users (" << switchedSessions
+              << " miners) switched chain: " << server_->chainName(oldChainId)
+              << " -> " << server_->chainName(newChainId);
+
+    callback(oldChainId, newChainId, users, switchedSessions);
   });
 }
 
@@ -302,7 +358,7 @@ bool UserInfo::getChainId(const string &userName, size_t &chainId) {
     std::shared_lock<std::shared_timed_mutex> l{nameChainlock_};
     auto itr = nameChains_.find(userName);
     if (itr != nameChains_.end()) {
-      chainId = itr->second;
+      chainId = itr->second.chainId_;
       return true;
     }
   }
@@ -323,7 +379,7 @@ bool UserInfo::getChainId(const string &userName, size_t &chainId) {
       DLOG(INFO) << "userName: " << userName << ", chainId: " << chainId;
       // add to cache
       std::unique_lock<std::shared_timed_mutex> l{nameChainlock_};
-      nameChains_[userName] = chainId;
+      nameChains_[userName] = {chainId, false};
       return true;
     }
   }
@@ -456,7 +512,7 @@ void UserInfo::checkNameChains() {
     // Chain switching while holding a lock can result in a deadlock.
     // So release the lock immediately after copying.
     nameChainlock_.lock_shared();
-    std::unordered_map<string, size_t> nameChains = nameChains_;
+    auto nameChains = nameChains_;
     nameChainlock_.unlock_shared();
 
     if (nameChains.empty()) {
@@ -479,13 +535,30 @@ void UserInfo::checkNameChains() {
 
       try {
         const string &userName = itr.first;
-        const size_t chainId = itr.second;
-        const string &chainName = server_->chains_[chainId].name_;
+        const auto &chainInfo = itr.second;
+        const string &chainName = server_->chains_[chainInfo.chainId_].name_;
 
         string nodePath = zkUserChainMapDir_ + userName;
         string newChainName = zk_->getValue(nodePath, 64);
 
-        if (chainName == newChainName) {
+        if (server_->management().autoSwitchChainEnabled() &&
+            newChainName == AUTO_CHAIN_NAME) {
+          if (chainInfo.autoSwitchChain_ &&
+              chainInfo.chainId_ ==
+                  server_->management().currentAutoChainId()) {
+            DLOG(INFO) << "[auto chain] User does not switch chains, user: "
+                       << userName
+                       << ", chain: " << server_->chainName(chainInfo.chainId_);
+          } else {
+            LOG(INFO) << "[auto chain] User switched the chain, user: "
+                      << userName
+                      << ", chains: " << server_->chainName(chainInfo.chainId_)
+                      << " -> "
+                      << server_->chainName(
+                             server_->management().currentAutoChainId());
+            handleSwitchChainEvent(userName);
+          }
+        } else if (chainName == newChainName) {
           DLOG(INFO) << "User does not switch chains, user: " << userName
                      << ", chain: " << chainName;
         } else {
@@ -584,4 +657,9 @@ bool UserInfo::tryAutoReg(
   ScopeLock lock(autoRegPendingUsersLock_);
   autoRegPendingUsers_.erase(userName);
   return false;
+}
+
+bool UserInfo::userAutoSwitchChainEnabled(const string &userName) {
+  std::shared_lock<std::shared_timed_mutex> l{nameChainlock_};
+  return nameChains_[userName].autoSwitchChain_;
 }
