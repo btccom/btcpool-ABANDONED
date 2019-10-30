@@ -201,3 +201,13 @@ prometheus = {
   # path of the prometheus exporter url
   path = "<?=optionalTrim('prometheus_path', '/metrics')?>";
 };
+
+management = {
+  enabled = <?=optionalBool('management_enabled', true, $management_enabled)?>; # default: true
+
+  kafka_brokers = "<?=mayOptionalTrim(!$management_enabled, "management_kafka_brokers")?>"; # "10.0.0.1:9092,10.0.0.2:9092,..."
+  controller_topic = "<?=mayOptionalTrim(!$management_enabled, "management_controller_topic")?>";
+  processor_topic = "<?=mayOptionalTrim(!$management_enabled, "management_processor_topic")?>";
+
+  auto_switch_chain = <?=optionalBool('management_auto_switch_chain', true)?>;
+};

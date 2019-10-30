@@ -894,7 +894,7 @@ bool StratumServer::setup(const libconfig::Config &config) {
   config.lookupValue("prometheus.enabled", statsEnabled);
   if (statsEnabled) {
     string exporterAddress = "0.0.0.0";
-    unsigned int exporterPort = 3200;
+    unsigned int exporterPort = 9100;
     string exporterPath = "/metrics";
     config.lookupValue("prometheus.address", exporterAddress);
     config.lookupValue("prometheus.port", exporterPort);
@@ -922,7 +922,7 @@ bool StratumServer::setup(const libconfig::Config &config) {
   shareWorker_->start(std::max(shareWorkerThreads, MIN_SHARE_WORKER_THREADS));
 
   bool enableManagement = true;
-  config.lookupValue("management.enable", enableManagement);
+  config.lookupValue("management.enabled", enableManagement);
   if (enableManagement) {
     management_ = std::make_unique<Management>(config, *this);
     if (!management_->setup()) {
