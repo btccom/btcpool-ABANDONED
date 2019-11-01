@@ -183,7 +183,7 @@ foreach ($chains as $key=>$chain_name):
     rsk_solved_share_topic = "<?=notNullTrim("chains_${chain_name}_rsk_solved_share_topic")?>";
 
     # Specify a chain-based user id for single-user mode
-    single_user_puid = <?=mayOptionalTrim(!$users_single_user_mode, "chains_${chain_name}_single_user_puid")?>;
+    single_user_puid = <?=mayOptionalTrim(!$users_single_user_mode, "chains_${chain_name}_single_user_puid", '0')?>;
   }<?=separator(',', $chains, $key)?>
 
 <?php

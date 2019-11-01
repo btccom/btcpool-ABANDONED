@@ -101,7 +101,10 @@ StratumSession::StratumSession(
   dispatcher_ = std::make_unique<StratumMessageNullDispatcher>();
 
   setup();
-  LOG(INFO) << "client connect, ip: " << clientIp_;
+
+  if (!server_.logHideIpPrefix(clientIp_)) {
+    LOG(INFO) << "client connect, ip: " << clientIp_;
+  }
 }
 
 StratumSession::~StratumSession() {

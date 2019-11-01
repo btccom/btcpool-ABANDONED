@@ -267,6 +267,9 @@ public:
   SessionIDManager *sessionIDManager_;
 #endif
 
+  // hide "client connect" log with the prefix
+  string logHideIpPrefix_;
+
   UserInfo *userInfo_;
   vector<ChainVars> chains_;
   shared_ptr<DiffController> defaultDifficultyController_;
@@ -357,6 +360,8 @@ public:
   Management &management() { return *management_; }
 
   bool proxyProtocol() const { return proxyProtocol_; }
+
+  bool logHideIpPrefix(const string &ip);
 
 protected:
   virtual JobRepository *createJobRepository(

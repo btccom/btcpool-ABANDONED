@@ -479,6 +479,9 @@ void StratumServer::initZookeeper(const libconfig::Config &config) {
 }
 
 bool StratumServer::setup(const libconfig::Config &config) {
+  // ------------------- Log Options -------------------
+  config.lookupValue("log.hide_ip_prefix", logHideIpPrefix_);
+
 #ifdef WORK_WITH_STRATUM_SWITCHER
   LOG(INFO) << "WORK_WITH_STRATUM_SWITCHER enabled, miners can only connect to "
                "the sserver via a stratum switcher.";
@@ -1242,4 +1245,14 @@ void StratumServer::sendCommonEvents2Kafka(
     size_t chainId, const string &message) {
   chains_[chainId].kafkaProducerCommonEvents_->produce(
       message.data(), message.size());
+}
+
+bool StratumServer::logHideIpPrefix(const string &ip) {
+  if (logHideIpPrefix_.empty()) {
+    return false;
+  }
+  if (ip.size() < logHideIpPrefix_.size()) {
+    return false;
+  }
+  return ip.substr(0, logHideIpPrefix_.size()) == logHideIpPrefix_;
 }
