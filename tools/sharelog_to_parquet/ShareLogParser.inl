@@ -29,10 +29,10 @@
 ///////////////////////////////  ShareLogParserT ///////////////////////////////
 template <class SHARE>
 ShareLogParserT<SHARE>::ShareLogParserT(
-    const libconfig::Config &cfg, time_t timestamp)
+    const libconfig::Config &cfg, time_t timestamp, const string &chainType)
   : date_(timestamp)
   , outputDir_(cfg.lookup("parquet.data_dir").operator string())
-  , chainType_(cfg.lookup("sharelog.chain_type").operator string())
+  , chainType_(chainType)
   , f_(nullptr)
   , buf_(nullptr)
   , incompleteShareSize_(0) {
@@ -291,10 +291,10 @@ bool ShareLogParserT<SHARE>::isReachEOF() {
 ///////////////////////////////
 template <class SHARE>
 ShareLogParserServerT<SHARE>::ShareLogParserServerT(
-    const libconfig::Config &cfg)
+    const libconfig::Config &cfg, const string &chainType)
   : cfg_(cfg)
   , running_(true)
-  , chainType_(cfg.lookup("sharelog.chain_type").operator string())
+  , chainType_(chainType)
   , dataDir_(cfg.lookup("sharelog.data_dir").operator string()) {
   const time_t now = time(nullptr);
   date_ = now - (now % 86400);
@@ -336,7 +336,7 @@ bool ShareLogParserServerT<SHARE>::initShareLogParser(time_t datets) {
 template <class SHARE>
 shared_ptr<ShareLogParserT<SHARE>>
 ShareLogParserServerT<SHARE>::createShareLogParser(time_t datets) {
-  return std::make_shared<ShareLogParserT<SHARE>>(cfg_, datets);
+  return std::make_shared<ShareLogParserT<SHARE>>(cfg_, datets, chainType_);
 }
 
 template <class SHARE>

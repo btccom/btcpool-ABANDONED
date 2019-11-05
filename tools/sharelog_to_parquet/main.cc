@@ -37,8 +37,6 @@
 #include "utils.hpp"
 #include "shares.hpp"
 #include "ShareLogParser.h"
-#include "StratumBitcoin.hpp"
-#include "StratumBeam.hpp"
 
 using namespace std;
 using namespace libconfig;
@@ -66,12 +64,20 @@ void usage() {
 
 std::shared_ptr<ShareLogParser> newShareLogParser(
     const string &chainType, time_t timestamp, const libconfig::Config &cfg) {
-  if (chainType == "BTC") {
-    return std::make_shared<ShareLogParserBitcoin>(cfg, timestamp);
+  if (chainType == "BTC" || chainType == "BCH" || chainType == "BSV" ||
+      chainType == "UBTC") {
+    BitcoinDifficulty::DiffOneBits = 0x1d00ffff;
+    return std::make_shared<ShareLogParserBitcoin>(cfg, timestamp, chainType);
+  } else if (chainType == "LTC") {
+    BitcoinDifficulty::DiffOneBits = 0x1f00ffff;
+    return std::make_shared<ShareLogParserBitcoin>(cfg, timestamp, chainType);
+  } else if (chainType == "ZEC") {
+    BitcoinDifficulty::DiffOneBits = 0x1f07ffff;
+    return std::make_shared<ShareLogParserBitcoin>(cfg, timestamp, chainType);
   } else if (chainType == "BEAM") {
-    return std::make_shared<ShareLogParserBeam>(cfg, timestamp);
-  } else if (chainType == "ETH") {
-    return std::make_shared<ShareLogParserEth>(cfg, timestamp);
+    return std::make_shared<ShareLogParserBeam>(cfg, timestamp, chainType);
+  } else if (chainType == "ETH" || chainType == "ETC") {
+    return std::make_shared<ShareLogParserEth>(cfg, timestamp, "ETH");
   } else {
     LOG(FATAL) << "newShareLogParser: unknown chain type " << chainType;
     return nullptr;
@@ -80,12 +86,20 @@ std::shared_ptr<ShareLogParser> newShareLogParser(
 
 std::shared_ptr<ShareLogParserServer>
 newShareLogParserServer(const string &chainType, const libconfig::Config &cfg) {
-  if (chainType == "BTC") {
-    return std::make_shared<ShareLogParserServerBitcoin>(cfg);
+  if (chainType == "BTC" || chainType == "BCH" || chainType == "BSV" ||
+      chainType == "UBTC") {
+    BitcoinDifficulty::DiffOneBits = 0x1d00ffff;
+    return std::make_shared<ShareLogParserServerBitcoin>(cfg, chainType);
+  } else if (chainType == "LTC") {
+    BitcoinDifficulty::DiffOneBits = 0x1f00ffff;
+    return std::make_shared<ShareLogParserServerBitcoin>(cfg, chainType);
+  } else if (chainType == "ZEC") {
+    BitcoinDifficulty::DiffOneBits = 0x1f07ffff;
+    return std::make_shared<ShareLogParserServerBitcoin>(cfg, chainType);
   } else if (chainType == "BEAM") {
-    return std::make_shared<ShareLogParserServerBeam>(cfg);
-  } else if (chainType == "ETH") {
-    return std::make_shared<ShareLogParserServerEth>(cfg);
+    return std::make_shared<ShareLogParserServerBeam>(cfg, chainType);
+  } else if (chainType == "ETH" || chainType == "ETC") {
+    return std::make_shared<ShareLogParserServerEth>(cfg, "ETH");
   } else {
     LOG(FATAL) << "newShareLogParserServer: unknown chain type " << chainType;
     return nullptr;

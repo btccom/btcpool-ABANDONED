@@ -294,7 +294,7 @@ protected:
         GroupNode::Make("share_beam", Repetition::REQUIRED, fields));
   }
 
-  void flushShares() {
+  void flushShares() override {
     DLOG(INFO) << "flush " << shareNum_ << " shares";
 
     // Create a RowGroupWriter instance

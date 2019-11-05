@@ -31,7 +31,6 @@
 #include "StratumStatus.h"
 #include "Difficulty.hpp"
 
-using BitcoinDifficulty = Difficulty<0x1d00ffff>;
 using namespace std;
 
 struct ShareBitcoinBytesV1 {
@@ -363,7 +362,7 @@ protected:
         GroupNode::Make("share_bitcoin", Repetition::REQUIRED, fields));
   }
 
-  void flushShares() {
+  void flushShares() override {
     DLOG(INFO) << "flush " << shareNum_ << " shares";
 
     // Create a RowGroupWriter instance

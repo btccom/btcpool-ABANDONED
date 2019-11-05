@@ -346,7 +346,7 @@ protected:
         GroupNode::Make("share_eth", Repetition::REQUIRED, fields));
   }
 
-  void flushShares() {
+  void flushShares() override {
     DLOG(INFO) << "flush " << shareNum_ << " shares";
 
     // Create a RowGroupWriter instance

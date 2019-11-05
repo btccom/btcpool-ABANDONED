@@ -81,7 +81,8 @@ class ShareLogParserT : public ShareLogParser {
   bool openParquet();
 
 public:
-  ShareLogParserT(const libconfig::Config &cfg, time_t timestamp);
+  ShareLogParserT(
+      const libconfig::Config &cfg, time_t timestamp, const string &chainType);
   virtual ~ShareLogParserT();
 
   bool init();
@@ -131,7 +132,7 @@ protected:
   void trySwitchBinFile(shared_ptr<ShareLogParserT<SHARE>> shareLogParser);
 
 public:
-  ShareLogParserServerT(const libconfig::Config &cfg);
+  ShareLogParserServerT(const libconfig::Config &cfg, const string &chainType);
   virtual ~ShareLogParserServerT();
 
   void stop();
