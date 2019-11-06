@@ -69,7 +69,8 @@ void JobRepositoryBitcoin::broadcastStratumJob(
   if (height > lastHeight_) {
     isClean = true;
     lastHeight_ = height;
-    LOG(INFO) << "received new height stratum job, height: " << sjob->height_
+    LOG(INFO) << "received new height " << GetServer()->chainName(chainId_)
+              << " job, height: " << sjob->height_
               << ", prevhash: " << sjob->prevHash_.ToString();
   }
 

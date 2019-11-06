@@ -344,6 +344,10 @@ void UserInfo::autoSwitchChain(
               << " -> " << server_->chainName(newChainId);
 
     callback(oldChainId, newChainId, users, switchedSessions);
+
+    if (switchedSessions > 0) {
+      server_->chains_[newChainId].jobRepository_->sendLatestMiningNotify();
+    }
   });
 }
 

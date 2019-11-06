@@ -339,6 +339,13 @@ void JobRepository::checkAndSendMiningNotify() {
   }
 }
 
+void JobRepository::sendLatestMiningNotify() {
+  if (exJobs_.size()) {
+    shared_ptr<StratumJobEx> exJob = exJobs_.rbegin()->second;
+    sendMiningNotify(exJob);
+  }
+}
+
 void JobRepository::sendMiningNotify(shared_ptr<StratumJobEx> exJob) {
   // send job to all clients
   server_->sendMiningNotifyToAll(exJob);
