@@ -129,8 +129,8 @@ union IpAddress {
     return false;
   }
 
-  static void
-  getIpPortFromStruct(const struct sockaddr *sa, string &ip, uint16_t &port) {
+  static void getIpPortFromStruct(
+      const struct sockaddr *sa, std::string &ip, uint16_t &port) {
     switch (sa->sa_family) {
     case AF_INET:
       ip.resize(INET_ADDRSTRLEN);
@@ -172,7 +172,7 @@ union IpAddress {
       return result;
     }
 
-    string ip;
+    std::string ip;
     uint16_t port;
     for (struct ifaddrs *ifa = ifList; ifa != nullptr; ifa = ifa->ifa_next) {
       getIpPortFromStruct(ifa->ifa_addr, ip, port);
@@ -184,7 +184,7 @@ union IpAddress {
     return result;
   }
 
-  static string getHostName() {
+  static std::string getHostName() {
     std::string hostname(256, '\0');
     gethostname((char *)hostname.data(), hostname.size());
     hostname.resize(strlen(hostname.c_str())); // remove trailing '\0'

@@ -269,10 +269,18 @@ int64_t ShareLogParserT<SHARE>::processGrowingShareLog() {
     }
 
     DLOG(INFO) << "processGrowingShareLog share count: " << parsedsharenum;
+    resetReadingError();
     return parsedsharenum;
 
+  } catch (const std::exception &ex) {
+    LOG(ERROR) << "reading file fail with exception: " << ex.what()
+               << ", file: " << filePath_;
+    handleReadingError();
+    return -1;
   } catch (...) {
-    LOG(ERROR) << "reading file fail with exception: " << filePath_;
+    LOG(ERROR) << "reading file fail with unknown exception, file: "
+               << filePath_;
+    handleReadingError();
     return -1;
   }
 }

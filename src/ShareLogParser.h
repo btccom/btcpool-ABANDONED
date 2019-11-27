@@ -105,6 +105,11 @@ class ShareLogParserT : public ShareLogParser {
   size_t incompleteShareSize_;
   uint32_t bufferlength_;
 
+  static constexpr uint32_t MAX_READING_ERRORS = 5;
+  // The number of read errors. If MAX_READING_ERRORS is exceeded,
+  // the program will exit
+  uint32_t readingErrors_ = 0;
+
   MySQLConnection poolDB_; // save stats data
 
   shared_ptr<DuplicateShareChecker<SHARE>>
@@ -119,6 +124,18 @@ class ShareLogParserT : public ShareLogParser {
   inline int32_t getHourIdx(uint32_t ts) {
     // %H	Hour in 24h format (00-23)
     return atoi(date("%H", ts).c_str());
+  }
+
+  inline void handleReadingError() {
+    if (++readingErrors_ > MAX_READING_ERRORS) {
+      LOG(FATAL) << "Too many reading errors, the program will exit!";
+    }
+  }
+
+  inline void resetReadingError() {
+    if (readingErrors_) {
+      readingErrors_ = 0;
+    }
   }
 
   void parseShareLog(const uint8_t *buf, size_t len);
