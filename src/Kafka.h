@@ -131,7 +131,7 @@ public:
   std::vector<std::tuple<std::string, int>> getTopics() const {
     std::vector<std::tuple<std::string, int>> results;
     for (auto itr : topics_) {
-      results.push_back({std::get<0>(itr), std::get<1>(itr)});
+      results.push_back(std::tuple<std::string, int>{std::get<0>(itr), std::get<1>(itr)});
     }
     return results;
   }

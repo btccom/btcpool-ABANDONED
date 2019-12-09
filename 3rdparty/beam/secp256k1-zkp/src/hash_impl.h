@@ -33,6 +33,18 @@
 #define BE32(p) ((((p) & 0xFF) << 24) | (((p) & 0xFF00) << 8) | (((p) & 0xFF0000) >> 8) | (((p) & 0xFF000000) >> 24))
 #endif
 
+static void secp256k1_sha256_initialize(secp256k1_sha256_t *hash);
+static void secp256k1_sha256_write(secp256k1_sha256_t *hash, const unsigned char *data, size_t size);
+static void secp256k1_sha256_finalize(secp256k1_sha256_t *hash, unsigned char *out32);
+
+static void secp256k1_hmac_sha256_initialize(secp256k1_hmac_sha256_t *hash, const unsigned char *key, size_t size);
+static void secp256k1_hmac_sha256_write(secp256k1_hmac_sha256_t *hash, const unsigned char *data, size_t size);
+static void secp256k1_hmac_sha256_finalize(secp256k1_hmac_sha256_t *hash, unsigned char *out32);
+
+static void secp256k1_rfc6979_hmac_sha256_initialize(secp256k1_rfc6979_hmac_sha256_t *rng, const unsigned char *key, size_t keylen);
+static void secp256k1_rfc6979_hmac_sha256_generate(secp256k1_rfc6979_hmac_sha256_t *rng, unsigned char *out, size_t outlen);
+static void secp256k1_rfc6979_hmac_sha256_finalize(secp256k1_rfc6979_hmac_sha256_t *rng);
+
 static void secp256k1_sha256_initialize(secp256k1_sha256_t *hash) {
     hash->s[0] = 0x6a09e667ul;
     hash->s[1] = 0xbb67ae85ul;
