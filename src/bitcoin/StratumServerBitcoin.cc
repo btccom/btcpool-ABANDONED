@@ -76,6 +76,17 @@ void JobRepositoryBitcoin::broadcastStratumJob(
   bool isMergedMiningClean =
       sjob->isMergedMiningCleanJob_ && height >= lastHeight_;
 
+  // In the job proxy mode, the upstream pool may switch the chain
+  // (such as from BCH to BTC), resulting in a height drop.
+  if (sjob->proxyJobDifficulty_ > 0 && height < lastHeight_) {
+    LOG(INFO) << "upstream " << GetServer()->chainName(chainId_)
+              << " switched chain, new height: " << sjob->height_
+              << ", prevhash: " << sjob->prevHash_.ToString()
+              << ", old height: " << lastHeight_;
+    isMergedMiningClean = true;
+    lastHeight_ = height;
+  }
+
   //
   // The `clean_jobs` field should be `true` ONLY IF a new block found in
   // Bitcoin blockchains. Most miner implements will never submit their previous
