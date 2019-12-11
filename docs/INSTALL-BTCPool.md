@@ -317,6 +317,12 @@ make -j$(nproc)
 
 Please use the build that linking to Bitcoin (`-DCHAIN_TYPE=BTC`).
 
+**How about Nervos(CKB)?**
+
+Please use the build that linking to Bitcoin (`-DCHAIN_TYPE=BTC`).
+Please use [nodebridge](https://github.com/btccom/btcpool/tree/master/rust) instead of gwmaker/blkmaker to exchange data with nodes and store mined block info to db.
+please use [ckb_update_reward](https://github.com/btccom/btcpool/tree/master/tools/ckb_update_reward) to update ckb's block reward.
+
 ---
 
 ## Init btcpool

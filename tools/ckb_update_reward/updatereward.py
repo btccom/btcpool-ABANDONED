@@ -33,9 +33,10 @@ class RewardUpdate:
         except Exception as err:
             self.logger.error("connect mysql Error %s  " % (err))
     
-    def update_reward(self, height, reward):
+    def update_reward(self, height, reward, is_orphaned):
+        reward = reward if not is_orphaned else 0
         try:
-            sql = "UPDATE %s SET rewards = %d WHERE height = %d;" %(self.config["MYSQL"]["table"], reward, height)
+            sql = "UPDATE %s SET rewards = %d , is_orphaned = %d WHERE height = %d;" %(self.config["MYSQL"]["table"], reward, is_orphaned, height)
             self.cursor = self.create_mysql_handle()
             self.cursor.execute(sql)
             self.databasehandle.commit()
@@ -45,22 +46,24 @@ class RewardUpdate:
         self.cursor.close() 
 
     def get_lattest_heights(self, lastupdatedheight):
-        sql = "select height from %s where height > %d;" %(self.config["MYSQL"]["table"], lastupdatedheight)
+        sql = "select height , hash from %s where height > %d;" %(self.config["MYSQL"]["table"], lastupdatedheight)
         heights = []
+        height2hash = {}
         try:
             self.cursor = self.create_mysql_handle()
             self.cursor.execute(sql)
             rows = self.cursor.fetchall()
             for row in rows:
                 heights.append(row[0])
-        
+                height2hash[row[0]] = row[1]
+            heights.sort()
         except Exception as err:
             self.logger.warning("execute sql error %s  " % (err))
         if len(heights) > 0:
             self.lastheight = heights[-1]
-        self.logger.info("curreent mysql hight : %d  " % (self.lastheight))
+        self.logger.info("current mysql hight : %d  " % (self.lastheight))
         self.cursor.close() 
-        return heights
+        return heights, height2hash
 
 
     def get_chain_tip(self):
@@ -115,15 +118,17 @@ class RewardUpdate:
         
     def run(self):
         while True:
-            heights = self.get_lattest_heights(self.lastheight)
+            heights, height2hash = self.get_lattest_heights(self.lastheight)
             for height in heights:
                 self.wait_untill_height(height + 11)
+                curblockhash = self.get_block_hash(height)
                 blockhash = self.get_block_hash(height + 11)
                 reward = self.get_block_reward(blockhash)
                 if blockhash is None or reward is None:
                     heights.append(height)
                 else:
-                    self.update_reward(height, reward)
+                    is_orphaned = (height2hash[height] != curblockhash)
+                    self.update_reward(height, reward, is_orphaned)
                 self.logger.info("update height: %d reeward : %d hash : %s  " % (height, reward, blockhash))
             time.sleep(5)
 
