@@ -55,6 +55,7 @@ protected:
   void sendOnlineNotification();
   void sendOfflineNotification();
   void sendExceptionReport(const std::exception &ex);
+  JSON getServerBriefDesc(const string &type, const string &action);
   JSON getConfigureAndStatus(const string &type, const string &action);
   JSON
   getResponseTemplate(const string &type, const string &action, const JSON &id);

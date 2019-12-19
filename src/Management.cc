@@ -198,6 +198,17 @@ void Management::handleMessage(rd_kafka_message_t *rkmessage) {
 
     // Get server status
     if (type == "sserver_cmd") {
+      if (action == "list") {
+        server_.dispatch([this, id]() {
+          JSON response =
+              getServerBriefDesc("sserver_response", "list");
+          response["id"] = id;
+          sendMessage(response.dump());
+          LOG(INFO) << "[Management] sent server brief desc";
+        });
+        return;
+      }
+
       if (action == "get_status") {
         server_.dispatch([this, id]() {
           JSON response =
@@ -325,6 +336,31 @@ static const char *FormatSessionStatus(int status) {
   default:
     return "unknown";
   }
+}
+
+JSON Management::getServerBriefDesc(
+    const string &type, const string &action) {
+  JSON json = {
+      {"created_at", date("%F %T")},
+      {"type", type},
+      {"action", action},
+      {"server_id", server_.serverId_},
+      {"host",
+       {
+           {"hostname", IpAddress::getHostName()},
+           {"ip", IpAddress::getInterfaceAddrs()},
+       }},
+      {"status",
+       {
+           {"uptime", uptime_},
+           {"connections",
+            {
+                {"count", server_.connections_.size()},
+            }},
+       }},
+  };
+
+  return json;
 }
 
 JSON Management::getConfigureAndStatus(
