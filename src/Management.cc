@@ -173,6 +173,10 @@ void Management::handleMessage(rd_kafka_message_t *rkmessage) {
       return;
     }
 
+    if (rkmessage->len == 0) {
+      return;
+    }
+
     JSON json =
         JSON::parse(string((const char *)rkmessage->payload, rkmessage->len));
     if (!json.is_object() || !json["type"].is_string() ||
