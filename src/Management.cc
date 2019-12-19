@@ -276,13 +276,17 @@ void Management::handleMessage(rd_kafka_message_t *rkmessage) {
 }
 
 bool Management::checkFilter(JSON filter) {
+  bool exclusion = false;
+  if (filter["exclusion"].is_boolean()) {
+    exclusion = filter["exclusion"].get<bool>();
+  }
   if (filter["server_id"].is_object()) {
     auto myId = filter["server_id"][std::to_string(server_.serverId_)];
     if (myId.is_boolean() && myId.get<bool>()) {
-      return true;
+      return !exclusion;
     }
   }
-  return false;
+  return exclusion;
 }
 
 void Management::sendMessage(std::string msg) {
