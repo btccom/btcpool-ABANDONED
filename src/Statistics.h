@@ -104,7 +104,7 @@ public:
 };
 
 ///////////////////////////////  ShareStatsDay  ////////////////////////////////
-static uint64_t sumRejectShares(
+inline uint64_t sumRejectShares(
     const std::map<uint32_t /* reason */, uint64_t /* share */> &rejectShares) {
   uint64_t sum = 0;
   for (const auto &itr : rejectShares) {
@@ -113,7 +113,7 @@ static uint64_t sumRejectShares(
   return sum;
 }
 
-static string generateRejectDetail(
+inline string generateRejectDetail(
     const std::map<uint32_t /* reason */, uint64_t /* share */> &rejectShares) {
   string rejectDetail = "{";
 
