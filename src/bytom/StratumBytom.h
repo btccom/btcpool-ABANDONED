@@ -77,7 +77,7 @@ public:
   }
 };
 
-class ShareBytom : public sharebase::BytomMsg {
+class ShareBytom : public sharebase::Serializable<sharebase::BytomMsg> {
 public:
   const static uint32_t BYTES_VERSION =
       0x00030001u; // first 0003: bytom, second 0001: version 1.
@@ -145,32 +145,6 @@ public:
         StratumStatus::toString(status()));
   }
 
-  bool SerializeToBuffer(string &data, uint32_t &size) const {
-    size = ByteSize();
-    data.resize(size);
-    if (!SerializeToArray((uint8_t *)data.data(), size)) {
-      DLOG(INFO) << "share SerializeToArray failed!" << std::endl;
-      return false;
-    }
-    return true;
-  }
-
-  bool SerializeToArrayWithLength(string &data, uint32_t &size) const {
-    size = ByteSize();
-    data.resize(size + sizeof(uint32_t));
-
-    *((uint32_t *)data.data()) = size;
-    uint8_t *payload = (uint8_t *)data.data();
-
-    if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
-      DLOG(INFO) << "share SerializeToArray failed!";
-      return false;
-    }
-
-    size += sizeof(uint32_t);
-    return true;
-  }
-
   bool UnserializeWithVersion(const uint8_t *data, uint32_t size) {
 
     if (nullptr == data || size <= 0) {
@@ -219,24 +193,6 @@ public:
 
     return true;
   }
-
-  bool SerializeToArrayWithVersion(string &data, uint32_t &size) const {
-    size = ByteSize();
-    data.resize(size + sizeof(uint32_t));
-
-    uint8_t *payload = (uint8_t *)data.data();
-    *((uint32_t *)payload) = version();
-
-    if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
-      DLOG(INFO) << "SerializeToArray failed!";
-      return false;
-    }
-
-    size += sizeof(uint32_t);
-    return true;
-  }
-
-  uint32_t getsharelength() { return IsInitialized() ? ByteSize() : 0; }
 };
 
 struct BlockHeaderBytom {

@@ -198,10 +198,10 @@ void StratumMinerCkb::handleRequest_Submit(
   }
 
   std::string message;
-  uint32_t size = 0;
-  if (!share.SerializeToArrayWithVersion(message, size)) {
-    LOG(ERROR) << "share SerializeToBuffer failed!" << share.toString();
+  if (!share.SerializeToStringWithVersion(message)) {
+    LOG(ERROR) << "share SerializeToStringWithVersion failed!"
+               << share.toString();
     return;
   }
-  server.sendShare2Kafka(localJob->chainId_, message.data(), size);
+  server.sendShare2Kafka(localJob->chainId_, message.data(), message.size());
 }

@@ -128,11 +128,11 @@ bool ShareLogWriterBase<SHARE>::flushToDisk() {
       usedHandlers.insert(f);
 
       string message;
-      uint32_t size = 0;
-      if (!share.SerializeToBuffer(message, size)) {
-        DLOG(INFO) << "base.SerializeToArray failed!" << std::endl;
+      if (!share.SerializeToString(&message)) {
+        DLOG(INFO) << "share.SerializeToString failed!" << std::endl;
         continue;
       }
+      uint32_t size = message.size();
       f->write((char *)&size, sizeof(uint32_t));
       f->write((char *)message.data(), size);
     }

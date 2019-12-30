@@ -307,12 +307,12 @@ void StratumMinerEth::handleRequest_Submit(
         }
         if (alive.expired() || handleCheckedShare(idStr, chainId, share)) {
           std::string message;
-          uint32_t size = 0;
-          if (!share.SerializeToArrayWithVersion(message, size)) {
-            LOG(ERROR) << "share SerializeToBuffer failed!" << share.toString();
+          if (!share.SerializeToStringWithVersion(message)) {
+            LOG(ERROR) << "share SerializeToStringWithVersion failed!"
+                       << share.toString();
             return;
           }
-          server.sendShare2Kafka(chainId, message.data(), size);
+          server.sendShare2Kafka(chainId, message.data(), message.size());
         }
       });
 }

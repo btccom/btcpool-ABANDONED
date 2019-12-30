@@ -68,7 +68,7 @@ public:
   }
 };
 
-class ShareSia : public sharebase::SiaMsg {
+class ShareSia : public sharebase::Serializable<sharebase::SiaMsg> {
 public:
   const static uint32_t BYTES_VERSION =
       0x00010003u; // first 0001: bitcoin, second 0003: version 3.
@@ -142,48 +142,6 @@ public:
         StratumStatus::toString(status()));
   }
 
-  bool SerializeToBuffer(string &data, uint32_t &size) const {
-    size = ByteSize();
-    data.resize(size);
-    if (!SerializeToArray((uint8_t *)data.data(), size)) {
-      DLOG(INFO) << "base.SerializeToArray failed!" << std::endl;
-      return false;
-    }
-    return true;
-  }
-
-  bool SerializeToArrayWithLength(string &data, uint32_t &size) const {
-    size = ByteSize();
-    data.resize(size + sizeof(uint32_t));
-
-    *((uint32_t *)data.data()) = size;
-    uint8_t *payload = (uint8_t *)data.data();
-
-    if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
-      DLOG(INFO) << "base.SerializeToArray failed!";
-      return false;
-    }
-
-    size += sizeof(uint32_t);
-    return true;
-  }
-
-  bool SerializeToArrayWithVersion(string &data, uint32_t &size) const {
-    size = ByteSize();
-    data.resize(size + sizeof(uint32_t));
-
-    uint8_t *payload = (uint8_t *)data.data();
-    *((uint32_t *)payload) = version();
-
-    if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
-      DLOG(INFO) << "SerializeToArray failed!";
-      return false;
-    }
-
-    size += sizeof(uint32_t);
-    return true;
-  }
-
   bool UnserializeWithVersion(const uint8_t *data, uint32_t size) {
 
     if (nullptr == data || size <= 0) {
@@ -233,8 +191,6 @@ public:
 
     return true;
   }
-
-  uint32_t getsharelength() { return IsInitialized() ? ByteSize() : 0; }
 };
 
 // static_assert(sizeof(ShareSia) == 80, "ShareBitcoin should be 80 bytes");
