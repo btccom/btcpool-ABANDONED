@@ -357,13 +357,12 @@ void StratumMinerBitcoin::handleRequest_Submit(
                   chainId, (char *)&sharev1, sizeof(sharev1));
             } else {
               std::string message;
-              uint32_t size = 0;
-              if (!share.SerializeToArrayWithVersion(message, size)) {
-                LOG(ERROR) << "share SerializeToBuffer failed!"
+              if (!share.SerializeToStringWithVersion(message)) {
+                LOG(ERROR) << "share SerializeToStringWithVersion failed!"
                            << share.toString();
                 return;
               }
-              server.sendShare2Kafka(chainId, message.data(), size);
+              server.sendShare2Kafka(chainId, message.data(), message.size());
             }
           }
         }

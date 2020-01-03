@@ -563,7 +563,7 @@ string reverse16bit(string &&hash) {
     *i = *j;
     *j = tmp;
   }
-  return hash;
+  return std::move(hash);
 }
 
 string reverse16bit(const string &hash) {

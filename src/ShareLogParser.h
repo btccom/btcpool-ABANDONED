@@ -153,7 +153,7 @@ public:
       shared_ptr<DuplicateShareChecker<SHARE>> dupShareChecker);
   virtual ~ShareLogParserT();
 
-  bool init();
+  bool init() override;
 
   // flush data to DB
   bool flushToDB(bool removeExpiredData = true) override;
@@ -165,7 +165,7 @@ public:
   // read unchanged share data bin file, for example yestoday's file. it will
   // use mmap() to get high performance. call only once will process
   // the whole bin file
-  bool processUnchangedShareLog();
+  bool processUnchangedShareLog() override;
 
   // today's file is still growing, return processed shares number.
   int64_t processGrowingShareLog();

@@ -264,4 +264,33 @@ struct LocalJob {
 
   bool operator==(uint64_t jobId) const { return jobId_ == jobId; }
 };
+
+namespace sharebase {
+
+template <typename ShareMsg>
+class Serializable : public ShareMsg {
+public:
+  bool SerializeToStringWithVersion(string &data) const {
+    data.resize(sizeof(uint32_t));
+    *reinterpret_cast<uint32_t *>(&data[0]) = this->version();
+    return this->AppendToString(&data);
+  }
+};
+
+template <typename Derived, typename ShareMsg>
+class Unserializable : public Serializable<ShareMsg> {
+public:
+  bool UnserializeWithVersion(const uint8_t *data, uint32_t size) {
+    if (nullptr == data || size <= sizeof(size)) {
+      return false;
+    }
+
+    auto version = *reinterpret_cast<const uint32_t *>(data);
+    return version == Derived::CURRENT_VERSION &&
+        this->ParseFromArray(data + sizeof(uint32_t), size - sizeof(uint32_t));
+  }
+};
+
+}
+
 #endif

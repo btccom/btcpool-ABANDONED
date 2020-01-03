@@ -38,7 +38,8 @@
 // If there is no forward compatibility, one of the versions of Share
 // will be considered invalid, resulting in loss of users' hashrate.
 
-class ShareBeam : public sharebase::BeamMsg {
+class ShareBeam
+  : public sharebase::Unserializable<ShareBeam, sharebase::BeamMsg> {
 public:
   const static uint32_t CURRENT_VERSION =
       0x0bea0001u; // first 0bea: BEAM, second 0001: version 1
@@ -108,75 +109,6 @@ public:
         status(),
         StratumStatus::toString(status()));
   }
-
-  bool SerializeToBuffer(string &data, uint32_t &size) const {
-    size = ByteSize();
-    data.resize(size);
-
-    if (!SerializeToArray((uint8_t *)data.data(), size)) {
-      DLOG(INFO) << "base.SerializeToArray failed!" << std::endl;
-      return false;
-    }
-
-    return true;
-  }
-
-  bool UnserializeWithVersion(const uint8_t *data, uint32_t size) {
-    if (nullptr == data || size <= 0) {
-      return false;
-    }
-
-    const uint8_t *payload = data;
-    uint32_t version = *((uint32_t *)payload);
-
-    if (version == CURRENT_VERSION) {
-      if (!ParseFromArray(
-              (const uint8_t *)(payload + sizeof(uint32_t)),
-              size - sizeof(uint32_t))) {
-        DLOG(INFO) << "share ParseFromArray failed!";
-        return false;
-      }
-    } else {
-      DLOG(INFO) << "unknow share received! data size: " << size;
-      return false;
-    }
-
-    return true;
-  }
-
-  bool SerializeToArrayWithLength(string &data, uint32_t &size) const {
-    size = ByteSize();
-    data.resize(size + sizeof(uint32_t));
-
-    *((uint32_t *)data.data()) = size;
-    uint8_t *payload = (uint8_t *)data.data();
-
-    if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
-      DLOG(INFO) << "base.SerializeToArray failed!";
-      return false;
-    }
-
-    size += sizeof(uint32_t);
-    return true;
-  }
-
-  bool SerializeToArrayWithVersion(string &data, uint32_t &size) const {
-    size = ByteSize();
-    data.resize(size + sizeof(uint32_t));
-
-    uint8_t *payload = (uint8_t *)data.data();
-    *((uint32_t *)payload) = version();
-
-    if (!SerializeToArray(payload + sizeof(uint32_t), size)) {
-      DLOG(INFO) << "SerializeToArray failed!";
-      return false;
-    }
-
-    size += sizeof(uint32_t);
-    return true;
-  }
-
-  size_t getsharelength() { return IsInitialized() ? ByteSize() : 0; }
 };
 
 class StratumJobBeam : public StratumJob {
