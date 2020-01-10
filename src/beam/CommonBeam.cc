@@ -143,5 +143,5 @@ double Beam_GetStaticBlockReward(uint32_t height) {
   // During the first year of Beam existence, miner reward will be 80 coins per
   // block. https://github.com/BeamMW/beam/wiki/BEAM-Mining
 
-  return height > 525600 ?  40.0 * BEAM_COIN : 80.0 * BEAM_COIN;
+  return height > 525600 ? 40.0 * BEAM_COIN : 80.0 * BEAM_COIN;
 }

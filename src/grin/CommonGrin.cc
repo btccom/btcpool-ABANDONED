@@ -26,6 +26,7 @@
 
 #include "cuckoo/cuckaroo.h"
 #include "cuckoo/cuckarood.h"
+#include "cuckoo/cuckaroom.h"
 #include "cuckoo/cuckatoo.h"
 #include "cuckoo/siphash.h"
 #include "libblake2/blake2.h"
@@ -70,6 +71,8 @@ bool VerifyPowGrinSecondary(
     uint32_t edgeBits,
     uint16_t version) {
   switch (version) {
+  case 3:
+    return verify_cuckaroom(edges, keys, edgeBits);
   case 2:
     return verify_cuckarood(edges, keys, edgeBits);
   default:

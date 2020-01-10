@@ -204,8 +204,7 @@ void Management::handleMessage(rd_kafka_message_t *rkmessage) {
     if (type == "sserver_cmd") {
       if (action == "list") {
         server_.dispatch([this, id]() {
-          JSON response =
-              getServerBriefDesc("sserver_response", "list");
+          JSON response = getServerBriefDesc("sserver_response", "list");
           response["id"] = id;
           sendMessage(response.dump());
           LOG(INFO) << "[Management] sent server brief desc";
@@ -342,8 +341,7 @@ static const char *FormatSessionStatus(int status) {
   }
 }
 
-JSON Management::getServerBriefDesc(
-    const string &type, const string &action) {
+JSON Management::getServerBriefDesc(const string &type, const string &action) {
   JSON json = {
       {"created_at", date("%F %T")},
       {"type", type},
