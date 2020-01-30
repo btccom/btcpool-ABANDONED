@@ -31,6 +31,9 @@
 
 using std::string;
 
+#if defined(CHAIN_TYPE_BSV)
+bool fRequireStandard = true;
+#endif
 //
 // run all:      ./unittest
 // run single:   ./unittest --gtest_filter=StratumSession\*
