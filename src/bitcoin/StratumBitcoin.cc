@@ -28,6 +28,11 @@
 #include <core_io.h>
 #include <hash.h>
 #include <script/script.h>
+
+#if defined(CHAIN_TYPE_BSV)
+#include <script/script_num.h>
+#endif
+
 #include <uint256.h>
 #include <util.h>
 #include <pubkey.h>
