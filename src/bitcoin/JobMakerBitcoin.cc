@@ -41,6 +41,10 @@
 #include <key_io.h> //  IsValidDestinationString for bch is not in this file.
 #endif
 
+#if defined(CHAIN_TYPE_BSV)
+bool fRequireStandard = true;
+#endif
+
 #include "utilities_js.hpp"
 #include "Utils.h"
 
