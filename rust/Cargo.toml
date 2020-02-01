@@ -1,2 +1,5 @@
 [workspace]
 members = ["nodebridge"]
+
+[profile.release]
+panic = "abort"

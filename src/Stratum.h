@@ -156,7 +156,8 @@ public:
       const string &fullName,
       std::function<void(string &)> userNormalizer,
       bool singleUserMode = false,
-      const string &singleUserName = "");
+      const string &singleUserName = "",
+      bool extralength = false);
 
   int32_t userId() const { return userIds_[chainId_]; }
   int32_t userId(const size_t chainId) const { return userIds_[chainId]; }

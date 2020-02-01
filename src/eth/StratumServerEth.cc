@@ -288,8 +288,9 @@ void EthashCalculator::buildDagCache(uint64_t height) {
   // remove redundant caches
   ScopeLock sl(lock_);
   lightCaches_.clear(kMaxCacheSize_, [](ethash_light_t eth) {
-    if (eth)
+    if (eth) {
       ethash_light_delete(eth);
+    }
   });
 }
 

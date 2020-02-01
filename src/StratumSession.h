@@ -167,6 +167,8 @@ protected:
       const string &fullName,
       const string &password,
       bool isAutoRegCallback = false);
+  void AnonymousAuthorize(
+      const string &idStr, const string &fullName, const string &password);
   virtual void setDefaultDifficultyFromPassword(const string &password);
   void setClientAgent(const string &clientAgent);
 

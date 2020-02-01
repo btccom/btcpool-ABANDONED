@@ -198,8 +198,8 @@ void ClientContainerGrin::consumeSolvedShare(rd_kafka_message_t *rkmessage) {
       height,
       nodeJobId,
       nonce,
-      proofs.c_str(),
-      timestamp.c_str());
+      proofs,
+      timestamp);
 
   LOG(INFO) << "submitting block: " << submitJson;
   client->sendData(submitJson);

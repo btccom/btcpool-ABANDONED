@@ -401,6 +401,62 @@ void StratumSession::checkUserAndPwd(
       true /* is first job */);
 }
 
+void StratumSession::AnonymousAuthorize(
+    const string &idStr, const string &fullName, const string &password) {
+
+  // set id & names, will filter workername in this func
+  worker_.setNames(
+      fullName,
+      [this](string &userName) {
+        server_.userInfo_->regularUserName(userName);
+      },
+      false,
+      "",
+      true);
+
+  if (worker_.userName_.empty()) {
+    DLOG(INFO) << "got an empty user name";
+
+    logAuthorizeResult(false, password);
+    responseError(idStr, StratumStatus::INVALID_USERNAME);
+    return;
+  }
+
+  uint32_t userid = 0u;
+  if (server_.anonymousNameIds_.find(worker_.userName_) ==
+      server_.anonymousNameIds_.end()) {
+    // assign tenp
+    if (server_.userIdManager_->allocSessionId(&userid) == false) {
+      LOG(ERROR) << "alloc userid failed,";
+      logAuthorizeResult(false, password);
+      responseError(idStr, StratumStatus::INVALID_USERNAME);
+      return;
+    } else {
+      server_.anonymousNameIds_.insert({worker_.userName_, userid});
+    }
+  }
+  userid = server_.anonymousNameIds_[worker_.userName_];
+  worker_.setChainIdAndUserId(0, userid); //所有币种通用一个userid
+  logAuthorizeResult(true, password);
+  responseAuthorizeSuccess(idStr);
+
+  state_ = AUTHENTICATED;
+  dispatcher_ = createDispatcher();
+
+  if (!password.empty()) {
+    setDefaultDifficultyFromPassword(password);
+  }
+
+  // set read timeout to 10 mins, it's enought for most miners even usb miner.
+  // if it's a pool watcher, set timeout to a week
+  setReadTimeout(isLongTimeout_ ? 86400 * 7 : getServer().tcpReadTimeout());
+
+  // send latest stratum job
+  sendMiningNotify(
+      server_.chains_[0].jobRepository_->getLatestStratumJobEx(),
+      true /* is first job */);
+}
+
 bool StratumSession::switchChain(size_t chainId) {
   const int32_t userId =
       server_.userInfo_->getUserId(chainId, worker_.userName_);

@@ -484,20 +484,22 @@ add_library(cuckoo
   3rdparty/cuckoo/cuckatoo.cpp
   3rdparty/cuckoo/siphash.cpp)
 
-file(GLOB LIB_SOURCES
-        src/*.cc
-        src/rsk/*.cc
-        src/vcash/*.cc
-        src/ssl/*.cc
-    )
-
 add_library(eaglesong
   3rdparty/eaglesong/eaglesong.cc)
 
 add_library(hextodec
   3rdparty/hextodec/hextodec.cc)
 
+
+file(GLOB LIB_SOURCES
+        src/*.cc
+        src/rsk/*.cc
+        src/vcash/*.cc
+        src/ssl/*.cc
+    )
+    
 file(GLOB LIB_SOURCES_CHAINS
+        src/ckb/*.cc
         src/eth/*.cc
         src/bytom/*.cc 
         src/bitcoin/*.cc 
@@ -505,7 +507,6 @@ file(GLOB LIB_SOURCES_CHAINS
         src/decred/*.cc
         src/beam/*.cc
         src/grin/*.cc
-        src/ckb/*.cc
     )
 
 set(LIB_SOURCES_SHARES)

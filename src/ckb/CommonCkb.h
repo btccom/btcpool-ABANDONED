@@ -29,7 +29,8 @@
 // https://github.com/nervosnetwork/ckb/blob/develop/util/types/src/utilities/difficulty.rs#L8
 // https://github.com/nervosnetwork/ckb/blob/develop/util/types/src/utilities/difficulty.rs#L16
 using CkbDifficulty = Difficulty<0x2100ffff>;
-
+const std::string ckbdiffone =
+    "ffffff0000000000000000000000000000000000000000000000000000000000";
 namespace CKB {
 arith_uint256 GetEaglesongHash2(uint256 pow_hash, uint64_t nonce);
 arith_uint256 GetEaglesongHash128(uint256 pow_hash, std::string nonce);

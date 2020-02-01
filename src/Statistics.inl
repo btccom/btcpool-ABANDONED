@@ -98,7 +98,6 @@ T StatsWindow<T>::sum(int64_t beginRingIdx) {
 }
 
 ///////////////////////////////  ShareStatsDay  ////////////////////////////////
-
 template <class SHARE>
 ShareStatsDay<SHARE>::ShareStatsDay(const string rpcurl) {
   rpcUrl_ = rpcurl;
@@ -108,6 +107,7 @@ template <class SHARE>
 void ShareStatsDay<SHARE>::processShare(
     uint32_t hourIdx, SHARE &share, bool acceptStale) {
   ScopeLock sl(lock_);
+
   if (StratumStatus::isAccepted(share.status()) &&
       (acceptStale || !StratumStatus::isAcceptedStale(share.status()))) {
     shareAccept1h_[hourIdx] += share.sharediff();
@@ -117,6 +117,7 @@ void ShareStatsDay<SHARE>::processShare(
     double score = share.score();
     double reward = getShareReward(share);
     double earn = score * reward;
+
     score1h_[hourIdx] += score;
     score1d_ += score;
     earn1h_[hourIdx] += earn;
@@ -170,6 +171,7 @@ void ShareStatsDay<SHARE>::getShareStatsDay(ShareStats *stats) {
   else
     stats->rejectRate_ = 0.0;
 }
+
 template <class SHARE>
 ShareStatsDayNormalized<SHARE>::ShareStatsDayNormalized(const string rpcurl)
   : ShareStatsDay<SHARE>(rpcurl) {

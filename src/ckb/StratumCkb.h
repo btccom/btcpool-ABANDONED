@@ -64,8 +64,8 @@ public:
     // network. On regression test network, the network diff may be zero. But no
     // matter how low the network diff is, you can only dig one block at a time.
 
-    double networkDiff = 0.0;
-    CkbDifficulty::BitsToDifficulty(blockbits(), &networkDiff);
+    double networkDiff = blockdiff();
+    // CkbDifficulty::BitsToDifficulty(blockbits(), &networkDiff);
 
     if (networkDiff < sharediff()) {
       return 1.0;
@@ -78,8 +78,7 @@ public:
     if (version() != CURRENT_VERSION) {
       return false;
     }
-    if (userid() == 0 || workerhashid() == 0 || blockbits() == 0 ||
-        sharediff() == 0) {
+    if (workerhashid() == 0 || blockbits() == 0 || sharediff() == 0) {
       return false;
     }
     return true;

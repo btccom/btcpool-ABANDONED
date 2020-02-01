@@ -151,7 +151,8 @@ void StratumWorker::setNames(
     const string &fullName,
     std::function<void(string &)> userNormalizer,
     bool singleUserMode,
-    const string &singleUserName) {
+    const string &singleUserName,
+    bool extralength) {
   resetNames();
 
   auto pos = fullName.find(".");
@@ -170,7 +171,7 @@ void StratumWorker::setNames(
   userNormalizer(userName_);
 
   // max length for worker name is 20
-  if (workerName_.length() > 20) {
+  if (!extralength && workerName_.length() > 20) {
     workerName_.resize(20);
   }
 

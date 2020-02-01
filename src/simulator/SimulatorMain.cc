@@ -43,7 +43,7 @@
 #include "eth/StratumClientEth.h"
 #include "beam/StratumClientBeam.h"
 #include "grin/StratumClientGrin.h"
-
+#include "ckb/StratumClientCkb.h"
 using namespace std;
 using namespace libconfig;
 
@@ -138,6 +138,7 @@ int main(int argc, char **argv) {
     StratumClient::registerFactory<StratumClientEth>("ETH");
     StratumClient::registerFactory<StratumClientBeam>("BEAM");
     StratumClient::registerFactory<StratumClientGrin>("GRIN");
+    StratumClient::registerFactory<StratumClientCkb>("CKB");
 
     // new StratumClientWrapper
     auto wrapper = std::make_unique<StratumClientWrapper>(

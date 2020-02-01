@@ -21,6 +21,8 @@ public:
   void setkeys(const char *keybuf);
 
   uint64_t siphash24(const uint64_t nonce) const;
+
+  uint64_t siphash24ae(const uint64_t nonce) const;
 };
 
 template <int rotE = 21>

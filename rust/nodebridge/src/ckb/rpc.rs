@@ -1,4 +1,4 @@
-use ckb_jsonrpc_types::{Block, BlockReward, BlockTemplate};
+use ckb_jsonrpc_types::{Block, BlockTemplate};
 use ckb_types::H256;
 use futures::future::Future;
 use jsonrpc_core::Value;
@@ -28,14 +28,14 @@ impl Client {
             .call_method("submit_block", "H256", (work_id.to_string(), block))
     }
 
-    pub fn get_cellbase_output_capacity_details(
-        &self,
-        hash: H256,
-    ) -> impl Future<Item = Option<BlockReward>, Error = RpcError> {
-        self.0.call_method(
-            "get_cellbase_output_capacity_details",
-            "BlockReward",
-            (hash,),
-        )
-    }
+    // pub fn get_cellbase_output_capacity_details(
+    //     &self,
+    //     hash: H256,
+    // ) -> impl Future<Item = Option<BlockReward>, Error = RpcError> {
+    //     self.0.call_method(
+    //         "get_cellbase_output_capacity_details",
+    //         "BlockReward",
+    //         (hash,),
+    //     )
+    // }
 }

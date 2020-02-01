@@ -27,6 +27,7 @@
 #include "JobMaker.h"
 
 #include "rsk/RskWork.h"
+#include "vcash/VcashWork.h"
 
 #if defined(CHAIN_TYPE_ZEC) && defined(NDEBUG)
 // fix "Zcash cannot be compiled without assertions."
@@ -35,7 +36,6 @@
 #define NDEBUG
 #endif
 
-#include "vcash/VcashWork.h"
 #include <uint256.h>
 #include <base58.h>
 

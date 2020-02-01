@@ -97,7 +97,6 @@ BlockMaker *createBlockMaker(
     maker = new BlockMakerDecred(def, broker.c_str(), *poolDBInfo);
   else if ("CKB" == def->chainType_)
     maker = new BlockMakerCkb(def, broker.c_str(), *poolDBInfo);
-
   return maker;
 }
 

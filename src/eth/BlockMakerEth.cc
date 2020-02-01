@@ -142,8 +142,8 @@ bool BlockMakerEth::submitBlock(
   *
   */
   request = Strings::Format(
-      "{\"jsonrpc\":\"2.0\",\"method\":\"%s\",\"params\":[\"%s\",\"%s\",\"%s\"%"
-      "s],\"id\":1}",
+      "{\"jsonrpc\":\"2.0\",\"method\":\"%s\",\"params\":[\"%s\",\"%s\",\"%s\""
+      "%s],\"id\":1}",
       parity ? "parity_submitWorkDetail" : "eth_submitWork",
       HexAddPrefix(nonce).c_str(),
       HexAddPrefix(header).c_str(),

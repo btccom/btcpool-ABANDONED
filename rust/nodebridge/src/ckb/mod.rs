@@ -176,17 +176,17 @@ fn create_block_record(
     execute_query(url, stmt);
 }
 
-fn update_block_reward(url: &str, block_hash: &H256, block_reward: &Result<u64, RpcError>) {
-    let update = match block_reward {
-        Ok(reward) => format!("`rewards` = {}", reward),
-        Err(e) => format!("`rpc_error` = `{}`", e),
-    };
-    let stmt = format!(
-        "UPDATE found_blocks SET {} WHERE `hash` = '0x{}'",
-        &update, &block_hash,
-    );
-    execute_query(url, stmt);
-}
+// fn update_block_reward(url: &str, block_hash: &H256, block_reward: &Result<u64, RpcError>) {
+//     let update = match block_reward {
+//         Ok(reward) => format!("`rewards` = {}", reward),
+//         Err(e) => format!("`rpc_error` = `{}`", e),
+//     };
+//     let stmt = format!(
+//         "UPDATE found_blocks SET {} WHERE `hash` = '0x{}'",
+//         &update, &block_hash,
+//     );
+//     execute_query(url, stmt);
+// }
 
 fn submit_block(rpc_client: Client, job: &MiningJob, solved_share: &SolvedShare, db_url: String) {
     let header = job
@@ -223,28 +223,28 @@ fn submit_block(rpc_client: Client, job: &MiningJob, solved_share: &SolvedShare,
         .then(move |result| match result {
             Ok(hash_returned) => {
                 info!("Submit block {} returned {}", &hash, hash_returned);
-                let fut = rpc_client
-                    .get_cellbase_output_capacity_details(hash.clone())
-                    .then(move |result| match result {
-                        Ok(reward) => {
-                            update_block_reward(
-                                &db_url,
-                                &hash,
-                                &Ok(reward.unwrap_or_default().total.into()),
-                            );
-                            Ok(())
-                        }
-                        Err(e) => {
-                            update_block_reward(&db_url, &hash, &Err(e));
-                            Err(())
-                        }
-                    });
-                tokio::spawn(fut);
+                // let fut = rpc_client
+                //     .get_cellbase_output_capacity_details(hash.clone())
+                //     .then(move |result| match result {
+                //         Ok(reward) => {
+                //             update_block_reward(
+                //                 &db_url,
+                //                 &hash,
+                //                 &Ok(reward.unwrap_or_default().total.into()),
+                //             );
+                //             Ok(())
+                //         }
+                //         Err(e) => {
+                //             update_block_reward(&db_url, &hash, &Err(e));
+                //             Err(())
+                //         }
+                //     });
+                // tokio::spawn(fut);
                 Ok(())
             }
             Err(e) => {
                 error!("Failed to submit block {}: {}", &hash, e);
-                update_block_reward(&db_url, &hash, &Err(e));
+                // update_block_reward(&db_url, &hash, &Err(e));
                 Err(())
             }
         });
@@ -336,6 +336,6 @@ pub fn run(
                 },
             )
         })
-        .map_err(|e| error!("RPC client error: {}", e));
+        .map_err(|e| panic!("RPC client error: {}", e));
     tokio::run(fut);
 }

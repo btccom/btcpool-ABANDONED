@@ -18,4 +18,5 @@ message CkbMsg{
   optional string username = 14;
   optional string workername = 15;
   optional string ckbnonce = 16;
+  optional uint64 blockdiff = 17;
 }

@@ -17,7 +17,7 @@ CREATE TABLE `found_blocks` (
   `ref_uncles` varchar(255) NOT NULL DEFAULT '',
   `hash` char(66) NOT NULL DEFAULT '',
   `hash_no_nonce` char(66) NOT NULL,
-  `nonce` char(18) NOT NULL,
+  `nonce` char(66) NOT NULL,
   `rewards` decimal(35,0) DEFAULT NULL,
   `size` int(11) NOT NULL DEFAULT '0',
   `prev_hash` char(66) NOT NULL DEFAULT '',

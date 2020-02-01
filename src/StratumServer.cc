@@ -302,13 +302,13 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
         << ", now=" << now;
     return;
   }
-
+  DLOG(INFO) << "received jobId : " << sjob->jobId_;
   server_->dispatch([this, sjob]() {
     // here you could use Map.find() without lock, it's sure
     // that everyone is using this Map readonly now
     auto existingJob = getStratumJobEx(sjob->jobId_);
     if (existingJob != nullptr) {
-      LOG(ERROR) << "jobId already existed" << sjob->jobId_;
+      LOG(ERROR) << "jobId already existed jobId " << sjob->jobId_;
       return;
     }
 
@@ -427,6 +427,7 @@ StratumServer::StratumServer()
 #ifndef WORK_WITH_STRATUM_SWITCHER
   , sessionIDManager_(nullptr)
 #endif
+  , userIdManager_(nullptr)
   , userInfo_(nullptr)
   , serverId_(0) {
 }
@@ -470,6 +471,11 @@ StratumServer::~StratumServer() {
     if (chain.jobRepository_ != nullptr) {
       delete chain.jobRepository_;
     }
+  }
+
+  if (nullptr != userIdManager_) {
+    delete userIdManager_;
+    userIdManager_ = nullptr;
   }
 
 #ifndef WORK_WITH_STRATUM_SWITCHER
@@ -767,9 +773,21 @@ bool StratumServer::setup(const libconfig::Config &config) {
     serverId_ =
         zk_->getUniqIdUint8(config.lookup("sserver.zookeeper_lock_path"));
   }
+  string type = config.lookup("sserver.type");
+  if ("CKB" == type) {
+    sessionIDManager_ = new SessionIDManagerT<16>(serverId_);
+  } else {
+    sessionIDManager_ = new SessionIDManagerT<24>(serverId_);
+  }
 
-  sessionIDManager_ = new SessionIDManagerT<24>(serverId_);
 #endif
+
+  //-------------------Init local userid manager-------------
+  userIdManager_ = new SessionIDManagerT<24>(0);
+  miningModel_ = 1;
+  config.lookupValue("sserver.mining_model", miningModel_);
+  LOG(INFO) << "current mining model : "
+            << ((miningModel_ == 1) ? "subaccount" : "anonymous");
 
   // ------------------- Init JobRepository -------------------
   for (ChainVars &chain : chains_) {

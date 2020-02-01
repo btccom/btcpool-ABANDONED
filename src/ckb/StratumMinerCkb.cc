@@ -113,6 +113,10 @@ void StratumMinerCkb::handleRequest_Submit(
   share.set_status(StratumStatus::REJECT_NO_REASON);
   share.set_sharediff(jobDiff.currentJobDiff_);
   share.set_blockbits(UintToArith256(uint256S(sjob->target_)).GetCompact());
+  uint64_t networkdiff = (UintToArith256(uint256S(ckbdiffone)) /
+                          UintToArith256(uint256S(sjob->target_)))
+                             .GetLow64();
+  share.set_blockdiff(networkdiff);
   share.set_height(sjob->height_);
 
   if (extranonce.length() >= 16) {

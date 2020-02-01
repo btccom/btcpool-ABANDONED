@@ -219,6 +219,11 @@ public:
   bool isStale();
 };
 
+class StratumServerMiningModel {
+public:
+  enum { SUBACCOUNT = 1, ANONYMOUS = 2 };
+};
+
 ///////////////////////////////////// StratumServer
 //////////////////////////////////////
 class StratumServer {
@@ -270,6 +275,11 @@ public:
 
   // hide "client connect" log with the prefix
   string logHideIpPrefix_;
+
+  // in anonymous-mode, we need produce userid only used in this proccess
+  SessionIDManager *userIdManager_;
+  std::unordered_map<string, int32_t> anonymousNameIds_;
+  uint32_t miningModel_;
 
   UserInfo *userInfo_;
   vector<ChainVars> chains_;

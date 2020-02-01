@@ -124,9 +124,7 @@ newShareLogWriter(const string &kafkaBrokers, const Setting &def) {
         def.lookup("kafka_group_id").c_str(),
         def.lookup("share_topic"),
         compressionLevel);
-  }
-
-  else if (chainType == "GRIN") {
+  } else if (chainType == "GRIN") {
     return make_shared<ShareLogWriterGrin>(
         chainType.c_str(),
         kafkaBrokers.c_str(),

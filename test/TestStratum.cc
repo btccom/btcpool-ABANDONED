@@ -175,6 +175,28 @@ TEST(Stratum, StratumWorker) {
   w.setNames("abcdefg.~!@#$%&*()+={}[]\\<>?,", [](string &) {});
   ASSERT_EQ(w.workerName_, "__default__");
   ASSERT_EQ(w.fullName_, "abcdefg.__default__");
+
+  w.setNames(
+      "ckt1qyq98fl86kcmqkdv3cf6u8pgf6f99j93q37sq8sr05.0x1",
+      [](string &) {},
+      false,
+      "",
+      true);
+  ASSERT_EQ(w.fullName_, "ckt1qyq98fl86kcmqkdv3cf6u8pgf6f99j93q37sq8sr05.0x1");
+  ASSERT_EQ(w.userName_, "ckt1qyq98fl86kcmqkdv3cf6u8pgf6f99j93q37sq8sr05");
+  ASSERT_EQ(w.workerName_, "0x1");
+
+  w.setNames(
+      "ckt1qyqdmeuqrsrnm7e5vnrmruzmsp4m9wacf6vsmcwugu",
+      [](string &) {},
+      false,
+      "",
+      true);
+  ASSERT_EQ(
+      w.fullName_,
+      "ckt1qyqdmeuqrsrnm7e5vnrmruzmsp4m9wacf6vsmcwugu.__default__");
+  ASSERT_EQ(w.userName_, "ckt1qyqdmeuqrsrnm7e5vnrmruzmsp4m9wacf6vsmcwugu");
+  ASSERT_EQ(w.workerName_, "__default__");
 }
 
 #ifdef CHAIN_TYPE_LTC

@@ -138,16 +138,16 @@ void StratumServerGrin::sendSolvedShare2Kafka(
       ",\"workerFullName\":\"%s\""
       ",\"blockHash\":\"%s\""
       "%s}",
-      sjob->prePowStr_.c_str(),
+      sjob->prePowStr_,
       sjob->height_,
       share.edgebits(),
       share.nonce(),
       proofArray,
       worker.userId(chainId),
       worker.workerHashId_,
-      filterWorkerName(worker.fullName_).c_str(),
-      blockHashStr.c_str(),
-      timestampStr.c_str());
+      filterWorkerName(worker.fullName_),
+      blockHashStr,
+      timestampStr);
   ServerBase::sendSolvedShare2Kafka(chainId, msg.c_str(), msg.length());
 }
 

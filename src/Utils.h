@@ -229,8 +229,9 @@ public:
       auto itr = map_.find(queue_.front());
       queue_.pop();
       if (itr != map_.end()) {
-        if (delFun)
+        if (delFun) {
           delFun(itr->second);
+        }
         map_.erase(itr);
       }
     }

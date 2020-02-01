@@ -199,6 +199,12 @@ void StratumSessionCkb::handleRequest_Authorize(
     password = jparams.children()->at(1).str();
   }
 
-  checkUserAndPwd(idStr, fullName, password);
+  if (StratumServerMiningModel::ANONYMOUS == server_.miningModel_ &&
+      fullName.length() >= 32 &&
+      (fullName.substr(0, 3) == "ckt" || fullName.substr(0, 3) == "ckb")) {
+    AnonymousAuthorize(idStr, fullName, password);
+  } else {
+    checkUserAndPwd(idStr, fullName, password);
+  }
   return;
 }

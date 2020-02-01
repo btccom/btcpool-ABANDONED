@@ -10,12 +10,12 @@ static const uint64_t EDGE_BLOCK_MASK = EDGE_BLOCK_SIZE - 1;
 static uint64_t sip_block(siphash_keys &keys, uint64_t edge, uint64_t *buf) {
   siphash_state<> shs(keys);
   uint64_t edge0 = edge & ~EDGE_BLOCK_MASK;
-  for (size_t i = 0; i < EDGE_BLOCK_SIZE; i++) {
+  for (uint64_t i = 0; i < EDGE_BLOCK_SIZE; i++) {
     shs.hash24(edge0 + i);
     buf[i] = shs.xor_lanes();
   }
   uint64_t last = buf[EDGE_BLOCK_MASK];
-  for (size_t i = 0; i < EDGE_BLOCK_MASK; i++)
+  for (uint64_t i = 0; i < EDGE_BLOCK_MASK; i++)
     buf[i] ^= last;
   return buf[edge & EDGE_BLOCK_MASK];
 }
@@ -24,12 +24,12 @@ static uint64_t sip_block(siphash_keys &keys, uint64_t edge, uint64_t *buf) {
 bool verify_cuckaroo(const std::vector<uint64_t> &edges, siphash_keys &keys, uint32_t edge_bits) {
   uint64_t xor0 = 0, xor1 = 0;
   uint64_t sips[EDGE_BLOCK_SIZE];
-  size_t proof_size = edges.size();
+  uint64_t proof_size = edges.size();
   std::vector<uint64_t> uvs(2 * proof_size);
   uint64_t edge_size = static_cast<uint64_t>(1) << edge_bits;
   uint64_t edge_mask = edge_size - 1;
 
-  for (size_t n = 0; n < proof_size; n++) {
+  for (uint64_t n = 0; n < proof_size; n++) {
     if (edges[n] > edge_mask)
       return false;
     if (n && edges[n] <= edges[n-1])
@@ -40,9 +40,9 @@ bool verify_cuckaroo(const std::vector<uint64_t> &edges, siphash_keys &keys, uin
   }
   if (xor0 | xor1)              // optional check for obviously bad proofs
     return false;
-  size_t n = 0, i = 0, j;
+  uint64_t n = 0, i = 0, j;
   do {                        // follow cycle
-    for (size_t k = j = i; (k = (k + 2) % (2 * proof_size)) != i; ) {
+    for (uint64_t k = j = i; (k = (k + 2) % (2 * proof_size)) != i; ) {
       if (uvs[k] == uvs[i]) { // find other edge endpoint identical to one at i
         if (j != i)           // already found one before
           return false;
