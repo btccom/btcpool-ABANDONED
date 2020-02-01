@@ -38,6 +38,9 @@ docker build -t btccom/btcpool_build:btc-0.16.3 -f Dockerfile.btc --build-arg BU
 # BCH
 docker build -t btccom/btcpool_build:bch-0.18.5 -f Dockerfile.bch --build-arg BUILD_JOBS=$(nproc) .
 
+# BSV
+docker build -t btccom/btcpool_build:bsv-1.0.1 -f Dockerfile.bsv --build-arg BUILD_JOBS=$(nproc) .
+
 # UBTC
 docker build -t btccom/btcpool_build:ubtc-2.5.0.1-1 -f Dockerfile.ubtc --build-arg BUILD_JOBS=$(nproc) .
 

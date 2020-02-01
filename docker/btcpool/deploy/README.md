@@ -66,6 +66,9 @@ docker build -t btccom/btcpool-btc -f Dockerfile --build-arg BASE_IMAGE=btccom/b
 # BCH
 docker build -t btccom/btcpool-bch -f Dockerfile --build-arg BASE_IMAGE=btccom/btcpool_build:bch-0.18.5 --build-arg BUILD_JOBS=$(nproc) --build-arg GIT_DESCRIBE=$(git describe --tag --long) ../../..
 
+# BSV
+docker build -t btccom/btcpool-bsv -f Dockerfile --build-arg BASE_IMAGE=btccom/btcpool_build:bsv-1.0.1 --build-arg BUILD_JOBS=$(nproc) --build-arg GIT_DESCRIBE=$(git describe --tag --long) ../../..
+
 # UBTC
 docker build -t btccom/btcpool-ubtc -f Dockerfile --build-arg BASE_IMAGE=btccom/btcpool_build:ubtc-2.5.0.1-1 --build-arg BUILD_JOBS=$(nproc) --build-arg GIT_DESCRIBE=$(git describe --tag --long) ../../..
 
@@ -90,6 +93,9 @@ docker run -it --rm btccom/btcpool-btc unittest
 
 # BCH
 docker run -it --rm btccom/btcpool-bch unittest
+
+# BSV
+docker run -it --rm btccom/btcpool-bsv unittest
 
 # UBTC
 docker run -it --rm btccom/btcpool-ubtc unittest
