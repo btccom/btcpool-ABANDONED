@@ -190,10 +190,10 @@ string StratumJobEth::getHeaderWithExtraNonce(
   boost::endian::big_uint32_buf_t extraNonce1Buf{extraNonce1};
   RLPValue headerValue{headerNoExtraData_};
   std::string extraData{extraData_};
-  extraData.append(reinterpret_cast<const char*>(extraNonce1Buf.data()), 4);
+  extraData.append(reinterpret_cast<const char *>(extraNonce1Buf.data()), 4);
   if (extraNonce2) {
     boost::endian::big_uint32_buf_t extraNonce2Buf{*extraNonce2};
-    extraData.append(reinterpret_cast<const char*>(extraNonce2Buf.data()), 4);
+    extraData.append(reinterpret_cast<const char *>(extraNonce2Buf.data()), 4);
   }
   headerValue.push_back(RLPValue{extraData});
   return headerValue.write();

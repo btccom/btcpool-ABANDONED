@@ -291,6 +291,6 @@ public:
   }
 };
 
-}
+} // namespace sharebase
 
 #endif
