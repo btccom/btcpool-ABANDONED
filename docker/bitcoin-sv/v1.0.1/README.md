@@ -57,6 +57,9 @@ dbcache=1000
 # use 8MB block when call GBT
 # The blockmaxsize should be between 1000001 and 8000000.
 blockmaxsize=8000000
+
+excessiveblocksize=1000000000
+maxstackmemoryusageconsensus=100000000
 ```
 
 ## Start Docker Container
