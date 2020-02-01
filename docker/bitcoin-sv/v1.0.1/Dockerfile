@@ -22,9 +22,9 @@ RUN install_clean \
   wget \
   yasm
 
-RUN cd /tmp && wget https://github.com/bitcoin-sv/bitcoin-sv/archive/v0.2.0.tar.gz && \
-  [ $(sha256sum v0.2.0.tar.gz | cut -d " " -f 1) = "a717c86f4cf8dd2bb28b3be914ca1aa38a93db3687434548e073f9eb69467043" ] && \
-  tar zxf v0.2.0.tar.gz && cd bitcoin-sv-0.2.0 && ./autogen.sh && ./configure --disable-wallet --disable-tests --disable-bench && \
+RUN cd /tmp && wget https://github.com/bitcoin-sv/bitcoin-sv/archive/v1.0.1.tar.gz && \
+  [ $(sha256sum v1.0.1.tar.gz | cut -d " " -f 1) = "c803aa57f8c3a08294bedb3f7190f64660b8c9641c0c0b8ad9886e7fd8443b5f" ] && \
+  tar zxf v1.0.1.tar.gz && cd bitcoin-sv-1.0.1 && ./autogen.sh && ./configure --disable-wallet --disable-tests --disable-bench && \
   make -j$(nproc) && make install && rm -r /tmp/*
 
 # mkdir bitcoind data dir

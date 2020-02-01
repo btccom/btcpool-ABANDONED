@@ -139,8 +139,8 @@ workflows:
           base: bch-0.18.5
       - push_dep_img:
           <<: *dep_img_comm
-          name: push_dep_img@bsv-0.2.0
-          base: bsv-0.2.0
+          name: push_dep_img@bsv-1.0.1
+          base: bsv-1.0.1
       - push_dep_img:
           <<: *dep_img_comm
           name: push_dep_img@btc-0.16.3

@@ -1,9 +1,9 @@
-Docker for Bitcoin SV v0.2.0
+Docker for Bitcoin SV v1.0.1
 ============================
 
 * OS: `Ubuntu 14.04 LTS`, `Ubuntu 16.04 LTS`
 * Docker Image OS: `Ubuntu 16.04 LTS`
-* Bitcoin SV: `v0.2.0`
+* Bitcoin SV: `v1.0.1`
 
 ## Install Docker
 
@@ -22,14 +22,14 @@ service docker status
 cd /work
 
 git clone git@github.com:btccom/btcpool.git
-cd btcpool/docker/bitcoin-sv/v0.2.0
+cd btcpool/docker/bitcoin-sv/v1.0.1
 
 # If your server is in China, please check "Dockerfile" and uncomment some lines.
 # If you want to enable testnet, please uncomment several lines behind `# service for testnet`
 
 # build
-docker build -t bitcoin-sv:0.2.0 .
-# docker build --no-cache -t bitcoin-sv:0.2.0 .
+docker build -t bitcoin-sv:1.0.1 .
+# docker build --no-cache -t bitcoin-sv:1.0.1 .
 
 # mkdir for bitcoin-sv
 mkdir -p /work/bitcoin-sv
@@ -63,8 +63,8 @@ blockmaxsize=8000000
 
 ```
 # start docker
-docker run -it -v /work/bitcoin-sv:/root/.bitcoin --name bitcoin-sv -p 8333:8333 -p 8332:8332 -p 8331:8331 --restart always -d bitcoin-sv:0.2.0
-#docker run -it -v /work/bitcoin-sv:/root/.bitcoin --name bitcoin-sv -p 8333:8333 -p 8332:8332 -p 8331:8331 -p 18333:18333 -p 18332:18332 -p 18331:18331 --restart always -d bitcoin-sv:0.2.0
+docker run -it -v /work/bitcoin-sv:/root/.bitcoin --name bitcoin-sv -p 8333:8333 -p 8332:8332 -p 8331:8331 --restart always -d bitcoin-sv:1.0.1
+#docker run -it -v /work/bitcoin-sv:/root/.bitcoin --name bitcoin-sv -p 8333:8333 -p 8332:8332 -p 8331:8331 -p 18333:18333 -p 18332:18332 -p 18331:18331 --restart always -d bitcoin-sv:1.0.1
 
 # login
 docker exec -it bitcoin-sv /bin/bash
