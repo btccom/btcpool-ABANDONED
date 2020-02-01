@@ -177,6 +177,17 @@ public:
     }
   }
 
+  void clear(size_t maxSize, std::function<void(V)> delFun) {
+    while (queue_.size() > maxSize) {
+      auto itr = map_.find(queue_.front());
+      queue_.pop();
+      if (itr != map_.end()) {
+        if(delFun) delFun(itr->second);
+        map_.erase(itr);
+      }
+    }
+  }
+
   bool pop(pair<K, V> &result) {
     auto itr = map_.find(queue_.front());
     queue_.pop();
