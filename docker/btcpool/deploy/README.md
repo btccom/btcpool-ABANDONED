@@ -42,6 +42,9 @@ See [here](../base-image/).
 # BCH
 ./build.sh -t btccom/btcpool-bch -b btccom/btcpool_build:bch-0.18.5 -j$(nproc)
 
+# BSV
+./build.sh -t btccom/btcpool-bsv -b btccom/btcpool_build:bsv-1.0.1 -j$(nproc)
+
 # UBTC
 ./build.sh -t btccom/btcpool-ubtc -b btccom/btcpool_build:ubtc-2.5.0.1-1 -j$(nproc)
 
