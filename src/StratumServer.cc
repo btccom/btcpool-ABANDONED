@@ -40,8 +40,6 @@ using namespace std;
 static const uint32_t MIN_SHARE_WORKER_QUEUE_SIZE = 256;
 static const uint32_t MIN_SHARE_WORKER_THREADS = 1;
 
-#ifndef WORK_WITH_STRATUM_SWITCHER
-
 //////////////////////////////// SessionIDManagerT
 /////////////////////////////////
 template <uint8_t IBITS>
@@ -107,8 +105,6 @@ void SessionIDManagerT<IBITS>::freeSessionId(uint32_t sessionId) {
 template class SessionIDManagerT<8>;
 template class SessionIDManagerT<16>;
 template class SessionIDManagerT<24>;
-
-#endif // #ifndef WORK_WITH_STRATUM_SWITCHER
 
 ////////////////////////////////// JobRepository ///////////////////////////////
 JobRepository::JobRepository(

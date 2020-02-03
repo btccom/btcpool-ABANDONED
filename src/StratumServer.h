@@ -59,8 +59,6 @@ class StratumSession;
 class DiffController;
 class Management;
 
-#ifndef WORK_WITH_STRATUM_SWITCHER
-
 //////////////////////////////// SessionIDManager //////////////////////////////
 
 enum StratumServerType { BTC = 1, ETH };
@@ -113,8 +111,6 @@ public:
   bool allocSessionId(uint32_t *sessionID) override;
   void freeSessionId(uint32_t sessionId) override;
 };
-
-#endif // #ifndef WORK_WITH_STRATUM_SWITCHER
 
 ////////////////////////////////// JobRepository ///////////////////////////////
 class JobRepository {
