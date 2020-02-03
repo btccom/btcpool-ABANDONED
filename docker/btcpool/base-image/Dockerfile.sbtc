@@ -61,7 +61,7 @@ RUN cd /tmp && \
 RUN cd /tmp && wget https://github.com/edenhill/librdkafka/archive/0.9.1.tar.gz && \
     [ $(sha256sum 0.9.1.tar.gz | cut -d " " -f 1) = "5ad57e0c9a4ec8121e19f13f05bacc41556489dfe8f46ff509af567fdee98d82" ] && \
     tar zxvf 0.9.1.tar.gz && cd librdkafka-0.9.1 && \
-    ./configure && make && make install && rm -rf /tmp/*
+    ./configure && make -j${BUILD_JOBS} && make install && rm -rf /tmp/*
 
 # Remove dynamic libraries of librdkafka
 # In this way, the constructed deb package will
@@ -71,8 +71,8 @@ RUN cd /usr/local/lib && \
 
 # Build blockchain
 RUN mkdir /work && git clone https://github.com/superbitcoin/SuperBitcoin.git --branch v0.16.2 --depth 1 /work/blockchain && \
-    cd /work/blockchain && ./autogen.sh && ./configure --with-gui=no --disable-wallet --disable-tests --disable-bench && make && \
-    cd /work/blockchain/src/secp256k1 && ./autogen.sh && ./configure --enable-module-recovery && make
+    cd /work/blockchain && ./autogen.sh && ./configure --with-gui=no --disable-wallet --disable-tests --disable-bench && make -j${BUILD_JOBS} && \
+    cd /work/blockchain/src/secp256k1 && ./autogen.sh && ./configure --enable-module-recovery && make -j${BUILD_JOBS}
 
 # For forward compatible
 RUN ln -s /work/blockchain /work/bitcoin

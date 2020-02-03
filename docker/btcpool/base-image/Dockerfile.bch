@@ -61,7 +61,7 @@ RUN cd /tmp && \
 RUN cd /tmp && wget https://github.com/edenhill/librdkafka/archive/0.9.1.tar.gz && \
     [ $(sha256sum 0.9.1.tar.gz | cut -d " " -f 1) = "5ad57e0c9a4ec8121e19f13f05bacc41556489dfe8f46ff509af567fdee98d82" ] && \
     tar zxf 0.9.1.tar.gz && cd librdkafka-0.9.1 && \
-    ./configure && make && make install && rm -rf /tmp/*
+    ./configure && make -j${BUILD_JOBS} && make install && rm -rf /tmp/*
 
 # Remove dynamic libraries of librdkafka
 # In this way, the constructed deb package will
@@ -77,7 +77,7 @@ RUN mkdir -p /work/blockchain && cd /work/blockchain && wget https://github.com/
     make -j${BUILD_JOBS} -C src libbitcoin_common.a libbitcoin_consensus.a libbitcoin_util.a crypto/libbitcoin_crypto_base.a crypto/libbitcoin_crypto_sse41.a crypto/libbitcoin_crypto_shani.a crypto/libbitcoin_crypto_avx2.a && \
     cp src/config/bitcoin-config.h /work/blockchain/src/config/ && cp src/libbitcoin_*.a /work/blockchain/src/ && cp src/crypto/libbitcoin_crypto_*.a /work/blockchain/src/crypto/ && \
     cd /work/blockchain/src/secp256k1 && ./autogen.sh && mkdir -p /tmp/secp256k1 && \
-    cd /tmp/secp256k1 && /work/blockchain/src/secp256k1/configure --enable-module-recovery && make && \
+    cd /tmp/secp256k1 && /work/blockchain/src/secp256k1/configure --enable-module-recovery && make -j${BUILD_JOBS} && \
     mkdir /work/blockchain/src/secp256k1/.libs && cp .libs/libsecp256k1.a /work/blockchain/src/secp256k1/.libs/ && rm -rf /tmp/*
 
 # For forward compatible
