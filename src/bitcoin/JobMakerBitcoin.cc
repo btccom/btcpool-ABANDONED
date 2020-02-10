@@ -297,6 +297,14 @@ bool JobMakerHandlerBitcoin::findBestRawGbt(string &bestRawGbt) {
       isReachTimeout()) {
     lastSendBestKey = bestKey;
     currBestHeight_ = bestHeight;
+    LOG(INFO) << "====> send new job to kafka reason : \n"
+              << (isFindNewHeight ? " height update.":"")
+              << (needUpdateEmptyBlockJob ? " update empty block.":"")
+              << (isMergedMiningUpdate_ ? " merge mining update.":"")
+              << (isReachTimeout() ? " reach timeout.":"")
+              << " ,bestKeyHeight : " << gbtKeyGetHeight(bestKey)
+              << " ,bestKeyTimestamp : " << gbtKeyGetTime(bestKey)
+              << " ,bestKeyIsEmpty : " << gbtKeyIsEmptyBlock(bestKey);
 
     bestRawGbt = rawgbtMap_.rbegin()->second.c_str();
     return true;
