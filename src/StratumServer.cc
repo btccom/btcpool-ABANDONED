@@ -298,8 +298,11 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
         << ", now=" << now;
     return;
   }
-  DLOG(INFO) << "received jobId : " << sjob->jobId_;
-  server_->dispatch([this, sjob]() {
+
+  clock_t start_time = clock();
+  LOG(INFO) << "[" << start_time << "] notify begin, jobId: " << sjob->jobId_;
+
+  server_->dispatch([this, sjob, start_time]() {
     // here you could use Map.find() without lock, it's sure
     // that everyone is using this Map readonly now
     auto existingJob = getStratumJobEx(sjob->jobId_);
@@ -309,6 +312,10 @@ void JobRepository::consumeStratumJob(rd_kafka_message_t *rkmessage) {
     }
 
     broadcastStratumJob(sjob);
+    
+    clock_t finish_time = clock();
+    double totalTime = (double)(finish_time - start_time) / CLOCKS_PER_SEC;
+    LOG(INFO) << "[" << finish_time << "] notify end, jobId: " << sjob->jobId_ << ", spentMs:" << totalTime * 1000;
   });
 }
 
@@ -1097,21 +1104,34 @@ void StratumServer::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {
   // of course, for iterators that actually point to the element that is
   // being erased.
   //
+
+  int totalMiner=0;
+  int deadMiner=0;
+  int liveMiner=0;
+
+  clock_t start_time = clock();
+  LOG(INFO) << "[" << start_time << "] send begin, jobId: " << exJobPtr->sjob_->jobId_;
   auto itr = connections_.begin();
   while (itr != connections_.end()) {
+    totalMiner++;
     auto &conn = *itr;
     if (conn->isDead()) {
 #ifndef WORK_WITH_STRATUM_SWITCHER
       sessionIDManager_->freeSessionId(conn->getSessionId());
 #endif
+      deadMiner++;
       itr = connections_.erase(itr);
     } else {
       if (conn->getChainId() == exJobPtr->chainId_) {
         conn->sendMiningNotify(exJobPtr);
       }
+      liveMiner++;
       ++itr;
     }
   }
+  clock_t finish_time = clock();
+  double totalTime = (double)(finish_time - start_time) / CLOCKS_PER_SEC;
+  LOG(INFO) << "[" << finish_time << "] send end, jobId: " << exJobPtr->sjob_->jobId_ << ", total: " << totalMiner << ", live: " << liveMiner << ", dead: " << deadMiner << ", spentMs:" << totalTime * 1000;
 }
 
 void StratumServer::addConnection(unique_ptr<StratumSession> connection) {
