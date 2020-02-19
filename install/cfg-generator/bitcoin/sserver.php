@@ -211,3 +211,10 @@ management = {
 
   auto_switch_chain = <?=optionalBool('management_auto_switch_chain', true)?>;
 };
+
+# Share jobs with the main pool, but with different coinbase information and addresses.
+subpool = {
+  enabled = <?=optionalBool('subpool_enabled', false)?>; # default: false
+  name = "<?=optionalTrim('subpool_name', '')?>";
+  ext_user_id = <?=optionalTrim('subpool_ext_user_id', '0')?>; # Optional, reserved for data analysis. It should < 0 (preventing it is no different from single-user mode).
+};
