@@ -10,7 +10,7 @@ prometheus = {
   # address for prometheus exporter to bind
   address = "0.0.0.0"
   # port for prometheus exporter to bind
-  port = 8080
+  port = 9100
   # path of the prometheus exporter url
   path = "/metrics"
 };
