@@ -26,6 +26,7 @@
 
 #include "JobMaker.h"
 
+#include "bitcoin/StratumBitcoin.h"
 #include "rsk/RskWork.h"
 #include "vcash/VcashWork.h"
 
@@ -42,6 +43,31 @@
 #ifdef INCLUDE_BTC_KEY_IO_H
 #include <key_io.h>
 #endif
+
+struct GbtJobMakerDefinition : public JobMakerDefinition {
+  virtual ~GbtJobMakerDefinition() {}
+
+  bool testnet_;
+
+  string payoutAddr_;
+  string coinbaseInfo_;
+  uint32_t blockVersion_;
+
+  string rawGbtTopic_;
+  string auxPowGwTopic_;
+  string rskRawGwTopic_;
+  string vcashRawGwTopic_;
+
+  uint32_t maxJobDelay_;
+  uint32_t gbtLifeTime_;
+  uint32_t emptyGbtLifeTime_;
+
+  uint32_t auxmergedMiningNotifyPolicy_;
+  uint32_t rskmergedMiningNotifyPolicy_;
+  uint32_t vcashmergedMiningNotifyPolicy_;
+
+  vector<SubPoolInfo> subPool_;
+};
 
 class JobMakerHandlerBitcoin : public JobMakerHandler {
   // mining bitcoin blocks

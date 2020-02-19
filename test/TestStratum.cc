@@ -373,10 +373,12 @@ TEST(Stratum, StratumJobBitcoin) {
 
     CTxDestination poolPayoutAddrTestnet =
         BitcoinUtils::DecodeDestination("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U");
+    vector<SubPoolInfo> subPool;
     res = sjob.initFromGbt(
         gbt.c_str(),
         poolCoinbaseInfo,
         poolPayoutAddrTestnet,
+        subPool,
         blockVersion,
         "",
         RskWork(),
@@ -507,10 +509,12 @@ TEST(Stratum, StratumJobWithWitnessCommitment) {
 
     CTxDestination poolPayoutAddrTestnet =
         BitcoinUtils::DecodeDestination("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U");
+    vector<SubPoolInfo> subPool;
     res = sjob.initFromGbt(
         gbt.c_str(),
         poolCoinbaseInfo,
         poolPayoutAddrTestnet,
+        subPool,
         blockVersion,
         "",
         RskWork(),
@@ -628,10 +632,12 @@ TEST(Stratum, StratumJobWithSegwitPayoutAddr) {
         true);
     CTxDestination poolPayoutAddrTestnet = BitcoinUtils::DecodeDestination(
         "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7");
+    vector<SubPoolInfo> subPool;
     res = sjob.initFromGbt(
         gbt.c_str(),
         poolCoinbaseInfo,
         poolPayoutAddrTestnet,
+        subPool,
         blockVersion,
         "",
         RskWork(),
@@ -757,10 +763,12 @@ TEST(Stratum, StratumJobWithRskWork) {
 
     CTxDestination poolPayoutAddrTestnet =
         BitcoinUtils::DecodeDestination("myxopLJB19oFtNBdrAxD5Z34Aw6P8o9P8U");
+    vector<SubPoolInfo> subPool;
     sjob.initFromGbt(
         gbt.c_str(),
         poolCoinbaseInfo,
         poolPayoutAddrTestnet,
+        subPool,
         blockVersion,
         "",
         rskWork,

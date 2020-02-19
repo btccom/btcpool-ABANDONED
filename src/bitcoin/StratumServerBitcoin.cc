@@ -64,6 +64,16 @@ void JobRepositoryBitcoin::broadcastStratumJob(
     return;
   }
 
+  if (GetServer()->subPoolEnabled()) {
+    auto itr = sjob->subPool_.find(GetServer()->subPoolName());
+    if (itr != sjob->subPool_.end()) {
+      sjob->coinbase1_ = itr->second.coinbase1_;
+      sjob->coinbase2_ = itr->second.coinbase2_;
+    } else {
+      LOG(ERROR) << "CANNOT FIND COINBASE TX OF SUBPOOL " << GetServer()->subPoolName() << "! The main pool coinbase tx is used.";
+    }
+  }
+
   bool isClean = false;
   uint32_t height = sjob->height_;
   if (height > lastHeight_) {
@@ -333,6 +343,12 @@ ServerBitcoin::~ServerBitcoin() {
 }
 
 bool ServerBitcoin::setupInternal(const libconfig::Config &config) {
+  config.lookupValue("subpool.enabled", subPoolEnabled_);
+  config.lookupValue("subpool.name", subPoolName_);
+  if (subPoolEnabled_) {
+    LOG(WARNING) << "[Option] " << "Subpool " << subPoolName_ << " enabled";
+  }
+  
   config.lookupValue("sserver.use_share_v1", useShareV1_);
 
   config.lookupValue("sserver.version_mask", versionMask_);

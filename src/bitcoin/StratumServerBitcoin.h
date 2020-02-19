@@ -48,6 +48,9 @@ protected:
   uint32_t extraNonce2Size_ = StratumMiner::kExtraNonce2Size_;
   bool useShareV1_ = false;
 
+  bool subPoolEnabled_ = false;
+  string subPoolName_;
+
 public:
   ServerBitcoin() = default;
   virtual ~ServerBitcoin();
@@ -55,6 +58,8 @@ public:
   inline uint32_t getVersionMask() const { return versionMask_; }
   inline uint32_t extraNonce2Size() const { return extraNonce2Size_; }
   inline bool useShareV1() const { return useShareV1_; }
+  inline bool subPoolEnabled() const { return subPoolEnabled_; }
+  inline string subPoolName() const { return subPoolName_; }
 
   bool setupInternal(const libconfig::Config &config) override;
 

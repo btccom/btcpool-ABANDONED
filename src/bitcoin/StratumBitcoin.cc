@@ -43,6 +43,11 @@
 
 #include <boost/endian/buffers.hpp>
 
+#include <nlohmann/json.hpp>
+
+using JSON = nlohmann::json;
+using JSONException = nlohmann::detail::exception;
+
 void BitcoinHeaderData::set(const CBlockHeader &header) {
   CDataStream ssBlockHeader(SER_NETWORK, PROTOCOL_VERSION);
   ssBlockHeader << header;
@@ -118,6 +123,14 @@ string StratumJobBitcoin::serializeToJson() const {
     merkleBranchStr.append(merkleBranch_[i].ToString());
   }
 
+  JSON subPool = JSON::object();
+  for (const auto &itr : subPool_) {
+    subPool[itr.first] = {
+        {"coinbase1", itr.second.coinbase1_},
+        {"coinbase2", itr.second.coinbase2_},
+    };
+  }
+
   //
   // we use key->value json string, so it's easy to update system
   //
@@ -126,6 +139,7 @@ string StratumJobBitcoin::serializeToJson() const {
       ",\"gbtHash\":\"%s\""
       ",\"prevHash\":\"%s\",\"prevHashBeStr\":\"%s\""
       ",\"height\":%d,\"coinbase1\":\"%s\",\"coinbase2\":\"%s\""
+      ",\"subPool\":%s"
       ",\"merkleBranch\":\"%s\""
       ",\"nVersion\":%d,\"nBits\":%u,\"nTime\":%u"
       ",\"minTime\":%u,\"coinbaseValue\":%d"
@@ -163,6 +177,7 @@ string StratumJobBitcoin::serializeToJson() const {
       height_,
       coinbase1_,
       coinbase2_,
+      subPool.dump(),
       // merkleBranch_ could be empty
       merkleBranchStr,
       nVersion_,
@@ -241,6 +256,19 @@ bool StratumJobBitcoin::unserializeFromJson(const char *s, size_t len) {
   nTime_ = j["nTime"].uint32();
   minTime_ = j["minTime"].uint32();
   coinbaseValue_ = j["coinbaseValue"].int64();
+
+  subPool_.clear();
+  if (j["subPool"].type() == Utilities::JS::type::Obj) {
+    auto subPool = j["subPool"].obj();
+    for (auto itr : subPool) {
+      string name = itr.key();
+      if (itr.type() == Utilities::JS::type::Obj &&
+          itr["coinbase1"].type() == Utilities::JS::type::Str &&
+          itr["coinbase2"].type() == Utilities::JS::type::Str) {
+        subPool_[name] = {name, itr["coinbase1"].str(), itr["coinbase2"].str()};
+      }
+    }
+  }
 
   // witnessCommitment, optional
   // witnessCommitment must be at least 38 bytes
@@ -349,6 +377,7 @@ bool StratumJobBitcoin::initFromGbt(
     const char *gbt,
     const string &poolCoinbaseInfo,
     const CTxDestination &poolPayoutAddr,
+    const vector<SubPoolInfo> &subPool,
     const uint32_t blockVersion,
     const string &nmcAuxBlockJson,
     const RskWork &latestRskBlockJson,
@@ -653,9 +682,13 @@ bool StratumJobBitcoin::initFromGbt(
     //
     cbIn.scriptSig << CScriptNum((uint32_t)time(nullptr));
 
+    uint32_t beforeCoinbaseInfo = cbIn.scriptSig.size();
+
     // pool's info
     cbIn.scriptSig.insert(
         cbIn.scriptSig.end(), poolCoinbaseInfo.begin(), poolCoinbaseInfo.end());
+
+    uint32_t afterCoinbaseInfo = cbIn.scriptSig.size();
 
     //
     // put namecoin merged mining info, 44 bytes
@@ -710,6 +743,7 @@ bool StratumJobBitcoin::initFromGbt(
     //
     // output[0]: pool payment address
     //
+    size_t paymentTxOutIndex = cbOut.size();
     {
       CTxOut paymentTxOut;
       paymentTxOut.scriptPubKey = GetScriptForDestination(poolPayoutAddr);
@@ -807,6 +841,7 @@ bool StratumJobBitcoin::initFromGbt(
     }
 
     CMutableTransaction cbtx;
+    size_t coinbaseTxInIndex = cbtx.vin.size();
     cbtx.vin.push_back(cbIn);
     cbtx.vout = cbOut;
 
@@ -832,6 +867,57 @@ bool StratumJobBitcoin::initFromGbt(
     coinbase2_ = HexStr(
         &coinbaseTpl[extraNonceStart + placeHolder.size()],
         &coinbaseTpl[coinbaseTpl.size()]);
+
+    // add sub-pool coinbase tx
+    if (!subPool.empty()) {
+      vector<char> coinbase1(
+          cbIn.scriptSig.begin(), cbIn.scriptSig.begin() + beforeCoinbaseInfo);
+      vector<char> coinbase2(
+          cbIn.scriptSig.begin() + afterCoinbaseInfo, cbIn.scriptSig.end());
+
+      for (const auto &pool : subPool) {
+        auto &vin = cbtx.vin[coinbaseTxInIndex];
+        auto &vout = cbtx.vout[paymentTxOutIndex];
+
+        vin.scriptSig = CScript();
+        vin.scriptSig.insert(
+            vin.scriptSig.end(), coinbase1.begin(), coinbase1.end());
+        vin.scriptSig.insert(
+            vin.scriptSig.end(),
+            pool.coinbaseInfo_.begin(),
+            pool.coinbaseInfo_.end());
+        vin.scriptSig.insert(
+            vin.scriptSig.end(), coinbase2.begin(), coinbase2.end());
+
+        vout.scriptPubKey = GetScriptForDestination(pool.payoutAddr_);
+
+        coinbaseTpl.clear();
+        CSerializeData sdata;
+        CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+        ssTx << cbtx; // put coinbase CTransaction to CDataStream
+        ssTx.GetAndClear(sdata); // dump coinbase bin to coinbaseTpl
+        coinbaseTpl.insert(coinbaseTpl.end(), sdata.begin(), sdata.end());
+
+        // check coinbase tx size
+        if (coinbaseTpl.size() >= COINBASE_TX_MAX_SIZE) {
+          LOG(FATAL) << "coinbase tx for subpool " << pool.name_ << " size "
+                     << coinbaseTpl.size() << " is over than max "
+                     << COINBASE_TX_MAX_SIZE;
+          return false;
+        }
+
+        const int64_t extraNonceStart =
+            findExtraNonceStart(coinbaseTpl, placeHolder);
+
+        subPool_[pool.name_] = {
+            pool.name_,
+            HexStr(&coinbaseTpl[0], &coinbaseTpl[extraNonceStart]), // coinbase1
+            HexStr(
+                &coinbaseTpl[extraNonceStart + placeHolder.size()],
+                &coinbaseTpl[coinbaseTpl.size()]) // coinbase2
+        };
+      }
+    }
   } // make coinbase1 & coinbase2
 #endif
 

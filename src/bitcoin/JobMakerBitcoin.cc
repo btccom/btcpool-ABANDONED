@@ -572,6 +572,7 @@ string JobMakerHandlerBitcoin::makeStratumJob(const string &gbt) {
           gbt.c_str(),
           def()->coinbaseInfo_,
           poolPayoutAddr_,
+          def()->subPool_,
           def()->blockVersion_,
           latestNmcAuxBlockJson,
           currentRskBlockJson,

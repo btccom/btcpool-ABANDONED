@@ -35,6 +35,7 @@
 #endif
 
 #include <uint256.h>
+#include <pubkey.h>
 #include <primitives/block.h>
 
 #include "rsk/RskWork.h"
@@ -334,6 +335,20 @@ public:
   const static uint32_t CURRENT_VERSION = 0x00010004u;
 };
 
+class SubPoolInfo {
+public:
+  string name_;
+  string coinbaseInfo_;
+  CTxDestination payoutAddr_;
+};
+
+class SubPoolJobBitcoin {
+public:
+  string name_;
+  string coinbase1_;
+  string coinbase2_;
+};
+
 class StratumJobBitcoin : public StratumJob {
 public:
   string gbtHash_; // gbt hash id
@@ -343,6 +358,8 @@ public:
   string coinbase1_; // bitcoin: coinbase1, zcash: full coinbase tx
   string coinbase2_; // bitcoin: coinbase2, zcash: empty
   vector<uint256> merkleBranch_;
+
+  map<string, SubPoolJobBitcoin> subPool_;
 
   int32_t nVersion_ = 0;
   uint32_t nBits_ = 0;
@@ -400,6 +417,7 @@ public:
       const char *gbt,
       const string &poolCoinbaseInfo,
       const CTxDestination &poolPayoutAddr,
+      const vector<SubPoolInfo> &subPool,
       const uint32_t blockVersion,
       const string &nmcAuxBlockJson,
       const RskWork &latestRskBlockJson,
