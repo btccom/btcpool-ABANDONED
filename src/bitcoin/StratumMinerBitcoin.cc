@@ -295,6 +295,8 @@ void StratumMinerBitcoin::handleRequest_Submit(
   if (server.singleUserMode()) {
     share.set_extuserid(share.userid());
     share.set_userid(server.singleUserId(localJob->chainId_));
+  } else if (server.subPoolEnabled()) {
+    share.set_extuserid(server.subPoolExtUserId());
   }
 
   // calc jobTarget

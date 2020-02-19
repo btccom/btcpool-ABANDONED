@@ -50,6 +50,7 @@ protected:
 
   bool subPoolEnabled_ = false;
   string subPoolName_;
+  int32_t subPoolExtUserId_;
 
 public:
   ServerBitcoin() = default;
@@ -60,6 +61,7 @@ public:
   inline bool useShareV1() const { return useShareV1_; }
   inline bool subPoolEnabled() const { return subPoolEnabled_; }
   inline string subPoolName() const { return subPoolName_; }
+  inline int32_t subPoolExtUserId() const { return subPoolExtUserId_; }
 
   bool setupInternal(const libconfig::Config &config) override;
 
