@@ -773,6 +773,7 @@ void BlockMakerBitcoin::processSolvedShare(rd_kafka_message_t *rkmessage) {
   saveBlockToDBNonBlocking(
       foundBlock,
       blkHeader,
+      string(coinbaseTxBin.begin(), coinbaseTxBin.end()),
       coinbaseValue, // coinbase value
       blockHex.length() / 2);
 }
@@ -780,6 +781,7 @@ void BlockMakerBitcoin::processSolvedShare(rd_kafka_message_t *rkmessage) {
 void BlockMakerBitcoin::saveBlockToDBNonBlocking(
     const FoundBlock &foundBlock,
     const CBlockHeader &header,
+    const string &coinbaseTxBin,
     const uint64_t coinbaseValue,
     const int32_t blksize) {
   std::thread t(std::bind(
@@ -787,6 +789,7 @@ void BlockMakerBitcoin::saveBlockToDBNonBlocking(
       this,
       foundBlock,
       header,
+      coinbaseTxBin,
       coinbaseValue,
       blksize));
   t.detach();
@@ -795,16 +798,34 @@ void BlockMakerBitcoin::saveBlockToDBNonBlocking(
 void BlockMakerBitcoin::_saveBlockToDBThread(
     const FoundBlock &foundBlock,
     const CBlockHeader &header,
+    const string &coinbaseTxBin,
     const uint64_t coinbaseValue,
     const int32_t blksize) {
   const string nowStr = date("%F %T");
   string sql;
+
+  string subPoolName;
+  {
+    ScopeLock sl(jobIdMapLock_);
+    if (jobId2SubPool_.find(foundBlock.jobId_) != jobId2SubPool_.end()) {
+      auto subPool = jobId2SubPool_[foundBlock.jobId_];
+      for (const auto &itr : subPool) {
+        if (coinbaseTxBin.find(itr.coinbase1_) != coinbaseTxBin.npos &&
+            coinbaseTxBin.find(itr.coinbase2_) != coinbaseTxBin.npos) {
+          subPoolName = filterTableName("_" + itr.name_);
+          break;
+        }
+      }
+    }
+  }
+
   sql = Strings::Format(
-      "INSERT INTO `found_blocks` "
+      "INSERT INTO `found_blocks%s` "
       " (`puid`, `worker_id`, `worker_full_name`, `job_id`"
       "  ,`height`, `hash`, `rewards`, `size`, `prev_hash`"
       "  ,`bits`, `version`, `created_at`)"
       " VALUES (%d,%d,\"%s\",%u,%d,\"%s\",%d,%d,\"%s\",%u,%d,\"%s\"); ",
+      subPoolName,
       foundBlock.userId_,
       foundBlock.workerId_,
       // filter again, just in case
@@ -1040,10 +1061,30 @@ void BlockMakerBitcoin::consumeStratumJob(rd_kafka_message_t *rkmessage) {
     ScopeLock sl(jobIdMapLock_);
     jobId2GbtHash_[sjob->jobId_] = gbtHash;
 
+    jobId2SubPool_[sjob->jobId_].clear();
+    for (const auto &itr : sjob->subPool_) {
+      vector<char> coinbase1, coinbase2;
+      Hex2Bin(
+          itr.second.coinbase1_.data(),
+          itr.second.coinbase1_.size(),
+          coinbase1);
+      Hex2Bin(
+          itr.second.coinbase2_.data(),
+          itr.second.coinbase2_.size(),
+          coinbase1);
+      jobId2SubPool_[sjob->jobId_].push_back(
+          {itr.first,
+           string(coinbase1.begin(), coinbase1.end()),
+           string(coinbase2.begin(), coinbase2.end())});
+    }
+
     // Maps (and sets) are sorted, so the first element is the smallest,
     // and the last element is the largest.
     while (jobId2GbtHash_.size() > kMaxStratumJobNum_) {
       jobId2GbtHash_.erase(jobId2GbtHash_.begin());
+    }
+    while (jobId2SubPool_.size() > kMaxStratumJobNum_) {
+      jobId2SubPool_.erase(jobId2SubPool_.begin());
     }
   }
 

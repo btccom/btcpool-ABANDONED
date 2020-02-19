@@ -60,6 +60,7 @@ protected:
   size_t kMaxStratumJobNum_;
   // key: jobId, value: gbthash
   std::map<uint64_t, uint256> jobId2GbtHash_;
+  std::map<uint64_t, std::vector<SubPoolJobBitcoin>> jobId2SubPool_;
 
   bpt::ptime lastSubmittedBlockTime;
   uint32_t submittedRskBlocks;
@@ -118,11 +119,13 @@ protected:
   void saveBlockToDBNonBlocking(
       const FoundBlock &foundBlock,
       const CBlockHeader &header,
+      const string &coinbaseTxBin,
       const uint64_t coinbaseValue,
       const int32_t blksize);
   void _saveBlockToDBThread(
       const FoundBlock &foundBlock,
       const CBlockHeader &header,
+      const string &coinbaseTxBin,
       const uint64_t coinbaseValue,
       const int32_t blksize);
 #if defined(CHAIN_TYPE_BCH)

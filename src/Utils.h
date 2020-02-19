@@ -71,6 +71,21 @@ inline string HexAddPrefix(const string &hex) {
   return string("0x") + hex;
 }
 
+// filter for mysql table name
+inline string filterTableName(const string &tableName) {
+  string s;
+  s.reserve(tableName.size());
+
+  for (const auto &c : tableName) {
+    if (('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') ||
+        ('0' <= c && c <= '9') || c == '_') {
+      s += c;
+    }
+  }
+
+  return s;
+}
+
 // bool DecodeBinTx(CTransaction& tx, const unsigned char *data, size_t len);
 // bool DecodeBinBlk(CBlock& block, const unsigned char *data, size_t len);
 
