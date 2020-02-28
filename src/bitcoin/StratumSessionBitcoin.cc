@@ -170,6 +170,19 @@ void StratumSessionBitcoin::handleRequest_AgentGetCapabilities(
       "}}\n",
       idStr);
   sendData(s);
+
+  if (jparams.type() == Utilities::JS::type::Array && jparams.size() >= 1 &&
+      jparams.children()->at(0).type() == Utilities::JS::type::Array) {
+    auto caps = jparams.children()->at(0).array();
+    for (const auto &itr : caps) {
+      if (itr.type() == Utilities::JS::type::Str &&
+          itr.str() == BTCAGENT_PROTOCOL_CAP_SUBRES) {
+        dispatcher_->setSubmitResponse(true);
+        DLOG(INFO) << "worker " << worker_.fullName_
+                   << " enabled BTCAgent submit response";
+      }
+    }
+  }
 }
 
 void StratumSessionBitcoin::handleRequest_MiningConfigure(

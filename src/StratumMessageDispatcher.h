@@ -62,6 +62,9 @@ public:
   // switching chain
   virtual void beforeSwitchChain(){};
   virtual void afterSwitchChain(){};
+
+  // Turn submit response on or off
+  virtual void setSubmitResponse(bool enabled){};
 };
 
 class StratumMessageNullDispatcher : public StratumMessageDispatcher {
@@ -119,10 +122,10 @@ public:
       const JsonNode &jparams,
       const JsonNode &jroot) override;
   void handleExMessage(const std::string &exMessage) override;
-  void responseShareAccepted(const std::string &idStr) override {}
+  void responseShareAccepted(const std::string &idStr) override;
   void responseShareAcceptedWithStatus(
-      const std::string &idStr, int32_t status) override {}
-  void responseShareError(const std::string &idStr, int32_t status) override {}
+      const std::string &idStr, int32_t status) override;
+  void responseShareError(const std::string &idStr, int32_t status) override;
   void setMinDiff(uint64_t minDiff) override;
   void resetCurDiff(uint64_t curDiff) override;
   void addLocalJob(LocalJob &localJob) override;
@@ -130,6 +133,8 @@ public:
 
   void beforeSwitchChain() override;
   void afterSwitchChain() override;
+
+  void setSubmitResponse(bool enabled) override;
 
 protected:
   void handleExMessage_RegisterWorker(const std::string &exMessage);
@@ -151,8 +156,9 @@ public:
 protected:
   IStratumSession &session_;
   std::unique_ptr<DiffController> diffController_;
-  uint64_t curDiff_;
+  uint64_t curDiff_ = 0;
   std::map<uint16_t, std::unique_ptr<StratumMiner>> miners_;
+  bool enableSubmitResponse_ = false;
 };
 
 #endif // #ifndef STRATUM_MESSAGE_DISPATCHER_H

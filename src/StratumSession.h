@@ -48,7 +48,11 @@ class StratumJobEx;
 // negotiation. Known capabilities:
 //     verrol: version rolling (shares with a version mask can be submitted
 //     through a BTCAgent session).
-#define BTCAGENT_PROTOCOL_CAPABILITIES "[\"verrol\"]"
+//     subres: submit response (the server will send a response to the
+//     submission).
+#define BTCAGENT_PROTOCOL_CAPABILITIES "[\"verrol\",\"subres\"]"
+#define BTCAGENT_PROTOCOL_CAP_VERROL "verrol"
+#define BTCAGENT_PROTOCOL_CAP_SUBRES "subres"
 
 enum class StratumCommandEx : uint8_t {
   REGISTER_WORKER = 0x01u, // Agent -> Pool
@@ -56,6 +60,7 @@ enum class StratumCommandEx : uint8_t {
   SUBMIT_SHARE_WITH_TIME = 0x03u, // Agent -> Pool,  mining.submit(..., nTime)
   UNREGISTER_WORKER = 0x04u, // Agent -> Pool
   MINING_SET_DIFF = 0x05u, // Pool  -> Agent, mining.set_difficulty(diff)
+  SUBMIT_RESPONSE = 0x10u, // Pool  -> Agent, response of the submit (optional)
   SUBMIT_SHARE_WITH_VER =
       0x12u, // Agent -> Pool,  mining.submit(..., nVersionMask)
   SUBMIT_SHARE_WITH_TIME_VER =

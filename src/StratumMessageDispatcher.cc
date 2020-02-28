@@ -147,11 +147,18 @@ struct StratumMessageExMiningSetDiff {
   boost::endian::little_uint16_buf_t count;
 };
 
+struct StratumMessageExSubmitResponse {
+  boost::endian::little_uint8_buf_t magic;
+  boost::endian::little_uint8_buf_t command;
+  boost::endian::little_uint16_buf_t length;
+  boost::endian::little_uint16_buf_t index;
+  boost::endian::little_int32_buf_t status;
+};
+
 StratumMessageAgentDispatcher::StratumMessageAgentDispatcher(
     IStratumSession &session, const DiffController &diffController)
   : session_(session)
-  , diffController_(new DiffController(diffController))
-  , curDiff_(0) {
+  , diffController_(new DiffController(diffController)) {
 }
 
 StratumMessageAgentDispatcher::~StratumMessageAgentDispatcher() {
@@ -406,4 +413,41 @@ void StratumMessageAgentDispatcher::getSetDiffCommand(
 
     } /* /while */
   } /* /for */
+}
+
+void StratumMessageAgentDispatcher::responseShareAccepted(
+    const std::string &idStr) {
+  responseShareError(idStr, StratumStatus::ACCEPT);
+}
+void StratumMessageAgentDispatcher::responseShareAcceptedWithStatus(
+    const std::string &idStr, int32_t status) {
+  responseShareError(idStr, status);
+}
+void StratumMessageAgentDispatcher::responseShareError(
+    const std::string &idStr, int32_t status) {
+  if (!enableSubmitResponse_) {
+    return;
+  }
+
+  //
+  // CMD_SUBMIT_RESPONSE
+  // | magic_number(1) | cmd(1) | len(2) | index(2) | status(4) |
+  //
+  string buf;
+  uint16_t len = sizeof(StratumMessageExSubmitResponse);
+  buf.resize(len);
+  auto start = &buf.front();
+  auto msg = reinterpret_cast<StratumMessageExSubmitResponse *>(start);
+
+  msg->magic = StratumMessageEx::CMD_MAGIC_NUMBER;
+  msg->command = static_cast<uint8_t>(StratumCommandEx::SUBMIT_RESPONSE);
+  msg->length = len;
+  msg->index = strtol(idStr.c_str(), nullptr, 10);
+  msg->status = status;
+
+  session_.sendData(buf);
+}
+
+void StratumMessageAgentDispatcher::setSubmitResponse(bool enabled) {
+  enableSubmitResponse_ = enabled;
 }
