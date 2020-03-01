@@ -171,8 +171,9 @@ void StratumWorker::setNames(
   userNormalizer(userName_);
 
   // max length for worker name is 20
-  if (!extralength && workerName_.length() > 20) {
-    workerName_.resize(20);
+  // extern length of worker name to 30
+  if (!extralength && workerName_.length() > 30) {
+    workerName_.resize(30);
   }
 
   if (workerName_.empty()) {
