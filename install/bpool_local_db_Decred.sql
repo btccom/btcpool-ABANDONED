@@ -34,7 +34,7 @@ CREATE TABLE `mining_workers` (
   `worker_id` bigint(20) NOT NULL,
   `puid` int(11) NOT NULL,
   `group_id` int(11) NOT NULL,
-  `worker_name` varchar(20) DEFAULT NULL,
+  `worker_name` varchar(50) DEFAULT NULL,
   `accept_1m` bigint(20) NOT NULL DEFAULT '0',
   `accept_5m` bigint(20) NOT NULL DEFAULT '0',
   `accept_15m` bigint(20) NOT NULL DEFAULT '0',
@@ -52,7 +52,8 @@ CREATE TABLE `mining_workers` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   UNIQUE KEY `puid_worker_id` (`puid`,`worker_id`),
-  KEY `puid_group_id` (`puid`,`group_id`)
+  KEY `puid_group_id` (`puid`,`group_id`),
+  KEY `puid_worker_name` (`puid`,`worker_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 

@@ -61,3 +61,9 @@ add `reject_detail` varchar(255) default '' NOT NULL after `share_reject`;
 ALTER TABLE `found_nmc_blocks`
 add `chain_name` varchar(20) NOT NULL default '' after `is_orphaned`,
 add `submit_response` varchar(255) NOT NULL default '' after `is_orphaned`;
+
+
+-- 2020-03-02
+-- Increase the length of `mining_workers`.`worker_name` to 50 bytes and add an index on it.
+ALTER TABLE `mining_workers` CHANGE `worker_name` `worker_name` VARCHAR(50);
+ALTER TABLE `mining_workers` ADD INDEX `puid_worker_name`(`puid`, `worker_name`);
