@@ -47,7 +47,7 @@ CREATE TABLE `mining_workers` (
   `worker_id` bigint(20) NOT NULL,
   `puid` int(11) NOT NULL,
   `group_id` int(11) NOT NULL,
-  `worker_name` varchar(30) DEFAULT NULL,
+  `worker_name` varchar(20) DEFAULT NULL,
   `accept_1m` bigint(20) NOT NULL DEFAULT '0',
   `accept_5m` bigint(20) NOT NULL DEFAULT '0',
   `accept_15m` bigint(20) NOT NULL DEFAULT '0',
