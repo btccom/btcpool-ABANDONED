@@ -1,8 +1,8 @@
-name: 11pool
+name: master
 
 on: [push]
 
-jobs:11pool
+jobs:master
   build:master
 
     runs-on: ubuntu-latest
