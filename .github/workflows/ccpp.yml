@@ -3,7 +3,7 @@ name: 11pool
 on: [push]
 
 jobs:11pool
-  build:btcpool
+  build:btccom/btcpool
 
     runs-on: ubuntu-latest
     
