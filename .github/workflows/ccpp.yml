@@ -1,4 +1,4 @@
-name: btcpool/C++ CI
+name: 11pool
 
 on: [push]
 
