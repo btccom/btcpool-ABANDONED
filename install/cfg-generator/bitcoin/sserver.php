@@ -86,7 +86,11 @@ sserver = {
 
   # Send ShareBitcoinBytesV1 to share_topic to keep compatibility with legacy statshttpd/sharelogger.
   use_share_v1 = <?=optionalBool('sserver_use_share_v1', false)?>;
-  
+
+  # Accepting the PROXY Protocol to get the original IP of the miner from a proxy.
+  # <https://docs.nginx.com/nginx/admin-guide/load-balancer/using-proxy-protocol/>
+  proxy_protocol = <?=optionalBool('sserver_proxy_protocol', false)?>;
+
 <?php
   $chains = commaSplitTrim('chains');
   $multi_chains = !empty($chains);
