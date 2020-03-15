@@ -175,9 +175,11 @@ union IpAddress {
     std::string ip;
     uint16_t port;
     for (struct ifaddrs *ifa = ifList; ifa != nullptr; ifa = ifa->ifa_next) {
-      getIpPortFromStruct(ifa->ifa_addr, ip, port);
-      if (!ip.empty() && ip != "127.0.0.1" && ip != "::1") {
-        result[ifa->ifa_name].push_back(ip);
+      if (ifa->ifa_addr != nullptr) {
+        getIpPortFromStruct(ifa->ifa_addr, ip, port);
+        if (!ip.empty() && ip != "127.0.0.1" && ip != "::1") {
+          result[ifa->ifa_name].push_back(ip);
+        }
       }
     }
 

@@ -33,9 +33,14 @@
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <boost/uuid/uuid_generators.hpp>
+#include <nlohmann/json.hpp>
 
 #include "Zookeeper.h"
 #include "Utils.h"
+#include "Network.h"
+
+using JSON = nlohmann::json;
+using JSONException = nlohmann::detail::exception;
 
 using std::bitset;
 
@@ -220,13 +225,18 @@ ZookeeperUniqIdT<IBITS>::ZookeeperUniqIdT(
   auto uuidGen = boost::uuids::random_generator();
   uuid_ = boost::uuids::to_string(uuidGen());
 
-  data_ = Strings::Format(
-      "{"
-      "\"uuid\":\"%s\","
-      "\"data\":%s"
-      "}",
-      uuid_,
-      userData.empty() ? "null" : userData);
+  JSON json = {
+      {"uuid", uuid_},
+      {"created_at", date("%F %T")},
+      {"host",
+       {
+           {"hostname", IpAddress::getHostName()},
+           {"ip", IpAddress::getInterfaceAddrs()},
+       }},
+      {"data", userData},
+  };
+
+  data_ = json.dump();
 }
 
 template <uint8_t IBITS>
