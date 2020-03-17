@@ -37,6 +37,7 @@ The pool backend support these blockchains at current:
    > Tips: only Tested with bminer and nbminer. need to be updated after the new version of ckb is released. 
 * Others
    * ~~[Siacoin](https://www.sia.tech/)~~ (not finished and need test)
+   * [tellor](https://tellor.io/) (not fininshed and need test, only support solo mining)
 
 It also support these merged mining blockchains of SHA256 blockchains:
 * SHA256 merged mining
@@ -51,6 +52,7 @@ Note: The project is still a testbed and work in progress, all things could be c
 
 See Also:
 * [BTCPool's golang modules](https://github.com/btccom/btcpool-go-modules)
+* [tellor stratum protocol](docs/trb_stratum_protocol.md)
 
 ## Architecture (need update)
 
