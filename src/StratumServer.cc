@@ -729,8 +729,18 @@ bool StratumServer::setup(const libconfig::Config &config) {
   }
 
   // single user mode
+  config.lookupValue("users.single_user_chain", singleUserChain_);
   config.lookupValue("users.single_user_mode", singleUserMode_);
   config.lookupValue("users.single_user_name", singleUserName_);
+  if (singleUserChain_) {
+    LOG(INFO) << "[Option] Single User Chain Enabled, chain switching "
+                 "reference userName: "
+              << singleUserName_;
+    if (singleUserName_.empty()) {
+      LOG(FATAL)
+          << "single_user_name cannot be empty when single_user_chain enabled!";
+    }
+  }
   if (singleUserMode_) {
     string chainPuids = "";
     for (auto chain : chains_) {

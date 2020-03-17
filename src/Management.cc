@@ -28,10 +28,13 @@
 #include "StratumSession.h"
 #include "DiffController.h"
 #include "Utils.h"
+#include "UserInfo.h"
 
 Management::Management(const libconfig::Config &cfg, StratumServer &server)
   : running_(false)
   , currentAutoChainId_(0)
+  , singleUserAutoSwitchChain_(false)
+  , singleUserCurrentChainId_(0)
   , controllerTopicConsumer_(
         cfg.lookup("management.kafka_brokers").c_str(),
         cfg.lookup("management.controller_topic").c_str(),
@@ -96,6 +99,8 @@ void Management::stop() {
 }
 
 void Management::run() {
+  updateSingleUserChain();
+
   running_ = true;
   consumerThread_ = std::thread([this]() {
     try {
@@ -257,8 +262,9 @@ void Management::handleMessage(rd_kafka_message_t *rkmessage) {
                   << server_.chainName(chainId);
 
         currentAutoChainId_ = chainId;
+
         server_.userInfo_->autoSwitchChain(
-            currentAutoChainId_,
+            currentAutoChainId(),
             [this, id](
                 size_t oldChain,
                 size_t newChain,
@@ -506,4 +512,138 @@ JSON Management::getResponseTemplate(
       {"id", id},
   };
   return json;
+}
+
+size_t Management::currentAutoChainId() const {
+  if (server_.singleUserChain()) {
+    return singleUserAutoSwitchChain_ ? currentAutoChainId_
+                                      : singleUserCurrentChainId_;
+  }
+  return currentAutoChainId_;
+}
+
+bool Management::updateSingleUserChain() {
+  if (!server_.singleUserChain()) {
+    return false;
+  }
+
+  try {
+
+    if (server_.userInfo_->zkGetRawChainW(
+            server_.singleUserName(),
+            singleUserChainType_,
+            handleSwitchChainEvent,
+            this)) {
+
+      if (singleUserChainType_ == server_.userInfo_->AUTO_CHAIN_NAME) {
+        singleUserAutoSwitchChain_ = true;
+        singleUserCurrentChainId_ = 0;
+
+      } else {
+        ssize_t chainId = -1;
+        for (ssize_t i = 0; i < (ssize_t)server_.chains_.size(); i++) {
+          if (server_.chains_[i].name_ == singleUserChainType_) {
+            chainId = i;
+            break;
+          }
+        }
+
+        // not found
+        if (chainId == -1) {
+          LOG(WARNING) << "[single user chain] cannot find chain "
+                       << singleUserChainType_;
+          return false;
+        }
+
+        singleUserCurrentChainId_ = (size_t)chainId;
+        singleUserAutoSwitchChain_ = false;
+      }
+
+      LOG(INFO) << "[single user chain] chain update, reference user: "
+                << server_.singleUserName()
+                << ", chain: " << singleUserChainType_;
+
+      server_.userInfo_->autoSwitchChain(
+          currentAutoChainId(),
+          [this](
+              size_t oldChain,
+              size_t newChain,
+              size_t users,
+              size_t miners) mutable {
+            JSON response = getResponseTemplate(
+                "sserver_action", "single_user_switch_chain", JSON());
+            response["result"] = true;
+            response["old_chain_name"] = server_.chainName(oldChain);
+            response["new_chain_name"] = server_.chainName(newChain);
+            ;
+            response["switched_users"] = users;
+            response["switched_connections"] = miners;
+            sendMessage(response.dump());
+          });
+
+      return true;
+    }
+
+    LOG(WARNING) << "[single user chain] cannot find mining chain in "
+                    "zookeeper, user name: "
+                 << server_.singleUserName() << " ("
+                 << server_.userInfo_->zkUserChainMapDir_
+                 << server_.singleUserName() << ")";
+
+  } catch (const std::exception &ex) {
+    LOG(ERROR) << "Management::checkSingleUserChain(): zkGetRawChain() failed: "
+               << ex.what();
+  } catch (...) {
+    LOG(ERROR) << "Management::checkSingleUserChain(): unknown exception";
+  }
+
+  return false;
+}
+
+bool Management::checkSingleUserChain() {
+  if (!server_.singleUserChain()) {
+    return false;
+  }
+
+  try {
+    string newChainName =
+        server_.userInfo_->zkGetRawChain(server_.singleUserName());
+    if (newChainName == server_.userInfo_->AUTO_CHAIN_NAME) {
+      if (singleUserAutoSwitchChain_) {
+        DLOG(INFO) << "[single user chain] User does not switch chains, "
+                      "reference user: "
+                   << server_.singleUserName() << ", chain: " << newChainName;
+      } else {
+        LOG(INFO)
+            << "[single user chain] User switched the chain, reference user: "
+            << server_.singleUserName() << ", chains: " << singleUserChainType_
+            << " -> " << newChainName;
+        updateSingleUserChain();
+        return true;
+      }
+    } else if (singleUserChainType_ == newChainName) {
+      DLOG(INFO)
+          << "[single user chain] User does not switch chains, reference user: "
+          << server_.singleUserName() << ", chain: " << newChainName;
+    } else {
+      LOG(INFO)
+          << "[single user chain] User switched the chain, reference user: "
+          << server_.singleUserName() << ", chains: " << singleUserChainType_
+          << " -> " << newChainName;
+      updateSingleUserChain();
+      return true;
+    }
+  } catch (const std::exception &ex) {
+    LOG(ERROR) << "Management::checkSingleUserChain(): zkGetRawChain() failed: "
+               << ex.what();
+  } catch (...) {
+    LOG(ERROR) << "Management::checkSingleUserChain(): unknown exception";
+  }
+
+  return false;
+}
+
+void Management::handleSwitchChainEvent(
+    zhandle_t *zh, int type, int state, const char *path, void *pManagement) {
+  static_cast<Management *>(pManagement)->updateSingleUserChain();
 }

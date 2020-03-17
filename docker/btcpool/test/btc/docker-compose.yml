@@ -92,7 +92,19 @@ services:
     volumes:
       - ./cfg:/work/config
     command: /wait-for-it.sh zookeeper:2181 -- /wait-for-it.sh kafka:9092 -- /wait-for-it.sh userlist:80 -- sserver -c /work/config/sserver-mchain.cfg
-
+  
+  sserver-single-user:
+    depends_on:
+      - zookeeper
+      - kafka
+      - userlist
+    image: btccom/btcpool-${TEST_SUITE}
+    ports:
+      - 53337:3333
+    volumes:
+      - ./cfg:/work/config
+    command: /wait-for-it.sh zookeeper:2181 -- /wait-for-it.sh kafka:9092 -- /wait-for-it.sh userlist:80 -- sserver -c /work/config/sserver-single-user.cfg
+  
   blkmaker:
     depends_on:
       - kafka

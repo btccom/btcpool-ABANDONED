@@ -99,7 +99,20 @@ class UserInfo {
   void checkNameChains();
   bool /*isInterrupted*/ interruptibleSleep(time_t seconds);
 
+  bool zkGetRawChainW(
+      const string &userName,
+      string &chain,
+      ZookeeperWatcherCallback func,
+      void *data);
+  string zkGetRawChain(const string &userName);
+  bool zkGetChainW(
+      const string &userName,
+      string &chain,
+      ZookeeperWatcherCallback func,
+      void *data);
+  string zkGetChain(const string &userName);
   bool getChainIdFromZookeeper(const string &userName, size_t &chainId);
+
   void setZkReconnectHandle();
   void handleSwitchChainEvent(const string &userName);
   static void handleSwitchChainEvent(

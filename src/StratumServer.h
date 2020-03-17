@@ -282,6 +282,7 @@ public:
   shared_ptr<DiffController> defaultDifficultyController_;
   uint8_t serverId_;
 
+  bool singleUserChain_ = false;
   bool singleUserMode_ = false;
   string singleUserName_;
 
@@ -358,6 +359,7 @@ public:
   virtual unique_ptr<StratumSession> createConnection(
       struct bufferevent *bev, struct sockaddr *saddr, uint32_t sessionID) = 0;
 
+  bool singleUserChain() const { return singleUserChain_; }
   bool singleUserMode() const { return singleUserMode_; }
   string singleUserName() const { return singleUserName_; }
   int32_t singleUserId(size_t chainId) {

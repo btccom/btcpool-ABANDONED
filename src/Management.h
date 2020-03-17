@@ -31,6 +31,7 @@
 #include <libconfig.h++>
 #include <nlohmann/json.hpp>
 #include "Kafka.h"
+#include "Zookeeper.h"
 
 using JSON = nlohmann::json;
 using JSONException = nlohmann::detail::exception;
@@ -45,6 +46,10 @@ protected:
 
   bool autoSwitchChain_ = false;
   std::atomic<size_t> currentAutoChainId_;
+
+  std::atomic<bool> singleUserAutoSwitchChain_;
+  std::atomic<size_t> singleUserCurrentChainId_;
+  string singleUserChainType_;
 
   KafkaSimpleConsumer controllerTopicConsumer_;
   KafkaProducer processorTopicProducer_;
@@ -63,12 +68,18 @@ protected:
   void handleMessage(rd_kafka_message_t *rkmessage);
   bool checkFilter(JSON filter);
 
+  static void handleSwitchChainEvent(
+      zhandle_t *zh, int type, int state, const char *path, void *pManagement);
+
 public:
   Management(const libconfig::Config &cfg, StratumServer &server_);
   bool setup();
   void run();
   void stop();
 
+  bool updateSingleUserChain();
+  bool checkSingleUserChain();
+
   bool autoSwitchChainEnabled() const { return autoSwitchChain_; }
-  size_t currentAutoChainId() const { return currentAutoChainId_; }
+  size_t currentAutoChainId() const;
 };
