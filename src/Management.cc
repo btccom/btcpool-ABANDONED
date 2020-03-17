@@ -261,9 +261,11 @@ void Management::handleMessage(rd_kafka_message_t *rkmessage) {
                   << server_.chainName(currentAutoChainId_) << " -> "
                   << server_.chainName(chainId);
 
+        auto oldChainId = currentAutoChainId();
         currentAutoChainId_ = chainId;
 
         server_.userInfo_->autoSwitchChain(
+            oldChainId,
             currentAutoChainId(),
             [this, id](
                 size_t oldChain,
@@ -386,7 +388,7 @@ JSON Management::getConfigureAndStatus(
         {"share_topic", itr.kafkaProducerShareLog_->getTopic()},
         {"solved_share_topic", itr.kafkaProducerSolvedShare_->getTopic()},
         {"common_events_topic", itr.kafkaProducerCommonEvents_->getTopic()},
-        {"single_user_id", itr.singleUserId_},
+        {"single_user_puid", itr.singleUserId_},
     };
 
     std::map<string, size_t> shareStats;
@@ -462,6 +464,9 @@ JSON Management::getConfigureAndStatus(
       {"zookeeper_auto_reg_watch_dir", server_.userInfo_->zkAutoRegWatchDir_},
       {"namechains_check_interval",
        server_.userInfo_->nameChainsCheckIntervalSeconds_},
+      {"single_user_chain", server_.singleUserChain()},
+      {"single_user_mode", server_.singleUserMode()},
+      {"single_user_name", server_.singleUserName()},
   };
 
   std::map<string, std::map<string, size_t>> sessions;
@@ -514,6 +519,13 @@ JSON Management::getResponseTemplate(
   return json;
 }
 
+bool Management::autoSwitchChainEnabled() const {
+  if (server_.singleUserChain()) {
+    return true;
+  }
+  return autoSwitchChain_;
+}
+
 size_t Management::currentAutoChainId() const {
   if (server_.singleUserChain()) {
     return singleUserAutoSwitchChain_ ? currentAutoChainId_
@@ -523,11 +535,14 @@ size_t Management::currentAutoChainId() const {
 }
 
 bool Management::updateSingleUserChain() {
-  if (!server_.singleUserChain()) {
+  if (!server_.singleUserChain() || server_.chains_.size() <= 1) {
     return false;
   }
 
   try {
+
+    auto oldChainId = currentAutoChainId();
+    string oldChain = singleUserChainType_;
 
     if (server_.userInfo_->zkGetRawChainW(
             server_.singleUserName(),
@@ -535,7 +550,8 @@ bool Management::updateSingleUserChain() {
             handleSwitchChainEvent,
             this)) {
 
-      if (singleUserChainType_ == server_.userInfo_->AUTO_CHAIN_NAME) {
+      if (autoSwitchChain_ &&
+          singleUserChainType_ == server_.userInfo_->AUTO_CHAIN_NAME) {
         singleUserAutoSwitchChain_ = true;
         singleUserCurrentChainId_ = 0;
 
@@ -560,10 +576,11 @@ bool Management::updateSingleUserChain() {
       }
 
       LOG(INFO) << "[single user chain] chain update, reference user: "
-                << server_.singleUserName()
-                << ", chain: " << singleUserChainType_;
+                << server_.singleUserName() << ", chain: " << oldChain << " -> "
+                << singleUserChainType_;
 
       server_.userInfo_->autoSwitchChain(
+          oldChainId,
           currentAutoChainId(),
           [this](
               size_t oldChain,
@@ -601,7 +618,7 @@ bool Management::updateSingleUserChain() {
 }
 
 bool Management::checkSingleUserChain() {
-  if (!server_.singleUserChain()) {
+  if (!server_.singleUserChain() || server_.chains_.size() <= 1) {
     return false;
   }
 

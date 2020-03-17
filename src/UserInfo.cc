@@ -253,6 +253,11 @@ void UserInfo::setZkReconnectHandle() {
     for (auto item : nameChains) {
       handleSwitchChainEvent(item.first);
     }
+
+    if (server_->singleUserChain()) {
+      server_->dispatch(
+          [this]() { server_->management().checkSingleUserChain(); });
+    }
   });
 }
 
@@ -345,20 +350,17 @@ void UserInfo::handleSwitchChainEvent(const string &userName) {
 }
 
 void UserInfo::autoSwitchChain(
+    size_t oldChainId,
     size_t newChainId,
     std::function<
         void(size_t oldChain, size_t newChain, size_t users, size_t miners)>
         callback) {
   // update caches
-  size_t oldChainId = 0;
   size_t users = 0;
   {
     std::unique_lock<std::shared_timed_mutex> l{nameChainlock_};
     for (auto &itr : nameChains_) {
       if (itr.second.autoSwitchChain_) {
-        if (users == 0) {
-          oldChainId = itr.second.chainId_;
-        }
         itr.second.chainId_ = newChainId;
         users++;
       }
@@ -561,8 +563,8 @@ void UserInfo::checkNameChains() {
 
     time_t eachUserSleepMillisecond =
         nameChainsCheckIntervalSeconds_ * 1000 / nameChains.size();
-    if (eachUserSleepMillisecond < 1)
-      eachUserSleepMillisecond = 1;
+    if (eachUserSleepMillisecond < 10)
+      eachUserSleepMillisecond = 10;
     LOG(INFO) << "UserInfo::checkNameChains checking, each user sleep "
               << eachUserSleepMillisecond << "ms";
 
@@ -611,13 +613,21 @@ void UserInfo::checkNameChains() {
         LOG(ERROR) << "UserInfo::checkNameChains(): unknown exception";
       }
 
-      // check single user chain
-      server_->management().checkSingleUserChain();
-
       if (eachUserSleepMillisecond > 5000) {
         if (interruptibleSleep(eachUserSleepMillisecond / 1000))
           return;
+
+        // check single user chain
+        server_->management().checkSingleUserChain();
+
+        if (interruptibleSleep(eachUserSleepMillisecond / 1000))
+          return;
       } else {
+        std::this_thread::sleep_for(eachUserSleepMillisecond * 1ms);
+
+        // check single user chain
+        server_->management().checkSingleUserChain();
+
         std::this_thread::sleep_for(eachUserSleepMillisecond * 1ms);
       }
     }

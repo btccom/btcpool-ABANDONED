@@ -120,6 +120,7 @@ class UserInfo {
   static void handleAutoRegEvent(
       zhandle_t *zh, int type, int state, const char *path, void *pUserInfo);
   void autoSwitchChain(
+      size_t oldChainId,
       size_t newChainId,
       std::function<
           void(size_t oldChain, size_t newChain, size_t users, size_t miners)>

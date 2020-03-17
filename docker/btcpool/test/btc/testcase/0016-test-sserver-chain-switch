@@ -194,6 +194,8 @@ cmpChainJobs() {
     return 0
 }
 
+# Tips: please change prevHashBeStr if you want to add new tag likes "aa", "bb"
+
 echo "Checking chains (user hu60)..."
 cat "$SSERVER_RESULT.hu60" | grep '"method":"mining.notify"' | awk -F'"' '{print $12}' | awk '{print substr($1,56,2)}' | uniq -c | {
     read line; cmpChainJobs 1 "$line" 2 aa

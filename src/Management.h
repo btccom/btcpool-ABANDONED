@@ -80,6 +80,6 @@ public:
   bool updateSingleUserChain();
   bool checkSingleUserChain();
 
-  bool autoSwitchChainEnabled() const { return autoSwitchChain_; }
+  bool autoSwitchChainEnabled() const;
   size_t currentAutoChainId() const;
 };

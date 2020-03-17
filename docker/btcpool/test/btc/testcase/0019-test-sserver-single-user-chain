@@ -10,10 +10,10 @@ cd "$BASE_DIR"
 echo "clear old docker compose..."
 $DOCKER_COMPOSE down >>$STDOUT
 
-echo "start sserver-single-user (5s)..."
-$DOCKER_COMPOSE up -d sserver-single-user >>$STDOUT
+echo "start sserver-single-user-chain (5s)..."
+$DOCKER_COMPOSE up -d sserver-single-user-chain >>$STDOUT
 
-MAIN_CONTAINER_NAME="$($DOCKER_COMPOSE ps -q sserver-single-user)"
+MAIN_CONTAINER_NAME="$($DOCKER_COMPOSE ps -q sserver-single-user-chain)"
 SSERVER_RESULT="/tmp/btcpool-test-sserver.$PID"
 KAFKA_PRODUCER="docker exec -i $($DOCKER_COMPOSE ps -q kafka) /opt/kafka/bin/kafka-console-producer.sh --broker-list kafka:9092"
 ZOOKEEPER_CLI="docker exec -i $($DOCKER_COMPOSE ps -q zookeeper) bin/zkCli.sh"
@@ -25,23 +25,27 @@ $WAIT_FOR_IT kafka:9092
 $WAIT_FOR_PORT 3333
 sleep 1 # Waiting for sserver to fetch the user list api
 
-outputBtcTestData() {
-    cat "$BASE_DIR/testdata/stratumjobs-btc-1.log" \
+outputTestData() {
+    cat "$BASE_DIR/testdata/stratumjobs-$1.log" \
     | while read line; do
         line=${line/@TIME@/$(date +%s)}
         echo $line
-        echo send new BTC job at $(date) >&2
+        echo "send new $1 job at $(date)" >&2
         sleep 5
     done
 }
 
-outputBchTestData() {
-    cat "$BASE_DIR/testdata/stratumjobs-bch-1.log" \
-    | while read line; do
-        line=${line/@TIME@/$(date +%s)}
-        echo $line
-        echo send new BCH job at $(date) >&2
-        sleep 5
+sserverCmd() {
+    echo '{"id":1,"type":"sserver_cmd","action":"auto_switch_chain","chain_name":"'$1'"}'
+    echo "set auto chain to $1 at $(date)" >&2
+}
+
+outputManConData() {
+    while true; do
+        sserverCmd bch2
+        sleep 15
+        sserverCmd btc2
+        sleep 15
     done
 }
 
@@ -69,10 +73,16 @@ echo "init zookeeper nodes"
 } | $ZOOKEEPER_CLI 2>/dev/null
 
 echo "send StratumJob in the background..."
-outputBtcTestData | $KAFKA_PRODUCER --topic BtcJob &
+outputTestData btc-1 | $KAFKA_PRODUCER --topic BtcJob &
 KAFKA_PRODUCER_BTC_PID=$!
-outputBchTestData | $KAFKA_PRODUCER --topic BchJob &
+outputTestData bch-1 | $KAFKA_PRODUCER --topic BchJob &
 KAFKA_PRODUCER_BCH_PID=$!
+outputTestData btc-2 | $KAFKA_PRODUCER --topic BtcJob2 &
+KAFKA_PRODUCER_BTC_2_PID=$!
+outputTestData bch-2 | $KAFKA_PRODUCER --topic BchJob2 &
+KAFKA_PRODUCER_BCH_2_PID=$!
+outputManConData | $KAFKA_PRODUCER --topic BtcManController &
+KAFKA_PRODUCER_MAN_CON_PID=$!
 
 echo "receiving user hu60 jobs from sserver (120s)..."
 {
@@ -92,9 +102,10 @@ NC_DdDdDdDdD_PID=$!
 echo "receiving user testbch jobs from sserver (120s)..."
 {
     echo '{"id":1,"method":"mining.subscribe","params":["autotest/0.1"]}'
+    
     # Deliberate use of testbch_btc
     echo '{"id":2,"method":"mining.authorize","params":["testbch_btc.test","123"]}'
-    
+
     # The chain follows hu60, testbch_btc does not exist at the first time, so try again.
     sleep 15
     echo '{"id":2,"method":"mining.authorize","params":["testbch.test","123"]}'
@@ -106,16 +117,21 @@ NC_testbch_PID=$!
 
 echo "switch chains..."
 {
-    for i in {1..6}; do
+    for i in {1..2}; do
         sleep 10
         echo 'set /sserver/userchain/bitcoin/hu60 "bch"'
-        echo 'set /sserver/userchain/bitcoin/ddddddddd "bch"'
+        echo 'set /sserver/userchain/bitcoin/ddddddddd "auto"'
         echo 'set /sserver/userchain/bitcoin/testbch "btc"'
 
         sleep 10
-        echo 'set /sserver/userchain/bitcoin/hu60 "btc"'
+        echo 'set /sserver/userchain/bitcoin/hu60 "auto"'
         echo 'set /sserver/userchain/bitcoin/ddddddddd "btc"'
         echo 'set /sserver/userchain/bitcoin/testbch "bch"'
+
+        sleep 40
+        echo 'set /sserver/userchain/bitcoin/hu60 "btc"'
+        echo 'set /sserver/userchain/bitcoin/ddddddddd "bch"'
+        echo 'set /sserver/userchain/bitcoin/testbch "btc"'
     done
     sleep 10
     echo 'quit'
@@ -123,6 +139,9 @@ echo "switch chains..."
 
 kill $KAFKA_PRODUCER_BTC_PID &>/dev/null || echo "Kafka producer BTC exited"
 kill $KAFKA_PRODUCER_BCH_PID &>/dev/null || echo "Kafka producer BCH exited"
+kill $KAFKA_PRODUCER_BTC_2_PID &>/dev/null || echo "Kafka producer BTC 2 exited"
+kill $KAFKA_PRODUCER_BCH_2_PID &>/dev/null || echo "Kafka producer BCH 2 exited"
+kill $KAFKA_PRODUCER_MAN_CON_PID &>/dev/null || echo "Kafka producer BtcManController exited"
 
 kill $NC_hu60_PID || {
     echo "Connection to sserver closed too early (user hu60)"
@@ -201,50 +220,48 @@ cmpChainJobs() {
     return 0
 }
 
+# Tips: please change prevHashBeStr if you want to add new tag likes "aa", "bb"
+
 echo "Checking chains (user hu60)..."
 cat "$SSERVER_RESULT.hu60" | grep '"method":"mining.notify"' | awk -F'"' '{print $12}' | awk '{print substr($1,56,2)}' | uniq -c | {
     read line; cmpChainJobs 1 "$line" 2 aa
-    read line; cmpChainJobs 2 "$line" 2 bb
-    read line; cmpChainJobs 3 "$line" 2 aa
-    read line; cmpChainJobs 4 "$line" 2 bb
-    read line; cmpChainJobs 5 "$line" 2 aa
-    read line; cmpChainJobs 6 "$line" 2 bb
-    read line; cmpChainJobs 7 "$line" 2 aa
-    read line; cmpChainJobs 8 "$line" 2 bb
-    read line; cmpChainJobs 9 "$line" 2 aa
-    read line; cmpChainJobs 10 "$line" 2 bb
+    read line; cmpChainJobs 2 "$line" 4 bb
+    read line; cmpChainJobs 3 "$line" 3 cc
+    read line; cmpChainJobs 4 "$line" 3 dd
+    read line; cmpChainJobs 5 "$line" 5 cc
+    read line; cmpChainJobs 6 "$line" 3 aa
+    read line; cmpChainJobs 7 "$line" 2 bb
+    read line; cmpChainJobs 8 "$line" 2 cc
+    read line; cmpChainJobs 9 "$line" 3 dd
+    read line; cmpChainJobs 10 "$line" 4 cc
     read line; cmpChainJobs 11 "$line" 2 aa
-    read line; cmpChainJobs 12 "$line" 2 bb
-    read line; cmpChainJobs 13 "$line" 2 aa
 }
 
 echo "Checking chains (user DdDdDdDdD)..."
 cat "$SSERVER_RESULT.DdDdDdDdD" | grep '"method":"mining.notify"' | awk -F'"' '{print $12}' | awk '{print substr($1,56,2)}' | uniq -c | {
-    read line; cmpChainJobs 1 "$line" 8 aa
-    read line; cmpChainJobs 4 "$line" 2 bb
-    read line; cmpChainJobs 5 "$line" 2 aa
+    read line; cmpChainJobs 1 "$line" 6 aa
+    read line; cmpChainJobs 2 "$line" 3 cc
+    read line; cmpChainJobs 3 "$line" 3 dd
+    read line; cmpChainJobs 4 "$line" 5 cc
+    read line; cmpChainJobs 5 "$line" 3 aa
     read line; cmpChainJobs 6 "$line" 2 bb
-    read line; cmpChainJobs 7 "$line" 2 aa
-    read line; cmpChainJobs 8 "$line" 2 bb
-    read line; cmpChainJobs 9 "$line" 2 aa
-    read line; cmpChainJobs 10 "$line" 2 bb
-    read line; cmpChainJobs 11 "$line" 2 aa
-    read line; cmpChainJobs 12 "$line" 2 bb
-    read line; cmpChainJobs 13 "$line" 2 aa
+    read line; cmpChainJobs 7 "$line" 2 cc
+    read line; cmpChainJobs 8 "$line" 3 dd
+    read line; cmpChainJobs 9 "$line" 4 cc
+    read line; cmpChainJobs 10 "$line" 2 aa
 }
 
 echo "Checking chains (user testbch)..."
 cat "$SSERVER_RESULT.testbch" | grep '"method":"mining.notify"' | awk -F'"' '{print $12}' | awk '{print substr($1,56,2)}' | uniq -c | {
-    read line; cmpChainJobs 1 "$line" 6 bb
-    read line; cmpChainJobs 2 "$line" 2 aa
-    read line; cmpChainJobs 3 "$line" 2 bb
-    read line; cmpChainJobs 4 "$line" 2 aa
+    read line; cmpChainJobs 1 "$line" 3 bb
+    read line; cmpChainJobs 2 "$line" 3 dd
+    read line; cmpChainJobs 3 "$line" 5 cc
+    read line; cmpChainJobs 4 "$line" 3 aa
     read line; cmpChainJobs 5 "$line" 2 bb
-    read line; cmpChainJobs 6 "$line" 2 aa
-    read line; cmpChainJobs 7 "$line" 2 bb
-    read line; cmpChainJobs 8 "$line" 2 aa
-    read line; cmpChainJobs 9 "$line" 2 bb
-    read line; cmpChainJobs 8 "$line" 2 aa
+    read line; cmpChainJobs 6 "$line" 2 cc
+    read line; cmpChainJobs 7 "$line" 3 dd
+    read line; cmpChainJobs 8 "$line" 4 cc
+    read line; cmpChainJobs 9 "$line" 2 aa
 }
 
 rm $SSERVER_RESULT.*
