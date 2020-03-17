@@ -150,6 +150,7 @@ protected:
   shared_ptr<AuthorizeInfo> savedAuthorizeInfo_;
 
   std::unique_ptr<ProxyStrategy> proxyStrategy_;
+  uint64_t curNetWorkDiff_;
 
   void setup();
   void setReadTimeout(int32_t readTimeout);
@@ -250,6 +251,8 @@ public:
   uint64_t niceHashMinDiff() const override;
 
   void setIpAddress(const struct in_addr &address);
+
+  uint64_t getNetWorkDiff() const { return curNetWorkDiff_; }
 };
 
 //  This base class is to help type safety of accessing server_ member variable.

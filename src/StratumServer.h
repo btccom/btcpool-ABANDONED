@@ -286,6 +286,7 @@ public:
   string singleUserName_;
 
   bool proxyProtocol_ = false;
+  uint64_t minDifficulty_;
 
   shared_ptr<Zookeeper> zk_;
 

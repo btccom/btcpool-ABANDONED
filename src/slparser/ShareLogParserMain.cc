@@ -61,6 +61,9 @@
 #include "ckb/StatisticsCkb.h"
 #include "ckb/ShareLogParserCkb.h"
 
+#include "tellor/StatisticsTellor.h"
+#include "tellor/ShareLogParserTellor.h"
+
 #include "chainparamsbase.h"
 #include "chainparams.h"
 
@@ -111,6 +114,8 @@ std::shared_ptr<ShareLogDumper> newShareLogDumper(
     return std::make_shared<ShareLogDumperGrin>(cfg, timestamp, uids);
   } else if (chainType == "CKB") {
     return std::make_shared<ShareLogDumperCkb>(cfg, timestamp, uids);
+  } else if (chainType == "TRB") {
+    return std::make_shared<ShareLogDumperTellor>(cfg, timestamp, uids);
   } else {
     LOG(FATAL) << "newShareLogDumper: unknown chain type " << chainType;
     return nullptr;
@@ -153,6 +158,8 @@ std::shared_ptr<ShareLogParser> newShareLogParser(
         std::make_shared<DuplicateShareCheckerGrin>(dupShareTrackingHeight));
   } else if (chainType == "CKB") {
     return std::make_shared<ShareLogParserCkb>(cfg, timestamp, nullptr);
+  } else if (chainType == "TRB") {
+    return std::make_shared<ShareLogParserTellor>(cfg, timestamp, nullptr);
   } else {
     LOG(FATAL) << "newShareLogParser: unknown chain type " << chainType;
     return nullptr;
@@ -190,6 +197,8 @@ std::shared_ptr<ShareLogParserServer> newShareLogParserServer(
         std::make_shared<DuplicateShareCheckerGrin>(dupShareTrackingHeight));
   } else if (chainType == "CKB") {
     return std::make_shared<ShareLogParserServerCkb>(cfg, nullptr);
+  } else if (chainType == "TRB") {
+    return std::make_shared<ShareLogParserServerTellor>(cfg, nullptr);
   } else {
     LOG(FATAL) << "newShareLogParserServer: unknown chain type " << chainType;
     return nullptr;

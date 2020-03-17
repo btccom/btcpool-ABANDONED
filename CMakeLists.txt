@@ -433,6 +433,7 @@ include_directories(
   3rdparty/equihash
   3rdparty/eaglesong
   3rdparty/hextodec
+  3rdparty/keccak
   src
   test
   ${CHAIN_SRC_ROOT}/src
@@ -490,6 +491,11 @@ add_library(eaglesong
 add_library(hextodec
   3rdparty/hextodec/hextodec.cc)
 
+add_library(keccak
+  3rdparty/keccak/keccakf800.c
+  3rdparty/keccak/keccak.c
+  3rdparty/keccak/keccakf1600.c)  
+
 
 file(GLOB LIB_SOURCES
         src/*.cc
@@ -499,6 +505,7 @@ file(GLOB LIB_SOURCES
     )
     
 file(GLOB LIB_SOURCES_CHAINS
+        src/tellor/*.cc
         src/ckb/*.cc
         src/eth/*.cc
         src/bytom/*.cc 
@@ -510,7 +517,7 @@ file(GLOB LIB_SOURCES_CHAINS
     )
 
 set(LIB_SOURCES_SHARES)
-foreach(SHARE_TYPE beam bitcoin bytom decred eth sia grin ckb)
+foreach(SHARE_TYPE beam bitcoin bytom decred eth sia grin ckb tellor)
   file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/src/${SHARE_TYPE})
   add_custom_command(
       COMMAND ${PROTOBUF_PROTOC_EXECUTABLE} --cpp_out=${CMAKE_CURRENT_BINARY_DIR}/src/${SHARE_TYPE} ${SHARE_TYPE}.proto
@@ -531,7 +538,7 @@ add_library(
     ${LIB_SOURCES_PROMETHEUS}
     ${LIB_SOURCES_SHARES}
     ${LIB_SOURCES_CHAINS})
-target_link_libraries(btcpool PUBLIC beam cuckoo eaglesong hextodec)
+target_link_libraries(btcpool PUBLIC beam cuckoo eaglesong hextodec keccak)
 target_link_libraries(btcpool PUBLIC rlpvalue)
 
 if(BUILD_TESTING)

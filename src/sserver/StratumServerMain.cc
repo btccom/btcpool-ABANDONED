@@ -47,6 +47,7 @@
 #include "beam/StratumServerBeam.h"
 #include "grin/StratumServerGrin.h"
 #include "ckb/StratumServerCkb.h"
+#include "tellor/StratumServerTellor.h"
 
 #include <chainparams.h>
 
@@ -93,6 +94,8 @@ StratumServer *createStratumServer(const libconfig::Config &config) {
     return new StratumServerGrin();
   else if ("CKB" == type)
     return new StratumServerCkb();
+  else if ("TRB" == type)
+    return new StratumServerTellor();
 
   LOG(FATAL) << "Unknown type: " << type;
   return nullptr;

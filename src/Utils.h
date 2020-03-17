@@ -51,6 +51,7 @@ void Bin2Hex(const vector<uint8_t> &in, string &str);
 void Bin2Hex(const vector<char> &in, string &str);
 void Bin2HexR(const uint8_t *in, size_t len, string &str);
 void Bin2HexR(const vector<char> &in, string &str);
+std::string Bin2Hex(const uint8_t *in, size_t len);
 
 // remove prefix 0x of a hex string
 inline string HexStripPrefix(const string &hex) {

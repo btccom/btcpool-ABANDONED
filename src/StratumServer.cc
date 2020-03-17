@@ -538,6 +538,9 @@ bool StratumServer::setup(const libconfig::Config &config) {
   string minDiffStr = config.lookup("sserver.min_difficulty");
   uint64_t minDifficulty = formatDifficulty(stoull(minDiffStr, nullptr, 16));
 
+  minDifficulty_ = minDifficulty;
+  DLOG(INFO) << "set min_difficulty : " << minDifficulty_;
+
   uint32_t diffAdjustPeriod = 300;
   config.lookupValue("sserver.diff_adjust_period", diffAdjustPeriod);
 

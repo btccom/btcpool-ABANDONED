@@ -61,6 +61,9 @@
 #include "ckb/StatisticsCkb.h"
 #include "ckb/StatsHttpdCkb.h"
 
+#include "tellor/StatisticsTellor.h"
+#include "tellor/StatsHttpdTellor.h"
+
 using namespace std;
 using namespace libconfig;
 
@@ -113,6 +116,8 @@ std::shared_ptr<StatsServer> newStatsServer(const libconfig::Config &cfg) {
         std::make_shared<DuplicateShareCheckerGrin>(dupShareTrackingHeight));
   } else if (chainType == "CKB") {
     return std::make_shared<StatsServerCkb>(cfg, nullptr);
+  } else if (chainType == "TRB") {
+    return std::make_shared<StatsServerTellor>(cfg, nullptr);
   } else {
     LOG(FATAL) << "newStatsServer: unknown chain type " << chainType;
     return nullptr;

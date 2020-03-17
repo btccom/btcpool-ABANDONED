@@ -63,7 +63,7 @@ public:
   void setMinDiff(uint64_t minDiff);
   void resetCurDiff(uint64_t curDiff);
   uint64_t getCurDiff() const { return curDiff_; };
-  uint64_t calcCurDiff();
+  virtual uint64_t calcCurDiff();
   virtual uint64_t addLocalJob(LocalJob &localJob) = 0;
   virtual void removeLocalJob(LocalJob &localJob) = 0;
 
