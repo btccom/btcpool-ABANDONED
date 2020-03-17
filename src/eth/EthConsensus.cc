@@ -93,7 +93,7 @@ int64_t EthConsensus::getStaticBlockRewardClassic(int nHeight) {
   for (int i = 1; i < blockEra; i++) {
     // ECIP-1017: all rewards will be reduced at a constant rate of 20% upon
     // entering a new Era. reward *= 0.8 (avoid converts to float)
-    reward = reward * 8 / 10;
+    reward = reward * 0.8;
   }
 
   return reward;
