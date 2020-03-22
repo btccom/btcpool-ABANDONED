@@ -659,42 +659,6 @@ bool JobMakerHandlerBitcoin::updateSubPoolAddr(size_t index) {
 
       auto json = JSON::parse(str);
 
-      if (!json.is_object() || !json["coinbaseInfo"].is_string() ||
-          !json["payoutAddr"].is_string()) {
-        LOG(ERROR) << "JobMakerHandlerBitcoin::updateSubPoolAddr(): "
-                   << "[subpool " << oldPool.name_
-                   << "] wrong field type, raw json: " << str;
-        return false;
-      }
-
-      string payoutAddrStr = json["payoutAddr"].get<string>();
-      string coinbaseInfo = json["coinbaseInfo"].get<string>();
-
-      if (coinbaseInfo.size() > (size_t)def()->subPoolCoinbaseMaxLen_) {
-        coinbaseInfo.resize(def()->subPoolCoinbaseMaxLen_);
-      }
-
-      if (!BitcoinUtils::IsValidDestinationString(payoutAddrStr)) {
-        LOG(ERROR) << "[subpool " << oldPool.name_
-                   << "] update failed, invalid payout address: "
-                   << payoutAddrStr << ", raw json: " << str;
-        return false;
-      }
-
-      LOG(INFO) << "[subpool " << oldPool.name_
-                << "] coinbase updated, coinbaseInfo: " << oldPool.coinbaseInfo_
-                << " -> " << coinbaseInfo << ", payoutAddr: "
-                << BitcoinUtils::EncodeDestination(oldPool.payoutAddr_)
-                << " -> " << payoutAddrStr;
-
-      auto payoutAddr = BitcoinUtils::DecodeDestination(payoutAddrStr);
-      {
-        ScopeLock sl(subPoolLock_);
-        auto &pool = defWithoutConst()->subPool_[index];
-        pool.coinbaseInfo_ = coinbaseInfo;
-        pool.payoutAddr_ = payoutAddr;
-      }
-
       JSON response = {
           {"created_at", date("%F %T")},
           {"host",
@@ -712,8 +676,61 @@ bool JobMakerHandlerBitcoin::updateSubPoolAddr(size_t index) {
           {"new", json},
       };
 
-      jobmaker_->zk()->setNode(oldPool.zkUpdatePath_ + "/ack", response.dump());
+      auto sendResponse =
+          [this, &response, &oldPool](bool success, const string &errMsg) {
+            response["success"] = success;
+            response["err_msg"] = errMsg;
 
+            jobmaker_->zk()->setNode(
+                oldPool.zkUpdatePath_ + "/ack", response.dump());
+          };
+
+      string errMsg = "success";
+
+      if (!json.is_object() || !json["coinbaseInfo"].is_string() ||
+          !json["payoutAddr"].is_string()) {
+        errMsg = "field missing or wrong field type";
+        LOG(ERROR) << "JobMakerHandlerBitcoin::updateSubPoolAddr(): "
+                   << "[subpool " << oldPool.name_ << "] " << errMsg
+                   << ", raw json: " << str;
+
+        sendResponse(false, errMsg);
+        return false;
+      }
+
+      string payoutAddrStr = json["payoutAddr"].get<string>();
+      string coinbaseInfo = json["coinbaseInfo"].get<string>();
+
+      if (!BitcoinUtils::IsValidDestinationString(payoutAddrStr)) {
+        errMsg = "invalid payout address";
+        LOG(ERROR) << "[subpool " << oldPool.name_ << "] update failed, "
+                   << errMsg << ": " << payoutAddrStr << ", raw json: " << str;
+
+        sendResponse(false, errMsg);
+        return false;
+      }
+
+      if (coinbaseInfo.size() > (size_t)def()->subPoolCoinbaseMaxLen_) {
+        coinbaseInfo.resize(def()->subPoolCoinbaseMaxLen_);
+        errMsg = "coinbase info truncated to " +
+            std::to_string(def()->subPoolCoinbaseMaxLen_) + " bytes";
+      }
+
+      LOG(INFO) << "[subpool " << oldPool.name_
+                << "] coinbase updated, coinbaseInfo: " << oldPool.coinbaseInfo_
+                << " -> " << coinbaseInfo << ", payoutAddr: "
+                << BitcoinUtils::EncodeDestination(oldPool.payoutAddr_)
+                << " -> " << payoutAddrStr;
+
+      auto payoutAddr = BitcoinUtils::DecodeDestination(payoutAddrStr);
+      {
+        ScopeLock sl(subPoolLock_);
+        auto &pool = defWithoutConst()->subPool_[index];
+        pool.coinbaseInfo_ = coinbaseInfo;
+        pool.payoutAddr_ = payoutAddr;
+      }
+
+      sendResponse(true, errMsg);
       return true;
     }
 
