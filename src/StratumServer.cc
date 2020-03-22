@@ -1065,7 +1065,8 @@ void StratumServer::dispatchToShareWorker(std::function<void()> work) {
 size_t StratumServer::switchChain(string userName, size_t newChainId) {
   size_t onlineSessions = 0;
   for (auto &itr : connections_) {
-    if (itr->getUserName() == userName) {
+    if (itr->getState() == StratumSession::AUTHENTICATED &&
+        itr->getUserName() == userName) {
       onlineSessions++;
       if (itr->getChainId() != newChainId) {
         itr->switchChain(newChainId);
@@ -1078,7 +1079,8 @@ size_t StratumServer::switchChain(string userName, size_t newChainId) {
 size_t StratumServer::autoSwitchChain(size_t newChainId) {
   size_t switchedSessions = 0;
   for (auto &itr : connections_) {
-    if (userInfo_->userAutoSwitchChainEnabled(itr->getUserName()) &&
+    if (itr->getState() == StratumSession::AUTHENTICATED &&
+        userInfo_->userAutoSwitchChainEnabled(itr->getUserName()) &&
         itr->getChainId() != newChainId) {
       switchedSessions++;
       itr->switchChain(newChainId);
