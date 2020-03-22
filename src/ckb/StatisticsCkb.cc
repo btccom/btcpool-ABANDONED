@@ -33,10 +33,12 @@ double ShareStatsDay<ShareCkb>::getShareReward(const ShareCkb &share) {
   // if share's height existed in map ,return directly.
   if (height2reword.find(share.height()) != height2reword.end()) {
     std::map<uint64_t, double>::iterator iter;
-    for (iter = height2reword.begin();
-         iter != height2reword.end() && iter->first < share.height();
-         iter++) {
-      iter = height2reword.erase(iter);
+    for (iter = height2reword.begin(); iter != height2reword.end();) {
+      if (iter->first < share.height()) {
+        iter = height2reword.erase(iter);
+      } else {
+        iter++;
+      }
     }
     return height2reword[share.height()];
   }
