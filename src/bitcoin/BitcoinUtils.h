@@ -106,6 +106,9 @@ inline bool IsValidDestinationString(const std::string &addr) {
 inline CTxDestination DecodeDestination(const std::string &str) {
   return ::DecodeDestination(str);
 }
+inline std::string EncodeDestination(const CTxDestination &dest) {
+  return ::EncodeDestination(dest);
+}
 } // namespace BitcoinUtils
 
 #endif

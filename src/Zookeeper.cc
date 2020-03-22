@@ -602,6 +602,10 @@ string Zookeeper::getValue(const string &nodePath, size_t sizeLimit) {
         " failed:" + zerror(stat));
   }
 
+  // size may be -1 if the node has no value
+  if (size < 0) {
+    size = 0;
+  }
   data.resize(size);
   return data;
 }
@@ -622,6 +626,10 @@ bool Zookeeper::getValueW(
     return false;
   }
 
+  // size may be -1 if the node has no value
+  if (size < 0) {
+    size = 0;
+  }
   value.resize(size);
   return true;
 }
@@ -757,6 +765,16 @@ void Zookeeper::createNodesRecursively(const string &nodePath) {
     throw ZookeeperException(
         string("Zookeeper::createNodesRecursively: cannot create node ") +
         nodePath);
+  }
+}
+
+void Zookeeper::setNode(const string &nodePath, const string &value) {
+  int stat = zoo_set(zh_, nodePath.c_str(), value.data(), value.size(), -1);
+
+  if (stat != ZOK) {
+    throw ZookeeperException(
+        string("Zookeeper::setNode: set node ") + nodePath +
+        " failed: " + zerror(stat));
   }
 }
 

@@ -338,6 +338,7 @@ public:
 class SubPoolInfo {
 public:
   string name_;
+  string zkUpdatePath_;
   string coinbaseInfo_;
   CTxDestination payoutAddr_;
 };

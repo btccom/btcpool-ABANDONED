@@ -24,6 +24,12 @@
 #include "JobMaker.h"
 #include "Utils.h"
 
+///////////////////////////////////  JobMakerHandler
+////////////////////////////////////
+void JobMakerHandler::setParent(shared_ptr<JobMaker> jobmaker) {
+  jobmaker_ = jobmaker;
+}
+
 ///////////////////////////////////  JobMaker  /////////////////////////////////
 JobMaker::JobMaker(
     shared_ptr<JobMakerHandler> handler,
@@ -65,6 +71,12 @@ bool JobMaker::setupKafkaProducer() {
   return true;
 }
 
+void JobMaker::initZk() {
+  if (zk_ == nullptr) {
+    zk_ = std::make_shared<Zookeeper>(zkBrokers_);
+  }
+}
+
 bool JobMaker::init() {
   if (handler_->def()->serverId_ == 0) {
     // assign id from zookeeper
@@ -73,8 +85,7 @@ bool JobMaker::init() {
         LOG(ERROR) << "zookeeper lock path is empty!";
         return false;
       }
-
-      zk_ = std::make_shared<Zookeeper>(zkBrokers_);
+      initZk();
       handler_->setServerId(
           zk_->getUniqIdUint8(handler_->def()->zookeeperLockPath_));
 

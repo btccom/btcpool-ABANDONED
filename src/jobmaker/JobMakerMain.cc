@@ -173,6 +173,11 @@ createGbtJobMakerDefinition(const Setting &setting) {
     subpool.lookupValue("enabled", subPoolEnabled);
 
     if (subPoolEnabled) {
+      subpool.lookupValue("coinbase_info_max_len", def->subPoolCoinbaseMaxLen_);
+      if (def->subPoolCoinbaseMaxLen_ < 1) {
+        def->subPoolCoinbaseMaxLen_ = 30;
+      }
+
       // select chain
       if (def->testnet_) {
         SelectParams(CBaseChainParams::TESTNET);
@@ -186,6 +191,9 @@ createGbtJobMakerDefinition(const Setting &setting) {
         const auto &pool = pools[i];
 
         SubPoolInfo info;
+
+        pool.lookupValue("zk_update_path", info.zkUpdatePath_); // optional
+
         info.name_ = pool.lookup("name").operator string();
         info.coinbaseInfo_ = pool.lookup("coinbase_info").operator string();
 
@@ -286,8 +294,10 @@ void createJobMakers(
                 << ", enabled.";
 
       auto handle = createGbtJobMakerHandler(def);
-      makers.push_back(
-          std::make_shared<JobMaker>(handle, kafkaBrokers, zkBrokers));
+      auto jobmaker =
+          std::make_shared<JobMaker>(handle, kafkaBrokers, zkBrokers);
+      handle->setParent(jobmaker);
+      makers.push_back(jobmaker);
     }
   }
 }

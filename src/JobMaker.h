@@ -38,6 +38,7 @@ using std::vector;
 using std::shared_ptr;
 
 class SubPoolInfo;
+class JobMaker;
 
 // Consume a kafka message and decide whether to generate a new job.
 // Params:
@@ -77,6 +78,7 @@ struct GwJobMakerDefinition : public JobMakerDefinition {
 class JobMakerHandler {
 public:
   virtual ~JobMakerHandler() {}
+  void setParent(shared_ptr<JobMaker> jobmaker);
 
   virtual bool init(shared_ptr<JobMakerDefinition> def) {
     def_ = def;
@@ -101,6 +103,7 @@ public:
   void setServerId(uint8_t id);
 
 protected:
+  shared_ptr<JobMaker> jobmaker_;
   shared_ptr<JobMakerDefinition> def_;
   unique_ptr<IdGenerator> gen_;
 };
@@ -154,9 +157,13 @@ public:
       const string &zookeeperBrokers);
   virtual ~JobMaker();
 
+  void initZk();
   bool init();
   void stop();
   void run();
+
+  inline bool running() { return running_; }
+  inline shared_ptr<Zookeeper> zk() { return zk_; }
 
 private:
   bool setupKafkaProducer();

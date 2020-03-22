@@ -67,6 +67,7 @@ struct GbtJobMakerDefinition : public JobMakerDefinition {
   uint32_t vcashmergedMiningNotifyPolicy_;
 
   vector<SubPoolInfo> subPool_;
+  int subPoolCoinbaseMaxLen_ = 30;
 };
 
 class JobMakerHandlerBitcoin : public JobMakerHandler {
@@ -94,6 +95,10 @@ class JobMakerHandlerBitcoin : public JobMakerHandler {
   VcashWork *currentVcashWork_;
   // bool isVcashMergedMiningUpdate_; // a flag to mark Vcash has an update
 
+  const size_t SUBPOOL_JSON_MAX_SIZE = 8192;
+  std::mutex subPoolLock_;
+  std::thread updateSubPoolAddrThread_;
+
   bool addRawGbt(const string &msg);
   void clearTimeoutGbt();
   bool isReachTimeout();
@@ -114,6 +119,12 @@ class JobMakerHandlerBitcoin : public JobMakerHandler {
   inline uint32_t gbtKeyGetHeight(uint64_t gbtKey);
   inline bool gbtKeyIsEmptyBlock(uint64_t gbtKey);
 
+  bool updateSubPoolAddr(size_t index);
+  void checkSubPoolAddr();
+  void watchSubPoolAddr(const string &path);
+  static void handleSubPoolUpdateEvent(
+      zhandle_t *zh, int type, int state, const char *path, void *pThis);
+
 public:
   JobMakerHandlerBitcoin();
   virtual ~JobMakerHandlerBitcoin() {}
@@ -133,6 +144,10 @@ public:
   // read-only definition
   inline shared_ptr<const GbtJobMakerDefinition> def() {
     return std::dynamic_pointer_cast<const GbtJobMakerDefinition>(def_);
+  }
+
+  inline shared_ptr<GbtJobMakerDefinition> defWithoutConst() {
+    return std::dynamic_pointer_cast<GbtJobMakerDefinition>(def_);
   }
 };
 

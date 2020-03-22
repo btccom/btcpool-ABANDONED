@@ -201,6 +201,7 @@ public:
       const string &nodePath, string &nodePathWithSeq, const string &value);
   void createEphemeralNode(const string &nodePath, const string &value);
   void createNodesRecursively(const string &nodePath);
+  void setNode(const string &nodePath, const string &value);
   void deleteNode(const string &nodePath);
 
   bool removeLock(shared_ptr<ZookeeperLock> lock);
