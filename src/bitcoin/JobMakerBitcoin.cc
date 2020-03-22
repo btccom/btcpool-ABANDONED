@@ -652,13 +652,6 @@ bool JobMakerHandlerBitcoin::updateSubPoolAddr(size_t index) {
             SUBPOOL_JSON_MAX_SIZE,
             handleSubPoolUpdateEvent,
             this)) {
-
-      if (str.empty()) {
-        return false;
-      }
-
-      auto json = JSON::parse(str);
-
       JSON response = {
           {"created_at", date("%F %T")},
           {"host",
@@ -666,47 +659,52 @@ bool JobMakerHandlerBitcoin::updateSubPoolAddr(size_t index) {
                {"hostname", IpAddress::getHostName()},
                {"ip", IpAddress::getInterfaceAddrs()},
            }},
-          {"name", oldPool.name_},
+          {"subpool_name", oldPool.name_},
           {"old",
            {
-               {"coinbaseInfo", oldPool.coinbaseInfo_},
-               {"payoutAddr",
+               {"coinbase_info", oldPool.coinbaseInfo_},
+               {"payout_addr",
                 BitcoinUtils::EncodeDestination(oldPool.payoutAddr_)},
            }},
-          {"new", json},
       };
 
-      auto sendResponse =
-          [this, &response, &oldPool](bool success, const string &errMsg) {
-            response["success"] = success;
-            response["err_msg"] = errMsg;
-
-            jobmaker_->zk()->setNode(
-                oldPool.zkUpdatePath_ + "/ack", response.dump());
-          };
-
       string errMsg = "success";
+      auto sendResponse = [this, &response, &oldPool, &errMsg](bool success) {
+        response["success"] = success;
+        response["err_msg"] = errMsg;
 
-      if (!json.is_object() || !json["coinbaseInfo"].is_string() ||
-          !json["payoutAddr"].is_string()) {
+        jobmaker_->zk()->setNode(
+            oldPool.zkUpdatePath_ + "/ack", response.dump());
+      };
+
+      if (str.empty()) {
+        errMsg = "empty request";
+        sendResponse(false);
+        return false;
+      }
+
+      auto json = JSON::parse(str);
+
+      if (!json.is_object() || !json["coinbase_info"].is_string() ||
+          !json["payout_addr"].is_string()) {
         errMsg = "field missing or wrong field type";
         LOG(ERROR) << "JobMakerHandlerBitcoin::updateSubPoolAddr(): "
                    << "[subpool " << oldPool.name_ << "] " << errMsg
                    << ", raw json: " << str;
 
-        sendResponse(false, errMsg);
+        sendResponse(false);
         return false;
       }
 
-      string payoutAddrStr = json["payoutAddr"].get<string>();
-      string coinbaseInfo = json["coinbaseInfo"].get<string>();
+      string payoutAddrStr = json["payout_addr"].get<string>();
+      string coinbaseInfo = json["coinbase_info"].get<string>();
 
       if (!BitcoinUtils::IsValidDestinationString(payoutAddrStr)) {
         errMsg = "invalid payout address";
         LOG(ERROR) << "[subpool " << oldPool.name_ << "] update failed, "
                    << errMsg << ": " << payoutAddrStr << ", raw json: " << str;
 
-        sendResponse(false, errMsg);
+        sendResponse(false);
         return false;
       }
 
@@ -730,7 +728,11 @@ bool JobMakerHandlerBitcoin::updateSubPoolAddr(size_t index) {
         pool.payoutAddr_ = payoutAddr;
       }
 
-      sendResponse(true, errMsg);
+      response["new"] = {
+          {"coinbase_info", coinbaseInfo},
+          {"payout_addr", BitcoinUtils::EncodeDestination(payoutAddr)},
+      };
+      sendResponse(true);
       return true;
     }
 
@@ -784,16 +786,16 @@ void JobMakerHandlerBitcoin::checkSubPoolAddr() {
         auto json = JSON::parse(str);
         bool updated = false;
 
-        if (!json.is_object() || !json["coinbaseInfo"].is_string() ||
-            !json["payoutAddr"].is_string()) {
+        if (!json.is_object() || !json["coinbase_info"].is_string() ||
+            !json["payout_addr"].is_string()) {
           LOG(ERROR) << "JobMakerHandlerBitcoin::checkSubPoolAddr(): "
                      << "[subpool " << itr.name_
                      << "] wrong field type, raw json: " << str;
           return false;
         }
 
-        string payoutAddrStr = json["payoutAddr"].get<string>();
-        string coinbaseInfo = json["coinbaseInfo"].get<string>();
+        string payoutAddrStr = json["payout_addr"].get<string>();
+        string coinbaseInfo = json["coinbase_info"].get<string>();
 
         if (coinbaseInfo.size() > (size_t)def()->subPoolCoinbaseMaxLen_) {
           coinbaseInfo.resize(def()->subPoolCoinbaseMaxLen_);
@@ -811,7 +813,7 @@ void JobMakerHandlerBitcoin::checkSubPoolAddr() {
         if (payoutAddr != itr.payoutAddr_) {
           updated = true;
           LOG(INFO) << "[subpool " << itr.name_
-                    << "] payout address updated, old: "
+                    << "] payout address changed, old: "
                     << BitcoinUtils::EncodeDestination(itr.payoutAddr_)
                     << ", new: " << payoutAddrStr;
         }
@@ -819,26 +821,45 @@ void JobMakerHandlerBitcoin::checkSubPoolAddr() {
         if (coinbaseInfo != itr.coinbaseInfo_) {
           updated = true;
           LOG(INFO) << "[subpool " << itr.name_
-                    << "] coinbase info updated, old: " << itr.coinbaseInfo_
+                    << "] coinbase info changed, old: " << itr.coinbaseInfo_
                     << ", new: " << coinbaseInfo;
         }
 
         return updated;
-      } /*catch (const std::exception &ex) {
+      } catch (const std::exception &ex) {
         LOG(ERROR) << "JobMakerHandlerBitcoin::checkSubPoolAddr(): "
                    << ex.what();
       } catch (...) {
         LOG(ERROR) << "JobMakerHandlerBitcoin::checkSubPoolAddr(): unknown "
                       "exception";
-      }*/
-      catch (string) {
       }
       return false;
     };
 
-    bool init = true;
+    auto sleepTime = 300s;
+
+    // init
+    {
+      vector<SubPoolInfo> subpool;
+      {
+        ScopeLock sl(subPoolLock_);
+        subpool = def()->subPool_;
+      }
+
+      for (size_t i = 0; i < subpool.size(); i++) {
+        auto itr = subpool[i];
+        if (!itr.zkUpdatePath_.empty()) {
+          if (!updateSubPoolAddr(i)) {
+            watchSubPoolAddr(itr.zkUpdatePath_);
+            sleepTime = 30s;
+          }
+        }
+      }
+    }
+
     while (jobmaker_->running()) {
-      auto sleepTime = 300s;
+      std::this_thread::sleep_for(sleepTime);
+      sleepTime = 300s;
 
       vector<SubPoolInfo> subpool;
       {
@@ -853,14 +874,8 @@ void JobMakerHandlerBitcoin::checkSubPoolAddr() {
             watchSubPoolAddr(itr.zkUpdatePath_);
             sleepTime = 30s;
           }
-        } else if (init) {
-          watchSubPoolAddr(itr.zkUpdatePath_);
-          sleepTime = 30s;
         }
       }
-
-      init = false;
-      std::this_thread::sleep_for(sleepTime);
     }
   });
 }
