@@ -84,8 +84,7 @@ public:
       const uint32_t versionMask,
       const uint256 &jobTarget,
       const string &workFullName,
-      std::function<void(int32_t status, uint32_t bitsReached)> returnFn,
-      string *userCoinbaseInfo = nullptr);
+      std::function<void(int32_t status, uint32_t bitsReached)> returnFn);
 
 protected:
   JobRepository *createJobRepository(
@@ -117,8 +116,7 @@ class StratumJobExBitcoin : public StratumJobEx {
   void generateCoinbaseTx(
       std::vector<char> *coinbaseBin,
       const uint32_t extraNonce1,
-      const string &extraNonce2Hex,
-      string *userCoinbaseInfo = nullptr);
+      const string &extraNonce2Hex);
 
 public:
   string miningNotify1_;
@@ -145,8 +143,7 @@ public:
       const int32_t nVersion,
       const uint32_t nTime,
       const BitcoinNonceType nonce,
-      const uint32_t versionMask,
-      string *userCoinbaseInfo = nullptr);
+      const uint32_t versionMask);
   void init(uint32_t extraNonce2Size);
 };
 

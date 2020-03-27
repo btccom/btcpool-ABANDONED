@@ -274,8 +274,7 @@ void StratumJobExBitcoin::init(uint32_t extraNonce2Size) {
 void StratumJobExBitcoin::generateCoinbaseTx(
     std::vector<char> *coinbaseBin,
     const uint32_t extraNonce1,
-    const string &extraNonce2Hex,
-    string *userCoinbaseInfo) {
+    const string &extraNonce2Hex) {
   string coinbaseHex;
   const string extraNonceStr =
       Strings::Format("%08x%s", extraNonce1, extraNonce2Hex);
@@ -301,8 +300,7 @@ void StratumJobExBitcoin::generateBlockHeader(
     const int32_t nVersion,
     const uint32_t nTime,
     const BitcoinNonceType nonce,
-    const uint32_t versionMask,
-    string *userCoinbaseInfo) {
+    const uint32_t versionMask) {
 
   header->hashPrevBlock = hashPrevBlock;
   header->nVersion = (nVersion ^ versionMask);
@@ -325,8 +323,7 @@ void StratumJobExBitcoin::generateBlockHeader(
   header->nNonce = nonce;
 
   // compute merkle root
-  generateCoinbaseTx(
-      coinbaseBin, extraNonce1, extraNonce2Hex, userCoinbaseInfo);
+  generateCoinbaseTx(coinbaseBin, extraNonce1, extraNonce2Hex);
   header->hashMerkleRoot =
       ComputeCoinbaseMerkleRoot(*coinbaseBin, merkleBranch);
 #endif
@@ -494,8 +491,7 @@ void ServerBitcoin::checkShare(
     const uint32_t versionMask,
     const uint256 &jobTarget,
     const string &workFullName,
-    std::function<void(int32_t status, uint32_t bitsReached)> returnFn,
-    string *userCoinbaseInfo) {
+    std::function<void(int32_t status, uint32_t bitsReached)> returnFn) {
 
   auto exJobPtr = std::static_pointer_cast<StratumJobExBitcoin>(
       GetJobRepository(chainId)->getStratumJobEx(share.jobid()));
@@ -538,8 +534,7 @@ void ServerBitcoin::checkShare(
       sjob->nVersion_,
       nTime,
       nonce,
-      versionMask,
-      userCoinbaseInfo);
+      versionMask);
 
   dispatchToShareWorker([this,
                          chainId,
