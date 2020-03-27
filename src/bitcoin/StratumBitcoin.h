@@ -311,7 +311,6 @@ public:
       set_blkbits(share->blkBits_);
 
       // There is no height in ShareBitcoinBytesV1, so it can only be assumed.
-      // Note: BTCPool's SBTC support is outdated, so SBTC is not considered.
 
 #ifdef CHAIN_TYPE_UBTC
       // UBTC's height and block rewards differ greatly from other SHA256

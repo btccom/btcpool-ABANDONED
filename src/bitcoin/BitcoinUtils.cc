@@ -321,7 +321,7 @@ int64_t GetBlockReward(int nHeight, const Consensus::Params &consensusParams) {
 
 #else
 
-/////////////////////// Block Reward of BTC, BCH, SBTC ///////////////////////
+/////////////////////// Block Reward of BTC, BCH ///////////////////////
 int64_t GetBlockReward(int nHeight, const Consensus::Params &consensusParams) {
   int halvings = nHeight / consensusParams.nSubsidyHalvingInterval;
   // Force block reward to zero when right shift is undefined.
@@ -339,20 +339,6 @@ int64_t GetBlockReward(int nHeight, const Consensus::Params &consensusParams) {
 }
 
 #endif
-
-#ifdef CHAIN_TYPE_SBTC
-namespace BitcoinUtils {
-CTxDestination DecodeDestination(const std::string &str) {
-  CBitcoinAddress addr(str);
-  return addr.Get();
-}
-
-bool IsValidDestinationString(const std::string &str) {
-  CBitcoinAddress addr(str);
-  return addr.IsValid();
-}
-} // namespace BitcoinUtils
-#endif // CHAIN_TYPE_SBTC
 
 #ifdef CHAIN_TYPE_ZEC
 int32_t getSolutionVintSize() {

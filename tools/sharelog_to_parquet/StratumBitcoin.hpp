@@ -189,7 +189,6 @@ public:
       set_blkbits(share->blkBits_);
 
       // There is no height in ShareBitcoinBytesV1, so it can only be assumed.
-      // Note: BTCPool's SBTC support is outdated, so SBTC is not considered.
 
       // The block reward should be 12.5 on this height
       set_height(570000);

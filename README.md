@@ -15,7 +15,6 @@ The pool backend support these blockchains at current:
    * [Bitcoin](https://bitcoin.org/)
    * [BitcoinCash](https://bitcoincash.org/)
    * [UnitedBitcoin](https://ub.com/)
-   * ~~[SuperBitcoin](http://supersmartbitcoin.com/)~~ (outdated and unmaintained)
 * Scrypt
    * [Litecoin](https://litecoin.org/)
 * ETHash / Daggerhashimoto

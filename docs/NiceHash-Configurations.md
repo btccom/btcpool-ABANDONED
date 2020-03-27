@@ -29,7 +29,7 @@ The configurations needs to be adjusted on per algorithm basis.
 * `forced` If this value is set to `false` (by default), sserver will try to detect NiceHash automatically by checking the user agent sent by client. If it is set to `true`, sserver considers all connections are from NiceHash. This is useful when the stratum protocol of a coin does not have user agent, e. g. BEAM.
 * `min_difficulty` This is the fallback minimal difficulty value in hex. It will be used when ZooKeeper is not available.
 * `min_difficulty_zookeeper_path` This is the ZooKeeper path sserver reads NiceHash minimal difficulty from. `<algorithm>` should be replaced by the proper values. If `initNiceHash` is used to populate ZooKeeper nodes, they shall be of the following values.
-  * `sha256` for BTC/BCH/UBTC/SBTC
+  * `sha256` for BTC/BCH/UBTC
   * `daggerhashimoto` for ETH/ETC
   * `decred` for DCR
   * `beam` for BEAM

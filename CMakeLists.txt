@@ -58,7 +58,7 @@ endif()
 #
 # Chain Type
 #
-set(SUPPORTED_CHAIN_TYPES "BTC|BCH|BSV|UBTC|SBTC|LTC|ZEC")
+set(SUPPORTED_CHAIN_TYPES "BTC|BCH|BSV|UBTC|LTC|ZEC")
 if(NOT CHAIN_TYPE)
   message(FATAL_ERROR "Chain type not defined! (-DCHAIN_TYPE=${SUPPORTED_CHAIN_TYPES})")
 endif()
@@ -90,12 +90,6 @@ elseif(CHAIN_TYPE STREQUAL "UBTC")
   set(CHAIN_NAME "United Bitcoin")
   set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-unitedbitcoin")
   set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.ubtc")
-
-# SuperBitcoin
-elseif(CHAIN_TYPE STREQUAL "SBTC")
-  set(CHAIN_NAME "Super Bitcoin")
-  set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-superbitcoin")
-  set(POOL__DEFAULT_INSTALL_PREFIX "/work/btcpool.sbtc")
 
 # Litecoin
 elseif(CHAIN_TYPE STREQUAL "LTC")

@@ -80,17 +80,9 @@ inline bool IsValidDestinationString(const std::string &addr) {
 inline CTxDestination DecodeDestination(const std::string &str) {
   return ::DecodeDestination(str, Params());
 }
-} // namespace BitcoinUtils
-
-#elif defined(CHAIN_TYPE_SBTC)
-
-#define AMOUNT_TYPE CAmount
-#define COIN_TO_SATOSHIS COIN
-#define AMOUNT_SATOSHIS(amt) amt
-
-namespace BitcoinUtils {
-CTxDestination DecodeDestination(const std::string &str);
-bool IsValidDestinationString(const std::string &str);
+inline std::string EncodeDestination(const CTxDestination &dest) {
+  return ::EncodeDestination(dest);
+}
 } // namespace BitcoinUtils
 
 #else

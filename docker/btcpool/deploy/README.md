@@ -48,9 +48,6 @@ See [here](../base-image/).
 # UBTC
 ./build.sh -t btccom/btcpool-ubtc -b btccom/btcpool_build:ubtc-2.5.0.1-1 -j$(nproc)
 
-# SBTC (outdated)
-./build.sh -t btccom/btcpool-sbtc -b btccom/btcpool_build:sbtc-0.16.2 -j$(nproc)
-
 # LTC
 ./build.sh -t btccom/btcpool-ltc -b btccom/btcpool_build:ltc-0.16.3 -j$(nproc)
 
@@ -74,9 +71,6 @@ docker build -t btccom/btcpool-bsv -f Dockerfile --build-arg BASE_IMAGE=btccom/b
 
 # UBTC
 docker build -t btccom/btcpool-ubtc -f Dockerfile --build-arg BASE_IMAGE=btccom/btcpool_build:ubtc-2.5.0.1-1 --build-arg BUILD_JOBS=$(nproc) --build-arg GIT_DESCRIBE=$(git describe --tag --long) ../../..
-
-# SBTC (outdated)
-docker build -t btccom/btcpool-sbtc -f Dockerfile --build-arg BASE_IMAGE=btccom/btcpool_build:sbtc-0.16.2 --build-arg BUILD_JOBS=$(nproc) --build-arg GIT_DESCRIBE=$(git describe --tag --long) ../../..
 
 # LTC
 docker build -t btccom/btcpool-ltc -f Dockerfile --build-arg BASE_IMAGE=btccom/btcpool_build:ltc-0.16.3 --build-arg BUILD_JOBS=$(nproc) --build-arg GIT_DESCRIBE=$(git describe --tag --long) ../../..
@@ -102,9 +96,6 @@ docker run -it --rm btccom/btcpool-bsv unittest
 
 # UBTC
 docker run -it --rm btccom/btcpool-ubtc unittest
-
-# SBTC (outdated)
-docker run -it --rm btccom/btcpool-sbtc unittest
 
 # LTC
 docker run -it --rm btccom/btcpool-ltc unittest
