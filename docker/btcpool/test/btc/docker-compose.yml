@@ -17,6 +17,9 @@ services:
       context: ../mysql
     environment:
       MYSQL_ROOT_PASSWORD: root
+    command: --max-allowed-packet=67108864
+    ports:
+        - 53306:3306
 
   bitcoind:
     build:
