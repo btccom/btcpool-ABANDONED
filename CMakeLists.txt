@@ -33,7 +33,7 @@ ELSE()
 ENDIF()
 
 # set C++ standard
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 14)
 # stop building after the first error
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wdelete-non-virtual-dtor -Wfatal-errors")
 
@@ -180,6 +180,27 @@ if(POOL__WORK_WITH_STRATUM_SWITCHER)
   set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-withswitcher")
 else()
   message("-- Work with Stratum Switcher: Disabled (-DPOOL__WORK_WITH_STRATUM_SWITCHER=OFF)")
+endif()
+
+
+###
+# user defined coinbase info
+###
+option(POOL__USER_DEFINED_COINBASE "User Defined Coinbase" OFF)
+
+# the size of user defined coinbase, default is 10 bytes
+if (NOT POOL__USER_DEFINED_COINBASE_SIZE)
+  set(POOL__USER_DEFINED_COINBASE_SIZE 10)
+endif()
+
+if (POOL__USER_DEFINED_COINBASE)
+  message("-- User Defined Coinbase: Enabled (-DPOOL__USER_DEFINED_COINBASE=ON)")
+  message("-- The Size of User Defined Coinbase: ${POOL__USER_DEFINED_COINBASE_SIZE} Bytes (-DPOOL__USER_DEFINED_COINBASE_SIZE=${POOL__USER_DEFINED_COINBASE_SIZE})")
+  add_definitions(-DUSER_DEFINED_COINBASE)
+  add_definitions(-DUSER_DEFINED_COINBASE_SIZE=${POOL__USER_DEFINED_COINBASE_SIZE})
+  set(POOL__DEB_PACKNAME_POSTFIX "${POOL__DEB_PACKNAME_POSTFIX}-usercoinbase${POOL__USER_DEFINED_COINBASE_SIZE}")
+else()
+  message("-- User Defined Coinbase: Disabled (-DPOOL__USER_DEFINED_COINBASE=OFF)")
 endif()
 
 
@@ -474,16 +495,8 @@ target_include_directories(beam PUBLIC 3rdparty/beam)
 add_library(cuckoo
   3rdparty/cuckoo/cuckaroo.cpp
   3rdparty/cuckoo/cuckarood.cpp
-  3rdparty/cuckoo/cuckaroom.cpp
   3rdparty/cuckoo/cuckatoo.cpp
   3rdparty/cuckoo/siphash.cpp)
-
-add_library(eaglesong
-  3rdparty/eaglesong/eaglesong.cc)
-
-add_library(hextodec
-  3rdparty/hextodec/hextodec.cc)
-
 
 file(GLOB LIB_SOURCES
         src/*.cc
@@ -491,9 +504,14 @@ file(GLOB LIB_SOURCES
         src/vcash/*.cc
         src/ssl/*.cc
     )
-    
+
+add_library(eaglesong
+  3rdparty/eaglesong/eaglesong.cc)
+
+add_library(hextodec
+  3rdparty/hextodec/hextodec.cc)
+
 file(GLOB LIB_SOURCES_CHAINS
-        src/ckb/*.cc
         src/eth/*.cc
         src/bytom/*.cc 
         src/bitcoin/*.cc 
@@ -501,6 +519,7 @@ file(GLOB LIB_SOURCES_CHAINS
         src/decred/*.cc
         src/beam/*.cc
         src/grin/*.cc
+        src/ckb/*.cc
     )
 
 set(LIB_SOURCES_SHARES)
