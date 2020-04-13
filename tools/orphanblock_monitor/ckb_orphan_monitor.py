@@ -5,6 +5,7 @@ import json
 import MySQLdb
 import logging
 import time
+import sys, getopt
 from configparser import ConfigParser
 
 class RewardUpdate:
@@ -15,7 +16,6 @@ class RewardUpdate:
         self._path = path
         self.config = ConfigParser()
         self.config.read(path, encoding='UTF-8')
-        self.lastheight = 0
         handler = logging.FileHandler(self.config["LOG"]["path"])
         handler.setLevel(logging.INFO)
         logging.basicConfig(level = logging.INFO,format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -24,6 +24,7 @@ class RewardUpdate:
         console.setLevel(logging.INFO)
         self.logger.addHandler(handler)
         self.logger.addHandler(console)
+        self.lastheight = int(self.config["PARAMS"]["lastupdatedheight"])
 
     def create_mysql_handle(self):
         try:
@@ -61,6 +62,8 @@ class RewardUpdate:
             self.logger.warning("execute sql error %s  " % (err))
         if len(heights) > 0:
             self.lastheight = heights[-1]
+            self.config.set('PARAMS', 'lastupdatedheight', str(self.lastheight))
+            self.config.write(open(self._path, 'w'))
         self.logger.info("current mysql hight : %d  " % (self.lastheight))
         self.cursor.close() 
         return heights, height2hash
@@ -129,11 +132,24 @@ class RewardUpdate:
                 else:
                     is_orphaned = (height2hash[height] != curblockhash)
                     self.update_reward(height, reward, is_orphaned)
-                self.logger.info("update height: %d reeward : %d hash : %s  " % (height, reward, blockhash))
+                    self.logger.info("update height: %d reeward : %d hash : %s  " % (height, reward, blockhash))
             time.sleep(5)
 
 
 if __name__ == "__main__":
-    handle = RewardUpdate("./updatereward.config")
-    handle.run()
-
+    try:
+        opts, args = getopt.getopt(sys.argv[1:],'-h-c:-v',['help','configure=','version'])
+        for opt, opt_value in opts:
+            if opt == '-h':
+                print ('python orphan_monitor.py -c <configure>')
+                sys.exit()
+            elif opt in ("-c", "--configure"):
+                configurefilepath = opt_value
+                handle = RewardUpdate(configurefilepath)
+                handle.run()
+            elif opt in ("-v", "--version"):
+                print("[*] Version is 0.01 ")
+                sys.exit()
+    except getopt.GetoptError:
+        print('python ae_orphan_monitor.py -c <configure>')
+        sys.exit(2)

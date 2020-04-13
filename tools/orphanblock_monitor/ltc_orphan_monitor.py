@@ -16,7 +16,6 @@ class OrphanMontor:
         self._path = path
         self.config = ConfigParser()
         self.config.read(path, encoding='UTF-8')
-        self.lastheight = 0
         handler = logging.FileHandler(self.config["LOG"]["path"])
         handler.setLevel(logging.INFO)
         logging.basicConfig(level = logging.INFO,format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -25,6 +24,7 @@ class OrphanMontor:
         console.setLevel(logging.INFO)
         self.logger.addHandler(handler)
         self.logger.addHandler(console)
+        self.lastheight = int(self.config["PARAMS"]["lastupdatedheight"]
 
     def create_mysql_handle(self):
         try:
@@ -61,7 +61,9 @@ class OrphanMontor:
             self.logger.warning("execute sql error %s  " % (err))
         if len(heights) > 0:
             self.lastheight = heights[-1]
-        self.logger.info("current mysql hight : %d  " % (self.lastheight))
+            self.config.set('PARAMS', 'lastupdatedheight', str(self.lastheight))
+            self.config.write(open(self._path, 'w'))
+        self.logger.info("current mined hight : %d  " % (self.lastheight))
         self.cursor.close() 
         return heights, height2hash
 
@@ -115,7 +117,7 @@ class OrphanMontor:
                 if height2hash[height] != curblockhash :
                     is_orphaned = height2hash[height] != curblockhash
                     self.update_orphan(height, is_orphaned)
-                    self.logger.info("update height: %d hash : %s minedhash : %s" % (height, blockhash, height2hash[height]))
+                    self.logger.info("update height: %d hash : %s minedhash : %s" % (height, curblockhash, height2hash[height]))
             time.sleep(5)
 
 if __name__ == "__main__":
