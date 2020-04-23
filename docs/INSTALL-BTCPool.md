@@ -3,6 +3,7 @@ Install BTC.COM Pool
 
 **Supported OS**
 * `Ubuntu 18.04 LTS, 64 Bits`
+* `Docker` (any OS, Linux container)
 
 **BTCPool has a known compatibility issue with 32-bit operating systems. https://github.com/btccom/btcpool/issues/38**
 
