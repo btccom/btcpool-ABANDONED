@@ -1,1 +1,4 @@
-../../common/testcase/0005-unittest
+#!/bin/bash
+set -e
+
+docker run --rm btccom/btcpool-${TEST_SUITE} unittest

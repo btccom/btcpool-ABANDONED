@@ -493,7 +493,7 @@ void ServerEth::checkShareAndUpdateDiff(
     Uint256ToEthash256(sjob->networkTarget_, ethashTarget);
     if (ethash_quick_check_difficulty(
             &ethashHeader, nonce, &ethashMixHash, &ethashTarget)) {
-      LOG(INFO) << "preliminary solution found, header hash: "
+      LOG(INFO) << "[" << chainName(chainId) << "] preliminary solution found, header hash: "
                 << header.GetHex() << ", nonce: " << nonce
                 << ", mix digest: " << mixHash->GetHex()
                 << ", network target: " << sjob->networkTarget_.GetHex()
@@ -598,7 +598,7 @@ void ServerEth::checkShareAndUpdateDiff(
     }
 
     if (isSubmitInvalidBlock_ || bnShareTarget <= bnNetworkTarget) {
-      LOG(INFO) << "solution found, share target: " << shareTarget.GetHex()
+      LOG(INFO) << "[" << chainName(chainId) << "] solution found, share target: " << shareTarget.GetHex()
                 << ", network target: " << sjob->networkTarget_.GetHex()
                 << ", worker: " << workFullName;
 

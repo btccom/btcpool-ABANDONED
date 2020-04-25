@@ -623,7 +623,7 @@ void ServerBitcoin::checkShare(
       sendSolvedShare2Kafka(chainId, &foundBlock, coinbaseBin);
 
       if (sjob->proxyJobDifficulty_ > 0) {
-        LOG(INFO) << ">>>> solution found: " << blkHash.ToString()
+        LOG(INFO) << ">>>> [" << chainName(chainId) << "] solution found: " << blkHash.ToString()
                   << ", jobId: " << share.jobid()
                   << ", userId: " << share.userid() << ", by: " << workFullName
                   << " <<<<";
@@ -633,7 +633,7 @@ void ServerBitcoin::checkShare(
           GetJobRepository(chainId)->markAllJobsAsStale(height);
         });
 
-        LOG(INFO) << ">>>> found a new block: " << blkHash.ToString()
+        LOG(INFO) << ">>>> [" << chainName(chainId) << "] found a new block: " << blkHash.ToString()
                   << ", jobId: " << share.jobid()
                   << ", userId: " << share.userid() << ", by: " << workFullName
                   << " <<<<";
