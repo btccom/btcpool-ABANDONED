@@ -64,6 +64,8 @@ protected:
   time_t lastJobTime_ = 0;
   size_t lastJobClient_ = 0;
 
+  bool grandPoolEnabled_ = false;
+
   PoolWatchClient *
   createPoolWatchClient(const libconfig::Setting &config) override;
   bool initInternal() override;
@@ -79,6 +81,7 @@ public:
       const string upstreamJobId,
       const StratumJobBitcoin &job,
       PoolWatchClientBitcoinProxy *client);
+  inline bool isGrandPoolEnabled(){ return grandPoolEnabled_;}
 };
 
 ///////////////////////////////// PoolWatchClient //////////////////////////////
@@ -90,6 +93,7 @@ protected:
   string extraNonce1_;
   uint32_t extraNonce2Size_ = 0;
   std::atomic<uint64_t> currentDifficulty_;
+  bool grandPoolEnabled_;
 
   void handleStratumMessage(const string &line) override;
 

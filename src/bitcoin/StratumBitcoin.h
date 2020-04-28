@@ -347,6 +347,7 @@ public:
   string name_;
   string coinbase1_;
   string coinbase2_;
+  string grandCoinbase1_;
 };
 
 class StratumJobBitcoin : public StratumJob {
@@ -356,6 +357,7 @@ public:
   string prevHashBeStr_; // little-endian hex, memory's order
   int32_t height_ = 0;
   string coinbase1_; // bitcoin: coinbase1, zcash: full coinbase tx
+  string grandCoinbase1_;
   string coinbase2_; // bitcoin: coinbase2, zcash: empty
   vector<uint256> merkleBranch_;
 
@@ -422,7 +424,8 @@ public:
       const string &nmcAuxBlockJson,
       const RskWork &latestRskBlockJson,
       const VcashWork &latestVcashBlockJson,
-      const bool isMergedMiningUpdate);
+      const bool isMergedMiningUpdate,
+      const bool grandPoolEnabled);
   bool initFromStratumJob(
       vector<JsonNode> &jparamsArr,
       uint64_t currentDifficulty,

@@ -44,6 +44,7 @@
 
 // see PoolWatcherAgent in StratumSession.cc
 #define BTCCOM_WATCHER_AGENT "__PoolWatcher__"
+#define BTCCOM_GRANDPOOL_WATCHER_AGENT  "__PoolGrandPoolWatcher__"
 
 class PoolWatchClient;
 class ClientContainer;
@@ -91,7 +92,7 @@ protected:
   virtual void handleStratumMessage(const string &line) = 0;
 
 public:
-  enum State { INIT = 0, CONNECTED = 1, SUBSCRIBED = 2, AUTHENTICATED = 3 };
+  enum State { INIT = 0, CONNECTED = 1, SUBSCRIBED = 2, AUTHENTICATED = 3,TODO_RECONNECT=4 };
 
   State state_;
   ClientContainer *container_;
@@ -123,6 +124,8 @@ public:
   static void readCallback(struct bufferevent *bev, void *ptr);
   static void eventCallback(struct bufferevent *bev, short events, void *ptr);
   static void reconnectCallback(evutil_socket_t fd, short events, void *ptr);
+
+  static void triggerReconnect(PoolWatchClient *client);
 };
 
 #endif

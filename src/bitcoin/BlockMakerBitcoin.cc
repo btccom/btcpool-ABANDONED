@@ -810,7 +810,7 @@ void BlockMakerBitcoin::_saveBlockToDBThread(
     if (jobId2SubPool_.find(foundBlock.jobId_) != jobId2SubPool_.end()) {
       auto subPool = jobId2SubPool_[foundBlock.jobId_];
       for (const auto &itr : subPool) {
-        if (coinbaseTxBin.find(itr.coinbase1_) != coinbaseTxBin.npos &&
+        if ((coinbaseTxBin.find(itr.coinbase1_) != coinbaseTxBin.npos || (itr.grandCoinbase1_.size()>0 && coinbaseTxBin.find(itr.grandCoinbase1_) != coinbaseTxBin.npos) ) &&
             coinbaseTxBin.find(itr.coinbase2_) != coinbaseTxBin.npos) {
           subPoolName = filterTableName("_" + itr.name_);
           break;
@@ -1063,7 +1063,7 @@ void BlockMakerBitcoin::consumeStratumJob(rd_kafka_message_t *rkmessage) {
 
     jobId2SubPool_[sjob->jobId_].clear();
     for (const auto &itr : sjob->subPool_) {
-      vector<char> coinbase1, coinbase2;
+      vector<char> coinbase1, coinbase2, grandCoinbase1;
       Hex2Bin(
           itr.second.coinbase1_.data(),
           itr.second.coinbase1_.size(),
@@ -1071,11 +1071,17 @@ void BlockMakerBitcoin::consumeStratumJob(rd_kafka_message_t *rkmessage) {
       Hex2Bin(
           itr.second.coinbase2_.data(),
           itr.second.coinbase2_.size(),
-          coinbase1);
+          coinbase2);
+      Hex2Bin(
+          itr.second.grandCoinbase1_.data(),
+          itr.second.grandCoinbase1_.size(),
+          grandCoinbase1);
+
       jobId2SubPool_[sjob->jobId_].push_back(
           {itr.first,
            string(coinbase1.begin(), coinbase1.end()),
-           string(coinbase2.begin(), coinbase2.end())});
+           string(coinbase2.begin(), coinbase2.end()),
+           string(grandCoinbase1.begin(), grandCoinbase1.end())});
     }
 
     // Maps (and sets) are sorted, so the first element is the smallest,

@@ -586,7 +586,8 @@ string JobMakerHandlerBitcoin::makeStratumJob(const string &gbt) {
             latestNmcAuxBlockJson,
             currentRskBlockJson,
             currentVcashBlockJson,
-            isMergedMiningUpdate_)) {
+            isMergedMiningUpdate_,
+            def()->grandPoolEnabled_)) {
       LOG(ERROR) << "init stratum job message from gbt str fail";
       return "";
     }

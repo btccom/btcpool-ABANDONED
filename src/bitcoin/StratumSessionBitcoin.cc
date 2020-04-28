@@ -122,6 +122,9 @@ void StratumSessionBitcoin::sendMiningNotify(
   notifyStr.append(exJob->miningNotify2_);
 
   string coinbase1 = exJob->coinbase1_;
+  if(isGrandPoolClient_){
+      coinbase1 = exJob->grandCoinbase1_;
+  }
 
   // coinbase1
   notifyStr.append(coinbase1);
@@ -387,7 +390,7 @@ void StratumSessionBitcoin::handleRequest_Subscribe(
       sessionId_,
       sessionId_,
       sessionId_,
-      Strings::Value(getServer().extraNonce2Size()));
+      isGrandPoolClient_? Strings::Value(StratumMiner::kExtraGrandNonce1Size_+ StratumMiner::kExtraNonce2Size_):Strings::Value(getServer().extraNonce2Size()));
 #endif
 
   sendData(s);
@@ -497,6 +500,8 @@ unique_ptr<StratumMiner> StratumSessionBitcoin::createMiner(
   if (suggestedDiff_ != 0) {
     miner->resetCurDiff(suggestedDiff_);
   }
+
+  miner->setGrandPoolClient(isGrandPoolClient_);
 
   return miner;
 }

@@ -251,6 +251,9 @@ createGbtJobMakerDefinition(const Setting &setting) {
   def->enabled_ = false;
   readFromSetting(setting, "enabled", def->enabled_, true);
 
+  def->grandPoolEnabled_ = false;
+  readFromSetting(setting, "grandPoolEnabled", def->grandPoolEnabled_, true);
+
   return def;
 }
 

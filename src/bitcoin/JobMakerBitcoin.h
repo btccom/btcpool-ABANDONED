@@ -68,6 +68,8 @@ struct GbtJobMakerDefinition : public JobMakerDefinition {
 
   vector<SubPoolInfo> subPool_;
   int subPoolCoinbaseMaxLen_ = 30;
+
+  bool grandPoolEnabled_;
 };
 
 class JobMakerHandlerBitcoin : public JobMakerHandler {

@@ -138,6 +138,7 @@ protected:
   std::string clientAgent_; // eg. bfgminer/4.4.0-32-gac4e9b3
   bool isAgentClient_;
   bool isNiceHashClient_;
+  bool isGrandPoolClient_ = false;
   std::unique_ptr<StratumMessageDispatcher> dispatcher_;
 
   State state_;
@@ -213,6 +214,7 @@ public:
   size_t getChainId() const { return worker_.chainId_; }
   State getState() const { return state_; }
   string getUserName() const { return worker_.userName_; }
+  bool isGrandPoolClient() { return isGrandPoolClient_;}
 
   bool isDead() const;
   void markAsDead();

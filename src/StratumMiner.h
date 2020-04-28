@@ -50,6 +50,7 @@ protected:
 
 public:
   static const size_t kExtraNonce1Size_ = 4;
+  static const size_t kExtraGrandNonce1Size_ = 4;
   static const size_t kExtraNonce2Size_ = 8;
 
   virtual ~StratumMiner() = default;
@@ -62,6 +63,7 @@ public:
       const std::string &exMessage){}; // No agent support by default
   void setMinDiff(uint64_t minDiff);
   void resetCurDiff(uint64_t curDiff);
+  void setGrandPoolClient(bool isGrandPoolClient);
   uint64_t getCurDiff() const { return curDiff_; };
   uint64_t calcCurDiff();
   virtual uint64_t addLocalJob(LocalJob &localJob) = 0;
@@ -83,6 +85,7 @@ protected:
   uint64_t curDiff_;
   std::string clientAgent_;
   bool isNiceHashClient_;
+  bool isGrandPoolClient_ = false;
   bool overrideDifficulty_;
   std::string workerName_;
   int64_t workerId_;

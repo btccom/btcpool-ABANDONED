@@ -61,7 +61,8 @@ private:
       uint64_t extraNonce2,
       BitcoinNonceType nonce,
       uint32_t nTime,
-      uint32_t versionMask);
+      uint32_t versionMask,
+      uint32_t extraGrandNonce1);
 
   uint16_t submitIndex_ = 0;
 };

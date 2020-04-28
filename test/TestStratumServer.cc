@@ -236,7 +236,9 @@ TEST(StratumServerBitcoin, CheckShare) {
       sjob->nVersion_,
       0x5c39a313u,
       0x07ba7929u,
-      0x00013f00u);
+      0x00013f00u,
+      false,
+      0);
 
   uint256 blkHash = uint256S(
       "1028e53e8145994a9ebe4f39eb6a7e3fd4036f2f21a05a5a696e8ac6d0829ef4");

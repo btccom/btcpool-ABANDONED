@@ -140,8 +140,13 @@ void StratumMinerBitcoin::handleRequest_Submit(
   }
 #endif
 
+  uint32_t extraGrandNonce1 = 0;
+  if(isGrandPoolClient_){
+      extraGrandNonce1 = jparams.children()->at(0).uint32_hex();
+  }
+
   handleRequest_Submit(
-      idStr, shortJobId, extraNonce2, nonce, nTime, versionMask);
+      idStr, shortJobId, extraNonce2, nonce, nTime, versionMask,extraGrandNonce1);
 }
 
 void StratumMinerBitcoin::handleExMessage_SubmitShare(
@@ -200,7 +205,8 @@ void StratumMinerBitcoin::handleExMessage_SubmitShare(
       fullExtraNonce2,
       nonce,
       timestamp,
-      versionMask);
+      versionMask,
+      0);
 #endif
 }
 
@@ -210,7 +216,8 @@ void StratumMinerBitcoin::handleRequest_Submit(
     uint64_t extraNonce2,
     BitcoinNonceType nonce,
     uint32_t nTime,
-    uint32_t versionMask) {
+    uint32_t versionMask,
+    uint32_t extraGrandNonce1) {
   auto &session = getSession();
   auto &server = session.getServer();
   auto &worker = session.getWorker();
@@ -315,7 +322,7 @@ void StratumMinerBitcoin::handleRequest_Submit(
       nTime,
       djb2(nonce.solution.c_str()));
 #else
-  LocalShare localShare(extraNonce2, nonce, nTime, versionMask);
+  LocalShare localShare(extraNonce2, nonce, nTime, versionMask,extraGrandNonce1);
 #endif
 
   // can't find local share
@@ -334,6 +341,8 @@ void StratumMinerBitcoin::handleRequest_Submit(
         versionMask,
         jobTarget,
         worker.fullName_,
+        isGrandPoolClient_,
+        extraGrandNonce1,
         [this,
          alive = std::weak_ptr<bool>{alive_},
          idStr,

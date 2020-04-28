@@ -69,6 +69,7 @@ void JobRepositoryBitcoin::broadcastStratumJob(
     if (itr != sjob->subPool_.end()) {
       sjob->coinbase1_ = itr->second.coinbase1_;
       sjob->coinbase2_ = itr->second.coinbase2_;
+      sjob->grandCoinbase1_ = itr->second.grandCoinbase1_;
     } else {
       LOG(ERROR) << "CANNOT FIND COINBASE TX OF SUBPOOL "
                  << GetServer()->subPoolName()
@@ -225,6 +226,7 @@ void StratumJobExBitcoin::init(uint32_t extraNonce2Size) {
   miningNotify2_ = Strings::Format("\",\"%s\",\"", sjob->prevHashBeStr_);
 
   coinbase1_ = sjob->coinbase1_.c_str();
+  grandCoinbase1_ = sjob->grandCoinbase1_.c_str();
 
   ssize_t jobExtraNonce2Size = StratumMiner::kExtraNonce2Size_;
   if (sjob->proxyExtraNonce2Size_ > 0) {
@@ -274,12 +276,20 @@ void StratumJobExBitcoin::init(uint32_t extraNonce2Size) {
 void StratumJobExBitcoin::generateCoinbaseTx(
     std::vector<char> *coinbaseBin,
     const uint32_t extraNonce1,
-    const string &extraNonce2Hex) {
+    const string &extraNonce2Hex,
+    const bool isGrandPoolClient,
+    const uint32_t extraGrandNonce1) {
   string coinbaseHex;
-  const string extraNonceStr =
+  string extraNonceStr =
       Strings::Format("%08x%s", extraNonce1, extraNonce2Hex);
   auto sjob = std::static_pointer_cast<StratumJobBitcoin>(sjob_);
   string coinbase1 = sjob->coinbase1_;
+
+  if(isGrandPoolClient){
+      coinbase1 = sjob->grandCoinbase1_;
+      extraNonceStr =
+              Strings::Format("%08x%08x%s", extraNonce1,extraGrandNonce1, extraNonce2Hex);
+  }
 
   coinbaseHex.append(coinbase1);
   coinbaseHex.append(extraNonceStr);
@@ -300,7 +310,9 @@ void StratumJobExBitcoin::generateBlockHeader(
     const int32_t nVersion,
     const uint32_t nTime,
     const BitcoinNonceType nonce,
-    const uint32_t versionMask) {
+    const uint32_t versionMask,
+    const bool isGrandPoolClient,
+    const uint32_t extraGrandNonce1) {
 
   header->hashPrevBlock = hashPrevBlock;
   header->nVersion = (nVersion ^ versionMask);
@@ -323,7 +335,7 @@ void StratumJobExBitcoin::generateBlockHeader(
   header->nNonce = nonce;
 
   // compute merkle root
-  generateCoinbaseTx(coinbaseBin, extraNonce1, extraNonce2Hex);
+  generateCoinbaseTx(coinbaseBin, extraNonce1, extraNonce2Hex,isGrandPoolClient,extraGrandNonce1);
   header->hashMerkleRoot =
       ComputeCoinbaseMerkleRoot(*coinbaseBin, merkleBranch);
 #endif
@@ -491,6 +503,8 @@ void ServerBitcoin::checkShare(
     const uint32_t versionMask,
     const uint256 &jobTarget,
     const string &workFullName,
+    const bool isGrandPoolClient,
+    const uint32_t extraGrandNonce1,
     std::function<void(int32_t status, uint32_t bitsReached)> returnFn) {
 
   auto exJobPtr = std::static_pointer_cast<StratumJobExBitcoin>(
@@ -534,7 +548,9 @@ void ServerBitcoin::checkShare(
       sjob->nVersion_,
       nTime,
       nonce,
-      versionMask);
+      versionMask,
+      isGrandPoolClient,
+      extraGrandNonce1);
 
   dispatchToShareWorker([this,
                          chainId,

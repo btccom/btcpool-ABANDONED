@@ -52,6 +52,8 @@ protected:
   string subPoolName_;
   int32_t subPoolExtUserId_;
 
+  bool grandPoolEnabled_ = false;
+
 public:
   ServerBitcoin() = default;
   virtual ~ServerBitcoin();
@@ -84,6 +86,8 @@ public:
       const uint32_t versionMask,
       const uint256 &jobTarget,
       const string &workFullName,
+      const bool isGrandPoolClient,
+      const uint32_t extraGrandNonce1,
       std::function<void(int32_t status, uint32_t bitsReached)> returnFn);
 
 protected:
@@ -116,12 +120,15 @@ class StratumJobExBitcoin : public StratumJobEx {
   void generateCoinbaseTx(
       std::vector<char> *coinbaseBin,
       const uint32_t extraNonce1,
-      const string &extraNonce2Hex);
+      const string &extraNonce2Hex,
+      const bool isGrandPoolClient,
+      const uint32_t extraGrandNonce1);
 
 public:
   string miningNotify1_;
   string miningNotify2_;
   string coinbase1_;
+  string grandCoinbase1_;
   string miningNotify3_;
   string miningNotify3Clean_;
 
@@ -143,7 +150,9 @@ public:
       const int32_t nVersion,
       const uint32_t nTime,
       const BitcoinNonceType nonce,
-      const uint32_t versionMask);
+      const uint32_t versionMask,
+      const bool isGrandPoolClient,
+      const uint32_t extraGrandNonce1);
   void init(uint32_t extraNonce2Size);
 };
 

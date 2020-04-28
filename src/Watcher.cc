@@ -240,6 +240,12 @@ bool PoolWatchClient::handleMessage() {
   string line;
   if (tryReadLine(line, bev_)) {
     handleStratumMessage(line);
+
+    if(state_ == TODO_RECONNECT){
+        triggerReconnect(this);
+        return false;
+    }
+
     return true;
   }
 
@@ -282,6 +288,11 @@ void PoolWatchClient::eventCallback(
     LOG(ERROR) << "unhandled upsession events: " << events;
   }
 
+  triggerReconnect(client);
+}
+
+//static fun
+void PoolWatchClient::triggerReconnect(PoolWatchClient *client){
   timeval reconnectTimeout{0, 0};
   time_t sleepTime = 10 - (time(nullptr) - client->upTime_);
   if (sleepTime > 0) {
