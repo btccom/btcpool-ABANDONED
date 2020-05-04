@@ -316,13 +316,17 @@ void StratumMinerBitcoin::handleRequest_Submit(
   BitcoinDifficulty::DiffToTarget(share.sharediff(), jobTarget);
 
 #ifdef CHAIN_TYPE_ZEC
-  LocalShare localShare(
+    LocalShareType localShare(
       nonce.nonce.GetCheapHash(),
       nonceHash,
       nTime,
       djb2(nonce.solution.c_str()));
 #else
-  LocalShare localShare(extraNonce2, nonce, nTime, versionMask,extraGrandNonce1);
+    #ifdef LOCAL_SHARE_NO_GRAND_FIELD
+        LocalShareType localShare(extraNonce2, nonce, nTime, versionMask);
+    #else
+        LocalShareType localShare(extraNonce2, nonce, nTime, versionMask,extraGrandNonce1);
+    #endif
 #endif
 
   // can't find local share

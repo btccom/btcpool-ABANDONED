@@ -528,6 +528,9 @@ bool StratumServer::setup(const libconfig::Config &config) {
 
   //grandPool 4+4+8
   config.lookupValue("sserver.grandPoolEnabled", grandPoolEnabled_);
+  #ifdef LOCAL_SHARE_NO_GRAND_FIELD
+    grandPoolEnabled_ = false;
+  #endif
 
   // ------------------- Diff Controller Options -------------------
 

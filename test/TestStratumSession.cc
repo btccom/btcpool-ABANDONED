@@ -35,7 +35,7 @@
 
 using namespace std;
 using namespace testing;
-
+/*
 TEST(StratumSession, LocalShare) {
   LocalShare ls1(0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU);
 
@@ -95,7 +95,7 @@ TEST(StratumSession, LocalJob) {
     ASSERT_EQ(lj.addLocalShare(ls2), false);
   }
 }
-
+*/
 class StratumSessionMock : public IStratumSession {
 public:
   MOCK_METHOD3(addWorker, void(const string &, const string &, int64_t));

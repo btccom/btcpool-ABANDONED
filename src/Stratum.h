@@ -209,74 +209,27 @@ public:
   virtual uint64_t height() const = 0;
 };
 
-// shares submitted by this session, for duplicate share check
-// TODO: Move bitcoin-specific fields to the subclass
-struct LocalShare {
-  uint64_t exNonce2_; // extra nonce2 fixed 8 bytes
-  uint32_t nonce_; // nonce in block header
-  uint32_t time_; // nTime in block header
-  uint32_t versionMask_; // block version mask
-  uint32_t exGrandNonce1_; // extra grand nonce1 fixed 4bytes
-
-  LocalShare(
-      uint64_t exNonce2, uint32_t nonce, uint32_t time, uint32_t versionMask,uint32_t exGrandNonce1)
-      : exNonce2_(exNonce2)
-      , nonce_(nonce)
-      , time_(time)
-      , versionMask_(versionMask)
-      , exGrandNonce1_(exGrandNonce1){}
-
-  LocalShare(
-      uint64_t exNonce2, uint32_t nonce, uint32_t time, uint32_t versionMask)
-    : exNonce2_(exNonce2)
-    , nonce_(nonce)
-    , time_(time)
-    , versionMask_(versionMask)
-    , exGrandNonce1_(0){}
-
-  LocalShare(uint64_t exNonce2, uint32_t nonce, uint32_t time)
-    : exNonce2_(exNonce2)
-    , nonce_(nonce)
-    , time_(time)
-    , versionMask_(0)
-    , exGrandNonce1_(0){}
-
-  LocalShare &operator=(const LocalShare &other) {
-    exNonce2_ = other.exNonce2_;
-    nonce_ = other.nonce_;
-    time_ = other.time_;
-    versionMask_ = other.versionMask_;
-    exGrandNonce1_ = other.exGrandNonce1_;
-    return *this;
-  }
-
-  bool operator<(const LocalShare &r) const {
-    if (exNonce2_ < r.exNonce2_ ||
-        (exNonce2_ == r.exNonce2_ && nonce_ < r.nonce_) ||
-        (exNonce2_ == r.exNonce2_ && nonce_ == r.nonce_ && time_ < r.time_) ||
-        (exNonce2_ == r.exNonce2_ && nonce_ == r.nonce_ && time_ == r.time_ && versionMask_ < r.versionMask_)||
-        (exNonce2_ == r.exNonce2_ && nonce_ == r.nonce_ && time_ == r.time_ && versionMask_ == r.versionMask_
-          && exGrandNonce1_<r.exGrandNonce1_)) {
-      return true;
-    }
-    return false;
-  }
-};
-
 struct LocalJob {
   size_t chainId_;
   uint64_t jobId_;
-  std::set<LocalShare> submitShares_;
 
   LocalJob(size_t chainId, uint64_t jobId)
     : chainId_(chainId)
     , jobId_(jobId) {}
 
-  bool addLocalShare(const LocalShare &localShare) {
+  bool operator==(uint64_t jobId) const { return jobId_ == jobId; }
+};
+
+template <typename LocalShareType>
+struct LocalJobBase : public LocalJob {
+  std::set<LocalShareType> submitShares_;
+
+  LocalJobBase(size_t chainId, uint64_t jobId)
+    : LocalJob(chainId,jobId) {}
+
+  bool addLocalShare(const LocalShareType &localShare) {
     return submitShares_.insert(localShare).second;
   }
-
-  bool operator==(uint64_t jobId) const { return jobId_ == jobId; }
 };
 
 namespace sharebase {

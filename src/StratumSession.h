@@ -282,6 +282,8 @@ protected:
   size_t kMaxNumLocalJobs_;
   static constexpr size_t kNumLocalJobsToKeep_ = 4;
 
+  using LocalShareType = typename StratumTraits::LocalShareType;
+
 public:
   size_t maxNumLocalJobs() const { return kMaxNumLocalJobs_; }
 

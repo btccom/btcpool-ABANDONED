@@ -128,12 +128,36 @@ public:
   string rpcUserPwd_;
 };
 
+struct LocalShareBeam {
+  uint64_t exNonce2_; // extra nonce2 fixed 8 bytes
+  uint32_t nonce_; // nonce in block header
+
+  LocalShareBeam(uint64_t exNonce2, uint32_t nonce)
+    : exNonce2_(exNonce2)
+    , nonce_(nonce){}
+
+  LocalShareBeam &operator=(const LocalShareBeam &other) {
+    exNonce2_ = other.exNonce2_;
+    nonce_ = other.nonce_;
+    return *this;
+  }
+
+  bool operator<(const LocalShareBeam &r) const {
+    if (exNonce2_ < r.exNonce2_ ||
+       (exNonce2_ == r.exNonce2_ && nonce_ < r.nonce_) ) {
+        return true;
+    }
+    return false;
+  }
+};
+
 class ServerBeam;
 class StratumSessionBeam;
 
 struct StratumTraitsBeam {
   using ServerType = ServerBeam;
   using SessionType = StratumSessionBeam;
+  using LocalShareType = LocalShareBeam;
   struct JobDiffType {
     // difficulty of this job (due to difficulty adjustment,
     // there can be multiple diffs in the same job)
@@ -146,9 +170,9 @@ struct StratumTraitsBeam {
       return *this;
     }
   };
-  struct LocalJobType : public LocalJob {
+  struct LocalJobType : public LocalJobBase<LocalShareType>{
     LocalJobType(size_t chainId, uint64_t jobId, uint32_t inputHash)
-      : LocalJob(chainId, jobId)
+      : LocalJobBase<LocalShareType>(chainId, jobId)
       , inputHash_(inputHash) {}
     bool operator==(uint32_t inputHash) const {
       return inputHash_ == inputHash;

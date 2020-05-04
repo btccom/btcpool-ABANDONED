@@ -99,6 +99,9 @@ class StratumMinerBase : public StratumMiner {
   using SessionType = typename StratumTraits::SessionType;
   using JobDiffType = typename StratumTraits::JobDiffType;
 
+public:
+  using LocalShareType = typename StratumTraits::LocalShareType;
+
 protected:
   StratumMinerBase(
       SessionType &session,

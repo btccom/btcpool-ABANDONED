@@ -131,7 +131,7 @@ void StratumMinerBytom::handleRequest_Submit(
 
   uint8_t shortJobId = (uint8_t)params["job_id"].uint32();
 
-  LocalJob *localJob = session.findLocalJob(shortJobId);
+  auto *localJob = session.findLocalJob(shortJobId);
   if (nullptr == localJob) {
     session.rpc2ResponseBoolean(idStr, false, "Block expired");
     LOG(ERROR) << "can not find local bytom job id=" << (int)shortJobId;
@@ -169,7 +169,8 @@ void StratumMinerBytom::handleRequest_Submit(
   }
 
   //  Check share duplication
-  LocalShare localShare(nonce, 0, 0);
+  //LocalShare localShare(nonce, 0, 0);
+  LocalShareType localShare(nonce);
   if (!server.isEnableSimulator_ && !localJob->addLocalShare(localShare)) {
     session.responseError(idStr, StratumStatus::DUPLICATE_SHARE);
     // add invalid share to counter

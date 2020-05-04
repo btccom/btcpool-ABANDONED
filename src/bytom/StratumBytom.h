@@ -222,16 +222,36 @@ public:
   uint32_t nTime_;
 };
 
+// shares submitted by this session, for duplicate share check
+struct LocalShareBytom {
+  uint64_t exNonce2_; // extra nonce2 fixed 8 bytes
+
+  LocalShareBytom(uint64_t exNonce2) : exNonce2_(exNonce2){}
+
+  LocalShareBytom &operator=(const LocalShareBytom &other) {
+    exNonce2_ = other.exNonce2_;
+    return *this;
+  }
+
+  bool operator<(const LocalShareBytom &r) const {
+    if(exNonce2_ < r.exNonce2_) {
+      return true;
+    }
+    return false;
+  }
+};
+
 class ServerBytom;
 class StratumSessionBytom;
 
 struct StratumTraitsBytom {
   using ServerType = ServerBytom;
   using SessionType = StratumSessionBytom;
+  using LocalShareType = LocalShareBytom;
   using JobDiffType = uint64_t;
-  struct LocalJobType : public LocalJob {
+  struct LocalJobType : public LocalJobBase<LocalShareType>{
     LocalJobType(size_t chainId, uint64_t jobId, uint8_t shortJobId)
-      : LocalJob(chainId, jobId)
+      : LocalJobBase<LocalShareType>(chainId, jobId)
       , shortJobId_(shortJobId)
       , jobDifficulty_(0) {}
     bool operator==(uint8_t shortJobId) const {

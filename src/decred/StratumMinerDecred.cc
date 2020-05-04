@@ -158,7 +158,7 @@ void StratumMinerDecred::handleRequest_Submit(
   // shares in a short time, we just drop them.
   bool isSendShareToKafka = true;
 
-  LocalShare localShare(
+  LocalShareType localShare(
       reinterpret_cast<boost::endian::little_uint64_buf_t *>(extraNonce2.data())
           ->value(),
       nonce,
