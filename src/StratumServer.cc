@@ -526,6 +526,12 @@ bool StratumServer::setup(const libconfig::Config &config) {
         << ". This option should not be enabled in a production environment!";
   }
 
+  //grandPool 4+4+8
+  config.lookupValue("sserver.grandPoolEnabled", grandPoolEnabled_);
+  #ifdef LOCAL_SHARE_NO_GRAND_FIELD
+    grandPoolEnabled_ = false;
+  #endif
+
   // ------------------- Diff Controller Options -------------------
 
   string defDiffStr = config.lookup("sserver.default_difficulty");
@@ -1109,6 +1115,20 @@ void StratumServer::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {
   // of course, for iterators that actually point to the element that is
   // being erased.
   //
+
+  if(grandPoolEnabled_ && exJobPtr->isClean_){
+    auto itr = connections_.begin();
+    while (itr != connections_.end()) {
+      auto &conn = *itr;
+      if (conn->isGrandPoolClient()  && (!conn->isDead()) ) {
+        if (conn->getChainId() == exJobPtr->chainId_) {
+          conn->sendMiningNotify(exJobPtr);
+        }
+      }
+      ++itr;
+    }
+  }
+
   auto itr = connections_.begin();
   while (itr != connections_.end()) {
     auto &conn = *itr;
@@ -1117,7 +1137,9 @@ void StratumServer::sendMiningNotifyToAll(shared_ptr<StratumJobEx> exJobPtr) {
       sessionIDManager_->freeSessionId(conn->getSessionId());
 #endif
       itr = connections_.erase(itr);
-    } else {
+    }else if(grandPoolEnabled_ && exJobPtr->isClean_ && conn->isGrandPoolClient() ){
+      ++itr;
+    }else {
       if (conn->getChainId() == exJobPtr->chainId_) {
         conn->sendMiningNotify(exJobPtr);
       }

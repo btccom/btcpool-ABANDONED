@@ -128,6 +128,7 @@ string StratumJobBitcoin::serializeToJson() const {
     subPool[itr.first] = {
         {"coinbase1", itr.second.coinbase1_},
         {"coinbase2", itr.second.coinbase2_},
+        {"grandCoinbase1", itr.second.grandCoinbase1_},
     };
   }
 
@@ -138,7 +139,7 @@ string StratumJobBitcoin::serializeToJson() const {
       "{\"jobId\":%u"
       ",\"gbtHash\":\"%s\""
       ",\"prevHash\":\"%s\",\"prevHashBeStr\":\"%s\""
-      ",\"height\":%d,\"coinbase1\":\"%s\",\"coinbase2\":\"%s\""
+      ",\"height\":%d,\"coinbase1\":\"%s\",\"grandCoinbase1\":\"%s\",\"coinbase2\":\"%s\""
       ",\"subPool\":%s"
       ",\"merkleBranch\":\"%s\""
       ",\"nVersion\":%d,\"nBits\":%u,\"nTime\":%u"
@@ -176,6 +177,7 @@ string StratumJobBitcoin::serializeToJson() const {
       prevHashBeStr_,
       height_,
       coinbase1_,
+      grandCoinbase1_,
       coinbase2_,
       subPool.dump(),
       // merkleBranch_ could be empty
@@ -250,6 +252,13 @@ bool StratumJobBitcoin::unserializeFromJson(const char *s, size_t len) {
   prevHashBeStr_ = j["prevHashBeStr"].str();
   height_ = j["height"].int32();
   coinbase1_ = j["coinbase1"].str();
+
+  if(j["grandCoinbase1"].type() == Utilities::JS::type::Str){
+      grandCoinbase1_ =  j["grandCoinbase1"].str();
+  }else{
+      grandCoinbase1_ = "";
+  }
+
   coinbase2_ = j["coinbase2"].str();
   nVersion_ = j["nVersion"].int32();
   nBits_ = j["nBits"].uint32();
@@ -265,7 +274,11 @@ bool StratumJobBitcoin::unserializeFromJson(const char *s, size_t len) {
       if (itr.type() == Utilities::JS::type::Obj &&
           itr["coinbase1"].type() == Utilities::JS::type::Str &&
           itr["coinbase2"].type() == Utilities::JS::type::Str) {
-        subPool_[name] = {name, itr["coinbase1"].str(), itr["coinbase2"].str()};
+        subPool_[name] = {name, itr["coinbase1"].str(), itr["coinbase2"].str(),""};
+        if(itr["grandCoinbase1"].type() == Utilities::JS::type::Str ){
+            auto& subPoolJob = subPool_[name];
+            subPoolJob.grandCoinbase1_ = itr["grandCoinbase1"].str();
+        }
       }
     }
   }
@@ -382,7 +395,8 @@ bool StratumJobBitcoin::initFromGbt(
     const string &nmcAuxBlockJson,
     const RskWork &latestRskBlockJson,
     const VcashWork &latestVcashBlockJson,
-    const bool isMergedMiningUpdate) {
+    const bool isMergedMiningUpdate,
+    const bool grandPoolEnabled) {
   uint256 gbtHash = Hash(gbt, gbt + strlen(gbt));
   JsonNode r;
   if (!JsonNode::parse(gbt, gbt + strlen(gbt), r)) {
@@ -716,7 +730,7 @@ bool StratumJobBitcoin::initFromGbt(
 
     //  placeHolder: extra nonce1 (4bytes) + extra nonce2 (8bytes)
     const vector<char> placeHolder(
-        StratumMiner::kExtraNonce1Size_ + StratumMiner::kExtraNonce2Size_,
+        StratumMiner::kExtraNonce1Size_ +(grandPoolEnabled?StratumMiner::kExtraGrandNonce1Size_:0) + StratumMiner::kExtraNonce2Size_,
         0xEE);
     // pub extra nonce place holder
     cbIn.scriptSig.insert(
@@ -868,6 +882,15 @@ bool StratumJobBitcoin::initFromGbt(
         &coinbaseTpl[extraNonceStart + placeHolder.size()],
         &coinbaseTpl[coinbaseTpl.size()]);
 
+    if(grandPoolEnabled){
+        //extranNonce1+extraGrandNonce1+extraNonce2
+        grandCoinbase1_ = coinbase1_;
+        //00000000+extraNonce1+extraNonce2
+        coinbase1_ += string((StratumMiner::kExtraGrandNonce1Size_) * 2, '0');
+    }else{
+        grandCoinbase1_ = "";
+    }
+
     // add sub-pool coinbase tx
     if (!subPool.empty()) {
       vector<char> coinbase1(
@@ -914,8 +937,15 @@ bool StratumJobBitcoin::initFromGbt(
             HexStr(&coinbaseTpl[0], &coinbaseTpl[extraNonceStart]), // coinbase1
             HexStr(
                 &coinbaseTpl[extraNonceStart + placeHolder.size()],
-                &coinbaseTpl[coinbaseTpl.size()]) // coinbase2
-        };
+                &coinbaseTpl[coinbaseTpl.size()]), // coinbase2
+                "" //grandCoinbase1
+         };
+
+        if(grandPoolEnabled){
+            auto& subPoolJob = subPool_[pool.name_];
+            subPoolJob.grandCoinbase1_ = subPoolJob.coinbase1_;
+            subPoolJob.coinbase1_ = subPoolJob.coinbase1_+string((StratumMiner::kExtraGrandNonce1Size_) * 2, '0');
+        }
       }
     }
   } // make coinbase1 & coinbase2

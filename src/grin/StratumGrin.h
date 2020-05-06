@@ -140,6 +140,34 @@ public:
   string prePowStr_;
 };
 
+// shares submitted by this session, for duplicate share check
+struct LocalShareGrin {
+  uint64_t exNonce2_; // extra nonce2 fixed 8 bytes
+  uint32_t nonce_; // nonce in block header
+  uint32_t time_; // nTime in block header
+
+  LocalShareGrin(uint64_t exNonce2, uint32_t nonce, uint32_t time)
+    : exNonce2_(exNonce2)
+    , nonce_(nonce)
+    , time_(time){}
+
+  LocalShareGrin &operator=(const LocalShareGrin &other) {
+    exNonce2_ = other.exNonce2_;
+    nonce_ = other.nonce_;
+    time_ = other.time_;
+    return *this;
+  }
+
+  bool operator<(const LocalShareGrin &r) const {
+    if (exNonce2_ < r.exNonce2_ ||
+       (exNonce2_ == r.exNonce2_ && nonce_ < r.nonce_) ||
+       (exNonce2_ == r.exNonce2_ && nonce_ == r.nonce_ && time_ < r.time_) ) {
+        return true;
+     }
+     return false;
+  }
+};
+
 class StratumServerGrin;
 class StratumSessionGrin;
 
@@ -147,10 +175,11 @@ struct StratumTraitsGrin {
   using ServerType = StratumServerGrin;
   using SessionType = StratumSessionGrin;
   using JobDiffType = uint64_t;
+  using LocalShareType = LocalShareGrin;
 
-  struct LocalJobType : public LocalJob {
+  struct LocalJobType : public LocalJobBase<LocalShareType> {
     LocalJobType(size_t chainId, uint64_t jobId, uint32_t prePowHash)
-      : LocalJob(chainId, jobId)
+      : LocalJobBase<LocalShareType>(chainId, jobId)
       , prePowHash_(prePowHash) {}
     bool operator==(uint64_t prePowHash) const {
       return prePowHash_ == prePowHash;

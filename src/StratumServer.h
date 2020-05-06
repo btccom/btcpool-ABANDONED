@@ -265,6 +265,8 @@ public:
   // WARNING: difficulty to send to miners.
   float devFixedDifficulty_;
 
+  bool grandPoolEnabled_;
+
 #ifndef WORK_WITH_STRATUM_SWITCHER
   SessionIDManager *sessionIDManager_;
 #endif

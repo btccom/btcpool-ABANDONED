@@ -42,6 +42,7 @@ static const uint32_t ReadTimeout = 15;
 static const uint32_t WriteTimeout = 120;
 static const string PoolWatcherAgent = "__PoolWatcher__";
 static const string BtccomAgentPrefix = "btccom-agent/";
+static const string PoolGrandPoolWatcher = "__PoolGrandPoolWatcher__";
 
 class ProxyStrategyDecodeAddress : public ProxyStrategy {
 public:
@@ -545,8 +546,11 @@ void StratumSession::setClientAgent(const string &clientAgent) {
   isAgentClient_ =
       (0 ==
        clientAgent_.compare(0, BtccomAgentPrefix.size(), BtccomAgentPrefix));
+
+  isGrandPoolClient_ = this->getServer().grandPoolEnabled_ && clientAgent_ == PoolGrandPoolWatcher ;
+
   isLongTimeout_ =
-      (isAgentClient_ || isNiceHashClient_ ||
+      (isAgentClient_ || isNiceHashClient_ || isGrandPoolClient_ ||
        clientAgent_ == PoolWatcherAgent ||
        std::regex_search(clientAgent, getServer().longTimeoutPattern_));
 }

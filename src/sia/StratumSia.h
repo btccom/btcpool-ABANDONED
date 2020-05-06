@@ -210,6 +210,25 @@ public:
   uint32_t jobTime() const override { return nTime_; }
 };
 
+// shares submitted by this session, for duplicate share check
+struct LocalShareSia {
+  uint64_t exNonce2_; // extra nonce2 fixed 8 bytes
+
+  LocalShareSia(uint64_t exNonce2): exNonce2_(exNonce2){}
+
+  LocalShareSia &operator=(const LocalShareSia &other) {
+    exNonce2_ = other.exNonce2_;
+    return *this;
+  }
+
+  bool operator<(const LocalShareSia &r) const {
+    if (exNonce2_ < r.exNonce2_ ) {
+      return true;
+    }
+    return false;
+  }
+};
+
 class ServerSia;
 class StratumSessionSia;
 
@@ -217,9 +236,10 @@ struct StratumTraitsSia {
   using ServerType = ServerSia;
   using SessionType = StratumSessionSia;
   using JobDiffType = uint64_t;
-  struct LocalJobType : public LocalJob {
+  using LocalShareType = LocalShareSia;
+  struct LocalJobType : public LocalJobBase<LocalShareType>{
     LocalJobType(size_t chainId, uint64_t jobId, uint8_t shortJobId)
-      : LocalJob(chainId, jobId)
+      : LocalJobBase<LocalShareType>(chainId, jobId)
       , shortJobId_(shortJobId)
       , jobDifficulty_(0) {}
     bool operator==(uint8_t shortJobId) const {

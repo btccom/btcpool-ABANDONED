@@ -293,12 +293,32 @@ public:
   string rpcUserPwd_;
 };
 
+// shares submitted by this session, for duplicate share check
+struct LocalShareEth {
+  uint64_t exNonce2_; // extra nonce2 fixed 8 bytes
+
+  LocalShareEth(uint64_t exNonce2) : exNonce2_(exNonce2){}
+
+  LocalShareEth &operator=(const LocalShareEth &other) {
+    exNonce2_ = other.exNonce2_;
+    return *this;
+  }
+
+  bool operator<(const LocalShareEth &r) const {
+    if (exNonce2_ < r.exNonce2_ ) {
+      return true;
+    }
+    return false;
+  }
+};
+
 class ServerEth;
 class StratumSessionEth;
 
 struct StratumTraitsEth {
   using ServerType = ServerEth;
   using SessionType = StratumSessionEth;
+  using LocalShareType = LocalShareEth;
   struct JobDiffType {
     // difficulty of this job (due to difficulty adjustment,
     // there can be multiple diffs in the same job)
@@ -311,9 +331,9 @@ struct StratumTraitsEth {
       return *this;
     }
   };
-  struct LocalJobType : public LocalJob {
+  struct LocalJobType : public LocalJobBase<LocalShareType> {
     LocalJobType(size_t chainId, uint64_t jobId, const std::string &headerHash)
-      : LocalJob(chainId, jobId)
+      : LocalJobBase<LocalShareType>(chainId, jobId)
       , headerHash_(headerHash) {}
     bool operator==(const std::string &headerHash) const {
       return headerHash_ == headerHash;

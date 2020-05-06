@@ -224,7 +224,7 @@ void StratumMinerEth::handleRequest_Submit(
   ip.fromIpv4Int(session.getClientIp());
   share.set_ip(ip.toString());
 
-  LocalShare localShare(nonce, 0, 0);
+  LocalShareType localShare(nonce);
   // can't add local share
   if (!localJob->addLocalShare(localShare)) {
     handleShare(

@@ -24,3 +24,5 @@ install/run_*/
 /src/config/*.h
 /src/*.pro.pb.h
 /src/*.pro.pb.cc
+
+cmake-build-debug

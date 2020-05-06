@@ -128,13 +128,49 @@ public:
   uint64_t timestamp_;
 };
 
+// shares submitted by this session, for duplicate share check
+struct LocalShareCkb {
+  uint64_t exNonce2_; // extra nonce2 fixed 8 bytes
+  uint32_t nonce_; // nonce in block header
+  uint32_t time_; // nTime in block header
+
+  LocalShareCkb(uint64_t exNonce2, uint32_t nonce, uint32_t time)
+    : exNonce2_(exNonce2)
+    , nonce_(nonce)
+    , time_(time){}
+
+  LocalShareCkb &operator=(const LocalShareCkb &other) {
+    exNonce2_ = other.exNonce2_;
+    nonce_ = other.nonce_;
+    time_ = other.time_;
+    return *this;
+  }
+
+  bool operator<(const LocalShareCkb &r) const {
+    if (exNonce2_ < r.exNonce2_ ||
+       (exNonce2_ == r.exNonce2_ && nonce_ < r.nonce_) ||
+       (exNonce2_ == r.exNonce2_ && nonce_ == r.nonce_ && time_ < r.time_) ) {
+      return true;
+    }
+    return false;
+  }
+};
+
 class StratumServerCkb;
 class StratumSessionCkb;
 
 struct StratumTraitsCkb {
   using ServerType = StratumServerCkb;
   using SessionType = StratumSessionCkb;
-  using LocalJobType = LocalJob;
+  using LocalShareType = LocalShareCkb;
+  struct LocalJobType : public LocalJobBase<LocalShareType> {
+    LocalJobType(size_t chainId, uint64_t jobId)
+       : LocalJobBase<LocalShareType>(chainId, jobId) {}
+
+    //copy from LocalJob
+    bool operator==(uint64_t jobId) const { return jobId_ == jobId; }
+};
+
   struct JobDiffType {
     uint64_t currentJobDiff_;
     std::set<uint64_t> jobDiffs_;

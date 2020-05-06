@@ -134,7 +134,7 @@ void StratumMinerGrin::handleRequest_Submit(
   ip.fromIpv4Int(session.getClientIp());
   share.set_ip(ip.toString());
 
-  LocalShare localShare(nonce, boost::hash_value(proofs), edgeBits);
+  LocalShareType localShare(nonce, boost::hash_value(proofs), edgeBits);
   // can't add local share
   if (!localJob->addLocalShare(localShare)) {
     handleShare(

@@ -295,6 +295,33 @@ public:
       const vector<uint8_t> &extraNonce2) = 0;
 };
 
+// shares submitted by this session, for duplicate share check
+struct LocalShareDecred {
+  uint64_t exNonce2_; // extra nonce2 fixed 8 bytes
+  uint32_t nonce_; // nonce in block header
+  uint32_t time_; // nTime in block header
+  LocalShareDecred(uint64_t exNonce2, uint32_t nonce, uint32_t time)
+    : exNonce2_(exNonce2)
+    , nonce_(nonce)
+    , time_(time){}
+
+  LocalShareDecred &operator=(const LocalShareDecred &other) {
+    exNonce2_ = other.exNonce2_;
+    nonce_ = other.nonce_;
+    time_ = other.time_;
+    return *this;
+  }
+
+  bool operator<(const LocalShareDecred &r) const {
+    if (exNonce2_ < r.exNonce2_ ||
+        (exNonce2_ == r.exNonce2_ && nonce_ < r.nonce_) ||
+        (exNonce2_ == r.exNonce2_ && nonce_ == r.nonce_ && time_ < r.time_) ) {
+      return true;
+    }
+      return false;
+  }
+};
+
 class ServerDecred;
 class StratumSessionDecred;
 
@@ -302,10 +329,11 @@ struct StratumTraitsDecred {
   using ServerType = ServerDecred;
   using SessionType = StratumSessionDecred;
   using JobDiffType = uint64_t;
-  struct LocalJobType : public LocalJob {
+  using LocalShareType = LocalShareDecred;
+  struct LocalJobType : public LocalJobBase<LocalShareType> {
     LocalJobType(
         size_t chainId, uint64_t jobId, uint8_t shortJobId, uint32_t blkBits)
-      : LocalJob(chainId, jobId)
+      : LocalJobBase<LocalShareType>(chainId, jobId)
       , shortJobId_(shortJobId)
       , blkBits_(blkBits) {}
     bool operator==(uint8_t shortJobId) const {

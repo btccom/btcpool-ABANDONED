@@ -110,7 +110,7 @@ void StratumMinerSia::handleRequest_Submit(
   DLOG(INFO) << str;
 
   uint8_t shortJobId = (uint8_t)atoi(params[1].str());
-  LocalJob *localJob = session.findLocalJob(shortJobId);
+  auto *localJob = session.findLocalJob(shortJobId);
   if (nullptr == localJob) {
     session.responseError(idStr, StratumStatus::JOB_NOT_FOUND);
     LOG(ERROR) << "sia local job not found " << (int)shortJobId;
@@ -135,7 +135,8 @@ void StratumMinerSia::handleRequest_Submit(
   }
 
   uint64_t nonce = *((uint64_t *)(bHeader + 32));
-  LocalShare localShare(nonce, 0, 0);
+  //LocalShare localShare(nonce, 0, 0);
+  LocalShareType localShare(nonce);
   if (!server.isEnableSimulator_ && !localJob->addLocalShare(localShare)) {
     session.responseError(idStr, StratumStatus::DUPLICATE_SHARE);
     LOG(ERROR) << "duplicated share nonce " << std::hex << nonce;

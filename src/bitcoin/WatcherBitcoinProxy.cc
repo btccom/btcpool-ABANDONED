@@ -48,6 +48,9 @@ ClientContainerBitcoinProxy::ClientContainerBitcoinProxy(
         config.lookup("solved_sharelog_writer.data_dir").c_str(),
         config.lookup("solved_sharelog_writer.compression_level"));
   }
+
+  grandPoolEnabled_ = false;
+  config.lookupValue("poolwatcher.grandPoolEnabled", grandPoolEnabled_);
 }
 
 ClientContainerBitcoinProxy::~ClientContainerBitcoinProxy() {
@@ -233,6 +236,18 @@ void ClientContainerBitcoinProxy::consumeSolvedShare(
       jobCache.sJob_.proxyExtraNonce2Size_,
       extraNonce2);
 
+  string extraGrandNonce1;
+  if(grandPoolEnabled_){//4+8
+      Bin2Hex(
+              (const uint8_t *)(coinbaseTxBin.data() + coinbase1Size),
+              4,
+              extraGrandNonce1);
+      Bin2Hex(
+              (const uint8_t *)(coinbaseTxBin.data() + coinbase1Size+4),
+              jobCache.sJob_.proxyExtraNonce2Size_-4,
+              extraNonce2);
+  }
+
   uint32_t versionMask = jobCache.sJob_.nVersion_ ^ blkHeader.nVersion;
   string versionMaskJson;
   if (versionMask != 0) {
@@ -242,7 +257,7 @@ void ClientContainerBitcoinProxy::consumeSolvedShare(
   string submitJson = Strings::Format(
       "{\"params\":[\"%s\",%s,\"%s\",\"%08x\",\"%08x\"%s]"
       ",\"id\":\"987\",\"method\":\"mining.submit\"}\n",
-      filterWorkerName(workerFullName),
+      grandPoolEnabled_?extraGrandNonce1:filterWorkerName(workerFullName),
       jobCache.upstreamJobId_,
       extraNonce2,
       blkHeader.nTime,
@@ -366,6 +381,7 @@ PoolWatchClientBitcoinProxy::PoolWatchClientBitcoinProxy(
   : PoolWatchClient(base, container, config)
   , currentDifficulty_(0) {
   config.lookupValue("passwd", passwd_);
+    grandPoolEnabled_ = container->isGrandPoolEnabled();
 }
 
 PoolWatchClientBitcoinProxy::~PoolWatchClientBitcoinProxy() {
@@ -375,7 +391,7 @@ void PoolWatchClientBitcoinProxy::onConnected() {
   string s = Strings::Format(
       "{\"id\":1,\"method\":\"mining.subscribe\""
       ",\"params\":[\"%s\"]}\n",
-      BTCCOM_WATCHER_AGENT);
+      grandPoolEnabled_?BTCCOM_GRANDPOOL_WATCHER_AGENT:BTCCOM_WATCHER_AGENT);
   sendData(s);
 }
 
@@ -469,6 +485,12 @@ void PoolWatchClientBitcoinProxy::handleStratumMessage(const string &line) {
 
     if (extraNonce2Size_ < 8) {
       LOG(ERROR) << "Too short extraNonce2, it should be 8 bytes or longer";
+    }
+
+    if(grandPoolEnabled_ && extraNonce2Size_<12){
+        LOG(ERROR) << "Too short extraNonce2 for grand pool, it should be 12 bytes or longer";
+        state_ = TODO_RECONNECT;
+        return;
     }
 
     // subscribe successful
