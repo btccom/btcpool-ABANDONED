@@ -504,8 +504,6 @@ unique_ptr<StratumMiner> StratumSessionBitcoin::createMiner(
     miner->resetCurDiff(suggestedDiff_);
   }
 
-  miner->setGrandPoolClient(isGrandPoolClient_);
-
   return miner;
 }
 

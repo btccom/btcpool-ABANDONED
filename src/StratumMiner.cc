@@ -43,7 +43,6 @@ StratumMiner::StratumMiner(
   , curDiff_(0)
   , clientAgent_(clientAgent)
   , isNiceHashClient_(isNiceHashAgent(clientAgent))
-  , isGrandPoolClient_(false)
   , overrideDifficulty_(false)
   , workerName_(workerName)
   , workerId_(workerId)
@@ -58,10 +57,6 @@ void StratumMiner::setMinDiff(uint64_t minDiff) {
 
 void StratumMiner::resetCurDiff(uint64_t curDiff) {
   diffController_->resetCurDiff(curDiff);
-}
-
-void StratumMiner::setGrandPoolClient(bool isGrandPoolClient) {
-  isGrandPoolClient_ = isGrandPoolClient;
 }
 
 uint64_t StratumMiner::calcCurDiff() {

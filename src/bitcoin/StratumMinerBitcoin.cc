@@ -141,7 +141,7 @@ void StratumMinerBitcoin::handleRequest_Submit(
 #endif
 
   uint32_t extraGrandNonce1 = 0;
-  if (isGrandPoolClient_) {
+  if (getSession().isGrandPoolClient()) {
     extraGrandNonce1 = jparams.children()->at(0).uint32_hex();
   }
 
@@ -364,7 +364,7 @@ void StratumMinerBitcoin::handleRequest_Submit(
         versionMask,
         jobTarget,
         worker.fullName_,
-        isGrandPoolClient_,
+        getSession().isGrandPoolClient(),
         extraGrandNonce1,
         [this,
          alive = std::weak_ptr<bool>{alive_},
