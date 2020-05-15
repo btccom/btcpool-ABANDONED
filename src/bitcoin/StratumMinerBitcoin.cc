@@ -199,14 +199,30 @@ void StratumMinerBitcoin::handleExMessage_SubmitShare(
       timestamp,
       versionMask);
 
-  handleRequest_Submit(
-      std::to_string(submitIndex_++),
-      shortJobId,
-      fullExtraNonce2,
-      nonce,
-      timestamp,
-      versionMask,
-      0);
+  try {
+    auto dispatcher = dynamic_cast<StratumMessageAgentDispatcher *>(
+        &(session_.getDispatcher()));
+
+    handleRequest_Submit(
+        std::to_string(dispatcher->nextSubmitIndex()),
+        shortJobId,
+        fullExtraNonce2,
+        nonce,
+        timestamp,
+        versionMask,
+        0);
+  } catch (const std::bad_cast &ex) {
+    LOG(WARNING) << Strings::Format(
+        "[agent] submit before authorized, ignore! shortJobId: %02x, "
+        "sessionId: %08x, "
+        "exNonce2: %016x, nonce: %08x, time: %08x, versionMask: %08x",
+        shortJobId,
+        (uint32_t)sessionId,
+        fullExtraNonce2,
+        nonce,
+        timestamp,
+        versionMask);
+  }
 #endif
 }
 

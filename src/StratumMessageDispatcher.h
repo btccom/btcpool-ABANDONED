@@ -152,6 +152,7 @@ public:
   static void getSetDiffCommand(
       std::map<uint8_t, std::vector<uint16_t>> &diffSessionIds,
       std::string &exMessage);
+  inline uint16_t nextSubmitIndex() { return submitIndex_++; }
 
 protected:
   IStratumSession &session_;
@@ -159,6 +160,7 @@ protected:
   uint64_t curDiff_ = 0;
   std::map<uint16_t, std::unique_ptr<StratumMiner>> miners_;
   bool enableSubmitResponse_ = false;
+  uint16_t submitIndex_ = 0;
 };
 
 #endif // #ifndef STRATUM_MESSAGE_DISPATCHER_H
