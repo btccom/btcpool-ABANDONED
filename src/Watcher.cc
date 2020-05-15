@@ -241,9 +241,9 @@ bool PoolWatchClient::handleMessage() {
   if (tryReadLine(line, bev_)) {
     handleStratumMessage(line);
 
-    if(state_ == TODO_RECONNECT){
-        triggerReconnect(this);
-        return false;
+    if (state_ == TODO_RECONNECT) {
+      triggerReconnect(this);
+      return false;
     }
 
     return true;
@@ -291,8 +291,8 @@ void PoolWatchClient::eventCallback(
   triggerReconnect(client);
 }
 
-//static fun
-void PoolWatchClient::triggerReconnect(PoolWatchClient *client){
+// static fun
+void PoolWatchClient::triggerReconnect(PoolWatchClient *client) {
   timeval reconnectTimeout{0, 0};
   time_t sleepTime = 10 - (time(nullptr) - client->upTime_);
   if (sleepTime > 0) {

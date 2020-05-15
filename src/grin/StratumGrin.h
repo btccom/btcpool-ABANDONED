@@ -149,7 +149,7 @@ struct LocalShareGrin {
   LocalShareGrin(uint64_t exNonce2, uint32_t nonce, uint32_t time)
     : exNonce2_(exNonce2)
     , nonce_(nonce)
-    , time_(time){}
+    , time_(time) {}
 
   LocalShareGrin &operator=(const LocalShareGrin &other) {
     exNonce2_ = other.exNonce2_;
@@ -160,11 +160,11 @@ struct LocalShareGrin {
 
   bool operator<(const LocalShareGrin &r) const {
     if (exNonce2_ < r.exNonce2_ ||
-       (exNonce2_ == r.exNonce2_ && nonce_ < r.nonce_) ||
-       (exNonce2_ == r.exNonce2_ && nonce_ == r.nonce_ && time_ < r.time_) ) {
-        return true;
-     }
-     return false;
+        (exNonce2_ == r.exNonce2_ && nonce_ < r.nonce_) ||
+        (exNonce2_ == r.exNonce2_ && nonce_ == r.nonce_ && time_ < r.time_)) {
+      return true;
+    }
+    return false;
   }
 };
 

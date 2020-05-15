@@ -81,7 +81,7 @@ public:
       const string upstreamJobId,
       const StratumJobBitcoin &job,
       PoolWatchClientBitcoinProxy *client);
-  inline bool isGrandPoolEnabled(){ return grandPoolEnabled_;}
+  inline bool isGrandPoolEnabled() { return grandPoolEnabled_; }
 };
 
 ///////////////////////////////// PoolWatchClient //////////////////////////////

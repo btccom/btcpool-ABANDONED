@@ -135,7 +135,7 @@ void StratumMinerSia::handleRequest_Submit(
   }
 
   uint64_t nonce = *((uint64_t *)(bHeader + 32));
-  //LocalShare localShare(nonce, 0, 0);
+  // LocalShare localShare(nonce, 0, 0);
   LocalShareType localShare(nonce);
   if (!server.isEnableSimulator_ && !localJob->addLocalShare(localShare)) {
     session.responseError(idStr, StratumStatus::DUPLICATE_SHARE);

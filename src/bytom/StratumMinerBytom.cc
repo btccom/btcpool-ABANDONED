@@ -169,7 +169,7 @@ void StratumMinerBytom::handleRequest_Submit(
   }
 
   //  Check share duplication
-  //LocalShare localShare(nonce, 0, 0);
+  // LocalShare localShare(nonce, 0, 0);
   LocalShareType localShare(nonce);
   if (!server.isEnableSimulator_ && !localJob->addLocalShare(localShare)) {
     session.responseError(idStr, StratumStatus::DUPLICATE_SHARE);

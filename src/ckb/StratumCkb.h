@@ -137,7 +137,7 @@ struct LocalShareCkb {
   LocalShareCkb(uint64_t exNonce2, uint32_t nonce, uint32_t time)
     : exNonce2_(exNonce2)
     , nonce_(nonce)
-    , time_(time){}
+    , time_(time) {}
 
   LocalShareCkb &operator=(const LocalShareCkb &other) {
     exNonce2_ = other.exNonce2_;
@@ -148,8 +148,8 @@ struct LocalShareCkb {
 
   bool operator<(const LocalShareCkb &r) const {
     if (exNonce2_ < r.exNonce2_ ||
-       (exNonce2_ == r.exNonce2_ && nonce_ < r.nonce_) ||
-       (exNonce2_ == r.exNonce2_ && nonce_ == r.nonce_ && time_ < r.time_) ) {
+        (exNonce2_ == r.exNonce2_ && nonce_ < r.nonce_) ||
+        (exNonce2_ == r.exNonce2_ && nonce_ == r.nonce_ && time_ < r.time_)) {
       return true;
     }
     return false;
@@ -165,11 +165,11 @@ struct StratumTraitsCkb {
   using LocalShareType = LocalShareCkb;
   struct LocalJobType : public LocalJobBase<LocalShareType> {
     LocalJobType(size_t chainId, uint64_t jobId)
-       : LocalJobBase<LocalShareType>(chainId, jobId) {}
+      : LocalJobBase<LocalShareType>(chainId, jobId) {}
 
-    //copy from LocalJob
+    // copy from LocalJob
     bool operator==(uint64_t jobId) const { return jobId_ == jobId; }
-};
+  };
 
   struct JobDiffType {
     uint64_t currentJobDiff_;

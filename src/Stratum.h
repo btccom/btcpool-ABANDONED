@@ -225,7 +225,7 @@ struct LocalJobBase : public LocalJob {
   std::set<LocalShareType> submitShares_;
 
   LocalJobBase(size_t chainId, uint64_t jobId)
-    : LocalJob(chainId,jobId) {}
+    : LocalJob(chainId, jobId) {}
 
   bool addLocalShare(const LocalShareType &localShare) {
     return submitShares_.insert(localShare).second;

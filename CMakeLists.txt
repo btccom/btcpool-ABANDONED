@@ -55,14 +55,6 @@ else()
   message("    WARNING: Bytom share checking will be too slow without Nvidia CUDA.")
 endif()
 
-option(USE_LOCAL_SHARE_BITCOIN "Use LocalShareBitcoin in build" OFF)
-if(USE_LOCAL_SHARE_BITCOIN)
-    add_definitions(-DLOCAL_SHARE_NO_GRAND_FIELD)
-    message("-- Use LocalShareBitcoin in build: Enabled (-DUSE_LOCAL_SHARE_BITCOIN=ON)")
-else()
-    message("-- Use LocalShareBitcoinGrand in build: Enabled (-DUSE_LOCAL_SHARE_BITCOIN=OFF)")
-endif()
-
 #
 # Chain Type
 #

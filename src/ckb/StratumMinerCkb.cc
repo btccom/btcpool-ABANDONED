@@ -143,7 +143,7 @@ void StratumMinerCkb::handleRequest_Submit(
   ip.fromIpv4Int(session.getClientIp());
   share.set_ip(ip.toString());
 
-  //LocalShare localShare(extraNonce2, sessionId, JobId);
+  // LocalShare localShare(extraNonce2, sessionId, JobId);
   LocalShareType localShare(extraNonce2, sessionId, JobId);
   // can't add local share
   if (!localJob->addLocalShare(localShare)) {

@@ -214,7 +214,8 @@ public:
 struct LocalShareSia {
   uint64_t exNonce2_; // extra nonce2 fixed 8 bytes
 
-  LocalShareSia(uint64_t exNonce2): exNonce2_(exNonce2){}
+  LocalShareSia(uint64_t exNonce2)
+    : exNonce2_(exNonce2) {}
 
   LocalShareSia &operator=(const LocalShareSia &other) {
     exNonce2_ = other.exNonce2_;
@@ -222,7 +223,7 @@ struct LocalShareSia {
   }
 
   bool operator<(const LocalShareSia &r) const {
-    if (exNonce2_ < r.exNonce2_ ) {
+    if (exNonce2_ < r.exNonce2_) {
       return true;
     }
     return false;
@@ -237,7 +238,7 @@ struct StratumTraitsSia {
   using SessionType = StratumSessionSia;
   using JobDiffType = uint64_t;
   using LocalShareType = LocalShareSia;
-  struct LocalJobType : public LocalJobBase<LocalShareType>{
+  struct LocalJobType : public LocalJobBase<LocalShareType> {
     LocalJobType(size_t chainId, uint64_t jobId, uint8_t shortJobId)
       : LocalJobBase<LocalShareType>(chainId, jobId)
       , shortJobId_(shortJobId)

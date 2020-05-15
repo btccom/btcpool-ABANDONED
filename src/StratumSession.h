@@ -214,7 +214,7 @@ public:
   size_t getChainId() const { return worker_.chainId_; }
   State getState() const { return state_; }
   string getUserName() const { return worker_.userName_; }
-  bool isGrandPoolClient() { return isGrandPoolClient_;}
+  bool isGrandPoolClient() { return isGrandPoolClient_; }
 
   bool isDead() const;
   void markAsDead();

@@ -134,7 +134,7 @@ struct LocalShareBeam {
 
   LocalShareBeam(uint64_t exNonce2, uint32_t nonce)
     : exNonce2_(exNonce2)
-    , nonce_(nonce){}
+    , nonce_(nonce) {}
 
   LocalShareBeam &operator=(const LocalShareBeam &other) {
     exNonce2_ = other.exNonce2_;
@@ -144,8 +144,8 @@ struct LocalShareBeam {
 
   bool operator<(const LocalShareBeam &r) const {
     if (exNonce2_ < r.exNonce2_ ||
-       (exNonce2_ == r.exNonce2_ && nonce_ < r.nonce_) ) {
-        return true;
+        (exNonce2_ == r.exNonce2_ && nonce_ < r.nonce_)) {
+      return true;
     }
     return false;
   }
@@ -170,7 +170,7 @@ struct StratumTraitsBeam {
       return *this;
     }
   };
-  struct LocalJobType : public LocalJobBase<LocalShareType>{
+  struct LocalJobType : public LocalJobBase<LocalShareType> {
     LocalJobType(size_t chainId, uint64_t jobId, uint32_t inputHash)
       : LocalJobBase<LocalShareType>(chainId, jobId)
       , inputHash_(inputHash) {}

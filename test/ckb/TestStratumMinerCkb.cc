@@ -6,25 +6,30 @@
 
 TEST(StratumMinerCkb, LocalShareCkb) {
   static_assert(
-    std::is_base_of<LocalShareCkb, StratumTraitsCkb::LocalShareType>::value,
-    "StratumTraitsCkb::LocalShareType is not derived from LocalShareCkb");
+      std::is_base_of<LocalShareCkb, StratumTraitsCkb::LocalShareType>::value,
+      "StratumTraitsCkb::LocalShareType is not derived from LocalShareCkb");
 
-  //LocalShare localShare(extraNonce2, sessionId, JobId);
-  StratumTraitsCkb::LocalShareType ls1(0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFU, 0xFFFFFFFFU);
+  // LocalShare localShare(extraNonce2, sessionId, JobId);
+  StratumTraitsCkb::LocalShareType ls1(
+      0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFU, 0xFFFFFFFFU);
   {
-    StratumTraitsCkb::LocalShareType ls2(0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFU, 0xFFFFFFFFU);
+    StratumTraitsCkb::LocalShareType ls2(
+        0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFU, 0xFFFFFFFFU);
     ASSERT_EQ(ls2 < ls1, true);
   }
   {
-    StratumTraitsCkb::LocalShareType ls2(0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFEU, 0xFFFFFFFFU);
+    StratumTraitsCkb::LocalShareType ls2(
+        0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFEU, 0xFFFFFFFFU);
     ASSERT_EQ(ls2 < ls1, true);
   }
   {
-    StratumTraitsCkb::LocalShareType ls2(0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFU, 0xFFFFFFFEU);
+    StratumTraitsCkb::LocalShareType ls2(
+        0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFU, 0xFFFFFFFEU);
     ASSERT_EQ(ls2 < ls1, true);
   }
   {
-    StratumTraitsCkb::LocalShareType ls2(0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFU, 0xFFFFFFFFU);
+    StratumTraitsCkb::LocalShareType ls2(
+        0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFU, 0xFFFFFFFFU);
     ASSERT_EQ(ls2 < ls1, false);
     ASSERT_EQ(ls2 < ls2, false);
   }
@@ -36,16 +41,18 @@ TEST(StratumMinerCkb, LocalShareCkb) {
   }
 }
 
-//LocalJobType<LocalShareCkb>
+// LocalJobType<LocalShareCkb>
 TEST(StratumMinerCkb, LocalJob) {
-  StratumTraitsCkb::LocalJobType  lj(0, 0);
+  StratumTraitsCkb::LocalJobType lj(0, 0);
 
   {
-    StratumTraitsCkb::LocalShareType ls1(0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFU, 0xFFFFFFFFU);
+    StratumTraitsCkb::LocalShareType ls1(
+        0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFU, 0xFFFFFFFFU);
     ASSERT_EQ(lj.addLocalShare(ls1), true);
   }
   {
-    StratumTraitsCkb::LocalShareType ls1(0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFU, 0xFFFFFFFFU);
+    StratumTraitsCkb::LocalShareType ls1(
+        0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFU, 0xFFFFFFFFU);
     ASSERT_EQ(lj.addLocalShare(ls1), false);
   }
   {

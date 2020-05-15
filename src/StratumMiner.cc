@@ -61,7 +61,7 @@ void StratumMiner::resetCurDiff(uint64_t curDiff) {
 }
 
 void StratumMiner::setGrandPoolClient(bool isGrandPoolClient) {
-    isGrandPoolClient_ = isGrandPoolClient;
+  isGrandPoolClient_ = isGrandPoolClient;
 }
 
 uint64_t StratumMiner::calcCurDiff() {

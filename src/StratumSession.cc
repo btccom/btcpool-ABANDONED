@@ -547,7 +547,8 @@ void StratumSession::setClientAgent(const string &clientAgent) {
       (0 ==
        clientAgent_.compare(0, BtccomAgentPrefix.size(), BtccomAgentPrefix));
 
-  isGrandPoolClient_ = this->getServer().grandPoolEnabled_ && clientAgent_ == PoolGrandPoolWatcher ;
+  isGrandPoolClient_ = this->getServer().grandPoolEnabled_ &&
+      clientAgent_ == PoolGrandPoolWatcher;
 
   isLongTimeout_ =
       (isAgentClient_ || isNiceHashClient_ || isGrandPoolClient_ ||

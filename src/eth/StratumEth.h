@@ -297,7 +297,8 @@ public:
 struct LocalShareEth {
   uint64_t exNonce2_; // extra nonce2 fixed 8 bytes
 
-  LocalShareEth(uint64_t exNonce2) : exNonce2_(exNonce2){}
+  LocalShareEth(uint64_t exNonce2)
+    : exNonce2_(exNonce2) {}
 
   LocalShareEth &operator=(const LocalShareEth &other) {
     exNonce2_ = other.exNonce2_;
@@ -305,7 +306,7 @@ struct LocalShareEth {
   }
 
   bool operator<(const LocalShareEth &r) const {
-    if (exNonce2_ < r.exNonce2_ ) {
+    if (exNonce2_ < r.exNonce2_) {
       return true;
     }
     return false;

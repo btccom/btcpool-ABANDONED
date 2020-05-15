@@ -280,15 +280,14 @@ void StratumJobExBitcoin::generateCoinbaseTx(
     const bool isGrandPoolClient,
     const uint32_t extraGrandNonce1) {
   string coinbaseHex;
-  string extraNonceStr =
-      Strings::Format("%08x%s", extraNonce1, extraNonce2Hex);
+  string extraNonceStr = Strings::Format("%08x%s", extraNonce1, extraNonce2Hex);
   auto sjob = std::static_pointer_cast<StratumJobBitcoin>(sjob_);
   string coinbase1 = sjob->coinbase1_;
 
-  if(isGrandPoolClient){
-      coinbase1 = sjob->grandCoinbase1_;
-      extraNonceStr =
-              Strings::Format("%08x%08x%s", extraNonce1,extraGrandNonce1, extraNonce2Hex);
+  if (isGrandPoolClient) {
+    coinbase1 = sjob->grandCoinbase1_;
+    extraNonceStr = Strings::Format(
+        "%08x%08x%s", extraNonce1, extraGrandNonce1, extraNonce2Hex);
   }
 
   coinbaseHex.append(coinbase1);
@@ -335,7 +334,12 @@ void StratumJobExBitcoin::generateBlockHeader(
   header->nNonce = nonce;
 
   // compute merkle root
-  generateCoinbaseTx(coinbaseBin, extraNonce1, extraNonce2Hex,isGrandPoolClient,extraGrandNonce1);
+  generateCoinbaseTx(
+      coinbaseBin,
+      extraNonce1,
+      extraNonce2Hex,
+      isGrandPoolClient,
+      extraGrandNonce1);
   header->hashMerkleRoot =
       ComputeCoinbaseMerkleRoot(*coinbaseBin, merkleBranch);
 #endif
@@ -623,7 +627,8 @@ void ServerBitcoin::checkShare(
       sendSolvedShare2Kafka(chainId, &foundBlock, coinbaseBin);
 
       if (sjob->proxyJobDifficulty_ > 0) {
-        LOG(INFO) << ">>>> [" << chainName(chainId) << "] solution found: " << blkHash.ToString()
+        LOG(INFO) << ">>>> [" << chainName(chainId)
+                  << "] solution found: " << blkHash.ToString()
                   << ", jobId: " << share.jobid()
                   << ", userId: " << share.userid() << ", by: " << workFullName
                   << " <<<<";
@@ -633,7 +638,8 @@ void ServerBitcoin::checkShare(
           GetJobRepository(chainId)->markAllJobsAsStale(height);
         });
 
-        LOG(INFO) << ">>>> [" << chainName(chainId) << "] found a new block: " << blkHash.ToString()
+        LOG(INFO) << ">>>> [" << chainName(chainId)
+                  << "] found a new block: " << blkHash.ToString()
                   << ", jobId: " << share.jobid()
                   << ", userId: " << share.userid() << ", by: " << workFullName
                   << " <<<<";

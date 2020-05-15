@@ -810,7 +810,9 @@ void BlockMakerBitcoin::_saveBlockToDBThread(
     if (jobId2SubPool_.find(foundBlock.jobId_) != jobId2SubPool_.end()) {
       auto subPool = jobId2SubPool_[foundBlock.jobId_];
       for (const auto &itr : subPool) {
-        if ((coinbaseTxBin.find(itr.coinbase1_) != coinbaseTxBin.npos || (itr.grandCoinbase1_.size()>0 && coinbaseTxBin.find(itr.grandCoinbase1_) != coinbaseTxBin.npos) ) &&
+        if ((coinbaseTxBin.find(itr.coinbase1_) != coinbaseTxBin.npos ||
+             (itr.grandCoinbase1_.size() > 0 &&
+              coinbaseTxBin.find(itr.grandCoinbase1_) != coinbaseTxBin.npos)) &&
             coinbaseTxBin.find(itr.coinbase2_) != coinbaseTxBin.npos) {
           subPoolName = filterTableName("_" + itr.name_);
           break;

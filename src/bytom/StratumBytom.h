@@ -226,7 +226,8 @@ public:
 struct LocalShareBytom {
   uint64_t exNonce2_; // extra nonce2 fixed 8 bytes
 
-  LocalShareBytom(uint64_t exNonce2) : exNonce2_(exNonce2){}
+  LocalShareBytom(uint64_t exNonce2)
+    : exNonce2_(exNonce2) {}
 
   LocalShareBytom &operator=(const LocalShareBytom &other) {
     exNonce2_ = other.exNonce2_;
@@ -234,7 +235,7 @@ struct LocalShareBytom {
   }
 
   bool operator<(const LocalShareBytom &r) const {
-    if(exNonce2_ < r.exNonce2_) {
+    if (exNonce2_ < r.exNonce2_) {
       return true;
     }
     return false;
@@ -249,7 +250,7 @@ struct StratumTraitsBytom {
   using SessionType = StratumSessionBytom;
   using LocalShareType = LocalShareBytom;
   using JobDiffType = uint64_t;
-  struct LocalJobType : public LocalJobBase<LocalShareType>{
+  struct LocalJobType : public LocalJobBase<LocalShareType> {
     LocalJobType(size_t chainId, uint64_t jobId, uint8_t shortJobId)
       : LocalJobBase<LocalShareType>(chainId, jobId)
       , shortJobId_(shortJobId)

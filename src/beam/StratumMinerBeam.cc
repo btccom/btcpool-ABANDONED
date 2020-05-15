@@ -124,7 +124,7 @@ void StratumMinerBeam::handleRequest_Submit(
   ip.fromIpv4Int(session.getClientIp());
   share.set_ip(ip.toString());
 
-  //LocalShare localShare(nonce, outputHash, 0);
+  // LocalShare localShare(nonce, outputHash, 0);
   LocalShareType localShare(nonce, outputHash);
   // can't add local share
   if (!localJob->addLocalShare(localShare)) {

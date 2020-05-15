@@ -141,12 +141,18 @@ void StratumMinerBitcoin::handleRequest_Submit(
 #endif
 
   uint32_t extraGrandNonce1 = 0;
-  if(isGrandPoolClient_){
-      extraGrandNonce1 = jparams.children()->at(0).uint32_hex();
+  if (isGrandPoolClient_) {
+    extraGrandNonce1 = jparams.children()->at(0).uint32_hex();
   }
 
   handleRequest_Submit(
-      idStr, shortJobId, extraNonce2, nonce, nTime, versionMask,extraGrandNonce1);
+      idStr,
+      shortJobId,
+      extraNonce2,
+      nonce,
+      nTime,
+      versionMask,
+      extraGrandNonce1);
 }
 
 void StratumMinerBitcoin::handleExMessage_SubmitShare(
@@ -332,17 +338,14 @@ void StratumMinerBitcoin::handleRequest_Submit(
   BitcoinDifficulty::DiffToTarget(share.sharediff(), jobTarget);
 
 #ifdef CHAIN_TYPE_ZEC
-    LocalShareType localShare(
+  LocalShareType localShare(
       nonce.nonce.GetCheapHash(),
       nonceHash,
       nTime,
       djb2(nonce.solution.c_str()));
 #else
-    #ifdef LOCAL_SHARE_NO_GRAND_FIELD
-        LocalShareType localShare(extraNonce2, nonce, nTime, versionMask);
-    #else
-        LocalShareType localShare(extraNonce2, nonce, nTime, versionMask,extraGrandNonce1);
-    #endif
+  LocalShareType localShare(
+      extraNonce2, nonce, nTime, versionMask, extraGrandNonce1);
 #endif
 
   // can't find local share
