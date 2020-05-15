@@ -32,70 +32,72 @@
 #include "StratumMessageDispatcher.h"
 #include "StratumMiner.h"
 #include "DiffController.h"
+#include "bitcoin/StratumBitcoin.h"
 
 using namespace std;
 using namespace testing;
-/*
-TEST(StratumSession, LocalShare) {
-  LocalShare ls1(0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU);
+
+TEST(StratumSession, LocalShareBitcoin) {
+  StratumTraitsBitcoin::LocalShareType ls1(
+      0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU);
 
   {
-    LocalShare ls2(
+    StratumTraitsBitcoin::LocalShareType ls2(
         0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU);
     ASSERT_EQ(ls2 < ls1, true);
   }
   {
-    LocalShare ls2(
+    StratumTraitsBitcoin::LocalShareType ls2(
         0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFEU, 0xFFFFFFFFU, 0xFFFFFFFFU);
     ASSERT_EQ(ls2 < ls1, true);
   }
   {
-    LocalShare ls2(
+    StratumTraitsBitcoin::LocalShareType ls2(
         0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFU, 0xFFFFFFFEU, 0xFFFFFFFFU);
     ASSERT_EQ(ls2 < ls1, true);
   }
   {
-    LocalShare ls2(
+    StratumTraitsBitcoin::LocalShareType ls2(
         0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFEU);
     ASSERT_EQ(ls2 < ls1, true);
   }
   {
-    LocalShare ls2(
+    StratumTraitsBitcoin::LocalShareType ls2(
         0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU);
     ASSERT_EQ(ls2 < ls1, false);
     ASSERT_EQ(ls2 < ls2, false);
   }
   {
-    LocalShare ls2(0x0ULL, 0x0U, 0x0U, 0x0u);
+    StratumTraitsBitcoin::LocalShareType ls2(0x0ULL, 0x0U, 0x0U, 0x0u);
     ls2 = ls1;
     ASSERT_EQ(ls2 < ls1, false);
     ASSERT_EQ(ls2 < ls2, false);
   }
 }
 
-TEST(StratumSession, LocalJob) {
-  LocalJob lj(0, 0);
+TEST(StratumSession, LocalJobBitcoin) {
+  StratumTraitsBitcoin::LocalJobType lj(0, 0, 0, 0);
 
   {
-    LocalShare ls1(
+    StratumTraitsBitcoin::LocalShareType ls1(
         0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU);
     ASSERT_EQ(lj.addLocalShare(ls1), true);
   }
   {
-    LocalShare ls1(
+    StratumTraitsBitcoin::LocalShareType ls1(
         0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU);
     ASSERT_EQ(lj.addLocalShare(ls1), false);
   }
   {
-    LocalShare ls2(0x0ULL, 0x0U, 0x0U, 0x0u);
+    StratumTraitsBitcoin::LocalShareType ls2(0x0ULL, 0x0U, 0x0U, 0x0u);
     ASSERT_EQ(lj.addLocalShare(ls2), true);
   }
   {
-    LocalShare ls2(0x0ULL, 0x0U, 0x0U, 0x0u);
+    StratumTraitsBitcoin::LocalShareType ls2(0x0ULL, 0x0U, 0x0U, 0x0u);
     ASSERT_EQ(lj.addLocalShare(ls2), false);
   }
 }
-*/
+
 class StratumSessionMock : public IStratumSession {
 public:
   MOCK_METHOD3(addWorker, void(const string &, const string &, int64_t));
