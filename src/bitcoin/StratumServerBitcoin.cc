@@ -114,7 +114,8 @@ void JobRepositoryBitcoin::broadcastStratumJob(
   // previous jobs don't have a sense and such shares will be rejected. When
   // this flag is set, miner should also drop all previous jobs.
   //
-  shared_ptr<StratumJobEx> exJob(createStratumJobEx(sjob, isClean));
+  shared_ptr<StratumJobEx> exJob(
+      createStratumJobEx(sjob, isClean || isMergedMiningClean));
 
   if (isClean) {
     // mark all jobs as stale, should do this before insert new job
