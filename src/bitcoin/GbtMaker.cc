@@ -405,9 +405,20 @@ void GbtMaker::threadListenBitcoind() {
 }
 
 #if defined(CHAIN_TYPE_BCH) || defined(CHAIN_TYPE_BSV)
+
+void GbtMaker::threadListenBitcoindLightMsg() {
+  ListenToZmqPublisher(
+      *zmqContext_,
+      zmqBitcoindAddr_,
+      BITCOIND_ZMQ_HASHBLOCK,
+      running_,
+      zmqTimeout_,
+      [this]() { submitRawGbtLightMsg(false); });
+}
+
 void GbtMaker::runLightGbt() {
   auto threadListenBitcoind =
-      std::thread(&GbtMaker::threadListenBitcoind, this);
+      std::thread(&GbtMaker::threadListenBitcoindLightMsg, this);
 
   while (running_) {
     std::this_thread::sleep_for(1s);
