@@ -91,3 +91,21 @@ file(GLOB SOURCES
 
 add_executable(worker_update ${SOURCES})
 target_link_libraries(worker_update ${THIRD_LIBRARIES})
+
+###################################### Install & Package ######################################
+
+install(TARGETS worker_update DESTINATION bin)
+
+# generate deb package by CPack
+if(POOL__GENERATE_DEB_PACKAGE)
+  set(CPACK_GENERATOR "DEB")
+  set(CPACK_PACKAGE_NAME "btcpool-worker-update")
+  set(CPACK_DEBIAN_PACKAGE_MAINTAINER "YihaoPeng yihao.peng@bitmain.com")
+
+  message("-- Package Name: ${CPACK_PACKAGE_NAME}")
+
+  # dependencies
+  set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+
+  include(CPack)
+endif()
