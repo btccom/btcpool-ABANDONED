@@ -80,6 +80,7 @@ public:
   bool init();
   void stop();
 #if defined(CHAIN_TYPE_BCH) || defined(CHAIN_TYPE_BSV)
+  void threadListenBitcoindLightMsg();
   void runLightGbt();
 #endif
   void run();
