@@ -102,7 +102,7 @@ bool JobMakerHandlerBitcoin::initConsumerHandlers(
   auto kafkaConsumer =
       std::make_shared<KafkaQueueConsumer>(kafkaBrokers, topics);
   std::map<string, string> options{{"fetch.wait.max.ms", "5"}};
-  kafkaConsumer->setup(1, &options);
+  kafkaConsumer->setup(RD_KAFKA_OFFSET_TAIL(1), &options);
   JobMakerConsumerHandler handler{
       kafkaConsumer, [this](const std::string &msg, const std::string &topic) {
         if (topic == def()->rawGbtTopic_) {
