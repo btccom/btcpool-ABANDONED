@@ -151,7 +151,7 @@ public:
   double earn1d_ = 0;
 
   // mark which hour data has been modified: 23, 22, ...., 0
-  uint32_t modifyHoursFlag_;
+  uint32_t modifyHoursFlag_ = 0;
   mutex lock_;
   string rpcUrl_;
 
