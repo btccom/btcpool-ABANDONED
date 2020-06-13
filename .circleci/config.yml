@@ -20,6 +20,9 @@ jobs:
           name: Run clang-format
           command: ./run-clang-format.sh && git diff --exit-code
   test_cases:
+    parameters:
+      chain:
+        type: string
     machine:
       image: ubuntu-1604:201903-01
     steps:
@@ -30,7 +33,7 @@ jobs:
       - run:
           name: Build & Run Tests
           command: |
-            cd docker/btcpool/test/${CIRCLE_JOB#"test_cases@"}
+            cd docker/btcpool/test/<< parameters.chain >>
             ./run-test.sh
   golang_tests:
     docker:
@@ -118,17 +121,15 @@ workflows:
       - clang_format
       - golang_tests
       - test_cases:
-          name: test_cases@bch
-      - test_cases:
-          name: test_cases@bsv
-      - test_cases:
-          name: test_cases@btc
-      - test_cases:
-          name: test_cases@ubtc
-      - test_cases:
-          name: test_cases@ltc
-      - test_cases:
-          name: test_cases@zec
+          matrix:
+            parameters:
+              chain:
+                - bch
+                - bsv
+                - btc
+                - ubtc
+                - ltc
+                - zec
   push_dep_imgs:
     jobs:
       - golang_dep_img:
