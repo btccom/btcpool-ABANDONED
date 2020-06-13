@@ -136,25 +136,12 @@ workflows:
           <<: *dep_img_comm
       - push_dep_img:
           <<: *dep_img_comm
-          name: push_dep_img@bch-0.18.5
-          base: bch-0.18.5
-      - push_dep_img:
-          <<: *dep_img_comm
-          name: push_dep_img@bsv-1.0.1
-          base: bsv-1.0.1
-      - push_dep_img:
-          <<: *dep_img_comm
-          name: push_dep_img@btc-0.16.3
-          base: btc-0.16.3
-      - push_dep_img:
-          <<: *dep_img_comm
-          name: push_dep_img@ubtc-2.5.0.1
-          base: ubtc-2.5.0.1
-      - push_dep_img:
-          <<: *dep_img_comm
-          name: push_dep_img@ltc-0.16.3
-          base: ltc-0.16.3
-      - push_dep_img:
-          <<: *dep_img_comm
-          name: push_dep_img@zec-2.0.4
-          base: zec-2.0.4
+          matrix:
+            parameters:
+              base:
+                - bch-0.18.5
+                - bsv-1.0.1
+                - btc-0.16.3
+                - ubtc-2.5.0.1
+                - ltc-0.16.3
+                - zec-2.0.4
