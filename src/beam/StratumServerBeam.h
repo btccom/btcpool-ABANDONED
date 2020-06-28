@@ -34,6 +34,7 @@ class JobRepositoryBeam;
 class ServerBeam : public ServerBase<JobRepositoryBeam> {
   bool noncePrefixCheck_ = true;
   uint32_t beamHash2ForkHeight_ = 321321;
+  uint32_t beamHash3ForkHeight_ = 777777;
 
 public:
   bool setupInternal(const libconfig::Config &config) override;
@@ -69,6 +70,7 @@ public:
 
   bool noncePrefixCheck() { return noncePrefixCheck_; }
   uint32_t beamHash2ForkHeight() { return beamHash2ForkHeight_; }
+  uint32_t beamHash3ForkHeight() { return beamHash3ForkHeight_; }
 };
 
 class JobRepositoryBeam : public JobRepositoryBase<ServerBeam> {

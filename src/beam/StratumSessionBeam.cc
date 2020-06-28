@@ -148,11 +148,13 @@ void StratumSessionBeam::responseAuthorizeSuccess(const string &idStr) {
       "\"nonceprefix\":\"%06x\","
       "\"code\":0,"
       "\"description\":\"Login successful\","
-      "\"forkheight\":%u"
+      "\"forkheight\":%u,"
+      "\"forkheight2\":%u"
       "}\n",
       idStr,
       sessionId_,
-      getServer().beamHash2ForkHeight());
+      getServer().beamHash2ForkHeight(),
+      getServer().beamHash3ForkHeight()));
   sendData(response.data(), response.size());
 }
 

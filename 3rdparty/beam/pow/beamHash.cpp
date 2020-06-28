@@ -14,6 +14,7 @@
 
 #include "core/block_crypt.h"
 #include "crypto/equihashR.h"
+#include "crypto/beamHashIII.h"
 #include "uint256.h"
 #include "arith_uint256.h"
 #include <utility>
@@ -27,12 +28,15 @@ struct Block::PoW::Helper
 
 	EquihashR<150,5,0> BeamHashI;
 	EquihashR<150,5,3> BeamHashII;
-
+	BeamHash_III       BeamHashIII;
+	
 	PoWScheme* getCurrentPoW(uint32_t hashVersion) {
 		if (hashVersion == 1) {
 			return &BeamHashI;
-		} else {
+		} else if(hashVersion == 2){
 			return &BeamHashII;
+		} else {
+			return &BeamHashIII;
 		}
 	}
 

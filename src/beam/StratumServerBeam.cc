@@ -154,7 +154,9 @@ void ServerBeam::checkAndUpdateShare(
       share.nonce(),
       output,
       shareHash,
-      share.height() < beamHash2ForkHeight_ ? 1 : 2);
+      share.height() < beamHash3ForkHeight_
+          ? share.height() < beamHash2ForkHeight_ ? 1 : 2
+          : 3);
   if (!isValidSulution && !isEnableSimulator_) {
     share.set_status(StratumStatus::INVALID_SOLUTION);
     return;

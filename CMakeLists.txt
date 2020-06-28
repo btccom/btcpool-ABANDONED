@@ -462,6 +462,7 @@ endif()
 
 add_library(beam
     3rdparty/beam/crypto/equihashR_impl.cpp
+    3rdparty/beam/crypto/beamHashIII_impl.cpp
     3rdparty/beam/core/difficulty.cpp
     3rdparty/beam/core/ecc.cpp
     3rdparty/beam/core/uintBig.cpp
