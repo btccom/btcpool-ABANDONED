@@ -118,7 +118,9 @@ void StratumServerGrin::sendSolvedShare2Kafka(
         std::next(proofs.begin()),
         proofs.end(),
         std::to_string(proofs.front()),
-        [](string a, int b) { return std::move(a) + "," + std::to_string(b); });
+        [](string a, uint64_t b) {
+          return std::move(a) + "," + std::to_string(b);
+        });
   }
 
   auto sjob = std::static_pointer_cast<StratumJobGrin>(exjob->sjob_);
