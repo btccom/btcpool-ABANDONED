@@ -154,7 +154,7 @@ void StratumSessionBeam::responseAuthorizeSuccess(const string &idStr) {
       idStr,
       sessionId_,
       getServer().beamHash2ForkHeight(),
-      getServer().beamHash3ForkHeight()));
+      getServer().beamHash3ForkHeight());
   sendData(response.data(), response.size());
 }
 
