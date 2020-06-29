@@ -18,6 +18,7 @@
 #include "uint256.h"
 #include "arith_uint256.h"
 #include <utility>
+#include <glog/logging.h>
 
 namespace beam
 {
@@ -34,8 +35,10 @@ struct Block::PoW::Helper
 		if (hashVersion == 1) {
 			return &BeamHashI;
 		} else if(hashVersion == 2){
+			DLOG(INFO) << "====> using beamhash2...";
 			return &BeamHashII;
 		} else {
+			DLOG(INFO) << "====> using beamhash3...";
 			return &BeamHashIII;
 		}
 	}

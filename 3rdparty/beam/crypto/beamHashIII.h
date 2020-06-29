@@ -19,7 +19,7 @@ const uint32_t numRounds=5;
 
 class stepElem {	
 	friend class BeamHash_III;
-
+	
 	private:
 	std::bitset<workBitSize> workBits;
 	std::vector<uint32_t> indexTree;
@@ -35,6 +35,7 @@ class stepElem {
 	friend bool hasCollision(stepElem &a, stepElem &b);
 	friend bool distinctIndices(stepElem &a, stepElem &b);  
 	friend bool indexAfter(stepElem &a, stepElem &b);  
+	friend uint64_t getLowBits(stepElem test);
 };
 
 class BeamHash_III : public PoWScheme {
