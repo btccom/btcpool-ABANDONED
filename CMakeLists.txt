@@ -476,6 +476,7 @@ add_library(cuckoo
   3rdparty/cuckoo/cuckaroo.cpp
   3rdparty/cuckoo/cuckarood.cpp
   3rdparty/cuckoo/cuckaroom.cpp
+  3rdparty/cuckoo/cuckarooz.cpp
   3rdparty/cuckoo/cuckatoo.cpp
   3rdparty/cuckoo/siphash.cpp)
 
