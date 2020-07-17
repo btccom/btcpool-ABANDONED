@@ -45,6 +45,7 @@ bool verify_cuckarooz(const std::vector<uint64_t> &edges, siphash_keys &keys, ui
   std::vector<uint64_t> uvs(2 * proof_size);
   uint64_t edge_size = static_cast<uint64_t>(1) << edge_bits;
   uint64_t edge_mask = edge_size - 1;
+  uint64_t node_mask = edge_mask * 2;
   uint64_t xoruv = 0;
 
   for (uint64_t n = 0; n < proof_size; n++) {
@@ -54,8 +55,8 @@ bool verify_cuckarooz(const std::vector<uint64_t> &edges, siphash_keys &keys, ui
       return false;
 
     uint64_t edge = SipHashBlock(keys, edges[n], true);
-    uvs[2*n  ] = edge & edge_mask;
-    uvs[2*n+1] = (edge >> 32) & edge_mask;
+    uvs[2*n  ] = edge & node_mask;
+    uvs[2*n+1] = (edge >> 32) & node_mask;
     xoruv ^= uvs[2*n] ^ uvs[2*n+1];
   }
   if (xoruv != 0)
