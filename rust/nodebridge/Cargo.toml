@@ -7,8 +7,8 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ckb-jsonrpc-types = { git = "https://github.com/nervosnetwork/ckb", tag = "v0.25.0" }
-ckb-types = { git = "https://github.com/nervosnetwork/ckb", tag = "v0.25.0" }
+ckb-jsonrpc-types = { git = "https://github.com/nervosnetwork/ckb", tag = "v0.34.2" }
+ckb-types = { git = "https://github.com/nervosnetwork/ckb", tag = "v0.34.2" }
 chrono = "0.4"
 env_logger = "0.6"
 failure = "0.1"
