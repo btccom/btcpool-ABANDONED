@@ -11,7 +11,6 @@ ckb-jsonrpc-types = { git = "https://github.com/nervosnetwork/ckb", tag = "v0.34
 ckb-types = { git = "https://github.com/nervosnetwork/ckb", tag = "v0.34.2" }
 chrono = "0.4"
 env_logger = "0.7"
-failure = "0.1"
 futures = { version = "0.3", features = ["compat"] }
 jsonrpc-client-transports = "14.2"
 jsonrpc-core = "14.2"
