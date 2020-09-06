@@ -45,7 +45,7 @@ fn main() {
             solved_share_topic,
             db_url,
         } => ckb::run(
-            &rpc_addr,
+            rpc_addr,
             rpc_interval,
             kafka_brokers,
             job_topic,

@@ -14,7 +14,6 @@ use rdkafka::producer::{FutureProducer, FutureRecord};
 use rdkafka::topic_partition_list::Offset;
 use rdkafka::util::Timeout;
 use rdkafka::{ClientConfig, TopicPartitionList};
-use tokio::runtime::Runtime;
 use tokio::spawn;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::time::delay_for;
@@ -286,17 +285,16 @@ fn handle_messages(
 }
 
 pub fn run(
-    rpc_addr: &str,
+    rpc_addr: String,
     rpc_interval: u64,
     kafka_brokers: String,
     job_topic: String,
     solved_share_topic: String,
     db_url: String,
 ) {
-    let mut runtime = Runtime::new().expect("Fail to create main runtime");
-    runtime.block_on(async {
+    tokio_compat::run_std(async move {
         info!("Connecting to CKB node {}", rpc_addr);
-        let result = http::connect::<Client>(rpc_addr).compat().await;
+        let result = http::connect::<Client>(&rpc_addr).compat().await;
         let rpc_client = result.expect("Failed to connect to CKB node");
         let (mut tx, rx) = tokio::sync::mpsc::channel::<Message>(256);
         handle_messages(
