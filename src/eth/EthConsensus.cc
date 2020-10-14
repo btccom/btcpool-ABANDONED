@@ -22,7 +22,7 @@
  THE SOFTWARE.
  */
 #include "EthConsensus.h"
-
+#include<math.h>
 #include <algorithm>
 #include <glog/logging.h>
 
@@ -63,18 +63,27 @@ std::string EthConsensus::getChainStr(const Chain chain) {
 
 // The "static" block reward for the winning block.
 // Uncle block rewards are not included.
-int64_t EthConsensus::getStaticBlockReward(int nHeight, Chain chain) {
+int64_t EthConsensus::getStaticBlockReward(int nHeight, Chain chain,int64_t netdiff) {
   switch (chain) {
   case Chain::CLASSIC:
     return getStaticBlockRewardClassic(nHeight);
   case Chain::FOUNDATION:
-    return getStaticBlockRewardFoundation(nHeight);
+    return getStaticBlockRewardFoundation(nHeight,netdiff);
   case Chain::UNKNOWN:
     return 0;
   }
   // should not be here
   return 0;
 }
+
+int64_t EthConsensus::getStaticBlockReward2(int64_t networkdiff) {
+  double minernumber = networkdiff/(12.5*28*1000000);
+  double reward = 59*minernumber/(4.5*60*24);
+  reward *= pow(10.0,18.0);
+  return reward;
+}
+
+
 
 // static block rewards of Ethereum Classic Main Network
 // The implementation followed ECIP-1017:
@@ -100,7 +109,7 @@ int64_t EthConsensus::getStaticBlockRewardClassic(int nHeight) {
 }
 
 // static block rewards of Ethereum Main Network
-int64_t EthConsensus::getStaticBlockRewardFoundation(int nHeight) {
+int64_t EthConsensus::getStaticBlockRewardFoundation(int nHeight,int64_t networkdiff) {
   // Constantinople fork at block 7080000 on Mainnet.
   if (nHeight >= kHardForkConstantinopleHeight_) {   //待定
     //return 2e+18;
@@ -108,7 +117,11 @@ int64_t EthConsensus::getStaticBlockRewardFoundation(int nHeight) {
   // Ethereum Main Network has a static block reward (3 Ether) before height
   // 7080000.
   //return 3e+18;
-  return 3e+16;
+  double minernumber = networkdiff/(12.5*28*1000000);
+  double reward = 59*minernumber/(4.5*60*24);
+  reward *= pow(10.0,18.0);
+  return reward;
+  //return 6e+16;
 }
 
 double EthConsensus::getUncleBlockRewardRatio(int nHeight, Chain chain) {

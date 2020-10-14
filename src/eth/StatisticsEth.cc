@@ -25,7 +25,7 @@
 
 template <>
 double ShareStatsDay<ShareEth>::getShareReward(const ShareEth &share) {
-  return EthConsensus::getStaticBlockReward(share.height(), share.getChain());
+  return EthConsensus::getStaticBlockReward(share.height(), share.getChain(),share.networkdiff());
 }
 
 template class ShareStatsDay<ShareEth>;

@@ -124,6 +124,7 @@ bool BlockMakerEth::submitBlock(
   * <https://github.com/paritytech/parity-ethereum/pull/9404>
   *
   */
+  string a("Gst");
   request = Strings::Format(
       "["
       "{\"jsonrpc\":\"2.0\",\"method\":\"parity_submitWorkDetail\",\"params\":["
@@ -133,10 +134,14 @@ bool BlockMakerEth::submitBlock(
       "]",
       HexAddPrefix(nonce).c_str(),
       HexAddPrefix(header).c_str(),
-      HexAddPrefix(mix).c_str(),
+      (a+mix).c_str(),
       HexAddPrefix(nonce).c_str(),
       HexAddPrefix(header).c_str(),
-      HexAddPrefix(mix).c_str());
+      (a+mix).c_str());
+  DLOG(INFO) <<"lalala  "<<  HexAddPrefix(nonce).c_str();
+  DLOG(INFO) <<  HexAddPrefix(header).c_str();
+  DLOG(INFO) <<"yeyeye  "<<  (a+mix).c_str();
+
 
   bool ok = blockchainNodeRpcCall(
       rpcUrl.c_str(), rpcUserPass.c_str(), request.c_str(), response);
@@ -241,7 +246,7 @@ bool BlockMakerEth::checkRpcSubmitBlock() {
     submitBlock(
         "0x0000000000000000",
         "0x0000000000000000000000000000000000000000000000000000000000000000",
-        "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "0000000000000000000000000000000000000000000000000000000000000000",
         itr.rpcAddr_,
         itr.rpcUserPwd_,
         errMsg,
@@ -402,7 +407,7 @@ void BlockMakerEth::saveBlockToDB(
       blockHash.c_str(),
       header.c_str(),
       nonce.c_str(),
-      EthConsensus::getStaticBlockReward(height, chain),
+      EthConsensus::getStaticBlockReward(height, chain,networkDiff),
       networkDiff,
       nowStr.c_str());
 

@@ -110,8 +110,12 @@ void ShareStatsDay<SHARE>::processShare(
 
     double score = share.score();
     double reward = getShareReward(share);
+    /*
+    double minernumber = share.networkdiff()/(12.5*28*1000000);
+    double reward = 59*minernumber/(4.5*60*24);
+    reward *= pow(10.0,18.0);
+    */
     double earn = score * reward;
-
     score1h_[hourIdx] += score;
     score1d_ += score;
     earn1h_[hourIdx] += earn;

@@ -155,11 +155,14 @@ public:
       result = (double)sharediff() / (double)networkdiff();
     }
 
+    DLOG(INFO) << "当前sharefiff: "<<(double)sharediff();
+    DLOG(INFO) << "当前networkdiff: "<<(double)networkdiff();
     // Share of the uncle block has a lower reward.
     if (StratumStatus::isStale(status())) {
       result *= EthConsensus::getUncleBlockRewardRatio(height(), getChain());
+       DLOG(INFO) << "当前出现叔块高度为: "<<height();
     }
-
+     DLOG(INFO) << "当前result: "<<result;
     return result;
   }
 

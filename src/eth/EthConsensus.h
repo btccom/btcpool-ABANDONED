@@ -43,13 +43,14 @@ public:
 
   // The "static" block reward for the winning block.
   // Uncle block rewards are not included.
-  static int64_t getStaticBlockReward(int nHeight, Chain chain);
+  static int64_t getStaticBlockReward(int nHeight, Chain chain,int64_t netdiff);
 
   inline static int64_t
-  getStaticBlockReward(int nHeight, const std::string &chainStr) {
-    return getStaticBlockReward(nHeight, getChain(chainStr));
+  getStaticBlockReward(int nHeight, const std::string &chainStr,int64_t netdiff) {
+    return getStaticBlockReward(nHeight, getChain(chainStr),netdiff);
   }
 
+  static int64_t getStaticBlockReward2(int64_t netdiff);
   // Get the ratio of the uncle block's reward and the main chain block's
   // reward. Example: the block reward of FOUNDATION uncle block is 7/8 of a
   // mainchain block's, the 0.875 will be returned.
@@ -61,7 +62,7 @@ protected:
   // static block rewards of Ethereum Classic Main Network
   static int64_t getStaticBlockRewardClassic(int nHeight);
   // static block rewards of Ethereum Main Network
-  static int64_t getStaticBlockRewardFoundation(int nHeight);
+  static int64_t getStaticBlockRewardFoundation(int nHeight,int64_t networkdiff);
 
   static double getUncleBlockRewardRatioClassic(int nHeight);
   static double getUncleBlockRewardRatioFoundation(int nHeight);

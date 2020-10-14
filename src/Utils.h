@@ -48,18 +48,20 @@ void Bin2HexR(const vector<char> &in, string &str);
 
 // remove prefix 0x of a hex string
 inline string HexStripPrefix(const string &hex) {
-  if (hex.size() >= 2 && hex[0] == '0' && (hex[1] == 'x' || hex[1] == 'X')) {
-    return hex.substr(2);
+  if (hex.size() >= 3 && hex[0] == 'G' && hex[1] == 's' ) {
+    return hex.substr(3);
   }
   return hex;
 }
 
 // add prefix 0x to a hex string
+// remove prefix 0x 
 inline string HexAddPrefix(const string &hex) {
-  if (hex.size() >= 2 && hex[0] == '0' && (hex[1] == 'x' || hex[1] == 'X')) {
+  if (hex.size() >= 3 && hex[0] == 'G' && hex[1] == 's'){
     return hex;
   }
-  return string("0x") + hex;
+  DLOG(INFO) <<"当前hex" << hex;
+  return string("Gst") + hex.substr(2,hex.length());
 }
 
 // bool DecodeBinTx(CTransaction& tx, const unsigned char *data, size_t len);
@@ -123,9 +125,11 @@ string score2Str(double s);
 
 // we use G, so never overflow
 inline double share2HashrateG(uint64_t share, uint32_t timeDiff) {
-  //    G: 1000000000.0
+   //    G: 1000000000.0
   // 2^32: 4294967296.0
-  return share * (4294967296.0 / 1000000000.0 / timeDiff);
+  // eth ： 1
+  //return share * (4294967296.0 / 1000000000.0 / timeDiff);
+  return share / 1000000000.0 / timeDiff;
 }
 inline double share2HashrateT(uint64_t share, uint32_t timeDiff) {
   return share2HashrateG(share, timeDiff) / 1000.0;

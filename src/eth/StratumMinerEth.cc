@@ -108,7 +108,7 @@ void StratumMinerEth::handleRequest_Submit(
   if (StratumProtocolEth::STRATUM == ethProtocol_ && params.size() < 5) {
     responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
     return;
-  } else if (
+  } else if (    //我们用的这个，params里面有三个参数
       StratumProtocolEth::ETHPROXY == ethProtocol_ && params.size() < 3) {
     responseError(idStr, StratumStatus::ILLEGAL_PARARMS);
     return;
@@ -126,7 +126,7 @@ void StratumMinerEth::handleRequest_Submit(
     sNonce = params[2].str();
     sHeader = params[3].str();
   } break;
-  case StratumProtocolEth::ETHPROXY: {
+  case StratumProtocolEth::ETHPROXY: {  //用的这个
     sNonce = params[0].str();
     sHeader = params[1].str();
     jobId = sHeader;
@@ -178,6 +178,7 @@ void StratumMinerEth::handleRequest_Submit(
 
   uint64_t nonce = stoull(sNonce, nullptr, 16);
   uint32_t height = sjob->height_;
+  DLOG(INFO) <<"当前难度"<< sjob->networkTarget_.GetHex();
   uint64_t networkDiff = Eth_TargetToDifficulty(sjob->networkTarget_.GetHex());
   // Used to prevent duplicate shares. (sHeader has a prefix "0x")
   uint64_t headerPrefix = stoull(sHeader.substr(2, 16), nullptr, 16);

@@ -55,6 +55,8 @@ void WorkerShares<SHARE>::processShare(const SHARE &share, bool acceptStale) {
   if (StratumStatus::isAccepted(share.status()) &&
       (acceptStale || !StratumStatus::isStale(share.status()))) {
     acceptCount_++;
+    DLOG(INFO) << "收到id"<<share.userid()<<"的acceptCount_";
+    DLOG(INFO) << "当前"<<share.userid()<<"的acceptCount_"<<acceptCount_;
     acceptShareSec_.insert(share.timestamp(), share.sharediff());
   } else {
     rejectShareMin_.insert(share.timestamp() / 60, share.sharediff());
@@ -304,10 +306,10 @@ void StatsServerT<SHARE>::processShare(const SHARE &share) {
   if (now > share.timestamp() + STATS_SLIDING_WINDOW_SECONDS) {
     return;
   }
-  poolWorker_.processShare(share, acceptStale_);
+  poolWorker_.processShare(share, acceptStale_);  //矿池总情况
 
   WorkerKey key(share.userid(), share.workerhashid());
-  _processShare(key, share);
+  _processShare(key, share);        //用户矿机
 }
 
 template <class SHARE>
@@ -875,6 +877,7 @@ void StatsServerT<SHARE>::_flushWorkersAndUsersToDBThread() {
             date("%F %T", status.lastShareTime_).c_str(),
             nowStr.c_str(),
             nowStr.c_str()));
+     DLOG(INFO) << "当前workesid："<<workerId<<" 当前acceptCount_"<<status.acceptCount_;
   }
 
   // get all users status
@@ -909,6 +912,7 @@ void StatsServerT<SHARE>::_flushWorkersAndUsersToDBThread() {
             date("%F %T", status.lastShareTime_).c_str(),
             nowStr.c_str(),
             nowStr.c_str()));
+    DLOG(INFO) << "当前usersid："<<workerId<<" 当前acceptCount_"<<status.acceptCount_;
   }
 
   pthread_rwlock_unlock(&rwlock_);

@@ -245,7 +245,7 @@ bool httpPOSTImpl(
     curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, len);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postData);
   }
-
+  DLOG(INFO) << "postData 的值为 " << postData;
   if (userpwd != nullptr)
     curl_easy_setopt(curl, CURLOPT_USERPWD, userpwd);
 
