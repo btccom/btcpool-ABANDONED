@@ -806,29 +806,6 @@ bool StratumJobBitcoin::initFromGbt(
     }
 #endif
     //
-    // output[3] (optional): RSK merge mining
-    //
-    if (latestRskBlockJson.isInitialized()) {
-      DLOG(INFO) << "RSK blockhash: " << blockHashForMergedMining_;
-      string rskBlockTag =
-          "\x6a\x29\x52\x53\x4B\x42\x4C\x4F\x43\x4B\x3A"; // "RSKBLOCK:"
-      vector<char> rskTag(rskBlockTag.begin(), rskBlockTag.end());
-      vector<char> binBuf;
-
-      Hex2Bin(blockHashForMergedMining_.c_str(), binBuf);
-
-      rskTag.insert(std::end(rskTag), std::begin(binBuf), std::end(binBuf));
-
-      CTxOut rskTxOut;
-      rskTxOut.scriptPubKey = CScript(
-          (unsigned char *)rskTag.data(),
-          (unsigned char *)rskTag.data() + rskTag.size());
-      rskTxOut.nValue = AMOUNT_TYPE(0);
-
-      cbOut.push_back(rskTxOut);
-    }
-
-    //
     // output[3] (optional): VCASH merge mining
     //
     if (latestVcashBlockJson.isInitialized()) {
@@ -850,6 +827,32 @@ bool StratumJobBitcoin::initFromGbt(
       vcashTxOut.nValue = AMOUNT_TYPE(0);
 
       cbOut.push_back(vcashTxOut);
+    }
+
+    //
+    // output[3] (optional): RSK merge mining
+    // 
+    // To avoid possible malleability attacks, RSK discards solutions with more than 128 bytes after RSK tag.
+    // Therefor, RSK output should be one of the last or the last output in the Coinbase.
+    //
+    if (latestRskBlockJson.isInitialized()) {
+      DLOG(INFO) << "RSK blockhash: " << blockHashForMergedMining_;
+      string rskBlockTag =
+          "\x6a\x29\x52\x53\x4B\x42\x4C\x4F\x43\x4B\x3A"; // "RSKBLOCK:"
+      vector<char> rskTag(rskBlockTag.begin(), rskBlockTag.end());
+      vector<char> binBuf;
+
+      Hex2Bin(blockHashForMergedMining_.c_str(), binBuf);
+
+      rskTag.insert(std::end(rskTag), std::begin(binBuf), std::end(binBuf));
+
+      CTxOut rskTxOut;
+      rskTxOut.scriptPubKey = CScript(
+          (unsigned char *)rskTag.data(),
+          (unsigned char *)rskTag.data() + rskTag.size());
+      rskTxOut.nValue = AMOUNT_TYPE(0);
+
+      cbOut.push_back(rskTxOut);
     }
 
     if (nmcAuxBits_ == 0u && latestVcashBlockJson.isInitialized()) {
