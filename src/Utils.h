@@ -48,20 +48,18 @@ void Bin2HexR(const vector<char> &in, string &str);
 
 // remove prefix 0x of a hex string
 inline string HexStripPrefix(const string &hex) {
-  if (hex.size() >= 3 && hex[0] == 'G' && hex[1] == 's' ) {
-    return hex.substr(3);
+  if (hex.size() >= 2 && hex[0] == '0' && (hex[1] == 'x' || hex[1] == 'X')) {
+    return hex.substr(2);
   }
   return hex;
 }
 
 // add prefix 0x to a hex string
-// remove prefix 0x 
 inline string HexAddPrefix(const string &hex) {
-  if (hex.size() >= 3 && hex[0] == 'G' && hex[1] == 's'){
+  if (hex.size() >= 2 && hex[0] == '0' && (hex[1] == 'x' || hex[1] == 'X')) {
     return hex;
   }
-  DLOG(INFO) <<"当前hex" << hex;
-  return string("Gst") + hex.substr(2,hex.length());
+  return string("0x") + hex;
 }
 
 // bool DecodeBinTx(CTransaction& tx, const unsigned char *data, size_t len);

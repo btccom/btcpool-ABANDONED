@@ -192,17 +192,6 @@ string GwMakerHandler::makeRawGwMsg() {
   if (!callRpcGw(gw)) {
     return "";
   }
-  while(true)
-  {
-    string::size_type pos(0);
-    if((pos = gw.find("Gst")) != string::npos)
-    {
-      gw.replace(pos,3,"0x");
-    }else{
-      break;
-    }
-    
-  }
   LOG(INFO) << "getwork len=" << gw.length() << ", msg: " << gw.substr(0, 500)
             << (gw.size() > 500 ? "..." : "");
   return processRawGw(gw);
