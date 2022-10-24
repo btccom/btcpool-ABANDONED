@@ -35,7 +35,7 @@ The pool backend support these blockchains at current:
    * [Ckb](https://www.nervos.org/) (finished but the test is not enough)
    > Tips: only Tested with bminer and nbminer. need to be updated after the new version of ckb is released. 
 * Others
-   * ~~[Siacoin](https://www.sia.tech/)~~ (not finished and need test)
+   * [Siacoin](https://www.sia.tech/) (not finished and need test)
 
 It also support these merged mining blockchains of SHA256 blockchains:
 * SHA256 merged mining
