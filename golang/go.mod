@@ -19,7 +19,7 @@ require (
 	github.com/rs/cors v1.7.0 // indirect
 	github.com/stretchr/testify v1.3.0
 	github.com/urfave/cli v1.21.0
-	golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586 // indirect
+	golang.org/x/crypto v0.1.0 // indirect
 	gopkg.in/fsnotify.v1 v1.4.7 // indirect
 	gopkg.in/jcmturner/goidentity.v3 v3.0.0 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
